@@ -27,11 +27,11 @@ dashboard:
   # Uncomment to configure node port
   # nodePort: 32050
 
-scaler:
+autoscaler:
   enabled: false
   replicas: 1
   image:
-    repository: quay.io/nuclio/scaler
+    repository: quay.io/nuclio/autoscaler
     tag: 0.7.7-amd64
     pullPolicy: IfNotPresent
 
@@ -88,30 +88,30 @@ crd:
   create: true
 
 platform:
-   logger:
-     sinks:
-       myHumanReadableStdout:
-         kind: stdout
-         format: humanReadable
-     system:
-     - level: debug
-       sink: myHumanReadableStdout
-     functions:
-     - level: debug
-       sink: myHumanReadableStdout
-   metrics:
-     sinks:
-       myPrometheusPull:
-         kind: prometheusPull
-     system:
-     - myPrometheusPull
-     functions:
-     - myPrometheusPull
-   scaleToZero:
-     metricName: "bla"
-     windowSize: "15s"
-     pollerInterval: "2s"
-     scalerInterval: "10s"
-   autoScale:
-     metricName: "bla"
-     targetValue: "10m"
+#   logger:
+#     sinks:
+#       myHumanReadableStdout:
+#         kind: stdout
+#         format: humanReadable
+#     system:
+#     - level: debug
+#       sink: myHumanReadableStdout
+#     functions:
+#     - level: debug
+#       sink: myHumanReadableStdout
+#   metrics:
+#     sinks:
+#       myPrometheusPull:
+#         kind: prometheusPull
+#     system:
+#     - myPrometheusPull
+#     functions:
+#     - myPrometheusPull
+#   scaleToZero:
+#     metricName: "bla"
+#     windowSize: "15s"
+#     pollerInterval: "2s"
+#     scalerInterval: "10s"
+#   autoScale:
+#     metricName: "bla"
+#     targetValue: "10m"

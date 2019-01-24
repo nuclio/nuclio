@@ -16,7 +16,7 @@
 # Build stage: builds the dlx binary
 #
 
-FROM golang:1.10-alpine3.7 as builder
+FROM golang:1.12-rc-alpine3.8 as builder
 
 RUN apk --update --no-cache add \
     git \
@@ -42,6 +42,6 @@ FROM alpine:3.7
 WORKDIR /home/nuclio
 
 COPY --from=builder /home/nuclio/plugins/plugin.so /home/nuclio/plugins/plugin.so
-COPY --from=quay.io/v3io/dlx:0.0.1 /home/v3io/bin/dlx /home/nuclio/dlx
+COPY --from=quay.io/v3io/dlx:v0.0.1 /home/v3io/bin/dlx /home/nuclio/dlx
 
 CMD ["/home/nuclio/dlx"]

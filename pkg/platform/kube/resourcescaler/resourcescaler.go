@@ -36,7 +36,7 @@ func New() (scaler_types.ResourceScaler, error) { // nolint: deadcode
 	}
 
 	// create a root logger
-	dlxLogger, err := loggersink.CreateSystemLogger("dlx", platformConfiguration)
+	resourceScalerLogger, err := loggersink.CreateSystemLogger("resource-scaler", platformConfiguration)
 	if err != nil {
 		fmt.Println(err)
 		return nil, errors.Wrap(err, "Failed to create logger")
@@ -53,11 +53,11 @@ func New() (scaler_types.ResourceScaler, error) { // nolint: deadcode
 		return nil, errors.Wrap(err, "Failed to create nuclio client set")
 	}
 
-	dlxLogger.DebugWith("Initialized resource scaler",
+	resourceScalerLogger.DebugWith("Initialized resource scaler",
 		"platformconfig", platformConfiguration)
 
 	return &NuclioResourceScaler{
-		logger:          dlxLogger,
+		logger:          resourceScalerLogger,
 		nuclioClientSet: nuclioClientSet,
 		kubeconfigPath:  kubeconfigPath,
 	}, nil
