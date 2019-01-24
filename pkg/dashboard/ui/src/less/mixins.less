@@ -43,6 +43,21 @@
     @action-item-color: @dusk-three;
     @action-item-bg-color: transparent;
     @action-item-inactive-hover-color: transparent;
+    @action-item-active-bg-color: @pale-grey;
+
+    @action-item-hover-bg-color: @pale-grey;
+    @action-item-hover-box-shadow: 0 1px 3px 0 .black(0.13)[@color];
+    @action-item-hover-active-bg-color: @silver;
+    @action-item-hover-active-box-shadow: inset 0 2px 3px 0 .black(0.1)[@color];
+
+    @action-item-focus-bg-color: @pale-grey;
+    @action-item-focus-box-shadow: 0 0 0 1px @silver inset;
+    @action-item-focus-hover-box-shadow: 0 0 0 1px @silver inset, 0 2px 4px 0 .black(0.13)[@color];
+
+    @dropdown-menu-subtemplate-show-bg-color: @silver;
+    @dropdown-menu-subtemplate-show-box-shadow: 0 2px 3px 0 .black(0.1)[@color] inset;
+    @dropdown-menu-subtemplate-show-hover-bg-color: @pale-grey;
+    @dropdown-menu-subtemplate-show-hover-box-shadow: 0 2px 3px 0 .black(0.1)[@color] inset;
 
     @action-item-filter-counter-color: @pale-grey-three;
     @action-item-filter-counter-bg-color: @dark-sky-blue;
@@ -50,14 +65,8 @@
     @dropdown-menu-color: @dusk-three;
     @dropdown-menu-bg-color: @white;
     @dropdown-menu-box-shadow: 0 4px 10px 0 .black(0.25)[@color];
-    @dropdown-menu-hover-bg-color: @pale-grey;
-    @dropdown-menu-hover-box-shadow: 0 1px 3px 0 .black(0.13)[@color];
-    @dropdown-menu-hover-active-box-shadow: inset 0 2px 3px 0 .black(0.1)[@color];
 
     @dropdown-menu-li-hover-bg-color: @pale-grey-two;
-
-    @dropdown-menu-subtemplate-show-bg-color: @silver;
-    @dropdown-menu-subtemplate-show-hover-bg-color: @pale-grey;
 
     @action-subtemplate-bg-color: @white;
     @action-subtemplate-border: 1px solid @alto-four;
@@ -274,7 +283,7 @@
     @default-dropdown-field-bg-color: @white;
 }
 
-.sort-dropdown-color-set() {
+.custom-dropdown-color-set() {
     @dropdown-menu-color: @dusk-three;
     @dropdown-menu-box-shadow: 0 4px 10px 0 .black(0.25)[@color];
     @dropdown-menu-list-box-shadow: 0 4px 10px 0 .black(0.25)[@color];
@@ -594,9 +603,9 @@
 //
 
 .action-icon-color-set() {
-    @action-icon-color: @dusk-three;
-    @action-icon-hover-color: .duskThree(0.64)[@color];
-    @action-icon-active-color: .duskThree(0.3)[@color];
+    @action-icon-color: .duskThree(0.64)[@color];
+    @action-icon-hover-color: @dusk-three;
+    @action-icon-inactive-color: .duskThree(0.3)[@color];
 }
 
 .descriptive-icons-color-set() {
