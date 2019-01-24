@@ -17,18 +17,11 @@ limitations under the License.
 package functiontemplates
 
 import (
-	"encoding/base64"
-	"fmt"
 	"io"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-
-	"github.com/ghodss/yaml"
-	"github.com/icza/dyno"
 	"github.com/nuclio/logger"
-	"github.com/rs/xid"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/filemode"
@@ -37,6 +30,8 @@ import (
 )
 
 type GitFunctionTemplateFetcher struct {
+	BaseFunctionTemplateFetcher
+
 	ref        string
 	repository string
 	logger     logger.Logger
@@ -148,13 +143,11 @@ func (gftf *GitFunctionTemplateFetcher) getTemplatesFromGitTree(rootTree *object
 }
 
 func (gftf *GitFunctionTemplateFetcher) getTemplateFromDir(dir *object.Tree, upperDirName string) (*FunctionTemplate, error) {
-	currentDirFunctionTemplate := FunctionTemplate{}
-
-	// add dir name as function's Name
-	currentDirFunctionTemplate.Name = upperDirName
+	functionTemplateFileContents := FunctionTemplateFileContents{}
+	var currentDirFunctionTemplate *FunctionTemplate
 
 	if sourceFile, err := gftf.getFirstSourceFile(dir); sourceFile != "" {
-		currentDirFunctionTemplate.SourceCode = sourceFile
+		functionTemplateFileContents.Code = sourceFile
 	} else if err != nil {
 		return nil, errors.Wrap(err, "Failed to get and process source file")
 	}
@@ -165,51 +158,30 @@ func (gftf *GitFunctionTemplateFetcher) getTemplateFromDir(dir *object.Tree, upp
 		return nil, errors.Wrap(err, "Found function.yaml but failed to get its content")
 	}
 
-	// if we got functionconfig we're done
 	if file != "" {
-		err = yaml.Unmarshal([]byte(file), &currentDirFunctionTemplate.FunctionConfig)
+
+		// if the template is of the first type (with function.yaml file only)
+		functionTemplateFileContents.TemplateAndValues = file
+	} else {
+
+		// if the template is of the second type (with function.yaml.template and function.yaml.values files)
+		yamlTemplateFile, yamlValuesFile, err := gftf.getFunctionYAMLTemplateAndValuesFromTreeEntries(dir)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to unmarshall yaml file function.yaml")
+			return nil, errors.Wrap(err, "Found function.yaml.template yaml file or "+
+				"function.yaml.values yaml file but failed to get its content")
 		}
 
-		gftf.enrichFunctionTemplate(&currentDirFunctionTemplate)
-		return &currentDirFunctionTemplate, nil
+		functionTemplateFileContents.Template = yamlTemplateFile
+		functionTemplateFileContents.Values = yamlValuesFile
 	}
 
-	// get function.yaml.template - error if failed to get its content although it exists
-	yamlTemplateFile, yamlValuesFile, err := gftf.getFunctionYAMLTemplateAndValuesFromTreeEntries(dir)
-
+	currentDirFunctionTemplate, err = gftf.createFunctionTemplate(functionTemplateFileContents, upperDirName)
 	if err != nil {
-		return nil, errors.Wrap(err, "Found function.yaml.template yaml file or "+
-			"function.yaml.values yaml file but failed to get its content")
+		gftf.logger.WarnWith("Failed to create function template", "err", err)
+		return nil, nil
 	}
 
-	// if one is set both are set - else getFunctionYAMLTemplateAndValuesFromTreeEntries would have raise an error
-	if yamlTemplateFile != "" {
-		currentDirFunctionTemplate.FunctionConfigTemplate = yamlTemplateFile
-
-		var values map[string]interface{}
-		err := yaml.Unmarshal([]byte(yamlValuesFile), &values)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to unmarshall function template's values file")
-		}
-
-		for valueName, valueInterface := range values {
-			values[valueName] = dyno.ConvertMapI2MapS(valueInterface)
-		}
-		currentDirFunctionTemplate.FunctionConfigValues = values
-
-		currentDirFunctionTemplate.FunctionConfig = &functionconfig.Config{}
-
-		gftf.replaceSourceCodeInTemplate(&currentDirFunctionTemplate)
-		gftf.enrichFunctionTemplate(&currentDirFunctionTemplate)
-		return &currentDirFunctionTemplate, nil
-
-	}
-
-	// if we got here no error raised, but we did'nt find files
-	gftf.logger.Debug("No function templates found")
-	return nil, nil
+	return currentDirFunctionTemplate, nil
 }
 
 func (gftf *GitFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromTreeEntries(dir *object.Tree) (string, string, error) {
@@ -270,28 +242,4 @@ func (gftf *GitFunctionTemplateFetcher) getFileFromTreeEntries(entries *object.T
 		}
 	}
 	return "", nil
-}
-
-func (gftf *GitFunctionTemplateFetcher) replaceSourceCodeInTemplate(functionTemplate *FunctionTemplate) {
-
-	// hack: if template writer passed a function source code, reflect it in template by replacing `functionSourceCode: {{ .SourceCode }}`
-	replacement := fmt.Sprintf("functionSourceCode: %s",
-		base64.StdEncoding.EncodeToString([]byte(functionTemplate.SourceCode)))
-	pattern := "functionSourceCode: {{ .SourceCode }}"
-	functionTemplate.FunctionConfigTemplate = strings.Replace(functionTemplate.FunctionConfigTemplate,
-		pattern,
-		replacement,
-		1)
-}
-
-func (gftf *GitFunctionTemplateFetcher) enrichFunctionTemplate(functionTemplate *FunctionTemplate) {
-
-	// set the source code we got earlier
-	functionTemplate.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(
-		[]byte(functionTemplate.SourceCode))
-
-	// set something unique, the UI will ignore everything after `:`, this is par to pre-generated templates
-	functionTemplate.FunctionConfig.Meta = functionconfig.Meta{
-		Name: functionTemplate.Name + ":" + xid.New().String(),
-	}
 }
