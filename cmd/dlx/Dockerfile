@@ -16,7 +16,7 @@
 # Build stage: builds the dlx binary
 #
 
-FROM golang:1.12-rc-alpine3.8 as builder
+FROM golang:1.10-alpine3.7 as builder
 
 RUN apk --update --no-cache add \
     git \
