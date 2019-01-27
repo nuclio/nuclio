@@ -52,7 +52,7 @@ func (zftf *ZipFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get zip file")
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() // nolint: errcheck
 
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
@@ -88,7 +88,7 @@ func (zftf *ZipFunctionTemplateFetcher) readZipFile(zf *zip.File) ([]byte, error
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer f.Close() // nolint: errcheck
 	return ioutil.ReadAll(f)
 }
 
