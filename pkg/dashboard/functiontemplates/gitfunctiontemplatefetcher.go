@@ -20,8 +20,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/logger"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/filemode"
@@ -152,28 +153,15 @@ func (gftf *GitFunctionTemplateFetcher) getTemplateFromDir(dir *object.Tree, upp
 		return nil, errors.Wrap(err, "Failed to get and process source file")
 	}
 
-	// get function.yaml - error if failed to get its content although it exists
-	file, err := gftf.getFileFromTreeEntries(dir, "function.yaml")
+	// if the template is of the second type (with function.yaml.template and function.yaml.values files)
+	yamlTemplateFile, yamlValuesFile, err := gftf.getFunctionYAMLTemplateAndValuesFromTreeEntries(dir)
 	if err != nil {
-		return nil, errors.Wrap(err, "Found function.yaml but failed to get its content")
+		return nil, errors.Wrap(err, "Found function.yaml.template yaml file or "+
+			"function.yaml.values yaml file but failed to get its content")
 	}
 
-	if file != "" {
-
-		// if the template is of the first type (with function.yaml file only)
-		functionTemplateFileContents.TemplateAndValues = file
-	} else {
-
-		// if the template is of the second type (with function.yaml.template and function.yaml.values files)
-		yamlTemplateFile, yamlValuesFile, err := gftf.getFunctionYAMLTemplateAndValuesFromTreeEntries(dir)
-		if err != nil {
-			return nil, errors.Wrap(err, "Found function.yaml.template yaml file or "+
-				"function.yaml.values yaml file but failed to get its content")
-		}
-
-		functionTemplateFileContents.Template = yamlTemplateFile
-		functionTemplateFileContents.Values = yamlValuesFile
-	}
+	functionTemplateFileContents.Template = yamlTemplateFile
+	functionTemplateFileContents.Values = yamlValuesFile
 
 	currentDirFunctionTemplate, err = gftf.createFunctionTemplate(functionTemplateFileContents, upperDirName)
 	if err != nil {
@@ -220,7 +208,6 @@ func (gftf *GitFunctionTemplateFetcher) getFirstSourceFile(entries *object.Tree)
 			return contents, nil
 		}
 	}
-	return "", nil
 }
 
 func (gftf *GitFunctionTemplateFetcher) getFileFromTreeEntries(entries *object.Tree, filename string) (string, error) {
@@ -241,5 +228,4 @@ func (gftf *GitFunctionTemplateFetcher) getFileFromTreeEntries(entries *object.T
 			return contents, nil
 		}
 	}
-	return "", nil
 }

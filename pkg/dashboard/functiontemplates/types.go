@@ -41,8 +41,7 @@ type generatedFunctionTemplate struct {
 // 1. Code and TemplateAndValues
 // 2. Code, Template and Values
 type FunctionTemplateFileContents struct {
-	Code              string
-	Template          string
-	Values            string
-	TemplateAndValues string
+	Code     string
+	Template string
+	Values   string
 }

@@ -23,8 +23,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/logger"
 )
 
 type ZipFunctionTemplateFetcher struct {
@@ -117,7 +118,7 @@ func (zftf *ZipFunctionTemplateFetcher) parseFiles(zipReader *zip.Reader) map[st
 		fileNameWithoutPath := splitFileName[2]
 
 		// get file contents
-		fileContents, err:= zftf.getZipFileContents(zipFile)
+		fileContents, err := zftf.getZipFileContents(zipFile)
 		if err != nil {
 			zftf.logger.WarnWith("Failed to get zip file contents. Ignoring file", "fileName", fileName, "err", err)
 			continue
@@ -131,17 +132,14 @@ func (zftf *ZipFunctionTemplateFetcher) parseFiles(zipReader *zip.Reader) map[st
 		}
 		fs := functionTemplateFileContents[functionName]
 
-		if fileNameWithoutPath == "function.yaml" {
-			fs.TemplateAndValues = fileContents
-
-		} else if len(fileNameWithoutPath) > 3 && fileNameWithoutPath[len(fileNameWithoutPath)-3:] == ".py" {
-			fs.Code = fileContents
-
-		} else if len(fileNameWithoutPath) > 7 && fileNameWithoutPath[len(fileNameWithoutPath)-7:] == ".values" {
+		if strings.Contains(fileNameWithoutPath, ".values") {
 			fs.Values = fileContents
 
-		} else if len(fileNameWithoutPath) > 9 && fileNameWithoutPath[len(fileNameWithoutPath)-9:] == ".template" {
+		} else if strings.Contains(fileNameWithoutPath, ".template") {
 			fs.Template = fileContents
+
+		} else {
+			fs.Code = fileContents
 		}
 	}
 
