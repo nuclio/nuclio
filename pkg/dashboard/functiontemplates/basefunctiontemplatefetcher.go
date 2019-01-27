@@ -28,10 +28,12 @@ func (bftf *BaseFunctionTemplateFetcher) createFunctionTemplate(ftfc FunctionTem
 
 	if ftfc.Template != "" && ftfc.Values != "" {
 		if err := bftf.enrichFunctionConfig(&functionTemplate, ftfc.Template, ftfc.Values); err != nil {
-			return nil, errors.Wrap(err, "Failed to enrich function config (second type)")
+			return nil, errors.Wrap(err, "Failed to enrich function config")
 		}
 	} else {
-		return nil, errors.New("Unknown function file contents structure")
+
+		// The given file contents are not of a valid function template
+		return nil, nil
 	}
 
 	return &functionTemplate, nil

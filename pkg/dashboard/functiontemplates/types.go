@@ -37,9 +37,6 @@ type generatedFunctionTemplate struct {
 }
 
 // keeps the file contents of a function template
-// can keep 2 types of template formats:
-// 1. Code and TemplateAndValues
-// 2. Code, Template and Values
 type FunctionTemplateFileContents struct {
 	Code     string
 	Template string

@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/nuclio/logger"
@@ -77,28 +78,12 @@ func (zftf *ZipFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 				err)
 		}
 
-		functionTemplates = append(functionTemplates, functionTemplate)
+		if functionTemplate != nil {
+			functionTemplates = append(functionTemplates, functionTemplate)
+		}
 	}
 
 	return functionTemplates, nil
-}
-
-func (zftf *ZipFunctionTemplateFetcher) readZipFile(zf *zip.File) ([]byte, error) {
-	f, err := zf.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close() // nolint: errcheck
-	return ioutil.ReadAll(f)
-}
-
-func (zftf *ZipFunctionTemplateFetcher) getZipFileContents(zf *zip.File) (string, error) {
-	unzippedFileBytes, err := zftf.readZipFile(zf)
-	if err != nil {
-		return "", err
-	}
-
-	return string(unzippedFileBytes), nil
 }
 
 func (zftf *ZipFunctionTemplateFetcher) parseFiles(zipReader *zip.Reader) map[string]*FunctionTemplateFileContents {
@@ -118,7 +103,7 @@ func (zftf *ZipFunctionTemplateFetcher) parseFiles(zipReader *zip.Reader) map[st
 		fileNameWithoutPath := splitFileName[2]
 
 		// get file contents
-		fileContents, err := zftf.getZipFileContents(zipFile)
+		fileContents, err := common.GetZipFileContents(zipFile)
 		if err != nil {
 			zftf.logger.WarnWith("Failed to get zip file contents. Ignoring file", "fileName", fileName, "err", err)
 			continue
