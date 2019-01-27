@@ -64,15 +64,15 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 	}, nil
 }
 
-func (n *NuclioResourceScaler) SetScale(namespace string, resource scaler_types.Resource, scale int) error {
+func (n *NuclioResourceScaler) SetScale(resource scaler_types.Resource, scale int) error {
 	if scale == 0 {
-		return n.scaleFunctionToZero(namespace, string(resource))
+		return n.scaleFunctionToZero(n.namespace, string(resource))
 	}
-	return n.scaleFunctionFromZero(namespace, string(resource))
+	return n.scaleFunctionFromZero(n.namespace, string(resource))
 }
 
-func (n *NuclioResourceScaler) GetResources(namespace string) ([]scaler_types.Resource, error) {
-	functions, err := n.nuclioClientSet.NuclioV1beta1().Functions(namespace).List(metav1.ListOptions{})
+func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
+	functions, err := n.nuclioClientSet.NuclioV1beta1().Functions(n.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list functions")
 	}
