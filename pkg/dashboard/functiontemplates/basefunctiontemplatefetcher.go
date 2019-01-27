@@ -71,7 +71,7 @@ func (bftf *BaseFunctionTemplateFetcher) enrichFunctionConfigFirstType(functionT
 		return errors.Wrap(err, "Failed to unmarshall yaml file function.yaml")
 	}
 
-	bftf.enrichFunctionTemplate(&FunctionTemplate{})
+	bftf.enrichFunctionTemplate(functionTemplate)
 	return nil
 }
 

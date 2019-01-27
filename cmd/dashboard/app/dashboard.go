@@ -87,7 +87,7 @@ func Run(listenAddress string,
 		functionZipTemplateFetcher, err = functiontemplates.NewZipFunctionTemplateFetcher(rootLogger,
 			templatesZipFileAddress)
 		if err != nil {
-			rootLogger.WarnWith("Failed to create zip template fetcher", "err", err)
+			return errors.Wrap(err, "Failed to create zip template fetcher")
 		}
 	}
 

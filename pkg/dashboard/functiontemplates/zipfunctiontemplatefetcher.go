@@ -44,6 +44,7 @@ func NewZipFunctionTemplateFetcher(parentLogger logger.Logger, fileAddress strin
 
 func (zftf *ZipFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 	var functionTemplates []*FunctionTemplate
+	var functionsFileContents map[string]*FunctionTemplateFileContents
 
 	zftf.logger.DebugWith("Getting the zip file from the given address", "fileAddress", zftf.fileAddress)
 	response, err := http.Get(zftf.fileAddress)
@@ -62,7 +63,7 @@ func (zftf *ZipFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 		return nil, errors.Wrap(err, "Failed to create zip reader")
 	}
 
-	functionsFileContents := zftf.parseFiles(zipReader)
+	functionsFileContents = zftf.parseFiles(zipReader)
 
 	// parse every function file contents into a function template object
 	for functionName, ffc := range functionsFileContents {
