@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -26,10 +24,11 @@ type NuclioResourceScaler struct {
 	logger          logger.Logger
 	nuclioClientSet nuclioio_client.Interface
 	kubeconfigPath  string
+	namespace       string
 }
 
 // New is called when plugin loaded on scaler, so it's considered "dead code" for the linter
-func New() (scaler_types.ResourceScaler, error) { // nolint: deadcode
+func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, error) { // nolint: deadcode
 	platformConfiguration, err := readPlatformConfiguration()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read platform configuration")
@@ -42,7 +41,6 @@ func New() (scaler_types.ResourceScaler, error) { // nolint: deadcode
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}
 
-	kubeconfigPath := os.Getenv("KUBECONFIG")
 	restConfig, err := getClientConfig(kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get client configuration")
@@ -54,12 +52,15 @@ func New() (scaler_types.ResourceScaler, error) { // nolint: deadcode
 	}
 
 	resourceScalerLogger.DebugWith("Initialized resource scaler",
-		"platformconfig", platformConfiguration)
+		"platformconfig", platformConfiguration,
+		"namespace", namespace,
+		"kubeconfigPath", kubeconfigPath)
 
 	return &NuclioResourceScaler{
 		logger:          resourceScalerLogger,
 		nuclioClientSet: nuclioClientSet,
 		kubeconfigPath:  kubeconfigPath,
+		namespace:       namespace,
 	}, nil
 }
 
@@ -106,19 +107,17 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 		return nil, errors.Wrap(err, "Failed to parse poller interval")
 	}
 
-	namespace := getNamespace()
-
 	return &scaler_types.ResourceScalerConfig{
 		KubeconfigPath: n.kubeconfigPath,
 		AutoScalerOptions: scaler_types.AutoScalerOptions{
-			Namespace:     namespace,
+			Namespace:     n.namespace,
 			ScaleInterval: scaleInterval,
 			ScaleWindow:   scaleWindow,
 			MetricName:    platformConfiguration.ScaleToZero.MetricName,
 			Threshold:     0,
 		},
 		DLXOptions: scaler_types.DLXOptions{
-			Namespace:        namespace,
+			Namespace:        n.namespace,
 			TargetPort:       8081,
 			TargetNameHeader: "X-Nuclio-Target",
 			TargetPathHeader: "X-Nuclio-Function-Path",
@@ -127,7 +126,7 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 		PollerOptions: scaler_types.PollerOptions{
 			MetricInterval: pollerInterval,
 			MetricName:     platformConfiguration.ScaleToZero.MetricName,
-			Namespace:      namespace,
+			Namespace:      n.namespace,
 		},
 	}, nil
 }
@@ -207,19 +206,4 @@ func getClientConfig(kubeconfigPath string) (*rest.Config, error) {
 	}
 
 	return rest.InClusterConfig()
-}
-
-func getNamespace() string {
-
-	// if the namespace exists in env, use that
-	if namespaceEnv := os.Getenv("NUCLIO_SCALER_NAMESPACE"); namespaceEnv != "" {
-		return namespaceEnv
-	}
-
-	// if nothing was passed, assume "this" namespace
-	// get namespace from within the pod. if found, return that
-	if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
-		return string(namespacePod)
-	}
-	return ""
 }
