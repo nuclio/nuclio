@@ -45,8 +45,10 @@ func Run(listenAddress string,
 	offline bool,
 	platformConfigurationPath string,
 	templatesGitRepository string,
-	templatesGitRef string) error {
+	templatesGitRef string,
+	templatesZipFileAddress string) error {
 	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
+	var functionZipTemplateFetcher *functiontemplates.ZipFunctionTemplateFetcher
 
 	// read platform configuration
 	platformConfiguration, err := readPlatformConfiguration(platformConfigurationPath)
@@ -80,17 +82,32 @@ func Run(listenAddress string,
 			"templatesGitRef", templatesGitRef)
 	}
 
+	// create zip fetcher
+	if templatesZipFileAddress != "" {
+		functionZipTemplateFetcher, err = functiontemplates.NewZipFunctionTemplateFetcher(rootLogger,
+			templatesZipFileAddress)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create zip template fetcher")
+		}
+	}
+
 	// create pre-generated templates fetcher
 	functionTemplatesGeneratedFetcher, err := functiontemplates.NewGeneratedFunctionTemplateFetcher(rootLogger)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create pre-generated fetcher")
 	}
 
-	// make repository for fetcher
+	// make repository for fetchers
 	functionTemplateFetchers := []functiontemplates.FunctionTemplateFetcher{functionTemplatesGeneratedFetcher}
+
 	if functionGitTemplateFetcher != nil {
 		functionTemplateFetchers = append(functionTemplateFetchers, functionGitTemplateFetcher)
 	}
+
+	if functionZipTemplateFetcher != nil {
+		functionTemplateFetchers = append(functionTemplateFetchers, functionZipTemplateFetcher)
+	}
+
 	functionTemplatesRepository, err := functiontemplates.NewRepository(rootLogger, functionTemplateFetchers)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create repository out of given fetchers")

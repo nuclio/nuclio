@@ -52,3 +52,32 @@ func TestGithubFetcher(t *testing.T) {
 
 	suite.Run(t, new(GitFetcherTestSuite))
 }
+
+type ZipFetcherTestSuite struct {
+	suite.Suite
+	logger logger.Logger
+}
+
+func (suite *ZipFetcherTestSuite) SetupSuite() {
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+}
+
+func (suite *ZipFetcherTestSuite) TestFetch() {
+	templateFetcher, err := NewZipFunctionTemplateFetcher(suite.logger,
+		"https://github.com/nuclio/nuclio-templates/archive/master.zip")
+
+	suite.Require().NoError(err)
+
+	templates, err := templateFetcher.Fetch()
+	suite.Require().NoError(err)
+
+	suite.logger.DebugWith("Fetcher ended", "templates", templates)
+}
+
+func TestZipFetcher(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	suite.Run(t, new(ZipFetcherTestSuite))
+}

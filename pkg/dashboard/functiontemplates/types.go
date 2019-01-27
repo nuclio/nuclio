@@ -35,3 +35,10 @@ type generatedFunctionTemplate struct {
 	SourceCode         string
 	serializedTemplate []byte
 }
+
+// keeps the file contents of a function template
+type FunctionTemplateFileContents struct {
+	Code     string
+	Template string
+	Values   string
+}
