@@ -18,6 +18,7 @@ package resource
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -282,7 +283,9 @@ func (pr *projectResource) validateDisplayNameExclusiveness(request *http.Reques
 			continue
 		}
 		if project.GetConfig().Spec.DisplayName == projectInfo.Spec.DisplayName {
-			return nuclio.WrapErrConflict(errors.New("Cannot create two projects with the same display name"))
+			errorMsg := fmt.Sprintf("Project display name '%s' already exists for another project",
+				projectInfo.Spec.DisplayName)
+			return nuclio.WrapErrConflict(errors.New(errorMsg))
 		}
 	}
 
