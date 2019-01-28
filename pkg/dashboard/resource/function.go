@@ -116,8 +116,8 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		Namespace: fr.getNamespaceFromRequest(request),
 	}
 
-	projectNameFilter := functionInfo.Meta.Labels["nuclio.io/project-name"]
-	if projectNameFilter == "" {
+	projectNameFilter, ok := functionInfo.Meta.Labels["nuclio.io/project-name"]
+	if !ok || projectNameFilter == ""{
 		responseErr = nuclio.WrapErrBadRequest(errors.New("No project name was given inside meta labels"))
 		return
 	}
