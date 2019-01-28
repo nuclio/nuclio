@@ -1,0 +1,7 @@
+apiVersion: nuclio.io/v1beta1
+kind: Project
+metadata:
+  name: b52cd4d-f077-416f-a3ff-7909c156cd3e
+  namespace: default
+spec:
+  displayName: da

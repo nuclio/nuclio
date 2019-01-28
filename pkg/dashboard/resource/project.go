@@ -276,6 +276,11 @@ func (pr *projectResource) validateDisplayNameExclusiveness(request *http.Reques
 	}
 
 	for _, project := range nameSpaceProjects {
+		if project.GetConfig().Meta.Name == projectInfo.Meta.Name {
+
+			// skip the current project. (relevant when updating, and this project already exists)
+			continue
+		}
 		if project.GetConfig().Spec.DisplayName == projectInfo.Spec.DisplayName {
 			return nuclio.WrapErrConflict(errors.New("Cannot create two projects with the same display name"))
 		}

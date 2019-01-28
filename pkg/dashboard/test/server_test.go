@@ -1221,8 +1221,9 @@ func (suite *projectTestSuite) sendRequestWithExistingDisplayName(method string)
 		return true
 	}
 
+	// mock a different project (with a different name) but with the same display name
 	mockedProject, _ := platform.NewAbstractProject(suite.logger, nil, platform.ProjectConfig {
-		Meta: platform.ProjectMeta{Namespace: "p1Namespace"},
+		Meta: platform.ProjectMeta{Namespace: "p1Namespace", Name: "p2"},
 		Spec: platform.ProjectSpec{DisplayName: "p1DisplayName"},
 	})
 
