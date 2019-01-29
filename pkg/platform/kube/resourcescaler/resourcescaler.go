@@ -127,6 +127,7 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 			MetricInterval: pollerInterval,
 			MetricName:     platformConfiguration.ScaleToZero.MetricName,
 			Namespace:      n.namespace,
+			GroupKind:      "Function",
 		},
 	}, nil
 }
