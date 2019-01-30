@@ -4,7 +4,7 @@ Reads records from [Amazon Kinesis](https://aws.amazon.com/kinesis/) streams.
 
 ## Attributes
 
-| Path | Type | Description |
+| **Path** | **Type** | **Description** |
 | :--- | :--- | :--- |
 | accessKeyID | string | Required by AWS Kinesis |
 | secretAccessKey | string | Required by AWS Kinesis |

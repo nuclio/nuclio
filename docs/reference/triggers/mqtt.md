@@ -4,7 +4,7 @@ Reads messages from MQTT topics.
 
 ## Attributes
 
-| Path | Type | Description |
+| **Path** | **Type** | **Description** |
 | :--- | :--- | :--- |
 | subscriptions | subscription (topic, qos) | An MQTT subscription |
 

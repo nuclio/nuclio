@@ -75,7 +75,6 @@ nuctl deploy my-function \
 ```
 
 > Note:
->
 > 1. `--path` can also hold a URL
 > 2. See the applicable setup guide to get registry informatiom
 
