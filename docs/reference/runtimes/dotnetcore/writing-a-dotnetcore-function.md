@@ -45,7 +45,7 @@ The function configuration needs to include the following:
 1. `runtime` - set to `dotnetcore`.
 2. `handler` - set to the name of the class and the name of the method . In this example, the handler is **nuclio:reverser**.
 
-Run the following command to deploy the function with the [`nuctl`](/docs/reference/nuctl/nuctl.md) Nuclio CLI:
+Run the following command to deploy the function with the Nuclio CLI (`nuctl`).
 
 > Note: If you're not running on top of Kubernetes, pass the `--platform local` option to `nuctl`.
 
