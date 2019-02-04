@@ -27,6 +27,8 @@ import (
 	v3iohttp "github.com/v3io/v3io-go-http"
 )
 
+const retryInterval = 200 * time.Millisecond
+
 type partition struct {
 	*partitioned.AbstractPartition
 	partitionID int
@@ -86,6 +88,7 @@ func (p *partition) Read() error {
 	pollingInterval := time.Duration(p.v3ioTrigger.configuration.PollingIntervalMs) * time.Millisecond
 
 	for {
+
 		// get records
 		response, err = p.v3ioTrigger.container.Sync.GetRecords(&v3iohttp.GetRecordsInput{
 			Path:     partitionPath,
@@ -93,28 +96,30 @@ func (p *partition) Read() error {
 			Limit:    p.v3ioTrigger.configuration.ReadBatchSize,
 		})
 
-		// TODO: skip errors
 		if err != nil {
-			return errors.Wrap(err, "Failed to read from partition")
-		}
+			p.Logger.WarnWith("Error while getting records from partition, retrying", "err", err)
 
-		getRecordsOutput := response.Output.(*v3iohttp.GetRecordsOutput)
+			// wait some time before retrying with same arguments
+			time.Sleep(retryInterval)
+		} else {
+			getRecordsOutput := response.Output.(*v3iohttp.GetRecordsOutput)
 
-		// set next location
-		location = getRecordsOutput.NextLocation
+			// set next location
+			location = getRecordsOutput.NextLocation
 
-		// handle records by processing them in the function
-		for _, record := range getRecordsOutput.Records {
+			// handle records by processing them in the function
+			for _, record := range getRecordsOutput.Records {
 
-			// set the record in the event
-			p.event.record = &record
+				// set the record in the event
+				p.event.record = &record
 
-			// submit to worker
-			p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
-		}
+				// submit to worker
+				p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
+			}
 
-		if len(getRecordsOutput.Records) == 0 {
-			time.Sleep(pollingInterval)
+			if len(getRecordsOutput.Records) == 0 {
+				time.Sleep(pollingInterval)
+			}
 		}
 	}
 }
