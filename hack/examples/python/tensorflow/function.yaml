@@ -6,7 +6,7 @@ spec:
     The function demonstrates advanced uses of nuclio with a custom base image, third-party Python packages,
     pre-loading data into function memory (the AI Model), structured logging, and exception handling.
   runtime: "python:3.6"
-  handler: main:classify
+  handler: tensor:classify
   minReplicas: 1
   maxReplicas: 1
   build:
