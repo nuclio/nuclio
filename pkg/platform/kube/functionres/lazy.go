@@ -1171,9 +1171,13 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 		PeriodSeconds:       5,
 	}
 
-	// always pull so that each create / update will trigger a rolling update including pulling the image. this is
-	// because the tag of the image doesn't change between revisions of the function
-	container.ImagePullPolicy = v1.PullAlways
+	// always pull is the default since each create / update will trigger a rollingupdate including
+	// pulling the image. this is because the tag of the image doesn't change between revisions of the function
+	if function.Spec.ImagePullPolicy == "" {
+		container.ImagePullPolicy = v1.PullAlways
+	} else {
+		container.ImagePullPolicy = function.Spec.ImagePullPolicy
+	}
 }
 
 func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
