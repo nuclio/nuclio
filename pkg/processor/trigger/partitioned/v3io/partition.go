@@ -57,48 +57,25 @@ func newPartition(parentLogger logger.Logger, v3ioTrigger *v3io, partitionID int
 func (p *partition) Read() error {
 	partitionPath := fmt.Sprintf("%s/%d", p.v3ioTrigger.streamPath, p.partitionID)
 
-	p.Logger.DebugWith("Seeking partition",
-		"partitionPath", partitionPath,
-		"seekType", p.v3ioTrigger.seekType)
-
-	response, err := p.v3ioTrigger.container.Sync.SeekShard(&v3iohttp.SeekShardInput{
-		Path: partitionPath,
-		Type: p.v3ioTrigger.seekType,
-	})
-
+	location, err := p.seek(partitionPath)
 	if err != nil {
-		return errors.Wrap(err, "Failed to seek partition")
-	}
-
-	// get the location
-	location := response.Output.(*v3iohttp.SeekShardOutput).Location
-	if location == "" {
-		return errors.New("Got empty location from seek")
+		return err
 	}
 
 	p.Logger.DebugWith("Starting to read from partition",
 		"location", location,
 		"pollingInterval", p.v3ioTrigger.configuration.PollingIntervalMs)
 
-	// release seek shard response
-	response.Release()
-
 	pollingInterval := time.Duration(p.v3ioTrigger.configuration.PollingIntervalMs) * time.Millisecond
 
 	for {
-		// get records
-		response, err = p.v3ioTrigger.container.Sync.GetRecords(&v3iohttp.GetRecordsInput{
-			Path:     partitionPath,
-			Location: location,
-			Limit:    p.v3ioTrigger.configuration.ReadBatchSize,
-		})
+		getRecordsOutput, err := p.getRecords(partitionPath, location, pollingInterval)
 
-		// TODO: skip errors
 		if err != nil {
-			return errors.Wrap(err, "Failed to read from partition")
+			p.Logger.ErrorWith("Failed to read from partition", "error", err)
+			time.Sleep(pollingInterval)
+			continue
 		}
-
-		getRecordsOutput := response.Output.(*v3iohttp.GetRecordsOutput)
 
 		// set next location
 		location = getRecordsOutput.NextLocation
@@ -117,4 +94,40 @@ func (p *partition) Read() error {
 			time.Sleep(pollingInterval)
 		}
 	}
+}
+
+func (p *partition) seek(partitionPath string) (string, error) {
+	p.Logger.DebugWith("Seeking partition",
+		"partitionPath", partitionPath,
+		"seekType", p.v3ioTrigger.seekType)
+
+	response, err := p.v3ioTrigger.container.Sync.SeekShard(&v3iohttp.SeekShardInput{
+		Path: partitionPath,
+		Type: p.v3ioTrigger.seekType,
+	})
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to seek partition")
+	}
+	defer response.Release()
+
+	location := response.Output.(*v3iohttp.SeekShardOutput).Location
+	if location == "" {
+		return "", errors.New("Got empty location from seek")
+	}
+	return location, nil
+}
+
+func (p *partition) getRecords(partitionPath string, location string, pollingInterval time.Duration) (*v3iohttp.GetRecordsOutput, error) {
+	response, err := p.v3ioTrigger.container.Sync.GetRecords(&v3iohttp.GetRecordsInput{
+		Path:     partitionPath,
+		Location: location,
+		Limit:    p.v3ioTrigger.configuration.ReadBatchSize,
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer response.Release()
+
+	return response.Output.(*v3iohttp.GetRecordsOutput), nil
+
 }
