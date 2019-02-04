@@ -22,6 +22,7 @@
 #   apiVersion: "nuclio.io/v1beta1"
 #   kind: "Function"
 #   spec:
+#     handler: sentiments:handler
 #     runtime: "python:3.6"
 #
 #     build:
