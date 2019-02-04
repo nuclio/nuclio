@@ -1173,7 +1173,7 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 
 	// always pull is the default since each create / update will trigger a rollingupdate including
 	// pulling the image. this is because the tag of the image doesn't change between revisions of the function
-	if v1.PullPolicy(function.Spec.ImagePullPolicy) == "" {
+	if function.Spec.ImagePullPolicy == "" {
 		container.ImagePullPolicy = v1.PullAlways
 	} else {
 		container.ImagePullPolicy = function.Spec.ImagePullPolicy
