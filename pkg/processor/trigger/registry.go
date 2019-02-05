@@ -53,7 +53,7 @@ func (r *Registry) NewTrigger(logger logger.Logger,
 		return nil, err
 	}
 
-	// set trigger name for runtime config, this can be overriden by the trigger if it pleases
+	// set trigger name for runtime config, this can be overridden by the trigger if it pleases
 	runtimeConfiguration.TriggerName = name
 
 	return registree.(Creator).Create(logger,
