@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -82,6 +83,8 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 		"--socket-path", socketPath,
 		"--platform-kind", py.configuration.PlatformConfig.Kind,
 		"--namespace", py.configuration.Meta.Namespace,
+		"--worker-id", strconv.Itoa(py.configuration.WorkerID),
+		"--trigger-name", py.configuration.TriggerName,
 	}
 
 	py.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
