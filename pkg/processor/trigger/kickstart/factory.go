@@ -44,6 +44,8 @@ func (f *factory) Create(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to parse kickstart trigger configuration")
 	}
 
+	runtimeConfiguration.TriggerName = triggerConfiguration.WorkerAllocatorName
+
 	// get or create worker allocator
 	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
 		namedWorkerAllocators,
