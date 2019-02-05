@@ -60,7 +60,7 @@ func main() {
 	templatesGitRepository := flag.String("templates-git-repository", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REPOSITORY", "https://github.com/nuclio/nuclio-templates.git"), "Git templates repo's name")
 	templatesGitBranch := flag.String("templates-git-ref", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REF", "refs/heads/master"), "Git templates repo's branch name")
 
-	templatesZipFileAddress := flag.String("templates-zip-file-address", getEnvOrDefaultString("NUCLIO_TEMPLATES_ZIP_FILE_ADDRESS", ""), "Function Templates zip file address")
+	templatesArchiveAddress := flag.String("templates-archive-address", getEnvOrDefaultString("NUCLIO_TEMPLATES_ARCHIVE_ADDRESS", ""), "Function Templates zip file address")
 
 	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the playground listens")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
@@ -92,7 +92,7 @@ func main() {
 		*platformConfigurationPath,
 		*templatesGitRepository,
 		*templatesGitBranch,
-		*templatesZipFileAddress); err != nil {
+		*templatesArchiveAddress); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
