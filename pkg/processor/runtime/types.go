@@ -38,5 +38,4 @@ type Configuration struct {
 	*processor.Configuration
 	FunctionLogger logger.Logger
 	WorkerID       int
-	TriggerName    string
 }
