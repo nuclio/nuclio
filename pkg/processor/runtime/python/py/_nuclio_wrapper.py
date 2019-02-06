@@ -28,7 +28,7 @@ import nuclio_sdk.logger
 
 class Wrapper(object):
 
-    def __init__(self, logger, handler, socket_path, platform_kind, namespace=''):
+    def __init__(self, logger, handler, socket_path, platform_kind, namespace=None, worker_id=None, trigger_name=None):
         self._logger = logger
         self._socket_path = socket_path
         self._json_encoder = nuclio_sdk.json_encoder.Encoder()
@@ -53,7 +53,7 @@ class Wrapper(object):
         entrypoint_module = sys.modules[self._entrypoint.__module__]
 
         # create a context with logger and platform
-        self._context = nuclio_sdk.Context(self._logger, self._platform)
+        self._context = nuclio_sdk.Context(self._logger, self._platform, worker_id, trigger_name)
 
         # call init context
         if hasattr(entrypoint_module, 'init_context'):
@@ -202,6 +202,10 @@ def parse_args():
 
     parser.add_argument('--namespace')
 
+    parser.add_argument('--trigger-name')
+
+    parser.add_argument('--worker-id')
+
     return parser.parse_args()
 
 
@@ -224,7 +228,9 @@ def run_wrapper():
                                    args.handler,
                                    args.socket_path,
                                    args.platform_kind,
-                                   args.namespace)
+                                   args.namespace,
+                                   args.worker_id,
+                                   args.trigger_name)
 
     except Exception as err:
         root_logger.warn_with('Caught unhandled exception while initializing',
