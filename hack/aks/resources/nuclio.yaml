@@ -16,7 +16,6 @@
 
 # Define a "function" custom resource definition - extending the k8s API to allow management of "function" resources
 apiVersion: apiextensions.k8s.io/v1beta1
-description: Function resource
 kind: CustomResourceDefinition
 metadata:
   name: functions.nuclio.io
@@ -33,7 +32,6 @@ spec:
 
 # Define a "project" custom resource definition - extending the k8s API to allow management of "project" resources
 apiVersion: apiextensions.k8s.io/v1beta1
-description: Project resource
 kind: CustomResourceDefinition
 metadata:
   name: projects.nuclio.io
@@ -50,7 +48,6 @@ spec:
 
 # Define a "functionevent" custom resource definition - extending the k8s API to allow management of "functionevent" resources
 apiVersion: apiextensions.k8s.io/v1beta1
-description: Function event resource
 kind: CustomResourceDefinition
 metadata:
   name: functionevents.nuclio.io
@@ -91,11 +88,11 @@ spec:
         nuclio.io/app: controller
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: 0.7.8
+        nuclio.io/version: 0.7.10
     spec:
       containers:
       - name: nuclio-controller
-        image: quay.io/nuclio/controller:0.7.8-amd64
+        image: quay.io/nuclio/controller:0.7.10-amd64
         env:
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
           value: registry-credentials
@@ -118,11 +115,11 @@ spec:
         nuclio.io/app: dashboard
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: 0.7.8
+        nuclio.io/version: 0.7.10
     spec:
       containers:
       - name: nuclio-dashboard
-        image: quay.io/nuclio/dashboard:0.7.8-amd64
+        image: quay.io/nuclio/dashboard:0.7.10-amd64
         ports:
         - containerPort: 8070
         volumeMounts:

@@ -478,14 +478,26 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 		return true
 	}
 
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1Namespace", getFunctionsOptions.Namespace)
+		return true
+	}
+
 	suite.mockPlatform.
 		On("CreateFunction", mock.MatchedBy(verifyCreateFunction)).
 		Return(&platform.CreateFunctionResult{}, nil).
 		Once()
 
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{}, nil).
+		Once()
+
 	headers := map[string]string{
 		"x-nuclio-wait-function-action": "true",
 		"x-nuclio-project-name":         "proj",
+		"x-nuclio-function-namespace":   "f1Namespace",
 	}
 
 	expectedStatusCode := http.StatusAccepted
@@ -522,6 +534,10 @@ func (suite *functionTestSuite) TestCreateNoName() {
 
 func (suite *functionTestSuite) TestCreateNoNamespace() {
 	suite.sendRequestNoNamespace("POST")
+}
+
+func (suite *functionTestSuite) TestCreateWithExistingName() {
+	suite.sendRequestWithExistingName("POST")
 }
 
 func (suite *functionTestSuite) TestUpdateSuccessful() {
@@ -781,6 +797,49 @@ func (suite *functionTestSuite) sendRequestNoNamespace(method string) {
 		"runtime": "r1"
 	}
 }`)
+}
+
+func (suite *functionTestSuite) sendRequestWithExistingName(method string) {
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "f1"
+	returnedFunction.Config.Meta.Namespace = "f1Namespace"
+
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1Namespace", getFunctionsOptions.Namespace)
+		return true
+	}
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
+
+	expectedStatusCode := http.StatusConflict
+
+	headers := map[string]string {
+		"x-nuclio-project-name": "proj",
+		"x-nuclio-function-namespace": "f1Namespace",
+	}
+
+	requestBody := `{
+	"metadata": {
+		"name": "f1",
+		"namespace": "f1Namespace"
+	},
+	"spec": {
+		"resources": {},
+		"build": {},
+		"platform": {},
+		"runtime": "r1"
+	}
+}`
+
+	suite.sendRequest(method,
+		"/api/functions",
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
 }
 
 func (suite *functionTestSuite) sendRequestNoName(method string) {

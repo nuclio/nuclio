@@ -170,6 +170,7 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 		WorkerID:        configuration.WorkerID,
 		FunctionName:    configuration.Meta.Name,
 		FunctionVersion: configuration.Spec.Version,
+		TriggerName:     configuration.TriggerName,
 	}
 
 	// iterate through data bindings and get the context object - the thing users will actuall
