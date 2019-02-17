@@ -132,6 +132,11 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 			return nil, errors.New("If image is passed, runtime must be specified")
 		}
 
+		// populate image if possible
+		if existingFunctionConfig != nil {
+			createFunctionOptions.FunctionConfig.Spec.Image = existingFunctionConfig.Spec.Image
+		}
+
 		// trigger the on after config update ourselves
 		if err = onAfterConfigUpdatedWrapper(&createFunctionOptions.FunctionConfig); err != nil {
 			return nil, errors.Wrap(err, "Failed to trigger on after config update")
