@@ -149,7 +149,9 @@ func (p *partition) waitPartitionAvailable(partitionPath string, pollingInterval
 
 		listBucketResult, ok := response.Output.(*v3iohttp.ListBucketOutput)
 		if !ok {
-			return errors.New("Failed to parse response of ListBucket")
+			p.Logger.ErrorWith("Failed to list bucket", "err", response.Error)
+			time.Sleep(pollingInterval)
+			continue
 		}
 
 		for _, partition := range listBucketResult.Contents {
