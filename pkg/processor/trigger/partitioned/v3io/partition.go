@@ -66,7 +66,7 @@ func (p *partition) Read() error {
 
 	location, err := p.seek(partitionPath)
 	if err != nil {
-		return errors.Wrap(err, "Failed to seek partition")
+		return err
 	}
 
 	p.Logger.DebugWith("Starting to read from partition",
