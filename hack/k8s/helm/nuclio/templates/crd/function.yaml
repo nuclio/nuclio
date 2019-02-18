@@ -16,13 +16,13 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: functions.nuclio.io
+  name: nucliofunctions.nuclio.io
 spec:
   group: nuclio.io
   names:
-    kind: Function
-    plural: functions
-    singular: function
+    kind: NuclioFunction
+    plural: nucliofunctions
+    singular: nucliofunction
   scope: Namespaced
   version: v1beta1
 {{- end }}

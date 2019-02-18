@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ limitations under the License.
 
 package v1beta1
 
-type FunctionExpansion interface{}
+type NuclioFunctionExpansion interface{}
 
-type FunctionEventExpansion interface{}
+type NuclioFunctionEventExpansion interface{}
 
-type ProjectExpansion interface{}
+type NuclioProjectExpansion interface{}

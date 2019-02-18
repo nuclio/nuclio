@@ -47,7 +47,7 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	u.logger.InfoWith("Updating function", "name", updateFunctionOptions.FunctionMeta.Name)
 
 	// get specific function CR
-	function, err := u.consumer.nuclioClientSet.NuclioV1beta1().Functions(updateFunctionOptions.FunctionMeta.Namespace).Get(updateFunctionOptions.FunctionMeta.Name, meta_v1.GetOptions{})
+	function, err := u.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).Get(updateFunctionOptions.FunctionMeta.Name, meta_v1.GetOptions{})
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
@@ -68,7 +68,7 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	}
 
 	// trigger an update
-	updatedFunction, err := u.consumer.nuclioClientSet.NuclioV1beta1().Functions(updateFunctionOptions.FunctionMeta.Namespace).Update(function)
+	updatedFunction, err := u.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).Update(function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function CR")
 	}

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 apiVersion: "nuclio.io/v1beta1"
-kind: "Function"
+kind: "NuclioFunction"
 spec:
   description: >
     A multi-trigger function with a configuration that connects to RabbitMQ to read messages and write them to local

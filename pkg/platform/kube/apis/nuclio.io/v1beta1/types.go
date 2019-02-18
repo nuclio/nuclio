@@ -10,8 +10,8 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// Function describes a function.
-type Function struct {
+// NuclioFunction describes a function.
+type NuclioFunction struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
@@ -21,20 +21,20 @@ type Function struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// FunctionList is a list of Function resources
-type FunctionList struct {
+// NuclioFunctionList is a list of NuclioFunction resources
+type NuclioFunctionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	Items []Function `json:"items"`
+	Items []NuclioFunction `json:"items"`
 }
 
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// Project describes a project.
-type Project struct {
+// NuclioProject describes a project.
+type NuclioProject struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
@@ -43,20 +43,20 @@ type Project struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// ProjectList is a list of project resources
-type ProjectList struct {
+// NuclioProjectList is a list of project resources
+type NuclioProjectList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	Items []Project `json:"items"`
+	Items []NuclioProject `json:"items"`
 }
 
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// FunctionEvent describes a function event.
-type FunctionEvent struct {
+// NuclioFunctionEvent describes a function event.
+type NuclioFunctionEvent struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
@@ -65,10 +65,10 @@ type FunctionEvent struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// FunctionEventList is a list of functionevent resources
-type FunctionEventList struct {
+// NuclioFunctionEventList is a list of functionevent resources
+type NuclioFunctionEventList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	Items []FunctionEvent `json:"items"`
+	Items []NuclioFunctionEvent `json:"items"`
 }

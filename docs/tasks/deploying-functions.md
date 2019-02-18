@@ -193,7 +193,7 @@ For a more manageable approach, you can keep your configuration alongside your s
 
 ```yaml
 apiVersion: "nuclio.io/v1"
-kind: Function
+kind: NuclioFunction
 metadata:
   name: my-function
   namespace: nuclio
@@ -230,7 +230,7 @@ import os
 #
 # function.yaml:
 #   apiVersion: "nuclio.io/v1"
-#   kind: Function
+#   kind: NuclioFunction
 #   metadata:
 #     name: my-function
 #     namespace: nuclio

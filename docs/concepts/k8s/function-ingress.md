@@ -96,7 +96,7 @@ Let's put this into practice and deploy the [ingress example](/hack/examples/gol
 
 ```yaml
 apiVersion: "nuclio.io/v1"
-kind: "Function"
+kind: "NuclioFunction"
 spec:
   runtime: "golang"
   triggers:

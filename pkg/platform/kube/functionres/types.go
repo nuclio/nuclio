@@ -27,7 +27,7 @@ type Client interface {
 	Get(context.Context, string, string) (Resources, error)
 
 	// CreateOrUpdate creates or updates exisisting resources
-	CreateOrUpdate(context.Context, *nuclioio.Function, string) (Resources, error)
+	CreateOrUpdate(context.Context, *nuclioio.NuclioFunction, string) (Resources, error)
 
 	// WaitAvailable waits until the resources are ready
 	WaitAvailable(context.Context, string, string) error

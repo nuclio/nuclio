@@ -67,7 +67,7 @@ func NewParser(parentLogger logger.Logger, commentChar string) *InlineParser {
 //
 // function.yaml:
 //   apiVersion: "nuclio.io/v1"
-//   kind: "Function"
+//   kind: "NuclioFunction"
 //   spec:
 //     runtime: "golang"
 //     triggers:

@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -53,12 +53,12 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=nuclio.io, Version=v1beta1
-	case v1beta1.SchemeGroupVersion.WithResource("functions"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Nuclio().V1beta1().Functions().Informer()}, nil
-	case v1beta1.SchemeGroupVersion.WithResource("functionevents"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Nuclio().V1beta1().FunctionEvents().Informer()}, nil
-	case v1beta1.SchemeGroupVersion.WithResource("projects"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Nuclio().V1beta1().Projects().Informer()}, nil
+	case v1beta1.SchemeGroupVersion.WithResource("nucliofunctions"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Nuclio().V1beta1().NuclioFunctions().Informer()}, nil
+	case v1beta1.SchemeGroupVersion.WithResource("nucliofunctionevents"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Nuclio().V1beta1().NuclioFunctionEvents().Informer()}, nil
+	case v1beta1.SchemeGroupVersion.WithResource("nuclioprojects"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Nuclio().V1beta1().NuclioProjects().Informer()}, nil
 
 	}
 

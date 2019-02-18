@@ -22,9 +22,9 @@ metadata:
 spec:
   group: nuclio.io
   names:
-    kind: Function
-    plural: functions
-    singular: function
+    kind: NuclioFunction
+    plural: nucliofunctions
+    singular: nucliofunction
   scope: Namespaced
   version: v1beta1
 
@@ -38,9 +38,9 @@ metadata:
 spec:
   group: nuclio.io
   names:
-    kind: Project
-    plural: projects
-    singular: project
+    kind: NuclioProject
+    plural: nuclioprojects
+    singular: nuclioproject
   scope: Namespaced
   version: v1beta1
 
@@ -54,9 +54,9 @@ metadata:
 spec:
   group: nuclio.io
   names:
-    kind: FunctionEvent
-    plural: functionevents
-    singular: functionevent
+    kind: NuclioFunctionEvent
+    plural: nucliofunctionevents
+    singular: nucliofunctionevent
   scope: Namespaced
   version: v1beta1
 

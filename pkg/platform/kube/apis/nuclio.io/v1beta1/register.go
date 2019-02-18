@@ -26,12 +26,12 @@ var (
 // Adds the list of known types to api.Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&Function{},
-		&FunctionList{},
-		&Project{},
-		&ProjectList{},
-		&FunctionEvent{},
-		&FunctionEventList{},
+		&NuclioFunction{},
+		&NuclioFunctionList{},
+		&NuclioProject{},
+		&NuclioProjectList{},
+		&NuclioFunctionEvent{},
+		&NuclioFunctionEventList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
