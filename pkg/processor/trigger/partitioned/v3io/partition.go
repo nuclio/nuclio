@@ -17,6 +17,7 @@ limitations under the License.
 package v3io
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -55,26 +56,22 @@ func newPartition(parentLogger logger.Logger, v3ioTrigger *v3io, partitionID int
 }
 
 func (p *partition) Read() error {
-	var location string
-	var err error
-
 	partitionPath := fmt.Sprintf("%s/%d", p.v3ioTrigger.streamPath, p.partitionID)
 	pollingInterval := time.Duration(p.v3ioTrigger.configuration.PollingIntervalMs) * time.Millisecond
 
-	for {
-		location, err = p.seek(partitionPath)
-		if err != nil {
-			p.Logger.ErrorWith("Failed to seek partition", "partition", partitionPath, "error", err)
-			time.Sleep(pollingInterval)
-			continue
-		}
-
-		p.Logger.DebugWith("Starting to read from partition",
-			"location", location,
-			"pollingInterval", p.v3ioTrigger.configuration.PollingIntervalMs)
-
-		break
+	err := p.waitPartitionAvailable(partitionPath, pollingInterval)
+	if err != nil {
+		return errors.Wrap(err, "Failed to wait for partition availability")
 	}
+
+	location, err := p.seek(partitionPath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to seek partition")
+	}
+
+	p.Logger.DebugWith("Starting to read from partition",
+		"location", location,
+		"pollingInterval", p.v3ioTrigger.configuration.PollingIntervalMs)
 
 	for {
 		getRecordsOutput, err := p.getRecords(partitionPath, location, pollingInterval)
@@ -138,4 +135,28 @@ func (p *partition) getRecords(partitionPath string, location string, pollingInt
 
 	return response.Output.(*v3iohttp.GetRecordsOutput), nil
 
+}
+
+func (p *partition) waitPartitionAvailable(partitionPath string, pollingInterval time.Duration) error {
+	responseChannel := make(chan *v3iohttp.Response)
+
+	for {
+		request := &v3iohttp.ListBucketInput{
+			Path: p.v3ioTrigger.streamPath,
+		}
+		p.v3ioTrigger.container.ListBucket(request, context.TODO(), responseChannel)
+		response := <-responseChannel
+
+		listBucketResult, ok := response.Output.(*v3iohttp.ListBucketOutput)
+		if !ok {
+			return errors.New("Failed to parse response of ListBucket")
+		}
+
+		for _, partition := range listBucketResult.Contents {
+			if partition.Key == partitionPath {
+				return nil
+			}
+		}
+		time.Sleep(pollingInterval)
+	}
 }
