@@ -115,7 +115,7 @@ func (p *partition) seek(partitionPath string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to seek partition")
 	}
-	defer response.Release()
+	response.Release()
 
 	location := response.Output.(*v3iohttp.SeekShardOutput).Location
 	if location == "" {
@@ -133,7 +133,7 @@ func (p *partition) getRecords(partitionPath string, location string, pollingInt
 	if err != nil {
 		return nil, err
 	}
-	defer response.Release()
+	response.Release()
 
 	return response.Output.(*v3iohttp.GetRecordsOutput), nil
 }
@@ -172,7 +172,7 @@ func (p *partition) getListBucket() (*v3iohttp.ListBucketOutput, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer response.Release()
+	response.Release()
 
 	listBucketResult, ok := response.Output.(*v3iohttp.ListBucketOutput)
 	if !ok {
