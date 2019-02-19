@@ -156,7 +156,7 @@ func (p *partition) waitPartitionAvailable(partitionPath string, pollingInterval
 		// look to see if the partition inside the stream path
 		for _, partition := range listBucketResult.Contents {
 			splittedPartitionKey := strings.Split(strings.TrimRight(partition.Key, "/"), "/")
-			if splittedPartitionKey[len(splittedPartitionKey) - 1] == strconv.Itoa(p.partitionID) {
+			if splittedPartitionKey[len(splittedPartitionKey)-1] == strconv.Itoa(p.partitionID) {
 				return nil
 			}
 		}
