@@ -18,6 +18,7 @@ package v3io
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -57,7 +58,7 @@ func newPartition(parentLogger logger.Logger, v3ioTrigger *v3io, partitionID int
 }
 
 func (p *partition) Read() error {
-	partitionPath := fmt.Sprintf("%s/%d", p.v3ioTrigger.streamPath, p.partitionID)
+	partitionPath := fmt.Sprintf("%s/%d", strings.TrimRight(p.v3ioTrigger.streamPath, "/"), p.partitionID)
 	pollingInterval := time.Duration(p.v3ioTrigger.configuration.PollingIntervalMs) * time.Millisecond
 
 	err := p.waitPartitionAvailable(partitionPath, pollingInterval)
