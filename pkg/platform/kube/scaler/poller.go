@@ -51,7 +51,7 @@ func newMetricsPoller(parentLogger logger.Logger,
 }
 
 func (mp *metricsPoller) getFunctionMetrics() error {
-	schemaGroupKind := schema.GroupKind{Group: "", Kind: "Function"}
+	schemaGroupKind := schema.GroupKind{Group: "", Kind: "NuclioFunction"}
 	functionLabels := labels.Nothing()
 	c := mp.scaler.customMetricsClientSet.NamespacedMetrics(mp.namespace)
 	cm, err := c.

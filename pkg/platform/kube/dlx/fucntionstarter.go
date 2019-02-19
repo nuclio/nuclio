@@ -131,14 +131,14 @@ func (f *FunctionStarter) startFunction(functionSinkChannel chan responseChannel
 }
 
 func (n *nuclioActioner) updateFunctionStatus(functionName string) {
-	function, err := n.nuclioClientSet.NuclioV1beta1().Functions(n.functionStarter.namespace).Get(functionName, metav1.GetOptions{})
+	function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(n.functionStarter.namespace).Get(functionName, metav1.GetOptions{})
 	if err != nil {
 		n.functionStarter.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
 		return
 	}
 
 	function.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
-	_, err = n.nuclioClientSet.NuclioV1beta1().Functions(n.functionStarter.namespace).Update(function)
+	_, err = n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(n.functionStarter.namespace).Update(function)
 	if err != nil {
 		n.functionStarter.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
 		return
@@ -147,7 +147,7 @@ func (n *nuclioActioner) updateFunctionStatus(functionName string) {
 
 func (n *nuclioActioner) waitFunctionReadiness(functionName string, readyChannel chan bool) {
 	for {
-		function, err := n.nuclioClientSet.NuclioV1beta1().Functions(n.functionStarter.namespace).Get(functionName, metav1.GetOptions{})
+		function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(n.functionStarter.namespace).Get(functionName, metav1.GetOptions{})
 		if err != nil {
 			n.functionStarter.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
 			return

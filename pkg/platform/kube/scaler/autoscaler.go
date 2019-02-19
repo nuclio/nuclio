@@ -115,7 +115,7 @@ func (as *autoscaler) addMetricEntry(functionName string, metricType string, ent
 }
 
 func (as *autoscaler) buildFunctionsMap() (functionMap, error) {
-	functions, err := as.nuclioClientSet.NuclioV1beta1().Functions(as.namespace).List(metav1.ListOptions{})
+	functions, err := as.nuclioClientSet.NuclioV1beta1().NuclioFunctions(as.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list functions")
 	}
