@@ -18,6 +18,7 @@ package v3io
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -154,7 +155,8 @@ func (p *partition) waitPartitionAvailable(partitionPath string, pollingInterval
 
 		// look to see if the partition inside the stream path
 		for _, partition := range listBucketResult.Contents {
-			if partition.Key == partitionPath {
+			splittedPartitionKey := strings.Split(strings.TrimRight(partition.Key, "/"), "/")
+			if splittedPartitionKey[len(splittedPartitionKey) - 1] == strconv.Itoa(p.partitionID) {
 				return nil
 			}
 		}
