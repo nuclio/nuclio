@@ -17,7 +17,6 @@ limitations under the License.
 package v3io
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -27,6 +26,8 @@ import (
 	"github.com/nuclio/logger"
 	v3iohttp "github.com/v3io/v3io-go-http"
 )
+
+const NotFoundError = "Failed GET with status 404"
 
 type partition struct {
 	*partitioned.AbstractPartition
@@ -138,22 +139,20 @@ func (p *partition) getRecords(partitionPath string, location string, pollingInt
 }
 
 func (p *partition) waitPartitionAvailable(partitionPath string, pollingInterval time.Duration) error {
-	responseChannel := make(chan *v3iohttp.Response)
-
 	for {
-		request := &v3iohttp.ListBucketInput{
-			Path: p.v3ioTrigger.streamPath,
-		}
-		p.v3ioTrigger.container.ListBucket(request, context.TODO(), responseChannel)
-		response := <-responseChannel
+		listBucketResult, err := p.getListBucket()
 
-		listBucketResult, ok := response.Output.(*v3iohttp.ListBucketOutput)
-		if !ok {
-			p.Logger.ErrorWith("Failed to list bucket", "err", response.Error)
+		if err != nil {
+
+			// print only if error is something else other than 404
+			if err.Error() != NotFoundError {
+				p.Logger.ErrorWith("Failed to list bucket", "err", err)
+			}
 			time.Sleep(pollingInterval)
 			continue
 		}
 
+		// look to see if the partition inside the stream path
 		for _, partition := range listBucketResult.Contents {
 			if partition.Key == partitionPath {
 				return nil
@@ -161,4 +160,24 @@ func (p *partition) waitPartitionAvailable(partitionPath string, pollingInterval
 		}
 		time.Sleep(pollingInterval)
 	}
+}
+
+func (p *partition) getListBucket() (*v3iohttp.ListBucketOutput, error) {
+	request := &v3iohttp.ListBucketInput{
+		Path: p.v3ioTrigger.streamPath,
+	}
+	response, err := p.v3ioTrigger.container.Sync.ListBucket(request)
+
+	// upon errors, response is being released by ListBucket
+	if err != nil {
+		return nil, err
+	}
+	defer response.Release()
+
+	listBucketResult, ok := response.Output.(*v3iohttp.ListBucketOutput)
+	if !ok {
+		return nil, errors.New("Failed to cast response to ListBucketOutput")
+	}
+
+	return listBucketResult, nil
 }
