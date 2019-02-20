@@ -112,8 +112,8 @@ var AuthRequest = func(req *http.Request) (any, sensitive bool) {
 func init() {
 	// TODO(jbd): Serve Traces from /debug/traces in the future?
 	// There is no requirement for a request to be present to have traces.
-	http.HandleFunc("/debug/requests", Traces)
-	http.HandleFunc("/debug/events", Events)
+	// http.HandleFunc("/debug/requests", Traces)
+	// http.HandleFunc("/debug/events", Events)
 }
 
 // Traces responds with traces from the program.
