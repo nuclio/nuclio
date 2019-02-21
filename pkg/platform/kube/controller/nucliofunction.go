@@ -61,7 +61,7 @@ func newFunctionOperator(parentLogger logger.Logger,
 	newFunctionOperator.operator, err = operator.NewMultiWorker(loggerInstance,
 		4,
 		newFunctionOperator.getListWatcher(controller.namespace),
-		&nuclioio.Function{},
+		&nuclioio.NuclioFunction{},
 		resyncInterval,
 		newFunctionOperator)
 
@@ -74,7 +74,7 @@ func newFunctionOperator(parentLogger logger.Logger,
 
 // CreateOrUpdate handles creation/update of an object
 func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.Object) error {
-	function, objectIsFunction := object.(*nuclioio.Function)
+	function, objectIsFunction := object.(*nuclioio.NuclioFunction)
 	if !objectIsFunction {
 		return fo.setFunctionError(nil, errors.New("Received unexpected object, expected function"))
 	}
@@ -85,7 +85,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	if function.Status.State != functionconfig.FunctionStateWaitingForResourceConfiguration &&
 		function.Status.State != functionconfig.FunctionStateReady &&
 		function.Status.State != functionconfig.FunctionStateScaledToZero {
-		fo.logger.DebugWith("Function is not waiting for resource creation or ready, skipping create/update",
+		fo.logger.DebugWith("NuclioFunction is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
 			"state", function.Status.State,
 			"namespace", function.Namespace)
@@ -157,7 +157,7 @@ func (fo *functionOperator) start() error {
 	return nil
 }
 
-func (fo *functionOperator) setFunctionError(function *nuclioio.Function, err error) error {
+func (fo *functionOperator) setFunctionError(function *nuclioio.NuclioFunction, err error) error {
 
 	// whatever the error, try to update the function CR
 	fo.logger.WarnWith("Setting function error", "name", function.Name, "err", err)
@@ -172,7 +172,7 @@ func (fo *functionOperator) setFunctionError(function *nuclioio.Function, err er
 	return err
 }
 
-func (fo *functionOperator) setFunctionStatus(function *nuclioio.Function, status *functionconfig.Status) error {
+func (fo *functionOperator) setFunctionStatus(function *nuclioio.NuclioFunction, status *functionconfig.Status) error {
 
 	fo.logger.DebugWith("Setting function state", "name", function.Name, "status", status)
 
@@ -180,17 +180,17 @@ func (fo *functionOperator) setFunctionStatus(function *nuclioio.Function, statu
 	function.Status = *status
 
 	// try to update the function
-	_, err := fo.controller.nuclioClientSet.NuclioV1beta1().Functions(function.Namespace).Update(function)
+	_, err := fo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctions(function.Namespace).Update(function)
 	return err
 }
 
 func (fo *functionOperator) getListWatcher(namespace string) cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return fo.controller.nuclioClientSet.NuclioV1beta1().Functions(namespace).List(options)
+			return fo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).List(options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return fo.controller.nuclioClientSet.NuclioV1beta1().Functions(namespace).Watch(options)
+			return fo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Watch(options)
 		},
 	}
 }

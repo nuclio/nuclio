@@ -24,7 +24,7 @@
 #
 # function.yaml:
 #   apiVersion: "nuclio.io/v1beta1"
-#   kind: "Function"
+#   kind: "NuclioFunction"
 #   spec:
 #     runtime: "shell"
 #     handler: "img-convert.sh:main"

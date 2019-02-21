@@ -13,7 +13,7 @@
 # limitations under the License.
 
 apiVersion: "nuclio.io/v1beta1"
-kind: "Function"
+kind: "NuclioFunction"
 spec:
   description: >
     An Azure Event Hub triggered function with a configuration that connects to an Azure Event Hub.

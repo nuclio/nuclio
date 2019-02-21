@@ -26,7 +26,7 @@ Create a **/tmp/nuclio-shell-script/reverser.sh** file with the following code:
 #
 # function.yaml:
 #   apiVersion: "nuclio.io/v1"
-#   kind: "Function"
+#   kind: "NuclioFunction"
 #   spec:
 #     runtime: "shell"
 #     handler: "reverser.sh"

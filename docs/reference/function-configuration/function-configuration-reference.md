@@ -15,7 +15,7 @@ The basic structure resembles Kubernetes resource definitions, and includes the 
 
 ```yaml
 apiVersion: "nuclio.io/v1"
-kind: Function
+kind: NuclioFunction
 metadata:
   name: example
 spec:

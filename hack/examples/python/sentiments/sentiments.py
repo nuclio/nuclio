@@ -20,7 +20,7 @@
 #
 # function.yaml:
 #   apiVersion: "nuclio.io/v1beta1"
-#   kind: "Function"
+#   kind: "NuclioFunction"
 #   spec:
 #     runtime: "python:3.6"
 #

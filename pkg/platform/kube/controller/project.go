@@ -53,7 +53,7 @@ func newProjectOperator(parentLogger logger.Logger,
 	newProjectOperator.operator, err = operator.NewMultiWorker(loggerInstance,
 		2,
 		newProjectOperator.getListWatcher(controller.namespace),
-		&nuclioio.Project{},
+		&nuclioio.NuclioProject{},
 		resyncInterval,
 		newProjectOperator)
 
@@ -81,10 +81,10 @@ func (po *projectOperator) Delete(ctx context.Context, namespace string, name st
 func (po *projectOperator) getListWatcher(namespace string) cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return po.controller.nuclioClientSet.NuclioV1beta1().Projects(namespace).List(options)
+			return po.controller.nuclioClientSet.NuclioV1beta1().NuclioProjects(namespace).List(options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return po.controller.nuclioClientSet.NuclioV1beta1().Projects(namespace).Watch(options)
+			return po.controller.nuclioClientSet.NuclioV1beta1().NuclioProjects(namespace).Watch(options)
 		},
 	}
 }

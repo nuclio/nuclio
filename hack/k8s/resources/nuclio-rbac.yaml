@@ -61,7 +61,7 @@ metadata:
   name: nuclio-functioncr-admin
 rules:
 - apiGroups: ["nuclio.io"]
-  resources: ["functions", "projects", "functionevents"]
+  resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents"]
   verbs: ["*"]
 
 ---

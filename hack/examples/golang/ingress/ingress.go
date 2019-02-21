@@ -18,7 +18,7 @@ limitations under the License.
 //
 // function.yaml:
 //   apiVersion: "nuclio.io/v1beta1"
-//   kind: "Function"
+//   kind: "NuclioFunction"
 //   spec:
 //     runtime: "golang"
 //     triggers:

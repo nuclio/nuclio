@@ -13,7 +13,7 @@
 # limitations under the License.
 
 apiVersion: "nuclio.io/v1beta1"
-kind: "Function"
+kind: "NuclioFunction"
 spec:
   runtime: "pypy"
   handler: "resize:handler"
