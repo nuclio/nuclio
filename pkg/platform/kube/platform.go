@@ -25,6 +25,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/util/validation"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -102,6 +104,13 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var existingFunctionInstance *nuclioio.NuclioFunction
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
+
+	// validate function name is according to k8s convention
+	errorMessages := validation.IsQualifiedName(createFunctionOptions.FunctionConfig.Meta.Name)
+	if len(errorMessages) != 0 {
+		joinedErrorMessage := strings.Join(errorMessages, ", ")
+		return nil, errors.New("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
+	}
 
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
