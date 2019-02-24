@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/nuclio/pkg/dashboard"
@@ -33,6 +32,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
+
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 type functionResource struct {
