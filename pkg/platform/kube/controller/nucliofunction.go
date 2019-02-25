@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -29,6 +30,7 @@ import (
 	"github.com/nuclio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 )
@@ -77,6 +79,13 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	function, objectIsFunction := object.(*nuclioio.NuclioFunction)
 	if !objectIsFunction {
 		return fo.setFunctionError(nil, errors.New("Received unexpected object, expected function"))
+	}
+
+	// validate function name is according to k8s convention
+	errorMessages := validation.IsQualifiedName(function.Name)
+	if len(errorMessages) != 0 {
+		joinedErrorMessage := strings.Join(errorMessages, ", ")
+		return errors.New("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
 	}
 
 	// only respond to functions which are either waiting for resource configuration or are ready. We respond to
