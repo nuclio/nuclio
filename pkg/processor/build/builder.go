@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -533,12 +534,27 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		}
 
 		tempFileName := path.Join(tempDir, path.Base(functionPath))
+		userDefinedHeaders, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["headers"]
+		headers := http.Header{}
+
+		if found {
+
+			// guaranteed a map with key of type string, the values need to be checked for correctness
+			for key, value := range userDefinedHeaders.(map[string]interface{}) {
+				stringValue, ok := value.(string)
+				if !ok {
+					return "", errors.New("Failed to convert header value to string")
+				}
+				headers.Set(key, stringValue)
+			}
+		}
 
 		b.logger.DebugWith("Downloading function",
 			"url", functionPath,
-			"target", tempFileName)
+			"target", tempFileName,
+			"headers", headers)
 
-		if err = common.DownloadFile(functionPath, tempFileName); err != nil {
+		if err = common.DownloadFile(functionPath, tempFileName, headers); err != nil {
 			return "", err
 		}
 
