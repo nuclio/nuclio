@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
@@ -31,6 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/nuclio-sdk-go"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 type functionResource struct {
@@ -334,6 +336,13 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		err := errors.New("Function name must be provided in metadata")
 
 		return nil, nuclio.WrapErrBadRequest(err)
+	}
+
+	// validate function name is according to k8s convention
+	errorMessages := validation.IsQualifiedName(functionInfoInstance.Meta.Name)
+	if len(errorMessages) != 0 {
+		joinedErrorMessage := strings.Join(errorMessages, ", ")
+		return nil, nuclio.NewErrBadRequest("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
 	}
 
 	// add project name label if given via header
