@@ -540,7 +540,7 @@ func (suite *functionTestSuite) TestCreateWithExistingName() {
 	suite.sendRequestWithExistingName("POST")
 }
 
-func (suite *functionTestSuite) TestCreateFunctionWithInvalidName(method string) {
+func (suite *functionTestSuite) TestCreateFunctionWithInvalidName() {
 	body := `{
 	"metadata": {
 		"namespace": "f1Namespace",
@@ -561,7 +561,7 @@ func (suite *functionTestSuite) TestCreateFunctionWithInvalidName(method string)
 	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name doesn't conform to k8s naming convention"})
 	requestBody := body
 
-	suite.sendRequest(method,
+	suite.sendRequest("POST",
 		"/api/functions",
 		headers,
 		bytes.NewBufferString(requestBody),
