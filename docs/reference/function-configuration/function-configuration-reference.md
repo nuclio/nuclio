@@ -15,7 +15,7 @@ The basic structure resembles Kubernetes resource definitions, and includes the 
 
 ```yaml
 apiVersion: "nuclio.io/v1"
-kind: Function
+kind: NuclioFunction
 metadata:
   name: example
 spec:
@@ -26,7 +26,7 @@ spec:
 
 The `metadata` section includes the following attributes:
 
-| Path | Type | Description |
+| **Path** | **Type** | **Description** |
 | :--- | :--- | :--- |
 | name | string | The name of the function |
 | namespace | string | A level of isolation provided by the platform (e.g., Kubernetes) |
@@ -51,7 +51,7 @@ metadata:
 
 The `spec` section contains the requirements and attributes and has the following elements:
 
-| Path | Type | Description |
+| **Path** | **Type** | **Description** |
 | :--- | :--- | :--- |
 | description | string | A textual description of the function |
 | handler | string | The entry point to the function, in the form of `package:entrypoint`. Varies slightly between runtimes, see the appropriate runtime documentation for specifics |

@@ -15,9 +15,9 @@ This guide walks through a few steps to benchmark Nuclio from scratch.
 
 To benchmark Nuclio, you will need three components:
 
-1. [Docker](https://www.docker.com): You'll use the "local" platform to benchmark so all you'll need is Docker
-2. [wrk](https://github.com/wg/wrk/wiki/Installing-Wrk-on-Linux): A benchmarking utility
-3. [`nuctl`](https://github.com/nuclio/nuclio/releases): All you'll need is the `nuctl` CLI. It will pull all the necessary components
+1. [Docker](https://www.docker.com): You'll use the "local" platform to benchmark, so all you need is Docker.
+2. [wrk](https://github.com/wg/wrk/wiki/Installing-Wrk-on-Linux): A benchmarking utility.
+3. [`nuctl`](https://github.com/nuclio/nuclio/releases): All you need is the Nuclio CLI (`nuctl`). The CLI will pull all the necessary components.
 
 Obviously Nuclio will only be as fast as the hardware it runs on. In this case you'll showcase benchmarks on an AWS `c5.9xlarge` - a 36 core machine. With Nuclio you leverage parallelism, so adding cores contributes to performance. In these examples you'll set the # of workers to the # of cores - experiment on your platform to get the most performance.
 

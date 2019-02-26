@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ package v1beta1
 import (
 	time "time"
 
-	nuclio_io_v1beta1 "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	nuclioiov1beta1 "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	versioned "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	internalinterfaces "github.com/nuclio/nuclio/pkg/platform/kube/client/informers/externalversions/internalinterfaces"
 	v1beta1 "github.com/nuclio/nuclio/pkg/platform/kube/client/listers/nuclio.io/v1beta1"
@@ -31,59 +31,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// FunctionInformer provides access to a shared informer and lister for
-// Functions.
-type FunctionInformer interface {
+// NuclioFunctionInformer provides access to a shared informer and lister for
+// NuclioFunctions.
+type NuclioFunctionInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1beta1.FunctionLister
+	Lister() v1beta1.NuclioFunctionLister
 }
 
-type functionInformer struct {
+type nuclioFunctionInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewFunctionInformer constructs a new informer for Function type.
+// NewNuclioFunctionInformer constructs a new informer for NuclioFunction type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFunctionInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredFunctionInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewNuclioFunctionInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredNuclioFunctionInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredFunctionInformer constructs a new informer for Function type.
+// NewFilteredNuclioFunctionInformer constructs a new informer for NuclioFunction type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredFunctionInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredNuclioFunctionInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.NuclioV1beta1().Functions(namespace).List(options)
+				return client.NuclioV1beta1().NuclioFunctions(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.NuclioV1beta1().Functions(namespace).Watch(options)
+				return client.NuclioV1beta1().NuclioFunctions(namespace).Watch(options)
 			},
 		},
-		&nuclio_io_v1beta1.Function{},
+		&nuclioiov1beta1.NuclioFunction{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *functionInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredFunctionInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *nuclioFunctionInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredNuclioFunctionInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *functionInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&nuclio_io_v1beta1.Function{}, f.defaultInformer)
+func (f *nuclioFunctionInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&nuclioiov1beta1.NuclioFunction{}, f.defaultInformer)
 }
 
-func (f *functionInformer) Lister() v1beta1.FunctionLister {
-	return v1beta1.NewFunctionLister(f.Informer().GetIndexer())
+func (f *nuclioFunctionInformer) Lister() v1beta1.NuclioFunctionLister {
+	return v1beta1.NewNuclioFunctionLister(f.Informer().GetIndexer())
 }

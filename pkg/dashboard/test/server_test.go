@@ -478,14 +478,26 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 		return true
 	}
 
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1Namespace", getFunctionsOptions.Namespace)
+		return true
+	}
+
 	suite.mockPlatform.
 		On("CreateFunction", mock.MatchedBy(verifyCreateFunction)).
 		Return(&platform.CreateFunctionResult{}, nil).
 		Once()
 
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{}, nil).
+		Once()
+
 	headers := map[string]string{
 		"x-nuclio-wait-function-action": "true",
 		"x-nuclio-project-name":         "proj",
+		"x-nuclio-function-namespace":   "f1Namespace",
 	}
 
 	expectedStatusCode := http.StatusAccepted
@@ -522,6 +534,41 @@ func (suite *functionTestSuite) TestCreateNoName() {
 
 func (suite *functionTestSuite) TestCreateNoNamespace() {
 	suite.sendRequestNoNamespace("POST")
+}
+
+func (suite *functionTestSuite) TestCreateWithExistingName() {
+	suite.sendRequestWithExistingName("POST")
+}
+
+func (suite *functionTestSuite) TestCreateFunctionWithInvalidName() {
+	body := `{
+	"metadata": {
+		"namespace": "f1Namespace",
+		"name": "!funcmylif&"
+	},
+	"spec": {
+		"resources": {},
+		"build": {},
+		"platform": {},
+		"runtime": "r1"
+	}
+}`
+	headers := map[string]string{
+		"x-nuclio-wait-function-action": "true",
+	}
+
+	expectedStatusCode := http.StatusBadRequest
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name doesn't conform to k8s naming convention"})
+	requestBody := body
+
+	suite.sendRequest("POST",
+		"/api/functions",
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
 func (suite *functionTestSuite) TestUpdateSuccessful() {
@@ -783,6 +830,49 @@ func (suite *functionTestSuite) sendRequestNoNamespace(method string) {
 }`)
 }
 
+func (suite *functionTestSuite) sendRequestWithExistingName(method string) {
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "f1"
+	returnedFunction.Config.Meta.Namespace = "f1Namespace"
+
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1Namespace", getFunctionsOptions.Namespace)
+		return true
+	}
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
+
+	expectedStatusCode := http.StatusConflict
+
+	headers := map[string]string {
+		"x-nuclio-project-name": "proj",
+		"x-nuclio-function-namespace": "f1Namespace",
+	}
+
+	requestBody := `{
+	"metadata": {
+		"name": "f1",
+		"namespace": "f1Namespace"
+	},
+	"spec": {
+		"resources": {},
+		"build": {},
+		"platform": {},
+		"runtime": "r1"
+	}
+}`
+
+	suite.sendRequest(method,
+		"/api/functions",
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+}
+
 func (suite *functionTestSuite) sendRequestNoName(method string) {
 	suite.sendRequestWithInvalidBody(method, `{
 	"metadata": {
@@ -977,6 +1067,17 @@ func (suite *projectTestSuite) TestCreateSuccessful() {
 		Return(nil).
 		Once()
 
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("p1Namespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{}, nil).
+		Once()
+
 	expectedStatusCode := http.StatusCreated
 	requestBody := `{
 	"metadata": {
@@ -1007,6 +1108,11 @@ func (suite *projectTestSuite) TestCreateNoName() {
 	suite.mockPlatform.
 		On("CreateProject", mock.Anything).
 		Return(nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetProjects", mock.Anything).
+		Return([]platform.Project{}, nil).
 		Once()
 
 	expectedStatusCode := http.StatusCreated
@@ -1050,6 +1156,10 @@ func (suite *projectTestSuite) TestCreateNoNamespace() {
 	suite.sendRequestNoNamespace("POST")
 }
 
+func (suite *projectTestSuite) TestCreateProjectWithExistingDisplayName() {
+	suite.sendRequestWithExistingDisplayName("POST")
+}
+
 func (suite *projectTestSuite) TestUpdateSuccessful() {
 
 	// verify
@@ -1062,9 +1172,20 @@ func (suite *projectTestSuite) TestUpdateSuccessful() {
 		return true
 	}
 
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("p1Namespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+
 	suite.mockPlatform.
 		On("UpdateProject", mock.MatchedBy(verifyUpdateProject)).
 		Return(nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{}, nil).
 		Once()
 
 	expectedStatusCode := http.StatusNoContent
@@ -1099,6 +1220,10 @@ func (suite *projectTestSuite) TestUpdateNoName() {
 
 func (suite *projectTestSuite) TestUpdateNoNamespace() {
 	suite.sendRequestNoNamespace("PUT")
+}
+
+func (suite *projectTestSuite) TestUpdateProjectWithExistingDisplayName() {
+	suite.sendRequestWithExistingDisplayName("PUT")
 }
 
 func (suite *projectTestSuite) TestDeleteSuccessful() {
@@ -1177,6 +1302,44 @@ func (suite *projectTestSuite) sendRequestNoMetadata(method string) {
 		"description": "d"
 	}
 }`)
+}
+
+func (suite *projectTestSuite) sendRequestWithExistingDisplayName(method string) {
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("p1Namespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	// mock a different project (with a different name) but with the same display name
+	mockedProject, _ := platform.NewAbstractProject(suite.logger, nil, platform.ProjectConfig {
+		Meta: platform.ProjectMeta{Namespace: "p1Namespace", Name: "p2"},
+		Spec: platform.ProjectSpec{DisplayName: "p1DisplayName"},
+	})
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{mockedProject}, nil).
+		Once()
+
+	expectedStatusCode := http.StatusConflict
+	requestBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1Namespace"
+	},
+	"spec": {
+		"displayName": "p1DisplayName",
+		"description": "p1Description"
+	}
+}`
+
+	suite.sendRequest(method,
+		"/api/projects",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
 }
 
 func (suite *projectTestSuite) sendRequestNoNamespace(method string) {

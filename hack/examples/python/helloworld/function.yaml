@@ -13,10 +13,10 @@
 # limitations under the License.
 
 apiVersion: "nuclio.io/v1beta1"
-kind: "Function"
+kind: "NuclioFunction"
 spec:
   description: Showcases unstructured logging and a structured response.
   runtime: "python:3.6"
-  handler: main:handler
+  handler: helloworld:handler
   minReplicas: 1
   maxReplicas: 1

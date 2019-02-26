@@ -6,6 +6,7 @@
 
     function NuclioFunctionsDataService(lodash, NuclioClientService, NuclioNamespacesDataService) {
         return {
+            createFunction: createFunction,
             deleteFunction: deleteFunction,
             getFunction: getFunction,
             getFunctions: getFunctions,
@@ -17,6 +18,34 @@
         //
         // Public methods
         //
+
+        /**
+         * Update existing function with new data
+         * @param {Object} functionDetails
+         * @param {string} projectName - the name of the project containing the function
+         * @returns {Promise}
+         */
+        function createFunction(functionDetails, projectName) {
+            var headers = {
+                'Content-Type': 'application/json',
+                'x-nuclio-project-name': projectName
+            };
+
+            var namespace = NuclioNamespacesDataService.getNamespace();
+            if (!lodash.isNil(namespace)) {
+                lodash.set(functionDetails, 'metadata.namespace', namespace);
+            }
+
+            var config = {
+                method: 'post',
+                url: NuclioClientService.buildUrlWithPath('functions'),
+                headers: headers,
+                data: functionDetails,
+                withCredentials: false
+            };
+
+            return NuclioClientService.makeRequest(config);
+        }
 
         /**
          * Gets function details
@@ -108,9 +137,11 @@
                 lodash.set(functionDetails, 'metadata.namespace', namespace);
             }
 
+            var functionName = lodash.get(functionDetails, 'metadata.name');
+
             var config = {
-                method: 'post',
-                url: NuclioClientService.buildUrlWithPath('functions'),
+                method: 'put',
+                url: NuclioClientService.buildUrlWithPath('functions/' + functionName),
                 headers: headers,
                 data: functionDetails,
                 withCredentials: false

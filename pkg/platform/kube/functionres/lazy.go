@@ -136,7 +136,7 @@ func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (R
 	}, err
 }
 
-func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Function, imagePullSecrets string) (Resources, error) {
+func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.NuclioFunction, imagePullSecrets string) (Resources, error) {
 	var err error
 
 	// get labels from the function and add class labels
@@ -401,7 +401,7 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 	return resource, nil
 }
 
-func (lc *lazyClient) createOrUpdateConfigMap(function *nuclioio.Function) (*v1.ConfigMap, error) {
+func (lc *lazyClient) createOrUpdateConfigMap(function *nuclioio.NuclioFunction) (*v1.ConfigMap, error) {
 
 	getConfigMap := func() (interface{}, error) {
 		return lc.kubeClientSet.CoreV1().ConfigMaps(function.Namespace).Get(lc.configMapNameFromFunctionName(function.Name),
@@ -446,7 +446,7 @@ func (lc *lazyClient) createOrUpdateConfigMap(function *nuclioio.Function) (*v1.
 }
 
 func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
-	function *nuclioio.Function) (*v1.Service, error) {
+	function *nuclioio.NuclioFunction) (*v1.Service, error) {
 
 	getService := func() (interface{}, error) {
 		return lc.kubeClientSet.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
@@ -495,7 +495,7 @@ func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 
 func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	imagePullSecrets string,
-	function *nuclioio.Function) (*apps_v1beta1.Deployment, error) {
+	function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
 
 	// to make sure the pod re-pulls the image, we need to specify a unique string here
 	podAnnotations, err := lc.getPodAnnotations(function)
@@ -587,7 +587,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 }
 
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels labels.Set,
-	function *nuclioio.Function) (*autos_v2.HorizontalPodAutoscaler, error) {
+	function *nuclioio.NuclioFunction) (*autos_v2.HorizontalPodAutoscaler, error) {
 
 	maxReplicas := int32(function.Spec.MaxReplicas)
 	if maxReplicas == 0 {
@@ -686,7 +686,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 }
 
 func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
-	function *nuclioio.Function) (*ext_v1beta1.Ingress, error) {
+	function *nuclioio.NuclioFunction) (*ext_v1beta1.Ingress, error) {
 
 	getIngress := func() (interface{}, error) {
 		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
@@ -773,7 +773,7 @@ func (lc *lazyClient) initClassLabels() {
 	lc.classLabels["nuclio.io/app"] = "functionres"
 }
 
-func (lc *lazyClient) getFunctionLabels(function *nuclioio.Function) labels.Set {
+func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) labels.Set {
 	result := labels.Set{}
 
 	for labelKey, labelValue := range function.Labels {
@@ -787,7 +787,7 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.Function) labels.Set 
 	return result
 }
 
-func (lc *lazyClient) getFunctionReplicas(function *nuclioio.Function) int {
+func (lc *lazyClient) getFunctionReplicas(function *nuclioio.NuclioFunction) int {
 	replicas := function.Spec.Replicas
 
 	// only when function is scaled to zero, allow for replicas to be set to zero
@@ -806,7 +806,7 @@ func (lc *lazyClient) getFunctionReplicas(function *nuclioio.Function) int {
 	return replicas
 }
 
-func (lc *lazyClient) getPodAnnotations(function *nuclioio.Function) (map[string]string, error) {
+func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[string]string, error) {
 	annotations := map[string]string{
 		"nuclio.io/image-hash": function.Spec.ImageHash,
 	}
@@ -825,7 +825,7 @@ func (lc *lazyClient) getPodAnnotations(function *nuclioio.Function) (map[string
 	return annotations, nil
 }
 
-func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.Function) (map[string]string, error) {
+func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.NuclioFunction) (map[string]string, error) {
 	annotations := make(map[string]string)
 
 	if function.Spec.Description != "" {
@@ -858,7 +858,7 @@ func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.Function) (map
 }
 
 func (lc *lazyClient) getFunctionEnvironment(functionLabels labels.Set,
-	function *nuclioio.Function) []v1.EnvVar {
+	function *nuclioio.NuclioFunction) []v1.EnvVar {
 	env := function.Spec.Env
 
 	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: functionLabels["nuclio.io/function-name"]})
@@ -875,7 +875,7 @@ func (lc *lazyClient) getFunctionEnvironment(functionLabels labels.Set,
 	return env
 }
 
-func (lc *lazyClient) serializeFunctionJSON(function *nuclioio.Function) (string, error) {
+func (lc *lazyClient) serializeFunctionJSON(function *nuclioio.NuclioFunction) (string, error) {
 	body, err := json.Marshal(function.Spec)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to marshal JSON")
@@ -891,7 +891,7 @@ func (lc *lazyClient) serializeFunctionJSON(function *nuclioio.Function) (string
 }
 
 func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
-	function *nuclioio.Function,
+	function *nuclioio.NuclioFunction,
 	spec *v1.ServiceSpec) {
 
 	if function.Status.State == functionconfig.FunctionStateScaledToZero {
@@ -990,7 +990,7 @@ func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.Ser
 }
 
 func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
-	function *nuclioio.Function,
+	function *nuclioio.NuclioFunction,
 	meta *meta_v1.ObjectMeta,
 	spec *ext_v1beta1.IngressSpec) error {
 	meta.Annotations = make(map[string]string)
@@ -1029,7 +1029,7 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 
 func (lc *lazyClient) formatIngressPattern(ingressPattern string,
 	functionLabels labels.Set,
-	function *nuclioio.Function) (string, error) {
+	function *nuclioio.NuclioFunction) (string, error) {
 
 	if !strings.HasPrefix(ingressPattern, "/") {
 		ingressPattern = "/" + ingressPattern
@@ -1061,7 +1061,7 @@ func (lc *lazyClient) formatIngressPattern(ingressPattern string,
 
 func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 	functionLabels labels.Set,
-	function *nuclioio.Function,
+	function *nuclioio.NuclioFunction,
 	spec *ext_v1beta1.IngressSpec) error {
 
 	lc.logger.DebugWith("Adding ingress",
@@ -1114,7 +1114,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 }
 
 func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
-	function *nuclioio.Function,
+	function *nuclioio.NuclioFunction,
 	container *v1.Container) {
 	healthCheckHTTPPort := 8082
 
@@ -1171,13 +1171,17 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 		PeriodSeconds:       5,
 	}
 
-	// always pull so that each create / update will trigger a rolling update including pulling the image. this is
-	// because the tag of the image doesn't change between revisions of the function
-	container.ImagePullPolicy = v1.PullAlways
+	// always pull is the default since each create / update will trigger a rollingupdate including
+	// pulling the image. this is because the tag of the image doesn't change between revisions of the function
+	if function.Spec.ImagePullPolicy == "" {
+		container.ImagePullPolicy = v1.PullAlways
+	} else {
+		container.ImagePullPolicy = function.Spec.ImagePullPolicy
+	}
 }
 
 func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
-	function *nuclioio.Function,
+	function *nuclioio.NuclioFunction,
 	configMap *v1.ConfigMap) error {
 
 	// create a processor configMap writer
@@ -1222,7 +1226,7 @@ func (lc *lazyClient) configMapNameFromFunctionName(functionName string) string 
 	return functionName
 }
 
-func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.Function) ([]v1.Volume, []v1.VolumeMount) {
+func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFunction) ([]v1.Volume, []v1.VolumeMount) {
 	trueVal := true
 	var configVolumes []functionconfig.Volume
 
@@ -1273,7 +1277,7 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
 	}
 
-	result, err := lc.nuclioClientSet.NuclioV1beta1().FunctionEvents(namespace).List(listOptions)
+	result, err := lc.nuclioClientSet.NuclioV1beta1().NuclioFunctionEvents(namespace).List(listOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to list function events")
 	}
@@ -1282,7 +1286,7 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 
 	for _, functionEvent := range result.Items {
 		errGroup.Go(func() error {
-			err = lc.nuclioClientSet.NuclioV1beta1().FunctionEvents(namespace).Delete(functionEvent.Name, &meta_v1.DeleteOptions{})
+			err = lc.nuclioClientSet.NuclioV1beta1().NuclioFunctionEvents(namespace).Delete(functionEvent.Name, &meta_v1.DeleteOptions{})
 			if err != nil {
 				return errors.Wrap(err, "Failed to delete function event")
 			}

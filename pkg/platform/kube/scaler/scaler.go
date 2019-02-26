@@ -115,14 +115,14 @@ func (s *Scaler) Start() error {
 
 func (s *Scaler) scaleFunctionToZero(namespace string, functionName string) {
 	s.logger.DebugWith("Scaling to zero", "functionName", functionName)
-	function, err := s.nuclioClientSet.NuclioV1beta1().Functions(s.namespace).Get(functionName, metav1.GetOptions{})
+	function, err := s.nuclioClientSet.NuclioV1beta1().NuclioFunctions(s.namespace).Get(functionName, metav1.GetOptions{})
 	if err != nil {
 		s.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
 	}
 
 	// this has the nice property of disabling hpa as well
 	function.Status.State = functionconfig.FunctionStateScaledToZero
-	_, err = s.nuclioClientSet.NuclioV1beta1().Functions(namespace).Update(function)
+	_, err = s.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Update(function)
 	if err != nil {
 		s.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
 	}

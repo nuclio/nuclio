@@ -75,7 +75,6 @@ nuctl deploy my-function \
 ```
 
 > Note:
->
 > 1. `--path` can also hold a URL
 > 2. See the applicable setup guide to get registry informatiom
 
@@ -194,7 +193,7 @@ For a more manageable approach, you can keep your configuration alongside your s
 
 ```yaml
 apiVersion: "nuclio.io/v1"
-kind: Function
+kind: NuclioFunction
 metadata:
   name: my-function
   namespace: nuclio
@@ -231,7 +230,7 @@ import os
 #
 # function.yaml:
 #   apiVersion: "nuclio.io/v1"
-#   kind: Function
+#   kind: NuclioFunction
 #   metadata:
 #     name: my-function
 #     namespace: nuclio

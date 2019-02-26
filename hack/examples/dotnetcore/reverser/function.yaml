@@ -13,7 +13,7 @@
 # limitations under the License.
 
 apiVersion: "nuclio.io/v1beta1"
-kind: "Function"
+kind: "NuclioFunction"
 spec:
   description: Returns the reverse of the body received in the event.
   runtime: "dotnetcore"

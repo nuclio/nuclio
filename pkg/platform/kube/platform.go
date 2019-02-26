@@ -100,7 +100,7 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
-	var existingFunctionInstance *nuclioio.Function
+	var existingFunctionInstance *nuclioio.NuclioFunction
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
 	// wrap logger
@@ -294,11 +294,11 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 
 // CreateProject will probably create a new project
 func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
-	newProject := nuclioio.Project{}
+	newProject := nuclioio.NuclioProject{}
 	p.platformProjectToProject(&createProjectOptions.ProjectConfig, &newProject)
 
 	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		Projects(createProjectOptions.ProjectConfig.Meta.Namespace).
+		NuclioProjects(createProjectOptions.ProjectConfig.Meta.Namespace).
 		Create(&newProject)
 
 	if err != nil {
@@ -311,13 +311,13 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 // UpdateProject will update a previously existing project
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
 	project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		Projects(updateProjectOptions.ProjectConfig.Meta.Namespace).
+		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
 		Get(updateProjectOptions.ProjectConfig.Meta.Name, meta_v1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get projects")
 	}
 
-	updatedProject := nuclioio.Project{}
+	updatedProject := nuclioio.NuclioProject{}
 	p.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
 
 	if &updatedProject.Spec != nil {
@@ -325,7 +325,7 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 	}
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
-		Projects(updateProjectOptions.ProjectConfig.Meta.Namespace).
+		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
 		Update(project)
 
 	if err != nil {
@@ -352,7 +352,7 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 	}
 
 	err = p.consumer.nuclioClientSet.NuclioV1beta1().
-		Projects(deleteProjectOptions.Meta.Namespace).
+		NuclioProjects(deleteProjectOptions.Meta.Namespace).
 		Delete(deleteProjectOptions.Meta.Name, &meta_v1.DeleteOptions{})
 
 	if err != nil {
@@ -368,19 +368,19 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 // GetProjects will list existing projects
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	var platformProjects []platform.Project
-	var projects []nuclioio.Project
+	var projects []nuclioio.NuclioProject
 
-	// if identifier specified, we need to get a single Project
+	// if identifier specified, we need to get a single NuclioProject
 	if getProjectsOptions.Meta.Name != "" {
 
-		// get specific Project CR
+		// get specific NuclioProject CR
 		Project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-			Projects(getProjectsOptions.Meta.Namespace).
+			NuclioProjects(getProjectsOptions.Meta.Namespace).
 			Get(getProjectsOptions.Meta.Name, meta_v1.GetOptions{})
 
 		if err != nil {
 
-			// if we didn't find the Project, return an empty slice
+			// if we didn't find the NuclioProject, return an empty slice
 			if apierrors.IsNotFound(err) {
 				return platformProjects, nil
 			}
@@ -393,18 +393,18 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 	} else {
 
 		projectInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-			Projects(getProjectsOptions.Meta.Namespace).
+			NuclioProjects(getProjectsOptions.Meta.Namespace).
 			List(meta_v1.ListOptions{LabelSelector: ""})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list projects")
 		}
 
-		// convert []Project to []*Project
+		// convert []NuclioProject to []*NuclioProject
 		projects = projectInstanceList.Items
 	}
 
-	// convert []nuclioio.Project -> Project
+	// convert []nuclioio.NuclioProject -> NuclioProject
 	for projectInstanceIndex := 0; projectInstanceIndex < len(projects); projectInstanceIndex++ {
 		projectInstance := projects[projectInstanceIndex]
 
@@ -434,11 +434,11 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
 func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
-	newFunctionEvent := nuclioio.FunctionEvent{}
+	newFunctionEvent := nuclioio.NuclioFunctionEvent{}
 	p.platformFunctionEventToFunctionEvent(&createFunctionEventOptions.FunctionEventConfig, &newFunctionEvent)
 
 	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		FunctionEvents(createFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
+		NuclioFunctionEvents(createFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
 		Create(&newFunctionEvent)
 
 	if err != nil {
@@ -450,11 +450,11 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 
 // UpdateFunctionEvent will update a previously existing function event
 func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
-	updatedFunctionEvent := nuclioio.FunctionEvent{}
+	updatedFunctionEvent := nuclioio.NuclioFunctionEvent{}
 	p.platformFunctionEventToFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig, &updatedFunctionEvent)
 
 	functionEvent, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		FunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
+		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
 		Get(updateFunctionEventOptions.FunctionEventConfig.Meta.Name, meta_v1.GetOptions{})
 
 	if err != nil {
@@ -467,7 +467,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 	}
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
-		FunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
+		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
 		Update(functionEvent)
 
 	if err != nil {
@@ -480,7 +480,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 // DeleteFunctionEvent will delete a previously existing function event
 func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
 	err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		FunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
+		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
 		Delete(deleteFunctionEventOptions.Meta.Name, &meta_v1.DeleteOptions{})
 
 	if err != nil {
@@ -496,14 +496,14 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 // GetFunctionEvents will list existing function events
 func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
 	var platformFunctionEvents []platform.FunctionEvent
-	var functionEvents []nuclioio.FunctionEvent
+	var functionEvents []nuclioio.NuclioFunctionEvent
 
 	// if identifier specified, we need to get a single function event
 	if getFunctionEventsOptions.Meta.Name != "" {
 
 		// get specific function event CR
 		functionEvent, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-			FunctionEvents(getFunctionEventsOptions.Meta.Namespace).
+			NuclioFunctionEvents(getFunctionEventsOptions.Meta.Namespace).
 			Get(getFunctionEventsOptions.Meta.Name, meta_v1.GetOptions{})
 
 		if err != nil {
@@ -528,18 +528,18 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 		}
 
 		functionEventInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-			FunctionEvents(getFunctionEventsOptions.Meta.Namespace).
+			NuclioFunctionEvents(getFunctionEventsOptions.Meta.Namespace).
 			List(meta_v1.ListOptions{LabelSelector: labelSelector})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list function events")
 		}
 
-		// convert []FunctionEvent to []*FunctionEvent
+		// convert []NuclioFunctionEvent to []*NuclioFunctionEvent
 		functionEvents = functionEventInstanceList.Items
 	}
 
-	// convert []nuclioio.FunctionEvent -> FunctionEvent
+	// convert []nuclioio.NuclioFunctionEvent -> NuclioFunctionEvent
 	for functionEventInstanceIndex := 0; functionEventInstanceIndex < len(functionEvents); functionEventInstanceIndex++ {
 		functionEventInstance := functionEvents[functionEventInstanceIndex]
 
@@ -678,10 +678,10 @@ func getKubeconfigFromHomeDir() string {
 	return ""
 }
 
-func (p *Platform) getFunction(namespace string, name string) (*nuclioio.Function, error) {
+func (p *Platform) getFunction(namespace string, name string) (*nuclioio.NuclioFunction, error) {
 
 	// get specific function CR
-	function, err := p.consumer.nuclioClientSet.NuclioV1beta1().Functions(namespace).Get(name, meta_v1.GetOptions{})
+	function, err := p.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 
 		// if we didn't find the function, return nothing
@@ -722,7 +722,7 @@ func (p *Platform) getExistingFunctionConfig(createFunctionOptions *platform.Cre
 	return nil, nil
 }
 
-func (p *Platform) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.Project) {
+func (p *Platform) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.NuclioProject) {
 	project.Name = platformProject.Meta.Name
 	project.Namespace = platformProject.Meta.Namespace
 	project.Labels = platformProject.Meta.Labels
@@ -730,7 +730,7 @@ func (p *Platform) platformProjectToProject(platformProject *platform.ProjectCon
 	project.Spec = platformProject.Spec
 }
 
-func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *platform.FunctionEventConfig, functionEvent *nuclioio.FunctionEvent) {
+func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *platform.FunctionEventConfig, functionEvent *nuclioio.NuclioFunctionEvent) {
 	functionEvent.Name = platformFunctionEvent.Meta.Name
 	functionEvent.Namespace = platformFunctionEvent.Meta.Namespace
 	functionEvent.Labels = platformFunctionEvent.Meta.Labels

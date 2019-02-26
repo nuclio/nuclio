@@ -13,11 +13,12 @@
     function VersionDataWrapperController(NuclioFunctionsDataService, NuclioProjectsDataService) {
         var ctrl = this;
 
-        ctrl.deployVersion = deployVersion;
+        ctrl.createFunction = createFunction;
         ctrl.deleteFunction = deleteFunction;
         ctrl.getExternalIPAddresses = getExternalIPAddresses;
-        ctrl.getProject = getProject;
         ctrl.getFunction = getFunction;
+        ctrl.getProject = getProject;
+        ctrl.updateFunction = updateFunction;
 
         //
         // Public methods
@@ -29,8 +30,8 @@
          * @param {string} projectID
          * @returns {Promise}
          */
-        function deployVersion(version, projectID) {
-            return NuclioFunctionsDataService.updateFunction(version, projectID);
+        function createFunction(version, projectID) {
+            return NuclioFunctionsDataService.createFunction(version, projectID);
         }
 
         /**
@@ -51,6 +52,15 @@
         }
 
         /**
+         * Gets a function
+         * @param {Object} metadata
+         * @returns {Promise}
+         */
+        function getFunction(metadata) {
+            return NuclioFunctionsDataService.getFunction(metadata);
+        }
+
+        /**
          * Gets a list of all project
          * @param {string} id - project ID
          * @returns {Promise}
@@ -60,12 +70,13 @@
         }
 
         /**
-         * Gets a function
-         * @param {Object} metadata
+         * Deploys version
+         * @param {Object} version
+         * @param {string} projectID
          * @returns {Promise}
          */
-        function getFunction(metadata) {
-            return NuclioFunctionsDataService.getFunction(metadata);
+        function updateFunction(version, projectID) {
+            return NuclioFunctionsDataService.updateFunction(version, projectID);
         }
     }
 }());

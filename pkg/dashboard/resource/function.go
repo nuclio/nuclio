@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
@@ -31,6 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/nuclio-sdk-go"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 type functionResource struct {
@@ -103,13 +105,63 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	return fr.functionToAttributes(function[0]), nil
 }
 
-// Create deploys a function
+// Create and deploy a function
 func (fr *functionResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
-
 	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
 	if responseErr != nil {
 		return
 	}
+
+	// validate there are no 2 functions with the same name
+	getFunctionsOptions := &platform.GetFunctionsOptions{
+		Name:      functionInfo.Meta.Name,
+		Namespace: fr.getNamespaceFromRequest(request),
+	}
+
+	projectNameFilter, ok := functionInfo.Meta.Labels["nuclio.io/project-name"]
+	if !ok || projectNameFilter == "" {
+		responseErr = nuclio.WrapErrBadRequest(errors.New("No project name was given inside meta labels"))
+		return
+	}
+
+	getFunctionsOptions.Labels = fmt.Sprintf("nuclio.io/project-name=%s", projectNameFilter)
+
+	// TODO: Add a lock to prevent race conditions here (prevent 2 functions created with the same name)
+	functions, err := fr.getPlatform().GetFunctions(getFunctionsOptions)
+	if err != nil {
+		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
+		return
+	}
+
+	if len(functions) > 0 {
+		responseErr = nuclio.NewErrConflict("Cannot create two functions with the same name")
+		return
+	}
+
+	// validation finished successfully - store and deploy the given function
+	if responseErr = fr.storeAndDeployFunction(functionInfo, request); responseErr != nil {
+		return
+	}
+
+	responseErr = nuclio.ErrAccepted
+	return
+}
+
+// Update and deploy a function
+func (fr *functionResource) Update(request *http.Request, id string) (attributes restful.Attributes, responseErr error) {
+	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
+	if responseErr != nil {
+		return
+	}
+
+	if responseErr = fr.storeAndDeployFunction(functionInfo, request); responseErr != nil {
+		return
+	}
+
+	return nil, nuclio.ErrAccepted
+}
+
+func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, request *http.Request) error {
 
 	creationStateUpdatedTimeout := 15 * time.Second
 
@@ -170,11 +222,9 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	case <-creationStateUpdatedChan:
 		break
 	case errDeploying := <-errDeployingChan:
-		responseErr = errDeploying
-		return
+		return errDeploying
 	case <-time.After(creationStateUpdatedTimeout):
-		responseErr = nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
-		return
+		return nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
 	}
 
 	// mostly for testing, but can also be for clients that want to wait for some reason
@@ -182,10 +232,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		<-doneChan
 	}
 
-	// in progress
-	responseErr = nuclio.ErrAccepted
-
-	return
+	return nil
 }
 
 // returns a list of custom routes for the resource
@@ -291,6 +338,13 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		return nil, nuclio.WrapErrBadRequest(err)
 	}
 
+	// validate function name is according to k8s convention
+	errorMessages := validation.IsQualifiedName(functionInfoInstance.Meta.Name)
+	if len(errorMessages) != 0 {
+		joinedErrorMessage := strings.Join(errorMessages, ", ")
+		return nil, nuclio.NewErrBadRequest("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
+	}
+
 	// add project name label if given via header
 	projectName := request.Header.Get("x-nuclio-project-name")
 	if projectName != "" {
@@ -310,6 +364,7 @@ var functionResourceInstance = &functionResource{
 		restful.ResourceMethodGetList,
 		restful.ResourceMethodGetDetail,
 		restful.ResourceMethodCreate,
+		restful.ResourceMethodUpdate,
 	}),
 }
 

@@ -47,7 +47,7 @@ func (suite *lazyTestSuite) TestNoTriggers() {
 	ingressSpec := ext_v1beta1.IngressSpec{}
 
 	// function instance has no triggers
-	functionInstance := nuclioio.Function{}
+	functionInstance := nuclioio.NuclioFunction{}
 	functionInstance.Name = "func-name"
 	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{}
 
@@ -70,7 +70,7 @@ func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
 	ingressSpec := ext_v1beta1.IngressSpec{}
 
 	// function instance has no triggers
-	functionInstance := nuclioio.Function{}
+	functionInstance := nuclioio.NuclioFunction{}
 	functionInstance.Name = "func-name"
 	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
 		"mh": {
@@ -103,7 +103,7 @@ func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
 	}
 
 	// function instance has no triggers
-	functionInstance := nuclioio.Function{}
+	functionInstance := nuclioio.NuclioFunction{}
 	functionInstance.Name = "func-name"
 	functionInstance.Namespace = "func-namespace"
 	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{

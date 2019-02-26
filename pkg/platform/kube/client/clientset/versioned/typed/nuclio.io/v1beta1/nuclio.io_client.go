@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@ import (
 
 type NuclioV1beta1Interface interface {
 	RESTClient() rest.Interface
-	FunctionsGetter
-	FunctionEventsGetter
-	ProjectsGetter
+	NuclioFunctionsGetter
+	NuclioFunctionEventsGetter
+	NuclioProjectsGetter
 }
 
 // NuclioV1beta1Client is used to interact with features provided by the nuclio.io group.
@@ -37,16 +37,16 @@ type NuclioV1beta1Client struct {
 	restClient rest.Interface
 }
 
-func (c *NuclioV1beta1Client) Functions(namespace string) FunctionInterface {
-	return newFunctions(c, namespace)
+func (c *NuclioV1beta1Client) NuclioFunctions(namespace string) NuclioFunctionInterface {
+	return newNuclioFunctions(c, namespace)
 }
 
-func (c *NuclioV1beta1Client) FunctionEvents(namespace string) FunctionEventInterface {
-	return newFunctionEvents(c, namespace)
+func (c *NuclioV1beta1Client) NuclioFunctionEvents(namespace string) NuclioFunctionEventInterface {
+	return newNuclioFunctionEvents(c, namespace)
 }
 
-func (c *NuclioV1beta1Client) Projects(namespace string) ProjectInterface {
-	return newProjects(c, namespace)
+func (c *NuclioV1beta1Client) NuclioProjects(namespace string) NuclioProjectInterface {
+	return newNuclioProjects(c, namespace)
 }
 
 // NewForConfig creates a new NuclioV1beta1Client for the given config.

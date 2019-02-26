@@ -24,13 +24,20 @@ import (
 	"strings"
 )
 
-func DownloadFile(URL, destFile string) error {
+func DownloadFile(URL, destFile string, headers http.Header) error {
 	out, err := os.Create(destFile)
 	if err != nil {
 		return err
 	}
 
-	response, err := http.Get(URL)
+	client := http.Client{}
+	request, err := http.NewRequest("GET", URL, nil)
+	if err != nil {
+		return err
+	}
+
+	request.Header = headers
+	response, err := client.Do(request)
 	if err != nil {
 		return err
 	}

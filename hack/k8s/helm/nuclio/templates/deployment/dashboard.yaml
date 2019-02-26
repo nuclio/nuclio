@@ -60,6 +60,14 @@ spec:
         - name: NUCLIO_DASHBOARD_OFFLINE
           value: "true"
         {{- end }}
+        {{- if .Values.dashboard.templatesArchiveAddress }}
+        - name: NUCLIO_TEMPLATES_ARCHIVE_ADDRESS
+          value: {{ .Values.dashboard.templatesArchiveAddress }}
+        - name: NUCLIO_TEMPLATES_GIT_REPOSITORY
+          value: "nil"
+        - name: NUCLIO_TEMPLATES_GIT_REF
+          value: "nil"
+        {{- end }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ .Values.dashboard.externalIPAddresses | join "," | quote }}
       volumes:
