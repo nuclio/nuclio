@@ -35,7 +35,7 @@ RUN go get github.com/v3io/scaler-types \
 RUN mkdir -p /home/nuclio/bin \
             && GOOS=linux GOARCH=amd64 go build -buildmode=plugin -a -installsuffix cgo -ldflags="-s -w" \
             -o /home/nuclio/plugins/plugin.so pkg/platform/kube/resourcescaler/resourcescaler.go \
-            && rm -rf /go/src/github/nuclio/nuclio
+            && rm -rf /go/src/github.com/nuclio/nuclio
 
 FROM alpine:3.7
 
