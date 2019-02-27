@@ -79,9 +79,13 @@ func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
 
 	var functionList []scaler_types.Resource
 
-	// build a map of functions with status
+	// build a list of function names that are potential to be scaled to zero
 	for _, function := range functions.Items {
-		functionList = append(functionList, scaler_types.Resource(function.Name))
+
+		// don't include functions that aren't in ready state or that min replicas is larger than zero
+		if function.Spec.MinReplicas == 0 && function.Status.State == functionconfig.FunctionStateReady {
+			functionList = append(functionList, scaler_types.Resource(function.Name))
+		}
 	}
 	return functionList, nil
 }
