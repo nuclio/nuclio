@@ -72,7 +72,7 @@ func (n *NuclioResourceScaler) SetScale(resource scaler_types.Resource, scale in
 }
 
 func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
-	functions, err := n.nuclioClientSet.NuclioV1beta1().Functions(n.namespace).List(metav1.ListOptions{})
+	functions, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(n.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list functions")
 	}
@@ -118,7 +118,7 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 		},
 		DLXOptions: scaler_types.DLXOptions{
 			Namespace:        n.namespace,
-			TargetPort:       8081,
+			TargetPort:       8080,
 			TargetNameHeader: "X-Nuclio-Target",
 			TargetPathHeader: "X-Nuclio-Function-Path",
 			ListenAddress:    ":8080",
@@ -127,14 +127,14 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 			MetricInterval: pollerInterval,
 			MetricName:     platformConfiguration.ScaleToZero.MetricName,
 			Namespace:      n.namespace,
-			GroupKind:      "Function",
+			GroupKind:      "NuclioFunction",
 		},
 	}, nil
 }
 
 func (n *NuclioResourceScaler) scaleFunctionToZero(namespace string, functionName string) error {
 	n.logger.DebugWith("Scaling to zero", "functionName", functionName)
-	function, err := n.nuclioClientSet.NuclioV1beta1().Functions(namespace).Get(functionName, metav1.GetOptions{})
+	function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
 	if err != nil {
 		n.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
 		return errors.Wrap(err, "Failed to get function")
@@ -142,7 +142,7 @@ func (n *NuclioResourceScaler) scaleFunctionToZero(namespace string, functionNam
 
 	// this has the nice property of disabling hpa as well
 	function.Status.State = functionconfig.FunctionStateScaledToZero
-	_, err = n.nuclioClientSet.NuclioV1beta1().Functions(namespace).Update(function)
+	_, err = n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Update(function)
 	if err != nil {
 		n.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
 		return errors.Wrap(err, "Failed to update function")
@@ -159,14 +159,14 @@ func (n *NuclioResourceScaler) scaleFunctionFromZero(namespace string, functionN
 }
 
 func (n *NuclioResourceScaler) updateFunctionStatus(namespace string, functionName string) error {
-	function, err := n.nuclioClientSet.NuclioV1beta1().Functions(namespace).Get(functionName, metav1.GetOptions{})
+	function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
 	if err != nil {
 		n.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
 		return errors.Wrap(err, "Failed to get nuclio function")
 	}
 
 	function.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
-	_, err = n.nuclioClientSet.NuclioV1beta1().Functions(namespace).Update(function)
+	_, err = n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Update(function)
 	if err != nil {
 		n.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
 		return errors.Wrap(err, "Failed to update nuclio function")
@@ -176,7 +176,7 @@ func (n *NuclioResourceScaler) updateFunctionStatus(namespace string, functionNa
 
 func (n *NuclioResourceScaler) waitFunctionReadiness(namespace string, functionName string) error {
 	for {
-		function, err := n.nuclioClientSet.NuclioV1beta1().Functions(namespace).Get(functionName, metav1.GetOptions{})
+		function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
 		if err != nil {
 			n.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
 			return errors.Wrap(err, "Failed to get nuclio function")
