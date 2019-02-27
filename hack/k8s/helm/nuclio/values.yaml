@@ -6,7 +6,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.1.0-amd64
+    tag: 1.1.1-amd64
     pullPolicy: IfNotPresent  
 
   # Uncomment to have the controller to listen only the namespace's events, 
@@ -19,7 +19,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.1.0-amd64
+    tag: 1.1.1-amd64
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
@@ -32,7 +32,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.1.0-amd64
+    tag: 1.1.1-amd64
     pullPolicy: IfNotPresent
 
 dlx:
@@ -40,7 +40,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.1.0-amd64
+    tag: 1.1.1-amd64
     pullPolicy: IfNotPresent
 
 registry:
