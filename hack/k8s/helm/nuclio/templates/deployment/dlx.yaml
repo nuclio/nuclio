@@ -35,7 +35,7 @@ spec:
         imagePullPolicy: {{ .Values.dlx.image.pullPolicy }}
         env:
         {{- if .Values.dlx.namespace }}
-        - name: NUCLIO_DLX_NAMESPACE
+        - name: NUCLIO_SCALER_NAMESPACE
           value: {{ .Values.dlx.namespace | quote }}
         {{- end }}
         {{- if .Values.platform }}
@@ -47,6 +47,6 @@ spec:
       volumes:
       - name: platform-config
         configMap:
-        name: {{ template "nuclio.platformName" . }}
+          name: {{ template "nuclio.platformName" . }}
       {{- end }}
 {{- end }}

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- if .Values.scaler.enabled }}
+{{- if .Values.autoscaler.enabled }}
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -22,21 +22,21 @@ spec:
   template:
     metadata:
       labels:
-        nuclio.io/app: scaler
+        nuclio.io/app: autoscaler
         nuclio.io/class: service
         nuclio.io/name: {{ template "nuclio.scalerName" . }}
       annotations:
-        nuclio.io/version: {{ .Values.scaler.image.tag }}
+        nuclio.io/version: {{ .Values.autoscaler.image.tag }}
     spec:
       serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
       containers:
       - name: {{ template "nuclio.scalerName" . }}
-        image: {{ .Values.scaler.image.repository }}:{{ .Values.scaler.image.tag }}
-        imagePullPolicy: {{ .Values.scaler.image.pullPolicy }}
+        image: {{ .Values.autoscaler.image.repository }}:{{ .Values.autoscaler.image.tag }}
+        imagePullPolicy: {{ .Values.autoscaler.image.pullPolicy }}
         env:
-        {{- if .Values.scaler.namespace }}
+        {{- if .Values.autoscaler.namespace }}
         - name: NUCLIO_SCALER_NAMESPACE
-          value: {{ .Values.scaler.namespace | quote }}
+          value: {{ .Values.autoscaler.namespace | quote }}
         {{- end }}
         {{- if .Values.platform }}
         volumeMounts:

@@ -57,7 +57,7 @@ func Run(listenAddress string,
 	}
 
 	// create a root logger
-	rootLogger, err := loggersink.CreateSystemLogger("controller", platformConfiguration)
+	rootLogger, err := loggersink.CreateSystemLogger("dashboard", platformConfiguration)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
 	}

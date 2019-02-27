@@ -115,7 +115,7 @@ DOCKER_IMAGES_RULES = \
 	controller \
 	dashboard \
 	processor \
-	scaler \
+	autoscaler \
 	dlx \
 	handler-builder-golang-onbuild \
 	handler-builder-java-onbuild \
@@ -185,11 +185,11 @@ dashboard: ensure-gopath
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME)
 
 # Scaler
-NUCLIO_DOCKER_SCALER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/scaler:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_SCALER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/autoscaler:$(NUCLIO_DOCKER_IMAGE_TAG)
 
-scaler: ensure-gopath
+autoscaler: ensure-gopath
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-		--file cmd/scaler/Dockerfile \
+		--file cmd/autoscaler/Dockerfile \
 		--tag $(NUCLIO_DOCKER_SCALER_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
 
