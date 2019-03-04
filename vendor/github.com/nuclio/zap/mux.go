@@ -16,7 +16,11 @@ limitations under the License.
 
 package nucliozap
 
-import "github.com/nuclio/logger"
+import (
+	"context"
+
+	"github.com/nuclio/logger"
+)
 
 // a logger that multiplexes logs towards multiple loggers
 type MuxLogger struct {
@@ -37,9 +41,21 @@ func (ml *MuxLogger) Error(format interface{}, vars ...interface{}) {
 	}
 }
 
+func (ml *MuxLogger) ErrorCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	for _, logger := range ml.loggers {
+		logger.ErrorCtx(ctx, format, vars...)
+	}
+}
+
 func (ml *MuxLogger) Warn(format interface{}, vars ...interface{}) {
 	for _, logger := range ml.loggers {
 		logger.Warn(format, vars...)
+	}
+}
+
+func (ml *MuxLogger) WarnCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	for _, logger := range ml.loggers {
+		logger.WarnCtx(ctx, format, vars...)
 	}
 }
 
@@ -49,9 +65,21 @@ func (ml *MuxLogger) Info(format interface{}, vars ...interface{}) {
 	}
 }
 
+func (ml *MuxLogger) InfoCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	for _, logger := range ml.loggers {
+		logger.InfoCtx(ctx, format, vars...)
+	}
+}
+
 func (ml *MuxLogger) Debug(format interface{}, vars ...interface{}) {
 	for _, logger := range ml.loggers {
 		logger.Debug(format, vars...)
+	}
+}
+
+func (ml *MuxLogger) DebugCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	for _, logger := range ml.loggers {
+		logger.DebugCtx(ctx, format, vars...)
 	}
 }
 
@@ -61,9 +89,21 @@ func (ml *MuxLogger) ErrorWith(format interface{}, vars ...interface{}) {
 	}
 }
 
+func (ml *MuxLogger) ErrorWithCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	for _, logger := range ml.loggers {
+		logger.ErrorWithCtx(ctx, format, vars...)
+	}
+}
+
 func (ml *MuxLogger) WarnWith(format interface{}, vars ...interface{}) {
 	for _, logger := range ml.loggers {
 		logger.WarnWith(format, vars...)
+	}
+}
+
+func (ml *MuxLogger) WarnWithCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	for _, logger := range ml.loggers {
+		logger.WarnWithCtx(ctx, format, vars...)
 	}
 }
 
@@ -73,9 +113,21 @@ func (ml *MuxLogger) InfoWith(format interface{}, vars ...interface{}) {
 	}
 }
 
+func (ml *MuxLogger) InfoWithCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	for _, logger := range ml.loggers {
+		logger.InfoWithCtx(ctx, format, vars...)
+	}
+}
+
 func (ml *MuxLogger) DebugWith(format interface{}, vars ...interface{}) {
 	for _, logger := range ml.loggers {
 		logger.DebugWith(format, vars...)
+	}
+}
+
+func (ml *MuxLogger) DebugWithCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	for _, logger := range ml.loggers {
+		logger.DebugWithCtx(ctx, format, vars...)
 	}
 }
 
