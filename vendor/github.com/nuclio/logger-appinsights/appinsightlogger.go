@@ -20,8 +20,8 @@ type Logger struct {
 func NewLogger(client appinsights.TelemetryClient, name string, level logger.Level) (*Logger, error) {
 	return &Logger{
 		client: client,
-		name: name,
-		level: level,
+		name:   name,
+		level:  level,
 	}, nil
 }
 
@@ -94,6 +94,70 @@ func (l *Logger) DebugWith(format interface{}, vars ...interface{}) {
 	}
 }
 
+// ErrorCtx emits an unstructred error log
+func (l *Logger) ErrorCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelError {
+		vars = append(vars, ctx)
+		l.emitUnstructured(appinsights.Error, format, vars...)
+	}
+}
+
+// WarnCtx emits an unstructred error log
+func (l *Logger) WarnCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelWarn {
+		vars = append(vars, ctx)
+		l.emitUnstructured(appinsights.Warning, format, vars...)
+	}
+}
+
+// InfoCtx emits an unstructred error log
+func (l *Logger) InfoCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelInfo {
+		vars = append(vars, ctx)
+		l.emitUnstructured(appinsights.Information, format, vars...)
+	}
+}
+
+// DebugCtx emits an unstructred error log
+func (l *Logger) DebugCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelDebug {
+		vars = append(vars, ctx)
+		l.emitUnstructured(appinsights.Verbose, format, vars...)
+	}
+}
+
+// ErrorWithCtx emits a structured error log
+func (l *Logger) ErrorWithCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelError {
+		vars = append(vars, ctx)
+		l.emitStructured(appinsights.Error, format, vars...)
+	}
+}
+
+// WarnWithCtx emits a structured error log
+func (l *Logger) WarnWithCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelWarn {
+		vars = append(vars, ctx)
+		l.emitStructured(appinsights.Warning, format, vars...)
+	}
+}
+
+// InfoWithCtx emits a structured error log
+func (l *Logger) InfoWithCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelInfo {
+		vars = append(vars, ctx)
+		l.emitStructured(appinsights.Information, format, vars...)
+	}
+}
+
+// DebugWithCtx emits a structured error log
+func (l *Logger) DebugWithCtx(ctx context.Context, format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelDebug {
+		vars = append(vars, ctx)
+		l.emitStructured(appinsights.Verbose, format, vars...)
+	}
+}
+
 // Flush flushes buffered logs
 func (l *Logger) Flush() {
 	l.client.Channel().Flush()
@@ -131,7 +195,7 @@ func (l *Logger) emitStructured(severity contracts.SeverityLevel, message interf
 	// set properties
 	for varIdx := 0; varIdx < len(vars); varIdx += 2 {
 		key := toString(vars[varIdx])
-		value := toString(vars[varIdx + 1])
+		value := toString(vars[varIdx+1])
 
 		trace.Properties[key] = value
 	}

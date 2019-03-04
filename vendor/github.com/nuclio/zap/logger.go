@@ -30,6 +30,31 @@ import (
 	"github.com/pavius/zap/zapcore"
 )
 
+type EncoderConfigJSON struct {
+	LineEnding        string
+	VarGroupName      string
+	TimeFieldName     string
+	TimeFieldEncoding string
+}
+
+type EncoderConfigConsole struct {
+}
+
+type EncoderConfig struct {
+	JSON    EncoderConfigJSON
+	Console EncoderConfigConsole
+}
+
+func NewEncoderConfig() *EncoderConfig {
+	return &EncoderConfig{
+		JSON: EncoderConfigJSON{
+			LineEnding:        ",",
+			TimeFieldName:     "time",
+			TimeFieldEncoding: "epoch-millis",
+		},
+	}
+}
+
 // Level is logging levels
 type Level int8
 
@@ -55,25 +80,35 @@ func (w writerWrapper) Sync() error {
 // NuclioZap is a concrete implementation of the nuclio logger interface, using zap
 type NuclioZap struct {
 	*zap.SugaredLogger
-	atomicLevel       zap.AtomicLevel
-	coloredLevelDebug string
-	coloredLevelInfo  string
-	coloredLevelWarn  string
-	coloredLevelError string
-	colorLoggerName   func(string) string
+	atomicLevel         zap.AtomicLevel
+	coloredLevelDebug   string
+	coloredLevelInfo    string
+	coloredLevelWarn    string
+	coloredLevelError   string
+	colorLoggerName     func(string) string
+	customEncoderConfig *EncoderConfig
+	encoding            string
 }
 
 // NewNuclioZap create a configurable logger
 func NewNuclioZap(name string,
 	encoding string,
+	customEncoderConfig *EncoderConfig,
 	sink io.Writer,
 	errSink io.Writer,
 	level Level) (*NuclioZap, error) {
 	newNuclioZap := &NuclioZap{
-		atomicLevel: zap.NewAtomicLevelAt(zapcore.Level(level)),
+		atomicLevel:         zap.NewAtomicLevelAt(zapcore.Level(level)),
+		customEncoderConfig: customEncoderConfig,
+		encoding:            encoding,
 	}
 
-	encoderConfig := newNuclioZap.getEncoderConfig(encoding)
+	if customEncoderConfig == nil {
+		customEncoderConfig = NewEncoderConfig()
+	}
+
+	// create an encoder configuration
+	encoderConfig := newNuclioZap.getEncoderConfig(encoding, customEncoderConfig)
 
 	// create a sane configuration
 	config := zap.Config{
@@ -124,7 +159,7 @@ func NewNuclioZapTest(name string) (*NuclioZap, error) {
 
 // NewNuclioZapCmd creates a logger pre-configured for commands
 func NewNuclioZapCmd(name string, level Level) (*NuclioZap, error) {
-	return NewNuclioZap(name, "console", os.Stdout, os.Stdout, level)
+	return NewNuclioZap(name, "console", nil, os.Stdout, os.Stdout, level)
 }
 
 // GetLevelByName return logging level by name
@@ -169,7 +204,7 @@ func (nz *NuclioZap) Error(format interface{}, vars ...interface{}) {
 
 // ErrorCtx emits an unstructured debug log with context
 func (nz *NuclioZap) ErrorCtx(ctx context.Context, format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Errorw(nz.getFormatWithContext(ctx, format), vars...)
+	nz.SugaredLogger.Errorw(nz.getFormatWithContext(ctx, format), nz.prepareVars(vars)...)
 }
 
 // ErrorWith emits error level log with arguments
@@ -179,7 +214,7 @@ func (nz *NuclioZap) ErrorWith(format interface{}, vars ...interface{}) {
 
 // ErrorWithCtx emits debug level log with arguments
 func (nz *NuclioZap) ErrorWithCtx(ctx context.Context, format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Errorw(format.(string), nz.addContextToVars(ctx, vars)...)
+	nz.SugaredLogger.Errorw(format.(string), nz.addContextToVars(ctx, nz.prepareVars(vars))...)
 }
 
 // Warn emits warn level log
@@ -194,7 +229,7 @@ func (nz *NuclioZap) Warn(format interface{}, vars ...interface{}) {
 
 // WarnCtx emits an unstructured debug log with context
 func (nz *NuclioZap) WarnCtx(ctx context.Context, format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Warnw(nz.getFormatWithContext(ctx, format), vars...)
+	nz.SugaredLogger.Warnw(nz.getFormatWithContext(ctx, format), nz.prepareVars(vars)...)
 }
 
 // WarnWith emits warn level log with arguments
@@ -204,7 +239,7 @@ func (nz *NuclioZap) WarnWith(format interface{}, vars ...interface{}) {
 
 // WarnWithCtx emits debug level log with arguments
 func (nz *NuclioZap) WarnWithCtx(ctx context.Context, format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Warnw(format.(string), nz.addContextToVars(ctx, vars)...)
+	nz.SugaredLogger.Warnw(format.(string), nz.addContextToVars(ctx, nz.prepareVars(vars))...)
 }
 
 // Info emits info level log
@@ -219,17 +254,17 @@ func (nz *NuclioZap) Info(format interface{}, vars ...interface{}) {
 
 // InfoCtx emits an unstructured debug log with context
 func (nz *NuclioZap) InfoCtx(ctx context.Context, format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Infow(nz.getFormatWithContext(ctx, format), vars...)
+	nz.SugaredLogger.Infow(nz.getFormatWithContext(ctx, format), nz.prepareVars(vars)...)
 }
 
 // InfoWith emits info level log with arguments
 func (nz *NuclioZap) InfoWith(format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Infow(format.(string), vars...)
+	nz.SugaredLogger.Infow(format.(string), nz.prepareVars(vars)...)
 }
 
 // InfoWithCtx emits debug level log with arguments
 func (nz *NuclioZap) InfoWithCtx(ctx context.Context, format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Infow(format.(string), nz.addContextToVars(ctx, vars)...)
+	nz.SugaredLogger.Infow(format.(string), nz.addContextToVars(ctx, nz.prepareVars(vars))...)
 }
 
 // Debug emits debug level log
@@ -244,17 +279,17 @@ func (nz *NuclioZap) Debug(format interface{}, vars ...interface{}) {
 
 // DebugCtx emits an unstructured debug log with context
 func (nz *NuclioZap) DebugCtx(ctx context.Context, format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Debugw(nz.getFormatWithContext(ctx, format), vars...)
+	nz.SugaredLogger.Debugw(nz.getFormatWithContext(ctx, format), nz.prepareVars(vars)...)
 }
 
 // DebugWith emits debug level log with arguments
 func (nz *NuclioZap) DebugWith(format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Debugw(format.(string), vars...)
+	nz.SugaredLogger.Debugw(format.(string), nz.prepareVars(vars)...)
 }
 
 // DebugWithCtx emits debug level log with arguments
 func (nz *NuclioZap) DebugWithCtx(ctx context.Context, format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Debugw(format.(string), nz.addContextToVars(ctx, vars)...)
+	nz.SugaredLogger.Debugw(format.(string), nz.addContextToVars(ctx, nz.prepareVars(vars))...)
 }
 
 // Flush flushes the log
@@ -264,7 +299,11 @@ func (nz *NuclioZap) Flush() {
 
 // GetChild returned a named child logger
 func (nz *NuclioZap) GetChild(name string) logger.Logger {
-	return &NuclioZap{SugaredLogger: nz.Named(name)}
+	return &NuclioZap{
+		SugaredLogger:       nz.Named(name),
+		encoding:            nz.encoding,
+		customEncoderConfig: nz.customEncoderConfig,
+	}
 }
 
 func (nz *NuclioZap) encodeLoggerName(loggerName string, enc zapcore.PrimitiveArrayEncoder) {
@@ -312,7 +351,7 @@ func (nz *NuclioZap) initializeColors() {
 	nz.colorLoggerName = ansi.ColorFunc("white")
 }
 
-func (nz *NuclioZap) getEncoderConfig(encoding string) *zapcore.EncoderConfig {
+func (nz *NuclioZap) getEncoderConfig(encoding string, encoderConfig *EncoderConfig) *zapcore.EncoderConfig {
 	if encoding == "console" {
 		return &zapcore.EncoderConfig{
 			TimeKey:          "time",
@@ -330,16 +369,24 @@ func (nz *NuclioZap) getEncoderConfig(encoding string) *zapcore.EncoderConfig {
 		}
 	}
 
+	var timeEncoder zapcore.TimeEncoder
+	switch encoderConfig.JSON.TimeFieldEncoding {
+	case "iso8601":
+		timeEncoder = zapcore.ISO8601TimeEncoder
+	default:
+		timeEncoder = zapcore.EpochMillisTimeEncoder
+	}
+
 	return &zapcore.EncoderConfig{
-		TimeKey:          "time",
+		TimeKey:          encoderConfig.JSON.TimeFieldName,
 		LevelKey:         "level",
 		NameKey:          "name",
 		CallerKey:        "",
 		MessageKey:       "message",
 		StacktraceKey:    "stack",
-		LineEnding:       ",",
+		LineEnding:       encoderConfig.JSON.LineEnding,
 		EncodeLevel:      zapcore.LowercaseLevelEncoder,
-		EncodeTime:       zapcore.EpochMillisTimeEncoder,
+		EncodeTime:       timeEncoder,
 		EncodeDuration:   zapcore.SecondsDurationEncoder,
 		EncodeCaller:     func(zapcore.EntryCaller, zapcore.PrimitiveArrayEncoder) {},
 		EncodeLoggerName: zapcore.FullLoggerNameEncoder,
@@ -380,4 +427,32 @@ func (nz *NuclioZap) getFormatWithContext(ctx context.Context, format interface{
 	}
 
 	return formatString + fmt.Sprintf(" (requestID: %s)", requestID)
+}
+
+func (nz *NuclioZap) prepareVars(vars []interface{}) []interface{} {
+	if nz.encoding != "json" || nz.customEncoderConfig == nil || nz.customEncoderConfig.JSON.VarGroupName == "" {
+		return vars
+	}
+
+	// must be an even number of parameters
+	if len(vars)&0x1 != 0 {
+		panic("Odd number of logging vars - must be key/value")
+	}
+
+	formattedVars := ""
+
+	// create key=value pairs
+	for varIndex := 0; varIndex < len(vars); varIndex += 2 {
+		formattedVars += fmt.Sprintf("%s=%+v || ", vars[varIndex], vars[varIndex+1])
+	}
+
+	// if nothing was created, don't generate a group
+	if len(formattedVars) == 0 {
+		return []interface{}{}
+	}
+
+	return []interface{}{
+		nz.customEncoderConfig.JSON.VarGroupName,
+		formattedVars[:len(formattedVars)-4],
+	}
 }
