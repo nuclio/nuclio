@@ -1,6 +1,7 @@
 package appinsightslogger
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
