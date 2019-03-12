@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,12 +24,12 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// Functions returns a FunctionInformer.
-	Functions() FunctionInformer
-	// FunctionEvents returns a FunctionEventInformer.
-	FunctionEvents() FunctionEventInformer
-	// Projects returns a ProjectInformer.
-	Projects() ProjectInformer
+	// NuclioFunctions returns a NuclioFunctionInformer.
+	NuclioFunctions() NuclioFunctionInformer
+	// NuclioFunctionEvents returns a NuclioFunctionEventInformer.
+	NuclioFunctionEvents() NuclioFunctionEventInformer
+	// NuclioProjects returns a NuclioProjectInformer.
+	NuclioProjects() NuclioProjectInformer
 }
 
 type version struct {
@@ -43,17 +43,17 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// Functions returns a FunctionInformer.
-func (v *version) Functions() FunctionInformer {
-	return &functionInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// NuclioFunctions returns a NuclioFunctionInformer.
+func (v *version) NuclioFunctions() NuclioFunctionInformer {
+	return &nuclioFunctionInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// FunctionEvents returns a FunctionEventInformer.
-func (v *version) FunctionEvents() FunctionEventInformer {
-	return &functionEventInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// NuclioFunctionEvents returns a NuclioFunctionEventInformer.
+func (v *version) NuclioFunctionEvents() NuclioFunctionEventInformer {
+	return &nuclioFunctionEventInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// Projects returns a ProjectInformer.
-func (v *version) Projects() ProjectInformer {
-	return &projectInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// NuclioProjects returns a NuclioProjectInformer.
+func (v *version) NuclioProjects() NuclioProjectInformer {
+	return &nuclioProjectInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

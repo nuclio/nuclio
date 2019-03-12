@@ -20,7 +20,7 @@ metadata:
   name: {{ template "nuclio.crdAdminName" . }}-role
 rules:
 - apiGroups: ["nuclio.io"]
-  resources: ["functions", "projects", "functionevents"]
+  resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents"]
   verbs: ["*"]
 - apiGroups: [""]
   resources: ["nodes"]

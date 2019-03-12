@@ -540,6 +540,37 @@ func (suite *functionTestSuite) TestCreateWithExistingName() {
 	suite.sendRequestWithExistingName("POST")
 }
 
+func (suite *functionTestSuite) TestCreateFunctionWithInvalidName() {
+	body := `{
+	"metadata": {
+		"namespace": "f1Namespace",
+		"name": "!funcmylif&"
+	},
+	"spec": {
+		"resources": {},
+		"build": {},
+		"platform": {},
+		"runtime": "r1"
+	}
+}`
+	headers := map[string]string{
+		"x-nuclio-wait-function-action": "true",
+	}
+
+	expectedStatusCode := http.StatusBadRequest
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name doesn't conform to k8s naming convention"})
+	requestBody := body
+
+	suite.sendRequest("POST",
+		"/api/functions",
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
 func (suite *functionTestSuite) TestUpdateSuccessful() {
 	suite.T().Skip("Update not supported")
 

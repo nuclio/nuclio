@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ package v1beta1
 import (
 	time "time"
 
-	nuclio_io_v1beta1 "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	nuclioiov1beta1 "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	versioned "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	internalinterfaces "github.com/nuclio/nuclio/pkg/platform/kube/client/informers/externalversions/internalinterfaces"
 	v1beta1 "github.com/nuclio/nuclio/pkg/platform/kube/client/listers/nuclio.io/v1beta1"
@@ -31,59 +31,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// ProjectInformer provides access to a shared informer and lister for
-// Projects.
-type ProjectInformer interface {
+// NuclioFunctionEventInformer provides access to a shared informer and lister for
+// NuclioFunctionEvents.
+type NuclioFunctionEventInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1beta1.ProjectLister
+	Lister() v1beta1.NuclioFunctionEventLister
 }
 
-type projectInformer struct {
+type nuclioFunctionEventInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewProjectInformer constructs a new informer for Project type.
+// NewNuclioFunctionEventInformer constructs a new informer for NuclioFunctionEvent type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewProjectInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredProjectInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewNuclioFunctionEventInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredNuclioFunctionEventInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredProjectInformer constructs a new informer for Project type.
+// NewFilteredNuclioFunctionEventInformer constructs a new informer for NuclioFunctionEvent type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredProjectInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredNuclioFunctionEventInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.NuclioV1beta1().Projects(namespace).List(options)
+				return client.NuclioV1beta1().NuclioFunctionEvents(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.NuclioV1beta1().Projects(namespace).Watch(options)
+				return client.NuclioV1beta1().NuclioFunctionEvents(namespace).Watch(options)
 			},
 		},
-		&nuclio_io_v1beta1.Project{},
+		&nuclioiov1beta1.NuclioFunctionEvent{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *projectInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredProjectInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *nuclioFunctionEventInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredNuclioFunctionEventInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *projectInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&nuclio_io_v1beta1.Project{}, f.defaultInformer)
+func (f *nuclioFunctionEventInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&nuclioiov1beta1.NuclioFunctionEvent{}, f.defaultInformer)
 }
 
-func (f *projectInformer) Lister() v1beta1.ProjectLister {
-	return v1beta1.NewProjectLister(f.Informer().GetIndexer())
+func (f *nuclioFunctionEventInformer) Lister() v1beta1.NuclioFunctionEventLister {
+	return v1beta1.NewNuclioFunctionEventLister(f.Informer().GetIndexer())
 }

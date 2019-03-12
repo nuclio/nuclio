@@ -52,9 +52,9 @@ func newDeployer(parentLogger logger.Logger, consumer *consumer, platform *Platf
 	return newdeployer, nil
 }
 
-func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.Function,
+func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunction,
 	createFunctionOptions *platform.CreateFunctionOptions,
-	functionStatus *functionconfig.Status) (*nuclioio.Function, error) {
+	functionStatus *functionconfig.Status) (*nuclioio.NuclioFunction, error) {
 
 	var err error
 
@@ -65,7 +65,7 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.Function,
 		"existed", functionExisted)
 
 	if functionInstance == nil {
-		functionInstance = &nuclioio.Function{}
+		functionInstance = &nuclioio.NuclioFunction{}
 		functionInstance.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 	}
 
@@ -77,9 +77,9 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.Function,
 
 	// if function didn't exist, create. otherwise update
 	if !functionExisted {
-		functionInstance, err = d.consumer.nuclioClientSet.NuclioV1beta1().Functions(functionInstance.Namespace).Create(functionInstance)
+		functionInstance, err = d.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(functionInstance.Namespace).Create(functionInstance)
 	} else {
-		functionInstance, err = d.consumer.nuclioClientSet.NuclioV1beta1().Functions(functionInstance.Namespace).Update(functionInstance)
+		functionInstance, err = d.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(functionInstance.Namespace).Update(functionInstance)
 	}
 
 	if err != nil {
@@ -91,7 +91,7 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.Function,
 
 func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 	functionStatus *functionconfig.Status,
-	functionInstance *nuclioio.Function) {
+	functionInstance *nuclioio.NuclioFunction) {
 
 	functionInstance.Spec = functionConfig.Spec
 
@@ -127,7 +127,7 @@ func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 	functionInstance.Status = *functionStatus
 }
 
-func (d *deployer) deploy(functionInstance *nuclioio.Function,
+func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 
 	// get the logger with which we need to deploy
@@ -165,15 +165,15 @@ func (d *deployer) deploy(functionInstance *nuclioio.Function,
 func waitForFunctionReadiness(loggerInstance logger.Logger,
 	consumer *consumer,
 	namespace string,
-	name string) (*nuclioio.Function, error) {
+	name string) (*nuclioio.NuclioFunction, error) {
 	var err error
-	var function *nuclioio.Function
+	var function *nuclioio.NuclioFunction
 
 	// gets the function, checks if ready
 	conditionFunc := func() (bool, error) {
 
 		// get the appropriate function CR
-		function, err = consumer.nuclioClientSet.NuclioV1beta1().Functions(namespace).Get(name, meta_v1.GetOptions{})
+		function, err = consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(name, meta_v1.GetOptions{})
 		if err != nil {
 			return true, err
 		}
@@ -182,7 +182,7 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 		case functionconfig.FunctionStateReady:
 			return true, nil
 		case functionconfig.FunctionStateError:
-			return false, errors.Errorf("Function in error state (%s)", function.Status.Message)
+			return false, errors.Errorf("NuclioFunction in error state (%s)", function.Status.Message)
 		default:
 			return false, nil
 		}

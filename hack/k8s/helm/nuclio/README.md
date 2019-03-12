@@ -20,7 +20,7 @@ helm repo add nuclio https://nuclio.github.io/nuclio/charts
 ```
 
 ## Installing Nuclio
-The Nuclio helm chart allows a range of options that allow installation across different Kubernetes providers. Before you go ahead and run the appropriate installation command suitable for your environment, you must first create a registry secret to hold the credentials of your image registry. While this helm chart supports doing this for you (see `secretName` in `values.yaml` for instructions), we recommend you do this yourself.
+The Nuclio helm chart allows a range of options that allow installation across different Kubernetes providers. The recommended method of creating a secret with your Docker registry credentials is presented below.
 
 > Note: You can skip this if you're using Minikube with an insecure registry
 
@@ -29,12 +29,15 @@ Start by creating a namespace:
 kubectl create namespace nuclio
 ```
 
+**Create a registry secret:** because Nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials. Replace the `<...>` placeholders in the following commands with your username, password, and URL:
+> Note: If you want to use Docker Hub, the URL is `registry.hub.docker.com`.
+
 Create the secret:
 ``` sh
 read -s mypassword
 <enter your password>
 
-kubectl create secret docker-registry registry-credentials --namespace nuclio \
+kubectl create secret docker-registry nuclio-registry-credentials --namespace nuclio \
     --docker-username <username> \
     --docker-password $mypassword \
     --docker-server <registry name> \
@@ -47,7 +50,7 @@ unset mypassword
 There are no special flags required when installing in AKS or vanilla Kubernetes:
 
 ``` sh
-helm install nuclio/nuclio
+helm install --namespace nuclio --name nuclio nuclio/nuclio
 ```
 
 ### Install on GKE (or when using GCR)

@@ -33,7 +33,7 @@ import (
 
 type function struct {
 	platform.AbstractFunction
-	function           *nuclioio.Function
+	function           *nuclioio.NuclioFunction
 	consumer           *consumer
 	configuredReplicas int
 	availableReplicas  int
@@ -43,7 +43,7 @@ type function struct {
 
 func newFunction(parentLogger logger.Logger,
 	parentPlatform platform.Platform,
-	nuclioioFunction *nuclioio.Function,
+	nuclioioFunction *nuclioio.NuclioFunction,
 	consumer *consumer) (*function, error) {
 
 	newFunction := &function{}

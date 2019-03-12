@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,26 +18,26 @@ limitations under the License.
 
 package v1beta1
 
-// FunctionListerExpansion allows custom methods to be added to
-// FunctionLister.
-type FunctionListerExpansion interface{}
+// NuclioFunctionListerExpansion allows custom methods to be added to
+// NuclioFunctionLister.
+type NuclioFunctionListerExpansion interface{}
 
-// FunctionNamespaceListerExpansion allows custom methods to be added to
-// FunctionNamespaceLister.
-type FunctionNamespaceListerExpansion interface{}
+// NuclioFunctionNamespaceListerExpansion allows custom methods to be added to
+// NuclioFunctionNamespaceLister.
+type NuclioFunctionNamespaceListerExpansion interface{}
 
-// FunctionEventListerExpansion allows custom methods to be added to
-// FunctionEventLister.
-type FunctionEventListerExpansion interface{}
+// NuclioFunctionEventListerExpansion allows custom methods to be added to
+// NuclioFunctionEventLister.
+type NuclioFunctionEventListerExpansion interface{}
 
-// FunctionEventNamespaceListerExpansion allows custom methods to be added to
-// FunctionEventNamespaceLister.
-type FunctionEventNamespaceListerExpansion interface{}
+// NuclioFunctionEventNamespaceListerExpansion allows custom methods to be added to
+// NuclioFunctionEventNamespaceLister.
+type NuclioFunctionEventNamespaceListerExpansion interface{}
 
-// ProjectListerExpansion allows custom methods to be added to
-// ProjectLister.
-type ProjectListerExpansion interface{}
+// NuclioProjectListerExpansion allows custom methods to be added to
+// NuclioProjectLister.
+type NuclioProjectListerExpansion interface{}
 
-// ProjectNamespaceListerExpansion allows custom methods to be added to
-// ProjectNamespaceLister.
-type ProjectNamespaceListerExpansion interface{}
+// NuclioProjectNamespaceListerExpansion allows custom methods to be added to
+// NuclioProjectNamespaceLister.
+type NuclioProjectNamespaceListerExpansion interface{}

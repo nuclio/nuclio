@@ -1,5 +1,5 @@
 apiVersion: "nuclio.io/v1beta1"
-kind: "Function"
+kind: "NuclioFunction"
 spec:
   description: >
     Uses the inception model of the TensorFlow open-source machine-learning library to classify images.

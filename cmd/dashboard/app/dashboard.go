@@ -46,7 +46,7 @@ func Run(listenAddress string,
 	platformConfigurationPath string,
 	templatesGitRepository string,
 	templatesGitRef string,
-	templatesZipFileAddress string) error {
+	templatesArchiveAddress string) error {
 	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
 	var functionZipTemplateFetcher *functiontemplates.ZipFunctionTemplateFetcher
 
@@ -57,7 +57,7 @@ func Run(listenAddress string,
 	}
 
 	// create a root logger
-	rootLogger, err := loggersink.CreateSystemLogger("controller", platformConfiguration)
+	rootLogger, err := loggersink.CreateSystemLogger("dashboard", platformConfiguration)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
 	}
@@ -83,9 +83,9 @@ func Run(listenAddress string,
 	}
 
 	// create zip fetcher
-	if templatesZipFileAddress != "" {
+	if templatesArchiveAddress != "" {
 		functionZipTemplateFetcher, err = functiontemplates.NewZipFunctionTemplateFetcher(rootLogger,
-			templatesZipFileAddress)
+			templatesArchiveAddress)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create zip template fetcher")
 		}
