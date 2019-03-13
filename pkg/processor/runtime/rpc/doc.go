@@ -24,7 +24,7 @@ startup.
 # Wire Protocol
 The wite protocol is line oriented where every line is a JSON object.
 - Go sends events (encoded using `EventJSONEncoder`)
-- RPC cleint sends lines starting with letter specifying type and then JSON object
+- RPC client sends lines starting with letter specifying type and then JSON object
     - 'r' Handler reply
     - 'l' Log messages
 	- 'm' Metric messages
