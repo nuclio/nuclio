@@ -13,7 +13,7 @@
 }
 
 .action-menu-color-set() {
-    @menu-btn-color: @ziggurat;
+    @menu-btn-color: .duskThree(0.64)[@color];
     @menu-btn-active-hover-color: @dusk-three;
 
     @menu-dropdown-bg-color: @white;
@@ -429,12 +429,6 @@
     @ngdialog-close-btn-color: .duskThree(0.64)[@color];
     @ngdialog-title-color: @dusk-three;
 
-    @ngdialog-icon-help-before-color: @lightblue;
-    @ngdialog-icon-help-before-bg-color: @white;
-
-    @ngdialog-icon-help-hover-before-color: none;
-    @ngdialog-icon-help-hover-before-bg-color: none;
-
     @ngdialog-row-description-color: @dark-sky-blue;
 
     @ngdialog-field-label-color: @dusk-three;
@@ -613,6 +607,10 @@
 }
 
 .descriptive-icons-color-set() {
+    @icon-help-round-before-color: .duskThree(0.64)[@color];
+    @icon-help-round-before-bg-color: none;
+    @icon-help-round-hover-before-color: @dusk-three;
+
     @icon-default-color: @silver;
     @icon-file-default-color: .duskThree(0.64)[@color];
 
