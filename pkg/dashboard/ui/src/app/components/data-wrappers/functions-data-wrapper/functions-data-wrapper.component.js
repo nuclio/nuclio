@@ -10,16 +10,27 @@
     function FunctionsDataWrapperController(NuclioProjectsDataService, NuclioFunctionsDataService) {
         var ctrl = this;
 
+        ctrl.createFunction = createFunction;
         ctrl.getExternalIPAddresses = getExternalIPAddresses;
         ctrl.getProject = getProject;
-        ctrl.getFunctions = getFunctions;
         ctrl.getFunction = getFunction;
+        ctrl.getFunctions = getFunctions;
         ctrl.deleteFunction = deleteFunction;
         ctrl.updateFunction = updateFunction;
 
         //
         // Public methods
         //
+
+        /**
+         * Deploys version
+         * @param {Object} version
+         * @param {string} projectID
+         * @returns {Promise}
+         */
+        function createFunction(version, projectID) {
+            return NuclioFunctionsDataService.createFunction(version, projectID);
+        }
 
         /**
          * Gets external IP addresses
@@ -39,21 +50,21 @@
         }
 
         /**
-         * Gets functions list
-         * @param {string} id
-         * @returns {Promise}
-         */
-        function getFunctions(id) {
-            return NuclioFunctionsDataService.getFunctions(id);
-        }
-
-        /**
          * Gets a function
          * @param {Object} metadata
          * @returns {Promise}
          */
         function getFunction(metadata) {
             return NuclioFunctionsDataService.getFunction(metadata);
+        }
+
+        /**
+         * Gets functions list
+         * @param {string} id
+         * @returns {Promise}
+         */
+        function getFunctions(id) {
+            return NuclioFunctionsDataService.getFunctions(id);
         }
 
         /**
