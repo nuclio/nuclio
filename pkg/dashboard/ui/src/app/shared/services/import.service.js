@@ -16,35 +16,39 @@
          */
         function importProject(file) {
             var reader = new FileReader();
-            var importProjectDeferred = $q.defer();
+            var importProjectsDeferred = $q.defer();
 
             reader.onload = function () {
-                var newProject = YAML.parse(reader.result);
-                var projectName = lodash.get(newProject, 'project.metadata.name');
+                var projects = YAML.parse(reader.result).projects;
 
-                var projectData = {
-                    spec: {
-                        displayName: projectName
-                    }
-                };
+                lodash.forEach(projects, function (project) {
+                    var projectName = lodash.get(project, 'metadata.name');
+                    var projectData = {
+                        metadata: {},
+                        spec: {
+                            displayName: projectName
+                        }
+                    };
 
-                NuclioProjectsDataService.createProject(projectData).then(function () {
-                    NuclioProjectsDataService.getProjects().then(function (projects) {
-                        var functions = lodash.get(newProject, 'project.spec.functions');
-                        var currentProject = lodash.find(projects, ['spec.displayName', projectName]);
-                        var projectID = lodash.get(currentProject, 'metadata.name');
+                    NuclioProjectsDataService.createProject(projectData).then(function () {
+                        NuclioProjectsDataService.getProjects().then(function (response) {
+                            var functions = lodash.get(project, 'spec.functions');
+                            var currentProject = lodash.find(response, ['spec.displayName', projectName]);
+                            var projectID = lodash.get(currentProject, 'metadata.name');
 
-                        lodash.forEach(functions, function (func) {
-                            NuclioFunctionsDataService.updateFunction(func, projectID);
+                            lodash.forEach(functions, function (func) {
+                                NuclioFunctionsDataService.updateFunction(func, projectID);
+                            });
+
+                            importProjectsDeferred.resolve();
                         });
-
-                        importProjectDeferred.resolve();
                     });
                 });
+
             };
 
             reader.readAsText(file);
-            return importProjectDeferred.promise;
+            return importProjectsDeferred.promise;
         }
     }
 }());
