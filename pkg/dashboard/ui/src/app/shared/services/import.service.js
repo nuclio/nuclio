@@ -4,7 +4,7 @@
     angular.module('nuclio.app')
         .factory('ImportService', ImportService);
 
-    function ImportService($q, NuclioFunctionsDataService, NuclioProjectsDataService, lodash, YAML) {
+    function ImportService($q, DialogsService, NuclioFunctionsDataService, NuclioProjectsDataService, lodash, YAML) {
         return {
             importFile: importFile
         };
@@ -63,11 +63,13 @@
                     var projectID = lodash.get(currentProject, 'metadata.name');
 
                     lodash.forEach(functions, function (func) {
-                        NuclioFunctionsDataService.updateFunction(func, projectID);
+                        NuclioFunctionsDataService.createFunction(func, projectID);
                     });
 
                     promise.resolve();
                 });
+            }).catch(function () {
+                DialogsService.alert('Error occurred while creating a new project.');
             });
         }
     }
