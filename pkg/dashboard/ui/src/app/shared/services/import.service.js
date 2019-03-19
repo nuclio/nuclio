@@ -6,49 +6,69 @@
 
     function ImportService($q, NuclioFunctionsDataService, NuclioProjectsDataService, lodash, YAML) {
         return {
-            importProject: importProject
+            importFile: importFile
         };
 
+        //
+        // Public methods
+        //
+
         /**
-         * Imports new project and deploy all functions of this project
+         * Imports YAML file and imports one or more projects
          * @param {Object} file
          * @returns {Promise}
          */
-        function importProject(file) {
+        function importFile(file) {
             var reader = new FileReader();
-            var importProjectsDeferred = $q.defer();
+            var importDeferred = $q.defer();
 
             reader.onload = function () {
-                var projects = YAML.parse(reader.result).projects;
+                var importedData = YAML.parse(reader.result);
 
-                lodash.forEach(projects, function (project) {
-                    var projectName = lodash.get(project, 'metadata.name');
-                    var projectData = {
-                        metadata: {},
-                        spec: {
-                            displayName: projectName
-                        }
-                    };
-
-                    NuclioProjectsDataService.createProject(projectData).then(function () {
-                        NuclioProjectsDataService.getProjects().then(function (response) {
-                            var functions = lodash.get(project, 'spec.functions');
-                            var currentProject = lodash.find(response, ['spec.displayName', projectName]);
-                            var projectID = lodash.get(currentProject, 'metadata.name');
-
-                            lodash.forEach(functions, function (func) {
-                                NuclioFunctionsDataService.updateFunction(func, projectID);
-                            });
-
-                            importProjectsDeferred.resolve();
-                        });
+                if (lodash.has(importedData, 'project')) {
+                    importProject(importedData.project, importDeferred);
+                } else if (lodash.has(importedData, 'projects')) {
+                    lodash.forEach(importedData.projects, function (project) {
+                        importProject(project, importDeferred);
                     });
-                });
-
+                }
             };
 
             reader.readAsText(file);
-            return importProjectsDeferred.promise;
+            return importDeferred.promise;
+        }
+
+        //
+        // Private methods
+        //
+
+        /**
+         * Imports new project and deploy all functions of this project
+         * @param {Object} project
+         * @param {Object} promise
+         */
+        function importProject(project, promise) {
+            var projectName = lodash.get(project, 'metadata.name');
+            var projectData = {
+                metadata: {},
+                spec: {
+                    displayName: projectName
+                }
+            };
+
+            NuclioProjectsDataService.createProject(projectData).then(function () {
+                NuclioProjectsDataService.getProjects().then(function (response) {
+                    var functions = lodash.get(project, 'spec.functions');
+                    var currentProject = lodash.find(response, ['spec.displayName', projectName]);
+                    var projectID = lodash.get(currentProject, 'metadata.name');
+
+                    lodash.forEach(functions, function (func) {
+                        NuclioFunctionsDataService.updateFunction(func, projectID);
+                    });
+
+                    promise.resolve();
+                });
+            });
         }
     }
 }());
