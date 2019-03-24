@@ -19,10 +19,11 @@ package callfunction
 import (
 	"encoding/json"
 	"fmt"
+	"path"
+
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
-	"path"
 )
 
 // CallFunctionTestSuite tests calling functions from within a function using ctx.Platform.CallFunction
