@@ -24,8 +24,8 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/go"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
-	"github.com/nuclio/nuclio/pkg/processor/test/gocallfunction"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/satori/go.uuid"
@@ -35,7 +35,7 @@ import (
 type TestSuite struct {
 	httpsuite.TestSuite
 	cloudevents.CloudEventsTestSuite
-	gocallfunction.CallFunctionTestSuite
+	callfunction.CallFunctionTestSuite
 }
 
 func (suite *TestSuite) SetupTest() {
