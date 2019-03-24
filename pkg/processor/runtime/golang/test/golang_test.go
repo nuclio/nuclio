@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/go"
+	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/golang"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
