@@ -14,9 +14,9 @@ limitations under the License.
 package main
 
 import (
-"strconv"
+	"strconv"
 
-"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 func newFibFunction(ctx *nuclio.Context) func(uint64) (uint64, error) {
