@@ -36,9 +36,14 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 		return nil, err
 	}
 
+	headers := map[string]interface{}{
+		"X-Callee-Received-Header": "caller_header",
+	}
+
 	return nuclio.Response{
 		StatusCode:  201,
 		ContentType: "application/text",
 		Body:        data,
+		Headers:     headers,
 	}, nil
 }
