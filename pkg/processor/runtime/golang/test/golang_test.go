@@ -25,6 +25,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
+	"github.com/nuclio/nuclio/pkg/processor/test/gocallfunction"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/satori/go.uuid"
@@ -34,14 +35,17 @@ import (
 type TestSuite struct {
 	httpsuite.TestSuite
 	cloudevents.CloudEventsTestSuite
+	gocallfunction.CallFunctionTestSuite
 }
 
 func (suite *TestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
 	suite.Runtime = "golang"
+	suite.RuntimeDir = "golang"
 	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "golang", "test")
 	suite.CloudEventsTestSuite.HTTPSuite = &suite.TestSuite
+	suite.CallFunctionTestSuite.HTTPSuite = &suite.TestSuite
 }
 
 func (suite *TestSuite) TestOutputs() {
