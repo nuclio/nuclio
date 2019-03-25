@@ -36,6 +36,5 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 		return nil, err
 	}
 
-	response, err := context.Platform.CallFunction(calleeName, &nuclio.MemoryEvent{Body: data})
-	return *response, err
+	return context.Platform.CallFunction(calleeName, &nuclio.MemoryEvent{Body: data})
 }

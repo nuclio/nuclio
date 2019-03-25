@@ -19,6 +19,18 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
+func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	result, err := fibSum(newFibFunction(context), 2, 10, 17) // => 1653
+	if err != nil {
+		return nil, err
+	}
+	return nuclio.Response{
+		StatusCode:  200,
+		ContentType: "application/text",
+		Body:        []byte(strconv.FormatUint(result, 10)),
+	}, nil
+}
+
 func newFibFunction(ctx *nuclio.Context) func(uint64) (uint64, error) {
 	return func(num uint64) (uint64, error) {
 		body := strconv.FormatUint(num, 10)
@@ -46,16 +58,4 @@ func fibSum(fib func(uint64) (uint64, error), num ...uint64) (uint64, error) {
 		result += value
 	}
 	return result, nil
-}
-
-func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	result, err := fibSum(newFibFunction(context), 2, 10, 17) // => 1653
-	if err != nil {
-		return nil, err
-	}
-	return nuclio.Response{
-		StatusCode:  200,
-		ContentType: "application/text",
-		Body:        []byte(strconv.FormatUint(result, 10)),
-	}, nil
 }

@@ -28,7 +28,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
 	returnValue, returnValueFound := parsedEventBody["return_this"]
 	if !returnValueFound {
-		return nil, errors.New("input event don't have callee_name")
+		return nil, errors.New("Input event doesn't have callee_name")
 	}
 
 	data, err := json.Marshal(map[string]string{"from_callee": returnValue})

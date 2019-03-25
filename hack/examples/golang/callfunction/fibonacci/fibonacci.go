@@ -22,6 +22,26 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
+func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	n, err := strconv.ParseUint(string(event.GetBody()), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	context.Logger.InfoWith("Calculating fibonacci number", "n", n)
+
+	result, err := fib(n)
+	if err != nil {
+		return nil, err
+	}
+
+	return nuclio.Response{
+		StatusCode:  200,
+		ContentType: "application/text",
+		Body:        []byte(strconv.FormatUint(result, 10)),
+	}, nil
+}
+
 func fib(n uint64) (uint64, error) {
 	if n == 0 {
 		return 0, nil
@@ -34,24 +54,6 @@ func fib(n uint64) (uint64, error) {
 			return 0, errors.New("Overflow. Too big request")
 		}
 	}
+
 	return b, nil
-}
-
-func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	n, err := strconv.ParseUint(string(event.GetBody()), 10, 64)
-	if err != nil {
-		return nil, err
-	}
-
-	context.Logger.Info("Calculating fibonacci number: %d", n)
-
-	result, err := fib(n)
-	if err != nil {
-		return nil, err
-	}
-	return nuclio.Response{
-		StatusCode:  200,
-		ContentType: "application/text",
-		Body:        []byte(strconv.FormatUint(result, 10)),
-	}, nil
 }
