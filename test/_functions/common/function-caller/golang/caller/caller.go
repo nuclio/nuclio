@@ -28,7 +28,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
 	calleeName, calleeNameFound := parsedEventBody["callee_name"]
 	if !calleeNameFound {
-		return nil, errors.New("input event don't have callee_name")
+		return nil, errors.New("Input event doesn't have callee_name")
 	}
 
 	data, err := json.Marshal(map[string]string{"return_this": "returned_value"})
@@ -36,5 +36,9 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 		return nil, err
 	}
 
-	return context.Platform.CallFunction(calleeName, &nuclio.MemoryEvent{Body: data})
+	headers := map[string]interface{}{
+		"X-Caller-Sent-Header": "caller_header",
+	}
+
+	return context.Platform.CallFunction(calleeName, &nuclio.MemoryEvent{Body: data, Headers: headers})
 }

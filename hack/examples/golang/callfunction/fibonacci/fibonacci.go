@@ -46,6 +46,7 @@ func fib(n uint64) (uint64, error) {
 	if n == 0 {
 		return 0, nil
 	}
+
 	var a, b uint64 = 0, 1
 	for i := uint64(0); i < n-1; i++ {
 		if a < math.MaxUint64-b {

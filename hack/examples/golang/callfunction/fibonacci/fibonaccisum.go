@@ -24,6 +24,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return nuclio.Response{
 		StatusCode:  200,
 		ContentType: "application/text",
@@ -44,6 +45,7 @@ func newFibFunction(ctx *nuclio.Context) func(uint64) (uint64, error) {
 		if err != nil {
 			return 0, err
 		}
+
 		return result, nil
 	}
 }
@@ -57,5 +59,6 @@ func fibSum(fib func(uint64) (uint64, error), num ...uint64) (uint64, error) {
 		}
 		result += value
 	}
+
 	return result, nil
 }

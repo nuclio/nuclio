@@ -22,6 +22,7 @@ import (
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	var parsedEventBody map[string]string
+
 	if err := json.Unmarshal(event.GetBody(), &parsedEventBody); err != nil {
 		return nil, err
 	}
@@ -36,8 +37,9 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 		return nil, err
 	}
 
+	receivedHeader := string(event.GetHeader("X-Caller-Sent-Header").([]byte))
 	headers := map[string]interface{}{
-		"X-Callee-Received-Header": "caller_header",
+		"X-Callee-Received-Header": receivedHeader,
 	}
 
 	return nuclio.Response{
