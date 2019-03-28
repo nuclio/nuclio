@@ -17,6 +17,7 @@ limitations under the License.
 package cron
 
 import (
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -80,7 +81,17 @@ func newTrigger(logger logger.Logger,
 	} else if configuration.Schedule != "" {
 		newTrigger.tickMethod = tickMethodSchedule
 
-		newTrigger.schedule, err = cronlib.Parse(configuration.Schedule)
+		// make sure the given schedule structure contains all 6 fields (Second, Minute, Hour, ...)
+		splitSchedule := strings.Split(configuration.Schedule, " ")
+		if len(splitSchedule) != 6 {
+			return nil, errors.Errorf("Cron trigger schedule doesn't have all needed 6 fields: %+v", configuration.Schedule)
+		}
+
+		// change the seconds to be automatically 0 (to prevent the method from running every second)
+		splitSchedule[0] = "0"
+		normalizedSchedule := strings.Join(splitSchedule, " ")
+
+		newTrigger.schedule, err = cronlib.Parse(normalizedSchedule)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to parse schedule from cron trigger configuration: %+v", configuration.Schedule)
 		}

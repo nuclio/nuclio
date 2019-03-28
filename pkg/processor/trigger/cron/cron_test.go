@@ -17,6 +17,7 @@ limitations under the License.
 package cron
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -164,6 +165,19 @@ func (suite *TestSuite) TestGetNextEventSubmitDelayScheduleRunsImmediatelyOnMiss
 	nextEventDelay := suite.trigger.getNextEventSubmitDelay(suite.trigger.schedule, lastRuntime)
 
 	suite.Assert().EqualValues(0, nextEventDelay)
+}
+
+func (suite *TestSuite) TestNextScheduleDayDifference() {
+	var err error
+
+	lastRuntime := time.Now()
+	scheduleFormat := fmt.Sprintf("0 %d %d * *", lastRuntime.Minute(), lastRuntime.Hour())
+
+	suite.trigger.schedule, err = suite.getSchedule(scheduleFormat)
+	suite.Assert().NoError(err, "Invalid interval string")
+
+	nextEventSubmitTime := suite.trigger.schedule.Next(lastRuntime)
+	suite.Assert().Equal(nextEventSubmitTime.Day(), lastRuntime.Day() + 1, "Event should be fired the next day")
 }
 
 func (suite *TestSuite) getInterval(delay string) (cronlib.Schedule, error) {
