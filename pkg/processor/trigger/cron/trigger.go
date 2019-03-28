@@ -87,7 +87,7 @@ func newTrigger(logger logger.Logger,
 			return nil, errors.Errorf("Cron trigger schedule doesn't have all needed 6 fields: %+v", configuration.Schedule)
 		}
 
-		// change the seconds to be automatically 0 (to prevent the method from running every second)
+		// Cron schedule kind does not support seconds. Changing the seconds to 0
 		splitSchedule[0] = "0"
 		normalizedSchedule := strings.Join(splitSchedule, " ")
 
