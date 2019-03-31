@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -39,6 +40,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 //
@@ -373,6 +375,76 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+func (suite *functionTestSuite) TestGetDetailNoVulnerableInformationInResponse() {
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "f1"
+	returnedFunction.Config.Meta.Namespace = "f1Namespace"
+	returnedFunction.Config.Spec.Replicas = 10
+
+	// mock a volume with an access key inside of it
+	var volumes []functionconfig.Volume
+	volume := functionconfig.Volume{
+		Volume: v1.Volume{
+			Name: "",
+			VolumeSource: v1.VolumeSource{
+				FlexVolume: &v1.FlexVolumeSource{
+					Options: map[string]string{
+						"access_key": "my_access_key",
+					},
+				},
+			},
+		},
+		VolumeMount: v1.VolumeMount{
+		},
+	}
+	volumes = append(volumes, volume)
+
+	returnedFunction.Config.Spec.Volumes = volumes
+
+	// verify
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1Namespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-function-namespace": "f1Namespace",
+	}
+
+	expectedStatusCode := http.StatusOK
+
+	// make sure the response body doens't have the access_key inside of it
+	expectedResponseBody := `{
+		"metadata":{"name":"f1","namespace":"f1Namespace"},
+		"spec":{
+			"resources":{},
+			"replicas":10,
+			"volumes":[{"volume":{
+				"name":"",
+				"flexVolume":{"driver":"","options":{"access_key":""}}},
+				"volumeMount":{"name":"","mountPath":""}}],
+			"build":{},
+			"platform":{}},
+		"status":{}
+}`
+
+	suite.sendRequest("GET",
+		"/api/functions/f1",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
 func (suite *functionTestSuite) TestGetDetailNoNamespace() {
 	expectedStatusCode := http.StatusBadRequest
 	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Namespace must exist"})
@@ -426,6 +498,100 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 			"build": {},
 			"platform": {},
 			"runtime": "r1"
+		},
+		"status": {}
+	},
+	"f2": {
+		"metadata": {
+			"name": "f2",
+			"namespace": "fNamespace"
+		},
+		"spec": {
+			"resources": {},
+			"build": {},
+			"platform": {},
+			"runtime": "r2"
+		},
+		"status": {}
+	}
+}`
+
+	suite.sendRequest("GET",
+		"/api/functions",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionTestSuite) TestGetListNoVulnerableInformationInResponse() {
+	returnedFunction1 := platform.AbstractFunction{}
+	returnedFunction1.Config.Meta.Name = "f1"
+	returnedFunction1.Config.Meta.Namespace = "fNamespace"
+	returnedFunction1.Config.Spec.Runtime = "r1"
+
+	// mock a volume with an access key inside of it
+	var volumes []functionconfig.Volume
+	volume := functionconfig.Volume{
+		Volume: v1.Volume{
+			Name: "",
+			VolumeSource: v1.VolumeSource{
+				FlexVolume: &v1.FlexVolumeSource{
+					Options: map[string]string{
+						"access_key": "my_access_key",
+					},
+				},
+			},
+		},
+		VolumeMount: v1.VolumeMount{
+		},
+	}
+	volumes = append(volumes, volume)
+	returnedFunction1.Config.Spec.Volumes = volumes
+
+	returnedFunction2 := platform.AbstractFunction{}
+	returnedFunction2.Config.Meta.Name = "f2"
+	returnedFunction2.Config.Meta.Namespace = "fNamespace"
+	returnedFunction2.Config.Spec.Runtime = "r2"
+
+	// verify
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("", getFunctionsOptions.Name)
+		suite.Require().Equal("fNamespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunction1, &returnedFunction2}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-function-namespace": "fNamespace",
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+	"f1": {
+		"metadata": {
+			"name": "f1",
+			"namespace": "fNamespace"
+		},
+		"spec": {
+			"resources": {},
+			"build": {},
+			"platform": {},
+			"runtime": "r1",
+			"volumes":[{
+				"volume":{
+					"name":"",
+					"flexVolume":{"driver":"","options":{"access_key":""}}
+				},
+				"volumeMount":{"name":"","mountPath":""}
+			}]
 		},
 		"status": {}
 	},

@@ -291,6 +291,17 @@ func (fr *functionResource) functionToAttributes(function platform.Function) res
 		functionSpec.Image = ""
 	}
 
+	// filter out secrets and other vulnerable attributes
+	for _, volume := range functionSpec.Volumes {
+
+		// check that this pointer is not nil to avoid nil pointer dereference exception
+		if volume.Volume.FlexVolume != nil {
+			if _, ok := volume.Volume.FlexVolume.Options["access_key"]; ok {
+				volume.Volume.FlexVolume.Options["access_key"] = ""
+			}
+		}
+	}
+
 	attributes := restful.Attributes{
 		"metadata": function.GetConfig().Meta,
 		"spec":     functionSpec,
