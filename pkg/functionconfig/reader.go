@@ -43,9 +43,39 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 		return errors.Wrap(err, "Failed to read configuration file")
 	}
 
-	if err := yaml.Unmarshal(bodyBytes, config); err != nil {
+	if err = r.unmarshalYamlWithoutOverridingFields(bodyBytes, config); err != nil {
 		return errors.Wrap(err, "Failed to write configuration")
 	}
+
+	return nil
+}
+
+func (r *Reader) unmarshalYamlWithoutOverridingFields(bodyBytes []byte, config *Config) error {
+	// yaml.Unamrshal overrides fields, so in order to update config fields from a configuration yaml
+	// without overriding existing fields we:
+	// 1. Create a temp config with the fields of the given yaml file
+	// 2. Parse the current config into a yaml file
+	// 3. Unmarshal the generated current config yaml file onto the temp config - to override fields that exist on both.
+	// 4. Set the current config pointer to point to the tmpConfig
+
+	var tmpConfig *Config
+
+	if err := yaml.Unmarshal(bodyBytes, tmpConfig); err != nil {
+		return err
+	}
+
+	// parse the current config to yaml
+	currentConfigAsJson, err := yaml.Marshal(config)
+	if err != nil {
+		return err
+	}
+
+	// load the current config onto the tmpConfig - making it override the fields it has
+	if err = yaml.Unmarshal(currentConfigAsJson,tmpConfig); err != nil {
+		return err
+	}
+
+	config = tmpConfig
 
 	return nil
 }
