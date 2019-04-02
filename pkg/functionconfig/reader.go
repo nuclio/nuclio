@@ -17,12 +17,14 @@ limitations under the License.
 package functionconfig
 
 import (
+	"encoding/json"
 	"io"
 	"io/ioutil"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/ghodss/yaml"
+	"github.com/imdario/mergo"
 	"github.com/nuclio/logger"
 )
 
@@ -37,45 +39,42 @@ func NewReader(parentLogger logger.Logger) (*Reader, error) {
 }
 
 func (r *Reader) Read(reader io.Reader, configType string, config *Config) error {
+	// Performs deep merge of the received and the base configs. (received config values doesn't override base values)
+	// In order to do that we should create maps from both configs, so we can use mergo.Merge() to deeply merge them.
+
+	var receivedConfigAsMap, baseConfigAsMap map[string]interface{}
+
 	bodyBytes, err := ioutil.ReadAll(reader)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to read configuration file")
 	}
 
-	if err = r.unmarshalYamlWithoutOverridingFields(bodyBytes, config); err != nil {
-		return errors.Wrap(err, "Failed to write configuration")
-	}
-
-	return nil
-}
-
-func (r *Reader) unmarshalYamlWithoutOverridingFields(bodyBytes []byte, config *Config) error {
-	// yaml.Unamrshal overrides fields, so in order to update config fields from a configuration yaml
-	// without overriding existing fields we:
-	// 1. Create a temp config with the fields of the given yaml file
-	// 2. Parse the current config into a yaml file
-	// 3. Unmarshal the generated current config yaml file onto the temp config - to override fields that exist on both.
-	// 4. Set the current config pointer to point to the tmpConfig
-
-	var tmpConfig *Config
-
-	if err := yaml.Unmarshal(bodyBytes, tmpConfig); err != nil {
+	if err := yaml.Unmarshal(bodyBytes, &receivedConfigAsMap); err != nil {
 		return err
 	}
 
-	// parse the current config to yaml
-	currentConfigAsJson, err := yaml.Marshal(config)
+	// parse base config to JSON - so it can be deeply-merged as we want it to
+	baseConfigAsJSON, err := json.Marshal(config)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to parse base config to JSON")
 	}
 
-	// load the current config onto the tmpConfig - making it override the fields it has
-	if err = yaml.Unmarshal(currentConfigAsJson,tmpConfig); err != nil {
-		return err
+	// create a map from the JSON of the base map
+	if err = json.Unmarshal(baseConfigAsJSON, &baseConfigAsMap); err != nil {
+		return errors.Wrap(err, "Failed to parse base config as JSON to map")
 	}
 
-	config = tmpConfig
+	// merge base config with received config - and make base config values override received config values
+	if err = mergo.Merge(&baseConfigAsMap, receivedConfigAsMap); err != nil {
+		return errors.Wrap(err, "Failed to merge base config and received config")
+	}
+
+	// parse the modified base config map to be of JSON, so it can be easily unmarshalled into the config struct
+	mergedConfigAsJSON, _ := json.Marshal(baseConfigAsMap)
+	if err = json.Unmarshal(mergedConfigAsJSON, config); err != nil {
+		return errors.Wrap(err, "Failed to parse new config from JSON to *Config struct")
+	}
 
 	return nil
 }

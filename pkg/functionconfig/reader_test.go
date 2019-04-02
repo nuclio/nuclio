@@ -17,6 +17,7 @@ limitations under the License.
 package functionconfig
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -81,6 +82,35 @@ spec:
 			suite.Require().Failf("Unknown partition ID - %s", partition.ID)
 		}
 	}
+}
+
+func (suite *ReaderTestSuite) TestDeepMergeWithoutOverridingBaseConfig() {
+	configData := `
+metadata:
+  name: new name
+spec:
+  runtime: python
+  handler: new_handler
+  build:
+    commands:
+    - pip install requests
+`
+
+	baseConfig := Config{
+		Meta: Meta{Name: "base name", Namespace: "base namespace"},
+		Spec: Spec{Build: Build{Commands: []string{"pip install base1", "pip install base2"}}},
+	}
+	reader, err := NewReader(suite.logger)
+	suite.Require().NoError(err, "Can't create reader")
+	err = reader.Read(strings.NewReader(configData), "processor", &baseConfig)
+	suite.Require().NoError(err, "Can't reader configuration")
+
+	fmt.Printf("Base Config: %+v\n",baseConfig)
+
+	suite.Require().Equal("base name", baseConfig.Meta.Name, "Bad name")
+	suite.Require().Equal("base namespace", baseConfig.Meta.Namespace, "Bad namespace")
+	suite.Require().Equal("new_handler", baseConfig.Spec.Handler, "Bad handler")
+	suite.Require().Equal([]string{"pip install base1", "pip install base2"}, baseConfig.Spec.Build.Commands, "Bad commands")
 }
 
 func (suite *ReaderTestSuite) TestToDeployOptions() {
