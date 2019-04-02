@@ -17,7 +17,6 @@ limitations under the License.
 package functionconfig
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -54,9 +53,9 @@ spec:
       total_tasks: 2
       max_task_allocation: 3
       partitions:
-      - id: 0
-        checkpoint: 7
-      - id: 1
+      - id: "0"
+        checkpoint: "7"
+      - id: "1"
       attributes:
         topic: trial
 `
@@ -97,7 +96,7 @@ spec:
 `
 
 	baseConfig := Config{
-		Meta: Meta{Name: "base name", Namespace: "base namespace"},
+		Meta: Meta{Name: "base_name", Namespace: "base_namespace"},
 		Spec: Spec{Build: Build{Commands: []string{"pip install base1", "pip install base2"}}},
 	}
 	reader, err := NewReader(suite.logger)
@@ -105,10 +104,8 @@ spec:
 	err = reader.Read(strings.NewReader(configData), "processor", &baseConfig)
 	suite.Require().NoError(err, "Can't reader configuration")
 
-	fmt.Printf("Base Config: %+v\n",baseConfig)
-
-	suite.Require().Equal("base name", baseConfig.Meta.Name, "Bad name")
-	suite.Require().Equal("base namespace", baseConfig.Meta.Namespace, "Bad namespace")
+	suite.Require().Equal("base_name", baseConfig.Meta.Name, "Bad name")
+	suite.Require().Equal("base_namespace", baseConfig.Meta.Namespace, "Bad namespace")
 	suite.Require().Equal("new_handler", baseConfig.Spec.Handler, "Bad handler")
 	suite.Require().Equal([]string{"pip install base1", "pip install base2"}, baseConfig.Spec.Build.Commands, "Bad commands")
 }

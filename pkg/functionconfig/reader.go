@@ -50,8 +50,8 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 		return errors.Wrap(err, "Failed to read configuration file")
 	}
 
-	if err := yaml.Unmarshal(bodyBytes, &receivedConfigAsMap); err != nil {
-		return err
+	if err = yaml.Unmarshal(bodyBytes, &receivedConfigAsMap); err != nil {
+		return errors.Wrap(err, "Failed to parse received config")
 	}
 
 	// parse base config to JSON - so it can be deeply-merged as we want it to
