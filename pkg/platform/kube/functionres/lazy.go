@@ -1265,7 +1265,8 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 		// ignore if it's a HostPath volume
 		if configVolume.Volume.HostPath != nil {
 			lc.logger.WarnWith("Ignoring volume. HostPath volumes are not allowed",
-				"configVolume", configVolume)
+				"configVolume",
+				configVolume)
 		}
 
 		volumes = append(volumes, configVolume.Volume)
