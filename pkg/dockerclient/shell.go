@@ -21,6 +21,8 @@ import (
 	"path"
 	"strings"
 	"time"
+	"os"
+	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
@@ -91,9 +93,22 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		CaptureOutputMode: cmdrunner.CaptureOutputModeStdout,
 		WorkingDir:        &buildOptions.ContextDir,
 	}
-
+	
+	hostNetString := ""
+	if len(os.Getenv("BUILD_USE_HOST_NET")) != 0 {
+		useHostNet, err := strconv.ParseBool(os.Getenv("BUILD_USE_HOST_NET"))
+		if err == nil {
+			if useHostNet == true {
+				hostNetString = "--network host"
+			}else {
+				hostNetString = "--network default"
+			}
+		}
+	}
+	
 	_, err := c.runCommand(runOptions,
-		"docker build --force-rm -t %s -f %s %s %s .",
+		"docker build %s --force-rm -t %s -f %s %s %s .",
+		hostNetString,
 		buildOptions.Image,
 		buildOptions.DockerfilePath,
 		cacheOption,
