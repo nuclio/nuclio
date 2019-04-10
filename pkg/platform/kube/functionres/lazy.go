@@ -1267,7 +1267,13 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 			lc.logger.WarnWith("Ignoring volume. HostPath volumes are now deprecated",
 				"configVolume",
 				configVolume)
+
+			continue
 		}
+
+		lc.logger.DebugWith("Adding volume",
+			"configVolume",
+			configVolume)
 
 		volumes = append(volumes, configVolume.Volume)
 		volumeMounts = append(volumeMounts, configVolume.VolumeMount)
