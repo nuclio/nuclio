@@ -93,19 +93,19 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		CaptureOutputMode: cmdrunner.CaptureOutputModeStdout,
 		WorkingDir:        &buildOptions.ContextDir,
 	}
-	
+
 	hostNetString := ""
 	if len(os.Getenv("BUILD_USE_HOST_NET")) != 0 {
 		useHostNet, err := strconv.ParseBool(os.Getenv("BUILD_USE_HOST_NET"))
 		if err == nil {
 			if useHostNet {
 				hostNetString = "--network host"
-			}else {
+			} else {
 				hostNetString = "--network default"
 			}
 		}
 	}
-	
+
 	_, err := c.runCommand(runOptions,
 		"docker build %s --force-rm -t %s -f %s %s %s .",
 		hostNetString,
