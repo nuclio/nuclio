@@ -98,7 +98,7 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 	if len(os.Getenv("BUILD_USE_HOST_NET")) != 0 {
 		useHostNet, err := strconv.ParseBool(os.Getenv("BUILD_USE_HOST_NET"))
 		if err == nil {
-			if useHostNet == true {
+			if useHostNet {
 				hostNetString = "--network host"
 			}else {
 				hostNetString = "--network default"
