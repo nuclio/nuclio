@@ -18,11 +18,11 @@ package dockerclient
 
 import (
 	"fmt"
+	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
-	"os"
-	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
