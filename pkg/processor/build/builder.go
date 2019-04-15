@@ -1388,7 +1388,7 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 				// add command to the aggregated multi-line command
 				aggregatedCommand += command
 
-				if len(commands) > i + 1 {
+				if len(commands) > i+1 {
 
 					// check if the next command is continuing the multi-line
 					i++
