@@ -1363,7 +1363,7 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 	currentDirective := "preCopy"
 
 	// iterate over commands
-	for i := 0; i < len(commands); i += 1 {
+	for i := 0; i < len(commands); i++ {
 		command := commands[i]
 
 		if strings.TrimSpace(command) == "@nuclio.postCopy" {
@@ -1391,7 +1391,7 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 				if len(commands) > i + 1 {
 
 					// check if the next command is continuing the multi-line
-					i += 1
+					i++
 					command = commands[i]
 
 				} else {
