@@ -1362,13 +1362,9 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 	// current directive kind starts with "preCopy". If the user specifies @nuclio.postCopy it switches to that
 	currentDirective := "preCopy"
 
-	b.logger.DebugWith("Performing commands to directives", "commands", commands)
-
 	// iterate over commands
 	for i := 0; i < len(commands); i += 1 {
 		command := commands[i]
-
-		b.logger.DebugWith("Processing command", "command", command, "i", i)
 
 		if strings.TrimSpace(command) == "@nuclio.postCopy" {
 			currentDirective = "postCopy"
@@ -1386,10 +1382,10 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 
 			} else if len(command) != 0 && command[len(command)-1] == '\\' {
 
-				b.logger.DebugWith("Current command", "current command", command, "i", i)
+				// remove whitespace
+				command = command[:len(command)-1]
 
-				// replace backslash with space
-				command = command[:len(command)-1] + " "
+				// add command to the aggregated multi-line command
 				aggregatedCommand += command
 
 				if len(commands) > i + 1 {
@@ -1409,16 +1405,12 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 			}
 		}
 
-		b.logger.DebugWith("Appending command", "aggregatedCommand", aggregatedCommand)
-
 		// add to proper directive. support only RUN
 		directives[currentDirective] = append(directives[currentDirective], functionconfig.Directive{
 			Kind:  "RUN",
 			Value: aggregatedCommand,
 		})
 	}
-
-	b.logger.DebugWith("Finished directives", "directives", directives)
 
 	return directives, nil
 }
