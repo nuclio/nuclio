@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/processor/test/callfunction"
+	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/python"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
