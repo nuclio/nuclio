@@ -153,7 +153,7 @@ Updating a function is similar to creating a function. The only differences are:
 * You must provide certain fields (e.g. `spec.image`) which should be taken from a `GET` - update does not currently support augmentation. Whatever you pass in the body is the new function spec.
 
 #### Request
-* URL: `PUT /api/functions`
+* URL: `PUT /api/functions/<function name>`
 * Headers:
   * `Content-Type`: Must be set to `application/json`
 * Body:
