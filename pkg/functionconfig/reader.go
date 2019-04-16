@@ -36,9 +36,8 @@ func NewReader(parentLogger logger.Logger) (*Reader, error) {
 }
 
 func (r *Reader) Read(reader io.Reader, configType string, config *Config) error {
-	// Performs deep merge of the received and the base config metadata. (received config values doesn't override base metadata values)
-	// In order to do that we should create maps from both configs, so we can use mergo.Merge() on their metadata
-
+	// Merges received and base configs.
+	// received config has precedence on Spec values, while base config has precedence on Meta values
 	var receivedConfigAsMap, baseConfigAsMap map[string]interface{}
 
 	bodyBytes, err := ioutil.ReadAll(reader)
