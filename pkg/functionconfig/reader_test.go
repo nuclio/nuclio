@@ -83,6 +83,34 @@ spec:
 	}
 }
 
+func (suite *ReaderTestSuite) TestReceivedConfigDontOverrideMeta() {
+	configData := `
+metadata:
+  name: new_name
+  namespace: new_namespace
+spec:
+  runtime: python
+  handler: new_handler
+  build:
+    commands:
+    - pip install new
+`
+
+	baseConfig := Config{
+		Meta: Meta{Name: "base_name"},
+		Spec: Spec{Build: Build{Commands: []string{"pip install base"}}},
+	}
+	reader, err := NewReader(suite.logger)
+	suite.Require().NoError(err, "Can't create reader")
+	err = reader.Read(strings.NewReader(configData), "processor", &baseConfig)
+	suite.Require().NoError(err, "Can't reader configuration")
+
+	suite.Require().Equal("base_name", baseConfig.Meta.Name, "Bad name")
+	suite.Require().Equal("new_namespace", baseConfig.Meta.Namespace, "Bad namespace")
+	suite.Require().Equal("new_handler", baseConfig.Spec.Handler, "Bad handler")
+	suite.Require().Equal([]string{"pip install new"}, baseConfig.Spec.Build.Commands, "Bad commands")
+}
+
 func (suite *ReaderTestSuite) TestToDeployOptions() {
 	suite.T().Skip("TODO")
 	//	flatConfigurationContents := `
