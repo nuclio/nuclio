@@ -1366,23 +1366,22 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 	for i := 0; i < len(commands); i++ {
 		command := commands[i]
 
-		if strings.TrimSpace(command) == "@nuclio.postCopy" {
-			currentDirective = "postCopy"
-			continue
-		}
-
 		// check if the last character is backslash. if so treat this and the next command as one multi-line command
-		// example: commands = []{"echo 1\", "2\", "3"} -> "RUN echo 1 2 3"
+		// example: commands = []{"echo 1\", "2\", "3"} -> "RUN echo 123"
 		aggregatedCommand := ""
 		for {
 
 			if strings.TrimSpace(command) == "@nuclio.postCopy" {
 				currentDirective = "postCopy"
+				if aggregatedCommand == "" {
+					continue
+				}
+
 				break
 
 			} else if len(command) != 0 && command[len(command)-1] == '\\' {
 
-				// remove whitespace
+				// remove backslash
 				command = command[:len(command)-1]
 
 				// add command to the aggregated multi-line command
