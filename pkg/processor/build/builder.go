@@ -1373,10 +1373,6 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 
 			if strings.TrimSpace(command) == "@nuclio.postCopy" {
 				currentDirective = "postCopy"
-				if aggregatedCommand == "" {
-					continue
-				}
-
 				break
 
 			} else if len(command) != 0 && command[len(command)-1] == '\\' {
@@ -1387,21 +1383,24 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 				// add command to the aggregated multi-line command
 				aggregatedCommand += command
 
-				if len(commands) > i+1 {
-
-					// check if the next command is continuing the multi-line
-					i++
-					command = commands[i]
-
-				} else {
+				if len(commands) <= i+1 {
 					break
 				}
+
+				// check if the next command is continuing the multi-line
+				i++
+				command = commands[i]
 
 			} else {
 
 				aggregatedCommand += command
 				break
 			}
+		}
+
+		// may be true when @nuclio.postCopy is given
+		if aggregatedCommand == "" {
+			continue
 		}
 
 		// add to proper directive. support only RUN
