@@ -1381,7 +1381,6 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 				// remove backslash
 				command = command[:len(command)-1]
 
-				// add command to the aggregated multi-line command
 				aggregatedCommand += command
 
 				// exit the loop if we've processed all the commands
