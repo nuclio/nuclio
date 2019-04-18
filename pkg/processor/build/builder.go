@@ -1375,8 +1375,8 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 				currentDirective = "postCopy"
 				break
 
-			// gets here when the current command ends with backslash - concatenate the next command to it
 			} else if len(command) != 0 && command[len(command)-1] == '\\' {
+				// gets here when the current command ends with backslash - concatenate the next command to it
 
 				// remove backslash
 				command = command[:len(command)-1]
@@ -1393,8 +1393,8 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 				i++
 				command = commands[i]
 
-			// gets here when the current command is not continuing a multi-line
 			} else {
+				// gets here when the current command is not continuing a multi-line
 
 				aggregatedCommand += command
 				break
