@@ -1363,16 +1363,52 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 	currentDirective := "preCopy"
 
 	// iterate over commands
-	for _, command := range commands {
-		if strings.TrimSpace(command) == "@nuclio.postCopy" {
-			currentDirective = "postCopy"
+	for i := 0; i < len(commands); i++ {
+		command := commands[i]
+
+		// check if the last character is backslash. if so treat this and the next command as one multi-line command
+		// example: commands = []{"echo 1\", "2\", "3"} -> "RUN echo 123"
+		aggregatedCommand := ""
+		for {
+
+			if strings.TrimSpace(command) == "@nuclio.postCopy" {
+				currentDirective = "postCopy"
+				break
+
+			} else if len(command) != 0 && command[len(command)-1] == '\\' {
+				// gets here when the current command ends with backslash - concatenate the next command to it
+
+				// remove backslash
+				command = command[:len(command)-1]
+
+				aggregatedCommand += command
+
+				// exit the loop if we've processed all the commands
+				if len(commands) <= i+1 {
+					break
+				}
+
+				// check if the next command is continuing the multi-line
+				i++
+				command = commands[i]
+
+			} else {
+				// gets here when the current command is not continuing a multi-line
+
+				aggregatedCommand += command
+				break
+			}
+		}
+
+		// may be true when @nuclio.postCopy is given
+		if aggregatedCommand == "" {
 			continue
 		}
 
 		// add to proper directive. support only RUN
 		directives[currentDirective] = append(directives[currentDirective], functionconfig.Directive{
 			Kind:  "RUN",
-			Value: command,
+			Value: aggregatedCommand,
 		})
 	}
 
