@@ -38,9 +38,9 @@ func NewReader(parentLogger logger.Logger) (*Reader, error) {
 	}, nil
 }
 
+// Merges received and base configs.
+// Received config has precedence on Spec values, while base config has precedence on Meta values
 func (r *Reader) Read(reader io.Reader, configType string, config *Config) error {
-	// Merges received and base configs.
-	// received config has precedence on Spec values, while base config has precedence on Meta values
 	var receivedConfigAsMap, baseConfigAsMap map[string]interface{}
 
 	bodyBytes, err := ioutil.ReadAll(reader)
