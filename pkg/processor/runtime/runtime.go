@@ -163,6 +163,7 @@ func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger
 func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 	configuration *Configuration,
 	databindings map[string]databinding.DataBinding) (*nuclio.Context, error) {
+	var err error
 
 	newContext := &nuclio.Context{
 		Logger:          parentLogger,
@@ -173,11 +174,16 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 		TriggerName:     configuration.TriggerName,
 	}
 
+	if newContext.Platform, err = nuclio.NewPlatform(parentLogger,
+		ar.configuration.PlatformConfig.Kind,
+		ar.configuration.Meta.Namespace,
+	); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize Platform")
+	}
+
 	// iterate through data bindings and get the context object - the thing users will actuall
 	// work with in the handlers
 	for databindingName, databindingInstance := range databindings {
-		var err error
-
 		newContext.DataBinding[databindingName], err = databindingInstance.GetContextObject()
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get databinding context object")

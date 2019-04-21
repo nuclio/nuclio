@@ -473,6 +473,26 @@ func (suite *testSuite) TestCommandsToDirectives() {
 				},
 			},
 		},
+		// multi-line commands
+		{
+			commands: []string{
+				"preCommand1 arg1 \\",
+				"arg2 \\",
+				"arg3",
+				"preCommand2",
+				"@nuclio.postCopy",
+				"postCommand1",
+			},
+			directives: map[string][]functionconfig.Directive{
+				"preCopy": {
+					{Kind: "RUN", Value: "preCommand1 arg1 arg2 arg3"},
+					{Kind: "RUN", Value: "preCommand2"},
+				},
+				"postCopy": {
+					{Kind: "RUN", Value: "postCommand1"},
+				},
+			},
+		},
 	}
 
 	for _, commandsToDirectivesCase := range commandsToDirectivesCases {
