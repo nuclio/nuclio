@@ -1279,14 +1279,15 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 
 				// insert slash in the beginning in case it wasn't given (example: "my/path" -> "/my/path")
 				if subPath[0] != '/' {
-					configVolume.Volume.FlexVolume.Options["subPath"] = "/" + subPath
+					subPath = "/" + subPath
 				}
 
 				// remove ending slash in case it was given (example: "/my/path/" -> "/my/path")
 				if subPath[len(subPath)-1] == '/' {
-					configVolume.Volume.FlexVolume.Options["subPath"] = subPath[:len(subPath)-1]
-
+					subPath = subPath[:len(subPath)-1]
 				}
+
+				configVolume.Volume.FlexVolume.Options["subPath"] = subPath
 			}
 		}
 
