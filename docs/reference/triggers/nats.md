@@ -25,7 +25,7 @@ The queue name may be a Go template, which may include any of the following fiel
 triggers:
   myNatsTopic:
     kind: "nats"
-    url: "10.0.0.3:4222"
+    url: "nats://10.0.0.3:4222"
     attributes:
       "topic": "my.topic"
       "queueName": "{{ .Namespace }}.{{ .Name }}.{{ .Id }}"

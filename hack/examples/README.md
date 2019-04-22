@@ -10,6 +10,7 @@ To help you make the most of Nuclio, the following function examples are provide
 - [HTTP ingress](golang/ingress) (`ingress`): A simple function with an HTTP ingress configuration (using embedded YAML code) that routes specific URL paths to the function.
 - [RabbitMQ](golang/rabbitmq) (`rabbitmq`): A multi-trigger function with a configuration that connects to RabbitMQ to read messages and write them to local ephemeral storage. If triggered with an HTTP `GET` request, the function returns the messages that it read from RabbitMQ.
 - [Azure Event Hub](golang/eventhub) (`eventhub`): An Azure Event Hub triggered function with a configuration that connects to an Azure Event Hub. The function reads messages from two partitions, process the messages, invokes another function, and sends the processed payload to another Azure Event Hub. You can find a full demo scenario [here](https://github.com/nuclio/demos/tree/master/fleet-alarm-detection-azure).
+- [Call function](golang/callfunction) (`callfunction`): A set of two functions: **fibonacci** - getting `n` and return `fib(n)`, **fibonaccisum** - returns `fib(2)+fib(10)+fib(17)` using first function. It's demonstration of CallFunction feature. To try: deploy **fibonacci** function and name it **fibonacci**, deploy **fibonaccisum** with any name to the same namespace and call it.
 
 ## Python examples
 
