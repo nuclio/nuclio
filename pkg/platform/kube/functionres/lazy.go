@@ -1271,6 +1271,25 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 			continue
 		}
 
+		if configVolume.Volume.FlexVolume != nil && configVolume.Volume.FlexVolume.Driver == "v3io/fuse" {
+
+			// make sure the given sub path matches the needed structure. fix in case it doesn't
+			subPath, subPathExists := configVolume.Volume.FlexVolume.Options["subPath"]
+			if subPathExists && len(subPath) != 0 {
+
+				// insert slash in the beginning in case it wasn't given (example: "my/path" -> "/my/path")
+				if subPath[0] != '/' {
+					configVolume.Volume.FlexVolume.Options["subPath"] = "/" + subPath
+				}
+
+				// remove ending slash in case it was given (example: "/my/path/" -> "/my/path")
+				if subPath[len(subPath)-1] == '/' {
+					configVolume.Volume.FlexVolume.Options["subPath"] = subPath[:len(subPath)-1]
+
+				}
+			}
+		}
+
 		lc.logger.DebugWith("Adding volume",
 			"configVolume",
 			configVolume)
