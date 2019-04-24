@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
@@ -1278,13 +1279,15 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 			if subPathExists && len(subPath) != 0 {
 
 				// insert slash in the beginning in case it wasn't given (example: "my/path" -> "/my/path")
-				if subPath[0] != '/' {
+				if !filepath.IsAbs(subPath) {
 					subPath = "/" + subPath
 				}
 
-				// remove ending slash in case it was given (example: "/my/path/" -> "/my/path")
-				if subPath[len(subPath)-1] == '/' {
-					subPath = subPath[:len(subPath)-1]
+				if subPath == "/" {
+					subPath = ""
+
+				} else {
+					subPath = filepath.Clean(subPath)
 				}
 
 				configVolume.Volume.FlexVolume.Options["subPath"] = subPath
