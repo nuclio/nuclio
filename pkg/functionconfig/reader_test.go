@@ -22,7 +22,9 @@ import (
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
+
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 type ReaderTestSuite struct {
@@ -81,6 +83,58 @@ spec:
 			suite.Require().Failf("Unknown partition ID - %s", partition.ID)
 		}
 	}
+}
+
+func (suite *ReaderTestSuite) TestReceivedConfigDontOverrideBaseConfig() {
+	configData := `
+metadata:
+  name: new_name
+  namespace: new_namespace
+  labels:
+    label_key: label_val
+spec:
+  runtime: python3.6
+  handler: new_handler
+  build:
+    commands:
+    - pip install new
+  env:
+    - name: env_var
+      value: new_env_val
+    - name: new_env_var
+      value: new_env_val_2
+`
+
+	baseConfig := Config{
+		Meta: Meta{
+			Name: "base_name",
+			Namespace: "base_namespace",
+			Labels: map[string]string{}, // empty map
+		},
+		Spec: Spec{
+			Runtime: "python2.7",
+			Handler: "base_handler",
+			Env: []v1.EnvVar{{Name: "env_var", Value: "base_env_val"}},
+		},
+	}
+	reader, err := NewReader(suite.logger)
+	suite.Require().NoError(err, "Can't create reader")
+	err = reader.Read(strings.NewReader(configData), "processor", &baseConfig)
+	suite.Require().NoError(err, "Can't reader configuration")
+
+	suite.Require().Equal("base_name", baseConfig.Meta.Name, "Bad name")
+	suite.Require().Equal("base_namespace", baseConfig.Meta.Namespace, "Bad namespace")
+
+	expectedEnvVariables := []v1.EnvVar{
+		{Name: "env_var", Value: "base_env_val"},
+		{Name: "new_env_var", Value: "new_env_val_2"},
+	}
+	suite.Require().Equal(expectedEnvVariables, baseConfig.Spec.Env, "Bad env vars")
+
+	suite.Require().Equal("base_handler", baseConfig.Spec.Handler, "Bad handler")
+	suite.Require().Equal("python2.7", baseConfig.Spec.Runtime, "Bad runtime")
+	suite.Require().Equal([]string{"pip install new"}, baseConfig.Spec.Build.Commands, "Bad commands")
+	suite.Require().Equal(map[string]string{"label_key": "label_val"}, baseConfig.Meta.Labels, "Bad labels")
 }
 
 func (suite *ReaderTestSuite) TestToDeployOptions() {
