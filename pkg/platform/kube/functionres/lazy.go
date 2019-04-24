@@ -1283,11 +1283,9 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 					subPath = "/" + subPath
 				}
 
+				subPath = filepath.Clean(subPath)
 				if subPath == "/" {
 					subPath = ""
-
-				} else {
-					subPath = filepath.Clean(subPath)
 				}
 
 				configVolume.Volume.FlexVolume.Options["subPath"] = subPath
