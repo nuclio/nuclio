@@ -38,7 +38,6 @@ func NewReader(parentLogger logger.Logger) (*Reader, error) {
 	}, nil
 }
 
-
 // Merges codeEntry config with base function config.
 // Base config populated values won't get override by codeEntry values.
 // The only exception is that there will be a union of the environment variables, with precedence to base config.
