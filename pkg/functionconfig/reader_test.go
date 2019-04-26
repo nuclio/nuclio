@@ -54,9 +54,9 @@ spec:
       total_tasks: 2
       max_task_allocation: 3
       partitions:
-      - id: 0
-        checkpoint: 7
-      - id: 1
+      - id: "0"
+        checkpoint: "7"
+      - id: "1"
       attributes:
         topic: trial
 `
