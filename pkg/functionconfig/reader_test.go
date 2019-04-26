@@ -22,7 +22,6 @@ import (
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
-
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
 )

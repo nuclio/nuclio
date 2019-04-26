@@ -21,11 +21,11 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
+	"github.com/nuclio/logger"
 )
 
 type Reader struct {
