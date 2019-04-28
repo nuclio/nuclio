@@ -61,6 +61,10 @@ func main() {
 	// git templating env vars
 	templatesGitRepository := flag.String("templates-git-repository", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REPOSITORY", "https://github.com/nuclio/nuclio-templates.git"), "Git templates repo's name")
 	templatesGitBranch := flag.String("templates-git-ref", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REF", "refs/heads/master"), "Git templates repo's branch name")
+	templatesGitUsername := flag.String("templates-git-username", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_USERNAME", ""), "Git repo's username")
+	templatesGitPassword := flag.String("templates-git-password", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_PASSWORD", ""), "Git repo's user password")
+
+	templatesGithubAccessToken := flag.String("templates-github-access-token", getEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_ACCESS_TOKEN", ""), "Github templates repo's access token")
 
 	templatesArchiveAddress := flag.String("templates-archive-address", getEnvOrDefaultString("NUCLIO_TEMPLATES_ARCHIVE_ADDRESS", ""), "Function Templates zip file address")
 
@@ -94,7 +98,10 @@ func main() {
 		*platformConfigurationPath,
 		*templatesGitRepository,
 		*templatesGitBranch,
-		*templatesArchiveAddress); err != nil {
+		*templatesArchiveAddress,
+		*templatesGitUsername,
+		*templatesGitPassword,
+		*templatesGithubAccessToken); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
