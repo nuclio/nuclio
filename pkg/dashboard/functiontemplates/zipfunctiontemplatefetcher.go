@@ -47,20 +47,33 @@ func NewZipFunctionTemplateFetcher(parentLogger logger.Logger, fileAddress strin
 func (zftf *ZipFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 	var functionTemplates []*FunctionTemplate
 	var functionsFileContents map[string]*FunctionTemplateFileContents
+	var zipFileBody []byte
+	var err error
 
 	zftf.logger.DebugWith("Getting the zip file from the given address", "fileAddress", zftf.fileAddress)
-	response, err := http.Get(zftf.fileAddress)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get zip file")
-	}
-	defer response.Body.Close() // nolint: errcheck
 
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read response body")
+	if common.IsLocalFileURL(zftf.fileAddress) {
+		localFilePath := common.GetPathFromLocalFileURL(zftf.fileAddress)
+		zipFileBody, err = ioutil.ReadFile(localFilePath)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to read local file")
+		}
+
+	} else {
+
+		response, err := http.Get(zftf.fileAddress)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get zip file")
+		}
+		defer response.Body.Close() // nolint: errcheck
+
+		zipFileBody, err = ioutil.ReadAll(response.Body)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to read response body")
+		}
 	}
 
-	zipReader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	zipReader, err := zip.NewReader(bytes.NewReader(zipFileBody), int64(len(zipFileBody)))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create zip reader")
 	}

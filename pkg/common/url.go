@@ -67,3 +67,16 @@ func DownloadFile(URL, destFile string, headers http.Header) error {
 func IsURL(s string) bool {
 	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
 }
+
+func IsLocalFileURL(s string) bool {
+	return strings.HasPrefix(s, "file://")
+}
+
+// extracts absolute path to file from local file URL
+// example: "file://path/to/file" -> "/path/to/file"
+func GetPathFromLocalFileURL(s string) string {
+	if IsLocalFileURL(s) {
+		return s[6:]
+	}
+	return ""
+}
