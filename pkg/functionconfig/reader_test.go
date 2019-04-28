@@ -84,56 +84,56 @@ spec:
 	}
 }
 
-func (suite *ReaderTestSuite) TestReceivedConfigDontOverrideBaseConfig() {
+func (suite *ReaderTestSuite) TestCodeEntryConfigDontOverrideConfigValues() {
 	configData := `
 metadata:
-  name: new_name
-  namespace: new_namespace
+  name: code_entry_name
+  namespace: code_entry_namespace
   labels:
     label_key: label_val
 spec:
   runtime: python3.6
-  handler: new_handler
+  handler: code_entry_handler
   build:
     commands:
-    - pip install new
+    - pip install code_entry_package
   env:
     - name: env_var
-      value: new_env_val
-    - name: new_env_var
-      value: new_env_val_2
+      value: code_entry_env_val
+    - name: code_entry_env_var
+      value: code_entry_env_val_2
 `
 
-	baseConfig := Config{
+	config := Config{
 		Meta: Meta{
-			Name: "base_name",
-			Namespace: "base_namespace",
+			Name: "my_name",
+			Namespace: "my_namespace",
 			Labels: map[string]string{}, // empty map
 		},
 		Spec: Spec{
 			Runtime: "python2.7",
-			Handler: "base_handler",
-			Env: []v1.EnvVar{{Name: "env_var", Value: "base_env_val"}},
+			Handler: "my_handler",
+			Env: []v1.EnvVar{{Name: "env_var", Value: "my_env_val"}},
 		},
 	}
 	reader, err := NewReader(suite.logger)
 	suite.Require().NoError(err, "Can't create reader")
-	err = reader.Read(strings.NewReader(configData), "processor", &baseConfig)
+	err = reader.Read(strings.NewReader(configData), "processor", &config)
 	suite.Require().NoError(err, "Can't reader configuration")
 
-	suite.Require().Equal("base_name", baseConfig.Meta.Name, "Bad name")
-	suite.Require().Equal("base_namespace", baseConfig.Meta.Namespace, "Bad namespace")
+	suite.Require().Equal("my_name", config.Meta.Name, "Bad name")
+	suite.Require().Equal("my_namespace", config.Meta.Namespace, "Bad namespace")
 
 	expectedEnvVariables := []v1.EnvVar{
-		{Name: "env_var", Value: "base_env_val"},
-		{Name: "new_env_var", Value: "new_env_val_2"},
+		{Name: "env_var", Value: "my_env_val"},
+		{Name: "code_entry_env_var", Value: "code_entry_env_val_2"},
 	}
-	suite.Require().Equal(expectedEnvVariables, baseConfig.Spec.Env, "Bad env vars")
+	suite.Require().Equal(expectedEnvVariables, config.Spec.Env, "Bad env vars")
 
-	suite.Require().Equal("base_handler", baseConfig.Spec.Handler, "Bad handler")
-	suite.Require().Equal("python2.7", baseConfig.Spec.Runtime, "Bad runtime")
-	suite.Require().Equal([]string{"pip install new"}, baseConfig.Spec.Build.Commands, "Bad commands")
-	suite.Require().Equal(map[string]string{"label_key": "label_val"}, baseConfig.Meta.Labels, "Bad labels")
+	suite.Require().Equal("my_handler", config.Spec.Handler, "Bad handler")
+	suite.Require().Equal("python2.7", config.Spec.Runtime, "Bad runtime")
+	suite.Require().Equal([]string{"pip install code_entry_package"}, config.Spec.Build.Commands, "Bad commands")
+	suite.Require().Equal(map[string]string{"label_key": "label_val"}, config.Meta.Labels, "Bad labels")
 }
 
 func (suite *ReaderTestSuite) TestToDeployOptions() {
