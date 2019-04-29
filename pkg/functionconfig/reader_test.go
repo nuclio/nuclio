@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 type ReaderTestSuite struct {
@@ -53,9 +54,9 @@ spec:
       total_tasks: 2
       max_task_allocation: 3
       partitions:
-      - id: 0
-        checkpoint: 7
-      - id: 1
+      - id: "0"
+        checkpoint: "7"
+      - id: "1"
       attributes:
         topic: trial
 `
@@ -81,6 +82,58 @@ spec:
 			suite.Require().Failf("Unknown partition ID - %s", partition.ID)
 		}
 	}
+}
+
+func (suite *ReaderTestSuite) TestCodeEntryConfigDontOverrideConfigValues() {
+	configData := `
+metadata:
+  name: code_entry_name
+  namespace: code_entry_namespace
+  labels:
+    label_key: label_val
+spec:
+  runtime: python3.6
+  handler: code_entry_handler
+  build:
+    commands:
+    - pip install code_entry_package
+  env:
+    - name: env_var
+      value: code_entry_env_val
+    - name: code_entry_env_var
+      value: code_entry_env_val_2
+`
+
+	config := Config{
+		Meta: Meta{
+			Name: "my_name",
+			Namespace: "my_namespace",
+			Labels: map[string]string{}, // empty map
+		},
+		Spec: Spec{
+			Runtime: "python2.7",
+			Handler: "my_handler",
+			Env: []v1.EnvVar{{Name: "env_var", Value: "my_env_val"}},
+		},
+	}
+	reader, err := NewReader(suite.logger)
+	suite.Require().NoError(err, "Can't create reader")
+	err = reader.Read(strings.NewReader(configData), "processor", &config)
+	suite.Require().NoError(err, "Can't reader configuration")
+
+	suite.Require().Equal("my_name", config.Meta.Name, "Bad name")
+	suite.Require().Equal("my_namespace", config.Meta.Namespace, "Bad namespace")
+
+	expectedEnvVariables := []v1.EnvVar{
+		{Name: "env_var", Value: "my_env_val"},
+		{Name: "code_entry_env_var", Value: "code_entry_env_val_2"},
+	}
+	suite.Require().Equal(expectedEnvVariables, config.Spec.Env, "Bad env vars")
+
+	suite.Require().Equal("my_handler", config.Spec.Handler, "Bad handler")
+	suite.Require().Equal("python2.7", config.Spec.Runtime, "Bad runtime")
+	suite.Require().Equal([]string{"pip install code_entry_package"}, config.Spec.Build.Commands, "Bad commands")
+	suite.Require().Equal(map[string]string{"label_key": "label_val"}, config.Meta.Labels, "Bad labels")
 }
 
 func (suite *ReaderTestSuite) TestToDeployOptions() {
