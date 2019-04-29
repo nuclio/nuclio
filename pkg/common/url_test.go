@@ -50,6 +50,18 @@ func (ts *IsURLTestSuite) TestIsURLWithHTTPS() {
 	ts.Require().True(IsURL("https://www.example.com"))
 }
 
+func (ts *IsURLTestSuite) TestIsLocalFileURLWithHTTP() {
+	ts.Require().False(IsLocalFileURL("http://www.example.com"))
+}
+
+func (ts *IsURLTestSuite) TestIsLocalFileURL() {
+	ts.Require().True(IsLocalFileURL("file://path/to/file"))
+}
+
+func (ts *IsURLTestSuite) TestGetPathFromLocalFileURL() {
+	ts.Require().Equal("/path/to/file" ,GetPathFromLocalFileURL("file://path/to/file"))
+}
+
 func (ts *DownloadFileTestSuite) TestDownloadFile() {
 	content := "content"
 	errResult := ts.testDownloadFile(func(req *http.Request) (*http.Response, error) {

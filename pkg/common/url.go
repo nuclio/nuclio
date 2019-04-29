@@ -76,7 +76,7 @@ func IsLocalFileURL(s string) bool {
 // example: "file://path/to/file" -> "/path/to/file"
 func GetPathFromLocalFileURL(s string) string {
 	if IsLocalFileURL(s) {
-		return s[6:]
+		return strings.TrimPrefix(s, "file:/")
 	}
 	return ""
 }
