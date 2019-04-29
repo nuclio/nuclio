@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	HTTPPrefix  = "http://"
-	HTTPSPrefix  = "https://"
-	LocalFilePrefix  = "file://"
+	HTTPPrefix      = "http://"
+	HTTPSPrefix     = "https://"
+	LocalFilePrefix = "file://"
 )
 
 func DownloadFile(URL, destFile string, headers http.Header) error {
