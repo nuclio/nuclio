@@ -24,6 +24,12 @@ import (
 	"strings"
 )
 
+const (
+	HTTPPrefix  = "http://"
+	HTTPSPrefix  = "https://"
+	LocalFilePrefix  = "file://"
+)
+
 func DownloadFile(URL, destFile string, headers http.Header) error {
 	out, err := os.Create(destFile)
 	if err != nil {
@@ -65,18 +71,18 @@ func DownloadFile(URL, destFile string, headers http.Header) error {
 }
 
 func IsURL(s string) bool {
-	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
+	return strings.HasPrefix(s, HTTPPrefix) || strings.HasPrefix(s, HTTPSPrefix)
 }
 
 func IsLocalFileURL(s string) bool {
-	return strings.HasPrefix(s, "file://")
+	return strings.HasPrefix(s, LocalFilePrefix)
 }
 
 // extracts absolute path to file from local file URL
 // example: "file://path/to/file" -> "/path/to/file"
 func GetPathFromLocalFileURL(s string) string {
 	if IsLocalFileURL(s) {
-		return strings.TrimPrefix(s, "file:/")
+		return "/" + strings.TrimPrefix(s, LocalFilePrefix)
 	}
 	return ""
 }
