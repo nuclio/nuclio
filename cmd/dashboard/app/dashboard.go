@@ -49,7 +49,7 @@ func Run(listenAddress string,
 	templatesArchiveAddress string,
 	templatesGitUsername string,
 	templatesGitPassword string,
-	templatesGithubAccessToken string,) error {
+	templatesGithubAccessToken string) error {
 	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
 	var functionZipTemplateFetcher *functiontemplates.ZipFunctionTemplateFetcher
 
@@ -242,5 +242,5 @@ func attachCredentialsToGitRepository(logger logger.Logger, repo, username, pass
 		logger.WarnWith("Unknown git repository structure. Skipping credentials attachment", "repo", repo)
 		return repo
 	}
-	return strings.Join([]string{splitRepo[0],"//", username, ":", password, "@", splitRepo[1]},"")
+	return strings.Join([]string{splitRepo[0], "//", username, ":", password, "@", splitRepo[1]}, "")
 }
