@@ -45,7 +45,7 @@ func getEnvOrDefaultString(key string, defaultValue string) string {
 	value := os.Getenv(key)
 	if value == "" {
 		return defaultValue
-	} else if value == "nil" {
+	} else if value == "nil" || value == "none" {
 		return ""
 	}
 
