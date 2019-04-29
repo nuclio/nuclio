@@ -46,7 +46,10 @@ func Run(listenAddress string,
 	platformConfigurationPath string,
 	templatesGitRepository string,
 	templatesGitRef string,
-	templatesArchiveAddress string) error {
+	templatesArchiveAddress string,
+	templatesGitUsername string,
+	templatesGitPassword string,
+	templatesGithubAccessToken string) error {
 	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
 	var functionZipTemplateFetcher *functiontemplates.ZipFunctionTemplateFetcher
 
@@ -70,6 +73,17 @@ func Run(listenAddress string,
 
 	// create git fetcher
 	if templatesGitRepository != "" && templatesGitRef != "" {
+		rootLogger.DebugWith("Fetching function templates from git repository",
+			"templatesGitRepository", templatesGitRepository,
+			"templatesGitRef", templatesGitRef)
+
+		// attach credentials if given
+		templatesGitRepository = attachCredentialsToGitRepository(rootLogger,
+			templatesGitRepository,
+			templatesGitUsername,
+			templatesGitPassword,
+			templatesGithubAccessToken)
+
 		functionGitTemplateFetcher, err = functiontemplates.NewGitFunctionTemplateFetcher(rootLogger,
 			templatesGitRepository,
 			templatesGitRef)
@@ -211,4 +225,22 @@ func readPlatformConfiguration(configurationPath string) (*platformconfig.Config
 	}
 
 	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
+}
+
+// create new repo URL with the credentials inside of it (when credentials are passed)
+// example: https://github.com/owner/repo.git -> https://<USERNAME>:<PASSWORD>@github.com/owner/repo.git
+func attachCredentialsToGitRepository(logger logger.Logger, repo, username, password, accessToken string) string {
+	if accessToken != "" {
+		username = accessToken
+		password = "x-oauth-basic"
+	} else if username == "" || password == "" {
+		return repo
+	}
+
+	splitRepo := strings.Split(repo, "//")
+	if len(splitRepo) != 2 {
+		logger.WarnWith("Unknown git repository structure. Skipping credentials attachment", "repo", repo)
+		return repo
+	}
+	return strings.Join([]string{splitRepo[0], "//", username, ":", password, "@", splitRepo[1]}, "")
 }
