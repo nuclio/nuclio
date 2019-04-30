@@ -553,6 +553,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 							container,
 						},
 						Volumes: volumes,
+						ServiceAccountName: function.Spec.ServiceAccount,
 					},
 				},
 			},
@@ -570,6 +571,10 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+
+		if function.Spec.ServiceAccount != "" {
+			deployment.Spec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
+		}
 
 		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
 	}
