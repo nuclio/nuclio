@@ -497,6 +497,7 @@ func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	imagePullSecrets string,
 	function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
+	lc.logger.Debug("New log - Creating or updating deployment")
 
 	// to make sure the pod re-pulls the image, we need to specify a unique string here
 	podAnnotations, err := lc.getPodAnnotations(function)
@@ -505,7 +506,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	}
 
 	replicas := int32(lc.getFunctionReplicas(function))
-	lc.logger.DebugWith("Got replicass", "replicas", replicas)
+	lc.logger.DebugWith("Got replicas", "replicas", replicas)
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function annotations")
@@ -549,10 +550,13 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			},
 		}
 
+
 		// enrich deployment spec with default fields that were passed inside the platform configuration
-		platformConfigDeploymentSpec := lc.platformConfigurationProvider.GetPlatformConfiguration().Kubernetes.Deployment.Spec
-		if err := enrichDeploymentSpec(&deploymentSpec, platformConfigDeploymentSpec); err != nil {
-			return nil, err
+		platformConfigDeployment := lc.platformConfigurationProvider.GetPlatformConfiguration().Kubernetes.Deployment
+		if platformConfigDeployment != nil {
+			if err := enrichDeploymentSpec(&deploymentSpec, platformConfigDeployment.Spec); err != nil {
+				return nil, err
+			}
 		}
 
 		deployment := apps_v1beta1.Deployment{
