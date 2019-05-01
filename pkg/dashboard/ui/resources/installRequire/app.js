@@ -59,12 +59,9 @@ module.exports = function installRequire(src) {
 
 /**
  * Sets up and configs the modules used.
- * @param [execSyncModule]  sync-exec module {@link http://npmjs.com/package/sync-exec}
- *                          can be null if using nodejs v0.12.x
  * @param [gutilModule]     gutil module {@link http://npmjs.com/package/gutil}
  *                          if null, will use console instead
  */
-module.exports.setup = function setup(execSyncModule, gutilModule) {
-    execSync = childProcess.execSync || execSyncModule;
+module.exports.setup = function setup(gutilModule) {
     gutil = gutilModule || console;
 };
