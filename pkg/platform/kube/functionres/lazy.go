@@ -505,7 +505,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	}
 
 	replicas := int32(lc.getFunctionReplicas(function))
-	lc.logger.DebugWith("Got replicas", "replicas", replicas)
+	lc.logger.DebugWith("Got replicass", "replicas", replicas)
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function annotations")
@@ -528,7 +528,34 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		lc.populateDeploymentContainer(functionLabels, function, &container)
 		container.VolumeMounts = volumeMounts
 
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(&apps_v1beta1.Deployment{
+		deploymentSpec := apps_v1beta1.DeploymentSpec{
+			Replicas: &replicas,
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: meta_v1.ObjectMeta{
+					Name:        function.Name,
+					Namespace:   function.Namespace,
+					Labels:      functionLabels,
+					Annotations: podAnnotations,
+				},
+				Spec: v1.PodSpec{
+					ImagePullSecrets: []v1.LocalObjectReference{
+						{Name: imagePullSecrets},
+					},
+					Containers: []v1.Container{
+						container,
+					},
+					Volumes: volumes,
+				},
+			},
+		}
+
+		// enrich deployment spec with default fields that were passed inside the platform configuration
+		platformConfigDeploymentSpec := lc.platformConfigurationProvider.GetPlatformConfiguration().Kubernetes.Deployment.Spec
+		if err := enrichDeploymentSpec(&deploymentSpec, platformConfigDeploymentSpec); err != nil {
+			return nil, err
+		}
+
+		deployment := apps_v1beta1.Deployment{
 
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:        function.Name,
@@ -536,27 +563,10 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 				Labels:      functionLabels,
 				Annotations: deploymentAnnotations,
 			},
-			Spec: apps_v1beta1.DeploymentSpec{
-				Replicas: &replicas,
-				Template: v1.PodTemplateSpec{
-					ObjectMeta: meta_v1.ObjectMeta{
-						Name:        function.Name,
-						Namespace:   function.Namespace,
-						Labels:      functionLabels,
-						Annotations: podAnnotations,
-					},
-					Spec: v1.PodSpec{
-						ImagePullSecrets: []v1.LocalObjectReference{
-							{Name: imagePullSecrets},
-						},
-						Containers: []v1.Container{
-							container,
-						},
-						Volumes: volumes,
-					},
-				},
-			},
-		})
+			Spec: deploymentSpec,
+		}
+
+		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(&deployment)
 	}
 
 	updateDeployment := func(resource interface{}) (interface{}, error) {
@@ -585,6 +595,22 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	}
 
 	return resource.(*apps_v1beta1.Deployment), err
+}
+
+func enrichDeploymentSpec(dest *apps_v1beta1.DeploymentSpec, source apps_v1beta1.DeploymentSpec) error {
+	encodedDeploymentSpec, err := json.Marshal(dest)
+	if err != nil {
+		return errors.Wrap(err, "Failed to marshal destination deployment spec")
+	}
+
+	err = json.Unmarshal(encodedDeploymentSpec, &source)
+	if err != nil {
+		return errors.Wrap(err, "Failed to join source deployment with target deployment")
+	}
+
+	*dest = source
+
+	return nil
 }
 
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels labels.Set,

@@ -19,6 +19,7 @@ package platformconfig
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
+	"k8s.io/api/apps/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -82,4 +83,8 @@ type Metrics struct {
 type LabelSelectorAndConfig struct {
 	LabelSelector  v1.LabelSelector      `json:"labelSelector,omitempty"`
 	FunctionConfig functionconfig.Config `json:"functionConfig,omitempty"`
+}
+
+type Kubernetes struct {
+	Deployment *v1beta1.Deployment `json:"deployment,omitempty"`
 }

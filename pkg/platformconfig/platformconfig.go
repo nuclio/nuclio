@@ -31,6 +31,7 @@ type Config struct {
 	ScaleToZero              ScaleToZero              `json:"scaleToZero,omitempty"`
 	AutoScale                AutoScale                `json:"autoScale,omitempty"`
 	FunctionAugmentedConfigs []LabelSelectorAndConfig `json:"functionAugmentedConfigs,omitempty"`
+	Kubernetes               Kubernetes               `json:"kubernetes,omitempty"`
 }
 
 func (config *Config) GetSystemLoggerSinks() (map[string]LoggerSinkWithLevel, error) {
