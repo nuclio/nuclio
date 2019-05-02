@@ -38,18 +38,19 @@ import (
 
 type Server struct {
 	*restful.AbstractServer
-	dockerKeyDir          string
-	defaultRegistryURL    string
-	defaultRunRegistryURL string
-	dockerClient          dockerclient.Client
-	dockerCreds           *dockercreds.DockerCreds
-	Platform              platform.Platform
-	NoPullBaseImages      bool
-	externalIPAddresses   []string
-	defaultNamespace      string
-	Offline               bool
-	Repository            *functiontemplates.Repository
-	platformConfiguration *platformconfig.Config
+	dockerKeyDir                   string
+	defaultRegistryURL             string
+	defaultRunRegistryURL          string
+	dockerClient                   dockerclient.Client
+	dockerCreds                    *dockercreds.DockerCreds
+	Platform                       platform.Platform
+	NoPullBaseImages               bool
+	externalIPAddresses            []string
+	defaultNamespace               string
+	Offline                        bool
+	Repository                     *functiontemplates.Repository
+	platformConfiguration          *platformconfig.Config
+	defaultHTTPIngressHostTemplate string
 }
 
 func NewServer(parentLogger logger.Logger,
@@ -64,7 +65,8 @@ func NewServer(parentLogger logger.Logger,
 	defaultNamespace string,
 	offline bool,
 	repository *functiontemplates.Repository,
-	platformConfiguration *platformconfig.Config) (*Server, error) {
+	platformConfiguration *platformconfig.Config,
+	defaultHTTPIngressHostTemplate string) (*Server, error) {
 
 	var err error
 
@@ -84,18 +86,19 @@ func NewServer(parentLogger logger.Logger,
 	}
 
 	newServer := &Server{
-		dockerKeyDir:          dockerKeyDir,
-		defaultRegistryURL:    defaultRegistryURL,
-		defaultRunRegistryURL: defaultRunRegistryURL,
-		dockerClient:          newDockerClient,
-		dockerCreds:           newDockerCreds,
-		Platform:              platform,
-		NoPullBaseImages:      noPullBaseImages,
-		externalIPAddresses:   externalIPAddresses,
-		defaultNamespace:      defaultNamespace,
-		Offline:               offline,
-		Repository:            repository,
-		platformConfiguration: platformConfiguration,
+		dockerKeyDir:                   dockerKeyDir,
+		defaultRegistryURL:             defaultRegistryURL,
+		defaultRunRegistryURL:          defaultRunRegistryURL,
+		dockerClient:                   newDockerClient,
+		dockerCreds:                    newDockerCreds,
+		Platform:                       platform,
+		NoPullBaseImages:               noPullBaseImages,
+		externalIPAddresses:            externalIPAddresses,
+		defaultNamespace:               defaultNamespace,
+		Offline:                        offline,
+		Repository:                     repository,
+		platformConfiguration:          platformConfiguration,
+		defaultHTTPIngressHostTemplate: defaultHTTPIngressHostTemplate,
 	}
 
 	// create server
@@ -153,6 +156,10 @@ func (s *Server) GetRunRegistryURL() string {
 
 func (s *Server) GetExternalIPAddresses() []string {
 	return s.externalIPAddresses
+}
+
+func (s *Server) GetDefaultHTTPIngressHostTemplate() string {
+	return s.defaultHTTPIngressHostTemplate
 }
 
 func (s *Server) GetDefaultNamespace() string {

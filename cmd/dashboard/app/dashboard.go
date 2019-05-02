@@ -183,7 +183,8 @@ func Run(listenAddress string,
 		defaultNamespace,
 		offline,
 		functionTemplatesRepository,
-		platformConfiguration)
+		platformConfiguration,
+		defaultHTTPIngressHostTemplate)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}

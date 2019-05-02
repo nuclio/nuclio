@@ -103,6 +103,8 @@ type Platform interface {
 
 	SetDefaultHTTPIngressHostTemplate(string)
 
+	GetDefaultHTTPIngressHostTemplate() string
+
 	// GetNamespaces returns all the namespaces in the platform
 	GetNamespaces() ([]string, error)
 
