@@ -497,7 +497,6 @@ func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	imagePullSecrets string,
 	function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
-	lc.logger.Debug("New log - Creating or updating deployment")
 
 	// to make sure the pod re-pulls the image, we need to specify a unique string here
 	podAnnotations, err := lc.getPodAnnotations(function)
@@ -550,7 +549,6 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			},
 		}
 
-
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		platformConfigDeployment := lc.platformConfigurationProvider.GetPlatformConfiguration().Kubernetes.Deployment
 		if platformConfigDeployment != nil {
@@ -584,6 +582,15 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+
+		// enrich deployment spec with default fields that were passed inside the platform configuration
+		// performed on update too, in case the platform config has been modified after the creation of this deployment
+		platformConfigDeployment := lc.platformConfigurationProvider.GetPlatformConfiguration().Kubernetes.Deployment
+		if platformConfigDeployment != nil {
+			if err := enrichDeploymentSpec(&deployment.Spec, platformConfigDeployment.Spec); err != nil {
+				return nil, err
+			}
+		}
 
 		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
 	}
