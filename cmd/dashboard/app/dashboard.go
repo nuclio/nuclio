@@ -49,7 +49,8 @@ func Run(listenAddress string,
 	templatesArchiveAddress string,
 	templatesGitUsername string,
 	templatesGitPassword string,
-	templatesGithubAccessToken string) error {
+	templatesGithubAccessToken string,
+	defaultHTTPIngressHostTemplate string) error {
 	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
 	var functionZipTemplateFetcher *functiontemplates.ZipFunctionTemplateFetcher
 
@@ -143,6 +144,10 @@ func Run(listenAddress string,
 	err = platformInstance.SetExternalIPAddresses(splitExternalIPAddresses)
 	if err != nil {
 		return errors.Wrap(err, "Failed to set external ip addresses")
+	}
+
+	if defaultHTTPIngressHostTemplate != "" {
+		platformInstance.SetDefaultHTTPIngressHostTemplate(defaultHTTPIngressHostTemplate)
 	}
 
 	rootLogger.InfoWith("Starting",

@@ -101,6 +101,8 @@ type Platform interface {
 	// These addresses are either set through SetExternalIPAddresses or automatically discovered
 	GetExternalIPAddresses() ([]string, error)
 
+	SetDefaultHTTPIngressHostTemplate(string)
+
 	// GetNamespaces returns all the namespaces in the platform
 	GetNamespaces() ([]string, error)
 

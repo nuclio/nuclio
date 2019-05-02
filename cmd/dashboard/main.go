@@ -80,6 +80,8 @@ func main() {
 	offline := flag.Bool("offline", defaultOffline, "If true, assumes no internet connectivity")
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
 
+	defaultHTTPIngressHostTemplate := flag.String("default-http-ingress-host-template", "", "Go template for the default http ingress host")
+
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)
 
@@ -101,7 +103,8 @@ func main() {
 		*templatesArchiveAddress,
 		*templatesGitUsername,
 		*templatesGitPassword,
-		*templatesGithubAccessToken); err != nil {
+		*templatesGithubAccessToken,
+		*defaultHTTPIngressHostTemplate); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
