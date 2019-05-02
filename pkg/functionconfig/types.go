@@ -234,7 +234,6 @@ type Spec struct {
 	Avatar                  string                  `json:"avatar,omitempty"`
 	ServiceType             v1.ServiceType          `json:"serviceType,omitempty"`
 	ImagePullPolicy         v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
-	ServiceAccount          string                  `json:"serviceAccount,omitempty"`
 }
 
 // to appease k8s
