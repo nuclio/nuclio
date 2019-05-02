@@ -528,6 +528,31 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		lc.populateDeploymentContainer(functionLabels, function, &container)
 		container.VolumeMounts = volumeMounts
 
+		deploymentSpec := apps_v1beta1.DeploymentSpec{
+			Replicas: &replicas,
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: meta_v1.ObjectMeta{
+					Name:        function.Name,
+					Namespace:   function.Namespace,
+					Labels:      functionLabels,
+					Annotations: podAnnotations,
+				},
+				Spec: v1.PodSpec{
+					ImagePullSecrets: []v1.LocalObjectReference{
+						{Name: imagePullSecrets},
+					},
+					Containers: []v1.Container{
+						container,
+					},
+					Volumes: volumes,
+				},
+			},
+		}
+
+		if function.Spec.ServiceAccount != "" {
+			deploymentSpec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
+		}
+
 		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(&apps_v1beta1.Deployment{
 
 			ObjectMeta: meta_v1.ObjectMeta{
@@ -536,27 +561,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 				Labels:      functionLabels,
 				Annotations: deploymentAnnotations,
 			},
-			Spec: apps_v1beta1.DeploymentSpec{
-				Replicas: &replicas,
-				Template: v1.PodTemplateSpec{
-					ObjectMeta: meta_v1.ObjectMeta{
-						Name:        function.Name,
-						Namespace:   function.Namespace,
-						Labels:      functionLabels,
-						Annotations: podAnnotations,
-					},
-					Spec: v1.PodSpec{
-						ImagePullSecrets: []v1.LocalObjectReference{
-							{Name: imagePullSecrets},
-						},
-						Containers: []v1.Container{
-							container,
-						},
-						Volumes: volumes,
-						ServiceAccountName: function.Spec.ServiceAccount,
-					},
-				},
-			},
+			Spec: deploymentSpec,
 		})
 	}
 
