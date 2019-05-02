@@ -38,7 +38,7 @@ func (fesr *frontendSpecResource) GetAll(request *http.Request) (map[string]rest
 	response := map[string]restful.Attributes{
 		"frontendSpec": {
 			"externalIPAddresses": externalIPAddresses,
-			"namespace": "test-namespace",
+			"namespace": fesr.getNamespaceOrDefault(""),
 			"defaultHTTPIngressHostTemplate": fesr.getPlatform().GetDefaultHTTPIngressHostTemplate(),
 		},
 	}

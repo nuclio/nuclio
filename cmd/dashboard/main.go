@@ -63,9 +63,7 @@ func main() {
 	templatesGitBranch := flag.String("templates-git-ref", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REF", "refs/heads/master"), "Git templates repo's branch name")
 	templatesGitUsername := flag.String("templates-git-username", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_USERNAME", ""), "Git repo's username")
 	templatesGitPassword := flag.String("templates-git-password", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_PASSWORD", ""), "Git repo's user password")
-
 	templatesGithubAccessToken := flag.String("templates-github-access-token", getEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_ACCESS_TOKEN", ""), "Github templates repo's access token")
-
 	templatesArchiveAddress := flag.String("templates-archive-address", getEnvOrDefaultString("NUCLIO_TEMPLATES_ARCHIVE_ADDRESS", ""), "Function Templates zip file address")
 
 	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the playground listens")
@@ -79,8 +77,7 @@ func main() {
 	namespace := flag.String("namespace", "", "Namespace in which all actions apply to, if not passed in request")
 	offline := flag.Bool("offline", defaultOffline, "If true, assumes no internet connectivity")
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
-
-	defaultHTTPIngressHostTemplate := flag.String("default-http-ingress-host-template", "", "Go template for the default http ingress host")
+	defaultHTTPIngressHostTemplate := flag.String("default-http-ingress-host-template",  os.Getenv("NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE"), "Go template for the default http ingress host")
 
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)
