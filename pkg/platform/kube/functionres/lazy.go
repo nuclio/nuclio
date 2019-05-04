@@ -557,7 +557,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			}
 		}
 
-		deployment := apps_v1beta1.Deployment{
+		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(&apps_v1beta1.Deployment{
 
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:        function.Name,
@@ -566,9 +566,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 				Annotations: deploymentAnnotations,
 			},
 			Spec: deploymentSpec,
-		}
-
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(&deployment)
+		})
 	}
 
 	updateDeployment := func(resource interface{}) (interface{}, error) {
