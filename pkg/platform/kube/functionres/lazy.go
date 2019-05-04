@@ -549,6 +549,10 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			},
 		}
 
+		if function.Spec.ServiceAccount != "" {
+			deploymentSpec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
+		}
+
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		platformConfigDeployment := lc.platformConfigurationProvider.GetPlatformConfiguration().Kubernetes.Deployment
 		if platformConfigDeployment != nil {
@@ -580,6 +584,10 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+
+		if function.Spec.ServiceAccount != "" {
+			deployment.Spec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
+		}
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment

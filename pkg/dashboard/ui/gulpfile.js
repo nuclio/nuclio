@@ -59,7 +59,7 @@ if (state.isDevMode) {
 /**
  * Make sure resources are built before app
  */
-iRequire.setup(require('sync-exec'), gutil);
+iRequire.setup(gutil);
 var previewServer = iRequire(config.resources.previewServer);
 var errHandler = iRequire(config.resources.errHandler);
 
