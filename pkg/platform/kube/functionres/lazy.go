@@ -553,6 +553,11 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			deploymentSpec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
 		}
 
+		// enrich deployment spec with default fields that were passed inside the platform configuration
+		if err := lc.enrichDeploymentSpecFromPlatformConfiguration(&deploymentSpec); err != nil {
+			return nil, err
+		}
+
 		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(&apps_v1beta1.Deployment{
 
 			ObjectMeta: meta_v1.ObjectMeta{
@@ -581,6 +586,12 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			deployment.Spec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
 		}
 
+		// enrich deployment spec with default fields that were passed inside the platform configuration
+		// performed on update too, in case the platform config has been modified after the creation of this deployment
+		if err := lc.enrichDeploymentSpecFromPlatformConfiguration(&deployment.Spec); err != nil {
+			return nil, err
+		}
+
 		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
 	}
 
@@ -595,6 +606,28 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	}
 
 	return resource.(*apps_v1beta1.Deployment), err
+}
+
+func (lc *lazyClient) enrichDeploymentSpecFromPlatformConfiguration(deploymentSpec *apps_v1beta1.DeploymentSpec) error {
+	platformConfigDeployment := lc.platformConfigurationProvider.GetPlatformConfiguration().Kubernetes.Deployment
+	if platformConfigDeployment == nil {
+		return nil
+	}
+	platformConfigDeploymentSpec := platformConfigDeployment.Spec
+
+	encodedDeploymentSpec, err := json.Marshal(deploymentSpec)
+	if err != nil {
+		return errors.Wrap(err, "Failed to marshal function deployment spec")
+	}
+
+	err = json.Unmarshal(encodedDeploymentSpec, &platformConfigDeploymentSpec)
+	if err != nil {
+		return errors.Wrap(err, "Failed to enrich deployment spec with platform configuration deployment spec")
+	}
+
+	*deploymentSpec = platformConfigDeploymentSpec
+
+	return nil
 }
 
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels labels.Set,
