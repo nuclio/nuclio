@@ -554,11 +554,8 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		}
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
-		platformConfigDeployment := lc.platformConfigurationProvider.GetPlatformConfiguration().Kubernetes.Deployment
-		if platformConfigDeployment != nil {
-			if err := enrichDeploymentSpec(&deploymentSpec, platformConfigDeployment.Spec); err != nil {
-				return nil, err
-			}
+		if err := lc.enrichDeploymentSpecFromPlatformConfiguration(&deploymentSpec); err != nil {
+			return nil, err
 		}
 
 		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(&apps_v1beta1.Deployment{
@@ -591,11 +588,8 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment
-		platformConfigDeployment := lc.platformConfigurationProvider.GetPlatformConfiguration().Kubernetes.Deployment
-		if platformConfigDeployment != nil {
-			if err := enrichDeploymentSpec(&deployment.Spec, platformConfigDeployment.Spec); err != nil {
-				return nil, err
-			}
+		if err := lc.enrichDeploymentSpecFromPlatformConfiguration(&deployment.Spec); err != nil {
+			return nil, err
 		}
 
 		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
@@ -614,18 +608,24 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	return resource.(*apps_v1beta1.Deployment), err
 }
 
-func enrichDeploymentSpec(dest *apps_v1beta1.DeploymentSpec, source apps_v1beta1.DeploymentSpec) error {
-	encodedDeploymentSpec, err := json.Marshal(dest)
+func (lc *lazyClient) enrichDeploymentSpecFromPlatformConfiguration(deploymentSpec *apps_v1beta1.DeploymentSpec) error {
+	platformConfigDeployment := lc.platformConfigurationProvider.GetPlatformConfiguration().Kubernetes.Deployment
+	if platformConfigDeployment == nil {
+		return nil
+	}
+	platformConfigDeploymentSpec := platformConfigDeployment.Spec
+
+	encodedDeploymentSpec, err := json.Marshal(deploymentSpec)
 	if err != nil {
-		return errors.Wrap(err, "Failed to marshal destination deployment spec")
+		return errors.Wrap(err, "Failed to marshal function deployment spec")
 	}
 
-	err = json.Unmarshal(encodedDeploymentSpec, &source)
+	err = json.Unmarshal(encodedDeploymentSpec, &platformConfigDeploymentSpec)
 	if err != nil {
-		return errors.Wrap(err, "Failed to join source deployment with target deployment")
+		return errors.Wrap(err, "Failed to enrich deployment spec with platform configuration deployment spec")
 	}
 
-	*dest = source
+	*deploymentSpec = platformConfigDeploymentSpec
 
 	return nil
 }
