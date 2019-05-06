@@ -248,7 +248,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	}
 
 	buildResult := &platform.CreateFunctionBuildResult{
-		Image: processorImage,
+		Image:                 processorImage,
 		UpdatedFunctionConfig: enrichedConfiguration,
 	}
 
@@ -533,7 +533,11 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
 		}
 
-		tempFileName := path.Join(tempDir, path.Base(functionPath))
+		tempFile, err := ioutil.TempFile(tempDir, "nuclio-function-*")
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed to create temporary file: %s", tempFile)
+		}
+
 		userDefinedHeaders, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["headers"]
 		headers := http.Header{}
 
@@ -551,14 +555,14 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 		b.logger.DebugWith("Downloading function",
 			"url", functionPath,
-			"target", tempFileName,
+			"target", tempFile.Name(),
 			"headers", headers)
 
-		if err = common.DownloadFile(functionPath, tempFileName, headers); err != nil {
+		if err = common.DownloadFile(functionPath, tempFile, headers); err != nil {
 			return "", err
 		}
 
-		functionPath = tempFileName
+		functionPath = tempFile.Name()
 	}
 
 	// Assume it's a local path

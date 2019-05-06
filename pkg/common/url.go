@@ -30,12 +30,7 @@ const (
 	LocalFilePrefix = "file://"
 )
 
-func DownloadFile(URL, destFile string, headers http.Header) error {
-	out, err := os.Create(destFile)
-	if err != nil {
-		return err
-	}
-
+func DownloadFile(URL string, out *os.File, headers http.Header) error {
 	client := http.Client{}
 	request, err := http.NewRequest("GET", URL, nil)
 	if err != nil {
