@@ -533,7 +533,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
 		}
 
-		tempFile, err := ioutil.TempFile(tempDir, "nuclio-function-*")
+		tempFile, err := ioutil.TempFile(tempDir, "nuclio-function-")
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed to create temporary file: %s", tempFile)
 		}
