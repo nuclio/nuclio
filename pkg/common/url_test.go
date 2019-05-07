@@ -96,7 +96,12 @@ func (ts *DownloadFileTestSuite) testDownloadFile(responder httpmock.Responder) 
 	url := "http://www.example.com/file.txt"
 	httpmock.RegisterResponder("GET", url, responder)
 
-	return DownloadFile(url, os.DevNull, http.Header{})
+	out, err := os.Create(os.DevNull)
+	if err != nil {
+		return err
+	}
+
+	return DownloadFile(url, out, http.Header{})
 }
 
 func TestIsURLTestSuite(t *testing.T) {
