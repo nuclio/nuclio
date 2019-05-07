@@ -158,6 +158,15 @@ func (mp *mockPlatform) GetFunctionEvents(getFunctionEventsOptions *platform.Get
 // Misc
 //
 
+func (mp *mockPlatform) SetDefaultHTTPIngressHostTemplate(defaultHTTPIngressHostTemplate string) {
+	mp.Called(defaultHTTPIngressHostTemplate)
+}
+
+func (mp *mockPlatform) GetDefaultHTTPIngressHostTemplate() string {
+	args := mp.Called()
+	return args.Get(0).(string)
+}
+
 // SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
 // If this is not invoked, each platform will try to discover these addresses automatically
 func (mp *mockPlatform) SetExternalIPAddresses(externalIPAddresses []string) error {
@@ -242,7 +251,8 @@ func (suite *dashboardTestSuite) SetupTest() {
 		"",
 		true,
 		templateRepository,
-		nil)
+		nil,
+		"")
 
 	if err != nil {
 		panic("Failed to create server")
