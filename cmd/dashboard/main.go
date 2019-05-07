@@ -77,7 +77,7 @@ func main() {
 	namespace := flag.String("namespace", "", "Namespace in which all actions apply to, if not passed in request")
 	offline := flag.Bool("offline", defaultOffline, "If true, assumes no internet connectivity")
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
-	defaultHTTPIngressHostTemplate := flag.String("default-http-ingress-host-template",  os.Getenv("NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE"), "Go template for the default http ingress host")
+	defaultHTTPIngressHostTemplate := flag.String("default-http-ingress-host-template", os.Getenv("NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE"), "Go template for the default http ingress host")
 
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)

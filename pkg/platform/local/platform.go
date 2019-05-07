@@ -435,8 +435,8 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 	return []string{""}, nil
 }
 
-func (ap *Platform) GetDefaultHTTPIngressHostTemplate() string {
-	return ap.Platform.GetDefaultHTTPIngressHostTemplate()
+func (p *Platform) GetDefaultHTTPIngressHostTemplate() string {
+	return p.Platform.GetDefaultHTTPIngressHostTemplate()
 }
 
 // ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
