@@ -1895,6 +1895,39 @@ func (suite *miscTestSuite) TestGetExternalIPAddresses() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+func (suite *miscTestSuite) TestGetFrontendSpec() {
+	returnedAddresses := []string{"address1", "address2", "address3"}
+	defaultHTTPIngressHostTemplate := "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com"
+
+	suite.mockPlatform.
+		On("GetExternalIPAddresses").
+		Return(returnedAddresses, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetDefaultHTTPIngressHostTemplate").
+		Return(defaultHTTPIngressHostTemplate, nil).
+		Once()
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+		"frontendSpec": {
+			"externalIPAddresses":            ["address1", "address2", "address3"],
+			"defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
+			"namespace":                      ""
+		}
+}`
+
+	suite.sendRequest("GET",
+		"/api/frontend_spec",
+		nil,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
 func TestDashboardTestSuite(t *testing.T) {
 	suite.Run(t, new(functionTestSuite))
 	suite.Run(t, new(projectTestSuite))
