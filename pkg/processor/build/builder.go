@@ -143,8 +143,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	b.logger.InfoWith("Building", "name", b.options.FunctionConfig.Meta.Name)
 
 	configurationRead := false
-	if common.IsFile(b.providedFunctionConfigFilePath()) {
-		b.logger.InfoWith("Reading user provided configuration", "path", b.providedFunctionConfigFilePath())
+	configFilePath := b.providedFunctionConfigFilePath()
+	b.logger.DebugWith("Function configuration found in directory", "configFilePath", configFilePath)
+	if common.IsFile(configFilePath) {
 		if _, err = b.readConfiguration(); err != nil {
 			return nil, errors.Wrap(err, "Failed to read configuration")
 		}
@@ -366,8 +367,6 @@ func (b *Builder) providedFunctionConfigFilePath() string {
 	if !common.FileExists(functionConfigPath) {
 		return ""
 	}
-
-	b.logger.DebugWith("Function configuration found in directory", "path", functionConfigPath)
 
 	return functionConfigPath
 }
