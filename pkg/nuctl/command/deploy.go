@@ -66,7 +66,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			var err error
 
 			// update build stuff
-			if len(args) == 1 {
+			if len(args) >= 1 {
 				commandeer.functionConfig.Meta.Name = args[0]
 			}
 
