@@ -27,6 +27,7 @@ import (
 
 	mqttclient "github.com/eclipse/paho.mqtt.golang"
 	"github.com/nuclio/logger"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 type AbstractTrigger struct {
@@ -165,9 +166,43 @@ func (t *AbstractTrigger) handleMessage(client mqttclient.Client, message mqttcl
 		return
 	}
 
-	t.SubmitEventToWorker(nil, workerInstance, &Event{message: message}) // nolint: errcheck
+	response, processError := t.SubmitEventToWorker(nil, workerInstance, &Event{message: message})
 
 	workerAllocator.Release(workerInstance)
+
+	// no standard way to notify something went wrong through MQTT
+	if processError != nil {
+		return
+	}
+
+	// We may have a "response" message, verify it and publish it as a MQTT message
+	switch typedResponse := response.(type) {
+	case nuclio.Response:
+		// Check status code
+		if typedResponse.StatusCode != 200 {
+			return
+		}
+		// We need to find at least a topic header
+		mqttTopic := ""
+		if mqttTopicValue, ok := typedResponse.Headers["MqttTopic"].(string); ok {
+			mqttTopic = mqttTopicValue
+		} else {
+			return
+		}
+		// Optional headers
+		mqttQos := byte(0)
+		if mqttQosValue, ok := typedResponse.Headers["MqttQos"].(float64); ok &&
+			mqttQosValue >= 0 &&
+			mqttQosValue <= 2 {
+			mqttQos = byte(mqttQosValue)
+		}
+		mqttRetain := false
+		if mqttRetainValue, ok := typedResponse.Headers["MqttRetain"].(bool); ok {
+			mqttRetain = mqttRetainValue
+		}
+		// Publish the message
+		client.Publish(mqttTopic, mqttQos, mqttRetain, typedResponse.Body)
+	}
 }
 
 func (t *AbstractTrigger) allocateWorker(message mqttclient.Message) (*worker.Worker, worker.Allocator, error) {
