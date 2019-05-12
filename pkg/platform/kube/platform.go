@@ -621,10 +621,6 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 	return nil, errors.New("No external addresses found")
 }
 
-func (p *Platform) GetDefaultHTTPIngressHostTemplate() string {
-	return p.Platform.GetDefaultHTTPIngressHostTemplate()
-}
-
 // ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
 func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	if defaultNamespace == "@nuclio.selfNamespace" {
