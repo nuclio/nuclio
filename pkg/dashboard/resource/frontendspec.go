@@ -28,29 +28,43 @@ type frontendSpecResource struct {
 	*resource
 }
 
-// GetAll returns all frontendSpecs
-func (fesr *frontendSpecResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
+func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 	externalIPAddresses, err := fesr.getPlatform().GetExternalIPAddresses()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get external IP addresses")
 	}
 
-	response := map[string]restful.Attributes{
-		"frontendSpec": {
+	frontendSpec := map[string]restful.Attributes{
+		"frontendSpec": { // frontendSpec is the ID of this singleton resource
 			"externalIPAddresses":            externalIPAddresses,
 			"namespace":                      fesr.getNamespaceOrDefault(""),
 			"defaultHTTPIngressHostTemplate": fesr.getPlatform().GetDefaultHTTPIngressHostTemplate(),
 		},
 	}
 
-	return response, nil
+	return &restful.CustomRouteFuncResponse{
+		Single:     true,
+		StatusCode: http.StatusOK,
+		Resources:  frontendSpec,
+	}, nil
+}
+
+// returns a list of custom routes for the resource
+func (fesr *frontendSpecResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
+
+	// since frontendSpec is a singleton we create a custom route that will return this single object
+	return []restful.CustomRoute{
+		{
+			Pattern:   "/",
+			Method:    http.MethodGet,
+			RouteFunc: fesr.getFrontendSpec,
+		},
+	}, nil
 }
 
 // register the resource
 var frontendSpecResourceInstance = &frontendSpecResource{
-	resource: newResource("api/frontend_spec", []restful.ResourceMethod{
-		restful.ResourceMethodGetList,
-	}),
+	resource: newResource("api/frontend_spec", []restful.ResourceMethod{}),
 }
 
 func init() {
