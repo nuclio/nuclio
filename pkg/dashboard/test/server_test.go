@@ -1911,11 +1911,9 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 
 	expectedStatusCode := http.StatusOK
 	expectedResponseBody := `{
-		"frontendSpec": {
-			"externalIPAddresses":            ["address1", "address2", "address3"],
-			"defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
-			"namespace":                      ""
-		}
+		"externalIPAddresses":            ["address1", "address2", "address3"],
+		"defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
+		"namespace":                      ""
 }`
 
 	suite.sendRequest("GET",
