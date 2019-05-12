@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/ghodss/yaml"
+	"github.com/imdario/mergo"
 	"github.com/nuclio/logger"
 	"golang.org/x/sync/errgroup"
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"
@@ -553,13 +554,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			deploymentSpec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
 		}
 
-		// enrich deployment spec with default fields that were passed inside the platform configuration
-		if err := lc.enrichDeploymentSpecFromPlatformConfiguration(&deploymentSpec); err != nil {
-			return nil, err
-		}
-
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(&apps_v1beta1.Deployment{
-
+		deploymentResource := &apps_v1beta1.Deployment{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:        function.Name,
 				Namespace:   function.Namespace,
@@ -567,7 +562,14 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 				Annotations: deploymentAnnotations,
 			},
 			Spec: deploymentSpec,
-		})
+		}
+
+		// enrich deployment spec with default fields that were passed inside the platform configuration
+		if err := lc.enrichDeploymentFromPlatformConfiguration(functionLabels, deploymentResource); err != nil {
+			return nil, err
+		}
+
+		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(deploymentResource)
 	}
 
 	updateDeployment := func(resource interface{}) (interface{}, error) {
@@ -588,7 +590,8 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment
-		if err := lc.enrichDeploymentSpecFromPlatformConfiguration(&deployment.Spec); err != nil {
+		// enrich deployment spec with default fields that were passed inside the platform configuration
+		if err := lc.enrichDeploymentFromPlatformConfiguration(functionLabels, deployment); err != nil {
 			return nil, err
 		}
 
@@ -608,24 +611,25 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	return resource.(*apps_v1beta1.Deployment), err
 }
 
-func (lc *lazyClient) enrichDeploymentSpecFromPlatformConfiguration(deploymentSpec *apps_v1beta1.DeploymentSpec) error {
-	platformConfigDeployment := lc.platformConfigurationProvider.GetPlatformConfiguration().Kubernetes.Deployment
-	if platformConfigDeployment == nil {
-		return nil
-	}
-	platformConfigDeploymentSpec := platformConfigDeployment.Spec
+func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(functionLabels labels.Set,
+	deployment *apps_v1beta1.Deployment) error {
 
-	encodedDeploymentSpec, err := json.Marshal(deploymentSpec)
-	if err != nil {
-		return errors.Wrap(err, "Failed to marshal function deployment spec")
-	}
+	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
+	for _, augmentedConfig := range platformConfig.FunctionAugmentedConfigs {
 
-	err = json.Unmarshal(encodedDeploymentSpec, &platformConfigDeploymentSpec)
-	if err != nil {
-		return errors.Wrap(err, "Failed to enrich deployment spec with platform configuration deployment spec")
-	}
+		selector, err := meta_v1.LabelSelectorAsSelector(&augmentedConfig.LabelSelector)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get selector from label selector")
+		}
 
-	*deploymentSpec = platformConfigDeploymentSpec
+		// if the label matches any of the function labels, augment the deployment with provided function config
+		// NOTE: supports spec only for now. in the future we can remove .Spec and try to merge both meta and spec
+		if selector.Matches(functionLabels) {
+			if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
+				return errors.Wrap(err, "Failed to merge deployment spec")
+			}
+		}
+	}
 
 	return nil
 }
@@ -1419,7 +1423,7 @@ func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int3
 		metricSpecs = append(metricSpecs, autos_v2.MetricSpec{
 			Type: "Resource",
 			Resource: &autos_v2.ResourceMetricSource{
-				Name: v1.ResourceCPU,
+				Name:                     v1.ResourceCPU,
 				TargetAverageUtilization: &targetCPU,
 			},
 		})
