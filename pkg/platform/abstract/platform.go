@@ -32,11 +32,12 @@ import (
 //
 
 type Platform struct {
-	Logger              logger.Logger
-	platform            platform.Platform
-	invoker             *invoker
-	ExternalIPAddresses []string
-	DeployLogStreams    map[string]*LogStream
+	Logger                         logger.Logger
+	platform                       platform.Platform
+	invoker                        *invoker
+	ExternalIPAddresses            []string
+	DeployLogStreams               map[string]*LogStream
+	DefaultHTTPIngressHostTemplate string
 }
 
 func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platform, error) {
@@ -224,6 +225,14 @@ func (ap *Platform) SetExternalIPAddresses(externalIPAddresses []string) error {
 	ap.ExternalIPAddresses = externalIPAddresses
 
 	return nil
+}
+
+func (ap *Platform) SetDefaultHTTPIngressHostTemplate(defaultHTTPIngressHostTemplate string) {
+	ap.DefaultHTTPIngressHostTemplate = defaultHTTPIngressHostTemplate
+}
+
+func (ap *Platform) GetDefaultHTTPIngressHostTemplate() string {
+	return ap.DefaultHTTPIngressHostTemplate
 }
 
 // GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".

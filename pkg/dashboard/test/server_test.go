@@ -158,6 +158,15 @@ func (mp *mockPlatform) GetFunctionEvents(getFunctionEventsOptions *platform.Get
 // Misc
 //
 
+func (mp *mockPlatform) SetDefaultHTTPIngressHostTemplate(defaultHTTPIngressHostTemplate string) {
+	mp.Called(defaultHTTPIngressHostTemplate)
+}
+
+func (mp *mockPlatform) GetDefaultHTTPIngressHostTemplate() string {
+	args := mp.Called()
+	return args.Get(0).(string)
+}
+
 // SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
 // If this is not invoked, each platform will try to discover these addresses automatically
 func (mp *mockPlatform) SetExternalIPAddresses(externalIPAddresses []string) error {
@@ -242,7 +251,8 @@ func (suite *dashboardTestSuite) SetupTest() {
 		"",
 		true,
 		templateRepository,
-		nil)
+		nil,
+		"")
 
 	if err != nil {
 		panic("Failed to create server")
@@ -1877,6 +1887,37 @@ func (suite *miscTestSuite) TestGetExternalIPAddresses() {
 
 	suite.sendRequest("GET",
 		"/api/external_ip_addresses",
+		nil,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *miscTestSuite) TestGetFrontendSpec() {
+	returnedAddresses := []string{"address1", "address2", "address3"}
+	defaultHTTPIngressHostTemplate := "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com"
+
+	suite.mockPlatform.
+		On("GetExternalIPAddresses").
+		Return(returnedAddresses, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetDefaultHTTPIngressHostTemplate").
+		Return(defaultHTTPIngressHostTemplate, nil).
+		Once()
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+		"externalIPAddresses":            ["address1", "address2", "address3"],
+		"defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
+		"namespace":                      ""
+}`
+
+	suite.sendRequest("GET",
+		"/api/frontend_spec",
 		nil,
 		nil,
 		&expectedStatusCode,

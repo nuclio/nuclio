@@ -49,7 +49,8 @@ func Run(listenAddress string,
 	templatesArchiveAddress string,
 	templatesGitUsername string,
 	templatesGitPassword string,
-	templatesGithubAccessToken string) error {
+	templatesGithubAccessToken string,
+	defaultHTTPIngressHostTemplate string) error {
 	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
 	var functionZipTemplateFetcher *functiontemplates.ZipFunctionTemplateFetcher
 
@@ -145,6 +146,10 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to set external ip addresses")
 	}
 
+	if defaultHTTPIngressHostTemplate != "" {
+		platformInstance.SetDefaultHTTPIngressHostTemplate(defaultHTTPIngressHostTemplate)
+	}
+
 	rootLogger.InfoWith("Starting",
 		"name", platformInstance.GetName(),
 		"noPull", noPullBaseImages,
@@ -178,7 +183,8 @@ func Run(listenAddress string,
 		defaultNamespace,
 		offline,
 		functionTemplatesRepository,
-		platformConfiguration)
+		platformConfiguration,
+		defaultHTTPIngressHostTemplate)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}
