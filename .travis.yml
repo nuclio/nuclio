@@ -38,8 +38,6 @@ after_success:
     echo "$DOCKER_PASSWORD" | docker login -u="$DOCKER_USERNAME" --password-stdin quay.io &&
     make docker-images push-docker-images &&
     if [ "$NUCLIO_LABEL" != "unstable" ]; then
-    docker tag "quay.io/nuclio/playground:$NUCLIO_LABEL-amd64" quay.io/nuclio/playground:stable-amd64 &&
-    docker push quay.io/nuclio/playground:stable-amd64;
     docker tag "quay.io/nuclio/dashboard:$NUCLIO_LABEL-amd64" quay.io/nuclio/dashboard:stable-amd64 &&
     docker push quay.io/nuclio/dashboard:stable-amd64;
     fi
