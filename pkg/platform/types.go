@@ -30,7 +30,7 @@ import (
 //
 
 type AuthConfig struct {
-	Name string
+	Name   string
 	Config map[string]string
 }
 
@@ -83,10 +83,10 @@ type CreateFunctionResult struct {
 
 // GetFunctionsOptions is the base for all platform get options
 type GetFunctionsOptions struct {
-	Name      string
-	Namespace string
-	Labels    string
-	AuthConfig  *AuthConfig
+	Name       string
+	Namespace  string
+	Labels     string
+	AuthConfig *AuthConfig
 }
 
 // InvokeViaType defines via which mechanism the function will be invoked
