@@ -83,6 +83,7 @@ type Metrics struct {
 type LabelSelectorAndConfig struct {
 	LabelSelector  v1.LabelSelector      `json:"labelSelector,omitempty"`
 	FunctionConfig functionconfig.Config `json:"functionConfig,omitempty"`
+	Kubernetes     Kubernetes            `json:"kubernetes,omitempty"`
 }
 
 type Kubernetes struct {

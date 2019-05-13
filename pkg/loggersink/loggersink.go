@@ -83,6 +83,10 @@ func createLoggers(name string, loggerSinksWithLevel map[string]platformconfig.L
 		}
 
 	} else {
+		if len(loggers) == 0 {
+			return nil, errors.New("Must configure at least one logger")
+		}
+
 		loggerInstance = loggers[0]
 	}
 

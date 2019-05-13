@@ -249,7 +249,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	}
 
 	buildResult := &platform.CreateFunctionBuildResult{
-		Image: processorImage,
+		Image:                 processorImage,
 		UpdatedFunctionConfig: enrichedConfiguration,
 	}
 
@@ -534,7 +534,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 		tempFile, err := ioutil.TempFile(tempDir, "nuclio-function-")
 		if err != nil {
-			return "", errors.Wrapf(err, "Failed to create temporary file: %s", tempFile)
+			return "", errors.Wrapf(err, "Failed to create temporary file: %s", tempDir)
 		}
 
 		userDefinedHeaders, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["headers"]

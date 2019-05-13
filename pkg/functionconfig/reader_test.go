@@ -106,14 +106,14 @@ spec:
 
 	config := Config{
 		Meta: Meta{
-			Name: "my_name",
+			Name:      "my_name",
 			Namespace: "my_namespace",
-			Labels: map[string]string{}, // empty map
+			Labels:    map[string]string{}, // empty map
 		},
 		Spec: Spec{
 			Runtime: "python2.7",
 			Handler: "my_handler",
-			Env: []v1.EnvVar{{Name: "env_var", Value: "my_env_val"}},
+			Env:     []v1.EnvVar{{Name: "env_var", Value: "my_env_val"}},
 		},
 	}
 	reader, err := NewReader(suite.logger)

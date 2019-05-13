@@ -177,7 +177,7 @@ func (suite *TestSuite) TestNextScheduleDayDifference() {
 	suite.Assert().NoError(err, "Invalid interval string")
 
 	nextEventSubmitTime := suite.trigger.schedule.Next(lastRuntime)
-	suite.Assert().Equal(nextEventSubmitTime.Day(), lastRuntime.Day() + 1, "Event should be fired the next day")
+	suite.Assert().Equal(nextEventSubmitTime.Day(), lastRuntime.Day()+1, "Event should be fired the next day")
 }
 
 func (suite *TestSuite) getInterval(delay string) (cronlib.Schedule, error) {

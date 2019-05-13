@@ -59,7 +59,7 @@ func (ts *IsURLTestSuite) TestIsLocalFileURL() {
 }
 
 func (ts *IsURLTestSuite) TestGetPathFromLocalFileURL() {
-	ts.Require().Equal("/path/to/file" ,GetPathFromLocalFileURL("file://path/to/file"))
+	ts.Require().Equal("/path/to/file", GetPathFromLocalFileURL("file://path/to/file"))
 }
 
 func (ts *DownloadFileTestSuite) TestDownloadFile() {

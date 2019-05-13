@@ -101,7 +101,7 @@ func (suite *testSuite) TestPreexistingResources() {
 			"queueName":    suite.brokerQueueName,
 
 			// no topics passed means to listen on topics binded pre function deploy
-			"topics":       []string{},
+			"topics": []string{},
 		},
 	}
 

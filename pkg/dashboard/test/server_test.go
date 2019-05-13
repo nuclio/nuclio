@@ -857,8 +857,8 @@ func (suite *functionTestSuite) sendRequestWithExistingName(method string) {
 
 	expectedStatusCode := http.StatusConflict
 
-	headers := map[string]string {
-		"x-nuclio-project-name": "proj",
+	headers := map[string]string{
+		"x-nuclio-project-name":       "proj",
 		"x-nuclio-function-namespace": "f1Namespace",
 	}
 
@@ -1322,7 +1322,7 @@ func (suite *projectTestSuite) sendRequestWithExistingDisplayName(method string)
 	}
 
 	// mock a different project (with a different name) but with the same display name
-	mockedProject, _ := platform.NewAbstractProject(suite.logger, nil, platform.ProjectConfig {
+	mockedProject, _ := platform.NewAbstractProject(suite.logger, nil, platform.ProjectConfig{
 		Meta: platform.ProjectMeta{Namespace: "p1Namespace", Name: "p2"},
 		Spec: platform.ProjectSpec{DisplayName: "p1DisplayName"},
 	})
