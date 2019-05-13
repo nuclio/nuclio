@@ -47,8 +47,14 @@ func (d *deleter) delete(consumer *consumer, deleteFunctionOptions *platform.Del
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}
 
+	// get clientset
+	nuclioClientSet, err := consumer.getNuclioClientSet(deleteFunctionOptions.AuthConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get nuclio clientset")
+	}
+
 	// get specific function CR
-	err = consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(deleteFunctionOptions.FunctionConfig.Meta.Namespace).Delete(resourceName, &meta_v1.DeleteOptions{})
+	err = nuclioClientSet.NuclioV1beta1().NuclioFunctions(deleteFunctionOptions.FunctionConfig.Meta.Namespace).Delete(resourceName, &meta_v1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete function CR")
 	}

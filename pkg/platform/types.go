@@ -26,6 +26,15 @@ import (
 )
 
 //
+// Auth
+//
+
+type AuthConfig struct {
+	Name string
+	Config map[string]string
+}
+
+//
 // Function
 //
 
@@ -42,16 +51,19 @@ type CreateFunctionOptions struct {
 	FunctionConfig       functionconfig.Config
 	CreationStateUpdated chan bool
 	InputImageFile       string
+	AuthConfig           *AuthConfig
 }
 
 type UpdateFunctionOptions struct {
 	FunctionMeta   *functionconfig.Meta
 	FunctionSpec   *functionconfig.Spec
 	FunctionStatus *functionconfig.Status
+	AuthConfig     *AuthConfig
 }
 
 type DeleteFunctionOptions struct {
 	FunctionConfig functionconfig.Config
+	AuthConfig     *AuthConfig
 }
 
 // CreateFunctionBuildResult holds information detected/generated as a result of a build process
@@ -74,6 +86,7 @@ type GetFunctionsOptions struct {
 	Name      string
 	Namespace string
 	Labels    string
+	AuthConfig  *AuthConfig
 }
 
 // InvokeViaType defines via which mechanism the function will be invoked

@@ -75,11 +75,17 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	createFunctionOptions.Logger.DebugWith("Populated function with configuration and status",
 		"function", functionInstance)
 
+	// get clientset
+	nuclioClientSet, err := d.consumer.getNuclioClientSet(createFunctionOptions.AuthConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get nuclio clientset")
+	}
+
 	// if function didn't exist, create. otherwise update
 	if !functionExisted {
-		functionInstance, err = d.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(functionInstance.Namespace).Create(functionInstance)
+		functionInstance, err = nuclioClientSet.NuclioV1beta1().NuclioFunctions(functionInstance.Namespace).Create(functionInstance)
 	} else {
-		functionInstance, err = d.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(functionInstance.Namespace).Update(functionInstance)
+		functionInstance, err = nuclioClientSet.NuclioV1beta1().NuclioFunctions(functionInstance.Namespace).Update(functionInstance)
 	}
 
 	if err != nil {
