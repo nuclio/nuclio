@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/logger"
 	"k8s.io/client-go/kubernetes"
+	// enable OIDC plugin
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
