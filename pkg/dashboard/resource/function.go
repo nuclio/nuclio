@@ -161,6 +161,20 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 	return nil, nuclio.ErrAccepted
 }
 
+// returns a list of custom routes for the resource
+func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
+
+	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
+	// we need to register custom routes
+	return []restful.CustomRoute{
+		{
+			Pattern:   "/",
+			Method:    http.MethodDelete,
+			RouteFunc: fr.deleteFunction,
+		},
+	}, nil
+}
+
 func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, request *http.Request) error {
 
 	creationStateUpdatedTimeout := 15 * time.Second
@@ -168,6 +182,12 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, r
 	doneChan := make(chan bool, 1)
 	creationStateUpdatedChan := make(chan bool, 1)
 	errDeployingChan := make(chan error, 1)
+
+	// get the authentication configuration for the request
+	authConfig, err := fr.getRequestAuthConfig(request)
+	if err != nil {
+		return err
+	}
 
 	// asynchronously, do the deploy so that the user doesn't wait
 	go func() {
@@ -205,6 +225,7 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, r
 				Spec: *functionInfo.Spec,
 			},
 			CreationStateUpdated: creationStateUpdatedChan,
+			AuthConfig:           authConfig,
 		})
 
 		if err != nil {
@@ -235,20 +256,6 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, r
 	return nil
 }
 
-// returns a list of custom routes for the resource
-func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
-
-	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
-	// we need to register custom routes
-	return []restful.CustomRoute{
-		{
-			Pattern:   "/",
-			Method:    http.MethodDelete,
-			RouteFunc: fr.deleteFunction,
-		},
-	}, nil
-}
-
 func (fr *functionResource) deleteFunction(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	// get function config and status from body
@@ -262,7 +269,28 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 		}, err
 	}
 
-	deleteFunctionOptions := platform.DeleteFunctionOptions{}
+	// get the authentication configuration for the request
+	authConfig, err := fr.getRequestAuthConfig(request)
+	if err != nil {
+
+		// get error
+		if errWithStatus, ok := err.(*nuclio.ErrorWithStatusCode); ok {
+			return &restful.CustomRouteFuncResponse{
+				Single:     true,
+				StatusCode: errWithStatus.StatusCode(),
+			}, err
+		}
+
+		return &restful.CustomRouteFuncResponse{
+			Single:     true,
+			StatusCode: http.StatusInternalServerError,
+		}, err
+	}
+
+	deleteFunctionOptions := platform.DeleteFunctionOptions{
+		AuthConfig: authConfig,
+	}
+
 	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta
 
 	err = fr.getPlatform().DeleteFunction(&deleteFunctionOptions)

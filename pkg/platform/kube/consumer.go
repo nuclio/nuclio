@@ -18,23 +18,30 @@ package kube
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 
 	"github.com/nuclio/logger"
 	"k8s.io/client-go/kubernetes"
+	// enable OIDC plugin
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 type consumer struct {
 	kubeClientSet   kubernetes.Interface
 	nuclioClientSet nuclioio_client.Interface
 	kubeHost        string
+	kubeconfigPath  string
 }
 
 func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error) {
 	logger.DebugWith("Using kubeconfig", "kubeconfigPath", kubeconfigPath)
 
-	newConsumer := consumer{}
+	newConsumer := consumer{
+		kubeconfigPath: kubeconfigPath,
+	}
 
 	// create REST config
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
@@ -58,4 +65,26 @@ func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error)
 	}
 
 	return &newConsumer, nil
+}
+
+func (c *consumer) getNuclioClientSet(authConfig *platform.AuthConfig) (nuclioio_client.Interface, error) {
+
+	// if no authentication was passed, can use the generic client. otherwise must create
+	if authConfig == nil {
+		return c.nuclioClientSet, nil
+	}
+
+	// create REST config
+	restConfig, err := clientcmd.BuildConfigFromFlags("", c.kubeconfigPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create REST config")
+	}
+
+	// set the auth provider config
+	restConfig.AuthProvider = &clientcmdapi.AuthProviderConfig{
+		Name:   authConfig.Name,
+		Config: authConfig.Config,
+	}
+
+	return nuclioio_client.NewForConfig(restConfig)
 }

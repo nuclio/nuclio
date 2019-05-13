@@ -17,9 +17,15 @@ limitations under the License.
 package resource
 
 import (
+	"net/http"
+
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
+
+	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/rs/xid"
 )
 
 type resource struct {
@@ -46,4 +52,31 @@ func (r *resource) getNamespaceOrDefault(providedNamespace string) string {
 
 	// get the default namespace we were created with
 	return r.GetServer().(*dashboard.Server).GetDefaultNamespace()
+}
+
+func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthConfig, error) {
+
+	// if we're instructed to use the authorization header as an OIDC token
+	if r.GetServer().(*dashboard.Server).GetPlatformAuthorizationMode() == dashboard.PlatformAuthorizationModeAuthorizationHeaderOIDC {
+
+		// make sure the Authorization header exists
+		authorizationHeaderFromRequest := request.Header.Get("Authorization")
+		if authorizationHeaderFromRequest == "" {
+			return nil, nuclio.WrapErrForbidden(errors.New("Missing Authorization header"))
+		}
+
+		// create the configuration
+		return &platform.AuthConfig{
+			Name: "oidc",
+			Config: map[string]string{
+				"id-token":       authorizationHeaderFromRequest,
+				"idp-issuer-url": "http://127.0.0.1/" + xid.New().String(),
+				"client-id":      "nuclio",
+			},
+		}, nil
+	}
+
+	// if we're instructed to use our service account for auth (or something invalid), just don't populate the auth config. this is
+	// the default behavior
+	return nil, nil
 }

@@ -67,8 +67,14 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 		function.Status = *updateFunctionOptions.FunctionStatus
 	}
 
+	// get clientset
+	nuclioClientSet, err := u.consumer.getNuclioClientSet(updateFunctionOptions.AuthConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get nuclio clientset")
+	}
+
 	// trigger an update
-	updatedFunction, err := u.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).Update(function)
+	updatedFunction, err := nuclioClientSet.NuclioV1beta1().NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).Update(function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function CR")
 	}

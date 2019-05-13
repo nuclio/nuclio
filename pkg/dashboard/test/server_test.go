@@ -252,6 +252,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 		true,
 		templateRepository,
 		nil,
+		"",
 		"")
 
 	if err != nil {

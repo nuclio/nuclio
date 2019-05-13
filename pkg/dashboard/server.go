@@ -36,6 +36,13 @@ import (
 	"github.com/nuclio/logger"
 )
 
+type PlatformAuthorizationMode string
+
+const (
+	PlatformAuthorizationModeServiceAccount          PlatformAuthorizationMode = "service-account"
+	PlatformAuthorizationModeAuthorizationHeaderOIDC PlatformAuthorizationMode = "authorization-header-oidc"
+)
+
 type Server struct {
 	*restful.AbstractServer
 	dockerKeyDir                   string
@@ -51,6 +58,7 @@ type Server struct {
 	Repository                     *functiontemplates.Repository
 	platformConfiguration          *platformconfig.Config
 	defaultHTTPIngressHostTemplate string
+	platformAuthorizationMode      PlatformAuthorizationMode
 }
 
 func NewServer(parentLogger logger.Logger,
@@ -66,7 +74,8 @@ func NewServer(parentLogger logger.Logger,
 	offline bool,
 	repository *functiontemplates.Repository,
 	platformConfiguration *platformconfig.Config,
-	defaultHTTPIngressHostTemplate string) (*Server, error) {
+	defaultHTTPIngressHostTemplate string,
+	platformAuthorizationMode string) (*Server, error) {
 
 	var err error
 
@@ -99,6 +108,7 @@ func NewServer(parentLogger logger.Logger,
 		Repository:                     repository,
 		platformConfiguration:          platformConfiguration,
 		defaultHTTPIngressHostTemplate: defaultHTTPIngressHostTemplate,
+		platformAuthorizationMode:      PlatformAuthorizationMode(platformAuthorizationMode),
 	}
 
 	// create server
@@ -207,6 +217,10 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(201)
+}
+
+func (s *Server) GetPlatformAuthorizationMode() PlatformAuthorizationMode {
+	return s.platformAuthorizationMode
 }
 
 func (s *Server) getRegistryURL() string {

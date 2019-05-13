@@ -58,6 +58,11 @@ func main() {
 
 	externalIPAddressesDefault := os.Getenv("NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES")
 
+	defaultPlatformAuthorizationMode := os.Getenv("NUCLIO_DASHBOARD_PLATFORM_AUTHORIZATION_MODE")
+	if defaultPlatformAuthorizationMode == "" {
+		defaultPlatformAuthorizationMode = "service-account"
+	}
+
 	// git templating env vars
 	templatesGitRepository := flag.String("templates-git-repository", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REPOSITORY", "https://github.com/nuclio/nuclio-templates.git"), "Git templates repo's name")
 	templatesGitBranch := flag.String("templates-git-ref", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REF", "refs/heads/master"), "Git templates repo's branch name")
@@ -78,6 +83,7 @@ func main() {
 	offline := flag.Bool("offline", defaultOffline, "If true, assumes no internet connectivity")
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
 	defaultHTTPIngressHostTemplate := flag.String("default-http-ingress-host-template", os.Getenv("NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE"), "Go template for the default http ingress host")
+	platformAuthorizationMode := flag.String("platform-authorization-mode", defaultPlatformAuthorizationMode, "One of service-account (default) / authorization-header-oidc")
 
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)
@@ -101,7 +107,8 @@ func main() {
 		*templatesGitUsername,
 		*templatesGitPassword,
 		*templatesGithubAccessToken,
-		*defaultHTTPIngressHostTemplate); err != nil {
+		*defaultHTTPIngressHostTemplate,
+		*platformAuthorizationMode); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
