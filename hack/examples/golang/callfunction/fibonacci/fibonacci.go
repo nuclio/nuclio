@@ -28,7 +28,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 		return nil, err
 	}
 
-	context.Logger.InfoWith("Calculating fibonacci number", "n", n)
+	context.Logger.InfoWith("Calculating Fibonacci number", "n", n)
 
 	result, err := fib(n)
 	if err != nil {
@@ -52,7 +52,7 @@ func fib(n uint64) (uint64, error) {
 		if a < math.MaxUint64-b {
 			a, b = b, a+b
 		} else {
-			return 0, errors.New("Overflow. Too big request")
+			return 0, errors.New("Overflow. The request size exceeds the maximum")
 		}
 	}
 
