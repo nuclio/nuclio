@@ -18,6 +18,7 @@ package resource
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -25,7 +26,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/rs/xid"
 )
 
 type resource struct {
@@ -61,18 +61,13 @@ func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthCo
 
 		// make sure the Authorization header exists
 		authorizationHeaderFromRequest := request.Header.Get("Authorization")
-		if authorizationHeaderFromRequest == "" {
+		if authorizationHeaderFromRequest == "" || !strings.HasPrefix(authorizationHeaderFromRequest, "Bearer ") {
 			return nil, nuclio.WrapErrForbidden(errors.New("Missing Authorization header"))
 		}
 
 		// create the configuration
 		return &platform.AuthConfig{
-			Name: "oidc",
-			Config: map[string]string{
-				"id-token":       authorizationHeaderFromRequest,
-				"idp-issuer-url": "http://127.0.0.1/" + xid.New().String(),
-				"client-id":      "nuclio",
-			},
+			Token:  strings.TrimPrefix(authorizationHeaderFromRequest, "Bearer "),
 		}, nil
 	}
 
