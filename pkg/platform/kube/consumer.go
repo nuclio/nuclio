@@ -26,7 +26,6 @@ import (
 	// enable OIDC plugin
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 type consumer struct {
@@ -81,10 +80,7 @@ func (c *consumer) getNuclioClientSet(authConfig *platform.AuthConfig) (nuclioio
 	}
 
 	// set the auth provider config
-	restConfig.AuthProvider = &clientcmdapi.AuthProviderConfig{
-		Name:   authConfig.Name,
-		Config: authConfig.Config,
-	}
+	restConfig.BearerToken = authConfig.Token
 
 	return nuclioio_client.NewForConfig(restConfig)
 }

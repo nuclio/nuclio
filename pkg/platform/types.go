@@ -30,8 +30,7 @@ import (
 //
 
 type AuthConfig struct {
-	Name   string
-	Config map[string]string
+	Token string
 }
 
 //
