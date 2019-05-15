@@ -67,7 +67,7 @@ func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthCo
 
 		// create the configuration
 		return &platform.AuthConfig{
-			Token:  strings.TrimPrefix(authorizationHeaderFromRequest, "Bearer "),
+			Token: strings.TrimPrefix(authorizationHeaderFromRequest, "Bearer "),
 		}, nil
 	}
 

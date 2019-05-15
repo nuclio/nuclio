@@ -30,7 +30,7 @@ import (
 //
 
 type AuthConfig struct {
-	Token   string
+	Token string
 }
 
 //
