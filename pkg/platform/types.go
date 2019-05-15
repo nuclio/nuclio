@@ -39,19 +39,21 @@ type AuthConfig struct {
 //
 
 type CreateFunctionBuildOptions struct {
-	Logger              logger.Logger
-	FunctionConfig      functionconfig.Config
-	PlatformName        string
-	OnAfterConfigUpdate func(*functionconfig.Config) error
-	OutputImageFile     string
+	Logger                     logger.Logger
+	FunctionConfig             functionconfig.Config
+	PlatformName               string
+	OnAfterConfigUpdate        func(*functionconfig.Config) error
+	OutputImageFile            string
+	DependantImagesRegistryURL string
 }
 
 type CreateFunctionOptions struct {
-	Logger               logger.Logger
-	FunctionConfig       functionconfig.Config
-	CreationStateUpdated chan bool
-	InputImageFile       string
-	AuthConfig           *AuthConfig
+	Logger                     logger.Logger
+	FunctionConfig             functionconfig.Config
+	CreationStateUpdated       chan bool
+	InputImageFile             string
+	AuthConfig                 *AuthConfig
+	DependantImagesRegistryURL string
 }
 
 type UpdateFunctionOptions struct {

@@ -59,6 +59,7 @@ type Server struct {
 	platformConfiguration          *platformconfig.Config
 	defaultHTTPIngressHostTemplate string
 	platformAuthorizationMode      PlatformAuthorizationMode
+	dependantImageRegistryURL      string
 }
 
 func NewServer(parentLogger logger.Logger,
@@ -75,7 +76,8 @@ func NewServer(parentLogger logger.Logger,
 	repository *functiontemplates.Repository,
 	platformConfiguration *platformconfig.Config,
 	defaultHTTPIngressHostTemplate string,
-	platformAuthorizationMode string) (*Server, error) {
+	platformAuthorizationMode string,
+	dependantImageRegistryURL string) (*Server, error) {
 
 	var err error
 
@@ -109,6 +111,7 @@ func NewServer(parentLogger logger.Logger,
 		platformConfiguration:          platformConfiguration,
 		defaultHTTPIngressHostTemplate: defaultHTTPIngressHostTemplate,
 		platformAuthorizationMode:      PlatformAuthorizationMode(platformAuthorizationMode),
+		dependantImageRegistryURL:      dependantImageRegistryURL,
 	}
 
 	// create server
@@ -162,6 +165,10 @@ func (s *Server) GetRegistryURL() string {
 
 func (s *Server) GetRunRegistryURL() string {
 	return s.defaultRunRegistryURL
+}
+
+func (s *Server) GetDependantImagesRegistryURL() string {
+	return s.dependantImageRegistryURL
 }
 
 func (s *Server) GetExternalIPAddresses() []string {

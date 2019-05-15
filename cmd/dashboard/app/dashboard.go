@@ -51,7 +51,8 @@ func Run(listenAddress string,
 	templatesGitPassword string,
 	templatesGithubAccessToken string,
 	defaultHTTPIngressHostTemplate string,
-	platformAuthorizationMode string) error {
+	platformAuthorizationMode string,
+	dependantImageRegistryURL string) error {
 	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
 	var functionZipTemplateFetcher *functiontemplates.ZipFunctionTemplateFetcher
 
@@ -186,7 +187,8 @@ func Run(listenAddress string,
 		functionTemplatesRepository,
 		platformConfiguration,
 		defaultHTTPIngressHostTemplate,
-		platformAuthorizationMode)
+		platformAuthorizationMode,
+		dependantImageRegistryURL)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}

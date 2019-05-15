@@ -502,6 +502,28 @@ func (suite *testSuite) TestCommandsToDirectives() {
 	}
 }
 
+func (suite *testSuite) TestRenderDependantImageURL() {
+	replacementURL := "replacement:port/sub"
+	imageNameAndTag := "image-name:tag"
+
+	// test render with replacement
+	for _, testCase := range []struct {
+		imageURL         string
+		replacementURL   string
+		expectedImageURL string
+	}{
+		{imageNameAndTag, "", imageNameAndTag},
+		{"" + imageNameAndTag, replacementURL, replacementURL + "/" + imageNameAndTag},
+		{"base/" + imageNameAndTag, replacementURL, replacementURL + "/" + imageNameAndTag},
+		{"base/" + imageNameAndTag, replacementURL + "/", replacementURL + "/" + imageNameAndTag},
+		{"base/sub/" + imageNameAndTag, replacementURL, replacementURL + "/" + imageNameAndTag},
+	} {
+		renderedImageURL, err := suite.builder.renderDependantImageURL(testCase.imageURL, testCase.replacementURL)
+		suite.Require().NoError(err)
+		suite.Require().Equal(testCase.expectedImageURL, renderedImageURL)
+	}
+}
+
 func (suite *testSuite) generateDockerfileAndVerify(healthCheckRequired bool,
 	dockerfileInfo *runtime.ProcessorDockerfileInfo,
 	expectedDockerfile string) {
