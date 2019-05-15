@@ -153,8 +153,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	}
 
 	// create base temp directory
-	err = b.createTempDir()
-	if err != nil {
+	if err := b.createTempDir(); err != nil {
 		return nil, errors.Wrap(err, "Failed to create base temp dir")
 	}
 
@@ -484,6 +483,13 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	var err error
 
+	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
+
+	// empty and ignore given function source code in case of github/archive code entry type
+	if codeEntryType == githubEntryType || codeEntryType == archiveEntryType {
+		b.options.FunctionConfig.Spec.Build.FunctionSourceCode = ""
+	}
+
 	if b.options.FunctionConfig.Spec.Build.FunctionSourceCode != "" {
 
 		// if user gave function as source code rather than a path - write it to a temporary file
@@ -510,14 +516,12 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		}
 	}
 
-	// if the function path is a URL or type is Github - first download the file
-	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
-
 	// user has to provide valid url when code entry type is github
 	if !common.IsURL(functionPath) && codeEntryType == githubEntryType {
 		return "", errors.New("Must provide valid URL when code entry type is github or archive")
 	}
 
+	// if the function path is a URL or type is Github - first download the file
 	// for backwards compatibility, don't check for entry type url specifically
 	if common.IsURL(functionPath) {
 		if codeEntryType == githubEntryType {
