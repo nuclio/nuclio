@@ -1092,6 +1092,18 @@ func (b *Builder) getProcessorDockerfileInfo() (*runtime.ProcessorDockerfileInfo
 		return nil, errors.Wrap(err, "Failed to get onbuild image")
 	}
 
+	processorDockerfileInfo.BaseImage, err = b.renderDependantImageURL(processorDockerfileInfo.BaseImage,
+		b.options.DependantImagesRegistryURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to render base image")
+	}
+
+	processorDockerfileInfo.OnbuildImage, err = b.renderDependantImageURL(processorDockerfileInfo.OnbuildImage,
+		b.options.DependantImagesRegistryURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to render onbuild image")
+	}
+
 	return &processorDockerfileInfo, nil
 }
 
@@ -1460,4 +1472,27 @@ func (b *Builder) getSourceCodeFromFilePath() (string, error) {
 	}
 
 	return string(functionContents), nil
+}
+
+// replaces the registry url if applicable. e.g. quay.io/nuclio/some-image:0.0.1 -> 10.0.0.1:2000/some-image:0.0.1
+func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegistryURL string) (string, error) {
+	if dependantImagesRegistryURL == "" {
+		return imageURL, nil
+	}
+
+	// be tolerant of trailing slash in dependantImagesRegistryURL
+	dependantImagesRegistryURL = strings.TrimSuffix(dependantImagesRegistryURL, "/")
+
+	// take the image part of the url
+	splitImageURL := strings.Split(imageURL, "/")
+	imageNameAndTag := splitImageURL[len(splitImageURL)-1]
+
+	renderedImageURL := dependantImagesRegistryURL + "/" + imageNameAndTag
+
+	b.logger.DebugWith("Rendering dependant image URL",
+		"imageURL", imageURL,
+		"dependantImagesRegistryURL", dependantImagesRegistryURL,
+		"renderedImageURL", renderedImageURL)
+
+	return renderedImageURL, nil
 }

@@ -106,10 +106,11 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	// check if we need to build the image
 	if functionBuildRequired {
 		buildResult, buildErr = ap.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
-			Logger:              createFunctionOptions.Logger,
-			FunctionConfig:      createFunctionOptions.FunctionConfig,
-			PlatformName:        ap.platform.GetName(),
-			OnAfterConfigUpdate: onAfterConfigUpdatedWrapper,
+			Logger:                     createFunctionOptions.Logger,
+			FunctionConfig:             createFunctionOptions.FunctionConfig,
+			PlatformName:               ap.platform.GetName(),
+			OnAfterConfigUpdate:        onAfterConfigUpdatedWrapper,
+			DependantImagesRegistryURL: createFunctionOptions.DependantImagesRegistryURL,
 		})
 
 		if buildErr == nil {

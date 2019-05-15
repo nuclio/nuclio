@@ -84,6 +84,7 @@ func main() {
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
 	defaultHTTPIngressHostTemplate := flag.String("default-http-ingress-host-template", os.Getenv("NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE"), "Go template for the default http ingress host")
 	platformAuthorizationMode := flag.String("platform-authorization-mode", defaultPlatformAuthorizationMode, "One of service-account (default) / authorization-header-oidc")
+	dependantImageRegistryURL := flag.String("dependant-image-registry", os.Getenv("NUCLIO_DASHBOARD_DEPENDANT_IMAGE_REGISTRY_URL"), "If passed, replaces base/on-build registry URLs with this value")
 
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)
@@ -108,7 +109,8 @@ func main() {
 		*templatesGitPassword,
 		*templatesGithubAccessToken,
 		*defaultHTTPIngressHostTemplate,
-		*platformAuthorizationMode); err != nil {
+		*platformAuthorizationMode,
+		*dependantImageRegistryURL); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 

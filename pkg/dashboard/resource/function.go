@@ -224,8 +224,9 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, r
 				Meta: *functionInfo.Meta,
 				Spec: *functionInfo.Spec,
 			},
-			CreationStateUpdated: creationStateUpdatedChan,
-			AuthConfig:           authConfig,
+			CreationStateUpdated:       creationStateUpdatedChan,
+			AuthConfig:                 authConfig,
+			DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
 		})
 
 		if err != nil {
