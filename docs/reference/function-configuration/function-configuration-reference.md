@@ -78,6 +78,8 @@ The `spec` section contains the requirements and attributes and has the followin
 | build.baseImage | string | The base image from which the processor image will be built |
 | build.Commands | list of string | Commands run opaquely as part of container image build |
 | build.onbuildImage | string | The "onbuild" image from which the processor image will be built; can use {{ .Label }} and {{ .Arch }} for formatting |
+| build.codeEntryType | string | Determining where to fetch the function code and configuration from |
+| build.codeEntryAttributes | See [reference](/docs/reference/function-configuration/code-entry-types.md) | The code entry attributes |
 | runRegistry | string | The container image repository from which the platform will pull the image |
 | runtimeAttributes | See reference | Runtime specific attributes, see runtime documentation for specifics |
 | resources | See [reference](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) | Limit resources allocated to deployed function |
@@ -128,4 +130,4 @@ spec:
 ## See also
 
 - [Deploying Functions](/docs/tasks/deploying-functions.md)
-
+- [Code entry types](/docs/reference/function-configuration/code-entry-types.md)
