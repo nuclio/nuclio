@@ -94,6 +94,7 @@ metadata:
 spec:
   runtime: python3.6
   handler: code_entry_handler
+  targetCpu: 13
   build:
     commands:
     - pip install code_entry_package
@@ -114,6 +115,7 @@ spec:
 			Runtime: "python2.7",
 			Handler: "my_handler",
 			Env:     []v1.EnvVar{{Name: "env_var", Value: "my_env_val"}},
+			TargetCPU: 51,
 		},
 	}
 	reader, err := NewReader(suite.logger)
@@ -134,6 +136,7 @@ spec:
 	suite.Require().Equal("python2.7", config.Spec.Runtime, "Bad runtime")
 	suite.Require().Equal([]string{"pip install code_entry_package"}, config.Spec.Build.Commands, "Bad commands")
 	suite.Require().Equal(map[string]string{"label_key": "label_val"}, config.Meta.Labels, "Bad labels")
+	suite.Require().Equal(51, config.Spec.TargetCPU, "Bad target cpu")
 }
 
 func (suite *ReaderTestSuite) TestToDeployOptions() {
