@@ -43,6 +43,12 @@ func DownloadFile(URL string, out *os.File, headers http.Header) error {
 		return err
 	}
 
+	if !IsSuccessfulStatusCode(response.StatusCode) {
+		return fmt.Errorf(
+			"Failed to download file. Received unsuccessfull status code: %d",
+			response.StatusCode)
+	}
+
 	defer response.Body.Close() // nolint: errcheck
 
 	written, err := io.Copy(out, response.Body)
@@ -80,4 +86,8 @@ func GetPathFromLocalFileURL(s string) string {
 		return "/" + strings.TrimPrefix(s, LocalFilePrefix)
 	}
 	return ""
+}
+
+func IsSuccessfulStatusCode(statusCode int) bool {
+	return statusCode >= 200 && statusCode < 300
 }
