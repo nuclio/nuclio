@@ -218,7 +218,7 @@ type Spec struct {
 	Replicas                int                     `json:"replicas,omitempty"`
 	MinReplicas             int                     `json:"minReplicas,omitempty"`
 	MaxReplicas             int                     `json:"maxReplicas,omitempty"`
-	TargetCPU               int                     `json:"targetCpu,omitempty"`
+	TargetCPU               int                     `json:"targetCPU,omitempty"`
 	DataBindings            map[string]DataBinding  `json:"dataBindings,omitempty"`
 	Triggers                map[string]Trigger      `json:"triggers,omitempty"`
 	Volumes                 []Volume                `json:"volumes,omitempty"`
@@ -228,7 +228,7 @@ type Spec struct {
 	RunRegistry             string                  `json:"runRegistry,omitempty"`
 	RuntimeAttributes       map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 	LoggerSinks             []LoggerSink            `json:"loggerSinks,omitempty"`
-	DealerURI               string                  `json:"dealerUri,omitempty"`
+	DealerURI               string                  `json:"dealerURI,omitempty"`
 	Platform                Platform                `json:"platform,omitempty"`
 	ReadinessTimeoutSeconds int                     `json:"readinessTimeoutSeconds,omitempty"`
 	Avatar                  string                  `json:"avatar,omitempty"`
