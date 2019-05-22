@@ -84,6 +84,35 @@ spec:
 	}
 }
 
+func (suite *ReaderTestSuite) TestCodeEntryConfigCaseInsensitivity() {
+	configData := `
+metadata:
+  name: code_entry_name
+  namespace: code_entry_namespace
+spec:
+  runtime: python3.6
+  handler: code_entry_handler
+  targetCpu: 13  # instead of targetCPU to test case insensitivity
+`
+
+	config := Config{
+		Meta: Meta{
+			Name:      "my_name",
+			Namespace: "my_namespace",
+		},
+		Spec: Spec{
+			Runtime: "python2.7",
+			Handler: "my_handler",
+		},
+	}
+	reader, err := NewReader(suite.logger)
+	suite.Require().NoError(err, "Can't create reader")
+	err = reader.Read(strings.NewReader(configData), "processor", &config)
+	suite.Require().NoError(err, "Can't reader configuration")
+
+	suite.Require().Equal(13, config.Spec.TargetCPU, "Bad target cpu")
+}
+
 func (suite *ReaderTestSuite) TestCodeEntryConfigDontOverrideConfigValues() {
 	configData := `
 metadata:
