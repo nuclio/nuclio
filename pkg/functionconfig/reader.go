@@ -66,7 +66,13 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 		}
 	}
 
-	if err = yaml.Unmarshal(bodyBytes, &codeEntryConfigAsMap); err != nil {
+	// normalizing the received config to the JSON values of the function config Go struct
+	codeEntryConfigAsJSON, err := json.Marshal(codeEntryConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse received config to JSON")
+	}
+
+	if err = yaml.Unmarshal(codeEntryConfigAsJSON, &codeEntryConfigAsMap); err != nil {
 		return errors.Wrap(err, "Failed to parse received config")
 	}
 
