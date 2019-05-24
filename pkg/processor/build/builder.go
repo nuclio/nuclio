@@ -58,6 +58,7 @@ const (
 	uhttpcImage            = "quay.io/nuclio/uhttpc:0.0.1-amd64"
 	githubEntryType        = "github"
 	archiveEntryType       = "archive"
+	s3EntryType            = "s3"
 )
 
 // holds parameters for things that are required before a runtime can be initialized
@@ -495,9 +496,12 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		return functionSourceCodeTempPath, nil
 	}
 
+	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
+
 	// function can either be in the path, received inline or an executable via handler
 	if b.options.FunctionConfig.Spec.Build.Path == "" &&
-		b.options.FunctionConfig.Spec.Image == "" {
+		b.options.FunctionConfig.Spec.Image == "" &&
+		codeEntryType != s3EntryType {
 
 		if b.options.FunctionConfig.Spec.Runtime != "shell" {
 			return "", errors.New("Function path must be provided when specified runtime isn't shell")
@@ -510,16 +514,14 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		}
 	}
 
-	// if the function path is a URL or type is Github - first download the file
-	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
-
 	// user has to provide valid url when code entry type is github
 	if !common.IsURL(functionPath) && codeEntryType == githubEntryType {
 		return "", errors.New("Must provide valid URL when code entry type is github or archive")
 	}
 
+	// if the function path is a URL, type is Github or S3 - first download the file
 	// for backwards compatibility, don't check for entry type url specifically
-	if common.IsURL(functionPath) {
+	if common.IsURL(functionPath) || codeEntryType == s3EntryType {
 		if codeEntryType == githubEntryType {
 			functionPath, err = b.getFunctionPathFromGithubURL(functionPath)
 			if err != nil {
@@ -537,28 +539,48 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 			return "", errors.Wrapf(err, "Failed to create temporary file: %s", tempDir)
 		}
 
-		userDefinedHeaders, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["headers"]
-		headers := http.Header{}
-
-		if found {
-
-			// guaranteed a map with key of type string, the values need to be checked for correctness
-			for key, value := range userDefinedHeaders.(map[string]interface{}) {
-				stringValue, ok := value.(string)
-				if !ok {
-					return "", errors.New("Failed to convert header value to string")
-				}
-				headers.Set(key, stringValue)
+		if codeEntryType == s3EntryType {
+			s3Attributes, err := b.validateAndParseS3Attributes(b.options.FunctionConfig.Spec.Build.CodeEntryAttributes)
+			if err != nil {
+				return "", errors.Wrap(err, "Failed to parse and validate s3 code entry attributes")
 			}
-		}
 
-		b.logger.DebugWith("Downloading function",
-			"url", functionPath,
-			"target", tempFile.Name(),
-			"headers", headers)
+			err = common.DownloadFileFromAWSS3(tempFile,
+				s3Attributes["s3Bucket"],
+				s3Attributes["s3ItemKey"],
+				s3Attributes["s3Region"],
+				s3Attributes["s3AccessKeyId"],
+				s3Attributes["s3SecretAccessKey"],
+				s3Attributes["s3SessionToken"])
 
-		if err = common.DownloadFile(functionPath, tempFile, headers); err != nil {
-			return "", err
+			if err != nil {
+				return "", errors.Wrap(err, "Failed to download the function archive from s3")
+			}
+
+		} else {
+			userDefinedHeaders, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["headers"]
+			headers := http.Header{}
+
+			if found {
+
+				// guaranteed a map with key of type string, the values need to be checked for correctness
+				for key, value := range userDefinedHeaders.(map[string]interface{}) {
+					stringValue, ok := value.(string)
+					if !ok {
+						return "", errors.New("Failed to convert header value to string")
+					}
+					headers.Set(key, stringValue)
+				}
+			}
+
+			b.logger.DebugWith("Downloading function",
+				"url", functionPath,
+				"target", tempFile.Name(),
+				"headers", headers)
+
+			if err = common.DownloadFile(functionPath, tempFile, headers); err != nil {
+				return "", err
+			}
 		}
 
 		functionPath = tempFile.Name()
@@ -582,6 +604,30 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	}
 
 	return resolvedPath, nil
+}
+
+func (b *Builder) validateAndParseS3Attributes(attributes map[string]interface{}) (map[string]string, error) {
+	parsedAttributes := map[string]string{}
+
+	mandatoryFields := []string{"s3Bucket", "s3ItemKey"}
+	optionalFields := []string{"s3Region", "s3AccessKeyId", "s3SecretAccessKey", "s3SessionToken"}
+
+	for _, key := range append(mandatoryFields, optionalFields...) {
+		value, found := attributes[key]
+		if !found {
+			if common.StringInSlice(key, mandatoryFields) {
+				return nil, errors.New(fmt.Sprintf("Mandatory field - '%s' not given", key))
+			}
+			continue
+		}
+		valueAsString, ok := value.(string)
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("The given field - '%s' is not of type string", key))
+		}
+		parsedAttributes[key] = valueAsString
+	}
+
+	return parsedAttributes, nil
 }
 
 func (b *Builder) getFunctionPathFromGithubURL(functionPath string) (string, error) {
@@ -646,7 +692,7 @@ func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (stri
 	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
 	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
 
-	if (codeEntryType == archiveEntryType || codeEntryType == githubEntryType) && found {
+	if (codeEntryType == archiveEntryType || codeEntryType == githubEntryType || codeEntryType == s3EntryType) && found {
 		userSpecifiedWorkDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
 		if !ok {
 			return "", errors.New("If code entry type is (archive or github) and workDir is provided, " +

@@ -524,6 +524,42 @@ func (suite *testSuite) TestRenderDependantImageURL() {
 	}
 }
 
+func (suite *testSuite)  TestValidateAndParseS3Attributes() {
+
+	// return error when mandatory fields are missing
+	badS3CodeEntryAttributes := map[string]interface{}{
+		"s3Bucket": "mybucket",
+	}
+	_, err := suite.builder.validateAndParseS3Attributes(badS3CodeEntryAttributes)
+	suite.Require().EqualError(err, "Mandatory field - 's3ItemKey' not given")
+
+	// return error when some attribute is not of type string (all of them must be strings)
+	badS3CodeEntryAttributes["s3ItemKey"] = 2
+	_, err = suite.builder.validateAndParseS3Attributes(badS3CodeEntryAttributes)
+	suite.Require().EqualError(err, "The given field - 's3ItemKey' is not of type string")
+
+	// happy flow (map[string]interface{} -> map[string]string)
+	goodS3CodeEntryAttributes := map[string]interface{}{
+		"s3Bucket": "my-bucket",
+		"s3ItemKey": "my-fold/my-item.zip",
+		"s3Region": "us-east-1",
+		"s3AccessKeyId": "myaccesskeyid",
+		"s3SecretAccessKey": "mysecretaccesskey",
+		"s3SessionToken": "mys3sessiontoken",
+	}
+	expectedResult := map[string]string{
+		"s3Bucket": "my-bucket",
+		"s3ItemKey": "my-fold/my-item.zip",
+		"s3Region": "us-east-1",
+		"s3AccessKeyId": "myaccesskeyid",
+		"s3SecretAccessKey": "mysecretaccesskey",
+		"s3SessionToken": "mys3sessiontoken",
+	}
+	res, err := suite.builder.validateAndParseS3Attributes(goodS3CodeEntryAttributes)
+	suite.Require().NoError(err)
+	suite.Require().Equal(expectedResult, res)
+}
+
 func (suite *testSuite) generateDockerfileAndVerify(healthCheckRequired bool,
 	dockerfileInfo *runtime.ProcessorDockerfileInfo,
 	expectedDockerfile string) {
