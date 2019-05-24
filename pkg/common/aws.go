@@ -24,7 +24,7 @@ func DownloadFileFromAWSS3(file *os.File, bucket, itemKey, region, accessKeyID, 
 	bucket = strings.Join(bucketWithPathSlice, "/") + "/"
 
 	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String("us-east-1"), // default region (some valid region must be mentioned)
+		Region:      aws.String("us-east-1"), // default region (some valid region must be mentioned)
 		Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, sessionToken),
 	})
 	if err != nil {
@@ -46,9 +46,6 @@ func DownloadFileFromAWSS3(file *os.File, bucket, itemKey, region, accessKeyID, 
 			Bucket: aws.String(bucket),
 			Key:    aws.String(item),
 		})
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }

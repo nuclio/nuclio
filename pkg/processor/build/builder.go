@@ -616,13 +616,13 @@ func (b *Builder) validateAndParseS3Attributes(attributes map[string]interface{}
 		value, found := attributes[key]
 		if !found {
 			if common.StringInSlice(key, mandatoryFields) {
-				return nil, errors.New(fmt.Sprintf("Mandatory field - '%s' not given", key))
+				return nil, fmt.Errorf("Mandatory field - '%s' not given", key)
 			}
 			continue
 		}
 		valueAsString, ok := value.(string)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("The given field - '%s' is not of type string", key))
+			return nil, fmt.Errorf("The given field - '%s' is not of type string", key)
 		}
 		parsedAttributes[key] = valueAsString
 	}
