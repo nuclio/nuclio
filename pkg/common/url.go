@@ -45,7 +45,7 @@ func DownloadFile(URL string, out *os.File, headers http.Header) error {
 
 	if !IsSuccessfulStatusCode(response.StatusCode) {
 		return fmt.Errorf(
-			"Failed to download file. Received unsuccessfull status code: %d",
+			"Failed to download file. Received unsuccessful status code: %d",
 			response.StatusCode)
 	}
 
