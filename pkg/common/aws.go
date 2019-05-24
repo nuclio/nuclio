@@ -40,10 +40,6 @@ func DownloadFileFromAWSS3(file *os.File, bucket, itemKey, region, accessKeyID, 
 	}
 	sess.Config.Region = aws.String(region)
 
-	if err != nil {
-		return errors.Wrap(err, "Failed to create AWS session")
-	}
-
 	downloader := s3manager.NewDownloader(sess)
 	_, err = downloader.Download(file,
 		&s3.GetObjectInput{
