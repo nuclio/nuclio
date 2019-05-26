@@ -31,6 +31,7 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+// Trigger is common trigger interface
 type Trigger interface {
 
 	// Initialize performs post creation initializations
@@ -61,9 +62,14 @@ type Trigger interface {
 	// TODO: locks and such when relevant
 	GetWorkers() []*worker.Worker
 
+	// GetNamespace returns namespace
 	GetNamespace() string
 
+	// GetFunctionName returns function name
 	GetFunctionName() string
+
+	// TimeoutWorker times out a worker
+	TimeoutWorker(worker *worker.Worker) error
 }
 
 // AbstractTrigger implements common trigger operations
@@ -212,6 +218,7 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance *worker.Worker,
 		*submitError = fmt.Errorf("Caught panic: %s", err)
 
 		if workerInstance != nil {
+			workerInstance.ResetEventTime()
 			at.WorkerAllocator.Release(workerInstance)
 		}
 
@@ -234,6 +241,11 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	// increment statistics based on results. if process error is nil, we successfully handled
 	at.UpdateStatistics(processError == nil)
 	return
+}
+
+// TimeoutWorker times out a worker
+func (at *AbstractTrigger) TimeoutWorker(worker *worker.Worker) error {
+	return nil
 }
 
 // UpdateStatistics updates the trigger statistics

@@ -17,6 +17,8 @@ limitations under the License.
 package http
 
 import (
+	"bufio"
+	"encoding/json"
 	net_http "net/http"
 	"strconv"
 	"time"
@@ -24,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/status"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -33,11 +36,20 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+
+var (
+	timeoutResponse = []byte(`{"error": "handler timed out"}`)
+)
+
 type http struct {
 	trigger.AbstractTrigger
 	configuration    *Configuration
 	events           []Event
 	bufferLoggerPool *nucliozap.BufferLoggerPool
+	status           status.Status
+	activeContexts   []*fasthttp.RequestCtx
+	timeouts         []uint64 // flag of worker is in timeout
+	answering        []uint64 // flag the worker is answering
 }
 
 func newTrigger(logger logger.Logger,
@@ -58,6 +70,8 @@ func newTrigger(logger logger.Logger,
 		return nil, errors.New("HTTP trigger requires a shareable worker allocator")
 	}
 
+	numWorkers := len(workerAllocator.GetWorkers())
+
 	abstractTrigger, err := trigger.NewAbstractTrigger(logger,
 		workerAllocator,
 		&configuration.Configuration,
@@ -71,9 +85,13 @@ func newTrigger(logger logger.Logger,
 		AbstractTrigger:  abstractTrigger,
 		configuration:    configuration,
 		bufferLoggerPool: bufferLoggerPool,
+		status:           status.Initializing,
+		activeContexts:   make([]*fasthttp.RequestCtx, numWorkers),
+		timeouts:         make([]uint64, numWorkers),
+		answering:        make([]uint64, numWorkers),
 	}
 
-	newTrigger.allocateEvents(len(workerAllocator.GetWorkers()))
+	newTrigger.allocateEvents(numWorkers)
 	return &newTrigger, nil
 }
 
@@ -91,12 +109,14 @@ func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 	// start listening
 	go s.ListenAndServe(h.configuration.URL) // nolint: errcheck
 
+	h.status = status.Ready
 	return nil
 }
 
 func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
 
-	// TODO
+	// TODO: Shutdown server (see https://github.com/valyala/fasthttp/issues/233)
+	h.status = status.Stopped
 	return nil, nil
 }
 
@@ -104,9 +124,40 @@ func (h *http) GetConfig() map[string]interface{} {
 	return common.StructureToMap(h.configuration)
 }
 
+func (h *http) TimeoutWorker(worker *worker.Worker) error {
+	workerIndex := worker.GetIndex()
+	if workerIndex < 0 || workerIndex >= len(h.activeContexts) {
+		return errors.Errorf("Worker %d out of range", workerIndex)
+	}
+
+	h.timeouts[workerIndex] = 1
+	time.Sleep(time.Millisecond) // Let worker do it's thing
+	if h.answering[workerIndex] == 1 {
+		return errors.Errorf("Worker %d answered the request", workerIndex)
+	}
+
+	ctx := h.activeContexts[workerIndex]
+	if ctx == nil {
+		return errors.Errorf("Worker %d answered the request", workerIndex)
+	}
+
+	h.activeContexts[workerIndex] = nil
+
+	ctx.SetStatusCode(net_http.StatusRequestTimeout)
+	bodyWrite := func(w *bufio.Writer) {
+		w.Write(timeoutResponse) // nolint: errcheck
+		w.Flush()                // nolint: errcheck
+	}
+
+	// This doesn't flush automatically, you still need to give fasthttp some
+	// time to process
+	ctx.SetBodyStreamWriter(bodyWrite)
+	return nil
+}
+
 func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	functionLogger logger.Logger,
-	timeout time.Duration) (response interface{}, submitError error, processError error) {
+	timeout time.Duration) (response interface{}, timedOut bool, submitError error, processError error) {
 
 	var workerInstance *worker.Worker
 
@@ -116,8 +167,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
 	if err != nil {
 		h.UpdateStatistics(false)
-
-		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
+		return nil, false, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
 	// use the event @ the worker index
@@ -125,9 +175,12 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	workerIndex := workerInstance.GetIndex()
 	if workerIndex < 0 || workerIndex >= len(h.events) {
 		h.WorkerAllocator.Release(workerInstance)
-		return nil, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events)), nil
+		return nil, false, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events)), nil
 	}
 
+	h.activeContexts[workerIndex] = ctx
+	h.timeouts[workerIndex] = 0
+	h.answering[workerIndex] = 0
 	event := &h.events[workerIndex]
 	event.ctx = ctx
 
@@ -137,10 +190,30 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	// release worker when we're done
 	h.WorkerAllocator.Release(workerInstance)
 
-	return
+	if h.timeouts[workerIndex] == 1 {
+		return nil, true, nil, nil
+	}
+
+	h.answering[workerIndex] = 1
+	h.activeContexts[workerIndex] = nil
+
+	return response, false, nil, processError
 }
 
+
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
+	if h.status != status.Ready {
+		ctx.Response.SetStatusCode(net_http.StatusServiceUnavailable)
+		msg := map[string]interface{}{
+			"error":  "Server not ready",
+			"status": h.status.String(),
+		}
+
+		if err := json.NewEncoder(ctx).Encode(msg); err != nil {
+			h.Logger.WarnWith("Can't encode error message", "error", err)
+		}
+	}
+
 	var functionLogger logger.Logger
 	var bufferLogger *nucliozap.BufferLogger
 
@@ -164,9 +237,23 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
 	}
 
-	response, submitError, processError := h.AllocateWorkerAndSubmitEvent(ctx,
+	response, timedOut, submitError, processError := h.AllocateWorkerAndSubmitEvent(ctx,
 		functionLogger,
 		time.Duration(h.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond)
+
+	if timedOut {
+		return
+	}
+
+	// Clear active context in case of error
+	if submitError != nil || processError != nil {
+		for i, activeCtx := range h.activeContexts {
+			if activeCtx == ctx {
+				h.activeContexts[i] = nil
+				break
+			}
+		}
+	}
 
 	if responseLogLevel != nil {
 
