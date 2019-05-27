@@ -14,7 +14,6 @@ limitations under the License.
 package timeout
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -62,7 +61,7 @@ func (t *mockTestTrigger) Stop(force bool) (functionconfig.Checkpoint, error) {
 }
 
 type mockTestProcessor struct {
-	triggers []*mockTestTrigger
+	triggers []trigger.Trigger
 	mock.Mock
 }
 
@@ -90,7 +89,7 @@ func (suite *eventTimeoutSuite) TestWatcher() {
 	mockTrigger.On("GetWorkers").Return(mockTrigger.GetWorkers())
 
 	mockProcessor := &mockTestProcessor{
-		triggers: []*mockTestTrigger{
+		triggers: []trigger.Trigger{
 			mockTrigger,
 		},
 	}

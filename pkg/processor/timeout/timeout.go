@@ -20,9 +20,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/nuclio/logger"
+	"golang.org/x/sync/errgroup"
 )
 
 // Processor is minimal processor interface
@@ -37,9 +37,9 @@ type Processor interface {
 
 // EventTimeoutWatcher checks for event timesout
 type EventTimeoutWatcher struct {
-	timeout   time.Duration
-	logger    logger.Logger
-	processor Processor
+	timeout      time.Duration
+	logger       logger.Logger
+	processor    Processor
 	shuttingDown bool
 }
 
@@ -143,19 +143,19 @@ func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[str
 	// create error group
 	triggerErrGroup := errgroup.Group{}
 
-	for triggerName, triggerInstance := range w.processor.GetTriggers() {
-		triggerName, triggerInstance := triggerName, triggerInstance
+	for triggerIdx, triggerInstance := range w.processor.GetTriggers() {
+		triggerIdx, triggerInstance := triggerIdx, triggerInstance
 
 		triggerErrGroup.Go(func() error {
 
 			if checkpoint, err := triggerInstance.Stop(false); err != nil {
-				w.logger.ErrorWith("Can't stop trigger", "trigger", triggerName, "error", err)
+				w.logger.ErrorWith("Can't stop trigger", "triggerIdx", triggerIdx, "error", err)
 			} else {
 				checkpointValue := ""
 				if checkpoint != nil {
 					checkpointValue = *checkpoint
 				}
-				w.logger.InfoWith("Trigger stopped", "trigger", triggerName, "checkpoint", checkpointValue)
+				w.logger.InfoWith("Trigger stopped", "triggerIdx", triggerIdx, "checkpoint", checkpointValue)
 			}
 
 			for _, workerInstance := range triggerInstance.GetWorkers() {
@@ -167,7 +167,7 @@ func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[str
 					continue
 				}
 
-				key := fmt.Sprintf("%s:%d", triggerName, workerInstance.GetIndex())
+				key := fmt.Sprintf("%d:%d", triggerIdx, workerInstance.GetIndex())
 				runningWorkers[key] = workerInstance
 			}
 

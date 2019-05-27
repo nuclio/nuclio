@@ -36,7 +36,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-
 var (
 	timeoutResponse = []byte(`{"error": "handler timed out"}`)
 )
@@ -209,7 +208,6 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 
 	return response, false, nil, processError
 }
-
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 	if h.status != status.Ready {

@@ -29,9 +29,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/timeout"
-	"github.com/nuclio/nuclio/pkg/processor/util/clock"
-
 	// load all runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
@@ -41,6 +38,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/ruby"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/status"
+	"github.com/nuclio/nuclio/pkg/processor/timeout"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all triggers
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
@@ -57,6 +55,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/pubsub"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
+	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	// load all sinks
@@ -84,7 +83,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 	newProcessor := &Processor{
 		namedWorkerAllocators: map[string]worker.Allocator{},
-		stop: make(chan bool, 1),
+		stop:                  make(chan bool, 1),
 	}
 
 	// read platform configuration

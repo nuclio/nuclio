@@ -370,7 +370,8 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 		"resources": {},
 		"build": {},
 		"platform": {},
-		"replicas": 10
+		"replicas": 10,
+		"eventTimeout": ""
 	},
 	"status": {}
 }`
@@ -437,7 +438,8 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 			"resources": {},
 			"build": {},
 			"platform": {},
-			"runtime": "r1"
+			"runtime": "r1",
+		    "eventTimeout": ""
 		},
 		"status": {}
 	},
@@ -450,7 +452,8 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 			"resources": {},
 			"build": {},
 			"platform": {},
-			"runtime": "r2"
+			"runtime": "r2",
+		    "eventTimeout": ""
 		},
 		"status": {}
 	}

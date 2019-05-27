@@ -32,7 +32,7 @@ import (
 type testRuntime struct {
 	*AbstractRuntime
 	wrapperProcess *os.Process
-	wrapperConn net.Conn
+	wrapperConn    net.Conn
 }
 
 // NewRuntime returns a new Python runtime

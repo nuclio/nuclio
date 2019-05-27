@@ -168,9 +168,9 @@ func (r *AbstractRuntime) Restart() error {
 	// Send error for current event (non-blocking)
 	select {
 	case r.resultChan <- &result{
-			StatusCode: http.StatusRequestTimeout,
-			err:        errors.New("Runtime restarted"),
-		}:
+		StatusCode: http.StatusRequestTimeout,
+		err:        errors.New("Runtime restarted"),
+	}:
 
 	default:
 		r.Logger.Warn("Nothing waiting on result channel during restart. Continuing")
