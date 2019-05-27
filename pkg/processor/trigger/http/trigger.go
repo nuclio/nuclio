@@ -50,6 +50,7 @@ type http struct {
 	activeContexts   []*fasthttp.RequestCtx
 	timeouts         []uint64 // flag of worker is in timeout
 	answering        []uint64 // flag the worker is answering
+	server           *fasthttp.Server
 }
 
 func newTrigger(logger logger.Logger,
@@ -100,23 +101,32 @@ func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 		"listenAddress", h.configuration.URL,
 		"readBufferSize", h.configuration.ReadBufferSize)
 
-	s := &fasthttp.Server{
+	h.server = &fasthttp.Server{
 		Handler:        h.requestHandler,
 		Name:           "nuclio",
 		ReadBufferSize: h.configuration.ReadBufferSize,
 	}
 
 	// start listening
-	go s.ListenAndServe(h.configuration.URL) // nolint: errcheck
+	go h.server.ListenAndServe(h.configuration.URL) // nolint: errcheck
 
 	h.status = status.Ready
 	return nil
 }
 
 func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
+	h.Logger.Debug("Shutting down")
 
-	// TODO: Shutdown server (see https://github.com/valyala/fasthttp/issues/233)
 	h.status = status.Stopped
+
+	if h.server != nil {
+		err := h.server.Shutdown()
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to stop server")
+		}
+	}
+
 	return nil, nil
 }
 
