@@ -149,6 +149,7 @@ public class Wrapper {
 
         Context context = new WrapperContext(sock.getOutputStream());
         Response response;
+        Long start, end;
 
         while (true) {
             try {
@@ -156,7 +157,10 @@ public class Wrapper {
                 if (event == null) {
                     break;
                 }
+                start = System.currentTimeMillis();
                 response = handler.handleEvent(context, event);
+                end = System.currentTimeMillis();
+                responseEncoder.encodeMetrics(end - start);
             } catch (Exception err) {
                 StringWriter stringWriter = new StringWriter();
                 PrintWriter printWriter = new PrintWriter(stringWriter);
@@ -167,7 +171,7 @@ public class Wrapper {
                 response = new Response().setBody(stringWriter.toString())
                         .setStatusCode(500);
             }
-            responseEncoder.encode(response);
+	    responseEncoder.encode(response);
         }
     }
 
