@@ -562,6 +562,15 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		}
 
 		functionPath = tempFile.Name()
+
+		if !util.IsCompressed(functionPath) {
+			return "", errors.New("Downloaded file must be an archive")
+		}
+
+		functionPath, err = b.decompressFunctionArchive(functionPath)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to decompress function archive")
+		}
 	}
 
 	// Assume it's a local path
@@ -572,13 +581,6 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 	if !common.FileExists(resolvedPath) {
 		return "", fmt.Errorf("Function path doesn't exist: %s", resolvedPath)
-	}
-
-	if util.IsCompressed(resolvedPath) {
-		resolvedPath, err = b.decompressFunctionArchive(resolvedPath)
-		if err != nil {
-			return "", errors.Wrap(err, "Failed to decompress function archive")
-		}
 	}
 
 	return resolvedPath, nil
