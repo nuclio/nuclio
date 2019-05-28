@@ -532,7 +532,13 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
 		}
 
-		tempFile, err := ioutil.TempFile(tempDir, "nuclio-function-")
+		// retain file extension
+		fileExtension, err := b.getFileExtensionByURL(functionPath)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to get file extension from URL")
+		}
+
+		tempFile, err := ioutil.TempFile(tempDir, "nuclio-function-*" + fileExtension)
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed to create temporary file: %s", tempDir)
 		}
@@ -1495,4 +1501,15 @@ func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegist
 		"renderedImageURL", renderedImageURL)
 
 	return renderedImageURL, nil
+}
+
+func (b *Builder) getFileExtensionByURL(inputURL string) (string, error) {
+
+	// parse the url
+	parsedURL, err := url.Parse(inputURL)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to parse URL")
+	}
+
+	return path.Ext(parsedURL.Path), nil
 }
