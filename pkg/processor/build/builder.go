@@ -538,7 +538,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 			return "", errors.Wrap(err, "Failed to get file extension from URL")
 		}
 
-		tempFile, err := ioutil.TempFile(tempDir, "nuclio-function-*" + fileExtension)
+		tempFile, err := ioutil.TempFile(tempDir, "nuclio-function-*"+fileExtension)
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed to create temporary file: %s", tempDir)
 		}
