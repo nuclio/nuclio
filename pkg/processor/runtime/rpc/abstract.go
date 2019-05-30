@@ -41,7 +41,6 @@ import (
 const (
 	socketPathTemplate = "/tmp/nuclio-rpc-%s.sock"
 	connectionTimeout  = 2 * time.Minute
-	eventTimeout       = 5 * time.Minute
 )
 
 type result struct {
