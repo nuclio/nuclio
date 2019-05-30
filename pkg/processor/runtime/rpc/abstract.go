@@ -38,7 +38,7 @@ import (
 // TODO: Find a better place (both on file system and configuration)
 const (
 	socketPathTemplate = "/tmp/nuclio-rpc-%s.sock"
-	connectionTimeout  = 10 * time.Second
+	connectionTimeout  = 2 * time.Minute
 	eventTimeout       = 5 * time.Minute
 )
 
@@ -225,6 +225,7 @@ func (r *AbstractRuntime) createUnixListener() (net.Listener, string, error) {
 	if !ok {
 		return nil, "", fmt.Errorf("Can't get underlying Unix listener")
 	}
+
 	if err = unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
 		return nil, "", errors.Wrap(err, "Can't set deadline")
 	}
