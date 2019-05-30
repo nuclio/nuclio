@@ -17,9 +17,12 @@ limitations under the License.
 package worker
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/status"
+	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -34,6 +37,7 @@ type Worker struct {
 	statistics           Statistics
 	structuredCloudEvent cloudevent.Structured
 	binaryCloudEvent     cloudevent.Binary
+	eventTime            *time.Time
 }
 
 // NewWorker creates a new worker
@@ -54,8 +58,11 @@ func NewWorker(parentLogger logger.Logger,
 // ProcessEvent sends the event to the associated runtime
 func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
 
+	w.eventTime = clock.Now()
+
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(event, functionLogger)
+	w.eventTime = nil
 
 	// check if there was a processing error. if so, log it
 	if err != nil {
@@ -86,7 +93,7 @@ func (w *Worker) GetIndex() int {
 	return w.index
 }
 
-// GetIndex returns the runtime of the worker, as specified during creation
+// GetRuntime returns the runtime of the worker, as specified during creation
 func (w *Worker) GetRuntime() runtime.Runtime {
 	return w.runtime
 }
@@ -101,10 +108,33 @@ func (w *Worker) Stop() error {
 	return w.runtime.Stop()
 }
 
+// GetStructuredCloudEvent return a structued clould event
 func (w *Worker) GetStructuredCloudEvent() *cloudevent.Structured {
 	return &w.structuredCloudEvent
 }
 
+// GetBinaryCloudEvent return a binary cloud event
 func (w *Worker) GetBinaryCloudEvent() *cloudevent.Binary {
 	return &w.binaryCloudEvent
+}
+
+// GetEventTime return current event time, nil if we're not handling event
+func (w *Worker) GetEventTime() *time.Time {
+	return w.eventTime
+}
+
+// ResetEventTime resets the event time
+func (w *Worker) ResetEventTime() {
+	w.eventTime = nil
+}
+
+// Restart restarts the worker
+func (w *Worker) Restart() error {
+	w.eventTime = nil
+	return w.runtime.Restart()
+}
+
+// SupportsRestart returns true if the underlying runtime supports restart
+func (w *Worker) SupportsRestart() bool {
+	return w.runtime.SupportsRestart()
 }

@@ -56,7 +56,7 @@ func (suite *TestSuite) TestPostEventPythonSchedule() {
 	createFunctionOptions := suite.getCronDeployOptions()
 
 	// Once every 3 seconds. Should occur 3-4 times during a 10-second test
-	createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["schedule"] = "*/3 * * * *"
+	createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["schedule"] = "*/3 * * * * *"
 
 	suite.invokeEventRecorder(createFunctionOptions)
 }

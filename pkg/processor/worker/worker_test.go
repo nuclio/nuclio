@@ -61,6 +61,14 @@ func (mr *MockRuntime) Stop() error {
 	return nil
 }
 
+func (mr *MockRuntime) Restart() error {
+	return nil
+}
+
+func (mr *MockRuntime) SupportsRestart() bool {
+	return true
+}
+
 type WorkerTestSuite struct {
 	suite.Suite
 	logger logger.Logger

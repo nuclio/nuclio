@@ -50,6 +50,12 @@ type Runtime interface {
 
 	// Stop stops the runtime
 	Stop() error
+
+	// Restart restarts the runtime
+	Restart() error
+
+	// SupportsRestart return true if the runtime supports restart
+	SupportsRestart() bool
 }
 
 // AbstractRuntime is the base for all runtimes
@@ -121,6 +127,17 @@ func (ar *AbstractRuntime) SetStatus(newStatus status.Status) {
 // GetStatus returns the runtime's reported status
 func (ar *AbstractRuntime) GetStatus() status.Status {
 	return ar.status
+}
+
+// Restart restarts the runtime
+func (ar *AbstractRuntime) Restart() error {
+	runtimeName := ar.GetConfiguration().Spec.Runtime
+	return errors.Errorf("Runtime %s does not support restart", runtimeName)
+}
+
+// SupportsRestart returns true if the runtime supports restart
+func (ar *AbstractRuntime) SupportsRestart() bool {
+	return false
 }
 
 func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger,

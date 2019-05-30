@@ -141,9 +141,9 @@ spec:
 			Labels:    map[string]string{}, // empty map
 		},
 		Spec: Spec{
-			Runtime: "python2.7",
-			Handler: "my_handler",
-			Env:     []v1.EnvVar{{Name: "env_var", Value: "my_env_val"}},
+			Runtime:   "python2.7",
+			Handler:   "my_handler",
+			Env:       []v1.EnvVar{{Name: "env_var", Value: "my_env_val"}},
 			TargetCPU: 51,
 		},
 	}
