@@ -22,9 +22,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/nuclio/logger"
+	"golang.org/x/sync/errgroup"
 )
 
 type Factory struct{}
