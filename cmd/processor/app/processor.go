@@ -62,6 +62,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 
 	"github.com/nuclio/logger"
+	"golang.org/x/sync/errgroup"
 )
 
 // Processor is responsible to process events
@@ -276,27 +277,40 @@ func (p *Processor) readPlatformConfiguration(configurationPath string) (*platfo
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
 	var triggers []trigger.Trigger
 
+	// create error group
+	errGroup := errgroup.Group{}
+
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
+		triggerName, triggerConfiguration := triggerName, triggerConfiguration
 
-		// create an event source based on event source configuration and runtime configuration
-		triggerInstance, err := trigger.RegistrySingleton.NewTrigger(p.logger,
-			triggerConfiguration.Kind,
-			triggerName,
-			&triggerConfiguration,
-			&runtime.Configuration{
-				Configuration:  processorConfiguration,
-				FunctionLogger: p.functionLogger,
-			},
-			p.namedWorkerAllocators)
+		errGroup.Go(func() error {
 
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to create triggers")
-		}
+			// create an event source based on event source configuration and runtime configuration
+			triggerInstance, err := trigger.RegistrySingleton.NewTrigger(p.logger,
+				triggerConfiguration.Kind,
+				triggerName,
+				&triggerConfiguration,
+				&runtime.Configuration{
+					Configuration:  processorConfiguration,
+					FunctionLogger: p.functionLogger,
+				},
+				p.namedWorkerAllocators)
 
-		// append to triggers (can be nil - ignore unknown triggers)
-		if triggerInstance != nil {
-			triggers = append(triggers, triggerInstance)
-		}
+			if err != nil {
+				return errors.Wrapf(err, "Failed to create triggers")
+			}
+
+			// append to triggers (can be nil - ignore unknown triggers)
+			if triggerInstance != nil {
+				triggers = append(triggers, triggerInstance)
+			}
+
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
 
 	// create default event source, given the triggers already created by configuration
