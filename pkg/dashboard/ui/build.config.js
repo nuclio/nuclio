@@ -24,6 +24,7 @@ module.exports = {
         templates: 'node_modules/iguazio.dashboard-controls/src/**/*.html',
         fonts: 'node_modules/iguazio.dashboard-controls/src/igz_controls/fonts/**/*',
         images: 'node_modules/iguazio.dashboard-controls/src/igz_controls/images/*',
+        i18n: 'node_modules/iguazio.dashboard-controls/src/i18n/**/*',
         templates_module_name: 'iguazio.dashboard-controls.templates'
     },
 
@@ -72,6 +73,7 @@ module.exports = {
             'src/images/**/*',
             'node_modules/iguazio.dashboard-controls/dist/images/**/*'
         ],
+        i18n: 'node_modules/iguazio.dashboard-controls/dist/i18n/**/*',
         templates: 'src/app/components/**/*.tpl.html', // html files should be only in components folder
         templates_module_name: 'nuclio.app.templates'
     },
@@ -86,6 +88,9 @@ module.exports = {
             ],
             tests: [
                 'src/**/*.spec.js'
+            ],
+            i18n: [
+                'node_modules/iguazio.dashboard-controls/src/i18n'
             ],
             karma_config: 'tests/unit/karma.config.js'
         },
@@ -146,6 +151,12 @@ module.exports = {
             'node_modules/ng-dialog/js/ngDialog.js',
             'node_modules/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.concat.min.js',
             'node_modules/ng-scrollbars/dist/scrollbars.min.js',
+            'node_modules/i18next/i18next.js',
+            'node_modules/ng-i18next/dist/ng-i18next.js',
+            'node_modules/i18next-xhr-backend/i18nextXHRBackend.js',
+            'node_modules/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.js',
+            'node_modules/i18next-chained-backend/i18nextChainedBackend.js',
+            'node_modules/i18next-localstorage-backend/i18nextLocalStorageBackend.js',
             'node_modules/monaco-editor/min/vs/loader.js',
             'node_modules/ng-file-upload/dist/ng-file-upload.js',
             'node_modules/ng-file-upload/dist/FileAPI.js',

@@ -3,12 +3,26 @@
         <div class="main-header-title-wrapper">
             <ncl-breadcrumbs-data-wrapper></ncl-breadcrumbs-data-wrapper>
         </div>
+        <div class="languages-dropdown">
+            <form name="$ctrl.translationForm">
+                <igz-default-dropdown data-name-key="attr.lang"
+                                      data-values-array="$ctrl.languages"
+                                      data-selected-item="$ctrl.selectedLanguage"
+                                      data-item-select-callback="$ctrl.onLanguageChange(item, isItemChanged)"
+                                      data-item-select-field="attr.id"
+                                      data-form-object="$ctrl.translationForm"
+                                      data-input-name="languageName"
+                                      data-placeholder="{{ 'header:SELECT_LANGUAGE' | i18next }}">
+                </igz-default-dropdown>
+            </form>
+        </div>
+    </div>
     </div>
 </header>
 
 <div class="header-expansion-button"
      data-ng-click="$ctrl.onToggleHeader()"
-     data-uib-tooltip="{{$ctrl.isHeaderExpanded ? 'Close header' : 'Open header'}}"
+     data-uib-tooltip="{{ ($ctrl.isHeaderExpanded ? 'header:TOOLTIP.CLOSE_HEADER' : 'header:TOOLTIP.OPEN_HEADER') | i18next }}"
      data-tooltip-popup-delay="500"
      data-tooltip-placement="bottom">
     <div class="expansion-icon {{$ctrl.isHeaderExpanded ? 'igz-icon-up' : 'igz-icon-down'}}"></div>

@@ -257,6 +257,17 @@ gulp.task('images', function () {
 });
 
 /**
+ * Copy all translation files to the build directory
+ */
+gulp.task('i18n', function () {
+    var distFolder = config.assets_dir + '/i18n';
+
+    return gulp.src(config.app_files.i18n)
+        .pipe(errorHandler(handleError))
+        .pipe(gulp.dest(distFolder));
+});
+
+/**
  * Build index.html for ordinary use
  */
 gulp.task('index.html', function () {
@@ -304,6 +315,9 @@ gulp.task('test-unit-run', function (done) {
     new KarmaServer({
         configFile: __dirname + '/' + config.test_files.unit.karma_config,
         files: files,
+        proxies: {
+            '/assets/i18n/': path.resolve(__dirname + '/' + config.test_files.unit.i18n)
+        },
         action: 'run'
     }, done).start();
 });
@@ -363,7 +377,7 @@ gulp.task('test-e2e-run', function () {
      * @type {number}
      */
     if (argv['browsers']) {
-        browserInstances = parseInt(argv['browsers'])
+        browserInstances = parseInt(argv['browsers']);
     }
 
     if (argv['demo']) {
@@ -414,7 +428,7 @@ gulp.task('test-e2e-run', function () {
      */
     if (argv['exclude-pattern']) {
         argv['exclude-pattern'].split(',').forEach(function (excludePattern) {
-            exclusions.push(config.test_files.e2e.specs_location + excludePattern.trim() + '.spec.js')
+            exclusions.push(config.test_files.e2e.specs_location + excludePattern.trim() + '.spec.js');
         });
         argumentList.push(
             '--exclude', exclusions.join(',')
@@ -486,6 +500,11 @@ gulp.task('watcher', function () {
     });
     gutil.log('Watching', gutil.colors.blue('JSON'), 'files');
 
+    gulp.watch(config.app_files.i18n, {interval: 3000}, function () {
+        return runSequence('i18n');
+    });
+    gutil.log('Watching', gutil.colors.blue('I18N'), 'files');
+
     gulp.watch(config.shared_files.less, function () {
         return runSequence('build_shared');
     });
@@ -554,7 +573,7 @@ function buildConfigFromArgs() {
  * Base build task
  */
 gulp.task('build', function (next) {
-    runSequence('lint', 'clean', ['vendor.css', 'vendor.js'], ['app.css', 'app.js', 'fonts', 'images', 'monaco'], 'index.html', 'dashboard-config.json', next);
+    runSequence('lint', 'clean', ['vendor.css', 'vendor.js'], ['app.css', 'app.js', 'fonts', 'images', 'i18n', 'monaco'], 'index.html', 'dashboard-config.json', next);
 });
 
 /**
@@ -684,6 +703,17 @@ gulp.task('fonts_shared', function () {
 });
 
 /**
+ * Copy all translation files to the build directory
+ */
+gulp.task('i18n_shared', function () {
+    var distFolder = config.shared_files.dist + '/i18n';
+
+    return gulp.src(config.shared_files.i18n)
+        .pipe(errorHandler(handleError))
+        .pipe(gulp.dest(distFolder));
+});
+
+/**
  * Optimize all images and copy them to the build directory
  */
 gulp.task('images_shared', function () {
@@ -725,7 +755,7 @@ gulp.task('inject-version_shared', function () {
  */
 gulp.task('build_shared', function (next) {
     if (state.isDevMode) {
-        runSequence('lint_shared', 'inject-version_shared', ['app.less_shared', 'app.js_shared', 'fonts_shared', 'images_shared'], next);
+        runSequence('lint_shared', 'inject-version_shared', ['app.less_shared', 'app.js_shared', 'fonts_shared', 'images_shared', 'i18n_shared'], next);
     } else {
         next();
     }

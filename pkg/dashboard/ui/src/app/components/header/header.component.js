@@ -7,16 +7,28 @@
             controller: NclHeaderController
         });
 
-    function NclHeaderController($timeout, $element, $rootScope, $scope, $state, ngDialog, lodash, ConfigService,
-                                 DialogsService, NuclioVersionService) {
+    function NclHeaderController($timeout, $element, $rootScope, $scope, $state, $transitions, $i18next, i18next,
+                                 ngDialog, lodash, ConfigService) {
         var ctrl = this;
 
+        var deregisterExitFunction = null;
+        var deregisterErrorFunction = null;
         var topGeneralContentPosition;
         var headerOffsetTopPosition;
 
         ctrl.isSplashShowed = {
             value: false
         };
+        ctrl.languages = [
+            {
+                name: 'English',
+                id: 'en'
+            },
+            {
+                name: 'Ukrainian',
+                id: 'uk'
+            }
+        ];
         ctrl.mainHeaderTitle = {};
         ctrl.navigationTabsConfig = [];
         ctrl.isHeaderExpanded = true;
@@ -26,8 +38,9 @@
 
         ctrl.isDemoMode = ConfigService.isDemoMode;
         ctrl.isStagingMode = ConfigService.isStagingMode;
-        ctrl.onToggleHeader = onToggleHeader;
         ctrl.isNuclioState = isNuclioState;
+        ctrl.onLanguageChange = onLanguageChange;
+        ctrl.onToggleHeader = onToggleHeader;
 
         //
         // Hook methods
@@ -38,6 +51,7 @@
          */
         function onInit() {
             $scope.$on('$stateChangeSuccess', onStateChangeSuccess);
+            setSelectedLanguage();
         }
 
         /**
@@ -62,6 +76,32 @@
          */
         function isNuclioState() {
             return lodash.includes($state.current.name, 'app.project');
+        }
+
+        /**
+         * Callback on changing language
+         * @param {Object} item - selected language object
+         * @param {boolean} isItemChanged - was value changed or not
+         */
+        function onLanguageChange(item, isItemChanged) {
+            if (isItemChanged) {
+                ctrl.selectedLanguage = item;
+                i18next.loadLanguages(ctrl.selectedLanguage.id, function () {
+                    $state.reload();
+
+                    deregisterExitFunction = $transitions.onExit({}, function () {
+                        $i18next.changeLanguage(ctrl.selectedLanguage.id);
+                        deregisterExitFunction();
+                        deregisterErrorFunction();
+                    });
+
+                    deregisterErrorFunction = $transitions.onError({}, function () {
+                        setSelectedLanguage();
+                        deregisterErrorFunction();
+                        deregisterExitFunction();
+                    });
+                });
+            }
         }
 
         /**
@@ -121,6 +161,13 @@
             var mainWrapperPaddingTop = $element.find('.ncl-main-header').get(0).clientHeight;
 
             angular.element('.ncl-main-wrapper').css('padding-top', mainWrapperPaddingTop + 'px');
+        }
+
+        /**
+         * Sets current language as selected
+         */
+        function setSelectedLanguage() {
+            ctrl.selectedLanguage = lodash.find(ctrl.languages, ['id', i18next.language.replace(/(\w{2}).+/, '$1')]);
         }
     }
 }());
