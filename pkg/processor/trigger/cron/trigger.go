@@ -81,14 +81,11 @@ func newTrigger(logger logger.Logger,
 	} else if configuration.Schedule != "" {
 		newTrigger.tickMethod = tickMethodSchedule
 
-		// make sure the given schedule structure contains all 6 fields (Second, Minute, Hour, ...)
+		// prevent the user from using * as Seconds
 		splitSchedule := strings.Split(configuration.Schedule, " ")
-		if len(splitSchedule) != 6 {
-			return nil, errors.Errorf("Cron trigger schedule doesn't have all needed 6 fields: %+v", configuration.Schedule)
+		if splitSchedule[0] == "*" {
+			splitSchedule[0] = "0"
 		}
-
-		// Cron schedule kind does not support seconds. Changing the seconds to 0
-		splitSchedule[0] = "0"
 		normalizedSchedule := strings.Join(splitSchedule, " ")
 
 		newTrigger.schedule, err = cronlib.Parse(normalizedSchedule)

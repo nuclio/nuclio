@@ -28,9 +28,11 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
+	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
@@ -49,7 +51,7 @@ func (suite *RPCSuite) TestLogBeforeEvent() {
 
 	var conn net.Conn
 
-	_, err = NewAbstractRuntime(logger, suite.runtimeConfiguration(), nil)
+	_, err = NewAbstractRuntime(logger, suite.runtimeConfiguration(logger), nil)
 	suite.Require().NoError(err, "Can't create RPC runtime")
 
 	message := "testing log before"
@@ -83,11 +85,18 @@ func (suite *RPCSuite) dummyProcess() *os.Process {
 	return cmd.Process
 }
 
-func (suite *RPCSuite) runtimeConfiguration() *runtime.Configuration {
+func (suite *RPCSuite) runtimeConfiguration(loggerInstance logger.Logger) *runtime.Configuration {
 	return &runtime.Configuration{
+		FunctionLogger: loggerInstance,
 		Configuration: &processor.Configuration{
 			Config: functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Namespace: "test",
+				},
 				Spec: functionconfig.Spec{},
+			},
+			PlatformConfig: &platformconfig.Config{
+				Kind: "docker",
 			},
 		},
 	}
