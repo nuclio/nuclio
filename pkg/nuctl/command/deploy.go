@@ -201,7 +201,7 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVar(&functionConfig.Spec.Image, "run-image", "", "Name of an existing image to deploy (default - build a new image to deploy)")
 	cmd.Flags().StringVar(&functionConfig.Spec.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "URL of a registry for pulling the image, if differs from -r/--registry (env: NUCTL_RUN_REGISTRY)")
 	cmd.Flags().StringVar(&commandeer.encodedRuntimeAttributes, "runtime-attrs", "{}", "JSON-encoded runtime attributes for the function")
-	cmd.Flags().IntVar(&functionConfig.Spec.ReadinessTimeoutSeconds, "readiness-timeout", 60, "maximum wait time for the function to be ready")
+	cmd.Flags().IntVar(&functionConfig.Spec.ReadinessTimeoutSeconds, "readiness-timeout", 30, "maximum wait time for the function to be ready")
 	cmd.Flags().StringVar(&commandeer.projectName, "project-name", "", "name of project to which this function belongs to")
 	cmd.Flags().Var(&commandeer.volumes, "volume", "Volumes for the deployment function (src1=dest1[,src2=dest2,...])")
 	cmd.Flags().Var(&commandeer.resourceLimits, "resource-limit", "Limits resources in the format of resource-name=quantity (e.g. cpu=3)")
