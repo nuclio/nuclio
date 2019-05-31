@@ -549,7 +549,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	if createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds != 0 {
 		readinessTimeout = time.Duration(createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds) * time.Second
 	} else {
-		readinessTimeout = 60 * time.Second
+		readinessTimeout = 30 * time.Second
 	}
 
 	if err = p.dockerClient.AwaitContainerHealth(containerID, &readinessTimeout); err != nil {
