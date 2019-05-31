@@ -43,12 +43,6 @@ func DownloadFile(URL string, out *os.File, headers http.Header) error {
 		return err
 	}
 
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf(
-			"Failed to download file. Received an unexpected status code: %d",
-			response.StatusCode)
-	}
-
 	defer response.Body.Close() // nolint: errcheck
 
 	written, err := io.Copy(out, response.Body)
