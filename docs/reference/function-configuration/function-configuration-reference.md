@@ -9,7 +9,7 @@ This document describes the various fields in the function configuration.
 - [Specification](#specification)
 - [See also](#see-also)
 
-## Basic structure 
+## Basic structure
 
 The basic structure resembles Kubernetes resource definitions, and includes the `apiVersion`, `kind`, `metadata`, `spec`, and `status` sections. Following is an example if a minimal definition:
 
@@ -56,7 +56,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | description | string | A textual description of the function |
 | handler | string | The entry point to the function, in the form of `package:entrypoint`. Varies slightly between runtimes, see the appropriate runtime documentation for specifics |
 | runtime | string | The name of the language runtime. One of: `golang`, `python:2.7`, `python:3.6`, `shell`, `java`, `nodejs`, `pypy` | 
-| image | string | The container image holding the function |
+| image | string | Name of the function's Docker image |
 | env | map | A name-value environment-variable tuple. It is also possible to point to secrets, as demonstrated in the following example |
 | volumes | map | A map in an architecture similar to Kubernetes volumes, for Docker deployment |
 | replicas | int | The number of desired instances; 0 for auto-scaling. |
@@ -78,6 +78,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | build.baseImage | string | The base image from which the processor image will be built |
 | build.Commands | list of string | Commands run opaquely as part of container image build |
 | build.onbuildImage | string | The "onbuild" image from which the processor image will be built; can use {{ .Label }} and {{ .Arch }} for formatting |
+| build.image | string | Name of the built function Docker image |
 | build.codeEntryType | string | Determining where to fetch the function code and configuration from |
 | build.codeEntryAttributes | See [reference](/docs/reference/function-configuration/code-entry-types.md) | The code entry attributes |
 | runRegistry | string | The container image repository from which the platform will pull the image |

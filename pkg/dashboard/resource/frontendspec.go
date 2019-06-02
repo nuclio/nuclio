@@ -42,13 +42,11 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 		},
 	}
 
-	headersContentTypeApplicationJSON := map[string]string{"Content-Type": "application/json"}
-
 	return &restful.CustomRouteFuncResponse{
 		Single:     true,
 		StatusCode: http.StatusOK,
 		Resources:  frontendSpec,
-		Headers:    headersContentTypeApplicationJSON,
+		Headers:    map[string]string{"Content-Type": "application/json"},
 	}, nil
 }
 
