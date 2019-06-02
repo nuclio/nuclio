@@ -1,9 +1,10 @@
 package common
 
 import (
+	"fmt"
 	"os"
+	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
@@ -16,12 +17,9 @@ import (
 
 func DownloadFileFromAWSS3(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error {
 	itemKey = filepath.Clean(itemKey)
-	splitPath := strings.Split(itemKey, "/")
 
-	item := splitPath[len(splitPath)-1]
-
-	bucketWithPathSlice := append([]string{bucket}, splitPath[:len(splitPath)-1]...)
-	bucket = strings.Join(bucketWithPathSlice, "/") + "/"
+	pathInsideBucket, item := path.Split(itemKey)
+	bucketAndPath := fmt.Sprintf("%s/%s/", bucket, pathInsideBucket)
 
 	sess, err := session.NewSession(&aws.Config{
 		Region:      aws.String("us-east-1"), // default region (some valid region must be mentioned)
@@ -33,7 +31,7 @@ func DownloadFileFromAWSS3(file *os.File, bucket, itemKey, region, accessKeyID, 
 
 	// get the bucket's region in case it wasn't given
 	if region == "" {
-		region, err = s3manager.GetBucketRegion(aws.BackgroundContext(), sess, bucket, "")
+		region, err = s3manager.GetBucketRegion(aws.BackgroundContext(), sess, bucketAndPath, "")
 		if err != nil {
 			return errors.Wrap(err, "Failed to get bucket region")
 		}
@@ -43,7 +41,7 @@ func DownloadFileFromAWSS3(file *os.File, bucket, itemKey, region, accessKeyID, 
 	downloader := s3manager.NewDownloader(sess)
 	_, err = downloader.Download(file,
 		&s3.GetObjectInput{
-			Bucket: aws.String(bucket),
+			Bucket: aws.String(bucketAndPath),
 			Key:    aws.String(item),
 		})
 

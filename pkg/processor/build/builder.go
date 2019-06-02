@@ -56,9 +56,9 @@ import (
 const (
 	functionConfigFileName = "function.yaml"
 	uhttpcImage            = "quay.io/nuclio/uhttpc:0.0.1-amd64"
-	githubEntryType        = "github"
-	archiveEntryType       = "archive"
-	s3EntryType            = "s3"
+	GithubEntryType        = "github"
+	ArchiveEntryType       = "archive"
+	S3EntryType            = "s3"
 )
 
 // holds parameters for things that are required before a runtime can be initialized
@@ -501,7 +501,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	// function can either be in the path, received inline or an executable via handler
 	if b.options.FunctionConfig.Spec.Build.Path == "" &&
 		b.options.FunctionConfig.Spec.Image == "" &&
-		codeEntryType != s3EntryType {
+		codeEntryType != S3EntryType {
 
 		if b.options.FunctionConfig.Spec.Runtime != "shell" {
 			return "", errors.New("Function path must be provided when specified runtime isn't shell")
@@ -515,14 +515,14 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	}
 
 	// user has to provide valid url when code entry type is github
-	if !common.IsURL(functionPath) && codeEntryType == githubEntryType {
+	if !common.IsURL(functionPath) && codeEntryType == GithubEntryType {
 		return "", errors.New("Must provide valid URL when code entry type is github or archive")
 	}
 
 	// if the function path is a URL, type is Github or S3 - first download the file
 	// for backwards compatibility, don't check for entry type url specifically
-	if common.IsURL(functionPath) || codeEntryType == s3EntryType {
-		if codeEntryType == githubEntryType {
+	if common.IsURL(functionPath) || codeEntryType == S3EntryType {
+		if codeEntryType == GithubEntryType {
 			functionPath, err = b.getFunctionPathFromGithubURL(functionPath)
 			if err != nil {
 				return "", errors.Wrapf(err, "Failed to infer function path of github entry type")
@@ -539,7 +539,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 			return "", errors.Wrapf(err, "Failed to create temporary file: %s", tempDir)
 		}
 
-		if codeEntryType == s3EntryType {
+		if codeEntryType == S3EntryType {
 			s3Attributes, err := b.validateAndParseS3Attributes(b.options.FunctionConfig.Spec.Build.CodeEntryAttributes)
 			if err != nil {
 				return "", errors.Wrap(err, "Failed to parse and validate s3 code entry attributes")
@@ -660,7 +660,7 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 	}
 
 	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
-	if codeEntryType == githubEntryType {
+	if codeEntryType == GithubEntryType {
 		decompressDir, err = b.resolveGithubArchiveWorkDir(decompressDir)
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to get decompressed directory of entry type github")
@@ -692,7 +692,7 @@ func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (stri
 	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
 	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
 
-	if (codeEntryType == archiveEntryType || codeEntryType == githubEntryType || codeEntryType == s3EntryType) && found {
+	if (codeEntryType == ArchiveEntryType || codeEntryType == GithubEntryType || codeEntryType == S3EntryType) && found {
 		userSpecifiedWorkDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
 		if !ok {
 			return "", errors.New("If code entry type is (archive or github) and workDir is provided, " +

@@ -27,10 +27,6 @@ import (
 	"github.com/nuclio/logger"
 )
 
-const (
-	s3EntryType = "s3"
-)
-
 //
 // Base for all platforms
 //
@@ -267,7 +263,7 @@ func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.Create
 		return true, nil
 	}
 
-	if createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType == s3EntryType {
+	if createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType == build.S3EntryType {
 		return true, nil
 	}
 
