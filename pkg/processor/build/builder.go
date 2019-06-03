@@ -566,17 +566,19 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		if !util.IsCompressed(functionPath) {
 			return "", errors.New("Downloaded file must be an archive")
 		}
-
-		functionPath, err = b.decompressFunctionArchive(functionPath)
-		if err != nil {
-			return "", errors.Wrap(err, "Failed to decompress function archive")
-		}
 	}
 
 	// Assume it's a local path
 	resolvedPath, err := filepath.Abs(filepath.Clean(functionPath))
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get resolve non-url path")
+	}
+
+	if util.IsCompressed(functionPath) {
+		functionPath, err = b.decompressFunctionArchive(functionPath)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to decompress function archive")
+		}
 	}
 
 	if !common.FileExists(resolvedPath) {
