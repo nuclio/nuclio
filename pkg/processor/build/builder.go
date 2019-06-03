@@ -580,8 +580,8 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		return "", errors.Wrap(err, "Failed to get resolve non-url path")
 	}
 
-	if util.IsCompressed(functionPath) {
-		functionPath, err = b.decompressFunctionArchive(functionPath)
+	if util.IsCompressed(resolvedPath) {
+		resolvedPath, err = b.decompressFunctionArchive(resolvedPath)
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to decompress function archive")
 		}
