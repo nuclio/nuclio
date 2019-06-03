@@ -35,6 +35,7 @@ type golang struct {
 	entrypoint    entrypoint
 }
 
+// NewRuntime returns a new golang runtime
 func NewRuntime(parentLogger logger.Logger,
 	configuration *runtime.Configuration,
 	handler handler) (runtime.Runtime, error) {

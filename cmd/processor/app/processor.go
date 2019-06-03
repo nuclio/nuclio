@@ -18,6 +18,7 @@ package app
 
 import (
 	"os"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -37,6 +38,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/ruby"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/status"
+	"github.com/nuclio/nuclio/pkg/processor/timeout"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all triggers
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
@@ -53,12 +55,14 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/pubsub"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
+	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 
 	"github.com/nuclio/logger"
+	"golang.org/x/sync/errgroup"
 )
 
 // Processor is responsible to process events
@@ -70,6 +74,8 @@ type Processor struct {
 	healthCheckServer     *healthcheck.Server
 	metricSinks           []metricsink.MetricSink
 	namedWorkerAllocators map[string]worker.Allocator
+	eventTimeoutWatcher   *timeout.EventTimeoutWatcher
+	stop                  chan bool
 }
 
 // NewProcessor returns a new Processor
@@ -78,6 +84,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 	newProcessor := &Processor{
 		namedWorkerAllocators: map[string]worker.Allocator{},
+		stop:                  make(chan bool, 1),
 	}
 
 	// read platform configuration
@@ -112,6 +119,10 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	// save platform configuration in process configuration
 	processorConfiguration.PlatformConfig = platformConfiguration
 
+	if processorConfiguration.Spec.EventTimeout != "" {
+		clock.SetResolution(1 * time.Second)
+	}
+
 	// create and start the health check server before creating anything else, so it can serve probes ASAP
 	newProcessor.healthCheckServer, err = newProcessor.createAndStartHealthCheckServer(platformConfiguration)
 	if err != nil {
@@ -122,6 +133,19 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	newProcessor.triggers, err = newProcessor.createTriggers(processorConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create triggers")
+	}
+
+	if len(processorConfiguration.Spec.EventTimeout) > 0 {
+
+		// This is checked by the configuration reader, but just in case
+		eventTimeout, timeoutErr := processorConfiguration.Spec.GetEventTimeout()
+		if timeoutErr != nil {
+			return nil, errors.Wrap(timeoutErr, "Bad EventTimeout")
+		}
+
+		if startErr := newProcessor.startTimeoutWatcher(eventTimeout); startErr != nil {
+			return nil, errors.Wrap(startErr, "Can't start timeout watcher")
+		}
 	}
 
 	// create the web interface
@@ -170,16 +194,20 @@ func (p *Processor) Start() error {
 		}
 	}
 
-	// TODO: shutdown
-	select {}
+	<-p.stop // Wait for stop
+	p.logger.Info("Processor quitting")
+
+	time.Sleep(5 * time.Second) // Give triggers etc time to finish
+
+	return nil
 }
 
-// get triggers
+// GetTriggers returns triggers
 func (p *Processor) GetTriggers() []trigger.Trigger {
 	return p.triggers
 }
 
-// get workers
+// GetWorkers returns workers
 func (p *Processor) GetWorkers() []*worker.Worker {
 	var workers []*worker.Worker
 
@@ -192,7 +220,7 @@ func (p *Processor) GetWorkers() []*worker.Worker {
 	return workers
 }
 
-// returns the processor's status based on its workers' readiness
+// GetStatus returns the processor's status based on its workers' readiness
 func (p *Processor) GetStatus() status.Status {
 	workers := p.GetWorkers()
 
@@ -210,6 +238,11 @@ func (p *Processor) GetStatus() status.Status {
 
 	// otherwise we're ready
 	return status.Ready
+}
+
+// Stop stops the processor
+func (p *Processor) Stop() {
+	p.stop <- true
 }
 
 func (p *Processor) readConfiguration(configurationPath string) (*processor.Configuration, error) {
@@ -244,27 +277,40 @@ func (p *Processor) readPlatformConfiguration(configurationPath string) (*platfo
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
 	var triggers []trigger.Trigger
 
+	// create error group
+	errGroup := errgroup.Group{}
+
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
+		triggerName, triggerConfiguration := triggerName, triggerConfiguration
 
-		// create an event source based on event source configuration and runtime configuration
-		triggerInstance, err := trigger.RegistrySingleton.NewTrigger(p.logger,
-			triggerConfiguration.Kind,
-			triggerName,
-			&triggerConfiguration,
-			&runtime.Configuration{
-				Configuration:  processorConfiguration,
-				FunctionLogger: p.functionLogger,
-			},
-			p.namedWorkerAllocators)
+		errGroup.Go(func() error {
 
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to create triggers")
-		}
+			// create an event source based on event source configuration and runtime configuration
+			triggerInstance, err := trigger.RegistrySingleton.NewTrigger(p.logger,
+				triggerConfiguration.Kind,
+				triggerName,
+				&triggerConfiguration,
+				&runtime.Configuration{
+					Configuration:  processorConfiguration,
+					FunctionLogger: p.functionLogger,
+				},
+				p.namedWorkerAllocators)
 
-		// append to triggers (can be nil - ignore unknown triggers)
-		if triggerInstance != nil {
-			triggers = append(triggers, triggerInstance)
-		}
+			if err != nil {
+				return errors.Wrapf(err, "Failed to create triggers")
+			}
+
+			// append to triggers (can be nil - ignore unknown triggers)
+			if triggerInstance != nil {
+				triggers = append(triggers, triggerInstance)
+			}
+
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
 
 	// create default event source, given the triggers already created by configuration
@@ -403,4 +449,23 @@ func (p *Processor) detectPlatformKind() (string, error) {
 	}
 
 	return "local", nil
+}
+
+func (p *Processor) startTimeoutWatcher(eventTimeout time.Duration) error {
+	var err error
+
+	if eventTimeout == 0 {
+		eventTimeout = clock.DefaultResolution
+	}
+
+	p.logger.InfoWith("Starting event timeout watcher", "timeout", eventTimeout.String())
+	p.eventTimeoutWatcher, err = timeout.NewEventTimeoutWatcher(p.logger, eventTimeout, p)
+
+	if err != nil {
+		errorMessage := "Can't start event timeout watcher"
+		p.logger.ErrorWith(errorMessage, "error", err)
+		return errors.Wrap(err, errorMessage)
+	}
+
+	return nil
 }

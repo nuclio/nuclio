@@ -180,7 +180,7 @@ func (u *URI) Reset() {
 	u.parsedQueryArgs = false
 
 	// There is no need in u.fullURI = u.fullURI[:0], since full uri
-	// is calucalted on each call to FullURI().
+	// is calculated on each call to FullURI().
 
 	// There is no need in u.requestURI = u.requestURI[:0], since requestURI
 	// is calculated on each call to RequestURI().
@@ -500,6 +500,11 @@ func splitHostURI(host, uri []byte) ([]byte, []byte, []byte) {
 	uri = uri[n:]
 	n = bytes.IndexByte(uri, '/')
 	if n < 0 {
+		// A hack for bogus urls like foobar.com?a=b without
+		// slash after host.
+		if n = bytes.IndexByte(uri, '?'); n >= 0 {
+			return scheme, uri[:n], uri[n:]
+		}
 		return scheme, uri, strSlash
 	}
 	return scheme, uri[:n], uri[n:]
