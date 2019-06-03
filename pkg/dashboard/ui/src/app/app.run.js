@@ -52,20 +52,8 @@
             partialBundledLanguages: true,
             defaultNs: 'common',
             ns: [
-                'login',
                 'common',
                 'header',
-                'home',
-                'services',
-                'containers',
-                'logs',
-                'clusters',
-                'networks',
-                'identity',
-                'tasks',
-                'tenants',
-                'events',
-                'storagePools',
                 'functions'
             ],
             backend: {
