@@ -569,8 +569,8 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 		functionPath = tempFile.Name()
 
-		if !util.IsCompressed(functionPath) {
-			return "", errors.New("Downloaded file must be an archive")
+		if !b.isSupportedFunctionFileType(functionPath) {
+			return "", errors.New("Downloaded file type is not supported. (must be either archive or jar)")
 		}
 	}
 
@@ -592,6 +592,18 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	}
 
 	return resolvedPath, nil
+}
+
+func (b *Builder) isSupportedFunctionFileType(functionPath string) bool {
+	if util.IsCompressed(functionPath) {
+		return true
+	}
+
+	if strings.ToLower(path.Ext(functionPath)) == ".jar" {
+		return true
+	}
+
+	return false
 }
 
 func (b *Builder) getFunctionPathFromGithubURL(functionPath string) (string, error) {
