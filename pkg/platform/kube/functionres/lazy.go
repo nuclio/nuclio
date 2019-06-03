@@ -1277,6 +1277,7 @@ func (lc *lazyClient) configMapNameFromFunctionName(functionName string) string 
 func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFunction) ([]v1.Volume, []v1.VolumeMount) {
 	trueVal := true
 	var configVolumes []functionconfig.Volume
+	var filteredFunctionVolumes []functionconfig.Volume
 
 	processorConfigVolumeName := "processor-config-volume"
 	platformConfigVolumeName := "platform-config-volume"
@@ -1300,6 +1301,19 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 	platformConfigVolume.VolumeMount.Name = platformConfigVolumeName
 	platformConfigVolume.VolumeMount.MountPath = "/etc/nuclio/config/platform"
 
+	// ignore HostPath volumes
+	for _, configVolume := range function.Spec.Volumes {
+		if configVolume.Volume.HostPath != nil {
+			lc.logger.WarnWith("Ignoring volume. HostPath volumes are now deprecated",
+				"configVolume",
+				configVolume)
+
+		} else {
+			filteredFunctionVolumes = append(filteredFunctionVolumes, configVolume)
+		}
+	}
+	function.Spec.Volumes = filteredFunctionVolumes
+
 	// merge from functionconfig and injected configuration
 	configVolumes = append(configVolumes, function.Spec.Volumes...)
 	configVolumes = append(configVolumes, processorConfigVolume)
@@ -1309,16 +1323,6 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 	var volumeMounts []v1.VolumeMount
 
 	for _, configVolume := range configVolumes {
-
-		// ignore if it's a HostPath volume
-		if configVolume.Volume.HostPath != nil {
-			lc.logger.WarnWith("Ignoring volume. HostPath volumes are now deprecated",
-				"configVolume",
-				configVolume)
-
-			continue
-		}
-
 		if configVolume.Volume.FlexVolume != nil && configVolume.Volume.FlexVolume.Driver == "v3io/fuse" {
 
 			// make sure the given sub path matches the needed structure. fix in case it doesn't
