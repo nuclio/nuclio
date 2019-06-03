@@ -168,7 +168,6 @@ func (suite *TestSuite) TestGetNextEventSubmitDelayScheduleRunsImmediatelyOnMiss
 }
 
 func (suite *TestSuite) TestNextScheduleDayDifference() {
-	suite.T().Skip()
 	var err error
 
 	// mock runtime
