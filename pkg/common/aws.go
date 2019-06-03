@@ -1,7 +1,6 @@
 package common
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,7 +18,7 @@ func DownloadFileFromAWSS3(file *os.File, bucket, itemKey, region, accessKeyID, 
 	itemKey = filepath.Clean(itemKey)
 
 	pathInsideBucket, item := path.Split(itemKey)
-	bucketAndPath := fmt.Sprintf("%s/%s/", bucket, pathInsideBucket)
+	bucketAndPath := path.Join(bucket, pathInsideBucket) + "/"
 
 	sess, err := session.NewSession(&aws.Config{
 		Region:      aws.String("us-east-1"), // default region (some valid region must be mentioned)
