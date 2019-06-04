@@ -172,7 +172,7 @@ func (suite *TestSuite) TestNextScheduleDayDifference() {
 
 	// mock runtime
 	location, _ := time.LoadLocation("UTC")
-	lastRuntime := time.Date(2019, 1, 1,1,1, 1,1, location)
+	lastRuntime := time.Date(2019, 1, 1, 1, 1, 1, 1, location)
 
 	scheduleFormat := fmt.Sprintf("0 %d %d * *", lastRuntime.Minute(), lastRuntime.Hour())
 
