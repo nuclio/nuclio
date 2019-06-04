@@ -84,6 +84,35 @@ spec:
 	}
 }
 
+func (suite *ReaderTestSuite) TestCodeEntryConfigCaseInsensitivity() {
+	configData := `
+metadata:
+  name: code_entry_name
+  namespace: code_entry_namespace
+spec:
+  runtime: python3.6
+  handler: code_entry_handler
+  targetCpu: 13  # instead of targetCPU to test case insensitivity
+`
+
+	config := Config{
+		Meta: Meta{
+			Name:      "my_name",
+			Namespace: "my_namespace",
+		},
+		Spec: Spec{
+			Runtime: "python2.7",
+			Handler: "my_handler",
+		},
+	}
+	reader, err := NewReader(suite.logger)
+	suite.Require().NoError(err, "Can't create reader")
+	err = reader.Read(strings.NewReader(configData), "processor", &config)
+	suite.Require().NoError(err, "Can't reader configuration")
+
+	suite.Require().Equal(13, config.Spec.TargetCPU, "Bad target cpu")
+}
+
 func (suite *ReaderTestSuite) TestCodeEntryConfigDontOverrideConfigValues() {
 	configData := `
 metadata:
@@ -94,6 +123,7 @@ metadata:
 spec:
   runtime: python3.6
   handler: code_entry_handler
+  targetCpu: 13
   build:
     commands:
     - pip install code_entry_package
@@ -111,9 +141,10 @@ spec:
 			Labels:    map[string]string{}, // empty map
 		},
 		Spec: Spec{
-			Runtime: "python2.7",
-			Handler: "my_handler",
-			Env:     []v1.EnvVar{{Name: "env_var", Value: "my_env_val"}},
+			Runtime:   "python2.7",
+			Handler:   "my_handler",
+			Env:       []v1.EnvVar{{Name: "env_var", Value: "my_env_val"}},
+			TargetCPU: 51,
 		},
 	}
 	reader, err := NewReader(suite.logger)
@@ -134,6 +165,7 @@ spec:
 	suite.Require().Equal("python2.7", config.Spec.Runtime, "Bad runtime")
 	suite.Require().Equal([]string{"pip install code_entry_package"}, config.Spec.Build.Commands, "Bad commands")
 	suite.Require().Equal(map[string]string{"label_key": "label_val"}, config.Meta.Labels, "Bad labels")
+	suite.Require().Equal(51, config.Spec.TargetCPU, "Bad target cpu")
 }
 
 func (suite *ReaderTestSuite) TestToDeployOptions() {

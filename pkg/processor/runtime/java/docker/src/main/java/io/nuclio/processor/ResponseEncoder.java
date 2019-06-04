@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class ResponseEncoder {
+    private static final float MINIMUM_DURATION_SECONDS = 0.00000000001f;
     private BufferedOutputStream out;
     Gson gson;
 
@@ -49,6 +50,17 @@ public class ResponseEncoder {
         jresp.put("content_type", response.getContentType());
         jresp.put("body_encoding", "base64");
         jresp.put("headers", response.getHeaders());
+
+        this.out.write(gson.toJson(jresp).getBytes(StandardCharsets.UTF_8));
+        this.out.write('\n');
+        this.out.flush();
+    }
+
+    public void encodeMetrics(long duration) throws Throwable {
+        this.out.write('m');
+
+        Map<String, Object> jresp = new HashMap<String, Object>();
+        jresp.put("duration", Math.max(MINIMUM_DURATION_SECONDS, (float)duration / 1000));
 
         this.out.write(gson.toJson(jresp).getBytes(StandardCharsets.UTF_8));
         this.out.write('\n');

@@ -26,13 +26,16 @@ import (
 	"github.com/ghodss/yaml"
 )
 
+// Reader is processor configuration reader
 type Reader struct {
 }
 
+// NewReader returns a new processor configuration reader
 func NewReader() (*Reader, error) {
 	return &Reader{}, nil
 }
 
+// Read read configuration from reader into processorConfiguration
 func (r *Reader) Read(reader io.Reader, processorConfiguration *processor.Configuration) error {
 	bodyBytes, err := ioutil.ReadAll(reader)
 
@@ -42,6 +45,14 @@ func (r *Reader) Read(reader io.Reader, processorConfiguration *processor.Config
 
 	if err := yaml.Unmarshal(bodyBytes, processorConfiguration); err != nil {
 		return errors.Wrap(err, "Failed to write configuration")
+	}
+
+	// Check we have valid EventTimeout
+	if processorConfiguration.Spec.EventTimeout != "" {
+		_, err := processorConfiguration.Spec.GetEventTimeout()
+		if err != nil {
+			return errors.Wrapf(err, "Can't parse Spec.EventTimeout (%q) into time.Duration", processorConfiguration.Spec.EventTimeout)
+		}
 	}
 
 	return nil
