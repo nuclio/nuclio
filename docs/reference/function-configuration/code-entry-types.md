@@ -23,9 +23,9 @@ spec:
 
 ## External code entry types
 
-Today, two external code entry types are supported - Github and Archive.
+Today, 3 external code entry types are supported - S3, Github and Archive.
 When deploying a function with an external code entry type, the source code files will be fetched from the remote
- target - via github api or fetching and uncompressing the archive from the given url.
+ target - via github/s3 api or fetching and uncompressing the archive from the given url.
 The source code will be taken from the given external source, and the given function configuration from the request
  will be enriched with the function configuration appearing in the remote code location.
 The configuration merge will give precedence to the function configuration passed over the remote function configuration fields, using a merge strategy.
@@ -65,6 +65,24 @@ spec:
       branch: "mybranch"
       headers:
         Authorization: "my-Github-access-key"
+      workDir: "/path/to/func"
+```
+
+S3 code entry example:
+```yaml
+spec:
+  description: my Go function
+  handler: main:Handler
+  runtime: golang
+  build:
+    codeEntryType: "s3"
+    codeEntryAttributes:
+      s3Bucket: "my-s3-bucket"
+      s3ItemKey: "my-folder/functions.zip"
+      s3AccessKeyId: "my-@cc355-k3y"            # optional
+      s3SecretAccessKey: "my-53cr3t-@cce55-k3y" # optional
+      s3SessionToken: "my-s3ss10n-t0k3n"        # optional
+      s3Region: "us-east-1"                     # optional (will be determined automatically when not mentioned)
       workDir: "/path/to/func"
 ```
 
