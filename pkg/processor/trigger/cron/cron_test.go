@@ -168,10 +168,12 @@ func (suite *TestSuite) TestGetNextEventSubmitDelayScheduleRunsImmediatelyOnMiss
 }
 
 func (suite *TestSuite) TestNextScheduleDayDifference() {
-	suite.T().Skip()
 	var err error
 
-	lastRuntime := time.Now()
+	// mock runtime
+	location, _ := time.LoadLocation("UTC")
+	lastRuntime := time.Date(2019, 1, 1, 1, 1, 1, 1, location)
+
 	scheduleFormat := fmt.Sprintf("0 %d %d * *", lastRuntime.Minute(), lastRuntime.Hour())
 
 	suite.trigger.schedule, err = suite.getSchedule(scheduleFormat)
