@@ -17,6 +17,7 @@ limitations under the License.
 package worker
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
@@ -67,17 +68,21 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 	// check if there was a processing error. if so, log it
 	if err != nil {
 		w.statistics.EventsHandleError++
+	} else {
+		success := true
 
-		// use the override function logger if passed, otherwise ask the runtime for the
-		// function logger
-		loggerInstance := functionLogger
-		if loggerInstance == nil {
-			loggerInstance = w.runtime.GetFunctionLogger()
+		switch typedResponse := response.(type) {
+		case *nuclio.Response:
+			success = typedResponse.StatusCode < http.StatusBadRequest
+		case nuclio.Response:
+			success = typedResponse.StatusCode < http.StatusBadRequest
 		}
 
-		loggerInstance.WarnWith("Function returned error", "event_id", event.GetID(), "err", err)
-	} else {
-		w.statistics.EventsHandleSuccess++
+		if success {
+			w.statistics.EventsHandleSuccess++
+		} else {
+			w.statistics.EventsHandleError++
+		}
 	}
 
 	return response, err
