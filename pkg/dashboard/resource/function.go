@@ -383,7 +383,28 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
 	}
 
+	fr.normalizeNegativeNumberAttributes(&functionInfoInstance)
+
 	return &functionInfoInstance, nil
+}
+
+// We treat -1 value as 0. (when these attributes are not specifically mentioned the Capnp default value is -1)
+func (fr *functionResource) normalizeNegativeNumberAttributes(functionInfo *functionInfo) {
+	if functionInfo.Spec.MinReplicas == -1 {
+		functionInfo.Spec.MinReplicas = 0
+	}
+	if functionInfo.Spec.MaxReplicas == -1 {
+		functionInfo.Spec.MaxReplicas = 0
+	}
+	if functionInfo.Spec.Replicas == -1 {
+		functionInfo.Spec.Replicas = 0
+	}
+	if functionInfo.Spec.TargetCPU == -1 {
+		functionInfo.Spec.TargetCPU = 0
+	}
+	if functionInfo.Spec.ReadinessTimeoutSeconds == -1 {
+		functionInfo.Spec.ReadinessTimeoutSeconds = 0
+	}
 }
 
 // register the resource
