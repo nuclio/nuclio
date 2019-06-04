@@ -263,6 +263,10 @@ func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.Create
 		return true, nil
 	}
 
+	if createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType == build.S3EntryType {
+		return true, nil
+	}
+
 	// if user didn't give any of the above but _did_ specify an image to run from, just dont build
 	if createFunctionOptions.FunctionConfig.Spec.Image != "" {
 		return false, nil
