@@ -388,7 +388,9 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	return &functionInfoInstance, nil
 }
 
-// We treat -1 value as 0. (when these attributes are not specifically mentioned the Capnp default value is -1)
+// We treat -1 value as 0.
+// We did this so in the enterprise version of nuclio we will be able to distinguish attributes
+// that weren't filled by the user (the messaging layer of capnp must send some value - so we decided on -1)
 func (fr *functionResource) normalizeNegativeNumberAttributes(functionInfo *functionInfo) {
 	if functionInfo.Spec.MinReplicas == -1 {
 		functionInfo.Spec.MinReplicas = 0
