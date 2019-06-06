@@ -593,7 +593,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 		if (codeEntryType == S3EntryType || codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) &&
 			!util.IsCompressed(functionPath) {
-			return "", errors.New("Downloaded file type is not supported.(expected an archive)")
+			return "", errors.New("Downloaded file type is not supported. (expected an archive)")
 		}
 	}
 
