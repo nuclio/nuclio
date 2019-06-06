@@ -188,7 +188,7 @@ Updating a function is similar to creating a function. The only differences are:
 
 ### Invoking a function
 #### Request
-The HTTP method you apply to this endpoint is the one with which dashboard will invoke the function. For example, if you `DELETE /api/function_invokations`, the HTTP method in the event as received by the function will be `DELETE`.
+The HTTP method you apply to this endpoint is the one with which dashboard will invoke the function. For example, if you `DELETE /api/function_invocations`, the HTTP method in the event as received by the function will be `DELETE`.
 * URL: `<Method> /api/function_invocations`
 * Headers:
   * `x-nuclio-function-name`: Function name (required)
