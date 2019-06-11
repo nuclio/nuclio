@@ -43,9 +43,6 @@ func DownloadFileFromAWSS3(file *os.File, bucket, itemKey, region, accessKeyID, 
 			Bucket: aws.String(bucketAndPath),
 			Key:    aws.String(item),
 		})
-	if err != nil {
-		return errors.Wrap(err, "Failed to download file from s3")
-	}
 
-	return nil
+	return err
 }

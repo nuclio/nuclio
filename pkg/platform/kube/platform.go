@@ -116,7 +116,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	createFunctionOptions.Logger = logStream.GetLogger()
 
 	reportCreationError := func(creationError error) error {
-		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
+		createFunctionOptions.Logger.WarnWith("Create function failed failed, setting function status",
 			"err", creationError)
 
 		errorStack := bytes.Buffer{}
