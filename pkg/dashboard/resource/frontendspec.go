@@ -46,6 +46,7 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 		Single:     true,
 		StatusCode: http.StatusOK,
 		Resources:  frontendSpec,
+		Headers:    map[string]string{"Content-Type": "application/json"},
 	}, nil
 }
 
