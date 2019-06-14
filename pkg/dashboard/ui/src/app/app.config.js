@@ -14,7 +14,8 @@
     };
 
     angular.module('nuclio.app')
-        .constant('ConfigService', window._.merge(defaultConfig, injectedConfig));
+        .constant('ConfigService', window._.merge(defaultConfig, injectedConfig))
+        .constant('lodash', window._);
 
     angular.module('nuclio.app')
         .config(config)
