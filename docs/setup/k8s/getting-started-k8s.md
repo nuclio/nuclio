@@ -27,7 +27,7 @@ kubectl create namespace nuclio
 ```
 
 **Create a registry secret:** because Nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials. Replace the `<...>` placeholders in the following commands with your username, password, and URL:
-> Note: If you want to use Docker Hub, the URL is `registry.hub.docker.com`.
+> Note: If you want to use Docker Hub, the URL is `docker.io`.
 
 ```sh
 read -s mypassword
