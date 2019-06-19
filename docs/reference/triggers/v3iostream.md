@@ -1,6 +1,6 @@
 # v3ioStream: v3io Stream Trigger
 
-Reads records from [Iguazio Continuous Data Platform](https://www.iguazio.com) v3io streams.
+Reads records from [Iguazio Data Science Platform](https://www.iguazio.com) v3io streams.
 
 ## Attributes
 
@@ -10,8 +10,8 @@ Reads records from [Iguazio Continuous Data Platform](https://www.iguazio.com) v
 | seekTo | string | The location within the stream from which to start reading - `"earliest"` or `"latest"`; (defaults to `"latest"`) |
 | readBatchSize | int | The number of records to read from the stream in a single request; (defaults to 64) |
 | pollingIntervalMs | int | The duration, in milliseconds, to wait between partition reads; (defaults to 500) |
-| username | string | Iguazio Continuous Data Platform username |
-| password | string | Iguazio Continuous Data Platform password |
+| username | string | Iguazio Data Science Platform username |
+| password | string | Iguazio Data Science Platform password |
 
 ### Example
 
