@@ -27,6 +27,19 @@ dashboard:
   # Uncomment to configure node port
   # nodePort: 32050
 
+  ingress:
+    enabled: false
+    annotations: {}
+      # kubernetes.io/ingress.class: nginx
+      # kubernetes.io/tls-acme: "true"
+    path: /
+    hosts:
+      - nuclio.local
+    tls: []
+    #  - secretName: nuclio-tls
+    #    hosts:
+    #      - nuclio.local
+
 autoscaler:
   enabled: false
   replicas: 1
