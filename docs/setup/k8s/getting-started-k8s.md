@@ -27,7 +27,7 @@ kubectl create namespace nuclio
 ```
 
 **Create a registry secret:** because Nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials. Replace the `<...>` placeholders in the following commands with your username, password, and URL:
-> Note: If you want to use Docker Hub, the URL is `registry.hub.docker.com`.
+> Note: If you want to use Docker Hub, the URL is `docker.io`.
 
 ```sh
 read -s mypassword
@@ -71,7 +71,7 @@ Browse to `http://localhost:8070` (after having forwarded this port as part of t
 ## Deploy a function with the Nuclio CLI (nuctl)
 
 Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest version of the Nuclio CLI (`nuctl`) for your platform, and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
-> Note: If you are using Docker Hub, the URL here includes your username - `registry.hub.docker.com/<username>`.
+> Note: If you are using Docker Hub, the URL here includes your username - `docker.io/<username>`.
 
 ```sh
 nuctl deploy helloworld -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry <URL>

@@ -177,7 +177,7 @@ func (suite *testSuite) TestGetImage() {
 	suite.Require().Equal("nuclio/processor-test", suite.builder.getImage())
 
 	// registry has a repository - should not see "nuclio/" as repository
-	suite.builder.options.FunctionConfig.Spec.Build.Registry = "registry.hub.docker.com/foo"
+	suite.builder.options.FunctionConfig.Spec.Build.Registry = "docker.io/foo"
 	suite.Require().Equal("processor-test", suite.builder.getImage())
 
 	// registry has a repository - should not see "nuclio/" as repository
@@ -524,7 +524,7 @@ func (suite *testSuite) TestRenderDependantImageURL() {
 	}
 }
 
-func (suite *testSuite)  TestValidateAndParseS3Attributes() {
+func (suite *testSuite) TestValidateAndParseS3Attributes() {
 
 	// return error when mandatory fields are missing
 	badS3CodeEntryAttributes := map[string]interface{}{
@@ -540,20 +540,20 @@ func (suite *testSuite)  TestValidateAndParseS3Attributes() {
 
 	// happy flow (map[string]interface{} -> map[string]string)
 	goodS3CodeEntryAttributes := map[string]interface{}{
-		"s3Bucket": "my-bucket",
-		"s3ItemKey": "my-fold/my-item.zip",
-		"s3Region": "us-east-1",
-		"s3AccessKeyId": "myaccesskeyid",
+		"s3Bucket":          "my-bucket",
+		"s3ItemKey":         "my-fold/my-item.zip",
+		"s3Region":          "us-east-1",
+		"s3AccessKeyId":     "myaccesskeyid",
 		"s3SecretAccessKey": "mysecretaccesskey",
-		"s3SessionToken": "mys3sessiontoken",
+		"s3SessionToken":    "mys3sessiontoken",
 	}
 	expectedResult := map[string]string{
-		"s3Bucket": "my-bucket",
-		"s3ItemKey": "my-fold/my-item.zip",
-		"s3Region": "us-east-1",
-		"s3AccessKeyId": "myaccesskeyid",
+		"s3Bucket":          "my-bucket",
+		"s3ItemKey":         "my-fold/my-item.zip",
+		"s3Region":          "us-east-1",
+		"s3AccessKeyId":     "myaccesskeyid",
 		"s3SecretAccessKey": "mysecretaccesskey",
-		"s3SessionToken": "mys3sessiontoken",
+		"s3SessionToken":    "mys3sessiontoken",
 	}
 	res, err := suite.builder.validateAndParseS3Attributes(goodS3CodeEntryAttributes)
 	suite.Require().NoError(err)

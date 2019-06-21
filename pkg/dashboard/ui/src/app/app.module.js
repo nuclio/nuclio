@@ -10,6 +10,8 @@
         'ngCookies',
         'ngSanitize',
         'angular-yamljs',
+        'angular-moment',
+        'angular-base64',
         'ngDialog',
         'ngScrollbars',
         'fiestah.money',
