@@ -135,7 +135,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		}
 
 		// populate image if possible
-		if existingFunctionConfig != nil {
+		if existingFunctionConfig != nil && createFunctionOptions.FunctionConfig.Spec.Image == "" {
 			createFunctionOptions.FunctionConfig.Spec.Image = existingFunctionConfig.Spec.Image
 		}
 
