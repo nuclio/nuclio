@@ -86,7 +86,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | resources | See [reference](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) | Limit resources allocated to deployed function |
 | readinessTimeoutSeconds | int | Number of seconds that the controller will wait for the function to become ready before declaring failure (default: 60) |
 | avatar | string | Base64 representation of an icon to be shown in UI for the function |
-| eventTimeout | string | Global event timeout. Should be in format [time.ParseDuration](https://golang.org/pkg/time/#ParseDuration) supports |
+| eventTimeout | string | Global event timeout, in the format supported for the `Duration` parameter of the [`time.ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function |
 
 ### Example
 

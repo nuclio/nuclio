@@ -15,11 +15,14 @@ Reads records from [Apache Kafka](https://kafka.apache.org/) streams.
 ```yaml
 triggers:
   myKafkaTopic:
-    kind: "kafka"
-    url: "10.0.0.2"
+    kind: kafka-cluster
     attributes:
-      topic: "my.topic"
-      partitions: [0, 5, 10]
+      initialOffset: earliest
+      topics:
+        - mytopic
+      brokers:
+        - 10.0.0.2:9092
+      consumerGroup: my-consumer-group
       sasl:
         enable: true
         user: "nuclio"

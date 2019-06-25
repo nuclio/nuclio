@@ -76,7 +76,7 @@ gcloud iam service-accounts keys create credentials.json --iam-account $(gcloud 
 
 ## Install Nuclio
 
-At this stage you should have a functioning Kubernetes cluster, credentials to a private Docker registry, and a working Kubernetes CLI (`kubectl`), and you can proceed to install the Nuclio services on the cluster (i.e., deploy nuclio). For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/user-guide/kubectl-overview/).
+At this stage you should have a functioning Kubernetes cluster, credentials to a private Docker registry, and a working Kubernetes CLI (`kubectl`), and you can proceed to install the Nuclio services on the cluster (i.e., deploy Nuclio). For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/user-guide/kubectl-overview/).
 
 **Create a Nuclio namespace** by running the following command:
 
@@ -131,7 +131,7 @@ Browse to `http://localhost:8070` (after having forwarded this port as part of t
 ## Deploy a function with the Nuclio CLI (nuctl)
 
 Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest version of the Nuclio CLI (`nuctl`) for your platform, and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
-> Note: If you are using Docker Hub, the URL here includes your username - `registry.hub.docker.com/<username>`.
+> Note: If you are using Docker Hub, the URL here includes your username - `docker.io/<username>`.
 
 ```sh
 nuctl deploy helloworld -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry <URL>
