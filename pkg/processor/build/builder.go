@@ -1585,11 +1585,7 @@ func (b *Builder) downloadFunctionFromURL(tempFile *os.File,
 		"target", tempFile.Name(),
 		"headers", headers)
 
-	if err := common.DownloadFile(functionPath, tempFile, headers); err != nil {
-		return err
-	}
-
-	return nil
+	return common.DownloadFile(functionPath, tempFile, headers)
 }
 
 func (b *Builder) getFunctionTempFile(tempDir string, functionPath string) (*os.File, error) {
