@@ -521,80 +521,8 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 	// if the function path is a URL, type is Github or S3 - first download the file
 	// for backwards compatibility, don't check for entry type url specifically
-	if common.IsURL(functionPath) || codeEntryType == S3EntryType {
-		if codeEntryType == GithubEntryType {
-			functionPath, err = b.getFunctionPathFromGithubURL(functionPath)
-			if err != nil {
-				return "", errors.Wrapf(err, "Failed to infer function path of github entry type")
-			}
-		}
-
-		tempDir, err := b.mkDirUnderTemp("download")
-		if err != nil {
-			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
-		}
-
-		// retain file extension
-		fileExtension, err := b.getFileExtensionByURL(functionPath)
-		if err != nil {
-			return "", errors.Wrap(err, "Failed to get file extension from URL")
-		}
-
-		tempFile, err := ioutil.TempFile(tempDir, "nuclio-function-*"+fileExtension)
-		if err != nil {
-			return "", errors.Wrapf(err, "Failed to create temporary file: %s", tempDir)
-		}
-
-		if codeEntryType == S3EntryType {
-			s3Attributes, err := b.validateAndParseS3Attributes(b.options.FunctionConfig.Spec.Build.CodeEntryAttributes)
-			if err != nil {
-				return "", errors.Wrap(err, "Failed to parse and validate s3 code entry attributes")
-			}
-
-			err = common.DownloadFileFromAWSS3(tempFile,
-				s3Attributes["s3Bucket"],
-				s3Attributes["s3ItemKey"],
-				s3Attributes["s3Region"],
-				s3Attributes["s3AccessKeyId"],
-				s3Attributes["s3SecretAccessKey"],
-				s3Attributes["s3SessionToken"])
-
-			if err != nil {
-				return "", errors.Wrap(err, "Failed to download the function archive from s3")
-			}
-
-		} else {
-			userDefinedHeaders, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["headers"]
-			headers := http.Header{}
-
-			if found {
-
-				// guaranteed a map with key of type string, the values need to be checked for correctness
-				for key, value := range userDefinedHeaders.(map[string]interface{}) {
-					stringValue, ok := value.(string)
-					if !ok {
-						return "", errors.New("Failed to convert header value to string")
-					}
-					headers.Set(key, stringValue)
-				}
-			}
-
-			b.logger.DebugWith("Downloading function",
-				"url", functionPath,
-				"target", tempFile.Name(),
-				"headers", headers)
-
-			if err = common.DownloadFile(functionPath, tempFile, headers); err != nil {
-				return "", err
-			}
-		}
-
-		functionPath = tempFile.Name()
-
-		if (codeEntryType == S3EntryType || codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) &&
-			!util.IsCompressed(functionPath) {
-			return "", errors.New("Downloaded file type is not supported. (expected an archive)")
-		}
+	if functionPath, err = b.resolveFunctionPathFromURL(functionPath, codeEntryType); err != nil {
+		return "", errors.Wrap(err, "Failed to download function from URL")
 	}
 
 	// Assume it's a local path
@@ -1563,4 +1491,118 @@ func (b *Builder) getFileExtensionByURL(inputURL string) (string, error) {
 	}
 
 	return path.Ext(parsedURL.Path), nil
+}
+
+func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType string) (string, error) {
+	var err error
+
+	if common.IsURL(functionPath) || codeEntryType == S3EntryType {
+		if codeEntryType == GithubEntryType {
+			functionPath, err = b.getFunctionPathFromGithubURL(functionPath)
+			if err != nil {
+				return "", errors.Wrapf(err, "Failed to infer function path of github entry type")
+			}
+		}
+
+		tempDir, err := b.mkDirUnderTemp("download")
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
+		}
+
+		tempFile, err := b.getFunctionTempFile(tempDir, functionPath)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to get function temporary file")
+		}
+
+		b.logger.DebugWith("Created local temporary function file for URL",
+			"path", functionPath,
+			"codeEntryType", codeEntryType,
+			"tempFileName", tempFile.Name())
+
+		switch codeEntryType {
+		case S3EntryType:
+			err = b.downloadFunctionFromS3(tempFile)
+		default:
+			err = b.downloadFunctionFromURL(tempFile, functionPath, codeEntryType)
+		}
+
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to download file")
+		}
+
+		if (codeEntryType == S3EntryType || codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) &&
+			!util.IsCompressed(functionPath) {
+			return "", errors.New("Downloaded file type is not supported. (expected an archive)")
+		}
+
+		return tempFile.Name(), nil
+	}
+
+	return functionPath, nil
+}
+
+func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {
+	s3Attributes, err := b.validateAndParseS3Attributes(b.options.FunctionConfig.Spec.Build.CodeEntryAttributes)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse and validate s3 code entry attributes")
+	}
+
+	err = common.DownloadFileFromAWSS3(tempFile,
+		s3Attributes["s3Bucket"],
+		s3Attributes["s3ItemKey"],
+		s3Attributes["s3Region"],
+		s3Attributes["s3AccessKeyId"],
+		s3Attributes["s3SecretAccessKey"],
+		s3Attributes["s3SessionToken"])
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to download the function archive from s3")
+	}
+
+	return nil
+}
+
+func (b *Builder) downloadFunctionFromURL(tempFile *os.File,
+	functionPath string,
+	codeEntryType string) error {
+	userDefinedHeaders, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["headers"]
+	headers := http.Header{}
+
+	if found {
+
+		// guaranteed a map with key of type string, the values need to be checked for correctness
+		for key, value := range userDefinedHeaders.(map[string]interface{}) {
+			stringValue, ok := value.(string)
+			if !ok {
+				return errors.New("Failed to convert header value to string")
+			}
+			headers.Set(key, stringValue)
+		}
+	}
+
+	b.logger.DebugWith("Downloading function",
+		"url", functionPath,
+		"target", tempFile.Name(),
+		"headers", headers)
+
+	return common.DownloadFile(functionPath, tempFile, headers)
+}
+
+func (b *Builder) getFunctionTempFile(tempDir string, functionPath string) (*os.File, error) {
+	functionPathBase := path.Base(functionPath)
+
+	// for archives, use a temporary local file renamed to something short to allow wacky long archive URLs
+	if util.IsCompressed(functionPathBase) {
+
+		// retain file extension
+		fileExtension, err := b.getFileExtensionByURL(functionPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get file extension from URL")
+		}
+
+		return ioutil.TempFile(tempDir, "nuclio-function-*"+fileExtension)
+	}
+
+	// for non-archives, must retain file name
+	return os.OpenFile(path.Join(tempDir, functionPathBase), os.O_RDWR|os.O_CREATE, 0600)
 }
