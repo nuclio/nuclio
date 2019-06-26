@@ -3,7 +3,7 @@
         <div class="main-header-title-wrapper">
             <ncl-breadcrumbs-data-wrapper></ncl-breadcrumbs-data-wrapper>
         </div>
-        <div class="languages-dropdown">
+        <div data-ng-if="$ctrl.isStagingMode()" class="languages-dropdown">
             <form name="$ctrl.translationForm">
                 <igz-default-dropdown data-name-key="attr.lang"
                                       data-values-array="$ctrl.languages"
