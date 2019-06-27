@@ -25,11 +25,6 @@ public class nuclio
             return eventBase.Method;
 
         var body = eventBase.GetBody();
-
-        if body.StartsWith("long body") {
-            return body;
-        }
-
         switch (body)
         {
             case "return_string":
@@ -66,6 +61,11 @@ public class nuclio
             case "return_path":
                 return eventBase.Path;
         }
+
+        if (body.StartsWith("long body")) {
+            return body;
+        }
+
         throw new Exception(string.Empty);
 
     }
