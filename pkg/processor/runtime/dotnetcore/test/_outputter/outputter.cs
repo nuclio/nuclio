@@ -29,6 +29,8 @@ public class nuclio
         {
             case "return_string":
                 return "a string";
+            case "long_bdoy":
+                return body;
             case "log":
                 context.Logger.Debug("Debug message");
                 context.Logger.Info("Info message");
