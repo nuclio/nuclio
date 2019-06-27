@@ -25,12 +25,15 @@ public class nuclio
             return eventBase.Method;
 
         var body = eventBase.GetBody();
+
+        if body.StartsWith("long body") {
+            return body;
+        }
+
         switch (body)
         {
             case "return_string":
                 return "a string";
-            case "long_bdoy":
-                return body;
             case "log":
                 context.Logger.Debug("Debug message");
                 context.Logger.Info("Info message");
