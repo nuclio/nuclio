@@ -8,7 +8,7 @@
         });
 
     function NclHeaderController($timeout, $element, $rootScope, $scope, $state, $transitions, $i18next, i18next,
-                                 ngDialog, lodash, ConfigService) {
+                                 lodash, ConfigService) {
         var ctrl = this;
 
         var deregisterExitFunction = null;
@@ -23,10 +23,6 @@
             {
                 name: 'English',
                 id: 'en'
-            },
-            {
-                name: 'Ukrainian',
-                id: 'uk'
             }
         ];
         ctrl.mainHeaderTitle = {};
