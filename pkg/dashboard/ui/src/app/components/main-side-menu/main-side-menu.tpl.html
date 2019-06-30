@@ -2,7 +2,7 @@
     <div class="top-container" data-ng-style="{height: $ctrl.isNamespacesExist() ? '176px' : '119px'}">
         <div class="main-logo"></div>
         <div class="namespace-container" data-ng-if="$ctrl.isNamespacesExist()">
-            <div class="namespace-label">Namespace</div>
+            <div class="namespace-label">{{ 'functions:NAMESPACE' | i18next }}</div>
             <div class="namespace-dropdown-container">
                 <igz-default-dropdown
                         data-selected-item="$ctrl.namespaceData.selectedNamespace"
@@ -22,15 +22,15 @@
                 <a class="side-menu-item"
                    data-ui-sref="app.projects"
                    data-ng-class="{'active': $ctrl.isActiveState(['app.projects', 'app.project', 'app.create-function'])}">
-                    <span class="menu-item-title">Projects</span>
+                    <span class="menu-item-title">{{ 'common:PROJECTS' | i18next }}</span>
                 </a>
                 <a class="side-menu-item"
                    data-ng-if="$ctrl.isDemoMode()">
-                    <div class="menu-item-title">Configuration</div>
+                    <div class="menu-item-title">{{ 'common:CONFIGURATION' | i18next }}</div>
                 </a>
                 <a class="side-menu-item"
                    data-ng-if="$ctrl.isDemoMode()">
-                    <div class="menu-item-title">Monitoring</div>
+                    <div class="menu-item-title">{{ 'common:MONITORING' | i18next }}</div>
                 </a>
             </div>
         </div>

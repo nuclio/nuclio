@@ -19,6 +19,7 @@
         'iguazio.dashboard-controls',
         'ngFileUpload',
         'rzModule',
-        'angular-cron-jobs'
+        'angular-cron-jobs',
+        'jm.i18next'
     ]);
 }());

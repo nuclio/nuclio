@@ -4,7 +4,7 @@
     angular.module('nuclio.app')
         .factory('NuclioNamespacesDataService', NuclioNamespacesDataService);
 
-    function NuclioNamespacesDataService(NuclioClientService, DialogsService, lodash) {
+    function NuclioNamespacesDataService($i18next, i18next, NuclioClientService, DialogsService, lodash) {
 
         var service = {
             getNamespaces: getNamespaces,
@@ -107,7 +107,7 @@
                         return;
                     }
 
-                    DialogsService.alert('Oops: Unknown error occurred while retrieving namespaces');
+                    DialogsService.alert($i18next.t('functions:ERROR_MSG.GET_NAMESPACES', {lng: i18next.language}));
                 });
         }
     }

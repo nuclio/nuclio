@@ -4,7 +4,8 @@
     angular.module('nuclio.app')
         .factory('ImportService', ImportService);
 
-    function ImportService($q, DialogsService, NuclioFunctionsDataService, NuclioProjectsDataService, lodash, YAML) {
+    function ImportService($q, $i18next, i18next, DialogsService, NuclioFunctionsDataService,
+                           NuclioProjectsDataService, lodash, YAML) {
         return {
             importFile: importFile
         };
@@ -69,7 +70,7 @@
                     promise.resolve();
                 });
             }).catch(function () {
-                DialogsService.alert('Error occurred while creating a new project.');
+                DialogsService.alert($i18next.t('common:ERROR_MSG.IMPORT_PROJECT', {lng: i18next.language}));
             });
         }
     }

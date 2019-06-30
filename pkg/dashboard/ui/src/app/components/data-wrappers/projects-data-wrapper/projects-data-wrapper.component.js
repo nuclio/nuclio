@@ -7,7 +7,8 @@
             controller: ProjectsDataWrapperController
         });
 
-    function ProjectsDataWrapperController($state, lodash, DialogsService, NuclioProjectsDataService, NuclioFunctionsDataService) {
+    function ProjectsDataWrapperController($i18next, i18next, $state, lodash, DialogsService,
+                                           NuclioProjectsDataService, NuclioFunctionsDataService) {
         var ctrl = this;
 
         ctrl.projects = [];
@@ -67,7 +68,7 @@
                     }
                 })
                 .catch(function (error) {
-                    DialogsService.alert('Oops: Unknown error occurred while retrieving projects');
+                    DialogsService.alert($i18next.t('functions:ERROR_MSG.GET_PROJECTS', {lng: i18next.language}));
                 });
         }
 
