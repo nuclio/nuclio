@@ -52,7 +52,7 @@
     "i18next-chained-backend": "^1.0.1",
     "i18next-localstorage-backend": "^2.1.2",
     "i18next-xhr-backend": "^2.0.1",
-    "iguazio.dashboard-controls": "^0.9.0",
+    "iguazio.dashboard-controls": "^0.9.1",
     "imagemin-gifsicle": "^5.1.0",
     "imagemin-jpegtran": "^5.0.2",
     "imagemin-optipng": "^5.2.1",
