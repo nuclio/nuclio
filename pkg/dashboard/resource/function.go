@@ -380,7 +380,10 @@ func (fr *functionResource) getAndValidateFunctionInfoFromRequest(request *http.
 	}
 
 	// validate such project exists
-	getProjectsOptions := &platform.GetProjectsOptions{ Meta: platform.ProjectMeta{ Name: projectName} }
+	getProjectsOptions := &platform.GetProjectsOptions{ Meta: platform.ProjectMeta{
+		Name: projectName,
+		Namespace: functionInfoInstance.Meta.Namespace,
+	}}
 	projects, err := fr.getPlatform().GetProjects(getProjectsOptions)
 	if len(projects) == 0 {
 		return nil, nuclio.NewErrBadRequest("Project doesn't exist")
