@@ -375,15 +375,16 @@ func (fr *functionResource) getAndValidateFunctionInfoFromRequest(request *http.
 		}
 
 		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
-	} else {
+	} else if functionInfoInstance.Meta.Labels["nuclio.io/project-name"] == "" {
 		return nil, nuclio.WrapErrBadRequest(errors.New("No project name was given inside meta labels"))
 	}
 
-	// validate such project exists
+	// validate the project exists
 	getProjectsOptions := &platform.GetProjectsOptions{ Meta: platform.ProjectMeta{
-		Name: projectName,
+		Name: functionInfoInstance.Meta.Labels["nuclio.io/project-name"],
 		Namespace: functionInfoInstance.Meta.Namespace,
 	}}
+
 	projects, err := fr.getPlatform().GetProjects(getProjectsOptions)
 	if len(projects) == 0 {
 		return nil, nuclio.NewErrBadRequest("Project doesn't exist")
