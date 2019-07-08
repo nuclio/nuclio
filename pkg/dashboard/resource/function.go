@@ -107,7 +107,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 
 // Create and deploy a function
 func (fr *functionResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
-	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
+	functionInfo, responseErr := fr.getAndValidateFunctionInfoFromRequest(request)
 	if responseErr != nil {
 		return
 	}
@@ -118,13 +118,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		Namespace: fr.getNamespaceFromRequest(request),
 	}
 
-	projectNameFilter, ok := functionInfo.Meta.Labels["nuclio.io/project-name"]
-	if !ok || projectNameFilter == "" {
-		responseErr = nuclio.WrapErrBadRequest(errors.New("No project name was given inside meta labels"))
-		return
-	}
-
-	getFunctionsOptions.Labels = fmt.Sprintf("nuclio.io/project-name=%s", projectNameFilter)
+	getFunctionsOptions.Labels = fmt.Sprintf("nuclio.io/project-name=%s", functionInfo.Meta.Labels["nuclio.io/project-name"])
 
 	// TODO: Add a lock to prevent race conditions here (prevent 2 functions created with the same name)
 	functions, err := fr.getPlatform().GetFunctions(getFunctionsOptions)
@@ -149,7 +143,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 // Update and deploy a function
 func (fr *functionResource) Update(request *http.Request, id string) (attributes restful.Attributes, responseErr error) {
-	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
+	functionInfo, responseErr := fr.getAndValidateFunctionInfoFromRequest(request)
 	if responseErr != nil {
 		return
 	}
@@ -260,7 +254,7 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, r
 func (fr *functionResource) deleteFunction(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	// get function config and status from body
-	functionInfo, err := fr.getFunctionInfoFromRequest(request)
+	functionInfo, err := fr.getAndValidateFunctionInfoFromRequest(request)
 	if err != nil {
 		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
 
@@ -338,7 +332,7 @@ func (fr *functionResource) getNamespaceFromRequest(request *http.Request) strin
 	return fr.getNamespaceOrDefault(request.Header.Get("x-nuclio-function-namespace"))
 }
 
-func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*functionInfo, error) {
+func (fr *functionResource) getAndValidateFunctionInfoFromRequest(request *http.Request) (*functionInfo, error) {
 
 	// read body
 	body, err := ioutil.ReadAll(request.Body)
@@ -381,6 +375,15 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		}
 
 		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
+	} else {
+		return nil, nuclio.WrapErrBadRequest(errors.New("No project name was given inside meta labels"))
+	}
+
+	// validate such project exists
+	getProjectsOptions := &platform.GetProjectsOptions{ Meta: platform.ProjectMeta{ Name: projectName} }
+	projects, err := fr.getPlatform().GetProjects(getProjectsOptions)
+	if len(projects) == 0 {
+		return nil, nuclio.NewErrBadRequest("Project doesn't exist")
 	}
 
 	return &functionInfoInstance, nil
