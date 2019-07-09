@@ -102,6 +102,18 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// replace logger
 	createFunctionOptions.Logger = logStream.GetLogger()
 
+	// validate the project exists
+	getProjectsOptions := &platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta {
+			Name: createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		},
+	}
+	projects, err := p.GetProjects(getProjectsOptions)
+	if len(projects) == 0 {
+		return nil, errors.New("Project doesn't exist")
+	}
+
 	// local currently doesn't support registries of any kind. remove push / run registry
 	createFunctionOptions.FunctionConfig.Spec.RunRegistry = ""
 	createFunctionOptions.FunctionConfig.Spec.Build.Registry = ""
