@@ -12,7 +12,7 @@
                                       data-item-select-field="attr.id"
                                       data-form-object="$ctrl.translationForm"
                                       data-input-name="languageName"
-                                      data-placeholder="{{ 'header:SELECT_LANGUAGE' | i18next }}">
+                                      data-placeholder="{{ 'common:SELECT_LANGUAGE' | i18next }}">
                 </igz-default-dropdown>
             </form>
         </div>
@@ -22,7 +22,7 @@
 
 <div class="header-expansion-button"
      data-ng-click="$ctrl.onToggleHeader()"
-     data-uib-tooltip="{{ ($ctrl.isHeaderExpanded ? 'header:TOOLTIP.CLOSE_HEADER' : 'header:TOOLTIP.OPEN_HEADER') | i18next }}"
+     data-uib-tooltip="{{ ($ctrl.isHeaderExpanded ? 'common:TOOLTIP.CLOSE_HEADER' : 'common:TOOLTIP.OPEN_HEADER') | i18next }}"
      data-tooltip-popup-delay="500"
      data-tooltip-placement="bottom">
     <div class="expansion-icon {{$ctrl.isHeaderExpanded ? 'igz-icon-up' : 'igz-icon-down'}}"></div>
