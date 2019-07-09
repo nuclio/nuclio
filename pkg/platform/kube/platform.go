@@ -112,18 +112,6 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// save the log stream for the name
 	p.DeployLogStreams[createFunctionOptions.FunctionConfig.Meta.GetUniqueID()] = logStream
 
-	// validate the project exists
-	getProjectsOptions := &platform.GetProjectsOptions{
-		Meta: platform.ProjectMeta {
-			Name: createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
-			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
-		},
-	}
-	projects, err := p.GetProjects(getProjectsOptions)
-	if len(projects) == 0 {
-		return nil, errors.New("Project doesn't exist")
-	}
-
 	// replace logger
 	createFunctionOptions.Logger = logStream.GetLogger()
 
