@@ -376,7 +376,7 @@ func (fr *functionResource) getAndValidateFunctionInfoFromRequest(request *http.
 
 		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
 	} else if functionInfoInstance.Meta.Labels["nuclio.io/project-name"] == "" {
-		return nil, nuclio.WrapErrBadRequest(errors.New("No project name was given inside meta labels"))
+		return nil, nuclio.WrapErrBadRequest(errors.New("No project name was given inside meta labels or headers"))
 	}
 
 	// validate the project exists

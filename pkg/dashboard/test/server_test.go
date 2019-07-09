@@ -483,6 +483,9 @@ func (suite *functionTestSuite) TestGetListNoNamespace() {
 }
 
 func (suite *functionTestSuite) TestCreateSuccessful() {
+	returnedProject := platform.AbstractProject{}
+	returnedProject.ProjectConfig.Meta.Name = "proj"
+	returnedProject.ProjectConfig.Meta.Namespace = "f1Namespace"
 
 	// verify
 	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
@@ -498,6 +501,17 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 		suite.Require().Equal("f1Namespace", getFunctionsOptions.Namespace)
 		return true
 	}
+
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("proj", getProjectsOptions.Meta.Name)
+		suite.Require().Equal("f1Namespace", getProjectsOptions.Meta.Namespace)
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{&returnedProject}, nil).
+		Once()
 
 	suite.mockPlatform.
 		On("CreateFunction", mock.MatchedBy(verifyCreateFunction)).
@@ -586,6 +600,14 @@ func (suite *functionTestSuite) TestCreateFunctionWithInvalidName() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+func (suite *functionTestSuite) TestCreateWithoutProject() {
+	suite.sendRequestSpecifiedProject("POST", "")
+}
+
+func (suite *functionTestSuite) TestCreateWithNonExistingProject() {
+	suite.sendRequestSpecifiedProject("POST", "non-existing-proj-name")
+}
+
 func (suite *functionTestSuite) TestUpdateSuccessful() {
 	suite.T().Skip("Update not supported")
 
@@ -649,6 +671,9 @@ func (suite *functionTestSuite) TestUpdateNoNamespace() {
 }
 
 func (suite *functionTestSuite) TestDeleteSuccessful() {
+	returnedProject := platform.AbstractProject{}
+	returnedProject.ProjectConfig.Meta.Name = "proj"
+	returnedProject.ProjectConfig.Meta.Namespace = "f1Namespace"
 
 	// verify
 	verifyDeleteFunction := func(deleteFunctionOptions *platform.DeleteFunctionOptions) bool {
@@ -658,6 +683,18 @@ func (suite *functionTestSuite) TestDeleteSuccessful() {
 		return true
 	}
 
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("proj", getProjectsOptions.Meta.Name)
+		suite.Require().Equal("f1Namespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{&returnedProject}, nil).
+		Once()
+
 	suite.mockPlatform.
 		On("DeleteFunction", mock.MatchedBy(verifyDeleteFunction)).
 		Return(nil).
@@ -665,6 +702,7 @@ func (suite *functionTestSuite) TestDeleteSuccessful() {
 
 	headers := map[string]string{
 		"x-nuclio-wait-function-action": "true",
+		"x-nuclio-project-name":         "proj",
 	}
 
 	expectedStatusCode := http.StatusNoContent
@@ -850,14 +888,30 @@ func (suite *functionTestSuite) sendRequestWithExistingName(method string) {
 	returnedFunction.Config.Meta.Name = "f1"
 	returnedFunction.Config.Meta.Namespace = "f1Namespace"
 
+	returnedProject := platform.AbstractProject{}
+	returnedProject.ProjectConfig.Meta.Name = "proj"
+	returnedProject.ProjectConfig.Meta.Namespace = "f1Namespace"
+
 	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
 		suite.Require().Equal("f1", getFunctionsOptions.Name)
 		suite.Require().Equal("f1Namespace", getFunctionsOptions.Namespace)
 		return true
 	}
+
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("proj", getProjectsOptions.Meta.Name)
+		suite.Require().Equal("f1Namespace", getProjectsOptions.Meta.Namespace)
+		return true
+	}
+
 	suite.mockPlatform.
 		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
 		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{&returnedProject}, nil).
 		Once()
 
 	expectedStatusCode := http.StatusConflict
@@ -909,6 +963,56 @@ func (suite *functionTestSuite) sendRequestWithInvalidBody(method string, body s
 
 	expectedStatusCode := http.StatusBadRequest
 	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name must be provided in metadata"})
+	requestBody := body
+
+	suite.sendRequest(method,
+		"/api/functions",
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionTestSuite) sendRequestSpecifiedProject(method string, projectName string) {
+	var ecv *restful.ErrorContainsVerifier
+	body := `{
+	"metadata": {
+		"name"     : "f1",
+		"namespace": "f1Namespace"
+	},
+	"spec": {
+		"resources": {},
+		"build": {},
+		"platform": {},
+		"runtime": "r1"
+	}
+}`
+
+	headers := map[string]string{
+		"x-nuclio-wait-function-action": "true",
+		"x-nuclio-project-name"        : projectName,
+	}
+
+	expectedStatusCode := http.StatusBadRequest
+	if projectName == "" {
+		ecv = restful.NewErrorContainsVerifier(suite.logger, []string{"No project name was given inside meta labels or headers"})
+	} else {
+		ecv = restful.NewErrorContainsVerifier(suite.logger, []string{"Project doesn't exist"})
+
+		verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+			suite.Require().Equal(projectName, getProjectsOptions.Meta.Name)
+			suite.Require().Equal("f1Namespace", getProjectsOptions.Meta.Namespace)
+
+			return true
+		}
+
+		suite.mockPlatform.
+			On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+			Return([]platform.Project{}, nil).
+			Once()
+	}
 	requestBody := body
 
 	suite.sendRequest(method,
