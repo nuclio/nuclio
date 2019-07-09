@@ -177,7 +177,7 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
 func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, request *http.Request) error {
 
-	creationStateUpdatedTimeout := 15 * time.Second
+	creationStateUpdatedTimeout := 45 * time.Second
 
 	doneChan := make(chan bool, 1)
 	creationStateUpdatedChan := make(chan bool, 1)
