@@ -48,6 +48,10 @@ func (suite *TestSuite) TestOutputs() {
 	logLevelDebug := "debug"
 	logLevelWarn := "warn"
 	testPath := "/path/to/nowhere"
+	longTestBody := `long body: Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. 
+	Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies nec, 
+	pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, 
+	vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis pretium.`
 
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
 
@@ -64,6 +68,13 @@ func (suite *TestSuite) TestOutputs() {
 				RequestBody:                "return_string",
 				ExpectedResponseHeaders:    headersContentTypeTextPlain,
 				ExpectedResponseBody:       "a string",
+				ExpectedResponseStatusCode: &statusOK,
+			},
+			{
+				Name:                       "long body",
+				RequestBody:                longTestBody,
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       longTestBody,
 				ExpectedResponseStatusCode: &statusOK,
 			},
 			{
