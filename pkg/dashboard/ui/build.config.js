@@ -89,9 +89,6 @@ module.exports = {
             tests: [
                 'src/**/*.spec.js'
             ],
-            i18n: [
-                'node_modules/iguazio.dashboard-controls/src/i18n'
-            ],
             karma_config: 'tests/unit/karma.config.js'
         },
         e2e: {
