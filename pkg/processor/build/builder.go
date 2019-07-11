@@ -28,7 +28,6 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -1596,13 +1595,6 @@ func (b *Builder) downloadFunctionFromURL(tempFile *os.File,
 func (b *Builder) getFunctionTempFile(tempDir string, functionPath string, isArchive bool) (*os.File, error) {
 	functionPathBase := path.Base(functionPath)
 
-	b.logger.InfoWith("test beforebefore", "functionPathBase", functionPathBase)
-
-	// in case it is empty
-	if functionPathBase == "" {
-		functionPathBase = "nuclio-function-"+time.Now().Format("20060102150405.000")
-	}
-
 	// for archives, use a temporary local file renamed to something short to allow wacky long archive URLs
 	if util.IsCompressed(functionPathBase) || isArchive {
 
@@ -1612,19 +1604,8 @@ func (b *Builder) getFunctionTempFile(tempDir string, functionPath string, isArc
 			return nil, errors.Wrap(err, "Failed to get file extension from URL")
 		}
 
-		b.logger.InfoWith("test fileextension", "fileExtension", fileExtension)
-
 		return ioutil.TempFile(tempDir, "nuclio-function-*"+fileExtension)
 	}
-
-	b.logger.InfoWith("test before", "functionPathBase", functionPathBase)
-
-	// in case it is empty
-	if functionPathBase == "" {
-		functionPathBase = "nuclio-function-"+time.Now().Format("20060102150405.000")
-	}
-
-	b.logger.InfoWith("test after", "functionPathBase", functionPathBase)
 
 	// for non-archives, must retain file name
 	return os.OpenFile(path.Join(tempDir, functionPathBase), os.O_RDWR|os.O_CREATE, 0600)
