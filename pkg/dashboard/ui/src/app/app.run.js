@@ -56,6 +56,7 @@
                 'header',
                 'functions'
             ],
+            // @if !IGZ_TESTING
             backend: {
                 backends: [
                     $window.i18nextLocalStorageBackend,
@@ -70,6 +71,7 @@
                     }
                 ]
             }
+            // @endif
         });
     }
 }());
