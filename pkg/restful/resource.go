@@ -409,11 +409,11 @@ func (ar *AbstractResource) writeErrorReason(responseWriter io.Writer, err error
 
 	// format to json manually
 	serializedError, _ := json.Marshal(struct {
-		Error      string `json:"error"`
-		ErrorCause string `json:"errorCause"`
+		Error           string `json:"error"`
+		ErrorStackTrace string `json:"errorStackTrace"`
 	}{
-		buffer.String(),
 		errorCause,
+		buffer.String(),
 	})
 
 	// write to the response
