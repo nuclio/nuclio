@@ -114,15 +114,18 @@ type Builder struct {
 
 	// original function configuration, for fields that are overridden and need to be restored
 	originalFunctionConfig functionconfig.Config
+
+	s3Client common.S3Client
 }
 
 // NewBuilder returns a new builder
-func NewBuilder(parentLogger logger.Logger, platform platform.Platform) (*Builder, error) {
+func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client common.S3Client) (*Builder, error) {
 	var err error
 
 	newBuilder := &Builder{
 		logger:   parentLogger,
 		platform: platform,
+		s3Client: s3Client,
 	}
 
 	newBuilder.initializeSupportedRuntimes()
@@ -499,13 +502,12 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
 
 	// function can either be in the path, received inline or an executable via handler
-	if b.options.FunctionConfig.Spec.Build.Path == "" &&
+	if functionPath == "" &&
 		b.options.FunctionConfig.Spec.Image == "" &&
 		codeEntryType != S3EntryType {
 
 		if b.options.FunctionConfig.Spec.Runtime != "shell" {
 			return "", errors.New("Function path must be provided when specified runtime isn't shell")
-
 		}
 
 		// did user give handler to an executable
@@ -1551,7 +1553,7 @@ func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {
 		return errors.Wrap(err, "Failed to parse and validate s3 code entry attributes")
 	}
 
-	err = common.DownloadFileFromAWSS3(tempFile,
+	err = b.s3Client.DownloadFileFromAWSS3(tempFile,
 		s3Attributes["s3Bucket"],
 		s3Attributes["s3ItemKey"],
 		s3Attributes["s3Region"],
