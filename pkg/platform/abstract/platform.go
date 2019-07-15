@@ -62,7 +62,7 @@ func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platf
 func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 
 	// execute a build
-	builder, err := build.NewBuilder(createFunctionBuildOptions.Logger, ap.platform, &common.AwsS3Client{})
+	builder, err := build.NewBuilder(createFunctionBuildOptions.Logger, ap.platform, &common.AbstractS3Client{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create builder")
 	}

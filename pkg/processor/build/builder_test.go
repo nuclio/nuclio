@@ -21,7 +21,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"strconv"
+	"path/filepath"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -57,7 +57,7 @@ type mockS3Client struct {
 }
 
 // mock function
-func (msc mockS3Client) DownloadFileFromAWSS3(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error {
+func (msc mockS3Client) Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error {
 	functionArchiveFileBytes, _ := ioutil.ReadFile(FunctionsArchiveFilePath)
 
 	_ = ioutil.WriteFile(file.Name(), functionArchiveFileBytes, os.FileMode(os.O_RDWR))
@@ -620,7 +620,7 @@ func (suite *testSuite) TestResolveFunctionPathS3CodeEntry() {
 
 	// validate values passed to the mocked function
 	suite.mockS3Client.
-		On("DownloadFileFromAWSS3",
+		On("Download",
 			mock.Anything,
 			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-bucket")),
 			mock.MatchedBy(common.GenerateStringMatchVerifier("funcs.zip")),
@@ -681,19 +681,19 @@ func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension stri
 		response.ContentLength = int64(len(codeFileContent))
 		return response, err
 	}
-	pythonFileURL := "http://some-address.com/my-func."+fileExtension
-	httpmock.RegisterResponder("GET", pythonFileURL, responder)
+	codeFileURL := "http://some-address.com/my-func."+fileExtension
+	httpmock.RegisterResponder("GET", codeFileURL, responder)
 
-	// the python file will be downloaded here
+	// the code file will be "downloaded" here
 	err := suite.builder.createTempDir()
 	suite.NoError(err)
 
 	defer suite.builder.cleanupTempDir() // nolint: errcheck
 
-	path, err := suite.builder.resolveFunctionPath(pythonFileURL)
+	path, err := suite.builder.resolveFunctionPath(codeFileURL)
 	suite.NoError(err)
 
-	expectedFilePath := suite.builder.tempDir+"/download/my-func."+fileExtension
+	expectedFilePath := filepath.Join(suite.builder.tempDir, "/download/my-func."+fileExtension)
 	suite.Equal(expectedFilePath, path)
 
 	resultSourceCode, err := ioutil.ReadFile(expectedFilePath)
@@ -707,7 +707,7 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 
 	suite.builder.options.FunctionConfig.Spec.Build = buildConfiguration
 
-	// the archive will be "downloaded" here
+	// the archive will be "downloaded" to this directory
 	err := suite.builder.createTempDir()
 	suite.NoError(err)
 
@@ -721,7 +721,7 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 
 		responder := func(req *http.Request) (*http.Response, error) {
 			response := &http.Response{
-				Status:        strconv.Itoa(200),
+				Status:        "200",
 				StatusCode:    200,
 				Body:          httpmock.NewRespBodyFromBytes(functionArchiveFileBytes),
 				Header:        http.Header{},
@@ -737,14 +737,14 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 
 	// make sure the path is set to the work dir inside the decompressed folder
 	if buildConfiguration.CodeEntryType == GithubEntryType {
-		destinationWorkDir = "/funcs"+buildConfiguration.CodeEntryAttributes["workDir"].(string)
+		destinationWorkDir = filepath.Join("/funcs", buildConfiguration.CodeEntryAttributes["workDir"].(string))
 	} else {
 		destinationWorkDir = buildConfiguration.CodeEntryAttributes["workDir"].(string)
 	}
 	suite.Equal(suite.builder.tempDir+"/decompress"+destinationWorkDir, path)
 
 	// make sure our test python file is inside the decompress folder
-	decompressedPythonFileContent, err := ioutil.ReadFile(path+"/main.py")
+	decompressedPythonFileContent, err := ioutil.ReadFile(filepath.Join(path, "/main.py"))
 	suite.Equal("some python code...\n", string(decompressedPythonFileContent))
 }
 

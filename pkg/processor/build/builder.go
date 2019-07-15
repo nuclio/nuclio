@@ -253,7 +253,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	}
 
 	buildResult := &platform.CreateFunctionBuildResult{
-		Image:                 processorImage,
+		Image: processorImage,
 		UpdatedFunctionConfig: enrichedConfiguration,
 	}
 
@@ -1553,7 +1553,7 @@ func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {
 		return errors.Wrap(err, "Failed to parse and validate s3 code entry attributes")
 	}
 
-	err = b.s3Client.DownloadFileFromAWSS3(tempFile,
+	err = b.s3Client.Download(tempFile,
 		s3Attributes["s3Bucket"],
 		s3Attributes["s3ItemKey"],
 		s3Attributes["s3Region"],
@@ -1598,7 +1598,7 @@ func (b *Builder) getFunctionTempFile(tempDir string, functionPath string, isArc
 	functionPathBase := path.Base(functionPath)
 
 	// for archives, use a temporary local file renamed to something short to allow wacky long archive URLs
-	if util.IsCompressed(functionPathBase) || isArchive {
+	if isArchive || util.IsCompressed(functionPathBase) {
 
 		// retain file extension
 		fileExtension, err := b.getFileExtensionByURL(functionPath)
