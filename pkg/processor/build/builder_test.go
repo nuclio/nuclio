@@ -18,6 +18,7 @@ package build
 
 import (
 	"encoding/base64"
+	"github.com/stretchr/testify/mock"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -51,14 +52,18 @@ type testSuite struct {
 	mockS3Client *mockS3Client
 }
 
-type mockS3Client struct {}
+type mockS3Client struct {
+	mock.Mock
+}
 
+// mock function
 func (msc mockS3Client) DownloadFileFromAWSS3(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error {
 	functionArchiveFileBytes, _ := ioutil.ReadFile(FunctionsArchiveFilePath)
 
 	_ = ioutil.WriteFile(file.Name(), functionArchiveFileBytes, os.FileMode(os.O_RDWR))
 
-	return nil
+	args := msc.Called(file, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken)
+	return args.Error(0)
 }
 
 // SetupSuite is called for suite setup
@@ -579,21 +584,27 @@ func (suite *testSuite) TestValidateAndParseS3Attributes() {
 	suite.Require().Equal(expectedResult, res)
 }
 
-
 func (suite *testSuite) TestResolveFunctionPathRemoteCodeFile() {
+	fileExtensions := []string{"py", "go", "cs", "java", "js", "sh", "rb"}
+	for _, fileExtension := range fileExtensions {
+		suite.testResolveFunctionPathRemoteCodeFile(fileExtension)
+	}
+}
+
+func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension string) {
 
 	// mock http response
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 
-	pythonFileContent:= "some python code..."
+	codeFileContent:= "some code..."
 	responder := func(req *http.Request) (*http.Response, error) {
-		responder := httpmock.NewStringResponder(200, pythonFileContent)
+		responder := httpmock.NewStringResponder(200, codeFileContent)
 		response, err := responder(req)
-		response.ContentLength = int64(len(pythonFileContent))
+		response.ContentLength = int64(len(codeFileContent))
 		return response, err
 	}
-	pythonFileURL := "http://some-address.com/my-func.py"
+	pythonFileURL := "http://some-address.com/my-func."+fileExtension
 	httpmock.RegisterResponder("GET", pythonFileURL, responder)
 
 	// the python file will be downloaded here
@@ -605,13 +616,13 @@ func (suite *testSuite) TestResolveFunctionPathRemoteCodeFile() {
 	path, err := suite.builder.resolveFunctionPath(pythonFileURL)
 	suite.NoError(err)
 
-	expectedFilePath := suite.builder.tempDir+"/download/my-func.py"
+	expectedFilePath := suite.builder.tempDir+"/download/my-func."+fileExtension
 	suite.Equal(expectedFilePath, path)
 
 	resultSourceCode, err := ioutil.ReadFile(expectedFilePath)
 	suite.Assert().NoError(err)
 
-	suite.Assert().Equal(pythonFileContent, string(resultSourceCode))
+	suite.Assert().Equal(codeFileContent, string(resultSourceCode))
 }
 
 func (suite *testSuite) TestResolveFunctionPathArchiveCodeEntry() {
@@ -640,12 +651,30 @@ func (suite *testSuite) TestResolveFunctionPathGithubCodeEntry() {
 }
 
 func (suite *testSuite) TestResolveFunctionPathS3CodeEntry() {
+
+	// validate values passed to the mocked function
+	suite.mockS3Client.
+		On("DownloadFileFromAWSS3",
+			mock.Anything,
+			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-bucket")),
+			mock.MatchedBy(common.GenerateStringMatchVerifier("funcs.zip")),
+			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-region")),
+			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-access-key-id")),
+			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-secret-access-key")),
+			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-session-token"))).
+		Return(nil).
+		Once()
+
 	buildConfiguration := functionconfig.Build{
 		CodeEntryType: S3EntryType,
 		Path: "",
 		CodeEntryAttributes: map[string]interface{}{
 			"s3Bucket":"my-s3-bucket",
 			"s3ItemKey":"funcs.zip",
+			"s3Region":"my-s3-region",
+			"s3AccessKeyId":"my-s3-access-key-id",
+			"s3SecretAccessKey":"my-s3-secret-access-key",
+			"s3SessionToken":"my-s3-session-token",
 			"workDir": "/funcs/my-python-func",
 		},
 	}
