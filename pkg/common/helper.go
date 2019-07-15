@@ -138,7 +138,7 @@ func RemoveEmptyLines(input string) string {
 
 // Generate a function that returns if a given string matches the specified string
 func GenerateStringMatchVerifier(str string) func(string) bool {
-	return func (toMatch string) bool {
+	return func(toMatch string) bool {
 		return toMatch == str
 	}
 }

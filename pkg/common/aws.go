@@ -18,7 +18,7 @@ type S3Client interface {
 	DownloadFileFromAWSS3(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error
 }
 
-type AwsS3Client struct {}
+type AwsS3Client struct{}
 
 func (asc AwsS3Client) DownloadFileFromAWSS3(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error {
 	itemKey = filepath.Clean(itemKey)
