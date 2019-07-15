@@ -33,7 +33,9 @@ RUN curl -L https://github.com/nuclio/nuclio-sdk-dotnetcore/archive/master.tar.g
 COPY pkg/processor/runtime/dotnetcore /home/nuclio/src/wrapper
 RUN dotnet add /home/nuclio/src/wrapper package Microsoft.CSharp && \
     dotnet add /home/nuclio/src/wrapper package System.Dynamic.Runtime && \
-    dotnet add /home/nuclio/src/wrapper package Newtonsoft.Json -v 11.0.1 && \
+    dotnet add /home/nuclio/src/wrapper package System.Runtime.Loader && \
+    dotnet add /home/nuclio/src/wrapper package Microsoft.Extensions.DependencyModel && \
+    dotnet add /home/nuclio/src/wrapper package Newtonsoft.Json && \
     dotnet add /home/nuclio/src/wrapper reference /home/nuclio/src/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
 
 # Build the wrapper
@@ -52,8 +54,8 @@ ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /home/nuclio/src/handler
 
 ONBUILD RUN dotnet add /home/nuclio/src/handler package Microsoft.CSharp && \
             dotnet add /home/nuclio/src/handler package System.Dynamic.Runtime && \
-            dotnet add /home/nuclio/src/handler package Newtonsoft.Json -v 11.0.1 && \
-            dotnet add /home/nuclio/src/handler package Microsoft.Azure.EventHubs -v 2.0.0-preview && \
+            dotnet add /home/nuclio/src/handler package Newtonsoft.Json && \
+            dotnet add /home/nuclio/src/handler package Microsoft.Azure.EventHubs -v 2.2.1 && \
             dotnet add /home/nuclio/src/handler reference /home/nuclio/src/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
 
 ONBUILD RUN cd /home/nuclio/src/handler \

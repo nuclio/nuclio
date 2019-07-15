@@ -39,9 +39,6 @@ func (suite *TestSuite) SetupTest() {
 }
 
 func (suite *TestSuite) TestOutputs() {
-	// TODO: Have common tests and use here and in Python
-	// see https://github.com/nuclio/nuclio/issues/227
-
 	statusOK := http.StatusOK
 	statusCreated := http.StatusCreated
 	statusInternalError := http.StatusInternalServerError
@@ -68,6 +65,13 @@ func (suite *TestSuite) TestOutputs() {
 				RequestBody:                "return_string",
 				ExpectedResponseHeaders:    headersContentTypeTextPlain,
 				ExpectedResponseBody:       "a string",
+				ExpectedResponseStatusCode: &statusOK,
+			},
+			{
+				Name:                       "json_convert",
+				RequestBody:                "json_convert",
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "{\n  \"Name\": \"John Doe\",\n  \"Email\": \"john@iguazio.com\"\n}",
 				ExpectedResponseStatusCode: &statusOK,
 			},
 			{
