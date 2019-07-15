@@ -16,6 +16,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Nuclio.Sdk;
+using Newtonsoft.Json;
+
+
+public class Account
+{
+    public string Name { get; set; }
+    public string Email { get; set; }
+}
+
 
 public class nuclio
 {
@@ -60,6 +69,14 @@ public class nuclio
                 return String.Join(",", listOfFields.Select(x => x.ToString()).ToArray());
             case "return_path":
                 return eventBase.Path;
+            case "json_convert":
+                Account account = new Account
+                {
+                    Name = "John Doe",
+                    Email = "john@iguazio.com"
+                };
+                string json = JsonConvert.SerializeObject(account, Formatting.Indented);
+                return json;
         }
 
         if (body.StartsWith("long body")) {
