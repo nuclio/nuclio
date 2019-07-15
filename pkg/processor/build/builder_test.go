@@ -591,40 +591,6 @@ func (suite *testSuite) TestResolveFunctionPathRemoteCodeFile() {
 	}
 }
 
-func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension string) {
-
-	// mock http response
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
-
-	codeFileContent:= "some code..."
-	responder := func(req *http.Request) (*http.Response, error) {
-		responder := httpmock.NewStringResponder(200, codeFileContent)
-		response, err := responder(req)
-		response.ContentLength = int64(len(codeFileContent))
-		return response, err
-	}
-	pythonFileURL := "http://some-address.com/my-func."+fileExtension
-	httpmock.RegisterResponder("GET", pythonFileURL, responder)
-
-	// the python file will be downloaded here
-	err := suite.builder.createTempDir()
-	suite.NoError(err)
-
-	defer suite.builder.cleanupTempDir() // nolint: errcheck
-
-	path, err := suite.builder.resolveFunctionPath(pythonFileURL)
-	suite.NoError(err)
-
-	expectedFilePath := suite.builder.tempDir+"/download/my-func."+fileExtension
-	suite.Equal(expectedFilePath, path)
-
-	resultSourceCode, err := ioutil.ReadFile(expectedFilePath)
-	suite.Assert().NoError(err)
-
-	suite.Assert().Equal(codeFileContent, string(resultSourceCode))
-}
-
 func (suite *testSuite) TestResolveFunctionPathArchiveCodeEntry() {
 	archiveFileURL := "http://some-address.com/test_function_archive.zip"
 	buildConfiguration := functionconfig.Build{
@@ -700,6 +666,40 @@ func (suite *testSuite) mergeDirectivesAndVerify(first map[string][]functionconf
 	second map[string][]functionconfig.Directive,
 	merged map[string][]functionconfig.Directive) {
 
+}
+
+func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension string) {
+
+	// mock http response
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	codeFileContent:= "some code..."
+	responder := func(req *http.Request) (*http.Response, error) {
+		responder := httpmock.NewStringResponder(200, codeFileContent)
+		response, err := responder(req)
+		response.ContentLength = int64(len(codeFileContent))
+		return response, err
+	}
+	pythonFileURL := "http://some-address.com/my-func."+fileExtension
+	httpmock.RegisterResponder("GET", pythonFileURL, responder)
+
+	// the python file will be downloaded here
+	err := suite.builder.createTempDir()
+	suite.NoError(err)
+
+	defer suite.builder.cleanupTempDir() // nolint: errcheck
+
+	path, err := suite.builder.resolveFunctionPath(pythonFileURL)
+	suite.NoError(err)
+
+	expectedFilePath := suite.builder.tempDir+"/download/my-func."+fileExtension
+	suite.Equal(expectedFilePath, path)
+
+	resultSourceCode, err := ioutil.ReadFile(expectedFilePath)
+	suite.Assert().NoError(err)
+
+	suite.Assert().Equal(codeFileContent, string(resultSourceCode))
 }
 
 func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functionconfig.Build, archiveFileURL string) {
