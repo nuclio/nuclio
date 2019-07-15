@@ -18,7 +18,6 @@ package build
 
 import (
 	"encoding/base64"
-	"github.com/stretchr/testify/mock"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -33,6 +32,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/rs/xid"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/jarcoal/httpmock.v1"
 )
