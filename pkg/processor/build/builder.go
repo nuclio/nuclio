@@ -114,15 +114,18 @@ type Builder struct {
 
 	// original function configuration, for fields that are overridden and need to be restored
 	originalFunctionConfig functionconfig.Config
+
+	s3Client common.S3Client
 }
 
 // NewBuilder returns a new builder
-func NewBuilder(parentLogger logger.Logger, platform platform.Platform) (*Builder, error) {
+func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client common.S3Client) (*Builder, error) {
 	var err error
 
 	newBuilder := &Builder{
 		logger:   parentLogger,
 		platform: platform,
+		s3Client: s3Client,
 	}
 
 	newBuilder.initializeSupportedRuntimes()
@@ -499,13 +502,12 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
 
 	// function can either be in the path, received inline or an executable via handler
-	if b.options.FunctionConfig.Spec.Build.Path == "" &&
+	if functionPath == "" &&
 		b.options.FunctionConfig.Spec.Image == "" &&
 		codeEntryType != S3EntryType {
 
 		if b.options.FunctionConfig.Spec.Runtime != "shell" {
 			return "", errors.New("Function path must be provided when specified runtime isn't shell")
-
 		}
 
 		// did user give handler to an executable
@@ -1504,12 +1506,16 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 			}
 		}
 
+		isArchive := codeEntryType == S3EntryType ||
+			codeEntryType == ArchiveEntryType ||
+			codeEntryType == GithubEntryType
+
 		tempDir, err := b.mkDirUnderTemp("download")
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
 		}
 
-		tempFile, err := b.getFunctionTempFile(tempDir, functionPath)
+		tempFile, err := b.getFunctionTempFile(tempDir, functionPath, isArchive)
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to get function temporary file")
 		}
@@ -1531,7 +1537,7 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 		}
 
 		if (codeEntryType == S3EntryType || codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) &&
-			!util.IsCompressed(functionPath) {
+			!util.IsCompressed(tempFile.Name()) {
 			return "", errors.New("Downloaded file type is not supported. (expected an archive)")
 		}
 
@@ -1547,7 +1553,7 @@ func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {
 		return errors.Wrap(err, "Failed to parse and validate s3 code entry attributes")
 	}
 
-	err = common.DownloadFileFromAWSS3(tempFile,
+	err = b.s3Client.Download(tempFile,
 		s3Attributes["s3Bucket"],
 		s3Attributes["s3ItemKey"],
 		s3Attributes["s3Region"],
@@ -1588,11 +1594,11 @@ func (b *Builder) downloadFunctionFromURL(tempFile *os.File,
 	return common.DownloadFile(functionPath, tempFile, headers)
 }
 
-func (b *Builder) getFunctionTempFile(tempDir string, functionPath string) (*os.File, error) {
+func (b *Builder) getFunctionTempFile(tempDir string, functionPath string, isArchive bool) (*os.File, error) {
 	functionPathBase := path.Base(functionPath)
 
 	// for archives, use a temporary local file renamed to something short to allow wacky long archive URLs
-	if util.IsCompressed(functionPathBase) {
+	if isArchive || util.IsCompressed(functionPathBase) {
 
 		// retain file extension
 		fileExtension, err := b.getFileExtensionByURL(functionPath)
