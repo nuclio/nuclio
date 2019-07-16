@@ -592,10 +592,10 @@ func (suite *testSuite) TestResolveFunctionPathRemoteCodeFile() {
 }
 
 func (suite *testSuite) TestResolveFunctionPathArchiveCodeEntry() {
-	archiveFileURL := "http://some-address.com/test_function_archive.zip"
+	archiveFileURL := "http://some-address.com/test_function_archive"
 	buildConfiguration := functionconfig.Build{
 		CodeEntryType: ArchiveEntryType,
-		Path: "http://some-address.com/test_function_archive.zip",
+		Path: archiveFileURL,
 		CodeEntryAttributes: map[string]interface{}{
 			"workDir": "/funcs/my-python-func",
 		},
