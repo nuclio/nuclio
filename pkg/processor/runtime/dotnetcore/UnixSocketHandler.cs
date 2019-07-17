@@ -60,8 +60,8 @@ namespace processor
                         while (true)
                         {
                             var buffer = new byte[1024];
-                            await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), SocketFlags.None);
-                            var messagePart = Encoding.UTF8.GetString(buffer);
+                            int bytesReceived = await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), SocketFlags.None);
+                            var messagePart = Encoding.UTF8.GetString(buffer, 0, bytesReceived);
                             var linebreakIndex = messagePart.IndexOf('\n');
                             if (linebreakIndex == -1) {
                                 message += messagePart;
