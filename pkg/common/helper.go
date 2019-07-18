@@ -135,3 +135,10 @@ func RemoveEmptyLines(input string) string {
 	// join the strings with a newline between them
 	return strings.Join(nonEmptyLines, "\n")
 }
+
+// Generate a function that returns whether a given string matches the specified string
+func GenerateStringMatchVerifier(str string) func(string) bool {
+	return func(toMatch string) bool {
+		return toMatch == str
+	}
+}

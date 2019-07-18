@@ -19,6 +19,7 @@ package abstract
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -61,7 +62,7 @@ func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platf
 func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 
 	// execute a build
-	builder, err := build.NewBuilder(createFunctionBuildOptions.Logger, ap.platform)
+	builder, err := build.NewBuilder(createFunctionBuildOptions.Logger, ap.platform, &common.AbstractS3Client{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create builder")
 	}

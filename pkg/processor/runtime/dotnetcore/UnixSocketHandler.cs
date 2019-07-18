@@ -56,13 +56,20 @@ namespace processor
                     await _socket.ConnectAsync(ep);
                     var clientReceives = Task.Run(async () =>
                     {
+                        var message = "";
                         while (true)
                         {
                             var buffer = new byte[1024];
                             await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), SocketFlags.None);
-                            var message = Encoding.UTF8.GetString(buffer);
-                            message = message.Substring(0, message.IndexOf('\n'));
-                            OnMessageReceived(new MessageEventArgs() { Message = message });
+                            var messagePart = Encoding.UTF8.GetString(buffer);
+                            var linebreakIndex = messagePart.IndexOf('\n');
+                            if (linebreakIndex == -1) {
+                                message += messagePart;
+                            } else {
+                                message += messagePart.Substring(0, linebreakIndex);
+                                OnMessageReceived(new MessageEventArgs() { Message = message });
+                                message = "";
+                            }
                         }
                     });
 

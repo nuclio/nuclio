@@ -88,6 +88,13 @@ func (suite *TestSuite) TestBuildDir() {
 }
 
 func (suite *TestSuite) TestBuildURL() {
+	createFunctionOptions := suite.getDeployOptions("reverser")
+
+	suite.DeployFunctionFromURL(createFunctionOptions, &httpsuite.Request{
+		RequestMethod:        "POST",
+		RequestBody:          "abcdef",
+		ExpectedResponseBody: "fedcba",
+	})
 }
 
 func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
