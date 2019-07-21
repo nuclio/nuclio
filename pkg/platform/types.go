@@ -145,7 +145,6 @@ type ProjectMeta struct {
 }
 
 type ProjectSpec struct {
-	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
 }
 

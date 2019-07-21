@@ -275,7 +275,7 @@ func (g *getProjectCommandeer) renderProjects(projects []platform.Project, forma
 
 	switch format {
 	case outputFormatText, outputFormatWide:
-		header := []string{"Namespace", "Name", "Display Name"}
+		header := []string{"Namespace", "Name"}
 		if format == outputFormatWide {
 			header = append(header, []string{
 				"Description",
@@ -291,7 +291,6 @@ func (g *getProjectCommandeer) renderProjects(projects []platform.Project, forma
 			projectFields := []string{
 				project.GetConfig().Meta.Namespace,
 				project.GetConfig().Meta.Name,
-				project.GetConfig().Spec.DisplayName,
 			}
 
 			// add fields for wide view

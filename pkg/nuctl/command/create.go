@@ -83,18 +83,12 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 			commandeer.projectConfig.Meta.Name = args[0]
 			commandeer.projectConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
 
-			// if display name is not set, use name
-			if commandeer.projectConfig.Spec.DisplayName == "" {
-				commandeer.projectConfig.Spec.DisplayName = commandeer.projectConfig.Meta.Name
-			}
-
 			return createCommandeer.rootCommandeer.platform.CreateProject(&platform.CreateProjectOptions{
 				ProjectConfig: commandeer.projectConfig,
 			})
 		},
 	}
 
-	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.DisplayName, "display-name", "", "Project display name, if different than name")
 	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.Description, "description", "", "Project description")
 
 	commandeer.cmd = cmd

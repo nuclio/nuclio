@@ -933,7 +933,6 @@ func (suite *projectTestSuite) TestGetDetailSuccessful() {
 	returnedProject := platform.AbstractProject{}
 	returnedProject.ProjectConfig.Meta.Name = "p1"
 	returnedProject.ProjectConfig.Meta.Namespace = "p1Namespace"
-	returnedProject.ProjectConfig.Spec.DisplayName = "p1DisplayName"
 	returnedProject.ProjectConfig.Spec.Description = "p1Desc"
 
 	// verify
@@ -960,7 +959,6 @@ func (suite *projectTestSuite) TestGetDetailSuccessful() {
 		"namespace": "p1Namespace"
 	},
 	"spec": {
-		"displayName": "p1DisplayName",
 		"description": "p1Desc"
 	}
 }`
@@ -992,13 +990,11 @@ func (suite *projectTestSuite) TestGetListSuccessful() {
 	returnedProject1 := platform.AbstractProject{}
 	returnedProject1.ProjectConfig.Meta.Name = "p1"
 	returnedProject1.ProjectConfig.Meta.Namespace = "pNamespace"
-	returnedProject1.ProjectConfig.Spec.DisplayName = "p1DisplayName"
 	returnedProject1.ProjectConfig.Spec.Description = "p1Desc"
 
 	returnedProject2 := platform.AbstractProject{}
 	returnedProject2.ProjectConfig.Meta.Name = "p2"
 	returnedProject2.ProjectConfig.Meta.Namespace = "pNamespace"
-	returnedProject2.ProjectConfig.Spec.DisplayName = "p2DisplayName"
 	returnedProject2.ProjectConfig.Spec.Description = "p2Desc"
 
 	// verify
@@ -1026,7 +1022,6 @@ func (suite *projectTestSuite) TestGetListSuccessful() {
 			"namespace": "pNamespace"
 		},
 		"spec": {
-			"displayName": "p1DisplayName",
 			"description": "p1Desc"
 		}
 	},
@@ -1036,7 +1031,6 @@ func (suite *projectTestSuite) TestGetListSuccessful() {
 			"namespace": "pNamespace"
 		},
 		"spec": {
-			"displayName": "p2DisplayName",
 			"description": "p2Desc"
 		}
 	}
@@ -1071,7 +1065,6 @@ func (suite *projectTestSuite) TestCreateSuccessful() {
 	verifyCreateProject := func(createProjectOptions *platform.CreateProjectOptions) bool {
 		suite.Require().Equal("p1", createProjectOptions.ProjectConfig.Meta.Name)
 		suite.Require().Equal("p1Namespace", createProjectOptions.ProjectConfig.Meta.Namespace)
-		suite.Require().Equal("p1DisplayName", createProjectOptions.ProjectConfig.Spec.DisplayName)
 		suite.Require().Equal("p1Description", createProjectOptions.ProjectConfig.Spec.Description)
 
 		return true
@@ -1100,7 +1093,6 @@ func (suite *projectTestSuite) TestCreateSuccessful() {
 		"namespace": "p1Namespace"
 	},
 	"spec": {
-		"displayName": "p1DisplayName",
 		"description": "p1Description"
 	}
 }`
@@ -1136,7 +1128,6 @@ func (suite *projectTestSuite) TestCreateNoName() {
 		"namespace": "p1Namespace"
 	},
 	"spec": {
-		"displayName": "p1DisplayName",
 		"description": "p1Description"
 	}
 }`
@@ -1171,17 +1162,12 @@ func (suite *projectTestSuite) TestCreateNoNamespace() {
 	suite.sendRequestNoNamespace("POST")
 }
 
-func (suite *projectTestSuite) TestCreateProjectWithExistingDisplayName() {
-	suite.sendRequestWithExistingDisplayName("POST")
-}
-
 func (suite *projectTestSuite) TestUpdateSuccessful() {
 
 	// verify
 	verifyUpdateProject := func(updateProjectOptions *platform.UpdateProjectOptions) bool {
 		suite.Require().Equal("p1", updateProjectOptions.ProjectConfig.Meta.Name)
 		suite.Require().Equal("p1Namespace", updateProjectOptions.ProjectConfig.Meta.Namespace)
-		suite.Require().Equal("p1DisplayName", updateProjectOptions.ProjectConfig.Spec.DisplayName)
 		suite.Require().Equal("p1Description", updateProjectOptions.ProjectConfig.Spec.Description)
 
 		return true
@@ -1210,7 +1196,6 @@ func (suite *projectTestSuite) TestUpdateSuccessful() {
 		"namespace": "p1Namespace"
 	},
 	"spec": {
-		"displayName": "p1DisplayName",
 		"description": "p1Description"
 	}
 }`
@@ -1235,10 +1220,6 @@ func (suite *projectTestSuite) TestUpdateNoName() {
 
 func (suite *projectTestSuite) TestUpdateNoNamespace() {
 	suite.sendRequestNoNamespace("PUT")
-}
-
-func (suite *projectTestSuite) TestUpdateProjectWithExistingDisplayName() {
-	suite.sendRequestWithExistingDisplayName("PUT")
 }
 
 func (suite *projectTestSuite) TestDeleteSuccessful() {
@@ -1313,48 +1294,9 @@ func (suite *projectTestSuite) TestDeleteNoNamespace() {
 func (suite *projectTestSuite) sendRequestNoMetadata(method string) {
 	suite.sendRequestWithInvalidBody(method, `{
 	"spec": {
-		"displayName": "dn",
 		"description": "d"
 	}
 }`)
-}
-
-func (suite *projectTestSuite) sendRequestWithExistingDisplayName(method string) {
-	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
-		suite.Require().Equal("p1Namespace", getProjectsOptions.Meta.Namespace)
-
-		return true
-	}
-
-	// mock a different project (with a different name) but with the same display name
-	mockedProject, _ := platform.NewAbstractProject(suite.logger, nil, platform.ProjectConfig{
-		Meta: platform.ProjectMeta{Namespace: "p1Namespace", Name: "p2"},
-		Spec: platform.ProjectSpec{DisplayName: "p1DisplayName"},
-	})
-
-	suite.mockPlatform.
-		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
-		Return([]platform.Project{mockedProject}, nil).
-		Once()
-
-	expectedStatusCode := http.StatusConflict
-	requestBody := `{
-	"metadata": {
-		"name": "p1",
-		"namespace": "p1Namespace"
-	},
-	"spec": {
-		"displayName": "p1DisplayName",
-		"description": "p1Description"
-	}
-}`
-
-	suite.sendRequest(method,
-		"/api/projects",
-		nil,
-		bytes.NewBufferString(requestBody),
-		&expectedStatusCode,
-		nil)
 }
 
 func (suite *projectTestSuite) sendRequestNoNamespace(method string) {
@@ -1363,7 +1305,6 @@ func (suite *projectTestSuite) sendRequestNoNamespace(method string) {
 		"name": "name"
 	},
 	"spec": {
-		"displayName": "dn",
 		"description": "d"
 	}
 }`)
@@ -1375,7 +1316,6 @@ func (suite *projectTestSuite) sendRequestNoName(method string) {
 		"namespace": "namespace"
 	},
 	"spec": {
-		"displayName": "dn",
 		"description": "d"
 	}
 }`)
@@ -1447,7 +1387,6 @@ func (suite *functionEventTestSuite) TestGetDetailSuccessful() {
 		}
 	},
 	"spec": {
-		"displayName": "fe1DisplayName",
 		"triggerName": "fe1TriggerName",
 		"triggerKind": "fe1TriggerKind",
 		"body": "fe1Body",
