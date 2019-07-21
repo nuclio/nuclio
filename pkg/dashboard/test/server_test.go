@@ -1075,17 +1075,6 @@ func (suite *projectTestSuite) TestCreateSuccessful() {
 		Return(nil).
 		Once()
 
-	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
-		suite.Require().Equal("p1Namespace", getProjectsOptions.Meta.Namespace)
-
-		return true
-	}
-
-	suite.mockPlatform.
-		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
-		Return([]platform.Project{}, nil).
-		Once()
-
 	expectedStatusCode := http.StatusCreated
 	requestBody := `{
 	"metadata": {
@@ -1117,14 +1106,10 @@ func (suite *projectTestSuite) TestCreateNoName() {
 		Return(nil).
 		Once()
 
-	suite.mockPlatform.
-		On("GetProjects", mock.Anything).
-		Return([]platform.Project{}, nil).
-		Once()
-
 	expectedStatusCode := http.StatusCreated
 	requestBody := `{
 	"metadata": {
+		"name": "p1name",
 		"namespace": "p1Namespace"
 	},
 	"spec": {
@@ -1139,11 +1124,7 @@ func (suite *projectTestSuite) TestCreateNoName() {
 
 		// get name
 		name := metadata["name"].(string)
-
-		// make sure that name was populated with a UUID
-		_, err := uuid.FromString(name)
-
-		suite.Require().NoError(err, "Name must contain UUID: %s", name)
+		suite.NotEqual("", name)
 
 		return true
 	}
@@ -1173,20 +1154,9 @@ func (suite *projectTestSuite) TestUpdateSuccessful() {
 		return true
 	}
 
-	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
-		suite.Require().Equal("p1Namespace", getProjectsOptions.Meta.Namespace)
-
-		return true
-	}
-
 	suite.mockPlatform.
 		On("UpdateProject", mock.MatchedBy(verifyUpdateProject)).
 		Return(nil).
-		Once()
-
-	suite.mockPlatform.
-		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
-		Return([]platform.Project{}, nil).
 		Once()
 
 	expectedStatusCode := http.StatusNoContent
@@ -1387,6 +1357,7 @@ func (suite *functionEventTestSuite) TestGetDetailSuccessful() {
 		}
 	},
 	"spec": {
+		"displayName": "fe1DisplayName",
 		"triggerName": "fe1TriggerName",
 		"triggerKind": "fe1TriggerKind",
 		"body": "fe1Body",
