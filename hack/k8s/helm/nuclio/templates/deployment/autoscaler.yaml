@@ -28,7 +28,7 @@ spec:
       annotations:
         nuclio.io/version: {{ .Values.autoscaler.image.tag }}
     spec:
-      serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
+      serviceAccountName: {{ template "nuclio.autoscalerServiceAccountName" . }}
       containers:
       - name: {{ template "nuclio.scalerName" . }}
         image: {{ .Values.autoscaler.image.repository }}:{{ .Values.autoscaler.image.tag }}

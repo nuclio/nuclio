@@ -82,9 +82,11 @@ rbac:
   # If true, creates the necessary roles and role bindings for nuclio's service account
   create: true
 
+  # serviceAccountNameOverride: service-account-name
+
 crd:
   
-  # If true, creates cluster wide custom resources defenitions for nuclio's resources
+  # If true, creates cluster wide custom resources definitions for nuclio's resources
   create: true
 
 platform: {}

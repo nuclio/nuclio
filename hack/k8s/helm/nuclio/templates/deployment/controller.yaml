@@ -28,7 +28,7 @@ spec:
       annotations:
         nuclio.io/version: {{ .Values.controller.image.tag }}
     spec:
-      serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
+      serviceAccountName: {{ template "nuclio.controllerServiceAccountName" . }}
       containers:
       - name: {{ template "nuclio.controllerName" . }}
         image: {{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}
