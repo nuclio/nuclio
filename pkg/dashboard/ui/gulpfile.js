@@ -513,6 +513,11 @@ gulp.task('watcher', function () {
         return runSequence('build_shared');
     });
     log('Watching', color.yellow('JavaScript'), 'shared_files');
+
+    gulp.watch(config.shared_files.i18n, {interval: 3000}, function () {
+        return runSequence('build_shared');
+    });
+    log('Watching', color.blue('I18N'), 'shared_files');
 });
 
 /**
