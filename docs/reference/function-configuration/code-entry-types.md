@@ -1,17 +1,87 @@
-# Code Entry Types Reference
+# Code-Entry Types
 
-This document describes the various function code entry types.
+This document describes the Nuclio function code-entry types and related configuration fields.
 
 #### In This Document
 
-- [Basic Code Entry](#basic-code-entry)
-- [External Code Entry Types](#external-code-entry-types)
-- [Image Code Entry](#image-code-entry)
+- [Overview](#overview)
+  - [Determining the code-entry type](#code-entry-type-determine)
+  - [Configuring the code-entry type from the dashboard](#dashboard-configuration)
+- [Function-image code-entry type (`image`)](#code-entry-type-image)
+- [Embedded-source code-entry type (`sourceCode`)](#code-entry-type-sourcecode)
+- [External-source code-entry types](#external-source-code-entry-types)
+  - [GitHub code-entry type (`github`)](#code-entry-type-github)
+  - [Archive-file code-entry type (`archive`)](#code-entry-type-archive)
+  - [AWS S3 code-entry type (`s3`)](#code-entry-type-s3)
 - [See also](#see-also)
 
-## Basic code entry
+## Overview
 
-In basic code entry type, the function configuration and the source code are taken from the passed spec. here's an example:
+As part of the [function specification](/docs/reference/function-configuration.md) (`spec`), you must configure the code-entry type and related information that points either to a pre-built function image or to code from which to build such an image:
+
+- `image` &mdash; set the `spec.image` configuration field to the name of a function Docker container image. See [Function-image code-entry type (`image`)](#code-entry-type-image).
+
+- `sourceCode` &mdash; set the [`spec.build.functionSourceCode`](/docs/reference/function-configuration.md#spec.build.functionSourceCode) configuration field to the function's source code, encoded as a Base64 string. See [Embedded-source code-entry type (`sourceCode`)](#code-entry-type-sourcecode).
+
+- External code-entry type &mdash; set the `spec.build.codeEntryType` configuration field to a code-entry type for downloading the function code from an external source &mdash; [`archive`](#code-entry-type-archive), [`github`](#code-entry-type-github), or [`s3`](#code-entry-type-s3) &mdash; and configure the required download information.
+  See [External-source code-entry types](#external-source-code-entry-types).
+
+> **Go Note**<br/>
+> To import packages in Go source code, use the following syntax:<br/>
+> `import "github.com/nuclio/handler/<package_name>"`
+
+<a id="code-entry-type-determine"></a>
+### Determining the code-entry type
+
+The code-entry type is determined by using the following processing logic:
+
+1. If [`spec.image`](/docs/reference/function-configuration.md#spec.image) is set, the implied code-entry type is `image` and the configured function image is used; the `spec.build.codeEntryType` and `spec.build.functionSourceCode` fields are ignored.
+
+   > **Note:** When you build and deploy a Nuclio function, the `spec.image` field is automatically updated to the name of the function's container image, so to use a different code-entry type for a redeployed function you must first reset the `spec.image` configuration field. This is handled implicitly when deploying a function from the Nuclio dashboard.
+
+2. If `spec.image` isn't set and [`spec.build.functionSourceCode`](/docs/reference/function-configuration.md#spec.build.functionSourceCode) is set, the implied code-entry type is `sourceCode` and the function is built from the configured function source code; the `spec.build.codeEntryType` field is ignored.
+
+3. Otherwise, the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) field determines the code-entry type.
+
+<a id="dashboard-configuration"></a>
+### Configuring the code-entry type from the dashboard
+
+When deploying a function from the Nuclio dashboard, you select the code-entry type from the **Code entry type** drop-down list in the **Code** function tab.
+Additional configuration parameters are displayed according to the selected entry type.
+When you select to deploy the function, the respective function-configuration parameters are automatically updated based on your dashboard configuration.
+The dashboard notes in this reference refer to fields in the **Code** function dashboard tab.
+
+<a id="code-entry-type-image"></a>
+## Function-image code-entry type (`image`)
+
+Set the value of the [`spec.image`](/docs/reference/function-configuration.md#spec.image) function-configuration field to the name of a function Docker container image (`[<host name>.]<namespace>.<repository>[:<tag>]`) to deploy the function from this image.
+
+> **Note:** When the `spec.image` field is set, the implied code-entry type is `image` and the `spec.build.codeEntryType` field is ignored. See [Determining the code-entry type](#code-entry-type-determine).
+
+> **Dashboard Note:** To configure a function image from the dashboard, select `Image` from the **Code entry type** list, and then enter the image name in the **URL** field.
+
+<a id="code-entry-type-image-example"></a>
+### Example
+
+```yaml
+spec:
+  description: my Go function
+  image: mydockeruser:my-func:latest
+```
+
+<a id="code-entry-type-sourcecode"></a>
+## Embedded-source code-entry type (`sourceCode`)
+
+Set the value of the [`spec.build.functionSourceCode`](/docs/reference/function-configuration.md#spec.build.functionSourceCode) function-configuration field to the function's source code, encoded as a Base64-encoded string, to build the function image from this code.
+
+> **Note:** When the `spec.build.functionSourceCode` field is set and the `spec.image` isn't set, the implied code-entry type is `sourceCode` and the `spec.build.codeEntryType` field is ignored. When `spec.image` is set, `spec.build.functionSourceCode` is ignored. See [Determining the code-entry type](#code-entry-type-determine).
+
+> **Dashboard Note:** To configure embedded function source code from the dashboard, select `Edit online` from the **Code entry type** list (default), and then edit the code in the unnamed function-code text box, as needed.
+> When you select to deploy the function, the source code will automatically be encoded as a Base64 encoded string.
+
+<a id="code-entry-type-sourcecode-example"></a>
+### Example
+
 ```yaml
 spec:
   description: my Go function
@@ -21,38 +91,44 @@ spec:
     functionSourceCode: "cGFja2FnZSBtYWluDQoNCmltcG9ydCAoDQogICAgImdpdGh1Yi5jb20vbnVjbGlvL251Y2xpby1zZGstZ28iDQopDQoNCmZ1bmMgSGFuZGxlcihjb250ZXh0ICpudWNsaW8uQ29udGV4dCwgZXZlbnQgbnVjbGlvLkV2ZW50KSAoaW50ZXJmYWNle30sIGVycm9yKSB7DQogICAgcmV0dXJuIG5pbCwgbmlsDQp9"
 ```
 
-## External code entry types
+<a id="external-source-code-entry-types"></a>
+## External-source code-entry types
 
-Today, 3 external code entry types are supported - S3, Github and Archive.
-When deploying a function with an external code entry type, the source code files will be fetched from the remote
- target - via github/s3 api or fetching and uncompressing the archive from the given url.
-The source code will be taken from the given external source, and the given function configuration from the request
- will be enriched with the function configuration appearing in the remote code location.
-The configuration merge will give precedence to the function configuration passed over the remote function configuration fields, using a merge strategy.
-* Passed configuration values will override configuration in the remote source code (archive or other)
-* List values will be merged (such as meta.annotations, meta.labels etc...), In particular, environment variables will be merged.
-* When using external code entry all of the source code files are saved and can be used by the handler.
-* External code entry types make use of `codeEntryAttributes` - a `headers` text2text map and a `workDir` string
+Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to one of the following code-entry types to download the function code from the respective external source:
 
-Note: `spec.build.codeEntryType` is ignored when `spec.build.functionSourceCode` or `spec.image` are set;
- we infer the code-entry when these source fields are set (we first check image and then source code).
+- `github` &mdash; download the code from a GitHub repository. See [GitHub code-entry type (`github`)](#code-entry-type-github).
+- `archive` &mdash; download the code as a ZIP archive file from an Iguazio Data Science Platform data container or from any URL that doesn't require download authentication. See [Archive-file code-entry type (`archive`)](#code-entry-type-archive).
+- `s3` &mdash; download the code as a ZIP archive file from an AWS S3 bucket. See [AWS S3 code-entry type (`s3`)](#code-entry-type-s3).
 
-Archive code entry example:
-```yaml
-spec:
-  description: my Go function
-  handler: main:Handler
-  runtime: golang
-  build:
-    codeEntryType: "archive"
-    path: "https://myhost.com/my-archive.zip"
-    codeEntryAttributes:
-      headers:
-        X-V3io-Session-Key: "my-access-key"
-      workDir: "/path/to/func"
-```
+Additional information for performing the download &mdash; such as the download URL or authentication information &mdash; is provided in dedicated configuration fields for each code-entry type, as detailed in the documentation of each code-entry type.
 
-Github code entry example:
+> **Note:**
+> - When the `spec.image` or `spec.build.functionSourceCode` fields are set, the `spec.build.codeEntryType` field is ignored. See [Determining the code-entry type](#code-entry-type-determine).
+> - The downloaded code files are saved and can be used by the function handler.
+
+> **Dashboard Note:** To configure an external function-code source from the dashboard, select the relevant code-entry type &mdash; `Archive`, `GitHub`, or `S3` &mdash; from the **Code entry type** list.
+
+The downloaded function code can optionally contain a **function.yaml** file with function configuration for enriching the original configuration (in the configuration file that sets the code-entry type) according to the following merge strategy:
+
+- Field values that are set only in the downloaded configuration are added to the original configuration.
+- List and map field values &mdash; such as `meta.labels` and `spec.env` &mdash;are merged by adding any values that are set only in the downloaded configuration to the values that are set in the original configuration.
+- In case of a conflict &mdash; i.e., if the original and downloaded configurations set different values for the same element &mdash; the original configuration takes precedence and the value in the downloaded configuration is ignored.
+
+<a id="code-entry-type-github"></a>
+### GitHub code-entry type (`github`)
+
+Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `github` (dashboard: **Code entry type** = `GitHub`) to download the function code from a GitHub repository. The following configuration fields provide additional information for performing the download:
+
+- `spec.build` &mdash;
+  - `path` (dashboard: **URL**) (Required) &mdash; the URL of the GitHub repository that contains the function code.
+  - `codeEntryAttributes` &mdash;
+    -  `branch` (dashboard: **Branch**) (Required) &mdash; the GitHub repository branch from which to download the archive file.
+    - `headers.Authorization` (dashboard: **Token**) (Optional) &mdash; a GitHub access token for download authentication.
+    - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository branch.
+
+<a id="code-entry-type-github-example"></a>
+#### Example
+
 ```yaml
 spec:
   description: my Go function
@@ -60,15 +136,60 @@ spec:
   runtime: golang
   build:
     codeEntryType: "github"
-    path: "https://github.com/ownername/myrepository"
+    path: "https://github.com/my-organization/my-repository"
     codeEntryAttributes:
-      branch: "mybranch"
+      branch: "my-branch"
       headers:
-        Authorization: "my-Github-access-key"
-      workDir: "/path/to/func"
+        Authorization: "my-Github-access-token"
+      workDir: "/go/myfunc"
 ```
 
-S3 code entry example:
+<a id="code-entry-type-archive"></a>
+### Archive-file code-entry type (`archive`)
+
+Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `archive` (dashboard: **Code entry type** = `Archive`) to download a ZIP archive file of the function code either from an [Iguazio Data Science Platform](https://www.iguazio.com) ("platform") data container or from any URL that doesn't require download authentication. The following configuration fields provide additional information for performing the download:
+
+- `spec.build` &mdash;
+  - `path` (dashboard: **URL**) (Required) &mdash; a URL for downloading the archive file.<br/>
+    To download an archive file from an Iguazio Data Science Platform data container, the URL should be set to `<API URL of the platform's web-APIs service>/<container name>/<path to archive file>`, and a respective data-access key must be provided in the `spec.build.codeEntryAttributes.headers.X-V3io-Session-Key` field.
+  - `codeEntryAttributes` &mdash;
+    - `headers.X-V3io-Session-Key` (dashboard: **Access key**) (Required for a platform archive file) &mdash; an Iguazio Data Science Platform access key, which is required when the download URL (`spec.build.path`) refers to an archive file in a platform data container.
+    - `workDir` (dashboard: **Work directory**) (Required) &mdash; the relative path to the function-code directory within the downloaded archive file.
+
+<a id="code-entry-type-archive-example"></a>
+#### Example
+
+```yaml
+spec:
+  description: my Go function
+  handler: main:Handler
+  runtime: golang
+  build:
+    codeEntryType: "archive"
+    path: "https://https://webapi.default-tenant.app.mycluster.iguazio.com/users/myuser/my-functions.zip"
+    codeEntryAttributes:
+      headers:
+        X-V3io-Session-Key: "my-platform-access-key"
+      workDir: "/go/myfunc"
+```
+
+<a id="code-entry-type-s3"></a>
+### AWS S3 code-entry type (`s3`)
+
+Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `s3` (dashboard: **Code entry type** = `S3`) to download a ZIP archive file of the function code from an Amazon Simple Storage Service (AWS S3) bucket. The following configuration fields provide additional information for performing the download:
+
+- `spec.build.codeEntryAttributes` &mdash;
+  - `s3Bucket` (dashboard: **Bucket**) (Required) &mdash; the name of the S3 bucket that contains the archive file.
+  - `s3ItemKey` (dashboard: **Item key**) (Required) &mdash; the relative path to the archive file within the bucket.
+  - `s3AccessKeyId` (dashboard: **Access key ID**) (Optional) &mdash; an S3 access key ID for download authentication.
+  - `s3SecretAccessKey` (dashboard: **Secret access key**) (Optional) &mdash; an S3 secret access key for download authentication.
+  - `s3SessionToken` (dashboard: **Token**) (Optional) &mdash; an S3 session token for download authentication.
+  - `s3Region` (dashboard: **Region**) (Optional) &mdash; the AWS Region of the configured bucket. When this parameter isn't provided, it's implicitly deduced.
+  - `workDir` (dashboard: **Work directory**) (Required) &mdash; the relative path to the function-code directory within the downloaded archive file.
+
+<a id="code-entry-type-s3-example"></a>
+#### Example
+
 ```yaml
 spec:
   description: my Go function
@@ -78,23 +199,14 @@ spec:
     codeEntryType: "s3"
     codeEntryAttributes:
       s3Bucket: "my-s3-bucket"
-      s3ItemKey: "my-folder/functions.zip"
-      s3AccessKeyId: "my-@cc355-k3y"            # optional
-      s3SecretAccessKey: "my-53cr3t-@cce55-k3y" # optional
-      s3SessionToken: "my-s3ss10n-t0k3n"        # optional
-      s3Region: "us-east-1"                     # optional (will be determined automatically when not mentioned)
-      workDir: "/path/to/func"
-```
-
-** Note (for Go): `In order to import packages from different source code files in Go use: import "github.com/nuclio/handler/<package_name>"`
-
-## Image code entry
-Example:
-```yaml
-spec:
-  description: my Go function
-  image: example:latest
+      s3ItemKey: "my-folder/my-functions.zip"
+      s3AccessKeyId: "my-@cc355-k3y"
+      s3SecretAccessKey: "my-53cr3t-@cce55-k3y"
+      s3SessionToken: "my-s3ss10n-t0k3n"
+      s3Region: "us-east-1"
+      workDir: "/go/myfunc"
 ```
 
 ## See also
-- [Function configuration](/docs/reference/function-configuration/function-configuration-reference.md)
+
+- [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
