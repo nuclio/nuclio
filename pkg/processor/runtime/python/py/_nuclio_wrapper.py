@@ -103,7 +103,7 @@ class Wrapper(object):
     def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
 
-        int_buf = bytearray(4)
+        int_buf = bytearray(8)
         buf = memoryview(bytearray(4 * 1024 * 1024))
 
         while True:
@@ -113,9 +113,9 @@ class Wrapper(object):
 
             try:
 
-                should_be_four = self._processor_sock.recv_into(int_buf, 4)
+                should_be_eight = self._processor_sock.recv_into(int_buf, 8)
                 # client disconnect
-                if should_be_four < 4:
+                if should_be_eight < 8:
                     # If socket is done, we can't log
                     print('Client disconnect')
                     return
@@ -128,7 +128,7 @@ class Wrapper(object):
                     bytes_read = self._processor_sock.recv_into(view, bytes_to_read_now)
 
                     # client disconnect
-                    if bytes_read < bytes_to_read_now:
+                    if bytes_read == 0:
                         # If socket is done, we can't log
                         print('Client disconnect')
                         return

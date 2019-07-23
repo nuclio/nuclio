@@ -44,7 +44,7 @@ func (je *EventMsgPackEncoder) Encode(event nuclio.Event) error {
 		return err
 	}
 
-	err = binary.Write(je.writer, binary.BigEndian, int32(je.buf.Len()))
+	err = binary.Write(je.writer, binary.BigEndian, int64(je.buf.Len()))
 	if err != nil {
 		return err
 	}
