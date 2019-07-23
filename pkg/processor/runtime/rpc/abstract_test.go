@@ -14,6 +14,7 @@ limitations under the License.
 package rpc
 
 import (
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -30,22 +31,26 @@ import (
 )
 
 type testRuntime struct {
-	*AbstractRuntime
+	AbstractRuntime
 	wrapperProcess *os.Process
 	wrapperConn    net.Conn
 }
 
 // NewRuntime returns a new Python runtime
 func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (*testRuntime, error) {
-	var err error
-
 	newTestRuntime := &testRuntime{}
 
-	newTestRuntime.AbstractRuntime, err = NewAbstractRuntime(parentLogger.GetChild("logger"),
+	abstractRuntime, err := NewAbstractRuntime(parentLogger.GetChild("logger"),
 		configuration,
 		newTestRuntime)
 
-	return newTestRuntime, err
+	if err != nil {
+		return nil, err
+	}
+
+	newTestRuntime.AbstractRuntime = *abstractRuntime
+
+	return newTestRuntime, nil
 }
 
 func (r *testRuntime) RunWrapper(socketPath string) (*os.Process, error) {
@@ -63,6 +68,10 @@ func (r *testRuntime) RunWrapper(socketPath string) (*os.Process, error) {
 	}
 
 	return cmd.Process, nil
+}
+
+func (r *testRuntime) GetEventEncoder(writer io.Writer) EventEncoder {
+	return NewEventJSONEncoder(r.Logger, writer)
 }
 
 type RuntimeSuite struct {
