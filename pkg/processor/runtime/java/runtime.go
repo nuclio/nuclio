@@ -48,7 +48,17 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		configuration,
 		newJavaRuntime)
 
-	return newJavaRuntime, err
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create runtime")
+	}
+
+	err = newJavaRuntime.AbstractRuntime.StartRuntime()
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to start runtime")
+	}
+
+	return newJavaRuntime, nil
 }
 
 func (j *java) RunWrapper(port string) (*os.Process, error) {

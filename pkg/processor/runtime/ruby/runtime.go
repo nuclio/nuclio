@@ -17,6 +17,7 @@ limitations under the License.
 package ruby
 
 import (
+	"github.com/nuclio/errors"
 	"io"
 	"os"
 	"os/exec"
@@ -47,7 +48,17 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		configuration,
 		newRubyRuntime)
 
-	return newRubyRuntime, err
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create runtime")
+	}
+
+	err = newRubyRuntime.AbstractRuntime.StartRuntime()
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to start runtime")
+	}
+
+	return newRubyRuntime, nil
 }
 
 func (r *ruby) RunWrapper(socketPath string) (*os.Process, error) {

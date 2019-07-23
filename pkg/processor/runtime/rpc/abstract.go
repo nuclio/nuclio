@@ -40,7 +40,7 @@ import (
 // TODO: Find a better place (both on file system and configuration)
 const (
 	socketPathTemplate = "/tmp/nuclio-rpc-%s.sock"
-	connectionTimeout  = 2 * time.Minute
+	connectionTimeout = 2 * time.Minute
 )
 
 type result struct {
@@ -92,14 +92,17 @@ func NewAbstractRuntime(logger logger.Logger,
 		startChan:       make(chan struct{}, 1),
 	}
 
-	if err := newRuntime.startWrapper(); err != nil {
-		newRuntime.SetStatus(status.Error)
-		return nil, errors.Wrap(err, "Failed to run wrapper")
+	return newRuntime, nil
+}
+
+func (r *AbstractRuntime) StartRuntime() error {
+	if err := r.startWrapper(); err != nil {
+		r.SetStatus(status.Error)
+		return errors.Wrap(err, "Failed to run wrapper")
 	}
 
-	newRuntime.SetStatus(status.Ready)
-
-	return newRuntime, nil
+	r.SetStatus(status.Ready)
+	return nil
 }
 
 // ProcessEvent processes an event

@@ -23,13 +23,11 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
-	"github.com/nuclio/nuclio/pkg/processor/status"
-
-	"github.com/nuclio/logger"
 )
 
 type dotnetcore struct {
@@ -54,10 +52,13 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	// set status to ready
-	newDotnetCoreRuntime.SetStatus(status.Ready)
+	err = newDotnetCoreRuntime.AbstractRuntime.StartRuntime()
 
-	return newDotnetCoreRuntime, err
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to start runtime")
+	}
+
+	return newDotnetCoreRuntime, nil
 }
 
 func (d *dotnetcore) RunWrapper(socketPath string) (*os.Process, error) {

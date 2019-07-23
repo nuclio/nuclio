@@ -14,6 +14,8 @@ limitations under the License.
 package rpc
 
 import (
+	"github.com/nuclio/errors"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -45,7 +47,17 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 		configuration,
 		newTestRuntime)
 
-	return newTestRuntime, err
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create runtime")
+	}
+
+	err = newTestRuntime.AbstractRuntime.StartRuntime()
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to start runtime")
+	}
+
+	return newTestRuntime, nil
 }
 
 func (r *testRuntime) RunWrapper(socketPath string) (*os.Process, error) {
@@ -63,6 +75,10 @@ func (r *testRuntime) RunWrapper(socketPath string) (*os.Process, error) {
 	}
 
 	return cmd.Process, nil
+}
+
+func (r *testRuntime) GetEventEncoder(writer io.Writer) EventEncoder {
+	return NewEventJSONEncoder(r.Logger, writer)
 }
 
 type RuntimeSuite struct {

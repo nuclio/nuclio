@@ -51,7 +51,17 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		configuration,
 		newNodeJSRuntime)
 
-	return newNodeJSRuntime, err
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create runtime")
+	}
+
+	err = newNodeJSRuntime.AbstractRuntime.StartRuntime()
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to start runtime")
+	}
+
+	return newNodeJSRuntime, nil
 }
 
 // We can't use n.Logger since it's not initialized

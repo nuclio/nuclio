@@ -51,7 +51,17 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		configuration,
 		newPythonRuntime)
 
-	return newPythonRuntime, err
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create runtime")
+	}
+
+	err = newPythonRuntime.AbstractRuntime.StartRuntime()
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to start runtime")
+	}
+
+	return newPythonRuntime, nil
 }
 
 func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
