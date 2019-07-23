@@ -23,11 +23,12 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
+
+	"github.com/nuclio/logger"
 )
 
 type dotnetcore struct {

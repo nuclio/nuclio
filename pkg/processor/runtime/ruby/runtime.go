@@ -17,7 +17,6 @@ limitations under the License.
 package ruby
 
 import (
-	"github.com/nuclio/errors"
 	"io"
 	"os"
 	"os/exec"
@@ -26,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

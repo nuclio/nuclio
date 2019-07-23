@@ -14,7 +14,6 @@ limitations under the License.
 package rpc
 
 import (
-	"github.com/nuclio/errors"
 	"io"
 	"net"
 	"os"
@@ -26,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
