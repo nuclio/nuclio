@@ -122,7 +122,7 @@ Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#s
 - `spec.build` &mdash;
   - `path` (dashboard: **URL**) (Required) &mdash; the URL of the GitHub repository that contains the function code.
   - `codeEntryAttributes` &mdash;
-    -  `branch` (dashboard: **Branch**) (Required) &mdash; the GitHub repository branch from which to download the archive file.
+    -  `branch` (dashboard: **Branch**) (Required) &mdash; the GitHub repository branch from which to download the function code.
     - `headers.Authorization` (dashboard: **Token**) (Optional) &mdash; a GitHub access token for download authentication.
     - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository branch.
 
