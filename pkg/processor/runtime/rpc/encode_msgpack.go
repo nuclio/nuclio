@@ -3,11 +3,11 @@ package rpc
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/vmihailenco/msgpack"
 	"io"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/vmihailenco/msgpack"
 )
 
 // EventMsgPackEncoder encodes nuclio events as MsgPack
