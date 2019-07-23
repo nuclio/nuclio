@@ -18,6 +18,7 @@ package nodejs
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -145,4 +146,8 @@ func (n *nodejs) getNodeExePath() (string, error) {
 	baseName := "node"
 
 	return exec.LookPath(baseName)
+}
+
+func (n *nodejs) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
+	return rpc.NewEventJSONEncoder(n.Logger, writer)
 }

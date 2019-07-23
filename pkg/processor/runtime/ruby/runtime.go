@@ -17,6 +17,7 @@ limitations under the License.
 package ruby
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -61,4 +62,8 @@ func (r *ruby) RunWrapper(socketPath string) (*os.Process, error) {
 	r.Logger.InfoWith("Running ruby wrapper", "command", strings.Join(cmd.Args, " "))
 
 	return cmd.Process, cmd.Start()
+}
+
+func (r *ruby) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
+	return rpc.NewEventJSONEncoder(r.Logger, writer)
 }

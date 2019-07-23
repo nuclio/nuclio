@@ -58,7 +58,7 @@ type result struct {
 type AbstractRuntime struct {
 	runtime.AbstractRuntime
 	configuration  *runtime.Configuration
-	eventEncoder   *EventJSONEncoder
+	eventEncoder   EventEncoder
 	wrapperProcess *os.Process
 	resultChan     chan *result
 	functionLogger logger.Logger
@@ -230,7 +230,7 @@ func (r *AbstractRuntime) startWrapper() error {
 
 	r.Logger.Info("Wrapper connected")
 
-	r.eventEncoder = NewEventJSONEncoder(r.Logger, conn)
+	r.eventEncoder = r.runtime.GetEventEncoder(conn)
 	r.resultChan = make(chan *result)
 	go r.wrapperOutputHandler(conn, r.resultChan)
 

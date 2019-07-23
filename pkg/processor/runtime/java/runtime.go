@@ -17,6 +17,7 @@ limitations under the License.
 package java
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -121,4 +122,8 @@ func (j *java) getJVMOptions() ([]string, error) {
 	}
 
 	return jvmOptions, nil
+}
+
+func (j *java) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
+	return rpc.NewEventJSONEncoder(j.Logger, writer)
 }

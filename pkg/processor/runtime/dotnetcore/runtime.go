@@ -18,6 +18,7 @@ package dotnetcore
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -107,4 +108,8 @@ func (d *dotnetcore) getWrapperDLLPath() string {
 	}
 
 	return scriptPath
+}
+
+func (d *dotnetcore) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
+	return rpc.NewEventJSONEncoder(d.Logger, writer)
 }

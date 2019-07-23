@@ -18,6 +18,7 @@ package python
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -156,4 +157,8 @@ func (py *python) getPythonExePath() (string, error) {
 	}
 
 	return "", errors.Wrap(err, "Can't find python executable")
+}
+
+func (py *python) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
+	return rpc.NewEventMsgPackEncoder(py.Logger, writer)
 }
