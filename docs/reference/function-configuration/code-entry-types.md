@@ -8,8 +8,10 @@ This document describes the Nuclio function code-entry types and related configu
   - [Determining the code-entry type](#code-entry-type-determine)
   - [Configuring the code-entry type from the dashboard](#dashboard-configuration)
 - [Function-image code-entry type (`image`)](#code-entry-type-image)
-- [Embedded-source code-entry type (`sourceCode`)](#code-entry-type-sourcecode)
-- [External-source code-entry types](#external-source-code-entry-types)
+- [Function source-code entry types](#func-source-code-entry-types)
+  - [Encoded source-code string code-entry type (`sourceCode`)](#code-entry-type-sourcecode)
+  - [Source-code file code-entry type](#code-entry-type-codefile)
+- [External function-code entry types](#external-func-code-entry-types)
   - [GitHub code-entry type (`github`)](#code-entry-type-github)
   - [Archive-file code-entry type (`archive`)](#code-entry-type-archive)
   - [AWS S3 code-entry type (`s3`)](#code-entry-type-s3)
@@ -17,14 +19,14 @@ This document describes the Nuclio function code-entry types and related configu
 
 ## Overview
 
-As part of the [function specification](/docs/reference/function-configuration.md) (`spec`), you must configure the code-entry type and related information that points either to a pre-built function image or to code from which to build such an image:
+As part of the [function specification](/docs/reference/function-configuration.md) (`spec`), you must configure one of the following code-entry types and related information that points either to a pre-built function image or to code from which to build such an image:
 
-- `image` &mdash; set the `spec.image` configuration field to the name of a function Docker container image. See [Function-image code-entry type (`image`)](#code-entry-type-image).
+- Function image (`image`) &mdash; set the `spec.image` configuration field to the name of a function Docker container image. See [Function-image code-entry type (`image`)](#code-entry-type-image).
 
-- `sourceCode` &mdash; set the [`spec.build.functionSourceCode`](/docs/reference/function-configuration.md#spec.build.functionSourceCode) configuration field to the function's source code, encoded as a Base64 string. See [Embedded-source code-entry type (`sourceCode`)](#code-entry-type-sourcecode).
+- Function source code &mdash; provide the function source code either by setting the `spec.build.functionSourceCode` configuration field to an [encoded source-code string](#code-entry-type-sourcecode) (`sourceCode`), or by setting the  `spec.build.path` field to a URL for downloading a [function source-code file](#code-entry-type-codefile). See [Function source-code entry types](#func-source-code-entry-types).
 
-- External code-entry type &mdash; set the `spec.build.codeEntryType` configuration field to a code-entry type for downloading the function code from an external source &mdash; [`archive`](#code-entry-type-archive), [`github`](#code-entry-type-github), or [`s3`](#code-entry-type-s3) &mdash; and configure the required download information.
-  See [External-source code-entry types](#external-source-code-entry-types).
+- External function code &mdash; set the `spec.build.codeEntryType` configuration field to a code-entry type for downloading the function's source code and optional additional configuration ("function code") from an external source &mdash; [GitHub repository](#code-entry-type-github) (`github`), [archive-file](#code-entry-type-archive) (`archive`), or [AWS S3 bucket](#code-entry-type-s3) (`s3`) &mdash; and configure the required download information.
+  See [External function-code entry types](#external-func-code-entry-types).
 
 > **Go Note**<br/>
 > To import packages in Go source code, use the following syntax:<br/>
@@ -35,13 +37,15 @@ As part of the [function specification](/docs/reference/function-configuration.m
 
 The code-entry type is determined by using the following processing logic:
 
-1. If [`spec.image`](/docs/reference/function-configuration.md#spec.image) is set, the implied code-entry type is `image` and the configured function image is used; the `spec.build.codeEntryType` and `spec.build.functionSourceCode` fields are ignored.
+1. If [`spec.image`](/docs/reference/function-configuration.md#spec.image) is set, the implied code-entry type is [function image](#code-entry-type-image) (`image`) and the configured function image is used. The `spec.build.codeEntryType`, `spec.build.functionSourceCode`, and `spec.build.path` fields are ignored.
 
    > **Note:** When you build and deploy a Nuclio function, the `spec.image` field is automatically updated to the name of the function's container image, so to use a different code-entry type for a redeployed function you must first reset the `spec.image` configuration field. This is handled implicitly when deploying a function from the Nuclio dashboard.
 
-2. If `spec.image` isn't set and [`spec.build.functionSourceCode`](/docs/reference/function-configuration.md#spec.build.functionSourceCode) is set, the implied code-entry type is `sourceCode` and the function is built from the configured function source code; the `spec.build.codeEntryType` field is ignored.
+2. If [`spec.build.functionSourceCode`](/docs/reference/function-configuration.md#spec.build.functionSourceCode) is set (and `spec.image` isn't set), the implied code-entry type is [encoded source-code string](#code-entry-type-sourcecode) (`sourceCode`) and the function is built from the configured source code. The `spec.build.codeEntryType` and `spec.build.path` fields are ignored.
 
-3. Otherwise, the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) field determines the code-entry type.
+3. If [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) is set (and `spec.image` and `spec.build.functionSourceCode` aren't set), the value of the code-entry field determines the [external function-code code-entry type](#external-func-code-entry-types) (`archive`, `github`, or `s3`).
+
+4. If [`spec.build.path`](/docs/reference/function-configuration.md#spec.build.path) is set (and `spec.image`, `spec.build.functionSourceCode`, and `spec.build.codeEntryType` aren't set), the implied code-entry type is [source-code-file](#code-entry-type-codefile) and the function is built from the configured source code.
 
 <a id="dashboard-configuration"></a>
 ### Configuring the code-entry type from the dashboard
@@ -54,9 +58,9 @@ The dashboard notes in this reference refer to fields in the **Code** function d
 <a id="code-entry-type-image"></a>
 ## Function-image code-entry type (`image`)
 
-Set the value of the [`spec.image`](/docs/reference/function-configuration.md#spec.image) function-configuration field to the name of a function Docker container image (`[<host name>.]<namespace>.<repository>[:<tag>]`) to deploy the function from this image.
+Set the [`spec.image`](/docs/reference/function-configuration.md#spec.image) function-configuration field to the name of a function Docker container image (`[<host name>.]<namespace>.<repository>[:<tag>]`) to deploy the function from this image.
 
-> **Note:** When the `spec.image` field is set, the implied code-entry type is `image` and the `spec.build.codeEntryType` field is ignored. See [Determining the code-entry type](#code-entry-type-determine).
+> **Note:** When `spec.image` is set, the implied code-entry type is `image` and `spec.build.codeEntryType` and `spec.build.path` are ignored. See [Determining the code-entry type](#code-entry-type-determine).
 
 > **Dashboard Note:** To configure a function image from the dashboard, select `Image` from the **Code entry type** list, and then enter the image name in the **URL** field.
 
@@ -69,18 +73,26 @@ spec:
   image: mydockeruser/my-func:latest
 ```
 
+<a id="func-source-code-entry-types"></a>
+## Function source-code entry types
+
+Use either of the following methods to provide the function source code:
+
+- Set the `spec.build.functionSourceCode` configuration field to the function's source code, encoded as a Base64 string. This implies the `sourceCode` code-entry type. See [Encoded source-code string code-entry type (`sourceCode`)](#code-entry-type-sourcecode).
+- Set the `spec.build.path` configuration field to a URL for downloading a function source-code file. See [Source-code file code-entry type](#code-entry-type-codefile).
+
 <a id="code-entry-type-sourcecode"></a>
-## Embedded-source code-entry type (`sourceCode`)
+### Encoded source-code string code-entry type (`sourceCode`)
 
-Set the value of the [`spec.build.functionSourceCode`](/docs/reference/function-configuration.md#spec.build.functionSourceCode) function-configuration field to the function's source code, encoded as a Base64-encoded string, to build the function image from this code.
+Set the [`spec.build.functionSourceCode`](/docs/reference/function-configuration.md#spec.build.functionSourceCode) function-configuration field to the function's source code, encoded as a Base64-encoded string, to build the function image from this code.
 
-> **Note:** When the `spec.build.functionSourceCode` field is set and the `spec.image` isn't set, the implied code-entry type is `sourceCode` and the `spec.build.codeEntryType` field is ignored. When `spec.image` is set, `spec.build.functionSourceCode` is ignored. See [Determining the code-entry type](#code-entry-type-determine).
+> **Note:** When `spec.build.functionSourceCode` is set and `spec.image` isn't set, the implied code-entry type is `sourceCode` and `spec.build.codeEntryType` and `spec.build.path` are ignored. When `spec.image` is set, `spec.build.functionSourceCode` is ignored. See [Determining the code-entry type](#code-entry-type-determine).
 
-> **Dashboard Note:** To configure embedded function source code from the dashboard, select `Edit online` from the **Code entry type** list (default), and then edit the code in the unnamed function-code text box, as needed.
+> **Dashboard Note:** To configure the function source code from the dashboard, select `Edit online` from the **Code entry type** list (default), and then edit the code in the unnamed function-code text box, as needed.
 > When you select to deploy the function, the source code will automatically be encoded as a Base64 encoded string.
 
 <a id="code-entry-type-sourcecode-example"></a>
-### Example
+#### Example
 
 ```yaml
 spec:
@@ -91,8 +103,29 @@ spec:
     functionSourceCode: "cGFja2FnZSBtYWluDQoNCmltcG9ydCAoDQogICAgImdpdGh1Yi5jb20vbnVjbGlvL251Y2xpby1zZGstZ28iDQopDQoNCmZ1bmMgSGFuZGxlcihjb250ZXh0ICpudWNsaW8uQ29udGV4dCwgZXZlbnQgbnVjbGlvLkV2ZW50KSAoaW50ZXJmYWNle30sIGVycm9yKSB7DQogICAgcmV0dXJuIG5pbCwgbmlsDQp9"
 ```
 
-<a id="external-source-code-entry-types"></a>
-## External-source code-entry types
+<a id="code-entry-type-codefile"></a>
+### Source-code file code-entry type
+
+Set the `spec.build.path` function-configuration field to a URL for downloading a function source-code file.
+
+> **Note:** This code-entry type is applicable only when `spec.image`, `spec.build.functionSourceCode`, and `spec.build.codeEntryType` aren't set. See [Determining the code-entry type](#code-entry-type-determine).
+
+> **Dashboard Note:** The source-code file code-entry type isn't supported from the dashboard.
+
+<a id="code-entry-type-codefile-example"></a>
+#### Example
+
+```yaml
+spec:
+  description: my Go function
+  handler: main:Handler
+  runtime: golang
+  build:
+    path: "https://www.my-host.com/my-function.go"
+```
+
+<a id="external-func-code-entry-types"></a>
+## External function-code entry types
 
 Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to one of the following code-entry types to download the function code from the respective external source:
 
@@ -103,7 +136,7 @@ Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#s
 Additional information for performing the download &mdash; such as the download URL or authentication information &mdash; is provided in dedicated configuration fields for each code-entry type, as detailed in the documentation of each code-entry type.
 
 > **Note:**
-> - When the `spec.image` or `spec.build.functionSourceCode` fields are set, the `spec.build.codeEntryType` field is ignored. See [Determining the code-entry type](#code-entry-type-determine).
+> - When `spec.image` or `spec.build.functionSourceCode` are set, `spec.build.codeEntryType` is ignored. See [Determining the code-entry type](#code-entry-type-determine).
 > - The downloaded code files are saved and can be used by the function handler.
 
 > **Dashboard Note:** To configure an external function-code source from the dashboard, select the relevant code-entry type &mdash; `Archive`, `GitHub`, or `S3` &mdash; from the **Code entry type** list.
