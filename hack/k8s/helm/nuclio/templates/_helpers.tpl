@@ -28,41 +28,9 @@
 {{- printf "%s-dashboard" .Release.Name | trunc 63 -}}
 {{- end -}}
 
-{{- define "nuclio.rbacServiceAccountName" -}}
-{{- if .Values.rbac.serviceAccountNameOverride -}}
-{{- .Values.rbac.serviceAccountNameOverride -}}
-{{- else -}}
-{{- printf "%s-nuclio" .Release.Name -}}
-{{- end -}}
-{{- end -}}
-
-{{- define "nuclio.dlxServiceAccountName" -}}
-{{- if .Values.dlx.serviceAccountNameOverride -}}
-{{- .Values.dlx.serviceAccountNameOverride -}}
-{{- else -}}
-{{- printf "%s-nuclio" .Release.Name -}}
-{{- end -}}
-{{- end -}}
-
-{{- define "nuclio.autoscalerServiceAccountName" -}}
-{{- if .Values.autoscaler.serviceAccountNameOverride -}}
-{{- .Values.autoscaler.serviceAccountNameOverride -}}
-{{- else -}}
-{{- printf "%s-nuclio" .Release.Name -}}
-{{- end -}}
-{{- end -}}
-
-{{- define "nuclio.controllerServiceAccountName" -}}
-{{- if .Values.controller.serviceAccountNameOverride -}}
-{{- .Values.controller.serviceAccountNameOverride -}}
-{{- else -}}
-{{- printf "%s-nuclio" .Release.Name -}}
-{{- end -}}
-{{- end -}}
-
-{{- define "nuclio.dashboardServiceAccountName" -}}
-{{- if .Values.dashboard.serviceAccountNameOverride -}}
-{{- .Values.dashboard.serviceAccountNameOverride -}}
+{{- define "nuclio.serviceAccountName" -}}
+{{- if .Values.rbac.serviceAccountName -}}
+{{- .Values.rbac.serviceAccountName -}}
 {{- else -}}
 {{- printf "%s-nuclio" .Release.Name -}}
 {{- end -}}

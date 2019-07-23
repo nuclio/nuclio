@@ -82,7 +82,7 @@ rbac:
   # If true, creates the necessary roles and role bindings for nuclio's service account
   create: true
 
-  # serviceAccountNameOverride: service-account-name
+  # serviceAccountName: service-account-name
 
 crd:
   

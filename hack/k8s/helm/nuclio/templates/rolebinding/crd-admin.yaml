@@ -25,6 +25,6 @@ roleRef:
   name: {{ template "nuclio.crdAdminName" . }}-role
 subjects:
 - kind: ServiceAccount
-  name: {{ template "nuclio.rbacServiceAccountName" . }}
+  name: {{ template "nuclio.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
 {{- end }}

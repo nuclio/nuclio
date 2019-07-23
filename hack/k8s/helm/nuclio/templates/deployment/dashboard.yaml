@@ -28,7 +28,7 @@ spec:
       annotations:
         nuclio.io/version: {{ .Values.dashboard.image.tag }}
     spec:
-      serviceAccountName: {{ template "nuclio.dashboardServiceAccountName" . }}
+      serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
       containers:
       - name: {{ template "nuclio.dashboardName" . }}
         image: {{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}

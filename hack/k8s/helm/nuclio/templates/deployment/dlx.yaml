@@ -28,7 +28,7 @@ spec:
       annotations:
         nuclio.io/version: {{ .Values.dlx.image.tag }}
     spec:
-      serviceAccountName: {{ template "nuclio.dlxServiceAccountName" . }}
+      serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
       containers:
       - name: {{ template "nuclio.dlxName" . }}
         image: {{ .Values.dlx.image.repository }}:{{ .Values.dlx.image.tag }}
