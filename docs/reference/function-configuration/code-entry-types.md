@@ -66,7 +66,7 @@ Set the value of the [`spec.image`](/docs/reference/function-configuration.md#sp
 ```yaml
 spec:
   description: my Go function
-  image: mydockeruser:my-func:latest
+  image: mydockeruser/my-func:latest
 ```
 
 <a id="code-entry-type-sourcecode"></a>
