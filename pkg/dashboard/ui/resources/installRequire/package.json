@@ -3,6 +3,5 @@
   "author": "Roy Sommer",
   "version": "0.0.1",
   "main": "app.js",
-  "dependencies": {
-  }
+  "dependencies": {}
 }
