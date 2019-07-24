@@ -330,7 +330,7 @@ lint: ensure-gopath
 
 	@echo Linting...
 	@$(GOPATH)/bin/gometalinter.v2 \
-		--deadline=300s \
+		--deadline=500s \
 		--disable-all \
 		--enable-gc \
 		--enable=deadcode \
