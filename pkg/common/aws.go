@@ -14,7 +14,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
-func DownloadFileFromAWSS3(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error {
+type S3Client interface {
+	Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error
+}
+
+type AbstractS3Client struct {
+	S3Client
+}
+
+func (asc AbstractS3Client) Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error {
 	itemKey = filepath.Clean(itemKey)
 
 	pathInsideBucket, item := path.Split(itemKey)
