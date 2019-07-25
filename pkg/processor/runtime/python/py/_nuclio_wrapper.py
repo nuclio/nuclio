@@ -74,8 +74,7 @@ class Wrapper(object):
         # indicate that we're ready
         self._write_packet_to_processor('s')
 
-    @staticmethod
-    def _event_from_msgpack(parsed_data):
+    def _event_from_msgpack(self, parsed_data):
         """Decode event encoded as MessagePack by processor"""
 
         trigger = TriggerInfo(
@@ -148,7 +147,7 @@ class Wrapper(object):
                 msg = next(self._unpacker)
 
                 # decode the JSON encoded event
-                event = Wrapper._event_from_msgpack(msg)
+                event = self._event_from_msgpack(msg)
 
                 try:
 

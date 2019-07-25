@@ -55,7 +55,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	err = newPythonRuntime.AbstractRuntime.StartRuntime()
+	err = newPythonRuntime.AbstractRuntime.Start()
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to start runtime")

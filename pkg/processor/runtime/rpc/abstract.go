@@ -95,7 +95,7 @@ func NewAbstractRuntime(logger logger.Logger,
 	return newRuntime, nil
 }
 
-func (r *AbstractRuntime) StartRuntime() error {
+func (r *AbstractRuntime) Start() error {
 	if err := r.startWrapper(); err != nil {
 		r.SetStatus(status.Error)
 		return errors.Wrap(err, "Failed to run wrapper")

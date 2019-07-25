@@ -51,7 +51,7 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	err = newTestRuntime.AbstractRuntime.StartRuntime()
+	err = newTestRuntime.AbstractRuntime.Start()
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to start runtime")

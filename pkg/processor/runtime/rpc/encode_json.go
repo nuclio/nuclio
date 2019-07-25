@@ -52,29 +52,3 @@ func (je *EventJSONEncoder) Encode(event nuclio.Event) error {
 
 	return json.NewEncoder(je.writer).Encode(eventToEncode)
 }
-
-func eventAsMap(event nuclio.Event) map[string]interface{} {
-	triggerInfo := event.GetTriggerInfo()
-	eventToEncode := map[string]interface{}{
-		"content_type": event.GetContentType(),
-		"content-type": event.GetContentType(),
-		"trigger": map[string]string{
-			"class": triggerInfo.GetClass(),
-			"kind":  triggerInfo.GetKind(),
-		},
-		"fields":       event.GetFields(),
-		"headers":      event.GetHeaders(),
-		"id":           event.GetID(),
-		"method":       event.GetMethod(),
-		"path":         event.GetPath(),
-		"size":         len(event.GetBody()),
-		"timestamp":    event.GetTimestamp().UTC().Unix(),
-		"url":          event.GetURL(),
-		"shard_id":     event.GetShardID(),
-		"num_shards":   event.GetTotalNumShards(),
-		"type":         event.GetType(),
-		"type_version": event.GetTypeVersion(),
-		"version":      event.GetVersion(),
-	}
-	return eventToEncode
-}
