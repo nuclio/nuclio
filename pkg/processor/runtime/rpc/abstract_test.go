@@ -51,12 +51,6 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	err = newTestRuntime.AbstractRuntime.Start()
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to start runtime")
-	}
-
 	return newTestRuntime, nil
 }
 
@@ -94,6 +88,9 @@ func (suite *RuntimeSuite) TestRestart() {
 
 	suite.testRuntimeInstance, err = newTestRuntime(loggerInstance, configInstance)
 	suite.Require().NoError(err, "Can't create runtime")
+
+	err = suite.testRuntimeInstance.Start()
+	suite.Require().NoError(err, "Can't start runtime")
 
 	oldPid := suite.testRuntimeInstance.wrapperProcess.Pid
 	err = suite.testRuntimeInstance.Restart()
