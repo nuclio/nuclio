@@ -135,7 +135,7 @@ class Wrapper(object):
                     bytes_read = self._processor_sock.recv_into(view, bytes_to_read_now)
 
                     # client disconnect
-                    if bytes_read == 0:
+                    if not bytes_read:
                         # If socket is done, we can't log
                         print('Client disconnect')
                         return
