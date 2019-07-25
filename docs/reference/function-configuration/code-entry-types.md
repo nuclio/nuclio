@@ -25,7 +25,7 @@ As part of the [function specification](/docs/reference/function-configuration.m
 
 - Function source code &mdash; provide the function source code either by setting the `spec.build.functionSourceCode` configuration field to an [encoded source-code string](#code-entry-type-sourcecode) (`sourceCode`), or by setting the  `spec.build.path` field to a URL for downloading a [function source-code file](#code-entry-type-codefile). See [Function source-code entry types](#func-source-code-entry-types).
 
-- External function code &mdash; set the `spec.build.codeEntryType` configuration field to a code-entry type for downloading the function's source code and optional additional configuration ("function code") from an external source &mdash; [GitHub repository](#code-entry-type-github) (`github`), [archive-file](#code-entry-type-archive) (`archive`), or [AWS S3 bucket](#code-entry-type-s3) (`s3`) &mdash; and configure the required download information.
+- External function code &mdash; set the `spec.build.codeEntryType` configuration field to a code-entry type for downloading the function's source code and optional additional configuration ("function code") from an external source &mdash; [GitHub repository](#code-entry-type-github) (`github`), [archive file](#code-entry-type-archive) (`archive`), or [AWS S3 bucket](#code-entry-type-s3) (`s3`) &mdash; and configure the required download information.
   See [External function-code entry types](#external-func-code-entry-types).
 
 > **Go Note**<br/>
@@ -130,13 +130,14 @@ spec:
 Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to one of the following code-entry types to download the function code from the respective external source:
 
 - `github` &mdash; download the code from a GitHub repository. See [GitHub code-entry type (`github`)](#code-entry-type-github).
-- `archive` &mdash; download the code as a ZIP archive file from an Iguazio Data Science Platform data container or from any URL that doesn't require download authentication. See [Archive-file code-entry type (`archive`)](#code-entry-type-archive).
-- `s3` &mdash; download the code as a ZIP archive file from an AWS S3 bucket. See [AWS S3 code-entry type (`s3`)](#code-entry-type-s3).
+- `archive` &mdash; download the code as an archive file from an Iguazio Data Science Platform data container or from any URL that doesn't require download authentication. See [Archive-file code-entry type (`archive`)](#code-entry-type-archive).
+- `s3` &mdash; download the code as an archive file from an AWS S3 bucket. See [AWS S3 code-entry type (`s3`)](#code-entry-type-s3).
 
 Additional information for performing the download &mdash; such as the download URL or authentication information &mdash; is provided in dedicated configuration fields for each code-entry type, as detailed in the documentation of each code-entry type.
 
 > **Note:**
 > - When `spec.image` or `spec.build.functionSourceCode` are set, `spec.build.codeEntryType` is ignored. See [Determining the code-entry type](#code-entry-type-determine).
+> - <a id="archive-file-formats"></a>The `archive` and `s3` code-entry types support the following archive-file formats: **\*.jar**, **\*.rar**, **\*.tar**, **\*.tar.bz2**, **\*.tar.lz4**, **\*.tar.gz**, **\*.tar.sz**, **\*.tar.xz**, **\*.zip**
 > - The downloaded code files are saved and can be used by the function handler.
 
 > **Dashboard Note:** To configure an external function-code source from the dashboard, select the relevant code-entry type &mdash; `Archive`, `GitHub`, or `S3` &mdash; from the **Code entry type** list.
@@ -181,7 +182,7 @@ spec:
 <a id="code-entry-type-archive"></a>
 ### Archive-file code-entry type (`archive`)
 
-Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `archive` (dashboard: **Code entry type** = `Archive`) to download a ZIP archive file of the function code either from an [Iguazio Data Science Platform](https://www.iguazio.com) ("platform") data container or from any URL that doesn't require download authentication. The following configuration fields provide additional information for performing the download:
+Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `archive` (dashboard: **Code entry type** = `Archive`) to download [an archive file](#archive-file-formats) of the function code either from an [Iguazio Data Science Platform](https://www.iguazio.com) ("platform") data container or from any URL that doesn't require download authentication. The following configuration fields provide additional information for performing the download:
 
 - `spec.build` &mdash;
   - `path` (dashboard: **URL**) (Required) &mdash; a URL for downloading the archive file.<br/>
@@ -211,7 +212,7 @@ spec:
 <a id="code-entry-type-s3"></a>
 ### AWS S3 code-entry type (`s3`)
 
-Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `s3` (dashboard: **Code entry type** = `S3`) to download a ZIP archive file of the function code from an Amazon Simple Storage Service (AWS S3) bucket. The following configuration fields provide additional information for performing the download:
+Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `s3` (dashboard: **Code entry type** = `S3`) to download [an archive file](#archive-file-formats) of the function code from an Amazon Simple Storage Service (AWS S3) bucket. The following configuration fields provide additional information for performing the download:
 
 - `spec.build.codeEntryAttributes` &mdash;
   - `s3Bucket` (dashboard: **Bucket**) (Required) &mdash; the name of the S3 bucket that contains the archive file.
