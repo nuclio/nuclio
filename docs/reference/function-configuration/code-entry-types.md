@@ -158,6 +158,7 @@ Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#s
     -  `branch` (dashboard: **Branch**) (Required) &mdash; the GitHub repository branch from which to download the function code.
     - `headers.Authorization` (dashboard: **Token**) (Optional) &mdash; a GitHub access token for download authentication.
     - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository branch.
+      The default work directory is the root directory of the GitHub repository (`"/"`).
 
 <a id="code-entry-type-github-example"></a>
 #### Example
@@ -187,7 +188,8 @@ Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#s
     To download an archive file from an Iguazio Data Science Platform data container, the URL should be set to `<API URL of the platform's web-APIs service>/<container name>/<path to archive file>`, and a respective data-access key must be provided in the `spec.build.codeEntryAttributes.headers.X-V3io-Session-Key` field.
   - `codeEntryAttributes` &mdash;
     - `headers.X-V3io-Session-Key` (dashboard: **Access key**) (Required for a platform archive file) &mdash; an Iguazio Data Science Platform access key, which is required when the download URL (`spec.build.path`) refers to an archive file in a platform data container.
-    - `workDir` (dashboard: **Work directory**) (Required) &mdash; the relative path to the function-code directory within the downloaded archive file.
+    - `workDir` (dashboard: **Work directory**) (Required) &mdash; the relative path to the function-code directory within the extracted archive-file directory.
+      The default work directory is the root of the extracted archive-file directory (`"/"`).
 
 <a id="code-entry-type-archive-example"></a>
 #### Example
@@ -218,7 +220,8 @@ Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#s
   - `s3SecretAccessKey` (dashboard: **Secret access key**) (Optional) &mdash; an S3 secret access key for download authentication.
   - `s3SessionToken` (dashboard: **Token**) (Optional) &mdash; an S3 session token for download authentication.
   - `s3Region` (dashboard: **Region**) (Optional) &mdash; the AWS Region of the configured bucket. When this parameter isn't provided, it's implicitly deduced.
-  - `workDir` (dashboard: **Work directory**) (Required) &mdash; the relative path to the function-code directory within the downloaded archive file.
+  - `workDir` (dashboard: **Work directory**) (Required) &mdash; the relative path to the function-code directory within the extracted archive-file directory.
+      The default work directory is the root of the extracted archive-file directory (`"/"`).
 
 <a id="code-entry-type-s3-example"></a>
 #### Example
