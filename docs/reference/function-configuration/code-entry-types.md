@@ -130,7 +130,7 @@ spec:
 Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to one of the following code-entry types to download the function code from the respective external source:
 
 - `github` &mdash; download the code from a GitHub repository. See [GitHub code-entry type (`github`)](#code-entry-type-github).
-- `archive` &mdash; download the code as an archive file from an Iguazio Data Science Platform data container or from any URL that doesn't require download authentication. See [Archive-file code-entry type (`archive`)](#code-entry-type-archive).
+- `archive` &mdash; download the code as an archive file from an Iguazio Data Science Platform data container (authenticated) or from any URL that doesn't require download authentication. See [Archive-file code-entry type (`archive`)](#code-entry-type-archive).
 - `s3` &mdash; download the code as an archive file from an AWS S3 bucket. See [AWS S3 code-entry type (`s3`)](#code-entry-type-s3).
 
 Additional information for performing the download &mdash; such as the download URL or authentication information &mdash; is provided in dedicated configuration fields for each code-entry type, as detailed in the documentation of each code-entry type.
@@ -182,7 +182,12 @@ spec:
 <a id="code-entry-type-archive"></a>
 ### Archive-file code-entry type (`archive`)
 
-Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `archive` (dashboard: **Code entry type** = `Archive`) to download [an archive file](#archive-file-formats) of the function code either from an [Iguazio Data Science Platform](https://www.iguazio.com) ("platform") data container or from any URL that doesn't require download authentication. The following configuration fields provide additional information for performing the download:
+Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `archive` (dashboard: **Code entry type** = `Archive`) to download [an archive file](#archive-file-formats) of the function code from one of the following sources:
+
+- An [Iguazio Data Science Platform](https://www.iguazio.com) ("platform") data container. Downloads from this source require user authentication.
+- Any URL that doesn't require user authentication to perform the download.
+
+The following configuration fields provide additional information for performing the download:
 
 - `spec.build` &mdash;
   - `path` (dashboard: **URL**) (Required) &mdash; a URL for downloading the archive file.<br/>
