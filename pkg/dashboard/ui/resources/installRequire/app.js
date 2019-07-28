@@ -56,12 +56,3 @@ module.exports = function installRequire(src) {
 
     return require(fs.realpathSync(realPathSrc));
 };
-
-/**
- * Sets up and configs the modules used.
- * @param [gutilModule]     gutil module {@link http://npmjs.com/package/gutil}
- *                          if null, will use console instead
- */
-module.exports.setup = function setup(gutilModule) {
-    gutil = gutilModule || console;
-};
