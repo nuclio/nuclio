@@ -5,14 +5,15 @@
         </div>
         <div data-ng-if="$ctrl.isStagingMode()" class="languages-dropdown">
             <form name="$ctrl.translationForm">
-                <igz-default-dropdown data-name-key="attr.lang"
+                <igz-default-dropdown class="no-selected-option-style"
+                                      data-name-key="attr.lang"
                                       data-values-array="$ctrl.languages"
                                       data-selected-item="$ctrl.selectedLanguage"
                                       data-item-select-callback="$ctrl.onLanguageChange(item, isItemChanged)"
                                       data-item-select-field="attr.id"
                                       data-form-object="$ctrl.translationForm"
                                       data-input-name="languageName"
-                                      data-placeholder="{{ 'common:SELECT_LANGUAGE' | i18next }}">
+                                      data-placeholder="{{ 'common:PLACEHOLDER.DEFAULT_LANGUAGE' | i18next }}">
                 </igz-default-dropdown>
             </form>
         </div>
