@@ -85,7 +85,7 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 
 			// if display name is set log a deprecation message
 			if commandeer.projectConfig.Spec.DisplayName != "" {
-				cmd.Printf("Display name is deprecated and will be removed on the next major version release")
+				cmd.Println("Warning: Display name is deprecated and will be removed on the next major version release")
 			}
 
 			return createCommandeer.rootCommandeer.platform.CreateProject(&platform.CreateProjectOptions{
