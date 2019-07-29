@@ -19,7 +19,7 @@ This document describes the Nuclio function code-entry types and related configu
 
 ## Overview
 
-As part of the [function specification](/docs/reference/function-configuration.md) (`spec`), you must configure one of the following code-entry types and related information that points either to a pre-built function image or to code from which to build such an image:
+As part of the [function specification](/docs/reference/function-configuration.md#specification) (`spec`), you must configure one of the following code-entry types and related information that points either to a pre-built function image or to code from which to build such an image:
 
 - Function image (`image`) &mdash; set the `spec.image` configuration field to the name of a function Docker container image. See [Function-image code-entry type (`image`)](#code-entry-type-image).
 
