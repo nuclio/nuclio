@@ -90,7 +90,7 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 	}
 
 	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.DisplayName, "display-name", "", "Project display name, if different than name")
-	cmd.Flags().MarkDeprecated("display-name", "Display name is deprecated and will be removed on the next major version release")
+	cmd.Flags().MarkDeprecated("display-name", "will be removed on the next major version release") // nolint: errcheck
 	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.Description, "description", "", "Project description")
 
 	commandeer.cmd = cmd
