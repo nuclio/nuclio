@@ -933,6 +933,7 @@ func (suite *projectTestSuite) TestGetDetailSuccessful() {
 	returnedProject := platform.AbstractProject{}
 	returnedProject.ProjectConfig.Meta.Name = "p1"
 	returnedProject.ProjectConfig.Meta.Namespace = "p1Namespace"
+	returnedProject.ProjectConfig.Spec.DisplayName = "p1DisplayName"
 	returnedProject.ProjectConfig.Spec.Description = "p1Desc"
 
 	// verify
@@ -959,6 +960,7 @@ func (suite *projectTestSuite) TestGetDetailSuccessful() {
 		"namespace": "p1Namespace"
 	},
 	"spec": {
+		"displayName": "p1DisplayName",
 		"description": "p1Desc"
 	}
 }`

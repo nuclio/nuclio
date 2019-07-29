@@ -83,12 +83,18 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 			commandeer.projectConfig.Meta.Name = args[0]
 			commandeer.projectConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
 
+			// if display name is set log a deprecation message
+			if commandeer.projectConfig.Spec.DisplayName != "" {
+				cmd.Printf("Display name is deprecated and will be removed on the next major version release")
+			}
+
 			return createCommandeer.rootCommandeer.platform.CreateProject(&platform.CreateProjectOptions{
 				ProjectConfig: commandeer.projectConfig,
 			})
 		},
 	}
 
+	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.DisplayName, "display-name", "", "Project display name, if different than name")
 	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.Description, "description", "", "Project description")
 
 	commandeer.cmd = cmd
