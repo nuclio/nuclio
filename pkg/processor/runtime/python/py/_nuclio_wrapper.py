@@ -35,10 +35,9 @@ class TriggerInfo(object):
         self.kind = kind
 
 
-_max_message_size = 4 * 1024 * 1024
-
-
 class Wrapper(object):
+
+    _max_message_size = 4 * 1024 * 1024
 
     def __init__(self, logger, handler, socket_path, platform_kind, namespace=None, worker_id=None, trigger_name=None):
         self._logger = logger
@@ -106,7 +105,7 @@ class Wrapper(object):
         """Read event from socket, send out reply"""
 
         int_buf = bytearray(4)
-        buf = memoryview(bytearray(_max_message_size))
+        buf = memoryview(bytearray(self._max_message_size))
 
         while True:
 
@@ -122,8 +121,8 @@ class Wrapper(object):
                     print('Client disconnect')
                     return
 
-                bytes_to_read = int.from_bytes(int_buf, 'big')
-                if bytes_to_read > _max_message_size or bytes_to_read <= 0:
+                bytes_to_read = int.from_bytes(int_buf, 'big', signed=True)
+                if bytes_to_read > self._max_message_size or bytes_to_read <= 0:
                     # If socket is done, we can't log
                     print('Illegal message size: ' + str(bytes_to_read))
                     return

@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"io"
 
+	"github.com/nuclio/nuclio/pkg/errors"
+
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/vmihailenco/msgpack"
@@ -20,14 +22,14 @@ type EventMsgPackEncoder struct {
 
 // NewEventMsgPackEncoder returns a new MsgPackEncoder
 func NewEventMsgPackEncoder(logger logger.Logger, writer io.Writer) *EventMsgPackEncoder {
-	result := EventMsgPackEncoder{logger: logger, writer: writer}
-	result.encoder = msgpack.NewEncoder(&result.buf)
-	return &result
+	eventMsgPackEncoder := EventMsgPackEncoder{logger: logger, writer: writer}
+	eventMsgPackEncoder.encoder = msgpack.NewEncoder(&eventMsgPackEncoder.buf)
+	return &eventMsgPackEncoder
 }
 
 // Encode writes the JSON encoding of event to the stream, followed by a newline character
-func (je *EventMsgPackEncoder) Encode(event nuclio.Event) error {
-	je.logger.DebugWith("Sending event to wrapper", "size", len(event.GetBody()))
+func (e *EventMsgPackEncoder) Encode(event nuclio.Event) error {
+	e.logger.DebugWith("Sending event to wrapper", "size", len(event.GetBody()))
 
 	eventToEncode := eventAsMap(event)
 
@@ -38,18 +40,19 @@ func (je *EventMsgPackEncoder) Encode(event nuclio.Event) error {
 		eventToEncode["body"] = event.GetBody()
 	}
 
-	je.buf.Reset()
-	err := je.encoder.Encode(eventToEncode)
-	if err != nil {
-		return err
+	e.buf.Reset()
+	if err := e.encoder.Encode(eventToEncode); err != nil {
+		return errors.Wrap(err, "Failed to encode message")
 	}
 
-	err = binary.Write(je.writer, binary.BigEndian, int32(je.buf.Len()))
-	if err != nil {
-		return err
+	if err := binary.Write(e.writer, binary.BigEndian, int32(e.buf.Len())); err != nil {
+		return errors.Wrap(err, "Failed to write message size to socket")
 	}
 
-	bs := je.buf.Bytes()
-	_, err = je.writer.Write(bs)
-	return err
+	bs := e.buf.Bytes()
+	if _, err := e.writer.Write(bs); err != nil {
+		return errors.Wrap(err, "Failed to write message to socket")
+	}
+
+	return nil
 }

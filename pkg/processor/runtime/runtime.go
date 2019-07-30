@@ -29,6 +29,7 @@ import (
 
 // Runtime receives an event from a worker and passes it to a specific runtime like Golang, Python, et
 type Runtime interface {
+
 	// ProcessEvent receives the event and processes it at the specific runtime
 	ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error)
 
