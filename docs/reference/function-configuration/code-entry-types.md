@@ -207,7 +207,7 @@ spec:
   runtime: golang
   build:
     codeEntryType: "archive"
-    path: "https://https://webapi.default-tenant.app.mycluster.iguazio.com/users/myuser/my-functions.zip"
+    path: "https://webapi.default-tenant.app.mycluster.iguazio.com/users/myuser/my-functions.zip"
     codeEntryAttributes:
       headers:
         X-V3io-Session-Key: "my-platform-access-key"
