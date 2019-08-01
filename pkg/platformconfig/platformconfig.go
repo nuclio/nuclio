@@ -96,7 +96,7 @@ func (config *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBin
 		// get sink by name
 		sink, sinkFound := config.Logger.Sinks[sinkBinding.Sink]
 		if !sinkFound {
-			return nil, errors.Errorf("Failed to find metric sink %s", sinkBinding.Sink)
+			return nil, errors.Errorf("Failed to find logger sink %s", sinkBinding.Sink)
 		}
 
 		result[sinkBinding.Sink] = LoggerSinkWithLevel{
