@@ -595,7 +595,7 @@ func (suite *testSuite) TestResolveFunctionPathArchiveCodeEntry() {
 	archiveFileURL := "http://some-address.com/test_function_archive"
 	buildConfiguration := functionconfig.Build{
 		CodeEntryType: ArchiveEntryType,
-		Path: archiveFileURL,
+		Path:          archiveFileURL,
 		CodeEntryAttributes: map[string]interface{}{
 			"workDir": "/funcs/my-python-func",
 		},
@@ -607,9 +607,9 @@ func (suite *testSuite) TestResolveFunctionPathGithubCodeEntry() {
 	archiveFileURL := "https://github.com/nuclio/my-func/archive/master.zip"
 	buildConfiguration := functionconfig.Build{
 		CodeEntryType: GithubEntryType,
-		Path: "https://github.com/nuclio/my-func",
+		Path:          "https://github.com/nuclio/my-func",
 		CodeEntryAttributes: map[string]interface{}{
-			"branch": "master",
+			"branch":  "master",
 			"workDir": "/my-python-func",
 		},
 	}
@@ -633,15 +633,15 @@ func (suite *testSuite) TestResolveFunctionPathS3CodeEntry() {
 
 	buildConfiguration := functionconfig.Build{
 		CodeEntryType: S3EntryType,
-		Path: "",
+		Path:          "",
 		CodeEntryAttributes: map[string]interface{}{
-			"s3Bucket":"my-s3-bucket",
-			"s3ItemKey":"funcs.zip",
-			"s3Region":"my-s3-region",
-			"s3AccessKeyId":"my-s3-access-key-id",
-			"s3SecretAccessKey":"my-s3-secret-access-key",
-			"s3SessionToken":"my-s3-session-token",
-			"workDir": "/funcs/my-python-func",
+			"s3Bucket":          "my-s3-bucket",
+			"s3ItemKey":         "funcs.zip",
+			"s3Region":          "my-s3-region",
+			"s3AccessKeyId":     "my-s3-access-key-id",
+			"s3SecretAccessKey": "my-s3-secret-access-key",
+			"s3SessionToken":    "my-s3-session-token",
+			"workDir":           "/funcs/my-python-func",
 		},
 	}
 	suite.testResolveFunctionPathArchive(buildConfiguration, "")
@@ -674,14 +674,14 @@ func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension stri
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 
-	codeFileContent:= "some code..."
+	codeFileContent := "some code..."
 	responder := func(req *http.Request) (*http.Response, error) {
 		responder := httpmock.NewStringResponder(200, codeFileContent)
 		response, err := responder(req)
 		response.ContentLength = int64(len(codeFileContent))
 		return response, err
 	}
-	codeFileURL := "http://some-address.com/my-func."+fileExtension
+	codeFileURL := "http://some-address.com/my-func." + fileExtension
 	httpmock.RegisterResponder("GET", codeFileURL, responder)
 
 	// the code file will be "downloaded" here
