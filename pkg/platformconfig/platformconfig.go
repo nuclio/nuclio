@@ -17,8 +17,7 @@ limitations under the License.
 package platformconfig
 
 import (
-	"fmt"
-
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 )
 
@@ -79,7 +78,7 @@ func (config *Config) getMetricSinks(metricSinkNames []string) (map[string]Metri
 	for _, metricSinkName := range metricSinkNames {
 		metricSink, metricSinkFound := config.Metrics.Sinks[metricSinkName]
 		if !metricSinkFound {
-			return nil, fmt.Errorf("Failed to find metric sink %s", metricSinkName)
+			return nil, errors.Errorf("Failed to find metric sink %s", metricSinkName)
 		}
 
 		metricSinks[metricSinkName] = metricSink
@@ -97,7 +96,7 @@ func (config *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBin
 		// get sink by name
 		sink, sinkFound := config.Logger.Sinks[sinkBinding.Sink]
 		if !sinkFound {
-			return nil, fmt.Errorf("Failed to find logger sink %s", sinkBinding.Sink)
+			return nil, errors.Errorf("Failed to find metric sink %s", sinkBinding.Sink)
 		}
 
 		result[sinkBinding.Sink] = LoggerSinkWithLevel{
