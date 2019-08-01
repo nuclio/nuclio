@@ -19,6 +19,8 @@ package registry
 import (
 	"fmt"
 	"sync"
+
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 type Registry struct {
@@ -57,7 +59,7 @@ func (r *Registry) Get(kind string) (interface{}, error) {
 	if !found {
 
 		// registries register things on package initialization; no place for error handling
-		return nil, fmt.Errorf("Registry for %s failed to find: %s", r.className, kind)
+		return nil, errors.Errorf("Registry for %s failed to find: %s", r.className, kind)
 	}
 
 	return registree, nil
