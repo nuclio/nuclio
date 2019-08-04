@@ -18,10 +18,11 @@ package test
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
-	"testing"
 
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/suite"
