@@ -17,7 +17,6 @@ limitations under the License.
 package registry
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -45,7 +44,7 @@ func (r *Registry) Register(kind string, registeree interface{}) {
 	if found {
 
 		// registries register things on package initialization; no place for error handling
-		panic(fmt.Sprintf("Already registered: %s", kind))
+		panic(errors.Errorf("Already registered: %s", kind))
 	}
 
 	r.Registered[kind] = registeree
