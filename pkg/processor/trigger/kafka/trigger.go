@@ -129,6 +129,11 @@ func (k *kafka) newKafkaConfig() (*cluster.Config, error) {
 	config.Net.SASL.Enable = k.configuration.SASL.Enable
 	config.Net.SASL.User = k.configuration.SASL.User
 	config.Net.SASL.Password = k.configuration.SASL.Password
+	config.ClientID = k.ID
+
+	if err := config.Validate(); err != nil {
+		return nil, errors.Wrap(err, "Kafka config is invalid")
+	}
 
 	return config, nil
 }
