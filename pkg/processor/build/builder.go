@@ -1507,8 +1507,8 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 		}
 
 		isArchive := codeEntryType == S3EntryType ||
-			codeEntryType == ArchiveEntryType ||
-			codeEntryType == GithubEntryType
+			codeEntryType == GithubEntryType ||
+			(codeEntryType == ArchiveEntryType && !util.IsJar(functionPath))
 
 		tempDir, err := b.mkDirUnderTemp("download")
 		if err != nil {
@@ -1536,8 +1536,7 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 			return "", errors.Wrap(err, "Failed to download file")
 		}
 
-		if (codeEntryType == S3EntryType || codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) &&
-			!util.IsCompressed(tempFile.Name()) {
+		if isArchive && !util.IsCompressed(tempFile.Name()) {
 			return "", errors.New("Downloaded file type is not supported. (expected an archive)")
 		}
 
