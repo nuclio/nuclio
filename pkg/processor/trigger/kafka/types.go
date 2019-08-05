@@ -48,6 +48,11 @@ func NewConfiguration(ID string,
 	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
+	// set default
+	if triggerConfiguration.MaxWorkers == 0 {
+		triggerConfiguration.MaxWorkers = 32
+	}
+
 	// create base
 	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 

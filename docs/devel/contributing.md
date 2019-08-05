@@ -7,7 +7,7 @@ Obviously, you'll need:
 - Linux or OSX
 - git
 - Docker (version 17.05+, because Nuclio uses [multi-stage builds](https://docs.docker.com/engine/userguide/eng-image/multistage-build/))
-- The Go toolchain (CI tests with 1.9, best use that)
+- The Go toolchain (CI tests with 1.10, best use that)
 - A `GOPATH` directory and `GOPATH` environment variable set to that
 - Kubernetes 1.7+ (for testing, mostly) - `minikube` recommended (you can follow the [minikube getting started guide](/docs/setup/minikube/getting-started-minikube.md))
 
@@ -50,8 +50,8 @@ git checkout -b my-feature
 
 ## Setting up a GoLand project
 We <3 GoLand and use it heavily for Go projects. We chose not to include the `.idea` files at this time, but it is super easy to create run/debug targets and use the debugger:
-1. Create a new project pointing to $GOPATH/src/github.com/nuclio/nuclio
-2. Click "GoLand-EAP" -> Preferences -> Go -> GOPATH and add the value of $GOPATH
+1. Create a new project pointing to `$GOPATH/src/github.com/nuclio/nuclio`
+2. Click "GoLand" -> Preferences -> Go -> GOPATH and add the value of $GOPATH
 
 ### A note about versioning
 All Nuclio artifacts are versioned. They take their versions from one of two sources (in the following order):
@@ -68,19 +68,35 @@ Under normal circumstances, the function provided by the user will be compiled a
 
 By specifying `handler: nuclio:builtin` in the processor configuration file, the Go runtime will not try to load a plugin and simply use `pkg/processor/runtime/golang/runtime.go:builtInHandler()`. Feel free to modify that function, just don't check it in. 
 
-The processor configuration file currently has this schema (in the future it will be changed to the schema of `function.yaml`):
+The processor configuration file is basically the content of your `function.yaml`:
 
 ```yaml
-dataBindings: {}
-function:
-  handler: nuclio:builtin
+spec:
   runtime: golang
-logger:
-  level: debug
-triggers: {}
+  handler: nuclio:builtin
+  logger:
+    level: debug
+  triggers: {}
 ```
 
-Create this file somewhere and pass `--config <path to processor.yaml>` as `Program arguments` in the Run/Debug configuration.
+Another configuration that should be given to the processor is the platform configuration, that looks like:
+```yaml
+logger:
+  sinks:
+    myStdoutLoggerSink:
+      kind: stdout
+  system:
+  - level: debug
+    sink: myStdoutLoggerSink
+  functions:
+  - level: debug
+    sink: myStdoutLoggerSink
+```
+
+Create those two file configurations somewhere and pass `--config <path to processor.yaml> 
+--platform-config <path to platform-config.yaml` as `Program arguments` in the Run/Debug configuration.
+
+more information regarding platform-config can be found [here](https://github.com/nuclio/nuclio/blob/master/docs/tasks/configuring-a-platform.md#configuration-elements)
 
 ### Running nuctl
 There's nothing special required to run `nuctl`, but you may want to pass `--platform local` in case you don't want to work with Kubernetes. 

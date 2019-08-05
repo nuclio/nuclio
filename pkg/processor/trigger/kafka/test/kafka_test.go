@@ -35,6 +35,7 @@ type testSuite struct {
 	topic         string
 	consumerGroup string
 	initialOffset string
+	NumPartitions int32
 }
 
 func newTestSuite() *testSuite {
@@ -42,6 +43,7 @@ func newTestSuite() *testSuite {
 		topic:         "myTopic",
 		consumerGroup: "myConsumerGroup",
 		initialOffset: "earliest",
+		NumPartitions: 4,
 	}
 
 	newTestSuite.AbstractBrokerSuite = triggertest.NewAbstractBrokerSuite(newTestSuite)
@@ -68,7 +70,7 @@ func (suite *testSuite) SetupSuite() {
 	createTopicsRequest := sarama.CreateTopicsRequest{}
 	createTopicsRequest.TopicDetails = map[string]*sarama.TopicDetail{
 		suite.topic: {
-			NumPartitions:     4,
+			NumPartitions:     suite.NumPartitions,
 			ReplicationFactor: 1,
 		},
 	}
@@ -100,7 +102,7 @@ func (suite *testSuite) TestReceiveRecords() {
 	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
 		suite.BrokerHost,
 		createFunctionOptions,
-		map[string]triggertest.TopicMessages{suite.topic: {3}},
+		map[string]triggertest.TopicMessages{suite.topic: {int(suite.NumPartitions)}},
 		nil,
 		suite.publishMessageToTopic)
 }
