@@ -458,8 +458,8 @@ func (suite *testSuite) TestBuildFuncFromImageAndRedeploy() {
 	functionBResponse := xid.New().String()
 
 	// create two functions
-	createAFunctionResult := suite.createShellFunction("func-a", functionAResponse)
-	createBFunctionResult := suite.createShellFunction("func-b", functionBResponse)
+	createAFunctionResult := suite.createShellFunction(functionAResponse)
+	createBFunctionResult := suite.createShellFunction(functionBResponse)
 
 	// codeEntryType -> image
 	createFunctionFromImageOptions := &platform.CreateFunctionOptions{
@@ -503,20 +503,34 @@ func (suite *testSuite) TestBuildFuncFromImageAndRedeploy() {
 	})
 }
 
-func (suite *testSuite) createShellFunction(functionName, responseMessage string) *platform.CreateFunctionResult {
+func (suite *testSuite) createShellFunction(responseMessage string) *platform.CreateFunctionResult {
+
+	functionName := xid.New().String()
+	functionSourceCode := fmt.Sprintf(`
+# @nuclio.configure
+#
+# function.yaml:
+#   metadata:
+#     name: %s
+#     namespace: default
+#   spec:
+#     env:
+#     - name: MESSAGE
+#       value: foo
+echo %s
+`, functionName, responseMessage)
+
 	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger: suite.Logger,
 		FunctionConfig: functionconfig.Config{
 			Meta: functionconfig.Meta{
-				Name:      functionName,
 				Namespace: "default",
 			},
 			Spec: functionconfig.Spec{
 				Handler: fmt.Sprintf("%s.sh", functionName),
 				Runtime: "shell",
 				Build: functionconfig.Build{
-					FunctionSourceCode: base64.StdEncoding.EncodeToString(
-						[]byte(fmt.Sprintf("echo %s", responseMessage))),
+					FunctionSourceCode: base64.StdEncoding.EncodeToString([]byte(functionSourceCode)),
 				},
 			},
 		},
