@@ -30,7 +30,7 @@ Now `go get` some dependencies that are injected into functions and cannot be ve
 go get github.com/v3io/v3io-go-http/... && go get github.com/nuclio/logger/... && go get github.com/nuclio/nuclio-sdk-go/... && go get github.com/nuclio/amqp/... && go get github.com/v3io/scaler-types/...
 ```
 
-Build Nuclio artifacts (`nuctl`, Docker images):
+Build Nuclio artifacts (`nuctl`, container images):
 
 ```sh
 make build

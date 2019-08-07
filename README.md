@@ -85,7 +85,10 @@ The dashboard is a standalone microservice that is accessed through HTTP and inc
 
 #### Builder
 
-A builder receives raw code and optional build instructions and dependencies, and generates the function artifact - a binary file or a Docker container image that the builder can also push to a specified image repository. The builder can run in the context of the CLI or as a separate service, for automated development pipelines.
+A builder receives raw code and optional build instructions and dependencies, and generates the function artifact - a binary file or a container image that the builder can also push to a specified image repository. The builder can run in the context of the CLI or as a separate service, for automated development pipelines.
+
+<a id="supported-container-images-note"></a>
+> **Note:** The current version of Nuclio supports Docker images.
 
 #### Dealer
 

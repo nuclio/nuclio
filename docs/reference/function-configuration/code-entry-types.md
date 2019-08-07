@@ -21,7 +21,7 @@ This document describes the Nuclio function code-entry types and related configu
 
 As part of the [function specification](/docs/reference/function-configuration.md#specification) (`spec`), you must configure one of the following code-entry types and related information that points either to a pre-built function image or to code from which to build such an image:
 
-- Function image (`image`) &mdash; set the `spec.image` configuration field to the name of a function Docker container image. See [Function-image code-entry type (`image`)](#code-entry-type-image).
+- Function image (`image`) &mdash; set the `spec.image` configuration field to the name of a function container image. See [Function-image code-entry type (`image`)](#code-entry-type-image).
 
 - Function source code &mdash; provide the function source code either by setting the `spec.build.functionSourceCode` configuration field to an [encoded source-code string](#code-entry-type-sourcecode) (`sourceCode`), or by setting the  `spec.build.path` field to a URL for downloading a [function source-code file](#code-entry-type-codefile). See [Function source-code entry types](#func-source-code-entry-types).
 
@@ -58,7 +58,7 @@ The dashboard notes in this reference refer to fields in the **Code** function d
 <a id="code-entry-type-image"></a>
 ## Function-image code-entry type (`image`)
 
-Set the [`spec.image`](/docs/reference/function-configuration.md#spec.image) function-configuration field to the name of a function Docker container image (`[<host name>.]<namespace>.<repository>[:<tag>]`) to deploy the function from this image.
+Set the [`spec.image`](/docs/reference/function-configuration.md#spec.image) function-configuration field to the name of a function container image (`[<host name>.]<namespace>.<repository>[:<tag>]`) to deploy the function from this image.
 
 > **Note:** When `spec.image` is set, the implied code-entry type is `image` and `spec.build.codeEntryType` and `spec.build.path` are ignored. See [Determining the code-entry type](#code-entry-type-determine).
 
