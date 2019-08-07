@@ -145,7 +145,7 @@ class Wrapper(object):
 
                 msg = next(self._unpacker)
 
-                # decode the JSON encoded event
+                # decode the event
                 event = self._event_from_msgpack(msg)
 
                 try:
