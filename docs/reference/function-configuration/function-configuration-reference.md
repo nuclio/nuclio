@@ -1,17 +1,19 @@
 # Function-Configuration Reference
 
-This document describes the various fields in the function configuration.
+This document provides a reference of the Nuclio function configuration.
 
 #### In This Document
 
-- [Basic structure](#basic-structure)
-- [Metadata](#metadata)
-- [Specification](#specification)
+- [Basic configuration structure](#basic-structure)
+- [Function metadata (`metadata`)](#metadata)
+- [Function Specification (`spec`)](#specification)
+  - [Example](#spec-example)
 - [See also](#see-also)
 
-## Basic structure 
+<a id="basic-structure"></a>
+## Basic configuration structure
 
-The basic structure resembles Kubernetes resource definitions, and includes the `apiVersion`, `kind`, `metadata`, `spec`, and `status` sections. Following is an example if a minimal definition:
+The basic structure of the Nuclio function configuration resembles Kubernetes resource definitions, and includes the `apiVersion`, `kind`, `metadata`, `spec`, and `status` sections. Following is an example of a minimal definition:
 
 ```yaml
 apiVersion: "nuclio.io/v1"
@@ -22,7 +24,8 @@ spec:
   image: example:latest
 ```
 
-## Metadata
+<a id="metadata"></a>
+## Function Metadata (`metadata`)
 
 The `metadata` section includes the following attributes:
 
@@ -47,7 +50,8 @@ metadata:
     a1: av1  
 ```
 
-## Specification
+<a id="specification"></a>
+## Function Specification (`spec`)
 
 The `spec` section contains the requirements and attributes and has the following elements:
 
@@ -56,8 +60,8 @@ The `spec` section contains the requirements and attributes and has the followin
 | description | string | A textual description of the function |
 | handler | string | The entry point to the function, in the form of `package:entrypoint`. Varies slightly between runtimes, see the appropriate runtime documentation for specifics |
 | runtime | string | The name of the language runtime. One of: `golang`, `python:2.7`, `python:3.6`, `shell`, `java`, `nodejs`, `pypy` | 
-| image | string | The container image holding the function |
-| env | map | A name-value environment-variable tuple. It is also possible to point to secrets, as demonstrated in the following example |
+| <a id="spec.image"></a>image | string | The name of the function's container image &mdash; used for the `image` [code-entry type](#spec.build.codeEntryType); see [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md#code-entry-type-image) |
+| env | map | A name-value environment-variables tuple; it's also possible to reference secrets from the map elements, as demonstrated in the [specifcation example](#spec-example) |
 | volumes | map | A map in an architecture similar to Kubernetes volumes, for Docker deployment |
 | replicas | int | The number of desired instances; 0 for auto-scaling. |
 | minReplicas | int | The minimum number of replicas |
@@ -65,26 +69,30 @@ The `spec` section contains the requirements and attributes and has the followin
 | targetCPU | int | Target CPU when auto scaling, as a percentage (default: 75%) |
 | dataBindings | See reference | A map of data sources used by the function ("data bindings") |
 | triggers.(name).maxWorkers | int | The max number of concurrent requests this trigger can process |
-| triggers.(name).kind | string | The kind of trigger. One of `http`, `kafka`, `kinesis`, `eventhub`, `cron`, `nats`, `rabbitmq` |
+| triggers.(name).kind | string | The trigger type (kind) - `cron` \| `eventhub` \| `http` \| `kafka` \| `kinesis` \| `nats` \| `rabbitmq` |
 | triggers.(name).url | string | The trigger specific URL (not used by all triggers) |
 | triggers.(name).annotations | list of strings | Annotations to be assigned to the trigger, if applicable |
 | triggers.(name).workerAvailabilityTimeoutMilliseconds | int | The number of milliseconds to wait for a worker if one is not available. 0 = never wait |
 | triggers.(name).attributes | See [reference](/docs/reference/triggers) | The per-trigger attributes |
-| build.path | string | A local directory or URL to a file/archive containing source and configuration |
-| build.functionSourceCode | string | The source code of the function, encoded in Base64. Mutually exclusive with build.path |
+| <a id="spec.build.path"></a>build.path | string | The URL of a GitHub repository or an archive-file that contains the function code &mdash; for the `github` or `archive` [code-entry type](#spec.build.codeEntryType) &mdash; or the URL of a function source-code file; see [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md) |
+| <a id="spec.build.functionSourceCode"></a>build.functionSourceCode | string | Base-64 encoded function source code for the `sourceCode` [code-entry type](#spec.build.codeEntryType); see [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md#code-entry-type-sourcecode) |
 | build.registry | string | The container image repository to which the built image will be pushed |
 | build.noBaseImagePull | string | Do not pull any base images when building, use local images only |
 | build.noCache | string | Do not use any caching when building container images |
-| build.baseImage | string | The base image from which the processor image will be built |
+| build.baseImage | string | The name of a base container image from which to build the function's processor image |
 | build.Commands | list of string | Commands run opaquely as part of container image build |
-| build.onbuildImage | string | The "onbuild" image from which the processor image will be built; can use {{ .Label }} and {{ .Arch }} for formatting |
+| build.onbuildImage | string | The name of an "onbuild" container image from which to build the function's processor image; the name can include `{{ .Label }}` and `{{ .Arch }}` for formatting |
+| build.image | string | The name of the built container image (default: the function name) |
+| <a id="spec.build.codeEntryType"></a>build.codeEntryType | string | The function's code-entry type - `archive` \| `github` \| `image` \| `s3` \| `sourceCode`; see [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md) |
+| <a id="spec.build.codeEntryAttributes"></a>build.codeEntryAttributes | See [reference](/docs/reference/function-configuration/code-entry-types.md#external-func-code-entry-types) | Code-entry attributes, which provide information for downloading the function when using the `github`, `s3`, or `archive` [code-entry type](#spec.build.codeEntryType) |
 | runRegistry | string | The container image repository from which the platform will pull the image |
-| runtimeAttributes | See reference | Runtime specific attributes, see runtime documentation for specifics |
+| runtimeAttributes | See [reference](/docs/reference/runtimes/) | Runtime-specific attributes |
 | resources | See [reference](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) | Limit resources allocated to deployed function |
-| readinessTimeoutSeconds | int | Number of seconds that the controller will wait for the function to become ready before declaring failure (default: 30) |
+| readinessTimeoutSeconds | int | Number of seconds that the controller will wait for the function to become ready before declaring failure (default: 60) |
 | avatar | string | Base64 representation of an icon to be shown in UI for the function |
 | eventTimeout | string | Global event timeout, in the format supported for the `Duration` parameter of the [`time.ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function |
 
+<a id="spec-example"></a>
 ### Example
 
 ```yaml
@@ -129,4 +137,4 @@ spec:
 ## See also
 
 - [Deploying Functions](/docs/tasks/deploying-functions.md)
-
+- [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md)

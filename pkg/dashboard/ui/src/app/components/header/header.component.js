@@ -21,7 +21,7 @@
         };
         ctrl.languages = [
             {
-                name: 'English',
+                name: 'EN',
                 id: 'en'
             }
         ];

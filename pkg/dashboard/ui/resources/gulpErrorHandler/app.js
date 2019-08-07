@@ -2,7 +2,8 @@
  * Error handling object
  */
 
-var gutil = require('gulp-util');
+var color = require('ansi-colors');
+var log = require('fancy-log');
 
 var errHandler = new (function () {
     var self = this;
@@ -11,7 +12,7 @@ var errHandler = new (function () {
 
     this.resist = function () {
         mode = 'pass';
-        gutil.log('Gulp error handler installed');
+        log('Gulp error handler installed');
     };
 
     this.use = function (fn) {
@@ -27,10 +28,10 @@ var errHandler = new (function () {
     this.swallow = function ($ident) {
         return function (err) {
             if (mode == 'pass') {
-                gutil.log(
-                    gutil.colors.red('An error occured with ('),
-                    gutil.colors.yellow($ident),
-                    gutil.colors.red('), but was resisted.')
+                log(
+                    color.red('An error occured with ('),
+                    color.yellow($ident),
+                    color.red('), but was resisted.')
                 );
 
                 this.emit('end');

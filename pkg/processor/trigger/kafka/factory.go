@@ -45,7 +45,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kafkaLogger,
-		32, // TODO: Allocate dynamically.
+		configuration.MaxWorkers, // TODO: Allocate dynamically.
 		runtimeConfiguration)
 
 	if err != nil {
