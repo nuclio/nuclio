@@ -73,6 +73,18 @@ class Wrapper(object):
         # indicate that we're ready
         self._write_packet_to_processor('s')
 
+    def _decode_body(self, body, content_type):
+        """Decode event body"""
+
+        if content_type == 'application/json':
+            try:
+                return json.loads(body.decode("utf-8"))
+            except Exception as ex:
+                self._logger.warn(str(ex))
+                pass
+
+        return body
+
     def _event_from_msgpack(self, parsed_data):
         """Decode event encoded as MessagePack by processor"""
 
@@ -84,7 +96,7 @@ class Wrapper(object):
         # extract content type, needed to decode body
         content_type = parsed_data['content_type']
 
-        body = nuclio_sdk.Event.decode_body(parsed_data['body'], content_type)
+        body = self._decode_body(parsed_data['body'], content_type)
 
         return nuclio_sdk.Event(body=body,
                                 content_type=content_type,
