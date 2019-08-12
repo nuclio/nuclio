@@ -60,7 +60,7 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 		"postCopy": {
 			{
 				Kind:  "RUN",
-				Value: "pip install nuclio-sdk --no-index --find-links /opt/nuclio/whl",
+				Value: "pip install nuclio-sdk msgpack --no-index --find-links /opt/nuclio/whl",
 			},
 		},
 	}
