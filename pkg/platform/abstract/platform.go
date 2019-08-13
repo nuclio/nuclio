@@ -78,7 +78,8 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	onAfterConfigUpdated func(*functionconfig.Config) error,
 	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
 
-	createFunctionOptions.Logger.InfoWith("Deploying function", "name", createFunctionOptions.FunctionConfig.Meta.Name)
+	createFunctionOptions.Logger.InfoWith("Deploying function",
+		"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 	var buildResult *platform.CreateFunctionBuildResult
 	var buildErr error
@@ -128,7 +129,8 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
 		}
 	} else {
-		createFunctionOptions.Logger.InfoWith("Skipping build", "name", createFunctionOptions.FunctionConfig.Meta.Name)
+		createFunctionOptions.Logger.InfoWith("Skipping build",
+			"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 		// verify user passed runtime
 		if createFunctionOptions.FunctionConfig.Spec.Runtime == "" {
