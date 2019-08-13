@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
+	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -214,6 +215,10 @@ func (mp *mockPlatform) GetNamespaces() ([]string, error) {
 func (mp *mockPlatform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	args := mp.Called()
 	return args.Get(0).([]string), args.Error(1)
+}
+
+func (mp *mockPlatform) BuildAndPushDockerImage(buildOptions *dockerclient.BuildOptions) error {
+	return nil
 }
 
 //

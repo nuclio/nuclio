@@ -16,10 +16,11 @@ limitations under the License.
 
 package platform
 
+import "github.com/nuclio/nuclio/pkg/dockerclient"
+
 type HealthCheckMode string
 
 const (
-
 	// health check should be performed by an internal client
 	HealthCheckModeInternalClient HealthCheckMode = "internalClient"
 
@@ -30,7 +31,6 @@ const (
 // Platform defines the interface that any underlying function platform must provide for nuclio
 // to run over it
 type Platform interface {
-
 	//
 	// Function
 	//
@@ -119,4 +119,7 @@ type Platform interface {
 
 	// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
 	ResolveDefaultNamespace(string) string
+
+	// BuildAndPushDockerImage builds docker image and pushes it into docker registry
+	BuildAndPushDockerImage(buildOptions *dockerclient.BuildOptions) error
 }

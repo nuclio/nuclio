@@ -52,6 +52,8 @@ spec:
               name: {{ template "nuclio.registryPushPullUrlName" . }}
               key: "registry_url"
               optional: true
+        - name: DASHBOARD_DEPLOYMENT_NAME
+          value: {{ template "nuclio.dashboardName" . }}
         {{- if eq .Values.dashboard.baseImagePullPolicy "Never" }}
         - name: NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES
           value: "true"

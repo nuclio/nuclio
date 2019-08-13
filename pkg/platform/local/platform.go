@@ -455,6 +455,11 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{"172.17.0.1"}, nil
 }
 
+func (p *Platform) BuildAndPushDockerImage(buildOptions *dockerclient.BuildOptions) error {
+	// TODO: implement
+	return nil
+}
+
 func (p *Platform) getFreeLocalPort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {

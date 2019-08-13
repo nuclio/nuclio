@@ -97,7 +97,6 @@ type Builder struct {
 	// information about the processor image - the one that actually holds the processor binary and is pushed
 	// to the cluster
 	processorImage struct {
-
 		// a map of local_path:dest_path. each file / dir from local_path will be copied into
 		// the docker image at dest_path
 		objectsToCopyDuringBuild map[string]string
@@ -247,10 +246,10 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		return nil, errors.Wrap(err, "Failed to build processor image")
 	}
 
-	// push the processor image
-	if err := b.pushProcessorImage(processorImage); err != nil {
-		return nil, errors.Wrap(err, "Failed to push processor image")
-	}
+	//// push the processor image
+	//if err := b.pushProcessorImage(processorImage); err != nil {
+	//	return nil, errors.Wrap(err, "Failed to push processor image")
+	//}
 
 	buildResult := &platform.CreateFunctionBuildResult{
 		Image:                 processorImage,
@@ -859,13 +858,22 @@ func (b *Builder) buildProcessorImage() (string, error) {
 
 	b.logger.InfoWith("Building processor image", "imageName", imageName)
 
-	err = b.dockerClient.Build(&dockerclient.BuildOptions{
+	err = b.platform.BuildAndPushDockerImage(&dockerclient.BuildOptions{
 		ContextDir:     b.stagingDir,
 		Image:          imageName,
+		TempDir:        b.tempDir,
 		DockerfilePath: processorDockerfilePathInStaging,
 		NoCache:        b.options.FunctionConfig.Spec.Build.NoCache,
 		BuildArgs:      buildArgs,
 	})
+
+	//err = b.dockerClient.Build(&dockerclient.BuildOptions{
+	//	ContextDir:     b.stagingDir,
+	//	Image:          imageName,
+	//	DockerfilePath: processorDockerfilePathInStaging,
+	//	NoCache:        b.options.FunctionConfig.Spec.Build.NoCache,
+	//	BuildArgs:      buildArgs,
+	//})
 
 	return imageName, err
 }
