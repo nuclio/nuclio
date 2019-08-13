@@ -133,7 +133,10 @@ class Wrapper(object):
                     print('Client disconnect')
                     return
 
-                bytes_to_read = int.from_bytes(int_buf, 'big', signed=True)
+                bytes_to_read = int(int_buf[3])
+                bytes_to_read += int_buf[2] << 8
+                bytes_to_read += int_buf[1] << 16
+                bytes_to_read += int_buf[0] << 24
                 if bytes_to_read > self._max_message_size or bytes_to_read <= 0:
                     # If socket is done, we can't log
                     print('Illegal message size: ' + str(bytes_to_read))
