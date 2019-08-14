@@ -16,13 +16,13 @@ import argparse
 import datetime
 import json
 import logging
-import msgpack
 import re
 import socket
 import sys
 import time
 import traceback
 
+import msgpack
 import nuclio_sdk
 import nuclio_sdk.json_encoder
 import nuclio_sdk.logger
