@@ -33,7 +33,7 @@ The `metadata` section includes the following attributes:
 | :--- | :--- | :--- |
 | name | string | The name of the function |
 | namespace | string | A level of isolation provided by the platform (e.g., Kubernetes) |
-| labels | map | A list of key-value tags that are used for looking up the function |
+| labels | map | A list of key-value tags that are used for looking up the function (immutable, can't update after first deployment) |
 | annotations | map | A list of annotations based on the key-value tags |
 
 ### Example
