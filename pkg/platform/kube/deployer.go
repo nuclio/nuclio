@@ -64,7 +64,7 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	createFunctionOptions.Logger.DebugWith("Creating/updating function",
 		"existed", functionExisted)
 
-	if functionInstance == nil {
+	if !functionExisted {
 		functionInstance = &nuclioio.NuclioFunction{}
 		functionInstance.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 	}

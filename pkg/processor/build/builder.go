@@ -410,7 +410,12 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.processorImage.imageTag = "latest"
 	}
 
-	b.logger.DebugWith("Enriched configuration", "options", b.options, "pi", b.processorImage)
+	b.logger.DebugWith("Enriched configuration",
+		"functionConfig", b.options.FunctionConfig,
+		"platform", b.options.PlatformName,
+		"dependantImagesRegistryURL", b.options.DependantImagesRegistryURL,
+		"outputImageFile", b.options.OutputImageFile,
+		"pi", b.processorImage)
 
 	return nil
 }
