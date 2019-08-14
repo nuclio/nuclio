@@ -13,20 +13,31 @@
 # limitations under the License.
 
 import argparse
+import datetime
 import json
 import logging
 import re
 import socket
+import sys
 import time
 import traceback
-import sys
 
+import msgpack
 import nuclio_sdk
 import nuclio_sdk.json_encoder
 import nuclio_sdk.logger
 
 
+class TriggerInfo(object):
+
+    def __init__(self, klass='', kind=''):
+        self.klass = klass
+        self.kind = kind
+
+
 class Wrapper(object):
+
+    _max_message_size = 4 * 1024 * 1024
 
     def __init__(self, logger, handler, socket_path, platform_kind, namespace=None, worker_id=None, trigger_name=None):
         self._logger = logger
@@ -44,7 +55,7 @@ class Wrapper(object):
 
         # make a writeable file from processor
         self._processor_sock_wfile = self._processor_sock.makefile('w')
-        self._processor_sock_rfile = self._processor_sock.makefile('r')
+        self._unpacker = msgpack.Unpacker(raw=False, max_buffer_size=10 * 1024 * 1024)
 
         # replace the default output with the process socket
         self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
@@ -62,8 +73,51 @@ class Wrapper(object):
         # indicate that we're ready
         self._write_packet_to_processor('s')
 
+    def _decode_body(self, body, content_type):
+        """Decode event body"""
+
+        if content_type == 'application/json':
+            try:
+                return json.loads(body.decode("utf-8"))
+            except Exception as ex:
+                self._logger.warn(str(ex))
+                pass
+
+        return body
+
+    def _event_from_msgpack(self, parsed_data):
+        """Decode event encoded as MessagePack by processor"""
+
+        trigger = TriggerInfo(
+            parsed_data['trigger']['class'],
+            parsed_data['trigger']['kind'],
+        )
+
+        # extract content type, needed to decode body
+        content_type = parsed_data['content_type']
+
+        body = self._decode_body(parsed_data['body'], content_type)
+
+        return nuclio_sdk.Event(body=body,
+                                content_type=content_type,
+                                trigger=trigger,
+                                fields=parsed_data.get('fields'),
+                                headers=parsed_data.get('headers'),
+                                _id=parsed_data['id'],
+                                method=parsed_data['method'],
+                                path=parsed_data['path'],
+                                size=parsed_data['size'],
+                                timestamp=datetime.datetime.utcfromtimestamp(parsed_data['timestamp']),
+                                url=parsed_data['url'],
+                                _type=parsed_data['type'],
+                                type_version=parsed_data['type_version'],
+                                version=parsed_data['version'])
+
     def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
+
+        int_buf = bytearray(4)
+        buf = memoryview(bytearray(self._max_message_size))
 
         while True:
 
@@ -71,16 +125,43 @@ class Wrapper(object):
             encoded_response = '{}'
 
             try:
-                line = self._processor_sock_rfile.readline()
 
+                should_be_four = self._processor_sock.recv_into(int_buf, 4)
                 # client disconnect
-                if not line:
+                if should_be_four < 4:
                     # If socket is done, we can't log
                     print('Client disconnect')
                     return
 
-                # decode the JSON encoded event
-                event = nuclio_sdk.Event.from_json(line)
+                bytes_to_read = int(int_buf[3])
+                bytes_to_read += int_buf[2] << 8
+                bytes_to_read += int_buf[1] << 16
+                bytes_to_read += int_buf[0] << 24
+                if bytes_to_read > self._max_message_size or bytes_to_read <= 0:
+                    # If socket is done, we can't log
+                    print('Illegal message size: ' + str(bytes_to_read))
+                    return
+
+                cumulative_bytes_read = 0
+                while cumulative_bytes_read < bytes_to_read:
+                    view = buf[cumulative_bytes_read:bytes_to_read]
+                    bytes_to_read_now = bytes_to_read - cumulative_bytes_read
+                    bytes_read = self._processor_sock.recv_into(view, bytes_to_read_now)
+
+                    # client disconnect
+                    if not bytes_read:
+                        # If socket is done, we can't log
+                        print('Client disconnect')
+                        return
+
+                    cumulative_bytes_read += bytes_read
+
+                self._unpacker.feed(buf[:cumulative_bytes_read])
+
+                msg = next(self._unpacker)
+
+                # decode the event
+                event = self._event_from_msgpack(msg)
 
                 try:
 

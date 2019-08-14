@@ -17,6 +17,7 @@ limitations under the License.
 package java
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -47,7 +48,11 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		configuration,
 		newJavaRuntime)
 
-	return newJavaRuntime, err
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create runtime")
+	}
+
+	return newJavaRuntime, nil
 }
 
 func (j *java) RunWrapper(port string) (*os.Process, error) {
@@ -121,4 +126,8 @@ func (j *java) getJVMOptions() ([]string, error) {
 	}
 
 	return jvmOptions, nil
+}
+
+func (j *java) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
+	return rpc.NewEventJSONEncoder(j.Logger, writer)
 }

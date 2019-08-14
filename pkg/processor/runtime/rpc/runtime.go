@@ -16,7 +16,10 @@ limitations under the License.
 
 package rpc
 
-import "os"
+import (
+	"io"
+	"os"
+)
 
 // SocketType is type of socket to use
 type SocketType int
@@ -34,6 +37,8 @@ type Runtime interface {
 
 	// GetSocketType returns the type of socket the runtime works with (unix/tcp)
 	GetSocketType() SocketType
+
+	GetEventEncoder(writer io.Writer) EventEncoder
 
 	// WaitForStart returns whether the runtime supports sending an indication that it started
 	WaitForStart() bool

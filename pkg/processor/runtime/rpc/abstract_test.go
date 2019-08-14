@@ -14,11 +14,13 @@ limitations under the License.
 package rpc
 
 import (
+	"io"
 	"net"
 	"os"
 	"os/exec"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
@@ -45,7 +47,11 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 		configuration,
 		newTestRuntime)
 
-	return newTestRuntime, err
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create runtime")
+	}
+
+	return newTestRuntime, nil
 }
 
 func (r *testRuntime) RunWrapper(socketPath string) (*os.Process, error) {
@@ -65,6 +71,10 @@ func (r *testRuntime) RunWrapper(socketPath string) (*os.Process, error) {
 	return cmd.Process, nil
 }
 
+func (r *testRuntime) GetEventEncoder(writer io.Writer) EventEncoder {
+	return NewEventJSONEncoder(r.Logger, writer)
+}
+
 type RuntimeSuite struct {
 	suite.Suite
 	testRuntimeInstance *testRuntime
@@ -78,6 +88,9 @@ func (suite *RuntimeSuite) TestRestart() {
 
 	suite.testRuntimeInstance, err = newTestRuntime(loggerInstance, configInstance)
 	suite.Require().NoError(err, "Can't create runtime")
+
+	err = suite.testRuntimeInstance.Start()
+	suite.Require().NoError(err, "Can't start runtime")
 
 	oldPid := suite.testRuntimeInstance.wrapperProcess.Pid
 	err = suite.testRuntimeInstance.Restart()
