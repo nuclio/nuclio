@@ -19,7 +19,7 @@ nuctl build function-name [options] [flags]
   -f, --file string             Path to a function-configuration file
       --handler string          Name of a function handler
   -h, --help                    help for build
-  -i, --image string            Name of a Docker image (default - the function name)
+  -i, --image string            Name of a container image (default - the function name)
       --no-pull                 Don't pull base images - use local versions
       --nuclio-src-dir string   Path to a local directory that contains Nuclio sources (avoid cloning)
       --nuclio-src-url string   URL of Nuclio sources for git clone (default "https://github.com/nuclio/nuclio.git")
@@ -27,7 +27,7 @@ nuctl build function-name [options] [flags]
   -p, --path string             Path to the function's source code
   -r, --registry string         URL of a container registry (env: NUCTL_REGISTRY)
       --runtime string          Runtime (for example, "golang", "golang:1.8", "python:2.7")
-      --version string          Version of the Docker image (default "latest")
+      --version string          Version of the container image (default "latest")
 ```
 
 ### Options inherited from parent commands

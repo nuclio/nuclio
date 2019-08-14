@@ -60,7 +60,7 @@ func newTrigger(parentLogger logger.Logger,
 
 	newTrigger.Logger.DebugWith("Creating consumer", "brokers", configuration.brokers)
 
-	newTrigger.kafkaConfig, err = newTrigger.newKafkaConfig(configuration)
+	newTrigger.kafkaConfig, err = newTrigger.newKafkaConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
@@ -119,7 +119,7 @@ func (k *kafka) GetConfig() map[string]interface{} {
 	return common.StructureToMap(k.configuration)
 }
 
-func (k *kafka) newKafkaConfig(configuration *Configuration) (*cluster.Config, error) {
+func (k *kafka) newKafkaConfig() (*cluster.Config, error) {
 
 	config := cluster.NewConfig()
 	config.Group.Mode = cluster.ConsumerModePartitions
@@ -129,6 +129,11 @@ func (k *kafka) newKafkaConfig(configuration *Configuration) (*cluster.Config, e
 	config.Net.SASL.Enable = k.configuration.SASL.Enable
 	config.Net.SASL.User = k.configuration.SASL.User
 	config.Net.SASL.Password = k.configuration.SASL.Password
+	config.ClientID = k.ID
+
+	if err := config.Validate(); err != nil {
+		return nil, errors.Wrap(err, "Kafka config is invalid")
+	}
 
 	return config, nil
 }

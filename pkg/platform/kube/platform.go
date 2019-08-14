@@ -139,7 +139,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
 	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" && createFunctionOptions.FunctionConfig.Meta.Name != "" {
-		existingFunctionConfig, err = p.getExistingFunctionConfig(createFunctionOptions)
+		existingFunctionConfig, err = p.getFunctionConfig(createFunctionOptions.FunctionConfig.Meta.Namespace,
+			createFunctionOptions.FunctionConfig.Meta.Name)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get existing function config")
 		}
@@ -150,19 +151,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
 		var err error
 
-		createFunctionOptions.Logger.DebugWith("Getting existing function",
-			"namespace", updatedFunctionConfig.Meta.Namespace,
-			"name", updatedFunctionConfig.Meta.Name)
-
-		existingFunctionInstance, err = p.getFunction(updatedFunctionConfig.Meta.Namespace,
-			updatedFunctionConfig.Meta.Name)
-
+		existingFunctionInstance, err = p.getFunction(updatedFunctionConfig.Meta.Namespace, updatedFunctionConfig.Meta.Name)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function")
 		}
-
-		createFunctionOptions.Logger.DebugWith("Completed getting existing function",
-			"found", existingFunctionInstance)
 
 		// create or update the function if existing. FunctionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
@@ -678,7 +670,10 @@ func getKubeconfigFromHomeDir() string {
 	return ""
 }
 
-func (p *Platform) getFunction(namespace string, name string) (*nuclioio.NuclioFunction, error) {
+func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction, error) {
+	p.Logger.DebugWith("Getting function",
+		"namespace", namespace,
+		"name", name)
 
 	// get specific function CR
 	function, err := p.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(name, meta_v1.GetOptions{})
@@ -692,34 +687,26 @@ func (p *Platform) getFunction(namespace string, name string) (*nuclioio.NuclioF
 		return nil, errors.Wrap(err, "Failed to get function")
 	}
 
+	p.Logger.DebugWith("Completed getting function",
+		"function", function)
+
 	return function, nil
 }
 
-func (p *Platform) getExistingFunctionConfig(createFunctionOptions *platform.CreateFunctionOptions) (*functionconfig.ConfigWithStatus, error) {
-	createFunctionOptions.Logger.DebugWith("Getting existing function",
-		"namespace", createFunctionOptions.FunctionConfig.Meta.Namespace,
-		"name", createFunctionOptions.FunctionConfig.Meta.Name)
-
-	existingFunctionInstance, err := p.getFunction(createFunctionOptions.FunctionConfig.Meta.Namespace,
-		createFunctionOptions.FunctionConfig.Meta.Name)
-
-	if err != nil {
+func (p *Platform) getFunctionConfig(namespace, name string) (*functionconfig.ConfigWithStatus, error) {
+	if functionInstance, err := p.getFunction(namespace, name); err != nil {
 		return nil, errors.Wrap(err, "Failed to get function")
-	}
+	} else if functionInstance != nil {
 
-	createFunctionOptions.Logger.DebugWith("Completed getting existing function",
-		"found", existingFunctionInstance)
-
-	if existingFunctionInstance != nil {
-
-		// build function config out of existing function instance
-		existingFunctionConfig := &functionconfig.ConfigWithStatus{
-			Config: functionconfig.Config{Spec: existingFunctionInstance.Spec},
-			Status: existingFunctionInstance.Status,
+		// found function instance, return as function config
+		functionConfig := &functionconfig.ConfigWithStatus{
+			Config: functionconfig.Config{Spec: functionInstance.Spec},
+			Status: functionInstance.Status,
 		}
-		return existingFunctionConfig, nil
+		return functionConfig, nil
+	} else {
+		return nil, nil
 	}
-	return nil, nil
 }
 
 func (p *Platform) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.NuclioProject) {

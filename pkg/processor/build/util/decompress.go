@@ -61,10 +61,14 @@ func (d *Decompressor) Decompress(source string, target string) error {
 func IsCompressed(source string) bool {
 
 	// Jars are special case
-	if strings.ToLower(path.Ext(source)) == ".jar" {
+	if IsJar(source) {
 		return false
 	}
 
 	fileArchiver := archiver.MatchingFormat(source)
 	return fileArchiver != nil
+}
+
+func IsJar(source string) bool {
+	return strings.ToLower(path.Ext(source)) == ".jar"
 }

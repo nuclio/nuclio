@@ -6,6 +6,7 @@
   "private": true,
   "main": "app.js",
   "dependencies": {
-    "gulp-util": "^3.0.4"
+    "ansi-colors": "4.1.1",
+    "fancy-log": "1.3.3"
   }
 }

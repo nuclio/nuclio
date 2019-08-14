@@ -567,6 +567,10 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	return &platform.CreateFunctionResult{
+		CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
+			Image:                 createFunctionOptions.FunctionConfig.Spec.Image,
+			UpdatedFunctionConfig: createFunctionOptions.FunctionConfig,
+		},
 		Port:        functionHTTPPort,
 		ContainerID: containerID,
 	}, nil

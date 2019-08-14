@@ -95,6 +95,12 @@ func (waf *Factory) createWorker(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
+	err = runtimeInstance.Start()
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to start runtime")
+	}
+
 	return NewWorker(workerLogger,
 		workerIndex,
 		runtimeInstance)

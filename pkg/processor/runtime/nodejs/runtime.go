@@ -18,6 +18,7 @@ package nodejs
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -50,7 +51,11 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		configuration,
 		newNodeJSRuntime)
 
-	return newNodeJSRuntime, err
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create runtime")
+	}
+
+	return newNodeJSRuntime, nil
 }
 
 // We can't use n.Logger since it's not initialized
@@ -145,4 +150,8 @@ func (n *nodejs) getNodeExePath() (string, error) {
 	baseName := "node"
 
 	return exec.LookPath(baseName)
+}
+
+func (n *nodejs) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
+	return rpc.NewEventJSONEncoder(n.Logger, writer)
 }

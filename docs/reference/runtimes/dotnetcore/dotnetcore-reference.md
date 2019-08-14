@@ -27,7 +27,36 @@ public class nuclio
 }
 ```
 
-The `handler` field is of the form `<class>:<entrypoint>`. In the example above, the handler is `nuclio:empty`. 
+The `handler` field is of the form `<class>:<entrypoint>`. In the example above, the handler is `nuclio:empty`.
+
+## Project file
+
+To use or import external dependencies, create a **handler.csproj** file that lists the required dependencies, alongside your function-handler file.
+
+For example, the following file defines a dependency on the `Microsoft.NET.Sdk` package:
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <LangVersion>7.2</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
+  </ItemGroup>
+</Project>
+```
+
+With this example **handler.csproj** file, you can use the `Newtonsoft.Json` package as follows:
+
+```cs
+using Newtonsoft.Json;
+...
+JsonConvert.SerializeObject(...);
+```
+
+Adding more dependencies is made easy using `dotnet add package <package name>`.
+For more details about `dotnet add package`, see the [Microsoft documentation](https://docs.microsoft.com/en-us/dotnet/core/tools/dotnet-add-package).
 
 ## Dockerfile
 

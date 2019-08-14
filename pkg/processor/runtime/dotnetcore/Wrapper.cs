@@ -13,8 +13,6 @@
 //  limitations under the License.
 
 using System;
-using System.Reflection;
-using System.Runtime.Loader;
 using System.Collections.Generic;
 using System.Text;
 using Nuclio.Sdk;
@@ -45,7 +43,8 @@ namespace processor
         {
             try
             {
-                var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dllPath);
+                // AssemblyLoadContext.Default.LoadFromAssemblyPath does not load dependency-dlls, so use custom Loader
+                var assembly = AssemblyLoader.LoadFromAssemblyPath(dllPath);
                 // Get the type to use.
                 var methodType = assembly.GetType(typeName); // Namespace and class
                 // Get the method to call.

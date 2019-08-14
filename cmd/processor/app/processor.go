@@ -106,7 +106,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		&processorConfiguration.Config,
 		platformConfiguration)
 	if err != nil {
-		return nil, errors.New("Failed to create logger")
+		return nil, errors.Wrap(err, "Failed to create logger")
 	}
 
 	// for now, use the same logger for both the processor and user handler

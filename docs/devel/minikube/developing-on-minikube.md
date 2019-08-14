@@ -12,12 +12,12 @@ This guide assumes that:
 ## Get your local images onto Minikube
 
 When you install Nuclio's services onto Minikube (using `kubectl apply`), Kubernetes examines the given resource specification to determine which images to use for Nuclio's controller and dashboard services. To get it to take your images, we must first push them onto the local Docker registry running inside the Minikube VM. To do this:
-- Make sure you've built Docker images with your changes (`make build`)
+- Make sure you've built container images with your changes (`make build`)
 - Push them by running the script located at `hack/minikube/scripts/push_images.py`. Keep in mind the script assumes the local Docker registry to be listening on port 5000 of the Minikube VM. It does the following:
-   - Iterates over the existing Nuclio Docker images on the host machine
+   - Iterates over the existing Nuclio container images on the host machine
    - For each such image:
      - Tags it locally as `$(minikube ip):5000/<image>` (i.e., `192.168.64.4:5000/processor:latest-amd64`)
-     - Pushes it to the docker registry. Since the image's tag refers to a registry, it's pushed to the Minikube registry.
+     - Pushes it to the Docker registry. Since the image's tag refers to a registry, it's pushed to the Minikube registry.
      - Untags it locally
      - _(in the Minikube VM)_ Pulls the image, specifying the local Docker registry (i.e., `docker pull localhost:5000/processor:latest-amd64`)
      - _(in the Minikube VM)_ Tags it with the `nuclio/` prefix (i.e., `nuclio/processor:latest-amd64`)

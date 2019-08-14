@@ -19,6 +19,7 @@ package abstract
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -61,7 +62,7 @@ func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platf
 func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 
 	// execute a build
-	builder, err := build.NewBuilder(createFunctionBuildOptions.Logger, ap.platform)
+	builder, err := build.NewBuilder(createFunctionBuildOptions.Logger, ap.platform, &common.AbstractS3Client{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create builder")
 	}
@@ -77,7 +78,8 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	onAfterConfigUpdated func(*functionconfig.Config) error,
 	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
 
-	createFunctionOptions.Logger.InfoWith("Deploying function", "name", createFunctionOptions.FunctionConfig.Meta.Name)
+	createFunctionOptions.Logger.InfoWith("Deploying function",
+		"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 	var buildResult *platform.CreateFunctionBuildResult
 	var buildErr error
@@ -127,7 +129,8 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
 		}
 	} else {
-		createFunctionOptions.Logger.InfoWith("Skipping build", "name", createFunctionOptions.FunctionConfig.Meta.Name)
+		createFunctionOptions.Logger.InfoWith("Skipping build",
+			"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 		// verify user passed runtime
 		if createFunctionOptions.FunctionConfig.Spec.Runtime == "" {
@@ -135,7 +138,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		}
 
 		// populate image if possible
-		if existingFunctionConfig != nil {
+		if existingFunctionConfig != nil && createFunctionOptions.FunctionConfig.Spec.Image == "" {
 			createFunctionOptions.FunctionConfig.Spec.Image = existingFunctionConfig.Spec.Image
 		}
 
