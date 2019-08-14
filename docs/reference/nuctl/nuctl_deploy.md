@@ -23,7 +23,7 @@ nuctl deploy function-name [flags]
   -f, --file string             Path to a function-configuration file
       --handler string          Name of a function handler
   -h, --help                    help for deploy
-  -i, --image string            Name of a Docker image (default - the function name)
+  -i, --image string            Name of a container image (default - the function name)
   -l, --labels string           Additional function labels (lbl1=val1[,lbl2=val2,...])
       --max-replicas int        Maximal number of function replicas
       --min-replicas int        Minimal number of function replicas
@@ -42,7 +42,7 @@ nuctl deploy function-name [flags]
       --runtime-attrs string    JSON encoded runtime attributes for the function (default "{}")
       --triggers string         JSON-encoded triggers for the function (default "{}")
       --volume                  Volumes for the deployment function (--volume src1:dest1 --volume src2:dest2)
-      --version string          Version of the Docker image (default "latest")
+      --version string          Version of the container image (default "latest")
 ```
 
 ### Options inherited from parent commands

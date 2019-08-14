@@ -78,7 +78,7 @@ k8s-myNuclioCluster-36346190-0   Ready     49m       v1.7.7
 
 ## Create a container registry using the Azure CLI
 
-[Azure Container Registry (ACR)](https://azure.microsoft.com/services/container-registry/) is a managed Docker container registry service that's used for storing private Docker container images. For more information, see the [ACR documentation](https://docs.microsoft.com/azure/container-registry/).
+[Azure Container Registry (ACR)](https://azure.microsoft.com/services/container-registry/) is a managed Docker container registry service that's used for storing private container container images. For more information, see the [ACR documentation](https://docs.microsoft.com/azure/container-registry/).
 Microsoft's [Create a container registry using the Azure CLI](https://docs.microsoft.com/azure/container-registry/container-registry-get-started-azure-cli) guide explains how to use the `az` CLI to create a container registry.
 
 The Nuclio dashboard builds and pushes functions to a Docker registry. For the Nuclio ACR setup, ACR serves as the Docker registry. Create an ACR instance by using the `az acr create` command (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/acr#az_acr_create)):
