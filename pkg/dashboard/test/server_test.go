@@ -26,10 +26,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/containerimagebuilder"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
-	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -217,7 +217,7 @@ func (mp *mockPlatform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return args.Get(0).([]string), args.Error(1)
 }
 
-func (mp *mockPlatform) BuildAndPushDockerImage(buildOptions *dockerclient.BuildOptions) error {
+func (mp *mockPlatform) BuildAndPushContainerImage(buildOptions *containerimagebuilder.BuildOptions) error {
 	return nil
 }
 

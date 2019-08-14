@@ -1,4 +1,4 @@
-package dockerbuilder
+package containerimagebuilder
 
 import (
 	"fmt"
@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	batch_v1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -17,28 +16,36 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type KanikoBuilder struct {
-	kubeClientSet kubernetes.Interface
-	logger        logger.Logger
+type Kaniko struct {
+	kubeClientSet        kubernetes.Interface
+	logger               logger.Logger
+	builderConfiguration *ContainerBuilderConfiguration
 }
 
-func NewKanikoBuilder(logger logger.Logger, kubeClientSet kubernetes.Interface, ) *KanikoBuilder {
-	kanikoBuilder := &KanikoBuilder{
-		logger:        logger,
-		kubeClientSet: kubeClientSet,
+func NewKaniko(logger logger.Logger, kubeClientSet kubernetes.Interface,
+	builderConfiguration *ContainerBuilderConfiguration) (*Kaniko, error) {
+
+	if builderConfiguration == nil {
+		return nil, errors.New("Missing kaniko builder configuration")
 	}
 
-	return kanikoBuilder
+	kanikoBuilder := &Kaniko{
+		logger:               logger,
+		kubeClientSet:        kubeClientSet,
+		builderConfiguration: builderConfiguration,
+	}
+
+	return kanikoBuilder, nil
 }
 
-func (k *KanikoBuilder) BuildAndPushDockerImage(buildOptions *dockerclient.BuildOptions, namespace string) error {
+func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error {
 	bundleFilename, err := k.createDockerBuildBundle(buildOptions.Image, buildOptions.ContextDir, buildOptions.TempDir)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create docker build bundle")
 	}
 
 	// Generate kaniko job spec
-	kanikoJobSpec := k.getJobKanikoSpec(buildOptions, bundleFilename)
+	kanikoJobSpec := k.getKanikoJobSpec(buildOptions, bundleFilename)
 
 	k.logger.DebugWith("About to publish kaniko job", "jobSpec", kanikoJobSpec)
 	kanikoJob, err := k.kubeClientSet.BatchV1().Jobs(namespace).Create(kanikoJobSpec)
@@ -74,7 +81,7 @@ func (k *KanikoBuilder) BuildAndPushDockerImage(buildOptions *dockerclient.Build
 	return errors.New("Kaniko job has timed out")
 }
 
-func (k *KanikoBuilder) createDockerBuildBundle(image string, contextDir string, tempDir string) (string, error) {
+func (k *Kaniko) createDockerBuildBundle(image string, contextDir string, tempDir string) (string, error) {
 	var err error
 
 	// Create temp directory to store compressed docker build bundle
@@ -106,7 +113,7 @@ func (k *KanikoBuilder) createDockerBuildBundle(image string, contextDir string,
 	return tarFilename, nil
 }
 
-func (k *KanikoBuilder) getJobKanikoSpec(buildOptions *dockerclient.BuildOptions, bundleFilename string) *batch_v1.Job {
+func (k *Kaniko) getKanikoJobSpec(buildOptions *BuildOptions, bundleFilename string) *batch_v1.Job {
 
 	completions := int32(1)
 	buildArgs := []string{
@@ -130,21 +137,25 @@ func (k *KanikoBuilder) getJobKanikoSpec(buildOptions *dockerclient.BuildOptions
 		MountPath: "/tmp",
 	}
 
+	functionName := strings.Replace(buildOptions.Image, "/", "-", -1)
+	functionName = strings.Replace(functionName, ":", "-", -1)
+	jobName := fmt.Sprintf("%s.%s", k.builderConfiguration.JobPrefix, functionName)
+
 	kanikoJobSpec := &batch_v1.Job{
 		ObjectMeta: meta_v1.ObjectMeta{
-			Name: "kanikojob",
+			Name: jobName,
 		},
 		Spec: batch_v1.JobSpec{
 			Completions: &completions,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
-					Name: "kanikojob",
+					Name: jobName,
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:         "kaniko",
-							Image:        "gcr.io/kaniko-project/executor:latest",
+							Name:         "kaniko-executor",
+							Image:        k.builderConfiguration.KanikoImage,
 							Args:         buildArgs,
 							VolumeMounts: []v1.VolumeMount{volumeMount},
 						},
@@ -152,7 +163,7 @@ func (k *KanikoBuilder) getJobKanikoSpec(buildOptions *dockerclient.BuildOptions
 					InitContainers: []v1.Container{
 						{
 							Name:  "fetch-bundle",
-							Image: "busybox",
+							Image: k.builderConfiguration.BusyBoxImage,
 							Command: []string{
 								"wget",
 								fmt.Sprintf("http://%s:8070/assets/%s", os.Getenv("DASHBOARD_DEPLOYMENT_NAME"), bundleFilename),
@@ -163,7 +174,7 @@ func (k *KanikoBuilder) getJobKanikoSpec(buildOptions *dockerclient.BuildOptions
 						},
 						{
 							Name:  "extract-bundle",
-							Image: "busybox",
+							Image: k.builderConfiguration.BusyBoxImage,
 							Command: []string{
 								"tar",
 								"-xvf",

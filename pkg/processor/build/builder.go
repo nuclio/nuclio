@@ -30,6 +30,7 @@ import (
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilder"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -858,7 +859,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 
 	b.logger.InfoWith("Building processor image", "imageName", imageName)
 
-	err = b.platform.BuildAndPushDockerImage(&dockerclient.BuildOptions{
+	err = b.platform.BuildAndPushContainerImage(&containerimagebuilder.BuildOptions{
 		ContextDir:     b.stagingDir,
 		Image:          imageName,
 		TempDir:        b.tempDir,

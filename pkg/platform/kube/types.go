@@ -16,9 +16,14 @@ limitations under the License.
 
 package kube
 
+import "github.com/nuclio/nuclio/pkg/containerimagebuilder"
+
 type Configuration struct {
-	KubeconfigPath string
+	KubeconfigPath                string
+	ContainerBuilderConfiguration containerimagebuilder.ContainerBuilderConfiguration
 }
+
+
 
 type DeployOptions struct {
 }

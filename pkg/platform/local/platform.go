@@ -30,6 +30,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilder"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -455,7 +456,7 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{"172.17.0.1"}, nil
 }
 
-func (p *Platform) BuildAndPushDockerImage(buildOptions *dockerclient.BuildOptions) error {
+func (p *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilder.BuildOptions) error {
 	// TODO: implement
 	return nil
 }

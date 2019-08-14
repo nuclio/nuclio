@@ -28,8 +28,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/nuclio/nuclio/pkg/dockerbuilder"
-	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilder"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -48,13 +47,14 @@ type Platform struct {
 	deleter        *deleter
 	kubeconfigPath string
 	consumer       *consumer
-	dockerBuilder  dockerbuilder.DockerBuilder
+	dockerBuilder  containerimagebuilder.ContainerImageBuilderPusher
 }
 
 const Mib = 1048576
 
 // NewPlatform instantiates a new kubernetes platform
-func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, error) {
+func NewPlatform(parentLogger logger.Logger, kubeconfigPath string,
+	containerBuilderConfiguration *containerimagebuilder.ContainerBuilderConfiguration) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
@@ -98,7 +98,15 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 	}
 
 	// create docker builder
-	newPlatform.dockerBuilder = dockerbuilder.NewKanikoBuilder(newPlatform.Logger, newPlatform.consumer.kubeClientSet)
+	if containerBuilderConfiguration != nil && containerBuilderConfiguration.Kind == "kaniko" {
+		newPlatform.dockerBuilder, err = containerimagebuilder.NewKaniko(newPlatform.Logger,
+			newPlatform.consumer.kubeClientSet, containerBuilderConfiguration)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create kaniko builder")
+		}
+	} else {
+		return nil, errors.New("Unsupported builder kind")
+	}
 
 	return newPlatform, nil
 }
@@ -271,6 +279,48 @@ func GetKubeconfigPath(platformConfiguration interface{}) string {
 	}
 
 	return kubeconfigPath
+}
+
+func GetContainerBuilderConfiguration(platformConfiguration interface{}) *containerimagebuilder.ContainerBuilderConfiguration {
+	containerBuilderConfiguration := containerimagebuilder.ContainerBuilderConfiguration{}
+
+	// if kubeconfig is passed in the options, use that
+	if platformConfiguration != nil {
+
+		// it might not be a kube configuration
+		if _, ok := platformConfiguration.(*Configuration); ok {
+			containerBuilderConfiguration = platformConfiguration.(*Configuration).ContainerBuilderConfiguration
+		}
+	}
+
+	// if some of the parameters are undefined, try environment variables
+	if containerBuilderConfiguration.Kind == "" {
+		containerBuilderConfiguration.Kind = os.Getenv("CONTAINER_BUILDER_KIND")
+	}
+	if containerBuilderConfiguration.BusyBoxImage == "" {
+		containerBuilderConfiguration.BusyBoxImage = os.Getenv("BUSYBOX_CONTAINER_IMAGE")
+	}
+	if containerBuilderConfiguration.KanikoImage == "" {
+		containerBuilderConfiguration.KanikoImage = os.Getenv("KANIKO_CONTAINER_IMAGE")
+	}
+	if containerBuilderConfiguration.JobPrefix == "" {
+		containerBuilderConfiguration.JobPrefix = os.Getenv("NUCLIO_DASHBOARD_JOB_NAME_PREFIX")
+	}
+
+	// if some of the parameters are not defined in environment variables as well, set default values
+	if containerBuilderConfiguration.Kind == "" {
+		containerBuilderConfiguration.Kind = "kaniko"
+	}
+	if containerBuilderConfiguration.BusyBoxImage == "" {
+		containerBuilderConfiguration.BusyBoxImage = "busybox:1.31.0"
+	}
+	if containerBuilderConfiguration.KanikoImage == "" {
+		containerBuilderConfiguration.KanikoImage = "gcr.io/kaniko-project/executor:v0.10.0"
+	}
+	if containerBuilderConfiguration.JobPrefix == "" {
+		containerBuilderConfiguration.JobPrefix = "kanikojob"
+	}
+	return &containerBuilderConfiguration
 }
 
 // GetName returns the platform name
@@ -666,8 +716,8 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{}, nil
 }
 
-func (p *Platform) BuildAndPushDockerImage(buildOptions *dockerclient.BuildOptions) error {
-	return p.dockerBuilder.BuildAndPushDockerImage(buildOptions, p.ResolveDefaultNamespace(""))
+func (p *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilder.BuildOptions) error {
+	return p.dockerBuilder.BuildAndPushContainerImage(buildOptions, p.ResolveDefaultNamespace(""))
 }
 
 func getKubeconfigFromHomeDir() string {

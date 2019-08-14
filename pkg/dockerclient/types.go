@@ -31,7 +31,6 @@ type LogInOptions struct {
 type BuildOptions struct {
 	Image          string
 	ContextDir     string
-	TempDir        string
 	DockerfilePath string
 	NoCache        bool
 	BuildArgs      map[string]string

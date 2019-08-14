@@ -16,7 +16,9 @@ limitations under the License.
 
 package platform
 
-import "github.com/nuclio/nuclio/pkg/dockerclient"
+import (
+	"github.com/nuclio/nuclio/pkg/containerimagebuilder"
+)
 
 type HealthCheckMode string
 
@@ -120,6 +122,6 @@ type Platform interface {
 	// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
 	ResolveDefaultNamespace(string) string
 
-	// BuildAndPushDockerImage builds docker image and pushes it into docker registry
-	BuildAndPushDockerImage(buildOptions *dockerclient.BuildOptions) error
+	// BuildAndPushContainerImage builds docker image and pushes it into docker registry
+	BuildAndPushContainerImage(buildOptions *containerimagebuilder.BuildOptions) error
 }
