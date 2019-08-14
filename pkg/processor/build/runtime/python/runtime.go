@@ -40,7 +40,7 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 	if p.FunctionConfig.Spec.Runtime == "python:2.7" {
 		processorDockerfileInfo.BaseImage = "python:2.7-alpine"
 	} else {
-		processorDockerfileInfo.BaseImage = "python:3.6-alpine"
+		processorDockerfileInfo.BaseImage = "python:3.6"
 	}
 
 	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
