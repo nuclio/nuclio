@@ -195,7 +195,7 @@ func (suite *resourceTestSuite) sendErrorRequests(method string, path string) {
 
 	// handler returns a *wrapped* ErrorWithStatusCode, and status code is above 400
 	code = http.StatusBadRequest
-	ecv = NewErrorContainsVerifier(suite.logger, []string{"ORIGINAL_ERROR", "BADREQUEST_WRAPPED"})
+	ecv = NewErrorContainsVerifier(suite.logger, []string{"ORIGINAL_ERROR"})
 	headers = map[string]string{"return": "error-with-status-400-wrapped"}
 	suite.sendRequest(method, path, headers, nil, &code, ecv.Verify)
 }
