@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/logger"
 	batch_v1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,10 +40,13 @@ func NewKaniko(logger logger.Logger, kubeClientSet kubernetes.Interface,
 }
 
 func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error {
-	bundleFilename, err := k.createDockerBuildBundle(buildOptions.Image, buildOptions.ContextDir, buildOptions.TempDir)
+	bundleFilename, assetPath, err := k.createDockerBuildBundle(buildOptions.Image, buildOptions.ContextDir, buildOptions.TempDir)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create docker build bundle")
 	}
+
+	// Remove bundle file from NGINX assets once we are done
+	defer os.Remove(assetPath) // nolint: errcheck
 
 	// Generate kaniko job spec
 	kanikoJobSpec := k.getKanikoJobSpec(buildOptions, bundleFilename)
@@ -66,11 +70,10 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 		if runningJob.Status.Succeeded > 0 {
 			k.logger.Debug("Kaniko job was completed successfully")
 
-			// TODO: Enable cleanup
-			//err = p.consumer.kubeClientSet.BatchV1().Jobs(p.ResolveDefaultNamespace("")).Delete(kanikoJob.Name, nil)
-			//if err != nil {
-			//	p.Logger.Error("Failed to delete Kaniko job after successful completion")
-			//}
+			err = k.kubeClientSet.BatchV1().Jobs(namespace).Delete(kanikoJob.Name, nil)
+			if err != nil {
+				k.logger.Error("Failed to delete Kaniko job after successful completion")
+			}
 			return nil
 		}
 		if runningJob.Status.Failed > 0 {
@@ -81,14 +84,14 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 	return errors.New("Kaniko job has timed out")
 }
 
-func (k *Kaniko) createDockerBuildBundle(image string, contextDir string, tempDir string) (string, error) {
+func (k *Kaniko) createDockerBuildBundle(image string, contextDir string, tempDir string) (string, string, error) {
 	var err error
 
 	// Create temp directory to store compressed docker build bundle
 	buildDockerBundleDir := path.Join(tempDir, "tar")
 	err = os.Mkdir(buildDockerBundleDir, 0744)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to create tar dir: %s", buildDockerBundleDir)
+		return "", "", errors.Wrapf(err, "Failed to create tar dir: %s", buildDockerBundleDir)
 	}
 
 	k.logger.DebugWith("Created tar dir", "dir", buildDockerBundleDir)
@@ -98,19 +101,24 @@ func (k *Kaniko) createDockerBuildBundle(image string, contextDir string, tempDi
 	tarFilePath := path.Join(buildDockerBundleDir, tarFilename)
 
 	k.logger.DebugWith("Compressing build bundle", "tarFilePath", tarFilePath)
+
+	// Just in case file with the same filename already exist - delete it
+	_ = os.Remove(tarFilePath)
+
 	_, err = exec.Command("tar", "-zcvf", tarFilePath, contextDir).Output()
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to compress build bundle")
+		return "", "", errors.Wrapf(err, "Failed to compress build bundle")
 	}
 	k.logger.Debug("Build bundle was successfully compressed")
 
 	// Create symlink to bundle tar file in nginx serving directory
-	err = os.Link(tarFilePath, path.Join("/etc/nginx/static/assets", tarFilename))
+	assetPath := path.Join("/etc/nginx/static/assets", tarFilename)
+	err = os.Link(tarFilePath, assetPath)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to create symlink to build bundle")
+		return "", "", errors.Wrapf(err, "Failed to create symlink to build bundle")
 	}
 
-	return tarFilename, nil
+	return tarFilename, assetPath, nil
 }
 
 func (k *Kaniko) getKanikoJobSpec(buildOptions *BuildOptions, bundleFilename string) *batch_v1.Job {
@@ -120,6 +128,10 @@ func (k *Kaniko) getKanikoJobSpec(buildOptions *BuildOptions, bundleFilename str
 		fmt.Sprintf("--dockerfile=%s", buildOptions.DockerfilePath),
 		fmt.Sprintf("--context=%s", buildOptions.ContextDir),
 		"--no-push",
+		//"--insecure",
+		//"--skip-tls-verify",
+		//"--insecure-registry=host.docker.internal",
+		//"--destination=host.docker.internal/nuclio/processor-helloworld:latest",
 	}
 
 	// TODO: Enable once push to docker registry is sorted out

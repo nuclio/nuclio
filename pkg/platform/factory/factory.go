@@ -18,13 +18,22 @@ package factory
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
+	"github.com/nuclio/nuclio/pkg/containerimagebuilder"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/local"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/logger"
 )
+
+type Configuration struct {
+	KubeconfigPath                string
+	ContainerBuilderConfiguration containerimagebuilder.ContainerBuilderConfiguration
+}
 
 // CreatePlatform creates a platform based on a requested type (platformType) and configuration it receives
 // and probes
@@ -32,19 +41,18 @@ func CreatePlatform(parentLogger logger.Logger,
 	platformType string,
 	platformConfiguration interface{}) (platform.Platform, error) {
 
-	containerBuilderConfiguration := kube.GetContainerBuilderConfiguration(platformConfiguration)
-
 	switch platformType {
 	case "local":
 		return local.NewPlatform(parentLogger)
 
 	case "kube":
-		return kube.NewPlatform(parentLogger, kube.GetKubeconfigPath(platformConfiguration), containerBuilderConfiguration)
+		containerBuilderConfiguration := getContainerBuilderConfiguration(platformConfiguration)
+		return kube.NewPlatform(parentLogger, getKubeconfigPath(platformConfiguration), containerBuilderConfiguration)
 
 	case "auto":
 
 		// try to get kubeconfig path
-		kubeconfigPath := kube.GetKubeconfigPath(platformConfiguration)
+		kubeconfigPath := getKubeconfigPath(platformConfiguration)
 
 		if kubeconfigPath != "" || kube.IsInCluster() {
 
@@ -58,4 +66,78 @@ func CreatePlatform(parentLogger logger.Logger,
 	default:
 		return nil, fmt.Errorf("Can't create platform - unsupported: %s", platformType)
 	}
+}
+
+func getContainerBuilderConfiguration(platformConfiguration interface{}) *containerimagebuilder.ContainerBuilderConfiguration {
+	containerBuilderConfiguration := containerimagebuilder.ContainerBuilderConfiguration{}
+
+	// if kubeconfig is passed in the options, use that
+	if platformConfiguration != nil {
+
+		// it might not be a kube configuration
+		if _, ok := platformConfiguration.(*Configuration); ok {
+			containerBuilderConfiguration = platformConfiguration.(*Configuration).ContainerBuilderConfiguration
+		}
+	}
+
+	// if some of the parameters are undefined, try environment variables
+	if containerBuilderConfiguration.Kind == "" {
+		containerBuilderConfiguration.Kind = getEnvOrDefault("NUCLIO_CONTAINER_BUILDER_KIND", "kaniko")
+	}
+	if containerBuilderConfiguration.BusyBoxImage == "" {
+		containerBuilderConfiguration.BusyBoxImage = getEnvOrDefault("NUCLIO_BUSYBOX_CONTAINER_IMAGE", "busybox:1.31.0")
+	}
+	if containerBuilderConfiguration.KanikoImage == "" {
+		containerBuilderConfiguration.KanikoImage = getEnvOrDefault("NUCLIO_KANIKO_CONTAINER_IMAGE",
+			"gcr.io/kaniko-project/executor:v0.10.0")
+	}
+	if containerBuilderConfiguration.JobPrefix == "" {
+		containerBuilderConfiguration.JobPrefix = getEnvOrDefault("NUCLIO_DASHBOARD_JOB_NAME_PREFIX", "kanikojob")
+	}
+
+	return &containerBuilderConfiguration
+}
+
+func getKubeconfigPath(platformConfiguration interface{}) string {
+	var kubeconfigPath string
+
+	// if kubeconfig is passed in the options, use that
+	if platformConfiguration != nil {
+
+		// it might not be a kube configuration
+		if _, ok := platformConfiguration.(*Configuration); ok {
+			kubeconfigPath = platformConfiguration.(*Configuration).KubeconfigPath
+		}
+	}
+
+	// do we still not have a kubeconfig path?
+	if kubeconfigPath == "" {
+		kubeconfigPath = getEnvOrDefault("KUBECONFIG", getKubeconfigFromHomeDir())
+	}
+	return kubeconfigPath
+}
+
+func getKubeconfigFromHomeDir() string {
+	homeDir, err := homedir.Dir()
+	if err != nil {
+		return ""
+	}
+
+	homeKubeConfigPath := filepath.Join(homeDir, ".kube", "config")
+
+	// if the file exists @ home, use it
+	_, err = os.Stat(homeKubeConfigPath)
+	if err == nil {
+		return homeKubeConfigPath
+	}
+
+	return ""
+}
+
+func getEnvOrDefault(envName string, defaultValue string) string {
+	configurationValue := os.Getenv(envName)
+	if configurationValue == "" {
+		configurationValue = defaultValue
+	}
+	return configurationValue
 }

@@ -22,18 +22,17 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/mitchellh/go-homedir"
-	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilder"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,7 +46,7 @@ type Platform struct {
 	deleter        *deleter
 	kubeconfigPath string
 	consumer       *consumer
-	dockerBuilder  containerimagebuilder.ContainerImageBuilderPusher
+	dockerBuilder  containerimagebuilder.ImageBuilderPusher
 }
 
 const Mib = 1048576
@@ -254,73 +253,6 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 
 func IsInCluster() bool {
 	return len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0
-}
-
-func GetKubeconfigPath(platformConfiguration interface{}) string {
-	var kubeconfigPath string
-
-	// if kubeconfig is passed in the options, use that
-	if platformConfiguration != nil {
-
-		// it might not be a kube configuration
-		if _, ok := platformConfiguration.(*Configuration); ok {
-			kubeconfigPath = platformConfiguration.(*Configuration).KubeconfigPath
-		}
-	}
-
-	// do we still not have a kubeconfig path? try environment variable
-	if kubeconfigPath == "" {
-		kubeconfigPath = os.Getenv("KUBECONFIG")
-	}
-
-	// still don't? try looking @ home directory
-	if kubeconfigPath == "" {
-		kubeconfigPath = getKubeconfigFromHomeDir()
-	}
-
-	return kubeconfigPath
-}
-
-func GetContainerBuilderConfiguration(platformConfiguration interface{}) *containerimagebuilder.ContainerBuilderConfiguration {
-	containerBuilderConfiguration := containerimagebuilder.ContainerBuilderConfiguration{}
-
-	// if kubeconfig is passed in the options, use that
-	if platformConfiguration != nil {
-
-		// it might not be a kube configuration
-		if _, ok := platformConfiguration.(*Configuration); ok {
-			containerBuilderConfiguration = platformConfiguration.(*Configuration).ContainerBuilderConfiguration
-		}
-	}
-
-	// if some of the parameters are undefined, try environment variables
-	if containerBuilderConfiguration.Kind == "" {
-		containerBuilderConfiguration.Kind = os.Getenv("CONTAINER_BUILDER_KIND")
-	}
-	if containerBuilderConfiguration.BusyBoxImage == "" {
-		containerBuilderConfiguration.BusyBoxImage = os.Getenv("BUSYBOX_CONTAINER_IMAGE")
-	}
-	if containerBuilderConfiguration.KanikoImage == "" {
-		containerBuilderConfiguration.KanikoImage = os.Getenv("KANIKO_CONTAINER_IMAGE")
-	}
-	if containerBuilderConfiguration.JobPrefix == "" {
-		containerBuilderConfiguration.JobPrefix = os.Getenv("NUCLIO_DASHBOARD_JOB_NAME_PREFIX")
-	}
-
-	// if some of the parameters are not defined in environment variables as well, set default values
-	if containerBuilderConfiguration.Kind == "" {
-		containerBuilderConfiguration.Kind = "kaniko"
-	}
-	if containerBuilderConfiguration.BusyBoxImage == "" {
-		containerBuilderConfiguration.BusyBoxImage = "busybox:1.31.0"
-	}
-	if containerBuilderConfiguration.KanikoImage == "" {
-		containerBuilderConfiguration.KanikoImage = "gcr.io/kaniko-project/executor:v0.10.0"
-	}
-	if containerBuilderConfiguration.JobPrefix == "" {
-		containerBuilderConfiguration.JobPrefix = "kanikojob"
-	}
-	return &containerBuilderConfiguration
 }
 
 // GetName returns the platform name
@@ -718,23 +650,6 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 
 func (p *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilder.BuildOptions) error {
 	return p.dockerBuilder.BuildAndPushContainerImage(buildOptions, p.ResolveDefaultNamespace(""))
-}
-
-func getKubeconfigFromHomeDir() string {
-	homeDir, err := homedir.Dir()
-	if err != nil {
-		return ""
-	}
-
-	homeKubeConfigPath := filepath.Join(homeDir, ".kube", "config")
-
-	// if the file exists @ home, use it
-	_, err = os.Stat(homeKubeConfigPath)
-	if err == nil {
-		return homeKubeConfigPath
-	}
-
-	return ""
 }
 
 func (p *Platform) getFunction(namespace string, name string) (*nuclioio.NuclioFunction, error) {

@@ -1,6 +1,5 @@
 package containerimagebuilder
 
-
 // BuildOptions are options for building a container image
 type BuildOptions struct {
 	Image          string
