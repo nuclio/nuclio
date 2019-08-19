@@ -122,6 +122,6 @@ type Platform interface {
 	// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
 	ResolveDefaultNamespace(string) string
 
-	// BuildAndPushContainerImage builds docker image and pushes it into docker registry
+	// BuildAndPushContainerImage builds container image and pushes it into container registry
 	BuildAndPushContainerImage(buildOptions *containerimagebuilder.BuildOptions) error
 }

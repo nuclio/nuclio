@@ -43,7 +43,7 @@ type RootCommandeer struct {
 	platformConfiguration interface{}
 
 	// platform-specific configurations
-	kubeConfiguration kube.Configuration
+	kubeConfiguration factory.Configuration
 }
 
 func NewRootCommandeer() *RootCommandeer {

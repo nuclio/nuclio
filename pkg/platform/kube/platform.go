@@ -40,13 +40,13 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	deployer       *deployer
-	getter         *getter
-	updater        *updater
-	deleter        *deleter
-	kubeconfigPath string
-	consumer       *consumer
-	dockerBuilder  containerimagebuilder.ImageBuilderPusher
+	deployer         *deployer
+	getter           *getter
+	updater          *updater
+	deleter          *deleter
+	kubeconfigPath   string
+	consumer         *consumer
+	containerBuilder containerimagebuilder.ContainerImageBuilderPusher
 }
 
 const Mib = 1048576
@@ -96,9 +96,9 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create updater")
 	}
 
-	// create docker builder
+	// create container builder
 	if containerBuilderConfiguration != nil && containerBuilderConfiguration.Kind == "kaniko" {
-		newPlatform.dockerBuilder, err = containerimagebuilder.NewKaniko(newPlatform.Logger,
+		newPlatform.containerBuilder, err = containerimagebuilder.NewKaniko(newPlatform.Logger,
 			newPlatform.consumer.kubeClientSet, containerBuilderConfiguration)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create kaniko builder")
@@ -649,7 +649,7 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 }
 
 func (p *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilder.BuildOptions) error {
-	return p.dockerBuilder.BuildAndPushContainerImage(buildOptions, p.ResolveDefaultNamespace(""))
+	return p.containerBuilder.BuildAndPushContainerImage(buildOptions, p.ResolveDefaultNamespace(""))
 }
 
 func (p *Platform) getFunction(namespace string, name string) (*nuclioio.NuclioFunction, error) {
