@@ -1,4 +1,4 @@
-package containerimagebuilder
+package containerimagebuilderpusher
 
 import (
 	"fmt"
@@ -70,7 +70,11 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 		if runningJob.Status.Succeeded > 0 {
 			k.logger.Debug("Kaniko job was completed successfully")
 
-			err = k.kubeClientSet.BatchV1().Jobs(namespace).Delete(kanikoJob.Name, nil)
+			// Cleanup
+			propagationPolicy := meta_v1.DeletePropagationBackground
+			err = k.kubeClientSet.BatchV1().Jobs(namespace).Delete(kanikoJob.Name, &meta_v1.DeleteOptions{
+				PropagationPolicy: &propagationPolicy,
+			})
 			if err != nil {
 				k.logger.Error("Failed to delete Kaniko job after successful completion")
 			}

@@ -21,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nuclio/nuclio/pkg/containerimagebuilder"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/local"
@@ -32,7 +32,7 @@ import (
 
 type Configuration struct {
 	KubeconfigPath                string
-	ContainerBuilderConfiguration containerimagebuilder.ContainerBuilderConfiguration
+	ContainerBuilderConfiguration containerimagebuilderpusher.ContainerBuilderConfiguration
 }
 
 // CreatePlatform creates a platform based on a requested type (platformType) and configuration it receives
@@ -68,8 +68,8 @@ func CreatePlatform(parentLogger logger.Logger,
 	}
 }
 
-func getContainerBuilderConfiguration(platformConfiguration interface{}) *containerimagebuilder.ContainerBuilderConfiguration {
-	containerBuilderConfiguration := containerimagebuilder.ContainerBuilderConfiguration{}
+func getContainerBuilderConfiguration(platformConfiguration interface{}) *containerimagebuilderpusher.ContainerBuilderConfiguration {
+	containerBuilderConfiguration := containerimagebuilderpusher.ContainerBuilderConfiguration{}
 
 	// if kubeconfig is passed in the options, use that
 	if platformConfiguration != nil {
@@ -82,7 +82,7 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 
 	// if some of the parameters are undefined, try environment variables
 	if containerBuilderConfiguration.Kind == "" {
-		containerBuilderConfiguration.Kind = getEnvOrDefault("NUCLIO_CONTAINER_BUILDER_KIND", "kaniko")
+		containerBuilderConfiguration.Kind = getEnvOrDefault("NUCLIO_CONTAINER_BUILDER_KIND", "docker")
 	}
 	if containerBuilderConfiguration.BusyBoxImage == "" {
 		containerBuilderConfiguration.BusyBoxImage = getEnvOrDefault("NUCLIO_BUSYBOX_CONTAINER_IMAGE", "busybox:1.31.0")

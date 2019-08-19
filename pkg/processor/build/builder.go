@@ -30,7 +30,7 @@ import (
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/containerimagebuilder"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -246,11 +246,6 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to build processor image")
 	}
-
-	//// push the processor image
-	//if err := b.pushProcessorImage(processorImage); err != nil {
-	//	return nil, errors.Wrap(err, "Failed to push processor image")
-	//}
 
 	buildResult := &platform.CreateFunctionBuildResult{
 		Image:                 processorImage,
@@ -859,22 +854,16 @@ func (b *Builder) buildProcessorImage() (string, error) {
 
 	b.logger.InfoWith("Building processor image", "imageName", imageName)
 
-	err = b.platform.BuildAndPushContainerImage(&containerimagebuilder.BuildOptions{
-		ContextDir:     b.stagingDir,
-		Image:          imageName,
-		TempDir:        b.tempDir,
-		DockerfilePath: processorDockerfilePathInStaging,
-		NoCache:        b.options.FunctionConfig.Spec.Build.NoCache,
-		BuildArgs:      buildArgs,
+	err = b.platform.BuildAndPushContainerImage(&containerimagebuilderpusher.BuildOptions{
+		ContextDir:      b.stagingDir,
+		Image:           imageName,
+		TempDir:         b.tempDir,
+		DockerfilePath:  processorDockerfilePathInStaging,
+		NoCache:         b.options.FunctionConfig.Spec.Build.NoCache,
+		BuildArgs:       buildArgs,
+		RegistryURL:     b.options.FunctionConfig.Spec.Build.Registry,
+		OutputImageFile: b.options.OutputImageFile,
 	})
-
-	//err = b.dockerClient.Build(&dockerclient.BuildOptions{
-	//	ContextDir:     b.stagingDir,
-	//	Image:          imageName,
-	//	DockerfilePath: processorDockerfilePathInStaging,
-	//	NoCache:        b.options.FunctionConfig.Spec.Build.NoCache,
-	//	BuildArgs:      buildArgs,
-	//})
 
 	return imageName, err
 }
@@ -951,14 +940,6 @@ func (b *Builder) createTempFileFromYAML(fileName string, unmarshalledYAMLConten
 	}
 
 	return tempFileName, nil
-}
-
-func (b *Builder) pushProcessorImage(processorImage string) error {
-	if b.options.FunctionConfig.Spec.Build.Registry != "" {
-		return b.dockerClient.PushImage(processorImage, b.options.FunctionConfig.Spec.Build.Registry)
-	}
-
-	return nil
 }
 
 func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, error) {

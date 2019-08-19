@@ -24,7 +24,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/containerimagebuilder"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -46,14 +46,14 @@ type Platform struct {
 	deleter          *deleter
 	kubeconfigPath   string
 	consumer         *consumer
-	containerBuilder containerimagebuilder.ContainerImageBuilderPusher
+	containerBuilder containerimagebuilderpusher.BuilderPusher
 }
 
 const Mib = 1048576
 
 // NewPlatform instantiates a new kubernetes platform
 func NewPlatform(parentLogger logger.Logger, kubeconfigPath string,
-	containerBuilderConfiguration *containerimagebuilder.ContainerBuilderConfiguration) (*Platform, error) {
+	containerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
@@ -98,13 +98,18 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string,
 
 	// create container builder
 	if containerBuilderConfiguration != nil && containerBuilderConfiguration.Kind == "kaniko" {
-		newPlatform.containerBuilder, err = containerimagebuilder.NewKaniko(newPlatform.Logger,
+		newPlatform.containerBuilder, err = containerimagebuilderpusher.NewKaniko(newPlatform.Logger,
 			newPlatform.consumer.kubeClientSet, containerBuilderConfiguration)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create kaniko builder")
 		}
 	} else {
-		return nil, errors.New("Unsupported builder kind")
+
+		// Default container image builder
+		newPlatform.containerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create docker builder")
+		}
 	}
 
 	return newPlatform, nil
@@ -648,7 +653,7 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{}, nil
 }
 
-func (p *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilder.BuildOptions) error {
+func (p *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
 	return p.containerBuilder.BuildAndPushContainerImage(buildOptions, p.ResolveDefaultNamespace(""))
 }
 

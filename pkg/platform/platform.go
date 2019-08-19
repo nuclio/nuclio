@@ -17,7 +17,7 @@ limitations under the License.
 package platform
 
 import (
-	"github.com/nuclio/nuclio/pkg/containerimagebuilder"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 )
 
 type HealthCheckMode string
@@ -123,5 +123,5 @@ type Platform interface {
 	ResolveDefaultNamespace(string) string
 
 	// BuildAndPushContainerImage builds container image and pushes it into container registry
-	BuildAndPushContainerImage(buildOptions *containerimagebuilder.BuildOptions) error
+	BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error
 }

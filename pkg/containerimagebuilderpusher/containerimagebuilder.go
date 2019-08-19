@@ -1,7 +1,7 @@
-package containerimagebuilder
+package containerimagebuilderpusher
 
-// ContainerImageBuilderPusher is a builder of container images
-type ContainerImageBuilderPusher interface {
+// BuilderPusher is a builder of container images
+type BuilderPusher interface {
 
 	// BuildAndPushContainerImage builds container image and pushes it into container registry
 	BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error

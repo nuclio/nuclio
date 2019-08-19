@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/containerimagebuilder"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -250,7 +250,7 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 }
 
 // BuildAndPushContainerImage builds docker image and pushes it into docker registry
-func (ap *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilder.BuildOptions) error {
+func (ap *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
 	return errors.New("Unsupported")
 }
 
