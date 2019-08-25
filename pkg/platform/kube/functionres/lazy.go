@@ -575,12 +575,9 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	updateDeployment := func(resource interface{}) (interface{}, error) {
 		deployment := resource.(*apps_v1beta1.Deployment)
 
-		deployment.Labels = functionLabels
 		deployment.Annotations = deploymentAnnotations
 		deployment.Spec.Replicas = &replicas
 		deployment.Spec.Template.Annotations = podAnnotations
-		deployment.Spec.Template.Labels = functionLabels
-		deployment.Spec.Selector.MatchLabels = functionLabels
 		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts

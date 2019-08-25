@@ -405,7 +405,12 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.processorImage.imageTag = "latest"
 	}
 
-	b.logger.DebugWith("Enriched configuration", "options", b.options, "pi", b.processorImage)
+	b.logger.DebugWith("Enriched configuration",
+		"functionConfig", b.options.FunctionConfig,
+		"platform", b.options.PlatformName,
+		"dependantImagesRegistryURL", b.options.DependantImagesRegistryURL,
+		"outputImageFile", b.options.OutputImageFile,
+		"pi", b.processorImage)
 
 	return nil
 }
@@ -1497,8 +1502,11 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 		}
 
 		isArchive := codeEntryType == S3EntryType ||
-			codeEntryType == ArchiveEntryType ||
-			codeEntryType == GithubEntryType
+			codeEntryType == GithubEntryType ||
+			codeEntryType == ArchiveEntryType
+
+		// jar is an exception - we want it to remain compressed, as our java runtime processor expects to get it
+		isArchive = isArchive && !util.IsJar(functionPath)
 
 		tempDir, err := b.mkDirUnderTemp("download")
 		if err != nil {
@@ -1526,8 +1534,7 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 			return "", errors.Wrap(err, "Failed to download file")
 		}
 
-		if (codeEntryType == S3EntryType || codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) &&
-			!util.IsCompressed(tempFile.Name()) {
+		if isArchive && !util.IsCompressed(tempFile.Name()) {
 			return "", errors.New("Downloaded file type is not supported. (expected an archive)")
 		}
 

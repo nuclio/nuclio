@@ -399,13 +399,20 @@ func (ar *AbstractResource) writeErrorReason(responseWriter io.Writer, err error
 		err = typedErr.GetError()
 	}
 
+	errorCause := ""
+	if errors.Cause(err) != nil {
+		errorCause = errors.Cause(err).Error()
+	}
+
 	// try to get the error stack
 	errors.PrintErrorStack(&buffer, err, 10)
 
 	// format to json manually
 	serializedError, _ := json.Marshal(struct {
-		Error string `json:"error"`
+		Error           string `json:"error"`
+		ErrorStackTrace string `json:"errorStackTrace"`
 	}{
+		errorCause,
 		buffer.String(),
 	})
 

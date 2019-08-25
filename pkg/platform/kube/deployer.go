@@ -64,13 +64,13 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	createFunctionOptions.Logger.DebugWith("Creating/updating function",
 		"existed", functionExisted)
 
-	if functionInstance == nil {
+	if !functionExisted {
 		functionInstance = &nuclioio.NuclioFunction{}
 		functionInstance.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 	}
 
 	// convert config, status -> function
-	d.populateFunction(&createFunctionOptions.FunctionConfig, functionStatus, functionInstance)
+	d.populateFunction(&createFunctionOptions.FunctionConfig, functionStatus, functionInstance, functionExisted)
 
 	createFunctionOptions.Logger.DebugWith("Populated function with configuration and status",
 		"function", functionInstance)
@@ -97,15 +97,20 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 
 func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 	functionStatus *functionconfig.Status,
-	functionInstance *nuclioio.NuclioFunction) {
+	functionInstance *nuclioio.NuclioFunction,
+	functionExisted bool) {
 
 	functionInstance.Spec = functionConfig.Spec
 
 	// set meta
 	functionInstance.Name = functionConfig.Meta.Name
 	functionInstance.Namespace = functionConfig.Meta.Namespace
-	functionInstance.Labels = functionConfig.Meta.Labels
 	functionInstance.Annotations = functionConfig.Meta.Annotations
+
+	// set labels only on function creation (never on update)
+	if !functionExisted {
+		functionInstance.Labels = functionConfig.Meta.Labels
+	}
 
 	// set alias as "latest" for now
 	functionInstance.Spec.Alias = "latest"

@@ -57,6 +57,10 @@ func (mr *MockRuntime) GetStatus() status.Status {
 	return status.Ready
 }
 
+func (mr *MockRuntime) Start() error {
+	return nil
+}
+
 func (mr *MockRuntime) Stop() error {
 	return nil
 }

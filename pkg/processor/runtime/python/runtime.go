@@ -18,6 +18,7 @@ package python
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -50,7 +51,11 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		configuration,
 		newPythonRuntime)
 
-	return newPythonRuntime, err
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create runtime")
+	}
+
+	return newPythonRuntime, nil
 }
 
 func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
@@ -156,4 +161,8 @@ func (py *python) getPythonExePath() (string, error) {
 	}
 
 	return "", errors.Wrap(err, "Can't find python executable")
+}
+
+func (py *python) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
+	return rpc.NewEventMsgPackEncoder(py.Logger, writer)
 }

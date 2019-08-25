@@ -53,7 +53,7 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/min
 minikube ssh -- docker run -d -p 5000:5000 registry:2
 ```
 
-Before Docker images can be pushed to your built-in registry, you need to add its address (`$(minikube ip):5000`) to the list of insecure registries:
+Before container images can be pushed to your built-in registry, you need to add its address (`$(minikube ip):5000`) to the list of insecure registries:
 
 - **Docker for Mac OS** -  you can add it under **Preferences | Daemon**.
 - **Linux** - follow the instructions in the [Docker documentation](https://docs.docker.com/registry/insecure/#deploy-a-plain-http-registry).

@@ -48,7 +48,7 @@ func (suite *TimeoutTestSuite) SetupTest() {
 }
 
 func (suite *TimeoutTestSuite) TestTimeout() {
-	eventTimeout := 100 * time.Millisecond
+	eventTimeout := 300 * time.Millisecond
 	createFunctionOptions := suite.GetDeployOptions("timeout", suite.GetFunctionPath("timeout"))
 	createFunctionOptions.FunctionConfig.Spec.EventTimeout = eventTimeout.String()
 

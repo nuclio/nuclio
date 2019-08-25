@@ -27,10 +27,7 @@
             var headers = {
                 'Content-Type': 'application/json'
             };
-            var data = {
-                metadata: {},
-                spec: project.spec
-            };
+            var data = lodash.pick(project, ['metadata', 'spec']);
             var namespace = NuclioNamespacesDataService.getNamespace();
 
             if (!lodash.isNil(namespace)) {

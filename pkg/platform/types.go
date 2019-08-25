@@ -145,7 +145,7 @@ type ProjectMeta struct {
 }
 
 type ProjectSpec struct {
-	DisplayName string `json:"displayName,omitempty"`
+	DisplayName string `json:"displayName,omitempty"` // Deprecated. Will be removed in the next major version release
 	Description string `json:"description,omitempty"`
 }
 

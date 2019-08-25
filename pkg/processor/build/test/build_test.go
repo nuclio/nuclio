@@ -451,6 +451,100 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 	httpServer.Stop()
 }
 
+func (suite *testSuite) TestBuildFuncFromImageAndRedeploy() {
+
+	// generate random responses
+	functionAResponse := xid.New().String()
+	functionBResponse := xid.New().String()
+
+	// create two functions
+	createAFunctionResult := suite.createShellFunction(functionAResponse)
+	createBFunctionResult := suite.createShellFunction(functionBResponse)
+
+	// codeEntryType -> image
+	createFunctionFromImageOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Name:      "from-image",
+				Namespace: createAFunctionResult.UpdatedFunctionConfig.Meta.Namespace,
+			},
+			Spec: functionconfig.Spec{
+				Handler: createAFunctionResult.UpdatedFunctionConfig.Spec.Handler,
+				Image:   createAFunctionResult.Image,
+				Runtime: createAFunctionResult.UpdatedFunctionConfig.Spec.Runtime,
+				Env:     createAFunctionResult.UpdatedFunctionConfig.Spec.Env,
+			},
+		},
+	}
+
+	// deploy function using functionA image name
+	suite.DeployFunction(createFunctionFromImageOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		request := &httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "/",
+			ExpectedResponseBody: fmt.Sprintf("%s\n", functionAResponse),
+			RequestPort:          deployResult.Port,
+		}
+		suite.SendRequestVerifyResponse(request)
+		suite.NotEmpty(deployResult.Image)
+
+		// update function to take image from functionB
+		createFunctionFromImageOptions.FunctionConfig.Spec.Handler = createBFunctionResult.UpdatedFunctionConfig.Spec.Handler
+		createFunctionFromImageOptions.FunctionConfig.Spec.Image = createBFunctionResult.Image
+
+		// redeploy function, use functionB image - its response should be equal to functionB
+		redeployResults := suite.DeployFunctionAndRequest(createFunctionFromImageOptions,
+			&httpsuite.Request{
+				RequestMethod:        "POST",
+				ExpectedResponseBody: fmt.Sprintf("%s\n", functionBResponse),
+			})
+		return suite.NotEqual(deployResult.Image, redeployResults.Image)
+	})
+}
+
+func (suite *testSuite) createShellFunction(responseMessage string) *platform.CreateFunctionResult {
+
+	functionName := xid.New().String()
+	functionSourceCode := fmt.Sprintf(`
+# @nuclio.configure
+#
+# function.yaml:
+#   metadata:
+#     name: %s
+#     namespace: default
+#   spec:
+#     env:
+#     - name: MESSAGE
+#       value: foo
+echo %s
+`, functionName, responseMessage)
+
+	createFunctionOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Namespace: "default",
+			},
+			Spec: functionconfig.Spec{
+				Handler: fmt.Sprintf("%s.sh", functionName),
+				Runtime: "shell",
+				Build: functionconfig.Build{
+					FunctionSourceCode: base64.StdEncoding.EncodeToString([]byte(functionSourceCode)),
+				},
+			},
+		},
+	}
+
+	result := suite.DeployFunctionAndRequest(createFunctionOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			ExpectedResponseBody: fmt.Sprintf("%s\n", responseMessage),
+		})
+	suite.NotEmpty(result.Image)
+	return result
+}
+
 func TestIntegrationSuite(t *testing.T) {
 	if testing.Short() {
 		return

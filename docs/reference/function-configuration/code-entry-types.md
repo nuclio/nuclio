@@ -19,9 +19,9 @@ This document describes the Nuclio function code-entry types and related configu
 
 ## Overview
 
-As part of the [function specification](/docs/reference/function-configuration.md) (`spec`), you must configure one of the following code-entry types and related information that points either to a pre-built function image or to code from which to build such an image:
+As part of the [function specification](/docs/reference/function-configuration.md#specification) (`spec`), you must configure one of the following code-entry types and related information that points either to a pre-built function image or to code from which to build such an image:
 
-- Function image (`image`) &mdash; set the `spec.image` configuration field to the name of a function Docker container image. See [Function-image code-entry type (`image`)](#code-entry-type-image).
+- Function image (`image`) &mdash; set the `spec.image` configuration field to the name of a function container image. See [Function-image code-entry type (`image`)](#code-entry-type-image).
 
 - Function source code &mdash; provide the function source code either by setting the `spec.build.functionSourceCode` configuration field to an [encoded source-code string](#code-entry-type-sourcecode) (`sourceCode`), or by setting the  `spec.build.path` field to a URL for downloading a [function source-code file](#code-entry-type-codefile). See [Function source-code entry types](#func-source-code-entry-types).
 
@@ -58,7 +58,7 @@ The dashboard notes in this reference refer to fields in the **Code** function d
 <a id="code-entry-type-image"></a>
 ## Function-image code-entry type (`image`)
 
-Set the [`spec.image`](/docs/reference/function-configuration.md#spec.image) function-configuration field to the name of a function Docker container image (`[<host name>.]<namespace>.<repository>[:<tag>]`) to deploy the function from this image.
+Set the [`spec.image`](/docs/reference/function-configuration.md#spec.image) function-configuration field to the name of a function container image (`[<host name>.]<namespace>.<repository>[:<tag>]`) to deploy the function from this image.
 
 > **Note:** When `spec.image` is set, the implied code-entry type is `image` and `spec.build.codeEntryType` and `spec.build.path` are ignored. See [Determining the code-entry type](#code-entry-type-determine).
 
@@ -156,9 +156,9 @@ Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#s
 - `spec.build` &mdash;
   - `path` (dashboard: **URL**) (Required) &mdash; the URL of the GitHub repository that contains the function code.
   - `codeEntryAttributes` &mdash;
-    -  `branch` (dashboard: **Branch**) (Required) &mdash; the GitHub repository branch from which to download the function code.
-    - `headers.Authorization` (dashboard: **Token**) (Optional) &mdash; a GitHub access token for download authentication.
-    - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository branch.
+      -  `branch` (dashboard: **Branch**) (Required) &mdash; the GitHub repository branch from which to download the function code.
+      - `headers.Authorization` (dashboard: **Token**) (Optional) &mdash; a GitHub access token for download authentication.
+      - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository branch.
       The default work directory is the root directory of the GitHub repository (`"/"`).
 
 <a id="code-entry-type-github-example"></a>
@@ -193,9 +193,9 @@ The following configuration fields provide additional information for performing
   - `path` (dashboard: **URL**) (Required) &mdash; a URL for downloading the archive file.<br/>
     To download an archive file from an Iguazio Data Science Platform data container, the URL should be set to `<API URL of the platform's web-APIs service>/<container name>/<path to archive file>`, and a respective data-access key must be provided in the `spec.build.codeEntryAttributes.headers.X-V3io-Session-Key` field.
   - `codeEntryAttributes` &mdash;
-    - `headers.X-V3io-Session-Key` (dashboard: **Access key**) (Required for a platform archive file) &mdash; an Iguazio Data Science Platform access key, which is required when the download URL (`spec.build.path`) refers to an archive file in a platform data container.
-    - `workDir` (dashboard: **Work directory**) (Required) &mdash; the relative path to the function-code directory within the extracted archive-file directory.
-      The default work directory is the root of the extracted archive-file directory (`"/"`).
+      - `headers.X-V3io-Session-Key` (dashboard: **Access key**) (Required for a platform archive file) &mdash; an Iguazio Data Science Platform access key, which is required when the download URL (`spec.build.path`) refers to an archive file in a platform data container.
+      - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the extracted archive-file directory.
+        The default work directory is the root of the extracted archive-file directory (`"/"`).
 
 <a id="code-entry-type-archive-example"></a>
 #### Example
@@ -207,7 +207,7 @@ spec:
   runtime: golang
   build:
     codeEntryType: "archive"
-    path: "https://https://webapi.default-tenant.app.mycluster.iguazio.com/users/myuser/my-functions.zip"
+    path: "https://webapi.default-tenant.app.mycluster.iguazio.com/users/myuser/my-functions.zip"
     codeEntryAttributes:
       headers:
         X-V3io-Session-Key: "my-platform-access-key"
@@ -226,7 +226,7 @@ Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#s
   - `s3SecretAccessKey` (dashboard: **Secret access key**) (Optional) &mdash; an S3 secret access key for download authentication.
   - `s3SessionToken` (dashboard: **Token**) (Optional) &mdash; an S3 session token for download authentication.
   - `s3Region` (dashboard: **Region**) (Optional) &mdash; the AWS Region of the configured bucket. When this parameter isn't provided, it's implicitly deduced.
-  - `workDir` (dashboard: **Work directory**) (Required) &mdash; the relative path to the function-code directory within the extracted archive-file directory.
+  - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the extracted archive-file directory.
       The default work directory is the root of the extracted archive-file directory (`"/"`).
 
 <a id="code-entry-type-s3-example"></a>

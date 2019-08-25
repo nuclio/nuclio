@@ -31,8 +31,9 @@ The `handler` field is of the form `<class>:<entrypoint>`. In the example above,
 
 ## Project file
 
-In order to use/import external dependencies, create a `handler.csproj` file, alongside your function handler file
+To use or import external dependencies, create a **handler.csproj** file that lists the required dependencies, alongside your function-handler file.
 
+For example, the following file defines a dependency on the `Microsoft.NET.Sdk` package:
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -44,9 +45,9 @@ In order to use/import external dependencies, create a `handler.csproj` file, al
     <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
   </ItemGroup>
 </Project>
-``` 
+```
 
-Using the above, you would be able to use `Newtonsoft.Json` package as follow:
+With this example **handler.csproj** file, you can use the `Newtonsoft.Json` package as follows:
 
 ```cs
 using Newtonsoft.Json;
@@ -54,9 +55,8 @@ using Newtonsoft.Json;
 JsonConvert.SerializeObject(...);
 ```
 
-Adding more dependencies is made easy using `dotnet add package <package name>`
-
-More details about `dotnet` can be found [here](https://docs.microsoft.com/en-us/dotnet/core/tools/dotnet-add-package)
+Adding more dependencies is made easy using `dotnet add package <package name>`.
+For more details about `dotnet add package`, see the [Microsoft documentation](https://docs.microsoft.com/en-us/dotnet/core/tools/dotnet-add-package).
 
 ## Dockerfile
 

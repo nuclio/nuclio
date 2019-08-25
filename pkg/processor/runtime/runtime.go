@@ -48,6 +48,9 @@ type Runtime interface {
 	// GetStatus returns the runtime's reported status
 	GetStatus() status.Status
 
+	// Start starts the runtime, or does nothing if the runtime does not require starting (e.g. Go and shell runtimes)
+	Start() error
+
 	// Stop stops the runtime
 	Stop() error
 
@@ -127,6 +130,11 @@ func (ar *AbstractRuntime) SetStatus(newStatus status.Status) {
 // GetStatus returns the runtime's reported status
 func (ar *AbstractRuntime) GetStatus() status.Status {
 	return ar.status
+}
+
+// Start starts the runtime, or does nothing if the runtime does not require starting (e.g. Go and shell runtimes)
+func (ar *AbstractRuntime) Start() error {
+	return nil
 }
 
 // Restart restarts the runtime
