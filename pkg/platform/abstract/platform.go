@@ -249,7 +249,7 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	return ""
 }
 
-// BuildAndPushContainerImage builds docker image and pushes it into docker registry
+// BuildAndPushContainerImage builds container image and pushes it into docker registry
 func (ap *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
 	return errors.New("Unsupported")
 }

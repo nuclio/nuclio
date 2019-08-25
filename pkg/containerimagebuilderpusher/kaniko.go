@@ -40,9 +40,9 @@ func NewKaniko(logger logger.Logger, kubeClientSet kubernetes.Interface,
 }
 
 func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error {
-	bundleFilename, assetPath, err := k.createDockerBuildBundle(buildOptions.Image, buildOptions.ContextDir, buildOptions.TempDir)
+	bundleFilename, assetPath, err := k.createContainerBuildBundle(buildOptions.Image, buildOptions.ContextDir, buildOptions.TempDir)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create docker build bundle")
+		return errors.Wrap(err, "Failed to create container build bundle")
 	}
 
 	// Remove bundle file from NGINX assets once we are done
@@ -88,21 +88,21 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 	return errors.New("Kaniko job has timed out")
 }
 
-func (k *Kaniko) createDockerBuildBundle(image string, contextDir string, tempDir string) (string, string, error) {
+func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tempDir string) (string, string, error) {
 	var err error
 
-	// Create temp directory to store compressed docker build bundle
-	buildDockerBundleDir := path.Join(tempDir, "tar")
-	err = os.Mkdir(buildDockerBundleDir, 0744)
+	// Create temp directory to store compressed container build bundle
+	buildContainerBundleDir := path.Join(tempDir, "tar")
+	err = os.Mkdir(buildContainerBundleDir, 0744)
 	if err != nil {
-		return "", "", errors.Wrapf(err, "Failed to create tar dir: %s", buildDockerBundleDir)
+		return "", "", errors.Wrapf(err, "Failed to create tar dir: %s", buildContainerBundleDir)
 	}
 
-	k.logger.DebugWith("Created tar dir", "dir", buildDockerBundleDir)
+	k.logger.DebugWith("Created tar dir", "dir", buildContainerBundleDir)
 
 	tarFilename := fmt.Sprintf("%s.tar.gz", strings.Replace(image, "/", "_", -1))
 	tarFilename = strings.Replace(tarFilename, ":", "_", -1)
-	tarFilePath := path.Join(buildDockerBundleDir, tarFilename)
+	tarFilePath := path.Join(buildContainerBundleDir, tarFilename)
 
 	k.logger.DebugWith("Compressing build bundle", "tarFilePath", tarFilePath)
 
@@ -131,17 +131,16 @@ func (k *Kaniko) getKanikoJobSpec(buildOptions *BuildOptions, bundleFilename str
 	buildArgs := []string{
 		fmt.Sprintf("--dockerfile=%s", buildOptions.DockerfilePath),
 		fmt.Sprintf("--context=%s", buildOptions.ContextDir),
-		"--no-push",
-		//"--insecure",
-		//"--skip-tls-verify",
-		//"--insecure-registry=host.docker.internal",
-		//"--destination=host.docker.internal/nuclio/processor-helloworld:latest",
+		fmt.Sprintf("--destination=%s/%s", buildOptions.RegistryURL, buildOptions.Image),
 	}
 
-	// TODO: Enable once push to docker registry is sorted out
-	//if !buildOptions.NoCache {
-	//	buildArgs = append(buildArgs, "--cache=true")
-	//}
+	if !buildOptions.NoCache {
+		buildArgs = append(buildArgs, "--cache=true")
+	}
+
+	if k.builderConfiguration.InsecureRegistry {
+		buildArgs = append(buildArgs, "--insecure")
+	}
 
 	// Add build options args
 	for k, v := range buildOptions.BuildArgs {
@@ -155,7 +154,7 @@ func (k *Kaniko) getKanikoJobSpec(buildOptions *BuildOptions, bundleFilename str
 
 	functionName := strings.Replace(buildOptions.Image, "/", "-", -1)
 	functionName = strings.Replace(functionName, ":", "-", -1)
-	jobName := fmt.Sprintf("%s.%s", k.builderConfiguration.JobPrefix, functionName)
+	jobName := fmt.Sprintf("%s.%s.%d", k.builderConfiguration.JobPrefix, functionName, time.Now().Unix())
 
 	kanikoJobSpec := &batch_v1.Job{
 		ObjectMeta: meta_v1.ObjectMeta{
@@ -182,7 +181,7 @@ func (k *Kaniko) getKanikoJobSpec(buildOptions *BuildOptions, bundleFilename str
 							Image: k.builderConfiguration.BusyBoxImage,
 							Command: []string{
 								"wget",
-								fmt.Sprintf("http://%s:8070/assets/%s", os.Getenv("DASHBOARD_DEPLOYMENT_NAME"), bundleFilename),
+								fmt.Sprintf("http://%s:8070/assets/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename),
 								"-P",
 								"/tmp",
 							},
