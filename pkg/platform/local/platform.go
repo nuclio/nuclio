@@ -47,9 +47,10 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	cmdRunner    cmdrunner.CmdRunner
-	dockerClient dockerclient.Client
-	localStore   *store
+	cmdRunner        cmdrunner.CmdRunner
+	dockerClient     dockerclient.Client
+	containerBuilder containerimagebuilderpusher.BuilderPusher
+	localStore       *store
 }
 
 const Mib = 1048576
@@ -70,6 +71,10 @@ func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 	// create a command runner
 	if newPlatform.cmdRunner, err = cmdrunner.NewShellRunner(newPlatform.Logger); err != nil {
 		return nil, errors.Wrap(err, "Failed to create command runner")
+	}
+
+	if newPlatform.containerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger); err != nil {
+		return nil, errors.Wrap(err, "Failed to create containerimagebuilderpusher")
 	}
 
 	// create a docker client
@@ -457,8 +462,7 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 }
 
 func (p *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
-	// TODO: implement
-	return nil
+	return p.containerBuilder.BuildAndPushContainerImage(buildOptions, p.ResolveDefaultNamespace(""))
 }
 
 func (p *Platform) getFreeLocalPort() (int, error) {
