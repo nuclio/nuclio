@@ -132,6 +132,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// replace logger
 	createFunctionOptions.Logger = logStream.GetLogger()
 
+	if err := p.ValidateCreateFunctionOptions(createFunctionOptions); err != nil {
+		return nil, errors.Wrap(err, "Failed in validation of function creation options")
+	}
+
 	reportCreationError := func(creationError error) error {
 		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
 			"err", creationError)
@@ -321,21 +325,11 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 
 // DeleteProject will delete a previously existing project
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
-	getFunctionsOptions := &platform.GetFunctionsOptions{
-		Namespace: deleteProjectOptions.Meta.Namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", deleteProjectOptions.Meta.Name),
+	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
+		return errors.Wrap(err, "Failed in validation of project deletion options")
 	}
 
-	functions, err := p.GetFunctions(getFunctionsOptions)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get functions")
-	}
-
-	if len(functions) != 0 {
-		return platform.ErrProjectContainsFunctions
-	}
-
-	err = p.consumer.nuclioClientSet.NuclioV1beta1().
+	err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(deleteProjectOptions.Meta.Namespace).
 		Delete(deleteProjectOptions.Meta.Name, &meta_v1.DeleteOptions{})
 

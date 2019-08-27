@@ -17,6 +17,7 @@ limitations under the License.
 package abstract
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -169,6 +170,59 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	createFunctionOptions.Logger.InfoWith("Function deploy complete", "httpPort", deployResult.Port)
 
 	return deployResult, nil
+}
+
+// Validation and enforcement of required function creation logic
+func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
+	projectName := createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"]
+
+	// if no project name was given, set it to the default project
+	if projectName == "" {
+		projectName = "default"
+	}
+
+	// validate the project exists
+	getProjectsOptions := &platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta {
+			Name: projectName,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		},
+	}
+	projects, err := ap.platform.GetProjects(getProjectsOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed getting projects")
+	}
+
+	if len(projects) == 0 {
+		return errors.New("Project doesn't exist")
+	}
+
+	return nil
+}
+
+// Validation and enforcement of required function deletion logic
+func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.DeleteProjectOptions) error {
+	projectName := deleteProjectOptions.Meta.Name
+
+	if projectName == "default" {
+		return errors.New("Cannot delete the default project")
+	}
+
+	getFunctionsOptions := &platform.GetFunctionsOptions{
+		Namespace: deleteProjectOptions.Meta.Namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
+	}
+
+	functions, err := ap.platform.GetFunctions(getFunctionsOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get functions")
+	}
+
+	if len(functions) != 0 {
+		return platform.ErrProjectContainsFunctions
+	}
+
+	return nil
 }
 
 // CreateFunctionInvocation will invoke a previously deployed function
