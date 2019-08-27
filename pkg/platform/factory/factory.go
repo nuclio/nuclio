@@ -76,14 +76,14 @@ func CreatePlatform(parentLogger logger.Logger,
 		return nil, fmt.Errorf("Failed to create %s platform", platformType)
 	}
 
-	if err = ensureDefaultProjectExistence(newPlatform, defaultNamespace); err != nil {
+	if err = ensureDefaultProjectExistence(parentLogger, newPlatform, defaultNamespace); err != nil {
 		return nil, errors.New("Failed to ensure default project existence")
 	}
 
 	return newPlatform, nil
 }
 
-func ensureDefaultProjectExistence(p platform.Platform, defaultNamespace string) error {
+func ensureDefaultProjectExistence(parentLogger logger.Logger, p platform.Platform, defaultNamespace string) error {
 	projects, err := p.GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      "default",
@@ -97,16 +97,22 @@ func ensureDefaultProjectExistence(p platform.Platform, defaultNamespace string)
 	if len(projects) != 1 {
 
 		// if we're here the default project doesn't exist. create it
-		err = p.CreateProject(&platform.CreateProjectOptions{
-			ProjectConfig: platform.ProjectConfig{
-				Meta: platform.ProjectMeta{
-					Name: "default",
-					Namespace: p.ResolveDefaultNamespace(defaultNamespace),
-				},
+		projectConfig := platform.ProjectConfig{
+			Meta: platform.ProjectMeta{
+				Name:      "default",
+				Namespace: p.ResolveDefaultNamespace(defaultNamespace),
 			},
+		}
+		newProject, err := platform.NewAbstractProject(parentLogger, p, projectConfig)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create abstract project")
+		}
+
+		err = p.CreateProject(&platform.CreateProjectOptions{
+			ProjectConfig: *newProject.GetConfig(),
 		})
 		if err != nil {
-			return errors.New("Failed to create default project")
+			return errors.Wrap(err, "Failed to create default project")
 		}
 	}
 
