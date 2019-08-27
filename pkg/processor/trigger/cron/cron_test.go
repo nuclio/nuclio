@@ -47,15 +47,40 @@ func (suite *TestSuite) SetupTest() {
 	suite.trigger.Logger = suite.Logger.GetChild("cron")
 }
 
-func (suite *TestSuite) TestGetMissedTicksIntervalHandlesNoMisses() {
+func (suite *TestSuite) TestGetMissedTicksIntervalHandlesMisses() {
 	var err error
-	suite.trigger.schedule, err = suite.getInterval("5s")
-	suite.Assert().NoError(err, "Invalid interval string")
 
-	lastRuntime := time.Now()
-	missedTicks := suite.trigger.getMissedTicks(suite.trigger.schedule, lastRuntime)
+	suite.trigger.tickMethod = tickMethodInterval
 
-	suite.Assert().EqualValues(0, missedTicks)
+	tests := []struct{
+		delayInterval string
+		parseDuration string
+		missedTicks int
+	}{
+		// no misses
+		{"5ms", "0s", 0},
+		{"5s", "0s", 0},
+		{"5m", "0s", 0},
+		{"5h", "0s", 0},
+
+		// misses
+		{"1ms", "1s", 1000},
+		{"250ms", "1s", 4},
+		{"1s", "1m", 60},
+		{"1m", "1h", 60},
+		{"1h", "24h", 24},
+	}
+
+	for _, test := range tests {
+		suite.trigger.schedule, err = suite.getInterval(test.delayInterval)
+		suite.Assert().NoError(err, "Invalid interval string")
+
+		lastTimeDifference, err := time.ParseDuration(test.parseDuration)
+		suite.Require().NoError(err)
+		lastRuntime := time.Now().Add(-lastTimeDifference)
+		missedTicks := suite.trigger.getMissedTicks(suite.trigger.schedule, lastRuntime)
+		suite.Assert().EqualValues(test.missedTicks, missedTicks)
+	}
 }
 
 func (suite *TestSuite) TestGetMissedTicksScheduleHandlesNoMisses() {

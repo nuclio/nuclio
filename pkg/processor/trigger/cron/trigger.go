@@ -159,12 +159,8 @@ func (c *cron) getNextEventSubmitDelay(schedule cronlib.Schedule, lastEventSubmi
 
 	// check if and how many events we missed and forward to the next event time that is in the future
 	missedTicks := c.getMissedTicks(schedule, nextEventSubmitTime)
-	for i := 0; i < missedTicks; i++ {
-		nextEventSubmitTime = schedule.Next(nextEventSubmitTime)
-	}
-
 	if missedTicks > 0 {
-		c.Logger.InfoWith("Missed runs. Running the latest interval",
+		c.Logger.InfoWith("Missed runs",
 			"missedRuns", missedTicks)
 		return 0
 	}
@@ -172,12 +168,24 @@ func (c *cron) getNextEventSubmitDelay(schedule cronlib.Schedule, lastEventSubmi
 	return time.Until(nextEventSubmitTime)
 }
 
-func (c *cron) getMissedTicks(schedule cronlib.Schedule, nextEventSubmitTime time.Time) int {
-	missedTicks := 0
+func (c *cron) getMissedTicks(schedule cronlib.Schedule, eventSubmitTime time.Time) int {
+	var missedTicks int
 
-	for nextEventSubmitTime.Before(time.Now()) {
-		nextEventSubmitTime = schedule.Next(nextEventSubmitTime)
-		missedTicks++
+	switch c.tickMethod {
+	case tickMethodSchedule:
+
+		// Use the same way cronlib would calculate
+		for eventSubmitTime.Before(time.Now()) {
+			eventSubmitTime = c.schedule.Next(eventSubmitTime)
+			missedTicks++
+		}
+	case tickMethodInterval:
+
+		for eventSubmitTime.Before(time.Now()) {
+			delay := c.schedule.(cronlib.ConstantDelaySchedule).Delay
+			eventSubmitTime = eventSubmitTime.Add(delay)
+			missedTicks++
+		}
 	}
 
 	// Received next event submit time, so the last "missed" tick shouldn't count, as it wouldn't have happened yet
