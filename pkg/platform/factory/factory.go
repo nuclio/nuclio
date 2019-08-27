@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/local"
@@ -39,15 +40,19 @@ type Configuration struct {
 // and probes
 func CreatePlatform(parentLogger logger.Logger,
 	platformType string,
-	platformConfiguration interface{}) (platform.Platform, error) {
+	platformConfiguration interface{},
+	defaultNamespace string) (platform.Platform, error) {
+
+	var newPlatform platform.Platform
+	var err error
 
 	switch platformType {
 	case "local":
-		return local.NewPlatform(parentLogger)
+		newPlatform, err = local.NewPlatform(parentLogger)
 
 	case "kube":
 		containerBuilderConfiguration := getContainerBuilderConfiguration(platformConfiguration)
-		return kube.NewPlatform(parentLogger, getKubeconfigPath(platformConfiguration), containerBuilderConfiguration)
+		newPlatform, err = kube.NewPlatform(parentLogger, getKubeconfigPath(platformConfiguration), containerBuilderConfiguration)
 
 	case "auto":
 
@@ -57,15 +62,55 @@ func CreatePlatform(parentLogger logger.Logger,
 		if kubeconfigPath != "" || kube.IsInCluster() {
 
 			// call again, but force kube
-			return CreatePlatform(parentLogger, "kube", platformConfiguration)
+			newPlatform, err = CreatePlatform(parentLogger, "kube", platformConfiguration, defaultNamespace)
 		}
 
 		// call again, force local
-		return CreatePlatform(parentLogger, "local", platformConfiguration)
+		newPlatform, err = CreatePlatform(parentLogger, "local", platformConfiguration, defaultNamespace)
 
 	default:
 		return nil, fmt.Errorf("Can't create platform - unsupported: %s", platformType)
 	}
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create %s platform", platformType)
+	}
+
+	if err = ensureDefaultProjectExistence(newPlatform, defaultNamespace); err != nil {
+		return nil, errors.New("Failed to ensure default project existence")
+	}
+
+	return newPlatform, nil
+}
+
+func ensureDefaultProjectExistence(p platform.Platform, defaultNamespace string) error {
+	projects, err := p.GetProjects(&platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta{
+			Name:      "default",
+			Namespace: defaultNamespace,
+		},
+	})
+	if err != nil {
+		return errors.New("Failed to get projects")
+	}
+
+	if len(projects) != 1 {
+
+		// if we're here the default project doesn't exist. create it
+		err = p.CreateProject(&platform.CreateProjectOptions{
+			ProjectConfig: platform.ProjectConfig{
+				Meta: platform.ProjectMeta{
+					Name: "default",
+					Namespace: p.ResolveDefaultNamespace(defaultNamespace),
+				},
+			},
+		})
+		if err != nil {
+			return errors.New("Failed to create default project")
+		}
+	}
+
+	return nil
 }
 
 func getContainerBuilderConfiguration(platformConfiguration interface{}) *containerimagebuilderpusher.ContainerBuilderConfiguration {

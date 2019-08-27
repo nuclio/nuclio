@@ -46,7 +46,7 @@ func (suite *testSuite) SetupTest() {
 		platformName = "local"
 	}
 
-	suite.platform, err = factory.CreatePlatform(suite.logger, "kube", nil)
+	suite.platform, err = factory.CreatePlatform(suite.logger, "kube", nil, "")
 	suite.Require().NoError(err, "Platform should create successfully")
 }
 

@@ -151,7 +151,7 @@ func (rc *RootCommandeer) createPlatform(logger logger.Logger) (platform.Platfor
 	// ask the factory to create the appropriate platform
 	// TODO: as more platforms are supported, i imagine the last argument will be to some
 	// sort of configuration provider interface
-	platformInstance, err := factory.CreatePlatform(logger, rc.platformName, &rc.kubeConfiguration)
+	platformInstance, err := factory.CreatePlatform(logger, rc.platformName, &rc.kubeConfiguration, rc.namespace)
 
 	// set platform specific common
 	switch platformInstance.(type) {
