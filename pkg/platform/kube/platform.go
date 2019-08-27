@@ -22,16 +22,15 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 
-	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
@@ -41,18 +40,20 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	deployer       *deployer
-	getter         *getter
-	updater        *updater
-	deleter        *deleter
-	kubeconfigPath string
-	consumer       *consumer
+	deployer         *deployer
+	getter           *getter
+	updater          *updater
+	deleter          *deleter
+	kubeconfigPath   string
+	consumer         *consumer
+	containerBuilder containerimagebuilderpusher.BuilderPusher
 }
 
 const Mib = 1048576
 
 // NewPlatform instantiates a new kubernetes platform
-func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, error) {
+func NewPlatform(parentLogger logger.Logger, kubeconfigPath string,
+	containerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
@@ -93,6 +94,22 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 	newPlatform.updater, err = newUpdater(newPlatform.Logger, newPlatform.consumer, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create updater")
+	}
+
+	// create container builder
+	if containerBuilderConfiguration != nil && containerBuilderConfiguration.Kind == "kaniko" {
+		newPlatform.containerBuilder, err = containerimagebuilderpusher.NewKaniko(newPlatform.Logger,
+			newPlatform.consumer.kubeClientSet, containerBuilderConfiguration)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create kaniko builder")
+		}
+	} else {
+
+		// Default container image builder
+		newPlatform.containerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create docker builder")
+		}
 	}
 
 	return newPlatform, nil
@@ -233,31 +250,6 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 
 func IsInCluster() bool {
 	return len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0
-}
-
-func GetKubeconfigPath(platformConfiguration interface{}) string {
-	var kubeconfigPath string
-
-	// if kubeconfig is passed in the options, use that
-	if platformConfiguration != nil {
-
-		// it might not be a kube configuration
-		if _, ok := platformConfiguration.(*Configuration); ok {
-			kubeconfigPath = platformConfiguration.(*Configuration).KubeconfigPath
-		}
-	}
-
-	// do we still not have a kubeconfig path? try environment variable
-	if kubeconfigPath == "" {
-		kubeconfigPath = os.Getenv("KUBECONFIG")
-	}
-
-	// still don't? try looking @ home directory
-	if kubeconfigPath == "" {
-		kubeconfigPath = getKubeconfigFromHomeDir()
-	}
-
-	return kubeconfigPath
 }
 
 // GetName returns the platform name
@@ -653,21 +645,8 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{}, nil
 }
 
-func getKubeconfigFromHomeDir() string {
-	homeDir, err := homedir.Dir()
-	if err != nil {
-		return ""
-	}
-
-	homeKubeConfigPath := filepath.Join(homeDir, ".kube", "config")
-
-	// if the file exists @ home, use it
-	_, err = os.Stat(homeKubeConfigPath)
-	if err == nil {
-		return homeKubeConfigPath
-	}
-
-	return ""
+func (p *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
+	return p.containerBuilder.BuildAndPushContainerImage(buildOptions, p.ResolveDefaultNamespace(""))
 }
 
 func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction, error) {

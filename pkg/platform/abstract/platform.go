@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -248,6 +249,11 @@ func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
 // ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
 func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	return ""
+}
+
+// BuildAndPushContainerImage builds container image and pushes it into docker registry
+func (ap *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
+	return errors.New("Unsupported")
 }
 
 func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {

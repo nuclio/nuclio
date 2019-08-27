@@ -26,6 +26,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
@@ -214,6 +215,10 @@ func (mp *mockPlatform) GetNamespaces() ([]string, error) {
 func (mp *mockPlatform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	args := mp.Called()
 	return args.Get(0).([]string), args.Error(1)
+}
+
+func (mp *mockPlatform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
+	return nil
 }
 
 //

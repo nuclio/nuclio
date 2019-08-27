@@ -52,6 +52,10 @@ spec:
               name: {{ template "nuclio.registryPushPullUrlName" . }}
               key: "registry_url"
               optional: true
+        - name: NUCLIO_DASHBOARD_DEPLOYMENT_NAME
+          value: {{ template "nuclio.dashboardName" . }}
+        - name: NUCLIO_CONTAINER_BUILDER_KIND
+          value: "docker"
         {{- if eq .Values.dashboard.baseImagePullPolicy "Never" }}
         - name: NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES
           value: "true"
