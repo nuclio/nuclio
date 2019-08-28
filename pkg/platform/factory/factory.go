@@ -85,10 +85,12 @@ func CreatePlatform(parentLogger logger.Logger,
 }
 
 func ensureDefaultProjectExistence(parentLogger logger.Logger, p platform.Platform, defaultNamespace string) error {
+	resolvedNamespace := p.ResolveDefaultNamespace(defaultNamespace)
+
 	projects, err := p.GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      "default",
-			Namespace: defaultNamespace,
+			Namespace: resolvedNamespace,
 		},
 	})
 	if err != nil {
@@ -101,7 +103,7 @@ func ensureDefaultProjectExistence(parentLogger logger.Logger, p platform.Platfo
 		projectConfig := platform.ProjectConfig{
 			Meta: platform.ProjectMeta{
 				Name:      "default",
-				Namespace: p.ResolveDefaultNamespace(defaultNamespace),
+				Namespace: resolvedNamespace,
 			},
 			Spec: platform.ProjectSpec{},
 		}
