@@ -175,6 +175,11 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 // Validation and enforcement of required function creation logic
 func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
 
+	// if labels is nil assign an empty map to it
+	if createFunctionOptions.FunctionConfig.Meta.Labels == nil {
+		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{}
+	}
+
 	// if no project name was given, set it to the default project
 	if createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] == "" {
 		createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = "default"
