@@ -63,10 +63,11 @@ func CreatePlatform(parentLogger logger.Logger,
 
 			// call again, but force kube
 			newPlatform, err = CreatePlatform(parentLogger, "kube", platformConfiguration, defaultNamespace)
-		}
+		} else {
 
-		// call again, force local
-		newPlatform, err = CreatePlatform(parentLogger, "local", platformConfiguration, defaultNamespace)
+			// call again, force local
+			newPlatform, err = CreatePlatform(parentLogger, "local", platformConfiguration, defaultNamespace)
+		}
 
 	default:
 		return nil, fmt.Errorf("Can't create platform - unsupported: %s", platformType)
