@@ -28,7 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/local"
+	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
@@ -99,7 +99,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
 	suite.Require().NoError(err)
 
-	suite.Platform, err = local.NewPlatform(suite.Logger)
+	suite.Platform, err = factory.CreatePlatform(suite.Logger, "local", nil, "")
 	suite.Require().NoError(err)
 }
 
