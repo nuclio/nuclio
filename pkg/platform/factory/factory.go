@@ -102,6 +102,7 @@ func ensureDefaultProjectExistence(parentLogger logger.Logger, p platform.Platfo
 				Name:      "default",
 				Namespace: p.ResolveDefaultNamespace(defaultNamespace),
 			},
+			Spec: platform.ProjectSpec{},
 		}
 		newProject, err := platform.NewAbstractProject(parentLogger, p, projectConfig)
 		if err != nil {
