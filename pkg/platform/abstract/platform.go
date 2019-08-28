@@ -174,17 +174,16 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 
 // Validation and enforcement of required function creation logic
 func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
-	projectName := createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"]
 
 	// if no project name was given, set it to the default project
-	if projectName == "" {
-		projectName = "default"
+	if createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] == "" {
+		createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = "default"
 	}
 
 	// validate the project exists
 	getProjectsOptions := &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta {
-			Name: projectName,
+			Name: createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		},
 	}
