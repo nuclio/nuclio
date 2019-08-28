@@ -155,7 +155,7 @@ func (c *cron) waitAndSubmitNextEvent(lastEventSubmitTime time.Time, schedule cr
 func (c *cron) getNextEventSubmitDelay(schedule cronlib.Schedule, lastEventSubmitTime time.Time) time.Duration {
 
 	// get when the next submit _should_ happen (might be in the past if we missed it)
-	nextEventSubmitTime := schedule.Next(lastEventSubmitTime)
+	nextEventSubmitTime := c.calculateNextEventSubmittingTime(lastEventSubmitTime)
 
 	// check if and how many events we missed and forward to the next event time that is in the future
 	missedTicks := c.getMissedTicks(schedule, nextEventSubmitTime)
@@ -171,21 +171,9 @@ func (c *cron) getNextEventSubmitDelay(schedule cronlib.Schedule, lastEventSubmi
 func (c *cron) getMissedTicks(schedule cronlib.Schedule, eventSubmitTime time.Time) int {
 	var missedTicks int
 
-	switch c.tickMethod {
-	case tickMethodSchedule:
-
-		// Use the same way cronlib would calculate
-		for eventSubmitTime.Before(time.Now()) {
-			eventSubmitTime = c.schedule.Next(eventSubmitTime)
-			missedTicks++
-		}
-	case tickMethodInterval:
-
-		for eventSubmitTime.Before(time.Now()) {
-			delay := c.schedule.(cronlib.ConstantDelaySchedule).Delay
-			eventSubmitTime = eventSubmitTime.Add(delay)
-			missedTicks++
-		}
+	for eventSubmitTime.Before(time.Now()) {
+		eventSubmitTime = c.calculateNextEventSubmittingTime(eventSubmitTime)
+		missedTicks++
 	}
 
 	// Received next event submit time, so the last "missed" tick shouldn't count, as it wouldn't have happened yet
@@ -195,6 +183,17 @@ func (c *cron) getMissedTicks(schedule cronlib.Schedule, eventSubmitTime time.Ti
 	}
 
 	return missedTicks
+}
+
+func (c *cron) calculateNextEventSubmittingTime(lastEventSubmitTime time.Time) time.Time {
+	switch c.tickMethod {
+	case tickMethodSchedule:
+		return c.schedule.Next(lastEventSubmitTime)
+	case tickMethodInterval:
+		delay := c.schedule.(cronlib.ConstantDelaySchedule).Delay
+		return lastEventSubmitTime.Add(delay)
+	}
+	return time.Now()
 }
 
 func (c *cron) handleTick() {

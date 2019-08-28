@@ -14,7 +14,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -46,10 +45,23 @@ func (suite *TestSuite) SetupSuite() {
 func (suite *TestSuite) TestPostEventPythonInterval() {
 	createFunctionOptions := suite.getCronDeployOptions()
 
-	// Once every 3 seconds. Should occur 3-4 times during a 10-second test
-	createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["interval"] = "3s"
+	tests := []struct {
+		testDurationLength    time.Duration
+		minimumOccurredEvents int
+		maximumOccurredEvents int
+		interval              string
+	}{
+		{10*time.Second, 2, 7, "3s"},
+		{5*time.Second, 20, 30, "250ms"},
+	}
 
-	suite.invokeEventRecorder(createFunctionOptions)
+	for _, test := range tests {
+		createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["interval"] = test.interval
+		suite.invokeEventRecorder(createFunctionOptions,
+			test.testDurationLength,
+			test.minimumOccurredEvents,
+			test.maximumOccurredEvents)
+	}
 }
 
 func (suite *TestSuite) TestPostEventPythonSchedule() {
@@ -57,8 +69,11 @@ func (suite *TestSuite) TestPostEventPythonSchedule() {
 
 	// Once every 3 seconds. Should occur 3-4 times during a 10-second test
 	createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["schedule"] = "*/3 * * * * *"
+	testDurationLength := 10 * time.Second
+	minimumOccurredEvents := 2
+	maximumOccurredEvents := 7
 
-	suite.invokeEventRecorder(createFunctionOptions)
+	suite.invokeEventRecorder(createFunctionOptions, testDurationLength, minimumOccurredEvents, maximumOccurredEvents)
 }
 
 func (suite *TestSuite) getCronDeployOptions() *platform.CreateFunctionOptions {
@@ -82,11 +97,13 @@ func (suite *TestSuite) getCronDeployOptions() *platform.CreateFunctionOptions {
 	return createFunctionOptions
 }
 
-func (suite *TestSuite) invokeEventRecorder(createFunctionOptions *platform.CreateFunctionOptions) {
+func (suite *TestSuite) invokeEventRecorder(createFunctionOptions *platform.CreateFunctionOptions,
+	testDurationLength time.Duration,
+	minimumOccurredEvents, maximumOccurredEvents int) {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// Wait 10 seconds to give time for the container to trigger 3-4 events
-		time.Sleep(10 * time.Second)
+		time.Sleep(testDurationLength)
 
 		// Set http request url
 		url := fmt.Sprintf("http://%s:%d", suite.GetTestHost(), deployResult.Port)
@@ -104,16 +121,22 @@ func (suite *TestSuite) invokeEventRecorder(createFunctionOptions *platform.Crea
 		err = json.Unmarshal(marshalledResponseBody, &receivedEvents)
 		suite.Require().NoError(err, "Failed to unmarshal response. Response: %s", marshalledResponseBody)
 
-		recievedEventsAmount := len(receivedEvents)
+		receivedEventsAmount := len(receivedEvents)
 
 		// Testing between 2 and 7 events because of potential lags between container startup and request handling
 		suite.Require().Condition(
-			assert.Comparison(func() bool { return recievedEventsAmount > 1 && recievedEventsAmount < 7 }),
-			"Expected between 2 and 7 events (Optimal is exactly 4). Received %d", recievedEventsAmount)
+			func() bool {
+				return receivedEventsAmount >= minimumOccurredEvents && receivedEventsAmount <= maximumOccurredEvents
+			},
+			"Expected between %d and %d events. Received %d",
+			minimumOccurredEvents,
+			maximumOccurredEvents,
+			receivedEventsAmount)
 
 		suite.Logger.DebugWith("Received events from container",
-			"expected", 4,
-			"actual", recievedEventsAmount)
+			"minimumOccurredEvents", minimumOccurredEvents,
+			"maximumOccurredEvents", maximumOccurredEvents,
+			"actual", receivedEventsAmount)
 
 		// compare bodies / headers
 		for _, receivedEvent := range receivedEvents {
