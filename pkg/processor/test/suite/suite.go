@@ -99,7 +99,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
 	suite.Require().NoError(err)
 
-	suite.Platform, err = factory.CreatePlatform(suite.Logger, "local", nil, "")
+	suite.Platform, err = factory.CreatePlatform(suite.Logger, "local", nil, "nuclio")
 	suite.Require().NoError(err)
 }
 
