@@ -185,7 +185,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		existingFunctionInstance, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
 			createFunctionOptions,
 			&functionconfig.Status{
-				State:    functionconfig.FunctionStateBuilding,
+				State: functionconfig.FunctionStateBuilding,
 			})
 
 		if err != nil {
