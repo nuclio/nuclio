@@ -174,7 +174,7 @@ func (suite *TestSuite) TestOutputs() {
 }
 
 func (suite *TestSuite) TestStress() {
-	// Create blastConfiguration using default configurations + changes for golang specification
+	// Create blastConfiguration using default configurations + changes for dotnet specification
 	blastConfiguration := suite.NewBlastConfiguration()
 	blastConfiguration.FunctionPath = "_outputter"
 	blastConfiguration.Handler = "nuclio:outputter"

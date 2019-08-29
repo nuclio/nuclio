@@ -142,7 +142,7 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 			}...)
 		}
 
-		functionRecords := [][]string{}
+		var functionRecords [][]string
 
 		// for each field
 		for _, function := range functions {

@@ -46,7 +46,7 @@ func (suite *projectGetTestSuite) TestGet() {
 		projectNames = append(projectNames, projectName)
 
 		namedArgs := map[string]string{
-			"description":  fmt.Sprintf("description-%d", projectIdx),
+			"description": fmt.Sprintf("description-%d", projectIdx),
 		}
 
 		err := suite.ExecuteNutcl([]string{

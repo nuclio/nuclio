@@ -144,12 +144,18 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			errorStack.Truncate(4 * Mib)
 		}
 
+		defaultHTTPPort := 0
+		if existingFunctionInstance != nil {
+			defaultHTTPPort = existingFunctionInstance.Status.HTTPPort
+		}
+
 		// post logs and error
 		return p.UpdateFunction(&platform.UpdateFunctionOptions{
 			FunctionMeta: &createFunctionOptions.FunctionConfig.Meta,
 			FunctionStatus: &functionconfig.Status{
-				State:   functionconfig.FunctionStateError,
-				Message: errorStack.String(),
+				HTTPPort: defaultHTTPPort,
+				State:    functionconfig.FunctionStateError,
+				Message:  errorStack.String(),
 			},
 		})
 	}
