@@ -160,13 +160,12 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 	}
 
 	// wait for the function to be ready
-	functionInstance, err = waitForFunctionReadiness(deployLogger,
+	_, err = waitForFunctionReadiness(deployLogger,
 		d.consumer,
 		functionInstance.Namespace,
 		functionInstance.Name)
 	if err != nil {
 		errMessage := d.getFunctionPodLogs(functionInstance.Namespace, functionInstance.Name)
-
 		return nil, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", errMessage)
 	}
 
