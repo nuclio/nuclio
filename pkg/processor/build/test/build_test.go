@@ -91,7 +91,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
 	tempFile.WriteString("Contents of temp file")
 
 	createFunctionOptions.FunctionConfig.Meta.Name = "funcsource-test"
-	createFunctionOptions.FunctionConfig.Meta.Namespace = "test"
+	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = tempFile.Name()
@@ -125,7 +125,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeDeployOnceNeverBuild() {
 `))
 
 	createFunctionOptions.FunctionConfig.Meta.Name = "neverbuild-test"
-	createFunctionOptions.FunctionConfig.Meta.Namespace = "test"
+	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
@@ -166,7 +166,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 `))
 
 	createFunctionOptions.FunctionConfig.Meta.Name = "neverbuild-redeploy-func"
-	createFunctionOptions.FunctionConfig.Meta.Namespace = "test"
+	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
