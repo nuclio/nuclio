@@ -180,7 +180,6 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			createFunctionOptions,
 			&functionconfig.Status{
 				State:    functionconfig.FunctionStateBuilding,
-				HTTPPort: existingFunctionInstance.Status.HTTPPort,
 			})
 
 		if err != nil {

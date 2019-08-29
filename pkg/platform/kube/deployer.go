@@ -67,6 +67,8 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	if !functionExisted {
 		functionInstance = &nuclioio.NuclioFunction{}
 		functionInstance.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
+	} else {
+		functionStatus.HTTPPort = functionInstance.Status.HTTPPort
 	}
 
 	// convert config, status -> function
