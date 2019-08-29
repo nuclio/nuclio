@@ -121,7 +121,7 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 	})
 
 	if err != nil {
-		if strings.Contains(errors.Cause(err).Error(),"already exists"){
+		if strings.Contains(errors.Cause(err).Error(), "already exists") {
 			return "", nil, nuclio.WrapErrConflict(err)
 		}
 

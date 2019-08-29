@@ -187,8 +187,8 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 
 	// validate the project exists
 	getProjectsOptions := &platform.GetProjectsOptions{
-		Meta: platform.ProjectMeta {
-			Name: createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
+		Meta: platform.ProjectMeta{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		},
 	}
