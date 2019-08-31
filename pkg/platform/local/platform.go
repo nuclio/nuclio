@@ -109,7 +109,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	createFunctionOptions.Logger = logStream.GetLogger()
 
 	if err := p.ValidateCreateFunctionOptions(createFunctionOptions); err != nil {
-		return nil, errors.Wrap(err, "Failed in validation of function creation options")
+		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
 
 	// local currently doesn't support registries of any kind. remove push / run registry
@@ -375,7 +375,7 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 // DeleteProject will delete an existing project
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
-		return errors.Wrap(err, "Failed in validation of project deletion options")
+		return errors.Wrap(err, "Delete project options validation failed")
 	}
 	return p.localStore.deleteProject(&deleteProjectOptions.Meta)
 }

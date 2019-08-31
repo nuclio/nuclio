@@ -57,6 +57,7 @@ func (suite *testSuite) TestBuildFuncFromSourceWithInlineConfig() {
 
 echo $MESSAGE`
 
+	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "echo-foo-inline.sh"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""

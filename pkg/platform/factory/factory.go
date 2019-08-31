@@ -17,7 +17,6 @@ limitations under the License.
 package factory
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -70,11 +69,11 @@ func CreatePlatform(parentLogger logger.Logger,
 		}
 
 	default:
-		return nil, fmt.Errorf("Can't create platform - unsupported: %s", platformType)
+		return nil, errors.Errorf("Can't create platform - unsupported: %s", platformType)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create %s platform", platformType)
+		return nil, errors.Errorf("Failed to create %s platform", platformType)
 	}
 
 	if err = ensureDefaultProjectExistence(parentLogger, newPlatform, defaultNamespace); err != nil {
@@ -109,7 +108,7 @@ func ensureDefaultProjectExistence(parentLogger logger.Logger, p platform.Platfo
 		}
 		newProject, err := platform.NewAbstractProject(parentLogger, p, projectConfig)
 		if err != nil {
-			return errors.Wrap(err, "Failed to create abstract project")
+			return errors.Wrap(err, "Failed to create abstract default project")
 		}
 
 		err = p.CreateProject(&platform.CreateProjectOptions{

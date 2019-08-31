@@ -133,7 +133,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	createFunctionOptions.Logger = logStream.GetLogger()
 
 	if err := p.ValidateCreateFunctionOptions(createFunctionOptions); err != nil {
-		return nil, errors.Wrap(err, "Failed in validation of function creation options")
+		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
 
 	reportCreationError := func(creationError error) error {
@@ -326,14 +326,12 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 // DeleteProject will delete a previously existing project
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
-		return errors.Wrap(err, "Failed in validation of project deletion options")
+		return errors.Wrap(err, "Delete project options validation failed")
 	}
 
-	err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(deleteProjectOptions.Meta.Namespace).
-		Delete(deleteProjectOptions.Meta.Name, &meta_v1.DeleteOptions{})
-
-	if err != nil {
+		Delete(deleteProjectOptions.Meta.Name, &meta_v1.DeleteOptions{}); err != nil {
 		return errors.Wrapf(err,
 			"Failed to delete project %s from namespace %s",
 			deleteProjectOptions.Meta.Name,

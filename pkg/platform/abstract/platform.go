@@ -183,6 +183,7 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 	// if no project name was given, set it to the default project
 	if createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] == "" {
 		createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = "default"
+		ap.Logger.Debug("No project name specified. Setting to default")
 	}
 
 	// validate the project exists
