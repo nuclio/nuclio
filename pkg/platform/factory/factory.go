@@ -96,7 +96,7 @@ func ensureDefaultProjectExistence(parentLogger logger.Logger, p platform.Platfo
 		return errors.New("Failed to get projects")
 	}
 
-	if len(projects) != 1 {
+	if len(projects) == 0 {
 
 		// if we're here the default project doesn't exist. create it
 		projectConfig := platform.ProjectConfig{
@@ -117,6 +117,9 @@ func ensureDefaultProjectExistence(parentLogger logger.Logger, p platform.Platfo
 		if err != nil {
 			return errors.Wrap(err, "Failed to create default project")
 		}
+
+	} else if len(projects) > 1 {
+		return errors.New("Something went wrong. There's more than one default project")
 	}
 
 	return nil
