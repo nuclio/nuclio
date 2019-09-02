@@ -194,8 +194,9 @@ func (c *cron) calculateNextEventSubmittingTime(lastEventSubmitTime time.Time) t
 	case tickMethodInterval:
 		delay := c.schedule.(cronlib.ConstantDelaySchedule).Delay
 		return lastEventSubmitTime.Add(delay)
+	default:
+		return time.Now()
 	}
-	return time.Now()
 }
 
 func (c *cron) handleTick() {
