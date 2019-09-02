@@ -94,7 +94,6 @@ func NewController(parentLogger logger.Logger,
 	newController.projectOperator, err = newProjectOperator(parentLogger,
 		newController,
 		&resyncInterval)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create project operator")
 	}

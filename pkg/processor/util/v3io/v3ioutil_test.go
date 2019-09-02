@@ -17,11 +17,14 @@ limitations under the License.
 package v3ioutil
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/nuclio/logger"
 	"github.com/stretchr/testify/suite"
 )
+
+const DefaultPort = 12345
 
 type v3ioUtilTestSuite struct {
 	suite.Suite
@@ -29,24 +32,24 @@ type v3ioUtilTestSuite struct {
 }
 
 func (suite *v3ioUtilTestSuite) TestParseURLNoContainerAlias() {
-	_, _, _, err := ParseURL("http://host:port/")
+	_, _, _, err := ParseURL(fmt.Sprintf("http://host.com:%d/", DefaultPort))
 	suite.Require().Error(err)
 }
 
 func (suite *v3ioUtilTestSuite) TestParseURLNoPath() {
-	addr, containerAlias, path, err := ParseURL("http://host:port/containerAlias")
+	addr, containerAlias, path, err := ParseURL(fmt.Sprintf("http://host.com:%d/containerAlias", DefaultPort))
 	suite.Require().NoError(err)
 
-	suite.Require().Equal("host:port", addr)
+	suite.Require().Equal(fmt.Sprintf("host.com:%d", DefaultPort), addr)
 	suite.Require().Equal("containerAlias", containerAlias)
 	suite.Require().Equal("", path)
 }
 
 func (suite *v3ioUtilTestSuite) TestParseURLWithPath() {
-	addr, containerAlias, path, err := ParseURL("http://host:port/containerAlias/path1/path2/path3/")
+	addr, containerAlias, path, err := ParseURL(fmt.Sprintf("http://host.com:%d/containerAlias/path1/path2/path3/", DefaultPort))
 	suite.Require().NoError(err)
 
-	suite.Require().Equal("host:port", addr)
+	suite.Require().Equal(fmt.Sprintf("host.com:%d", DefaultPort), addr)
 	suite.Require().Equal("containerAlias", containerAlias)
 	suite.Require().Equal("path1/path2/path3", path)
 }

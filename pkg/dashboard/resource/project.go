@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -120,6 +121,10 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 	})
 
 	if err != nil {
+		if strings.Contains(errors.Cause(err).Error(), "already exists") {
+			return "", nil, nuclio.WrapErrConflict(err)
+		}
+
 		return "", nil, nuclio.WrapErrInternalServerError(err)
 	}
 
