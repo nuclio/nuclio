@@ -153,6 +153,7 @@ func (c *cron) waitAndSubmitNextEvent(lastEventSubmitTime time.Time, schedule cr
 }
 
 func (c *cron) getNextEventSubmitDelay(schedule cronlib.Schedule, lastEventSubmitTime time.Time) time.Duration {
+	var delay time.Duration
 
 	// get when the next submit _should_ happen (might be in the past if we missed it)
 	nextEventSubmitTime := c.calculateNextEventSubmittingTime(lastEventSubmitTime)
@@ -164,10 +165,12 @@ func (c *cron) getNextEventSubmitDelay(schedule cronlib.Schedule, lastEventSubmi
 	if missedTicks > 0 {
 		c.Logger.InfoWith("Missed runs",
 			"missedRuns", missedTicks)
-		return 0
+		delay = 0
+	} else {
+		delay = time.Until(nextEventSubmitTime)
 	}
 
-	return time.Until(nextEventSubmitTime)
+	return delay
 }
 
 func (c *cron) getMissedTicks(schedule cronlib.Schedule, eventSubmitTime time.Time) int {
