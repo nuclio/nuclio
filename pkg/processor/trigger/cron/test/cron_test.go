@@ -52,7 +52,7 @@ func (suite *TestSuite) TestPostEventPythonInterval() {
 		interval              string
 	}{
 		{10*time.Second, 2, 7, "3s"},
-		{5*time.Second, 20, 30, "250ms"},
+		{5*time.Second, 15, 30, "250ms"},
 	}
 
 	for _, test := range tests {
@@ -102,7 +102,7 @@ func (suite *TestSuite) invokeEventRecorder(createFunctionOptions *platform.Crea
 	minimumOccurredEvents, maximumOccurredEvents int) {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
-		// Wait 10 seconds to give time for the container to trigger 3-4 events
+		// give time for the container to trigger its events
 		time.Sleep(testDurationLength)
 
 		// Set http request url
@@ -123,7 +123,7 @@ func (suite *TestSuite) invokeEventRecorder(createFunctionOptions *platform.Crea
 
 		receivedEventsAmount := len(receivedEvents)
 
-		// Testing between 2 and 7 events because of potential lags between container startup and request handling
+		// due to potential lags between container startup and request handling, check in range
 		suite.Require().Condition(
 			func() bool {
 				return receivedEventsAmount >= minimumOccurredEvents && receivedEventsAmount <= maximumOccurredEvents

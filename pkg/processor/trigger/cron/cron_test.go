@@ -18,7 +18,6 @@ package cron
 
 import (
 	"fmt"
-	"math"
 	"testing"
 	"time"
 
@@ -58,10 +57,11 @@ func (suite *TestSuite) TestGetInterval() {
 	}{
 		// no misses
 		{"5ms", 0},
+		{"250ms", 0},
 		{"5s", 0},
 		{"5m", 0},
 		{"5h", 0},
-		//
+
 		// misses
 		{"1ms", time.Millisecond},
 		{"1ms", 150 * time.Millisecond},
@@ -76,16 +76,18 @@ func (suite *TestSuite) TestGetInterval() {
 
 	for _, test := range tests {
 		suite.trigger.schedule, err = suite.getInterval(test.delayInterval)
-		suite.Assert().NoError(err, "Invalid interval string")
-
+		suite.Require().NoError(err, "Invalid interval string")
 		delay := suite.trigger.schedule.(cronlib.ConstantDelaySchedule).Delay
+
+		// test delay
 		lastRuntime := time.Now().Add(-test.lastTimeDifference)
 		nextEventDelay := suite.trigger.getNextEventSubmitDelay(suite.trigger.schedule, lastRuntime)
 
-		// TODO: Fix calculation (diff should be merely zero)
-		diff := delay - time.Duration(math.Abs(float64(nextEventDelay))) // should be 0 + execution time of getNextEventSubmitDelay
-		suite.Assert().Equal(0, int(diff))
+		suite.Assert().Conditionf(func() (success bool) {
+			return nextEventDelay <= delay
+		}, "Next event delay must be less or equal to interval's delay")
 
+		// test misses ticks
 		lastRuntime = time.Now().Add(-test.lastTimeDifference)
 		missedTicks := suite.trigger.getMissedTicks(suite.trigger.schedule, lastRuntime)
 		expectedMissedTicks := int(test.lastTimeDifference/delay)
