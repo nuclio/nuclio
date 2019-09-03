@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
 import json
 
 events_log_file_path = '/tmp/events.json'
@@ -26,7 +27,8 @@ def handler(context, event):
         # serialized record
         serialized_record = json.dumps({
             'body': body,
-            'headers': dict(event.headers)
+            'headers': dict(event.headers),
+            'timestamp': datetime.datetime.utcnow().isoformat(),
         })
 
         # store in log file

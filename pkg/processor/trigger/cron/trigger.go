@@ -153,40 +153,53 @@ func (c *cron) waitAndSubmitNextEvent(lastEventSubmitTime time.Time, schedule cr
 }
 
 func (c *cron) getNextEventSubmitDelay(schedule cronlib.Schedule, lastEventSubmitTime time.Time) time.Duration {
+	var delay time.Duration
 
 	// get when the next submit _should_ happen (might be in the past if we missed it)
-	nextEventSubmitTime := schedule.Next(lastEventSubmitTime)
+	nextEventSubmitTime := c.calculateNextEventSubmittingTime(lastEventSubmitTime)
 
-	// check if and how many events we missed and forward to the next event time that is in the future
+	// check how many events we missed
 	missedTicks := c.getMissedTicks(schedule, nextEventSubmitTime)
-	for i := 0; i < missedTicks; i++ {
-		nextEventSubmitTime = schedule.Next(nextEventSubmitTime)
-	}
 
+	// if we missed some runs, return zero delay (aka, execute now)
 	if missedTicks > 0 {
-		c.Logger.InfoWith("Missed runs. Running the latest interval",
+		c.Logger.InfoWith("Missed runs",
 			"missedRuns", missedTicks)
-		return 0
+		delay = 0
+	} else {
+		delay = time.Until(nextEventSubmitTime)
 	}
 
-	return time.Until(nextEventSubmitTime)
+	return delay
 }
 
-func (c *cron) getMissedTicks(schedule cronlib.Schedule, nextEventSubmitTime time.Time) int {
-	missedTicks := 0
+func (c *cron) getMissedTicks(schedule cronlib.Schedule, eventSubmitTime time.Time) int {
+	var missedTicks int
 
-	for nextEventSubmitTime.Before(time.Now()) {
-		nextEventSubmitTime = schedule.Next(nextEventSubmitTime)
+	for eventSubmitTime.Before(time.Now()) {
+		eventSubmitTime = c.calculateNextEventSubmittingTime(eventSubmitTime)
 		missedTicks++
 	}
 
-	// Received next event submit time, so the last "missed" tick shouldn't count, as it wouldn't have happened yet
-	// Can't have missed less than 0 ticks
+	// last "missed" tick shouldn't count, as it wouldn't have happened yet (as we passed time.Now())
+	// can't have missed less than 0 ticks
 	if missedTicks > 0 {
-		return missedTicks - 1
+		missedTicks--
 	}
 
 	return missedTicks
+}
+
+func (c *cron) calculateNextEventSubmittingTime(lastEventSubmitTime time.Time) time.Time {
+	switch c.tickMethod {
+	case tickMethodSchedule:
+		return c.schedule.Next(lastEventSubmitTime)
+	case tickMethodInterval:
+		delay := c.schedule.(cronlib.ConstantDelaySchedule).Delay
+		return lastEventSubmitTime.Add(delay)
+	default:
+		return time.Now()
+	}
 }
 
 func (c *cron) handleTick() {
