@@ -704,7 +704,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 		hpa.Spec.MaxReplicas = maxReplicas
 
 		// when the min replicas equal the max replicas, there's no need for hpa resourceToUpdate
-		if function.Spec.MinReplicas == function.Spec.MaxReplicas {
+		if minReplicas == maxReplicas {
 			propogationPolicy := meta_v1.DeletePropagationForeground
 			deleteOptions := &meta_v1.DeleteOptions{
 				PropagationPolicy: &propogationPolicy,
