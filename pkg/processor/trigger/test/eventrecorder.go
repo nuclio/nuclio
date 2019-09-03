@@ -29,8 +29,9 @@ import (
 )
 
 type Event struct {
-	Body    string            `json:"body"`
-	Headers map[string]string `json:"headers"`
+	Body      string            `json:"body"`
+	Headers   map[string]string `json:"headers"`
+	Timestamp string            `json:"timestamp"`
 }
 
 type MessagePublisher func(string, string) error
