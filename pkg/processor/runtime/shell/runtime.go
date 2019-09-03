@@ -153,6 +153,13 @@ func (s *shell) getCommand() (string, error) {
 		command = moduleName
 	}
 
+	// remove windows carriage return
+	cmd := exec.Command("sh", "-c", "sed -i -e 's/\r$//' " + command)
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+        	return "", errors.Wrap(err, "Failed to remove Windows carriage return")
+	}
+
 	return command, nil
 }
 
