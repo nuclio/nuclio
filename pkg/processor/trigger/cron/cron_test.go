@@ -51,7 +51,7 @@ func (suite *TestSuite) TestGetInterval() {
 
 	suite.trigger.tickMethod = tickMethodInterval
 
-	tests := []struct{
+	tests := []struct {
 		delayInterval      string
 		lastTimeDifference time.Duration
 	}{
@@ -90,7 +90,7 @@ func (suite *TestSuite) TestGetInterval() {
 		// test misses ticks
 		lastRuntime = time.Now().Add(-test.lastTimeDifference)
 		missedTicks := suite.trigger.getMissedTicks(suite.trigger.schedule, lastRuntime)
-		expectedMissedTicks := int(test.lastTimeDifference/delay)
+		expectedMissedTicks := int(test.lastTimeDifference / delay)
 		suite.Assert().EqualValues(expectedMissedTicks, missedTicks)
 	}
 }

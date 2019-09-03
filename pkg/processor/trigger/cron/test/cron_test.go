@@ -46,16 +46,16 @@ func (suite *TestSuite) TestPostEventPythonInterval() {
 	createFunctionOptions := suite.getCronDeployOptions()
 
 	tests := []struct {
-		duration        time.Duration
-		interval              time.Duration
+		duration time.Duration
+		interval time.Duration
 	}{
-		{10*time.Second, 3 * time.Second},
-		{5*time.Second, 250 * time.Millisecond},
+		{10 * time.Second, 3 * time.Second},
+		{2 * time.Second, 250 * time.Millisecond},
 	}
 
 	for _, test := range tests {
 		createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["interval"] = test.interval.String()
-		expectedOccurredEvents := int(test.duration/test.interval)
+		expectedOccurredEvents := int(test.duration / test.interval)
 		suite.Logger.DebugWith("Invoking event recorder",
 			"test", test,
 			"expectedOccurredEvents", expectedOccurredEvents,
@@ -105,7 +105,6 @@ func (suite *TestSuite) invokeEventRecorder(createFunctionOptions *platform.Crea
 		start := time.Now()
 		time.Sleep(testDurationLength)
 		end := time.Now()
-
 
 		// Set http request url
 		url := fmt.Sprintf("http://%s:%d", suite.GetTestHost(), deployResult.Port)
