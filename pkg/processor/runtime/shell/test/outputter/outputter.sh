@@ -26,8 +26,4 @@ elif [ "${EVENT_BODY}" == "return_error" ]; then
 	exit 1
 elif [ "${EVENT_BODY}" == "return_arguments" ]; then
 	echo $1-$2
-
-# A hidden ^M (windows carriage) below
-elif [ "${EVENT_BODY}" == "windows_carriage" ]; then
-	echo Hello
 fi

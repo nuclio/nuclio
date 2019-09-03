@@ -64,13 +64,6 @@ func (suite *TestSuite) TestOutputs() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		testRequests := []httpsuite.Request{
 			{
-				Name:                       "Check window carriage",
-				RequestBody:                "windows_carriage",
-				ExpectedResponseHeaders:    expectedResponseHeaders,
-				ExpectedResponseBody:       "Hello\n",
-				ExpectedResponseStatusCode: &statusOK,
-			},
-			{
 				Name:                       "return body",
 				RequestBody:                "return_body",
 				ExpectedResponseHeaders:    expectedResponseHeaders,
