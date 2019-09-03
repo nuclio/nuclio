@@ -184,7 +184,7 @@ func (c *cron) getMissedTicks(schedule cronlib.Schedule, eventSubmitTime time.Ti
 	// last "missed" tick shouldn't count, as it wouldn't have happened yet (as we passed time.Now())
 	// can't have missed less than 0 ticks
 	if missedTicks > 0 {
-		missedTicks = missedTicks - 1
+		missedTicks -= 1
 	}
 
 	return missedTicks
