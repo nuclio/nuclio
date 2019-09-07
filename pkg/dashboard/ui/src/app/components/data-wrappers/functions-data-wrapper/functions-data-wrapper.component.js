@@ -7,7 +7,7 @@
             controller: FunctionsDataWrapperController
         });
 
-    function FunctionsDataWrapperController(NuclioProjectsDataService, NuclioFunctionsDataService) {
+    function FunctionsDataWrapperController($q, NuclioProjectsDataService, NuclioFunctionsDataService) {
         var ctrl = this;
 
         ctrl.createFunction = createFunction;
@@ -15,6 +15,7 @@
         ctrl.getProject = getProject;
         ctrl.getFunction = getFunction;
         ctrl.getFunctions = getFunctions;
+        ctrl.getStatistics = getStatistics;
         ctrl.deleteFunction = deleteFunction;
         ctrl.updateFunction = updateFunction;
 
@@ -65,6 +66,14 @@
          */
         function getFunctions(id) {
             return NuclioFunctionsDataService.getFunctions(id);
+        }
+
+        /**
+         * Gets statistics
+         * @returns {Promise}
+         */
+        function getStatistics() {
+            return $q.reject({msg: 'N/A'});
         }
 
         /**
