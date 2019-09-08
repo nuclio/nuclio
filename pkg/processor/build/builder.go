@@ -60,6 +60,7 @@ const (
 	GithubEntryType        = "github"
 	ArchiveEntryType       = "archive"
 	S3EntryType            = "s3"
+	ImageEntryType         = "image"
 )
 
 // holds parameters for things that are required before a runtime can be initialized
@@ -237,6 +238,10 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	processorImage, err := b.buildProcessorImage()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to build processor image")
+	}
+
+	if b.options.FunctionConfig.Spec.Image == "@set-after-build" {
+		b.options.FunctionConfig.Spec.Image = processorImage
 	}
 
 	buildResult := &platform.CreateFunctionBuildResult{
@@ -514,7 +519,8 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	}
 
 	// user has to provide valid url when code entry type is github or archive
-	if !common.IsURL(functionPath) && (codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) {
+	isURL := common.IsURL(functionPath)
+	if !isURL && (codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) {
 		return "", errors.New("Must provide valid URL when code entry type is github or archive")
 	}
 
@@ -538,6 +544,18 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		resolvedPath, err = b.decompressFunctionArchive(resolvedPath)
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to decompress function archive")
+		}
+	}
+
+	// when no code entry type was passed and it's an archive or jar
+	if codeEntryType == "" && (util.IsCompressed(resolvedPath) || util.IsJar(resolvedPath)) {
+
+		// if it's a URL, set it as an archive code entry type, otherwise save the built image so it'll be possible to redeploy
+		if isURL {
+			b.options.FunctionConfig.Spec.Build.CodeEntryType = ArchiveEntryType
+		} else {
+			b.options.FunctionConfig.Spec.Build.CodeEntryType = ImageEntryType
+			b.options.FunctionConfig.Spec.Image = "@set-after-build"
 		}
 	}
 
