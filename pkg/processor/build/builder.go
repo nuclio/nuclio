@@ -534,7 +534,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	}
 
 	if !common.FileExists(resolvedPath) {
-		return "", fmt.Errorf("Function path doesn't exist: %s", resolvedPath)
+		return "", errors.Errorf("Function path doesn't exist: %s", resolvedPath)
 	}
 
 	if util.IsCompressed(resolvedPath) {
@@ -557,13 +557,13 @@ func (b *Builder) validateAndParseS3Attributes(attributes map[string]interface{}
 		value, found := attributes[key]
 		if !found {
 			if common.StringInSlice(key, mandatoryFields) {
-				return nil, fmt.Errorf("Mandatory field - '%s' not given", key)
+				return nil, errors.Errorf("Mandatory field - '%s' not given", key)
 			}
 			continue
 		}
 		valueAsString, ok := value.(string)
 		if !ok {
-			return nil, fmt.Errorf("The given field - '%s' is not of type string", key)
+			return nil, errors.Errorf("The given field - '%s' is not of type string", key)
 		}
 		parsedAttributes[key] = valueAsString
 	}
@@ -952,7 +952,7 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 	// try to read the file extension
 	functionFileExtension := filepath.Ext(functionPath)
 	if functionFileExtension == "" {
-		return "", fmt.Errorf("Filepath %s has no extension", functionPath)
+		return "", errors.Errorf("Filepath %s has no extension", functionPath)
 	}
 
 	// Remove the final period
@@ -976,7 +976,7 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 	}
 
 	if candidateRuntimeName == "" {
-		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
+		return "", errors.Errorf("Unsupported file extension: %s", functionFileExtension)
 	}
 
 	return candidateRuntimeName, nil
@@ -985,7 +985,7 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 func (b *Builder) getRuntimeFileExtensionByName(runtimeName string) (string, error) {
 	runtimeInfo, found := b.runtimeInfo[runtimeName]
 	if !found {
-		return "", fmt.Errorf("Unsupported runtime name: %s", runtimeName)
+		return "", errors.Errorf("Unsupported runtime name: %s", runtimeName)
 	}
 
 	return runtimeInfo.extension, nil
@@ -994,7 +994,7 @@ func (b *Builder) getRuntimeFileExtensionByName(runtimeName string) (string, err
 func (b *Builder) getRuntimeCommentParser(logger logger.Logger, runtimeName string) (inlineparser.ConfigParser, error) {
 	runtimeInfo, found := b.runtimeInfo[runtimeName]
 	if !found {
-		return nil, fmt.Errorf("Unsupported runtime name: %s", runtimeName)
+		return nil, errors.Errorf("Unsupported runtime name: %s", runtimeName)
 	}
 
 	return runtimeInfo.inlineParser, nil
