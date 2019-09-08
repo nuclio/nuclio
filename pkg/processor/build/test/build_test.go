@@ -59,22 +59,14 @@ echo $MESSAGE`
 }
 
 func (suite *testSuite) TestBuildFuncFromSourceWithWindowsCarriage() {
-	functionSourceCode := `
-# @nuclio.configure
-#
-# function.yaml:
-#   spec:
-#     env:
-#     - name: MESSAGE
-#       value: foo
-
-echo $MESSAGE`
+	functionSourceCode := `#!/bin/sh
+echo 'test'`
 
 	functionSourceCode = strings.Replace(functionSourceCode, "\n", "\r\n", -1)
 	suite.createShellFunctionFromSourceCode("test-windows-carriage", functionSourceCode, &httpsuite.Request{
 		RequestMethod:        "POST",
 		RequestBody:          "",
-		ExpectedResponseBody: "foo\n",
+		ExpectedResponseBody: "test\n",
 	})
 }
 
