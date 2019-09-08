@@ -182,7 +182,6 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
 	// later on (e.g. for creating files)
 	if common.IsFile(b.options.FunctionConfig.Spec.Build.Path) {
-		var functionSourceCode string
 
 		// see if there are any inline blocks in the code. ignore errors during parse / load / whatever
 		b.parseInlineBlocks() // nolint: errcheck
@@ -193,16 +192,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 			return nil, errors.Wrap(b.inlineConfigurationBlock.Error, "Failed to parse inline configuration")
 		}
 
-		// try to see if we need to convert the file path -> functionSourceCode
-		functionSourceCode, err = b.getSourceCodeFromFilePath()
-		if err != nil {
-			b.logger.DebugWith("Not populating function source code", "reason", errors.Cause(err))
-		} else {
+		// populate function source code
+		b.populateFunctionSourceCodeFromFilePath()
 
-			// set into source code
-			b.logger.DebugWith("Populating functionSourceCode from file path", "contents", functionSourceCode)
-			b.options.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
-		}
 	}
 
 	// prepare configuration from both configuration files and things builder infers
@@ -1591,6 +1583,18 @@ func (b *Builder) downloadFunctionFromURL(tempFile *os.File,
 		"headers", headers)
 
 	return common.DownloadFile(functionPath, tempFile, headers)
+}
+
+func (b *Builder) populateFunctionSourceCodeFromFilePath() {
+	functionSourceCode, err := b.getSourceCodeFromFilePath()
+	if err != nil {
+		b.logger.DebugWith("Not populating function source code", "reason", errors.Cause(err))
+	} else {
+
+		// set into source code
+		b.logger.DebugWith("Populating functionSourceCode from file path", "contents", functionSourceCode)
+		b.options.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+	}
 }
 
 func (b *Builder) getFunctionTempFile(tempDir string, functionPath string, isArchive bool) (*os.File, error) {
