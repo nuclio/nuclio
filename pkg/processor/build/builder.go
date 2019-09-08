@@ -474,6 +474,8 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 		moduleFileName = fmt.Sprintf("%s.%s", moduleFileName, runtimeExtension)
 	}
 
+	decodedFunctionSourceCode = common.StripWindowsCarriage(decodedFunctionSourceCode)
+
 	sourceFilePath := path.Join(tempDir, moduleFileName)
 
 	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFilePath)
