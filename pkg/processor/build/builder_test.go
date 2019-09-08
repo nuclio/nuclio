@@ -154,7 +154,7 @@ func (suite *testSuite) TestGetRuntimeNameFromBuildDirNoRuntime() {
 
 func (suite *testSuite) TestWriteFunctionSourceCodeToTempFileWritesReturnsFilePath() {
 	tests := []struct {
-		inputSourceCode string
+		inputSourceCode    string
 		expectedSourceCode string
 	}{
 		{"echo foo", "echo foo"},

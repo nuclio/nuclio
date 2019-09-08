@@ -124,7 +124,7 @@ func (suite *TestSuite) TestBuildBinaryWithResponseHeadersFailsOnInvalidResponse
 	}
 
 	suite.DeployFunctionAndExpectError(createFunctionOptions,
-		"Function creation should be failed" +
+		"Function creation should be failed"+
 			"due to responseHeaders type assertion (expected a map, got 'string')")
 }
 

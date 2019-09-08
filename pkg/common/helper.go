@@ -146,7 +146,7 @@ func GenerateStringMatchVerifier(str string) func(string) bool {
 
 func StripWindowsCarriage(b []byte) []byte {
 	n := utf8.RuneCount(b)
-	for i := 0; i < n - 1; i++ {
+	for i := 0; i < n-1; i++ {
 		if b[i] == '\r' && b[i+1] == '\n' {
 
 			// remove \r, keep \n

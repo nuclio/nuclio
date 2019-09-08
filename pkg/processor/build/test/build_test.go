@@ -465,7 +465,7 @@ func (suite *testSuite) TestBuildFuncFromImageAndRedeploy() {
 
 	// codeEntryType -> image
 	createFunctionFromImageOptions := &platform.CreateFunctionOptions{
-		Logger: suite.Logger,
+		Logger:         suite.Logger,
 		FunctionConfig: createAFunctionResult.UpdatedFunctionConfig,
 	}
 
@@ -511,8 +511,8 @@ func (suite *testSuite) createShellFunctionFromSourceCode(functionName string,
 		Logger: suite.Logger,
 		FunctionConfig: functionconfig.Config{
 			Meta: functionconfig.Meta{
-				Name:        functionName,
-				Namespace:   "default",
+				Name:      functionName,
+				Namespace: "default",
 			},
 			Spec: functionconfig.Spec{
 				Handler: fmt.Sprintf("%s.sh", functionName),
