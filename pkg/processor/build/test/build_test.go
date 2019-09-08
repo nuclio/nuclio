@@ -51,7 +51,7 @@ func (suite *testSuite) TestBuildFuncFromSourceWithInlineConfig() {
 #       value: foo
 
 echo $MESSAGE`
-	suite.createShellFunctionFromSourceCode(functionSourceCode, &httpsuite.Request{
+	suite.createShellFunctionFromSourceCode("test-inline-config", functionSourceCode, &httpsuite.Request{
 		RequestMethod:        "POST",
 		RequestBody:          "",
 		ExpectedResponseBody: "foo\n",
@@ -71,7 +71,7 @@ func (suite *testSuite) TestBuildFuncFromSourceWithWindowsCarriage() {
 echo $MESSAGE`
 
 	functionSourceCode = strings.Replace(functionSourceCode, "\n", "\r\n", -1)
-	suite.createShellFunctionFromSourceCode(functionSourceCode, &httpsuite.Request{
+	suite.createShellFunctionFromSourceCode("test-windows-carriage", functionSourceCode, &httpsuite.Request{
 		RequestMethod:        "POST",
 		RequestBody:          "",
 		ExpectedResponseBody: "foo\n",
@@ -468,6 +468,9 @@ func (suite *testSuite) TestBuildFuncFromImageAndRedeploy() {
 	createAFunctionResult := suite.createShellFunctionWithResponse(functionAResponse)
 	createBFunctionResult := suite.createShellFunctionWithResponse(functionBResponse)
 
+	suite.Assert().NotEmpty(createAFunctionResult.Image)
+	suite.Assert().NotEmpty(createBFunctionResult.Image)
+
 	// codeEntryType -> image
 	createFunctionFromImageOptions := &platform.CreateFunctionOptions{
 		Logger: suite.Logger,
@@ -503,8 +506,15 @@ func (suite *testSuite) TestBuildFuncFromImageAndRedeploy() {
 	})
 }
 
-func (suite *testSuite) createShellFunctionFromSourceCode(sourceCode string, request *httpsuite.Request) *platform.CreateFunctionResult {
-	functionName := xid.New().String()
+func (suite *testSuite) createShellFunctionFromSourceCode(functionName string,
+	sourceCode string,
+	request *httpsuite.Request) *platform.CreateFunctionResult {
+
+	if functionName == "" {
+
+		// fallback to a random name
+		functionName = xid.New().String()
+	}
 	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger: suite.Logger,
 		FunctionConfig: functionconfig.Config{
@@ -525,7 +535,6 @@ func (suite *testSuite) createShellFunctionFromSourceCode(sourceCode string, req
 }
 
 func (suite *testSuite) createShellFunctionWithResponse(responseMessage string) *platform.CreateFunctionResult {
-
 	functionName := xid.New().String()
 	functionSourceCode := fmt.Sprintf(`
 # @nuclio.configure
@@ -534,7 +543,6 @@ func (suite *testSuite) createShellFunctionWithResponse(responseMessage string) 
 #   metadata:
 #     name: %s
 #     namespace: default
-#	  project: default
 #   spec:
 #     env:
 #     - name: MESSAGE
@@ -542,29 +550,11 @@ func (suite *testSuite) createShellFunctionWithResponse(responseMessage string) 
 echo ${MESSAGE}
 `, functionName, responseMessage)
 
-	createFunctionOptions := &platform.CreateFunctionOptions{
-		Logger: suite.Logger,
-		FunctionConfig: functionconfig.Config{
-			Meta: functionconfig.Meta{
-				Namespace: "default",
-			},
-			Spec: functionconfig.Spec{
-				Handler: fmt.Sprintf("%s.sh", functionName),
-				Runtime: "shell",
-				Build: functionconfig.Build{
-					FunctionSourceCode: base64.StdEncoding.EncodeToString([]byte(functionSourceCode)),
-				},
-			},
-		},
-	}
-
-	result := suite.DeployFunctionAndRequest(createFunctionOptions,
+	return suite.createShellFunctionFromSourceCode(functionName, functionSourceCode,
 		&httpsuite.Request{
 			RequestMethod:        "POST",
 			ExpectedResponseBody: fmt.Sprintf("%s\n", responseMessage),
 		})
-	suite.NotEmpty(result.Image)
-	return result
 }
 
 func TestIntegrationSuite(t *testing.T) {
