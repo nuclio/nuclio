@@ -525,11 +525,14 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 
 	createDeployment := func() (interface{}, error) {
 		container := v1.Container{Name: "nuclio"}
+		strategy := apps_v1beta1.DeploymentStrategy{}
 
 		lc.populateDeploymentContainer(functionLabels, function, &container)
+		lc.populateDeploymentStrategy(functionLabels, function, &strategy)
 		container.VolumeMounts = volumeMounts
 
 		deploymentSpec := apps_v1beta1.DeploymentSpec{
+			Strategy: strategy,
 			Replicas: &replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
@@ -581,15 +584,6 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
-
-		if !function.Spec.Resources.Limits.NvidiaGPU().IsZero() {
-
-			// Since k8s ~1.14 do not support rolling update for GPU
-			// redeploying a nuclio function will get stuck if no GPU is available
-			// to overcome it, we simply change the update strategy to recreate
-			// so k8s will kill the existing pod\function and create the new one
-			deployment.Spec.Strategy.Type = apps_v1beta1.RecreateDeploymentStrategyType
-		}
 
 		if function.Spec.ServiceAccount != "" {
 			deployment.Spec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
@@ -1166,6 +1160,20 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 	spec.Rules = append(spec.Rules, ingressRule)
 
 	return nil
+}
+
+func (lc *lazyClient) populateDeploymentStrategy(functionLabels labels.Set,
+	function *nuclioio.NuclioFunction,
+	strategy *apps_v1beta1.DeploymentStrategy) {
+
+	if !function.Spec.Resources.Limits.NvidiaGPU().IsZero() {
+
+		// Since k8s ~1.14 do not support rolling update for GPU
+		// redeploying a nuclio function will get stuck if no GPU is available
+		// to overcome it, we simply change the update strategy to recreate
+		// so k8s will kill the existing pod\function and create the new one
+		strategy.Type = apps_v1beta1.RecreateDeploymentStrategyType
+	}
 }
 
 func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
