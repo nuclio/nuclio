@@ -69,7 +69,7 @@ func (nf *NuclioFunction) GetSpecMinReplicas() int32 {
 				minReplicas = *nf.Spec.MinReplicas
 			}
 		} else {
-			minReplicas = 0
+			minReplicas = 1
 		}
 	}
 
@@ -93,7 +93,7 @@ func (nf *NuclioFunction) GetSpecMaxReplicas() int32 {
 				maxReplicas = *nf.Spec.MaxReplicas
 			}
 		} else {
-			maxReplicas = 10
+			maxReplicas = 1
 		}
 	}
 
