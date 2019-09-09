@@ -379,7 +379,7 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 	if err != nil {
 
 		// if there was an error and it wasn't not found - there was an error. bail
-		if err != nil && !apierrors.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return nil, errors.Wrapf(err, "Failed to get resource")
 		}
 
@@ -581,6 +581,15 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+
+		if !function.Spec.Resources.Limits.NvidiaGPU().IsZero() {
+
+			// Since k8s ~1.14 do not support rolling update for GPU
+			// redeploying a nuclio function will get stuck if no GPU is available
+			// to overcome it, we simply change the update strategy to recreate
+			// so k8s will kill the existing pod\function and create the new one
+			deployment.Spec.Strategy.Type = apps_v1beta1.RecreateDeploymentStrategyType
+		}
 
 		if function.Spec.ServiceAccount != "" {
 			deployment.Spec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
