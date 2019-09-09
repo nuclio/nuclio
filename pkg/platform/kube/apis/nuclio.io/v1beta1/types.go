@@ -19,6 +19,83 @@ type NuclioFunction struct {
 	Status functionconfig.Status `json:"status,omitempty"`
 }
 
+func (nf *NuclioFunction) GetSpecReplicas() *int32 {
+	var replicas int32
+
+	// only when function is scaled to zero or disabled, allow for replicas to be set to zero
+	if nf.Spec.Disabled || nf.Status.State == functionconfig.FunctionStateScaledToZero {
+		replicas = 0
+	} else if nf.Spec.Replicas != nil {
+		if *nf.Spec.Replicas <= 0 {
+			replicas = 0
+		} else {
+			replicas = *nf.Spec.Replicas
+		}
+	} else {
+		minReplicas := nf.GetSpecMinReplicas()
+
+		if minReplicas > 0 {
+			replicas = minReplicas
+		} else {
+			replicas = -1
+		}
+	}
+
+	if replicas == -1 {
+		return nil
+	} else {
+		return &replicas
+	}
+}
+
+func (nf *NuclioFunction) GetSpecMinReplicas() int32 {
+	var minReplicas int32
+
+	if nf.Spec.Replicas != nil {
+		if *nf.Spec.Replicas <= 0 {
+			minReplicas = 0
+		} else {
+			minReplicas = *nf.Spec.Replicas
+		}
+	} else {
+		if nf.Spec.MinReplicas != nil {
+			if *nf.Spec.MinReplicas <= 0 {
+				minReplicas = 0
+			} else {
+				minReplicas = *nf.Spec.MinReplicas
+			}
+		} else {
+			minReplicas = 0
+		}
+	}
+
+	return minReplicas
+}
+
+func (nf *NuclioFunction) GetSpecMaxReplicas() int32 {
+	var maxReplicas int32
+
+	if nf.Spec.Replicas != nil {
+		if *nf.Spec.Replicas <= 0 {
+			maxReplicas = 0
+		} else {
+			maxReplicas = *nf.Spec.Replicas
+		}
+	} else {
+		if nf.Spec.MaxReplicas != nil {
+			if *nf.Spec.MaxReplicas <= 0 {
+				maxReplicas = 0
+			} else {
+				maxReplicas = *nf.Spec.MaxReplicas
+			}
+		} else {
+			maxReplicas = 10
+		}
+	}
+
+	return maxReplicas
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // NuclioFunctionList is a list of NuclioFunction resources
