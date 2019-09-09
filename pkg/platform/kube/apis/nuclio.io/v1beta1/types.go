@@ -37,7 +37,11 @@ func (nf *NuclioFunction) GetSpecReplicas() *int32 {
 		if minReplicas > 0 {
 			replicas = minReplicas
 		} else {
-			replicas = -1
+			if nf.Status.State == functionconfig.FunctionStateWaitingForResourceConfiguration {
+				replicas = 1
+			} else {
+				replicas = -1
+			}
 		}
 	}
 
