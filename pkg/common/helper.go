@@ -144,7 +144,8 @@ func GenerateStringMatchVerifier(str string) func(string) bool {
 	}
 }
 
-func StripWindowsCarriage(b []byte) []byte {
+// Stripping windows carriage '\r' when it comes with a line feed ('\n')
+func RemoveWindowsCarriage(b []byte) []byte {
 	n := utf8.RuneCount(b)
 	for i := 0; i < n-1; i++ {
 		if b[i] == '\r' && b[i+1] == '\n' {

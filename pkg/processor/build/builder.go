@@ -466,7 +466,10 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 		moduleFileName = fmt.Sprintf("%s.%s", moduleFileName, runtimeExtension)
 	}
 
-	decodedFunctionSourceCode = common.StripWindowsCarriage(decodedFunctionSourceCode)
+	// Since our functions run under UNIX, we need to remove '\r\n' & make it '\n'
+	// That way, while deploying a function from the UI while using Windows,
+	// ...the inserted hidden windows characters (^M) will be removed
+	decodedFunctionSourceCode = common.RemoveWindowsCarriage(decodedFunctionSourceCode)
 
 	sourceFilePath := path.Join(tempDir, moduleFileName)
 
