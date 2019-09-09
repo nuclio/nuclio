@@ -594,7 +594,14 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			return nil, err
 		}
 
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
+		body, err := json.Marshal(deployment)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to marshal deployment resource")
+		}
+
+		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Patch(deployment.Name,
+			types.MergePatchType,
+			body)
 	}
 
 	resource, err := lc.createOrUpdateResource("deployment",
