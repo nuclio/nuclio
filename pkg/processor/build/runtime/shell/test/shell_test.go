@@ -113,8 +113,6 @@ func (suite *TestSuite) TestBuildBinaryWithResponseHeaders() {
 		})
 }
 
-// TODO: Fix TestBuildBinaryWithResponseHeadersFailsOnInvalidResponseHeadersType after failed container detection is implemented
-/*
 func (suite *TestSuite) TestBuildBinaryWithResponseHeadersFailsOnInvalidResponseHeadersType() {
 	createFunctionOptions := suite.GetDeployOptions("echoer", "/dev/null")
 
@@ -125,19 +123,10 @@ func (suite *TestSuite) TestBuildBinaryWithResponseHeadersFailsOnInvalidResponse
 		"responseHeaders": "\"header1\": \"value1\", \"header2\": \"value2\"",
 	}
 
-	expectedStatusCode := 500
-
-	suite.DeployFunctionAndRequest(createFunctionOptions,
-		&httpsuite.Request{
-			RequestMethod: "GET",
-			RequestHeaders: map[string]string{
-				"x-nuclio-arguments": "123456",
-			},
-			ExpectedResponseStatusCode: &expectedStatusCode,
-			ExpectedResponseBody:       nil,
-		})
+	suite.DeployFunctionAndExpectError(createFunctionOptions,
+		"Function creation should be failed"+
+			"due to responseHeaders type assertion (expected a map, got 'string')")
 }
-*/
 
 func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
 	functionInfo := buildsuite.FunctionInfo{
