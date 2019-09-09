@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -505,7 +506,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		return nil, errors.Wrap(err, "Failed to get pod annotations")
 	}
 
-	replicas := int32(lc.getFunctionReplicas(function))
+	replicas := function.GetSpecReplicas()
 	lc.logger.DebugWith("Got replicas", "replicas", replicas)
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
@@ -530,7 +531,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		container.VolumeMounts = volumeMounts
 
 		deploymentSpec := apps_v1beta1.DeploymentSpec{
-			Replicas: &replicas,
+			Replicas: replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
 					Name:        function.Name,
@@ -576,7 +577,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		deployment := resource.(*apps_v1beta1.Deployment)
 
 		deployment.Annotations = deploymentAnnotations
-		deployment.Spec.Replicas = &replicas
+		deployment.Spec.Replicas = replicas
 		deployment.Spec.Template.Annotations = podAnnotations
 		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
@@ -635,15 +636,13 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(functionLabels l
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction) (*autos_v2.HorizontalPodAutoscaler, error) {
 
-	maxReplicas := int32(function.Spec.MaxReplicas)
-	if maxReplicas == 0 {
-		maxReplicas = 10
-	}
+	minReplicas := function.GetSpecMinReplicas()
 
-	minReplicas := int32(function.Spec.MinReplicas)
-	if minReplicas == 0 {
-		minReplicas = 1
+	// hpa min replicas must be greater than 1
+	if minReplicas <= 1 {
+		minReplicas = int32(1)
 	}
+	maxReplicas := function.GetSpecMaxReplicas()
 
 	targetCPU := int32(function.Spec.TargetCPU)
 	if targetCPU == 0 {
@@ -831,25 +830,6 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) label
 	}
 
 	return result
-}
-
-func (lc *lazyClient) getFunctionReplicas(function *nuclioio.NuclioFunction) int {
-	replicas := function.Spec.Replicas
-
-	// only when function is scaled to zero, allow for replicas to be set to zero
-	if function.Spec.Disabled || function.Status.State == functionconfig.FunctionStateScaledToZero {
-		replicas = 0
-	} else if replicas == 0 {
-
-		// in this path, there's a always a minimum of one replica than needs to be available
-		if function.Spec.MinReplicas > 0 {
-			replicas = function.Spec.MinReplicas
-		} else {
-			replicas = 1
-		}
-	}
-
-	return replicas
 }
 
 func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[string]string, error) {

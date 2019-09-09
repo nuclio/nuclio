@@ -325,7 +325,7 @@ func NewConfig() *Config {
 			Namespace: "default",
 		},
 		Spec: Spec{
-			Replicas: 1,
+			Replicas: nil,
 		},
 	}
 }
