@@ -20,55 +20,69 @@ type NuclioFunction struct {
 }
 
 func (nf *NuclioFunction) GetSpecReplicas() *int32 {
-	var replicas int32
+	var replicas *int32
+	zero := int32(0)
+	one := int32(1)
 
-	// only when function is scaled to zero or disabled, allow for replicas to be set to zero
 	if nf.Spec.Disabled || nf.Status.State == functionconfig.FunctionStateScaledToZero {
-		replicas = 0
+		replicas = &zero
 	} else if nf.Spec.Replicas != nil {
-		if *nf.Spec.Replicas <= 0 {
-			replicas = 0
+
+		// Negative values -> 0
+		if *nf.Spec.Replicas < 0 {
+			replicas = &zero
 		} else {
-			replicas = *nf.Spec.Replicas
+			replicas = nf.Spec.Replicas
 		}
 	} else {
+
+		// If the user hasn't specified desired replicas - base on the MinReplicas
 		minReplicas := nf.GetSpecMinReplicas()
 
 		if minReplicas > 0 {
-			replicas = minReplicas
+			replicas = &minReplicas
 		} else {
+
+			// If the function doesn't have resources yet (creating/scaling up from zero) - start from 1
 			if nf.Status.State == functionconfig.FunctionStateWaitingForResourceConfiguration {
-				replicas = 1
+				replicas = &one
 			} else {
-				replicas = -1
+
+				// Should get here only in case of update of an existing deployment,
+				// sending nil meaning leave the existing replicas as is
+				replicas = nil
 			}
 		}
 	}
 
-	if replicas == -1 {
-		return nil
-	} else {
-		return &replicas
-	}
+	return replicas
+
 }
 
 func (nf *NuclioFunction) GetSpecMinReplicas() int32 {
 	var minReplicas int32
 
+	// Replicas takes precedence over MinReplicas, so if given override with its value
 	if nf.Spec.Replicas != nil {
-		if *nf.Spec.Replicas <= 0 {
+
+		// Negative values -> 0
+		if *nf.Spec.Replicas < 0 {
 			minReplicas = 0
 		} else {
 			minReplicas = *nf.Spec.Replicas
 		}
 	} else {
 		if nf.Spec.MinReplicas != nil {
-			if *nf.Spec.MinReplicas <= 0 {
+
+			// Negative values -> 0
+			if *nf.Spec.MinReplicas < 0 {
 				minReplicas = 0
 			} else {
 				minReplicas = *nf.Spec.MinReplicas
 			}
 		} else {
+
+			// If neither Replicas nor MinReplicas is given, default to 1
 			minReplicas = 1
 		}
 	}
@@ -79,7 +93,10 @@ func (nf *NuclioFunction) GetSpecMinReplicas() int32 {
 func (nf *NuclioFunction) GetSpecMaxReplicas() int32 {
 	var maxReplicas int32
 
+	// Replicas takes precedence over MaxReplicas, so if given override with its value
 	if nf.Spec.Replicas != nil {
+
+		// Negative values -> 0
 		if *nf.Spec.Replicas <= 0 {
 			maxReplicas = 0
 		} else {
@@ -87,12 +104,16 @@ func (nf *NuclioFunction) GetSpecMaxReplicas() int32 {
 		}
 	} else {
 		if nf.Spec.MaxReplicas != nil {
+
+			// Negative values -> 0
 			if *nf.Spec.MaxReplicas <= 0 {
 				maxReplicas = 0
 			} else {
 				maxReplicas = *nf.Spec.MaxReplicas
 			}
 		} else {
+
+			// If neither Replicas nor MaxReplicas is given, default to 1
 			maxReplicas = 1
 		}
 	}
