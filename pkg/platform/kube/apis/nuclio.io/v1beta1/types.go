@@ -19,7 +19,7 @@ type NuclioFunction struct {
 	Status functionconfig.Status `json:"status,omitempty"`
 }
 
-func (nf *NuclioFunction) GetSpecReplicas() *int32 {
+func (nf *NuclioFunction) GetComputedReplicas() *int32 {
 	var replicas *int32
 	zero := int32(0)
 	one := int32(1)
@@ -37,7 +37,7 @@ func (nf *NuclioFunction) GetSpecReplicas() *int32 {
 	} else {
 
 		// If the user hasn't specified desired replicas - base on the MinReplicas
-		minReplicas := nf.GetSpecMinReplicas()
+		minReplicas := nf.GetComputedMinReplicas()
 
 		if minReplicas > 0 {
 			replicas = &minReplicas
@@ -59,7 +59,7 @@ func (nf *NuclioFunction) GetSpecReplicas() *int32 {
 
 }
 
-func (nf *NuclioFunction) GetSpecMinReplicas() int32 {
+func (nf *NuclioFunction) GetComputedMinReplicas() int32 {
 	var minReplicas int32
 
 	// Replicas takes precedence over MinReplicas, so if given override with its value
@@ -90,7 +90,7 @@ func (nf *NuclioFunction) GetSpecMinReplicas() int32 {
 	return minReplicas
 }
 
-func (nf *NuclioFunction) GetSpecMaxReplicas() int32 {
+func (nf *NuclioFunction) GetComputedMaxReplicas() int32 {
 	var maxReplicas int32
 
 	// Replicas takes precedence over MaxReplicas, so if given override with its value

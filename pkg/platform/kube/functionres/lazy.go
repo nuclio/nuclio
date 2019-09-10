@@ -506,7 +506,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		return nil, errors.Wrap(err, "Failed to get pod annotations")
 	}
 
-	replicas := function.GetSpecReplicas()
+	replicas := function.GetComputedReplicas()
 	lc.logger.DebugWith("Got replicas", "replicas", replicas)
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
@@ -643,13 +643,13 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(functionLabels l
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction) (*autos_v2.HorizontalPodAutoscaler, error) {
 
-	minReplicas := function.GetSpecMinReplicas()
+	minReplicas := function.GetComputedMinReplicas()
 
 	// hpa min replicas must be greater than 1
 	if minReplicas <= 1 {
 		minReplicas = int32(1)
 	}
-	maxReplicas := function.GetSpecMaxReplicas()
+	maxReplicas := function.GetComputedMaxReplicas()
 
 	targetCPU := int32(function.Spec.TargetCPU)
 	if targetCPU == 0 {
