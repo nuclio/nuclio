@@ -399,7 +399,7 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 		return nil, errors.Wrap(err, "Failed to update resource")
 	}
 
-	lc.logger.DebugWith("Resource updated")
+	lc.logger.DebugWith("Resource updated", "name", resourceName)
 
 	return resource, nil
 }
@@ -644,12 +644,18 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 	function *nuclioio.NuclioFunction) (*autos_v2.HorizontalPodAutoscaler, error) {
 
 	minReplicas := function.GetComputedMinReplicas()
+	maxReplicas := function.GetComputedMaxReplicas()
+	lc.logger.DebugWith("Got min/max replicas", "minReplicas", minReplicas, "maxReplicas", maxReplicas)
 
-	// hpa min replicas must be greater than 1
-	if minReplicas <= 1 {
+	// hpa min replicas must be equal or greater than 1
+	if minReplicas < 1 {
 		minReplicas = int32(1)
 	}
-	maxReplicas := function.GetComputedMaxReplicas()
+
+	// hpa max replicas must be equal or greater than 1
+	if maxReplicas < 1 {
+		maxReplicas = int32(1)
+	}
 
 	targetCPU := int32(function.Spec.TargetCPU)
 	if targetCPU == 0 {
@@ -715,6 +721,8 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 			deleteOptions := &meta_v1.DeleteOptions{
 				PropagationPolicy: &propogationPolicy,
 			}
+
+			lc.logger.DebugWith("Min and max replicas spec equal, deleting hpa", "name", hpa.Name)
 
 			err := lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
 			return nil, err
