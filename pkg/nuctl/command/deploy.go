@@ -162,24 +162,18 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				}
 			}
 
-			// check if replicas is set (-1 is the default - counted as not set)
-			if commandeer.replicas == -1 {
-				commandeer.functionConfig.Spec.Replicas = nil
-			} else {
+			// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.Replicas as nil)
+			if commandeer.replicas >= 0 {
 				commandeer.functionConfig.Spec.Replicas = &commandeer.replicas
 			}
 
-			// check if minReplicas is set (-1 is the default - counted as not set)
-			if commandeer.minReplicas == -1 {
-				commandeer.functionConfig.Spec.MinReplicas = nil
-			} else {
+			// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.MinReplicas as nil)
+			if commandeer.minReplicas >= 0 {
 				commandeer.functionConfig.Spec.MinReplicas = &commandeer.minReplicas
 			}
 
-			// check if maxReplicas is set (-1 is the default - counted as not set)
-			if commandeer.maxReplicas == -1 {
-				commandeer.functionConfig.Spec.MaxReplicas = nil
-			} else {
+			// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.MaxReplicas as nil)
+			if commandeer.maxReplicas >= 0 {
 				commandeer.functionConfig.Spec.MaxReplicas = &commandeer.maxReplicas
 			}
 
