@@ -57,6 +57,7 @@ const (
 	containerHTTPPortName   = "http"
 	containerMetricPort     = 8090
 	containerMetricPortName = "metrics"
+	nvidiaGpuResourceName   = "nvidia.com/gpu"
 )
 
 //
@@ -525,14 +526,10 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 
 	createDeployment := func() (interface{}, error) {
 		container := v1.Container{Name: "nuclio"}
-		strategy := apps_v1beta1.DeploymentStrategy{}
-
 		lc.populateDeploymentContainer(functionLabels, function, &container)
-		lc.populateDeploymentStrategy(functionLabels, function, &strategy)
 		container.VolumeMounts = volumeMounts
 
 		deploymentSpec := apps_v1beta1.DeploymentSpec{
-			Strategy: strategy,
 			Replicas: &replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
@@ -552,6 +549,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 				},
 			},
 		}
+		lc.populateDeploymentStrategy(functionLabels, function, &deploymentSpec.Strategy)
 
 		if function.Spec.ServiceAccount != "" {
 			deploymentSpec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
@@ -584,6 +582,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+		lc.populateDeploymentStrategy(functionLabels, function, &deployment.Spec.Strategy)
 
 		if function.Spec.ServiceAccount != "" {
 			deployment.Spec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
@@ -1166,13 +1165,17 @@ func (lc *lazyClient) populateDeploymentStrategy(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	strategy *apps_v1beta1.DeploymentStrategy) {
 
-	if !function.Spec.Resources.Limits.NvidiaGPU().IsZero() {
-
-		// Since k8s ~1.14 do not support rolling update for GPU
-		// redeploying a nuclio function will get stuck if no GPU is available
-		// to overcome it, we simply change the update strategy to recreate
-		// so k8s will kill the existing pod\function and create the new one
-		strategy.Type = apps_v1beta1.RecreateDeploymentStrategyType
+	// Since k8s (ATM) do not support rolling update for GPU
+	// redeploying a nuclio function will get stuck if no GPU is available
+	// to overcome it, we simply change the update strategy to recreate
+	// so k8s will kill the existing pod\function and create the new one
+	if gpuResource, ok := function.Spec.Resources.Limits[nvidiaGpuResourceName]; ok {
+		if !gpuResource.IsZero() {
+			strategy.Type = apps_v1beta1.RecreateDeploymentStrategyType
+			lc.logger.DebugWith("Changing deployment strategy",
+				"gpuResource", gpuResource,
+				"strategy", strategy)
+		}
 	}
 }
 
