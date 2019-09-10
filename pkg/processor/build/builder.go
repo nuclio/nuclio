@@ -176,7 +176,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	// resolve the function path - download in case its a URL
 	b.options.FunctionConfig.Spec.Build.Path, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to resolve function path")
+		return nil, err
 	}
 
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
@@ -513,21 +513,21 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		}
 	}
 
-	// user has to provide valid url when code entry type is github
-	if !common.IsURL(functionPath) && codeEntryType == GithubEntryType {
+	// user has to provide valid url when code entry type is github or archive
+	if !common.IsURL(functionPath) && (codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) {
 		return "", errors.New("Must provide valid URL when code entry type is github or archive")
 	}
 
 	// if the function path is a URL, type is Github or S3 - first download the file
 	// for backwards compatibility, don't check for entry type url specifically
 	if functionPath, err = b.resolveFunctionPathFromURL(functionPath, codeEntryType); err != nil {
-		return "", errors.Wrap(err, "Failed to download function from URL")
+		return "", errors.Wrap(err, "Failed to download function from the given URL")
 	}
 
 	// Assume it's a local path
 	resolvedPath, err := filepath.Abs(filepath.Clean(functionPath))
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to get resolve non-url path")
+		return "", errors.Wrap(err, "Failed to resolve non-url path")
 	}
 
 	if !common.FileExists(resolvedPath) {
