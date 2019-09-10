@@ -153,24 +153,30 @@ func (suite *testSuite) TestGetRuntimeNameFromBuildDirNoRuntime() {
 }
 
 func (suite *testSuite) TestWriteFunctionSourceCodeToTempFileWritesReturnsFilePath() {
-	functionSourceCode := "echo foo"
-	encodedFunctionSourceCode := base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+	tests := []struct {
+		inputSourceCode    string
+		expectedSourceCode string
+	}{
+		{"echo foo", "echo foo"},
+		{"echo foo\n", "echo foo\n"},
+		{"echo foo\r\n", "echo foo\n"},
+	}
 	suite.builder.options.FunctionConfig.Spec.Runtime = "shell"
-	suite.builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = encodedFunctionSourceCode
-	suite.builder.options.FunctionConfig.Spec.Build.Path = ""
-
-	err := suite.builder.createTempDir()
-	suite.Assert().NoError(err)
-	defer suite.builder.cleanupTempDir()
-
-	tempPath, err := suite.builder.writeFunctionSourceCodeToTempFile(suite.builder.options.FunctionConfig.Spec.Build.FunctionSourceCode)
-	suite.Assert().NoError(err)
-	suite.NotNil(tempPath)
-
-	resultSourceCode, err := ioutil.ReadFile(tempPath)
-	suite.Assert().NoError(err)
-
-	suite.Assert().Equal(functionSourceCode, string(resultSourceCode))
+	for _, test := range tests {
+		err := suite.builder.createTempDir()
+		suite.Require().NoError(err)
+		encodedFunctionSourceCode := base64.StdEncoding.EncodeToString([]byte(test.inputSourceCode))
+		suite.builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = encodedFunctionSourceCode
+		suite.builder.options.FunctionConfig.Spec.Build.Path = ""
+		tempPath, err := suite.builder.writeFunctionSourceCodeToTempFile(encodedFunctionSourceCode)
+		suite.Assert().NoError(err)
+		suite.NotNil(tempPath)
+		resultSourceCode, err := ioutil.ReadFile(tempPath)
+		suite.Assert().NoError(err)
+		suite.Assert().Equal(test.expectedSourceCode, string(resultSourceCode))
+		err = suite.builder.cleanupTempDir()
+		suite.Require().NoError(err)
+	}
 }
 
 func (suite *testSuite) TestWriteFunctionSourceCodeToTempFileFailsOnUnknownExtension() {

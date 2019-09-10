@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 type testSuite struct {
@@ -39,37 +41,33 @@ type testSuite struct {
 }
 
 func (suite *testSuite) TestBuildFuncFromSourceWithInlineConfig() {
-	createFunctionOptions := &platform.CreateFunctionOptions{
-		Logger: suite.Logger,
-	}
-
 	functionSourceCode := `
 # @nuclio.configure
 #
 # function.yaml:
-#   metadata:
-#     name: echo-foo-inline
-#     namespace: default
 #   spec:
 #     env:
 #     - name: MESSAGE
 #       value: foo
 
 echo $MESSAGE`
+	suite.createShellFunctionFromSourceCode("test-inline-config", functionSourceCode, &httpsuite.Request{
+		RequestMethod:        "POST",
+		RequestBody:          "",
+		ExpectedResponseBody: "foo\n",
+	})
+}
 
-	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
-	createFunctionOptions.FunctionConfig.Spec.Handler = "echo-foo-inline.sh"
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
-	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
-	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(
-		[]byte(functionSourceCode))
+func (suite *testSuite) TestBuildFuncFromSourceWithWindowsCarriage() {
+	functionSourceCode := `#!/bin/sh
+echo 'test'`
 
-	suite.DeployFunctionAndRequest(createFunctionOptions,
-		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "",
-			ExpectedResponseBody: "foo\n",
-		})
+	functionSourceCode = strings.Replace(functionSourceCode, "\n", "\r\n", -1)
+	suite.createShellFunctionFromSourceCode("test-windows-carriage", functionSourceCode, &httpsuite.Request{
+		RequestMethod:        "POST",
+		RequestBody:          "",
+		ExpectedResponseBody: "test\n",
+	})
 }
 
 func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
@@ -455,31 +453,23 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 func (suite *testSuite) TestBuildFuncFromImageAndRedeploy() {
 
 	// generate random responses
-	functionAResponse := xid.New().String()
-	functionBResponse := xid.New().String()
+	functionAResponse := fmt.Sprintf("FunctionA-%s", xid.New().String())
+	functionBResponse := fmt.Sprintf("FunctionB-%s", xid.New().String())
 
 	// create two functions
-	createAFunctionResult := suite.createShellFunction(functionAResponse)
-	createBFunctionResult := suite.createShellFunction(functionBResponse)
+	createAFunctionResult := suite.createShellFunctionWithResponse(functionAResponse)
+	createBFunctionResult := suite.createShellFunctionWithResponse(functionBResponse)
+
+	suite.Assert().NotEmpty(createAFunctionResult.Image)
+	suite.Assert().NotEmpty(createBFunctionResult.Image)
 
 	// codeEntryType -> image
 	createFunctionFromImageOptions := &platform.CreateFunctionOptions{
-		Logger: suite.Logger,
-		FunctionConfig: functionconfig.Config{
-			Meta: functionconfig.Meta{
-				Name:      "from-image",
-				Namespace: createAFunctionResult.UpdatedFunctionConfig.Meta.Namespace,
-			},
-			Spec: functionconfig.Spec{
-				Handler: createAFunctionResult.UpdatedFunctionConfig.Spec.Handler,
-				Image:   createAFunctionResult.Image,
-				Runtime: createAFunctionResult.UpdatedFunctionConfig.Spec.Runtime,
-				Env:     createAFunctionResult.UpdatedFunctionConfig.Spec.Env,
-			},
-		},
+		Logger:         suite.Logger,
+		FunctionConfig: createAFunctionResult.UpdatedFunctionConfig,
 	}
 
-	// deploy function using functionA image name
+	// deploy the 3rd function based on functionA image name
 	suite.DeployFunction(createFunctionFromImageOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		request := &httpsuite.Request{
 			RequestMethod:        "POST",
@@ -491,8 +481,12 @@ func (suite *testSuite) TestBuildFuncFromImageAndRedeploy() {
 		suite.NotEmpty(deployResult.Image)
 
 		// update function to take image from functionB
+		createFunctionFromImageOptions.FunctionConfig.Meta.Name = createBFunctionResult.UpdatedFunctionConfig.Meta.Name
 		createFunctionFromImageOptions.FunctionConfig.Spec.Handler = createBFunctionResult.UpdatedFunctionConfig.Spec.Handler
 		createFunctionFromImageOptions.FunctionConfig.Spec.Image = createBFunctionResult.Image
+		createFunctionFromImageOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+			{Name: "MESSAGE", Value: functionBResponse},
+		}
 
 		// redeploy function, use functionB image - its response should be equal to functionB
 		redeployResults := suite.DeployFunctionAndRequest(createFunctionFromImageOptions,
@@ -504,8 +498,35 @@ func (suite *testSuite) TestBuildFuncFromImageAndRedeploy() {
 	})
 }
 
-func (suite *testSuite) createShellFunction(responseMessage string) *platform.CreateFunctionResult {
+func (suite *testSuite) createShellFunctionFromSourceCode(functionName string,
+	sourceCode string,
+	request *httpsuite.Request) *platform.CreateFunctionResult {
 
+	if functionName == "" {
+
+		// fallback to a random name
+		functionName = xid.New().String()
+	}
+	createFunctionOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Name:      functionName,
+				Namespace: "default",
+			},
+			Spec: functionconfig.Spec{
+				Handler: fmt.Sprintf("%s.sh", functionName),
+				Runtime: "shell",
+				Build: functionconfig.Build{
+					FunctionSourceCode: base64.StdEncoding.EncodeToString([]byte(sourceCode)),
+				},
+			},
+		},
+	}
+	return suite.DeployFunctionAndRequest(createFunctionOptions, request)
+}
+
+func (suite *testSuite) createShellFunctionWithResponse(responseMessage string) *platform.CreateFunctionResult {
 	functionName := xid.New().String()
 	functionSourceCode := fmt.Sprintf(`
 # @nuclio.configure
@@ -517,33 +538,15 @@ func (suite *testSuite) createShellFunction(responseMessage string) *platform.Cr
 #   spec:
 #     env:
 #     - name: MESSAGE
-#       value: foo
-echo %s
+#       value: %s
+echo ${MESSAGE}
 `, functionName, responseMessage)
 
-	createFunctionOptions := &platform.CreateFunctionOptions{
-		Logger: suite.Logger,
-		FunctionConfig: functionconfig.Config{
-			Meta: functionconfig.Meta{
-				Namespace: "default",
-			},
-			Spec: functionconfig.Spec{
-				Handler: fmt.Sprintf("%s.sh", functionName),
-				Runtime: "shell",
-				Build: functionconfig.Build{
-					FunctionSourceCode: base64.StdEncoding.EncodeToString([]byte(functionSourceCode)),
-				},
-			},
-		},
-	}
-
-	result := suite.DeployFunctionAndRequest(createFunctionOptions,
+	return suite.createShellFunctionFromSourceCode(functionName, functionSourceCode,
 		&httpsuite.Request{
 			RequestMethod:        "POST",
 			ExpectedResponseBody: fmt.Sprintf("%s\n", responseMessage),
 		})
-	suite.NotEmpty(result.Image)
-	return result
 }
 
 func TestIntegrationSuite(t *testing.T) {

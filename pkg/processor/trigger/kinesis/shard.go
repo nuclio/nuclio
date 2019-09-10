@@ -57,7 +57,7 @@ func (s *shard) readFromShard() error {
 	getShardIteratorArgs := kinesisclient.NewArgs()
 	getShardIteratorArgs.Add("StreamName", s.kinesisTrigger.configuration.StreamName)
 	getShardIteratorArgs.Add("ShardId", s.shardID)
-	getShardIteratorArgs.Add("ShardIteratorType", "TRIM_HORIZON")
+	getShardIteratorArgs.Add("ShardIteratorType", "LATEST")
 
 	getShardIteratorResponse, err := s.kinesisTrigger.kinesisClient.GetShardIterator(getShardIteratorArgs)
 	if err != nil {

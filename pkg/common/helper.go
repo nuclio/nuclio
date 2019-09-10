@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 )
@@ -141,4 +142,18 @@ func GenerateStringMatchVerifier(str string) func(string) bool {
 	return func(toMatch string) bool {
 		return toMatch == str
 	}
+}
+
+// Removing windows carriage character '\r' when it follows by '\n'
+func RemoveWindowsCarriage(b []byte) []byte {
+	n := utf8.RuneCount(b)
+	for i := 0; i < n-1; i++ {
+		if b[i] == '\r' && b[i+1] == '\n' {
+
+			// remove \r, keep \n
+			b = append(b[:i], b[i+1:]...)
+			n--
+		}
+	}
+	return b
 }
