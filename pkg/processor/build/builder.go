@@ -545,13 +545,6 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		return "", errors.Errorf("Function path doesn't exist: %s", resolvedPath)
 	}
 
-	if util.IsCompressed(resolvedPath) {
-		resolvedPath, err = b.decompressFunctionArchive(resolvedPath)
-		if err != nil {
-			return "", errors.Wrap(err, "Failed to decompress function archive")
-		}
-	}
-
 	// when no code entry type was passed and it's an archive or jar
 	if codeEntryType == "" && (util.IsCompressed(resolvedPath) || util.IsJar(resolvedPath)) {
 
@@ -560,6 +553,13 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 			b.options.FunctionConfig.Spec.Build.CodeEntryType = ArchiveEntryType
 		} else {
 			b.options.FunctionConfig.Spec.Build.CodeEntryType = ImageEntryType
+		}
+	}
+
+	if util.IsCompressed(resolvedPath) {
+		resolvedPath, err = b.decompressFunctionArchive(resolvedPath)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to decompress function archive")
 		}
 	}
 
