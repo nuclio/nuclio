@@ -324,9 +324,7 @@ func NewConfig() *Config {
 		Meta: Meta{
 			Namespace: "default",
 		},
-		Spec: Spec{
-			Replicas: nil,
-		},
+		Spec: Spec{},
 	}
 }
 
