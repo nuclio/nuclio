@@ -1165,7 +1165,7 @@ func (lc *lazyClient) populateDeploymentStrategy(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	strategy *apps_v1beta1.DeploymentStrategy) {
 
-	// Since k8s (ATM) do not support rolling update for GPU
+	// Since k8s (ATM) does not support rolling update for GPU
 	// redeploying a nuclio function will get stuck if no GPU is available
 	// to overcome it, we simply change the update strategy to recreate
 	// so k8s will kill the existing pod\function and create the new one
