@@ -31,7 +31,8 @@ func (nf *NuclioFunction) GetComputedReplicas() *int32 {
 		if *nf.Spec.Replicas < 0 {
 			return &zero
 		} else {
-			return nf.Spec.Replicas
+			replicas := int32(*nf.Spec.Replicas)
+			return &replicas
 		}
 	} else {
 
@@ -63,7 +64,7 @@ func (nf *NuclioFunction) GetComputedMinReplicas() int32 {
 		if *nf.Spec.Replicas < 0 {
 			return 0
 		} else {
-			return *nf.Spec.Replicas
+			return int32(*nf.Spec.Replicas)
 		}
 	} else {
 		if nf.Spec.MinReplicas != nil {
@@ -72,7 +73,7 @@ func (nf *NuclioFunction) GetComputedMinReplicas() int32 {
 			if *nf.Spec.MinReplicas < 0 {
 				return 0
 			} else {
-				return *nf.Spec.MinReplicas
+				return int32(*nf.Spec.MinReplicas)
 			}
 		} else {
 
@@ -88,19 +89,19 @@ func (nf *NuclioFunction) GetComputedMaxReplicas() int32 {
 	if nf.Spec.Replicas != nil {
 
 		// Negative values -> 0
-		if *nf.Spec.Replicas <= 0 {
+		if *nf.Spec.Replicas < 0 {
 			return 0
 		} else {
-			return *nf.Spec.Replicas
+			return int32(*nf.Spec.Replicas)
 		}
 	} else {
 		if nf.Spec.MaxReplicas != nil {
 
 			// Negative values -> 0
-			if *nf.Spec.MaxReplicas <= 0 {
+			if *nf.Spec.MaxReplicas < 0 {
 				return 0
 			} else {
-				return *nf.Spec.MaxReplicas
+				return int32(*nf.Spec.MaxReplicas)
 			}
 		} else {
 

@@ -343,7 +343,7 @@ type functionTestSuite struct {
 }
 
 func (suite *functionTestSuite) TestGetDetailSuccessful() {
-	replicas := int32(10)
+	replicas := 10
 	returnedFunction := platform.AbstractFunction{}
 	returnedFunction.Config.Meta.Name = "f1"
 	returnedFunction.Config.Meta.Namespace = "f1Namespace"

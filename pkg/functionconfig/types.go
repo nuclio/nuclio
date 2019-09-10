@@ -217,9 +217,9 @@ type Spec struct {
 	Resources               v1.ResourceRequirements `json:"resources,omitempty"`
 	Image                   string                  `json:"image,omitempty"`
 	ImageHash               string                  `json:"imageHash,omitempty"`
-	Replicas                *int32                  `json:"replicas,omitempty"`
-	MinReplicas             *int32                  `json:"minReplicas,omitempty"`
-	MaxReplicas             *int32                  `json:"maxReplicas,omitempty"`
+	Replicas                *int                    `json:"replicas,omitempty"`
+	MinReplicas             *int                    `json:"minReplicas,omitempty"`
+	MaxReplicas             *int                    `json:"maxReplicas,omitempty"`
 	TargetCPU               int                     `json:"targetCPU,omitempty"`
 	DataBindings            map[string]DataBinding  `json:"dataBindings,omitempty"`
 	Triggers                map[string]Trigger      `json:"triggers,omitempty"`
