@@ -507,7 +507,11 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	}
 
 	replicas := function.GetComputedReplicas()
-	lc.logger.DebugWith("Got replicas", "replicas", replicas)
+	if replicas != nil {
+		lc.logger.DebugWith("Got replicas", "replicas", *replicas)
+	} else {
+		lc.logger.DebugWith("Got nil replicas")
+	}
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function annotations")
