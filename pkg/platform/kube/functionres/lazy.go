@@ -576,6 +576,23 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	updateDeployment := func(resource interface{}) (interface{}, error) {
 		deployment := resource.(*apps_v1beta1.Deployment)
 
+		// If we got nil replicas it means leave as is (in order to prevent unwanted scale down)
+		// but need to make sure the current replicas is not less than the min replicas
+		if replicas == nil {
+			minReplicas := function.GetComputedMinReplicas()
+			maxReplicas := function.GetComputedMaxReplicas()
+			lc.logger.DebugWith("Verifying current replicas not lower than minReplicas or higher than max",
+				"maxReplicas", maxReplicas,
+				"minReplicas", minReplicas,
+				"currentReplicas", deployment.Status.Replicas)
+			if deployment.Status.Replicas > maxReplicas {
+				replicas = &maxReplicas
+			}
+			if deployment.Status.Replicas < minReplicas {
+				replicas = &minReplicas
+			}
+		}
+
 		deployment.Annotations = deploymentAnnotations
 		deployment.Spec.Replicas = replicas
 		deployment.Spec.Template.Annotations = podAnnotations
