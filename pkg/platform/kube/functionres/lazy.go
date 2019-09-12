@@ -665,7 +665,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 
 	minReplicas := function.GetComputedMinReplicas()
 	maxReplicas := function.GetComputedMaxReplicas()
-	lc.logger.DebugWith("Got min/max replicas", "minReplicas", minReplicas, "maxReplicas", maxReplicas)
+	lc.logger.DebugWith("Create/Update hpa", "minReplicas", minReplicas, "maxReplicas", maxReplicas)
 
 	// hpa min replicas must be equal or greater than 1
 	if minReplicas < 1 {
@@ -742,7 +742,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 				PropagationPolicy: &propogationPolicy,
 			}
 
-			lc.logger.DebugWith("Min and max replicas spec equal, deleting hpa", "name", hpa.Name)
+			lc.logger.DebugWith("Deleting hpa - min replicas and max replicas are equal", "name", hpa.Name)
 
 			err := lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
 			return nil, err
