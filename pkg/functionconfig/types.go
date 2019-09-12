@@ -324,7 +324,6 @@ func NewConfig() *Config {
 		Meta: Meta{
 			Namespace: "default",
 		},
-		Spec: Spec{},
 	}
 }
 
