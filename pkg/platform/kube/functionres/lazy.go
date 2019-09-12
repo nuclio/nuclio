@@ -45,7 +45,7 @@ import (
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -1214,7 +1214,7 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 		container.Resources.Requests = make(v1.ResourceList)
 
 		// the default is 500 milli cpu
-		cpuQuantity, err := resource.ParseQuantity("25m") // nolint: errcheck
+		cpuQuantity, err := apiresource.ParseQuantity("25m") // nolint: errcheck
 		if err == nil {
 			container.Resources.Requests["cpu"] = cpuQuantity
 		}
@@ -1434,7 +1434,7 @@ func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int3
 	var metricSpecs []autos_v2.MetricSpec
 	config := lc.platformConfigurationProvider.GetPlatformConfiguration()
 	if lc.functionsHaveAutoScaleMetrics(config) {
-		targetValue, err := resource.ParseQuantity(config.AutoScale.TargetValue)
+		targetValue, err := apiresource.ParseQuantity(config.AutoScale.TargetValue)
 		if err != nil {
 			return metricSpecs, errors.Wrap(err, "Failed to parse target value for auto scale")
 		}
