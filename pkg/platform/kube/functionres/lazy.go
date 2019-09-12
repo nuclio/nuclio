@@ -591,8 +591,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 				"currentReplicas", deployment.Status.Replicas)
 			if deployment.Status.Replicas > maxReplicas {
 				replicas = &maxReplicas
-			}
-			if deployment.Status.Replicas < minReplicas {
+			} else if deployment.Status.Replicas < minReplicas {
 				replicas = &minReplicas
 			}
 		}
