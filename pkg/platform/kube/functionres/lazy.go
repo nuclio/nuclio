@@ -618,18 +618,17 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 		return errors.Wrap(err, "Failed to get deployment augmented configs")
 	}
 
-	// enrich & merge
+	// merge
 	for _, augmentedConfig := range deploymentAugmentedConfigs {
-
-		// if no strategy was given by the user, use defaults
-		if augmentedConfig.Kubernetes.Deployment.Spec.Strategy.Type == "" &&
-			augmentedConfig.Kubernetes.Deployment.Spec.Strategy.RollingUpdate == nil {
-			lc.populateDefaultDeploymentStrategy(function, &deployment.Spec.Strategy)
-		}
-
 		if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
 			return errors.Wrap(err, "Failed to merge deployment spec")
 		}
+	}
+
+	// if no strategy was given by the user, use defaults
+	if deployment.Spec.Strategy.Type == "" &&
+		deployment.Spec.Strategy.RollingUpdate == nil {
+		lc.populateDefaultDeploymentStrategy(function, &deployment.Spec.Strategy)
 	}
 	return nil
 }
