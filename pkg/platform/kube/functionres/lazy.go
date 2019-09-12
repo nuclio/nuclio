@@ -545,7 +545,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 					Containers: []v1.Container{
 						container,
 					},
-					Volumes: volumes,
+					Volumes:            volumes,
 					ServiceAccountName: function.Spec.ServiceAccount,
 				},
 			},
