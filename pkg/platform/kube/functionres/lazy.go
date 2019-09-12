@@ -549,7 +549,6 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 				},
 			},
 		}
-		lc.populateDeploymentStrategy(functionLabels, function, &deploymentSpec.Strategy)
 
 		if function.Spec.ServiceAccount != "" {
 			deploymentSpec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
@@ -566,7 +565,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		}
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
-		if err := lc.enrichDeploymentFromPlatformConfiguration(functionLabels, deploymentResource); err != nil {
+		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deploymentResource); err != nil {
 			return nil, err
 		}
 
@@ -582,7 +581,6 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
-		lc.populateDeploymentStrategy(functionLabels, function, &deployment.Spec.Strategy)
 
 		if function.Spec.ServiceAccount != "" {
 			deployment.Spec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
@@ -591,7 +589,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment
 		// enrich deployment spec with default fields that were passed inside the platform configuration
-		if err := lc.enrichDeploymentFromPlatformConfiguration(functionLabels, deployment); err != nil {
+		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment); err != nil {
 			return nil, err
 		}
 
@@ -611,27 +609,55 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	return resource.(*apps_v1beta1.Deployment), err
 }
 
-func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(functionLabels labels.Set,
+func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclioio.NuclioFunction,
 	deployment *apps_v1beta1.Deployment) error {
 
+	// get deployment augmented configurations for that specific function
+	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get deployment augmented configs")
+	}
+
+	// enrich & merge
+	for _, augmentedConfig := range deploymentAugmentedConfigs {
+
+		// if no strategy was given by the user, use defaults
+		if augmentedConfig.Kubernetes.Deployment.Spec.Strategy.Type == "" &&
+			augmentedConfig.Kubernetes.Deployment.Spec.Strategy.RollingUpdate == nil {
+			lc.populateDefaultDeploymentStrategy(function, &deployment.Spec.Strategy)
+		}
+
+		if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
+			return errors.Wrap(err, "Failed to merge deployment spec")
+		}
+	}
+	return nil
+}
+
+func (lc *lazyClient) getDeploymentAugmentedConfigs(function *nuclioio.NuclioFunction) ([]platformconfig.LabelSelectorAndConfig, error) {
+	var configs []platformconfig.LabelSelectorAndConfig
+
+	// get the function labels
+	functionLabels := lc.getFunctionLabels(function)
+
+	// get platform config
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
+
 	for _, augmentedConfig := range platformConfig.FunctionAugmentedConfigs {
 
 		selector, err := meta_v1.LabelSelectorAsSelector(&augmentedConfig.LabelSelector)
 		if err != nil {
-			return errors.Wrap(err, "Failed to get selector from label selector")
+			return nil, errors.Wrap(err, "Failed to get selector from label selector")
 		}
 
 		// if the label matches any of the function labels, augment the deployment with provided function config
 		// NOTE: supports spec only for now. in the future we can remove .Spec and try to merge both meta and spec
 		if selector.Matches(functionLabels) {
-			if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
-				return errors.Wrap(err, "Failed to merge deployment spec")
-			}
+			configs = append(configs, augmentedConfig)
 		}
 	}
 
-	return nil
+	return configs, nil
 }
 
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels labels.Set,
@@ -1161,8 +1187,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 	return nil
 }
 
-func (lc *lazyClient) populateDeploymentStrategy(functionLabels labels.Set,
-	function *nuclioio.NuclioFunction,
+func (lc *lazyClient) populateDefaultDeploymentStrategy(function *nuclioio.NuclioFunction,
 	strategy *apps_v1beta1.DeploymentStrategy) {
 
 	// Since k8s (ATM) does not support rolling update for GPU
@@ -1173,8 +1198,7 @@ func (lc *lazyClient) populateDeploymentStrategy(functionLabels labels.Set,
 		if !gpuResource.IsZero() {
 			strategy.Type = apps_v1beta1.RecreateDeploymentStrategyType
 			lc.logger.DebugWith("Changing deployment strategy",
-				"gpuResource", gpuResource,
-				"strategy", strategy)
+				"type", strategy.Type)
 		}
 	}
 }
