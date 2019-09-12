@@ -546,12 +546,9 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 						container,
 					},
 					Volumes: volumes,
+					ServiceAccountName: function.Spec.ServiceAccount,
 				},
 			},
-		}
-
-		if function.Spec.ServiceAccount != "" {
-			deploymentSpec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
 		}
 
 		deploymentResource := &apps_v1beta1.Deployment{
