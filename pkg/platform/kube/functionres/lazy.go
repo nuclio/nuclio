@@ -1488,7 +1488,7 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	case "storage":
 		return v1.ResourceStorage
 	default:
-		return ""
+		return v1.ResourceName("")
 	}
 }
 
