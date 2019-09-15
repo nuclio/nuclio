@@ -658,14 +658,12 @@ func (b *Builder) resolveGithubArchiveWorkDir(decompressDir string) (string, err
 }
 
 func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (string, error) {
-	//codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
 	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
 
 	if found {
 		userSpecifiedWorkDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
 		if !ok {
-			return "", errors.New("If code entry type is (archive or github) and workDir is provided, " +
-				"workDir expected to be string")
+			return "", errors.New("workDir is expected to be string")
 		}
 		decompressDir = filepath.Join(decompressDir, userSpecifiedWorkDirectory)
 	}
