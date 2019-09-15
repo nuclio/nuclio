@@ -228,6 +228,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	// copy the configuration we enriched, restoring any fields that should not be leaked externally
 	enrichedConfiguration := b.options.FunctionConfig
 
+	// function build path is irrelevant when the CET is image (especially when it is a local path)
 	if enrichedConfiguration.Spec.Build.CodeEntryType == ImageEntryType {
 		enrichedConfiguration.Spec.Build.Path = ""
 	} else {
@@ -657,10 +658,10 @@ func (b *Builder) resolveGithubArchiveWorkDir(decompressDir string) (string, err
 }
 
 func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (string, error) {
-	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
+	//codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
 	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
 
-	if (codeEntryType == ArchiveEntryType || codeEntryType == GithubEntryType || codeEntryType == S3EntryType) && found {
+	if found {
 		userSpecifiedWorkDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
 		if !ok {
 			return "", errors.New("If code entry type is (archive or github) and workDir is provided, " +

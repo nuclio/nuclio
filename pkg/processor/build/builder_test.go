@@ -751,7 +751,9 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 
 	// make sure our test python file is inside the decompress folder
 	decompressedPythonFileContent, err := ioutil.ReadFile(filepath.Join(path, "/main.py"))
-	suite.Equal("some python code...\n", string(decompressedPythonFileContent))
+	suite.Equal(`def handler(context, event):
+	return "hello world"
+`, string(decompressedPythonFileContent))
 }
 
 func TestBuilderSuite(t *testing.T) {
