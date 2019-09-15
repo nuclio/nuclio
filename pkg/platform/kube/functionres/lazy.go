@@ -48,6 +48,7 @@ import (
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 )
@@ -399,7 +400,7 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 		return nil, errors.Wrap(err, "Failed to update resource")
 	}
 
-	lc.logger.DebugWith("Resource updated")
+	lc.logger.DebugWith("Resource updated", "name", resourceName)
 
 	return resource, nil
 }
@@ -506,8 +507,12 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		return nil, errors.Wrap(err, "Failed to get pod annotations")
 	}
 
-	replicas := int32(lc.getFunctionReplicas(function))
-	lc.logger.DebugWith("Got replicas", "replicas", replicas)
+	replicas := function.GetComputedReplicas()
+	if replicas != nil {
+		lc.logger.DebugWith("Got replicas", "replicas", *replicas)
+	} else {
+		lc.logger.DebugWith("Got nil replicas")
+	}
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function annotations")
@@ -530,7 +535,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		container.VolumeMounts = volumeMounts
 
 		deploymentSpec := apps_v1beta1.DeploymentSpec{
-			Replicas: &replicas,
+			Replicas: replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
 					Name:        function.Name,
@@ -572,8 +577,24 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	updateDeployment := func(resource interface{}) (interface{}, error) {
 		deployment := resource.(*apps_v1beta1.Deployment)
 
+		// If we got nil replicas it means leave as is (in order to prevent unwanted scale down)
+		// but need to make sure the current replicas is not less than the min replicas
+		if replicas == nil {
+			minReplicas := function.GetComputedMinReplicas()
+			maxReplicas := function.GetComputedMaxReplicas()
+			lc.logger.DebugWith("Verifying current replicas not lower than minReplicas or higher than max",
+				"maxReplicas", maxReplicas,
+				"minReplicas", minReplicas,
+				"currentReplicas", deployment.Status.Replicas)
+			if deployment.Status.Replicas > maxReplicas {
+				replicas = &maxReplicas
+			} else if deployment.Status.Replicas < minReplicas {
+				replicas = &minReplicas
+			}
+		}
+
 		deployment.Annotations = deploymentAnnotations
-		deployment.Spec.Replicas = &replicas
+		deployment.Spec.Replicas = replicas
 		deployment.Spec.Template.Annotations = podAnnotations
 		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
@@ -590,7 +611,14 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			return nil, err
 		}
 
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
+		body, err := json.Marshal(deployment)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to marshal deployment resource")
+		}
+
+		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Patch(deployment.Name,
+			types.MergePatchType,
+			body)
 	}
 
 	resource, err := lc.createOrUpdateResource("deployment",
@@ -659,14 +687,18 @@ func (lc *lazyClient) getDeploymentAugmentedConfigs(function *nuclioio.NuclioFun
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction) (*autos_v2.HorizontalPodAutoscaler, error) {
 
-	maxReplicas := int32(function.Spec.MaxReplicas)
-	if maxReplicas == 0 {
-		maxReplicas = 10
+	minReplicas := function.GetComputedMinReplicas()
+	maxReplicas := function.GetComputedMaxReplicas()
+	lc.logger.DebugWith("Create/Update hpa", "minReplicas", minReplicas, "maxReplicas", maxReplicas)
+
+	// hpa min replicas must be equal or greater than 1
+	if minReplicas < 1 {
+		minReplicas = int32(1)
 	}
 
-	minReplicas := int32(function.Spec.MinReplicas)
-	if minReplicas == 0 {
-		minReplicas = 1
+	// hpa max replicas must be equal or greater than 1
+	if maxReplicas < 1 {
+		maxReplicas = int32(1)
 	}
 
 	targetCPU := int32(function.Spec.TargetCPU)
@@ -733,6 +765,8 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 			deleteOptions := &meta_v1.DeleteOptions{
 				PropagationPolicy: &propogationPolicy,
 			}
+
+			lc.logger.DebugWith("Deleting hpa - min replicas and max replicas are equal", "name", hpa.Name)
 
 			err := lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
 			return nil, err
@@ -855,25 +889,6 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) label
 	}
 
 	return result
-}
-
-func (lc *lazyClient) getFunctionReplicas(function *nuclioio.NuclioFunction) int {
-	replicas := function.Spec.Replicas
-
-	// only when function is scaled to zero, allow for replicas to be set to zero
-	if function.Spec.Disabled || function.Status.State == functionconfig.FunctionStateScaledToZero {
-		replicas = 0
-	} else if replicas == 0 {
-
-		// in this path, there's a always a minimum of one replica than needs to be available
-		if function.Spec.MinReplicas > 0 {
-			replicas = function.Spec.MinReplicas
-		} else {
-			replicas = 1
-		}
-	}
-
-	return replicas
 }
 
 func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[string]string, error) {

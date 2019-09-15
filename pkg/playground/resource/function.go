@@ -169,7 +169,6 @@ func (f *function) createDeployOptions() *platform.CreateFunctionOptions {
 	}
 
 	createFunctionOptions.FunctionConfig = f.attributes.Config
-	createFunctionOptions.FunctionConfig.Spec.Replicas = 1
 	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = server.NoPullBaseImages
 	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 30
 	createFunctionOptions.Logger = f.muxLogger
