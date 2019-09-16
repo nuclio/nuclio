@@ -498,6 +498,98 @@ func (suite *testSuite) TestBuildFuncFromImageAndRedeploy() {
 	})
 }
 
+func (suite *testSuite) TestBuildFuncFromRemoteArchiveRedeploy() {
+	createFunctionOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Name:      "build-from-local",
+				Namespace: "default",
+			},
+			Spec: functionconfig.Spec{
+				Env: []v1.EnvVar{
+					{
+						Name: "MANIPULATION_KIND",
+						Value: "reverse",
+					},
+				},
+				Handler: "string-manipulator:handler",
+				Runtime: "python",
+				Build: functionconfig.Build{
+					CodeEntryAttributes: map[string]interface{}{
+						"workDir": "/nuclio-templates-master/string-manipulator",
+					},
+					Path: "https://github.com/nuclio/nuclio-templates/archive/master.zip",
+				},
+			},
+		},
+	}
+	deployResult := suite.DeployFunctionAndRequest(createFunctionOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcd",
+			ExpectedResponseBody: "dcba",
+		})
+
+	suite.Equal(deployResult.CreateFunctionBuildResult.UpdatedFunctionConfig.Spec.Build.CodeEntryType, "archive")
+
+	// validate that when redeploying it works and the function uses another image than before
+	redeployFunctionOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+		FunctionConfig: deployResult.UpdatedFunctionConfig,
+	}
+	redeployResult := suite.DeployFunctionAndRequest(redeployFunctionOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcd",
+			ExpectedResponseBody: "dcba",
+		})
+
+	suite.NotEqual(deployResult.Image, redeployResult.Image)
+}
+
+func (suite *testSuite) TestBuildFuncFromLocalArchiveRedeployUsesSameImage() {
+	createFunctionOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Name:      "build-from-local",
+				Namespace: "default",
+			},
+			Spec: functionconfig.Spec{
+				Handler: "main:handler",
+				Runtime: "python",
+				Build: functionconfig.Build{
+					CodeEntryAttributes: map[string]interface{}{
+						"workDir": "/funcs/my-python-func",
+					},
+					Path: path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "build", "test", "test_funcs.zip"),
+				},
+			},
+		},
+	}
+	deployResult := suite.DeployFunctionAndRequest(createFunctionOptions,
+		&httpsuite.Request{
+			RequestMethod:        "GET",
+			ExpectedResponseBody: "hello world",
+		})
+
+	suite.Equal(deployResult.CreateFunctionBuildResult.UpdatedFunctionConfig.Spec.Build.CodeEntryType, "image")
+
+	// validate that when redeploying it works and the function uses the same image as before
+	redeployFunctionOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+		FunctionConfig: deployResult.UpdatedFunctionConfig,
+	}
+	redeployResult := suite.DeployFunctionAndRequest(redeployFunctionOptions,
+		&httpsuite.Request{
+			RequestMethod:        "GET",
+			ExpectedResponseBody: "hello world",
+		})
+
+	suite.Equal(deployResult.Image, redeployResult.Image)
+}
+
 func (suite *testSuite) createShellFunctionFromSourceCode(functionName string,
 	sourceCode string,
 	request *httpsuite.Request) *platform.CreateFunctionResult {

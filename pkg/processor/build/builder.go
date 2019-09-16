@@ -60,6 +60,8 @@ const (
 	GithubEntryType        = "github"
 	ArchiveEntryType       = "archive"
 	S3EntryType            = "s3"
+	ImageEntryType         = "image"
+	SourceCodeEntryType    = "sourceCode"
 )
 
 // holds parameters for things that are required before a runtime can be initialized
@@ -141,6 +143,7 @@ func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client
 // Build builds the handler
 func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	var err error
+	var inferredCodeEntryType string
 
 	b.options = options
 
@@ -174,9 +177,14 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	b.originalFunctionConfig.Spec.Build.Path = b.options.FunctionConfig.Spec.Build.Path
 
 	// resolve the function path - download in case its a URL
-	b.options.FunctionConfig.Spec.Build.Path, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
+	b.options.FunctionConfig.Spec.Build.Path, inferredCodeEntryType, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
 		return nil, err
+	}
+
+	// when no code entry type was explicitly passed set it to the inferred type
+	if b.options.FunctionConfig.Spec.Build.CodeEntryType == "" {
+		b.options.FunctionConfig.Spec.Build.CodeEntryType = inferredCodeEntryType
 	}
 
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
@@ -219,7 +227,13 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 	// copy the configuration we enriched, restoring any fields that should not be leaked externally
 	enrichedConfiguration := b.options.FunctionConfig
-	enrichedConfiguration.Spec.Build.Path = b.originalFunctionConfig.Spec.Build.Path
+
+	// function build path is irrelevant when the CET is image (especially when it is a local path)
+	if enrichedConfiguration.Spec.Build.CodeEntryType == ImageEntryType {
+		enrichedConfiguration.Spec.Build.Path = ""
+	} else {
+		enrichedConfiguration.Spec.Build.Path = b.originalFunctionConfig.Spec.Build.Path
+	}
 
 	// if a callback is registered, call back
 	if b.options.OnAfterConfigUpdate != nil {
@@ -237,6 +251,10 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	processorImage, err := b.buildProcessorImage()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to build processor image")
+	}
+
+	if enrichedConfiguration.Spec.Build.CodeEntryType == ImageEntryType {
+		enrichedConfiguration.Spec.Image = processorImage
 	}
 
 	buildResult := &platform.CreateFunctionBuildResult{
@@ -482,18 +500,19 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 	return sourceFilePath, nil
 }
 
-func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
+func (b *Builder) resolveFunctionPath(functionPath string) (string, string, error) {
 	var err error
+	var inferredCodeEntryType string
 
 	if b.options.FunctionConfig.Spec.Build.FunctionSourceCode != "" {
 
 		// if user gave function as source code rather than a path - write it to a temporary file
 		functionSourceCodeTempPath, err := b.writeFunctionSourceCodeToTempFile(b.options.FunctionConfig.Spec.Build.FunctionSourceCode)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to save function code to temporary file")
+			return "", "", errors.Wrap(err, "Failed to save function code to temporary file")
 		}
 
-		return functionSourceCodeTempPath, nil
+		return functionSourceCodeTempPath, SourceCodeEntryType, nil
 	}
 
 	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
@@ -504,44 +523,56 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		codeEntryType != S3EntryType {
 
 		if b.options.FunctionConfig.Spec.Runtime != "shell" {
-			return "", errors.New("Function path must be provided when specified runtime isn't shell")
+			return "", "", errors.New("Function path must be provided when specified runtime isn't shell")
 		}
 
 		// did user give handler to an executable
 		if b.options.FunctionConfig.Spec.Handler == "" {
-			return "", errors.New("If shell runtime is specified, function path or handler name must be provided")
+			return "", "", errors.New("If shell runtime is specified, function path or handler name must be provided")
 		}
 	}
 
 	// user has to provide valid url when code entry type is github or archive
-	if !common.IsURL(functionPath) && (codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) {
-		return "", errors.New("Must provide valid URL when code entry type is github or archive")
+	isURL := common.IsURL(functionPath)
+	if !isURL && (codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) {
+		return "", "", errors.New("Must provide valid URL when code entry type is github or archive")
 	}
 
 	// if the function path is a URL, type is Github or S3 - first download the file
 	// for backwards compatibility, don't check for entry type url specifically
 	if functionPath, err = b.resolveFunctionPathFromURL(functionPath, codeEntryType); err != nil {
-		return "", errors.Wrap(err, "Failed to download function from the given URL")
+		return "", "", errors.Wrap(err, "Failed to download function from the given URL")
 	}
 
 	// Assume it's a local path
 	resolvedPath, err := filepath.Abs(filepath.Clean(functionPath))
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to resolve non-url path")
+		return "", "", errors.Wrap(err, "Failed to resolve non-url path")
 	}
 
 	if !common.FileExists(resolvedPath) {
-		return "", errors.Errorf("Function path doesn't exist: %s", resolvedPath)
+		return "", "", errors.Errorf("Function path doesn't exist: %s", resolvedPath)
+	}
+
+	// when no code entry type was passed and it's an archive or jar
+	if codeEntryType == "" && (util.IsCompressed(resolvedPath) || util.IsJar(resolvedPath)) {
+
+		// if it's a URL, set it as an archive code entry type, otherwise save the built image so it'll be possible to redeploy
+		if isURL {
+			inferredCodeEntryType = ArchiveEntryType
+		} else {
+			inferredCodeEntryType = ImageEntryType
+		}
 	}
 
 	if util.IsCompressed(resolvedPath) {
 		resolvedPath, err = b.decompressFunctionArchive(resolvedPath)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to decompress function archive")
+			return "", "", errors.Wrap(err, "Failed to decompress function archive")
 		}
 	}
 
-	return resolvedPath, nil
+	return resolvedPath, inferredCodeEntryType, nil
 }
 
 func (b *Builder) validateAndParseS3Attributes(attributes map[string]interface{}) (map[string]string, error) {
@@ -627,14 +658,12 @@ func (b *Builder) resolveGithubArchiveWorkDir(decompressDir string) (string, err
 }
 
 func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (string, error) {
-	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
 	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
 
-	if (codeEntryType == ArchiveEntryType || codeEntryType == GithubEntryType || codeEntryType == S3EntryType) && found {
+	if found {
 		userSpecifiedWorkDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
 		if !ok {
-			return "", errors.New("If code entry type is (archive or github) and workDir is provided, " +
-				"workDir expected to be string")
+			return "", errors.New("workDir is expected to be string")
 		}
 		decompressDir = filepath.Join(decompressDir, userSpecifiedWorkDirectory)
 	}

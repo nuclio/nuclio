@@ -696,7 +696,7 @@ func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension stri
 
 	defer suite.builder.cleanupTempDir() // nolint: errcheck
 
-	path, err := suite.builder.resolveFunctionPath(codeFileURL)
+	path, _, err := suite.builder.resolveFunctionPath(codeFileURL)
 	suite.NoError(err)
 
 	expectedFilePath := filepath.Join(suite.builder.tempDir, "/download/my-func."+fileExtension)
@@ -738,7 +738,7 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 		httpmock.RegisterResponder("GET", archiveFileURL, responder)
 	}
 
-	path, err := suite.builder.resolveFunctionPath(buildConfiguration.Path)
+	path, _, err := suite.builder.resolveFunctionPath(buildConfiguration.Path)
 	suite.NoError(err)
 
 	// make sure the path is set to the work dir inside the decompressed folder
@@ -751,7 +751,9 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 
 	// make sure our test python file is inside the decompress folder
 	decompressedPythonFileContent, err := ioutil.ReadFile(filepath.Join(path, "/main.py"))
-	suite.Equal("some python code...\n", string(decompressedPythonFileContent))
+	suite.Equal(`def handler(context, event):
+	return "hello world"
+`, string(decompressedPythonFileContent))
 }
 
 func TestBuilderSuite(t *testing.T) {
