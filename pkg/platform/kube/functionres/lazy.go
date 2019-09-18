@@ -631,7 +631,9 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		return nil, err
 	}
 
-	return resource.(*apps_v1beta1.Deployment), err
+	deployment := resource.(*apps_v1beta1.Deployment)
+	lc.logger.DebugWith("Deployment created/updated", "deployment", deployment)
+	return deployment, err
 }
 
 func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclioio.NuclioFunction,
@@ -644,15 +646,19 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 	}
 
 	// merge
+	allowPopulateDefaultDeploymentStrategy := true
 	for _, augmentedConfig := range deploymentAugmentedConfigs {
+		if deployment.Spec.Strategy.Type != "" ||
+			deployment.Spec.Strategy.RollingUpdate != nil {
+			allowPopulateDefaultDeploymentStrategy = false
+		}
 		if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
 			return errors.Wrap(err, "Failed to merge deployment spec")
 		}
 	}
 
 	// if no strategy was given by the user, use defaults
-	if deployment.Spec.Strategy.Type == "" &&
-		deployment.Spec.Strategy.RollingUpdate == nil {
+	if allowPopulateDefaultDeploymentStrategy {
 		lc.populateDefaultDeploymentStrategy(function, &deployment.Spec.Strategy)
 	}
 	return nil
@@ -1209,6 +1215,7 @@ func (lc *lazyClient) populateDefaultDeploymentStrategy(function *nuclioio.Nucli
 		if !gpuResource.IsZero() {
 			strategy.Type = apps_v1beta1.RecreateDeploymentStrategyType
 			lc.logger.DebugWith("Changing deployment strategy",
+				"name", function.Name,
 				"type", strategy.Type)
 		}
 	}
