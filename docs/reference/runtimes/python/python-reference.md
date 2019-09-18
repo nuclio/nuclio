@@ -21,7 +21,7 @@ The `handler` field is of the form `<package>:<entrypoint>`, where `<package>` i
 See [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
 
 ```
-ARG NUCLIO_LABEL=stable
+ARG NUCLIO_LABEL=1.1.18
 ARG NUCLIO_ARCH=amd64
 ARG NUCLIO_BASE_IMAGE=python:3.6-jessie
 ARG NUCLIO_ONBUILD_IMAGE=quay.io/nuclio/handler-builder-python-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
@@ -61,7 +61,7 @@ CMD [ "processor" ]
 ```yaml
 spec:
   handler: main:handler
-  runtime: python:2.7
+  runtime: python:3.6
 
 ```
 
