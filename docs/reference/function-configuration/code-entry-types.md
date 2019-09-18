@@ -224,7 +224,7 @@ Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#s
   - `s3ItemKey` (dashboard: **Item key**) (Required) &mdash; the relative path to the archive file within the bucket.
   - `s3AccessKeyId` (dashboard: **Access key ID**) (Optional) &mdash; an S3 access key ID for download authentication.
   - `s3SecretAccessKey` (dashboard: **Secret access key**) (Optional) &mdash; an S3 secret access key for download authentication.
-  - `s3SessionToken` (dashboard: **Token**) (Optional) &mdash; an S3 session token for download authentication.
+  - `s3SessionToken` (dashboard: **Session token**) (Optional) &mdash; an S3 session token for download authentication.
   - `s3Region` (dashboard: **Region**) (Optional) &mdash; the AWS Region of the configured bucket. When this parameter isn't provided, it's implicitly deduced.
   - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the extracted archive-file directory.
       The default work directory is the root of the extracted archive-file directory (`"/"`).
