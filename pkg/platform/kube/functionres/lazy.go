@@ -61,6 +61,13 @@ const (
 	nvidiaGpuResourceName   = "nvidia.com/gpu"
 )
 
+type deploymentResourceMethod string
+
+const (
+	createDeploymentResourceMethod deploymentResourceMethod = "create"
+	updateDeploymentResourceMethod deploymentResourceMethod = "update"
+)
+
 //
 // Client
 //
@@ -530,6 +537,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	}
 
 	createDeployment := func() (interface{}, error) {
+		method := createDeploymentResourceMethod
 		container := v1.Container{Name: "nuclio"}
 		lc.populateDeploymentContainer(functionLabels, function, &container)
 		container.VolumeMounts = volumeMounts
@@ -567,7 +575,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		}
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
-		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment); err != nil {
+		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment, method); err != nil {
 			return nil, err
 		}
 
@@ -580,6 +588,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 
 	updateDeployment := func(resource interface{}) (interface{}, error) {
 		deployment := resource.(*apps_v1beta1.Deployment)
+		method := updateDeploymentResourceMethod
 
 		// If we got nil replicas it means leave as is (in order to prevent unwanted scale down)
 		// but need to make sure the current replicas is not less than the min replicas
@@ -611,7 +620,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment
 		// enrich deployment spec with default fields that were passed inside the platform configuration
-		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment); err != nil {
+		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment, method); err != nil {
 			return nil, err
 		}
 
@@ -723,7 +732,7 @@ func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployme
 }
 
 func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclioio.NuclioFunction,
-	deployment *apps_v1beta1.Deployment) error {
+	deployment *apps_v1beta1.Deployment, method deploymentResourceMethod) error {
 
 	// get deployment augmented configurations
 	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
@@ -736,6 +745,13 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 		if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
 			return errors.Wrap(err, "Failed to merge deployment spec")
 		}
+	}
+
+	switch method {
+
+	// on create, change inplace the deployment strategy
+	case createDeploymentResourceMethod:
+		break
 	}
 	return nil
 }
