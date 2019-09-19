@@ -670,17 +670,13 @@ func (lc *lazyClient) resolveDefaultDeploymentStrategy(function *nuclioio.Nuclio
 	// so k8s will kill the existing pod\function and create the new one
 	if gpuResource, ok := function.Spec.Resources.Limits[nvidiaGpuResourceName]; ok {
 
-		// user specifically asked for 0 gpus, retain the rolling update
-		if gpuResource.IsZero() {
-			return apps_v1beta1.RollingUpdateDeploymentStrategyType
-		} else {
-
-			// requested gpus, change to recreate
+		// requested a gpu resource, change to recreate
+		if !gpuResource.IsZero() {
 			return apps_v1beta1.RecreateDeploymentStrategyType
 		}
 	}
 
-	// no gpu resources, set to rollingUpdate (default)
+	// no gpu resources requested, set to rollingUpdate (default)
 	return apps_v1beta1.RollingUpdateDeploymentStrategyType
 }
 
