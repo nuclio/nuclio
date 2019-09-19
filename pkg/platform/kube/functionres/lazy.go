@@ -556,7 +556,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			},
 		}
 
-		deploymentResource := &apps_v1beta1.Deployment{
+		deployment := &apps_v1beta1.Deployment{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:        function.Name,
 				Namespace:   function.Namespace,
@@ -567,11 +567,19 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		}
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
-		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deploymentResource); err != nil {
+		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment); err != nil {
 			return nil, err
 		}
 
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(deploymentResource)
+		deployment, err = lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(deployment)
+		if err != nil {
+			return nil, err
+		}
+		deployment, err = lc.updateDeploymentStrategy(deployment, function)
+		if err != nil {
+			return "", errors.Wrap(err, "Could not update deployment strategy")
+		}
+		return deployment, nil
 	}
 
 	updateDeployment := func(resource interface{}) (interface{}, error) {
@@ -616,9 +624,17 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			return "", errors.Wrap(err, "Failed to marshal deployment resource")
 		}
 
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Patch(deployment.Name,
+		deployment, err = lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Patch(deployment.Name,
 			types.MergePatchType,
 			body)
+		if err != nil {
+			return nil, errors.Wrap(err, "Could not patch the updated deployment")
+		}
+		deployment, err = lc.updateDeploymentStrategy(deployment, function)
+		if err != nil {
+			return "", errors.Wrap(err, "Could not update deployment strategy")
+		}
+		return deployment, nil
 	}
 
 	resource, err := lc.createOrUpdateResource("deployment",
@@ -636,6 +652,88 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	return deployment, err
 }
 
+func (lc *lazyClient) canUpdateDeploymentStrategy(deployment *apps_v1beta1.Deployment, function *nuclioio.NuclioFunction) (bool, error) {
+	var err error
+	var allowAlterDeploymentStrategy = true
+
+	// get deployment augmented configurations for that specific function
+	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to get deployment augmented configs")
+	}
+
+	// check if user didnt provide deployment strategy
+	for range deploymentAugmentedConfigs {
+		if deployment.Spec.Strategy.Type != "" ||
+			deployment.Spec.Strategy.RollingUpdate != nil {
+			allowAlterDeploymentStrategy = false
+			break
+		}
+	}
+	return allowAlterDeploymentStrategy, nil
+}
+
+func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployment, function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
+	var patchBytes []byte
+	var err error
+	var ops []map[string]string
+
+	// check user didn't provide any deployment strategy specifics
+	allowAlterDeploymentStrategy, err := lc.canUpdateDeploymentStrategy(deployment, function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get deployment augmented configs")
+	}
+
+	nextStrategyType := ""
+	currentStrategyType := deployment.Spec.Strategy.Type
+
+	// Since k8s (ATM) does not support rolling update for GPU
+	// redeploying a nuclio function will get stuck if no GPU is available
+	// to overcome it, we simply change the update strategy to recreate
+	// so k8s will kill the existing pod\function and create the new one
+	if allowAlterDeploymentStrategy {
+		if gpuResource, ok := function.Spec.Resources.Limits[nvidiaGpuResourceName]; ok {
+
+			// if requested a gpu resource, change deployment
+			if !gpuResource.IsZero() {
+				nextStrategyType = string(apps_v1beta1.RecreateDeploymentStrategyType)
+
+				// if current strategy is rolling update, we must remove `rollingUpdate`
+				if currentStrategyType == apps_v1beta1.RollingUpdateDeploymentStrategyType {
+					ops = append(ops, map[string]string{
+						"op":    "remove",
+						"path":  "/spec/strategy/rollingUpdate",
+					})
+				}
+			} else {
+				nextStrategyType = string(apps_v1beta1.RollingUpdateDeploymentStrategyType)
+			}
+		} else {
+			nextStrategyType = string(apps_v1beta1.RollingUpdateDeploymentStrategyType)
+		}
+
+		ops = append(ops, map[string]string{
+			"op":    "replace",
+			"path":  "/spec/strategy/type",
+			"value": nextStrategyType,
+		})
+	}
+
+	patchBytes, err = json.Marshal(ops)
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not marshal")
+	}
+	lc.logger.DebugWith("BEFORE Updating!!!", "patchBytes", string(patchBytes))
+	deployment, err = lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Patch(deployment.Name,
+		types.JSONPatchType,
+		patchBytes)
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not patching deployment")
+	}
+	lc.logger.DebugWith("AFTER Updated!!!", "patchedDeployment", deployment)
+	return deployment, nil
+}
+
 func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclioio.NuclioFunction,
 	deployment *apps_v1beta1.Deployment) error {
 
@@ -646,21 +744,10 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 	}
 
 	// merge
-	allowPopulateDefaultDeploymentStrategy := true
 	for _, augmentedConfig := range deploymentAugmentedConfigs {
-		if deployment.Spec.Strategy.Type != "" ||
-			deployment.Spec.Strategy.RollingUpdate != nil {
-			allowPopulateDefaultDeploymentStrategy = false
-		}
 		if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
 			return errors.Wrap(err, "Failed to merge deployment spec")
 		}
-	}
-
-	// if no strategy was given by the user, use defaults
-	if allowPopulateDefaultDeploymentStrategy {
-		lc.populateDefaultDeploymentStrategy(function, &deployment.Spec.Strategy)
-		lc.logger.DebugWith("Strategy populated", "populatedStrategy", deployment.Spec.Strategy)
 	}
 	return nil
 }
@@ -1203,24 +1290,6 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 	spec.Rules = append(spec.Rules, ingressRule)
 
 	return nil
-}
-
-func (lc *lazyClient) populateDefaultDeploymentStrategy(function *nuclioio.NuclioFunction,
-	strategy *apps_v1beta1.DeploymentStrategy) {
-
-	// Since k8s (ATM) does not support rolling update for GPU
-	// redeploying a nuclio function will get stuck if no GPU is available
-	// to overcome it, we simply change the update strategy to recreate
-	// so k8s will kill the existing pod\function and create the new one
-	if gpuResource, ok := function.Spec.Resources.Limits[nvidiaGpuResourceName]; ok {
-		if !gpuResource.IsZero() {
-			strategy.Type = apps_v1beta1.RecreateDeploymentStrategyType
-			strategy.RollingUpdate = nil
-			lc.logger.DebugWith("Changing deployment strategy",
-				"name", function.Name,
-				"strategy", strategy)
-		}
-	}
 }
 
 func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
