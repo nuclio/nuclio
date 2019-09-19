@@ -759,7 +759,6 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 		if allowSetDefaultDeploymentStrategy {
 			deployment.Spec.Strategy.Type = lc.resolveDefaultDeploymentStrategy(function)
 		}
-		break
 	}
 	return nil
 }
