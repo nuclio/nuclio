@@ -18,6 +18,8 @@ kind: Service
 metadata:
   name: {{ template "nuclio.dlxName" . }}
   labels:
+    app: {{ template "nuclio.nuclioName" . }}
+    release: {{ .Release.Name }}
     nuclio.io/app: dlx
     nuclio.io/name: {{ template "nuclio.dlxName" . }}
     nuclio.io/class: service
