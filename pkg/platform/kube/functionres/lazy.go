@@ -630,6 +630,8 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to patch the updated deployment")
 		}
+
+		// we must call it after, as marshal will omit the deployment's rollingUpdate field change to nil (omitempty)
 		return lc.updateDeploymentStrategy(deployment, function)
 	}
 
@@ -646,11 +648,9 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	return resource.(*apps_v1beta1.Deployment), err
 }
 
-func (lc *lazyClient) canUpdateDeploymentStrategy(deployment *apps_v1beta1.Deployment, function *nuclioio.NuclioFunction) (bool, error) {
-	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
-	if err != nil {
-		return false, errors.Wrap(err, "Failed to get deployment augmented configs")
-	}
+func (lc *lazyClient) canUpdateDeploymentStrategy(deployment *apps_v1beta1.Deployment,
+	function *nuclioio.NuclioFunction,
+	deploymentAugmentedConfigs []platformconfig.LabelSelectorAndConfig) (bool, error) {
 
 	// check if user didnt provide a deployment strategy
 	for _, augmentedConfig := range deploymentAugmentedConfigs {
@@ -662,16 +662,7 @@ func (lc *lazyClient) canUpdateDeploymentStrategy(deployment *apps_v1beta1.Deplo
 	return true, nil
 }
 
-func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployment, function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
-	var jsonPatchMapper []map[string]string
-	var newDeploymentStrategyType apps_v1beta1.DeploymentStrategyType
-
-	// check user didn't provide any deployment strategy specifics
-	if canUpdateDeploymentStrategy, err := lc.canUpdateDeploymentStrategy(deployment, function); err != nil {
-		return nil, errors.Wrap(err, "Failed to decide if deployment strategy can be updated")
-	} else if !canUpdateDeploymentStrategy {
-		return deployment, nil
-	}
+func (lc *lazyClient) resolveDefaultDeploymentStrategy(function *nuclioio.NuclioFunction) apps_v1beta1.DeploymentStrategyType {
 
 	// Since k8s (ATM) does not support rolling update for GPU
 	// redeploying a Nuclio function will get stuck if no GPU is available
@@ -681,19 +672,37 @@ func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployme
 
 		// user specifically asked for 0 gpus, retain the rolling update
 		if gpuResource.IsZero() {
-			newDeploymentStrategyType = apps_v1beta1.RollingUpdateDeploymentStrategyType
+			return apps_v1beta1.RollingUpdateDeploymentStrategyType
 		} else {
 
 			// requested gpus, change to recreate
-			newDeploymentStrategyType = apps_v1beta1.RecreateDeploymentStrategyType
+			return apps_v1beta1.RecreateDeploymentStrategyType
 		}
-	} else {
-
-		// no gpu resources, set to rollingUpdate
-		newDeploymentStrategyType = apps_v1beta1.RollingUpdateDeploymentStrategyType
 	}
 
-	if deployment.Spec.Strategy.Type == newDeploymentStrategyType {
+	// no gpu resources, set to rollingUpdate (default)
+	return apps_v1beta1.RollingUpdateDeploymentStrategyType
+}
+
+func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployment, function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
+	var jsonPatchMapper []map[string]string
+
+	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get deployment augmented configs")
+	}
+
+	// check user didn't provide any deployment strategy specifics
+	canUpdateDeploymentStrategy, err := lc.canUpdateDeploymentStrategy(deployment, function, deploymentAugmentedConfigs)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to decide if deployment strategy can be updated")
+	}
+	if !canUpdateDeploymentStrategy {
+		return deployment, nil
+	}
+
+	newDeploymentStrategyType := lc.resolveDefaultDeploymentStrategy(function)
+	if newDeploymentStrategyType == deployment.Spec.Strategy.Type {
 
 		// nothing has changed
 		return deployment, nil
