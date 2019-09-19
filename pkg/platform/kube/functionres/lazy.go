@@ -659,20 +659,15 @@ func (lc *lazyClient) canUpdateDeploymentStrategy(deployment *apps_v1beta1.Deplo
 }
 
 func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployment, function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
-	var err error
 	var jsonPatchMapper []map[string]string
 	var nextDeploymentStrategyType apps_v1beta1.DeploymentStrategyType
 
 	// check user didn't provide any deployment strategy specifics
-	canUpdateDeploymentStrategy, err := lc.canUpdateDeploymentStrategy(deployment, function)
-	if err != nil {
+	if canUpdateDeploymentStrategy, err := lc.canUpdateDeploymentStrategy(deployment, function); err != nil {
 		return nil, errors.Wrap(err, "Failed to get deployment augmented configs")
-	}
-	if !canUpdateDeploymentStrategy {
+	} else if !canUpdateDeploymentStrategy {
 		return deployment, nil
 	}
-
-	currentDeploymentStrategyType := deployment.Spec.Strategy.Type
 
 	// Since k8s (ATM) does not support rolling update for GPU
 	// redeploying a Nuclio function will get stuck if no GPU is available
@@ -694,7 +689,7 @@ func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployme
 		nextDeploymentStrategyType = apps_v1beta1.RollingUpdateDeploymentStrategyType
 	}
 
-	if currentDeploymentStrategyType == nextDeploymentStrategyType {
+	if deployment.Spec.Strategy.Type == nextDeploymentStrategyType {
 
 		// nothing has changed
 		return deployment, nil
@@ -706,10 +701,10 @@ func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployme
 		"value": string(nextDeploymentStrategyType),
 	})
 
-	// if current strategy is rolling update, in order to change it to  recreate
+	// if current strategy is rolling update, in order to change it to `Recreate`
 	// we must remove `rollingUpdate` field
-	if nextDeploymentStrategyType == apps_v1beta1.RecreateDeploymentStrategyType &&
-		currentDeploymentStrategyType == apps_v1beta1.RollingUpdateDeploymentStrategyType {
+	if deployment.Spec.Strategy.Type == apps_v1beta1.RollingUpdateDeploymentStrategyType &&
+		nextDeploymentStrategyType == apps_v1beta1.RecreateDeploymentStrategyType {
 		jsonPatchMapper = append(jsonPatchMapper, map[string]string{
 			"op":   "remove",
 			"path": "/spec/strategy/rollingUpdate",
