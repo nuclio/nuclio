@@ -6,6 +6,8 @@ This document describes the specific Python build and deploy configurations.
 
 - [Function and handler](#function-and-handler)
 - [Dockerfile](#dockerfile)
+- [Function configuration](#function-configuration)
+- [Build and execution](#build-and-execution)
 
 ## Function and handler
 
@@ -18,7 +20,9 @@ The `handler` field is of the form `<package>:<entrypoint>`, where `<package>` i
 
 ## Dockerfile
 
-See [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
+Following is sample Dockerfile code for deploying a Python function. For more information, see [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
+
+> **Note:** Make sure to replace `my-function-code` and `my-function.yaml` in the following example with the names of your function and function-configuration file.
 
 ```
 ARG NUCLIO_LABEL=1.1.18
@@ -54,20 +58,30 @@ ADD ./my-function.yaml /etc/nuclio/config/processor/processor.yaml
 CMD [ "processor" ]
 ```
 
-### Notes
+<a id="function-configuration"></a>
+## Function configuration
 
-- Make sure to change both `my-function-code` & `my-function.yaml` to your real function code & configuration
-- `my-function.yaml` should at least include your handler & runtime, in example:
+Your function-configuration file (for example, `my-function.yaml` for the [example Dockerfile](#dockerfile)) must include the name of your handler function and Python runtime. For more information, see the [function-configuration reference](/docs/reference/function-configuration/function-configuration-reference.md). For example:
+
 ```yaml
 spec:
   handler: main:handler
   runtime: python:3.6
-
 ```
 
-Building & Running example commands:
-`docker build -t my-function:latest .`
-`docker run --name my-function --rm -d -p 8090:8080 my-function:latest`
+<a id="build-and-execution"></a>
+## Build and execution
 
-That's it, your nuclio function should be running and listening on port 8090
+Following are example commands for building and running the latest version of a `my-function` function that's listening on port 8090;
+replace the function name, version and the port number, as needed:
+
+Building and Running example commands:
+
+```sh
+docker build -t my-function:latest .
+docker run --name my-function --rm -d -p 8090:8080 my-function:latest
+```
+
+That's it, your Nuclio function should be running and listening on port 8090
+
 
