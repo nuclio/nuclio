@@ -578,12 +578,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment, method); err != nil {
 			return nil, err
 		}
-
-		deployment, err = lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(deployment)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create deployment")
-		}
-		return lc.updateDeploymentStrategy(deployment, function)
+		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(deployment)
 	}
 
 	updateDeployment := func(resource interface{}) (interface{}, error) {
