@@ -660,6 +660,7 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 	// if no strategy was given by the user, use defaults
 	if allowPopulateDefaultDeploymentStrategy {
 		lc.populateDefaultDeploymentStrategy(function, &deployment.Spec.Strategy)
+		lc.logger.DebugWith("Strategy populated", "populatedStrategy", deployment.Spec.Strategy)
 	}
 	return nil
 }
@@ -1214,12 +1215,10 @@ func (lc *lazyClient) populateDefaultDeploymentStrategy(function *nuclioio.Nucli
 	if gpuResource, ok := function.Spec.Resources.Limits[nvidiaGpuResourceName]; ok {
 		if !gpuResource.IsZero() {
 			strategy.Type = apps_v1beta1.RecreateDeploymentStrategyType
-
-			// must be omitted if strategy type is != rollingUpdate
 			strategy.RollingUpdate = nil
 			lc.logger.DebugWith("Changing deployment strategy",
 				"name", function.Name,
-				"type", strategy.Type)
+				"strategy", strategy)
 		}
 	}
 }
