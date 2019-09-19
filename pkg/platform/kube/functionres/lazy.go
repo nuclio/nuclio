@@ -663,9 +663,9 @@ func (lc *lazyClient) canUpdateDeploymentStrategy(deployment *apps_v1beta1.Deplo
 	}
 
 	// check if user didnt provide deployment strategy
-	for range deploymentAugmentedConfigs {
-		if deployment.Spec.Strategy.Type != "" ||
-			deployment.Spec.Strategy.RollingUpdate != nil {
+	for _, augmentedConfig := range deploymentAugmentedConfigs {
+		if augmentedConfig.Kubernetes.Deployment.Spec.Strategy.Type != "" ||
+			augmentedConfig.Kubernetes.Deployment.Spec.Strategy.RollingUpdate != nil {
 			allowAlterDeploymentStrategy = false
 			break
 		}
@@ -675,52 +675,65 @@ func (lc *lazyClient) canUpdateDeploymentStrategy(deployment *apps_v1beta1.Deplo
 
 func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployment, function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
 	var err error
-	var ops []map[string]string
+	var jsonPatchMapper []map[string]string
+	var nextDeploymentStrategyType apps_v1beta1.DeploymentStrategyType
 
 	// check user didn't provide any deployment strategy specifics
-	allowAlterDeploymentStrategy, err := lc.canUpdateDeploymentStrategy(deployment, function)
+	canUpdateDeploymentStrategy, err := lc.canUpdateDeploymentStrategy(deployment, function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get deployment augmented configs")
 	}
+	if !canUpdateDeploymentStrategy {
+		return deployment, nil
+	}
 
-	nextStrategyType := ""
-	currentStrategyType := deployment.Spec.Strategy.Type
+	currentDeploymentStrategyType := deployment.Spec.Strategy.Type
 
 	// Since k8s (ATM) does not support rolling update for GPU
-	// redeploying a nuclio function will get stuck if no GPU is available
+	// redeploying a Nuclio function will get stuck if no GPU is available
 	// to overcome it, we simply change the update strategy to recreate
 	// so k8s will kill the existing pod\function and create the new one
-	if allowAlterDeploymentStrategy {
-		if gpuResource, ok := function.Spec.Resources.Limits[nvidiaGpuResourceName]; ok {
+	if gpuResource, ok := function.Spec.Resources.Limits[nvidiaGpuResourceName]; ok {
 
-			// if requested a gpu resource, change deployment
-			if !gpuResource.IsZero() {
-				nextStrategyType = string(apps_v1beta1.RecreateDeploymentStrategyType)
-
-				// if current strategy is rolling update, we must remove `rollingUpdate`
-				if currentStrategyType == apps_v1beta1.RollingUpdateDeploymentStrategyType {
-					ops = append(ops, map[string]string{
-						"op":    "remove",
-						"path":  "/spec/strategy/rollingUpdate",
-					})
-				}
-			} else {
-				nextStrategyType = string(apps_v1beta1.RollingUpdateDeploymentStrategyType)
-			}
+		// user specifically asked for 0 gpus, retain the rolling update
+		if gpuResource.IsZero() {
+			nextDeploymentStrategyType = apps_v1beta1.RollingUpdateDeploymentStrategyType
 		} else {
-			nextStrategyType = string(apps_v1beta1.RollingUpdateDeploymentStrategyType)
-		}
 
-		ops = append(ops, map[string]string{
-			"op":    "replace",
-			"path":  "/spec/strategy/type",
-			"value": nextStrategyType,
+			// requested gpus, change to recreate
+			nextDeploymentStrategyType = apps_v1beta1.RecreateDeploymentStrategyType
+		}
+	} else {
+
+		// no gpu resources, set to rollingUpdate
+		nextDeploymentStrategyType = apps_v1beta1.RollingUpdateDeploymentStrategyType
+	}
+
+	if currentDeploymentStrategyType == nextDeploymentStrategyType {
+
+		// nothing has changed
+		return deployment, nil
+	}
+
+	jsonPatchMapper = append(jsonPatchMapper, map[string]string{
+		"op":    "replace",
+		"path":  "/spec/strategy/type",
+		"value": string(nextDeploymentStrategyType),
+	})
+
+	// if current strategy is rolling update, in order to change it to  recreate
+	// we must remove `rollingUpdate` field
+	if nextDeploymentStrategyType == apps_v1beta1.RecreateDeploymentStrategyType &&
+		currentDeploymentStrategyType == apps_v1beta1.RollingUpdateDeploymentStrategyType {
+		jsonPatchMapper = append(jsonPatchMapper, map[string]string{
+			"op":   "remove",
+			"path": "/spec/strategy/rollingUpdate",
 		})
 	}
 
-	deploymentBody, err := json.Marshal(ops)
+	deploymentBody, err := json.Marshal(jsonPatchMapper)
 	if err != nil {
-		return nil, errors.Wrap(err, "Could not marshal")
+		return nil, errors.Wrap(err, "Could not marshal json patch mapper")
 	}
 
 	lc.logger.DebugWith("Patching deployment strategy", "deploymentBody", string(deploymentBody))
