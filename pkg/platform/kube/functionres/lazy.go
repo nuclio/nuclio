@@ -1214,6 +1214,9 @@ func (lc *lazyClient) populateDefaultDeploymentStrategy(function *nuclioio.Nucli
 	if gpuResource, ok := function.Spec.Resources.Limits[nvidiaGpuResourceName]; ok {
 		if !gpuResource.IsZero() {
 			strategy.Type = apps_v1beta1.RecreateDeploymentStrategyType
+
+			// must be omitted if strategy type is != rollingUpdate
+			strategy.RollingUpdate = nil
 			lc.logger.DebugWith("Changing deployment strategy",
 				"name", function.Name,
 				"type", strategy.Type)
