@@ -228,7 +228,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 		// wait a bit
 		time.Sleep(time.Duration(waitMs) * time.Millisecond)
 
-		// expenentially wait more next time, up to 2 seconds
+		// exponentially wait more next time, up to 2 seconds
 		waitMs *= 2
 		if waitMs > 2000 {
 			waitMs = 2000
@@ -660,11 +660,11 @@ func (lc *lazyClient) canUpdateDeploymentStrategy(deployment *apps_v1beta1.Deplo
 
 func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployment, function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
 	var jsonPatchMapper []map[string]string
-	var nextDeploymentStrategyType apps_v1beta1.DeploymentStrategyType
+	var newDeploymentStrategyType apps_v1beta1.DeploymentStrategyType
 
 	// check user didn't provide any deployment strategy specifics
 	if canUpdateDeploymentStrategy, err := lc.canUpdateDeploymentStrategy(deployment, function); err != nil {
-		return nil, errors.Wrap(err, "Failed to get deployment augmented configs")
+		return nil, errors.Wrap(err, "Failed to decide if deployment strategy can be updated")
 	} else if !canUpdateDeploymentStrategy {
 		return deployment, nil
 	}
@@ -677,19 +677,19 @@ func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployme
 
 		// user specifically asked for 0 gpus, retain the rolling update
 		if gpuResource.IsZero() {
-			nextDeploymentStrategyType = apps_v1beta1.RollingUpdateDeploymentStrategyType
+			newDeploymentStrategyType = apps_v1beta1.RollingUpdateDeploymentStrategyType
 		} else {
 
 			// requested gpus, change to recreate
-			nextDeploymentStrategyType = apps_v1beta1.RecreateDeploymentStrategyType
+			newDeploymentStrategyType = apps_v1beta1.RecreateDeploymentStrategyType
 		}
 	} else {
 
 		// no gpu resources, set to rollingUpdate
-		nextDeploymentStrategyType = apps_v1beta1.RollingUpdateDeploymentStrategyType
+		newDeploymentStrategyType = apps_v1beta1.RollingUpdateDeploymentStrategyType
 	}
 
-	if deployment.Spec.Strategy.Type == nextDeploymentStrategyType {
+	if deployment.Spec.Strategy.Type == newDeploymentStrategyType {
 
 		// nothing has changed
 		return deployment, nil
@@ -698,13 +698,13 @@ func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployme
 	jsonPatchMapper = append(jsonPatchMapper, map[string]string{
 		"op":    "replace",
 		"path":  "/spec/strategy/type",
-		"value": string(nextDeploymentStrategyType),
+		"value": string(newDeploymentStrategyType),
 	})
 
 	// if current strategy is rolling update, in order to change it to `Recreate`
 	// we must remove `rollingUpdate` field
 	if deployment.Spec.Strategy.Type == apps_v1beta1.RollingUpdateDeploymentStrategyType &&
-		nextDeploymentStrategyType == apps_v1beta1.RecreateDeploymentStrategyType {
+		newDeploymentStrategyType == apps_v1beta1.RecreateDeploymentStrategyType {
 		jsonPatchMapper = append(jsonPatchMapper, map[string]string{
 			"op":   "remove",
 			"path": "/spec/strategy/rollingUpdate",
