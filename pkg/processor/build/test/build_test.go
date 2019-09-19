@@ -509,7 +509,7 @@ func (suite *testSuite) TestBuildFuncFromRemoteArchiveRedeploy() {
 			Spec: functionconfig.Spec{
 				Env: []v1.EnvVar{
 					{
-						Name: "MANIPULATION_KIND",
+						Name:  "MANIPULATION_KIND",
 						Value: "reverse",
 					},
 				},
@@ -535,7 +535,7 @@ func (suite *testSuite) TestBuildFuncFromRemoteArchiveRedeploy() {
 
 	// validate that when redeploying it works and the function uses another image than before
 	redeployFunctionOptions := &platform.CreateFunctionOptions{
-		Logger: suite.Logger,
+		Logger:         suite.Logger,
 		FunctionConfig: deployResult.UpdatedFunctionConfig,
 	}
 	redeployResult := suite.DeployFunctionAndRequest(redeployFunctionOptions,
@@ -578,7 +578,7 @@ func (suite *testSuite) TestBuildFuncFromLocalArchiveRedeployUsesSameImage() {
 
 	// validate that when redeploying it works and the function uses the same image as before
 	redeployFunctionOptions := &platform.CreateFunctionOptions{
-		Logger: suite.Logger,
+		Logger:         suite.Logger,
 		FunctionConfig: deployResult.UpdatedFunctionConfig,
 	}
 	redeployResult := suite.DeployFunctionAndRequest(redeployFunctionOptions,

@@ -575,11 +575,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create deployment")
 		}
-		deployment, err = lc.updateDeploymentStrategy(deployment, function)
-		if err != nil {
-			return "", errors.Wrap(err, "Failed to update deployment strategy")
-		}
-		return deployment, nil
+		return lc.updateDeploymentStrategy(deployment, function)
 	}
 
 	updateDeployment := func(resource interface{}) (interface{}, error) {
@@ -630,11 +626,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to patch the updated deployment")
 		}
-		deployment, err = lc.updateDeploymentStrategy(deployment, function)
-		if err != nil {
-			return "", errors.Wrap(err, "Failed to deployment strategy")
-		}
-		return deployment, nil
+		return lc.updateDeploymentStrategy(deployment, function)
 	}
 
 	resource, err := lc.createOrUpdateResource("deployment",
@@ -647,30 +639,23 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		return nil, err
 	}
 
-	deployment := resource.(*apps_v1beta1.Deployment)
-	lc.logger.DebugWith("Deployment created/updated", "deployment", deployment)
-	return deployment, err
+	return resource.(*apps_v1beta1.Deployment), err
 }
 
 func (lc *lazyClient) canUpdateDeploymentStrategy(deployment *apps_v1beta1.Deployment, function *nuclioio.NuclioFunction) (bool, error) {
-	var err error
-	var allowAlterDeploymentStrategy = true
-
-	// get deployment augmented configurations
 	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to get deployment augmented configs")
 	}
 
-	// check if user didnt provide deployment strategy
+	// check if user didnt provide a deployment strategy
 	for _, augmentedConfig := range deploymentAugmentedConfigs {
 		if augmentedConfig.Kubernetes.Deployment.Spec.Strategy.Type != "" ||
 			augmentedConfig.Kubernetes.Deployment.Spec.Strategy.RollingUpdate != nil {
-			allowAlterDeploymentStrategy = false
-			break
+			return false, nil
 		}
 	}
-	return allowAlterDeploymentStrategy, nil
+	return true, nil
 }
 
 func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployment, function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
@@ -737,13 +722,9 @@ func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployme
 	}
 
 	lc.logger.DebugWith("Patching deployment strategy", "deploymentBody", string(deploymentBody))
-	deployment, err = lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Patch(deployment.Name,
+	return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Patch(deployment.Name,
 		types.JSONPatchType,
 		deploymentBody)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to patch deployment")
-	}
-	return deployment, nil
 }
 
 func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclioio.NuclioFunction,
