@@ -22,6 +22,8 @@ spec:
   template:
     metadata:
       labels:
+        app: nuclio-controller
+        release: {{ .Release.Name }}
         nuclio.io/app: controller
         nuclio.io/class: service
         nuclio.io/name: {{ template "nuclio.controllerName" . }}

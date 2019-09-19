@@ -22,6 +22,8 @@ spec:
   template:
     metadata:
       labels:
+        app: nuclio-dashboard
+        release: {{ .Release.Name }}
         nuclio.io/app: dashboard
         nuclio.io/name: {{ template "nuclio.dashboardName" . }}
         nuclio.io/class: service
