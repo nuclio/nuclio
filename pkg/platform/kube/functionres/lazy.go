@@ -573,11 +573,11 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 
 		deployment, err = lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(deployment)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "Failed to create deployment")
 		}
 		deployment, err = lc.updateDeploymentStrategy(deployment, function)
 		if err != nil {
-			return "", errors.Wrap(err, "Could not update deployment strategy")
+			return "", errors.Wrap(err, "Failed to update deployment strategy")
 		}
 		return deployment, nil
 	}
@@ -628,11 +628,11 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			types.MergePatchType,
 			body)
 		if err != nil {
-			return nil, errors.Wrap(err, "Could not patch the updated deployment")
+			return nil, errors.Wrap(err, "Failed to patch the updated deployment")
 		}
 		deployment, err = lc.updateDeploymentStrategy(deployment, function)
 		if err != nil {
-			return "", errors.Wrap(err, "Could not update deployment strategy")
+			return "", errors.Wrap(err, "Failed to deployment strategy")
 		}
 		return deployment, nil
 	}
@@ -656,7 +656,7 @@ func (lc *lazyClient) canUpdateDeploymentStrategy(deployment *apps_v1beta1.Deplo
 	var err error
 	var allowAlterDeploymentStrategy = true
 
-	// get deployment augmented configurations for that specific function
+	// get deployment augmented configurations
 	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to get deployment augmented configs")
@@ -674,7 +674,6 @@ func (lc *lazyClient) canUpdateDeploymentStrategy(deployment *apps_v1beta1.Deplo
 }
 
 func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployment, function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
-	var patchBytes []byte
 	var err error
 	var ops []map[string]string
 
@@ -719,25 +718,25 @@ func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployme
 		})
 	}
 
-	patchBytes, err = json.Marshal(ops)
+	deploymentBody, err := json.Marshal(ops)
 	if err != nil {
 		return nil, errors.Wrap(err, "Could not marshal")
 	}
-	lc.logger.DebugWith("BEFORE Updating!!!", "patchBytes", string(patchBytes))
+
+	lc.logger.DebugWith("Patching deployment strategy", "deploymentBody", string(deploymentBody))
 	deployment, err = lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Patch(deployment.Name,
 		types.JSONPatchType,
-		patchBytes)
+		deploymentBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "Could not patching deployment")
+		return nil, errors.Wrap(err, "Failed to patch deployment")
 	}
-	lc.logger.DebugWith("AFTER Updated!!!", "patchedDeployment", deployment)
 	return deployment, nil
 }
 
 func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclioio.NuclioFunction,
 	deployment *apps_v1beta1.Deployment) error {
 
-	// get deployment augmented configurations for that specific function
+	// get deployment augmented configurations
 	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get deployment augmented configs")
