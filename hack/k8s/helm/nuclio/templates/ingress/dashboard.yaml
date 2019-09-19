@@ -21,6 +21,8 @@ kind: Ingress
 metadata:
   name: {{ $fullName }}
   labels:
+    app: {{ template "nuclio.nuclioName" . }}
+    release: {{ .Release.Name }}
     nuclio.io/app: dashboard
     nuclio.io/name: {{ $fullName }}
     nuclio.io/class: ingress

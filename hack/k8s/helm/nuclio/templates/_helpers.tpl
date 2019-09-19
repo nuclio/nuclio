@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- define "nuclio.nuclioName" -}}
+{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
 {{- define "nuclio.controllerName" -}}
 {{- printf "%s-controller" .Release.Name | trunc 63 -}}
 {{- end -}}
