@@ -22,7 +22,7 @@ spec:
   template:
     metadata:
       labels:
-        app: nuclio-dlx
+        app: {{ template "nuclio.dlxName" . }}
         release: {{ .Release.Name }}
         nuclio.io/app: dlx
         nuclio.io/class: service

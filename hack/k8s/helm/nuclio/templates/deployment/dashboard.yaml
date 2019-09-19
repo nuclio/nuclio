@@ -22,7 +22,7 @@ spec:
   template:
     metadata:
       labels:
-        app: nuclio-dashboard
+        app: {{ template "nuclio.dashboardName" . }}
         release: {{ .Release.Name }}
         nuclio.io/app: dashboard
         nuclio.io/name: {{ template "nuclio.dashboardName" . }}

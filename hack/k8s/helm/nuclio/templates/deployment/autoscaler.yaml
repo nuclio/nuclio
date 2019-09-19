@@ -22,7 +22,7 @@ spec:
   template:
     metadata:
       labels:
-        app: nuclio-autoscaler
+        app: {{ template "nuclio.scalerName" . }}
         release: {{ .Release.Name }}
         nuclio.io/app: autoscaler
         nuclio.io/class: service
