@@ -83,7 +83,7 @@ func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
 	for _, function := range functions.Items {
 
 		// don't include functions that aren't in ready state or that min replicas is larger than zero
-		if function.Spec.MinReplicas == 0 && function.Status.State == functionconfig.FunctionStateReady {
+		if function.GetComputedMinReplicas() <= 0 && function.Status.State == functionconfig.FunctionStateReady {
 			functionList = append(functionList, scaler_types.Resource(function.Name))
 		}
 	}

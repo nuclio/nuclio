@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 	"github.com/nuclio/nuclio/test/httpsrv"
 
@@ -384,7 +385,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromGithub(archiveExtension str
 		httpServer.Addr,
 		pathToFunction)
 
-	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = "github"
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = build.GithubEntryType
 	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{"branch": branch}
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
@@ -414,7 +415,7 @@ func (suite *TestSuite) compressAndDeployFunctionWithCodeEntryOptions(archivePat
 		httpServer.Addr,
 		pathToFunction)
 
-	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = "archive"
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = build.ArchiveEntryType
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{

@@ -45,9 +45,10 @@ import (
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 )
@@ -57,6 +58,14 @@ const (
 	containerHTTPPortName   = "http"
 	containerMetricPort     = 8090
 	containerMetricPortName = "metrics"
+	nvidiaGpuResourceName   = "nvidia.com/gpu"
+)
+
+type deploymentResourceMethod string
+
+const (
+	createDeploymentResourceMethod deploymentResourceMethod = "create"
+	updateDeploymentResourceMethod deploymentResourceMethod = "update"
 )
 
 //
@@ -226,7 +235,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 		// wait a bit
 		time.Sleep(time.Duration(waitMs) * time.Millisecond)
 
-		// expenentially wait more next time, up to 2 seconds
+		// exponentially wait more next time, up to 2 seconds
 		waitMs *= 2
 		if waitMs > 2000 {
 			waitMs = 2000
@@ -379,7 +388,7 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 	if err != nil {
 
 		// if there was an error and it wasn't not found - there was an error. bail
-		if err != nil && !apierrors.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return nil, errors.Wrapf(err, "Failed to get resource")
 		}
 
@@ -398,7 +407,7 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 		return nil, errors.Wrap(err, "Failed to update resource")
 	}
 
-	lc.logger.DebugWith("Resource updated")
+	lc.logger.DebugWith("Resource updated", "name", resourceName)
 
 	return resource, nil
 }
@@ -505,8 +514,12 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		return nil, errors.Wrap(err, "Failed to get pod annotations")
 	}
 
-	replicas := int32(lc.getFunctionReplicas(function))
-	lc.logger.DebugWith("Got replicas", "replicas", replicas)
+	replicas := function.GetComputedReplicas()
+	if replicas != nil {
+		lc.logger.DebugWith("Got replicas", "replicas", *replicas)
+	} else {
+		lc.logger.DebugWith("Got nil replicas")
+	}
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function annotations")
@@ -524,13 +537,13 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	}
 
 	createDeployment := func() (interface{}, error) {
+		method := createDeploymentResourceMethod
 		container := v1.Container{Name: "nuclio"}
-
 		lc.populateDeploymentContainer(functionLabels, function, &container)
 		container.VolumeMounts = volumeMounts
 
 		deploymentSpec := apps_v1beta1.DeploymentSpec{
-			Replicas: &replicas,
+			Replicas: replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
 					Name:        function.Name,
@@ -545,16 +558,13 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 					Containers: []v1.Container{
 						container,
 					},
-					Volumes: volumes,
+					Volumes:            volumes,
+					ServiceAccountName: function.Spec.ServiceAccount,
 				},
 			},
 		}
 
-		if function.Spec.ServiceAccount != "" {
-			deploymentSpec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
-		}
-
-		deploymentResource := &apps_v1beta1.Deployment{
+		deployment := &apps_v1beta1.Deployment{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:        function.Name,
 				Namespace:   function.Namespace,
@@ -565,18 +575,34 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		}
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
-		if err := lc.enrichDeploymentFromPlatformConfiguration(functionLabels, deploymentResource); err != nil {
+		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment, method); err != nil {
 			return nil, err
 		}
-
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(deploymentResource)
+		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(deployment)
 	}
 
 	updateDeployment := func(resource interface{}) (interface{}, error) {
 		deployment := resource.(*apps_v1beta1.Deployment)
+		method := updateDeploymentResourceMethod
+
+		// If we got nil replicas it means leave as is (in order to prevent unwanted scale down)
+		// but need to make sure the current replicas is not less than the min replicas
+		if replicas == nil {
+			minReplicas := function.GetComputedMinReplicas()
+			maxReplicas := function.GetComputedMaxReplicas()
+			lc.logger.DebugWith("Verifying current replicas not lower than minReplicas or higher than max",
+				"maxReplicas", maxReplicas,
+				"minReplicas", minReplicas,
+				"currentReplicas", deployment.Status.Replicas)
+			if deployment.Status.Replicas > maxReplicas {
+				replicas = &maxReplicas
+			} else if deployment.Status.Replicas < minReplicas {
+				replicas = &minReplicas
+			}
+		}
 
 		deployment.Annotations = deploymentAnnotations
-		deployment.Spec.Replicas = &replicas
+		deployment.Spec.Replicas = replicas
 		deployment.Spec.Template.Annotations = podAnnotations
 		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
@@ -589,11 +615,24 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment
 		// enrich deployment spec with default fields that were passed inside the platform configuration
-		if err := lc.enrichDeploymentFromPlatformConfiguration(functionLabels, deployment); err != nil {
+		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment, method); err != nil {
 			return nil, err
 		}
 
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
+		body, err := json.Marshal(deployment)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to marshal deployment resource")
+		}
+
+		deployment, err = lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Patch(deployment.Name,
+			types.MergePatchType,
+			body)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to patch the updated deployment")
+		}
+
+		// we must call it after, as marshal will omit the deployment's rollingUpdate field change to nil (omitempty)
+		return lc.updateDeploymentStrategy(deployment, function)
 	}
 
 	resource, err := lc.createOrUpdateResource("deployment",
@@ -609,40 +648,162 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	return resource.(*apps_v1beta1.Deployment), err
 }
 
-func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(functionLabels labels.Set,
-	deployment *apps_v1beta1.Deployment) error {
+func (lc *lazyClient) canUpdateDeploymentStrategy(deployment *apps_v1beta1.Deployment,
+	function *nuclioio.NuclioFunction,
+	deploymentAugmentedConfigs []platformconfig.LabelSelectorAndConfig) (bool, error) {
 
+	// check if user didnt provide a deployment strategy
+	for _, augmentedConfig := range deploymentAugmentedConfigs {
+		if augmentedConfig.Kubernetes.Deployment.Spec.Strategy.Type != "" ||
+			augmentedConfig.Kubernetes.Deployment.Spec.Strategy.RollingUpdate != nil {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func (lc *lazyClient) resolveDefaultDeploymentStrategy(function *nuclioio.NuclioFunction) apps_v1beta1.DeploymentStrategyType {
+
+	// Since k8s (ATM) does not support rolling update for GPU
+	// redeploying a Nuclio function will get stuck if no GPU is available
+	// to overcome it, we simply change the update strategy to recreate
+	// so k8s will kill the existing pod\function and create the new one
+	if gpuResource, ok := function.Spec.Resources.Limits[nvidiaGpuResourceName]; ok {
+
+		// requested a gpu resource, change to recreate
+		if !gpuResource.IsZero() {
+			return apps_v1beta1.RecreateDeploymentStrategyType
+		}
+	}
+
+	// no gpu resources requested, set to rollingUpdate (default)
+	return apps_v1beta1.RollingUpdateDeploymentStrategyType
+}
+
+func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployment, function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
+	var jsonPatchMapper []map[string]string
+
+	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get deployment augmented configs")
+	}
+
+	// check user didn't provide any deployment strategy specifics
+	canUpdateDeploymentStrategy, err := lc.canUpdateDeploymentStrategy(deployment, function, deploymentAugmentedConfigs)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to decide if deployment strategy can be updated")
+	}
+	if !canUpdateDeploymentStrategy {
+		return deployment, nil
+	}
+
+	newDeploymentStrategyType := lc.resolveDefaultDeploymentStrategy(function)
+	if newDeploymentStrategyType == deployment.Spec.Strategy.Type {
+
+		// nothing has changed
+		return deployment, nil
+	}
+
+	jsonPatchMapper = append(jsonPatchMapper, map[string]string{
+		"op":    "replace",
+		"path":  "/spec/strategy/type",
+		"value": string(newDeploymentStrategyType),
+	})
+
+	// if current strategy is rolling update, in order to change it to `Recreate`
+	// we must remove `rollingUpdate` field
+	if deployment.Spec.Strategy.Type == apps_v1beta1.RollingUpdateDeploymentStrategyType &&
+		newDeploymentStrategyType == apps_v1beta1.RecreateDeploymentStrategyType {
+		jsonPatchMapper = append(jsonPatchMapper, map[string]string{
+			"op":   "remove",
+			"path": "/spec/strategy/rollingUpdate",
+		})
+	}
+
+	deploymentBody, err := json.Marshal(jsonPatchMapper)
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not marshal json patch mapper")
+	}
+
+	lc.logger.DebugWith("Patching deployment strategy", "deploymentBody", string(deploymentBody))
+	return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Patch(deployment.Name,
+		types.JSONPatchType,
+		deploymentBody)
+}
+
+func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclioio.NuclioFunction,
+	deployment *apps_v1beta1.Deployment, method deploymentResourceMethod) error {
+	var allowSetDefaultDeploymentStrategy = true
+
+	// get deployment augmented configurations
+	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get deployment augmented configs")
+	}
+
+	// merge
+	for _, augmentedConfig := range deploymentAugmentedConfigs {
+		if augmentedConfig.Kubernetes.Deployment.Spec.Strategy.Type != "" ||
+			augmentedConfig.Kubernetes.Deployment.Spec.Strategy.RollingUpdate != nil {
+			allowSetDefaultDeploymentStrategy = false
+		}
+		if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
+			return errors.Wrap(err, "Failed to merge deployment spec")
+		}
+	}
+
+	switch method {
+
+	// on create, change inplace the deployment strategy
+	case createDeploymentResourceMethod:
+		if allowSetDefaultDeploymentStrategy {
+			deployment.Spec.Strategy.Type = lc.resolveDefaultDeploymentStrategy(function)
+		}
+	}
+	return nil
+}
+
+func (lc *lazyClient) getDeploymentAugmentedConfigs(function *nuclioio.NuclioFunction) ([]platformconfig.LabelSelectorAndConfig, error) {
+	var configs []platformconfig.LabelSelectorAndConfig
+
+	// get the function labels
+	functionLabels := lc.getFunctionLabels(function)
+
+	// get platform config
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
+
 	for _, augmentedConfig := range platformConfig.FunctionAugmentedConfigs {
 
 		selector, err := meta_v1.LabelSelectorAsSelector(&augmentedConfig.LabelSelector)
 		if err != nil {
-			return errors.Wrap(err, "Failed to get selector from label selector")
+			return nil, errors.Wrap(err, "Failed to get selector from label selector")
 		}
 
 		// if the label matches any of the function labels, augment the deployment with provided function config
 		// NOTE: supports spec only for now. in the future we can remove .Spec and try to merge both meta and spec
 		if selector.Matches(functionLabels) {
-			if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
-				return errors.Wrap(err, "Failed to merge deployment spec")
-			}
+			configs = append(configs, augmentedConfig)
 		}
 	}
 
-	return nil
+	return configs, nil
 }
 
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction) (*autos_v2.HorizontalPodAutoscaler, error) {
 
-	maxReplicas := int32(function.Spec.MaxReplicas)
-	if maxReplicas == 0 {
-		maxReplicas = 10
+	minReplicas := function.GetComputedMinReplicas()
+	maxReplicas := function.GetComputedMaxReplicas()
+	lc.logger.DebugWith("Create/Update hpa", "minReplicas", minReplicas, "maxReplicas", maxReplicas)
+
+	// hpa min replicas must be equal or greater than 1
+	if minReplicas < 1 {
+		minReplicas = int32(1)
 	}
 
-	minReplicas := int32(function.Spec.MinReplicas)
-	if minReplicas == 0 {
-		minReplicas = 1
+	// hpa max replicas must be equal or greater than 1
+	if maxReplicas < 1 {
+		maxReplicas = int32(1)
 	}
 
 	targetCPU := int32(function.Spec.TargetCPU)
@@ -709,6 +870,8 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 			deleteOptions := &meta_v1.DeleteOptions{
 				PropagationPolicy: &propogationPolicy,
 			}
+
+			lc.logger.DebugWith("Deleting hpa - min replicas and max replicas are equal", "name", hpa.Name)
 
 			err := lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
 			return nil, err
@@ -831,25 +994,6 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) label
 	}
 
 	return result
-}
-
-func (lc *lazyClient) getFunctionReplicas(function *nuclioio.NuclioFunction) int {
-	replicas := function.Spec.Replicas
-
-	// only when function is scaled to zero, allow for replicas to be set to zero
-	if function.Spec.Disabled || function.Status.State == functionconfig.FunctionStateScaledToZero {
-		replicas = 0
-	} else if replicas == 0 {
-
-		// in this path, there's a always a minimum of one replica than needs to be available
-		if function.Spec.MinReplicas > 0 {
-			replicas = function.Spec.MinReplicas
-		} else {
-			replicas = 1
-		}
-	}
-
-	return replicas
 }
 
 func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[string]string, error) {
@@ -1170,7 +1314,7 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 		container.Resources.Requests = make(v1.ResourceList)
 
 		// the default is 500 milli cpu
-		cpuQuantity, err := resource.ParseQuantity("25m") // nolint: errcheck
+		cpuQuantity, err := apiresource.ParseQuantity("25m") // nolint: errcheck
 		if err == nil {
 			container.Resources.Requests["cpu"] = cpuQuantity
 		}
@@ -1390,7 +1534,7 @@ func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int3
 	var metricSpecs []autos_v2.MetricSpec
 	config := lc.platformConfigurationProvider.GetPlatformConfiguration()
 	if lc.functionsHaveAutoScaleMetrics(config) {
-		targetValue, err := resource.ParseQuantity(config.AutoScale.TargetValue)
+		targetValue, err := apiresource.ParseQuantity(config.AutoScale.TargetValue)
 		if err != nil {
 			return metricSpecs, errors.Wrap(err, "Failed to parse target value for auto scale")
 		}

@@ -343,10 +343,11 @@ type functionTestSuite struct {
 }
 
 func (suite *functionTestSuite) TestGetDetailSuccessful() {
+	replicas := 10
 	returnedFunction := platform.AbstractFunction{}
 	returnedFunction.Config.Meta.Name = "f1"
 	returnedFunction.Config.Meta.Namespace = "f1Namespace"
-	returnedFunction.Config.Spec.Replicas = 10
+	returnedFunction.Config.Spec.Replicas = &replicas
 
 	// verify
 	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {

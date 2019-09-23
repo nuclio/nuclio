@@ -149,8 +149,8 @@ func (ar *AbstractRuntime) GetHandlerDirObjectPaths() []string {
 func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string, error) {
 
 	// use the function path: /some/path/func.py -> func
-	functionFileName := path.Base(ar.FunctionConfig.Spec.Build.Path)
-	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
+	functionBuildPath := ar.FunctionConfig.Spec.Build.Path
+	functionFileName := strings.TrimSuffix(path.Base(functionBuildPath), path.Ext(functionBuildPath))
 
 	return []string{fmt.Sprintf("%s:%s", functionFileName, "handler")}, nil
 }
