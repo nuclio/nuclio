@@ -31,7 +31,7 @@ type Configuration struct {
 	SecretAccessKey string
 	RegionName      string
 	StreamName      string
-	Shards          []string
+	ApplicationName string
 }
 
 func NewConfiguration(ID string,

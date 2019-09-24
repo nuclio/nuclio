@@ -23,17 +23,19 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/nuclio/logger"
-	kinesisclient "github.com/sendgridlabs/go-kinesis"
+	"github.com/vmware/vmware-go-kcl/clientlibrary/config"
+	"github.com/vmware/vmware-go-kcl/clientlibrary/metrics"
+	kclworker "github.com/vmware/vmware-go-kcl/clientlibrary/worker"
 )
 
 type kinesis struct {
 	trigger.AbstractTrigger
 	event         Event
 	configuration *Configuration
-	kinesisAuth   *kinesisclient.AuthCredentials
-	kinesisClient kinesisclient.KinesisClient
-	shards        []*shard
+	kinesisConfig *config.KinesisClientLibConfiguration
+	kclWorkers    []*kclworker.Worker
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -54,23 +56,25 @@ func newTrigger(parentLogger logger.Logger,
 		AbstractTrigger: abstractTrigger,
 		configuration:   configuration,
 	}
-	newTrigger.kinesisAuth = kinesisclient.NewAuth(configuration.AccessKeyID,
-		configuration.SecretAccessKey,
-		"")
+	creds := credentials.NewCredentials(&credentials.StaticProvider{Value: credentials.Value{
+		AccessKeyID:     configuration.AccessKeyID,
+		SecretAccessKey: configuration.SecretAccessKey,
+	}})
 
-	newTrigger.kinesisClient = kinesisclient.New(newTrigger.kinesisAuth, configuration.RegionName)
+	newTrigger.kinesisConfig = config.NewKinesisClientLibConfigWithCredential(configuration.ApplicationName, configuration.StreamName, configuration.RegionName, "", creds)
 
-	// iterate over shards and create
-	for _, shardID := range configuration.Shards {
-
-		// create the shard
-		shard, err := newShard(newTrigger.Logger, newTrigger, shardID)
+	for i := 0; i < configuration.MaxWorkers; i++ {
+		workerInstance, err := newTrigger.WorkerAllocator.Allocate(0)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create shard")
+			return nil, errors.Wrapf(err, "Failed to allocate worker #%d", i)
 		}
-
-		// add shard
-		newTrigger.shards = append(newTrigger.shards, shard)
+		rpf := recordProcessorFactory{
+			Logger:         instanceLogger.GetChild("recordProcessor"),
+			worker:         workerInstance,
+			kinesisTrigger: newTrigger,
+		}
+		kclWorkerInstance := kclworker.NewWorker(&rpf, newTrigger.kinesisConfig, &metrics.MonitoringConfiguration{})
+		newTrigger.kclWorkers = append(newTrigger.kclWorkers, kclWorkerInstance)
 	}
 
 	return newTrigger, nil
@@ -79,16 +83,13 @@ func newTrigger(parentLogger logger.Logger,
 func (k *kinesis) Start(checkpoint functionconfig.Checkpoint) error {
 	k.Logger.InfoWith("Starting",
 		"streamName", k.configuration.StreamName,
-		"shards", k.configuration.Shards)
+		"applicationName", k.configuration.ApplicationName)
 
-	for _, shardInstance := range k.shards {
-
-		// start reading from shard
-		go func(shardInstance *shard) {
-			if err := shardInstance.readFromShard(); err != nil {
-				k.Logger.ErrorWith("Failed to read from shard", "err", err)
-			}
-		}(shardInstance)
+	for _, workerInstance := range k.kclWorkers {
+		if err := workerInstance.Start(); err != nil {
+			k.Logger.ErrorWith("Failed to read from shard", "err", err)
+			return err
+		}
 	}
 
 	return nil

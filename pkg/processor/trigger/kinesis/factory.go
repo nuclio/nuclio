@@ -43,9 +43,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	}
 
 	// create worker allocator
-	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kinesisLogger,
-		len(configuration.Shards),
-		runtimeConfiguration)
+	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kinesisLogger, configuration.MaxWorkers, runtimeConfiguration)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
