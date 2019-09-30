@@ -137,11 +137,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	reportCreationError := func(creationError error) error {
-		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
-			"err", creationError)
-
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
+
+		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
+			"errorStack", errorStack.String())
 
 		// cut messages that are too big
 		if errorStack.Len() >= 4*Mib {

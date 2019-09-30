@@ -18,11 +18,13 @@ package kube
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -222,36 +224,79 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 			namespace,
 			name)
 	} else {
+		pod := functionPods.Items[0]
 
-		// iterate over pods and get their logs
-		for _, pod := range functionPods.Items {
-			podLogsMessage += "\n* " + pod.Name + "\n"
-
-			logsRequest, getLogsErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).GetLogs(pod.Name, &v1.PodLogOptions{}).Stream()
-			if getLogsErr != nil {
-				podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
-				continue
+		// get the latest pod
+		for _, currentPod := range functionPods.Items {
+			if pod.ObjectMeta.CreationTimestamp.Before(&currentPod.ObjectMeta.CreationTimestamp) {
+				pod = currentPod
 			}
-
-			scanner := bufio.NewScanner(logsRequest)
-
-			// get only first MaxLogLines logs
-			for i := 0; i < MaxLogLines; i++ {
-
-				// check if there's a next line from logsRequest
-				if scanner.Scan() {
-
-					// read the current token and append to logs
-					podLogsMessage += scanner.Text()
-				} else {
-					break
-				}
-			}
-
-			// close the stream
-			logsRequest.Close() // nolint: errcheck
 		}
+
+		// get the pod logs
+		podLogsMessage += "\n* " + pod.Name + "\n"
+
+		logsRequest, getLogsErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).GetLogs(pod.Name, &v1.PodLogOptions{}).Stream()
+		if getLogsErr != nil {
+			podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
+		}
+
+		scanner := bufio.NewScanner(logsRequest)
+
+		// get only first MaxLogLines logs
+		for i := 0; i < MaxLogLines; i++ {
+
+			// check if there's a next line from logsRequest
+			if scanner.Scan() {
+				currentLogLine, err := d.prettifyPodLog(scanner.Bytes())
+				if err != nil {
+
+					// when it is unstructured just add the log as a text
+					podLogsMessage += scanner.Text() + "\n"
+					continue
+				}
+
+				// when it is a processor log line
+				podLogsMessage += currentLogLine + "\n"
+			} else {
+				break
+			}
+		}
+
+		// close the stream
+		logsRequest.Close() // nolint: errcheck
 	}
 
-	return podLogsMessage
+	return common.FixEscapeChars(podLogsMessage)
+}
+
+func (d *deployer) prettifyPodLog(log []byte) (string, error) {
+	logStruct := struct {
+		Time    *string `json:"time"`
+		Level   *string `json:"level"`
+		Message *string `json:"message"`
+		More    *string `json:"more,omitempty"`
+	}{}
+
+	if err := json.Unmarshal(log, &logStruct); err != nil {
+		return "", err
+	}
+
+	// check required fields existence
+	if logStruct.Time == nil || logStruct.Level == nil || logStruct.Message == nil {
+		return "", errors.New("Missing required fields")
+	}
+
+	parsedTime, err := time.Parse(time.RFC3339, *logStruct.Time)
+	if err != nil {
+		return "", err
+	}
+
+	res := fmt.Sprintf("[%s] (%c) %s [%s]",
+		parsedTime.Format("15:04:05.000"),
+		strings.ToUpper(*logStruct.Level)[0],
+		*logStruct.Message,
+		*logStruct.More)
+
+	return res, nil
 }
