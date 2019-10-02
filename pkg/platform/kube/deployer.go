@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -267,7 +268,7 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 		logsRequest.Close() // nolint: errcheck
 	}
 
-	return podLogsMessage
+	return common.FixEscapeChars(podLogsMessage)
 }
 
 func (d *deployer) prettifyPodLogLine(log []byte) (string, error) {
@@ -278,12 +279,7 @@ func (d *deployer) prettifyPodLogLine(log []byte) (string, error) {
 		More    *string `json:"more,omitempty"`
 	}{}
 
-	unquotedLog, err := strconv.Unquote(string(log))
-	if err != nil {
-		return "", errors.New("Failed to unquote log line")
-	}
-
-	if err := json.Unmarshal([]byte(unquotedLog), &logStruct); err != nil {
+	if err := json.Unmarshal(log, &logStruct); err != nil {
 		return "", err
 	}
 
