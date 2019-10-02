@@ -240,26 +240,27 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 		logsRequest, getLogsErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).Stream()
 		if getLogsErr != nil {
 			podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
-		}
+		} else {
 
-		scanner := bufio.NewScanner(logsRequest)
+			scanner := bufio.NewScanner(logsRequest)
 
-		// get the last MaxLogLines logs
-		for scanner.Scan() {
-			currentLogLine, err := d.prettifyPodLogLine(scanner.Bytes())
-			if err != nil {
+			// get the last MaxLogLines logs
+			for scanner.Scan() {
+				currentLogLine, err := d.prettifyPodLogLine(scanner.Bytes())
+				if err != nil {
 
-				// when it is unstructured just add the log as a text
-				podLogsMessage += scanner.Text() + "\n"
-				continue
+					// when it is unstructured just add the log as a text
+					podLogsMessage += scanner.Text() + "\n"
+					continue
+				}
+
+				// when it is a processor log line
+				podLogsMessage += currentLogLine + "\n"
 			}
 
-			// when it is a processor log line
-			podLogsMessage += currentLogLine + "\n"
+			// close the stream
+			logsRequest.Close() // nolint: errcheck
 		}
-
-		// close the stream
-		logsRequest.Close() // nolint: errcheck
 	}
 
 	return common.FixEscapeChars(podLogsMessage)
