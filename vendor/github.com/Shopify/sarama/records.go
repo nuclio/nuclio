@@ -163,11 +163,42 @@ func (r *Records) isControl() (bool, error) {
 	return false, fmt.Errorf("unknown records type: %v", r.recordsType)
 }
 
-func magicValue(pd packetDecoder) (int8, error) {
-	dec, err := pd.peek(magicOffset, magicLength)
-	if err != nil {
-		return 0, err
+func (r *Records) isOverflow() (bool, error) {
+	if r.recordsType == unknownRecords {
+		if empty, err := r.setTypeFromFields(); err != nil || empty {
+			return false, err
+		}
 	}
 
-	return dec.getInt8()
+	switch r.recordsType {
+	case unknownRecords:
+		return false, nil
+	case legacyRecords:
+		if r.MsgSet == nil {
+			return false, nil
+		}
+		return r.MsgSet.OverflowMessage, nil
+	case defaultRecords:
+		return false, nil
+	}
+	return false, fmt.Errorf("unknown records type: %v", r.recordsType)
+}
+
+func magicValue(pd packetDecoder) (int8, error) {
+	return pd.peekInt8(magicOffset)
+}
+
+func (r *Records) getControlRecord() (ControlRecord, error) {
+	if r.RecordBatch == nil || len(r.RecordBatch.Records) <= 0 {
+		return ControlRecord{}, fmt.Errorf("cannot get control record, record batch is empty")
+	}
+
+	firstRecord := r.RecordBatch.Records[0]
+	controlRecord := ControlRecord{}
+	err := controlRecord.decode(&realDecoder{raw: firstRecord.Key}, &realDecoder{raw: firstRecord.Value})
+	if err != nil {
+		return ControlRecord{}, err
+	}
+
+	return controlRecord, nil
 }
