@@ -244,24 +244,18 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 
 		scanner := bufio.NewScanner(logsRequest)
 
-		// get only first MaxLogLines logs
-		for {
+		// get the last MaxLogLines logs
+		for scanner.Scan() {
+			currentLogLine, err := d.prettifyPodLogLine(scanner.Bytes())
+			if err != nil {
 
-			// check if there's a next line from logsRequest
-			if scanner.Scan() {
-				currentLogLine, err := d.prettifyPodLogLine(scanner.Bytes())
-				if err != nil {
-
-					// when it is unstructured just add the log as a text
-					podLogsMessage += scanner.Text() + "\n"
-					continue
-				}
-
-				// when it is a processor log line
-				podLogsMessage += currentLogLine + "\n"
-			} else {
-				break
+				// when it is unstructured just add the log as a text
+				podLogsMessage += scanner.Text() + "\n"
+				continue
 			}
+
+			// when it is a processor log line
+			podLogsMessage += currentLogLine + "\n"
 		}
 
 		// close the stream
