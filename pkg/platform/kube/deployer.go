@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -224,7 +223,7 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 			namespace,
 			name)
 	} else {
-		pod := functionPods.Items[0]
+		var pod v1.Pod
 
 		// get the latest pod
 		for _, currentPod := range functionPods.Items {
@@ -236,7 +235,8 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 		// get the pod logs
 		podLogsMessage += "\n* " + pod.Name + "\n"
 
-		logsRequest, getLogsErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).GetLogs(pod.Name, &v1.PodLogOptions{}).Stream()
+		maxLogLines := int64(MaxLogLines)
+		logsRequest, getLogsErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).Stream()
 		if getLogsErr != nil {
 			podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
 		}
@@ -244,11 +244,11 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 		scanner := bufio.NewScanner(logsRequest)
 
 		// get only first MaxLogLines logs
-		for i := 0; i < MaxLogLines; i++ {
+		for {
 
 			// check if there's a next line from logsRequest
 			if scanner.Scan() {
-				currentLogLine, err := d.prettifyPodLog(scanner.Bytes())
+				currentLogLine, err := d.prettifyPodLogLine(scanner.Bytes())
 				if err != nil {
 
 					// when it is unstructured just add the log as a text
@@ -267,10 +267,10 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 		logsRequest.Close() // nolint: errcheck
 	}
 
-	return common.FixEscapeChars(podLogsMessage)
+	return podLogsMessage
 }
 
-func (d *deployer) prettifyPodLog(log []byte) (string, error) {
+func (d *deployer) prettifyPodLogLine(log []byte) (string, error) {
 	logStruct := struct {
 		Time    *string `json:"time"`
 		Level   *string `json:"level"`
@@ -278,13 +278,18 @@ func (d *deployer) prettifyPodLog(log []byte) (string, error) {
 		More    *string `json:"more,omitempty"`
 	}{}
 
-	if err := json.Unmarshal(log, &logStruct); err != nil {
+	unquotedLog, err := strconv.Unquote(string(log))
+	if err != nil {
+		return "", errors.New("Failed to unquote log line")
+	}
+
+	if err := json.Unmarshal([]byte(unquotedLog), &logStruct); err != nil {
 		return "", err
 	}
 
 	// check required fields existence
 	if logStruct.Time == nil || logStruct.Level == nil || logStruct.Message == nil {
-		return "", errors.New("Missing required fields")
+		return "", errors.New("Missing required fields in pod log line")
 	}
 
 	parsedTime, err := time.Parse(time.RFC3339, *logStruct.Time)
