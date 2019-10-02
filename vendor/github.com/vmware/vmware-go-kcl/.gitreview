@@ -1,5 +1,0 @@
-[gerrit]
-host=review.ec.eng.vmware.com
-port=29418
-project=cascade-kinesis-client
-defaultbranch=develop
