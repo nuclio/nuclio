@@ -1,7 +1,9 @@
 package common
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 )
@@ -100,4 +102,13 @@ func StringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func CreateKeyValuePairs(m map[string]string) string {
+	b := new(bytes.Buffer)
+	for key, value := range m {
+		fmt.Fprintf(b, "%s=\"%s\"\n", key, value)
+		fmt.Fprint(b, ", ")
+	}
+	return b.String()
 }

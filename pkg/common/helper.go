@@ -162,6 +162,8 @@ func FixEscapeChars(s string) string {
 	escapeCharsMap := map[string]string{
 		"\\n": "\n",
 		"\\t": "\t",
+		"\\\\": "\\",
+		"\\\"": "\"",
 	}
 
 	for old, new := range escapeCharsMap {

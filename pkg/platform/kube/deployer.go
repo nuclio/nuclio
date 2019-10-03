@@ -274,8 +274,38 @@ func (d *deployer) prettifyPodLogLine(log []byte) (string, error) {
 		More    *string `json:"more,omitempty"`
 	}{}
 
-	if err := json.Unmarshal(log, &logStruct); err != nil {
-		return "", err
+	if len(log) > 0 && log[0] == 'l' {
+
+		// when it is a wrapper log line
+		wrapperLogStruct := struct {
+			Datetime *string `json:"datetime"`
+			Level    *string `json:"level"`
+			Message  *string `json:"message"`
+			With     map[string]string `json:"with,omitempty"`
+		}{}
+
+		if err := json.Unmarshal(log[1:], &wrapperLogStruct); err != nil {
+			return "", err
+		}
+
+		// manipulate the time format so it can be parsed later
+		unparsedTime := *wrapperLogStruct.Datetime + "Z"
+		unparsedTime = strings.Replace(unparsedTime, " ", "T", 1)
+		unparsedTime = strings.Replace(unparsedTime, ",", ".", 1)
+
+		logStruct.Time = &unparsedTime
+		logStruct.Level = wrapperLogStruct.Level
+		logStruct.Message = wrapperLogStruct.Message
+
+		more := common.CreateKeyValuePairs(wrapperLogStruct.With)
+		logStruct.More = &more
+
+	} else {
+
+		// when it is a processor log line
+		if err := json.Unmarshal(log, &logStruct); err != nil {
+			return "", err
+		}
 	}
 
 	// check required fields existence

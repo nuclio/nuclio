@@ -300,7 +300,7 @@ def run_wrapper():
 
     # add a logger output that is human readable. we'll remove it once we have a socket output. this
     # way all output goes to stdout until a socket is available and then switches exclusively to socket
-    root_logger.set_handler('default', sys.stdout, nuclio_sdk.logger.HumanReadableFormatter())
+    root_logger.set_handler('default', sys.stdout, nuclio_sdk.logger.JSONFormatter())
 
     try:
 
