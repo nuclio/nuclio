@@ -160,8 +160,8 @@ func RemoveWindowsCarriage(b []byte) []byte {
 
 func FixEscapeChars(s string) string {
 	escapeCharsMap := map[string]string{
-		"\\n": "\n",
-		"\\t": "\t",
+		"\\n":  "\n",
+		"\\t":  "\t",
 		"\\\\": "\\",
 		"\\\"": "\"",
 	}

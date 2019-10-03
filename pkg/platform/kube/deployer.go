@@ -278,9 +278,9 @@ func (d *deployer) prettifyPodLogLine(log []byte) (string, error) {
 
 		// when it is a wrapper log line
 		wrapperLogStruct := struct {
-			Datetime *string `json:"datetime"`
-			Level    *string `json:"level"`
-			Message  *string `json:"message"`
+			Datetime *string           `json:"datetime"`
+			Level    *string           `json:"level"`
+			Message  *string           `json:"message"`
 			With     map[string]string `json:"with,omitempty"`
 		}{}
 

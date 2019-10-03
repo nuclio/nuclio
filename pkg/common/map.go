@@ -107,8 +107,7 @@ func StringInSlice(a string, list []string) bool {
 func CreateKeyValuePairs(m map[string]string) string {
 	b := new(bytes.Buffer)
 	for key, value := range m {
-		fmt.Fprintf(b, "%s=\"%s\"\n", key, value)
-		fmt.Fprint(b, ", ")
+		fmt.Fprintf(b, "%s=\"%s\",\n", key, value) // nolint: errcheck
 	}
 	return b.String()
 }
