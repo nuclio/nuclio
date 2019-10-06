@@ -85,8 +85,8 @@ func (k *kinesis) Start(checkpoint functionconfig.Checkpoint) error {
 		"streamName", k.configuration.StreamName,
 		"applicationName", k.configuration.ApplicationName)
 
-	for _, workerInstance := range k.kclWorkers {
-		if err := workerInstance.Start(); err != nil {
+	for _, kclWorkerInstance := range k.kclWorkers {
+		if err := kclWorkerInstance.Start(); err != nil {
 			k.Logger.ErrorWith("Failed to read from shard", "err", err)
 			return err
 		}
