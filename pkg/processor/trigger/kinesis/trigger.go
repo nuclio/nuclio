@@ -62,6 +62,7 @@ func newTrigger(parentLogger logger.Logger,
 	}})
 
 	newTrigger.kinesisConfig = config.NewKinesisClientLibConfigWithCredential(configuration.ApplicationName, configuration.StreamName, configuration.RegionName, "", creds)
+	newTrigger.kinesisConfig.WithInitialPositionInStream(configuration.initialPosition)
 
 	for i := 0; i < configuration.MaxWorkers; i++ {
 		workerInstance, err := newTrigger.WorkerAllocator.Allocate(0)

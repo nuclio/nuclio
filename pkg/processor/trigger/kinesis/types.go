@@ -17,12 +17,15 @@ limitations under the License.
 package kinesis
 
 import (
+	"strings"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/vmware/vmware-go-kcl/clientlibrary/config"
 )
 
 type Configuration struct {
@@ -32,6 +35,8 @@ type Configuration struct {
 	RegionName      string
 	StreamName      string
 	ApplicationName string
+	InitialPosition string
+	initialPosition config.InitialPositionInStream
 }
 
 func NewConfiguration(ID string,
@@ -47,7 +52,26 @@ func NewConfiguration(ID string,
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
+	var err error
+	newConfiguration.initialPosition, err = resolveInitialPosition(newConfiguration.InitialPosition)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create configuration")
+	}
+
 	// TODO: validate
 
 	return &newConfiguration, nil
+}
+
+func resolveInitialPosition(initialOffset string) (config.InitialPositionInStream, error) {
+	if initialOffset == "" {
+		return config.LATEST, nil
+	}
+	if lower := strings.ToLower(initialOffset); lower == "earliest" {
+		return config.TRIM_HORIZON, nil
+	} else if lower == "latest" {
+		return config.LATEST, nil
+	} else {
+		return 0, errors.Errorf("InitialOffset must be either 'earliest' or 'latest', not '%s'", initialOffset)
+	}
 }
