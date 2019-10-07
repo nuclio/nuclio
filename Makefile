@@ -63,6 +63,9 @@ GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) -X github.com/nuclio/nuclio/pkg
 # inject version info as file
 NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTENTS="$(NUCLIO_VERSION_INFO)"
 
+# Docker client version to be used
+DOCKER_CLI_VERSION := 18.09.6
+
 #
 #  Must be first target
 #
@@ -178,6 +181,7 @@ NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCK
 
 dashboard: ensure-gopath
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+	    --build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
 		--file cmd/dashboard/docker/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -363,7 +367,9 @@ test-undockerized: ensure-gopath
 
 .PHONY: test
 test: ensure-gopath
-	docker build --file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
+	docker build \
+	--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
+	--file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
 	--tag $(NUCLIO_DOCKER_TEST_TAG) .
 
 	docker run --rm --volume /var/run/docker.sock:/var/run/docker.sock \
