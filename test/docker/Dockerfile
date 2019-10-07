@@ -14,8 +14,12 @@
 
 FROM golang:1.12
 
+ARG DOCKER_CLI_VERSION="18.09.6"
+
+ENV DOWNLOAD_URL="https://download.docker.com/linux/static/stable/x86_64/docker-$DOCKER_CLI_VERSION.tgz"
+
 # download docker client to /usr/bin/docker
-RUN curl https://download.docker.com/linux/static/stable/x86_64/docker-17.09.1-ce.tgz > /tmp/docker.tgz \
+RUN curl $DOWNLOAD_URL > /tmp/docker.tgz \
      && tar zxvf /tmp/docker.tgz --strip=1 -C /usr/bin docker/docker \
      && rm /tmp/docker.tgz
 
