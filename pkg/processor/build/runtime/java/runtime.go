@@ -50,17 +50,17 @@ func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 func (j *java) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
-	// format the onbuild image
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-java-onbuild:%s-%s",
-		versionInfo.Label,
-		versionInfo.Arch)
-
-	// set the default base image
-	processorDockerfileInfo.BaseImage = "openjdk:9-jre-slim"
-	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/gradle/bin/processor":                                  "/usr/local/bin/processor",
-		"/home/gradle/src/wrapper/build/libs/nuclio-java-wrapper.jar": "/opt/nuclio/nuclio-java-wrapper.jar",
+	// fill onbuild artifact
+	artifact := runtime.Artifact{
+		Image: fmt.Sprintf("quay.io/nuclio/handler-builder-java-onbuild:%s-%s",
+			versionInfo.Label,
+			versionInfo.Arch),
+		Paths: map[string]string{
+			"/home/gradle/bin/processor":                                  "/usr/local/bin/processor",
+			"/home/gradle/src/wrapper/build/libs/nuclio-java-wrapper.jar": "/opt/nuclio/nuclio-java-wrapper.jar",
+		},
 	}
+	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	return &processorDockerfileInfo, nil
 }

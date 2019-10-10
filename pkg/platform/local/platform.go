@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/logger"
@@ -456,6 +457,14 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 
 func (p *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
 	return p.containerBuilder.BuildAndPushContainerImage(buildOptions, p.ResolveDefaultNamespace(""))
+}
+
+func (p *Platform) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
+	return p.containerBuilder.GetOnbuildStages(onbuildArtifacts)
+}
+
+func (p *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
+	return p.containerBuilder.TransformOnbuildArtifactPaths(onbuildArtifacts)
 }
 
 func (p *Platform) getFreeLocalPort() (int, error) {

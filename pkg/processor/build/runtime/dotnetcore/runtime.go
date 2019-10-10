@@ -36,19 +36,22 @@ func (d *dotnetcore) GetName() string {
 func (d *dotnetcore) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
-	// format the onbuild image
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-dotnetcore-onbuild:%s-%s",
-		versionInfo.Label,
-		versionInfo.Arch)
+	// fill onbuild artifact
+	artifact := runtime.Artifact{
+		Image: fmt.Sprintf("quay.io/nuclio/handler-builder-dotnetcore-onbuild:%s-%s",
+			versionInfo.Label,
+			versionInfo.Arch),
+		Paths: map[string]string{
+			"/home/nuclio/bin/processor":             "/usr/local/bin/processor",
+			"/home/nuclio/bin/wrapper":               "/opt/nuclio/wrapper",
+			"/home/nuclio/bin/handler":               "/opt/nuclio/handler",
+			"/home/nuclio/src/nuclio-sdk-dotnetcore": "/opt/nuclio/nuclio-sdk-dotnetcore",
+		},
+	}
+	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	// set the default base image
 	processorDockerfileInfo.BaseImage = "microsoft/dotnet:2-runtime"
-	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/nuclio/bin/processor":             "/usr/local/bin/processor",
-		"/home/nuclio/bin/wrapper":               "/opt/nuclio/wrapper",
-		"/home/nuclio/bin/handler":               "/opt/nuclio/handler",
-		"/home/nuclio/src/nuclio-sdk-dotnetcore": "/opt/nuclio/nuclio-sdk-dotnetcore",
-	}
 
 	return &processorDockerfileInfo, nil
 }

@@ -657,7 +657,7 @@ func (suite *testSuite) generateDockerfileAndVerify(healthCheckRequired bool,
 	dockerfileInfo *runtime.ProcessorDockerfileInfo,
 	expectedDockerfile string) {
 
-	dockerfileContents, err := suite.builder.generateSingleStageDockerfileContents("artifactDirNameInStaging",
+	dockerfileContents, err := suite.builder.generateDockerfileContents("artifactDirNameInStaging",
 		dockerfileInfo.BaseImage,
 		dockerfileInfo.OnbuildArtifactPaths,
 		dockerfileInfo.ImageArtifactPaths,

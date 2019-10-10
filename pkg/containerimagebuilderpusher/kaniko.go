@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/logger"
 	batch_v1 "k8s.io/api/batch/v1"
@@ -88,6 +89,49 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 	return errors.New("Kaniko job has timed out")
 }
 
+func (k *Kaniko) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
+	onbuildStages := make([]string, len(onbuildArtifacts))
+
+	for _, artifact := range onbuildArtifacts {
+		if artifact.ExternalImage {
+			continue
+		}
+
+		onbuildDockerfileContents := fmt.Sprintf(`FROM %s
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+`, artifact.Image)
+
+		onbuildStages = append(onbuildStages, onbuildDockerfileContents)
+	}
+
+	return onbuildStages, nil
+}
+
+func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
+	artifactIndex := 0
+
+	stagedArtifactPaths := make(map[string]string)
+	for _, artifact := range onbuildArtifacts {
+		for source, destination := range artifact.Paths {
+			var transformedSource string
+			if artifact.ExternalImage {
+
+				// Using external image as "stage"
+				// Example: COPY --from=nginx:latest /etc/nginx/nginx.conf /nginx.conf
+				transformedSource = fmt.Sprintf("--from=%s %s", artifact.Image, source)
+			} else {
+
+				// Using previously build image with index `artifactIndex` as "stage"
+				transformedSource = fmt.Sprintf("--from=%d %s", artifactIndex, source)
+			}
+			stagedArtifactPaths[transformedSource] = destination
+		}
+		artifactIndex++
+	}
+	return stagedArtifactPaths, nil
+}
+
 func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tempDir string) (string, string, error) {
 	var err error
 
@@ -129,7 +173,7 @@ func (k *Kaniko) getKanikoJobSpec(buildOptions *BuildOptions, bundleFilename str
 
 	completions := int32(1)
 	buildArgs := []string{
-		fmt.Sprintf("--dockerfile=%s", buildOptions.DockerfilePath),
+		fmt.Sprintf("--dockerfile=%s", buildOptions.DockerfileInfo.DockerfilePath),
 		fmt.Sprintf("--context=%s", buildOptions.ContextDir),
 		fmt.Sprintf("--destination=%s/%s", buildOptions.RegistryURL, buildOptions.Image),
 	}

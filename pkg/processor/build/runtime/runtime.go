@@ -32,15 +32,21 @@ import (
 )
 
 type ProcessorDockerfileInfo struct {
-	BaseImage            string
-	OnbuildImage         string
-	OnbuildArtifactPaths map[string]string
-	ImageArtifactPaths   map[string]string
-	Directives           map[string][]functionconfig.Directive
+	BaseImage          string
+	ImageArtifactPaths map[string]string
+	OnbuildArtifacts   []Artifact
+	Directives         map[string][]functionconfig.Directive
+	DockerfileContents string
+	DockerfilePath     string
+}
+
+type Artifact struct {
+	Image         string
+	Paths         map[string]string
+	ExternalImage bool
 }
 
 type Runtime interface {
-
 	// DetectFunctionHandlers returns a list of all the handlers
 	// in that directory given a path holding a function (or functions)
 	DetectFunctionHandlers(functionPath string) ([]string, error)

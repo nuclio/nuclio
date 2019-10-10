@@ -43,18 +43,21 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 		processorDockerfileInfo.BaseImage = "python:3.6"
 	}
 
-	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/nuclio/bin/processor": "/usr/local/bin/processor",
-		"/home/nuclio/bin/py":        "/opt/nuclio/",
-	}
-
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",
 	}
 
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-python-onbuild:%s-%s",
-		versionInfo.Label,
-		versionInfo.Arch)
+	// fill onbuild artifact
+	artifact := runtime.Artifact{
+		Image: fmt.Sprintf("quay.io/nuclio/handler-builder-python-onbuild:%s-%s",
+			versionInfo.Label,
+			versionInfo.Arch),
+		Paths: map[string]string{
+			"/home/nuclio/bin/processor": "/usr/local/bin/processor",
+			"/home/nuclio/bin/py":        "/opt/nuclio/",
+		},
+	}
+	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
 		"postCopy": {

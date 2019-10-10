@@ -146,7 +146,7 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 	}
 	if containerBuilderConfiguration.KanikoImage == "" {
 		containerBuilderConfiguration.KanikoImage = getEnvOrDefault("NUCLIO_KANIKO_CONTAINER_IMAGE",
-			"gcr.io/kaniko-project/executor:v0.9.0")
+			"gcr.io/kaniko-project/executor:v0.13.0")
 	}
 	if containerBuilderConfiguration.JobPrefix == "" {
 		containerBuilderConfiguration.JobPrefix = getEnvOrDefault("NUCLIO_DASHBOARD_JOB_NAME_PREFIX", "kanikojob")

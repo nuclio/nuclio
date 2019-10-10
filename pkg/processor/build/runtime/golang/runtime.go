@@ -63,28 +63,30 @@ func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// if the base image is not default (which is alpine) and is not alpine based, must use the non-alpine onbuild image
+	var onbuildImage string
 	if g.FunctionConfig.Spec.Build.BaseImage != "" &&
 		!strings.Contains(g.FunctionConfig.Spec.Build.BaseImage, "alpine") {
 
 		// use non-alpine based image
-		processorDockerfileInfo.OnbuildImage = "quay.io/nuclio/handler-builder-golang-onbuild:%s-%s"
+		onbuildImage = "quay.io/nuclio/handler-builder-golang-onbuild:%s-%s"
 	} else {
 
 		// use alpine based image
-		processorDockerfileInfo.OnbuildImage = "quay.io/nuclio/handler-builder-golang-onbuild:%s-%s-alpine"
+		onbuildImage = "quay.io/nuclio/handler-builder-golang-onbuild:%s-%s-alpine"
 	}
 
-	// format the onbuild image
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf(processorDockerfileInfo.OnbuildImage,
-		versionInfo.Label,
-		versionInfo.Arch)
+	// fill onbuild artifact
+	artifact := runtime.Artifact{
+		Image: fmt.Sprintf(onbuildImage, versionInfo.Label, versionInfo.Arch),
+		Paths: map[string]string{
+			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
+			"/home/nuclio/bin/handler.so": "/opt/nuclio/handler.so",
+		},
+	}
+	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	// set the default base image
 	processorDockerfileInfo.BaseImage = "alpine:3.7"
-	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
-		"/home/nuclio/bin/handler.so": "/opt/nuclio/handler.so",
-	}
 
 	return &processorDockerfileInfo, nil
 }
