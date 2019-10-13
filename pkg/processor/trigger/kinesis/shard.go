@@ -70,14 +70,11 @@ func (s *shard) readFromShard() error {
 
 	for {
 
-		// wait a bit
-		time.Sleep(500 * time.Millisecond)
-
 		// try to get records
 		getRecordsResponse, err := s.kinesisTrigger.kinesisClient.GetRecords(getRecordArgs)
 		if err != nil {
 			s.logger.ErrorWith("Failed to get records", "err", err)
-
+			time.Sleep(500 * time.Millisecond)
 			continue
 		}
 
