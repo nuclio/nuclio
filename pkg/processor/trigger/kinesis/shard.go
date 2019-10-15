@@ -90,6 +90,8 @@ func (s *shard) readFromShard() error {
 				// process the event, don't really do anything with response
 				s.kinesisTrigger.SubmitEventToWorker(nil, s.worker, &event) // nolint: errcheck
 			}
+		} else {
+			time.Sleep(500 * time.Millisecond)
 		}
 
 		// set iterator to next
