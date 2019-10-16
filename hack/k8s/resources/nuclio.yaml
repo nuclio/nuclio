@@ -81,6 +81,11 @@ metadata:
   namespace: nuclio
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      nuclio.io/app: controller
+      nuclio.io/env: test
+      nuclio.io/class: service
   template:
     metadata:
       labels:
@@ -108,6 +113,11 @@ metadata:
   namespace: nuclio
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      nuclio.io/env: test
+      nuclio.io/app: dashboard
+      nuclio.io/class: service
   template:
     metadata:
       labels:
