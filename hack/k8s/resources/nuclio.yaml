@@ -74,13 +74,18 @@ metadata:
 
 # The nuclio controller listens for changes on the function CRD and creates the proper deployment, service, etc
 # for the function
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nuclio-controller
   namespace: nuclio
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      nuclio.io/app: controller
+      nuclio.io/env: test
+      nuclio.io/class: service
   template:
     metadata:
       labels:
@@ -101,13 +106,18 @@ spec:
 ---
 
 # The Nuclio dashboard offers a UI to manage functions
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nuclio-dashboard
   namespace: nuclio
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      nuclio.io/env: test
+      nuclio.io/app: dashboard
+      nuclio.io/class: service
   template:
     metadata:
       labels:
