@@ -70,14 +70,11 @@ func (s *shard) readFromShard() error {
 
 	for {
 
-		// wait a bit
-		time.Sleep(500 * time.Millisecond)
-
 		// try to get records
 		getRecordsResponse, err := s.kinesisTrigger.kinesisClient.GetRecords(getRecordArgs)
 		if err != nil {
 			s.logger.ErrorWith("Failed to get records", "err", err)
-
+			time.Sleep(500 * time.Millisecond)
 			continue
 		}
 
@@ -93,6 +90,8 @@ func (s *shard) readFromShard() error {
 				// process the event, don't really do anything with response
 				s.kinesisTrigger.SubmitEventToWorker(nil, s.worker, &event) // nolint: errcheck
 			}
+		} else {
+			time.Sleep(500 * time.Millisecond)
 		}
 
 		// set iterator to next

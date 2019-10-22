@@ -17,6 +17,8 @@ limitations under the License.
 package kafka
 
 import (
+	"context"
+
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -24,15 +26,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/Shopify/sarama"
-	"github.com/bsm/sarama-cluster"
 	"github.com/nuclio/logger"
 )
 
 type kafka struct {
 	trigger.AbstractTrigger
 	configuration  *Configuration
-	kafkaConfig    *cluster.Config
-	consumer       *cluster.Consumer
+	kafkaConfig    *sarama.Config
+	consumerGroup  sarama.ConsumerGroup
 	shutdownSignal chan struct{}
 }
 
@@ -65,6 +66,10 @@ func newTrigger(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
+	// This is the minimum required for sarama's consumer groups implementation.
+	// Therefore, we do not support anything older that this version.
+	newTrigger.kafkaConfig.Version = sarama.V0_10_2_0
+
 	return newTrigger, nil
 }
 
@@ -72,35 +77,18 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 
 	var err error
 
-	k.consumer, err = k.newConsumer()
+	k.consumerGroup, err = k.newConsumerGroup()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create consumer")
 	}
 
 	k.shutdownSignal = make(chan struct{}, 1)
 
-	// consume partitions
-	go func() {
-		for {
-			select {
-			case partition, ok := <-k.consumer.Partitions():
-				if !ok {
-					k.Logger.Warn("Kafka trigger shutting down due to underlying consumer shutdown")
-					return
-				}
-
-				workerInstance, err := k.WorkerAllocator.Allocate(0)
-				if err != nil {
-					k.Logger.ErrorWith("Failed to allocate worker", "error", err)
-					return
-				}
-				go k.consumeFromPartition(partition, workerInstance)
-			case <-k.shutdownSignal:
-				k.Logger.Info("Shutting down kafka trigger")
-				return
-			}
-		}
-	}()
+	ctx := context.Background()
+	err = k.consumerGroup.Consume(ctx, k.configuration.Topics, k)
+	if err != nil {
+		return errors.Wrap(err, "Failed to join consumer cluster")
+	}
 
 	return err
 }
@@ -108,7 +96,7 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 func (k *kafka) Stop(force bool) (functionconfig.Checkpoint, error) {
 	k.shutdownSignal <- struct{}{}
 	close(k.shutdownSignal)
-	err := k.consumer.Close()
+	err := k.consumerGroup.Close()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to close consumer")
 	}
@@ -119,10 +107,9 @@ func (k *kafka) GetConfig() map[string]interface{} {
 	return common.StructureToMap(k.configuration)
 }
 
-func (k *kafka) newKafkaConfig() (*cluster.Config, error) {
+func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 
-	config := cluster.NewConfig()
-	config.Group.Mode = cluster.ConsumerModePartitions
+	config := sarama.NewConfig()
 
 	config.Consumer.Offsets.Initial = k.configuration.initialOffset
 
@@ -138,23 +125,38 @@ func (k *kafka) newKafkaConfig() (*cluster.Config, error) {
 	return config, nil
 }
 
-func (k *kafka) newConsumer() (*cluster.Consumer, error) {
+func (k *kafka) newConsumerGroup() (sarama.ConsumerGroup, error) {
 
-	consumer, err := cluster.NewConsumer(k.configuration.brokers, k.configuration.ConsumerGroup, k.configuration.Topics, k.kafkaConfig)
+	consumerGroup, err := sarama.NewConsumerGroup(k.configuration.brokers, k.configuration.ConsumerGroup, k.kafkaConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create consumer")
 	}
 
 	k.Logger.DebugWith("Consumer created", "brokers", k.configuration.brokers)
-	return consumer, nil
+	return consumerGroup, nil
 }
 
-func (k *kafka) consumeFromPartition(partitionConsumer cluster.PartitionConsumer, worker *worker.Worker) {
-	defer k.WorkerAllocator.Release(worker)
-	event := Event{}
-	for message := range partitionConsumer.Messages() {
-		event.kafkaMessage = message
-		k.SubmitEventToWorker(nil, worker, &event) // nolint: errcheck
-		k.consumer.MarkOffset(message, "")         // mark message as processed
+func (k *kafka) Setup(session sarama.ConsumerGroupSession) error {
+	k.Logger.InfoWith("Starting consumer session", "claims", session.Claims())
+	return nil
+}
+
+func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
+	k.Logger.InfoWith("Ending consumer session", "claims", session.Claims())
+	return nil
+}
+
+func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	workerInstance, err := k.WorkerAllocator.Allocate(0)
+	if err != nil {
+		return errors.Wrap(err, "Failed to allocate worker for consumer")
 	}
+	defer k.WorkerAllocator.Release(workerInstance)
+	event := Event{}
+	for message := range claim.Messages() {
+		event.kafkaMessage = message
+		k.SubmitEventToWorker(nil, workerInstance, &event) // nolint: errcheck
+		session.MarkMessage(message, "")                   // mark message as processed
+	}
+	return nil
 }
