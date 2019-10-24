@@ -181,7 +181,7 @@ NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCK
 
 dashboard: ensure-gopath
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-	    --build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
+		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
 		--file cmd/dashboard/docker/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
