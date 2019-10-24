@@ -34,7 +34,9 @@ func (n *nodejs) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info,
+	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
+
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// set the default base image
@@ -46,7 +48,9 @@ func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
-		Image: fmt.Sprintf("quay.io/nuclio/handler-builder-nodejs-onbuild:%s-%s",
+		Name: "nodejs-onbuild",
+		Image: fmt.Sprintf("%s/nuclio/handler-builder-nodejs-onbuild:%s-%s",
+			registryURL,
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

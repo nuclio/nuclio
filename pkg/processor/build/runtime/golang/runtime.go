@@ -59,7 +59,9 @@ func (g *golang) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info,
+	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
+
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// if the base image is not default (which is alpine) and is not alpine based, must use the non-alpine onbuild image
@@ -68,16 +70,17 @@ func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 		!strings.Contains(g.FunctionConfig.Spec.Build.BaseImage, "alpine") {
 
 		// use non-alpine based image
-		onbuildImage = "quay.io/nuclio/handler-builder-golang-onbuild:%s-%s"
+		onbuildImage = "%s/nuclio/handler-builder-golang-onbuild:%s-%s"
 	} else {
 
 		// use alpine based image
-		onbuildImage = "quay.io/nuclio/handler-builder-golang-onbuild:%s-%s-alpine"
+		onbuildImage = "%s/nuclio/handler-builder-golang-onbuild:%s-%s-alpine"
 	}
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
-		Image: fmt.Sprintf(onbuildImage, versionInfo.Label, versionInfo.Arch),
+		Image: fmt.Sprintf(onbuildImage, registryURL, versionInfo.Label, versionInfo.Arch),
+		Name:  "golang-onbuild",
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
 			"/home/nuclio/bin/handler.so": "/opt/nuclio/handler.so",

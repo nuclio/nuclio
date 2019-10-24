@@ -91,16 +91,23 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 
 func (k *Kaniko) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
 	onbuildStages := make([]string, len(onbuildArtifacts))
+	stage := 0
 
 	for _, artifact := range onbuildArtifacts {
 		if artifact.ExternalImage {
 			continue
 		}
 
-		onbuildDockerfileContents := fmt.Sprintf(`FROM %s
+		stage++
+		if len(artifact.Name) == 0 {
+			artifact.Name = fmt.Sprintf("onbuildStage-%d", stage)
+		}
+
+		onbuildDockerfileContents := fmt.Sprintf(`FROM %s AS %s
 ARG NUCLIO_LABEL
 ARG NUCLIO_ARCH
-`, artifact.Image)
+`, artifact.Image,
+			artifact.Name)
 
 		onbuildStages = append(onbuildStages, onbuildDockerfileContents)
 	}
@@ -109,7 +116,6 @@ ARG NUCLIO_ARCH
 }
 
 func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
-	artifactIndex := 0
 
 	stagedArtifactPaths := make(map[string]string)
 	for _, artifact := range onbuildArtifacts {
@@ -123,11 +129,10 @@ func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifa
 			} else {
 
 				// Using previously build image with index `artifactIndex` as "stage"
-				transformedSource = fmt.Sprintf("--from=%d %s", artifactIndex, source)
+				transformedSource = fmt.Sprintf("--from=%s %s", artifact.Name, source)
 			}
 			stagedArtifactPaths[transformedSource] = destination
 		}
-		artifactIndex++
 	}
 	return stagedArtifactPaths, nil
 }
@@ -184,6 +189,7 @@ func (k *Kaniko) getKanikoJobSpec(buildOptions *BuildOptions, bundleFilename str
 
 	if k.builderConfiguration.InsecureRegistry {
 		buildArgs = append(buildArgs, "--insecure")
+		buildArgs = append(buildArgs, "--insecure-pull")
 	}
 
 	// Add build options args

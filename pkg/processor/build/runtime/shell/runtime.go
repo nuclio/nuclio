@@ -33,7 +33,9 @@ func (s *shell) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (s *shell) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+func (s *shell) GetProcessorDockerfileInfo(versionInfo *version.Info,
+	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
+
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// set the default base image
@@ -41,7 +43,9 @@ func (s *shell) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
-		Image: fmt.Sprintf("quay.io/nuclio/processor:%s-%s",
+		Name: "nuclio-processor",
+		Image: fmt.Sprintf("%s/nuclio/processor:%s-%s",
+			registryURL,
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

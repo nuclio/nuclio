@@ -41,6 +41,7 @@ type Platform struct {
 	invoker                        *invoker
 	ExternalIPAddresses            []string
 	DeployLogStreams               map[string]*LogStream
+	ContainerBuilder               containerimagebuilderpusher.BuilderPusher
 	DefaultHTTPIngressHostTemplate string
 }
 
@@ -313,17 +314,17 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 
 // BuildAndPushContainerImage builds container image and pushes it into docker registry
 func (ap *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
-	return errors.New("Unsupported")
+	return ap.ContainerBuilder.BuildAndPushContainerImage(buildOptions, ap.platform.ResolveDefaultNamespace(""))
 }
 
 // Get Onbuild stage for multistage builds
 func (ap *Platform) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
-	return nil, errors.New("Unsupported")
+	return ap.ContainerBuilder.GetOnbuildStages(onbuildArtifacts)
 }
 
 // Change Onbuild artifact paths depending on the type of the builder used
 func (ap *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
-	return nil, errors.New("Unsupported")
+	return ap.ContainerBuilder.TransformOnbuildArtifactPaths(onbuildArtifacts)
 }
 
 func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {

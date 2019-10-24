@@ -33,7 +33,9 @@ func (r *ruby) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (r *ruby) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+func (r *ruby) GetProcessorDockerfileInfo(versionInfo *version.Info,
+	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
+
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	processorDockerfileInfo.BaseImage = "ruby:2.4.4-alpine"
@@ -44,7 +46,9 @@ func (r *ruby) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.P
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
-		Image: fmt.Sprintf("quay.io/nuclio/handler-builder-ruby-onbuild:%s-%s",
+		Name: "ruby-onbuild",
+		Image: fmt.Sprintf("%s/nuclio/handler-builder-ruby-onbuild:%s-%s",
+			registryURL,
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

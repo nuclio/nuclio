@@ -37,7 +37,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/processor"
-	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/logger"
@@ -48,10 +47,9 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	cmdRunner        cmdrunner.CmdRunner
-	dockerClient     dockerclient.Client
-	containerBuilder containerimagebuilderpusher.BuilderPusher
-	localStore       *store
+	cmdRunner    cmdrunner.CmdRunner
+	dockerClient dockerclient.Client
+	localStore   *store
 }
 
 const Mib = 1048576
@@ -74,7 +72,7 @@ func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 		return nil, errors.Wrap(err, "Failed to create command runner")
 	}
 
-	if newPlatform.containerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger); err != nil {
+	if newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger); err != nil {
 		return nil, errors.Wrap(err, "Failed to create containerimagebuilderpusher")
 	}
 
@@ -453,18 +451,6 @@ func (p *Platform) GetNamespaces() ([]string, error) {
 
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{"172.17.0.1"}, nil
-}
-
-func (p *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
-	return p.containerBuilder.BuildAndPushContainerImage(buildOptions, p.ResolveDefaultNamespace(""))
-}
-
-func (p *Platform) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
-	return p.containerBuilder.GetOnbuildStages(onbuildArtifacts)
-}
-
-func (p *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
-	return p.containerBuilder.TransformOnbuildArtifactPaths(onbuildArtifacts)
 }
 
 func (p *Platform) getFreeLocalPort() (int, error) {

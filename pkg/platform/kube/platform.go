@@ -30,7 +30,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -41,13 +40,12 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	deployer         *deployer
-	getter           *getter
-	updater          *updater
-	deleter          *deleter
-	kubeconfigPath   string
-	consumer         *consumer
-	containerBuilder containerimagebuilderpusher.BuilderPusher
+	deployer       *deployer
+	getter         *getter
+	updater        *updater
+	deleter        *deleter
+	kubeconfigPath string
+	consumer       *consumer
 }
 
 const Mib = 1048576
@@ -99,7 +97,7 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string,
 
 	// create container builder
 	if containerBuilderConfiguration != nil && containerBuilderConfiguration.Kind == "kaniko" {
-		newPlatform.containerBuilder, err = containerimagebuilderpusher.NewKaniko(newPlatform.Logger,
+		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewKaniko(newPlatform.Logger,
 			newPlatform.consumer.kubeClientSet, containerBuilderConfiguration)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create kaniko builder")
@@ -107,7 +105,7 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string,
 	} else {
 
 		// Default container image builder
-		newPlatform.containerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger)
+		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create docker builder")
 		}
@@ -642,18 +640,6 @@ func (p *Platform) GetNamespaces() ([]string, error) {
 
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{}, nil
-}
-
-func (p *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
-	return p.containerBuilder.BuildAndPushContainerImage(buildOptions, p.ResolveDefaultNamespace(""))
-}
-
-func (p *Platform) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
-	return p.containerBuilder.GetOnbuildStages(onbuildArtifacts)
-}
-
-func (p *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
-	return p.containerBuilder.TransformOnbuildArtifactPaths(onbuildArtifacts)
 }
 
 func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction, error) {

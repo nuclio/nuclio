@@ -41,6 +41,7 @@ type ProcessorDockerfileInfo struct {
 }
 
 type Artifact struct {
+	Name          string
 	Image         string
 	Paths         map[string]string
 	ExternalImage bool
@@ -56,7 +57,7 @@ type Runtime interface {
 	OnAfterStagingDirCreated(stagingDir string) error
 
 	// GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-	GetProcessorDockerfileInfo(versionInfo *version.Info) (*ProcessorDockerfileInfo, error)
+	GetProcessorDockerfileInfo(versionInfo *version.Info, registryURL string) (*ProcessorDockerfileInfo, error)
 
 	// GetName returns the name of the runtime, including version if applicable
 	GetName() string

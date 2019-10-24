@@ -47,12 +47,16 @@ func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (j *java) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+func (j *java) GetProcessorDockerfileInfo(versionInfo *version.Info,
+	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
+
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
-		Image: fmt.Sprintf("quay.io/nuclio/handler-builder-java-onbuild:%s-%s",
+		Name: "java-onbuild",
+		Image: fmt.Sprintf("%s/nuclio/handler-builder-java-onbuild:%s-%s",
+			registryURL,
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

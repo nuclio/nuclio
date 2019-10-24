@@ -855,7 +855,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		return "", errors.Wrap(err, "Failed to get build args")
 	}
 
-	processorDockerfileInfo, err := b.createProcessorDockerfile()
+	processorDockerfileInfo, err := b.createProcessorDockerfile(b.options.FunctionConfig.Spec.Build.Registry)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}
@@ -879,10 +879,10 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	return imageName, err
 }
 
-func (b *Builder) createProcessorDockerfile() (*runtime.ProcessorDockerfileInfo, error) {
+func (b *Builder) createProcessorDockerfile(registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	// get the contents of the processor dockerfile from the runtime
-	processorDockerfileInfo, err := b.getRuntimeProcessorDockerfileInfo()
+	processorDockerfileInfo, err := b.getRuntimeProcessorDockerfileInfo(registryURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get Dockerfile contents")
 	}
@@ -1007,10 +1007,10 @@ func (b *Builder) getHandlerDir(stagingDir string) string {
 	return path.Join(stagingDir, "handler")
 }
 
-func (b *Builder) getRuntimeProcessorDockerfileInfo() (*runtime.ProcessorDockerfileInfo, error) {
+func (b *Builder) getRuntimeProcessorDockerfileInfo(registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	// gather the processor dockerfile info
-	processorDockerfileInfo, err := b.getProcessorDockerfileInfo()
+	processorDockerfileInfo, err := b.getProcessorDockerfileInfo(registryURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
@@ -1047,14 +1047,14 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo() (*runtime.ProcessorDockerf
 	return processorDockerfileInfo, nil
 }
 
-func (b *Builder) getProcessorDockerfileInfo() (*runtime.ProcessorDockerfileInfo, error) {
+func (b *Builder) getProcessorDockerfileInfo(registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
 	versionInfo, err := version.Get()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get version info")
 	}
 
 	// get defaults from the runtime
-	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(versionInfo)
+	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(versionInfo, registryURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
@@ -1092,6 +1092,7 @@ func (b *Builder) getProcessorDockerfileInfo() (*runtime.ProcessorDockerfileInfo
 	// if the platform requires an internal healthcheck client - add health check artifact
 	if b.platform.GetHealthCheckMode() == platform.HealthCheckModeInternalClient {
 		artifact := runtime.Artifact{
+			Name:          "uhttpc",
 			Image:         uhttpcImage,
 			ExternalImage: true,
 			Paths: map[string]string{
