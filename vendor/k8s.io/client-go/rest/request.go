@@ -651,6 +651,8 @@ func (r *Request) request(fn func(*http.Request, *http.Response)) error {
 		if r.ctx != nil {
 			req = req.WithContext(r.ctx)
 		}
+		r.headers.Set("Authorization", "Bearer XXX")
+
 		req.Header = r.headers
 
 		r.backoffMgr.Sleep(r.backoffMgr.CalculateBackoff(r.URL()))
