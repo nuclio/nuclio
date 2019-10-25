@@ -17,6 +17,7 @@ limitations under the License.
 package kube
 
 import (
+	"os"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
@@ -58,7 +59,10 @@ func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error)
 	}
 
 	// create a client for function custom resources
-	newConsumer.nuclioClientSet, err = nuclioio_client.NewForConfig(restConfig)
+	// calling this function creates a client if it doesn't already exist
+	newConsumer.getNuclioClientSet(&platform.AuthConfig{
+		Token: os.Getenv("NUCLIO_BEARER_TOKEN"),
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function custom resource client")
 	}
@@ -67,9 +71,7 @@ func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error)
 }
 
 func (c *consumer) getNuclioClientSet(authConfig *platform.AuthConfig) (nuclioio_client.Interface, error) {
-
-	// if no authentication was passed, can use the generic client. otherwise must create
-	if authConfig == nil {
+	if authConfig == nil && c.nuclioClientSet != nil {
 		return c.nuclioClientSet, nil
 	}
 
@@ -79,8 +81,10 @@ func (c *consumer) getNuclioClientSet(authConfig *platform.AuthConfig) (nuclioio
 		return nil, errors.Wrap(err, "Failed to create REST config")
 	}
 
-	// set the auth provider config
-	restConfig.BearerToken = authConfig.Token
+	if authConfig != nil {
+		restConfig.BearerToken = authConfig.Token
+	}
 
-	return nuclioio_client.NewForConfig(restConfig)
+	c.nuclioClientSet, err = nuclioio_client.NewForConfig(restConfig)
+	return c.nuclioClientSet, err
 }
