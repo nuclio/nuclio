@@ -51,7 +51,7 @@ func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error)
 	}
 
 	// add bearer token if specified in environment
-	token := os.Getenv("NUCLIO_BEARER_TOKEN")
+	token := os.Getenv("NUCLIO_KUBE_CONSUMER_BEARER_TOKEN")
 	if token != "" {
 		restConfig.BearerToken = token
 	}
