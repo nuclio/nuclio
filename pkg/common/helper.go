@@ -166,9 +166,24 @@ func FixEscapeChars(s string) string {
 		"\\\"": "\"",
 	}
 
-	for old, new := range escapeCharsMap {
-		s = strings.Replace(s, old, new, -1)
+	for oldChar, newChar := range escapeCharsMap {
+		s = strings.Replace(s, oldChar, newChar, -1)
 	}
 
 	return s
+}
+
+func GetEnvOrDefaultString(key string, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	} else if value == "nil" || value == "none" {
+		return ""
+	}
+
+	return value
+}
+
+func GetEnvOrDefaultBool(key string, defaultValue bool) bool {
+	return strings.ToLower(GetEnvOrDefaultString(key, strconv.FormatBool(defaultValue))) == "true"
 }
