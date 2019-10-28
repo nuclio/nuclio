@@ -47,10 +47,13 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	cmdRunner        cmdrunner.CmdRunner
-	dockerClient     dockerclient.Client
-	containerBuilder containerimagebuilderpusher.BuilderPusher
-	localStore       *store
+	cmdRunner                             cmdrunner.CmdRunner
+	dockerClient                          dockerclient.Client
+	containerBuilder                      containerimagebuilderpusher.BuilderPusher
+	localStore                            *store
+	checkFunctionContainersHealthiness    bool
+	functionContainersHealthinessTimeout  time.Duration
+	functionContainersHealthinessInterval time.Duration
 }
 
 const Mib = 1048576
@@ -67,6 +70,11 @@ func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 
 	// init platform
 	newPlatform.Platform = newAbstractPlatform
+
+	// function containers healthiness check is disabled by default
+	newPlatform.checkFunctionContainersHealthiness = common.GetEnvOrDefaultBool("NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS", false)
+	newPlatform.functionContainersHealthinessTimeout = time.Second * 5
+	newPlatform.functionContainersHealthinessInterval = time.Second * 30
 
 	// create a command runner
 	if newPlatform.cmdRunner, err = cmdrunner.NewShellRunner(newPlatform.Logger); err != nil {
@@ -87,6 +95,19 @@ func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 		return nil, errors.Wrap(err, "Failed to create local store")
 	}
 
+	// ignite goroutine to check function container healthiness
+	if newPlatform.checkFunctionContainersHealthiness {
+		newPlatform.Logger.DebugWith("Igniting container healthiness validator")
+		go func(newPlatform *Platform) {
+			uptimeTicker := time.NewTicker(newPlatform.functionContainersHealthinessInterval)
+			for {
+				select {
+				case <-uptimeTicker.C:
+					newPlatform.validateFunctionContainersHealthiness()
+				}
+			}
+		}(newPlatform)
+	}
 	return newPlatform, nil
 }
 
@@ -711,4 +732,71 @@ func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.Crea
 	}
 
 	return previousHTTPPort, nil
+}
+
+func (p *Platform) validateFunctionContainersHealthiness() {
+	namespaces, err := p.GetNamespaces()
+	if err != nil {
+		p.Logger.WarnWith("Could not get namespaces", "err", err.Error())
+		return
+	}
+	for _, namespace := range namespaces {
+
+		// get functions for that namespace
+		functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
+			Namespace: namespace,
+		})
+		if err != nil {
+			p.Logger.WarnWith("Could not get functions",
+				"namespace", namespace,
+				"err", err.Error())
+			continue
+		}
+		// For each function, we will check if its container is healthy
+		// in case it is not healthy (or container is missing), update function status
+		// and mark its state to error
+		for _, function := range functions {
+			functionConfig := function.GetConfig()
+			functionState := function.GetStatus().State
+			functionName := functionConfig.Meta.Name
+			if functionState != functionconfig.FunctionStateReady {
+				p.Logger.DebugWith("Skipping function not in ready state",
+					"functionName",
+					functionName,
+					"functionState",
+					functionState)
+				continue
+			}
+
+			// get function container id
+			containerID := p.getContainerNameByCreateFunctionOptions(&platform.CreateFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						Name:      functionName,
+						Namespace: namespace,
+					},
+				},
+			})
+
+			p.Logger.DebugWith("Checking function container healthiness",
+				"functionName", functionName,
+				"containerID", containerID)
+			if err := p.dockerClient.AwaitContainerHealth(containerID,
+				&p.functionContainersHealthinessTimeout); err != nil {
+
+				// function container is not healthy or missing, mark its state as error
+				if err := p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+					Config: *functionConfig,
+					Status: functionconfig.Status{
+						State:   functionconfig.FunctionStateError,
+						Message: "Container is not healthy",
+					},
+				}); err != nil {
+					p.Logger.WarnWith("Failed to update function",
+						"functionName", functionName,
+						"err", err.Error())
+				}
+			}
+		}
+	}
 }
