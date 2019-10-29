@@ -100,11 +100,8 @@ func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 		newPlatform.Logger.DebugWith("Igniting container healthiness validator")
 		go func(newPlatform *Platform) {
 			uptimeTicker := time.NewTicker(newPlatform.functionContainersHealthinessInterval)
-			for {
-				select {
-				case <-uptimeTicker.C:
-					newPlatform.validateFunctionContainersHealthiness()
-				}
+			for range uptimeTicker.C {
+				newPlatform.ValidateFunctionContainersHealthiness()
 			}
 		}(newPlatform)
 	}
@@ -734,7 +731,7 @@ func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.Crea
 	return previousHTTPPort, nil
 }
 
-func (p *Platform) validateFunctionContainersHealthiness() {
+func (p *Platform) ValidateFunctionContainersHealthiness() {
 	namespaces, err := p.GetNamespaces()
 	if err != nil {
 		p.Logger.WarnWith("Could not get namespaces", "err", err.Error())
