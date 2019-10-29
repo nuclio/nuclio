@@ -1034,7 +1034,7 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(registryURL string) (*runtim
 	processorDockerfileInfo.DockerfilePath = filepath.Join(b.stagingDir, "Dockerfile.processor")
 
 	// generate dockerfile contents
-	processorDockerfileInfo.DockerfileContents, err = b.generateDockerfileContents(processorDockerfileInfo.BaseImage,
+	processorDockerfileInfo.DockerfileContents, err = b.GenerateDockerfileContents(processorDockerfileInfo.BaseImage,
 		processorDockerfileInfo.OnbuildArtifacts,
 		processorDockerfileInfo.ImageArtifactPaths,
 		directives,
@@ -1153,7 +1153,7 @@ func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
 	return runtimeDefaultOnbuildImage, nil
 }
 
-func (b *Builder) generateDockerfileContents(baseImage string,
+func (b *Builder) GenerateDockerfileContents(baseImage string,
 	onbuildArtifacts []runtime.Artifact,
 	imageArtifactPaths map[string]string,
 	directives map[string][]functionconfig.Directive,
