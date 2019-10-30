@@ -17,6 +17,8 @@ limitations under the License.
 package kube
 
 import (
+	"os"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
@@ -46,6 +48,12 @@ func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error)
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create REST config")
+	}
+
+	// add bearer token if specified in environment
+	token := os.Getenv("NUCLIO_KUBE_CONSUMER_BEARER_TOKEN")
+	if token != "" {
+		restConfig.BearerToken = token
 	}
 
 	// set kube host
