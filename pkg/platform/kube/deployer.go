@@ -143,7 +143,7 @@ func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 }
 
 func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
-	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
+	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, string, error) {
 
 	// get the logger with which we need to deploy
 	deployLogger := createFunctionOptions.Logger
@@ -158,7 +158,7 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
 		})
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to wait for function readiness")
+		return nil, err.Error(), errors.Wrap(err, "Failed to create function")
 	}
 
 	// wait for the function to be ready
@@ -167,13 +167,13 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 		functionInstance.Namespace,
 		functionInstance.Name)
 	if err != nil {
-		errMessage := d.getFunctionPodLogs(functionInstance.Namespace, functionInstance.Name)
-		return nil, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", errMessage)
+		podLogs, briefErrorMessage := d.getFunctionPodLogs(functionInstance.Namespace, functionInstance.Name)
+		return nil, briefErrorMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
 	}
 
 	return &platform.CreateFunctionResult{
 		Port: functionInstance.Status.HTTPPort,
-	}, nil
+	}, "", nil
 }
 
 func waitForFunctionReadiness(loggerInstance logger.Logger,
@@ -206,8 +206,9 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 	return function, err
 }
 
-func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
+func (d *deployer) getFunctionPodLogs(namespace string, name string) (string, string) {
 	podLogsMessage := "\nPod logs:\n"
+	briefErrorMessage := ""
 
 	// list pods
 	functionPods, listPodErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).List(meta_v1.ListOptions{
@@ -216,7 +217,7 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 
 	if listPodErr != nil {
 		podLogsMessage += "Failed to list pods: " + listPodErr.Error() + "\n"
-		return podLogsMessage
+		return podLogsMessage, ""
 	}
 
 	if len(functionPods.Items) == 0 {
@@ -241,12 +242,11 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 		if getLogsErr != nil {
 			podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
 		} else {
-
 			scanner := bufio.NewScanner(logsRequest)
 
 			// get the last MaxLogLines logs
 			for scanner.Scan() {
-				currentLogLine, err := d.prettifyPodLogLine(scanner.Bytes())
+				currentLogLine, logLevelAboveInfo, err := d.prettifyPodLogLine(scanner.Bytes())
 				if err != nil {
 
 					// when it is unstructured just add the log as a text
@@ -254,6 +254,9 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 					continue
 				}
 
+				if logLevelAboveInfo {
+					briefErrorMessage += currentLogLine + "\n"
+				}
 				// when it is a processor log line
 				podLogsMessage += currentLogLine + "\n"
 			}
@@ -263,10 +266,14 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 		}
 	}
 
-	return common.FixEscapeChars(podLogsMessage)
+	return common.FixEscapeChars(podLogsMessage), common.FixEscapeChars(briefErrorMessage)
 }
 
-func (d *deployer) prettifyPodLogLine(log []byte) (string, error) {
+// returns:
+// string: prettified pod log line
+// bool:   log level is above info
+// error:  explaining what failed during parsing the log line
+func (d *deployer) prettifyPodLogLine(log []byte) (string, bool, error) {
 	logStruct := struct {
 		Time    *string `json:"time"`
 		Level   *string `json:"level"`
@@ -285,7 +292,7 @@ func (d *deployer) prettifyPodLogLine(log []byte) (string, error) {
 		}{}
 
 		if err := json.Unmarshal(log[1:], &wrapperLogStruct); err != nil {
-			return "", err
+			return "", false, err
 		}
 
 		// manipulate the time format so it can be parsed later
@@ -304,28 +311,32 @@ func (d *deployer) prettifyPodLogLine(log []byte) (string, error) {
 
 		// when it is a processor log line
 		if err := json.Unmarshal(log, &logStruct); err != nil {
-			return "", err
+			return "", false, err
 		}
 	}
 
 	// check required fields existence
 	if logStruct.Time == nil || logStruct.Level == nil || logStruct.Message == nil {
-		return "", errors.New("Missing required fields in pod log line")
+		return "", false, errors.New("Missing required fields in pod log line")
 	}
 
 	parsedTime, err := time.Parse(time.RFC3339, *logStruct.Time)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
-	if strings.ToUpper(*logStruct.Level)[0] != 'W' {
-		return "skip line", nil
-	}
+	debugLevel := strings.ToUpper(*logStruct.Level)[0]
+
 	res := fmt.Sprintf("[%s] (%c) %s [%s]",
 		parsedTime.Format("15:04:05.000"),
-		strings.ToUpper(*logStruct.Level)[0],
+		debugLevel,
 		*logStruct.Message,
 		*logStruct.More)
 
-	return res, nil
+	if debugLevel != 'D' && debugLevel != 'I' {
+		return res, true, nil
+	} else {
+		return res, false, nil
+	}
+
 }
