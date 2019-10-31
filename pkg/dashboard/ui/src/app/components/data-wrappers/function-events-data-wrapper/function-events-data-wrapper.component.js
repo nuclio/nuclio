@@ -15,7 +15,7 @@
 
         ctrl.createFunctionEvent = createFunctionEvent;
         ctrl.deleteFunctionEvent = deleteFunctionEvent;
-        ctrl.getExternalIPAddresses = getExternalIPAddresses;
+        ctrl.getFrontendSpec = getFrontendSpec;
         ctrl.getFunctionEvents = getFunctionEvents;
         ctrl.invokeFunction = invokeFunction;
 
@@ -43,11 +43,11 @@
         }
 
         /**
-         * Gets external IP addresses
+         * Gets Frontend spec
          * @returns {Promise}
          */
-        function getExternalIPAddresses() {
-            return NuclioProjectsDataService.getExternalIPAddresses();
+        function getFrontendSpec() {
+            return NuclioProjectsDataService.getFrontendSpec();
         }
 
         /**

@@ -23,15 +23,6 @@
                 lodash.merge(ConfigService, config.data);
             })
             .then(function () {
-                NuclioProjectsDataService.getExternalIPAddresses()
-                    .then(function (response) {
-                        ConfigService.externalIPAddress = response.externalIPAddresses.addresses[0];
-                    })
-                    .catch(function () {
-                        ConfigService.externalIPAddress = null;
-                    });
-            })
-            .then(function () {
                 $urlRouter.listen();
                 $urlRouter.sync();
             });
