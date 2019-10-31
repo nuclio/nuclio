@@ -56,7 +56,7 @@ func (j *java) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	artifact := runtime.Artifact{
 		Name: "java-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-java-onbuild:%s-%s",
-			registryURL,
+			j.GetRegistry(registryURL),
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

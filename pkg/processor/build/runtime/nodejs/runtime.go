@@ -50,7 +50,7 @@ func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	artifact := runtime.Artifact{
 		Name: "nodejs-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-nodejs-onbuild:%s-%s",
-			registryURL,
+			n.GetRegistry(registryURL),
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

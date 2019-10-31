@@ -42,7 +42,7 @@ func (d *dotnetcore) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	artifact := runtime.Artifact{
 		Name: "dotnetcore-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-dotnetcore-onbuild:%s-%s",
-			registryURL,
+			d.GetRegistry(registryURL),
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

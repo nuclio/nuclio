@@ -53,7 +53,7 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	artifact := runtime.Artifact{
 		Name: "python-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-python-onbuild:%s-%s",
-			registryURL,
+			p.GetRegistry(registryURL),
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

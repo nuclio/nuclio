@@ -79,7 +79,7 @@ func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info,
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
-		Image: fmt.Sprintf(onbuildImage, registryURL, versionInfo.Label, versionInfo.Arch),
+		Image: fmt.Sprintf(onbuildImage, g.GetRegistry(registryURL), versionInfo.Label, versionInfo.Arch),
 		Name:  "golang-onbuild",
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
