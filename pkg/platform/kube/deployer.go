@@ -251,12 +251,14 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) (string, st
 
 					// when it is unstructured just add the log as a text
 					podLogsMessage += scanner.Text() + "\n"
+					briefErrorMessage += scanner.Text() + "\n"
 					continue
 				}
 
 				if logLevelAboveInfo {
 					briefErrorMessage += currentLogLine + "\n"
 				}
+
 				// when it is a processor log line
 				podLogsMessage += currentLogLine + "\n"
 			}
