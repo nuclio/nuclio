@@ -51,6 +51,9 @@ type deployCommandeer struct {
 	encodedBuildCodeEntryAttributes string
 	inputImageFile                  string
 	loggerLevel                     string
+	replicas                        int
+	minReplicas                     int
+	maxReplicas                     int
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -159,6 +162,21 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				}
 			}
 
+			// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.Replicas as nil)
+			if commandeer.replicas >= 0 {
+				commandeer.functionConfig.Spec.Replicas = &commandeer.replicas
+			}
+
+			// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.MinReplicas as nil)
+			if commandeer.minReplicas >= 0 {
+				commandeer.functionConfig.Spec.MinReplicas = &commandeer.minReplicas
+			}
+
+			// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.MaxReplicas as nil)
+			if commandeer.maxReplicas >= 0 {
+				commandeer.functionConfig.Spec.MaxReplicas = &commandeer.maxReplicas
+			}
+
 			// update function
 			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
@@ -190,9 +208,9 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.Flags().VarP(&commandeer.encodedEnv, "env", "e", "Environment variables env1=val1")
 	cmd.Flags().BoolVarP(&functionConfig.Spec.Disabled, "disabled", "d", false, "Start the function as disabled (don't run yet)")
-	cmd.Flags().IntVarP(&functionConfig.Spec.Replicas, "replicas", "", 1, "Set to 1 to use a static number of replicas")
-	cmd.Flags().IntVar(&functionConfig.Spec.MinReplicas, "min-replicas", 0, "Minimal number of function replicas")
-	cmd.Flags().IntVar(&functionConfig.Spec.MaxReplicas, "max-replicas", 0, "Maximal number of function replicas")
+	cmd.Flags().IntVarP(&commandeer.replicas, "replicas", "", -1, "Set to any non-negative integer to use a static number of replicas")
+	cmd.Flags().IntVar(&commandeer.minReplicas, "min-replicas", -1, "Minimal number of function replicas")
+	cmd.Flags().IntVar(&commandeer.maxReplicas, "max-replicas", -1, "Maximal number of function replicas")
 	cmd.Flags().IntVar(&functionConfig.Spec.TargetCPU, "target-cpu", 75, "Target CPU when auto-scaling, in percentage")
 	cmd.Flags().BoolVar(&functionConfig.Spec.Publish, "publish", false, "Publish the function")
 	cmd.Flags().StringVar(&commandeer.encodedDataBindings, "data-bindings", "{}", "JSON-encoded data bindings for the function")

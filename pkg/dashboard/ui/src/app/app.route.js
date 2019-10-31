@@ -48,7 +48,7 @@
                 url: 'projects',
                 views: {
                     main: {
-                        template: '<projects-data-wrapper></projects-data-wrapper>'
+                        template: '<projects-functions-data-wrapper></projects-functions-data-wrapper>'
                     }
                 },
                 data: {
@@ -72,7 +72,7 @@
                     capability: 'projects'
                 },
                 params: {
-                    navigatedFrom: ''
+                    navigatedFrom: '/'
                 }
             })
             .state('app.project', {
@@ -95,7 +95,7 @@
                 url: '/functions',
                 views: {
                     project: {
-                        template: '<functions-data-wrapper></functions-data-wrapper>'
+                        template: '<projects-functions-data-wrapper></projects-functions-data-wrapper>'
                     }
                 },
                 data: {

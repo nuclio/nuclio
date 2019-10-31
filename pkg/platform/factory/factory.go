@@ -77,7 +77,7 @@ func CreatePlatform(parentLogger logger.Logger,
 	}
 
 	if err = ensureDefaultProjectExistence(parentLogger, newPlatform, defaultNamespace); err != nil {
-		return nil, errors.New("Failed to ensure default project existence")
+		return nil, errors.Wrap(err, "Failed to ensure default project existence")
 	}
 
 	return newPlatform, nil
@@ -93,7 +93,7 @@ func ensureDefaultProjectExistence(parentLogger logger.Logger, p platform.Platfo
 		},
 	})
 	if err != nil {
-		return errors.New("Failed to get projects")
+		return errors.Wrap(err, "Failed to get projects")
 	}
 
 	if len(projects) == 0 {

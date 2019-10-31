@@ -153,24 +153,30 @@ func (suite *testSuite) TestGetRuntimeNameFromBuildDirNoRuntime() {
 }
 
 func (suite *testSuite) TestWriteFunctionSourceCodeToTempFileWritesReturnsFilePath() {
-	functionSourceCode := "echo foo"
-	encodedFunctionSourceCode := base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+	tests := []struct {
+		inputSourceCode    string
+		expectedSourceCode string
+	}{
+		{"echo foo", "echo foo"},
+		{"echo foo\n", "echo foo\n"},
+		{"echo foo\r\n", "echo foo\n"},
+	}
 	suite.builder.options.FunctionConfig.Spec.Runtime = "shell"
-	suite.builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = encodedFunctionSourceCode
-	suite.builder.options.FunctionConfig.Spec.Build.Path = ""
-
-	err := suite.builder.createTempDir()
-	suite.Assert().NoError(err)
-	defer suite.builder.cleanupTempDir()
-
-	tempPath, err := suite.builder.writeFunctionSourceCodeToTempFile(suite.builder.options.FunctionConfig.Spec.Build.FunctionSourceCode)
-	suite.Assert().NoError(err)
-	suite.NotNil(tempPath)
-
-	resultSourceCode, err := ioutil.ReadFile(tempPath)
-	suite.Assert().NoError(err)
-
-	suite.Assert().Equal(functionSourceCode, string(resultSourceCode))
+	for _, test := range tests {
+		err := suite.builder.createTempDir()
+		suite.Require().NoError(err)
+		encodedFunctionSourceCode := base64.StdEncoding.EncodeToString([]byte(test.inputSourceCode))
+		suite.builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = encodedFunctionSourceCode
+		suite.builder.options.FunctionConfig.Spec.Build.Path = ""
+		tempPath, err := suite.builder.writeFunctionSourceCodeToTempFile(encodedFunctionSourceCode)
+		suite.Assert().NoError(err)
+		suite.NotNil(tempPath)
+		resultSourceCode, err := ioutil.ReadFile(tempPath)
+		suite.Assert().NoError(err)
+		suite.Assert().Equal(test.expectedSourceCode, string(resultSourceCode))
+		err = suite.builder.cleanupTempDir()
+		suite.Require().NoError(err)
+	}
 }
 
 func (suite *testSuite) TestWriteFunctionSourceCodeToTempFileFailsOnUnknownExtension() {
@@ -690,7 +696,7 @@ func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension stri
 
 	defer suite.builder.cleanupTempDir() // nolint: errcheck
 
-	path, err := suite.builder.resolveFunctionPath(codeFileURL)
+	path, _, err := suite.builder.resolveFunctionPath(codeFileURL)
 	suite.NoError(err)
 
 	expectedFilePath := filepath.Join(suite.builder.tempDir, "/download/my-func."+fileExtension)
@@ -732,7 +738,7 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 		httpmock.RegisterResponder("GET", archiveFileURL, responder)
 	}
 
-	path, err := suite.builder.resolveFunctionPath(buildConfiguration.Path)
+	path, _, err := suite.builder.resolveFunctionPath(buildConfiguration.Path)
 	suite.NoError(err)
 
 	// make sure the path is set to the work dir inside the decompressed folder
@@ -745,7 +751,9 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 
 	// make sure our test python file is inside the decompress folder
 	decompressedPythonFileContent, err := ioutil.ReadFile(filepath.Join(path, "/main.py"))
-	suite.Equal("some python code...\n", string(decompressedPythonFileContent))
+	suite.Equal(`def handler(context, event):
+	return "hello world"
+`, string(decompressedPythonFileContent))
 }
 
 func TestBuilderSuite(t *testing.T) {

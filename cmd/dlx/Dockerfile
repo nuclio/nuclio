@@ -32,6 +32,10 @@ RUN go get github.com/v3io/scaler-types \
     && go get github.com/nuclio/logger \
     && go get github.com/nuclio/nuclio-sdk-go
 
+RUN cd $GOPATH/src/github.com/v3io/scaler-types \
+    && git checkout v1.0.0 \
+    && cd /go/src/github.com/nuclio/nuclio
+
 RUN mkdir -p /home/nuclio/bin \
             && GOOS=linux GOARCH=amd64 go build -buildmode=plugin -a -installsuffix cgo -ldflags="-s -w" \
             -o /home/nuclio/plugins/plugin.so pkg/platform/kube/resourcescaler/resourcescaler.go \

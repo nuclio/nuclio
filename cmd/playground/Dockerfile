@@ -35,7 +35,7 @@ RUN go get github.com/v3io/v3io-go-http \
 
 FROM alpine:3.7
 
-ARG DOCKER_CLI_VERSION="17.09.0-ce"
+ARG DOCKER_CLI_VERSION="18.09.6"
 
 ENV DOWNLOAD_URL="https://download.docker.com/linux/static/stable/x86_64/docker-$DOCKER_CLI_VERSION.tgz"
 

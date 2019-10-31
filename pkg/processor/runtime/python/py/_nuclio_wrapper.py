@@ -298,9 +298,9 @@ def run_wrapper():
     # create a logger instance. note: there are no outputters until socket is created
     root_logger = create_logger(args.log_level)
 
-    # add a logger output that is human readable. we'll remove it once we have a socket output. this
+    # add a logger output that is in a JSON format. we'll remove it once we have a socket output. this
     # way all output goes to stdout until a socket is available and then switches exclusively to socket
-    root_logger.set_handler('default', sys.stdout, nuclio_sdk.logger.HumanReadableFormatter())
+    root_logger.set_handler('default', sys.stdout, nuclio_sdk.logger.JSONFormatter())
 
     try:
 

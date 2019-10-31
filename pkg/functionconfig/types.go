@@ -217,9 +217,9 @@ type Spec struct {
 	Resources               v1.ResourceRequirements `json:"resources,omitempty"`
 	Image                   string                  `json:"image,omitempty"`
 	ImageHash               string                  `json:"imageHash,omitempty"`
-	Replicas                int                     `json:"replicas,omitempty"`
-	MinReplicas             int                     `json:"minReplicas,omitempty"`
-	MaxReplicas             int                     `json:"maxReplicas,omitempty"`
+	Replicas                *int                    `json:"replicas,omitempty"`
+	MinReplicas             *int                    `json:"minReplicas,omitempty"`
+	MaxReplicas             *int                    `json:"maxReplicas,omitempty"`
 	TargetCPU               int                     `json:"targetCPU,omitempty"`
 	DataBindings            map[string]DataBinding  `json:"dataBindings,omitempty"`
 	Triggers                map[string]Trigger      `json:"triggers,omitempty"`
@@ -323,9 +323,6 @@ func NewConfig() *Config {
 	return &Config{
 		Meta: Meta{
 			Namespace: "default",
-		},
-		Spec: Spec{
-			Replicas: 1,
 		},
 	}
 }
