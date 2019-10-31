@@ -318,6 +318,9 @@ func (d *deployer) prettifyPodLogLine(log []byte) (string, error) {
 		return "", err
 	}
 
+	if strings.ToUpper(*logStruct.Level)[0] == 'W' {
+		return "skip line", nil
+	}
 	res := fmt.Sprintf("[%s] (%c) %s [%s]",
 		parsedTime.Format("15:04:05.000"),
 		strings.ToUpper(*logStruct.Level)[0],
