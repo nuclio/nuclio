@@ -23,6 +23,15 @@
                 lodash.merge(ConfigService, config.data);
             })
             .then(function () {
+                NuclioProjectsDataService.getFrontendSpec()
+                    .then(function (response) {
+                        lodash.assign(ConfigService.nuclio, {
+                            externalIPAddress: lodash.get(response, 'externalIPAddresses[0]', ''),
+                            ingressHostTemplate: lodash.get(response, 'defaultHTTPIngressHostTemplate', '')
+                        });
+                    });
+            })
+            .then(function () {
                 $urlRouter.listen();
                 $urlRouter.sync();
             });

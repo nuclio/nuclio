@@ -15,7 +15,6 @@
 
         ctrl.createFunctionEvent = createFunctionEvent;
         ctrl.deleteFunctionEvent = deleteFunctionEvent;
-        ctrl.getFrontendSpec = getFrontendSpec;
         ctrl.getFunctionEvents = getFunctionEvents;
         ctrl.invokeFunction = invokeFunction;
 
@@ -40,14 +39,6 @@
          */
         function deleteFunctionEvent(eventData) {
             return NuclioEventDataService.deleteEvent(eventData);
-        }
-
-        /**
-         * Gets Frontend spec
-         * @returns {Promise}
-         */
-        function getFrontendSpec() {
-            return NuclioProjectsDataService.getFrontendSpec();
         }
 
         /**

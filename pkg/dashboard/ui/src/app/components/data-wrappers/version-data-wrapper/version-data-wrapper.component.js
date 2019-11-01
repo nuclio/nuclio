@@ -15,7 +15,6 @@
 
         ctrl.createFunction = createFunction;
         ctrl.deleteFunction = deleteFunction;
-        ctrl.getFrontendSpec = getFrontendSpec;
         ctrl.getFunction = getFunction;
         ctrl.getFunctions = getFunctions;
         ctrl.getProject = getProject;
@@ -42,15 +41,6 @@
          */
         function deleteFunction(functionToDelete) {
             return NuclioFunctionsDataService.deleteFunction(functionToDelete);
-        }
-
-        /**
-         * Gets front-end spec.
-         * @returns {Promise.<{defaultHTTPIngressHostTemplate: string, externalIPAddresses: Array.<string>,
-         * namespace: string}>}
-         */
-        function getFrontendSpec() {
-            return NuclioProjectsDataService.getFrontendSpec();
         }
 
         /**
