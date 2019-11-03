@@ -327,15 +327,15 @@ func (d *deployer) prettifyPodLogLine(log []byte) (string, bool, error) {
 		return "", false, err
 	}
 
-	debugLevel := strings.ToUpper(*logStruct.Level)[0]
+	logLevel := strings.ToUpper(*logStruct.Level)[0]
 
 	res := fmt.Sprintf("[%s] (%c) %s [%s]",
 		parsedTime.Format("15:04:05.000"),
-		debugLevel,
+		logLevel,
 		*logStruct.Message,
 		*logStruct.More)
 
-	if debugLevel != 'D' && debugLevel != 'I' {
+	if logLevel != 'D' && logLevel != 'I' {
 		return res, true, nil
 	} else {
 		return res, false, nil
