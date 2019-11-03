@@ -68,11 +68,10 @@ class Wrapper(object):
 
         # call init context
         if hasattr(entrypoint_module, 'init_context'):
-
             try:
                 getattr(entrypoint_module, 'init_context')(self._context)
             except Exception as err:
-                root_logger.warn_with('Handler not found', handler=handler)
+                self._logger.warn_with('Failed while running init_context', handler=handler)
                 raise
 
         # indicate that we're ready
@@ -235,7 +234,7 @@ class Wrapper(object):
         try:
             entrypoint_address = getattr(module, entrypoint)
         except Exception as err:
-            root_logger.warn_with('Handler not found', handler=handler)
+            self._logger.warn_with('Handler not found', handler=handler)
             raise
 
         return entrypoint_address
