@@ -66,12 +66,9 @@ class Wrapper(object):
         # create a context with logger and platform
         self._context = nuclio_sdk.Context(self._logger, self._platform, worker_id, trigger_name)
 
-        # call init context
+    def init_context(self):
         if hasattr(entrypoint_module, 'init_context'):
             getattr(entrypoint_module, 'init_context')(self._context)
-
-        # indicate that we're ready
-        self._write_packet_to_processor('s')
 
     def _decode_body(self, body, content_type):
         """Decode event body"""
@@ -228,7 +225,12 @@ class Wrapper(object):
         for sub in module_name.split('.')[1:]:
             module = getattr(module, sub)
 
-        return getattr(module, entrypoint)
+        try:
+            entrypoint_address = getattr(module, entrypoint)
+        except Exception as err:
+            raise Exception('Handler: \'{0}\' not found. Exception: {1}', handler, str(err))
+
+        return entrypoint_address
 
     def _connect_to_processor(self, timeout=60):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -318,6 +320,26 @@ def run_wrapper():
                               err=str(err),
                               traceback=traceback.format_exc())
 
+        raise SystemExit(1)
+
+    try:
+
+        # run init_context if such exists
+        wrapper_instance.init_context()
+    except Exception as err:
+        root_logger.warn_with('Caught unhandled exception while running init_context',
+                              err=str(err),
+                              traceback=traceback.format_exc())
+        raise SystemExit(1)
+
+    try:
+
+        # indicate that we're ready
+        wrapper_instance._write_packet_to_processor('s')
+    except Exception as err:
+        root_logger.warn_with('Caught unhandled exception while notifying the processor that the function is ready',
+                              err=str(err),
+                              traceback=traceback.format_exc())
         raise SystemExit(1)
 
     # register the function @ the wrapper
