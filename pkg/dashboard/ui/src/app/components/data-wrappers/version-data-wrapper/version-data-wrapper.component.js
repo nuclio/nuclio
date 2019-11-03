@@ -15,8 +15,6 @@
 
         ctrl.createFunction = createFunction;
         ctrl.deleteFunction = deleteFunction;
-        ctrl.getExternalIPAddresses = getExternalIPAddresses;
-        ctrl.getFrontendSpec = getFrontendSpec;
         ctrl.getFunction = getFunction;
         ctrl.getFunctions = getFunctions;
         ctrl.getProject = getProject;
@@ -43,23 +41,6 @@
          */
         function deleteFunction(functionToDelete) {
             return NuclioFunctionsDataService.deleteFunction(functionToDelete);
-        }
-
-        /**
-         * Gets external IP addresses
-         * @returns {Promise.<{externalIPAddresses: {addresses: Array.<string>}}>}
-         */
-        function getExternalIPAddresses() {
-            return NuclioProjectsDataService.getExternalIPAddresses();
-        }
-
-        /**
-         * Gets front-end spec.
-         * @returns {Promise.<{defaultHTTPIngressHostTemplate: string, externalIPAddresses: Array.<string>,
-         * namespace: string}>}
-         */
-        function getFrontendSpec() {
-            return NuclioProjectsDataService.getFrontendSpec();
         }
 
         /**

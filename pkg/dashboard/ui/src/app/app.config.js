@@ -10,6 +10,10 @@
         },
         isStagingMode: function (strict) {
             return defaultConfig.mode === 'staging' || !strict && defaultConfig.mode === 'demo';
+        },
+        nuclio: {
+            externalIPAddress: '',
+            ingressHostTemplate: ''
         }
     };
 
