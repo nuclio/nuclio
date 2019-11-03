@@ -51,6 +51,7 @@ func (j *java) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
+	processorDockerfileInfo.BaseImage = "openjdk:9-jre-slim"
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
