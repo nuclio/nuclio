@@ -228,7 +228,7 @@ class Wrapper(object):
         try:
             entrypoint_address = getattr(module, entrypoint)
         except Exception as err:
-            raise Exception('Handler: \'{0}\' not found. Exception: {1}', handler, str(err))
+            raise Exception('Handler: \'{0}\' not found. Exception: {1}'.format(handler))
 
         return entrypoint_address
 
