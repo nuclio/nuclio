@@ -17,7 +17,6 @@
         ctrl.createProject = createProject;
         ctrl.deleteFunction = deleteFunction;
         ctrl.deleteProject = deleteProject;
-        ctrl.getExternalIPAddresses = getExternalIPAddresses;
         ctrl.getFunction = getFunction;
         ctrl.getFunctions = getFunctions;
         ctrl.getProject = getProject;
@@ -65,14 +64,6 @@
          */
         function deleteProject(project) {
             return NuclioProjectsDataService.deleteProject(project);
-        }
-
-        /**
-         * Gets external IP addresses
-         * @returns {Promise}
-         */
-        function getExternalIPAddresses() {
-            return NuclioProjectsDataService.getExternalIPAddresses();
         }
 
         /**

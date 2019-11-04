@@ -8,7 +8,6 @@
         return {
             createProject: createProject,
             deleteProject: deleteProject,
-            getExternalIPAddresses: getExternalIPAddresses,
             getFrontendSpec: getFrontendSpec,
             getProject: getProject,
             getProjects: getProjects,
@@ -123,18 +122,6 @@
                 url: NuclioClientService.buildUrlWithPath('projects', ''),
                 headers: headers,
                 data: data,
-                withCredentials: false
-            });
-        }
-
-        /**
-         * Gets external IP addresses for functions
-         * @returns {Promise.<{externalIPAddresses: {addresses: Array.<string>}}>}
-         */
-        function getExternalIPAddresses() {
-            return NuclioClientService.makeRequest({
-                method: 'GET',
-                url: NuclioClientService.buildUrlWithPath('external_ip_addresses'),
                 withCredentials: false
             });
         }

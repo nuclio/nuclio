@@ -23,12 +23,12 @@
                 lodash.merge(ConfigService, config.data);
             })
             .then(function () {
-                NuclioProjectsDataService.getExternalIPAddresses()
+                NuclioProjectsDataService.getFrontendSpec()
                     .then(function (response) {
-                        ConfigService.externalIPAddress = response.externalIPAddresses.addresses[0];
-                    })
-                    .catch(function () {
-                        ConfigService.externalIPAddress = null;
+                        lodash.assign(ConfigService.nuclio, {
+                            externalIPAddress: lodash.get(response, 'externalIPAddresses[0]', ''),
+                            ingressHostTemplate: lodash.get(response, 'defaultHTTPIngressHostTemplate', '')
+                        });
                     });
             })
             .then(function () {
