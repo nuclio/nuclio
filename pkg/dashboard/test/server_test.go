@@ -32,6 +32,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/restful"
 	"github.com/nuclio/nuclio/test/compare"
 
@@ -219,6 +220,14 @@ func (mp *mockPlatform) GetDefaultInvokeIPAddresses() ([]string, error) {
 
 func (mp *mockPlatform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
 	return nil
+}
+
+func (mp *mockPlatform) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
+	return []string{}, nil
+}
+
+func (mp *mockPlatform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
+	return map[string]string{}, nil
 }
 
 //
