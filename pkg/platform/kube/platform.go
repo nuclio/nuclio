@@ -140,13 +140,13 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
 
-		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
-			"errorStack", errorStack.String())
-
 		// cut messages that are too big
 		if errorStack.Len() >= 4*Mib {
 			errorStack.Truncate(4 * Mib)
 		}
+
+		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
+			"errorStack", errorStack.String())
 
 		defaultHTTPPort := 0
 		if existingFunctionInstance != nil {
