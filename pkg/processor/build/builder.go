@@ -291,6 +291,95 @@ func (b *Builder) GetNoBaseImagePull() bool {
 	return b.options.FunctionConfig.Spec.Build.NoBaseImagesPull
 }
 
+// GenerateDockerfileContents return function docker file
+func (b *Builder) GenerateDockerfileContents(baseImage string,
+	onbuildArtifacts []runtime.Artifact,
+	imageArtifactPaths map[string]string,
+	directives map[string][]functionconfig.Directive,
+	healthCheckRequired bool) (string, error) {
+
+	// now that all artifacts are in the artifacts directory, we can craft a Dockerfile
+	dockerfileTemplateContents := `# Multistage builds
+
+{{ range $onbuildStage := .OnbuildStages }}
+{{ $onbuildStage }}
+{{ end }}
+
+# From the base image
+FROM {{ .BaseImage }}
+
+# Old(er) Docker support - must use all build args
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
+
+{{ if .PreCopyDirectives }}
+# Run the pre-copy directives
+{{ range $directive := .PreCopyDirectives }}
+{{ $directive.Kind }} {{ $directive.Value }}
+{{ end }}
+{{ end }}
+
+# Copy required objects from the suppliers
+{{ range $localArtifactPath, $imageArtifactPath := .OnbuildArtifactPaths }}
+COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
+{{ end }}
+
+{{ range $localArtifactPath, $imageArtifactPath := .ImageArtifactPaths }}
+COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
+{{ end }}
+
+{{ if .HealthcheckRequired }}
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+{{ end }}
+
+# Run the post-copy directives
+{{ range $directive := .PostCopyDirectives }}
+{{ $directive.Kind }} {{ $directive.Value }}
+{{ end }}
+
+# Run processor with configuration and platform configuration
+CMD [ "processor" ]
+`
+
+	onbuildStages, err := b.platform.GetOnbuildStages(onbuildArtifacts)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to transform retrive onbuild stages")
+	}
+
+	// Transform `onbuildArtifactPaths` depending on the builder being used
+	onbuildArtifactPaths, err := b.platform.TransformOnbuildArtifactPaths(onbuildArtifacts)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to transform onbuildArtifactPaths")
+	}
+
+	dockerfileTemplate, err := template.New("singleStageDockerfile").
+		Parse(dockerfileTemplateContents)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create onbuildImage template")
+	}
+
+	var dockerfileTemplateBuffer bytes.Buffer
+	err = dockerfileTemplate.Execute(&dockerfileTemplateBuffer, &map[string]interface{}{
+		"BaseImage":            baseImage,
+		"OnbuildStages":        onbuildStages,
+		"OnbuildArtifactPaths": onbuildArtifactPaths,
+		"ImageArtifactPaths":   imageArtifactPaths,
+		"PreCopyDirectives":    directives["preCopy"],
+		"PostCopyDirectives":   directives["postCopy"],
+		"HealthcheckRequired":  healthCheckRequired,
+	})
+
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to run template")
+	}
+
+	dockerfileContents := dockerfileTemplateBuffer.String()
+
+	return dockerfileContents, nil
+}
+
 func (b *Builder) initializeSupportedRuntimes() {
 	b.runtimeInfo = map[string]runtimeInfo{}
 
@@ -1151,97 +1240,6 @@ func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
 	}
 
 	return runtimeDefaultOnbuildImage, nil
-}
-
-func (b *Builder) GenerateDockerfileContents(baseImage string,
-	onbuildArtifacts []runtime.Artifact,
-	imageArtifactPaths map[string]string,
-	directives map[string][]functionconfig.Directive,
-	healthCheckRequired bool) (string, error) {
-
-	// now that all artifacts are in the artifacts directory, we can craft a Dockerfile
-	dockerfileTemplateContents := `# Multistage builds
-
-{{ range $onbuildStage := .OnbuildStages }}
-{{ $onbuildStage }}
-{{ end }}
-
-# From the base image
-FROM {{ .BaseImage }}
-
-# Old(er) Docker support - must use all build args
-ARG NUCLIO_LABEL
-ARG NUCLIO_ARCH
-ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
-
-{{ if .PreCopyDirectives }}
-# Run the pre-copy directives
-{{ range $directive := .PreCopyDirectives }}
-{{ $directive.Kind }} {{ $directive.Value }}
-{{ end }}
-{{ end }}
-
-{{ if .HealthcheckRequired }}
-# Copy health checker
-COPY artifacts/uhttpc /usr/local/bin/uhttpc
-
-# Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
-{{ end }}
-
-# Copy required objects from the suppliers
-{{ range $localArtifactPath, $imageArtifactPath := .OnbuildArtifactPaths }}
-COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
-{{ end }}
-
-{{ range $localArtifactPath, $imageArtifactPath := .ImageArtifactPaths }}
-COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
-{{ end }}
-
-# Run the post-copy directives
-{{ range $directive := .PostCopyDirectives }}
-{{ $directive.Kind }} {{ $directive.Value }}
-{{ end }}
-
-# Run processor with configuration and platform configuration
-CMD [ "processor" ]
-`
-
-	onbuildStages, err := b.platform.GetOnbuildStages(onbuildArtifacts)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to transform retrive onbuild stages")
-	}
-
-	// Transform `onbuildArtifactPaths` depending on the builder being used
-	onbuildArtifactPaths, err := b.platform.TransformOnbuildArtifactPaths(onbuildArtifacts)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to transform onbuildArtifactPaths")
-	}
-
-	dockerfileTemplate, err := template.New("singleStageDockerfile").
-		Parse(dockerfileTemplateContents)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to create onbuildImage template")
-	}
-
-	var dockerfileTemplateBuffer bytes.Buffer
-	err = dockerfileTemplate.Execute(&dockerfileTemplateBuffer, &map[string]interface{}{
-		"BaseImage":            baseImage,
-		"OnbuildStages":        onbuildStages,
-		"OnbuildArtifactPaths": onbuildArtifactPaths,
-		"ImageArtifactPaths":   imageArtifactPaths,
-		"PreCopyDirectives":    directives["preCopy"],
-		"PostCopyDirectives":   directives["postCopy"],
-		"HealthcheckRequired":  healthCheckRequired,
-	})
-
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to run template")
-	}
-
-	dockerfileContents := dockerfileTemplateBuffer.String()
-
-	return dockerfileContents, nil
 }
 
 func (b *Builder) getBuildArgs() (map[string]string, error) {
