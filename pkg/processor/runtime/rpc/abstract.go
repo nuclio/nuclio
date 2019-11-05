@@ -418,7 +418,7 @@ func (r *AbstractRuntime) newResultChan() {
 func (r *AbstractRuntime) watchWrapperProcess() {
 	procStatus, err := r.wrapperProcess.Wait()
 	if r.GetStatus() == status.Ready && (err != nil || !procStatus.Success()) {
-		r.Logger.ErrorWith("unexpected child exit", "error", err, "status", procStatus.String())
+		r.Logger.ErrorWith("Unexpected termination of child process", "error", err, "status", procStatus.String())
 	}
 	r.SetStatus(status.Stopped)
 	r.wrapperProcess = nil
