@@ -12,39 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.10 as processor
-
-#
-# Create processor binary
-#
+# Build the processor
+FROM golang:1.13 as processor
 
 WORKDIR /go/src/github.com/nuclio/nuclio
+
+# copy go modules first, will help docker caching upon building
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+# copy source tree
 COPY . .
 
-RUN go get github.com/v3io/v3io-go-http \
-    && go get github.com/nuclio/logger \
-    && go get github.com/nuclio/nuclio-sdk-go \
-    && go get github.com/nuclio/amqp \
-    && go get golang.org/x/net/... \
-    && go get github.com/v3io/scaler-types \
-    && cd $GOPATH/src/github.com/v3io/scaler-types \
-    && git checkout v1.5.0 \
-    && cd /go/src/github.com/nuclio/nuclio
+# build the processor
+RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
 
-# Create
-RUN mkdir -p /etc/nuclio
-RUN mkdir -p /opt/nuclio
-
-# Make the processor binary
-RUN mkdir -p /home/nuclio/bin \
-    && GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go \
-    && rm -rf /go/src/github/nuclio/nuclio
-
-FROM golang:1.10
-
-#
-# Prepare onbuild
-#
+# Build the plugin
+FROM golang:1.13
 
 # If build passes NUCLIO_ARCH, use it as GOARCH
 ARG NUCLIO_ARCH
@@ -52,20 +37,19 @@ ENV GOARCH ${NUCLIO_ARCH}
 
 # Copy processor binary
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
-COPY --from=processor /go/src/github.com/v3io/v3io-go-http /go/src/github.com/v3io/v3io-go-http
-COPY --from=processor /go/src/github.com/nuclio/logger /go/src/github.com/nuclio/logger
-COPY --from=processor /go/src/github.com/nuclio/nuclio-sdk-go /go/src/github.com/nuclio/nuclio-sdk-go
-COPY --from=processor /go/src/github.com/nuclio/amqp /go/src/github.com/nuclio/amqp
-COPY --from=processor /go/src/github.com/v3io/scaler-types /go/src/github.com/v3io/scaler-types
-COPY --from=processor /go/src/golang.org/x/net /go/src/golang.org/x/net
 
-# This script builds the processor
+# Copy processor go.mod & go.sum, we will need it for building the handler.so (the actual function)
+COPY --from=processor /go/src/github.com/nuclio/nuclio/go.sum /go
+COPY --from=processor /go/src/github.com/nuclio/nuclio/go.mod /go
+COPY --from=processor /go/pkg/mod /go/pkg/mod
+
+# Copy the script that builds the plugin
 COPY pkg/processor/build/runtime/golang/docker/onbuild/build-handler.sh /
 
 # Specify the directory where the handler is kept. By default it is the context dir, but it is overridable
 ONBUILD ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
 
-# Specify the directory where the handler is written to
+# Specify the directory where the handler is written to (aka the module path, used on go.mod)
 ONBUILD ARG NUCLIO_BUILD_IMAGE_HANDLER_DIR=github.com/nuclio/handler
 
 # Copy handler sources to container, build-handler will move it to the right place

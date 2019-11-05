@@ -21,6 +21,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -59,6 +61,7 @@ type TestSuite struct {
 	TestID       string
 	Runtime      string
 	RuntimeDir   string
+	ModuleName   string
 	FunctionDir  string
 	containerID  string
 	TempDir      string
@@ -92,6 +95,7 @@ func (suite *TestSuite) SetupSuite() {
 		OS:        "linux",
 	})
 	suite.Require().NoError(err)
+	suite.ModuleName = "github.com/nuclio/nuclio"
 
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
@@ -215,9 +219,14 @@ func (suite *TestSuite) DeployFunctionAndRedeploy(createFunctionOptions *platfor
 
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *TestSuite) GetNuclioSourceDir() string {
-	// Take the first
-	goPath := strings.Split(os.Getenv("GOPATH"), ":")[0]
-	return path.Join(goPath, "src", "github.com", "nuclio", "nuclio")
+	_, fileName, _, _ := runtime.Caller(1)
+	dirName := path.Dir(fileName)
+
+	// since we are using go modules @ 1.13, GOPATH points to other directory than project source code
+	// here we simply look for module path from within the function caller filename
+	// a/b/c/modulePath/pkg/processor/test/blabla_test.go -> /a/b/c/modulePath
+	projectRootDir, _ := filepath.Abs(dirName[0 : strings.Index(dirName, suite.ModuleName)+len(suite.ModuleName)])
+	return projectRootDir
 }
 
 // GetTestFunctionsDir returns the test function dir

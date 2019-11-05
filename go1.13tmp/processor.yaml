@@ -1,0 +1,5 @@
+spec:
+  runtime: golang
+  handler: handler:Handler
+  logger:
+    level: debug

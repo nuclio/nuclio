@@ -50,6 +50,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/errors"
+	"github.com/mholt/archiver"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"gopkg.in/yaml.v2"
@@ -1471,17 +1472,6 @@ func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegist
 	return renderedImageURL, nil
 }
 
-func (b *Builder) getFileExtensionByURL(inputURL string) (string, error) {
-
-	// parse the url
-	parsedURL, err := url.Parse(inputURL)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to parse URL")
-	}
-
-	return path.Ext(parsedURL.Path), nil
-}
-
 func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType string) (string, error) {
 	var err error
 
@@ -1600,14 +1590,21 @@ func (b *Builder) getFunctionTempFile(tempDir string, functionPath string, isArc
 
 	// for archives, use a temporary local file renamed to something short to allow wacky long archive URLs
 	if isArchive || util.IsCompressed(functionPathBase) {
+		var fileExtension string
 
-		// retain file extension
-		fileExtension, err := b.getFileExtensionByURL(functionPath)
+		// get file archiver by its extension
+		fileArchiver, err := archiver.ByExtension(functionPath)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get file extension from URL")
-		}
 
-		return ioutil.TempFile(tempDir, "nuclio-function-*"+fileExtension)
+			// fallback to .zip
+			b.logger.DebugWith("Could not determine file extension, fallback to .zip",
+				"functionPath",
+				functionPath)
+			fileExtension = "zip"
+		} else {
+			fileExtension = fmt.Sprint(fileArchiver)
+		}
+		return ioutil.TempFile(tempDir, fmt.Sprintf("nuclio-function-*.%s", fileExtension))
 	}
 
 	// for non-archives, must retain file name

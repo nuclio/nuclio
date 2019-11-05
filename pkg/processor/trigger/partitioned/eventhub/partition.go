@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/amqp"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"pack.ag/amqp"
 )
 
 type partition struct {
@@ -89,10 +90,13 @@ func (p *partition) Read() error {
 		}
 
 		// Accept message
-		msg.Accept()
+		err = msg.Accept()
+		if err != nil {
+			return errors.Wrap(err, "Error Accepting message from AMQP")
+		}
 
 		// set event data
-		p.event.body = msg.Data
+		p.event.body = msg.Data[0]
 
 		// process the event, don't really do anything with response
 		p.eventhubTrigger.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck

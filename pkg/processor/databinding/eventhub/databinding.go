@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/amqp"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"pack.ag/amqp"
 )
 
 type eventhub struct {

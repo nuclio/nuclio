@@ -20,8 +20,8 @@ import (
 	ctx "context"
 	"encoding/json"
 
-	"github.com/nuclio/amqp"
 	"github.com/nuclio/nuclio-sdk-go"
+	"pack.ag/amqp"
 )
 
 type metric struct {
@@ -102,7 +102,7 @@ func sendToEventHub(context *nuclio.Context, data []byte, hub *amqp.Sender) erro
 
 	// create an amqp message with the body
 	message := amqp.Message{
-		Data: data,
+		Data: [][]byte{data},
 	}
 
 	// send the metric

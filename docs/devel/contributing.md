@@ -16,7 +16,7 @@ Ensure that your setup includes the following prerequisite components:
 - Linux or OSX
 - Git
 - Docker version 17.05+ (because Nuclio uses [multi-stage builds](https://docs.docker.com/engine/userguide/eng-image/multistage-build/))
-- The Go toolchain (CI tests with 1.10, best use that)
+- The Go toolchain (CI tests with 1.13, best use that)
 - A **GOPATH** directory and a `GOPATH` environment variable that's set to that directory
 - Kubernetes version 1.7+ (mostly for testing) - `minikube` recommended; (you can follow the [Minikube getting-started guide](/docs/setup/minikube/getting-started-minikube.md))
 
@@ -26,20 +26,16 @@ Ensure that your setup includes the following prerequisite components:
 Fork the Nuclio GitHub repository and clone it:
 
 ```sh
-git clone https://github.com/<your username>/nuclio.git $GOPATH/src/github.com/nuclio/nuclio
+git clone https://github.com/<your username>/nuclio.git ~/nuclio
 ```
 
 Check out the `development` branch, because that's where all the goodness happens:
 
 ```sh
-cd $GOPATH/src/github.com/nuclio/nuclio && git checkout development
+cd ~/nuclio && git checkout development
 ```
 
-Now, use `go get` to get some dependencies that are injected into functions and cannot be vendored:
-
-```sh
-go get github.com/v3io/v3io-go-http/... && go get github.com/nuclio/logger/... && go get github.com/nuclio/nuclio-sdk-go/... && go get github.com/nuclio/amqp/... && go get golang.org/x/net/... && go get github.com/v3io/scaler-types/... && cd $GOPATH/src/github.com/v3io/scaler-types && git checkout v1.5.0 && cd $GOPATH/src/github.com/nuclio/nuclio
-```
+Now, use `go mod download` to get Nuclio's dependencies
 
 Build Nuclio artifacts (`nuctl`, container images):
 

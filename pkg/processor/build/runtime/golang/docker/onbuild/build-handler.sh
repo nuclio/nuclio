@@ -23,17 +23,29 @@ set -e
 
 cd /go/src/$1
 
+# moving the go.mod & go.sum to the right place if needed
+if [ ! -f "./go.mod" ]
+then
+    mv /go/go.mod ./go.mod
+    mv /go/go.sum ./go.sum
+else
+
+    # we dont need it, we HAVE remove it
+    rm /go/go.mod /go/go.sum
+fi
+
+# since we are using Nuclio projects go.mod & sum, we need to replace the module package accordingly to the new handler
+go mod edit --module $1
+
 # if specified to build offline, skip go get
 if [ "${NUCLIO_BUILD_OFFLINE}" != "true" ]; then
 
-    # Get dependencies, ignore vendor
-    deps=$(go list ./... | grep -v /vendor)
-    if [ -n "${deps}" ]; then
-        go get -d ${deps}
-    fi
+    # omit unneeded packages
+    go mod tidy
+    go mod download
 fi
 
-# if go deps succeeded, build
+# if go deps succeeded, build plugin
 if [ $? -eq 0 ]; then
     go build -buildmode=plugin -o /home/nuclio/bin/handler.so
 fi

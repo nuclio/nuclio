@@ -18,9 +18,7 @@ package dockerclient
 
 import (
 	"fmt"
-	"os"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
@@ -94,16 +92,16 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		WorkingDir:        &buildOptions.ContextDir,
 	}
 
-	hostNetString := ""
-	if len(os.Getenv("NUCLIO_BUILD_USE_HOST_NET")) != 0 {
-		useHostNet, err := strconv.ParseBool(os.Getenv("NUCLIO_BUILD_USE_HOST_NET"))
-		if err == nil {
-			if useHostNet {
-				hostNetString = "--network host"
-			} else {
-				hostNetString = "--network default"
-			}
-		}
+	var hostNetString string
+	networkInterface := common.GetEnvOrDefaultString("NUCLIO_DOCKER_BUILD_NETWORK", "")
+	switch networkInterface {
+	case "host":
+	case "default":
+	case "none":
+		hostNetString = fmt.Sprintf("--network %s", networkInterface)
+		break
+	default:
+		hostNetString = ""
 	}
 
 	_, err := c.runCommand(runOptions,
@@ -506,6 +504,7 @@ func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string
 
 	if runOptions.CaptureOutputMode == cmdrunner.CaptureOutputModeStdout && runResult.Stderr != "" {
 		c.logger.WarnWith("Docker command outputted to stderr - this may result in errors",
+			"workingDir", runOptions.WorkingDir,
 			"cmd", common.Redact(runOptions.LogRedactions, fmt.Sprintf(format, vars...)),
 			"stderr", runResult.Stderr)
 	}

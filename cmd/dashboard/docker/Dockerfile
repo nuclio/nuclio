@@ -33,23 +33,20 @@ RUN npm install -g gulp \
 # Build binary stage: builds the dashboard binary
 #
 
-FROM golang:1.10 as build-binary
+FROM golang:1.13 as build-binary
+
+WORKDIR /go/src/github.com/nuclio/nuclio
+
+# copy go modules first, will help docker caching upon building
+COPY go.mod go.sum ./
+
+RUN go mod download
 
 # copy source tree
-WORKDIR /go/src/github.com/nuclio/nuclio
 COPY . .
 
 # build the dashboard
-RUN go get github.com/v3io/v3io-go-http \
-    && go get github.com/nuclio/logger \
-    && go get github.com/nuclio/nuclio-sdk-go \
-    && go get github.com/nuclio/amqp \
-    && go get golang.org/x/net/... \
-    && go get github.com/v3io/scaler-types \
-    && cd $GOPATH/src/github.com/v3io/scaler-types \
-    && git checkout v1.5.0 \
-    && cd /go/src/github.com/nuclio/nuclio \
-    && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o dashboard cmd/dashboard/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o dashboard cmd/dashboard/main.go
 
 #
 # Output stage: Creates version file, copies binary and assets to an alpine image

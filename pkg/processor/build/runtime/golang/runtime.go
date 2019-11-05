@@ -90,7 +90,7 @@ func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "alpine:3.7"
+	processorDockerfileInfo.BaseImage = "alpine:3.10"
 
 	return &processorDockerfileInfo, nil
 }
