@@ -163,6 +163,7 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
     - [Deploying Pre-Built Functions](/docs/tasks/deploying-pre-built-functions.md)
     - [Configuring a Platform](/docs/tasks/configuring-a-platform.md)
 - Concepts
+    - [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
     - [Architecture](/docs/concepts/architecture.md)
     - Kubernetes
         - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
