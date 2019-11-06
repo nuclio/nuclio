@@ -18,6 +18,7 @@ package platform
 
 import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )
 
 type HealthCheckMode string
@@ -124,4 +125,10 @@ type Platform interface {
 
 	// BuildAndPushContainerImage builds container image and pushes it into container registry
 	BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error
+
+	// Get Onbuild stage for multistage builds
+	GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error)
+
+	// Change Onbuild artifact paths depending on the type of the builder used
+	TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error)
 }

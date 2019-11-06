@@ -27,7 +27,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -213,97 +212,6 @@ func (suite *testSuite) TestGetImage() {
 	// registry has a repository - should not see "nuclio/" as repository
 	suite.builder.options.FunctionConfig.Spec.Build.Registry = "index.docker.io/foo"
 	suite.Require().Equal("processor-test", suite.builder.getImage())
-}
-
-func (suite *testSuite) TestGenerateProcessorDockerfile() {
-
-	// all elements, health check required
-	suite.generateDockerfileAndVerify(true, &runtime.ProcessorDockerfileInfo{
-		BaseImage:    "baseImage",
-		OnbuildImage: "onbuildImage",
-		OnbuildArtifactPaths: map[string]string{
-			"onbuildLocal1": "onbuildImage1",
-			"onbuildLocal2": "onbuildImage2",
-		},
-		ImageArtifactPaths: map[string]string{
-			"imageLocal1": "imageImage1",
-			"imageLocal2": "imageImage2",
-		},
-		Directives: map[string][]functionconfig.Directive{
-			"preCopy": {
-				{Kind: "preCopyKind1", Value: "preCopyValue1"},
-				{Kind: "preCopyKind2", Value: "preCopyValue2"},
-			},
-			"postCopy": {
-				{Kind: "postCopyKind1", Value: "postCopyValue1"},
-				{Kind: "postCopyKind2", Value: "postCopyValue2"},
-			},
-		},
-	}, `# From the base image
-FROM baseImage
-# Old(er) Docker support - must use all build args
-ARG NUCLIO_LABEL
-ARG NUCLIO_ARCH
-ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
-# Run the pre-copy directives
-preCopyKind1 preCopyValue1
-preCopyKind2 preCopyValue2
-# Copy health checker
-COPY artifacts/uhttpc /usr/local/bin/uhttpc
-# Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
-# Copy required objects from the suppliers
-COPY artifactDirNameInStaging/onbuildLocal1 onbuildImage1
-COPY artifactDirNameInStaging/onbuildLocal2 onbuildImage2
-COPY imageLocal1 imageImage1
-COPY imageLocal2 imageImage2
-# Run the post-copy directives
-postCopyKind1 postCopyValue1
-postCopyKind2 postCopyValue2
-# Run processor with configuration and platform configuration
-CMD [ "processor" ]`)
-
-	// all elements, health check not required
-	suite.generateDockerfileAndVerify(false, &runtime.ProcessorDockerfileInfo{
-		BaseImage:    "baseImage",
-		OnbuildImage: "onbuildImage",
-		OnbuildArtifactPaths: map[string]string{
-			"onbuildLocal1": "onbuildImage1",
-			"onbuildLocal2": "onbuildImage2",
-		},
-		ImageArtifactPaths: map[string]string{
-			"imageLocal1": "imageImage1",
-			"imageLocal2": "imageImage2",
-		},
-		Directives: map[string][]functionconfig.Directive{
-			"preCopy": {
-				{Kind: "preCopyKind1", Value: "preCopyValue1"},
-				{Kind: "preCopyKind2", Value: "preCopyValue2"},
-			},
-			"postCopy": {
-				{Kind: "postCopyKind1", Value: "postCopyValue1"},
-				{Kind: "postCopyKind2", Value: "postCopyValue2"},
-			},
-		},
-	}, `# From the base image
-FROM baseImage
-# Old(er) Docker support - must use all build args
-ARG NUCLIO_LABEL
-ARG NUCLIO_ARCH
-ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
-# Run the pre-copy directives
-preCopyKind1 preCopyValue1
-preCopyKind2 preCopyValue2
-# Copy required objects from the suppliers
-COPY artifactDirNameInStaging/onbuildLocal1 onbuildImage1
-COPY artifactDirNameInStaging/onbuildLocal2 onbuildImage2
-COPY imageLocal1 imageImage1
-COPY imageLocal2 imageImage2
-# Run the post-copy directives
-postCopyKind1 postCopyValue1
-postCopyKind2 postCopyValue2
-# Run processor with configuration and platform configuration
-CMD [ "processor" ]`)
 }
 
 func (suite *testSuite) TestMergeDirectives() {
@@ -651,21 +559,6 @@ func (suite *testSuite) TestResolveFunctionPathS3CodeEntry() {
 		},
 	}
 	suite.testResolveFunctionPathArchive(buildConfiguration, "")
-}
-
-func (suite *testSuite) generateDockerfileAndVerify(healthCheckRequired bool,
-	dockerfileInfo *runtime.ProcessorDockerfileInfo,
-	expectedDockerfile string) {
-
-	dockerfileContents, err := suite.builder.generateSingleStageDockerfileContents("artifactDirNameInStaging",
-		dockerfileInfo.BaseImage,
-		dockerfileInfo.OnbuildArtifactPaths,
-		dockerfileInfo.ImageArtifactPaths,
-		dockerfileInfo.Directives,
-		healthCheckRequired)
-
-	suite.Require().NoError(err)
-	suite.Require().Equal(expectedDockerfile, common.RemoveEmptyLines(dockerfileContents))
 }
 
 func (suite *testSuite) mergeDirectivesAndVerify(first map[string][]functionconfig.Directive,

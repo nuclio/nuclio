@@ -32,15 +32,22 @@ import (
 )
 
 type ProcessorDockerfileInfo struct {
-	BaseImage            string
-	OnbuildImage         string
-	OnbuildArtifactPaths map[string]string
-	ImageArtifactPaths   map[string]string
-	Directives           map[string][]functionconfig.Directive
+	BaseImage          string
+	ImageArtifactPaths map[string]string
+	OnbuildArtifacts   []Artifact
+	Directives         map[string][]functionconfig.Directive
+	DockerfileContents string
+	DockerfilePath     string
+}
+
+type Artifact struct {
+	Name          string
+	Image         string
+	Paths         map[string]string
+	ExternalImage bool
 }
 
 type Runtime interface {
-
 	// DetectFunctionHandlers returns a list of all the handlers
 	// in that directory given a path holding a function (or functions)
 	DetectFunctionHandlers(functionPath string) ([]string, error)
@@ -50,7 +57,7 @@ type Runtime interface {
 	OnAfterStagingDirCreated(stagingDir string) error
 
 	// GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-	GetProcessorDockerfileInfo(versionInfo *version.Info) (*ProcessorDockerfileInfo, error)
+	GetProcessorDockerfileInfo(versionInfo *version.Info, registryURL string) (*ProcessorDockerfileInfo, error)
 
 	// GetName returns the name of the runtime, including version if applicable
 	GetName() string
@@ -153,4 +160,11 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 	functionFileName := strings.TrimSuffix(path.Base(functionBuildPath), path.Ext(functionBuildPath))
 
 	return []string{fmt.Sprintf("%s:%s", functionFileName, "handler")}, nil
+}
+
+func (ar *AbstractRuntime) GetRegistry(registryURL string) string {
+	if len(registryURL) == 0 {
+		return "quay.io"
+	}
+	return registryURL
 }

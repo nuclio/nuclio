@@ -1,12 +1,15 @@
 package containerimagebuilderpusher
 
+import "github.com/nuclio/nuclio/pkg/processor/build/runtime"
+
 // BuildOptions are options for building a container image
 type BuildOptions struct {
 	Image           string
 	ContextDir      string
 	TempDir         string
-	DockerfilePath  string
+	DockerfileInfo  *runtime.ProcessorDockerfileInfo
 	NoCache         bool
+	NoBaseImagePull bool
 	BuildArgs       map[string]string
 	RegistryURL     string
 	OutputImageFile string

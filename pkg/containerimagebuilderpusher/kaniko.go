@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/logger"
 	batch_v1 "k8s.io/api/batch/v1"
@@ -49,9 +50,9 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 	defer os.Remove(assetPath) // nolint: errcheck
 
 	// Generate kaniko job spec
-	kanikoJobSpec := k.getKanikoJobSpec(buildOptions, bundleFilename)
+	kanikoJobSpec := k.getKanikoJobSpec(namespace, buildOptions, bundleFilename)
 
-	k.logger.DebugWith("About to publish kaniko job", "jobSpec", kanikoJobSpec)
+	k.logger.DebugWith("About to publish kaniko job", "namespace", namespace, "jobSpec", kanikoJobSpec)
 	kanikoJob, err := k.kubeClientSet.BatchV1().Jobs(namespace).Create(kanikoJobSpec)
 	if err != nil {
 		return errors.Wrap(err, "Failed to publish kaniko job")
@@ -86,6 +87,54 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 		}
 	}
 	return errors.New("Kaniko job has timed out")
+}
+
+func (k *Kaniko) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
+	onbuildStages := make([]string, len(onbuildArtifacts))
+	stage := 0
+
+	for _, artifact := range onbuildArtifacts {
+		if artifact.ExternalImage {
+			continue
+		}
+
+		stage++
+		if len(artifact.Name) == 0 {
+			artifact.Name = fmt.Sprintf("onbuildStage-%d", stage)
+		}
+
+		baseImage := fmt.Sprintf("FROM %s AS %s", artifact.Image, artifact.Name)
+		onbuildDockerfileContents := fmt.Sprintf(`%s
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+`, baseImage)
+
+		onbuildStages = append(onbuildStages, onbuildDockerfileContents)
+	}
+
+	return onbuildStages, nil
+}
+
+func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
+
+	stagedArtifactPaths := make(map[string]string)
+	for _, artifact := range onbuildArtifacts {
+		for source, destination := range artifact.Paths {
+			var transformedSource string
+			if artifact.ExternalImage {
+
+				// Using external image as "stage"
+				// Example: COPY --from=nginx:latest /etc/nginx/nginx.conf /nginx.conf
+				transformedSource = fmt.Sprintf("--from=%s %s", artifact.Image, source)
+			} else {
+
+				// Using previously build image with index `artifactIndex` as "stage"
+				transformedSource = fmt.Sprintf("--from=%s %s", artifact.Name, source)
+			}
+			stagedArtifactPaths[transformedSource] = destination
+		}
+	}
+	return stagedArtifactPaths, nil
 }
 
 func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tempDir string) (string, string, error) {
@@ -125,11 +174,11 @@ func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tem
 	return tarFilename, assetPath, nil
 }
 
-func (k *Kaniko) getKanikoJobSpec(buildOptions *BuildOptions, bundleFilename string) *batch_v1.Job {
+func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, bundleFilename string) *batch_v1.Job {
 
 	completions := int32(1)
 	buildArgs := []string{
-		fmt.Sprintf("--dockerfile=%s", buildOptions.DockerfilePath),
+		fmt.Sprintf("--dockerfile=%s", buildOptions.DockerfileInfo.DockerfilePath),
 		fmt.Sprintf("--context=%s", buildOptions.ContextDir),
 		fmt.Sprintf("--destination=%s/%s", buildOptions.RegistryURL, buildOptions.Image),
 	}
@@ -140,6 +189,7 @@ func (k *Kaniko) getKanikoJobSpec(buildOptions *BuildOptions, bundleFilename str
 
 	if k.builderConfiguration.InsecureRegistry {
 		buildArgs = append(buildArgs, "--insecure")
+		buildArgs = append(buildArgs, "--insecure-pull")
 	}
 
 	// Add build options args
@@ -158,13 +208,15 @@ func (k *Kaniko) getKanikoJobSpec(buildOptions *BuildOptions, bundleFilename str
 
 	kanikoJobSpec := &batch_v1.Job{
 		ObjectMeta: meta_v1.ObjectMeta{
-			Name: jobName,
+			Name:      jobName,
+			Namespace: namespace,
 		},
 		Spec: batch_v1.JobSpec{
 			Completions: &completions,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
-					Name: jobName,
+					Name:      jobName,
+					Namespace: namespace,
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{

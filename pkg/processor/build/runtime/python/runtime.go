@@ -34,7 +34,9 @@ func (p *python) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
+	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
+
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	if p.FunctionConfig.Spec.Runtime == "python:2.7" {
@@ -43,18 +45,23 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 		processorDockerfileInfo.BaseImage = "python:3.6"
 	}
 
-	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/nuclio/bin/processor": "/usr/local/bin/processor",
-		"/home/nuclio/bin/py":        "/opt/nuclio/",
-	}
-
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",
 	}
 
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-python-onbuild:%s-%s",
-		versionInfo.Label,
-		versionInfo.Arch)
+	// fill onbuild artifact
+	artifact := runtime.Artifact{
+		Name: "python-onbuild",
+		Image: fmt.Sprintf("%s/nuclio/handler-builder-python-onbuild:%s-%s",
+			p.GetRegistry(registryURL),
+			versionInfo.Label,
+			versionInfo.Arch),
+		Paths: map[string]string{
+			"/home/nuclio/bin/processor": "/usr/local/bin/processor",
+			"/home/nuclio/bin/py":        "/opt/nuclio/",
+		},
+	}
+	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
 		"postCopy": {

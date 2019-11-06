@@ -33,23 +33,30 @@ func (r *ruby) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (r *ruby) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+func (r *ruby) GetProcessorDockerfileInfo(versionInfo *version.Info,
+	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
+
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	processorDockerfileInfo.BaseImage = "ruby:2.4.4-alpine"
-
-	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
-		"/home/nuclio/bin/wrapper.rb": "/opt/nuclio/wrapper.rb",
-	}
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",
 	}
 
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-ruby-onbuild:%s-%s",
-		versionInfo.Label,
-		versionInfo.Arch)
+	// fill onbuild artifact
+	artifact := runtime.Artifact{
+		Name: "ruby-onbuild",
+		Image: fmt.Sprintf("%s/nuclio/handler-builder-ruby-onbuild:%s-%s",
+			r.GetRegistry(registryURL),
+			versionInfo.Label,
+			versionInfo.Arch),
+		Paths: map[string]string{
+			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
+			"/home/nuclio/bin/wrapper.rb": "/opt/nuclio/wrapper.rb",
+		},
+	}
+	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	return &processorDockerfileInfo, nil
 }
