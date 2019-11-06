@@ -944,7 +944,13 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		return "", errors.Wrap(err, "Failed to get build args")
 	}
 
-	processorDockerfileInfo, err := b.createProcessorDockerfile(b.options.FunctionConfig.Spec.Build.Registry)
+	// Use dedicated base images registry (pull registry) if defined, default to push registry if not
+	registry := b.options.FunctionConfig.Spec.Build.BaseImageRegistry
+	if len(registry) == 0 {
+		registry = b.options.FunctionConfig.Spec.Build.Registry
+	}
+
+	processorDockerfileInfo, err := b.createProcessorDockerfile(registry)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}

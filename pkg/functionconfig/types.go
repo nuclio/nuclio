@@ -187,6 +187,7 @@ type Build struct {
 	FunctionConfigPath  string                 `json:"functionConfigPath,omitempty"`
 	TempDir             string                 `json:"tempDir,omitempty"`
 	Registry            string                 `json:"registry,omitempty"`
+	BaseImageRegistry   string                 `json:"baseImageRegistry,omitempty"`
 	Image               string                 `json:"image,omitempty"`
 	NoBaseImagesPull    bool                   `json:"noBaseImagesPull,omitempty"`
 	NoCache             bool                   `json:"noCache,omitempty"`
