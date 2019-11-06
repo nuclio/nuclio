@@ -22,8 +22,8 @@ metadata:
     app: {{ template "nuclio.nuclioName" . }}
     release: {{ .Release.Name }}
 rules:
-- apiGroups: ["nuclio.io"]
-  resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents"]
+- apiGroups: ["nuclio.io", "batch"]
+  resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents", "jobs"]
   verbs: ["*"]
 - apiGroups: [""]
   resources: ["nodes"]

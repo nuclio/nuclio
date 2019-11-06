@@ -50,9 +50,9 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 	defer os.Remove(assetPath) // nolint: errcheck
 
 	// Generate kaniko job spec
-	kanikoJobSpec := k.getKanikoJobSpec(buildOptions, bundleFilename)
+	kanikoJobSpec := k.getKanikoJobSpec(namespace, buildOptions, bundleFilename)
 
-	k.logger.DebugWith("About to publish kaniko job", "jobSpec", kanikoJobSpec)
+	k.logger.DebugWith("About to publish kaniko job", "namespace", namespace, "jobSpec", kanikoJobSpec)
 	kanikoJob, err := k.kubeClientSet.BatchV1().Jobs(namespace).Create(kanikoJobSpec)
 	if err != nil {
 		return errors.Wrap(err, "Failed to publish kaniko job")
@@ -174,7 +174,7 @@ func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tem
 	return tarFilename, assetPath, nil
 }
 
-func (k *Kaniko) getKanikoJobSpec(buildOptions *BuildOptions, bundleFilename string) *batch_v1.Job {
+func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, bundleFilename string) *batch_v1.Job {
 
 	completions := int32(1)
 	buildArgs := []string{
@@ -208,13 +208,15 @@ func (k *Kaniko) getKanikoJobSpec(buildOptions *BuildOptions, bundleFilename str
 
 	kanikoJobSpec := &batch_v1.Job{
 		ObjectMeta: meta_v1.ObjectMeta{
-			Name: jobName,
+			Name:      jobName,
+			Namespace: namespace,
 		},
 		Spec: batch_v1.JobSpec{
 			Completions: &completions,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
-					Name: jobName,
+					Name:      jobName,
+					Namespace: namespace,
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
