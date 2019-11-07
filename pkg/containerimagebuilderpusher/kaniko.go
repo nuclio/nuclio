@@ -177,6 +177,8 @@ func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tem
 func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, bundleFilename string) *batch_v1.Job {
 
 	completions := int32(1)
+	activeDeadlineSeconds := int64(3600)
+	backoffLimit := int32(0)
 	buildArgs := []string{
 		fmt.Sprintf("--dockerfile=%s", buildOptions.DockerfileInfo.DockerfilePath),
 		fmt.Sprintf("--context=%s", buildOptions.ContextDir),
@@ -212,7 +214,9 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 			Namespace: namespace,
 		},
 		Spec: batch_v1.JobSpec{
-			Completions: &completions,
+			Completions:           &completions,
+			ActiveDeadlineSeconds: &activeDeadlineSeconds,
+			BackoffLimit:          &backoffLimit,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
 					Name:      jobName,
@@ -260,7 +264,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 							},
 						},
 					},
-					RestartPolicy: v1.RestartPolicyOnFailure,
+					RestartPolicy: v1.RestartPolicyNever,
 				},
 			},
 		},
