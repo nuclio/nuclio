@@ -47,7 +47,7 @@ The function configuration needs to include the following:
 
 Run the following command to deploy the function with the Nuclio CLI (`nuctl`).
 
-> Note: If you're not running on top of Kubernetes, pass the `--platform local` option to `nuctl`.
+> **Note:** If you're not running on top of Kubernetes, pass the `--platform local` option to `nuctl`.
 
 ```sh
 nuctl deploy -p /tmp/nuclio-dotnetcore-script/reverser.cs reverser

@@ -82,7 +82,7 @@ k8s-myNuclioCluster-36346190-0   Ready     49m       v1.7.7
 Microsoft's [Create a container registry using the Azure CLI](https://docs.microsoft.com/azure/container-registry/container-registry-get-started-azure-cli) guide explains how to use the `az` CLI to create a container registry.
 
 The Nuclio dashboard builds and pushes functions to a Docker registry. For the Nuclio ACR setup, ACR serves as the Docker registry. Create an ACR instance by using the `az acr create` command (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/acr#az_acr_create)):
-> Note: The name of the registry (`<registry-name>`) must be unique.
+> **Note:** The name of the registry (`<registry-name>`) must be unique.
 ```sh
 az acr create --resource-group <resource-group-name> --name <registry-name> --sku Basic
 ```
@@ -99,7 +99,7 @@ To grant the AKS Kubernetes cluster and the Nuclio dashboard access to the Azure
 - [Service principal](#service-principal)
 - [Admin account](#admin-account)
 
-> Note: The admin-account method has some security concerns, including no option to assign roles. Therefore, it's considered better practice to create a service principal.
+> **Note:** The admin-account method has some security concerns, including no option to assign roles. Therefore, it's considered better practice to create a service principal.
 
 ### Service principal
 
@@ -128,7 +128,7 @@ At this stage you should have a functioning Kubernetes cluster, a Docker registr
 
 **Create a Nuclio namespace** by running the following command:
 
-> Note: All Nuclio resources go into the "nuclio" namespace, and role-based access control (RBAC) is configured accordingly.
+> **Note:** All Nuclio resources go into the "nuclio" namespace, and role-based access control (RBAC) is configured accordingly.
 
 ```sh
 kubectl create namespace nuclio
@@ -150,7 +150,7 @@ unset mypassword
 ```
 
 **Create the RBAC roles** that are required for using Nuclio:
-> Note: You are encouraged to look at the [**nuclio-rbac.yaml**](https://github.com/nuclio/nuclio/blob/master/hack/k8s/resources/nuclio-rbac.yaml) file that's used in the following command before applying it, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).
+> **Note:** You are encouraged to look at the [**nuclio-rbac.yaml**](https://github.com/nuclio/nuclio/blob/master/hack/k8s/resources/nuclio-rbac.yaml) file that's used in the following command before applying it, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml

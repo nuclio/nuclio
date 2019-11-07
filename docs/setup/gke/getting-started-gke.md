@@ -17,7 +17,7 @@ Before deploying Nuclio to GKE, ensure that the following prerequisites are met:
 
 - You have a billable GKE project. For detailed information about GKE, see the [GKE documentation](https://cloud.google.com/kubernetes-engine/docs/).
 
-    > Note: For simplicity, this guide uses the GKE project name `nuclio-gke`. Replace all reference to this name with the name of your GKE project.
+    > **Note:** For simplicity, this guide uses the GKE project name `nuclio-gke`. Replace all reference to this name with the name of your GKE project.
 
 - The GCP CLI, [`gcloud`](https://cloud.google.com/sdk/gcloud/), is installed and configured to work with your GKE project.
 
@@ -44,7 +44,7 @@ gcloud container clusters get-credentials nuclio
 ```
 
 **Assign cluster-admin permissions to your user** to allow creation of role-based access control (RBAC) roles, in accordance with the [GKE documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control):
-> Note: The first command, which sets `GKE_USER`, is just a method for retrieving your registered email address. This command requires `jq`. If you know your GCP registration email address, you can enter it manually; note that the email address is case sensitive.
+> **Note:** The first command, which sets `GKE_USER`, is just a method for retrieving your registered email address. This command requires `jq`. If you know your GCP registration email address, you can enter it manually; note that the email address is case sensitive.
 
 ```sh
 GKE_USER=$(gcloud projects get-iam-policy "$(gcloud config list --format 'value(core.project)')" --format json \
@@ -62,7 +62,7 @@ kubectl get pods --all-namespaces
 
 **Create a secret for GCR authentication:** because Nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials, and mount the secret to the Nuclio dashboard container so that it can be used to authenticate the Docker client with the GCR. Start by getting your service ID.
 
-> Note: You can use any private Docker registry:
+> **Note:** You can use any private Docker registry:
 >
 > - To use the Azure Container Registry (ACR), see [Getting Started with Nuclio on Azure Container Service (AKS)](/docs/setup/aks/getting-started-aks.md).
 > - To use the Docker Hub, see [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md).
@@ -80,7 +80,7 @@ At this stage you should have a functioning Kubernetes cluster, credentials to a
 
 **Create a Nuclio namespace** by running the following command:
 
-> Note: All Nuclio resources go into the "nuclio" namespace, and role-based access control (RBAC) is configured accordingly.
+> **Note:** All Nuclio resources go into the "nuclio" namespace, and role-based access control (RBAC) is configured accordingly.
 
 ```sh
 kubectl create namespace nuclio
@@ -105,7 +105,7 @@ kubectl create configmap --namespace nuclio nuclio-registry --from-literal=regis
 ```
 
 **Create the RBAC roles** that are required for using Nuclio:
-> Note: You are encouraged to look at the [**nuclio-rbac.yaml**](https://github.com/nuclio/nuclio/blob/master/hack/k8s/resources/nuclio-rbac.yaml) file that's used in the following command before applying it, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).
+> **Note:** You are encouraged to look at the [**nuclio-rbac.yaml**](https://github.com/nuclio/nuclio/blob/master/hack/k8s/resources/nuclio-rbac.yaml) file that's used in the following command before applying it, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
@@ -131,7 +131,7 @@ Browse to `http://localhost:8070` (after having forwarded this port as part of t
 ## Deploy a function with the Nuclio CLI (nuctl)
 
 Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest version of the Nuclio CLI (`nuctl`) for your platform, and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
-> Note: If you are using Docker Hub, the URL here includes your username - `docker.io/<username>`.
+> **Note:** If you are using Docker Hub, the URL here includes your username - `docker.io/<username>`.
 
 ```sh
 nuctl deploy helloworld -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry <URL>
