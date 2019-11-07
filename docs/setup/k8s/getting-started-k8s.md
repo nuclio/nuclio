@@ -20,14 +20,14 @@ At this stage you should have a functioning Kubernetes cluster, a Docker registr
 
 **Create a Nuclio namespace** by running the following command:
 
-> Note: All Nuclio resources go into the "nuclio" namespace, and role-based access control (RBAC) is configured accordingly.
+> **Note:** All Nuclio resources go into the "nuclio" namespace, and role-based access control (RBAC) is configured accordingly.
 
 ```sh
 kubectl create namespace nuclio
 ```
 
 **Create a registry secret:** because Nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials. Replace the `<...>` placeholders in the following commands with your username, password, and URL:
-> Note: If you want to use Docker Hub, the URL is `docker.io`.
+> **Note:** If you want to use Docker Hub, the URL is `docker.io`.
 
 ```sh
 read -s mypassword
@@ -43,7 +43,7 @@ unset mypassword
 ```
 
 **Create the RBAC roles** that are required for using Nuclio:
-> Note: You are encouraged to look at the [**nuclio-rbac.yaml**](https://github.com/nuclio/nuclio/blob/master/hack/k8s/resources/nuclio-rbac.yaml) file that's used in the following command before applying it, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).
+> **Note:** You are encouraged to look at the [**nuclio-rbac.yaml**](https://github.com/nuclio/nuclio/blob/master/hack/k8s/resources/nuclio-rbac.yaml) file that's used in the following command before applying it, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
@@ -55,7 +55,7 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio.yaml
 ```
 
-> Note: In this example, the Nuclio dashboard service has full access to the local machine's Docker daemon. If you're concerned about the security implications, isolate the dashboard in its own node. The Nuclio team is working with the community to establish a secure and robust on-cluster build mechanism.
+> **Note:** In this example, the Nuclio dashboard service has full access to the local machine's Docker daemon. If you're concerned about the security implications, isolate the dashboard in its own node. The Nuclio team is working with the community to establish a secure and robust on-cluster build mechanism.
 
 Use the command `kubectl get pods --namespace nuclio` to verify both the controller and dashboard are running.
 
@@ -71,7 +71,7 @@ Browse to `http://localhost:8070` (after having forwarded this port as part of t
 ## Deploy a function with the Nuclio CLI (nuctl)
 
 Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest version of the Nuclio CLI (`nuctl`) for your platform, and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
-> Note: If you are using Docker Hub, the URL here includes your username - `docker.io/<username>`.
+> **Note:** If you are using Docker Hub, the URL here includes your username - `docker.io/<username>`.
 
 ```sh
 nuctl deploy helloworld -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry <URL>

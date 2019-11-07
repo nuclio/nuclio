@@ -11,7 +11,7 @@ Function configuration carries information about the specific function (how it's
 
 While this could theoretically be passed in the function configuration, it would make configuration updates a complex task of regenerating the configuration for all provisioned functions. The platform configuration is therefore stored separately, shared amongst all functions that share a platform.
 
-> Note: A "platform" could be a cluster or any sub resource of that cluster like a namespace. If, for example, you have a namespace per tenant, you configure logging, metrics, etc. differently for each tenant
+> **Note:** A "platform" could be a cluster or any sub resource of that cluster like a namespace. If, for example, you have a namespace per tenant, you configure logging, metrics, etc. differently for each tenant
 
 ## Creating a platform configuration in Kubernetes
 

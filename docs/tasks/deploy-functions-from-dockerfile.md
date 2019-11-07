@@ -20,7 +20,7 @@ To be able to generate such an image using Docker, you must provide a Dockerfile
 
 Dockerfile deployment isn't better than source-based deployment; it's just another way for users to create function images. Even prior to version 0.5.0, Nuclio had features that allowed users to inject build-time parameters, like `spec.build.commands` for running `apk`, `apt-get`, `pip`, and other package providers. However, some users may prefer to handle build themselves, using the tools they know and love.
 
-> Note: While the process itself is offered as an alternative, many good things came from this feature. Most notably, prior to version 0.5.0, users were limited to using pre-baked "alpine" or "jessie" base images. Now, source-based and Dockerfile-based builds can provide any base image, as long as this base image contains the runtime environment suitable for the runtime; (for example, to run Python functions, the image must contain a Python interpreter).
+> **Note:** While the process itself is offered as an alternative, many good things came from this feature. Most notably, prior to version 0.5.0, users were limited to using pre-baked "alpine" or "jessie" base images. Now, source-based and Dockerfile-based builds can provide any base image, as long as this base image contains the runtime environment suitable for the runtime; (for example, to run Python functions, the image must contain a Python interpreter).
 
 ## Building a function with Docker
 
@@ -32,7 +32,7 @@ curl -LO https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/go
 
 Now, create a Dockerfile by following the guidelines in the [Go reference](/docs/reference/runtimes/golang/golang-reference.md#dockerfile).
 
-> Note: Future versions of `nuctl` will automate creating these blueprints through something like `nuctl create blueprint --runtime python:3.6`, which will create a Dockerfile, a **function.yaml** file, and an empty Python handler.
+> **Note:** Future versions of `nuctl` will automate creating these blueprints through something like `nuctl create blueprint --runtime python:3.6`, which will create a Dockerfile, a **function.yaml** file, and an empty Python handler.
 
 The Dockerfile will look something like this:
 
@@ -75,7 +75,7 @@ It is up to you to customize this Dockerfile, if you so choose (for example, by 
 docker build -t helloworld-from-df .
 ```
 
-> Note: Each runtime has a different Dockerfile. Consult the appropriate [runtime reference documents](/docs/reference/runtimes) to understand the specific nuances.
+> **Note:** Each runtime has a different Dockerfile. Consult the appropriate [runtime reference documents](/docs/reference/runtimes) to understand the specific nuances.
 
 ## Deploying a function built with Docker
 

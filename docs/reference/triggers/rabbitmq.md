@@ -10,7 +10,7 @@ Reads messages from [RabbitMQ](https://www.rabbitmq.com/) queues.
 | queueName | string | If specified, the trigger reads messages from this queue |
 | topics | list of strings | If specified, the trigger creates a queue with a unique name and subscribes it to these topics |
 
-> Note: `topics` and `queueName` are mutually exclusive. The trigger can either create to an existing queue specified by `queueName` or create its own queue, subscribing it to `topics` 
+> **Note:** `topics` and `queueName` are mutually exclusive. The trigger can either create to an existing queue specified by `queueName` or create its own queue, subscribing it to `topics` 
 
 ### Example
 

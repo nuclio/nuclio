@@ -38,7 +38,7 @@ It's recommended that you use these drivers:
     ```
 
 **Set admin permissions:** bypass Minikube configuration issues by giving cluster-admin permissions to the Kubernetes services, so that services such as `kube-dns` can work in Minikube:
-> Note: You are encouraged to look at the [**kubedns-rbac**](https://github.com/nuclio/nuclio/blob/master/hack/minikube/resources/kubedns-rbac.yaml) file that's used in the following command, and the RBAC configuration files used in the [Nuclio installation](#install-nuclio) section, before applying the files, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).<br/>
+> **Note:** You are encouraged to look at the [**kubedns-rbac**](https://github.com/nuclio/nuclio/blob/master/hack/minikube/resources/kubedns-rbac.yaml) file that's used in the following command, and the RBAC configuration files used in the [Nuclio installation](#install-nuclio) section, before applying the files, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).<br/>
 > If you don't want to elevate your Kubernetes services, run Minikube with RBAC disabled (omit `--extra-config` from `minikube start`) and skip the RBAC related commands in the Nuclio installation instructions.
 
 ```sh
@@ -47,7 +47,7 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/min
 
 **Bring up a Docker registry inside Minikube.** You'll later push your functions to this registry:
 
-> Note: You can skip this step if you're a more advanced user and would like to use another type of registry, such as [Docker Hub](https://hub.docker.com/), [Azure Container Registry (ACR)](https://azure.microsoft.com/services/container-registry/), or [Google Container Registry (GCR)](https://cloud.google.com/container-registry/). See [Getting started with Kubernetes](/docs/setup/k8s/getting-started-k8s.md) for instructions. 
+> **Note:** You can skip this step if you're a more advanced user and would like to use another type of registry, such as [Docker Hub](https://hub.docker.com/), [Azure Container Registry (ACR)](https://azure.microsoft.com/services/container-registry/), or [Google Container Registry (GCR)](https://cloud.google.com/container-registry/). See [Getting started with Kubernetes](/docs/setup/k8s/getting-started-k8s.md) for instructions. 
 
 ```sh
 minikube ssh -- docker run -d -p 5000:5000 registry:2
@@ -64,14 +64,14 @@ At this stage you should have a functioning Kubernetes cluster, a Docker registr
 
 **Create a Nuclio namespace** by running the following command:
 
-> Note: All Nuclio resources go into the "nuclio" namespace, and role-based access control (RBAC) is configured accordingly.
+> **Note:** All Nuclio resources go into the "nuclio" namespace, and role-based access control (RBAC) is configured accordingly.
 
 ```sh
 kubectl create namespace nuclio
 ```
 
 **Create the RBAC roles** that are required for using Nuclio (provided you didn't disable RBAC when [preparing Minikube](#prepare-minikube)):
-> As indicated in the [Minikube preparation](#prepare-minikube) instructions, you are encouraged to look at the [**nuclio-rbac.yaml**](https://github.com/nuclio/nuclio/blob/master/hack/k8s/resources/nuclio-rbac.yaml) file that's used in the following command before applying it.
+> **Note:** As indicated in the [Minikube preparation](#prepare-minikube) instructions, you are encouraged to look at the [**nuclio-rbac.yaml**](https://github.com/nuclio/nuclio/blob/master/hack/k8s/resources/nuclio-rbac.yaml) file that's used in the following command before applying it.
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
@@ -102,7 +102,7 @@ Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest ver
 nuctl deploy helloworld -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry $(minikube ip):5000 --run-registry localhost:5000
 ```
 
-> Note: The difference between the two registries specified in this command and the reason for their addresses being different is as follows:
+> **Note:** The difference between the two registries specified in this command and the reason for their addresses being different is as follows:
 >
 > - The `--registry` option defines the Docker registry onto which the function images that you build will be pushed. This is the registry that you previously brought up on your Minikube VM.
 > - The `--registry-run` option defines the registry from which the [`kubelet`](https://kubernetes.io/docs/reference/generated/kubelet/) Kubernetes "node agent" will pull the function images. Because this operation occurs in the Minikube VM, the command specifies `localhost` instead of the VM's IP address.
