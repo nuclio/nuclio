@@ -71,7 +71,7 @@ kubectl create namespace nuclio
 ```
 
 **Create the RBAC roles** that are required for using Nuclio (provided you didn't disable RBAC when [preparing Minikube](#prepare-minikube)):
-> As indicated in the [Minikube preparation](#prepare-minikube) instructions, you are encouraged to look at the [**nuclio-rbac.yaml**](https://github.com/nuclio/nuclio/blob/master/hack/k8s/resources/nuclio-rbac.yaml) file that's used in the following command before applying it.
+> **Note:** As indicated in the [Minikube preparation](#prepare-minikube) instructions, you are encouraged to look at the [**nuclio-rbac.yaml**](https://github.com/nuclio/nuclio/blob/master/hack/k8s/resources/nuclio-rbac.yaml) file that's used in the following command before applying it.
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
