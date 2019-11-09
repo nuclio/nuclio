@@ -118,7 +118,7 @@ func (fp *fixedPool) Allocate(timeout time.Duration) (*Worker, error) {
 	fp.statistics.WorkerAllocationCount++
 
 	// measure how many workers are available in the queue while we're allocating
-	fp.statistics.WorkerAllocationWorkersAvailableTotal = uint64(len(fp.workerChan))
+	fp.statistics.WorkerAllocationWorkersAvailableTotal += uint64(len(fp.workerChan))
 
 	// try to allocate a worker and fall back to default immediately if there's none available
 	select {
@@ -141,7 +141,7 @@ func (fp *fixedPool) Allocate(timeout time.Duration) (*Worker, error) {
 		select {
 		case workerInstance := <-fp.workerChan:
 			fp.statistics.WorkerAllocationSuccessAfterWaitTotal++
-			fp.statistics.WorkerAllocationTimeoutTotal = uint64(time.Since(waitStartAt).Milliseconds())
+			fp.statistics.WorkerAllocationWaitDurationMilliSecondsSum += uint64(time.Since(waitStartAt).Milliseconds())
 			return workerInstance, nil
 		case <-time.After(timeout):
 			fp.statistics.WorkerAllocationTimeoutTotal++
