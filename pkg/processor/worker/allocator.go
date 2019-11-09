@@ -165,6 +165,6 @@ func (fp *fixedPool) GetWorkers() []*Worker {
 }
 
 // GetStatistics returns worker allocator statistics
-func (s *fixedPool) GetStatistics() *AllocatorStatistics {
-	return &s.statistics
+func (fp *fixedPool) GetStatistics() *AllocatorStatistics {
+	return &fp.statistics
 }
