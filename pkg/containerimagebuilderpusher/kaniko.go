@@ -271,6 +271,8 @@ func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, bu
 			}
 			return fmt.Errorf("kaniko job has failed: %s", jobLogs)
 		}
+
+		time.Sleep(10 * time.Second)
 	}
 	jobLogs, err := k.getJobLogs(namespace, jobName)
 	if err != nil {
