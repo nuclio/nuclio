@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
@@ -950,11 +952,17 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		registry = b.options.FunctionConfig.Spec.Build.Registry
 	}
 
-	var buildTimeout int64
-	if b.options.FunctionConfig.Spec.Build.BuildTimeout != nil {
-		buildTimeout = *b.options.FunctionConfig.Spec.Build.BuildTimeout
+	var BuildTimeoutSeconds int64
+	if b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds != nil {
+		if *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds > 0 {
+			BuildTimeoutSeconds = *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds
+		} else {
+
+			// no timeout
+			BuildTimeoutSeconds = math.MaxInt64 - time.Now().UnixNano()
+		}
 	} else {
-		buildTimeout = 3600 // sec
+		BuildTimeoutSeconds = 3600 // sec
 	}
 
 	processorDockerfileInfo, err := b.createProcessorDockerfile(registry)
@@ -967,16 +975,16 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	b.logger.InfoWith("Building processor image", "imageName", imageName)
 
 	err = b.platform.BuildAndPushContainerImage(&containerimagebuilderpusher.BuildOptions{
-		ContextDir:      b.stagingDir,
-		Image:           imageName,
-		TempDir:         b.tempDir,
-		DockerfileInfo:  processorDockerfileInfo,
-		NoCache:         b.options.FunctionConfig.Spec.Build.NoCache,
-		NoBaseImagePull: b.GetNoBaseImagePull(),
-		BuildArgs:       buildArgs,
-		RegistryURL:     b.options.FunctionConfig.Spec.Build.Registry,
-		OutputImageFile: b.options.OutputImageFile,
-		BuildTimeout:    buildTimeout,
+		ContextDir:          b.stagingDir,
+		Image:               imageName,
+		TempDir:             b.tempDir,
+		DockerfileInfo:      processorDockerfileInfo,
+		NoCache:             b.options.FunctionConfig.Spec.Build.NoCache,
+		NoBaseImagePull:     b.GetNoBaseImagePull(),
+		BuildArgs:           buildArgs,
+		RegistryURL:         b.options.FunctionConfig.Spec.Build.Registry,
+		OutputImageFile:     b.options.OutputImageFile,
+		BuildTimeoutSeconds: BuildTimeoutSeconds,
 	})
 
 	return imageName, err

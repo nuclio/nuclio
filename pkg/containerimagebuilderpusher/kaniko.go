@@ -63,7 +63,7 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 	defer k.deleteJob(namespace, kanikoJob.Name) // nolint: errcheck
 
 	// Wait for kaniko to finish
-	return k.waitForKanikoJobCompletion(namespace, kanikoJob.Name, buildOptions.BuildTimeout)
+	return k.waitForKanikoJobCompletion(namespace, kanikoJob.Name, buildOptions.BuildTimeoutSeconds)
 }
 
 func (k *Kaniko) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
@@ -191,7 +191,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 		},
 		Spec: batch_v1.JobSpec{
 			Completions:           &completions,
-			ActiveDeadlineSeconds: &buildOptions.BuildTimeout,
+			ActiveDeadlineSeconds: &buildOptions.BuildTimeoutSeconds,
 			BackoffLimit:          &backoffLimit,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
@@ -249,9 +249,9 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 	return kanikoJobSpec
 }
 
-func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, buildTimeout int64) error {
-	k.logger.Debug("Waiting for kaniko to finish")
-	timeout := time.Now().Add(time.Duration(buildTimeout) * time.Second)
+func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, BuildTimeoutSeconds int64) error {
+	k.logger.DebugWith("Waiting for kaniko to finish", "BuildTimeoutSeconds", BuildTimeoutSeconds)
+	timeout := time.Now().Add(time.Duration(BuildTimeoutSeconds) * time.Second)
 	for time.Now().Before(timeout) {
 		runningJob, err := k.kubeClientSet.BatchV1().Jobs(namespace).
 			Get(jobName, meta_v1.GetOptions{IncludeUninitialized: true})
