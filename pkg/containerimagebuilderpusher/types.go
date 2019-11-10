@@ -13,6 +13,7 @@ type BuildOptions struct {
 	BuildArgs       map[string]string
 	RegistryURL     string
 	OutputImageFile string
+	BuildTimeout    int64
 }
 
 type ContainerBuilderConfiguration struct {

@@ -950,6 +950,13 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		registry = b.options.FunctionConfig.Spec.Build.Registry
 	}
 
+	var buildTimeout int64
+	if b.options.FunctionConfig.Spec.Build.BuildTimeout != nil {
+		buildTimeout = *b.options.FunctionConfig.Spec.Build.BuildTimeout
+	} else {
+		buildTimeout = 3600 // sec
+	}
+
 	processorDockerfileInfo, err := b.createProcessorDockerfile(registry)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
@@ -969,6 +976,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		BuildArgs:       buildArgs,
 		RegistryURL:     b.options.FunctionConfig.Spec.Build.Registry,
 		OutputImageFile: b.options.OutputImageFile,
+		BuildTimeout:    buildTimeout,
 	})
 
 	return imageName, err
