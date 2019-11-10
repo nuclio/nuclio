@@ -141,7 +141,7 @@ func (fp *fixedPool) Allocate(timeout time.Duration) (*Worker, error) {
 		select {
 		case workerInstance := <-fp.workerChan:
 			fp.statistics.WorkerAllocationSuccessAfterWaitTotal++
-			fp.statistics.WorkerAllocationWaitDurationMilliSecondsSum += uint64(time.Since(waitStartAt).Milliseconds())
+			fp.statistics.WorkerAllocationWaitDurationMilliSecondsSum += uint64(time.Since(waitStartAt).Nanoseconds() / 1e6)
 			return workerInstance, nil
 		case <-time.After(timeout):
 			fp.statistics.WorkerAllocationTimeoutTotal++
