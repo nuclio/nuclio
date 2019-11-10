@@ -20,3 +20,23 @@ type Statistics struct {
 	EventsHandleSuccess uint64
 	EventsHandleError   uint64
 }
+
+type AllocatorStatistics struct {
+	WorkerAllocationCount                       uint64
+	WorkerAllocationSuccessImmediateTotal       uint64
+	WorkerAllocationSuccessAfterWaitTotal       uint64
+	WorkerAllocationTimeoutTotal                uint64
+	WorkerAllocationWaitDurationMilliSecondsSum uint64
+	WorkerAllocationWorkersAvailableTotal       uint64
+}
+
+func (s *AllocatorStatistics) DiffFrom(prev *AllocatorStatistics) AllocatorStatistics {
+	return AllocatorStatistics{
+		WorkerAllocationCount:                       s.WorkerAllocationCount - prev.WorkerAllocationCount,
+		WorkerAllocationSuccessImmediateTotal:       s.WorkerAllocationSuccessImmediateTotal - prev.WorkerAllocationSuccessImmediateTotal,
+		WorkerAllocationSuccessAfterWaitTotal:       s.WorkerAllocationSuccessAfterWaitTotal - prev.WorkerAllocationSuccessAfterWaitTotal,
+		WorkerAllocationTimeoutTotal:                s.WorkerAllocationTimeoutTotal - prev.WorkerAllocationTimeoutTotal,
+		WorkerAllocationWaitDurationMilliSecondsSum: s.WorkerAllocationWaitDurationMilliSecondsSum - prev.WorkerAllocationWaitDurationMilliSecondsSum,
+		WorkerAllocationWorkersAvailableTotal:       s.WorkerAllocationWorkersAvailableTotal - prev.WorkerAllocationWorkersAvailableTotal,
+	}
+}

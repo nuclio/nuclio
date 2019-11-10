@@ -37,7 +37,7 @@ func builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, e
 		"ContentType", event.GetContentType(),
 		"Body", string(event.GetBody()))
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	return "Built in handler called", nil
 }
