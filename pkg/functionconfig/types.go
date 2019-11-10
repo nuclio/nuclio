@@ -204,6 +204,7 @@ type Build struct {
 	CodeEntryType       string                 `json:"codeEntryType,omitempty"`
 	CodeEntryAttributes map[string]interface{} `json:"codeEntryAttributes,omitempty"`
 	Timestamp           int64                  `json:"timestamp,omitempty"`
+	BuildTimeoutSeconds *int64                 `json:"BuildTimeoutSeconds,omitempty"`
 	Mode                BuildMode              `json:"mode,omitempty"`
 }
 
