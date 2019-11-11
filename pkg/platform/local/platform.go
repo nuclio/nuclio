@@ -17,7 +17,6 @@ limitations under the License.
 package local
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -27,7 +26,6 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -140,7 +138,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 	}
 
-	reportCreationError := func(creationError error, briefErrorMessage string) error {
+	reportCreationError := func(creationError error) error {
+		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
+			"err", creationError)
+
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
 
@@ -149,15 +150,12 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			errorStack.Truncate(4 * Mib)
 		}
 
-		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
-			"errorStack", errorStack.String())
-
 		// post logs and error
 		return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
 			Config: createFunctionOptions.FunctionConfig,
 			Status: functionconfig.Status{
 				State:   functionconfig.FunctionStateError,
-				Message: briefErrorMessage,
+				Message: errorStack.String(),
 			},
 		})
 	}
@@ -191,13 +189,13 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
 		if buildErr != nil {
-			reportCreationError(buildErr, "") // nolint: errcheck
+			reportCreationError(buildErr) // nolint: errcheck
 			return nil, buildErr
 		}
 
-		createFunctionResult, briefErrorMessage, deployErr := p.deployFunction(createFunctionOptions, previousHTTPPort)
+		createFunctionResult, deployErr := p.deployFunction(createFunctionOptions, previousHTTPPort)
 		if deployErr != nil {
-			reportCreationError(deployErr, briefErrorMessage) // nolint: errcheck
+			reportCreationError(deployErr) // nolint: errcheck
 			return nil, deployErr
 		}
 
@@ -476,18 +474,18 @@ func (p *Platform) getFreeLocalPort() (int, error) {
 }
 
 func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
-	previousHTTPPort int) (*platform.CreateFunctionResult, string, error) {
+	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
 
 	// get function platform specific configuration
 	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&createFunctionOptions.FunctionConfig)
 	if err != nil {
-		return nil, "", errors.Wrap(err, "Failed to create function platform configuration")
+		return nil, errors.Wrap(err, "Failed to create function platform configuration")
 	}
 
 	// get function port - either from configuration, from the previous deployment or from a free port
 	functionHTTPPort, err := p.getFunctionHTTPPort(createFunctionOptions, previousHTTPPort)
 	if err != nil {
-		return nil, "", errors.Wrap(err, "Failed to get function HTTP port")
+		return nil, errors.Wrap(err, "Failed to get function HTTP port")
 	}
 
 	createFunctionOptions.Logger.DebugWith("Function port allocated",
@@ -513,7 +511,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	// create processor configuration at a temporary location unless user specified a configuration
 	localProcessorConfigPath, err := p.createProcessorConfig(createFunctionOptions)
 	if err != nil {
-		return nil, "", errors.Wrap(err, "Failed to create processor configuration")
+		return nil, errors.Wrap(err, "Failed to create processor configuration")
 	}
 
 	// create volumes string[string] map for volumes
@@ -545,7 +543,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	})
 
 	if err != nil {
-		return nil, "", errors.Wrap(err, "Failed to run docker container")
+		return nil, errors.Wrap(err, "Failed to run docker container")
 	}
 
 	p.Logger.InfoWith("Waiting for function to be ready", "timeout", createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds)
@@ -558,21 +556,17 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	if err = p.dockerClient.AwaitContainerHealth(containerID, &readinessTimeout); err != nil {
-		var errMessage, formattedProcessorLogs, briefErrorMessage string
+		var errMessage string
 
 		// try to get error logs
 		containerLogs, getContainerLogsErr := p.dockerClient.GetContainerLogs(containerID)
 		if getContainerLogsErr == nil {
-			scanner := bufio.NewScanner(strings.NewReader(containerLogs))
-
-			formattedProcessorLogs, briefErrorMessage = p.GetProcessorLogsAndBriefError(scanner)
-
-			errMessage = fmt.Sprintf("Function wasn't ready in time. Logs:\n%s", formattedProcessorLogs)
+			errMessage = fmt.Sprintf("Function wasn't ready in time. Logs:\n%s", containerLogs)
 		} else {
 			errMessage = fmt.Sprintf("Function wasn't ready in time (couldn't fetch logs: %s)", getContainerLogsErr.Error())
 		}
 
-		return nil, briefErrorMessage, errors.Wrap(err, errMessage)
+		return nil, errors.Wrap(err, errMessage)
 	}
 
 	return &platform.CreateFunctionResult{
@@ -582,7 +576,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		},
 		Port:        functionHTTPPort,
 		ContainerID: containerID,
-	}, "", nil
+	}, nil
 }
 
 func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateFunctionOptions) (string, error) {
