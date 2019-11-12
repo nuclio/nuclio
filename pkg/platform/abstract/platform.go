@@ -430,16 +430,14 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, bool, error) {
 
 	logLevel := strings.ToUpper(*logStruct.Level)[0]
 
-	if logStruct.More == nil {
-		empty := ""
-		logStruct.More = &empty
-	}
-
-	res := fmt.Sprintf("[%s] (%c) %s [%s]",
+	res := fmt.Sprintf("[%s] (%c) %s",
 		parsedTime.Format("15:04:05.000"),
 		logLevel,
-		*logStruct.Message,
-		*logStruct.More)
+		*logStruct.Message)
+
+	if logStruct.More != nil {
+		res = fmt.Sprintf("%s [%s]",res, *logStruct.More)
+	}
 
 	if logLevel != 'D' && logLevel != 'I' {
 		return res, true, nil
