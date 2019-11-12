@@ -57,9 +57,6 @@ class Wrapper(object):
         self._processor_sock_wfile = self._processor_sock.makefile('w')
         self._unpacker = msgpack.Unpacker(raw=False, max_buffer_size=10 * 1024 * 1024)
 
-        # replace the default output with the process socket
-        self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
-
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
 
@@ -70,9 +67,12 @@ class Wrapper(object):
         if hasattr(entrypoint_module, 'init_context'):
             try:
                 getattr(entrypoint_module, 'init_context')(self._context)
-            except Exception as err:
-                self._logger.warn_with('Failed while running init_context', handler=handler)
+            except:
+                self._logger.warn_with('Exception raised while running init_context')
                 raise
+
+        # replace the default output with the process socket
+        self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
 
         # indicate that we're ready
         self._write_packet_to_processor('s')
