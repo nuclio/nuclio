@@ -729,11 +729,11 @@ func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.Crea
 func (p *Platform) ValidateFunctionContainersHealthiness() {
 	namespaces, err := p.GetNamespaces()
 	if err != nil {
-		p.Logger.WarnWith("Could not get namespaces", "err", err)
+		p.Logger.WarnWith("Cannot not get namespaces", "err", err)
 		return
 	}
 	var unhealthyFunctions []*functionconfig.Config
-	var functionsFailedToUpdate []*functionconfig.Config
+	var functionsFailedToMarkUnhealthy []*functionconfig.Config
 	for _, namespace := range namespaces {
 
 		// get functions for that namespace
@@ -741,7 +741,7 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 			Namespace: namespace,
 		})
 		if err != nil {
-			p.Logger.WarnWith("Could not get functions",
+			p.Logger.WarnWith("Cannot get functions to validate",
 				"namespace", namespace,
 				"err", err)
 			continue
@@ -770,8 +770,8 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 				},
 			})
 
-			if err := p.setFunctionStateErrorIfContainerIsUnhealthy(containerID, functionConfig); err != nil {
-				functionsFailedToUpdate = append(functionsFailedToUpdate, functionConfig)
+			if err := p.markFunctionUnhealthy(containerID, functionConfig); err != nil {
+				functionsFailedToMarkUnhealthy = append(functionsFailedToMarkUnhealthy, functionConfig)
 			} else {
 				unhealthyFunctions = append(unhealthyFunctions, functionConfig)
 
@@ -780,18 +780,18 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 	}
 
 	if len(unhealthyFunctions) > 0 {
-		p.Logger.InfoWith(fmt.Sprintf("Marked %d functions as unhealthy",
+		p.Logger.InfoWith(fmt.Sprintf("Successfully marked %d functions as unhealthy",
 			len(unhealthyFunctions)),
 			"unhealthyFunctions", unhealthyFunctions)
 	}
-	if len(functionsFailedToUpdate) > 0 {
+	if len(functionsFailedToMarkUnhealthy) > 0 {
 		p.Logger.WarnWith(fmt.Sprintf("Failed to mark %d functions as unhealthy",
-			len(functionsFailedToUpdate)),
-			"errounosFunctions", functionsFailedToUpdate)
+			len(functionsFailedToMarkUnhealthy)),
+			"functionsFailedToMarkUnhealthy", functionsFailedToMarkUnhealthy)
 	}
 }
 
-func (p *Platform) setFunctionStateErrorIfContainerIsUnhealthy(containerID string, functionConfig *functionconfig.Config) error {
+func (p *Platform) markFunctionUnhealthy(containerID string, functionConfig *functionconfig.Config) error {
 
 	if err := p.dockerClient.AwaitContainerHealth(containerID,
 		&p.functionContainersHealthinessTimeout); err != nil {

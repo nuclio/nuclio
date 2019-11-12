@@ -82,6 +82,7 @@ func (suite *TestSuite) TearDownTest() {
 	defer os.RemoveAll(suite.TempDir)
 	if suite.containerID != "" {
 		if common.GetEnvOrDefaultString("NUCLIO_TEST_KEEP_DOCKER", "") == "" {
+
 			// remove container
 			defer suite.DockerClient.RemoveContainer(suite.containerID)
 		}
