@@ -37,7 +37,7 @@ Nuclio currently supports three types of processor runtime implementations:
 2.	**SHMEM** - for shared-memory languages, such as Python, Java, and Node.js. The processor communicates with the SHMEM function runtime through zero-copy shared-memory channels.
 3.	**Shell** - for command-line execution functions or binaries ("executables"). Upon receiving an event, the processor runs the executable in a command-line shell, using the relevant command and environment variables, and then maps the executable's standard-output (`stdout`) or standard-error (`stderr`) logs to the function results.
 
-    > Note: The shell runtime supports only file data bindings.
+    > **Note:** The shell runtime supports only file data bindings.
 
 #### Data bindings
 

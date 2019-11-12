@@ -34,24 +34,31 @@ func (n *nodejs) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
-	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
+func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info,
+	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
 
-	// format the onbuild image
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-nodejs-onbuild:%s-%s",
-		versionInfo.Label,
-		versionInfo.Arch)
+	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// set the default base image
 	processorDockerfileInfo.BaseImage = "node:10.3-alpine"
-	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
-		"/home/nuclio/bin/wrapper.js": "/opt/nuclio/wrapper.js",
-	}
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",
 	}
+
+	// fill onbuild artifact
+	artifact := runtime.Artifact{
+		Name: "nodejs-onbuild",
+		Image: fmt.Sprintf("%s/nuclio/handler-builder-nodejs-onbuild:%s-%s",
+			n.GetRegistry(registryURL),
+			versionInfo.Label,
+			versionInfo.Arch),
+		Paths: map[string]string{
+			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
+			"/home/nuclio/bin/wrapper.js": "/opt/nuclio/wrapper.js",
+		},
+	}
+	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
 		"postCopy": {

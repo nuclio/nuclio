@@ -187,6 +187,7 @@ type Build struct {
 	FunctionConfigPath  string                 `json:"functionConfigPath,omitempty"`
 	TempDir             string                 `json:"tempDir,omitempty"`
 	Registry            string                 `json:"registry,omitempty"`
+	BaseImageRegistry   string                 `json:"baseImageRegistry,omitempty"`
 	Image               string                 `json:"image,omitempty"`
 	NoBaseImagesPull    bool                   `json:"noBaseImagesPull,omitempty"`
 	NoCache             bool                   `json:"noCache,omitempty"`
@@ -203,6 +204,7 @@ type Build struct {
 	CodeEntryType       string                 `json:"codeEntryType,omitempty"`
 	CodeEntryAttributes map[string]interface{} `json:"codeEntryAttributes,omitempty"`
 	Timestamp           int64                  `json:"timestamp,omitempty"`
+	BuildTimeoutSeconds *int64                 `json:"BuildTimeoutSeconds,omitempty"`
 	Mode                BuildMode              `json:"mode,omitempty"`
 }
 

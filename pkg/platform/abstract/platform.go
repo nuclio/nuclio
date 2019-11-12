@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/logger"
 )
@@ -40,6 +41,7 @@ type Platform struct {
 	invoker                        *invoker
 	ExternalIPAddresses            []string
 	DeployLogStreams               map[string]*LogStream
+	ContainerBuilder               containerimagebuilderpusher.BuilderPusher
 	DefaultHTTPIngressHostTemplate string
 }
 
@@ -312,7 +314,17 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 
 // BuildAndPushContainerImage builds container image and pushes it into docker registry
 func (ap *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
-	return errors.New("Unsupported")
+	return ap.ContainerBuilder.BuildAndPushContainerImage(buildOptions, ap.platform.ResolveDefaultNamespace("@nuclio.selfNamespace"))
+}
+
+// Get Onbuild stage for multistage builds
+func (ap *Platform) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
+	return ap.ContainerBuilder.GetOnbuildStages(onbuildArtifacts)
+}
+
+// Change Onbuild artifact paths depending on the type of the builder used
+func (ap *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
+	return ap.ContainerBuilder.TransformOnbuildArtifactPaths(onbuildArtifacts)
 }
 
 func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {

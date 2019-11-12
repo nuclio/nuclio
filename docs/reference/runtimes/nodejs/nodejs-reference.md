@@ -16,7 +16,7 @@ exports.handler = function(context, event) {
 ```
 
 The `handler` field is of the form `<package>:<entrypoint>`, where `<package>` is a dot (`.`) separated path (for example, `foo.bar` equates to `foo/bar.js`) and `<entrypoint>` is the function name. In the example above, the handler is `handler:handler`, assuming the file is named `handler.js`.
-> Note: A temporary limitation mandates that the file be named `handler.js`.
+> **Note:** A temporary limitation mandates that the file be named `handler.js`.
 
 ## Dockerfile
 

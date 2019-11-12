@@ -69,7 +69,6 @@ func (w EventTimeoutWatcher) watch() {
 			triggerName, triggerInstance := triggerName, triggerInstance
 
 			triggerErrGroup.Go(func() error {
-				w.logger.DebugWith("Checking trigger workers", "triggerName", triggerName)
 
 				// create error group
 				workerErrGroup := errgroup.Group{}
@@ -79,8 +78,6 @@ func (w EventTimeoutWatcher) watch() {
 					workerInstance := workerInstance
 
 					workerErrGroup.Go(func() error {
-						w.logger.DebugWith("Checking worker", "triggerName", triggerName, "widx", workerInstance.GetIndex())
-
 						eventTime := workerInstance.GetEventTime()
 						if eventTime == nil {
 							return nil

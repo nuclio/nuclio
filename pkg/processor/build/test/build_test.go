@@ -25,9 +25,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
+	"github.com/nuclio/nuclio/pkg/platform/local"
+	"github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 	"github.com/nuclio/nuclio/test/httpsrv"
 
@@ -318,7 +325,6 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 	createFunctionOptions.FunctionConfig.Spec.Handler = "cachetest:handler"
 	createFunctionOptions.FunctionConfig.Spec.Build.TempDir = suite.CreateTempDir()
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
-
 		// install curl
 		"apk --update --no-cache add curl",
 
@@ -588,6 +594,279 @@ func (suite *testSuite) TestBuildFuncFromLocalArchiveRedeployUsesSameImage() {
 		})
 
 	suite.Equal(deployResult.Image, redeployResult.Image)
+}
+
+func (suite *testSuite) TestGenerateProcessorDockerfile() {
+
+	newPlatform, err := local.NewPlatform(suite.Logger)
+	if err != nil {
+		suite.Fail("Instantiating Platform failed:", err)
+	}
+
+	builder, err := build.NewBuilder(suite.Logger, newPlatform, nil)
+	if err != nil {
+		suite.Fail("Instantiating Builder failed:", err)
+	}
+
+	// all elements, health check required
+	suite.generateDockerfileAndVerify(builder, true, &runtime.ProcessorDockerfileInfo{
+		BaseImage: "baseImage",
+		OnbuildArtifacts: []runtime.Artifact{
+			{
+				Name:  "onbuild-1",
+				Image: "onbuildImage",
+				Paths: map[string]string{
+					"onbuildLocal1": "onbuildImage1",
+					"onbuildLocal2": "onbuildImage2",
+				},
+			},
+			{
+				Name:  "uhttpc-1",
+				Image: "quay.io/nuclio/uhttpc:0.0.1-amd64",
+				Paths: map[string]string{
+					"/home/nuclio/bin/uhttpc": "/usr/local/bin/uhttpc",
+				},
+				ExternalImage: true,
+			},
+		},
+		ImageArtifactPaths: map[string]string{
+			"imageLocal1": "imageImage1",
+			"imageLocal2": "imageImage2",
+		},
+		Directives: map[string][]functionconfig.Directive{
+			"preCopy": {
+				{Kind: "preCopyKind1", Value: "preCopyValue1"},
+				{Kind: "preCopyKind2", Value: "preCopyValue2"},
+			},
+			"postCopy": {
+				{Kind: "postCopyKind1", Value: "postCopyValue1"},
+				{Kind: "postCopyKind2", Value: "postCopyValue2"},
+			},
+		},
+	}, `# Multistage builds
+# From the base image
+FROM baseImage
+# Old(er) Docker support - must use all build args
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
+# Run the pre-copy directives
+preCopyKind1 preCopyValue1
+preCopyKind2 preCopyValue2
+# Copy required objects from the suppliers
+COPY artifacts/onbuildLocal1 onbuildImage1
+COPY artifacts/onbuildLocal2 onbuildImage2
+COPY artifacts/uhttpc /usr/local/bin/uhttpc
+COPY imageLocal1 imageImage1
+COPY imageLocal2 imageImage2
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+# Run the post-copy directives
+postCopyKind1 postCopyValue1
+postCopyKind2 postCopyValue2
+# Run processor with configuration and platform configuration
+CMD [ "processor" ]`)
+
+	// all elements, health check not required
+	suite.generateDockerfileAndVerify(builder, false, &runtime.ProcessorDockerfileInfo{
+		BaseImage: "baseImage",
+		OnbuildArtifacts: []runtime.Artifact{
+			{
+				Name:  "onbuild-1",
+				Image: "onbuildImage",
+				Paths: map[string]string{
+					"onbuildLocal1": "onbuildImage1",
+					"onbuildLocal2": "onbuildImage2",
+				},
+			},
+		},
+		ImageArtifactPaths: map[string]string{
+			"imageLocal1": "imageImage1",
+			"imageLocal2": "imageImage2",
+		},
+		Directives: map[string][]functionconfig.Directive{
+			"preCopy": {
+				{Kind: "preCopyKind1", Value: "preCopyValue1"},
+				{Kind: "preCopyKind2", Value: "preCopyValue2"},
+			},
+			"postCopy": {
+				{Kind: "postCopyKind1", Value: "postCopyValue1"},
+				{Kind: "postCopyKind2", Value: "postCopyValue2"},
+			},
+		},
+	}, `# Multistage builds
+# From the base image
+FROM baseImage
+# Old(er) Docker support - must use all build args
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
+# Run the pre-copy directives
+preCopyKind1 preCopyValue1
+preCopyKind2 preCopyValue2
+# Copy required objects from the suppliers
+COPY artifacts/onbuildLocal1 onbuildImage1
+COPY artifacts/onbuildLocal2 onbuildImage2
+COPY imageLocal1 imageImage1
+COPY imageLocal2 imageImage2
+# Run the post-copy directives
+postCopyKind1 postCopyValue1
+postCopyKind2 postCopyValue2
+# Run processor with configuration and platform configuration
+CMD [ "processor" ]`)
+}
+
+func (suite *testSuite) TestGenerateKanikoProcessorDockerfile() {
+
+	containerBuilderConfiguration := &containerimagebuilderpusher.ContainerBuilderConfiguration{
+		Kind: "kaniko",
+	}
+
+	containerBuilder, err := containerimagebuilderpusher.NewKaniko(suite.Logger, nil, containerBuilderConfiguration)
+	if err != nil {
+		suite.Fail("Instantiating kaniko builder failed:", err)
+	}
+
+	newPlatform := &kube.Platform{
+		Platform: &abstract.Platform{
+			ContainerBuilder: containerBuilder,
+		},
+	}
+
+	builder, err := build.NewBuilder(suite.Logger, newPlatform, nil)
+	if err != nil {
+		suite.Fail("Instantiating Builder failed:", err)
+	}
+
+	// all elements, health check required
+	suite.generateDockerfileAndVerify(builder, true, &runtime.ProcessorDockerfileInfo{
+		BaseImage: "baseImage",
+		OnbuildArtifacts: []runtime.Artifact{
+			{
+				Name:  "onbuild-1",
+				Image: "onbuildImage",
+				Paths: map[string]string{
+					"onbuildLocal1": "onbuildImage1",
+					"onbuildLocal2": "onbuildImage2",
+				},
+			},
+			{
+				Name:  "uhttpc-1",
+				Image: "quay.io/nuclio/uhttpc:0.0.1-amd64",
+				Paths: map[string]string{
+					"/home/nuclio/bin/uhttpc": "/usr/local/bin/uhttpc",
+				},
+				ExternalImage: true,
+			},
+		},
+		ImageArtifactPaths: map[string]string{
+			"imageLocal1": "imageImage1",
+			"imageLocal2": "imageImage2",
+		},
+		Directives: map[string][]functionconfig.Directive{
+			"preCopy": {
+				{Kind: "preCopyKind1", Value: "preCopyValue1"},
+				{Kind: "preCopyKind2", Value: "preCopyValue2"},
+			},
+			"postCopy": {
+				{Kind: "postCopyKind1", Value: "postCopyValue1"},
+				{Kind: "postCopyKind2", Value: "postCopyValue2"},
+			},
+		},
+	}, `# Multistage builds
+FROM onbuildImage AS onbuild-1
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+# From the base image
+FROM baseImage
+# Old(er) Docker support - must use all build args
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
+# Run the pre-copy directives
+preCopyKind1 preCopyValue1
+preCopyKind2 preCopyValue2
+# Copy required objects from the suppliers
+COPY --from=onbuild-1 onbuildLocal1 onbuildImage1
+COPY --from=onbuild-1 onbuildLocal2 onbuildImage2
+COPY --from=quay.io/nuclio/uhttpc:0.0.1-amd64 /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+COPY imageLocal1 imageImage1
+COPY imageLocal2 imageImage2
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+# Run the post-copy directives
+postCopyKind1 postCopyValue1
+postCopyKind2 postCopyValue2
+# Run processor with configuration and platform configuration
+CMD [ "processor" ]`)
+
+	// all elements, health check not required
+	suite.generateDockerfileAndVerify(builder, false, &runtime.ProcessorDockerfileInfo{
+		BaseImage: "baseImage",
+		OnbuildArtifacts: []runtime.Artifact{
+			{
+				Name:  "onbuild-1",
+				Image: "onbuildImage",
+				Paths: map[string]string{
+					"onbuildLocal1": "onbuildImage1",
+					"onbuildLocal2": "onbuildImage2",
+				},
+			},
+		},
+		ImageArtifactPaths: map[string]string{
+			"imageLocal1": "imageImage1",
+			"imageLocal2": "imageImage2",
+		},
+		Directives: map[string][]functionconfig.Directive{
+			"preCopy": {
+				{Kind: "preCopyKind1", Value: "preCopyValue1"},
+				{Kind: "preCopyKind2", Value: "preCopyValue2"},
+			},
+			"postCopy": {
+				{Kind: "postCopyKind1", Value: "postCopyValue1"},
+				{Kind: "postCopyKind2", Value: "postCopyValue2"},
+			},
+		},
+	}, `# Multistage builds
+FROM onbuildImage AS onbuild-1
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+# From the base image
+FROM baseImage
+# Old(er) Docker support - must use all build args
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
+# Run the pre-copy directives
+preCopyKind1 preCopyValue1
+preCopyKind2 preCopyValue2
+# Copy required objects from the suppliers
+COPY --from=onbuild-1 onbuildLocal1 onbuildImage1
+COPY --from=onbuild-1 onbuildLocal2 onbuildImage2
+COPY imageLocal1 imageImage1
+COPY imageLocal2 imageImage2
+# Run the post-copy directives
+postCopyKind1 postCopyValue1
+postCopyKind2 postCopyValue2
+# Run processor with configuration and platform configuration
+CMD [ "processor" ]`)
+}
+
+func (suite *testSuite) generateDockerfileAndVerify(builder *build.Builder,
+	healthCheckRequired bool,
+	dockerfileInfo *runtime.ProcessorDockerfileInfo,
+	expectedDockerfile string) {
+
+	dockerfileContents, err := builder.GenerateDockerfileContents(dockerfileInfo.BaseImage,
+		dockerfileInfo.OnbuildArtifacts,
+		dockerfileInfo.ImageArtifactPaths,
+		dockerfileInfo.Directives,
+		healthCheckRequired)
+
+	dockerfileContents = common.RemoveEmptyLines(dockerfileContents)
+
+	suite.Require().NoError(err)
+	suite.Require().Equal(expectedDockerfile, common.RemoveEmptyLines(dockerfileContents))
 }
 
 func (suite *testSuite) createShellFunctionFromSourceCode(functionName string,
