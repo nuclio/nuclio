@@ -50,8 +50,9 @@
          */
         function importProject(project, promise) {
             var projectName = lodash.get(project, 'metadata.name');
+            var projectData = lodash.omit(project, 'spec.functions');
 
-            NuclioProjectsDataService.createProject(project).then(function () {
+            NuclioProjectsDataService.createProject(projectData).then(function () {
                 NuclioProjectsDataService.getProjects().then(function (response) {
                     var functions = lodash.get(project, 'spec.functions');
                     var currentProject = lodash.find(response, ['metadata.name', projectName]);
