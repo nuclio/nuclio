@@ -145,6 +145,13 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			errorStack.Truncate(4 * Mib)
 		}
 
+		// if no brief error message was passed, set it to be the last error
+		if briefErrorMessage == "" {
+			lastError := bytes.Buffer{}
+			errors.PrintErrorStack(&lastError, creationError, 1)
+			briefErrorMessage = lastError.String()
+		}
+
 		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
 			"errorStack", errorStack.String())
 
