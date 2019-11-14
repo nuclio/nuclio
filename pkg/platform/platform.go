@@ -131,4 +131,7 @@ type Platform interface {
 
 	// Change Onbuild artifact paths depending on the type of the builder used
 	TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error)
+
+	// GetBaseImageRegistry returns onbuild base registry
+	GetBaseImageRegistry(registry string) string
 }
