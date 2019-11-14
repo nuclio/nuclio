@@ -436,7 +436,7 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, bool, error) {
 		*logStruct.Message)
 
 	if logStruct.More != nil {
-		res = fmt.Sprintf("%s [%s]",res, *logStruct.More)
+		res = fmt.Sprintf("%s [%s]", res, *logStruct.More)
 	}
 
 	if logLevel != 'D' && logLevel != 'I' {
