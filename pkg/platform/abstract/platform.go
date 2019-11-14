@@ -441,7 +441,7 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, bool, error) {
 
 	if logLevel != 'D' && logLevel != 'I' {
 		return res, true, nil
-	} else {
-		return res, false, nil
 	}
+
+	return res, false, nil
 }
