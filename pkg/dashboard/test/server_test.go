@@ -230,6 +230,11 @@ func (mp *mockPlatform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime
 	return map[string]string{}, nil
 }
 
+func (mp *mockPlatform) GetBaseRegistry(registry string) string {
+	return "quay.io"
+}
+
+
 //
 // Test suite
 //

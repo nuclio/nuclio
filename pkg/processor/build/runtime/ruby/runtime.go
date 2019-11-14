@@ -48,7 +48,7 @@ func (r *ruby) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	artifact := runtime.Artifact{
 		Name: "ruby-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-ruby-onbuild:%s-%s",
-			r.GetRegistry(registryURL),
+			registryURL,
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

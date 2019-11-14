@@ -946,10 +946,13 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		return "", errors.Wrap(err, "Failed to get build args")
 	}
 
-	// Use dedicated base images registry (pull registry) if defined, default to push registry if not
+	// Use dedicated base images registry (pull registry) if defined
+	// If base registry is not defined will use the following:
+	//     - for docker builder: quay.io
+	//     - for kaniko builder: push registry
 	registry := b.options.FunctionConfig.Spec.Build.BaseImageRegistry
 	if len(registry) == 0 {
-		registry = b.options.FunctionConfig.Spec.Build.Registry
+		registry = b.platform.GetBaseRegistry(b.options.FunctionConfig.Spec.Build.Registry)
 	}
 
 	var BuildTimeoutSeconds int64

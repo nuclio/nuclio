@@ -161,10 +161,3 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 
 	return []string{fmt.Sprintf("%s:%s", functionFileName, "handler")}, nil
 }
-
-func (ar *AbstractRuntime) GetRegistry(registryURL string) string {
-	if len(registryURL) == 0 {
-		return "quay.io"
-	}
-	return registryURL
-}
