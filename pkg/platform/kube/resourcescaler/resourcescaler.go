@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -66,25 +67,43 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 
 func (n *NuclioResourceScaler) SetScale(resource scaler_types.Resource, scale int) error {
 	if scale == 0 {
-		return n.scaleFunctionToZero(n.namespace, string(resource))
+		return n.scaleFunctionToZero(n.namespace, resource.Name)
 	}
-	return n.scaleFunctionFromZero(n.namespace, string(resource))
+	return n.scaleFunctionFromZero(n.namespace, resource.Name)
 }
 
 func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
+	var functionList []scaler_types.Resource
 	functions, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(n.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list functions")
 	}
-
-	var functionList []scaler_types.Resource
 
 	// build a list of function names that are potential to be scaled to zero
 	for _, function := range functions.Items {
 
 		// don't include functions that aren't in ready state or that min replicas is larger than zero
 		if function.GetComputedMinReplicas() <= 0 && function.Status.State == functionconfig.FunctionStateReady {
-			functionList = append(functionList, scaler_types.Resource(function.Name))
+			if function.Spec.ScaleToZero == nil {
+				return []scaler_types.Resource{}, errors.New("Function missing scale to zero spec")
+			}
+
+			scaleResources, err := n.parseScaleResources(function)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to parse scale resources")
+			}
+
+			lastScaleEvent, lastScaleEventTime, err := n.parseLastScaleEvent(function)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to parse last scale event")
+			}
+
+			functionList = append(functionList, scaler_types.Resource{
+				Name:               function.Name,
+				ScaleResources:     scaleResources,
+				LastScaleEvent:     lastScaleEvent,
+				LastScaleEventTime: lastScaleEventTime,
+			})
 		}
 	}
 	return functionList, nil
@@ -98,17 +117,12 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 
 	scaleInterval, err := time.ParseDuration(platformConfiguration.ScaleToZero.ScalerInterval)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read scale interval")
+		return nil, errors.Wrap(err, "Failed to parse scaler interval duration")
 	}
 
-	scaleWindow, err := time.ParseDuration(platformConfiguration.ScaleToZero.WindowSize)
+	resourceReadinessTimeout, err := time.ParseDuration(platformConfiguration.ScaleToZero.ResourceReadinessTimeout)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse scale window")
-	}
-
-	pollerInterval, err := time.ParseDuration(platformConfiguration.ScaleToZero.PollerInterval)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse poller interval")
+		return nil, errors.Wrap(err, "Failed to parse resource readiness timeout")
 	}
 
 	return &scaler_types.ResourceScalerConfig{
@@ -116,60 +130,87 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 		AutoScalerOptions: scaler_types.AutoScalerOptions{
 			Namespace:     n.namespace,
 			ScaleInterval: scaleInterval,
-			ScaleWindow:   scaleWindow,
-			MetricName:    platformConfiguration.ScaleToZero.MetricName,
-			Threshold:     0,
 		},
 		DLXOptions: scaler_types.DLXOptions{
-			Namespace:        n.namespace,
-			TargetPort:       8080,
-			TargetNameHeader: "X-Nuclio-Target",
-			TargetPathHeader: "X-Nuclio-Function-Path",
-			ListenAddress:    ":8080",
-		},
-		PollerOptions: scaler_types.PollerOptions{
-			MetricInterval: pollerInterval,
-			MetricName:     platformConfiguration.ScaleToZero.MetricName,
-			Namespace:      n.namespace,
-			GroupKind:      "NuclioFunction",
+			Namespace:                n.namespace,
+			TargetPort:               8080,
+			TargetNameHeader:         "X-Nuclio-Target",
+			TargetPathHeader:         "X-Nuclio-Function-Path",
+			ListenAddress:            ":8080",
+			ResourceReadinessTimeout: resourceReadinessTimeout,
 		},
 	}, nil
 }
 
-func (n *NuclioResourceScaler) scaleFunctionToZero(namespace string, functionName string) error {
-	n.logger.DebugWith("Scaling to zero", "functionName", functionName)
-	function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
-	if err != nil {
-		n.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
-		return errors.Wrap(err, "Failed to get function")
+func (n *NuclioResourceScaler) parseScaleResources(function nuclioio.NuclioFunction) ([]scaler_types.ScaleResource, error) {
+	var scaleResources []scaler_types.ScaleResource
+	for _, scaleResource := range function.Spec.ScaleToZero.ScaleResources {
+		windowSize, err := time.ParseDuration(scaleResource.WindowSize)
+		if err != nil {
+			return []scaler_types.ScaleResource{}, errors.Wrap(err, "Failed to parse window size")
+		}
+		scaleResources = append(scaleResources, scaler_types.ScaleResource{
+			MetricName: scaleResource.MetricName,
+			Threshold:  scaleResource.Threshold,
+			WindowSize: windowSize,
+		})
+	}
+	return scaleResources, nil
+}
+
+func (n *NuclioResourceScaler) parseLastScaleEvent(function nuclioio.NuclioFunction) (*scaler_types.ScaleEvent, *time.Time, error) {
+	if function.Status.ScaleToZero == nil {
+		return nil, nil, nil
 	}
 
-	// this has the nice property of disabling hpa as well
-	function.Status.State = functionconfig.FunctionStateScaledToZero
-	_, err = n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Update(function)
+	if function.Status.ScaleToZero.LastScaleEventTime == nil {
+		return nil, nil, errors.New("Function scale to zero status does not contain last scale event time")
+	}
+
+	return &function.Status.ScaleToZero.LastScaleEvent, function.Status.ScaleToZero.LastScaleEventTime, nil
+}
+
+func (n *NuclioResourceScaler) scaleFunctionToZero(namespace string, functionName string) error {
+	n.logger.DebugWith("Scaling to zero", "functionName", functionName)
+	err := n.updateFunctionStatus(namespace,
+		functionName,
+		functionconfig.FunctionStateScaledToZero,
+		scaler_types.ScaleToZeroStartedScaleEvent)
 	if err != nil {
-		n.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
-		return errors.Wrap(err, "Failed to update function")
+		return errors.Wrap(err, "Failed to update function status to scale to zero")
 	}
 	return nil
 }
 
 func (n *NuclioResourceScaler) scaleFunctionFromZero(namespace string, functionName string) error {
-	err := n.updateFunctionStatus(namespace, functionName)
+	n.logger.DebugWith("Scaling from zero", "functionName", functionName)
+	err := n.updateFunctionStatus(namespace,
+		functionName,
+		functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
+		scaler_types.ScaleFromZeroStartedScaleEvent)
 	if err != nil {
-		return errors.Wrap(err, "Failed to change function status to waitingForResourceConfiguration")
+		return errors.Wrap(err, "Failed to update function status to scale from zero")
 	}
 	return n.waitFunctionReadiness(namespace, functionName)
 }
 
-func (n *NuclioResourceScaler) updateFunctionStatus(namespace string, functionName string) error {
+func (n *NuclioResourceScaler) updateFunctionStatus(namespace string,
+	functionName string,
+	functionState functionconfig.FunctionState,
+	functionScaleEvent scaler_types.ScaleEvent) error {
 	function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
 	if err != nil {
 		n.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
 		return errors.Wrap(err, "Failed to get nuclio function")
 	}
 
-	function.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
+	function.Status.State = functionState
+	if function.Status.ScaleToZero == nil {
+		function.Status.ScaleToZero = &functionconfig.ScaleToZeroStatus{}
+	}
+	function.Status.ScaleToZero.LastScaleEvent = functionScaleEvent
+	now := time.Now()
+	function.Status.ScaleToZero.LastScaleEventTime = &now
 	_, err = n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Update(function)
 	if err != nil {
 		n.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
