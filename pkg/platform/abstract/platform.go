@@ -327,9 +327,9 @@ func (ap *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Art
 	return ap.ContainerBuilder.TransformOnbuildArtifactPaths(onbuildArtifacts)
 }
 
-// GetBaseRegistry returns onbuild base registry
-func (ap *Platform) GetBaseRegistry(registry string) string {
-	return ap.ContainerBuilder.GetBaseRegistry(registry)
+// GetBaseImageRegistry returns onbuild base registry
+func (ap *Platform) GetBaseImageRegistry(registry string) string {
+	return ap.ContainerBuilder.GetBaseImageRegistry(registry)
 }
 
 func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {

@@ -85,7 +85,7 @@ func (d *Docker) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifa
 	return relativeOnbuildArtifactPaths, nil
 }
 
-func (d *Docker) GetBaseRegistry(registry string) string {
+func (d *Docker) GetBaseImageRegistry(registry string) string {
 	return "quay.io"
 }
 

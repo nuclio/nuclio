@@ -114,7 +114,7 @@ func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifa
 	return stagedArtifactPaths, nil
 }
 
-func (k *Kaniko) GetBaseRegistry(registry string) string {
+func (k *Kaniko) GetBaseImageRegistry(registry string) string {
 	return registry
 }
 

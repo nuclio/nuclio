@@ -952,7 +952,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	//     - for kaniko builder: push registry
 	registry := b.options.FunctionConfig.Spec.Build.BaseImageRegistry
 	if len(registry) == 0 {
-		registry = b.platform.GetBaseRegistry(b.options.FunctionConfig.Spec.Build.Registry)
+		registry = b.platform.GetBaseImageRegistry(b.options.FunctionConfig.Spec.Build.Registry)
 	}
 
 	var BuildTimeoutSeconds int64
