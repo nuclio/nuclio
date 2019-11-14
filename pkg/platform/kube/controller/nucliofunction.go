@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
 
 	"github.com/nuclio/logger"
+	"github.com/v3io/scaler-types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -93,6 +94,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	// properly configured
 	if function.Status.State != functionconfig.FunctionStateWaitingForResourceConfiguration &&
 		function.Status.State != functionconfig.FunctionStateReady &&
+		function.Status.State != functionconfig.FunctionStateWaitingForScaleResourcesFromZero &&
 		function.Status.State != functionconfig.FunctionStateScaledToZero {
 		fo.logger.DebugWith("NuclioFunction is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
@@ -139,9 +141,26 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		}
 	}
 
-	// if the function state was ready, don't re-write the function state
-	if function.Status.State != functionconfig.FunctionStateReady &&
-		function.Status.State != functionconfig.FunctionStateScaledToZero {
+	if function.Status.State == functionconfig.FunctionStateScaledToZero ||
+		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero ||
+		function.Status.State == functionconfig.FunctionStateWaitingForResourceConfiguration {
+
+		var scaleEvent scaler_types.ScaleEvent
+		switch function.Status.State {
+		case functionconfig.FunctionStateScaledToZero:
+			scaleEvent = scaler_types.ScaleToZeroCompletedScaleEvent
+		case functionconfig.FunctionStateWaitingForScaleResourcesFromZero:
+			scaleEvent = scaler_types.ScaleFromZeroCompletedScaleEvent
+		case functionconfig.FunctionStateWaitingForResourceConfiguration:
+			scaleEvent = scaler_types.ResourceUpdatedScaleEvent
+		}
+		if err := fo.setFunctionScaleToZeroStatus(ctx, &function.Status, scaleEvent); err != nil {
+			return errors.Wrap(err, "Failed setting function scale to zero status")
+		}
+	}
+
+	// if the function state was ready or scaled to zero, don't re-write the function state
+	if function.Status.State != functionconfig.FunctionStateReady && function.Status.State != functionconfig.FunctionStateScaledToZero {
 		return fo.setFunctionStatus(function, &functionconfig.Status{
 			State:    functionconfig.FunctionStateReady,
 			HTTPPort: httpPort,
@@ -158,6 +177,18 @@ func (fo *functionOperator) Delete(ctx context.Context, namespace string, name s
 		"namespace", namespace)
 
 	return fo.functionresClient.Delete(ctx, namespace, name)
+}
+
+func (fo *functionOperator) setFunctionScaleToZeroStatus(ctx context.Context,
+	functionStatus *functionconfig.Status,
+	scaleToZeroEvent scaler_types.ScaleEvent) error {
+
+	now := time.Now()
+	functionStatus.ScaleToZero = &functionconfig.ScaleToZeroStatus{
+		LastScaleEvent:     scaleToZeroEvent,
+		LastScaleEventTime: &now,
+	}
+	return nil
 }
 
 func (fo *functionOperator) start() error {
