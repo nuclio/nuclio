@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -139,20 +140,20 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 
 	// if some of the parameters are undefined, try environment variables
 	if containerBuilderConfiguration.Kind == "" {
-		containerBuilderConfiguration.Kind = getEnvOrDefault("NUCLIO_CONTAINER_BUILDER_KIND", "docker")
+		containerBuilderConfiguration.Kind = common.GetEnvOrDefaultString("NUCLIO_CONTAINER_BUILDER_KIND", "docker")
 	}
 	if containerBuilderConfiguration.BusyBoxImage == "" {
-		containerBuilderConfiguration.BusyBoxImage = getEnvOrDefault("NUCLIO_BUSYBOX_CONTAINER_IMAGE", "busybox:1.31.0")
+		containerBuilderConfiguration.BusyBoxImage = common.GetEnvOrDefaultString("NUCLIO_BUSYBOX_CONTAINER_IMAGE", "busybox:1.31.0")
 	}
 	if containerBuilderConfiguration.KanikoImage == "" {
-		containerBuilderConfiguration.KanikoImage = getEnvOrDefault("NUCLIO_KANIKO_CONTAINER_IMAGE",
+		containerBuilderConfiguration.KanikoImage = common.GetEnvOrDefaultString("NUCLIO_KANIKO_CONTAINER_IMAGE",
 			"gcr.io/kaniko-project/executor:v0.13.0")
 	}
 	if containerBuilderConfiguration.JobPrefix == "" {
-		containerBuilderConfiguration.JobPrefix = getEnvOrDefault("NUCLIO_DASHBOARD_JOB_NAME_PREFIX", "kanikojob")
+		containerBuilderConfiguration.JobPrefix = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_JOB_NAME_PREFIX", "kanikojob")
 	}
 
-	if getEnvOrDefault("NUCLIO_KANIKO_INSECURE_REGISTRY", "false") == "true" {
+	if common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_REGISTRY", false) {
 		containerBuilderConfiguration.InsecureRegistry = true
 	}
 
@@ -173,7 +174,7 @@ func getKubeconfigPath(platformConfiguration interface{}) string {
 
 	// do we still not have a kubeconfig path?
 	if kubeconfigPath == "" {
-		kubeconfigPath = getEnvOrDefault("KUBECONFIG", getKubeconfigFromHomeDir())
+		kubeconfigPath = common.GetEnvOrDefaultString("KUBECONFIG", getKubeconfigFromHomeDir())
 	}
 	return kubeconfigPath
 }
@@ -193,12 +194,4 @@ func getKubeconfigFromHomeDir() string {
 	}
 
 	return ""
-}
-
-func getEnvOrDefault(envName string, defaultValue string) string {
-	configurationValue := os.Getenv(envName)
-	if configurationValue == "" {
-		configurationValue = defaultValue
-	}
-	return configurationValue
 }

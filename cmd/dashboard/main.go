@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"github.com/nuclio/nuclio/cmd/dashboard/app"
+	"github.com/nuclio/nuclio/pkg/common"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/errors"
 )
@@ -41,17 +42,6 @@ func getNamespace(namespaceArgument string) string {
 	return "@nuclio.selfNamespace"
 }
 
-func getEnvOrDefaultString(key string, defaultValue string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	} else if value == "nil" || value == "none" {
-		return ""
-	}
-
-	return value
-}
-
 func main() {
 	defaultNoPullBaseImages := os.Getenv("NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES") == "true"
 	defaultOffline := os.Getenv("NUCLIO_DASHBOARD_OFFLINE") == "true"
@@ -64,12 +54,12 @@ func main() {
 	}
 
 	// git templating env vars
-	templatesGitRepository := flag.String("templates-git-repository", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REPOSITORY", "https://github.com/nuclio/nuclio-templates.git"), "Git templates repo's name")
-	templatesGitBranch := flag.String("templates-git-ref", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REF", "refs/heads/master"), "Git templates repo's branch name")
-	templatesGitUsername := flag.String("templates-git-username", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_USERNAME", ""), "Git repo's username")
-	templatesGitPassword := flag.String("templates-git-password", getEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_PASSWORD", ""), "Git repo's user password")
-	templatesGithubAccessToken := flag.String("templates-github-access-token", getEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_ACCESS_TOKEN", ""), "Github templates repo's access token")
-	templatesArchiveAddress := flag.String("templates-archive-address", getEnvOrDefaultString("NUCLIO_TEMPLATES_ARCHIVE_ADDRESS", ""), "Function Templates zip file address")
+	templatesGitRepository := flag.String("templates-git-repository", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REPOSITORY", "https://github.com/nuclio/nuclio-templates.git"), "Git templates repo's name")
+	templatesGitBranch := flag.String("templates-git-ref", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REF", "refs/heads/master"), "Git templates repo's branch name")
+	templatesGitUsername := flag.String("templates-git-username", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_USERNAME", ""), "Git repo's username")
+	templatesGitPassword := flag.String("templates-git-password", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_PASSWORD", ""), "Git repo's user password")
+	templatesGithubAccessToken := flag.String("templates-github-access-token", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_ACCESS_TOKEN", ""), "Github templates repo's access token")
+	templatesArchiveAddress := flag.String("templates-archive-address", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_ARCHIVE_ADDRESS", ""), "Function Templates zip file address")
 
 	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the playground listens")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")

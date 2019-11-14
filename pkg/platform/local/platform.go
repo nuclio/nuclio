@@ -47,9 +47,12 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	cmdRunner    cmdrunner.CmdRunner
-	dockerClient dockerclient.Client
-	localStore   *store
+	cmdRunner                             cmdrunner.CmdRunner
+	dockerClient                          dockerclient.Client
+	localStore                            *store
+	checkFunctionContainersHealthiness    bool
+	functionContainersHealthinessTimeout  time.Duration
+	functionContainersHealthinessInterval time.Duration
 }
 
 const Mib = 1048576
@@ -66,6 +69,11 @@ func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 
 	// init platform
 	newPlatform.Platform = newAbstractPlatform
+
+	// function containers healthiness check is disabled by default
+	newPlatform.checkFunctionContainersHealthiness = common.GetEnvOrDefaultBool("NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS", false)
+	newPlatform.functionContainersHealthinessTimeout = time.Second * 5
+	newPlatform.functionContainersHealthinessInterval = time.Second * 30
 
 	// create a command runner
 	if newPlatform.cmdRunner, err = cmdrunner.NewShellRunner(newPlatform.Logger); err != nil {
@@ -86,6 +94,16 @@ func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 		return nil, errors.Wrap(err, "Failed to create local store")
 	}
 
+	// ignite goroutine to check function container healthiness
+	if newPlatform.checkFunctionContainersHealthiness {
+		newPlatform.Logger.DebugWith("Igniting container healthiness validator")
+		go func(newPlatform *Platform) {
+			uptimeTicker := time.NewTicker(newPlatform.functionContainersHealthinessInterval)
+			for range uptimeTicker.C {
+				newPlatform.ValidateFunctionContainersHealthiness()
+			}
+		}(newPlatform)
+	}
 	return newPlatform, nil
 }
 
@@ -706,4 +724,86 @@ func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.Crea
 	}
 
 	return previousHTTPPort, nil
+}
+
+func (p *Platform) ValidateFunctionContainersHealthiness() {
+	namespaces, err := p.GetNamespaces()
+	if err != nil {
+		p.Logger.WarnWith("Cannot not get namespaces", "err", err)
+		return
+	}
+	var unhealthyFunctions []*functionconfig.Config
+	var functionsFailedToMarkUnhealthy []*functionconfig.Config
+	for _, namespace := range namespaces {
+
+		// get functions for that namespace
+		functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
+			Namespace: namespace,
+		})
+		if err != nil {
+			p.Logger.WarnWith("Cannot get functions to validate",
+				"namespace", namespace,
+				"err", err)
+			continue
+		}
+
+		// For each function, we will check if its container is healthy
+		// in case it is not healthy (or container is missing), update function status
+		// and mark its state to error
+		for _, function := range functions {
+			functionConfig := function.GetConfig()
+			functionState := function.GetStatus().State
+			functionName := functionConfig.Meta.Name
+			if functionState != functionconfig.FunctionStateReady {
+
+				// Skipping checking of not-ready functions
+				continue
+			}
+
+			// get function container id
+			containerID := p.getContainerNameByCreateFunctionOptions(&platform.CreateFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						Name:      functionName,
+						Namespace: namespace,
+					},
+				},
+			})
+
+			if err := p.markFunctionUnhealthy(containerID, functionConfig); err != nil {
+				functionsFailedToMarkUnhealthy = append(functionsFailedToMarkUnhealthy, functionConfig)
+			} else {
+				unhealthyFunctions = append(unhealthyFunctions, functionConfig)
+
+			}
+		}
+	}
+
+	if len(unhealthyFunctions) > 0 {
+		p.Logger.InfoWith(fmt.Sprintf("Successfully marked %d functions as unhealthy",
+			len(unhealthyFunctions)),
+			"unhealthyFunctions", unhealthyFunctions)
+	}
+	if len(functionsFailedToMarkUnhealthy) > 0 {
+		p.Logger.WarnWith(fmt.Sprintf("Failed to mark %d functions as unhealthy",
+			len(functionsFailedToMarkUnhealthy)),
+			"functionsFailedToMarkUnhealthy", functionsFailedToMarkUnhealthy)
+	}
+}
+
+func (p *Platform) markFunctionUnhealthy(containerID string, functionConfig *functionconfig.Config) error {
+
+	if err := p.dockerClient.AwaitContainerHealth(containerID,
+		&p.functionContainersHealthinessTimeout); err != nil {
+
+		// function container is not healthy or missing, mark function state as error
+		return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+			Config: *functionConfig,
+			Status: functionconfig.Status{
+				State:   functionconfig.FunctionStateError,
+				Message: "Container is not healthy",
+			},
+		})
+	}
+	return nil
 }
