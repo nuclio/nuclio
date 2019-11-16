@@ -27,5 +27,3 @@ require (
 	gopkg.in/src-d/go-git-fixtures.v3 v3.1.1
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
-
-go 1.13

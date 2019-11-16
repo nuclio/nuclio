@@ -22,5 +22,3 @@ require (
 	gopkg.in/jcmturner/gokrb5.v7 v7.2.3
 	gopkg.in/jcmturner/rpc.v1 v1.1.0 // indirect
 )
-
-go 1.13
