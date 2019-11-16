@@ -29,7 +29,7 @@ type TriggerGatherer struct {
 	workerAllocationCount                       prometheus.Counter
 	workerAllocationTotal                       *prometheus.CounterVec
 	workerAllocationWaitDurationMilliSecondsSum prometheus.Counter
-	workerAllocationWorkersAvailableTotal       prometheus.Counter
+	workerAllocationWorkersAvailablePercentage  prometheus.Counter
 	prevStatistics                              trigger.Statistics
 }
 
@@ -74,9 +74,9 @@ func NewTriggerGatherer(instanceName string,
 		ConstLabels: labels,
 	})
 
-	newTriggerGatherer.workerAllocationWorkersAvailableTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Name:        "nuclio_processor_worker_allocation_workers_available_total",
-		Help:        "Total number of workers available when an allocation occurred",
+	newTriggerGatherer.workerAllocationWorkersAvailablePercentage = prometheus.NewCounter(prometheus.CounterOpts{
+		Name:        "nuclio_processor_worker_allocation_workers_available_percentage",
+		Help:        "Percent of workers available when an allocation occurred",
 		ConstLabels: labels,
 	})
 
@@ -85,7 +85,7 @@ func NewTriggerGatherer(instanceName string,
 		newTriggerGatherer.workerAllocationTotal,
 		newTriggerGatherer.workerAllocationCount,
 		newTriggerGatherer.workerAllocationWaitDurationMilliSecondsSum,
-		newTriggerGatherer.workerAllocationWorkersAvailableTotal,
+		newTriggerGatherer.workerAllocationWorkersAvailablePercentage,
 	} {
 		if err := metricRegistry.Register(collector); err != nil {
 			return nil, errors.Wrap(err, "Failed to register collector")
@@ -113,7 +113,7 @@ func (tg *TriggerGatherer) Gather() error {
 
 	tg.workerAllocationCount.Add(float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationCount))
 	tg.workerAllocationWaitDurationMilliSecondsSum.Add(float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationWaitDurationMilliSecondsSum))
-	tg.workerAllocationWorkersAvailableTotal.Add(float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationWorkersAvailableTotal))
+	tg.workerAllocationWorkersAvailablePercentage.Add(float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationWorkersAvailablePercentage))
 
 	tg.workerAllocationTotal.With(prometheus.Labels{
 		"result": "success_immediate",

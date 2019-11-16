@@ -124,8 +124,13 @@ func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) 
 func (fp *fixedPool) Allocate(timeout time.Duration) (*Worker, error) {
 	fp.statistics.WorkerAllocationCount++
 
+	// get total number of workers
+	totalNumberWorkers := len(fp.workers)
+	currentNumberOfAvailableWorkers := len(fp.workerChan)
+	percentageOfAvailableWorkers := float64(currentNumberOfAvailableWorkers*100.0) / float64(totalNumberWorkers)
+
 	// measure how many workers are available in the queue while we're allocating
-	fp.statistics.WorkerAllocationWorkersAvailableTotal += uint64(len(fp.workerChan))
+	fp.statistics.WorkerAllocationWorkersAvailablePercentage += uint64(percentageOfAvailableWorkers)
 
 	// try to allocate a worker and fall back to default immediately if there's none available
 	select {
