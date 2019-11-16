@@ -234,7 +234,6 @@ func (mp *mockPlatform) GetBaseImageRegistry(registry string) string {
 	return "quay.io"
 }
 
-
 //
 // Test suite
 //
