@@ -240,7 +240,7 @@ type Spec struct {
 	ServiceType             v1.ServiceType          `json:"serviceType,omitempty"`
 	ImagePullPolicy         v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
 	ServiceAccount          string                  `json:"serviceAccount,omitempty"`
-	ScaleToZero             *ScaleToZeroSpec        `json:"scale_to_zero,omitempty"`
+	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
 
 	// We're letting users write "20s" and not the default marshalled time.Duration
 	// (Which is in nanoseconds)
@@ -248,12 +248,12 @@ type Spec struct {
 }
 
 type ScaleToZeroSpec struct {
-	ScaleResources []ScaleResource `json:"scale_resources,omitempty"`
+	ScaleResources []ScaleResource `json:"scaleResources,omitempty"`
 }
 
 type ScaleResource struct {
-	MetricName string `json:"metric_name,omitempty"`
-	WindowSize string `json:"window_size,omitempty"`
+	MetricName string `json:"metricName,omitempty"`
+	WindowSize string `json:"windowSize,omitempty"`
 	Threshold  int    `json:"threshold"`
 }
 
@@ -362,12 +362,12 @@ type Status struct {
 	Message     string                   `json:"message,omitempty"`
 	Logs        []map[string]interface{} `json:"logs,omitempty"`
 	HTTPPort    int                      `json:"httpPort,omitempty"`
-	ScaleToZero *ScaleToZeroStatus       `json:"scale_to_zero,omitempty"`
+	ScaleToZero *ScaleToZeroStatus       `json:"scaleToZero,omitempty"`
 }
 
 type ScaleToZeroStatus struct {
-	LastScaleEvent     scaler_types.ScaleEvent `json:"last_scale_event,omitempty"`
-	LastScaleEventTime *time.Time              `json:"last_scale_event_time,omitempty"`
+	LastScaleEvent     scaler_types.ScaleEvent `json:"lastScaleEvent,omitempty"`
+	LastScaleEventTime *time.Time              `json:"lastScaleEventTime,omitempty"`
 }
 
 // DeepCopyInto copies to appease k8s
