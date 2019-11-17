@@ -208,7 +208,7 @@ func (n *NuclioResourceScaler) updateFunctionStatus(namespace string,
 	function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
 	if err != nil {
 		n.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
-		return errors.Wrap(err, "Failed to get nuclio function")
+		return errors.Wrap(err, "Failed to get nuclio function to update function status")
 	}
 
 	now := time.Now()
