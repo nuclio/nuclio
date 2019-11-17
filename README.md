@@ -20,9 +20,20 @@ Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news
 
 ## Overview
 
-Nuclio is a new "serverless" project, derived from Iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use Nuclio as a standalone Docker container or on top of an existing [Kubernetes](https://kubernetes.io) cluster. See deployment instructions in the Nuclio documentation.
+Nuclio is a high-performace "serverless" framework focused on data, io, and compute intensive workloads, it is well integrated with data 
+science tools like [Jupyter](https://jupyter.org/) and [KubeFlow](https://www.kubeflow.org/), variety of data and streaming sources, CPUs and GPUs.
+Nuclio project started in 2017, it is constantly evolving, and is used in production by many start-ups and enterprises.
 
-Nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10-100 times faster than some other frameworks. To learn more about how Nuclio works, see the Nuclio [architecture](/docs/concepts/architecture.md) documentation, go over a [recent presentation](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio) or watch [Nuclio Serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A). Additional articles and tutorials are listed in [Nuclio web site](https://nuclio.io/).
+You can use Nuclio as a standalone Docker container or on top of an existing [Kubernetes](https://kubernetes.io) cluster. See deployment instructions in the Nuclio documentation.
+You can also use Nuclio through a fully managed service (in the cloud or on-prem) in [Iguazio's data science PaaS](https://www.iguazio.com/). You can [try it for free](https://www.iguazio.com/lp/14-day-free-trial-in-the-cloud/).
+
+To use Nuclio from a Notebook or if you would like to create and manage functions through code, see [Nuclio Jupyter and SDK project](https://github.com/nuclio/nuclio-jupyter).
+Nuclio is also an integral part of the new [MLRun - for ML function automation](https://github.com/mlrun/mlrun) and [KubeFlow ML Pipeline](https://www.kubeflow.org/docs/components/misc/nuclio/).
+
+Nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. 
+This is 10-100 times faster than some other frameworks. To learn more about how Nuclio works, see the Nuclio [architecture](/docs/concepts/architecture.md) documentation, 
+read this review of [Nuclio vs AWS Lambda](https://theburningmonk.com/2019/04/comparing-nuclio-and-aws-lambda/) or watch [Nuclio Serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A). 
+Additional articles and tutorials are listed in [Nuclio web site](https://nuclio.io/).
 
 For further questions and support, [click to join](https://lit-oasis-83353.herokuapp.com) the [Nuclio Slack](https://nuclio-io.slack.com) workspace.
 
@@ -30,11 +41,12 @@ For further questions and support, [click to join](https://lit-oasis-83353.herok
 
 We considered existing cloud and open-source serverless solutions, but none addressed our needs:
 
-* Real-time processing with minimal CPU and I/O overhead and maximum parallelism
-* Native integration with a large variety of data sources, triggers, and processing models
-* Abstraction of data resources from the function code - to support code portability, simplicity and data-path acceleration
+* Real-time processing with minimal CPU, GPU and I/O overhead and maximum parallelism
+* Native integration with a large variety of data sources, triggers, processing models, and ML frameworks.
+* Stateful functions with data-path acceleration
 * Simple debugging, regression testing, and multi-versioned CI/CD pipelines
-* Portability across low-power devices, laptops, on-prem clusters and public clouds
+* Portability across low-power devices, laptops, edge, on-prem clusters and public clouds
+* Open-source, but designed for the enterprise (logging, monitoring, security, usability, ..)
 
 We designed Nuclio to be extendable, using a modular and layered approach that supports constant addition of triggers and data sources. We hope many will join us in developing new modules, developer tools, and platforms.
 
@@ -90,20 +102,16 @@ A builder receives raw code and optional build instructions and dependencies, an
 <a id="supported-container-images-note"></a>
 > **Note:** The current version of Nuclio supports Docker images.
 
-#### Dealer
+#### Scaler
 
-A dealer is used with streaming and batch jobs to distribute a set of tasks or data partitions/shards among the available function instances, and to guarantee that all tasks are completed successfully.
-For example, if a function reads from a message stream with 20 partitions, the dealer will guarantee that the partitions are distributed evenly across workers, taking into account the number of function instances and failures.
+The Scaler is designed to auto-scale, scale-to-zero, and wake up functions based on the function load and usage.
 
+ 
 ### Function concepts
 
 #### Triggers
 
 Functions can be invoked through a variety of event sources that are defined in the function (such as HTTP, RabbitMQ, Kafka, Kinesis, NATS, DynamoDB, Iguazio v3io, or schedule). Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
-
-#### Data bindings
-
-Data-binding rules allow users to specify persistent input/output data resources to be used by the function. (Data connections are preserved between executions.) Bound data can be in the form of files, objects, records, messages, etc. The function specification may include an array of data-binding rules, each specifying the data resource and its credentials and usage parameters. Data-binding abstraction allows using the same function with different data sources of the same type, and enables function portability.
 
 #### SDK
 
