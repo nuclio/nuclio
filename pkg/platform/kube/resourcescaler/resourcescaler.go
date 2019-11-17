@@ -1,12 +1,11 @@
 package main
 
 import (
-	"fmt"
+	"os"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/loggersink"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	// load all sinks
@@ -14,6 +13,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 
 	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/v3io/scaler-types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
@@ -35,11 +35,14 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 		return nil, errors.Wrap(err, "Failed to read platform configuration")
 	}
 
-	// create a root logger
-	resourceScalerLogger, err := loggersink.CreateSystemLogger("resource-scaler", platformConfiguration)
+	resourceScalerLogger, err := nucliozap.NewNuclioZap("resource-scaler",
+		"console",
+		nil,
+		os.Stdout,
+		os.Stderr,
+		nucliozap.DebugLevel)
 	if err != nil {
-		fmt.Println(err)
-		return nil, errors.Wrap(err, "Failed to create logger")
+		return nil, errors.Wrap(err, "Failed creating a new logger")
 	}
 
 	restConfig, err := getClientConfig(kubeconfigPath)
