@@ -155,17 +155,21 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		case functionconfig.FunctionStateWaitingForResourceConfiguration:
 			scaleEvent = scaler_types.ResourceUpdatedScaleEvent
 		}
-		fo.logger.DebugWith("BEFORE", "status", function.Status)
+		fo.logger.DebugWith("BEFORE", "status", function.Status, "scale", function.Status.ScaleToZero)
 		if err := fo.setFunctionScaleToZeroStatus(ctx, &function.Status, scaleEvent); err != nil {
 			return errors.Wrap(err, "Failed setting function scale to zero status")
 		}
-		fo.logger.DebugWith("AFTER", "status", function.Status)
+		fo.logger.DebugWith("AFTER", "status", function.Status, "scale", function.Status.ScaleToZero)
 	}
 
-	// if the function state was ready or scaled to zero, don't re-write the function state
-	if function.Status.State != functionconfig.FunctionStateReady &&
-		function.Status.State != functionconfig.FunctionStateScaledToZero &&
-		function.Status.State != functionconfig.FunctionStateWaitingForScaleResourcesToZero {
+	if function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero {
+		return fo.setFunctionStatus(function, &functionconfig.Status{
+			State: functionconfig.FunctionStateScaledToZero,
+		})
+	}
+
+	if function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero ||
+		function.Status.State == functionconfig.FunctionStateWaitingForResourceConfiguration {
 		return fo.setFunctionStatus(function, &functionconfig.Status{
 			State:    functionconfig.FunctionStateReady,
 			HTTPPort: httpPort,
