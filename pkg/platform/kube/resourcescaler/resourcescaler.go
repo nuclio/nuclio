@@ -207,8 +207,8 @@ func (n *NuclioResourceScaler) updateFunctionStatus(namespace string,
 	functionScaleEvent scaler_types.ScaleEvent) error {
 	function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
 	if err != nil {
-		n.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
-		return errors.Wrap(err, "Failed to get nuclio function to update function status")
+		n.logger.WarnWith("Failed getting nuclio function to update function status", "functionName", functionName, "err", err)
+		return errors.Wrap(err, "Failed getting nuclio function to update function status")
 	}
 
 	now := time.Now()
@@ -230,8 +230,8 @@ func (n *NuclioResourceScaler) waitFunctionReadiness(namespace string, functionN
 	for {
 		function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
 		if err != nil {
-			n.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
-			return errors.Wrap(err, "Failed to get nuclio function")
+			n.logger.WarnWith("Failed getting nuclio function", "functionName", functionName, "err", err)
+			return errors.Wrap(err, "Failed getting nuclio function")
 		}
 		if function.Status.State == functionconfig.FunctionStateReady {
 			n.logger.InfoWith("Function is ready", "functionName", functionName)
