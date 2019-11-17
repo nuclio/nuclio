@@ -88,18 +88,20 @@ func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
 		// don't include functions that aren't in ready state or that min replicas is larger than zero
 		if function.GetComputedMinReplicas() <= 0 && function.Status.State == functionconfig.FunctionStateReady {
 			if function.Spec.ScaleToZero == nil {
-				n.logger.WarnWith()
-				return nil, errors.New("Function missing scale to zero spec")
+				n.logger.WarnWith("Function missing scale to zero spec. Continuing", "functionName", function.Name)
+				continue
 			}
 
 			scaleResources, err := n.parseScaleResources(function)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to parse scale resources")
+				n.logger.WarnWith("Failed to parse scale resources. Continuing", "functionName", function.Name)
+				continue
 			}
 
 			lastScaleEvent, lastScaleEventTime, err := n.parseLastScaleEvent(function)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to parse last scale event")
+				n.logger.WarnWith("Failed to parse last scale event. Continuing", "functionName", function.Name)
+				continue
 			}
 
 			functionList = append(functionList, scaler_types.Resource{
