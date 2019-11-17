@@ -95,6 +95,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	if function.Status.State != functionconfig.FunctionStateWaitingForResourceConfiguration &&
 		function.Status.State != functionconfig.FunctionStateReady &&
 		function.Status.State != functionconfig.FunctionStateWaitingForScaleResourcesFromZero &&
+		function.Status.State != functionconfig.FunctionStateWaitingForScaleResourcesToZero &&
 		function.Status.State != functionconfig.FunctionStateScaledToZero {
 		fo.logger.DebugWith("NuclioFunction is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
@@ -141,26 +142,30 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		}
 	}
 
-	if function.Status.State == functionconfig.FunctionStateScaledToZero ||
+	if function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero ||
 		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero ||
 		function.Status.State == functionconfig.FunctionStateWaitingForResourceConfiguration {
 
 		var scaleEvent scaler_types.ScaleEvent
 		switch function.Status.State {
-		case functionconfig.FunctionStateScaledToZero:
+		case functionconfig.FunctionStateWaitingForScaleResourcesToZero:
 			scaleEvent = scaler_types.ScaleToZeroCompletedScaleEvent
 		case functionconfig.FunctionStateWaitingForScaleResourcesFromZero:
 			scaleEvent = scaler_types.ScaleFromZeroCompletedScaleEvent
 		case functionconfig.FunctionStateWaitingForResourceConfiguration:
 			scaleEvent = scaler_types.ResourceUpdatedScaleEvent
 		}
+		fo.logger.DebugWith("BEFORE", "status", function.Status)
 		if err := fo.setFunctionScaleToZeroStatus(ctx, &function.Status, scaleEvent); err != nil {
 			return errors.Wrap(err, "Failed setting function scale to zero status")
 		}
+		fo.logger.DebugWith("AFTER", "status", function.Status)
 	}
 
 	// if the function state was ready or scaled to zero, don't re-write the function state
-	if function.Status.State != functionconfig.FunctionStateReady && function.Status.State != functionconfig.FunctionStateScaledToZero {
+	if function.Status.State != functionconfig.FunctionStateReady &&
+		function.Status.State != functionconfig.FunctionStateScaledToZero &&
+		function.Status.State != functionconfig.FunctionStateWaitingForScaleResourcesToZero {
 		return fo.setFunctionStatus(function, &functionconfig.Status{
 			State:    functionconfig.FunctionStateReady,
 			HTTPPort: httpPort,
@@ -183,6 +188,8 @@ func (fo *functionOperator) setFunctionScaleToZeroStatus(ctx context.Context,
 	functionStatus *functionconfig.Status,
 	scaleToZeroEvent scaler_types.ScaleEvent) error {
 
+	fo.logger.DebugWith("Setting scale to zero status",
+		"LastScaleEvent", scaleToZeroEvent)
 	now := time.Now()
 	functionStatus.ScaleToZero = &functionconfig.ScaleToZeroStatus{
 		LastScaleEvent:     scaleToZeroEvent,

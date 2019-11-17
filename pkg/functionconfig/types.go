@@ -350,6 +350,7 @@ const (
 	FunctionStateBuilding                         FunctionState = "building"
 	FunctionStateWaitingForResourceConfiguration  FunctionState = "waitingForResourceConfiguration"
 	FunctionStateWaitingForScaleResourcesFromZero FunctionState = "waitingForScaleResourceFromZero"
+	FunctionStateWaitingForScaleResourcesToZero   FunctionState = "waitingForScaleResourceToZero"
 	FunctionStateConfiguringResources             FunctionState = "configuringResources"
 	FunctionStateReady                            FunctionState = "ready"
 	FunctionStateError                            FunctionState = "error"

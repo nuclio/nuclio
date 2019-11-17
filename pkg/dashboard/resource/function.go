@@ -112,8 +112,6 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
-	fr.Logger.InfoWith("LOOK FIRST", "spec", *functionInfo.Spec)
-
 	// validate there are no 2 functions with the same name
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Name:      functionInfo.Meta.Name,
@@ -210,8 +208,6 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, r
 
 		functionInfo.Spec.Build.NoBaseImagesPull = dashboardServer.NoPullBaseImages
 		functionInfo.Spec.Build.Offline = dashboardServer.Offline
-
-		fr.Logger.InfoWith("LOOK SECOND", "spec", *functionInfo.Spec)
 
 		// just deploy. the status is async through polling
 		_, err := fr.getPlatform().CreateFunction(&platform.CreateFunctionOptions{

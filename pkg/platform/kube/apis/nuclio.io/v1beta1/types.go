@@ -23,7 +23,9 @@ func (nf *NuclioFunction) GetComputedReplicas() *int32 {
 	zero := int32(0)
 	one := int32(1)
 
-	if nf.Spec.Disabled || nf.Status.State == functionconfig.FunctionStateScaledToZero {
+	if nf.Spec.Disabled ||
+		nf.Status.State == functionconfig.FunctionStateScaledToZero ||
+		nf.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero {
 		return &zero
 	} else if nf.Spec.Replicas != nil {
 
