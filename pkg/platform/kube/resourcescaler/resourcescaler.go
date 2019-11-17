@@ -208,13 +208,12 @@ func (n *NuclioResourceScaler) updateFunctionStatus(namespace string,
 		return errors.Wrap(err, "Failed to get nuclio function")
 	}
 
-	function.Status.State = functionState
-	if function.Status.ScaleToZero == nil {
-		function.Status.ScaleToZero = &functionconfig.ScaleToZeroStatus{}
-	}
-	function.Status.ScaleToZero.LastScaleEvent = functionScaleEvent
 	now := time.Now()
-	function.Status.ScaleToZero.LastScaleEventTime = &now
+	function.Status.State = functionState
+	function.Status.ScaleToZero = &functionconfig.ScaleToZeroStatus{
+		LastScaleEvent:     functionScaleEvent,
+		LastScaleEventTime: &now,
+	}
 	_, err = n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Update(function)
 	if err != nil {
 		n.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
