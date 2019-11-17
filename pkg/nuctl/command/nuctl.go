@@ -19,6 +19,7 @@ package command
 import (
 	"os"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
@@ -56,11 +57,7 @@ func NewRootCommandeer() *RootCommandeer {
 		SilenceErrors: true,
 	}
 
-	defaultPlatformType := os.Getenv("NUCTL_PLATFORM")
-	if defaultPlatformType == "" {
-		defaultPlatformType = "auto"
-	}
-
+	defaultPlatformType := common.GetEnvOrDefaultString("NUCTL_PLATFORM", "auto")
 	defaultNamespace := os.Getenv("NUCTL_NAMESPACE")
 
 	cmd.PersistentFlags().BoolVarP(&commandeer.verbose, "verbose", "v", false, "Verbose output")

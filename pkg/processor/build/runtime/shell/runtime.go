@@ -45,7 +45,7 @@ func (s *shell) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	artifact := runtime.Artifact{
 		Name: "nuclio-processor",
 		Image: fmt.Sprintf("%s/nuclio/processor:%s-%s",
-			s.GetRegistry(registryURL),
+			registryURL,
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

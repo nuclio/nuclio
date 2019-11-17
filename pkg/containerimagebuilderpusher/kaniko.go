@@ -114,6 +114,10 @@ func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifa
 	return stagedArtifactPaths, nil
 }
 
+func (k *Kaniko) GetBaseImageRegistry(registry string) string {
+	return registry
+}
+
 func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tempDir string) (string, string, error) {
 	var err error
 

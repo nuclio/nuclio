@@ -89,6 +89,14 @@ func (suite *testSuite) SetupSuite() {
 func (suite *testSuite) TestReceiveRecords() {
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
+	createFunctionOptions.FunctionConfig.Spec.Triggers["http"] = functionconfig.Trigger{
+		Kind:       "http",
+		MaxWorkers: 1,
+		URL:        ":8080",
+		Attributes: map[string]interface{}{
+			"port": 8080,
+		},
+	}
 	createFunctionOptions.FunctionConfig.Spec.Triggers["my-kafka"] = functionconfig.Trigger{
 		Kind: "kafka-cluster",
 		URL:  fmt.Sprintf("%s:9092", suite.BrokerHost),
