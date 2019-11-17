@@ -151,7 +151,7 @@ func (n *NuclioResourceScaler) parseScaleResources(function nuclioio.NuclioFunct
 	for _, scaleResource := range function.Spec.ScaleToZero.ScaleResources {
 		windowSize, err := time.ParseDuration(scaleResource.WindowSize)
 		if err != nil {
-			return []scaler_types.ScaleResource{}, errors.Wrap(err, "Failed to parse window size")
+			return nil, errors.Wrap(err, "Failed to parse window size")
 		}
 		scaleResources = append(scaleResources, scaler_types.ScaleResource{
 			MetricName: scaleResource.MetricName,
