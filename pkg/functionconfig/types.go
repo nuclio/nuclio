@@ -357,6 +357,15 @@ const (
 	FunctionStateScaledToZero                     FunctionState = "scaledToZero"
 )
 
+func FunctionStateInSlice(a FunctionState, list []FunctionState) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
 // Status holds the status of the function
 type Status struct {
 	State       FunctionState            `json:"state,omitempty"`
