@@ -20,35 +20,31 @@ Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news
 
 ## Overview
 
-Nuclio is a high-performace "serverless" framework focused on data, io, and compute intensive workloads, it is well integrated with data 
-science tools like [Jupyter](https://jupyter.org/) and [KubeFlow](https://www.kubeflow.org/), variety of data and streaming sources, CPUs and GPUs.
-Nuclio project started in 2017, it is constantly evolving, and is used in production by many start-ups and enterprises.
+Nuclio is a high-performance "serverless" framework focused on data, I/O, and compute intensive workloads. It is well integrated with popular data science tools, such as [Jupyter](https://jupyter.org/) and [Kubeflow](https://www.kubeflow.org/); supports a variety of data and streaming sources; and supports execution over CPUs and GPUs. The Nuclio project began in 2017 and is constantly and rapidly evolving; many start-ups and enterprises are now using Nuclio in production.
 
-You can use Nuclio as a standalone Docker container or on top of an existing [Kubernetes](https://kubernetes.io) cluster. See deployment instructions in the Nuclio documentation.
-You can also use Nuclio through a fully managed service (in the cloud or on-prem) in [Iguazio's data science PaaS](https://www.iguazio.com/). You can [try it for free](https://www.iguazio.com/lp/14-day-free-trial-in-the-cloud/).
+You can use Nuclio as a standalone Docker container or on top of an existing [Kubernetes](https://kubernetes.io) cluster; see the deployment instructions in the Nuclio documentation. You can also use Nuclio through a fully managed application service (in the cloud or on-prem) in the [Iguazio Data Science Platform](https://www.iguazio.com/), which you can [try for free](https://www.iguazio.com/lp/14-day-free-trial-in-the-cloud/).
 
-To use Nuclio from a Notebook or if you would like to create and manage functions through code, see [Nuclio Jupyter and SDK project](https://github.com/nuclio/nuclio-jupyter).
-Nuclio is also an integral part of the new [MLRun - for ML function automation](https://github.com/mlrun/mlrun) and [KubeFlow ML Pipeline](https://www.kubeflow.org/docs/components/misc/nuclio/).
+If you wish to create an manage Nuclio functions through code - for example, from Jupyter Notebook - see the [Nuclio Jupyter project](https://github.com/nuclio/nuclio-jupyter), which features a Python package and SDK for creating and deploying Nuclio functions from Jupyter Notebook.
+Nuclio is also an integral part of the new open-source [MLRun](https://github.com/mlrun/mlrun) library for data science automation and tracking and of the open-source [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/misc/nuclio/) framework for building and deploying portable, scalable ML workflows.
 
-Nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. 
-This is 10-100 times faster than some other frameworks. To learn more about how Nuclio works, see the Nuclio [architecture](/docs/concepts/architecture.md) documentation, 
-read this review of [Nuclio vs AWS Lambda](https://theburningmonk.com/2019/04/comparing-nuclio-and-aws-lambda/) or watch [Nuclio Serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A). 
-Additional articles and tutorials are listed in [Nuclio web site](https://nuclio.io/).
+Nuclio is extremely fast: a single function instance can process hundreds of thousands of HTTP requests or data records per second.
+This is 10-100 times faster than some other frameworks. To learn more about how Nuclio works, see the Nuclio [architecture](/docs/concepts/architecture.md) documentation, read this review of [Nuclio vs. AWS Lambda](https://theburningmonk.com/2019/04/comparing-nuclio-and-aws-lambda/), or watch the [Nuclio serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A).
+You can find links to additional articles and tutorials on the [Nuclio web site](https://nuclio.io/).
 
 For further questions and support, [click to join](https://lit-oasis-83353.herokuapp.com) the [Nuclio Slack](https://nuclio-io.slack.com) workspace.
 
 ## Why another "serverless" project?
 
-We considered existing cloud and open-source serverless solutions, but none addressed our needs:
+None of the existing cloud and open-source serverless solutions addressed all the desired capabilities of a serverless framework:
 
-* Real-time processing with minimal CPU, GPU and I/O overhead and maximum parallelism
-* Native integration with a large variety of data sources, triggers, processing models, and ML frameworks.
-* Stateful functions with data-path acceleration
-* Simple debugging, regression testing, and multi-versioned CI/CD pipelines
-* Portability across low-power devices, laptops, edge, on-prem clusters and public clouds
-* Open-source, but designed for the enterprise (logging, monitoring, security, usability, ..)
+- Real-time processing with minimal CPU/GPU and I/O overhead and maximum parallelism
+- Native integration with a large variety of data sources, triggers, processing models, and ML frameworks
+- Stateful functions with data-path acceleration
+- Simple debugging, regression testing, and multi-versioned CI/CD pipelines
+- Portability across low-power devices, laptops, edge and on-prem clusters, and public clouds
+- Open-source but designed for the enterprise (including logging, monitoring, security, and usability)
 
-We designed Nuclio to be extendable, using a modular and layered approach that supports constant addition of triggers and data sources. We hope many will join us in developing new modules, developer tools, and platforms.
+Nuclio was created to fulfill these requirements.  It was intentionally designed as an extendable open-source framework, using a modular and layered approach that supports constant addition of triggers and data sources, with the hope that many will join the effort of developing new modules, developer tools, and platforms for Nuclio.
 
 ## Quick-start steps
 
@@ -104,9 +100,8 @@ A builder receives raw code and optional build instructions and dependencies, an
 
 #### Scaler
 
-The Scaler is designed to auto-scale, scale-to-zero, and wake up functions based on the function load and usage.
+The scaler is designed to auto-scale, scale-to-zero, and wake up functions, based on the function load and usage.
 
- 
 ### Function concepts
 
 #### Triggers
