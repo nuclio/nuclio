@@ -130,6 +130,7 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 		AutoScalerOptions: scaler_types.AutoScalerOptions{
 			Namespace:     n.namespace,
 			ScaleInterval: scaleInterval,
+			GroupKind:     "NuclioFunction",
 		},
 		DLXOptions: scaler_types.DLXOptions{
 			Namespace:                n.namespace,
