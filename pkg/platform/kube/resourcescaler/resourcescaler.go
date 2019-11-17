@@ -82,12 +82,13 @@ func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
 		return nil, errors.Wrap(err, "Failed to list functions")
 	}
 
-	// build a list of function names that are potential to be scaled to zero
+	// build a list of function names that are candidates to be scaled to zero
 	for _, function := range functions.Items {
 
 		// don't include functions that aren't in ready state or that min replicas is larger than zero
 		if function.GetComputedMinReplicas() <= 0 && function.Status.State == functionconfig.FunctionStateReady {
 			if function.Spec.ScaleToZero == nil {
+				n.logger.WarnWith()
 				return nil, errors.New("Function missing scale to zero spec")
 			}
 
