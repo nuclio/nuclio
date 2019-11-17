@@ -226,20 +226,24 @@ func (n *NuclioResourceScaler) updateFunctionStatus(namespace string,
 }
 
 func (n *NuclioResourceScaler) waitFunctionReadiness(namespace string, functionName string) error {
+	n.logger.DebugWith("Waiting for function readiness", "functionName", functionName)
 	for {
 		function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
 		if err != nil {
 			n.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
 			return errors.Wrap(err, "Failed to get nuclio function")
 		}
-		n.logger.DebugWith("Started function", "state", function.Status.State)
-		if function.Status.State != functionconfig.FunctionStateReady {
-			time.Sleep(3 * time.Second)
-		} else {
-			break
+		if function.Status.State == functionconfig.FunctionStateReady {
+			n.logger.InfoWith("Function is ready", "functionName", functionName)
+			return nil
 		}
+
+		n.logger.DebugWith("Function not ready yet",
+			"functionName", functionName,
+			"currentState", function.Status.State)
+
+		time.Sleep(3 * time.Second)
 	}
-	return nil
 }
 
 func readPlatformConfiguration() (*platformconfig.Config, error) {
