@@ -57,9 +57,6 @@ class Wrapper(object):
         self._processor_sock_wfile = self._processor_sock.makefile('w')
         self._unpacker = msgpack.Unpacker(raw=False, max_buffer_size=10 * 1024 * 1024)
 
-        # replace the default output with the process socket
-        self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
-
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
 
@@ -68,7 +65,14 @@ class Wrapper(object):
 
         # call init context
         if hasattr(entrypoint_module, 'init_context'):
-            getattr(entrypoint_module, 'init_context')(self._context)
+            try:
+                getattr(entrypoint_module, 'init_context')(self._context)
+            except:
+                self._logger.warn_with('Exception raised while running init_context')
+                raise
+
+        # replace the default output with the process socket
+        self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
 
         # indicate that we're ready
         self._write_packet_to_processor('s')
@@ -214,8 +218,8 @@ class Wrapper(object):
                 break
 
     def _load_entrypoint_from_handler(self, handler):
-        """Load handler function from handler.
-
+        """
+        Load handler function from handler.
         handler is in the format 'module.sub:handler_name'
         """
         match = re.match('^([\w|-]+(\.[\w|-]+)*):(\w+)$', handler)
@@ -228,7 +232,13 @@ class Wrapper(object):
         for sub in module_name.split('.')[1:]:
             module = getattr(module, sub)
 
-        return getattr(module, entrypoint)
+        try:
+            entrypoint_address = getattr(module, entrypoint)
+        except Exception as err:
+            self._logger.warn_with('Handler not found', handler=handler)
+            raise
+
+        return entrypoint_address
 
     def _connect_to_processor(self, timeout=60):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)

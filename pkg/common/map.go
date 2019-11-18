@@ -109,5 +109,13 @@ func CreateKeyValuePairs(m map[string]string) string {
 	for key, value := range m {
 		fmt.Fprintf(b, "%s=\"%s\",\n", key, value) // nolint: errcheck
 	}
-	return b.String()
+
+	generatedString := b.String()
+
+	if len(generatedString) != 0 {
+
+		// remove last `,\n`
+		generatedString = generatedString[:len(generatedString)-3]
+	}
+	return generatedString
 }

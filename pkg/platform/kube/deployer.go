@@ -18,13 +18,11 @@ package kube
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -143,7 +141,7 @@ func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 }
 
 func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
-	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
+	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, string, error) {
 
 	// get the logger with which we need to deploy
 	deployLogger := createFunctionOptions.Logger
@@ -158,7 +156,7 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
 		})
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to wait for function readiness")
+		return nil, err.Error(), errors.Wrap(err, "Failed to create function")
 	}
 
 	// wait for the function to be ready
@@ -167,13 +165,13 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 		functionInstance.Namespace,
 		functionInstance.Name)
 	if err != nil {
-		errMessage := d.getFunctionPodLogs(functionInstance.Namespace, functionInstance.Name)
-		return nil, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", errMessage)
+		podLogs, briefErrorMessage := d.getFunctionPodLogs(functionInstance.Namespace, functionInstance.Name)
+		return nil, briefErrorMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
 	}
 
 	return &platform.CreateFunctionResult{
 		Port: functionInstance.Status.HTTPPort,
-	}, nil
+	}, "", nil
 }
 
 func waitForFunctionReadiness(loggerInstance logger.Logger,
@@ -206,7 +204,8 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 	return function, err
 }
 
-func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
+func (d *deployer) getFunctionPodLogs(namespace string, name string) (string, string) {
+	var briefErrorMessage string
 	podLogsMessage := "\nPod logs:\n"
 
 	// list pods
@@ -215,8 +214,8 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 	})
 
 	if listPodErr != nil {
-		podLogsMessage += "Failed to list pods: " + listPodErr.Error() + "\n"
-		return podLogsMessage
+		podLogsMessage += fmt.Sprintf("Failed to list pods: %s\n", listPodErr.Error())
+		return podLogsMessage, ""
 	}
 
 	if len(functionPods.Items) == 0 {
@@ -241,88 +240,17 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 		if getLogsErr != nil {
 			podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
 		} else {
-
 			scanner := bufio.NewScanner(logsRequest)
 
-			// get the last MaxLogLines logs
-			for scanner.Scan() {
-				currentLogLine, err := d.prettifyPodLogLine(scanner.Bytes())
-				if err != nil {
+			var formattedProcessorLogs string
+			formattedProcessorLogs, briefErrorMessage = d.platform.GetProcessorLogsAndBriefError(scanner)
 
-					// when it is unstructured just add the log as a text
-					podLogsMessage += scanner.Text() + "\n"
-					continue
-				}
-
-				// when it is a processor log line
-				podLogsMessage += currentLogLine + "\n"
-			}
+			podLogsMessage += formattedProcessorLogs
 
 			// close the stream
 			logsRequest.Close() // nolint: errcheck
 		}
 	}
 
-	return common.FixEscapeChars(podLogsMessage)
-}
-
-func (d *deployer) prettifyPodLogLine(log []byte) (string, error) {
-	logStruct := struct {
-		Time    *string `json:"time"`
-		Level   *string `json:"level"`
-		Message *string `json:"message"`
-		More    *string `json:"more,omitempty"`
-	}{}
-
-	if len(log) > 0 && log[0] == 'l' {
-
-		// when it is a wrapper log line
-		wrapperLogStruct := struct {
-			Datetime *string           `json:"datetime"`
-			Level    *string           `json:"level"`
-			Message  *string           `json:"message"`
-			With     map[string]string `json:"with,omitempty"`
-		}{}
-
-		if err := json.Unmarshal(log[1:], &wrapperLogStruct); err != nil {
-			return "", err
-		}
-
-		// manipulate the time format so it can be parsed later
-		unparsedTime := *wrapperLogStruct.Datetime + "Z"
-		unparsedTime = strings.Replace(unparsedTime, " ", "T", 1)
-		unparsedTime = strings.Replace(unparsedTime, ",", ".", 1)
-
-		logStruct.Time = &unparsedTime
-		logStruct.Level = wrapperLogStruct.Level
-		logStruct.Message = wrapperLogStruct.Message
-
-		more := common.CreateKeyValuePairs(wrapperLogStruct.With)
-		logStruct.More = &more
-
-	} else {
-
-		// when it is a processor log line
-		if err := json.Unmarshal(log, &logStruct); err != nil {
-			return "", err
-		}
-	}
-
-	// check required fields existence
-	if logStruct.Time == nil || logStruct.Level == nil || logStruct.Message == nil {
-		return "", errors.New("Missing required fields in pod log line")
-	}
-
-	parsedTime, err := time.Parse(time.RFC3339, *logStruct.Time)
-	if err != nil {
-		return "", err
-	}
-
-	res := fmt.Sprintf("[%s] (%c) %s [%s]",
-		parsedTime.Format("15:04:05.000"),
-		strings.ToUpper(*logStruct.Level)[0],
-		*logStruct.Message,
-		*logStruct.More)
-
-	return res, nil
+	return podLogsMessage, briefErrorMessage
 }
