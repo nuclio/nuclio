@@ -205,8 +205,8 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 }
 
 func (d *deployer) getFunctionPodLogs(namespace string, name string) (string, string) {
+	var briefErrorMessage string
 	podLogsMessage := "\nPod logs:\n"
-	briefErrorMessage := ""
 
 	// list pods
 	functionPods, listPodErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).List(meta_v1.ListOptions{
@@ -214,7 +214,7 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) (string, st
 	})
 
 	if listPodErr != nil {
-		podLogsMessage += "Failed to list pods: " + listPodErr.Error() + "\n"
+		podLogsMessage += fmt.Sprintf("Failed to list pods: %s\n", listPodErr.Error())
 		return podLogsMessage, ""
 	}
 

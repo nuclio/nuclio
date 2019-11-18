@@ -218,7 +218,8 @@ class Wrapper(object):
                 break
 
     def _load_entrypoint_from_handler(self, handler):
-        """Load handler function from handler.
+        """
+        Load handler function from handler.
         handler is in the format 'module.sub:handler_name'
         """
         match = re.match('^([\w|-]+(\.[\w|-]+)*):(\w+)$', handler)

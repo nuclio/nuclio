@@ -113,6 +113,8 @@ func CreateKeyValuePairs(m map[string]string) string {
 	generatedString := b.String()
 
 	if len(generatedString) != 0 {
+
+		// remove last `,\n`
 		generatedString = generatedString[:len(generatedString)-3]
 	}
 	return generatedString
