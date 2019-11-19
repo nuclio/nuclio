@@ -39,18 +39,20 @@ type Platform struct {
 	Logger                         logger.Logger
 	platform                       platform.Platform
 	invoker                        *invoker
+	Config                         interface{}
 	ExternalIPAddresses            []string
 	DeployLogStreams               map[string]*LogStream
 	ContainerBuilder               containerimagebuilderpusher.BuilderPusher
 	DefaultHTTPIngressHostTemplate string
 }
 
-func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platform, error) {
+func NewPlatform(parentLogger logger.Logger, platform platform.Platform, platformConfiguration interface{}) (*Platform, error) {
 	var err error
 
 	newPlatform := &Platform{
 		Logger:           parentLogger.GetChild("platform"),
 		platform:         platform,
+		Config:           platformConfiguration,
 		DeployLogStreams: map[string]*LogStream{},
 	}
 

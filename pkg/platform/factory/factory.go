@@ -48,11 +48,11 @@ func CreatePlatform(parentLogger logger.Logger,
 
 	switch platformType {
 	case "local":
-		newPlatform, err = local.NewPlatform(parentLogger)
+		newPlatform, err = local.NewPlatform(parentLogger, platformConfiguration)
 
 	case "kube":
 		containerBuilderConfiguration := getContainerBuilderConfiguration(platformConfiguration)
-		newPlatform, err = kube.NewPlatform(parentLogger, getKubeconfigPath(platformConfiguration), containerBuilderConfiguration)
+		newPlatform, err = kube.NewPlatform(parentLogger, getKubeconfigPath(platformConfiguration), containerBuilderConfiguration, platformConfiguration)
 
 	case "auto":
 
