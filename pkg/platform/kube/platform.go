@@ -221,7 +221,9 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return nil, buildErr
 		}
 
-		p.setScaleToZeroSpec(&createFunctionOptions.FunctionConfig.Spec)
+		if err := p.setScaleToZeroSpec(&createFunctionOptions.FunctionConfig.Spec); err != nil {
+			return nil, errors.Wrap(err, "Failed setting scale to zero spec")
+		}
 
 		createFunctionResult, briefErrorMessage, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
 		if deployErr != nil {
