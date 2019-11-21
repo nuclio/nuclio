@@ -225,6 +225,7 @@ func (r *AbstractRuntime) startWrapper() error {
 		return errors.Wrap(err, "Can't run wrapper")
 	}
 	r.wrapperProcess = wrapperProcess
+	go r.watchWrapperProcess()
 
 	conn, err := listener.Accept()
 	if err != nil {
@@ -412,4 +413,14 @@ func (r *AbstractRuntime) newResultChan() {
 
 	// We create the channel buffered so we won't block on sending
 	r.resultChan = make(chan *result, 1)
+}
+
+func (r *AbstractRuntime) watchWrapperProcess() {
+	procStatus, err := r.wrapperProcess.Wait()
+	if r.GetStatus() == status.Ready && (err != nil || !procStatus.Success()) {
+		r.Logger.ErrorWith("Unexpected termination of child process", "error", err, "status", procStatus.String())
+	}
+	r.SetStatus(status.Stopped)
+	r.wrapperProcess = nil
+	// TODO: Do we want to exit the processor here?
 }

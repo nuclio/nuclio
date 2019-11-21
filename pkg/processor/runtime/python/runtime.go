@@ -97,7 +97,7 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	return cmd.Process, cmd.Start()
 }
