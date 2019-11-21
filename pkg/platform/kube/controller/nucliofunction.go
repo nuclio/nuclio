@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
 
 	"github.com/nuclio/logger"
+	"github.com/v3io/scaler-types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -88,12 +89,17 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return errors.New("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
 	}
 
-	// only respond to functions which are either waiting for resource configuration or are ready. We respond to
+	// only respond to functions which are either waiting for something or are in non-transitional state. We respond to
 	// ready functions as part of controller resyncs, where we verify that a given function CRD has its resources
 	// properly configured
-	if function.Status.State != functionconfig.FunctionStateWaitingForResourceConfiguration &&
-		function.Status.State != functionconfig.FunctionStateReady &&
-		function.Status.State != functionconfig.FunctionStateScaledToZero {
+	statesToRespond := []functionconfig.FunctionState{
+		functionconfig.FunctionStateWaitingForResourceConfiguration,
+		functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
+		functionconfig.FunctionStateWaitingForScaleResourcesToZero,
+		functionconfig.FunctionStateReady,
+		functionconfig.FunctionStateScaledToZero,
+	}
+	if !functionconfig.FunctionStateInSlice(function.Status.State, statesToRespond) {
 		fo.logger.DebugWith("NuclioFunction is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
 			"state", function.Status.State,
@@ -139,13 +145,38 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		}
 	}
 
-	// if the function state was ready, don't re-write the function state
-	if function.Status.State != functionconfig.FunctionStateReady &&
-		function.Status.State != functionconfig.FunctionStateScaledToZero {
-		return fo.setFunctionStatus(function, &functionconfig.Status{
-			State:    functionconfig.FunctionStateReady,
+	waitingStates := []functionconfig.FunctionState{
+		functionconfig.FunctionStateWaitingForResourceConfiguration,
+		functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
+		functionconfig.FunctionStateWaitingForScaleResourcesToZero,
+	}
+
+	if functionconfig.FunctionStateInSlice(function.Status.State, waitingStates) {
+
+		var scaleEvent scaler_types.ScaleEvent
+		var finalState functionconfig.FunctionState
+		switch function.Status.State {
+		case functionconfig.FunctionStateWaitingForScaleResourcesToZero:
+			scaleEvent = scaler_types.ScaleToZeroCompletedScaleEvent
+			finalState = functionconfig.FunctionStateScaledToZero
+		case functionconfig.FunctionStateWaitingForScaleResourcesFromZero:
+			scaleEvent = scaler_types.ScaleFromZeroCompletedScaleEvent
+			finalState = functionconfig.FunctionStateReady
+		case functionconfig.FunctionStateWaitingForResourceConfiguration:
+			scaleEvent = scaler_types.ResourceUpdatedScaleEvent
+			finalState = functionconfig.FunctionStateReady
+		}
+
+		functionStatus := &functionconfig.Status{
+			State:    finalState,
 			HTTPPort: httpPort,
-		})
+		}
+
+		if err := fo.setFunctionScaleToZeroStatus(ctx, functionStatus, scaleEvent); err != nil {
+			return errors.Wrap(err, "Failed setting function scale to zero status")
+		}
+
+		return fo.setFunctionStatus(function, functionStatus)
 	}
 
 	return nil
@@ -158,6 +189,20 @@ func (fo *functionOperator) Delete(ctx context.Context, namespace string, name s
 		"namespace", namespace)
 
 	return fo.functionresClient.Delete(ctx, namespace, name)
+}
+
+func (fo *functionOperator) setFunctionScaleToZeroStatus(ctx context.Context,
+	functionStatus *functionconfig.Status,
+	scaleToZeroEvent scaler_types.ScaleEvent) error {
+
+	fo.logger.DebugWith("Setting scale to zero status",
+		"LastScaleEvent", scaleToZeroEvent)
+	now := time.Now()
+	functionStatus.ScaleToZero = &functionconfig.ScaleToZeroStatus{
+		LastScaleEvent:     scaleToZeroEvent,
+		LastScaleEventTime: &now,
+	}
+	return nil
 }
 
 func (fo *functionOperator) start() error {

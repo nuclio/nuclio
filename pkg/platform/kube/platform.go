@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -52,11 +53,12 @@ const Mib = 1048576
 
 // NewPlatform instantiates a new kubernetes platform
 func NewPlatform(parentLogger logger.Logger, kubeconfigPath string,
-	containerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration) (*Platform, error) {
+	containerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration,
+	platformConfiguration interface{}) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform)
+	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract platform")
 	}
@@ -217,6 +219,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			reportCreationError(buildErr, "") // nolint: errcheck
 
 			return nil, buildErr
+		}
+
+		if err := p.setScaleToZeroSpec(&createFunctionOptions.FunctionConfig.Spec); err != nil {
+			return nil, errors.Wrap(err, "Failed setting scale to zero spec")
 		}
 
 		createFunctionResult, briefErrorMessage, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
@@ -647,6 +653,23 @@ func (p *Platform) GetNamespaces() ([]string, error) {
 
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{}, nil
+}
+
+func (p *Platform) setScaleToZeroSpec(functionSpec *functionconfig.Spec) error {
+	if functionSpec.ScaleToZero != nil {
+		return nil
+	}
+
+	platformConfiguration, ok := p.Config.(*platformconfig.Config)
+	if !ok {
+		return errors.New("Not a platform configuration instance")
+	}
+
+	functionSpec.ScaleToZero = &functionconfig.ScaleToZeroSpec{
+		ScaleResources: platformConfiguration.ScaleToZero.ScaleResources,
+	}
+
+	return nil
 }
 
 func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction, error) {

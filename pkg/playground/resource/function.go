@@ -87,7 +87,7 @@ func newFunction(parentLogger logger.Logger,
 func (f *function) Deploy() error {
 	f.attributes.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 
-	// deploy the runction
+	// deploy the function
 	deployResult, err := f.validateAndDeploy()
 
 	if err != nil {

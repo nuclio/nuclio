@@ -98,6 +98,7 @@ GO_BUILD_TOOL = docker run \
 	--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
 	--volume $(shell pwd)/../nuclio-sdk-go:$(GO_BUILD_TOOL_WORKDIR)/../nuclio-sdk-go \
 	--volume $(shell pwd)/../logger:$(GO_BUILD_TOOL_WORKDIR)/../logger \
+	--volume $(shell pwd)/../../v3io/scaler-types:$(GO_BUILD_TOOL_WORKDIR)/../../v3io/scaler-types \
 	--volume $(GOPATH)/bin:/go/bin \
 	--workdir $(GO_BUILD_TOOL_WORKDIR) \
 	--env GOOS=$(NUCLIO_OS) \

@@ -598,7 +598,7 @@ func (suite *testSuite) TestBuildFuncFromLocalArchiveRedeployUsesSameImage() {
 
 func (suite *testSuite) TestGenerateProcessorDockerfile() {
 
-	newPlatform, err := local.NewPlatform(suite.Logger)
+	newPlatform, err := local.NewPlatform(suite.Logger, nil)
 	if err != nil {
 		suite.Fail("Instantiating Platform failed:", err)
 	}

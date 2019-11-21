@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/v3io/scaler-types"
 	"k8s.io/api/core/v1"
 )
 
@@ -239,10 +240,21 @@ type Spec struct {
 	ServiceType             v1.ServiceType          `json:"serviceType,omitempty"`
 	ImagePullPolicy         v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
 	ServiceAccount          string                  `json:"serviceAccount,omitempty"`
+	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
 
 	// We're letting users write "20s" and not the default marshalled time.Duration
 	// (Which is in nanoseconds)
 	EventTimeout string `json:"eventTimeout"`
+}
+
+type ScaleToZeroSpec struct {
+	ScaleResources []ScaleResource `json:"scaleResources,omitempty"`
+}
+
+type ScaleResource struct {
+	MetricName string `json:"metricName,omitempty"`
+	WindowSize string `json:"windowSize,omitempty"`
+	Threshold  int    `json:"threshold"`
 }
 
 // to appease k8s
@@ -334,21 +346,38 @@ type FunctionState string
 
 // Possible function states
 const (
-	FunctionStateWaitingForBuild                 FunctionState = "waitingForBuild"
-	FunctionStateBuilding                        FunctionState = "building"
-	FunctionStateWaitingForResourceConfiguration FunctionState = "waitingForResourceConfiguration"
-	FunctionStateConfiguringResources            FunctionState = "configuringResources"
-	FunctionStateReady                           FunctionState = "ready"
-	FunctionStateError                           FunctionState = "error"
-	FunctionStateScaledToZero                    FunctionState = "scaledToZero"
+	FunctionStateWaitingForBuild                  FunctionState = "waitingForBuild"
+	FunctionStateBuilding                         FunctionState = "building"
+	FunctionStateWaitingForResourceConfiguration  FunctionState = "waitingForResourceConfiguration"
+	FunctionStateWaitingForScaleResourcesFromZero FunctionState = "waitingForScaleResourceFromZero"
+	FunctionStateWaitingForScaleResourcesToZero   FunctionState = "waitingForScaleResourceToZero"
+	FunctionStateConfiguringResources             FunctionState = "configuringResources"
+	FunctionStateReady                            FunctionState = "ready"
+	FunctionStateError                            FunctionState = "error"
+	FunctionStateScaledToZero                     FunctionState = "scaledToZero"
 )
+
+func FunctionStateInSlice(a FunctionState, list []FunctionState) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
 
 // Status holds the status of the function
 type Status struct {
-	State    FunctionState            `json:"state,omitempty"`
-	Message  string                   `json:"message,omitempty"`
-	Logs     []map[string]interface{} `json:"logs,omitempty"`
-	HTTPPort int                      `json:"httpPort,omitempty"`
+	State       FunctionState            `json:"state,omitempty"`
+	Message     string                   `json:"message,omitempty"`
+	Logs        []map[string]interface{} `json:"logs,omitempty"`
+	HTTPPort    int                      `json:"httpPort,omitempty"`
+	ScaleToZero *ScaleToZeroStatus       `json:"scaleToZero,omitempty"`
+}
+
+type ScaleToZeroStatus struct {
+	LastScaleEvent     scaler_types.ScaleEvent `json:"lastScaleEvent,omitempty"`
+	LastScaleEventTime *time.Time              `json:"lastScaleEventTime,omitempty"`
 }
 
 // DeepCopyInto copies to appease k8s

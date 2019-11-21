@@ -23,7 +23,9 @@ func (nf *NuclioFunction) GetComputedReplicas() *int32 {
 	zero := int32(0)
 	one := int32(1)
 
-	if nf.Spec.Disabled || nf.Status.State == functionconfig.FunctionStateScaledToZero {
+	if nf.Spec.Disabled ||
+		nf.Status.State == functionconfig.FunctionStateScaledToZero ||
+		nf.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero {
 		return &zero
 	} else if nf.Spec.Replicas != nil {
 
@@ -38,7 +40,8 @@ func (nf *NuclioFunction) GetComputedReplicas() *int32 {
 
 		// The user hasn't specified desired replicas
 		// If the function doesn't have resources yet (creating/scaling up from zero) - base on the MinReplicas or default to 1
-		if nf.Status.State == functionconfig.FunctionStateWaitingForResourceConfiguration {
+		if nf.Status.State == functionconfig.FunctionStateWaitingForResourceConfiguration ||
+			nf.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero {
 			minReplicas := nf.GetComputedMinReplicas()
 
 			if minReplicas > 0 {

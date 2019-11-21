@@ -69,7 +69,7 @@ func Run(listenAddress string,
 	}
 
 	// create a platform
-	platformInstance, err := factory.CreatePlatform(rootLogger, platformType, nil, defaultNamespace)
+	platformInstance, err := factory.CreatePlatform(rootLogger, platformType, platformConfiguration, defaultNamespace)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create platform")
 	}
