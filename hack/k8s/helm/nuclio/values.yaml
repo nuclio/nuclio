@@ -23,6 +23,7 @@ dashboard:
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
+  httpIngressHostTemplate: ""
 
   # Uncomment to configure node port
   # nodePort: 32050
