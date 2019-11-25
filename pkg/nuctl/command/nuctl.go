@@ -22,6 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/config"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 
@@ -44,7 +45,7 @@ type RootCommandeer struct {
 	platformConfiguration interface{}
 
 	// platform-specific configurations
-	kubeConfiguration factory.Configuration
+	kubeConfiguration config.Configuration
 }
 
 func NewRootCommandeer() *RootCommandeer {
