@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/config"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -660,13 +661,15 @@ func (p *Platform) setScaleToZeroSpec(functionSpec *functionconfig.Spec) error {
 		return nil
 	}
 
-	platformConfiguration, ok := p.Config.(*platformconfig.Config)
-	if !ok {
-		return errors.New("Not a platform configuration instance")
-	}
-
-	functionSpec.ScaleToZero = &functionconfig.ScaleToZeroSpec{
-		ScaleResources: platformConfiguration.ScaleToZero.ScaleResources,
+	switch configType := p.Config.(type) {
+	case *platformconfig.Config:
+		functionSpec.ScaleToZero = &functionconfig.ScaleToZeroSpec{
+			ScaleResources: configType.ScaleToZero.ScaleResources,
+		}
+	case *config.Configuration:
+		return nil
+	default:
+		return errors.New("Not a valid configuration instance")
 	}
 
 	return nil
