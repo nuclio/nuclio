@@ -108,13 +108,18 @@ func unmarshalConfig(marshalledConfig string) functionconfig.Config {
 }
 `))
 
+type Runtime struct {
+	Name          string
+	InlineParser  *inlineparser.InlineParser
+	FileExtension string
+}
+
 type Generator struct {
-	logger        logger.Logger
-	examplesDir   string
-	outputPath    string
-	runtimes      []string
-	inlineParsers map[string]*inlineparser.InlineParser
-	functions     map[string][]string
+	logger      logger.Logger
+	examplesDir string
+	outputPath  string
+	runtimes    []*Runtime
+	functions   map[string][]string
 }
 
 func (g *Generator) generate() error {
@@ -157,8 +162,8 @@ func (g *Generator) detectFunctionDirs() ([]string, error) {
 	g.logger.DebugWith("Looking for function directories inside runtime directories", "runtimes", g.runtimes)
 
 	for _, runtime := range g.runtimes {
-		g.functions[runtime] = []string{}
-		runtimeDir := filepath.Join(g.examplesDir, runtime)
+		g.functions[runtime.Name] = []string{}
+		runtimeDir := filepath.Join(g.examplesDir, runtime.Name)
 
 		// traverse each runtime directory, look for function dirs inside it
 		err := filepath.Walk(runtimeDir, func(path string, info os.FileInfo, err error) error {
@@ -169,14 +174,29 @@ func (g *Generator) detectFunctionDirs() ([]string, error) {
 				return errors.Wrapf(err, "Failed to walk over file at path %s", path)
 			}
 
-			// if the file is a directory and resides directly under the runtime directory, it's a function directory
-			if info.IsDir() && filepath.Base(filepath.Dir(path)) == runtime {
-				g.logger.DebugWith("Found function directory", "runtime", runtime, "name", filepath.Base(path))
+			if runtimeDir == path {
 
-				// append the directory to our slice
-				functionDirs = append(functionDirs, path)
-
+				// skipping runtime directory itself
 				return nil
+			}
+
+			if info.IsDir() {
+
+				// list function dir files
+				files, err := ioutil.ReadDir(path)
+				if err != nil {
+					return errors.Wrapf(err, "Failed to read function dir files", "path", path)
+				}
+
+				// make sure the path is a function dir
+				if g.isFunctionDir(runtime, files) {
+					g.logger.DebugWith("Found function directory",
+						"runtime", runtime,
+						"name", filepath.Base(path))
+
+					// append the function directory to our slice
+					functionDirs = append(functionDirs, path)
+				}
 			}
 
 			// otherwise do nothing
@@ -191,15 +211,29 @@ func (g *Generator) detectFunctionDirs() ([]string, error) {
 	return functionDirs, nil
 }
 
+func (g *Generator) isFunctionDir(runtime *Runtime, functionDirFiles []os.FileInfo) bool {
+	for _, file := range functionDirFiles {
+
+		// directory has at least one file related to function's runtime
+		if strings.HasSuffix(file.Name(), runtime.FileExtension) {
+			return true
+		}
+
+		// directory has a function.yaml
+		if file.Name() == "function.yaml" {
+			return true
+		}
+	}
+	return false
+}
+
 func (g *Generator) buildFunctionTemplates(functionDirs []string) ([]*functiontemplates.FunctionTemplate, error) {
 	var functionTemplates []*functiontemplates.FunctionTemplate
 
 	g.logger.DebugWith("Building function templates", "numFunctions", len(functionDirs))
 
 	for _, functionDir := range functionDirs {
-		runtimeName := filepath.Base(filepath.Dir(functionDir))
-
-		configuration, sourceCode, err := g.getFunctionConfigAndSource(functionDir, runtimeName)
+		configuration, sourceCode, err := g.getFunctionConfigAndSource(functionDir)
 		if err != nil {
 			g.logger.WarnWith("Failed to get function configuration and source code",
 				"err", err,
@@ -207,16 +241,16 @@ func (g *Generator) buildFunctionTemplates(functionDirs []string) ([]*functionte
 
 			return nil, errors.Wrap(err, "Failed to get function configuration and source code")
 		}
-
+		runtimeName := configuration.Spec.Runtime
 		functionName := filepath.Base(functionDir)
 
 		if functionName == "empty" {
-			g.logger.InfoWith("Skipping empty function template", "runtimeName", runtimeName)
+			g.logger.WarnWith("Skipping empty function template", "runtimeName", runtimeName)
 			continue
 		}
 
 		if configuration.Spec.Description == "" {
-			g.logger.InfoWith("Skipping function with no description", "name", functionName)
+			g.logger.WarnWith("Skipping function with no description", "name", functionName)
 			continue
 		}
 
@@ -234,11 +268,23 @@ func (g *Generator) buildFunctionTemplates(functionDirs []string) ([]*functionte
 	return functionTemplates, nil
 }
 
-func (g *Generator) getFunctionConfigAndSource(functionDir string,
-	runtime string) (*functionconfig.Config, string, error) {
+func (g *Generator) resolveFunctionRuntimeByFunctionPath(path string) *Runtime {
+	for _, runtime := range g.runtimes {
+		if common.StringInSlice(runtime.Name, strings.Split(path, "/")) {
+			return runtime
+		}
+	}
+	return nil
+}
+
+func (g *Generator) getFunctionConfigAndSource(functionDir string) (*functionconfig.Config, string, error) {
 
 	configuration := functionconfig.Config{}
 	sourceCode := ""
+	runtime := g.resolveFunctionRuntimeByFunctionPath(functionDir)
+	if runtime == nil {
+		return nil, "", errors.Errorf("Failed to determine runtime", "functionDir", functionDir)
+	}
 
 	// we'll know later not to look for an inline config if this is set
 	configFileExists := false
@@ -306,7 +352,7 @@ func (g *Generator) getFunctionConfigAndSource(functionDir string,
 
 	// set runtime explicitly on all function configs that don't have one, i.e. for UI to consume
 	if configuration.Spec.Runtime == "" {
-		configuration.Spec.Runtime = runtime
+		configuration.Spec.Runtime = runtime.Name
 	}
 
 	return &configuration, sourceCode, nil
@@ -314,14 +360,9 @@ func (g *Generator) getFunctionConfigAndSource(functionDir string,
 
 func (g *Generator) parseInlineConfiguration(sourcePath string,
 	configuration *functionconfig.Config,
-	runtime string) error {
+	runtime *Runtime) error {
 
-	inlineParser, found := g.inlineParsers[runtime]
-	if !found {
-		return errors.Errorf("No inline configuration parser found for runtime %s", runtime)
-	}
-
-	blocks, err := inlineParser.Parse(sourcePath)
+	blocks, err := runtime.InlineParser.Parse(sourcePath)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to parse inline configuration at %s", sourcePath)
 	}
@@ -394,21 +435,41 @@ func newGenerator(logger logger.Logger, examplesDir string, outputPath string) (
 		outputPath:  outputPath,
 	}
 
-	// TODO: support java parser too i guess
-	//newGenerator.runtimes = []string{"golang", "python", "pypy", "nodejs", "java", "dotnetcore", "shell"}
-
-	newGenerator.runtimes = []string{"golang", "python", "pypy", "nodejs", "dotnetcore", "shell"}
-
 	slashSlashParser := inlineparser.NewParser(logger, "//")
 	poundParser := inlineparser.NewParser(logger, "#")
 
-	newGenerator.inlineParsers = map[string]*inlineparser.InlineParser{
-		"golang":     slashSlashParser,
-		"python":     poundParser,
-		"pypy":       poundParser,
-		"nodejs":     slashSlashParser,
-		"dotnetcore": slashSlashParser,
-		"shell":      poundParser,
+	// TODO: support java parser too i guess
+	newGenerator.runtimes = []*Runtime{
+		{
+			InlineParser:  slashSlashParser,
+			FileExtension: ".go",
+			Name:          "golang",
+		},
+		{
+			InlineParser:  slashSlashParser,
+			FileExtension: ".js",
+			Name:          "nodejs",
+		},
+		{
+			InlineParser:  slashSlashParser,
+			FileExtension: ".cs",
+			Name:          "dotnetcore",
+		},
+		{
+			InlineParser:  poundParser,
+			FileExtension: ".py",
+			Name:          "python",
+		},
+		{
+			InlineParser:  poundParser,
+			FileExtension: ".py",
+			Name:          "pypy",
+		},
+		{
+			InlineParser:  poundParser,
+			FileExtension: ".py",
+			Name:          "shell",
+		},
 	}
 
 	newGenerator.functions = map[string][]string{}
