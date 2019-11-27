@@ -24,6 +24,7 @@
 import os
 import simplecrypt
 
+
 def encrypt(context, event):
 	context.logger.info('Using secret to encrypt body')
 

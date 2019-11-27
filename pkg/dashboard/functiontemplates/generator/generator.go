@@ -84,11 +84,11 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-var FunctionTemplates = []*FunctionTemplate{
+var GeneratedFunctionTemplates = []*generatedFunctionTemplate{
 {{- range .FunctionTemplates }}
 	{
 		Name: "{{ generateUniqueName .Name }}",
-		Configuration: unmarshalConfig(` + "`" + `{{ marshalConfig .Configuration | escapeBackticks }}` + "`" + `),
+		Configuration: unmarshalConfig(` + "`" + `{{ marshalConfig .FunctionConfig | escapeBackticks }}` + "`" + `),
 		SourceCode: ` + "`" + `{{ escapeBackticks .SourceCode }}` + "`" + `,
 	},
 {{- end }}
@@ -221,9 +221,9 @@ func (g *Generator) buildFunctionTemplates(functionDirs []string) ([]*functionte
 		}
 
 		functionTemplate := functiontemplates.FunctionTemplate{
-			Configuration: *configuration,
-			Name:          functionName,
-			SourceCode:    sourceCode,
+			FunctionConfig: configuration,
+			Name:           functionName,
+			SourceCode:     sourceCode,
 		}
 
 		g.logger.InfoWith("Appending function template", "functionName", functionName, "runtime", runtimeName)
@@ -333,7 +333,7 @@ func (g *Generator) parseInlineConfiguration(sourcePath string,
 		return nil
 	}
 
-	unmarshalledInlineConfigYAML, found := configureBlock["function.yaml"]
+	unmarshalledInlineConfigYAML, found := configureBlock.Contents["function.yaml"]
 	if !found {
 		return errors.Errorf("No function.yaml file found inside configure block at %s", sourcePath)
 	}

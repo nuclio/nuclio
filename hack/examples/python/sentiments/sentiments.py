@@ -23,6 +23,7 @@
 #   kind: "NuclioFunction"
 #   spec:
 #     runtime: "python:3.6"
+#     description: "Identifies sentiments in the body strings"
 #
 #     build:
 #       commands:
@@ -30,6 +31,7 @@
 #
 
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
 
 def handler(context, event):
     body = event.body.decode('utf-8')
