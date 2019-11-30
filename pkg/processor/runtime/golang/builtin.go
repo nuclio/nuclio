@@ -17,8 +17,9 @@ limitations under the License.
 package golang
 
 import (
-	"github.com/nuclio/nuclio-sdk-go"
 	"time"
+
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 // this is used for running a standalone processor during development
