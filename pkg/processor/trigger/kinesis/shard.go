@@ -69,15 +69,6 @@ func (s *shard) readFromShard() error {
 
 	for {
 
-<<<<<<< HEAD
-		// wait a bit
-		time.Sleep(500 * time.Millisecond)
-
-		// try to get records
-		getRecordsResponse, err := s.kinesisTrigger.kinesisClient.GetRecords(getRecordArgs)
-		if err != nil {
-			s.logger.ErrorWith("Failed to get records", "err", err)
-=======
 		// get next records
 		getRecordsResponse, err = s.getNextRecords(getRecordArgs, getRecordsResponse, lastRecordSequenceNumber)
 
@@ -88,7 +79,6 @@ func (s *shard) readFromShard() error {
 				s.logger.WarnWith("Failed to get next records", "err", errors.GetErrorStackString(err, 5))
 				time.Sleep(s.kinesisTrigger.configuration.pollingPeriodDuration)
 			}
->>>>>>> 8446046b... Fix Kinesis iterator expiration (#1414)
 
 			continue
 		}
@@ -103,8 +93,6 @@ func (s *shard) readFromShard() error {
 				// process the event, don't really do anything with response
 				s.kinesisTrigger.SubmitEventToWorker(nil, s.worker, &event) // nolint: errcheck
 			}
-<<<<<<< HEAD
-=======
 
 			// save last sequence number in the batch. we might need to create a shard iterator at this
 			// sequence number
@@ -138,7 +126,6 @@ func (s *shard) getNextRecords(getRecordArgs *kinesisclient.RequestArgs,
 		// read sequence number
 		if strings.Contains(err.Error(), "Iterator expired") {
 			return nil, errIteratorExpired
->>>>>>> 8446046b... Fix Kinesis iterator expiration (#1414)
 		}
 
 		return nil, errors.Wrap(err, "Failed to get records")
