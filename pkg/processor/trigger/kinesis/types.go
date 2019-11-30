@@ -17,6 +17,8 @@ limitations under the License.
 package kinesis
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
@@ -27,16 +29,20 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
-	AccessKeyID     string
-	SecretAccessKey string
-	RegionName      string
-	StreamName      string
-	Shards          []string
+	AccessKeyID           string
+	SecretAccessKey       string
+	RegionName            string
+	StreamName            string
+	Shards                []string
+	IteratorType          string
+	PollingPeriod         string
+	pollingPeriodDuration time.Duration
 }
 
 func NewConfiguration(ID string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
+	var err error
 	newConfiguration := Configuration{}
 
 	// create base
@@ -47,7 +53,31 @@ func NewConfiguration(ID string,
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
-	// TODO: validate
+	if newConfiguration.IteratorType == "" {
+		newConfiguration.IteratorType = "LATEST"
+	}
+
+	if err := newConfiguration.validateIteratorType(newConfiguration.IteratorType); err != nil {
+		return nil, errors.Wrapf(err, "Invalid iterator type %s", newConfiguration.IteratorType)
+	}
+
+	if newConfiguration.PollingPeriod == "" {
+		newConfiguration.PollingPeriod = "500ms"
+	}
+
+	newConfiguration.pollingPeriodDuration, err = time.ParseDuration(newConfiguration.PollingPeriod)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse polling period duration")
+	}
 
 	return &newConfiguration, nil
+}
+
+func (c *Configuration) validateIteratorType(iteratorType string) error {
+	switch iteratorType {
+	case "TRIM_HORIZON", "LATEST":
+		return nil
+	default:
+		return errors.New("Unsupported iterator type")
+	}
 }
