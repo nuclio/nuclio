@@ -36,12 +36,15 @@
 #
 
 # @nuclio.configure
+#
 # function.yaml:
 #   apiVersion: "nuclio.io/v1beta1"
 #   kind: "NuclioFunction"
 #   spec:
 #     runtime: "shell"
 #     handler: "img-convert.sh:main"
+#     description: "Resize image to 50% using ImageMagick"
+#
 #     build:
 #       commands:
 #       - "apk --update --no-cache add imagemagick"

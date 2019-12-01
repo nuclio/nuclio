@@ -9,6 +9,7 @@ dotnetcore (2): helloworld, reverser
 golang (5):     eventhub, helloworld, image, rabbitmq, regexscan
 nodejs (1):     dates
 python (5):     encrypt, facerecognizer, helloworld, sentiments, tensorflow
+shell (1):      img-convert
 */
 
 package functiontemplates
@@ -21,7 +22,7 @@ import (
 
 var GeneratedFunctionTemplates = []*generatedFunctionTemplate{
 	{
-		Name: "eventhub:cc463fd0-8e58-4821-a014-27d50f0393fb",
+		Name: "eventhub:3dc2fc71-92cf-4ee0-ab1a-c8e6be5ec940",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -192,7 +193,7 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 `,
 	},
 	{
-		Name: "helloworld:f4bd9993-dba7-4a8f-96fe-4a22e74674a2",
+		Name: "helloworld:c22b2b9b-d0fc-4e0e-a891-6b0ab89865b0",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -239,7 +240,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "image:843f0236-b678-4649-a5a4-f7b35d649bf0",
+		Name: "image:1fda4adf-c9ac-4040-abc3-d506b5eaff8a",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -347,7 +348,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "rabbitmq:805d2cc1-3cf0-40ee-8148-f91c064930fd",
+		Name: "rabbitmq:3f66665c-f5b9-4d4f-89ea-daf671bef2b0",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -459,7 +460,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "regexscan:69960fe5-ecb3-4ec3-87bc-5ac70b3036b2",
+		Name: "regexscan:f4e94a9a-a33b-4c58-a72b-eae501e95036",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -541,7 +542,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "dates:fe3d3d7c-5a64-4503-b492-eee5a250d061",
+		Name: "dates:606538a5-0404-4adf-b8be-120751d124e3",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -603,7 +604,7 @@ exports.handler = function(context, event) {
 `,
 	},
 	{
-		Name: "helloworld:404cb60c-e1ee-48ab-8b21-a3ff6642d176",
+		Name: "helloworld:63484c5a-0db2-415c-afed-793571819197",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -650,7 +651,7 @@ public class nuclio
 `,
 	},
 	{
-		Name: "reverser:0decb06a-8fc9-454f-aa1d-5a7113c079e6",
+		Name: "reverser:b7120d99-8fc1-4839-bbe4-ef130583c438",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -693,7 +694,7 @@ public class nuclio
 `,
 	},
 	{
-		Name: "encrypt:e960afa3-145d-43df-9485-bb77aceb85f7",
+		Name: "encrypt:7937244f-f637-4ce1-9031-a6e72d0ac873",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -753,7 +754,7 @@ def encrypt(context, event):
 `,
 	},
 	{
-		Name: "facerecognizer:63357e25-9b19-473f-813c-06a58f7cdaa8",
+		Name: "facerecognizer:dfec0a3a-ea04-4055-a20b-879dbf9a2178",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -896,7 +897,7 @@ def _build_response(context, body, status_code):
 `,
 	},
 	{
-		Name: "helloworld:d6497443-3b41-4ad6-bce9-fcaa8992692b",
+		Name: "helloworld:4043f7bf-0940-437d-badc-4cc9714dcad0",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -933,7 +934,7 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "sentiments:1e439a54-09f8-42bf-ade8-b08ef56637d3",
+		Name: "sentiments:da9c2e3d-6f43-4bc7-8eeb-c29c7b9ba2ea",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -992,7 +993,7 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "tensorflow:e1509a69-7627-49b8-b842-59a58f4c35d3",
+		Name: "tensorflow:77d551bf-5ff5-4382-a71a-acc47be04b95",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1385,6 +1386,74 @@ class Helpers(object):
 t = threading.Thread(target=Helpers.on_import)
 t.start()
 `,
+	},
+	{
+		Name: "img-convert:638ea5f8-098b-4c3c-b873-09adb6395ef4",
+		Configuration: unmarshalConfig(`metadata: {}
+spec:
+  build:
+    commands:
+    - apk --update --no-cache add imagemagick
+  description: Resize image to 50% using ImageMagick
+  eventTimeout: ""
+  handler: img-convert.sh:main
+  platform: {}
+  resources: {}
+  runtime: shell
+`),
+		SourceCode: `# Copyright 2017 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#
+# Demonstrates running a shell script. In this case, ImageMagick is installed on build and "convert"
+# is called for each event with stdin as the input (by default, this is fed with the event body).
+#
+# NOTE:
+#
+# This can be achieved without a wrapper script by specifying the "convert" binary as the handler. To do this
+# with nuctl you would run (pass --platform local if you're using the local platform):
+#
+# nuctl deploy -p /dev/null convert \
+#     --runtime shell \
+#     --handler convert \
+#     --runtime-attrs '{"arguments": "- -resize 50% fd:1"}' \
+#     --build-command "apk --update --no-cache add imagemagick"
+#
+# Doing so gives you much greater flexibility than a wrapper script because the arguments can be changed per event.
+# If X-nuclio-arguments does not exist in the event headers, the default arguments passed to convert tells it to
+# reduce the image to 50%. To run any other mode or any other setting, simply provide this header (note that this is
+# unsanitized). For example, to reduce the received image to 10% of its size, set X-nuclio-arguments to
+# "- -resize 10% fd:1"
+#
+
+# @nuclio.configure
+#
+# function.yaml:
+#   apiVersion: "nuclio.io/v1beta1"
+#   kind: "NuclioFunction"
+#   spec:
+#     runtime: "shell"
+#     handler: "img-convert.sh:main"
+#     description: "Resize image to 50% using ImageMagick"
+#
+#     build:
+#       commands:
+#       - "apk --update --no-cache add imagemagick"
+#
+
+convert - -resize 50% fd:1`,
 	},
 }
 
