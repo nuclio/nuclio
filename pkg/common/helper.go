@@ -70,6 +70,17 @@ func StringSliceToIntSlice(stringSlice []string) ([]int, error) {
 	return result, nil
 }
 
+// returns whether the input str is in the slice
+func StringSliceContainsString(slice []string, str string) bool {
+	for _, stringInSlice := range slice {
+		if stringInSlice == str {
+			return true
+		}
+	}
+
+	return false
+}
+
 // RetryUntilSuccessful calls callback every interval for duration until it returns true
 func RetryUntilSuccessful(duration time.Duration, interval time.Duration, callback func() bool) error {
 	deadline := time.Now().Add(duration)

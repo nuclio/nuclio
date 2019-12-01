@@ -11,6 +11,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// @nuclio.configure
+//
+// function.yaml:
+//   apiVersion: "nuclio.io/v1beta1"
+//   kind: "NuclioFunction"
+//   spec:
+//     runtime: "golang"
+
 package main
 
 import (
