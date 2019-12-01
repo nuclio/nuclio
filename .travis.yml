@@ -18,6 +18,9 @@ script:
   - go get github.com/nuclio/nuclio-sdk-go
   - go get github.com/nuclio/amqp
   - go get github.com/v3io/scaler-types
+  - cd $GOPATH/src/github.com/v3io/scaler-types
+  - git checkout v1.0.0
+  - cd $GOPATH/src/github.com/nuclio/nuclio
   - make lint test-short
   - if [ "$TRAVIS_EVENT_TYPE" == "cron" ]; then
     make build test;
