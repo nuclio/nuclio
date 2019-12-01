@@ -216,13 +216,8 @@ func (g *Generator) detectFunctionDirs() ([]string, error) {
 func (g *Generator) isFunctionDir(runtime *Runtime, functionDirFiles []os.FileInfo) bool {
 	for _, file := range functionDirFiles {
 
-		// directory has at least one file related to function's runtime
-		if strings.HasSuffix(file.Name(), runtime.FileExtension) {
-			return true
-		}
-
-		// directory has a function.yaml
-		if file.Name() == "function.yaml" {
+		// directory has at least one file related to function's runtime or a function.yaml
+		if strings.HasSuffix(file.Name(), runtime.FileExtension) || file.Name() == "function.yaml" {
 			return true
 		}
 	}
