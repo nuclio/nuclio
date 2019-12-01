@@ -72,7 +72,9 @@ which may be retrieved from the dashboard's HTTP API by sending a GET request to
 
 The following functions are included for each supported runtime:
 {{- range $runtime, $functions := .FunctionsByRuntime }}
+{{- if $functions }}
 {{ printf "%s (%d):" $runtime (len $functions) | printf "%-15s" }} {{ join $functions ", " }}
+{{- end }}
 {{- end }}
 */
 

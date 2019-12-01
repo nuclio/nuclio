@@ -8,7 +8,6 @@ The following functions are included for each supported runtime:
 dotnetcore (2): helloworld, reverser
 golang (5):     eventhub, helloworld, image, rabbitmq, regexscan
 nodejs (1):     dates
-pypy (0):       
 python (5):     encrypt, facerecognizer, helloworld, sentiments, tensorflow
 shell (1):      img-convert
 */
