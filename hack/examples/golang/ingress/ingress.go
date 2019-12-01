@@ -21,7 +21,6 @@ limitations under the License.
 //   kind: "NuclioFunction"
 //   spec:
 //     runtime: "golang"
-//     description: "A function with a pre-configured HTTP ingress"
 //     triggers:
 //       http:
 //         maxWorkers: 8

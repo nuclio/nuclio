@@ -17,7 +17,6 @@ limitations under the License.
 //   apiVersion: "nuclio.io/v1beta1"
 //   kind: "NuclioFunction"
 //   spec:
-//     description: "Fibonacci's Nth number calculator"
 //     runtime: "golang"
 
 package main

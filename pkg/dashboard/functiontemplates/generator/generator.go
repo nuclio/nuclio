@@ -233,6 +233,7 @@ func (g *Generator) buildFunctionTemplates(functionDirs []string) ([]*functionte
 	g.logger.DebugWith("Building function templates", "numFunctions", len(functionDirs))
 
 	for _, functionDir := range functionDirs {
+		runtime := g.resolveFunctionRuntimeByFunctionPath(functionDir)
 		configuration, sourceCode, err := g.getFunctionConfigAndSource(functionDir)
 		if err != nil {
 			g.logger.WarnWith("Failed to get function configuration and source code",
@@ -241,11 +242,10 @@ func (g *Generator) buildFunctionTemplates(functionDirs []string) ([]*functionte
 
 			return nil, errors.Wrap(err, "Failed to get function configuration and source code")
 		}
-		runtimeName := configuration.Spec.Runtime
 		functionName := filepath.Base(functionDir)
 
 		if functionName == "empty" {
-			g.logger.WarnWith("Skipping empty function template", "runtimeName", runtimeName)
+			g.logger.WarnWith("Skipping empty function template", "runtimeName", runtime.Name)
 			continue
 		}
 
@@ -260,9 +260,11 @@ func (g *Generator) buildFunctionTemplates(functionDirs []string) ([]*functionte
 			SourceCode:     sourceCode,
 		}
 
-		g.logger.InfoWith("Appending function template", "functionName", functionName, "runtime", runtimeName)
+		g.logger.InfoWith("Appending function template",
+			"functionName", functionName,
+			"runtime", runtime.Name)
 		functionTemplates = append(functionTemplates, &functionTemplate)
-		g.functions[runtimeName] = append(g.functions[runtimeName], functionName)
+		g.functions[runtime.Name] = append(g.functions[runtime.Name], functionName)
 	}
 
 	return functionTemplates, nil
@@ -467,7 +469,7 @@ func newGenerator(logger logger.Logger, examplesDir string, outputPath string) (
 		},
 		{
 			InlineParser:  poundParser,
-			FileExtension: ".py",
+			FileExtension: ".sh",
 			Name:          "shell",
 		},
 	}
