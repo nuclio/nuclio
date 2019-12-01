@@ -924,6 +924,7 @@ spec:
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 def handler(context, event):
     context.logger.info('This is an unstructured log')
 
@@ -934,7 +935,7 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "sentiments:da9c2e3d-6f43-4bc7-8eeb-c29c7b9ba2ea",
+		Name: "sentiments:f995f716-44e2-404c-9ba3-fcc9a21885f6",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -942,6 +943,9 @@ spec:
     - pip install requests vaderSentiment
   description: Identifies sentiments in the body strings
   eventTimeout: ""
+  handler: sentiments:handler
+  maxReplicas: 1
+  minReplicas: 1
   platform: {}
   resources: {}
   runtime: python:3.6
@@ -963,20 +967,6 @@ spec:
 
 # uses vader lib (will be installed automatically via build commands) to identify sentiments in the body string
 # return score result in the form of: {'neg': 0.0, 'neu': 0.323, 'pos': 0.677, 'compound': 0.6369}
-#
-# @nuclio.configure
-#
-# function.yaml:
-#   apiVersion: "nuclio.io/v1beta1"
-#   kind: "NuclioFunction"
-#   spec:
-#     runtime: "python:3.6"
-#     description: "Identifies sentiments in the body strings"
-#
-#     build:
-#       commands:
-#       - "pip install requests vaderSentiment"
-#
 
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
@@ -984,16 +974,13 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 def handler(context, event):
     body = event.body.decode('utf-8')
     context.logger.debug_with('Analyzing ', 'sentence', body)
-
     analyzer = SentimentIntensityAnalyzer()
-
     score = analyzer.polarity_scores(body)
-
     return str(score)
 `,
 	},
 	{
-		Name: "tensorflow:77d551bf-5ff5-4382-a71a-acc47be04b95",
+		Name: "tensorflow:fdb23977-7834-4a4b-9476-6350098912d9",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1453,7 +1440,8 @@ spec:
 #       - "apk --update --no-cache add imagemagick"
 #
 
-convert - -resize 50% fd:1`,
+convert - -resize 50% fd:1
+`,
 	},
 }
 

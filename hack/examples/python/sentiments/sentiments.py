@@ -15,20 +15,6 @@
 
 # uses vader lib (will be installed automatically via build commands) to identify sentiments in the body string
 # return score result in the form of: {'neg': 0.0, 'neu': 0.323, 'pos': 0.677, 'compound': 0.6369}
-#
-# @nuclio.configure
-#
-# function.yaml:
-#   apiVersion: "nuclio.io/v1beta1"
-#   kind: "NuclioFunction"
-#   spec:
-#     runtime: "python:3.6"
-#     description: "Identifies sentiments in the body strings"
-#
-#     build:
-#       commands:
-#       - "pip install requests vaderSentiment"
-#
 
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
@@ -36,9 +22,6 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 def handler(context, event):
     body = event.body.decode('utf-8')
     context.logger.debug_with('Analyzing ', 'sentence', body)
-
     analyzer = SentimentIntensityAnalyzer()
-
     score = analyzer.polarity_scores(body)
-
     return str(score)
