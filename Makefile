@@ -94,7 +94,7 @@ helm-publish:
 
 # tools get built with the specified OS/arch and inject version
 GO_BUILD_TOOL_WORKDIR = /go/src/github.com/nuclio/nuclio
-GO_BUILD_TOOL = docker build -f hack/docker/tool-builder/Dockerfile -t nuclio-tool-builder:$(NUCLIO_LABEL) .
+GO_BUILD_TOOL_DOCKER = docker build -f hack/docker/tool-builder/Dockerfile -t nuclio-tool-builder:$(NUCLIO_LABEL) .
 GO_BUILD_NUCTL = docker run \
 	--volume $(GOPATH)/bin:/go/bin \
 	--env GOOS=$(NUCLIO_OS) \
@@ -149,7 +149,7 @@ NUCTL_BIN_NAME = nuctl-$(NUCLIO_LABEL)-$(NUCLIO_OS)-$(NUCLIO_ARCH)
 NUCTL_TARGET = $(GOPATH)/bin/nuctl
 
 nuctl: ensure-gopath
-	$(GO_BUILD_TOOL)
+	$(GO_BUILD_TOOL_DOCKER)
 	$(GO_BUILD_NUCTL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 	@rm -f $(NUCTL_TARGET)
 	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
