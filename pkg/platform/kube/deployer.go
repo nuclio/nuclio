@@ -250,6 +250,24 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) (string, st
 			// close the stream
 			logsRequest.Close() // nolint: errcheck
 		}
+
+		eventList, err := d.consumer.kubeClientSet.CoreV1().Events(namespace).Search(nil, &pod)
+		if err != nil {
+			podLogsMessage += "Failed to get pod events\n"
+		}
+
+		var podWarningEvents string
+		for _, event := range eventList.Items {
+			if event.Type == "Warning" {
+				podWarningEvents += event.Message
+			}
+		}
+
+		if podWarningEvents != "" {
+			eventsSummary := "\nPod warning events:\n" + podWarningEvents
+			podLogsMessage += eventsSummary
+			briefErrorMessage += eventsSummary
+		}
 	}
 
 	return podLogsMessage, briefErrorMessage
