@@ -254,7 +254,7 @@ func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 		podWarningEvents, err := d.getFunctionPodWarningEvents(namespace, pod.Name)
 		if err != nil {
 			podLogsMessage += "Failed to get pod events\n"
-		} else if briefErrorMessage == "" && podWarningEvents != ""{
+		} else if briefErrorMessage == "" && podWarningEvents != "" {
 
 			// if there is no brief error message and there are warning events - add them
 			podLogsMessage += "\n* Warning events:\n" + podWarningEvents
