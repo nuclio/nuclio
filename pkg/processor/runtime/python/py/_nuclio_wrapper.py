@@ -235,7 +235,7 @@ class Wrapper(object):
         try:
             entrypoint_address = getattr(module, entrypoint)
         except Exception:
-            self._logger.error_with('Handler not found', handler=handler, module_name=module_name)
+            self._logger.error_with('Handler not found', handler=handler)
             raise
 
         return entrypoint_address
