@@ -68,7 +68,7 @@ class Wrapper(object):
             try:
                 getattr(entrypoint_module, 'init_context')(self._context)
             except:
-                self._logger.error_with('Exception raised while running init_context')
+                self._logger.error('Exception raised while running init_context')
                 raise
 
         # replace the default output with the process socket
@@ -234,8 +234,8 @@ class Wrapper(object):
 
         try:
             entrypoint_address = getattr(module, entrypoint)
-        except Exception as err:
-            self._logger.error_with('Handler not found', handler=handler)
+        except Exception:
+            self._logger.error_with('Handler not found', handler=handler, module_name=module_name)
             raise
 
         return entrypoint_address
@@ -323,9 +323,9 @@ def run_wrapper():
                                    args.worker_id,
                                    args.trigger_name)
 
-    except Exception as err:
+    except Exception as exc:
         root_logger.error_with('Caught unhandled exception while initializing',
-                              err=str(err),
+                              err=str(exc),
                               traceback=traceback.format_exc())
 
         raise SystemExit(1)
