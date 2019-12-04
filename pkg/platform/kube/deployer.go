@@ -253,7 +253,7 @@ func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 
 		podWarningEvents, err := d.getFunctionPodWarningEvents(namespace, pod.Name)
 		if err != nil {
-			podLogsMessage += "Failed to get pod events\n"
+			podLogsMessage += "Failed to get pod warning events: " + err.Error() + "\n"
 		} else if briefErrorMessage == "" && podWarningEvents != "" {
 
 			// if there is no brief error message and there are warning events - add them
@@ -268,8 +268,7 @@ func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 func (d *deployer) getFunctionPodWarningEvents(namespace string, podName string) (string, error) {
 	eventList, err := d.consumer.kubeClientSet.CoreV1().Events(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
-		d.logger.InfoWith("Failed to get pod events", "err", err)
-		return "", nil
+		return "", err
 	}
 
 	var podWarningEvents string
