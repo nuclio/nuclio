@@ -55,7 +55,7 @@ func (d *dotnetcore) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "microsoft/dotnet:2-runtime"
+	processorDockerfileInfo.BaseImage = "mcr.microsoft.com/dotnet/core/runtime:3.1"
 
 	return &processorDockerfileInfo, nil
 }
