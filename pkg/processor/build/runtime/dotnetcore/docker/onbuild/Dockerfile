@@ -25,7 +25,9 @@ FROM mcr.microsoft.com/dotnet/core/sdk:3.1 as builder
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
 # Get .NET core SDK to /home/nuclio/src/nuclio-sdk-dotnetcore
-RUN curl -L https://github.com/nuclio/nuclio-sdk-dotnetcore/archive/master.tar.gz -o nuclio-sdk-dotnetcore.tar.gz && \
+
+# FIXME (should be: https://github.com/nuclio/nuclio-sdk-dotnetcore/archive/master.tar.gz)
+RUN curl -L "https://github.com/liranbg/nuclio-sdk-dotnetcore/archive/dotnet3.1.tar.gz" -o nuclio-sdk-dotnetcore.tar.gz && \
     mkdir -p /home/nuclio/src/nuclio-sdk-dotnetcore && \
     tar -xvf nuclio-sdk-dotnetcore.tar.gz --strip-components=1 -C /home/nuclio/src/nuclio-sdk-dotnetcore
 
