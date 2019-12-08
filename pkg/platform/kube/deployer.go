@@ -165,7 +165,7 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 		functionInstance.Namespace,
 		functionInstance.Name)
 	if err != nil {
-		podLogs, briefErrorMessage := d.getFunctionPodLogs(functionInstance.Namespace, functionInstance.Name)
+		podLogs, briefErrorMessage := d.getFunctionPodLogsAndEvents(functionInstance.Namespace, functionInstance.Name)
 		return nil, briefErrorMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
 	}
 
@@ -204,7 +204,7 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 	return function, err
 }
 
-func (d *deployer) getFunctionPodLogs(namespace string, name string) (string, string) {
+func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (string, string) {
 	var briefErrorMessage string
 	podLogsMessage := "\nPod logs:\n"
 
@@ -250,7 +250,33 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) (string, st
 			// close the stream
 			logsRequest.Close() // nolint: errcheck
 		}
+
+		podWarningEvents, err := d.getFunctionPodWarningEvents(namespace, pod.Name)
+		if err != nil {
+			podLogsMessage += "Failed to get pod warning events: " + err.Error() + "\n"
+		} else if briefErrorMessage == "" && podWarningEvents != "" {
+
+			// if there is no brief error message and there are warning events - add them
+			podLogsMessage += "\n* Warning events:\n" + podWarningEvents
+			briefErrorMessage += podWarningEvents
+		}
 	}
 
 	return podLogsMessage, briefErrorMessage
+}
+
+func (d *deployer) getFunctionPodWarningEvents(namespace string, podName string) (string, error) {
+	eventList, err := d.consumer.kubeClientSet.CoreV1().Events(namespace).List(meta_v1.ListOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	var podWarningEvents string
+	for _, event := range eventList.Items {
+		if event.InvolvedObject.Name == podName && event.Type == "Warning" {
+			podWarningEvents += event.Message + "\n"
+		}
+	}
+
+	return podWarningEvents, nil
 }
