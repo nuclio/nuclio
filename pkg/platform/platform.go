@@ -109,6 +109,7 @@ type Platform interface {
 
 	GetDefaultHTTPIngressHostTemplate() string
 
+	// Get scale to zero configuration
 	GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error)
 
 	// GetNamespaces returns all the namespaces in the platform
