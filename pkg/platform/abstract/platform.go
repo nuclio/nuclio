@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
@@ -310,6 +311,10 @@ func (ap *Platform) GetDefaultHTTPIngressHostTemplate() string {
 // These addresses are either set through SetExternalIPAddresses or automatically discovered
 func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
 	return ap.ExternalIPAddresses, nil
+}
+
+func (ap *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error) {
+	return nil, nil
 }
 
 // ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace

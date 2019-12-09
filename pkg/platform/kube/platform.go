@@ -656,20 +656,42 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{}, nil
 }
 
+func (p *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error) {
+	switch configType := p.Config.(type) {
+	case *platformconfig.Config:
+		return &configType.ScaleToZero, nil
+
+	// FIXME: When deploying using nuctl in a kubernetes environment, it will be a kube platform, but the configuration
+	// will be of type *config.Configuration which has no scale to zero configuration
+	// we need to fix the platform config (p.Config) to always be of the same type (*platformconfig.Config) and not
+	// passing interface{} everywhere
+	case *config.Configuration:
+		return nil, nil
+	default:
+		return nil, errors.New("Not a valid configuration instance")
+	}
+}
+
 func (p *Platform) setScaleToZeroSpec(functionSpec *functionconfig.Spec) error {
+
+	// If function already has scale to zero spec, don't override it
 	if functionSpec.ScaleToZero != nil {
 		return nil
 	}
 
-	switch configType := p.Config.(type) {
-	case *platformconfig.Config:
-		functionSpec.ScaleToZero = &functionconfig.ScaleToZeroSpec{
-			ScaleResources: configType.ScaleToZero.ScaleResources,
-		}
-	case *config.Configuration:
+	scaleToZeroConfiguration, err := p.GetScaleToZeroConfiguration()
+	if err != nil {
+		return errors.Wrap(err, "Failed getting scale to zero configuration")
+	}
+
+	if scaleToZeroConfiguration == nil {
 		return nil
-	default:
-		return errors.New("Not a valid configuration instance")
+	}
+
+	if scaleToZeroConfiguration.Mode == platformconfig.EnabledScaleToZeroMode {
+		functionSpec.ScaleToZero = &functionconfig.ScaleToZeroSpec{
+			ScaleResources: scaleToZeroConfiguration.ScaleResources,
+		}
 	}
 
 	return nil
