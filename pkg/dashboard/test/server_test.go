@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -1839,6 +1840,19 @@ func (suite *miscTestSuite) TestGetExternalIPAddresses() {
 func (suite *miscTestSuite) TestGetFrontendSpec() {
 	returnedAddresses := []string{"address1", "address2", "address3"}
 	defaultHTTPIngressHostTemplate := "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com"
+	scaleToZeroConfiguration := platformconfig.ScaleToZero{
+		Mode:                     platformconfig.EnabledScaleToZeroMode,
+		ScalerInterval:           "",
+		ResourceReadinessTimeout: "",
+		ScaleResources: []functionconfig.ScaleResource{
+			{
+				MetricName: "metric_name",
+				WindowSize: "1m",
+				Threshold:  0,
+			},
+		},
+		InactivityWindowPresets: []string{"1m", "2m"},
+	}
 
 	suite.mockPlatform.
 		On("GetExternalIPAddresses").
@@ -1850,11 +1864,27 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		Return(defaultHTTPIngressHostTemplate, nil).
 		Once()
 
+	suite.mockPlatform.
+		On("GetScaleToZeroConfiguration").
+		Return(&scaleToZeroConfiguration, nil).
+		Once()
+
 	expectedStatusCode := http.StatusOK
 	expectedResponseBody := `{
-		"externalIPAddresses":            ["address1", "address2", "address3"],
-		"defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
-		"namespace":                      ""
+		"externalIPAddresses":            	["address1", "address2", "address3"],
+		"defaultHTTPIngressHostTemplate":	"{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
+		"namespace":                      	"",
+		"scaleToZero":						{
+			"scaleToZeroMode": "enabled",
+			"inactivityWindowPresets": ["1m", "2m"],
+			"scaleResources": [
+				{
+					"metricName": "metric_name",
+					"windowSize": "1m",
+					"threshold": 0
+				}
+			]
+		}
 }`
 
 	suite.sendRequest("GET",
