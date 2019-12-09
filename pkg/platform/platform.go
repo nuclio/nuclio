@@ -18,6 +18,7 @@ package platform
 
 import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )
 
@@ -107,6 +108,8 @@ type Platform interface {
 	SetDefaultHTTPIngressHostTemplate(string)
 
 	GetDefaultHTTPIngressHostTemplate() string
+
+	GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error)
 
 	// GetNamespaces returns all the namespaces in the platform
 	GetNamespaces() ([]string, error)

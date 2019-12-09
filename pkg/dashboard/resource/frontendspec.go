@@ -21,6 +21,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 )
 
@@ -34,11 +36,33 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 		return nil, errors.Wrap(err, "Failed to get external IP addresses")
 	}
 
+	scaleToZeroConfiguration, err := fesr.getPlatform().GetScaleToZeroConfiguration()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed getting scale to zero configuration")
+	}
+
+	scaleToZeroMode := platformconfig.DisabledScaleToZeroMode
+	var inactivityWindowPresets []string
+	var scaleResources []functionconfig.ScaleResource
+
+	if scaleToZeroConfiguration != nil {
+		scaleToZeroMode = scaleToZeroConfiguration.Mode
+		inactivityWindowPresets = scaleToZeroConfiguration.InactivityWindowPresets
+		scaleResources = scaleToZeroConfiguration.ScaleResources
+	}
+
+	scaleToZeroAttribute := map[string]interface{}{
+		"scaleToZeroMode":         scaleToZeroMode,
+		"inactivityWindowPresets": inactivityWindowPresets,
+		"scaleResources":          scaleResources,
+	}
+
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
 			"externalIPAddresses":            externalIPAddresses,
 			"namespace":                      fesr.getNamespaceOrDefault(""),
 			"defaultHTTPIngressHostTemplate": fesr.getPlatform().GetDefaultHTTPIngressHostTemplate(),
+			"scaleToZero":                    scaleToZeroAttribute,
 		},
 	}
 

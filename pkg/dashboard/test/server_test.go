@@ -183,6 +183,11 @@ func (mp *mockPlatform) GetExternalIPAddresses() ([]string, error) {
 	return args.Get(0).([]string), args.Error(1)
 }
 
+func (mp *mockPlatform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error) {
+	args := mp.Called()
+	return args.Get(0).(*platformconfig.ScaleToZero), args.Error(1)
+}
+
 // GetHealthCheckMode returns the healthcheck mode the platform requires
 func (mp *mockPlatform) GetHealthCheckMode() platform.HealthCheckMode {
 	args := mp.Called()
