@@ -1875,7 +1875,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		"defaultHTTPIngressHostTemplate":	"{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
 		"namespace":                      	"",
 		"scaleToZero":						{
-			"scaleToZeroMode": "enabled",
+			"mode": "enabled",
 			"inactivityWindowPresets": ["1m", "2m"],
 			"scaleResources": [
 				{

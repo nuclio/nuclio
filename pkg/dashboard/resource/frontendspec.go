@@ -52,7 +52,7 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 	}
 
 	scaleToZeroAttribute := map[string]interface{}{
-		"scaleToZeroMode":         scaleToZeroMode,
+		"mode":                    scaleToZeroMode,
 		"inactivityWindowPresets": inactivityWindowPresets,
 		"scaleResources":          scaleResources,
 	}
