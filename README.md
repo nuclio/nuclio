@@ -170,7 +170,7 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
     - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
     - [Triggers](/docs/reference/triggers)
     - [nuctl](/docs/reference/nuctl)
-    - [Runtime - .NET Core 2](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
+    - [Runtime - .NET Core 3.1](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
     - [Runtime - Shell](/docs/reference/runtimes/shell/writing-a-shell-function.md)
 - [Examples](hack/examples/README.md)
 - [Roadmap](ROADMAP.md)

@@ -42,7 +42,7 @@ func (d *dotnetcore) GetProcessorDockerfileInfo(versionInfo *version.Info) (*run
 		versionInfo.Arch)
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "microsoft/dotnet:2-runtime"
+	processorDockerfileInfo.BaseImage = "mcr.microsoft.com/dotnet/core/runtime:3.1"
 	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
 		"/home/nuclio/bin/processor":             "/usr/local/bin/processor",
 		"/home/nuclio/bin/wrapper":               "/opt/nuclio/wrapper",
