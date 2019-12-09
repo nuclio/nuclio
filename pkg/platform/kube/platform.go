@@ -660,6 +660,11 @@ func (p *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, e
 	switch configType := p.Config.(type) {
 	case *platformconfig.Config:
 		return &configType.ScaleToZero, nil
+
+	// FIXME: When deploying using nuctl in a kubernetes environment, it will be a kube platform, but the configuration
+	// will be of type *config.Configuration which has no scale to zero configuration
+	// we need to fix the platform config (p.Config) to always be of the same type (*platformconfig.Config) and not
+	// passing interface{} everywhere
 	case *config.Configuration:
 		return nil, nil
 	default:
