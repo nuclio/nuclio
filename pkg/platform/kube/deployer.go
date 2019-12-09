@@ -141,7 +141,7 @@ func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 }
 
 func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
-	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
+	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, string, error) {
 
 	// get the logger with which we need to deploy
 	deployLogger := createFunctionOptions.Logger
@@ -156,7 +156,7 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
 		})
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to wait for function readiness")
+		return nil, err.Error(), errors.Wrap(err, "Failed to create function")
 	}
 
 	// wait for the function to be ready
@@ -165,13 +165,13 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 		functionInstance.Namespace,
 		functionInstance.Name)
 	if err != nil {
-		errMessage := d.getFunctionPodLogs(functionInstance.Namespace, functionInstance.Name)
-		return nil, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", errMessage)
+		podLogs, briefErrorMessage := d.getFunctionPodLogsAndEvents(functionInstance.Namespace, functionInstance.Name)
+		return nil, briefErrorMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
 	}
 
 	return &platform.CreateFunctionResult{
 		Port: functionInstance.Status.HTTPPort,
-	}, nil
+	}, "", nil
 }
 
 func waitForFunctionReadiness(loggerInstance logger.Logger,
@@ -204,7 +204,8 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 	return function, err
 }
 
-func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
+func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (string, string) {
+	var briefErrorMessage string
 	podLogsMessage := "\nPod logs:\n"
 
 	// list pods
@@ -213,8 +214,8 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 	})
 
 	if listPodErr != nil {
-		podLogsMessage += "Failed to list pods: " + listPodErr.Error() + "\n"
-		return podLogsMessage
+		podLogsMessage += fmt.Sprintf("Failed to list pods: %s\n", listPodErr.Error())
+		return podLogsMessage, ""
 	}
 
 	if len(functionPods.Items) == 0 {
@@ -222,36 +223,61 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 			namespace,
 			name)
 	} else {
+		var pod v1.Pod
 
-		// iterate over pods and get their logs
-		for _, pod := range functionPods.Items {
-			podLogsMessage += "\n* " + pod.Name + "\n"
-
-			logsRequest, getLogsErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).GetLogs(pod.Name, &v1.PodLogOptions{}).Stream()
-			if getLogsErr != nil {
-				podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
-				continue
+		// get the latest pod
+		for _, currentPod := range functionPods.Items {
+			if pod.ObjectMeta.CreationTimestamp.Before(&currentPod.ObjectMeta.CreationTimestamp) {
+				pod = currentPod
 			}
+		}
 
+		// get the pod logs
+		podLogsMessage += "\n* " + pod.Name + "\n"
+
+		maxLogLines := int64(MaxLogLines)
+		logsRequest, getLogsErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).Stream()
+		if getLogsErr != nil {
+			podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
+		} else {
 			scanner := bufio.NewScanner(logsRequest)
 
-			// get only first MaxLogLines logs
-			for i := 0; i < MaxLogLines; i++ {
+			// get the last MaxLogLines logs
+			var formattedProcessorLogs string
+			formattedProcessorLogs, briefErrorMessage = d.platform.GetProcessorLogsAndBriefError(scanner)
 
-				// check if there's a next line from logsRequest
-				if scanner.Scan() {
-
-					// read the current token and append to logs
-					podLogsMessage += scanner.Text()
-				} else {
-					break
-				}
-			}
+			podLogsMessage += formattedProcessorLogs
 
 			// close the stream
 			logsRequest.Close() // nolint: errcheck
 		}
+
+		podWarningEvents, err := d.getFunctionPodWarningEvents(namespace, pod.Name)
+		if err != nil {
+			podLogsMessage += "Failed to get pod warning events: " + err.Error() + "\n"
+		} else if briefErrorMessage == "" && podWarningEvents != "" {
+
+			// if there is no brief error message and there are warning events - add them
+			podLogsMessage += "\n* Warning events:\n" + podWarningEvents
+			briefErrorMessage += podWarningEvents
+		}
 	}
 
-	return podLogsMessage
+	return podLogsMessage, briefErrorMessage
+}
+
+func (d *deployer) getFunctionPodWarningEvents(namespace string, podName string) (string, error) {
+	eventList, err := d.consumer.kubeClientSet.CoreV1().Events(namespace).List(meta_v1.ListOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	var podWarningEvents string
+	for _, event := range eventList.Items {
+		if event.InvolvedObject.Name == podName && event.Type == "Warning" {
+			podWarningEvents += event.Message + "\n"
+		}
+	}
+
+	return podWarningEvents, nil
 }

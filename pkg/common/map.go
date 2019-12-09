@@ -1,7 +1,9 @@
 package common
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 )
@@ -100,4 +102,20 @@ func StringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func CreateKeyValuePairs(m map[string]string) string {
+	b := new(bytes.Buffer)
+	for key, value := range m {
+		fmt.Fprintf(b, "%s=\"%s\",\n", key, value) // nolint: errcheck
+	}
+
+	generatedString := b.String()
+
+	if len(generatedString) != 0 {
+
+		// remove last `,\n`
+		generatedString = generatedString[:len(generatedString)-3]
+	}
+	return generatedString
 }
