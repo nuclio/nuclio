@@ -20,18 +20,23 @@
          * @returns {Promise}
          */
         function importFile(file) {
+            var lng = i18next.language;
             var reader = new FileReader();
             var importDeferred = $q.defer();
 
             reader.onload = function () {
-                var importedData = YAML.parse(reader.result);
+                try {
+                    var importedData = YAML.parse(reader.result);
 
-                if (lodash.has(importedData, 'project')) {
-                    importProject(importedData.project, importDeferred);
-                } else if (lodash.has(importedData, 'projects')) {
-                    lodash.forEach(importedData.projects, function (project) {
-                        importProject(project, importDeferred);
-                    });
+                    if (lodash.has(importedData, 'project')) {
+                        importProject(importedData.project, importDeferred);
+                    } else if (lodash.has(importedData, 'projects')) {
+                        lodash.forEach(importedData.projects, function (project) {
+                            importProject(project, importDeferred);
+                        });
+                    }
+                } catch (error) {
+                    DialogsService.alert($i18next.t('common:ERROR_MSG.IMPORT_YAML_FILE', {lng: lng}));
                 }
             };
 
