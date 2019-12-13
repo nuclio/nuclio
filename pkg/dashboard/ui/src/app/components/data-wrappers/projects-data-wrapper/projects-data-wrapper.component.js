@@ -2,42 +2,26 @@
     'use strict';
 
     angular.module('nuclio.app')
-        .component('projectsFunctionsDataWrapper', {
-            templateUrl: 'data-wrappers/projects-functions-data-wrapper/projects-functions-data-wrapper.tpl.html',
-            controller: ProjectsFunctionsDataWrapperController
+        .component('projectsDataWrapper', {
+            templateUrl: 'data-wrappers/projects-data-wrapper/projects-data-wrapper.tpl.html',
+            controller: ProjectsDataWrapperController
         });
 
-    function ProjectsFunctionsDataWrapperController($q, $state, $i18next, i18next, lodash, DialogsService,
+    function ProjectsDataWrapperController($state, $i18next, i18next, lodash, DialogsService,
                                            NuclioProjectsDataService, NuclioFunctionsDataService) {
         var ctrl = this;
 
         ctrl.projects = [];
 
-        ctrl.createFunction = createFunction;
         ctrl.createProject = createProject;
-        ctrl.deleteFunction = deleteFunction;
         ctrl.deleteProject = deleteProject;
-        ctrl.getFunction = getFunction;
         ctrl.getFunctions = getFunctions;
-        ctrl.getProject = getProject;
         ctrl.getProjects = getProjects;
-        ctrl.getStatistics = getStatistics;
-        ctrl.updateFunction = updateFunction;
         ctrl.updateProject = updateProject;
 
         //
         // Public methods
         //
-
-        /**
-         * Deploys version
-         * @param {Object} version
-         * @param {string} projectID
-         * @returns {Promise}
-         */
-        function createFunction(version, projectID) {
-            return NuclioFunctionsDataService.createFunction(version, projectID);
-        }
 
         /**
          * Creates a new project on beck-end
@@ -46,15 +30,6 @@
          */
         function createProject(project) {
             return NuclioProjectsDataService.createProject(project);
-        }
-
-        /**
-         * Deletes function
-         * @param {Object} functionToDelete
-         * @returns {Promise}
-         */
-        function deleteFunction(functionToDelete) {
-            return NuclioFunctionsDataService.deleteFunction(functionToDelete);
         }
 
         /**
@@ -67,30 +42,12 @@
         }
 
         /**
-         * Gets a function
-         * @param {Object} metadata
-         * @returns {Promise}
-         */
-        function getFunction(metadata) {
-            return NuclioFunctionsDataService.getFunction(metadata);
-        }
-
-        /**
          * Gets functions list
          * @param {string} id - project's id
          * @returns {Promise}
          */
         function getFunctions(id) {
             return NuclioFunctionsDataService.getFunctions(id);
-        }
-
-        /**
-         * Gets a list of all project
-         * @param {string} id - project ID
-         * @returns {Promise}
-         */
-        function getProject(id) {
-            return NuclioProjectsDataService.getProject(id);
         }
 
         /**
@@ -115,24 +72,6 @@
                 .catch(function (error) {
                     DialogsService.alert($i18next.t('functions:ERROR_MSG.GET_PROJECTS', {lng: i18next.language}));
                 });
-        }
-
-        /**
-         * Gets statistics
-         * @returns {Promise}
-         */
-        function getStatistics() {
-            return $q.reject({msg: 'N/A'});
-        }
-
-        /**
-         * Updates function
-         * @param functionData
-         * @param projectID
-         * @returns {*|Promise}
-         */
-        function updateFunction(functionData, projectID) {
-            return NuclioFunctionsDataService.updateFunction(functionData, projectID);
         }
 
         /**
