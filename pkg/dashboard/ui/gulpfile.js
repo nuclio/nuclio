@@ -61,7 +61,6 @@ if (state.isDevMode) {
  * Make sure resources are built before app
  */
 var previewServer = iRequire(config.resources.previewServer);
-var errHandler = iRequire(config.resources.errHandler);
 
 //
 // ******* Tasks *******
@@ -470,7 +469,6 @@ gulp.task('stop-server', function (next) {
  */
 gulp.task('watcher', function () {
     state.isDevMode = true;
-    errHandler.resist();
     if (livereload !== null) {
         livereload.listen();
     }
