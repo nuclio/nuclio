@@ -206,7 +206,6 @@ module.exports = {
      * Config for resources
      */
     resources: {
-        previewServer: './resources/previewServer',
-        errHandler: './resources/gulpErrorHandler'
+        previewServer: './resources/previewServer'
     }
 };
