@@ -36,7 +36,7 @@
                 url: 'welcome',
                 views: {
                     main: {
-                        template: '<projects-welcome-page-data-wrapper></projects-welcome-page-data-wrapper>'
+                        template: '<ncl-projects-welcome-page></ncl-projects-welcome-page>'
                     }
                 },
                 data: {
@@ -48,7 +48,7 @@
                 url: 'projects',
                 views: {
                     main: {
-                        template: '<projects-data-wrapper></projects-data-wrapper>'
+                        template: '<ncl-projects></ncl-projects>'
                     }
                 },
                 data: {
