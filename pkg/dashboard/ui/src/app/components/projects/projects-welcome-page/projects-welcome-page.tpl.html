@@ -1,0 +1,24 @@
+<div class="projects-welcome-page">
+    <div class="create-new-project">
+        <div class="header">
+            {{ 'functions:GET_STARTED_WITH_YOUR_PROJECT' | i18next }}
+        </div>
+        <div class="description">
+            {{ 'functions:WELCOME_DESCRIPTION' | i18next }}
+        </div>
+        <div class="welcome-icon">
+            <div class="ellipse">
+                <div class="shape"></div>
+                <div class="shape-shadow"></div>
+            </div>
+        </div>
+        <div class="ncl-new-entity-button" data-ng-click="$ctrl.openNewProjectDialog()">
+            {{ 'functions:NEW_PROJECT' | i18next }}
+        </div>
+        <div class="ncl-new-entity-button"
+             ngf-select="$ctrl.importProject($file)"
+             accept=".yml, .yaml">
+            {{ 'functions:IMPORT_PROJECTS' | i18next }}
+        </div>
+    </div>
+</div>
