@@ -27,7 +27,7 @@ kubectl apply -f https://raw.githubusercontent.com/containous/traefik/v1.7/examp
 
 OR
 
-- Using Helm (Provided helm is installed):
+- Using Helm (provided helm is installed):
 ```sh
 helm install stable/traefik --name traefik --namespace kube-system
 ```
