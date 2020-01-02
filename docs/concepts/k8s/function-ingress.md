@@ -17,11 +17,19 @@ In addition to configuring a service, Nuclio creates a [Kubernetes ingress](http
 
 ## Setting up an ingress controller
 
-In this guide, you'll set up a [Træfik](https://docs.traefik.io/) controller, but any type of Kubernetes ingress controller should work. You can read [Træfik's excellent documentation](https://docs.traefik.io/user-guide/kubernetes/), but for the purposes of this guide you can simply run the following commands to set up the controller:
+In this guide, you'll set up a [Træfik](https://docs.traefik.io/) controller, but any type of Kubernetes ingress controller should work. You can read [Træfik's excellent documentation](https://docs.traefik.io/user-guides/crd-acme/), but for the purposes of this guide you can simply run the following commands to set up the controller in 1 of two ways:
 
+- Directly using the resource YAMLs (note this installs v1.7, and was removed on newer versions):
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/containous/traefik/master/examples/k8s/traefik-rbac.yaml
-kubectl apply -f https://raw.githubusercontent.com/containous/traefik/master/examples/k8s/traefik-deployment.yaml
+kubectl apply -f https://raw.githubusercontent.com/containous/traefik/v1.7/examples/k8s/traefik-rbac.yaml
+kubectl apply -f https://raw.githubusercontent.com/containous/traefik/v1.7/examples/k8s/traefik-deployment.yaml
+```
+
+OR
+
+- Using Helm (Provided helm is installed):
+```sh
+helm install stable/traefik --name traefik --namespace kube-system
 ```
 
 Verify that the controller is up by running the `kubectl --namespace=kube-system get pods` command, and then run the `kubectl describe service --namespace=kube-system traefik-ingress-service` command to get the ingress NodePort. Following is a sample output for NodePort 30019:
