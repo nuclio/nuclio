@@ -17,7 +17,8 @@ In addition to configuring a service, Nuclio creates a [Kubernetes ingress](http
 
 ## Setting up an ingress controller
 
-In this guide, you'll set up a [Træfik](https://docs.traefik.io/) controller, but any type of Kubernetes ingress controller should work. You can read [Træfik's excellent documentation](https://docs.traefik.io/user-guides/crd-acme/), but for the purposes of this guide you can simply run the following commands to set up the controller in 1 of two ways:
+In this guide, you'll set up a [Træfik](https://docs.traefik.io/) controller, but any type of Kubernetes ingress controller should work. You can read [Træfik's excellent documentation](https://docs.traefik.io/user-guides/crd-acme/), but for the purposes of this guide you can simply run the following 
+commands to set up the controller in one of two ways:
 
 - Directly using the resource YAMLs (note this installs v1.7, and was removed on newer versions):
 ```sh
