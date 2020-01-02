@@ -103,7 +103,7 @@ To read more about platform configuration [click here](../../docs/tasks/configur
 
 To use Grafana, you first need to install it in your cluster. 
 You'll do this by using `helm`, the package manager for Kubernetes, and the [Grafana chart](https://hub.kubeapps.com/charts/stable/grafana).
-If you are unfamiliar with `helm`, read more about it [here](https://docs.helm.sh/).
+If you are unfamiliar with `helm`, read more about it [here](https://helm.sh/docs/).
 
 To allow Grafana to display data from Application Insights, the [Azure Monitor plugin](https://grafana.com/plugins/grafana-azure-monitor-datasource), developed by Grafana, is required. 
 
