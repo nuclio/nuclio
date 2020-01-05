@@ -106,9 +106,13 @@ func (nf *NuclioFunction) GetComputedMaxReplicas() int32 {
 			} else {
 				return int32(*nf.Spec.MaxReplicas)
 			}
+		} else if nf.Spec.MinReplicas != nil {
+
+			// If neither Replicas nor MaxReplicas is given, but MinReplicas is given, default to it (default to no HPA)
+			return int32(*nf.Spec.MinReplicas)
 		} else {
 
-			// If neither Replicas nor MaxReplicas is given, default to 1
+			// If neither Replicas nor MaxReplicas nor MinReplicas is given, default to 1
 			return 1
 		}
 	}
