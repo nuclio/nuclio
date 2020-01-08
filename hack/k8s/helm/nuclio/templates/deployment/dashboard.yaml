@@ -57,9 +57,11 @@ spec:
         - name: NUCLIO_DASHBOARD_DEPLOYMENT_NAME
           value: {{ template "nuclio.dashboardName" . }}
         - name: NUCLIO_CONTAINER_BUILDER_KIND
-          value: "docker"
-#        - name: NUCLIO_KANIKO_INSECURE_REGISTRY
-#          value: "true"
+          value: "kaniko"
+        {{- if .Values.dashboard.insecureRegistry }}
+        - name: NUCLIO_KANIKO_INSECURE_REGISTRY
+          value: "true"
+        {{- end }}
 #        - name: NUCLIO_DASHBOARD_RUN_REGISTRY_URL
 #          value: "localhost:5000"
         {{- if eq .Values.dashboard.baseImagePullPolicy "Never" }}
