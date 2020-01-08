@@ -24,6 +24,9 @@ dashboard:
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
   httpIngressHostTemplate: ""
+
+  # Supported container builders: "kaniko", "docker"
+  containerBuilderKind: "kaniko"
   insecureRegistry: false
 
   # Uncomment to configure node port
