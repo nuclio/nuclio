@@ -26,7 +26,7 @@ dashboard:
   httpIngressHostTemplate: ""
 
   # Supported container builders: "kaniko", "docker"
-  containerBuilderKind: "kaniko"
+  containerBuilderKind: "docker"
   insecureRegistry: false
 
   # Uncomment to configure node port
