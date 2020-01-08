@@ -42,7 +42,7 @@ func (d *dotnetcore) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	artifact := runtime.Artifact{
 		Name: "dotnetcore-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-dotnetcore-onbuild:%s-%s",
-			d.GetRegistry(registryURL),
+			registryURL,
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{
@@ -55,7 +55,7 @@ func (d *dotnetcore) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "microsoft/dotnet:2-runtime"
+	processorDockerfileInfo.BaseImage = "mcr.microsoft.com/dotnet/core/runtime:3.1"
 
 	return &processorDockerfileInfo, nil
 }

@@ -29,7 +29,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/config"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -52,11 +54,12 @@ const Mib = 1048576
 
 // NewPlatform instantiates a new kubernetes platform
 func NewPlatform(parentLogger logger.Logger, kubeconfigPath string,
-	containerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration) (*Platform, error) {
+	containerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration,
+	platformConfiguration interface{}) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform)
+	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract platform")
 	}
@@ -135,17 +138,24 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
 
-	reportCreationError := func(creationError error) error {
+	reportCreationError := func(creationError error, briefErrorMessage string) error {
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
-
-		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
-			"errorStack", errorStack.String())
 
 		// cut messages that are too big
 		if errorStack.Len() >= 4*Mib {
 			errorStack.Truncate(4 * Mib)
 		}
+
+		// if no brief error message was passed, set it to be the last error
+		if briefErrorMessage == "" {
+			lastError := bytes.Buffer{}
+			errors.PrintErrorStack(&lastError, creationError, 1)
+			briefErrorMessage = lastError.String()
+		}
+
+		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
+			"errorStack", errorStack.String())
 
 		defaultHTTPPort := 0
 		if existingFunctionInstance != nil {
@@ -158,7 +168,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			FunctionStatus: &functionconfig.Status{
 				HTTPPort: defaultHTTPPort,
 				State:    functionconfig.FunctionStateError,
-				Message:  errorStack.String(),
+				Message:  briefErrorMessage,
 			},
 		})
 	}
@@ -207,16 +217,20 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		if buildErr != nil {
 
 			// try to report the error
-			reportCreationError(buildErr) // nolint: errcheck
+			reportCreationError(buildErr, "") // nolint: errcheck
 
 			return nil, buildErr
 		}
 
-		createFunctionResult, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
+		if err := p.setScaleToZeroSpec(&createFunctionOptions.FunctionConfig.Spec); err != nil {
+			return nil, errors.Wrap(err, "Failed setting scale to zero spec")
+		}
+
+		createFunctionResult, briefErrorMessage, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
 		if deployErr != nil {
 
 			// try to report the error
-			reportCreationError(deployErr) // nolint: errcheck
+			reportCreationError(deployErr, briefErrorMessage) // nolint: errcheck
 
 			return nil, deployErr
 		}
@@ -640,6 +654,47 @@ func (p *Platform) GetNamespaces() ([]string, error) {
 
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{}, nil
+}
+
+func (p *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error) {
+	switch configType := p.Config.(type) {
+	case *platformconfig.Config:
+		return &configType.ScaleToZero, nil
+
+	// FIXME: When deploying using nuctl in a kubernetes environment, it will be a kube platform, but the configuration
+	// will be of type *config.Configuration which has no scale to zero configuration
+	// we need to fix the platform config (p.Config) to always be of the same type (*platformconfig.Config) and not
+	// passing interface{} everywhere
+	case *config.Configuration:
+		return nil, nil
+	default:
+		return nil, errors.New("Not a valid configuration instance")
+	}
+}
+
+func (p *Platform) setScaleToZeroSpec(functionSpec *functionconfig.Spec) error {
+
+	// If function already has scale to zero spec, don't override it
+	if functionSpec.ScaleToZero != nil {
+		return nil
+	}
+
+	scaleToZeroConfiguration, err := p.GetScaleToZeroConfiguration()
+	if err != nil {
+		return errors.Wrap(err, "Failed getting scale to zero configuration")
+	}
+
+	if scaleToZeroConfiguration == nil {
+		return nil
+	}
+
+	if scaleToZeroConfiguration.Mode == platformconfig.EnabledScaleToZeroMode {
+		functionSpec.ScaleToZero = &functionconfig.ScaleToZeroSpec{
+			ScaleResources: scaleToZeroConfiguration.ScaleResources,
+		}
+	}
+
+	return nil
 }
 
 func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction, error) {

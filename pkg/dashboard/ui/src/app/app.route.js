@@ -36,7 +36,7 @@
                 url: 'welcome',
                 views: {
                     main: {
-                        template: '<projects-welcome-page-data-wrapper></projects-welcome-page-data-wrapper>'
+                        template: '<ncl-projects-welcome-page></ncl-projects-welcome-page>'
                     }
                 },
                 data: {
@@ -48,7 +48,7 @@
                 url: 'projects',
                 views: {
                     main: {
-                        template: '<projects-functions-data-wrapper></projects-functions-data-wrapper>'
+                        template: '<ncl-projects></ncl-projects>'
                     }
                 },
                 data: {
@@ -72,7 +72,7 @@
                     capability: 'projects'
                 },
                 params: {
-                    navigatedFrom: '/'
+                    navigatedFrom: ''
                 }
             })
             .state('app.project', {
@@ -95,7 +95,7 @@
                 url: '/functions',
                 views: {
                     project: {
-                        template: '<projects-functions-data-wrapper></projects-functions-data-wrapper>'
+                        template: '<functions-data-wrapper></functions-data-wrapper>'
                     }
                 },
                 data: {

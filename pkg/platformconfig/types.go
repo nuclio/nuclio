@@ -63,11 +63,19 @@ type MetricSink struct {
 }
 
 type ScaleToZero struct {
-	MetricName     string `json:"metricName,omitempty"`
-	WindowSize     string `json:"windowSize,omitempty"`
-	PollerInterval string `json:"pollerInterval,omitempty"`
-	ScalerInterval string `json:"scalerInterval,omitempty"`
+	Mode                     ScaleToZeroMode                `json:"mode,omitempty"`
+	ScalerInterval           string                         `json:"scalerInterval,omitempty"`
+	ResourceReadinessTimeout string                         `json:"resourceReadinessTimeout,omitempty"`
+	ScaleResources           []functionconfig.ScaleResource `json:"scaleResources,omitempty"`
+	InactivityWindowPresets  []string                       `json:"inactivityWindowPresets,omitempty"`
 }
+
+type ScaleToZeroMode string
+
+const (
+	EnabledScaleToZeroMode  ScaleToZeroMode = "enabled"
+	DisabledScaleToZeroMode ScaleToZeroMode = "disabled"
+)
 
 type AutoScale struct {
 	MetricName  string `json:"metricName,omitempty"`

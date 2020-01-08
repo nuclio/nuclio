@@ -48,7 +48,7 @@ func NewConfiguration(ID string,
 	}
 
 	if newConfiguration.ReadBufferSize == 0 {
-		newConfiguration.ReadBufferSize = 4 * 1024
+		newConfiguration.ReadBufferSize = 16 * 1024
 	}
 
 	return &newConfiguration, nil

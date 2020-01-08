@@ -1,0 +1,23 @@
+<div class="ncl-project-table-row">
+    <div class="common-table-row">
+        <div class="common-table-cell igz-col-3">
+            <igz-action-checkbox data-item="$ctrl.project"
+                                 data-item-type="projects">
+            </igz-action-checkbox>
+        </div>
+        <div class="igz-row common-table-cells-container inactive-state"
+             data-ng-click="$ctrl.onSelectRow($event)">
+            <div class="igz-col-25 common-table-cell project-name">
+                {{$ctrl.project.spec.displayName || $ctrl.project.metadata.name}}
+            </div>
+            <div class="igz-col-75 common-table-cell description">
+                {{$ctrl.project.spec.description}}
+            </div>
+        </div>
+        <div class="common-table-cell actions-menu">
+            <igz-action-menu data-actions="$ctrl.projectActions"
+                             data-on-fire-action="$ctrl.onFireAction">
+            </igz-action-menu>
+        </div>
+    </div>
+</div>

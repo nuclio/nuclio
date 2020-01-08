@@ -4,8 +4,10 @@
     angular.module('nuclio.app')
         .factory('ImportService', ImportService);
 
-    function ImportService($q, $i18next, i18next, DialogsService, NuclioFunctionsDataService,
-                           NuclioProjectsDataService, lodash, YAML) {
+    function ImportService($q, $i18next, i18next, lodash, YAML, DialogsService, NuclioFunctionsDataService,
+                           NuclioProjectsDataService) {
+        var lng = i18next.language;
+
         return {
             importFile: importFile
         };
@@ -15,28 +17,35 @@
         //
 
         /**
-         * Imports YAML file and imports one or more projects
-         * @param {Object} file
+         * Imports YAML file and imports one or more projects and their functions
+         * @param {Blob} file
          * @returns {Promise}
          */
         function importFile(file) {
-            var reader = new FileReader();
-            var importDeferred = $q.defer();
+            return $q(function (resolve, reject) {
+                var reader = new FileReader();
 
-            reader.onload = function () {
-                var importedData = YAML.parse(reader.result);
+                reader.onload = function () {
+                    try {
+                        var importedData = YAML.parse(reader.result);
 
-                if (lodash.has(importedData, 'project')) {
-                    importProject(importedData.project, importDeferred);
-                } else if (lodash.has(importedData, 'projects')) {
-                    lodash.forEach(importedData.projects, function (project) {
-                        importProject(project, importDeferred);
-                    });
-                }
-            };
+                        if (lodash.has(importedData, 'project')) {
+                            importProject(importedData.project, resolve, reject);
+                        } else if (lodash.has(importedData, 'projects')) {
+                            lodash.forEach(importedData.projects, function (project) {
+                                importProject(project, resolve, reject);
+                            });
+                        }
+                    } catch (error) {
+                        DialogsService.alert($i18next.t('common:ERROR_MSG.IMPORT_YAML_FILE', {lng: lng}))
+                            .then(function () {
+                                reject(error)
+                            });
+                    }
+                };
 
-            reader.readAsText(file);
-            return importDeferred.promise;
+                reader.readAsText(file);
+            });
         }
 
         //
@@ -46,27 +55,45 @@
         /**
          * Imports new project and deploy all functions of this project
          * @param {Object} project
-         * @param {Object} promise
+         * @param {function} [onSuccess] - a callback function to call on success (no arguments passed)
+         * @param {function} [onFailure] - a callback function to call on failure (the error is passed as 1st argument)
          */
-        function importProject(project, promise) {
-            var projectName = lodash.get(project, 'metadata.name');
+        function importProject(project, onSuccess, onFailure) {
             var projectData = lodash.omit(project, 'spec.functions');
 
-            NuclioProjectsDataService.createProject(projectData).then(function () {
-                NuclioProjectsDataService.getProjects().then(function (response) {
+            NuclioProjectsDataService.createProject(projectData)
+                .catch(function (error) {
+
+                    // swallow "409 Conflict" errors
+                    // if a project with the same name already exist - merge its functions
+                    // for any other kind of error - rethrow error
+                    if (error.status !== 409) {
+                        throw error;
+                    }
+                })
+                .then(function () {
+                    return NuclioProjectsDataService.getProjects();
+                })
+                .then(function () {
+                    var projectName = lodash.get(project, 'metadata.name');
                     var functions = lodash.get(project, 'spec.functions');
-                    var currentProject = lodash.find(response, ['metadata.name', projectName]);
-                    var projectID = lodash.get(currentProject, 'metadata.name');
 
                     lodash.forEach(functions, function (func) {
-                        NuclioFunctionsDataService.createFunction(func, projectID);
+                        NuclioFunctionsDataService.createFunction(func, projectName);
                     });
 
-                    promise.resolve();
+                    if (lodash.isFunction(onSuccess)) {
+                        onSuccess()
+                    }
+                })
+                .catch(function (error) {
+                    DialogsService.alert($i18next.t('common:ERROR_MSG.IMPORT_PROJECT', {lng: lng}))
+                        .then(function () {
+                            if (lodash.isFunction(onFailure)) {
+                                onFailure(error)
+                            }
+                        });
                 });
-            }).catch(function () {
-                DialogsService.alert($i18next.t('common:ERROR_MSG.IMPORT_PROJECT', {lng: i18next.language}));
-            });
         }
     }
 }());

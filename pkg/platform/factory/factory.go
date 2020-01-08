@@ -24,17 +24,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/config"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/local"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/logger"
 )
-
-type Configuration struct {
-	KubeconfigPath                string
-	ContainerBuilderConfiguration containerimagebuilderpusher.ContainerBuilderConfiguration
-}
 
 // CreatePlatform creates a platform based on a requested type (platformType) and configuration it receives
 // and probes
@@ -48,11 +44,11 @@ func CreatePlatform(parentLogger logger.Logger,
 
 	switch platformType {
 	case "local":
-		newPlatform, err = local.NewPlatform(parentLogger)
+		newPlatform, err = local.NewPlatform(parentLogger, platformConfiguration)
 
 	case "kube":
 		containerBuilderConfiguration := getContainerBuilderConfiguration(platformConfiguration)
-		newPlatform, err = kube.NewPlatform(parentLogger, getKubeconfigPath(platformConfiguration), containerBuilderConfiguration)
+		newPlatform, err = kube.NewPlatform(parentLogger, getKubeconfigPath(platformConfiguration), containerBuilderConfiguration, platformConfiguration)
 
 	case "auto":
 
@@ -133,8 +129,8 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 	if platformConfiguration != nil {
 
 		// it might not be a kube configuration
-		if _, ok := platformConfiguration.(*Configuration); ok {
-			containerBuilderConfiguration = platformConfiguration.(*Configuration).ContainerBuilderConfiguration
+		if _, ok := platformConfiguration.(*config.Configuration); ok {
+			containerBuilderConfiguration = platformConfiguration.(*config.Configuration).ContainerBuilderConfiguration
 		}
 	}
 
@@ -167,8 +163,8 @@ func getKubeconfigPath(platformConfiguration interface{}) string {
 	if platformConfiguration != nil {
 
 		// it might not be a kube configuration
-		if _, ok := platformConfiguration.(*Configuration); ok {
-			kubeconfigPath = platformConfiguration.(*Configuration).KubeconfigPath
+		if _, ok := platformConfiguration.(*config.Configuration); ok {
+			kubeconfigPath = platformConfiguration.(*config.Configuration).KubeconfigPath
 		}
 	}
 

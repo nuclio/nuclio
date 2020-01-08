@@ -18,6 +18,7 @@ package platform
 
 import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )
 
@@ -108,6 +109,9 @@ type Platform interface {
 
 	GetDefaultHTTPIngressHostTemplate() string
 
+	// Get scale to zero configuration
+	GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error)
+
 	// GetNamespaces returns all the namespaces in the platform
 	GetNamespaces() ([]string, error)
 
@@ -131,4 +135,7 @@ type Platform interface {
 
 	// Change Onbuild artifact paths depending on the type of the builder used
 	TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error)
+
+	// GetBaseImageRegistry returns onbuild base registry
+	GetBaseImageRegistry(registry string) string
 }

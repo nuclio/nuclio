@@ -94,15 +94,12 @@ helm-publish:
 
 # tools get built with the specified OS/arch and inject version
 GO_BUILD_TOOL_WORKDIR = /go/src/github.com/nuclio/nuclio
-GO_BUILD_TOOL = docker run \
-	--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
-	--volume $(shell pwd)/../nuclio-sdk-go:$(GO_BUILD_TOOL_WORKDIR)/../nuclio-sdk-go \
-	--volume $(shell pwd)/../logger:$(GO_BUILD_TOOL_WORKDIR)/../logger \
+GO_BUILD_TOOL_DOCKER = docker build -f hack/docker/tool-builder/Dockerfile -t nuclio-tool-builder:$(NUCLIO_LABEL) .
+GO_BUILD_NUCTL = docker run \
 	--volume $(GOPATH)/bin:/go/bin \
-	--workdir $(GO_BUILD_TOOL_WORKDIR) \
 	--env GOOS=$(NUCLIO_OS) \
 	--env GOARCH=$(NUCLIO_ARCH) \
-	golang:1.12 \
+	nuclio-tool-builder:$(NUCLIO_LABEL) \
 	go build -a \
 	-installsuffix cgo \
 	-ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
@@ -152,7 +149,8 @@ NUCTL_BIN_NAME = nuctl-$(NUCLIO_LABEL)-$(NUCLIO_OS)-$(NUCLIO_ARCH)
 NUCTL_TARGET = $(GOPATH)/bin/nuctl
 
 nuctl: ensure-gopath
-	$(GO_BUILD_TOOL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
+	$(GO_BUILD_TOOL_DOCKER)
+	$(GO_BUILD_NUCTL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 	@rm -f $(NUCTL_TARGET)
 	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
 

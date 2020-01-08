@@ -1084,7 +1084,8 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	spec *v1.ServiceSpec) {
 
-	if function.Status.State == functionconfig.FunctionStateScaledToZero {
+	if function.Status.State == functionconfig.FunctionStateScaledToZero ||
+		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero {
 
 		// pass all further requests to DLX service
 		spec.Selector = map[string]string{"nuclio.io/app": "dlx"}

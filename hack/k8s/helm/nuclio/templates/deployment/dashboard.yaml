@@ -82,6 +82,8 @@ spec:
         {{- end }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ .Values.dashboard.externalIPAddresses | join "," | quote }}
+        - name: NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE
+          value: {{ .Values.dashboard.httpIngressHostTemplate | quote }}
       volumes:
       - name: docker-sock
         hostPath:

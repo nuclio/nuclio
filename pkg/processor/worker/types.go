@@ -27,7 +27,7 @@ type AllocatorStatistics struct {
 	WorkerAllocationSuccessAfterWaitTotal       uint64
 	WorkerAllocationTimeoutTotal                uint64
 	WorkerAllocationWaitDurationMilliSecondsSum uint64
-	WorkerAllocationWorkersAvailableTotal       uint64
+	WorkerAllocationWorkersAvailablePercentage  uint64
 }
 
 func (s *AllocatorStatistics) DiffFrom(prev *AllocatorStatistics) AllocatorStatistics {
@@ -37,6 +37,6 @@ func (s *AllocatorStatistics) DiffFrom(prev *AllocatorStatistics) AllocatorStati
 		WorkerAllocationSuccessAfterWaitTotal:       s.WorkerAllocationSuccessAfterWaitTotal - prev.WorkerAllocationSuccessAfterWaitTotal,
 		WorkerAllocationTimeoutTotal:                s.WorkerAllocationTimeoutTotal - prev.WorkerAllocationTimeoutTotal,
 		WorkerAllocationWaitDurationMilliSecondsSum: s.WorkerAllocationWaitDurationMilliSecondsSum - prev.WorkerAllocationWaitDurationMilliSecondsSum,
-		WorkerAllocationWorkersAvailableTotal:       s.WorkerAllocationWorkersAvailableTotal - prev.WorkerAllocationWorkersAvailableTotal,
+		WorkerAllocationWorkersAvailablePercentage:  s.WorkerAllocationWorkersAvailablePercentage - prev.WorkerAllocationWorkersAvailablePercentage,
 	}
 }

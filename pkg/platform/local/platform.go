@@ -58,11 +58,11 @@ type Platform struct {
 const Mib = 1048576
 
 // NewPlatform instantiates a new local platform
-func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
+func NewPlatform(parentLogger logger.Logger, platformConfiguration interface{}) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform)
+	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract platform")
 	}

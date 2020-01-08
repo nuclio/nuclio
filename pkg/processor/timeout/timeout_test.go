@@ -98,7 +98,7 @@ func (suite *eventTimeoutSuite) TestWatcher() {
 
 	timeout := time.Millisecond
 	NewEventTimeoutWatcher(logger, timeout, mockProcessor)
-	time.Sleep(3 * timeout) // Give watcher time to work
+	time.Sleep(5 * timeout) // Give watcher time to work
 
 	mockTrigger.AssertExpectations(suite.T())
 	mockProcessor.AssertExpectations(suite.T())

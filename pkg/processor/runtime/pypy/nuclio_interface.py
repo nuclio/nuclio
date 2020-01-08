@@ -240,8 +240,8 @@ def load_module(name):
 
 
 def load_handler(handler):
-    """Load handler function from handler.
-
+    """
+    Load handler function from handler.
     handler is in the format 'module.sub:handler_name'
     """
     # 'app.handler:reverser'

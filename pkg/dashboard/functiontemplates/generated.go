@@ -8,7 +8,8 @@ The following functions are included for each supported runtime:
 dotnetcore (2): helloworld, reverser
 golang (5):     eventhub, helloworld, image, rabbitmq, regexscan
 nodejs (1):     dates
-python (4):     encrypt, facerecognizer, helloworld, tensorflow
+python (5):     encrypt, facerecognizer, helloworld, sentiments, tensorflow
+shell (1):      img-convert
 */
 
 package functiontemplates
@@ -21,7 +22,7 @@ import (
 
 var GeneratedFunctionTemplates = []*generatedFunctionTemplate{
 	{
-		Name: "eventhub:b01dc609-8660-47e1-a107-466d9e56e8f5",
+		Name: "eventhub:3dc2fc71-92cf-4ee0-ab1a-c8e6be5ec940",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -48,6 +49,7 @@ spec:
       url: ""
   description: |
     An Azure Event Hub triggered function with a configuration that connects to an Azure Event Hub. The function reads messages from two partitions, process the messages, invokes another function, and sends the processed payload to another Azure Event Hub.
+  eventTimeout: ""
   handler: main:SensorHandler
   maxReplicas: 1
   minReplicas: 1
@@ -191,11 +193,12 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 `,
 	},
 	{
-		Name: "helloworld:8662effe-f0b5-4fd0-83f4-14a6c64b0815",
+		Name: "helloworld:c22b2b9b-d0fc-4e0e-a891-6b0ab89865b0",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
   description: Showcases unstructured logging and a structured response.
+  eventTimeout: ""
   handler: main:Handler
   maxReplicas: 1
   minReplicas: 1
@@ -231,18 +234,19 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	return nuclio.Response{
 		StatusCode:  200,
 		ContentType: "application/text",
-		Body:        []byte("Hello, from nuclio :]"),
+		Body:        []byte("Hello, from Nuclio :]"),
 	}, nil
 }
 `,
 	},
 	{
-		Name: "image:5888ab9c-db3f-437e-8824-1d10faf9a650",
+		Name: "image:1fda4adf-c9ac-4040-abc3-d506b5eaff8a",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
   description: |
     Demonstrates how to pass a binary-large object (blob) in an HTTP request body and response. Defines an HTTP request that accepts a binary image or URL as input, converts the input to the target format and size, and returns the converted image in the HTTP response.
+  eventTimeout: ""
   handler: main:Handler
   maxReplicas: 1
   minReplicas: 1
@@ -344,12 +348,13 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "rabbitmq:82452d6f-86f0-48cb-9983-d085bbac0c57",
+		Name: "rabbitmq:3f66665c-f5b9-4d4f-89ea-daf671bef2b0",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
   description: |
     A multi-trigger function with a configuration that connects to RabbitMQ to read messages and write them to local ephemeral storage. If triggered with an HTTP GET request, the function returns the messages that it read from RabbitMQ.
+  eventTimeout: ""
   handler: main:Handler
   maxReplicas: 1
   minReplicas: 1
@@ -455,12 +460,13 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "regexscan:cd109917-19f1-45fe-addd-6bb3511e8e9b",
+		Name: "regexscan:f4e94a9a-a33b-4c58-a72b-eae501e95036",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
   description: |
     Uses regular expressions to find patterns of social-security numbers (SSN), credit-card numbers, etc., using text input.
+  eventTimeout: ""
   handler: main:Handler
   maxReplicas: 1
   minReplicas: 1
@@ -536,16 +542,167 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "encrypt:4212354b-c353-42cf-8807-9d148d05ea0e",
+		Name: "dates:606538a5-0404-4adf-b8be-120751d124e3",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
     commands:
-    - apk update
-    - apk add --no-cache gcc g++ make libffi-dev openssl-dev
+    - npm install --global moment
+  description: |
+    Uses moment.js (which is installed as part of the build) to add a specified amount of time to "now", and returns this amount as a string.
+  eventTimeout: ""
+  handler: handler
+  maxReplicas: 1
+  minReplicas: 1
+  platform: {}
+  resources: {}
+  runtime: nodejs
+`),
+		SourceCode: `/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// Uses moment.js (installed as part of the build) to add a given amount of time
+// to "now", and returns this as string. Invoke with a JSON containing:
+//  - value: some number
+//  - unit: some momentjs unit, as a string - e.g. days, d, hours, miliseconds
+//
+// For example, the following will add 3 hours to current time and return the response:
+// {
+//     "value": 3,
+//     "unit": "hours"
+// }
+//
+
+var moment = require('moment');
+
+exports.handler = function(context, event) {
+    var request = JSON.parse(event.body);
+    var now = moment();
+
+    context.logger.infoWith('Adding to now', {
+        'request': request,
+        'to': now.format()
+    });
+
+    now.add(request.value, request.unit);
+
+    context.callback(now.format());
+};
+`,
+	},
+	{
+		Name: "helloworld:63484c5a-0db2-415c-afed-793571819197",
+		Configuration: unmarshalConfig(`metadata: {}
+spec:
+  build: {}
+  description: Showcases unstructured logging and a structured response.
+  eventTimeout: ""
+  handler: nuclio:main
+  maxReplicas: 1
+  minReplicas: 1
+  platform: {}
+  resources: {}
+  runtime: dotnetcore
+`),
+		SourceCode: `//  Copyright 2017 The Nuclio Authors.
+// 
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+// 
+//      http://www.apache.org/licenses/LICENSE-2.0
+// 
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
+
+using System;
+using Nuclio.Sdk;
+
+public class nuclio
+{
+    public object main(Context context, Event eventBase)
+    {
+        context.Logger.Info("This is an unstructured {0}", "log");
+        context.Logger.InfoWith("This is a", "structured", "log");
+        return new Response()
+        {
+            StatusCode = 200,
+            ContentType = "application/text",
+            Body = "Hello, from nuclio"
+        };
+    }
+}
+`,
+	},
+	{
+		Name: "reverser:b7120d99-8fc1-4839-bbe4-ef130583c438",
+		Configuration: unmarshalConfig(`metadata: {}
+spec:
+  build: {}
+  description: Returns the reverse of the body received in the event.
+  eventTimeout: ""
+  handler: nuclio:reverser
+  maxReplicas: 1
+  minReplicas: 1
+  platform: {}
+  resources: {}
+  runtime: dotnetcore
+`),
+		SourceCode: `//  Copyright 2017 The Nuclio Authors.
+// 
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+// 
+//      http://www.apache.org/licenses/LICENSE-2.0
+// 
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
+
+using System;
+using Nuclio.Sdk;
+
+public class nuclio
+{
+    public string reverser(Context context, Event eventBase)
+    {
+        var charArray = eventBase.GetBody().ToCharArray();
+        Array.Reverse(charArray);
+
+        return new string(charArray);
+    }
+}
+`,
+	},
+	{
+		Name: "encrypt:7937244f-f637-4ce1-9031-a6e72d0ac873",
+		Configuration: unmarshalConfig(`metadata: {}
+spec:
+  build:
+    commands:
     - pip install simple-crypt
   description: |
     Uses a third-party Python package to encrypt the event body, and showcases build commands for installing both OS-level and Python packages.
+  eventTimeout: ""
   handler: encrypt:encrypt
   maxReplicas: 1
   minReplicas: 1
@@ -579,6 +736,7 @@ spec:
 import os
 import simplecrypt
 
+
 def encrypt(context, event):
 	context.logger.info('Using secret to encrypt body')
 
@@ -596,7 +754,7 @@ def encrypt(context, event):
 `,
 	},
 	{
-		Name: "facerecognizer:0779fae3-8d21-4f8b-b17e-3bbf38c878b2",
+		Name: "facerecognizer:dfec0a3a-ea04-4055-a20b-879dbf9a2178",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -604,6 +762,7 @@ spec:
     - pip install cognitive_face tabulate inflection
   description: |
     Uses Microsoft's face API, configured with function environment variables. The function uses third-party Python packages, which are installed by using an inline configuration.
+  eventTimeout: ""
   handler: face:handler
   maxReplicas: 1
   minReplicas: 1
@@ -738,12 +897,13 @@ def _build_response(context, body, status_code):
 `,
 	},
 	{
-		Name: "helloworld:fff95d9f-81de-4c1b-8e11-a4102805bbb8",
+		Name: "helloworld:4043f7bf-0940-437d-badc-4cc9714dcad0",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
   description: Showcases unstructured logging and a structured response.
-  handler: main:handler
+  eventTimeout: ""
+  handler: helloworld:handler
   maxReplicas: 1
   minReplicas: 1
   platform: {}
@@ -764,17 +924,63 @@ spec:
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 def handler(context, event):
     context.logger.info('This is an unstructured log')
 
-    return context.Response(body='Hello, from Nuclio :]',
+    return context.Response(body='Hello, from nuclio :]',
                             headers={},
                             content_type='text/plain',
                             status_code=200)
 `,
 	},
 	{
-		Name: "tensorflow:1195a3aa-b6d8-4010-8454-18e6f1b515ed",
+		Name: "sentiments:f995f716-44e2-404c-9ba3-fcc9a21885f6",
+		Configuration: unmarshalConfig(`metadata: {}
+spec:
+  build:
+    commands:
+    - pip install requests vaderSentiment
+  description: Identifies sentiments in the body strings
+  eventTimeout: ""
+  handler: sentiments:handler
+  maxReplicas: 1
+  minReplicas: 1
+  platform: {}
+  resources: {}
+  runtime: python:3.6
+`),
+		SourceCode: `# Copyright 2017 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# uses vader lib (will be installed automatically via build commands) to identify sentiments in the body string
+# return score result in the form of: {'neg': 0.0, 'neu': 0.323, 'pos': 0.677, 'compound': 0.6369}
+
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+
+def handler(context, event):
+    body = event.body.decode('utf-8')
+    context.logger.debug_with('Analyzing ', 'sentence', body)
+    analyzer = SentimentIntensityAnalyzer()
+    score = analyzer.polarity_scores(body)
+    return str(score)
+`,
+	},
+	{
+		Name: "tensorflow:fdb23977-7834-4a4b-9476-6350098912d9",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -787,8 +993,9 @@ spec:
     - rm inception-2015-12-05.tgz
     - pip install requests numpy tensorflow
   description: |
-    Uses the inception model of the TensorFlow open-source machine-learning library to classify images. The function demonstrates advanced uses of Nuclio with a custom base image, third-party Python packages, pre-loading data into function memory (the AI Model), structured logging, and exception handling.
-  handler: main:classify
+    Uses the inception model of the TensorFlow open-source machine-learning library to classify images. The function demonstrates advanced uses of nuclio with a custom base image, third-party Python packages, pre-loading data into function memory (the AI Model), structured logging, and exception handling.
+  eventTimeout: ""
+  handler: tensor:classify
   maxReplicas: 1
   minReplicas: 1
   platform: {}
@@ -810,7 +1017,7 @@ spec:
 # limitations under the License.
 #
 # This function uses TensorFlow to perform image recognition.
-# It takes advantage of Nuclio's inline configuration to indicate
+# It takes advantage of nuclio's inline configuration to indicate
 # its pip dependencies, as well as the linux distribution
 # to use for the deployed function's container.
 #
@@ -1168,152 +1375,72 @@ t.start()
 `,
 	},
 	{
-		Name: "dates:f73e97cd-b051-4bc5-90cf-b2be94d0c22c",
+		Name: "img-convert:638ea5f8-098b-4c3c-b873-09adb6395ef4",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
     commands:
-    - npm install --global moment
-  description: |
-    Uses moment.js (which is installed as part of the build) to add a specified amount of time to "now", and returns this amount as a string.
-  handler: handler
-  maxReplicas: 1
-  minReplicas: 1
+    - apk --update --no-cache add imagemagick
+  description: Resize image to 50% using ImageMagick
+  eventTimeout: ""
+  handler: img-convert.sh:main
   platform: {}
   resources: {}
-  runtime: nodejs
+  runtime: shell
 `),
-		SourceCode: `/*
-Copyright 2017 The Nuclio Authors.
+		SourceCode: `# Copyright 2017 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+#
+# Demonstrates running a shell script. In this case, ImageMagick is installed on build and "convert"
+# is called for each event with stdin as the input (by default, this is fed with the event body).
+#
+# NOTE:
+#
+# This can be achieved without a wrapper script by specifying the "convert" binary as the handler. To do this
+# with nuctl you would run (pass --platform local if you're using the local platform):
+#
+# nuctl deploy -p /dev/null convert \
+#     --runtime shell \
+#     --handler convert \
+#     --runtime-attrs '{"arguments": "- -resize 50% fd:1"}' \
+#     --build-command "apk --update --no-cache add imagemagick"
+#
+# Doing so gives you much greater flexibility than a wrapper script because the arguments can be changed per event.
+# If X-nuclio-arguments does not exist in the event headers, the default arguments passed to convert tells it to
+# reduce the image to 50%. To run any other mode or any other setting, simply provide this header (note that this is
+# unsanitized). For example, to reduce the received image to 10% of its size, set X-nuclio-arguments to
+# "- -resize 10% fd:1"
+#
 
-    http://www.apache.org/licenses/LICENSE-2.0
+# @nuclio.configure
+#
+# function.yaml:
+#   apiVersion: "nuclio.io/v1beta1"
+#   kind: "NuclioFunction"
+#   spec:
+#     runtime: "shell"
+#     handler: "img-convert.sh:main"
+#     description: "Resize image to 50% using ImageMagick"
+#
+#     build:
+#       commands:
+#       - "apk --update --no-cache add imagemagick"
+#
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-// Uses moment.js (installed as part of the build) to add a given amount of time
-// to "now", and returns this as string. Invoke with a JSON containing:
-//  - value: some number
-//  - unit: some momentjs unit, as a string - e.g. days, d, hours, miliseconds
-//
-// For example, the following will add 3 hours to current time and return the response:
-// {
-//     "value": 3,
-//     "unit": "hours"
-// }
-//
-
-var moment = require('moment');
-
-exports.handler = function(context, event) {
-    var request = JSON.parse(event.body);
-    var now = moment();
-
-    context.logger.infoWith('Adding to now', {
-        'request': request,
-        'to': now.format()
-    });
-
-    now.add(request.value, request.unit);
-
-    context.callback(now.format());
-};
-`,
-	},
-	{
-		Name: "helloworld:1d67577a-61e7-4a45-bc53-be625e67b678",
-		Configuration: unmarshalConfig(`metadata: {}
-spec:
-  build: {}
-  description: Showcases unstructured logging and a structured response.
-  handler: nuclio:main
-  maxReplicas: 1
-  minReplicas: 1
-  platform: {}
-  resources: {}
-  runtime: dotnetcore
-`),
-		SourceCode: `//  Copyright 2017 The Nuclio Authors.
-// 
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-// 
-//      http://www.apache.org/licenses/LICENSE-2.0
-// 
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
-
-using System;
-using Nuclio.Sdk;
-
-public class nuclio
-{
-    public object main(Context context, Event eventBase)
-    {
-        context.Logger.Info("This is an unstructured {0}", "log");
-        context.Logger.InfoWith("This is a", "structured", "log");
-        return new Response()
-        {
-            StatusCode = 200,
-            ContentType = "application/text",
-            Body = "Hello, from Nuclio"
-        };
-    }
-}
-`,
-	},
-	{
-		Name: "reverser:d3d1cc29-175b-451e-be93-694755bafd1f",
-		Configuration: unmarshalConfig(`metadata: {}
-spec:
-  build: {}
-  description: Returns the reverse of the body received in the event.
-  handler: nuclio:reverser
-  maxReplicas: 1
-  minReplicas: 1
-  platform: {}
-  resources: {}
-  runtime: dotnetcore
-`),
-		SourceCode: `//  Copyright 2017 The Nuclio Authors.
-// 
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-// 
-//      http://www.apache.org/licenses/LICENSE-2.0
-// 
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
-
-using System;
-using Nuclio.Sdk;
-
-public class nuclio
-{
-    public string reverser(Context context, Event eventBase)
-    {
-        var charArray = eventBase.GetBody().ToCharArray();
-        Array.Reverse(charArray);
-
-        return new string(charArray);
-    }
-}
+convert - -resize 50% fd:1
 `,
 	},
 }
