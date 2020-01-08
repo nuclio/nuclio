@@ -24,7 +24,7 @@ dashboard:
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
   httpIngressHostTemplate: ""
-  insecureRegistry: true
+  insecureRegistry: false
 
   # Uncomment to configure node port
   # nodePort: 32050
