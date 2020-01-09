@@ -25,6 +25,10 @@ dashboard:
   externalIPAddresses: []
   httpIngressHostTemplate: ""
 
+  # Supported container builders: "kaniko", "docker"
+  containerBuilderKind: "docker"
+  insecureRegistry: false
+
   # Uncomment to configure node port
   # nodePort: 32050
 
