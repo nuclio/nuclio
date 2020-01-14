@@ -7,7 +7,7 @@
             controller: CreateFunctionDataWrapperController
         });
 
-    function CreateFunctionDataWrapperController(lodash, YAML, NuclioProjectsDataService, NuclioFunctionsDataService) {
+    function CreateFunctionDataWrapperController($scope, lodash, ngDialog, YAML, NuclioProjectsDataService, NuclioFunctionsDataService) {
         var ctrl = this;
 
         ctrl.templates = {};
@@ -28,7 +28,17 @@
          * @returns {Promise}
          */
         function createProject(project) {
-            return NuclioProjectsDataService.createProject(project);
+            return ngDialog.open({
+                template: '<ncl-new-project-dialog data-close-dialog="closeThisDialog(project)" ' +
+                    'data-create-project-callback="ngDialogData.createProject({project: project})"></ncl-new-project-dialog>',
+                plain: true,
+                scope: $scope,
+                data: {
+                    createProject: NuclioProjectsDataService.createProject(project)
+                },
+                className: 'ngdialog-theme-nuclio'
+            })
+                .closePromise;
         }
 
         /**
