@@ -57,7 +57,20 @@ func newTrigger(parentLogger logger.Logger,
 		stop:            make(chan bool),
 	}
 
+	err = newTrigger.validateConfiguration()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to validate NATS trigger configuration")
+	}
+
 	return newTrigger, nil
+}
+
+func (n *nats) validateConfiguration() error {
+	if len(n.configuration.URL) < 7 || n.configuration.URL[:7] != "nats://" {
+		return errors.New("Invalid URL. Must begin with 'nats://'")
+	}
+
+	return nil
 }
 
 func (n *nats) Start(checkpoint functionconfig.Checkpoint) error {
