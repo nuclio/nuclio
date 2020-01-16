@@ -381,10 +381,20 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 	for scanner.Scan() {
 		currentLogLine, addToBriefErrorsLog, err := ap.prettifyProcessorLogLine(scanner.Bytes(), briefErrorsArray)
 		if err != nil {
+			rawLogLine := scanner.Text()
 
 			// when it is unstructured just add the log as a text
-			formattedProcessorLogs += scanner.Text() + "\n"
-			briefErrorsLog += scanner.Text() + "\n"
+			formattedProcessorLogs += rawLogLine + "\n"
+
+			// if this error was logged before - don't add it another time to the brief errors log
+			for _, briefError := range *briefErrorsArray {
+				if rawLogLine == briefError {
+					continue
+				}
+			}
+
+			*briefErrorsArray = append(*briefErrorsArray, rawLogLine)
+			briefErrorsLog += rawLogLine + "\n"
 			continue
 		}
 
@@ -459,10 +469,12 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte, briefErrorsArray *[]str
 
 	// When the log is info level and above - and the message begins with a failure word, we will treat this log as a warning
 	// Added this to handle failures logged by 3rd party components, which print failure logs as Info
+	failureWords := [...]string{"fail", "error"}
 	if logLevel == 'I' && len(*logStruct.Message) > 4 {
-		failureWords := []string{"fail", "error"}
 		for _, failureWord := range failureWords {
-			if strings.ToLower(*logStruct.Message) == failureWord {
+			if len(*logStruct.Message) > len(failureWord) &&
+				strings.ToLower(*logStruct.Message)[:len(failureWord)] == failureWord {
+
 				logLevel = 'W'
 				break
 			}
