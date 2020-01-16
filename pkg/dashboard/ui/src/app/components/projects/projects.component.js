@@ -64,7 +64,6 @@
         ctrl.versionActions = [];
 
         ctrl.$onInit = onInit;
-        ctrl.$onChanges = onChanges;
 
         ctrl.handleProjectAction = handleProjectAction;
         ctrl.importProject = importProject;
@@ -103,6 +102,7 @@
                     ctrl.isSplashShowed.value = false;
 
                     updatePanelActions();
+                    sortTableByColumn(ctrl.sortedColumnName, true);
                 });
 
             $scope.$on('action-panel_fire-action', onFireAction);
@@ -110,16 +110,6 @@
             $scope.$on('action-checkbox-all_check-all', updatePanelActions);
 
             $transitions.onStart({}, stateChangeStart);
-        }
-
-        /**
-         * Changes method
-         * @param {Object} changes
-         */
-        function onChanges(changes) {
-            if (angular.isDefined(changes.projects) && !lodash.isEmpty(changes.projects.currentValue)) {
-                ctrl.projects = $filter('orderBy')(ctrl.projects, getName, ctrl.isReverseSorting);
-            }
         }
 
         //
