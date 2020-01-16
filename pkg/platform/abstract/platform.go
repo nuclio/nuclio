@@ -35,6 +35,10 @@ import (
 	"github.com/nuclio/logger"
 )
 
+const (
+	triggerMaxWorkersLimit = 1000
+)
+
 //
 // Base for all platforms
 //
@@ -208,6 +212,16 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 
 	if len(projects) == 0 {
 		return errors.New("Project doesn't exist")
+	}
+
+	// Verify trigger's MaxWorkers value is making sense
+	for triggerName, trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
+		if trigger.MaxWorkers > triggerMaxWorkersLimit {
+			return errors.Errorf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
+				triggerName,
+				trigger.MaxWorkers,
+				triggerMaxWorkersLimit)
+		}
 	}
 
 	return nil
