@@ -454,6 +454,12 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, bool, error) {
 
 	logLevel := strings.ToUpper(*logStruct.Level)[0]
 
+	// When the log is info level and above - and the message begins with "Fail.." we will treat this log as a warning
+	// Added this to handle failures logged by 3rd party components, which print failure logs as Info
+	if logLevel == 'I' && len(*logStruct.Message) > 4 && (*logStruct.Message)[:4]=="Fail" {
+		logLevel = 'W'
+	}
+
 	res := fmt.Sprintf("[%s] (%c) %s",
 		parsedTime.Format("15:04:05.000"),
 		logLevel,
