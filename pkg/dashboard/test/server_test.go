@@ -1850,7 +1850,7 @@ func (suite *miscTestSuite) TestGetExternalIPAddresses() {
 func (suite *miscTestSuite) TestGetFrontendSpec() {
 	returnedAddresses := []string{"address1", "address2", "address3"}
 	defaultHTTPIngressHostTemplate := "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com"
-	imageNamePrefixTemplate := "{{ .ProjectName }}-{{ .FunctionName }}-{{ .ImageName }}"
+	imageNamePrefixTemplate := "{{ .ProjectName }}-{{ .FunctionName }}-"
 	scaleToZeroConfiguration := platformconfig.ScaleToZero{
 		Mode:                     platformconfig.EnabledScaleToZeroMode,
 		ScalerInterval:           "",
@@ -1889,7 +1889,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 	expectedResponseBody := `{
 		"externalIPAddresses":            	["address1", "address2", "address3"],
 		"defaultHTTPIngressHostTemplate":	"{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
-		"defaultHTTPIngressHostTemplate":	"{{ .ProjectName }}-{{ .FunctionName }}-{{ .ImageName }}",
+		"defaultHTTPIngressHostTemplate":	"{{ .ProjectName }}-{{ .FunctionName }}-",
 		"namespace":                      	"",
 		"scaleToZero":						{
 			"mode": "enabled",
