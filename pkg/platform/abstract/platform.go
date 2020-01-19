@@ -48,7 +48,7 @@ type Platform struct {
 	DeployLogStreams               map[string]*LogStream
 	ContainerBuilder               containerimagebuilderpusher.BuilderPusher
 	DefaultHTTPIngressHostTemplate string
-	ImageNameTemplate              string
+	ImageNamePrefixTemplate        string
 }
 
 func NewPlatform(parentLogger logger.Logger, platform platform.Platform, platformConfiguration interface{}) (*Platform, error) {
@@ -311,12 +311,12 @@ func (ap *Platform) GetDefaultHTTPIngressHostTemplate() string {
 	return ap.DefaultHTTPIngressHostTemplate
 }
 
-func (ap *Platform) SetImageNameTemplate(imageNameTemplate string) {
-	ap.ImageNameTemplate = imageNameTemplate
+func (ap *Platform) SetImageNamePrefixTemplate(imageNamePrefixTemplate string) {
+	ap.ImageNamePrefixTemplate = imageNamePrefixTemplate
 }
 
-func (ap *Platform) GetImageNameTemplate() string {
-	return ap.ImageNameTemplate
+func (ap *Platform) GetImageNamePrefixTemplate() string {
+	return ap.ImageNamePrefixTemplate
 }
 
 // GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
@@ -501,24 +501,36 @@ func (ap *Platform) enrichProjectName(createFunctionOptions *platform.CreateFunc
 
 // If a user specify the image name to be built - add "projectName-functionName-" prefix to it
 func (ap *Platform) enrichImageName(createFunctionOptions *platform.CreateFunctionOptions) error {
+	if ap.ImageNamePrefixTemplate == "" {
+		return nil
+	}
 	functionName := createFunctionOptions.FunctionConfig.Meta.Name
 	projectName := createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"]
-	imagePrefix := fmt.Sprintf("%s-%s", projectName, functionName)
 
 	functionBuildRequired, err := ap.functionBuildRequired(createFunctionOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed determining whether function should build")
 	}
 
-	// if we're going to build the image (it's not provided by the user) and the user asked for a custom image name
-	if functionBuildRequired && createFunctionOptions.FunctionConfig.Spec.Build.Image != "" {
+	// if build is not required or custom image name was not asked enrichment is irrelevant
+	if !functionBuildRequired || createFunctionOptions.FunctionConfig.Spec.Build.Image == "" {
+		return nil
+	}
 
-		// avoid re-enrichment
-		if !strings.HasPrefix(createFunctionOptions.FunctionConfig.Spec.Build.Image, imagePrefix) {
+	imagePrefix, err := common.RenderTemplate(ap.ImageNamePrefixTemplate, map[string]interface{}{
+		"ProjectName":  projectName,
+		"FunctionName": functionName,
+	})
 
-			createFunctionOptions.FunctionConfig.Spec.Build.Image = fmt.Sprintf("%s-%s-%s",
-				projectName, functionName, createFunctionOptions.FunctionConfig.Spec.Build.Image)
-		}
+	if err != nil {
+		return errors.Wrap(err, "Failed to render image name prefix template")
+	}
+
+	// avoid re-enrichment
+	if !strings.HasPrefix(createFunctionOptions.FunctionConfig.Spec.Build.Image, imagePrefix) {
+
+		createFunctionOptions.FunctionConfig.Spec.Build.Image = fmt.Sprintf("%s%s",
+			imagePrefix, createFunctionOptions.FunctionConfig.Spec.Build.Image)
 	}
 
 	return nil
