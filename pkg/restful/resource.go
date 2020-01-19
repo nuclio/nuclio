@@ -420,7 +420,7 @@ func (ar *AbstractResource) writeErrorReason(responseWriter io.Writer, err error
 	responseWriter.Write(serializedError) // nolint: errcheck
 }
 
-func (ar *AbstractResource) getStatusCodeFromError(err error, defaultStatusCode int) int {
+func (ar *AbstractResource) GetStatusCodeFromError(err error, defaultStatusCode int) int {
 	if err == nil {
 		return defaultStatusCode
 	}
@@ -448,7 +448,7 @@ func (ar *AbstractResource) writeStatusCodeAndErrorReason(responseWriter http.Re
 	defaultStatusCode int) bool {
 
 	// get the status code from the error
-	statusCode := ar.getStatusCodeFromError(err, defaultStatusCode)
+	statusCode := ar.GetStatusCodeFromError(err, defaultStatusCode)
 
 	// if the status code is an actual error, write the error reason and return
 	if ar.statusCodeIsError(statusCode) {
