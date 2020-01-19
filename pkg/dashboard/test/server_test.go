@@ -179,6 +179,11 @@ func (mp *mockPlatform) GetImageNamePrefixTemplate() string {
 	return args.Get(0).(string)
 }
 
+func (mp *mockPlatform) RenderImageNamePrefixTemplate(projectName string, functionName string) (string, error) {
+	args := mp.Called()
+	return args.Get(0).(string), args.Error(1)
+}
+
 // SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
 // If this is not invoked, each platform will try to discover these addresses automatically
 func (mp *mockPlatform) SetExternalIPAddresses(externalIPAddresses []string) error {
