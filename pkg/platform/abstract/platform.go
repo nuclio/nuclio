@@ -31,12 +31,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/logger"
-)
-
-const (
-	triggerMaxWorkersLimit = 1000
 )
 
 //
@@ -214,13 +211,13 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 		return errors.New("Project doesn't exist")
 	}
 
-	// Verify trigger's MaxWorkers value is making sense
-	for triggerName, trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
-		if trigger.MaxWorkers > triggerMaxWorkersLimit {
+	// Verify _trigger's MaxWorkers value is making sense
+	for triggerName, _trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
+		if _trigger.MaxWorkers > trigger.MaxWorkersLimit {
 			return errors.Errorf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
 				triggerName,
-				trigger.MaxWorkers,
-				triggerMaxWorkersLimit)
+				_trigger.MaxWorkers,
+				trigger.MaxWorkersLimit)
 		}
 	}
 
