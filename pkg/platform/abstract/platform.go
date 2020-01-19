@@ -180,7 +180,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	return deployResult, nil
 }
 
-// enrichment of create function options
+// Enrichment of create function options
 func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
 
 	if err := ap.enrichProjectName(createFunctionOptions); err != nil {
