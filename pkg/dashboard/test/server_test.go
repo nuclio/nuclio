@@ -170,6 +170,15 @@ func (mp *mockPlatform) GetDefaultHTTPIngressHostTemplate() string {
 	return args.Get(0).(string)
 }
 
+func (mp *mockPlatform) SetImageNameTemplate(imageNameTemplate string) {
+	mp.Called(imageNameTemplate)
+}
+
+func (mp *mockPlatform) GetImageNameTemplate() string {
+	args := mp.Called()
+	return args.Get(0).(string)
+}
+
 // SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
 // If this is not invoked, each platform will try to discover these addresses automatically
 func (mp *mockPlatform) SetExternalIPAddresses(externalIPAddresses []string) error {
@@ -276,6 +285,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 		true,
 		templateRepository,
 		nil,
+		"",
 		"",
 		"",
 		"")
@@ -1840,6 +1850,7 @@ func (suite *miscTestSuite) TestGetExternalIPAddresses() {
 func (suite *miscTestSuite) TestGetFrontendSpec() {
 	returnedAddresses := []string{"address1", "address2", "address3"}
 	defaultHTTPIngressHostTemplate := "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com"
+	imageNameTemplate := "{{ .ProjectName }}-{{ .FunctionName }}-{{ .ImageName }}"
 	scaleToZeroConfiguration := platformconfig.ScaleToZero{
 		Mode:                     platformconfig.EnabledScaleToZeroMode,
 		ScalerInterval:           "",
@@ -1865,6 +1876,11 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		Once()
 
 	suite.mockPlatform.
+		On("GetImageNameTemplate").
+		Return(imageNameTemplate, nil).
+		Once()
+
+	suite.mockPlatform.
 		On("GetScaleToZeroConfiguration").
 		Return(&scaleToZeroConfiguration, nil).
 		Once()
@@ -1873,6 +1889,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 	expectedResponseBody := `{
 		"externalIPAddresses":            	["address1", "address2", "address3"],
 		"defaultHTTPIngressHostTemplate":	"{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
+		"defaultHTTPIngressHostTemplate":	"{{ .ProjectName }}-{{ .FunctionName }}-{{ .ImageName }}",
 		"namespace":                      	"",
 		"scaleToZero":						{
 			"mode": "enabled",

@@ -48,6 +48,7 @@ type Platform struct {
 	DeployLogStreams               map[string]*LogStream
 	ContainerBuilder               containerimagebuilderpusher.BuilderPusher
 	DefaultHTTPIngressHostTemplate string
+	ImageNameTemplate              string
 }
 
 func NewPlatform(parentLogger logger.Logger, platform platform.Platform, platformConfiguration interface{}) (*Platform, error) {
@@ -308,6 +309,14 @@ func (ap *Platform) SetDefaultHTTPIngressHostTemplate(defaultHTTPIngressHostTemp
 
 func (ap *Platform) GetDefaultHTTPIngressHostTemplate() string {
 	return ap.DefaultHTTPIngressHostTemplate
+}
+
+func (ap *Platform) SetImageNameTemplate(imageNameTemplate string) {
+	ap.ImageNameTemplate = imageNameTemplate
+}
+
+func (ap *Platform) GetImageNameTemplate() string {
+	return ap.ImageNameTemplate
 }
 
 // GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".

@@ -109,6 +109,10 @@ type Platform interface {
 
 	GetDefaultHTTPIngressHostTemplate() string
 
+	SetImageNameTemplate(string)
+
+	GetImageNameTemplate() string
+
 	// Get scale to zero configuration
 	GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error)
 
