@@ -31,6 +31,10 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+const (
+	MaxWorkersLimit = 100000
+)
+
 // Trigger is common trigger interface
 type Trigger interface {
 
