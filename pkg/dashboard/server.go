@@ -58,7 +58,7 @@ type Server struct {
 	Repository                     *functiontemplates.Repository
 	platformConfiguration          *platformconfig.Config
 	defaultHTTPIngressHostTemplate string
-	imageNameTemplate              string
+	imageNamePrefixTemplate        string
 	platformAuthorizationMode      PlatformAuthorizationMode
 	dependantImageRegistryURL      string
 }
@@ -77,7 +77,7 @@ func NewServer(parentLogger logger.Logger,
 	repository *functiontemplates.Repository,
 	platformConfiguration *platformconfig.Config,
 	defaultHTTPIngressHostTemplate string,
-	imageNameTemplate string,
+	imageNamePrefixTemplate string,
 	platformAuthorizationMode string,
 	dependantImageRegistryURL string) (*Server, error) {
 
@@ -112,7 +112,7 @@ func NewServer(parentLogger logger.Logger,
 		Repository:                     repository,
 		platformConfiguration:          platformConfiguration,
 		defaultHTTPIngressHostTemplate: defaultHTTPIngressHostTemplate,
-		imageNameTemplate:              imageNameTemplate,
+		imageNamePrefixTemplate:        imageNamePrefixTemplate,
 		platformAuthorizationMode:      PlatformAuthorizationMode(platformAuthorizationMode),
 		dependantImageRegistryURL:      dependantImageRegistryURL,
 	}
@@ -182,8 +182,8 @@ func (s *Server) GetDefaultHTTPIngressHostTemplate() string {
 	return s.defaultHTTPIngressHostTemplate
 }
 
-func (s *Server) GetImageNameTemplate() string {
-	return s.imageNameTemplate
+func (s *Server) GetImageNamePrefixTemplate() string {
+	return s.imageNamePrefixTemplate
 }
 
 func (s *Server) GetDefaultNamespace() string {

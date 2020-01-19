@@ -170,11 +170,11 @@ func (mp *mockPlatform) GetDefaultHTTPIngressHostTemplate() string {
 	return args.Get(0).(string)
 }
 
-func (mp *mockPlatform) SetImageNameTemplate(imageNameTemplate string) {
-	mp.Called(imageNameTemplate)
+func (mp *mockPlatform) SetImageNamePrefixTemplate(imageNamePrefixTemplate string) {
+	mp.Called(imageNamePrefixTemplate)
 }
 
-func (mp *mockPlatform) GetImageNameTemplate() string {
+func (mp *mockPlatform) GetImageNamePrefixTemplate() string {
 	args := mp.Called()
 	return args.Get(0).(string)
 }
@@ -1850,7 +1850,7 @@ func (suite *miscTestSuite) TestGetExternalIPAddresses() {
 func (suite *miscTestSuite) TestGetFrontendSpec() {
 	returnedAddresses := []string{"address1", "address2", "address3"}
 	defaultHTTPIngressHostTemplate := "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com"
-	imageNameTemplate := "{{ .ProjectName }}-{{ .FunctionName }}-{{ .ImageName }}"
+	imageNamePrefixTemplate := "{{ .ProjectName }}-{{ .FunctionName }}-{{ .ImageName }}"
 	scaleToZeroConfiguration := platformconfig.ScaleToZero{
 		Mode:                     platformconfig.EnabledScaleToZeroMode,
 		ScalerInterval:           "",
@@ -1876,8 +1876,8 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		Once()
 
 	suite.mockPlatform.
-		On("GetImageNameTemplate").
-		Return(imageNameTemplate, nil).
+		On("GetImageNamePrefixTemplate").
+		Return(imageNamePrefixTemplate, nil).
 		Once()
 
 	suite.mockPlatform.

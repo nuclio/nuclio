@@ -18,9 +18,11 @@ package common
 
 import (
 	"bufio"
+	"bytes"
 	"os"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 	"unicode/utf8"
 
@@ -196,4 +198,38 @@ func GetEnvOrDefaultString(key string, defaultValue string) string {
 
 func GetEnvOrDefaultBool(key string, defaultValue bool) bool {
 	return strings.ToLower(GetEnvOrDefaultString(key, strconv.FormatBool(defaultValue))) == "true"
+}
+
+func RenderTemplate(text string, data map[string]interface{}) (string, error) {
+	templateToRender, err := template.New("t").Parse(text)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create template")
+	}
+
+	return renderTemplate(templateToRender, data)
+}
+
+func RenderTemplateWithCustomDelimiters(text string,
+	data map[string]interface{},
+	leftDelimiter string,
+	rightDelimiter string) (string, error) {
+
+	templateToRender, err := template.New("t").
+		Delims(leftDelimiter, rightDelimiter).
+		Parse(text)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create template")
+	}
+
+	return renderTemplate(templateToRender, data)
+}
+
+func renderTemplate(templateToRender *template.Template, data map[string]interface{}) (string, error) {
+	var templateToRenderBuffer bytes.Buffer
+	err := templateToRender.Execute(&templateToRenderBuffer, &data)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to execute queueName template")
+	}
+
+	return templateToRenderBuffer.String(), nil
 }

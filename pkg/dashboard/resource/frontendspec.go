@@ -62,7 +62,7 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 			"externalIPAddresses":            externalIPAddresses,
 			"namespace":                      fesr.getNamespaceOrDefault(""),
 			"defaultHTTPIngressHostTemplate": fesr.getPlatform().GetDefaultHTTPIngressHostTemplate(),
-			"imageNameTemplate":              fesr.getPlatform().GetImageNameTemplate(),
+			"imageNamePrefixTemplate":        fesr.getPlatform().GetImageNamePrefixTemplate(),
 			"scaleToZero":                    scaleToZeroAttribute,
 		},
 	}
