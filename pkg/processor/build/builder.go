@@ -482,7 +482,11 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 
 	// if output image name isn't set, set it to a derivative of the name
 	if b.processorImage.imageName == "" {
-		b.processorImage.imageName = b.getImage()
+		processorImageName, err := b.getImage()
+		if err != nil {
+			return errors.Wrap(err, "Failed getting processor image name")
+		}
+		b.processorImage.imageName = processorImageName
 	}
 
 	// if tag isn't set - set latest
@@ -500,7 +504,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 	return nil
 }
 
-func (b *Builder) getImage() string {
+func (b *Builder) getImage() (string, error) {
 	var imageName string
 
 	if b.options.FunctionConfig.Spec.Build.Image == "" {
@@ -515,12 +519,18 @@ func (b *Builder) getImage() string {
 			}
 		}
 
-		imageName = fmt.Sprintf("%s%s-%s-processor", repository, b.GetProjectName(), b.GetFunctionName())
+		imagePrefix, err := b.platform.RenderImageNameTemplate(b.GetProjectName(), b.GetFunctionName())
+
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to render image name prefix template")
+		}
+
+		imageName = fmt.Sprintf("%s%sprocessor", repository, imagePrefix)
 	} else {
 		imageName = b.options.FunctionConfig.Spec.Build.Image
 	}
 
-	return imageName
+	return imageName, nil
 }
 
 func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (string, error) {

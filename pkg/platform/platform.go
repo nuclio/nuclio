@@ -113,6 +113,8 @@ type Platform interface {
 
 	GetImageNamePrefixTemplate() string
 
+	RenderImageNameTemplate(projectName string, functionName string) (string, error)
+
 	// Get scale to zero configuration
 	GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error)
 

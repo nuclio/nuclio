@@ -195,7 +195,9 @@ func (suite *testSuite) TestGetImage() {
 
 	// user specified
 	suite.builder.options.FunctionConfig.Spec.Build.Image = "userSpecified"
-	suite.Require().Equal("userSpecified", suite.builder.getImage())
+	imageName, err := suite.builder.getImage()
+	suite.Require().NoError(err)
+	suite.Require().Equal("userSpecified", imageName)
 
 	// set function name and clear image name
 	suite.builder.options.FunctionConfig.Meta.Name = "test"
@@ -203,15 +205,22 @@ func (suite *testSuite) TestGetImage() {
 
 	// registry has no repository - should see "nuclio/" as repository
 	suite.builder.options.FunctionConfig.Spec.Build.Registry = "localhost:5000"
-	suite.Require().Equal("nuclio/processor-test", suite.builder.getImage())
+	imageName, err = suite.builder.getImage()
+	suite.Require().NoError(err)
+	suite.Require().Equal("nuclio/processor-test", imageName)
 
 	// registry has a repository - should not see "nuclio/" as repository
 	suite.builder.options.FunctionConfig.Spec.Build.Registry = "docker.io/foo"
-	suite.Require().Equal("processor-test", suite.builder.getImage())
+
+	imageName, err = suite.builder.getImage()
+	suite.Require().NoError(err)
+	suite.Require().Equal("processor-test", imageName)
 
 	// registry has a repository - should not see "nuclio/" as repository
 	suite.builder.options.FunctionConfig.Spec.Build.Registry = "index.docker.io/foo"
-	suite.Require().Equal("processor-test", suite.builder.getImage())
+	imageName, err = suite.builder.getImage()
+	suite.Require().NoError(err)
+	suite.Require().Equal("processor-test", imageName)
 }
 
 func (suite *testSuite) TestMergeDirectives() {

@@ -319,6 +319,13 @@ func (ap *Platform) GetImageNamePrefixTemplate() string {
 	return ap.ImageNamePrefixTemplate
 }
 
+func (ap *Platform) RenderImageNameTemplate(projectName string, functionName string) (string, error) {
+	return common.RenderTemplate(ap.ImageNamePrefixTemplate, map[string]interface{}{
+		"ProjectName":  projectName,
+		"FunctionName": functionName,
+	})
+}
+
 // GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
 // These addresses are either set through SetExternalIPAddresses or automatically discovered
 func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
@@ -517,10 +524,7 @@ func (ap *Platform) enrichImageName(createFunctionOptions *platform.CreateFuncti
 		return nil
 	}
 
-	imagePrefix, err := common.RenderTemplate(ap.ImageNamePrefixTemplate, map[string]interface{}{
-		"ProjectName":  projectName,
-		"FunctionName": functionName,
-	})
+	imagePrefix, err := ap.RenderImageNameTemplate(projectName, functionName)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to render image name prefix template")
