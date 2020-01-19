@@ -319,7 +319,7 @@ func (ap *Platform) GetImageNamePrefixTemplate() string {
 	return ap.ImageNamePrefixTemplate
 }
 
-func (ap *Platform) RenderImageNameTemplate(projectName string, functionName string) (string, error) {
+func (ap *Platform) RenderImageNamePrefixTemplate(projectName string, functionName string) (string, error) {
 	return common.RenderTemplate(ap.ImageNamePrefixTemplate, map[string]interface{}{
 		"ProjectName":  projectName,
 		"FunctionName": functionName,
@@ -524,7 +524,7 @@ func (ap *Platform) enrichImageName(createFunctionOptions *platform.CreateFuncti
 		return nil
 	}
 
-	imagePrefix, err := ap.RenderImageNameTemplate(projectName, functionName)
+	imagePrefix, err := ap.RenderImageNamePrefixTemplate(projectName, functionName)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to render image name prefix template")

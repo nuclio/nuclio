@@ -519,13 +519,18 @@ func (b *Builder) getImage() (string, error) {
 			}
 		}
 
-		imagePrefix, err := b.platform.RenderImageNameTemplate(b.GetProjectName(), b.GetFunctionName())
+		imagePrefix, err := b.platform.RenderImageNamePrefixTemplate(b.GetProjectName(), b.GetFunctionName())
 
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to render image name prefix template")
 		}
 
-		imageName = fmt.Sprintf("%s%sprocessor", repository, imagePrefix)
+		// to keep old behaviour (before image prefix template option added)
+		if imagePrefix == "" {
+			imageName = fmt.Sprintf("%sprocessor-%s", repository, b.GetFunctionName())
+		} else {
+			imageName = fmt.Sprintf("%s%sprocessor", repository, imagePrefix)
+		}
 	} else {
 		imageName = b.options.FunctionConfig.Spec.Build.Image
 	}
