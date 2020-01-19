@@ -24,6 +24,7 @@ dashboard:
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
   httpIngressHostTemplate: ""
+  imageNamePrefixTemplate: ""
 
   # Supported container builders: "kaniko", "docker"
   containerBuilderKind: "docker"
