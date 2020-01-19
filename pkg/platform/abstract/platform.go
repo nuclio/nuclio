@@ -378,8 +378,19 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 	var briefErrorsArray *[]string
 	briefErrorsArray = &[]string{}
 
+	isInsideBriefErrorsLog := func (logLine string) bool {
+		for _, briefError := range *briefErrorsArray {
+			if logLine == briefError {
+				return true
+			}
+		}
+		*briefErrorsArray = append(*briefErrorsArray, logLine)
+
+		return false
+	}
+
 	for scanner.Scan() {
-		currentLogLine, addToBriefErrorsLog, err := ap.prettifyProcessorLogLine(scanner.Bytes(), briefErrorsArray)
+		currentLogLine, addToBriefErrorsLog, err := ap.prettifyProcessorLogLine(scanner.Bytes(), isInsideBriefErrorsLog)
 		if err != nil {
 			rawLogLine := scanner.Text()
 
@@ -387,13 +398,10 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 			formattedProcessorLogs += rawLogLine + "\n"
 
 			// if this error was logged before - don't add it another time to the brief errors log
-			for _, briefError := range *briefErrorsArray {
-				if rawLogLine == briefError {
-					continue
-				}
+			if isInsideBriefErrorsLog(rawLogLine) {
+				continue
 			}
 
-			*briefErrorsArray = append(*briefErrorsArray, rawLogLine)
 			briefErrorsLog += rawLogLine + "\n"
 			continue
 		}
@@ -413,7 +421,7 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 // string: prettified pod log line
 // bool:   should add to brief errors log
 // error:  explaining what failed during parsing the log line
-func (ap *Platform) prettifyProcessorLogLine(log []byte, briefErrorsArray *[]string) (string, bool, error) {
+func (ap *Platform) prettifyProcessorLogLine(log []byte, isInsideBriefErrorsLog func(logLine string)bool) (string, bool, error) {
 	logStruct := struct {
 		Time    *string `json:"time"`
 		Level   *string `json:"level"`
@@ -493,13 +501,10 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte, briefErrorsArray *[]str
 	if logLevel != 'D' && logLevel != 'I' {
 
 		// if this error was logged before - don't add it another time to the brief errors log
-		for _, briefError := range *briefErrorsArray {
-			if *logStruct.Message == briefError {
-				return res, false, nil
-			}
+		if isInsideBriefErrorsLog(*logStruct.Message) {
+			return res, false, nil
 		}
 
-		*briefErrorsArray = append(*briefErrorsArray, *logStruct.Message)
 		return res, true, nil
 	}
 
