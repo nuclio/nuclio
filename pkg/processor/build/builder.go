@@ -261,6 +261,11 @@ func (b *Builder) GetFunctionPath() string {
 	return b.options.FunctionConfig.Spec.Build.Path
 }
 
+// GetProjectName returns the name of the project
+func (b *Builder) GetProjectName() string {
+	return b.options.FunctionConfig.Meta.Labels["nuclio.io/project-name"]
+}
+
 // GetFunctionName returns the name of the function
 func (b *Builder) GetFunctionName() string {
 	return b.options.FunctionConfig.Meta.Name
@@ -510,7 +515,7 @@ func (b *Builder) getImage() string {
 			}
 		}
 
-		imageName = fmt.Sprintf("%sprocessor-%s", repository, b.GetFunctionName())
+		imageName = fmt.Sprintf("%s%s-%s-processor", repository, b.GetProjectName(), b.GetFunctionName())
 	} else {
 		imageName = b.options.FunctionConfig.Spec.Build.Image
 	}

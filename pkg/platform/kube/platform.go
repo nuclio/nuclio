@@ -134,6 +134,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// replace logger
 	createFunctionOptions.Logger = logStream.GetLogger()
 
+	if err := p.EnrichCreateFunctionOptions(createFunctionOptions); err != nil {
+		return nil, errors.Wrap(err, "Create function options enrichment failed")
+	}
+
 	if err := p.ValidateCreateFunctionOptions(createFunctionOptions); err != nil {
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
@@ -182,7 +186,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 	}
 
-	// the builder will may update configuration, so we have to create the function in the platform only after
+	// the builder may update the configuration, so we have to create the function in the platform only after
 	// the builder does that
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
 		var err error
