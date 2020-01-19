@@ -18,6 +18,7 @@ package nats
 
 import (
 	"bytes"
+	"net/url"
 	"text/template"
 	"time"
 
@@ -66,7 +67,12 @@ func newTrigger(parentLogger logger.Logger,
 }
 
 func (n *nats) validateConfiguration() error {
-	if len(n.configuration.URL) < 7 || n.configuration.URL[:7] != "nats://" {
+	natsURL, err := url.Parse(n.configuration.URL)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse NATS URL")
+	}
+
+	if natsURL.Scheme != "nats" {
 		return errors.New("Invalid URL. Must begin with 'nats://'")
 	}
 
