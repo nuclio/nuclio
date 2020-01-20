@@ -323,7 +323,7 @@ def run_wrapper():
                                    args.worker_id,
                                    args.trigger_name)
 
-    except Exception as exc:
+    except BaseException as exc:
         root_logger.error_with('Caught unhandled exception while initializing',
                               err=str(exc),
                               traceback=traceback.format_exc())
