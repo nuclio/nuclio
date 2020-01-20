@@ -490,7 +490,7 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte, addToBriefErrorsLog fun
 		fullMessage)
 
 	if logLevel != 'D' && logLevel != 'I' {
-		addToBriefErrorsLog(fullMessage)
+		addToBriefErrorsLog(fullMessage + "\n")
 	}
 
 	return res, nil
