@@ -405,7 +405,7 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 
 	// create brief errors log as string, and remove double newlines
 	briefErrorsLog = strings.Join(*briefErrorsArray, "\n")
-	briefErrorsLog = strings.Replace(briefErrorsLog, "\n\n", "\n", -1)
+	briefErrorsLog = strings.Replace(briefErrorsLog, "\n\n\n", "\n\n", -1)
 
 	return common.FixEscapeChars(formattedProcessorLogs), common.FixEscapeChars(briefErrorsLog)
 }
@@ -478,17 +478,19 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte, addToBriefErrorsLog fun
 		}
 	}
 
+	fullMessage := *logStruct.Message
+
+	if logStruct.More != nil {
+		fullMessage = fmt.Sprintf("%s [%s]", fullMessage, *logStruct.More)
+	}
+
 	res := fmt.Sprintf("[%s] (%c) %s",
 		parsedTime.Format("15:04:05.000"),
 		logLevel,
-		*logStruct.Message)
-
-	if logStruct.More != nil {
-		res = fmt.Sprintf("%s [%s]", res, *logStruct.More)
-	}
+		fullMessage)
 
 	if logLevel != 'D' && logLevel != 'I' {
-		addToBriefErrorsLog(*logStruct.Message)
+		addToBriefErrorsLog(fullMessage)
 	}
 
 	return res, nil
