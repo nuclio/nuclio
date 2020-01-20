@@ -325,8 +325,8 @@ def run_wrapper():
 
     except BaseException as exc:
         root_logger.error_with('Caught unhandled exception while initializing',
-                              err=str(exc),
-                              traceback=traceback.format_exc())
+                               err=str(exc),
+                               traceback=traceback.format_exc())
 
         raise SystemExit(1)
 
