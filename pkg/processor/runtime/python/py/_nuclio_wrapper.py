@@ -186,7 +186,7 @@ class Wrapper(object):
                     # try to json encode the response
                     encoded_response = self._json_encoder.encode(response)
 
-                except Exception as err:
+                except BaseException as err:
                     formatted_exception = \
                         'Exception caught in handler "{0}": {1}'.format(
                             err, traceback.format_exc())
@@ -323,7 +323,7 @@ def run_wrapper():
                                    args.worker_id,
                                    args.trigger_name)
 
-    except (Exception, GeneratorExit) as exc:
+    except Exception as exc:
         root_logger.error_with('Caught unhandled exception while initializing',
                               err=str(exc),
                               traceback=traceback.format_exc())
