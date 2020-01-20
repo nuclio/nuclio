@@ -183,6 +183,14 @@ func (ar *AbstractResource) GetRouter() chi.Router {
 	return ar.router
 }
 
+func (ar *AbstractResource) GetStatusCodeFromErrorCause(err error, defaultStatusCode int) int {
+	if errors.Cause(err) != nil {
+		return ar.getStatusCodeFromError(errors.Cause(err), defaultStatusCode)
+	}
+
+	return ar.getStatusCodeFromError(err, defaultStatusCode)
+}
+
 func (ar *AbstractResource) registerRoutes() error {
 	for _, resourceMethod := range ar.resourceMethods {
 		switch resourceMethod {
@@ -420,7 +428,7 @@ func (ar *AbstractResource) writeErrorReason(responseWriter io.Writer, err error
 	responseWriter.Write(serializedError) // nolint: errcheck
 }
 
-func (ar *AbstractResource) GetStatusCodeFromError(err error, defaultStatusCode int) int {
+func (ar *AbstractResource) getStatusCodeFromError(err error, defaultStatusCode int) int {
 	if err == nil {
 		return defaultStatusCode
 	}
@@ -448,7 +456,7 @@ func (ar *AbstractResource) writeStatusCodeAndErrorReason(responseWriter http.Re
 	defaultStatusCode int) bool {
 
 	// get the status code from the error
-	statusCode := ar.GetStatusCodeFromError(err, defaultStatusCode)
+	statusCode := ar.getStatusCodeFromError(err, defaultStatusCode)
 
 	// if the status code is an actual error, write the error reason and return
 	if ar.statusCodeIsError(statusCode) {

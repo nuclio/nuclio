@@ -174,7 +174,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
-			StatusCode: pr.GetStatusCodeFromError(err, http.StatusInternalServerError),
+			StatusCode: pr.GetStatusCodeFromErrorCause(err, http.StatusInternalServerError),
 		}, err
 	}
 
