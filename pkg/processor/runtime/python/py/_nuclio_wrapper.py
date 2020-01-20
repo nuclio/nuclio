@@ -186,15 +186,11 @@ class Wrapper(object):
                     # try to json encode the response
                     encoded_response = self._json_encoder.encode(response)
 
-                except BaseException as err:
-                    formatted_exception = \
-                        'Exception caught in handler "{0}": {1}'.format(
-                            err, traceback.format_exc())
+                except BaseException as exc:
+                    formatted_exception = 'Exception caught in handler "{0}": {1}'.format(exc, traceback.format_exc())
 
-            except Exception as err:
-                formatted_exception = \
-                    'Exception caught while serving "{0}": {1}'.format(
-                        err, traceback.format_exc())
+            except Exception as exc:
+                formatted_exception = 'Exception caught while serving "{0}": {1}'.format(exc, traceback.format_exc())
 
             # if we have a formatted exception, return it as 500
             if formatted_exception is not None:
