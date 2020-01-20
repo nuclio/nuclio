@@ -303,7 +303,11 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 				p.namedWorkerAllocators)
 
 			if err != nil {
-				return errors.Wrapf(err, "Failed to create triggers")
+				p.logger.ErrorWith("Failed to create trigger",
+					"kind", triggerConfiguration.Kind,
+					"triggerName", triggerName)
+
+				return errors.Wrapf(err, "Failed to create trigger")
 			}
 
 			// append to triggers (can be nil - ignore unknown triggers)

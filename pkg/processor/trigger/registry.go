@@ -56,16 +56,9 @@ func (r *Registry) NewTrigger(logger logger.Logger,
 	// set trigger name for runtime config, this can be overridden by the trigger if it pleases
 	runtimeConfiguration.TriggerName = name
 
-	trigger, err := registree.(Creator).Create(logger,
+	return registree.(Creator).Create(logger,
 		name,
 		triggerConfiguration,
 		runtimeConfiguration,
 		namedWorkerAllocators)
-	if err != nil {
-		logger.ErrorWith("Failed to create trigger",
-			"kind", kind,
-			"triggerName", name)
-	}
-
-	return trigger, err
 }
