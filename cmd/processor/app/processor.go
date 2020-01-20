@@ -18,6 +18,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 
@@ -180,8 +181,7 @@ func (p *Processor) Start() error {
 	// iterate over all triggers and start them
 	for _, trigger := range p.triggers {
 		if err = trigger.Start(nil); err != nil {
-			p.logger.ErrorWith("Failed to start trigger",
-				"kind", trigger.GetKind())
+			p.logger.Error(fmt.Sprintf("Failed to start %s trigger", trigger.GetKind()))
 			return errors.Wrap(err, "Failed to start trigger")
 		}
 	}
@@ -303,10 +303,7 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 				p.namedWorkerAllocators)
 
 			if err != nil {
-				p.logger.ErrorWith("Failed to create trigger",
-					"kind", triggerConfiguration.Kind,
-					"triggerName", triggerName)
-
+				p.logger.ErrorWith(fmt.Sprintf("Failed to create %s trigger", triggerConfiguration.Kind))
 				return errors.Wrapf(err, "Failed to create trigger")
 			}
 

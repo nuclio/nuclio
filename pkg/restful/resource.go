@@ -183,14 +183,6 @@ func (ar *AbstractResource) GetRouter() chi.Router {
 	return ar.router
 }
 
-func (ar *AbstractResource) GetStatusCodeFromErrorCause(err error, defaultStatusCode int) int {
-	if errors.Cause(err) != nil {
-		return ar.getStatusCodeFromError(errors.Cause(err), defaultStatusCode)
-	}
-
-	return ar.getStatusCodeFromError(err, defaultStatusCode)
-}
-
 func (ar *AbstractResource) registerRoutes() error {
 	for _, resourceMethod := range ar.resourceMethods {
 		switch resourceMethod {
