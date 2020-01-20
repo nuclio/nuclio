@@ -1894,7 +1894,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 	expectedResponseBody := `{
 		"externalIPAddresses":            	["address1", "address2", "address3"],
 		"defaultHTTPIngressHostTemplate":	"{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
-		"defaultHTTPIngressHostTemplate":	"{{ .ProjectName }}-{{ .FunctionName }}-",
+		"imageNamePrefixTemplate":	"{{ .ProjectName }}-{{ .FunctionName }}-",
 		"namespace":                      	"",
 		"scaleToZero":						{
 			"mode": "enabled",
