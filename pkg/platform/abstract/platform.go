@@ -375,8 +375,7 @@ func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.Create
 func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (string, string) {
 	var formattedProcessorLogs, briefErrorsLog string
 
-	var briefErrorsArray *[]string
-	briefErrorsArray = &[]string{}
+	briefErrorsArray := &[]string{}
 
 	// adds log to briefErrorsArray (prevents duplicate lines)
 	addToBriefErrorsLog := func(logLine string) {
