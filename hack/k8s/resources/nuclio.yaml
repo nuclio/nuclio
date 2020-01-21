@@ -132,16 +132,34 @@ spec:
         image: quay.io/nuclio/dashboard:1.3.6-amd64
         ports:
         - containerPort: 8070
+        env:
+        - name: DOCKER_HOST
+          value: tcp://localhost:2376
+        - name: DOCKER_CERT_PATH
+          value: /certs/client
+        - name: DOCKER_TLS_VERIFY
+          value: "1"
         volumeMounts:
-        - mountPath: /var/run/docker.sock
-          name: docker-sock
+        - mountPath: /certs
+          name: dind-tls
         - name: registry-credentials
           mountPath: "/etc/nuclio/dashboard/registry-credentials"
           readOnly: true
+      - image: docker:19.03-dind
+        imagePullPolicy: IfNotPresent
+        name: dind
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/lib/docker
+          name: dind-storage
+        - mountPath: /certs
+          name: dind-tls
       volumes:
-      - name: docker-sock
-        hostPath:
-          path: /var/run/docker.sock
+      - emptyDir: {}
+        name: dind-storage
+      - emptyDir: {}
+        name: dind-tls
       - name: registry-credentials
         secret:
           secretName: registry-credentials

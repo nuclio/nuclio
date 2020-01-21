@@ -13,12 +13,17 @@
 # limitations under the License.
 
 {{- if .Values.dashboard.enabled }}
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "nuclio.dashboardName" . }}
 spec:
   replicas: {{ .Values.dashboard.replicas }}
+  selector:
+    matchLabels:
+      nuclio.io/app: dashboard
+      nuclio.io/name: {{ template "nuclio.dashboardName" . }}
+      nuclio.io/class: service
   template:
     metadata:
       labels:
@@ -38,8 +43,8 @@ spec:
         ports:
         - containerPort: 8070
         volumeMounts:
-        - mountPath: /var/run/docker.sock
-          name: docker-sock
+        - mountPath: /certs
+          name: dind-tls
         - name: registry-credentials
           mountPath: "/etc/nuclio/dashboard/registry-credentials"
           readOnly: true
@@ -84,10 +89,27 @@ spec:
           value: {{ .Values.dashboard.externalIPAddresses | join "," | quote }}
         - name: NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE
           value: {{ .Values.dashboard.httpIngressHostTemplate | quote }}
+        - name: DOCKER_HOST
+          value: tcp://localhost:2376
+        - name: DOCKER_CERT_PATH
+          value: /certs/client
+        - name: DOCKER_TLS_VERIFY
+          value: "1"
+      - image: docker:19.03-dind
+        imagePullPolicy: IfNotPresent
+        name: dind
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/lib/docker
+          name: dind-storage
+        - mountPath: /certs
+          name: dind-tls
       volumes:
-      - name: docker-sock
-        hostPath:
-          path: /var/run/docker.sock
+      - emptyDir: {}
+        name: dind-storage
+      - emptyDir: {}
+        name: dind-tls
       - name: registry-credentials
         secret:
           secretName: {{ template "nuclio.registryCredentialsName" . }}
