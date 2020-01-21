@@ -185,6 +185,11 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 // Enrichment of create function options
 func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
 
+	// if labels is nil assign an empty map to it
+	if createFunctionOptions.FunctionConfig.Meta.Labels == nil {
+		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{}
+	}
+
 	if err := ap.enrichProjectName(createFunctionOptions); err != nil {
 		return errors.Wrap(err, "Failed enriching project name")
 	}
@@ -502,11 +507,6 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, bool, error) {
 
 // Function must have project name - if it was not given - set to default project
 func (ap *Platform) enrichProjectName(createFunctionOptions *platform.CreateFunctionOptions) error {
-
-	// if labels is nil assign an empty map to it
-	if createFunctionOptions.FunctionConfig.Meta.Labels == nil {
-		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{}
-	}
 
 	// if no project name was given, set it to the default project
 	if createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] == "" {
