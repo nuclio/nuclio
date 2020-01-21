@@ -19,7 +19,7 @@ In addition to configuring a service, Nuclio creates a [Kubernetes ingress](http
 
 In this guide, you'll set up a [Træfik](https://docs.traefik.io/) controller, but any type of Kubernetes ingress controller should work. You can read [Træfik's excellent documentation](https://docs.traefik.io/user-guides/crd-acme/), but for the purposes of this guide you can simply run the following commands to set up the controller by using either of the following alternative methods:
 
-- Using `kubectl` to apply the resource YAMLs (note this installs v1.7, and was removed on newer versions):
+- Using `kubectl` to apply the resource YAML files. Note that this installs v1.7, and that the YAML files were removed from newer versions:
   ```sh
   kubectl apply -f https://raw.githubusercontent.com/containous/traefik/v1.7/examples/k8s/traefik-rbac.yaml
   kubectl apply -f https://raw.githubusercontent.com/containous/traefik/v1.7/examples/k8s/traefik-deployment.yaml
