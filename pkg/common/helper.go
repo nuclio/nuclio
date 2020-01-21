@@ -218,7 +218,7 @@ func RenderTemplateWithCustomDelimiters(text string,
 		Delims(leftDelimiter, rightDelimiter).
 		Parse(text)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to create template")
+		return "", errors.Wrap(err, "Failed to create template with custom delimiters")
 	}
 
 	return renderTemplate(templateToRender, data)
