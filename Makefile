@@ -78,6 +78,7 @@ all:
 #
 
 helm-publish:
+	$(eval HELM_PUBLISH_COMMIT_MESSAGE := "Releasing chart $(shell helm inspect chart hack/k8s/helm/nuclio | yq r - version)")
 	@echo Fetching branch
 	@rm -rf /tmp/nuclio-helm
 	@git clone -b gh-pages --single-branch git@github.com:nuclio/nuclio.git /tmp/nuclio-helm
@@ -85,7 +86,7 @@ helm-publish:
 	@helm package -d /tmp/nuclio-helm/charts hack/k8s/helm/nuclio
 	@cd /tmp/nuclio-helm/charts && helm repo index --merge index.yaml --url https://nuclio.github.io/nuclio/charts/ .
 	@echo Publishing
-	@cd /tmp/nuclio-helm/charts && git add --all && git commit && git push origin
+	@cd /tmp/nuclio-helm/charts && git add --all && git commit -m $(HELM_PUBLISH_COMMIT_MESSAGE) && git push origin
 	@echo Done
 
 #
