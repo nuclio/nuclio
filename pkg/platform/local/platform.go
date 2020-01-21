@@ -125,6 +125,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// replace logger
 	createFunctionOptions.Logger = logStream.GetLogger()
 
+	if err := p.EnrichCreateFunctionOptions(createFunctionOptions); err != nil {
+		return nil, errors.Wrap(err, "Create function options enrichment failed")
+	}
+
 	if err := p.ValidateCreateFunctionOptions(createFunctionOptions); err != nil {
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}

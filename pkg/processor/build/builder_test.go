@@ -18,6 +18,7 @@ package build
 
 import (
 	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -27,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/test"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -49,6 +51,7 @@ type testSuite struct {
 	builder      *Builder
 	testID       string
 	mockS3Client *mockS3Client
+	mockPlatform *test.MockPlatform
 }
 
 type mockS3Client struct {
@@ -73,13 +76,14 @@ func (suite *testSuite) SetupSuite() {
 	suite.Require().NoError(err)
 
 	suite.mockS3Client = &mockS3Client{}
+	suite.mockPlatform = &test.MockPlatform{}
 }
 
 // SetupTest is called before each test in the suite
 func (suite *testSuite) SetupTest() {
 	var err error
 	suite.testID = xid.New().String()
-	suite.builder, err = NewBuilder(suite.logger, nil, suite.mockS3Client)
+	suite.builder, err = NewBuilder(suite.logger, suite.mockPlatform, suite.mockS3Client)
 	if err != nil {
 		suite.Fail("Instantiating Builder failed:", err)
 	}
@@ -195,7 +199,9 @@ func (suite *testSuite) TestGetImage() {
 
 	// user specified
 	suite.builder.options.FunctionConfig.Spec.Build.Image = "userSpecified"
-	suite.Require().Equal("userSpecified", suite.builder.getImage())
+	imageName, err := suite.builder.getImage()
+	suite.Require().NoError(err)
+	suite.Require().Equal("userSpecified", imageName)
 
 	// set function name and clear image name
 	suite.builder.options.FunctionConfig.Meta.Name = "test"
@@ -203,15 +209,34 @@ func (suite *testSuite) TestGetImage() {
 
 	// registry has no repository - should see "nuclio/" as repository
 	suite.builder.options.FunctionConfig.Spec.Build.Registry = "localhost:5000"
-	suite.Require().Equal("nuclio/processor-test", suite.builder.getImage())
+	suite.mockPlatform.On("RenderImageNamePrefixTemplate").Return("", nil).Once()
+	imageName, err = suite.builder.getImage()
+	suite.Require().NoError(err)
+	suite.Require().Equal("nuclio/processor-test", imageName)
 
 	// registry has a repository - should not see "nuclio/" as repository
 	suite.builder.options.FunctionConfig.Spec.Build.Registry = "docker.io/foo"
-	suite.Require().Equal("processor-test", suite.builder.getImage())
+	suite.mockPlatform.On("RenderImageNamePrefixTemplate").Return("", nil).Once()
+	imageName, err = suite.builder.getImage()
+	suite.Require().NoError(err)
+	suite.Require().Equal("processor-test", imageName)
 
 	// registry has a repository - should not see "nuclio/" as repository
 	suite.builder.options.FunctionConfig.Spec.Build.Registry = "index.docker.io/foo"
-	suite.Require().Equal("processor-test", suite.builder.getImage())
+	suite.mockPlatform.On("RenderImageNamePrefixTemplate").Return("", nil).Once()
+	imageName, err = suite.builder.getImage()
+	suite.Require().NoError(err)
+	suite.Require().Equal("processor-test", imageName)
+
+	// clear registry
+	suite.builder.options.FunctionConfig.Spec.Build.Registry = "localhost:5000"
+
+	// with prefix
+	imageNamePrefix := "projectName-functionName-"
+	suite.mockPlatform.On("RenderImageNamePrefixTemplate").Return(imageNamePrefix, nil).Once()
+	imageName, err = suite.builder.getImage()
+	suite.Require().NoError(err)
+	suite.Require().Equal(fmt.Sprintf("nuclio/%sprocessor", imageNamePrefix), imageName)
 }
 
 func (suite *testSuite) TestMergeDirectives() {

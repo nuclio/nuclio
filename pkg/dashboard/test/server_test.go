@@ -26,14 +26,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/test"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/restful"
 	"github.com/nuclio/nuclio/test/compare"
 
@@ -45,202 +44,6 @@ import (
 )
 
 //
-// Platform mock
-//
-
-// Platform defines the interface that any underlying function platform must provide for nuclio
-// to run over it
-type mockPlatform struct {
-	mock.Mock
-}
-
-//
-// Function
-//
-
-// Build will locally build a processor image and return its name (or the error)
-func (mp *mockPlatform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
-	args := mp.Called(createFunctionBuildOptions)
-	return args.Get(0).(*platform.CreateFunctionBuildResult), args.Error(1)
-}
-
-// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
-func (mp *mockPlatform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
-
-	// release requester
-	if createFunctionOptions.CreationStateUpdated != nil {
-		createFunctionOptions.CreationStateUpdated <- true
-	}
-
-	args := mp.Called(createFunctionOptions)
-	return args.Get(0).(*platform.CreateFunctionResult), args.Error(1)
-}
-
-// UpdateFunction will update a previously deployed function
-func (mp *mockPlatform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
-	args := mp.Called(updateFunctionOptions)
-	return args.Error(0)
-}
-
-// DeleteFunction will delete a previously deployed function
-func (mp *mockPlatform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
-	args := mp.Called(deleteFunctionOptions)
-	return args.Error(0)
-}
-
-// CreateFunctionInvocation will invoke a previously deployed function
-func (mp *mockPlatform) CreateFunctionInvocation(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (*platform.CreateFunctionInvocationResult, error) {
-	args := mp.Called(createFunctionInvocationOptions)
-	return args.Get(0).(*platform.CreateFunctionInvocationResult), args.Error(1)
-}
-
-// GetFunctions will list existing functions
-func (mp *mockPlatform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
-	args := mp.Called(getFunctionsOptions)
-	return args.Get(0).([]platform.Function), args.Error(1)
-}
-
-//
-// Project
-//
-
-// CreateProject will probably create a new project
-func (mp *mockPlatform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
-	args := mp.Called(createProjectOptions)
-	return args.Error(0)
-}
-
-// UpdateProject will update a previously existing project
-func (mp *mockPlatform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
-	args := mp.Called(updateProjectOptions)
-	return args.Error(0)
-}
-
-// DeleteProject will delete a previously existing project
-func (mp *mockPlatform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
-	args := mp.Called(deleteProjectOptions)
-	return args.Error(0)
-}
-
-// GetProjects will list existing projects
-func (mp *mockPlatform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	args := mp.Called(getProjectsOptions)
-	return args.Get(0).([]platform.Project), args.Error(1)
-}
-
-//
-// Function event
-//
-
-// CreateFunctionEvent will create a new function event that can later be used as a template from
-// which to invoke functions
-func (mp *mockPlatform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
-	args := mp.Called(createFunctionEventOptions)
-	return args.Error(0)
-}
-
-// UpdateFunctionEvent will update a previously existing function event
-func (mp *mockPlatform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
-	args := mp.Called(updateFunctionEventOptions)
-	return args.Error(0)
-}
-
-// DeleteFunctionEvent will delete a previously existing function event
-func (mp *mockPlatform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
-	args := mp.Called(deleteFunctionEventOptions)
-	return args.Error(0)
-}
-
-// GetFunctionEvents will list existing function events
-func (mp *mockPlatform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
-	args := mp.Called(getFunctionEventsOptions)
-	return args.Get(0).([]platform.FunctionEvent), args.Error(1)
-}
-
-//
-// Misc
-//
-
-func (mp *mockPlatform) SetDefaultHTTPIngressHostTemplate(defaultHTTPIngressHostTemplate string) {
-	mp.Called(defaultHTTPIngressHostTemplate)
-}
-
-func (mp *mockPlatform) GetDefaultHTTPIngressHostTemplate() string {
-	args := mp.Called()
-	return args.Get(0).(string)
-}
-
-// SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
-// If this is not invoked, each platform will try to discover these addresses automatically
-func (mp *mockPlatform) SetExternalIPAddresses(externalIPAddresses []string) error {
-	args := mp.Called(externalIPAddresses)
-	return args.Error(0)
-}
-
-// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
-// These addresses are either set through SetExternalIPAddresses or automatically discovered
-func (mp *mockPlatform) GetExternalIPAddresses() ([]string, error) {
-	args := mp.Called()
-	return args.Get(0).([]string), args.Error(1)
-}
-
-func (mp *mockPlatform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error) {
-	args := mp.Called()
-	return args.Get(0).(*platformconfig.ScaleToZero), args.Error(1)
-}
-
-// GetHealthCheckMode returns the healthcheck mode the platform requires
-func (mp *mockPlatform) GetHealthCheckMode() platform.HealthCheckMode {
-	args := mp.Called()
-	return args.Get(0).(platform.HealthCheckMode)
-}
-
-// GetName returns the platform name
-func (mp *mockPlatform) GetName() string {
-	args := mp.Called()
-	return args.String(0)
-}
-
-// GetNodes returns a slice of nodes currently in the cluster
-func (mp *mockPlatform) GetNodes() ([]platform.Node, error) {
-	args := mp.Called()
-	return args.Get(0).([]platform.Node), args.Error(1)
-}
-
-// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
-func (mp *mockPlatform) ResolveDefaultNamespace(defaultNamespace string) string {
-	args := mp.Called()
-	return args.Get(0).(string)
-}
-
-// GetNamespaces returns the namespaces
-func (mp *mockPlatform) GetNamespaces() ([]string, error) {
-	args := mp.Called()
-	return args.Get(0).([]string), args.Error(1)
-}
-
-func (mp *mockPlatform) GetDefaultInvokeIPAddresses() ([]string, error) {
-	args := mp.Called()
-	return args.Get(0).([]string), args.Error(1)
-}
-
-func (mp *mockPlatform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
-	return nil
-}
-
-func (mp *mockPlatform) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
-	return []string{}, nil
-}
-
-func (mp *mockPlatform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
-	return map[string]string{}, nil
-}
-
-func (mp *mockPlatform) GetBaseImageRegistry(registry string) string {
-	return "quay.io"
-}
-
-//
 // Test suite
 //
 
@@ -249,7 +52,7 @@ type dashboardTestSuite struct {
 	logger          logger.Logger
 	dashboardServer *dashboard.Server
 	httpServer      *httptest.Server
-	mockPlatform    *mockPlatform
+	mockPlatform    *test.MockPlatform
 }
 
 func (suite *dashboardTestSuite) SetupTest() {
@@ -257,7 +60,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 	trueValue := true
 
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	suite.mockPlatform = &mockPlatform{}
+	suite.mockPlatform = &test.MockPlatform{}
 
 	templateRepository, err := functiontemplates.NewRepository(suite.logger, []functiontemplates.FunctionTemplateFetcher{})
 	suite.Require().NoError(err)
@@ -276,6 +79,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 		true,
 		templateRepository,
 		nil,
+		"",
 		"",
 		"",
 		"")
@@ -1840,6 +1644,7 @@ func (suite *miscTestSuite) TestGetExternalIPAddresses() {
 func (suite *miscTestSuite) TestGetFrontendSpec() {
 	returnedAddresses := []string{"address1", "address2", "address3"}
 	defaultHTTPIngressHostTemplate := "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com"
+	imageNamePrefixTemplate := "{{ .ProjectName }}-{{ .FunctionName }}-"
 	scaleToZeroConfiguration := platformconfig.ScaleToZero{
 		Mode:                     platformconfig.EnabledScaleToZeroMode,
 		ScalerInterval:           "",
@@ -1865,6 +1670,11 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		Once()
 
 	suite.mockPlatform.
+		On("GetImageNamePrefixTemplate").
+		Return(imageNamePrefixTemplate, nil).
+		Once()
+
+	suite.mockPlatform.
 		On("GetScaleToZeroConfiguration").
 		Return(&scaleToZeroConfiguration, nil).
 		Once()
@@ -1873,6 +1683,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 	expectedResponseBody := `{
 		"externalIPAddresses":            	["address1", "address2", "address3"],
 		"defaultHTTPIngressHostTemplate":	"{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
+		"imageNamePrefixTemplate":	"{{ .ProjectName }}-{{ .FunctionName }}-",
 		"namespace":                      	"",
 		"scaleToZero":						{
 			"mode": "enabled",

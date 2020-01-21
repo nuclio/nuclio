@@ -180,6 +180,9 @@ func (p *Processor) Start() error {
 	// iterate over all triggers and start them
 	for _, trigger := range p.triggers {
 		if err = trigger.Start(nil); err != nil {
+			p.logger.ErrorWith("Failed to start trigger",
+				"kind", trigger.GetKind(),
+				"err", err)
 			return errors.Wrap(err, "Failed to start trigger")
 		}
 	}
@@ -301,7 +304,10 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 				p.namedWorkerAllocators)
 
 			if err != nil {
-				return errors.Wrapf(err, "Failed to create triggers")
+				p.logger.ErrorWith("Failed to create %s trigger",
+					"kind", triggerConfiguration.Kind,
+					"err", err)
+				return errors.Wrapf(err, "Failed to create trigger")
 			}
 
 			// append to triggers (can be nil - ignore unknown triggers)
