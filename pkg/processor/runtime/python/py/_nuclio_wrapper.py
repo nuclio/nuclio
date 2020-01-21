@@ -186,15 +186,11 @@ class Wrapper(object):
                     # try to json encode the response
                     encoded_response = self._json_encoder.encode(response)
 
-                except Exception as err:
-                    formatted_exception = \
-                        'Exception caught in handler "{0}": {1}'.format(
-                            err, traceback.format_exc())
+                except BaseException as exc:
+                    formatted_exception = 'Exception caught in handler "{0}": {1}'.format(exc, traceback.format_exc())
 
-            except Exception as err:
-                formatted_exception = \
-                    'Exception caught while serving "{0}": {1}'.format(
-                        err, traceback.format_exc())
+            except Exception as exc:
+                formatted_exception = 'Exception caught while serving "{0}": {1}'.format(exc, traceback.format_exc())
 
             # if we have a formatted exception, return it as 500
             if formatted_exception is not None:
@@ -323,10 +319,10 @@ def run_wrapper():
                                    args.worker_id,
                                    args.trigger_name)
 
-    except Exception as exc:
+    except BaseException as exc:
         root_logger.error_with('Caught unhandled exception while initializing',
-                              err=str(exc),
-                              traceback=traceback.format_exc())
+                               err=str(exc),
+                               traceback=traceback.format_exc())
 
         raise SystemExit(1)
 
