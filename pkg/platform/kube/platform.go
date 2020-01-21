@@ -138,7 +138,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
 
-	reportCreationError := func(creationError error, briefErrorsLog string) error {
+	reportCreationError := func(creationError error, briefErrorsMessage string) error {
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
 
@@ -148,10 +148,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 
 		// if no brief error message was passed, set it to be the last error
-		if briefErrorsLog == "" {
+		if briefErrorsMessage == "" {
 			lastError := bytes.Buffer{}
 			errors.PrintErrorStack(&lastError, creationError, 1)
-			briefErrorsLog = lastError.String()
+			briefErrorsMessage = lastError.String()
 		}
 
 		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
@@ -168,7 +168,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			FunctionStatus: &functionconfig.Status{
 				HTTPPort: defaultHTTPPort,
 				State:    functionconfig.FunctionStateError,
-				Message:  briefErrorsLog,
+				Message:  briefErrorsMessage,
 			},
 		})
 	}
@@ -226,11 +226,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return nil, errors.Wrap(err, "Failed setting scale to zero spec")
 		}
 
-		createFunctionResult, briefErrorsLog, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
+		createFunctionResult, briefErrorsMessage, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
 		if deployErr != nil {
 
 			// try to report the error
-			reportCreationError(deployErr, briefErrorsLog) // nolint: errcheck
+			reportCreationError(deployErr, briefErrorsMessage) // nolint: errcheck
 
 			return nil, deployErr
 		}

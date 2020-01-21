@@ -165,8 +165,8 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 		functionInstance.Namespace,
 		functionInstance.Name)
 	if err != nil {
-		podLogs, briefErrorsLog := d.getFunctionPodLogsAndEvents(functionInstance.Namespace, functionInstance.Name)
-		return nil, briefErrorsLog, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
+		podLogs, briefErrorsMessage := d.getFunctionPodLogsAndEvents(functionInstance.Namespace, functionInstance.Name)
+		return nil, briefErrorsMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
 	}
 
 	return &platform.CreateFunctionResult{
@@ -205,7 +205,7 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 }
 
 func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (string, string) {
-	var briefErrorsLog string
+	var briefErrorsMessage string
 	podLogsMessage := "\nPod logs:\n"
 
 	// list pods
@@ -243,7 +243,7 @@ func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 			scanner := bufio.NewScanner(logsRequest)
 
 			var formattedProcessorLogs string
-			formattedProcessorLogs, briefErrorsLog = d.platform.GetProcessorLogsAndBriefError(scanner)
+			formattedProcessorLogs, briefErrorsMessage = d.platform.GetProcessorLogsAndBriefError(scanner)
 
 			podLogsMessage += formattedProcessorLogs
 
@@ -254,15 +254,15 @@ func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 		podWarningEvents, err := d.getFunctionPodWarningEvents(namespace, pod.Name)
 		if err != nil {
 			podLogsMessage += "Failed to get pod warning events: " + err.Error() + "\n"
-		} else if briefErrorsLog == "" && podWarningEvents != "" {
+		} else if briefErrorsMessage == "" && podWarningEvents != "" {
 
 			// if there is no brief error message and there are warning events - add them
 			podLogsMessage += "\n* Warning events:\n" + podWarningEvents
-			briefErrorsLog += podWarningEvents
+			briefErrorsMessage += podWarningEvents
 		}
 	}
 
-	return podLogsMessage, briefErrorsLog
+	return podLogsMessage, briefErrorsMessage
 }
 
 func (d *deployer) getFunctionPodWarningEvents(namespace string, podName string) (string, error) {

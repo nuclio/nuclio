@@ -373,28 +373,18 @@ func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.Create
 }
 
 func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (string, string) {
-	var formattedProcessorLogs, briefErrorsLog string
+	var formattedProcessorLogs, briefErrorsMessage string
 
 	briefErrorsArray := &[]string{}
 
-	// adds log to briefErrorsArray (prevents duplicate lines)
-	addToBriefErrorsLog := func(logLine string) {
-		for _, briefError := range *briefErrorsArray {
-			if logLine != "\n" && logLine == briefError {
-				return
-			}
-		}
-		*briefErrorsArray = append(*briefErrorsArray, logLine)
-	}
-
 	for scanner.Scan() {
-		currentLogLine, err := ap.prettifyProcessorLogLine(scanner.Bytes(), addToBriefErrorsLog)
+		currentLogLine, err := ap.prettifyProcessorLogLine(scanner.Bytes(), briefErrorsArray)
 		if err != nil {
 			rawLogLine := scanner.Text()
 
 			// when it is unstructured just add the log as a text
 			formattedProcessorLogs += rawLogLine + "\n"
-			addToBriefErrorsLog(rawLogLine)
+			*briefErrorsArray = append(*briefErrorsArray, rawLogLine)
 			continue
 		}
 
@@ -403,13 +393,12 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 	}
 
 	// create brief errors log as string, and remove double newlines
-	briefErrorsLog = strings.Join(*briefErrorsArray, "\n")
-	briefErrorsLog = strings.Replace(briefErrorsLog, "\n\n\n", "\n\n", -1)
+	briefErrorsMessage = strings.Join(*briefErrorsArray, "\n")
 
-	return common.FixEscapeChars(formattedProcessorLogs), common.FixEscapeChars(briefErrorsLog)
+	return common.FixEscapeChars(formattedProcessorLogs), common.FixEscapeChars(briefErrorsMessage)
 }
 
-func (ap *Platform) prettifyProcessorLogLine(log []byte, addToBriefErrorsLog func(logLine string)) (string, error) {
+func (ap *Platform) prettifyProcessorLogLine(log []byte, briefErrorsArray *[]string) (string, error) {
 	logStruct := struct {
 		Time    *string `json:"time"`
 		Level   *string `json:"level"`
@@ -463,34 +452,37 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte, addToBriefErrorsLog fun
 
 	logLevel := strings.ToUpper(*logStruct.Level)[0]
 
-	// When the log is info level and above - and the message begins with a failure word, we will treat this log as a warning
-	// Added this to handle failures logged by 3rd party components, which print failure logs as Info
-	failureWords := [...]string{"fail", "error"}
-	if logLevel == 'I' && len(*logStruct.Message) > 4 {
-		for _, failureWord := range failureWords {
-			if len(*logStruct.Message) > len(failureWord) &&
-				strings.ToLower(*logStruct.Message)[:len(failureWord)] == failureWord {
-
-				logLevel = 'W'
-				break
-			}
-		}
-	}
-
-	fullMessage := *logStruct.Message
-
+	messageWithParams := *logStruct.Message
 	if logStruct.More != nil {
-		fullMessage = fmt.Sprintf("%s [%s]", fullMessage, *logStruct.More)
+		messageWithParams = fmt.Sprintf("%s [%s]", messageWithParams, *logStruct.More)
 	}
 
 	res := fmt.Sprintf("[%s] (%c) %s",
 		parsedTime.Format("15:04:05.000"),
 		logLevel,
-		fullMessage)
+		messageWithParams)
 
-	if logLevel != 'D' && logLevel != 'I' {
-		addToBriefErrorsLog(fullMessage + "\n")
+	if ap.shouldAddToBriefErrorsMessage(logLevel, *logStruct.Message) {
+		*briefErrorsArray = append(*briefErrorsArray, messageWithParams)
 	}
 
 	return res, nil
+}
+
+func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage string) bool {
+	knownFailurePrefixes := [...]string{"Failed to connect to broker"}
+
+	// when log level is warning or above
+	if logLevel != 'D' && logLevel != 'I' {
+		return true
+	}
+
+	// when the log message contains a known failure prefix
+	for _, prefix := range knownFailurePrefixes {
+		if strings.HasPrefix(logMessage, prefix) {
+			return true
+		}
+	}
+
+	return false
 }
