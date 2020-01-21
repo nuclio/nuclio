@@ -527,7 +527,7 @@ func (ap *Platform) enrichImageName(createFunctionOptions *platform.CreateFuncti
 
 	functionBuildRequired, err := ap.functionBuildRequired(createFunctionOptions)
 	if err != nil {
-		return errors.Wrap(err, "Failed determining whether function should build")
+		return errors.Wrap(err, "Failed determining whether function build is required for image name enrichment")
 	}
 
 	// if build is not required or custom image name was not asked enrichment is irrelevant
