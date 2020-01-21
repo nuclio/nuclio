@@ -37,6 +37,16 @@ spec:
     spec:
       serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
       containers:
+      - image: docker:19.03-dind
+        imagePullPolicy: IfNotPresent
+        name: dind
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/lib/docker
+          name: dind-storage
+        - mountPath: /certs
+          name: dind-tls
       - name: {{ template "nuclio.dashboardName" . }}
         image: {{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}
         imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
@@ -97,16 +107,6 @@ spec:
           value: /certs/client
         - name: DOCKER_TLS_VERIFY
           value: "1"
-      - image: docker:19.03-dind
-        imagePullPolicy: IfNotPresent
-        name: dind
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /var/lib/docker
-          name: dind-storage
-        - mountPath: /certs
-          name: dind-tls
       volumes:
       - emptyDir: {}
         name: dind-storage

@@ -128,6 +128,16 @@ spec:
         nuclio.io/version: 1.3.7
     spec:
       containers:
+      - image: docker:19.03-dind
+        imagePullPolicy: IfNotPresent
+        name: dind
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/lib/docker
+          name: dind-storage
+        - mountPath: /certs
+          name: dind-tls
       - name: nuclio-dashboard
         image: quay.io/nuclio/dashboard:1.3.7-amd64
         ports:
@@ -145,16 +155,6 @@ spec:
         - name: registry-credentials
           mountPath: "/etc/nuclio/dashboard/registry-credentials"
           readOnly: true
-      - image: docker:19.03-dind
-        imagePullPolicy: IfNotPresent
-        name: dind
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /var/lib/docker
-          name: dind-storage
-        - mountPath: /certs
-          name: dind-tls
       volumes:
       - emptyDir: {}
         name: dind-storage
