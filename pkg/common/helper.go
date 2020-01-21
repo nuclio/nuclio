@@ -228,7 +228,7 @@ func renderTemplate(templateToRender *template.Template, data map[string]interfa
 	var templateToRenderBuffer bytes.Buffer
 	err := templateToRender.Execute(&templateToRenderBuffer, &data)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to execute queueName template")
+		return "", errors.Wrap(err, "Failed to execute template rendering")
 	}
 
 	return templateToRenderBuffer.String(), nil
