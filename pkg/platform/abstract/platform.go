@@ -237,7 +237,7 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	projectName := deleteProjectOptions.Meta.Name
 
-	if projectName == "default" {
+	if projectName == platform.DefaultProjectName {
 		return errors.New("Cannot delete the default project")
 	}
 
@@ -510,7 +510,7 @@ func (ap *Platform) enrichProjectName(createFunctionOptions *platform.CreateFunc
 
 	// if no project name was given, set it to the default project
 	if createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] == "" {
-		createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = "default"
+		createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = platform.DefaultProjectName
 		ap.Logger.Debug("No project name specified. Setting to default")
 	}
 

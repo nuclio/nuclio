@@ -85,7 +85,7 @@ func ensureDefaultProjectExistence(parentLogger logger.Logger, p platform.Platfo
 
 	projects, err := p.GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
-			Name:      "default",
+			Name:      platform.DefaultProjectName,
 			Namespace: resolvedNamespace,
 		},
 	})
@@ -98,7 +98,7 @@ func ensureDefaultProjectExistence(parentLogger logger.Logger, p platform.Platfo
 		// if we're here the default project doesn't exist. create it
 		projectConfig := platform.ProjectConfig{
 			Meta: platform.ProjectMeta{
-				Name:      "default",
+				Name:      platform.DefaultProjectName,
 				Namespace: resolvedNamespace,
 			},
 			Spec: platform.ProjectSpec{},
