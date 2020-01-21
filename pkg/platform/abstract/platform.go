@@ -531,6 +531,8 @@ func (ap *Platform) enrichImageName(createFunctionOptions *platform.CreateFuncti
 	}
 
 	// if build is not required or custom image name was not asked enrichment is irrelevant
+	// note that leaving Spec.Build.Image will cause further enrichment deeper in build/builder.go.
+	// TODO: Revisit the need for this logic being stretched on so many places
 	if !functionBuildRequired || createFunctionOptions.FunctionConfig.Spec.Build.Image == "" {
 		return nil
 	}
