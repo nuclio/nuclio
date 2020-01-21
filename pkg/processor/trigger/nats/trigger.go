@@ -18,6 +18,7 @@ package nats
 
 import (
 	"bytes"
+	"net/url"
 	"text/template"
 	"time"
 
@@ -57,7 +58,25 @@ func newTrigger(parentLogger logger.Logger,
 		stop:            make(chan bool),
 	}
 
+	err = newTrigger.validateConfiguration()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to validate NATS trigger configuration")
+	}
+
 	return newTrigger, nil
+}
+
+func (n *nats) validateConfiguration() error {
+	natsURL, err := url.Parse(n.configuration.URL)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse NATS URL")
+	}
+
+	if natsURL.Scheme != "nats" {
+		return errors.New("Invalid URL. Must begin with 'nats://'")
+	}
+
+	return nil
 }
 
 func (n *nats) Start(checkpoint functionconfig.Checkpoint) error {
