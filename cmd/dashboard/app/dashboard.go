@@ -51,6 +51,7 @@ func Run(listenAddress string,
 	templatesGitPassword string,
 	templatesGithubAccessToken string,
 	defaultHTTPIngressHostTemplate string,
+	imageNamePrefixTemplate string,
 	platformAuthorizationMode string,
 	dependantImageRegistryURL string) error {
 	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
@@ -152,6 +153,10 @@ func Run(listenAddress string,
 		platformInstance.SetDefaultHTTPIngressHostTemplate(defaultHTTPIngressHostTemplate)
 	}
 
+	if imageNamePrefixTemplate != "" {
+		platformInstance.SetImageNamePrefixTemplate(imageNamePrefixTemplate)
+	}
+
 	rootLogger.InfoWith("Starting",
 		"name", platformInstance.GetName(),
 		"noPull", noPullBaseImages,
@@ -187,6 +192,7 @@ func Run(listenAddress string,
 		functionTemplatesRepository,
 		platformConfiguration,
 		defaultHTTPIngressHostTemplate,
+		imageNamePrefixTemplate,
 		platformAuthorizationMode,
 		dependantImageRegistryURL)
 	if err != nil {

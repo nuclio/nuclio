@@ -49,6 +49,7 @@ type Platform struct {
 	DeployLogStreams               map[string]*LogStream
 	ContainerBuilder               containerimagebuilderpusher.BuilderPusher
 	DefaultHTTPIngressHostTemplate string
+	ImageNamePrefixTemplate        string
 }
 
 func NewPlatform(parentLogger logger.Logger, platform platform.Platform, platformConfiguration interface{}) (*Platform, error) {
@@ -181,19 +182,27 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	return deployResult, nil
 }
 
-// Validation and enforcement of required function creation logic
-func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
+// Enrichment of create function options
+func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
 
 	// if labels is nil assign an empty map to it
 	if createFunctionOptions.FunctionConfig.Meta.Labels == nil {
 		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{}
 	}
 
-	// if no project name was given, set it to the default project
-	if createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] == "" {
-		createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = "default"
-		ap.Logger.Debug("No project name specified. Setting to default")
+	if err := ap.enrichProjectName(createFunctionOptions); err != nil {
+		return errors.Wrap(err, "Failed enriching project name")
 	}
+
+	if err := ap.enrichImageName(createFunctionOptions); err != nil {
+		return errors.Wrap(err, "Failed enriching image name")
+	}
+
+	return nil
+}
+
+// Validation and enforcement of required function creation logic
+func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
 
 	// validate the project exists
 	getProjectsOptions := &platform.GetProjectsOptions{
@@ -228,7 +237,7 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	projectName := deleteProjectOptions.Meta.Name
 
-	if projectName == "default" {
+	if projectName == platform.DefaultProjectName {
 		return errors.New("Cannot delete the default project")
 	}
 
@@ -316,6 +325,21 @@ func (ap *Platform) SetDefaultHTTPIngressHostTemplate(defaultHTTPIngressHostTemp
 
 func (ap *Platform) GetDefaultHTTPIngressHostTemplate() string {
 	return ap.DefaultHTTPIngressHostTemplate
+}
+
+func (ap *Platform) SetImageNamePrefixTemplate(imageNamePrefixTemplate string) {
+	ap.ImageNamePrefixTemplate = imageNamePrefixTemplate
+}
+
+func (ap *Platform) GetImageNamePrefixTemplate() string {
+	return ap.ImageNamePrefixTemplate
+}
+
+func (ap *Platform) RenderImageNamePrefixTemplate(projectName string, functionName string) (string, error) {
+	return common.RenderTemplate(ap.ImageNamePrefixTemplate, map[string]interface{}{
+		"ProjectName":  projectName,
+		"FunctionName": functionName,
+	})
 }
 
 // GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
@@ -503,4 +527,52 @@ func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage str
 	}
 
 	return false
+}
+
+// Function must have project name - if it was not given - set to default project
+func (ap *Platform) enrichProjectName(createFunctionOptions *platform.CreateFunctionOptions) error {
+
+	// if no project name was given, set it to the default project
+	if createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] == "" {
+		createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = platform.DefaultProjectName
+		ap.Logger.Debug("No project name specified. Setting to default")
+	}
+
+	return nil
+}
+
+// If a user specify the image name to be built - add "projectName-functionName-" prefix to it
+func (ap *Platform) enrichImageName(createFunctionOptions *platform.CreateFunctionOptions) error {
+	if ap.ImageNamePrefixTemplate == "" {
+		return nil
+	}
+	functionName := createFunctionOptions.FunctionConfig.Meta.Name
+	projectName := createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"]
+
+	functionBuildRequired, err := ap.functionBuildRequired(createFunctionOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed determining whether function build is required for image name enrichment")
+	}
+
+	// if build is not required or custom image name was not asked enrichment is irrelevant
+	// note that leaving Spec.Build.Image will cause further enrichment deeper in build/builder.go.
+	// TODO: Revisit the need for this logic being stretched on so many places
+	if !functionBuildRequired || createFunctionOptions.FunctionConfig.Spec.Build.Image == "" {
+		return nil
+	}
+
+	imagePrefix, err := ap.RenderImageNamePrefixTemplate(projectName, functionName)
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to render image name prefix template")
+	}
+
+	// avoid re-enrichment
+	if !strings.HasPrefix(createFunctionOptions.FunctionConfig.Spec.Build.Image, imagePrefix) {
+
+		createFunctionOptions.FunctionConfig.Spec.Build.Image = fmt.Sprintf("%s%s",
+			imagePrefix, createFunctionOptions.FunctionConfig.Spec.Build.Image)
+	}
+
+	return nil
 }
