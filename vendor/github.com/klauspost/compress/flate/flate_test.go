@@ -9,8 +9,11 @@
 package flate
 
 import (
+	"archive/zip"
 	"bytes"
+	"compress/flate"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"testing"
 )
@@ -63,6 +66,78 @@ func TestInvalidEncoding(t *testing.T) {
 	_, err := f.huffSym(&h)
 	if err == nil {
 		t.Fatal("Should have rejected invalid bit sequence")
+	}
+}
+
+func TestRegressions(t *testing.T) {
+	// Test fuzzer regressions
+	data, err := ioutil.ReadFile("testdata/regression.zip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range zr.File {
+		data, err := tt.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data1, err := ioutil.ReadAll(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for level := 0; level <= 9; level++ {
+			t.Run(fmt.Sprint(tt.Name+"-level", 1), func(t *testing.T) {
+				buf := new(bytes.Buffer)
+				fw, err := NewWriter(buf, level)
+				if err != nil {
+					t.Error(err)
+				}
+				n, err := fw.Write(data1)
+				if n != len(data1) {
+					t.Error("short write")
+				}
+				if err != nil {
+					t.Error(err)
+				}
+				err = fw.Close()
+				if err != nil {
+					t.Error(err)
+				}
+				fr1 := NewReader(buf)
+				data2, err := ioutil.ReadAll(fr1)
+				if err != nil {
+					t.Error(err)
+				}
+				if bytes.Compare(data1, data2) != 0 {
+					t.Error("not equal")
+				}
+				// Do it again...
+				buf.Reset()
+				fw.Reset(buf)
+				n, err = fw.Write(data1)
+				if n != len(data1) {
+					t.Error("short write")
+				}
+				if err != nil {
+					t.Error(err)
+				}
+				err = fw.Close()
+				if err != nil {
+					t.Error(err)
+				}
+				fr1 = flate.NewReader(buf)
+				data2, err = ioutil.ReadAll(fr1)
+				if err != nil {
+					t.Error(err)
+				}
+				if bytes.Compare(data1, data2) != 0 {
+					t.Error("not equal")
+				}
+			})
+		}
 	}
 }
 

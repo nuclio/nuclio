@@ -81,7 +81,7 @@ func largeDataChunk() []byte {
 	return result
 }
 
-func TestCRCBulkOld(t *testing.T) {
+func TestBulkHash4(t *testing.T) {
 	for _, x := range deflateTests {
 		y := x.out
 		if len(y) >= minMatchLength {
@@ -162,7 +162,7 @@ func TestVeryLongSparseChunk(t *testing.T) {
 		t.Errorf("NewWriter: %v", err)
 		return
 	}
-	if _, err = io.Copy(w, &sparseReader{l: 23E8}); err != nil {
+	if _, err = io.Copy(w, &sparseReader{l: 23e8}); err != nil {
 		t.Errorf("Compress failed: %v", err)
 		return
 	}
@@ -500,11 +500,10 @@ func TestWriterReset(t *testing.T) {
 		// DeepEqual doesn't compare functions.
 		w.d.fill, wref.d.fill = nil, nil
 		w.d.step, wref.d.step = nil, nil
-		w.d.bulkHasher, wref.d.bulkHasher = nil, nil
-		w.d.snap, wref.d.snap = nil, nil
+		w.d.state, wref.d.state = nil, nil
+		w.d.fast, wref.d.fast = nil, nil
 
 		// hashMatch is always overwritten when used.
-		copy(w.d.hashMatch[:], wref.d.hashMatch[:])
 		if w.d.tokens.n != 0 {
 			t.Errorf("level %d Writer not reset after Reset. %d tokens were present", level, w.d.tokens.n)
 		}

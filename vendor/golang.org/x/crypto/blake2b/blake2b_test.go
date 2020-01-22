@@ -6,6 +6,7 @@ package blake2b
 
 import (
 	"bytes"
+	"encoding"
 	"encoding/hex"
 	"fmt"
 	"hash"
@@ -69,6 +70,54 @@ func TestHashes2X(t *testing.T) {
 	testHashes2X(t)
 }
 
+func TestMarshal(t *testing.T) {
+	input := make([]byte, 255)
+	for i := range input {
+		input[i] = byte(i)
+	}
+	for _, size := range []int{Size, Size256, Size384, 12, 25, 63} {
+		for i := 0; i < 256; i++ {
+			h, err := New(size, nil)
+			if err != nil {
+				t.Fatalf("size=%d, len(input)=%d: error from New(%v, nil): %v", size, i, size, err)
+			}
+			h2, err := New(size, nil)
+			if err != nil {
+				t.Fatalf("size=%d, len(input)=%d: error from New(%v, nil): %v", size, i, size, err)
+			}
+
+			h.Write(input[:i/2])
+			halfstate, err := h.(encoding.BinaryMarshaler).MarshalBinary()
+			if err != nil {
+				t.Fatalf("size=%d, len(input)=%d: could not marshal: %v", size, i, err)
+			}
+			err = h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(halfstate)
+			if err != nil {
+				t.Fatalf("size=%d, len(input)=%d: could not unmarshal: %v", size, i, err)
+			}
+
+			h.Write(input[i/2 : i])
+			sum := h.Sum(nil)
+			h2.Write(input[i/2 : i])
+			sum2 := h2.Sum(nil)
+
+			if !bytes.Equal(sum, sum2) {
+				t.Fatalf("size=%d, len(input)=%d: results do not match; sum = %v, sum2 = %v", size, i, sum, sum2)
+			}
+
+			h3, err := New(size, nil)
+			if err != nil {
+				t.Fatalf("size=%d, len(input)=%d: error from New(%v, nil): %v", size, i, size, err)
+			}
+			h3.Write(input[:i])
+			sum3 := h3.Sum(nil)
+			if !bytes.Equal(sum, sum3) {
+				t.Fatalf("size=%d, len(input)=%d: sum = %v, want %v", size, i, sum, sum3)
+			}
+		}
+	}
+}
+
 func testHashes(t *testing.T) {
 	key, _ := hex.DecodeString("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f")
 
@@ -126,7 +175,7 @@ func testHashes2X(t *testing.T) {
 			t.Fatalf("#%d (single write): error from Read: %v", i, err)
 		}
 		if n, err := h.Read(sum); n != 0 || err != io.EOF {
-			t.Fatalf("#%d (single write): Read did not return (0, os.EOF) after exhaustion, got (%v, %v)", i, n, err)
+			t.Fatalf("#%d (single write): Read did not return (0, io.EOF) after exhaustion, got (%v, %v)", i, n, err)
 		}
 		if gotHex := fmt.Sprintf("%x", sum); gotHex != expectedHex {
 			t.Fatalf("#%d (single write): got %s, wanted %s", i, gotHex, expectedHex)

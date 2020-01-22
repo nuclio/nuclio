@@ -63,7 +63,7 @@ func (r ResponseStatus) String() string {
 }
 
 // ResponseError is an error that may be returned by ParseResponse to indicate
-// that the response itself is an error, not just that its indicating that a
+// that the response itself is an error, not just that it's indicating that a
 // certificate is revoked, unknown, etc.
 type ResponseError struct {
 	Status ResponseStatus
@@ -295,17 +295,17 @@ const (
 
 // The enumerated reasons for revoking a certificate.  See RFC 5280.
 const (
-	Unspecified          = iota
-	KeyCompromise        = iota
-	CACompromise         = iota
-	AffiliationChanged   = iota
-	Superseded           = iota
-	CessationOfOperation = iota
-	CertificateHold      = iota
-	_                    = iota
-	RemoveFromCRL        = iota
-	PrivilegeWithdrawn   = iota
-	AACompromise         = iota
+	Unspecified          = 0
+	KeyCompromise        = 1
+	CACompromise         = 2
+	AffiliationChanged   = 3
+	Superseded           = 4
+	CessationOfOperation = 5
+	CertificateHold      = 6
+
+	RemoveFromCRL      = 8
+	PrivilegeWithdrawn = 9
+	AACompromise       = 10
 )
 
 // Request represents an OCSP request. See RFC 6960.
@@ -487,9 +487,8 @@ func ParseResponseForCert(bytes []byte, cert, issuer *x509.Certificate) (*Respon
 	if err != nil {
 		return nil, err
 	}
-
-	if len(basicResp.Certificates) > 1 {
-		return nil, ParseError("OCSP response contains bad number of certificates")
+	if len(rest) > 0 {
+		return nil, ParseError("trailing data in OCSP response")
 	}
 
 	if n := len(basicResp.TBSResponseData.Responses); n == 0 || cert == nil && n > 1 {
@@ -544,6 +543,13 @@ func ParseResponseForCert(bytes []byte, cert, issuer *x509.Certificate) (*Respon
 	}
 
 	if len(basicResp.Certificates) > 0 {
+		// Responders should only send a single certificate (if they
+		// send any) that connects the responder's certificate to the
+		// original issuer. We accept responses with multiple
+		// certificates due to a number responders sending them[1], but
+		// ignore all but the first.
+		//
+		// [1] https://github.com/golang/go/issues/21527
 		ret.Certificate, err = x509.ParseCertificate(basicResp.Certificates[0].FullBytes)
 		if err != nil {
 			return nil, err
@@ -659,7 +665,7 @@ func CreateRequest(cert, issuer *x509.Certificate, opts *RequestOptions) ([]byte
 //
 // The issuer cert is used to puplate the IssuerNameHash and IssuerKeyHash fields.
 //
-// The template is used to populate the SerialNumber, RevocationStatus, RevokedAt,
+// The template is used to populate the SerialNumber, Status, RevokedAt,
 // RevocationReason, ThisUpdate, and NextUpdate fields.
 //
 // If template.IssuerHash is not set, SHA1 will be used.
@@ -760,7 +766,7 @@ func CreateResponse(issuer, responderCert *x509.Certificate, template Response, 
 	}
 	if template.Certificate != nil {
 		response.Certificates = []asn1.RawValue{
-			asn1.RawValue{FullBytes: template.Certificate.Raw},
+			{FullBytes: template.Certificate.Raw},
 		}
 	}
 	responseDER, err := asn1.Marshal(response)
