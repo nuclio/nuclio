@@ -35,6 +35,8 @@
                             lodash.forEach(importedData.projects, function (project) {
                                 importProject(project, resolve, reject);
                             });
+                        } else {
+                            throw new Error('invalid yaml');
                         }
                     } catch (error) {
                         DialogsService.alert($i18next.t('common:ERROR_MSG.IMPORT_YAML_FILE', {lng: lng}))
