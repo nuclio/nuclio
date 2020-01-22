@@ -18,6 +18,7 @@ package kafka
 
 import (
 	"context"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -84,13 +85,24 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 
 	k.shutdownSignal = make(chan struct{}, 1)
 
-	ctx := context.Background()
-	err = k.consumerGroup.Consume(ctx, k.configuration.Topics, k)
-	if err != nil {
-		return errors.Wrap(err, "Failed to join consumer cluster")
-	}
+	// start consumption in the background
+	go func() {
+		for {
 
-	return err
+			// start consuming. this will exit without error if a rebalancing occurs
+			err = k.consumerGroup.Consume(context.Background(), k.configuration.Topics, k)
+
+			if err != nil {
+				k.Logger.WarnWith("Failed to consume from group, waiting before retrying", "err", err.Error())
+
+				time.Sleep(1 * time.Second)
+			} else {
+				k.Logger.DebugWith("Consumer session closed (possibly due to a rebalance), re-creating")
+			}
+		}
+	}()
+
+	return nil
 }
 
 func (k *kafka) Stop(force bool) (functionconfig.Checkpoint, error) {
@@ -116,6 +128,7 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Net.SASL.Enable = k.configuration.SASL.Enable
 	config.Net.SASL.User = k.configuration.SASL.User
 	config.Net.SASL.Password = k.configuration.SASL.Password
+	config.Consumer.Offsets.AutoCommit.Enable = false
 	config.ClientID = k.ID
 
 	if err := config.Validate(); err != nil {
@@ -137,26 +150,33 @@ func (k *kafka) newConsumerGroup() (sarama.ConsumerGroup, error) {
 }
 
 func (k *kafka) Setup(session sarama.ConsumerGroupSession) error {
-	k.Logger.InfoWith("Starting consumer session", "claims", session.Claims())
+	k.Logger.InfoWith("Starting consumer session",
+		"claims", session.Claims(),
+		"memberID", session.MemberID())
+
 	return nil
 }
 
 func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
-	k.Logger.InfoWith("Ending consumer session", "claims", session.Claims())
+	k.Logger.InfoWith("Ending consumer session",
+		"claims", session.Claims(),
+		"memberID", session.MemberID())
+
 	return nil
 }
 
 func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	workerInstance, err := k.WorkerAllocator.Allocate(0)
-	if err != nil {
-		return errors.Wrap(err, "Failed to allocate worker for consumer")
-	}
-	defer k.WorkerAllocator.Release(workerInstance)
 	event := Event{}
+
 	for message := range claim.Messages() {
 		event.kafkaMessage = message
-		k.SubmitEventToWorker(nil, workerInstance, &event) // nolint: errcheck
-		session.MarkMessage(message, "")                   // mark message as processed
+
+		// allocate a worker from the pool and handle the event
+		k.AllocateWorkerAndSubmitEvent(&event, nil, 0) // nolint: errcheck
+
+		// mark message as processed
+		session.MarkMessage(message, "")
 	}
+
 	return nil
 }
