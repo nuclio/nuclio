@@ -10,7 +10,7 @@ addons:
 
 language: go
 go_import_path: github.com/nuclio/nuclio
-go: "1.13"
+go: "1.12"
 
 env:
   global:
