@@ -1,0 +1,20 @@
+{
+   "label" : "SHA-1 SASLprep normal",
+   "digest" : "SHA-1",
+   "user" : "ram\u00f5n",
+   "pass" : "p\u00c5assword",
+   "authID" : "",
+   "skipSASLprep" : false,
+   "salt64" : "c2FsdFNBTFRzYWx0\n",
+   "iters" : 4096,
+   "clientNonce" : "clientNONCE",
+   "serverNonce" : "serverNONCE",
+   "valid" : true,
+   "steps" : [
+      "n,,n=ram\u00f5n,r=clientNONCE",
+      "r=clientNONCEserverNONCE,s=c2FsdFNBTFRzYWx0,i=4096",
+      "c=biws,r=clientNONCEserverNONCE,p=A1/CIzRGDxwgLpXqQ0CHSSOKX08=",
+      "v=aCt2W88clBMnoAQauVf677Rjpho=",
+      ""
+   ]
+}
