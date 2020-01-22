@@ -5,17 +5,100 @@
 package flate
 
 import (
+	"archive/zip"
 	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 )
 
+func TestWriterRegression(t *testing.T) {
+	data, err := ioutil.ReadFile("testdata/regression.zip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for level := HuffmanOnly; level <= BestCompression; level++ {
+		t.Run(fmt.Sprint("level_", level), func(t *testing.T) {
+			zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			for _, tt := range zr.File {
+				if !strings.HasSuffix(t.Name(), "") {
+					continue
+				}
+
+				t.Run(tt.Name, func(t *testing.T) {
+					r, err := tt.Open()
+					if err != nil {
+						t.Error(err)
+						return
+					}
+					in, err := ioutil.ReadAll(r)
+					if err != nil {
+						t.Error(err)
+					}
+					msg := "level " + strconv.Itoa(level) + ":"
+					buf := new(bytes.Buffer)
+					fw, err := NewWriter(buf, level)
+					if err != nil {
+						t.Fatal(msg + err.Error())
+					}
+					n, err := fw.Write(in)
+					if n != len(in) {
+						t.Fatal(msg + "short write")
+					}
+					if err != nil {
+						t.Fatal(msg + err.Error())
+					}
+					err = fw.Close()
+					if err != nil {
+						t.Fatal(msg + err.Error())
+					}
+					fr1 := NewReader(buf)
+					data2, err := ioutil.ReadAll(fr1)
+					if err != nil {
+						t.Fatal(msg + err.Error())
+					}
+					if bytes.Compare(in, data2) != 0 {
+						t.Fatal(msg + "not equal")
+					}
+					// Do it again...
+					msg = "level " + strconv.Itoa(level) + " (reset):"
+					buf.Reset()
+					fw.Reset(buf)
+					n, err = fw.Write(in)
+					if n != len(in) {
+						t.Fatal(msg + "short write")
+					}
+					if err != nil {
+						t.Fatal(msg + err.Error())
+					}
+					err = fw.Close()
+					if err != nil {
+						t.Fatal(msg + err.Error())
+					}
+					fr1 = NewReader(buf)
+					data2, err = ioutil.ReadAll(fr1)
+					if err != nil {
+						t.Fatal(msg + err.Error())
+					}
+					if bytes.Compare(in, data2) != 0 {
+						t.Fatal(msg + "not equal")
+					}
+				})
+			}
+		})
+	}
+}
+
 func benchmarkEncoder(b *testing.B, testfile, level, n int) {
-	b.StopTimer()
 	b.SetBytes(int64(n))
 	buf0, err := ioutil.ReadFile(testfiles[testfile])
 	if err != nil {
@@ -34,7 +117,8 @@ func benchmarkEncoder(b *testing.B, testfile, level, n int) {
 	buf0 = nil
 	runtime.GC()
 	w, err := NewWriter(ioutil.Discard, level)
-	b.StartTimer()
+	b.ResetTimer()
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		w.Reset(ioutil.Discard)
 		_, err = w.Write(buf1)
@@ -60,6 +144,9 @@ func BenchmarkEncodeDigitsDefault1e6(b *testing.B)  { benchmarkEncoder(b, digits
 func BenchmarkEncodeDigitsCompress1e4(b *testing.B) { benchmarkEncoder(b, digits, compress, 1e4) }
 func BenchmarkEncodeDigitsCompress1e5(b *testing.B) { benchmarkEncoder(b, digits, compress, 1e5) }
 func BenchmarkEncodeDigitsCompress1e6(b *testing.B) { benchmarkEncoder(b, digits, compress, 1e6) }
+func BenchmarkEncodeDigitsSL1e4(b *testing.B)       { benchmarkStatelessEncoder(b, digits, 1e4) }
+func BenchmarkEncodeDigitsSL1e5(b *testing.B)       { benchmarkStatelessEncoder(b, digits, 1e5) }
+func BenchmarkEncodeDigitsSL1e6(b *testing.B)       { benchmarkStatelessEncoder(b, digits, 1e6) }
 func BenchmarkEncodeTwainConstant1e4(b *testing.B)  { benchmarkEncoder(b, twain, constant, 1e4) }
 func BenchmarkEncodeTwainConstant1e5(b *testing.B)  { benchmarkEncoder(b, twain, constant, 1e5) }
 func BenchmarkEncodeTwainConstant1e6(b *testing.B)  { benchmarkEncoder(b, twain, constant, 1e6) }
@@ -72,6 +159,42 @@ func BenchmarkEncodeTwainDefault1e6(b *testing.B)   { benchmarkEncoder(b, twain,
 func BenchmarkEncodeTwainCompress1e4(b *testing.B)  { benchmarkEncoder(b, twain, compress, 1e4) }
 func BenchmarkEncodeTwainCompress1e5(b *testing.B)  { benchmarkEncoder(b, twain, compress, 1e5) }
 func BenchmarkEncodeTwainCompress1e6(b *testing.B)  { benchmarkEncoder(b, twain, compress, 1e6) }
+func BenchmarkEncodeTwainSL1e4(b *testing.B)        { benchmarkStatelessEncoder(b, twain, 1e4) }
+func BenchmarkEncodeTwainSL1e5(b *testing.B)        { benchmarkStatelessEncoder(b, twain, 1e5) }
+func BenchmarkEncodeTwainSL1e6(b *testing.B)        { benchmarkStatelessEncoder(b, twain, 1e6) }
+
+func benchmarkStatelessEncoder(b *testing.B, testfile, n int) {
+	b.SetBytes(int64(n))
+	buf0, err := ioutil.ReadFile(testfiles[testfile])
+	if err != nil {
+		b.Fatal(err)
+	}
+	if len(buf0) == 0 {
+		b.Fatalf("test file %q has no data", testfiles[testfile])
+	}
+	buf1 := make([]byte, n)
+	for i := 0; i < n; i += len(buf0) {
+		if len(buf0) > n-i {
+			buf0 = buf0[:n-i]
+		}
+		copy(buf1[i:], buf0)
+	}
+	buf0 = nil
+	runtime.GC()
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		w := NewStatelessWriter(ioutil.Discard)
+		_, err = w.Write(buf1)
+		if err != nil {
+			b.Fatal(err)
+		}
+		err = w.Close()
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
 
 // A writer that fails after N writes.
 type errorWriter struct {

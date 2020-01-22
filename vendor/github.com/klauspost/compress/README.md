@@ -1,18 +1,82 @@
 # compress
 
-This package is based on an optimized Deflate function, which is used by gzip/zip/zlib packages.
+This package provides various compression algorithms.
 
-It offers slightly better compression at lower compression settings, and up to 3x faster encoding at highest compression level.
-
-* [High Throughput Benchmark](http://blog.klauspost.com/go-gzipdeflate-benchmarks/).
-* [Small Payload/Webserver Benchmarks](http://blog.klauspost.com/gzip-performance-for-go-webservers/).
-* [Linear Time Compression](http://blog.klauspost.com/constant-time-gzipzip-compression/).
-* [Re-balancing Deflate Compression Levels](https://blog.klauspost.com/rebalancing-deflate-compression-levels/)
+* [zstandard](https://github.com/klauspost/compress/tree/master/zstd#zstd) compression and decompression in pure Go.
+* [S2](https://github.com/klauspost/compress/tree/master/s2#s2-compression) is a high performance replacement for Snappy.
+* Optimized [deflate](https://godoc.org/github.com/klauspost/compress/flate) packages which can be used as a dropin replacement for [gzip](https://godoc.org/github.com/klauspost/compress/gzip), [zip](https://godoc.org/github.com/klauspost/compress/zip) and [zlib](https://godoc.org/github.com/klauspost/compress/zlib).
+* [huff0](https://github.com/klauspost/compress/tree/master/huff0) and [FSE](https://github.com/klauspost/compress/tree/master/fse) implementations for raw entropy encoding.
+* [pgzip](https://github.com/klauspost/pgzip) is a separate package that provides a very fast parallel gzip implementation.
 
 [![Build Status](https://travis-ci.org/klauspost/compress.svg?branch=master)](https://travis-ci.org/klauspost/compress)
 [![Sourcegraph Badge](https://sourcegraph.com/github.com/klauspost/compress/-/badge.svg)](https://sourcegraph.com/github.com/klauspost/compress?badge)
+[![fuzzit](https://app.fuzzit.dev/badge?org_id=klauspost)](https://fuzzit.dev)
 
 # changelog
+
+* Jan 20,2020 (v1.9.8) Optimize gzip/deflate with better size estimates and faster table generation. [#207](https://github.com/klauspost/compress/pull/207) by [luyu6056](https://github.com/luyu6056),  [#206](https://github.com/klauspost/compress/pull/206).
+* Jan 11, 2020: S2 Encode/Decode will use provided buffer if capacity is big enough. [#204](https://github.com/klauspost/compress/pull/204) 
+* Jan 5, 2020: (v1.9.7) Fix another zstd regression in v1.9.5 - v1.9.6 removed.
+* Jan 4, 2020: (v1.9.6) Regression in v1.9.5 fixed causing corrupt zstd encodes in rare cases.
+* Jan 4, 2020: Faster IO in [s2c + s2d commandline tools](https://github.com/klauspost/compress/tree/master/s2#commandline-tools) compression/decompression. [#192](https://github.com/klauspost/compress/pull/192)
+* Dec 29, 2019: Removed v1.9.5 since fuzz tests showed a compatibility problem with the reference zstandard decoder.
+* Dec 29, 2019: (v1.9.5) zstd: 10-20% faster block compression. [#199](https://github.com/klauspost/compress/pull/199)
+* Dec 29, 2019: [zip](https://godoc.org/github.com/klauspost/compress/zip) package updated with latest Go features
+* Dec 29, 2019: zstd: Single segment flag condintions tweaked. [#197](https://github.com/klauspost/compress/pull/197)
+* Dec 18, 2019: s2: Faster compression when ReadFrom is used. [#198](https://github.com/klauspost/compress/pull/198)
+* Dec 10, 2019: s2: Fix repeat length output when just above at 16MB limit.
+* Dec 10, 2019: zstd: Add function to get decoder as io.ReadCloser. [#191](https://github.com/klauspost/compress/pull/191)
+* Dec 3, 2019: (v1.9.4) S2: limit max repeat length. [#188](https://github.com/klauspost/compress/pull/188)
+* Dec 3, 2019: Add [WithNoEntropyCompression](https://godoc.org/github.com/klauspost/compress/zstd#WithNoEntropyCompression) to zstd [#187](https://github.com/klauspost/compress/pull/187)
+* Dec 3, 2019: Reduce memory use for tests. Check for leaked goroutines.
+* Nov 28, 2019 (v1.9.3) Less allocations in stateless deflate.
+* Nov 28, 2019: 5-20% Faster huff0 decode. Impacts zstd as well. [#184](https://github.com/klauspost/compress/pull/184)
+* Nov 12, 2019 (v1.9.2) Added [Stateless Compression](#stateless-compression) for gzip/deflate.
+* Nov 12, 2019: Fixed zstd decompression of large single blocks. [#180](https://github.com/klauspost/compress/pull/180)
+* Nov 11, 2019: Set default  [s2c](https://github.com/klauspost/compress/tree/master/s2#commandline-tools) block size to 4MB.
+* Nov 11, 2019: Reduce inflate memory use by 1KB.
+* Nov 10, 2019: Less allocations in deflate bit writer.
+* Nov 10, 2019: Fix inconsistent error returned by zstd decoder.
+* Oct 28, 2019 (v1.9.1) ztsd: Fix crash when compressing blocks. [#174](https://github.com/klauspost/compress/pull/174)
+* Oct 24, 2019 (v1.9.0) zstd: Fix rare data corruption [#173](https://github.com/klauspost/compress/pull/173)
+* Oct 24, 2019 zstd: Fix huff0 out of buffer write [#171](https://github.com/klauspost/compress/pull/171) and always return errors [#172](https://github.com/klauspost/compress/pull/172) 
+* Oct 10, 2019: Big deflate rewrite, 30-40% faster with better compression [#105](https://github.com/klauspost/compress/pull/105)
+* Oct 10, 2019: (v1.8.6) zstd: Allow partial reads to get flushed data. [#169](https://github.com/klauspost/compress/pull/169)
+* Oct 3, 2019: Fix inconsistent results on broken zstd streams.
+* Sep 25, 2019: Added `-rm` (remove source files) and `-q` (no output except errors) to `s2c` and `s2d` [commands](https://github.com/klauspost/compress/tree/master/s2#commandline-tools)
+* Sep 16, 2019: (v1.8.4) Add `s2c` and `s2d` [commandline tools](https://github.com/klauspost/compress/tree/master/s2#commandline-tools).
+* Sep 10, 2019: (v1.8.3) Fix s2 decoder [Skip](https://godoc.org/github.com/klauspost/compress/s2#Reader.Skip).
+* Sep 7, 2019: zstd: Added [WithWindowSize](https://godoc.org/github.com/klauspost/compress/zstd#WithWindowSize), contributed by [ianwilkes](https://github.com/ianwilkes).
+* Sep 5, 2019: (v1.8.2) Add [WithZeroFrames](https://godoc.org/github.com/klauspost/compress/zstd#WithZeroFrames) which adds full zero payload block encoding option.
+* Sep 5, 2019: Lazy initialization of zstandard predefined en/decoder tables.
+* Aug 26, 2019: (v1.8.1) S2: 1-2% compression increase in "better" compression mode.
+* Aug 26, 2019: zstd: Check maximum size of Huffman 1X compressed literals while decoding.
+* Aug 24, 2019: (v1.8.0) Added [S2 compression](https://github.com/klauspost/compress/tree/master/s2#s2-compression), a high performance replacement for Snappy. 
+* Aug 21, 2019: (v1.7.6) Fixed minor issues found by fuzzer. One could lead to zstd not decompressing.
+* Aug 18, 2019: Add [fuzzit](https://fuzzit.dev/) continuous fuzzing.
+* Aug 14, 2019: zstd: Skip incompressible data 2x faster.  [#147](https://github.com/klauspost/compress/pull/147)
+* Aug 4, 2019 (v1.7.5): Better literal compression. [#146](https://github.com/klauspost/compress/pull/146)
+* Aug 4, 2019: Faster zstd compression. [#143](https://github.com/klauspost/compress/pull/143) [#144](https://github.com/klauspost/compress/pull/144)
+* Aug 4, 2019: Faster zstd decompression. [#145](https://github.com/klauspost/compress/pull/145) [#143](https://github.com/klauspost/compress/pull/143) [#142](https://github.com/klauspost/compress/pull/142)
+* July 15, 2019 (v1.7.4): Fix double EOF block in rare cases on zstd encoder.
+* July 15, 2019 (v1.7.3): Minor speedup/compression increase in default zstd encoder.
+* July 14, 2019: zstd decoder: Fix decompression error on multiple uses with mixed content.
+* July 7, 2019 (v1.7.2): Snappy update, zstd decoder potential race fix.
+* June 17, 2019: zstd decompression bugfix.
+* June 17, 2019: fix 32 bit builds.
+* June 17, 2019: Easier use in modules (less dependencies).
+* June 9, 2019: New stronger "default" [zstd](https://github.com/klauspost/compress/tree/master/zstd#zstd) compression mode. Matches zstd default compression ratio.
+* June 5, 2019: 20-40% throughput in [zstandard](https://github.com/klauspost/compress/tree/master/zstd#zstd) compression and better compression.
+* June 5, 2019: deflate/gzip compression: Reduce memory usage of lower compression levels.
+* June 2, 2019: Added [zstandard](https://github.com/klauspost/compress/tree/master/zstd#zstd) compression!
+* May 25, 2019: deflate/gzip: 10% faster bit writer, mostly visible in lower levels.
+* Apr 22, 2019: [zstd](https://github.com/klauspost/compress/tree/master/zstd#zstd) decompression added.
+* Aug 1, 2018: Added [huff0 README](https://github.com/klauspost/compress/tree/master/huff0#huff0-entropy-compression).
+* Jul 8, 2018: Added [Performance Update 2018](#performance-update-2018) below.
+* Jun 23, 2018: Merged [Go 1.11 inflate optimizations](https://go-review.googlesource.com/c/go/+/102235). Go 1.9 is now required. Backwards compatible version tagged with [v1.3.0](https://github.com/klauspost/compress/releases/tag/v1.3.0).
+* Apr 2, 2018: Added [huff0](https://godoc.org/github.com/klauspost/compress/huff0) en/decoder. Experimental for now, API may change.
+* Mar 4, 2018: Added [FSE Entropy](https://godoc.org/github.com/klauspost/compress/fse) en/decoder. Experimental for now, API may change.
+* Nov 3, 2017: Add compression [Estimate](https://godoc.org/github.com/klauspost/compress#Estimate) function.
 * May 28, 2017: Reduce allocations when resetting decoder.
 * Apr 02, 2017: Change back to official crc32, since changes were merged in Go 1.7.
 * Jan 14, 2017: Reduce stack pressure due to array copies. See [Issue #18625](https://github.com/golang/go/issues/18625).
@@ -44,7 +108,12 @@ It offers slightly better compression at lower compression settings, and up to 3
 * Nov 11 2015: Merged [CL 16669](https://go-review.googlesource.com/#/c/16669/4): archive/zip: enable overriding (de)compressors per file
 * Oct 15 2015: Added skipping on uncompressible data. Random data speed up >5x.
 
-# usage
+# deflate usage
+
+* [High Throughput Benchmark](http://blog.klauspost.com/go-gzipdeflate-benchmarks/).
+* [Small Payload/Webserver Benchmarks](http://blog.klauspost.com/gzip-performance-for-go-webservers/).
+* [Linear Time Compression](http://blog.klauspost.com/constant-time-gzipzip-compression/).
+* [Re-balancing Deflate Compression Levels](https://blog.klauspost.com/rebalancing-deflate-compression-levels/)
 
 The packages are drop-in replacements for standard libraries. Simply replace the import path to use them:
 
@@ -61,157 +130,115 @@ The packages contains the same as the standard library, so you can use the godoc
 
 Currently there is only minor speedup on decompression (mostly CRC32 calculation).
 
-# deflate optimizations
+# Stateless compression
 
-* Minimum matches are 4 bytes, this leads to fewer searches and better compression. (In Go 1.7)
-* Stronger hash (iSCSI CRC32) for matches on x64 with SSE 4.2 support. This leads to fewer hash collisions. (Go 1.7 also has improved hashes)
-* Literal byte matching using SSE 4.2 for faster match comparisons. (not in Go)
-* Bulk hashing on matches. (In Go 1.7)
-* Much faster dictionary indexing with `NewWriterDict()`/`Reset()`. (In Go 1.7)
-* Make Bit Coder faster by assuming we are on a 64 bit CPU. (In Go 1.7)
-* Level 1 compression replaced by converted "Snappy" algorithm. (In Go 1.7)
-* Uncompressible content is detected and skipped faster. (Only in BestSpeed in Go)
-* A lot of branching eliminated by having two encoders for levels 4-6 and 7-9. (not in Go)
-* All heap memory allocations eliminated. (In Go 1.7)
+This package offers stateless compression as a special option for gzip/deflate. 
+It will do compression but without maintaining any state between Write calls.
+
+This means there will be no memory kept between Write calls, but compression and speed will be suboptimal.
+
+This is only relevant in cases where you expect to run many thousands of compressors concurrently, 
+but with very little activity. This is *not* intended for regular web servers serving individual requests.  
+
+Because of this, the size of actual Write calls will affect output size.
+
+In gzip, specify level `-3` / `gzip.StatelessCompression` to enable.
+
+For direct deflate use, NewStatelessWriter and StatelessDeflate are available. See [documentation](https://godoc.org/github.com/klauspost/compress/flate#NewStatelessWriter)
+
+A `bufio.Writer` can of course be used to control write sizes. For example, to use a 4KB buffer:
 
 ```
-benchmark                              old ns/op     new ns/op     delta
-BenchmarkEncodeDigitsSpeed1e4-4        554029        265175        -52.14%
-BenchmarkEncodeDigitsSpeed1e5-4        3908558       2416595       -38.17%
-BenchmarkEncodeDigitsSpeed1e6-4        37546692      24875330      -33.75%
-BenchmarkEncodeDigitsDefault1e4-4      781510        486322        -37.77%
-BenchmarkEncodeDigitsDefault1e5-4      15530248      6740175       -56.60%
-BenchmarkEncodeDigitsDefault1e6-4      174915710     76498625      -56.27%
-BenchmarkEncodeDigitsCompress1e4-4     769995        485652        -36.93%
-BenchmarkEncodeDigitsCompress1e5-4     15450113      6929589       -55.15%
-BenchmarkEncodeDigitsCompress1e6-4     175114660     73348495      -58.11%
-BenchmarkEncodeTwainSpeed1e4-4         560122        275977        -50.73%
-BenchmarkEncodeTwainSpeed1e5-4         3740978       2506095       -33.01%
-BenchmarkEncodeTwainSpeed1e6-4         35542802      21904440      -38.37%
-BenchmarkEncodeTwainDefault1e4-4       828534        549026        -33.74%
-BenchmarkEncodeTwainDefault1e5-4       13667153      7528455       -44.92%
-BenchmarkEncodeTwainDefault1e6-4       141191770     79952170      -43.37%
-BenchmarkEncodeTwainCompress1e4-4      830050        545694        -34.26%
-BenchmarkEncodeTwainCompress1e5-4      16620852      8460600       -49.10%
-BenchmarkEncodeTwainCompress1e6-4      193326820     90808750      -53.03%
+	// replace 'ioutil.Discard' with your output.
+	gzw, err := gzip.NewWriterLevel(ioutil.Discard, gzip.StatelessCompression)
+	if err != nil {
+		return err
+	}
+	defer gzw.Close()
 
-benchmark                              old MB/s     new MB/s     speedup
-BenchmarkEncodeDigitsSpeed1e4-4        18.05        37.71        2.09x
-BenchmarkEncodeDigitsSpeed1e5-4        25.58        41.38        1.62x
-BenchmarkEncodeDigitsSpeed1e6-4        26.63        40.20        1.51x
-BenchmarkEncodeDigitsDefault1e4-4      12.80        20.56        1.61x
-BenchmarkEncodeDigitsDefault1e5-4      6.44         14.84        2.30x
-BenchmarkEncodeDigitsDefault1e6-4      5.72         13.07        2.28x
-BenchmarkEncodeDigitsCompress1e4-4     12.99        20.59        1.59x
-BenchmarkEncodeDigitsCompress1e5-4     6.47         14.43        2.23x
-BenchmarkEncodeDigitsCompress1e6-4     5.71         13.63        2.39x
-BenchmarkEncodeTwainSpeed1e4-4         17.85        36.23        2.03x
-BenchmarkEncodeTwainSpeed1e5-4         26.73        39.90        1.49x
-BenchmarkEncodeTwainSpeed1e6-4         28.14        45.65        1.62x
-BenchmarkEncodeTwainDefault1e4-4       12.07        18.21        1.51x
-BenchmarkEncodeTwainDefault1e5-4       7.32         13.28        1.81x
-BenchmarkEncodeTwainDefault1e6-4       7.08         12.51        1.77x
-BenchmarkEncodeTwainCompress1e4-4      12.05        18.33        1.52x
-BenchmarkEncodeTwainCompress1e5-4      6.02         11.82        1.96x
-BenchmarkEncodeTwainCompress1e6-4      5.17         11.01        2.13x
+	w := bufio.NewWriterSize(gzw, 4096)
+	defer w.Flush()
+	
+	// Write to 'w' 
 ```
-* "Speed" is compression level 1
-* "Default" is compression level 6
-* "Compress" is compression level 9
-* Test files are [Digits](https://github.com/klauspost/compress/blob/master/testdata/e.txt) (no matches) and [Twain](https://github.com/klauspost/compress/blob/master/testdata/Mark.Twain-Tom.Sawyer.txt) (plain text) .
 
-As can be seen it shows a very good speedup all across the line.
+This will only use up to 4KB in memory when the writer is idle. 
 
-`Twain` is a much more realistic benchmark, and will be closer to JSON/HTML performance. Here speed is equivalent or faster, up to 2 times.
+Compression is almost always worse than the fastest compression level 
+and each write will allocate (a little) memory. 
 
-**Without assembly**. This is what you can expect on systems that does not have amd64 and SSE 4:
-```
-benchmark                              old ns/op     new ns/op     delta
-BenchmarkEncodeDigitsSpeed1e4-4        554029        249558        -54.96%
-BenchmarkEncodeDigitsSpeed1e5-4        3908558       2295216       -41.28%
-BenchmarkEncodeDigitsSpeed1e6-4        37546692      22594905      -39.82%
-BenchmarkEncodeDigitsDefault1e4-4      781510        579850        -25.80%
-BenchmarkEncodeDigitsDefault1e5-4      15530248      10096561      -34.99%
-BenchmarkEncodeDigitsDefault1e6-4      174915710     111470780     -36.27%
-BenchmarkEncodeDigitsCompress1e4-4     769995        579708        -24.71%
-BenchmarkEncodeDigitsCompress1e5-4     15450113      10266373      -33.55%
-BenchmarkEncodeDigitsCompress1e6-4     175114660     110170120     -37.09%
-BenchmarkEncodeTwainSpeed1e4-4         560122        260679        -53.46%
-BenchmarkEncodeTwainSpeed1e5-4         3740978       2097372       -43.94%
-BenchmarkEncodeTwainSpeed1e6-4         35542802      20353449      -42.74%
-BenchmarkEncodeTwainDefault1e4-4       828534        646016        -22.03%
-BenchmarkEncodeTwainDefault1e5-4       13667153      10056369      -26.42%
-BenchmarkEncodeTwainDefault1e6-4       141191770     105268770     -25.44%
-BenchmarkEncodeTwainCompress1e4-4      830050        642401        -22.61%
-BenchmarkEncodeTwainCompress1e5-4      16620852      11157081      -32.87%
-BenchmarkEncodeTwainCompress1e6-4      193326820     121780770     -37.01%
+# Performance Update 2018
 
-benchmark                              old MB/s     new MB/s     speedup
-BenchmarkEncodeDigitsSpeed1e4-4        18.05        40.07        2.22x
-BenchmarkEncodeDigitsSpeed1e5-4        25.58        43.57        1.70x
-BenchmarkEncodeDigitsSpeed1e6-4        26.63        44.26        1.66x
-BenchmarkEncodeDigitsDefault1e4-4      12.80        17.25        1.35x
-BenchmarkEncodeDigitsDefault1e5-4      6.44         9.90         1.54x
-BenchmarkEncodeDigitsDefault1e6-4      5.72         8.97         1.57x
-BenchmarkEncodeDigitsCompress1e4-4     12.99        17.25        1.33x
-BenchmarkEncodeDigitsCompress1e5-4     6.47         9.74         1.51x
-BenchmarkEncodeDigitsCompress1e6-4     5.71         9.08         1.59x
-BenchmarkEncodeTwainSpeed1e4-4         17.85        38.36        2.15x
-BenchmarkEncodeTwainSpeed1e5-4         26.73        47.68        1.78x
-BenchmarkEncodeTwainSpeed1e6-4         28.14        49.13        1.75x
-BenchmarkEncodeTwainDefault1e4-4       12.07        15.48        1.28x
-BenchmarkEncodeTwainDefault1e5-4       7.32         9.94         1.36x
-BenchmarkEncodeTwainDefault1e6-4       7.08         9.50         1.34x
-BenchmarkEncodeTwainCompress1e4-4      12.05        15.57        1.29x
-BenchmarkEncodeTwainCompress1e5-4      6.02         8.96         1.49x
-BenchmarkEncodeTwainCompress1e6-4      5.17         8.21         1.59x
-```
-So even without the assembly optimizations there is a general speedup across the board.
+It has been a while since we have been looking at the speed of this package compared to the standard library, so I thought I would re-do my tests and give some overall recommendations based on the current state. All benchmarks have been performed with Go 1.10 on my Desktop Intel(R) Core(TM) i7-2600 CPU @3.40GHz. Since I last ran the tests, I have gotten more RAM, which means tests with big files are no longer limited by my SSD.
 
-## level 1-3 "snappy" compression
+The raw results are in my [updated spreadsheet](https://docs.google.com/spreadsheets/d/1nuNE2nPfuINCZJRMt6wFWhKpToF95I47XjSsc-1rbPQ/edit?usp=sharing). Due to cgo changes and upstream updates i could not get the cgo version of gzip to compile. Instead I included the [zstd](https://github.com/datadog/zstd) cgo implementation. If I get cgo gzip to work again, I might replace the results in the sheet.
 
-Levels 1 "Best Speed", 2 and 3 are completely replaced by a converted version of the algorithm found in Snappy, modified to be fully
-compatible with the deflate bitstream (and thus still compatible with all existing zlib/gzip libraries and tools).
-This version is considerably faster than the "old" deflate at level 1. It does however come at a compression loss, usually in the order of 3-4% compared to the old level 1. However, the speed is usually 1.75 times that of the fastest deflate mode.
+The columns to take note of are: *MB/s* - the throughput. *Reduction* - the data size reduction in percent of the original. *Rel Speed* relative speed compared to the standard libary at the same level. *Smaller* - how many percent smaller is the compressed output compared to stdlib. Negative means the output was bigger. *Loss* means the loss (or gain) in compression as a percentage difference of the input.
 
-In my previous experiments the most common case for "level 1" was that it provided no significant speedup, only lower compression compared to level 2 and sometimes even 3. However, the modified Snappy algorithm provides a very good sweet spot. Usually about 75% faster and with only little compression loss. Therefore I decided to *replace* level 1 with this mode entirely.
+The `gzstd` (standard library gzip) and `gzkp` (this package gzip) only uses one CPU core. [`pgzip`](https://github.com/klauspost/pgzip), [`bgzf`](https://github.com/biogo/hts/tree/master/bgzf) uses all 4 cores. [`zstd`](https://github.com/DataDog/zstd) uses one core, and is a beast (but not Go, yet).
 
-Input is split into blocks of 64kb of, and they are encoded independently (no backreferences across blocks) for the best speed. Contrary to Snappy the output is entropy-encoded, so you will almost always see better compression than Snappy. But Snappy is still about twice as fast as Snappy in deflate mode.
 
-Level 2 and 3 have also been replaced. Level 2 is capable is matching between blocks and level 3 checks up to two hashes for matches it will try.
+## Overall differences.
 
-## compression levels
+There appears to be a roughly 5-10% speed advantage over the standard library when comparing at similar compression levels.
 
-This table shows the compression at each level, and the percentage of the output size compared to output
-at the similar level with the standard library. Compression data is `Twain`, see above.
+The biggest difference you will see is the result of [re-balancing](https://blog.klauspost.com/rebalancing-deflate-compression-levels/) the compression levels. I wanted by library to give a smoother transition between the compression levels than the standard library.
 
-(Not up-to-date after rebalancing)
+This package attempts to provide a more smooth transition, where "1" is taking a lot of shortcuts, "5" is the reasonable trade-off and "9" is the "give me the best compression", and the values in between gives something reasonable in between. The standard library has big differences in levels 1-4, but levels 5-9 having no significant gains - often spending a lot more time than can be justified by the achieved compression.
 
-| Level | Bytes  | % size |
-|-------|--------|--------|
-| 1     | 194622 | 103.7% |
-| 2     | 174684 | 96.85% |
-| 3     | 170301 | 98.45% |
-| 4     | 165253 | 97.69% |
-| 5     | 161274 | 98.65% |
-| 6     | 160464 | 99.71% |
-| 7     | 160304 | 99.87% |
-| 8     | 160279 | 99.99% |
-| 9     | 160279 | 99.99% |
+There are links to all the test data in the [spreadsheet](https://docs.google.com/spreadsheets/d/1nuNE2nPfuINCZJRMt6wFWhKpToF95I47XjSsc-1rbPQ/edit?usp=sharing) in the top left field on each tab.
 
-To interpret and example, this version of deflate compresses input of 407287 bytes to 161274 bytes at level 5, which is 98.6% of the size of what the standard library produces; 161274 bytes.
+## Web Content
 
-This means that from level 4 you can expect a compression level increase of a few percent. Level 1 is about 3% worse, as descibed above.
+This test set aims to emulate typical use in a web server. The test-set is 4GB data in 53k files, and is a mixture of (mostly) HTML, JS, CSS.
+
+Since level 1 and 9 are close to being the same code, they are quite close. But looking at the levels in-between the differences are quite big.
+
+Looking at level 6, this package is 88% faster, but will output about 6% more data. For a web server, this means you can serve 88% more data, but have to pay for 6% more bandwidth. You can draw your own conclusions on what would be the most expensive for your case.
+
+## Object files
+
+This test is for typical data files stored on a server. In this case it is a collection of Go precompiled objects. They are very compressible.
+
+The picture is similar to the web content, but with small differences since this is very compressible. Levels 2-3 offer good speed, but is sacrificing quite a bit of compression. 
+
+The standard library seems suboptimal on level 3 and 4 - offering both worse compression and speed than level 6 & 7 of this package respectively.
+
+## Highly Compressible File
+
+This is a JSON file with very high redundancy. The reduction starts at 95% on level 1, so in real life terms we are dealing with something like a highly redundant stream of data, etc.
+
+It is definitely visible that we are dealing with specialized content here, so the results are very scattered. This package does not do very well at levels 1-4, but picks up significantly at level 5 and levels 7 and 8 offering great speed for the achieved compression.
+
+So if you know you content is extremely compressible you might want to go slightly higher than the defaults. The standard library has a huge gap between levels 3 and 4 in terms of speed (2.75x slowdown), so it offers little "middle ground".
+
+## Medium-High Compressible
+
+This is a pretty common test corpus: [enwik9](http://mattmahoney.net/dc/textdata.html). It contains the first 10^9 bytes of the English Wikipedia dump on Mar. 3, 2006. This is a very good test of typical text based compression and more data heavy streams.
+
+We see a similar picture here as in "Web Content". On equal levels some compression is sacrificed for more speed. Level 5 seems to be the best trade-off between speed and size, beating stdlib level 3 in both.
+
+## Medium Compressible
+
+I will combine two test sets, one [10GB file set](http://mattmahoney.net/dc/10gb.html) and a VM disk image (~8GB). Both contain different data types and represent a typical backup scenario.
+
+The most notable thing is how quickly the standard libary drops to very low compression speeds around level 5-6 without any big gains in compression. Since this type of data is fairly common, this does not seem like good behavior.
+
+
+## Un-compressible Content
+
+This is mainly a test of how good the algorithms are at detecting un-compressible input. The standard library only offers this feature with very conservative settings at level 1. Obviously there is no reason for the algorithms to try to compress input that cannot be compressed.  The only downside is that it might skip some compressible data on false detections.
+
 
 # linear time compression (huffman only)
 
-This compression library adds a special compression level, named `ConstantCompression`, which allows near linear time compression. This is done by completely disabling matching of previous data, and only reduce the number of bits to represent each character. 
+This compression library adds a special compression level, named `HuffmanOnly`, which allows near linear time compression. This is done by completely disabling matching of previous data, and only reduce the number of bits to represent each character. 
 
 This means that often used characters, like 'e' and ' ' (space) in text use the fewest bits to represent, and rare characters like '¤' takes more bits to represent. For more information see [wikipedia](https://en.wikipedia.org/wiki/Huffman_coding) or this nice [video](https://youtu.be/ZdooBTdW5bM).
 
 Since this type of compression has much less variance, the compression speed is mostly unaffected by the input data, and is usually more than *180MB/s* for a single core.
 
-The downside is that the compression ratio is usually considerably worse than even the fastest conventional compression. The compression raio can never be better than 8:1 (12.5%). 
+The downside is that the compression ratio is usually considerably worse than even the fastest conventional compression. The compression ratio can never be better than 8:1 (12.5%). 
 
 The linear time compression can be used as a "better than nothing" mode, where you cannot risk the encoder to slow down on some content. For comparison, the size of the "Twain" text is *233460 bytes* (+29% vs. level 1) and encode speed is 144MB/s (4.5x level 1). So in this case you trade a 30% size increase for a 4 times speedup.
 
@@ -219,66 +246,6 @@ For more information see my blog post on [Fast Linear Time Compression](http://b
 
 This is implemented on Go 1.7 as "Huffman Only" mode, though not exposed for gzip.
 
-
-# gzip/zip optimizations
- * Uses the faster deflate
- * Uses SSE 4.2 CRC32 calculations.
-
-Speed increase is up to 3x of the standard library, but usually around 2x. 
-
-This is close to a real world benchmark as you will get. A 2.3MB JSON file. (NOTE: not up-to-date)
-
-```
-benchmark             old ns/op     new ns/op     delta
-BenchmarkGzipL1-4     95212470      59938275      -37.05%
-BenchmarkGzipL2-4     102069730     76349195      -25.20%
-BenchmarkGzipL3-4     115472770     82492215      -28.56%
-BenchmarkGzipL4-4     153197780     107570890     -29.78%
-BenchmarkGzipL5-4     203930260     134387930     -34.10%
-BenchmarkGzipL6-4     233172100     145495400     -37.60%
-BenchmarkGzipL7-4     297190260     197926950     -33.40%
-BenchmarkGzipL8-4     512819750     376244733     -26.63%
-BenchmarkGzipL9-4     563366800     403266833     -28.42%
-
-benchmark             old MB/s     new MB/s     speedup
-BenchmarkGzipL1-4     52.11        82.78        1.59x
-BenchmarkGzipL2-4     48.61        64.99        1.34x
-BenchmarkGzipL3-4     42.97        60.15        1.40x
-BenchmarkGzipL4-4     32.39        46.13        1.42x
-BenchmarkGzipL5-4     24.33        36.92        1.52x
-BenchmarkGzipL6-4     21.28        34.10        1.60x
-BenchmarkGzipL7-4     16.70        25.07        1.50x
-BenchmarkGzipL8-4     9.68         13.19        1.36x
-BenchmarkGzipL9-4     8.81         12.30        1.40x
-```
-
-Multithreaded compression using [pgzip](https://github.com/klauspost/pgzip) comparison, Quadcore, CPU = 8:
-
-(Not updated, old numbers)
-
-```
-benchmark           old ns/op     new ns/op     delta
-BenchmarkGzipL1     96155500      25981486      -72.98%
-BenchmarkGzipL2     101905830     24601408      -75.86%
-BenchmarkGzipL3     113506490     26321506      -76.81%
-BenchmarkGzipL4     143708220     31761818      -77.90%
-BenchmarkGzipL5     188210770     39602266      -78.96%
-BenchmarkGzipL6     209812000     40402313      -80.74%
-BenchmarkGzipL7     270015440     56103210      -79.22%
-BenchmarkGzipL8     461359700     91255220      -80.22%
-BenchmarkGzipL9     498361833     88755075      -82.19%
-
-benchmark           old MB/s     new MB/s     speedup
-BenchmarkGzipL1     51.60        190.97       3.70x
-BenchmarkGzipL2     48.69        201.69       4.14x
-BenchmarkGzipL3     43.71        188.51       4.31x
-BenchmarkGzipL4     34.53        156.22       4.52x
-BenchmarkGzipL5     26.36        125.29       4.75x
-BenchmarkGzipL6     23.65        122.81       5.19x
-BenchmarkGzipL7     18.38        88.44        4.81x
-BenchmarkGzipL8     10.75        54.37        5.06x
-BenchmarkGzipL9     9.96         55.90        5.61x
-```
 
 # snappy package
 

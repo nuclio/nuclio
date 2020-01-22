@@ -276,6 +276,7 @@ func testFile(i, level int, t *testing.T) {
 	}
 }
 
+func TestFile1xM3(t *testing.T) { testFile(1, -3, t) }
 func TestFile1xM2(t *testing.T) { testFile(1, -2, t) }
 func TestFile1xM1(t *testing.T) { testFile(1, -1, t) }
 func TestFile1x0(t *testing.T)  { testFile(1, 0, t) }
@@ -444,6 +445,7 @@ func testDeterm(i int, t *testing.T) {
 	}
 }
 
+func BenchmarkGzipLM3(b *testing.B) { benchmarkGzipN(b, -3) }
 func BenchmarkGzipLM2(b *testing.B) { benchmarkGzipN(b, -2) }
 func BenchmarkGzipL1(b *testing.B)  { benchmarkGzipN(b, 1) }
 func BenchmarkGzipL2(b *testing.B)  { benchmarkGzipN(b, 2) }

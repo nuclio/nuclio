@@ -7,7 +7,8 @@ package chacha20poly1305
 import (
 	"encoding/binary"
 
-	"golang.org/x/crypto/chacha20poly1305/internal/chacha20"
+	"golang.org/x/crypto/chacha20"
+	"golang.org/x/crypto/internal/subtle"
 	"golang.org/x/crypto/poly1305"
 )
 
@@ -16,15 +17,16 @@ func roundTo16(n int) int {
 }
 
 func (c *chacha20poly1305) sealGeneric(dst, nonce, plaintext, additionalData []byte) []byte {
-	var counter [16]byte
-	copy(counter[4:], nonce)
-
-	var polyKey [32]byte
-	chacha20.XORKeyStream(polyKey[:], polyKey[:], &counter, &c.key)
-
 	ret, out := sliceForAppend(dst, len(plaintext)+poly1305.TagSize)
-	counter[0] = 1
-	chacha20.XORKeyStream(out, plaintext, &counter, &c.key)
+	if subtle.InexactOverlap(out, plaintext) {
+		panic("chacha20poly1305: invalid buffer overlap")
+	}
+
+	var polyKey, discardBuf [32]byte
+	s, _ := chacha20.NewUnauthenticatedCipher(c.key[:], nonce)
+	s.XORKeyStream(polyKey[:], polyKey[:])
+	s.XORKeyStream(discardBuf[:], discardBuf[:]) // skip the next 32 bytes
+	s.XORKeyStream(out, plaintext)
 
 	polyInput := make([]byte, roundTo16(len(additionalData))+roundTo16(len(plaintext))+8+8)
 	copy(polyInput, additionalData)
@@ -44,11 +46,10 @@ func (c *chacha20poly1305) openGeneric(dst, nonce, ciphertext, additionalData []
 	copy(tag[:], ciphertext[len(ciphertext)-16:])
 	ciphertext = ciphertext[:len(ciphertext)-16]
 
-	var counter [16]byte
-	copy(counter[4:], nonce)
-
-	var polyKey [32]byte
-	chacha20.XORKeyStream(polyKey[:], polyKey[:], &counter, &c.key)
+	var polyKey, discardBuf [32]byte
+	s, _ := chacha20.NewUnauthenticatedCipher(c.key[:], nonce)
+	s.XORKeyStream(polyKey[:], polyKey[:])
+	s.XORKeyStream(discardBuf[:], discardBuf[:]) // skip the next 32 bytes
 
 	polyInput := make([]byte, roundTo16(len(additionalData))+roundTo16(len(ciphertext))+8+8)
 	copy(polyInput, additionalData)
@@ -57,6 +58,9 @@ func (c *chacha20poly1305) openGeneric(dst, nonce, ciphertext, additionalData []
 	binary.LittleEndian.PutUint64(polyInput[len(polyInput)-8:], uint64(len(ciphertext)))
 
 	ret, out := sliceForAppend(dst, len(ciphertext))
+	if subtle.InexactOverlap(out, ciphertext) {
+		panic("chacha20poly1305: invalid buffer overlap")
+	}
 	if !poly1305.Verify(&tag, polyInput, &polyKey) {
 		for i := range out {
 			out[i] = 0
@@ -64,7 +68,6 @@ func (c *chacha20poly1305) openGeneric(dst, nonce, ciphertext, additionalData []
 		return nil, errOpen
 	}
 
-	counter[0] = 1
-	chacha20.XORKeyStream(out, ciphertext, &counter, &c.key)
+	s.XORKeyStream(out, ciphertext)
 	return ret, nil
 }
