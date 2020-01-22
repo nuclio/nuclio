@@ -182,7 +182,7 @@ func (p *Processor) Start() error {
 		if err = trigger.Start(nil); err != nil {
 			p.logger.ErrorWith("Failed to start trigger",
 				"kind", trigger.GetKind(),
-				"err", err)
+				"err", err.Error())
 			return errors.Wrap(err, "Failed to start trigger")
 		}
 	}
@@ -304,9 +304,9 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 				p.namedWorkerAllocators)
 
 			if err != nil {
-				p.logger.ErrorWith("Failed to create %s trigger",
+				p.logger.ErrorWith("Failed to create trigger",
 					"kind", triggerConfiguration.Kind,
-					"err", err)
+					"err", err.Error())
 				return errors.Wrapf(err, "Failed to create trigger")
 			}
 

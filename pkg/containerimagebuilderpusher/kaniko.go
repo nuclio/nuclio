@@ -1,7 +1,9 @@
 package containerimagebuilderpusher
 
 import (
+	"bufio"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/common"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -278,7 +280,7 @@ func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, Bu
 			if err != nil {
 				return errors.Wrap(err, "Failed to retrieve kaniko job logs")
 			}
-			return fmt.Errorf("kaniko job has failed: %s", jobLogs)
+			return fmt.Errorf("Kaniko job failed. Job logs:\n%s", jobLogs)
 		}
 
 		time.Sleep(10 * time.Second)
@@ -287,7 +289,7 @@ func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, Bu
 	if err != nil {
 		return errors.Wrap(err, "Failed to retrieve kaniko job logs")
 	}
-	return fmt.Errorf("kaniko job has timed out: %s", jobLogs)
+	return fmt.Errorf("Kaniko job has timed out. Job logs:\n%s", jobLogs)
 }
 
 func (k *Kaniko) getJobLogs(namespace string, jobName string) (string, error) {
@@ -326,7 +328,33 @@ func (k *Kaniko) getJobLogs(namespace string, jobName string) (string, error) {
 		return "", errors.Wrap(err, "Failed to read logs")
 	}
 
-	return string(logContents), nil
+	formattedLogContents := k.prettifyLogContents(string(logContents))
+
+	return formattedLogContents, nil
+}
+
+func (k *Kaniko) prettifyLogContents(logContents string) string {
+	scanner := bufio.NewScanner(strings.NewReader(logContents))
+
+	formattedLogLinesArray := &[]string{}
+
+	for scanner.Scan() {
+		logLine := scanner.Text()
+
+		prettifiedLogLine := k.prettifyLogLine(logLine)
+
+		*formattedLogLinesArray = append(*formattedLogLinesArray, prettifiedLogLine)
+	}
+
+	return strings.Join(*formattedLogLinesArray, "\n")
+}
+
+func (k *Kaniko) prettifyLogLine(logLine string) string {
+
+	// remove ansi color characters generated automatically by kaniko - so the log will be human readable on the UI
+	logLine = common.RemoveANSIColorsFromString(logLine)
+
+	return logLine
 }
 
 func (k *Kaniko) deleteJob(namespace string, jobName string) error {
