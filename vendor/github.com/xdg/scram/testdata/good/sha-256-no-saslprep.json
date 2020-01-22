@@ -1,0 +1,20 @@
+{
+   "label" : "SHA-256 no-SASLprep",
+   "digest" : "SHA-256",
+   "user" : "ramo\u0301n",
+   "pass" : "p\u212bssword",
+   "authID" : "",
+   "skipSASLprep" : true,
+   "salt64" : "c2FsdFNBTFRzYWx0\n",
+   "iters" : 4096,
+   "clientNonce" : "clientNONCE",
+   "serverNonce" : "serverNONCE",
+   "valid" : true,
+   "steps" : [
+      "n,,n=ramo\u0301n,r=clientNONCE",
+      "r=clientNONCEserverNONCE,s=c2FsdFNBTFRzYWx0,i=4096",
+      "c=biws,r=clientNONCEserverNONCE,p=oTfTL+YxW2HglmsPRO5VLdQk+oVt48HHrKppt+kYP2Y=",
+      "v=mtXS1UbPSI9Ks9flMJwHBDfnmwcUwjpI8A/NlAT5c98=",
+      ""
+   ]
+}

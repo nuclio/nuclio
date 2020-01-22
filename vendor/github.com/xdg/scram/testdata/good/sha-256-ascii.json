@@ -1,0 +1,20 @@
+{
+   "label" : "SHA-256 ASCII",
+   "digest" : "SHA-256",
+   "user" : "user",
+   "pass" : "pencil",
+   "authID" : "",
+   "skipSASLprep" : false,
+   "salt64" : "c2FsdFNBTFRzYWx0\n",
+   "iters" : 4096,
+   "clientNonce" : "clientNONCE",
+   "serverNonce" : "serverNONCE",
+   "valid" : true,
+   "steps" : [
+      "n,,n=user,r=clientNONCE",
+      "r=clientNONCEserverNONCE,s=c2FsdFNBTFRzYWx0,i=4096",
+      "c=biws,r=clientNONCEserverNONCE,p=ItXnHvCDW7VGij6H+4rv2o93HvkLwrQaLkfVjeSMfrc=",
+      "v=P61v8wxOu6B9J7Uij+Sk4zewSK1e6en6f5rCFO4OUNE=",
+      ""
+   ]
+}

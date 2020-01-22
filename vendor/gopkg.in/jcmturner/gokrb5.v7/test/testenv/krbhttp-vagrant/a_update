@@ -1,0 +1,5 @@
+debug
+server 10.80.88.88
+zone test.gokrb5.
+update add host.test.gokrb5. 86400  IN A 1.2.3.4
+send
