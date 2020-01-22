@@ -1,0 +1,20 @@
+{
+   "label" : "SHA-256 ASCII pass",
+   "digest" : "SHA-256",
+   "user" : "ram\u00f5n",
+   "pass" : "pencil",
+   "authID" : "",
+   "skipSASLprep" : false,
+   "salt64" : "c2FsdFNBTFRzYWx0\n",
+   "iters" : 4096,
+   "clientNonce" : "clientNONCE",
+   "serverNonce" : "serverNONCE",
+   "valid" : true,
+   "steps" : [
+      "n,,n=ram\u00f5n,r=clientNONCE",
+      "r=clientNONCEserverNONCE,s=c2FsdFNBTFRzYWx0,i=4096",
+      "c=biws,r=clientNONCEserverNONCE,p=vRdD7SqiY5kMyAFX2enPOJK9BL+3YIVyuzCt1H2qc4o=",
+      "v=sh7QPwVuquMatYobYpYOaPiNS+lqwTCmy3rdexRDDkE=",
+      ""
+   ]
+}

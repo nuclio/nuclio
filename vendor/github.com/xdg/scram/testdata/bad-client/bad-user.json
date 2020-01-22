@@ -1,0 +1,17 @@
+{
+    "label": "unknown user",
+    "digest": "SHA-1",
+    "user": "user",
+    "pass": "pencil",
+    "authID": "",
+    "skipSASLprep": false,
+    "salt64": "QSXCR+Q6sek8bf92",
+    "iters":  4096,
+    "clientNonce": "fyko+d2lbbFgONRv9qkxdawL",
+    "serverNonce": "3rfcNHYJY1ZVvWVs7j",
+    "valid": false,
+    "steps" : [
+        "n,,n=doesntexist,r=fyko+d2lbbFgONRv9qkxdawL",
+        "e=unknown-user"
+    ]
+}
