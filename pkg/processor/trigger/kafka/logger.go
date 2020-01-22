@@ -16,14 +16,14 @@ func NewSaramaLogger(parentLogger logger.Logger) SaramaLogger {
 
 func (s SaramaLogger) Print(v ...interface{}) {
 	format := strings.Repeat("%v", len(v))
-	s.logger.Info(format, v...)
+	s.logger.Debug(strings.TrimSuffix(format, "\n"), v...)
 }
 
 func (s SaramaLogger) Printf(format string, v ...interface{}) {
-	s.logger.Info(format, v...)
+	s.logger.Debug(strings.TrimSuffix(format, "\n"), v...)
 }
 
 func (s SaramaLogger) Println(v ...interface{}) {
-	format := strings.Repeat("%v\n", len(v))
-	s.logger.Info(format, v...)
+	format := strings.Repeat("%v", len(v))
+	s.logger.Debug(strings.TrimSuffix(format, "\n"), v...)
 }

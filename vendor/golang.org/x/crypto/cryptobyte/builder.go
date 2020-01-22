@@ -10,15 +10,25 @@ import (
 )
 
 // A Builder builds byte strings from fixed-length and length-prefixed values.
+// Builders either allocate space as needed, or are ‘fixed’, which means that
+// they write into a given buffer and produce an error if it's exhausted.
+//
 // The zero value is a usable Builder that allocates space as needed.
+//
+// Simple values are marshaled and appended to a Builder using methods on the
+// Builder. Length-prefixed values are marshaled by providing a
+// BuilderContinuation, which is a function that writes the inner contents of
+// the value to a given Builder. See the documentation for BuilderContinuation
+// for details.
 type Builder struct {
-	err           error
-	result        []byte
-	fixedSize     bool
-	child         *Builder
-	offset        int
-	pendingLenLen int
-	pendingIsASN1 bool
+	err            error
+	result         []byte
+	fixedSize      bool
+	child          *Builder
+	offset         int
+	pendingLenLen  int
+	pendingIsASN1  bool
+	inContinuation *bool
 }
 
 // NewBuilder creates a Builder that appends its output to the given buffer.
@@ -40,8 +50,14 @@ func NewFixedBuilder(buffer []byte) *Builder {
 	}
 }
 
+// SetError sets the value to be returned as the error from Bytes. Writes
+// performed after calling SetError are ignored.
+func (b *Builder) SetError(err error) {
+	b.err = err
+}
+
 // Bytes returns the bytes written by the builder or an error if one has
-// occurred during during building.
+// occurred during building.
 func (b *Builder) Bytes() ([]byte, error) {
 	if b.err != nil {
 		return nil, b.err
@@ -84,11 +100,11 @@ func (b *Builder) AddBytes(v []byte) {
 	b.add(v...)
 }
 
-// BuilderContinuation is continuation-passing interface for building
+// BuilderContinuation is a continuation-passing interface for building
 // length-prefixed byte sequences. Builder methods for length-prefixed
-// sequences (AddUint8LengthPrefixed etc.) will invoke the BuilderContinuation
+// sequences (AddUint8LengthPrefixed etc) will invoke the BuilderContinuation
 // supplied to them. The child builder passed to the continuation can be used
-// to build the content of the length-prefixed sequence. Example:
+// to build the content of the length-prefixed sequence. For example:
 //
 //   parent := cryptobyte.NewBuilder()
 //   parent.AddUint8LengthPrefixed(func (child *Builder) {
@@ -102,7 +118,18 @@ func (b *Builder) AddBytes(v []byte) {
 // length prefix. After the continuation returns, the child must be considered
 // invalid, i.e. users must not store any copies or references of the child
 // that outlive the continuation.
+//
+// If the continuation panics with a value of type BuildError then the inner
+// error will be returned as the error from Bytes. If the child panics
+// otherwise then Bytes will repanic with the same value.
 type BuilderContinuation func(child *Builder)
+
+// BuildError wraps an error. If a BuilderContinuation panics with this value,
+// the panic will be recovered and the inner error will be returned from
+// Builder.Bytes.
+type BuildError struct {
+	Err error
+}
 
 // AddUint8LengthPrefixed adds a 8-bit length-prefixed byte sequence.
 func (b *Builder) AddUint8LengthPrefixed(f BuilderContinuation) {
@@ -119,6 +146,34 @@ func (b *Builder) AddUint24LengthPrefixed(f BuilderContinuation) {
 	b.addLengthPrefixed(3, false, f)
 }
 
+// AddUint32LengthPrefixed adds a big-endian, 32-bit length-prefixed byte sequence.
+func (b *Builder) AddUint32LengthPrefixed(f BuilderContinuation) {
+	b.addLengthPrefixed(4, false, f)
+}
+
+func (b *Builder) callContinuation(f BuilderContinuation, arg *Builder) {
+	if !*b.inContinuation {
+		*b.inContinuation = true
+
+		defer func() {
+			*b.inContinuation = false
+
+			r := recover()
+			if r == nil {
+				return
+			}
+
+			if buildError, ok := r.(BuildError); ok {
+				b.err = buildError.Err
+			} else {
+				panic(r)
+			}
+		}()
+	}
+
+	f(arg)
+}
+
 func (b *Builder) addLengthPrefixed(lenLen int, isASN1 bool, f BuilderContinuation) {
 	// Subsequent writes can be ignored if the builder has encountered an error.
 	if b.err != nil {
@@ -128,15 +183,20 @@ func (b *Builder) addLengthPrefixed(lenLen int, isASN1 bool, f BuilderContinuati
 	offset := len(b.result)
 	b.add(make([]byte, lenLen)...)
 
-	b.child = &Builder{
-		result:        b.result,
-		fixedSize:     b.fixedSize,
-		offset:        offset,
-		pendingLenLen: lenLen,
-		pendingIsASN1: isASN1,
+	if b.inContinuation == nil {
+		b.inContinuation = new(bool)
 	}
 
-	f(b.child)
+	b.child = &Builder{
+		result:         b.result,
+		fixedSize:      b.fixedSize,
+		offset:         offset,
+		pendingLenLen:  lenLen,
+		pendingIsASN1:  isASN1,
+		inContinuation: b.inContinuation,
+	}
+
+	b.callContinuation(f, b.child)
 	b.flushChild()
 	if b.child != nil {
 		panic("cryptobyte: internal error")
@@ -214,9 +274,11 @@ func (b *Builder) flushChild() {
 		return
 	}
 
-	if !b.fixedSize {
-		b.result = child.result // In case child reallocated result.
+	if b.fixedSize && &b.result[0] != &child.result[0] {
+		panic("cryptobyte: BuilderContinuation reallocated a fixed-size buffer")
 	}
+
+	b.result = child.result
 }
 
 func (b *Builder) add(bytes ...byte) {
@@ -224,7 +286,7 @@ func (b *Builder) add(bytes ...byte) {
 		return
 	}
 	if b.child != nil {
-		panic("attempted write while child is pending")
+		panic("cryptobyte: attempted write while child is pending")
 	}
 	if len(b.result)+len(bytes) < len(bytes) {
 		b.err = errors.New("cryptobyte: length overflow")
@@ -234,6 +296,26 @@ func (b *Builder) add(bytes ...byte) {
 		return
 	}
 	b.result = append(b.result, bytes...)
+}
+
+// Unwrite rolls back n bytes written directly to the Builder. An attempt by a
+// child builder passed to a continuation to unwrite bytes from its parent will
+// panic.
+func (b *Builder) Unwrite(n int) {
+	if b.err != nil {
+		return
+	}
+	if b.child != nil {
+		panic("cryptobyte: attempted unwrite while child is pending")
+	}
+	length := len(b.result) - b.pendingLenLen - b.offset
+	if length < 0 {
+		panic("cryptobyte: internal error")
+	}
+	if n > length {
+		panic("cryptobyte: attempted to unwrite more than was written")
+	}
+	b.result = b.result[:len(b.result)-n]
 }
 
 // A MarshalingValue marshals itself into a Builder.
