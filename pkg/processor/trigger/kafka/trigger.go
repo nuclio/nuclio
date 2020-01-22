@@ -88,6 +88,7 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 	// start consumption in the background
 	go func() {
 		for {
+			k.Logger.DebugWith("Starting to consume from broker", "topics", k.configuration.Topics)
 
 			// start consuming. this will exit without error if a rebalancing occurs
 			err = k.consumerGroup.Consume(context.Background(), k.configuration.Topics, k)
