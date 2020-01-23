@@ -127,13 +127,11 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Net.SASL.Enable = k.configuration.SASL.Enable
 	config.Net.SASL.User = k.configuration.SASL.User
 	config.Net.SASL.Password = k.configuration.SASL.Password
+	config.ClientID = k.ID
 	config.Consumer.Offsets.Initial = k.configuration.initialOffset
 	config.Consumer.Offsets.AutoCommit.Enable = true
-	config.ClientID = k.ID
 	config.Consumer.Group.Session.Timeout = 60 * time.Second
 	config.Consumer.Group.Heartbeat.Interval = 5 * time.Second
-
-	// config.ChannelBufferSize = 5
 
 	if err := config.Validate(); err != nil {
 		return nil, errors.Wrap(err, "Kafka config is invalid")
@@ -181,6 +179,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			k.Logger.WarnWith("Failed to process event", "err", err.Error())
 			time.Sleep(250 * time.Millisecond)
 		} else {
+
 			// mark message as processed
 			session.MarkMessage(message, "")
 		}
