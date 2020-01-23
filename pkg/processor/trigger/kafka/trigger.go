@@ -174,7 +174,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 		event.kafkaMessage = message
 
 		// allocate a worker from the pool and handle the event
-		_, err, _ := k.AllocateWorkerAndSubmitEvent(&event, nil, 1 * time.Hour)
+		_, err, _ := k.AllocateWorkerAndSubmitEvent(&event, nil, 1*time.Hour)
 		if err != nil {
 			k.Logger.WarnWith("Failed to process event", "err", err.Error())
 			time.Sleep(250 * time.Millisecond)
