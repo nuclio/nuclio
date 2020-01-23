@@ -141,12 +141,8 @@ func (c *cron) handleEvents() {
 
 func (c *cron) waitAndSubmitNextEvent(lastEventSubmitTime time.Time, schedule cronlib.Schedule, eventSubmitter func()) error {
 	nextEventSubmitDelay := c.getNextEventSubmitDelay(schedule, lastEventSubmitTime)
-	c.Logger.DebugWith("Waiting for next event",
-		"delay", nextEventSubmitDelay)
-
 	time.Sleep(nextEventSubmitDelay)
 
-	c.Logger.Debug("Submitting event")
 	eventSubmitter()
 
 	return nil
