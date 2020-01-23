@@ -508,7 +508,7 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, string, error)
 	return res, briefLogLine, nil
 }
 
-func (ap *Platform) getMessageAndArgs (message string, args *string, log []byte) string {
+func (ap *Platform) getMessageAndArgs(message string, args *string, log []byte) string {
 	var argsAsString, additionalKwargsAsString string
 	additionalKwargs, err := ap.getLogLineAdditionalKwargs(log)
 	if err != nil {
