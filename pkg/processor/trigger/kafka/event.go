@@ -33,3 +33,11 @@ func (e *Event) GetBody() []byte {
 func (e *Event) GetSize() int {
 	return len(e.kafkaMessage.Value)
 }
+
+func (e *Event) GetShardID() int {
+	return int(e.kafkaMessage.Partition)
+}
+
+func (e *Event) GetPath() string {
+	return e.kafkaMessage.Topic
+}

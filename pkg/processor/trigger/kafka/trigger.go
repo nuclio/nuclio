@@ -124,13 +124,14 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 
 	config := sarama.NewConfig()
 
-	config.Consumer.Offsets.Initial = k.configuration.initialOffset
-
 	config.Net.SASL.Enable = k.configuration.SASL.Enable
 	config.Net.SASL.User = k.configuration.SASL.User
 	config.Net.SASL.Password = k.configuration.SASL.Password
-	config.Consumer.Offsets.AutoCommit.Enable = false
 	config.ClientID = k.ID
+	config.Consumer.Offsets.Initial = k.configuration.initialOffset
+	config.Consumer.Offsets.AutoCommit.Enable = true
+	config.Consumer.Group.Session.Timeout = 60 * time.Second
+	config.Consumer.Group.Heartbeat.Interval = 5 * time.Second
 
 	if err := config.Validate(); err != nil {
 		return nil, errors.Wrap(err, "Kafka config is invalid")
@@ -173,10 +174,15 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 		event.kafkaMessage = message
 
 		// allocate a worker from the pool and handle the event
-		k.AllocateWorkerAndSubmitEvent(&event, nil, 0) // nolint: errcheck
+		_, err, _ := k.AllocateWorkerAndSubmitEvent(&event, nil, 1*time.Hour)
+		if err != nil {
+			k.Logger.WarnWith("Failed to process event", "err", err.Error())
+			time.Sleep(250 * time.Millisecond)
+		} else {
 
-		// mark message as processed
-		session.MarkMessage(message, "")
+			// mark message as processed
+			session.MarkMessage(message, "")
+		}
 	}
 
 	return nil
