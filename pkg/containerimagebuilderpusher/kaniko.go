@@ -192,7 +192,10 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 
 	// Truncate function name so the job name won't exceed k8s limit of 63
 	functionNameLimit := 63 - (len(k.builderConfiguration.JobPrefix) + len(timestamp) + 2)
-	functionName = functionName[0:functionNameLimit]
+	if len(functionName) > functionNameLimit {
+		functionName = functionName[0:functionNameLimit]
+	}
+
 	jobName := fmt.Sprintf("%s.%s.%s", k.builderConfiguration.JobPrefix, functionName, timestamp)
 
 	kanikoJobSpec := &batch_v1.Job{
