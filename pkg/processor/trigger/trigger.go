@@ -132,6 +132,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 	// allocate a worker
 	workerInstance, err := at.WorkerAllocator.Allocate(timeout)
 	if err != nil {
+		fmt.Println("FAILED ALLOCATION")
 		at.UpdateStatistics(false)
 
 		return nil, errors.Wrap(err, "Failed to allocate worker"), nil

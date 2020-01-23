@@ -18,22 +18,23 @@ package golang
 
 import (
 	"github.com/nuclio/nuclio-sdk-go"
+	"time"
 )
+
+var counters [64]int
 
 // this is used for running a standalone processor during development
 func builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	context.Logger.InfoWith("Got event",
-		"URL", event.GetURL(),
-		"Path", event.GetPath(),
-		"Type", event.GetType(),
-		"TypeVersion", event.GetTypeVersion(),
-		"Version", event.GetVersion(),
-		"Source", event.GetTriggerInfo().GetKind(),
-		"ID", event.GetID(),
-		"Time", event.GetTimestamp().String(),
-		"Headers", event.GetHeaders(),
-		"ContentType", event.GetContentType(),
-		"Body", string(event.GetBody()))
+	if event.GetTriggerInfo().GetKind() == "kafka-cluster" {
+		//context.Logger.InfoWith("Got event",
+		//	"ShardID", event.GetShardID(),
+		//	"Body", string(event.GetBody()))
+
+		counters[event.GetShardID()]++
+		time.Sleep(1 * time.Millisecond)
+	} else {
+		context.Logger.DebugWith("Counters", "counters", counters)
+	}
 
 	return "Built in handler called", nil
 }
