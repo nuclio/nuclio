@@ -132,6 +132,7 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Consumer.Offsets.AutoCommit.Enable = true
 	config.Consumer.Group.Session.Timeout = 60 * time.Second
 	config.Consumer.Group.Heartbeat.Interval = 5 * time.Second
+	config.Consumer.MaxProcessingTime = 10 * time.Second
 
 	if err := config.Validate(); err != nil {
 		return nil, errors.Wrap(err, "Kafka config is invalid")

@@ -112,12 +112,6 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
 	}
 
-	// TODO: Check that status is Ready?
-	r.Logger.DebugWith("Processing event",
-		"name", r.configuration.Meta.Name,
-		"version", r.configuration.Spec.Version,
-		"eventID", event.GetID())
-
 	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
 		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
 	}

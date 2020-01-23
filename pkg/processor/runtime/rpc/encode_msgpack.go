@@ -29,8 +29,6 @@ func NewEventMsgPackEncoder(logger logger.Logger, writer io.Writer) *EventMsgPac
 
 // Encode writes the JSON encoding of event to the stream, followed by a newline character
 func (e *EventMsgPackEncoder) Encode(event nuclio.Event) error {
-	e.logger.DebugWith("Sending event to wrapper", "size", len(event.GetBody()))
-
 	eventToEncode := eventAsMap(event)
 
 	// if the body is map[string]interface{} we probably got a cloud event with a structured data member
