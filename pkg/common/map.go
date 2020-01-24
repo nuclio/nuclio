@@ -106,16 +106,17 @@ func StringInSlice(a string, list []string) bool {
 
 func CreateKeyValuePairs(m map[string]string) string {
 	b := new(bytes.Buffer)
+	delimiter := " || "
 	for key, value := range m {
-		fmt.Fprintf(b, "%s=\"%s\",\n", key, value) // nolint: errcheck
+		fmt.Fprintf(b, "%s=\"%s\"%s", key, value, delimiter) // nolint: errcheck
 	}
 
 	generatedString := b.String()
 
 	if len(generatedString) != 0 {
 
-		// remove last `,\n`
-		generatedString = generatedString[:len(generatedString)-3]
+		// remove last delimiter
+		generatedString = generatedString[:len(generatedString)-len(delimiter)]
 	}
 	return generatedString
 }

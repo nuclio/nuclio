@@ -493,22 +493,80 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, string, error)
 
 	logLevel := strings.ToUpper(*logStruct.Level)[0]
 
-	messageWithParams := *logStruct.Message
-	if logStruct.More != nil {
-		messageWithParams = fmt.Sprintf("%s [%s]", messageWithParams, *logStruct.More)
-	}
+	messageAndArgs := ap.getMessageAndArgs(*logStruct.Message, logStruct.More, log)
 
 	res := fmt.Sprintf("[%s] (%c) %s",
 		parsedTime.Format("15:04:05.000"),
 		logLevel,
-		messageWithParams)
+		messageAndArgs)
 
 	briefLogLine := ""
 	if ap.shouldAddToBriefErrorsMessage(logLevel, *logStruct.Message) {
-		briefLogLine = messageWithParams
+		briefLogLine = messageAndArgs
 	}
 
 	return res, briefLogLine, nil
+}
+
+func (ap *Platform) getMessageAndArgs(message string, args *string, log []byte) string {
+	var argsAsString, additionalKwargsAsString string
+	additionalKwargs, err := ap.getLogLineAdditionalKwargs(log)
+	if err != nil {
+		ap.Logger.WarnWith("Failed to get log line's additional kwargs",
+			"logLineMessage", message)
+	}
+
+	if args != nil {
+		argsAsString = *args
+	}
+
+	if additionalKwargs != nil {
+		additionalKwargsAsString = common.CreateKeyValuePairs(additionalKwargs)
+	}
+
+	// format result depending on args/additional kwargs existence
+	var messageArgsList []string
+	if argsAsString != "" {
+		messageArgsList = append(messageArgsList, argsAsString)
+	}
+	if additionalKwargsAsString != "" {
+		messageArgsList = append(messageArgsList, additionalKwargsAsString)
+	}
+	if len(messageArgsList) > 0 {
+		return fmt.Sprintf("%s [%s]", message, strings.Join(messageArgsList, " || "))
+	}
+
+	return message
+}
+
+func (ap *Platform) getLogLineAdditionalKwargs(log []byte) (map[string]string, error) {
+	logAsMap := map[string]interface{}{}
+	err := json.Unmarshal(log, &logAsMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal log line")
+	}
+
+	additionalKwargs := map[string]string{}
+
+	defaultArgs := []string{"time", "datetime", "level", "message", "with", "more"}
+
+	// validate it is a suitable special arg
+	for argKey, argValue := range logAsMap {
+
+		// validate it is indeed an additional arg - it isn't a default arg
+		if common.StringSliceContainsString(defaultArgs, argKey) {
+			continue
+		}
+
+		// ensure argument is a string
+		if _, ok := argValue.(string); !ok {
+			continue
+		}
+
+		additionalKwargs[argKey] = argValue.(string)
+	}
+
+	return additionalKwargs, nil
 }
 
 func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage string) bool {
