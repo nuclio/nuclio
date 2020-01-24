@@ -1,6 +1,7 @@
 package containerimagebuilderpusher
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
@@ -190,7 +192,10 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 
 	// Truncate function name so the job name won't exceed k8s limit of 63
 	functionNameLimit := 63 - (len(k.builderConfiguration.JobPrefix) + len(timestamp) + 2)
-	functionName = functionName[0:functionNameLimit]
+	if len(functionName) > functionNameLimit {
+		functionName = functionName[0:functionNameLimit]
+	}
+
 	jobName := fmt.Sprintf("%s.%s.%s", k.builderConfiguration.JobPrefix, functionName, timestamp)
 
 	kanikoJobSpec := &batch_v1.Job{
@@ -278,7 +283,7 @@ func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, Bu
 			if err != nil {
 				return errors.Wrap(err, "Failed to retrieve kaniko job logs")
 			}
-			return fmt.Errorf("kaniko job has failed: %s", jobLogs)
+			return fmt.Errorf("Kaniko job failed. Job logs:\n%s", jobLogs)
 		}
 
 		time.Sleep(10 * time.Second)
@@ -287,7 +292,7 @@ func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, Bu
 	if err != nil {
 		return errors.Wrap(err, "Failed to retrieve kaniko job logs")
 	}
-	return fmt.Errorf("kaniko job has timed out: %s", jobLogs)
+	return fmt.Errorf("Kaniko job has timed out. Job logs:\n%s", jobLogs)
 }
 
 func (k *Kaniko) getJobLogs(namespace string, jobName string) (string, error) {
@@ -326,7 +331,33 @@ func (k *Kaniko) getJobLogs(namespace string, jobName string) (string, error) {
 		return "", errors.Wrap(err, "Failed to read logs")
 	}
 
-	return string(logContents), nil
+	formattedLogContents := k.prettifyLogContents(string(logContents))
+
+	return formattedLogContents, nil
+}
+
+func (k *Kaniko) prettifyLogContents(logContents string) string {
+	scanner := bufio.NewScanner(strings.NewReader(logContents))
+
+	formattedLogLinesArray := &[]string{}
+
+	for scanner.Scan() {
+		logLine := scanner.Text()
+
+		prettifiedLogLine := k.prettifyLogLine(logLine)
+
+		*formattedLogLinesArray = append(*formattedLogLinesArray, prettifiedLogLine)
+	}
+
+	return strings.Join(*formattedLogLinesArray, "\n")
+}
+
+func (k *Kaniko) prettifyLogLine(logLine string) string {
+
+	// remove ansi color characters generated automatically by kaniko - so the log will be human readable on the UI
+	logLine = common.RemoveANSIColorsFromString(logLine)
+
+	return logLine
 }
 
 func (k *Kaniko) deleteJob(namespace string, jobName string) error {

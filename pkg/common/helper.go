@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"bytes"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
@@ -81,6 +82,15 @@ func StringSliceContainsString(slice []string, str string) bool {
 	}
 
 	return false
+}
+
+// strips out ANSI Colors chars from string
+// example: "\u001b[31mHelloWorld" -> "HelloWorld"
+func RemoveANSIColorsFromString(s string) string {
+	ansi := "[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[a-zA-Z\\d]*)*)?\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PRZcf-ntqry=><~]))"
+	re := regexp.MustCompile(ansi)
+
+	return re.ReplaceAllString(s, "")
 }
 
 // RetryUntilSuccessful calls callback every interval for duration until it returns true
