@@ -32,9 +32,10 @@ func (ts *MapTestSuite) TestCreateKeyValuePairs() {
 		"c":  "d",
 	}
 	keyValuePairs := CreateKeyValuePairs(source)
-	if keyValuePairs != "a=\"b\" || c=\"d\"" && keyValuePairs != "c=\"d\" || a=\"b\"" {
+	expectedResults := []string{"a=\"b\" || c=\"d\"", "c=\"d\" || a=\"b\""}
+	if keyValuePairs != expectedResults[0] && keyValuePairs != expectedResults[1] {
 		ts.Fail("Create key value pairs returned unexpected result",
-			"Actual %s\nExpected: a=\"b\" || c=\"d\" or c=\"d\" || a=\"b\"", keyValuePairs)
+			"Actual %s\nExpected: %s or %s", keyValuePairs, expectedResults[0], expectedResults[1])
 	}
 }
 
