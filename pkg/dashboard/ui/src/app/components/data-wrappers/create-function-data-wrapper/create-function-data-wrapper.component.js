@@ -13,6 +13,7 @@
         ctrl.templates = {};
 
         ctrl.createProject = createProject;
+        ctrl.getFunction = getFunction;
         ctrl.getProject = getProject;
         ctrl.getProjects = getProjects;
         ctrl.getTemplates = getTemplates;
@@ -35,6 +36,15 @@
                 className: 'ngdialog-theme-nuclio'
             })
                 .closePromise;
+        }
+
+        /**
+         * Gets a single function
+         * @param {Object} metadata
+         * @returns {Promise}
+         */
+        function getFunction(metadata) {
+            return NuclioFunctionsDataService.getFunction(metadata);
         }
 
         /**
