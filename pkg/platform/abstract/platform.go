@@ -534,9 +534,9 @@ func (ap *Platform) getMessageAndArgs(message string, args *string, log []byte) 
 	}
 	if len(messageArgsList) > 0 {
 		return fmt.Sprintf("%s [%s]", message, strings.Join(messageArgsList, " || "))
-	} else {
-		return message
 	}
+
+	return message
 }
 
 func (ap *Platform) getLogLineAdditionalKwargs(log []byte) (map[string]string, error) {
