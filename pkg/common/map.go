@@ -115,7 +115,7 @@ func CreateKeyValuePairs(m map[string]string) string {
 
 	if len(generatedString) != 0 {
 
-		// remove last `,\n`
+		// remove last delimiter
 		generatedString = generatedString[:len(generatedString)-len(delimiter)]
 	}
 	return generatedString
