@@ -525,15 +525,18 @@ func (ap *Platform) getMessageAndArgs(message string, args *string, log []byte) 
 	}
 
 	// format result depending on args/additional kwargs existence
-	if argsAsString != "" && additionalKwargsAsString != "" {
-		return fmt.Sprintf("%s [%s || %s]", message, argsAsString, additionalKwargsAsString)
-	} else if argsAsString != "" {
-		return fmt.Sprintf("%s [%s]", message, argsAsString)
-	} else if additionalKwargsAsString != "" {
-		return fmt.Sprintf("%s [%s]", message, additionalKwargsAsString)
+	var messageArgsList []string
+	if argsAsString != "" {
+		messageArgsList = append(messageArgsList, argsAsString)
 	}
-
-	return message
+	if additionalKwargsAsString != "" {
+		messageArgsList = append(messageArgsList, additionalKwargsAsString)
+	}
+	if len(messageArgsList) > 0 {
+		return fmt.Sprintf("%s [%s]", message, strings.Join(messageArgsList, " || "))
+	} else {
+		return message
+	}
 }
 
 func (ap *Platform) getLogLineAdditionalKwargs(log []byte) (map[string]string, error) {
@@ -545,16 +548,17 @@ func (ap *Platform) getLogLineAdditionalKwargs(log []byte) (map[string]string, e
 
 	additionalKwargs := map[string]string{}
 
+	defaultArgs := []string{"time", "datetime", "level", "message", "with", "more"}
+
 	// validate it is a suitable special arg
 	for argKey, argValue := range logAsMap {
 
 		// validate it is indeed an additional arg - it isn't a default arg
-		defaultArgs := []string{"time", "datetime", "level", "message", "with", "more"}
 		if common.StringSliceContainsString(defaultArgs, argKey) {
 			continue
 		}
 
-		// make sure it is a a flat arg - means its value is a string
+		// ensure argument is a string
 		if _, ok := argValue.(string); !ok {
 			continue
 		}
