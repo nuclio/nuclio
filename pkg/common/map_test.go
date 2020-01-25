@@ -26,13 +26,15 @@ type MapTestSuite struct {
 	suite.Suite
 }
 
-func (ts *MapTestSuite) TestCreateKeyValuePair() {
+func (ts *MapTestSuite) TestCreateKeyValuePairs() {
 	source := map[string]string{
-		"a":  "b",
-		"c":  "d",
+		"a": "b",
+		"c": "d",
 	}
 	keyValuePairs := CreateKeyValuePairs(source)
-	ts.Require().Equal("a=\"b\" || c=\"d\"", keyValuePairs)
+
+	expectedResults := []string{"a=\"b\" || c=\"d\"", "c=\"d\" || a=\"b\""}
+	ts.Require().Contains(expectedResults, keyValuePairs)
 }
 
 func (ts *MapTestSuite) TestMapStringInterfaceGetOrDefault() {
