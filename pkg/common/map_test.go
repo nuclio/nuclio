@@ -28,15 +28,13 @@ type MapTestSuite struct {
 
 func (ts *MapTestSuite) TestCreateKeyValuePairs() {
 	source := map[string]string{
-		"a":  "b",
-		"c":  "d",
+		"a": "b",
+		"c": "d",
 	}
 	keyValuePairs := CreateKeyValuePairs(source)
+
 	expectedResults := []string{"a=\"b\" || c=\"d\"", "c=\"d\" || a=\"b\""}
-	if keyValuePairs != expectedResults[0] && keyValuePairs != expectedResults[1] {
-		ts.Fail("Create key value pairs returned unexpected result",
-			"Actual %s\nExpected: %s or %s", keyValuePairs, expectedResults[0], expectedResults[1])
-	}
+	ts.Require().Contains(expectedResults, keyValuePairs)
 }
 
 func (ts *MapTestSuite) TestMapStringInterfaceGetOrDefault() {
