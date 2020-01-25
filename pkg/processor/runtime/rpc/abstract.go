@@ -423,7 +423,6 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 			panicMessage = procStatus.String()
 		}
 
-		// TODO: Do we want to exit the processor here?
 		panic(fmt.Sprintf("Wrapper process exited unexpectedly with: %s", panicMessage))
 	}
 	r.SetStatus(status.Stopped)
