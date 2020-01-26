@@ -181,14 +181,15 @@ func GetErrorStack(err error, depth int) []error {
 func GetErrorStackString(err error, depth int) string {
 	buffer := bytes.Buffer{}
 
-	PrintErrorStack(&buffer, err, depth)
+	PrintErrorStack(&buffer, err, depth, false)
 
 	return buffer.String()
 }
 
 // PrintErrorStack prints the error stack into out upto depth levels
 // If n == 1 then prints the whole stack
-func PrintErrorStack(out io.Writer, err error, depth int) {
+// If printErrorOnly is true, the error will be printed without the error stack
+func PrintErrorStack(out io.Writer, err error, depth int, printOnlyError bool) {
 	if err == nil {
 		return
 	}
@@ -210,13 +211,15 @@ func PrintErrorStack(out io.Writer, err error, depth int) {
 		fmt.Fprintf(out, "\nError - %s", stack[0].Error()) // nolint: errcheck
 	}
 
-	fmt.Fprintf(out, "\nCall stack:") // nolint: errcheck
+	if !printOnlyError {
+		fmt.Fprintf(out, "\nCall stack:") // nolint: errcheck
 
-	for _, e := range stack {
-		errObj := asError(e)
-		fmt.Fprintf(out, "\n%s", e.Error()) // nolint: errcheck
-		if errObj != nil && errObj.lineNumber != 0 {
-			fmt.Fprintf(out, "\n    %s:%d", trimPath(errObj.fileName, pathLen), errObj.lineNumber) // nolint: errcheck
+		for _, e := range stack {
+			errObj := asError(e)
+			fmt.Fprintf(out, "\n%s", e.Error()) // nolint: errcheck
+			if errObj != nil && errObj.lineNumber != 0 {
+				fmt.Fprintf(out, "\n    %s:%d", trimPath(errObj.fileName, pathLen), errObj.lineNumber) // nolint: errcheck
+			}
 		}
 	}
 
@@ -273,7 +276,7 @@ func (err *Error) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		if s.Flag('+') {
-			PrintErrorStack(s, err, -1)
+			PrintErrorStack(s, err, -1, false)
 		}
 		fallthrough
 	case 's':

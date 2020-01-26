@@ -58,7 +58,7 @@ func (suite *testSuite) TestBuildWithCompilationError() {
 	buffer := bytes.Buffer{}
 
 	// write an err stack
-	errors.PrintErrorStack(&buffer, err, 10)
+	errors.PrintErrorStack(&buffer, err, 10, false)
 
 	// error should yell about "fmt.NotAFunction" not existing
 	suite.Require().Contains(buffer.String(), "fmt.NotAFunction")
