@@ -158,6 +158,9 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			briefErrorsMessage = lastError.String()
 		}
 
+		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
+			"errorStack", errorStack.String())
+
 		defaultHTTPPort := 0
 		if existingFunctionInstance != nil {
 			defaultHTTPPort = existingFunctionInstance.Status.HTTPPort
