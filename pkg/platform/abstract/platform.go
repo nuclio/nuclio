@@ -232,6 +232,8 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 		if _trigger.Kind == "http" {
 			if httpTriggerExists {
 				return errors.New("There's more than one http trigger (unsupported)")
+			} else {
+				httpTriggerExists = true
 			}
 		}
 	}
