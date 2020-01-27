@@ -405,7 +405,7 @@ func (ar *AbstractResource) writeErrorReason(responseWriter io.Writer, err error
 	}
 
 	// try to get the error stack
-	errors.PrintErrorStack(&buffer, err, 10, false)
+	errors.PrintErrorStack(&buffer, err, 10)
 
 	// format to json manually
 	serializedError, _ := json.Marshal(struct {

@@ -164,7 +164,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			"err", creationError)
 
 		errorStack := bytes.Buffer{}
-		errors.PrintErrorStack(&errorStack, creationError, 20, false)
+		errors.PrintErrorStack(&errorStack, creationError, 20)
 
 		// cut messages that are too big
 		if errorStack.Len() >= 4*Mib {

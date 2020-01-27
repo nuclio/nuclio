@@ -61,7 +61,7 @@ func main() {
 	}
 
 	if err := app.Run(*kubeconfigPath, resolvedNamespace, *imagePullSecrets, *platformConfigurationPath); err != nil {
-		errors.PrintErrorStack(os.Stderr, err, 5, false)
+		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)
 	}

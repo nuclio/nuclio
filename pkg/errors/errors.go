@@ -181,15 +181,14 @@ func GetErrorStack(err error, depth int) []error {
 func GetErrorStackString(err error, depth int) string {
 	buffer := bytes.Buffer{}
 
-	PrintErrorStack(&buffer, err, depth, false)
+	PrintErrorStack(&buffer, err, depth)
 
 	return buffer.String()
 }
 
 // PrintErrorStack prints the error stack into out upto depth levels
 // If n == 1 then prints the whole stack
-// If printErrorOnly is true, the error will be printed without the error stack
-func PrintErrorStack(out io.Writer, err error, depth int, printOnlyError bool) {
+func PrintErrorStack(out io.Writer, err error, depth int) {
 	if err == nil {
 		return
 	}
@@ -197,6 +196,29 @@ func PrintErrorStack(out io.Writer, err error, depth int, printOnlyError bool) {
 	pathLen := 40
 
 	stack := GetErrorStack(err, depth)
+
+	printErrorFromStack(out, stack)
+
+	fmt.Fprintf(out, "\nCall stack:") // nolint: errcheck
+
+	for _, e := range stack {
+		errObj := asError(e)
+		fmt.Fprintf(out, "\n%s", e.Error()) // nolint: errcheck
+		if errObj != nil && errObj.lineNumber != 0 {
+			fmt.Fprintf(out, "\n    %s:%d", trimPath(errObj.fileName, pathLen), errObj.lineNumber) // nolint: errcheck
+		}
+	}
+
+	out.Write([]byte{'\n'}) // nolint: errcheck
+}
+
+func PrintError(out io.Writer, err error) {
+	stack := GetErrorStack(err, 1)
+	printErrorFromStack(out, stack)
+}
+
+func printErrorFromStack(out io.Writer, stack []error) {
+	pathLen := 40
 	errObj := asError(stack[0])
 
 	if errObj != nil && errObj.lineNumber != 0 {
@@ -211,19 +233,6 @@ func PrintErrorStack(out io.Writer, err error, depth int, printOnlyError bool) {
 		fmt.Fprintf(out, "\nError - %s", stack[0].Error()) // nolint: errcheck
 	}
 
-	if !printOnlyError {
-		fmt.Fprintf(out, "\nCall stack:") // nolint: errcheck
-
-		for _, e := range stack {
-			errObj := asError(e)
-			fmt.Fprintf(out, "\n%s", e.Error()) // nolint: errcheck
-			if errObj != nil && errObj.lineNumber != 0 {
-				fmt.Fprintf(out, "\n    %s:%d", trimPath(errObj.fileName, pathLen), errObj.lineNumber) // nolint: errcheck
-			}
-		}
-	}
-
-	out.Write([]byte{'\n'}) // nolint: errcheck
 }
 
 // Cause is the cause of the error
@@ -276,7 +285,7 @@ func (err *Error) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		if s.Flag('+') {
-			PrintErrorStack(s, err, -1, false)
+			PrintErrorStack(s, err, -1)
 		}
 		fallthrough
 	case 's':

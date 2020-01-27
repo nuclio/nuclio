@@ -172,7 +172,7 @@ func (suite *ErrorsTestSuite) TestPrintErrorStack() {
 	err := genError()
 	var buf bytes.Buffer
 
-	PrintErrorStack(&buf, err, -1, false)
+	PrintErrorStack(&buf, err, -1)
 
 	for _, err := range GetErrorStack(err, -1) {
 		errObj := err.(*Error)
@@ -184,7 +184,7 @@ func (suite *ErrorsTestSuite) TestPrintErrorStack() {
 
 	depth := 2
 	buf.Reset()
-	PrintErrorStack(&buf, err, depth, false)
+	PrintErrorStack(&buf, err, depth)
 	for _, err := range GetErrorStack(err, depth) {
 		errObj := err.(*Error)
 		fileName, lineNumber := errObj.LineInfo()
