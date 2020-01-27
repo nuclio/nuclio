@@ -154,7 +154,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		// if no brief error message was passed, set it to be the last error
 		if briefErrorsMessage == "" {
 			lastError := bytes.Buffer{}
-			errors.PrintErrorStack(&lastError, creationError, 1)
+			errors.PrintError(&lastError, creationError)
 			briefErrorsMessage = lastError.String()
 		}
 

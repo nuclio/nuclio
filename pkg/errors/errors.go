@@ -196,6 +196,29 @@ func PrintErrorStack(out io.Writer, err error, depth int) {
 	pathLen := 40
 
 	stack := GetErrorStack(err, depth)
+
+	printErrorFromStack(out, stack)
+
+	fmt.Fprintf(out, "\nCall stack:") // nolint: errcheck
+
+	for _, e := range stack {
+		errObj := asError(e)
+		fmt.Fprintf(out, "\n%s", e.Error()) // nolint: errcheck
+		if errObj != nil && errObj.lineNumber != 0 {
+			fmt.Fprintf(out, "\n    %s:%d", trimPath(errObj.fileName, pathLen), errObj.lineNumber) // nolint: errcheck
+		}
+	}
+
+	out.Write([]byte{'\n'}) // nolint: errcheck
+}
+
+func PrintError(out io.Writer, err error) {
+	stack := GetErrorStack(err, 1)
+	printErrorFromStack(out, stack)
+}
+
+func printErrorFromStack(out io.Writer, stack []error) {
+	pathLen := 40
 	errObj := asError(stack[0])
 
 	if errObj != nil && errObj.lineNumber != 0 {
@@ -210,17 +233,6 @@ func PrintErrorStack(out io.Writer, err error, depth int) {
 		fmt.Fprintf(out, "\nError - %s", stack[0].Error()) // nolint: errcheck
 	}
 
-	fmt.Fprintf(out, "\nCall stack:") // nolint: errcheck
-
-	for _, e := range stack {
-		errObj := asError(e)
-		fmt.Fprintf(out, "\n%s", e.Error()) // nolint: errcheck
-		if errObj != nil && errObj.lineNumber != 0 {
-			fmt.Fprintf(out, "\n    %s:%d", trimPath(errObj.fileName, pathLen), errObj.lineNumber) // nolint: errcheck
-		}
-	}
-
-	out.Write([]byte{'\n'}) // nolint: errcheck
 }
 
 // Cause is the cause of the error
