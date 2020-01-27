@@ -230,11 +230,11 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 				trigger.MaxWorkersLimit)
 		}
 		if _trigger.Kind == "http" {
-			if httpTriggerExists {
-				return errors.New("There's more than one http trigger (unsupported)")
-			} else {
+			if !httpTriggerExists {
 				httpTriggerExists = true
+				continue
 			}
+			return errors.New("There's more than one http trigger (unsupported)")
 		}
 	}
 
