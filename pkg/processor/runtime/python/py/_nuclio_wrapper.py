@@ -117,7 +117,7 @@ class Wrapper(object):
                 msg = next(self._unpacker)
 
                 # decode the event
-                event = nuclio_sdk.from_msgpack(msg)
+                event = nuclio_sdk.Event.from_msgpack(msg)
 
                 try:
 
