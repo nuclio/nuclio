@@ -221,12 +221,18 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 	}
 
 	// Verify _trigger's MaxWorkers value is making sense
+	var httpTriggerExists bool
 	for triggerName, _trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
 		if _trigger.MaxWorkers > trigger.MaxWorkersLimit {
 			return errors.Errorf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
 				triggerName,
 				_trigger.MaxWorkers,
 				trigger.MaxWorkersLimit)
+		}
+		if _trigger.Kind == "http" {
+			if httpTriggerExists {
+				return errors.New("There's more than one http trigger (unsupported)")
+			}
 		}
 	}
 
