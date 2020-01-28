@@ -118,6 +118,17 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorAllocations()
 				"t1": {0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
 			},
 		},
+		{
+			numWorkers: 4,
+			topicPartitionIDs: map[string][]int{
+				"t1": {0},
+				"t2": {10, 20, 30},
+			},
+			expectedWorkerID: map[string][]int{
+				"t1": {0},
+				"t2": {0, 1, 2},
+			},
+		},
 	} {
 		workerAllocator, err := worker.NewFixedPoolWorkerAllocator(suite.logger,
 			suite.createWorkers(testCase.numWorkers))

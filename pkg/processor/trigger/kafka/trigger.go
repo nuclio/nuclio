@@ -100,7 +100,7 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 			err = k.consumerGroup.Consume(context.Background(), k.configuration.Topics, k)
 
 			if err != nil {
-				k.Logger.WarnWith("Failed to consume from group, waiting before retrying", "err", err.Error())
+				k.Logger.WarnWith("Failed to consume from group, waiting before retrying", "err", errors.GetErrorStackString(err, 10))
 
 				time.Sleep(1 * time.Second)
 			} else {
@@ -132,7 +132,8 @@ func (k *kafka) Setup(session sarama.ConsumerGroupSession) error {
 
 	k.Logger.InfoWith("Starting consumer session",
 		"claims", session.Claims(),
-		"memberID", session.MemberID())
+		"memberID", session.MemberID(),
+		"workersAvailable", k.WorkerAllocator.GetNumWorkersAvailable())
 
 	k.partitionWorkerAllocator, err = k.createPartitionWorkerAllocator(session)
 	if err != nil {
@@ -143,9 +144,15 @@ func (k *kafka) Setup(session sarama.ConsumerGroupSession) error {
 }
 
 func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
+	err := k.partitionWorkerAllocator.stop()
+	if err != nil {
+		return errors.Wrap(err, "Failed to stop partition worker allocator")
+	}
+
 	k.Logger.InfoWith("Ending consumer session",
 		"claims", session.Claims(),
-		"memberID", session.MemberID())
+		"memberID", session.MemberID(),
+		"workersAvailable", k.WorkerAllocator.GetNumWorkersAvailable())
 
 	return nil
 }

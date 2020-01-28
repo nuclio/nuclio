@@ -13,6 +13,7 @@ import (
 type partitionWorkerAllocator interface {
 	allocateWorker(string, int, *time.Duration) (*worker.Worker, interface{}, error)
 	releaseWorker(interface{}, *worker.Worker) error
+	stop() error
 }
 
 // holds a shared pool of workers for all partitions to use. cannot guarantee that single worker will always
@@ -52,6 +53,10 @@ func (wa *pooledWorkerAllocator) releaseWorker(cookie interface{}, workerInstanc
 	return nil
 }
 
+func (wa *pooledWorkerAllocator) stop() error {
+	return nil
+}
+
 // statically maps a given partition to a given. this guarantees that a given partition in a given topic will
 // *always* be handled by the same worker of this replica. for functions that benefit from holding in-order state
 // this will be useful. however, the cost is throughput - it segments the worker pool such that it's possible
@@ -60,6 +65,7 @@ func (wa *pooledWorkerAllocator) releaseWorker(cookie interface{}, workerInstanc
 type staticWorkerAllocator struct {
 	logger          logger.Logger
 	workerAllocator worker.Allocator
+	workerChans     []chan *worker.Worker
 
 	// for a given topic and partition ID, holds the channel from which the worker that is assigned to this
 	// specific topic/partition can be taken. TODO: the partition map *may* be an array for O(1) goodness...
@@ -79,7 +85,7 @@ func newStaticWorkerAllocator(parentLogger logger.Logger,
 
 	// given a worker allocator and a topic/partition map - divide the workers we have between all partitions across
 	// all topics. there will be most likely many partitions across different topics sharing the same worker
-	newStaticWorkerAllocator.topicPartitionWorkers, err = newStaticWorkerAllocator.assignTopicPartitionWorkers(newStaticWorkerAllocator.workerAllocator,
+	newStaticWorkerAllocator.workerChans, newStaticWorkerAllocator.topicPartitionWorkers, err = newStaticWorkerAllocator.assignTopicPartitionWorkers(newStaticWorkerAllocator.workerAllocator,
 		topicPartitionIDs)
 
 	if err != nil {
@@ -147,8 +153,23 @@ func (wa *staticWorkerAllocator) releaseWorker(cookie interface{}, workerInstanc
 	return nil
 }
 
+func (wa *staticWorkerAllocator) stop() error {
+	wa.logger.Debug("Releasing workers back to worker allocator")
+
+	// iterate over worker channels, allocate the worker (it *must* be returned) and release it back to the allocator
+	// pool
+	for _, workerChan := range wa.workerChans {
+		workerInstance := <-workerChan
+		wa.workerAllocator.Release(workerInstance)
+	}
+
+	wa.logger.Debug("Workers released back to worker allocator", "num", len(wa.workerChans))
+
+	return nil
+}
+
 func (wa *staticWorkerAllocator) assignTopicPartitionWorkers(workerAllocator worker.Allocator,
-	topicPartitionIDs map[string][]int) (map[string]map[int]chan *worker.Worker, error) {
+	topicPartitionIDs map[string][]int) ([]chan *worker.Worker, map[string]map[int]chan *worker.Worker, error) {
 
 	var workerChans []chan *worker.Worker
 	topicPartitionWorkers := map[string]map[int]chan *worker.Worker{}
@@ -171,7 +192,7 @@ func (wa *staticWorkerAllocator) assignTopicPartitionWorkers(workerAllocator wor
 
 	// shouldn't ever happen, but make sure
 	if len(workerChans) == 0 {
-		return nil, errors.New("No workers available in worker pool")
+		return nil, nil, errors.New("No workers available in worker pool")
 	}
 
 	wa.logger.DebugWith("Assigning workers to partition topics", "numWorkers", len(workerChans), "topicPartitionIDs", topicPartitionIDs)
@@ -191,5 +212,5 @@ func (wa *staticWorkerAllocator) assignTopicPartitionWorkers(workerAllocator wor
 		}
 	}
 
-	return topicPartitionWorkers, nil
+	return workerChans, topicPartitionWorkers, nil
 }
