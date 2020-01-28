@@ -17,6 +17,8 @@ limitations under the License.
 package http
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/valyala/fasthttp"
 )
@@ -97,4 +99,9 @@ func (e *Event) GetFields() map[string]interface{} {
 	})
 
 	return fields
+}
+
+// GetTimestamp returns when the event originated
+func (e *Event) GetTimestamp() time.Time {
+	return e.ctx.Time()
 }
