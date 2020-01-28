@@ -84,7 +84,7 @@ func (c *Configuration) ParseDurationOrDefault(durationConfigField *DurationConf
 
 	parsedDurationValue, err := time.ParseDuration(durationConfigField.Value)
 	if err != nil {
-		return errors.Wrap(err, "Failed to parse "+durationConfigField.Name)
+		return errors.Wrapf(err, "Failed to parse %s", durationConfigField.Name)
 	}
 
 	*durationConfigField.Field = parsedDurationValue
