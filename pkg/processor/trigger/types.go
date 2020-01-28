@@ -17,9 +17,24 @@ limitations under the License.
 package trigger
 
 import (
+	"time"
+
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 )
+
+type DurationConfigField struct {
+	Name    string
+	Value   string
+	Field   *time.Duration
+	Default time.Duration
+}
+
+type AnnotationConfigField struct {
+	AnnotationKey      string
+	ConfigurationField *string
+}
 
 type Configuration struct {
 	functionconfig.Trigger
@@ -47,6 +62,34 @@ func NewConfiguration(ID string,
 	}
 
 	return configuration
+}
+
+// allows setting configuration via annotations, for experimental settings
+func (c *Configuration) PopulateConfigurationFromAnnotations(annotationConfigFields []AnnotationConfigField) error {
+	for _, annotationConfigField := range annotationConfigFields {
+		if annotationValue, annotationKeyExists := c.RuntimeConfiguration.Config.Meta.Annotations[annotationConfigField.AnnotationKey]; annotationKeyExists {
+			*annotationConfigField.ConfigurationField = annotationValue
+		}
+	}
+
+	return nil
+}
+
+// allows setting configuration via annotations, for experimental settings
+func (c *Configuration) ParseDurationOrDefault(durationConfigField *DurationConfigField) error {
+	if durationConfigField.Value == "" {
+		*durationConfigField.Field = durationConfigField.Default
+		return nil
+	}
+
+	parsedDurationValue, err := time.ParseDuration(durationConfigField.Value)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse "+durationConfigField.Name)
+	}
+
+	*durationConfigField.Field = parsedDurationValue
+
+	return nil
 }
 
 type Statistics struct {
