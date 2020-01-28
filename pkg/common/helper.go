@@ -18,6 +18,7 @@ package common
 
 import (
 	"bufio"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -171,4 +172,25 @@ func FixEscapeChars(s string) string {
 	}
 
 	return s
+}
+
+func MaxIntInSlice(values []int) int {
+	maxValue := math.MinInt64
+
+	for _, value := range values {
+		if value > maxValue {
+			maxValue = value
+		}
+	}
+
+	return maxValue
+}
+
+func GetDurationOrInfinite(timeout *time.Duration) time.Duration {
+	if timeout != nil {
+		return *timeout
+	}
+
+	// essentially infinite
+	return 100 * 365 * 24 * time.Hour
 }
