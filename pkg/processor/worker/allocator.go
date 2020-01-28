@@ -39,6 +39,9 @@ type Allocator interface {
 
 	// get direct access to all workers for things like management / housekeeping
 	GetWorkers() []*Worker
+
+	// get number of workers available in the allocator
+	GetNumWorkersAvailable() int
 }
 
 //
@@ -74,6 +77,10 @@ func (s *singleton) Shareable() bool {
 // get direct access to all workers for things like management / housekeeping
 func (s *singleton) GetWorkers() []*Worker {
 	return []*Worker{s.worker}
+}
+
+func (s *singleton) GetNumWorkersAvailable() int {
+	return 1
 }
 
 //
@@ -136,4 +143,8 @@ func (fp *fixedPool) Shareable() bool {
 // get direct access to all workers for things like management / housekeeping
 func (fp *fixedPool) GetWorkers() []*Worker {
 	return fp.workers
+}
+
+func (fp *fixedPool) GetNumWorkersAvailable() int {
+	return len(fp.workerChan)
 }
