@@ -18,7 +18,6 @@ package kafka
 
 import (
 	"context"
-	"runtime/debug"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -163,24 +162,6 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 		if err != nil {
 			return errors.Wrap(err, "Failed to allocate worker")
 		}
-
-		defer func() {
-			if err := recover(); err != nil {
-				callStack := debug.Stack()
-
-				k.Logger.ErrorWith("Panic caught during submit events",
-					"err",
-					err,
-					"stack",
-					string(callStack))
-
-				if workerInstance != nil {
-					k.partitionWorkerAllocator.releaseWorker(cookie, workerInstance) // nolint: errcheck
-				}
-			}
-
-			k.UpdateStatistics(false)
-		}()
 
 		// submit the event to the worker
 		k.SubmitEventToWorker(nil, workerInstance, &event) // nolint: errcheck
