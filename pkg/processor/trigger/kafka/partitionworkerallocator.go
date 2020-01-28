@@ -174,7 +174,7 @@ func (wa *staticWorkerAllocator) assignTopicPartitionWorkers(workerAllocator wor
 		return nil, errors.New("No workers available in worker pool")
 	}
 
-	wa.logger.DebugWith("Read all workers from the allocator, assigning", "numWorkers", len(workerChans))
+	wa.logger.DebugWith("Assigning workers to partition topics", "numWorkers", len(workerChans), "topicPartitionIDs", topicPartitionIDs)
 
 	for topic, topicPartitionIDs := range topicPartitionIDs {
 		topicPartitionWorkers[topic] = map[int]chan *worker.Worker{}
