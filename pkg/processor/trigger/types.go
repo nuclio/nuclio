@@ -75,7 +75,7 @@ func (c *Configuration) PopulateConfigurationFromAnnotations(annotationConfigFie
 	return nil
 }
 
-// allows setting configuration via annotations, for experimental settings
+// parses a duration string into a time.duration field. if empty, sets the field to the default
 func (c *Configuration) ParseDurationOrDefault(durationConfigField *DurationConfigField) error {
 	if durationConfigField.Value == "" {
 		*durationConfigField.Field = durationConfigField.Default
