@@ -33,7 +33,7 @@ RUN go get github.com/v3io/scaler-types \
     && go get github.com/nuclio/nuclio-sdk-go
 
 RUN cd $GOPATH/src/github.com/v3io/scaler-types \
-    && git checkout v1.3.0 \
+    && git checkout v1.5.0 \
     && cd /go/src/github.com/nuclio/nuclio
 
 RUN mkdir -p /home/nuclio/bin \
