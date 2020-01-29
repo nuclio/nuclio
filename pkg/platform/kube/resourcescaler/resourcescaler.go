@@ -68,11 +68,15 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 	}, nil
 }
 
-func (n *NuclioResourceScaler) SetScale(resource scaler_types.Resource, scale int) error {
-	if scale == 0 {
-		return n.scaleFunctionToZero(n.namespace, resource.Name)
+func (n *NuclioResourceScaler) SetScale(resources []scaler_types.Resource, scale int) error {
+	functionNames := make([]string, 0)
+	for _, resource := range resources {
+		functionNames = append(functionNames, resource.Name)
 	}
-	return n.scaleFunctionFromZero(n.namespace, resource.Name)
+	if scale == 0 {
+		return n.scaleFunctionsToZero(n.namespace, functionNames)
+	}
+	return n.scaleFunctionsFromZero(n.namespace, functionNames)
 }
 
 func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
@@ -135,7 +139,7 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 		KubeconfigPath: n.kubeconfigPath,
 		AutoScalerOptions: scaler_types.AutoScalerOptions{
 			Namespace:     n.namespace,
-			ScaleInterval: scaleInterval,
+			ScaleInterval: scaler_types.Duration{Duration: scaleInterval},
 			GroupKind:     "NuclioFunction",
 		},
 		DLXOptions: scaler_types.DLXOptions{
@@ -144,7 +148,7 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 			TargetNameHeader:         "X-Nuclio-Target",
 			TargetPathHeader:         "X-Nuclio-Function-Path",
 			ListenAddress:            ":8080",
-			ResourceReadinessTimeout: resourceReadinessTimeout,
+			ResourceReadinessTimeout: scaler_types.Duration{Duration: resourceReadinessTimeout},
 		},
 	}, nil
 }
@@ -159,7 +163,7 @@ func (n *NuclioResourceScaler) parseScaleResources(function nuclioio.NuclioFunct
 		scaleResources = append(scaleResources, scaler_types.ScaleResource{
 			MetricName: scaleResource.MetricName,
 			Threshold:  scaleResource.Threshold,
-			WindowSize: windowSize,
+			WindowSize: scaler_types.Duration{Duration: windowSize},
 		})
 	}
 	return scaleResources, nil
@@ -177,28 +181,35 @@ func (n *NuclioResourceScaler) parseLastScaleEvent(function nuclioio.NuclioFunct
 	return &function.Status.ScaleToZero.LastScaleEvent, function.Status.ScaleToZero.LastScaleEventTime, nil
 }
 
-func (n *NuclioResourceScaler) scaleFunctionToZero(namespace string, functionName string) error {
-	n.logger.DebugWith("Scaling to zero", "functionName", functionName)
-	err := n.updateFunctionStatus(namespace,
-		functionName,
-		functionconfig.FunctionStateWaitingForScaleResourcesToZero,
-		scaler_types.ScaleToZeroStartedScaleEvent)
-	if err != nil {
-		return errors.Wrap(err, "Failed to update function status to scale to zero")
+func (n *NuclioResourceScaler) scaleFunctionsToZero(namespace string, functionNames []string) error {
+	n.logger.DebugWith("Scaling to zero", "functionNames", functionNames)
+	for _, functionName := range functionNames {
+		err := n.updateFunctionStatus(namespace,
+			functionName,
+			functionconfig.FunctionStateWaitingForScaleResourcesToZero,
+			scaler_types.ScaleToZeroStartedScaleEvent)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to update function status to scale to zero: %s", functionName)
+		}
 	}
 	return nil
 }
 
-func (n *NuclioResourceScaler) scaleFunctionFromZero(namespace string, functionName string) error {
-	n.logger.DebugWith("Scaling from zero", "functionName", functionName)
-	err := n.updateFunctionStatus(namespace,
-		functionName,
-		functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
-		scaler_types.ScaleFromZeroStartedScaleEvent)
-	if err != nil {
-		return errors.Wrap(err, "Failed to update function status to scale from zero")
+func (n *NuclioResourceScaler) scaleFunctionsFromZero(namespace string, functionNames []string) error {
+	n.logger.DebugWith("Scaling from zero", "functionNames", functionNames)
+	for _, functionName := range functionNames {
+		err := n.updateFunctionStatus(namespace,
+			functionName,
+			functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
+			scaler_types.ScaleFromZeroStartedScaleEvent)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to update function status to scale from zero: %s", functionName)
+		}
+		if err := n.waitFunctionReadiness(namespace, functionName); err != nil {
+			return errors.Wrapf(err, "Failed waiting for function readiness: %s", functionName)
+		}
 	}
-	return n.waitFunctionReadiness(namespace, functionName)
+	return nil
 }
 
 func (n *NuclioResourceScaler) updateFunctionStatus(namespace string,
