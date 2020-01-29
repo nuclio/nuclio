@@ -220,7 +220,7 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 		return errors.New("Project doesn't exist")
 	}
 
-	// Verify _trigger's MaxWorkers value is making sense
+	// Verify trigger's MaxWorkers value is making sense, and that there's no more than one http trigger
 	var httpTriggerExists bool
 	for triggerName, _trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
 		if _trigger.MaxWorkers > trigger.MaxWorkersLimit {
