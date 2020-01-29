@@ -96,7 +96,7 @@ func createController(kubeconfigPath string,
 		kubeClientSet,
 		nuclioClientSet,
 		functionresClient,
-		5*time.Minute,
+		10*time.Minute,
 		platformConfiguration)
 
 	if err != nil {
