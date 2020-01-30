@@ -49,15 +49,28 @@ type Configuration struct {
 		Password string
 	}
 
-	SessionTimeout       string
-	HearbeatInterval     string
-	MaxProcessingTime    string
-	WorkerAllocationMode workerAllocationMode
+	SessionTimeout        string
+	HearbeatInterval      string
+	MaxProcessingTime     string
+	RebalanceTimeout      string
+	RebalanceRetryBackoff string
+	RetryBackoff          string
+	MaxWaitTime           string
+	WorkerAllocationMode  workerAllocationMode
+	RebalanceRetryMax     int
+	FetchMin              int
+	FetchDefault          int
+	FetchMax              int
+	ChannelBufferSize     int
 
-	sessionTimeout    time.Duration
-	heartbeatInterval time.Duration
-	maxProcessingTime time.Duration
-	initialOffset     int64
+	sessionTimeout        time.Duration
+	heartbeatInterval     time.Duration
+	maxProcessingTime     time.Duration
+	rebalanceTimeout      time.Duration
+	rebalanceRetryBackoff time.Duration
+	retryBackoff          time.Duration
+	maxWaitTime           time.Duration
+	initialOffset         int64
 }
 
 func NewConfiguration(ID string,
@@ -71,10 +84,19 @@ func NewConfiguration(ID string,
 	workerAllocationModeValue := ""
 
 	err := newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
-		{"nuclio.io/kafka-session-timeout", &newConfiguration.SessionTimeout},
-		{"nuclio.io/kafka-heartbeat-interval", &newConfiguration.HearbeatInterval},
-		{"nuclio.io/kafka-max-processing-time", &newConfiguration.MaxProcessingTime},
-		{"nuclio.io/kafka-worker-allocation-mode", &workerAllocationModeValue},
+		{Key: "nuclio.io/kafka-session-timeout", ValueString: &newConfiguration.SessionTimeout},
+		{Key: "nuclio.io/kafka-heartbeat-interval", ValueString: &newConfiguration.HearbeatInterval},
+		{Key: "nuclio.io/kafka-max-processing-time", ValueString: &newConfiguration.MaxProcessingTime},
+		{Key: "nuclio.io/kafka-rebalance-timeout", ValueString: &newConfiguration.RebalanceTimeout},
+		{Key: "nuclio.io/kafka-rebalance-retry-backoff", ValueString: &newConfiguration.RebalanceRetryBackoff},
+		{Key: "nuclio.io/kafka-retry-backoff", ValueString: &newConfiguration.RetryBackoff},
+		{Key: "nuclio.io/kafka-max-wait-time", ValueString: &newConfiguration.MaxWaitTime},
+		{Key: "nuclio.io/kafka-worker-allocation-mode", ValueString: &workerAllocationModeValue},
+		{Key: "nuclio.io/kafka-rebalance-retry-max", ValueInt: &newConfiguration.RebalanceRetryMax},
+		{Key: "nuclio.io/kafka-fetch-min", ValueInt: &newConfiguration.FetchMin},
+		{Key: "nuclio.io/kafka-fetch-default", ValueInt: &newConfiguration.FetchDefault},
+		{Key: "nuclio.io/kafka-fetch-max", ValueInt: &newConfiguration.FetchMax},
+		{Key: "nuclio.io/kafka-channel-buffer-size", ValueInt: &newConfiguration.ChannelBufferSize},
 	})
 
 	if err != nil {
@@ -112,9 +134,13 @@ func NewConfiguration(ID string,
 	}
 
 	for _, durationConfigField := range []trigger.DurationConfigField{
-		{"session timeout", newConfiguration.SessionTimeout, &newConfiguration.sessionTimeout, 60 * time.Second},
-		{"heartbeat interval", newConfiguration.HearbeatInterval, &newConfiguration.heartbeatInterval, 5 * time.Second},
+		{"session timeout", newConfiguration.SessionTimeout, &newConfiguration.sessionTimeout, 10 * time.Second},
+		{"heartbeat interval", newConfiguration.HearbeatInterval, &newConfiguration.heartbeatInterval, 3 * time.Second},
 		{"max processing timeout", newConfiguration.MaxProcessingTime, &newConfiguration.maxProcessingTime, 5 * time.Minute},
+		{"rebalance timeout", newConfiguration.RebalanceTimeout, &newConfiguration.rebalanceTimeout, 60 * time.Second},
+		{"rebalance retry backoff", newConfiguration.RebalanceRetryBackoff, &newConfiguration.rebalanceRetryBackoff, 2 * time.Second},
+		{"retry backoff", newConfiguration.RetryBackoff, &newConfiguration.retryBackoff, 2 * time.Second},
+		{"max wait time", newConfiguration.MaxWaitTime, &newConfiguration.maxWaitTime, 250 * time.Millisecond},
 	} {
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {
 			return nil, err
@@ -123,6 +149,22 @@ func NewConfiguration(ID string,
 
 	if newConfiguration.WorkerAllocationMode == "" {
 		newConfiguration.WorkerAllocationMode = workerAllocationModePool
+	}
+
+	if newConfiguration.RebalanceRetryMax == 0 {
+		newConfiguration.RebalanceRetryMax = 4
+	}
+
+	if newConfiguration.FetchMin == 0 {
+		newConfiguration.FetchMin = 1
+	}
+
+	if newConfiguration.FetchDefault == 0 {
+		newConfiguration.FetchDefault = 1 * 1024 * 1024
+	}
+
+	if newConfiguration.ChannelBufferSize == 0 {
+		newConfiguration.ChannelBufferSize = 256
 	}
 
 	return &newConfiguration, nil

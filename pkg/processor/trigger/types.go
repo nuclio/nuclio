@@ -17,6 +17,7 @@ limitations under the License.
 package trigger
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -32,8 +33,9 @@ type DurationConfigField struct {
 }
 
 type AnnotationConfigField struct {
-	AnnotationKey      string
-	ConfigurationField *string
+	Key         string
+	ValueString *string
+	ValueInt    *int
 }
 
 type Configuration struct {
@@ -66,9 +68,18 @@ func NewConfiguration(ID string,
 
 // allows setting configuration via annotations, for experimental settings
 func (c *Configuration) PopulateConfigurationFromAnnotations(annotationConfigFields []AnnotationConfigField) error {
+	var err error
+
 	for _, annotationConfigField := range annotationConfigFields {
-		if annotationValue, annotationKeyExists := c.RuntimeConfiguration.Config.Meta.Annotations[annotationConfigField.AnnotationKey]; annotationKeyExists {
-			*annotationConfigField.ConfigurationField = annotationValue
+		if annotationValue, annotationKeyExists := c.RuntimeConfiguration.Config.Meta.Annotations[annotationConfigField.Key]; annotationKeyExists {
+			if annotationConfigField.ValueString != nil {
+				*annotationConfigField.ValueString = annotationValue
+			} else if annotationConfigField.ValueInt != nil {
+				*annotationConfigField.ValueInt, err = strconv.Atoi(annotationValue)
+				if err != nil {
+					return errors.Wrapf(err, "Annotation %s must be numeric", annotationConfigField.Key)
+				}
+			}
 		}
 	}
 
