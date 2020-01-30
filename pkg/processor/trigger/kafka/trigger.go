@@ -66,7 +66,15 @@ func newTrigger(parentLogger logger.Logger,
 		"workerAllocationMode", configuration.WorkerAllocationMode,
 		"sessionTimeout", configuration.sessionTimeout,
 		"heartbeatInterval", configuration.heartbeatInterval,
-		"maxProcessingTime", configuration.maxProcessingTime)
+		"rebalanceTimeout", configuration.rebalanceTimeout,
+		"rebalanceTimeout", configuration.rebalanceTimeout,
+		"retryBackoff", configuration.retryBackoff,
+		"maxWaitTime", configuration.maxWaitTime,
+		"rebalanceRetryMax", configuration.RebalanceRetryMax,
+		"fetchMin", configuration.FetchMin,
+		"fetchDefault", configuration.FetchDefault,
+		"fetchMax", configuration.FetchMax,
+		"channelBufferSize", configuration.ChannelBufferSize)
 
 	newTrigger.kafkaConfig, err = newTrigger.newKafkaConfig()
 	if err != nil {
@@ -197,7 +205,16 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Consumer.Offsets.AutoCommit.Enable = true
 	config.Consumer.Group.Session.Timeout = k.configuration.sessionTimeout
 	config.Consumer.Group.Heartbeat.Interval = k.configuration.heartbeatInterval
+	config.Consumer.Group.Rebalance.Timeout = k.configuration.rebalanceTimeout
+	config.Consumer.Group.Rebalance.Retry.Max = k.configuration.RebalanceRetryMax
+	config.Consumer.Group.Rebalance.Retry.Backoff = k.configuration.rebalanceRetryBackoff
+	config.Consumer.Retry.Backoff = k.configuration.retryBackoff
+	config.Consumer.Fetch.Min = int32(k.configuration.FetchMin)
+	config.Consumer.Fetch.Default = int32(k.configuration.FetchDefault)
+	config.Consumer.Fetch.Max = int32(k.configuration.FetchMax)
+	config.Consumer.MaxWaitTime = k.configuration.maxWaitTime
 	config.Consumer.MaxProcessingTime = k.configuration.maxProcessingTime
+	config.ChannelBufferSize = k.configuration.ChannelBufferSize
 
 	if err := config.Validate(); err != nil {
 		return nil, errors.Wrap(err, "Kafka config is invalid")
