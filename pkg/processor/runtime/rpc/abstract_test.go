@@ -100,7 +100,7 @@ func (suite *RuntimeSuite) TestRestart() {
 
 func (suite *RuntimeSuite) TearDownTest() {
 	if suite.testRuntimeInstance != nil && suite.testRuntimeInstance.wrapperProcess != nil {
-		suite.testRuntimeInstance.wrapperProcess.Kill() // nolint: errcheck
+		suite.testRuntimeInstance.Stop() // nolint: errcheck
 	}
 }
 
