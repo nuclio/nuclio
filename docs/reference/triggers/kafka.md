@@ -13,7 +13,7 @@ In the real world, however, you may want to scale your processing up and down ba
 
 To this end, Nuclio leverages Kafka Consumer Groups. When one or more Nuclio replicas joins a Consumer Group, Kafka will communicate with Nuclio to tell it which part of the stream it should handle. It does so by assigning each Nuclio replica one or more Kafka partitions to read from and handle in a process called rebalancing (more on how Nuclio handles this later).
 
-<p align="center"><img src="/docs/assets/images/kafka-high-level.png" width="180"/></p>
+<p align="center"><img src="/docs/assets/images/kafka-high-level.png" width="400"/></p>
 
 When a Nuclio replica is assigned its set of partitions it can then start reading from them and handling them in Nuclio workers. It is currently guaranteed that the same partition will only be handled by one replica, sequentially (that is, a message will only be read and handled once the previous message of that partition has been handled). During rebalancing, however, the responsibility for a partition may be migrated to another Nuclio replica - but the guarantee of sequential processing (in-order-execution) is still maintained. 
 
@@ -44,7 +44,7 @@ Nuclio leverages the Sarama Kafka Client Library (`sarama`) to read from Kafka. 
 
 When created, the Nuclio trigger configures `sarama` to start reading messages from a given broker/topics/consumer group. At this point `sarama` will do its thing to understand which partitions the Nuclio replica must take care of and communicate that back to the Nuclio trigger. `sarama` will then start dispatching messages.
 
-<p align="center"><img src="/docs/assets/images/kafka-message-flow.png" width="180"/></p>
+<p align="center"><img src="/docs/assets/images/kafka-message-flow.png" width="400"/></p>
 
 The first step `sarama` performs is to read a chunk of data from all partitions it is assigned to, across all topics (1). The amount read per partition is determined in bytes and controlled by the configuration. Ideally, each read will return data across all partitions but this is highly dependant on configuration and the size of messages in the partitions (see below). 
 
