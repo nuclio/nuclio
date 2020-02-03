@@ -274,9 +274,9 @@ func (k *kafka) cancelEventHandling(workerInstance *worker.Worker,
 		k.Logger.DebugWith("Restarting worker", "partition", claim.Partition())
 
 		return workerInstance.Restart()
-	} else {
-		return errors.New("Worker doesn't support restart")
 	}
+
+	return errors.New("Worker doesn't support restart")
 }
 
 func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
