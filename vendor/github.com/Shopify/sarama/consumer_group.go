@@ -825,6 +825,9 @@ type ConsumerGroupClaim interface {
 	// Config.Consumer.Group.Session.Timeout before the topic/partition is eventually
 	// re-assigned to another group member.
 	Messages() <-chan *ConsumerMessage
+
+	// StopConsuming forces an immediate stop of consumption, in addition to closing the Messages() channel
+	StopConsuming() <-chan struct{}
 }
 
 type consumerGroupClaim struct {
