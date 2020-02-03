@@ -82,7 +82,8 @@ func newTrigger(parentLogger logger.Logger,
 		"fetchMin", configuration.FetchMin,
 		"fetchDefault", configuration.FetchDefault,
 		"fetchMax", configuration.FetchMax,
-		"channelBufferSize", configuration.ChannelBufferSize)
+		"channelBufferSize", configuration.ChannelBufferSize,
+		"maxWaitHandlerDuringRebalance", configuration.maxWaitHandlerDuringRebalance)
 
 	newTrigger.kafkaConfig, err = newTrigger.newKafkaConfig()
 	if err != nil {
