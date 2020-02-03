@@ -89,7 +89,7 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 	}
 
 	if len(project) == 0 {
-		return nil, nil
+		return nil, nuclio.ErrNotFound
 	}
 
 	return pr.projectToAttributes(project[0]), nil
