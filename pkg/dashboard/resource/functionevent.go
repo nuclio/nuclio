@@ -99,7 +99,7 @@ func (fer *functionEventResource) GetByID(request *http.Request, id string) (res
 	}
 
 	if len(functionEvent) == 0 {
-		return nil, nil
+		return nil, nuclio.ErrNotFound
 	}
 
 	return fer.functionEventToAttributes(functionEvent[0]), nil
