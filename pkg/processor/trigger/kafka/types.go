@@ -49,28 +49,30 @@ type Configuration struct {
 		Password string
 	}
 
-	SessionTimeout        string
-	HearbeatInterval      string
-	MaxProcessingTime     string
-	RebalanceTimeout      string
-	RebalanceRetryBackoff string
-	RetryBackoff          string
-	MaxWaitTime           string
-	WorkerAllocationMode  workerAllocationMode
-	RebalanceRetryMax     int
-	FetchMin              int
-	FetchDefault          int
-	FetchMax              int
-	ChannelBufferSize     int
+	SessionTimeout                string
+	HearbeatInterval              string
+	MaxProcessingTime             string
+	RebalanceTimeout              string
+	RebalanceRetryBackoff         string
+	RetryBackoff                  string
+	MaxWaitTime                   string
+	MaxWaitHandlerDuringRebalance string
+	WorkerAllocationMode          workerAllocationMode
+	RebalanceRetryMax             int
+	FetchMin                      int
+	FetchDefault                  int
+	FetchMax                      int
+	ChannelBufferSize             int
 
-	sessionTimeout        time.Duration
-	heartbeatInterval     time.Duration
-	maxProcessingTime     time.Duration
-	rebalanceTimeout      time.Duration
-	rebalanceRetryBackoff time.Duration
-	retryBackoff          time.Duration
-	maxWaitTime           time.Duration
-	initialOffset         int64
+	sessionTimeout                time.Duration
+	heartbeatInterval             time.Duration
+	maxProcessingTime             time.Duration
+	rebalanceTimeout              time.Duration
+	rebalanceRetryBackoff         time.Duration
+	retryBackoff                  time.Duration
+	maxWaitTime                   time.Duration
+	maxWaitHandlerDuringRebalance time.Duration
+	initialOffset                 int64
 }
 
 func NewConfiguration(ID string,
@@ -91,6 +93,7 @@ func NewConfiguration(ID string,
 		{Key: "nuclio.io/kafka-rebalance-retry-backoff", ValueString: &newConfiguration.RebalanceRetryBackoff},
 		{Key: "nuclio.io/kafka-retry-backoff", ValueString: &newConfiguration.RetryBackoff},
 		{Key: "nuclio.io/kafka-max-wait-time", ValueString: &newConfiguration.MaxWaitTime},
+		{Key: "nuclio.io/kafka-max-wait-handler-during-rebalance", ValueString: &newConfiguration.MaxWaitHandlerDuringRebalance},
 		{Key: "nuclio.io/kafka-worker-allocation-mode", ValueString: &workerAllocationModeValue},
 		{Key: "nuclio.io/kafka-rebalance-retry-max", ValueInt: &newConfiguration.RebalanceRetryMax},
 		{Key: "nuclio.io/kafka-fetch-min", ValueInt: &newConfiguration.FetchMin},
@@ -141,6 +144,7 @@ func NewConfiguration(ID string,
 		{"rebalance retry backoff", newConfiguration.RebalanceRetryBackoff, &newConfiguration.rebalanceRetryBackoff, 2 * time.Second},
 		{"retry backoff", newConfiguration.RetryBackoff, &newConfiguration.retryBackoff, 2 * time.Second},
 		{"max wait time", newConfiguration.MaxWaitTime, &newConfiguration.maxWaitTime, 250 * time.Millisecond},
+		{"max wait handler during rebalance", newConfiguration.MaxWaitHandlerDuringRebalance, &newConfiguration.maxWaitHandlerDuringRebalance, 5 * time.Second},
 	} {
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {
 			return nil, err
