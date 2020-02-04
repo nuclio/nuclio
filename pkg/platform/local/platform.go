@@ -396,7 +396,7 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 // DeleteProject will delete an existing project
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
-		return errors.Wrap(err, "Delete project options validation failed")
+		return err
 	}
 	return p.localStore.deleteProject(&deleteProjectOptions.Meta)
 }
