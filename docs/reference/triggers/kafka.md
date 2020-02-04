@@ -21,7 +21,7 @@ When a Nuclio replica is assigned its set of partitions it can then start readin
 When a partition is assigned to a replica, its messages will be handled one by one by a worker. A user can configure how many workers a single replica contains and how these are allocated when a message arrives.
 
 #### How many workers should my replica have?
-Currently the number of workers is statically determined by the user. The fewer workers there are, the less memory a replica consumes, but the more time a partition will have to wait until a worker becomes available to handle its messages. A good rule of them is to set this to `ceil((number of partitions / max number of replicas) * 1.2)`. 
+Currently the number of workers is statically determined by the user. The fewer workers there are, the less memory a replica consumes, but the more time a partition will have to wait until a worker becomes available to handle its messages. A good rule of thumb is to set this to `ceil((number of partitions / max number of replicas) * 1.2)`. 
 
 For example, if you have 16 paratitions and you set your max number of replicas to 4 then during steady state each replica will handle `16 / 4 = 4` partitions. However, if one of the replicas goes down, each replica will handle `16 / 3 = 5 or 6` partitions. Following the formula above we set max workers to `ceil((16 / 4) * 1.2) = 5`. We will spend an extra worker during steady state but allow for a single replica to go down without adding too much stalling during processing.
 
