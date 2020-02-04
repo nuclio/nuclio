@@ -136,17 +136,20 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 
 	// if some of the parameters are undefined, try environment variables
 	if containerBuilderConfiguration.Kind == "" {
-		containerBuilderConfiguration.Kind = common.GetEnvOrDefaultString("NUCLIO_CONTAINER_BUILDER_KIND", "docker")
+		containerBuilderConfiguration.Kind = common.GetEnvOrDefaultString("NUCLIO_CONTAINER_BUILDER_KIND",
+			"docker")
 	}
 	if containerBuilderConfiguration.BusyBoxImage == "" {
-		containerBuilderConfiguration.BusyBoxImage = common.GetEnvOrDefaultString("NUCLIO_BUSYBOX_CONTAINER_IMAGE", "busybox:1.31.0")
+		containerBuilderConfiguration.BusyBoxImage = common.GetEnvOrDefaultString("NUCLIO_BUSYBOX_CONTAINER_IMAGE",
+			"busybox:1.31.1")
 	}
 	if containerBuilderConfiguration.KanikoImage == "" {
 		containerBuilderConfiguration.KanikoImage = common.GetEnvOrDefaultString("NUCLIO_KANIKO_CONTAINER_IMAGE",
-			"gcr.io/kaniko-project/executor:v0.13.0")
+			"gcr.io/kaniko-project/executor:v0.17.0")
 	}
 	if containerBuilderConfiguration.JobPrefix == "" {
-		containerBuilderConfiguration.JobPrefix = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_JOB_NAME_PREFIX", "kanikojob")
+		containerBuilderConfiguration.JobPrefix = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_JOB_NAME_PREFIX",
+			"kanikojob")
 	}
 
 	if common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_REGISTRY", false) {

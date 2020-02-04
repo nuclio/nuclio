@@ -181,7 +181,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=%s=%s", k, v))
 	}
 
-	volumeMount := v1.VolumeMount{
+	tmpFolderVolumeMount := v1.VolumeMount{
 		Name:      "tmp",
 		MountPath: "/tmp",
 	}
@@ -218,7 +218,20 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 							Name:         "kaniko-executor",
 							Image:        k.builderConfiguration.KanikoImage,
 							Args:         buildArgs,
-							VolumeMounts: []v1.VolumeMount{volumeMount},
+							Env: []v1.EnvVar{
+								{
+									Name:  "DOCKER_CONFIG",
+									Value: "/kaniko/secrets",
+								},
+							},
+							VolumeMounts: []v1.VolumeMount{
+								tmpFolderVolumeMount,
+								{
+									Name:      "docker-config",
+									MountPath: "/kaniko/secrets",
+									ReadOnly:  true,
+								},
+							},
 						},
 					},
 					InitContainers: []v1.Container{
@@ -231,7 +244,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 								"-P",
 								"/tmp",
 							},
-							VolumeMounts: []v1.VolumeMount{volumeMount},
+							VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
 						},
 						{
 							Name:  "extract-bundle",
@@ -243,7 +256,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 								"-C",
 								"/",
 							},
-							VolumeMounts: []v1.VolumeMount{volumeMount},
+							VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
 						},
 					},
 					Volumes: []v1.Volume{
@@ -251,6 +264,14 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 							Name: "tmp",
 							VolumeSource: v1.VolumeSource{
 								EmptyDir: &v1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: "docker-config",
+							VolumeSource: v1.VolumeSource{
+								Secret: &v1.SecretVolumeSource{
+									SecretName: "nuclio-registry-credentials",
+								},
 							},
 						},
 					},
