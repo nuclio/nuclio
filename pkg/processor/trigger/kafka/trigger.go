@@ -185,6 +185,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 	submittedEventChan := make(chan *submittedEvent)
 
+	// submit the events in a goroutine so that we can unblock immediately
 	go k.eventSubmitter(submittedEventChan)
 
 	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
@@ -197,7 +198,6 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 		}
 
 		// allocate a worker for this topic/partition
-		// TODO: may block here. handle allocation errors as well
 		workerInstance, cookie, err := k.partitionWorkerAllocator.allocateWorker(claim.Topic(), int(claim.Partition()), nil)
 		if err != nil {
 			return errors.Wrap(err, "Failed to allocate worker")
@@ -252,10 +252,14 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 	k.Logger.DebugWith("Claim consumption stopped", "partition", claim.Partition())
 
+	// shut down the event submitter
+	close(submittedEventChan)
+
 	return submitError
 }
 
 func (k *kafka) eventSubmitter(submittedEventChan chan *submittedEvent) {
+	k.Logger.DebugWith("Event submitter started")
 
 	// while there are events to submit, submit them to the given worker
 	for submittedEvent := range submittedEventChan {
@@ -266,6 +270,8 @@ func (k *kafka) eventSubmitter(submittedEventChan chan *submittedEvent) {
 		// indicate that we're done
 		submittedEvent.done <- struct{}{}
 	}
+
+	k.Logger.DebugWith("Event submitter stopped")
 }
 
 func (k *kafka) cancelEventHandling(workerInstance *worker.Worker,
