@@ -215,9 +215,9 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:         "kaniko-executor",
-							Image:        k.builderConfiguration.KanikoImage,
-							Args:         buildArgs,
+							Name:  "kaniko-executor",
+							Image: k.builderConfiguration.KanikoImage,
+							Args:  buildArgs,
 							VolumeMounts: []v1.VolumeMount{
 								tmpFolderVolumeMount,
 								{
@@ -267,7 +267,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 									SecretName: "nuclio-registry-credentials",
 									Items: []v1.KeyToPath{
 										{
-											Key: ".dockerconfigjson",
+											Key:  ".dockerconfigjson",
 											Path: "config.json",
 										},
 									},
