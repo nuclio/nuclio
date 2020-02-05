@@ -218,17 +218,11 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 							Name:         "kaniko-executor",
 							Image:        k.builderConfiguration.KanikoImage,
 							Args:         buildArgs,
-							Env: []v1.EnvVar{
-								{
-									Name:  "DOCKER_CONFIG",
-									Value: "/kaniko/secrets",
-								},
-							},
 							VolumeMounts: []v1.VolumeMount{
 								tmpFolderVolumeMount,
 								{
 									Name:      "docker-config",
-									MountPath: "/kaniko/secrets",
+									MountPath: "/kaniko/.docker",
 									ReadOnly:  true,
 								},
 							},
@@ -271,6 +265,12 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 							VolumeSource: v1.VolumeSource{
 								Secret: &v1.SecretVolumeSource{
 									SecretName: "nuclio-registry-credentials",
+									Items: []v1.KeyToPath{
+										{
+											Key: ".dockerconfigjson",
+											Path: "config.json",
+										},
+									},
 								},
 							},
 						},
