@@ -62,6 +62,10 @@ spec:
         - name: NUCLIO_KANIKO_INSECURE_REGISTRY
           value: "true"
         {{- end }}
+        {{- if .Values.registry.defaultBaseRegistryURL }}
+        - name: NUCLIO_DEFAULT_BASE_REGISTRY_URL
+          value: {{ .Values.registry.defaultBaseRegistryURL }}
+        {{- end }}
 #        - name: NUCLIO_DASHBOARD_RUN_REGISTRY_URL
 #          value: "localhost:5000"
         {{- if eq .Values.dashboard.baseImagePullPolicy "Never" }}
@@ -80,6 +84,8 @@ spec:
         - name: NUCLIO_TEMPLATES_GIT_REF
           value: "nil"
         {{- end }}
+        - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
+          value: {{ template "nuclio.registryCredentialsName" . }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ .Values.dashboard.externalIPAddresses | join "," | quote }}
         - name: NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE

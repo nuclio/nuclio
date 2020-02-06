@@ -117,7 +117,7 @@ func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifa
 }
 
 func (k *Kaniko) GetBaseImageRegistry(registry string) string {
-	return registry
+	return k.builderConfiguration.DefaultBaseRegistryURL
 }
 
 func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tempDir string) (string, string, error) {
@@ -181,7 +181,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=%s=%s", k, v))
 	}
 
-	volumeMount := v1.VolumeMount{
+	tmpFolderVolumeMount := v1.VolumeMount{
 		Name:      "tmp",
 		MountPath: "/tmp",
 	}
@@ -215,10 +215,17 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:         "kaniko-executor",
-							Image:        k.builderConfiguration.KanikoImage,
-							Args:         buildArgs,
-							VolumeMounts: []v1.VolumeMount{volumeMount},
+							Name:  "kaniko-executor",
+							Image: k.builderConfiguration.KanikoImage,
+							Args:  buildArgs,
+							VolumeMounts: []v1.VolumeMount{
+								tmpFolderVolumeMount,
+								{
+									Name:      "docker-config",
+									MountPath: "/kaniko/.docker",
+									ReadOnly:  true,
+								},
+							},
 						},
 					},
 					InitContainers: []v1.Container{
@@ -231,7 +238,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 								"-P",
 								"/tmp",
 							},
-							VolumeMounts: []v1.VolumeMount{volumeMount},
+							VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
 						},
 						{
 							Name:  "extract-bundle",
@@ -243,7 +250,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 								"-C",
 								"/",
 							},
-							VolumeMounts: []v1.VolumeMount{volumeMount},
+							VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
 						},
 					},
 					Volumes: []v1.Volume{
@@ -251,6 +258,20 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 							Name: "tmp",
 							VolumeSource: v1.VolumeSource{
 								EmptyDir: &v1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: "docker-config",
+							VolumeSource: v1.VolumeSource{
+								Secret: &v1.SecretVolumeSource{
+									SecretName: k.builderConfiguration.RegistryCredentialsSecretName,
+									Items: []v1.KeyToPath{
+										{
+											Key:  ".dockerconfigjson",
+											Path: "config.json",
+										},
+									},
+								},
 							},
 						},
 					},

@@ -17,9 +17,11 @@ type BuildOptions struct {
 }
 
 type ContainerBuilderConfiguration struct {
-	Kind             string
-	BusyBoxImage     string
-	KanikoImage      string
-	JobPrefix        string
-	InsecureRegistry bool
+	Kind                          string
+	BusyBoxImage                  string
+	KanikoImage                   string
+	JobPrefix                     string
+	RegistryCredentialsSecretName string
+	DefaultBaseRegistryURL        string
+	InsecureRegistry              bool
 }

@@ -96,6 +96,10 @@ registry:
     # username: someuser
     # password: somepass
 
+  #  Use dedicated base/onbuild images registry (pull registry)
+  #
+  # defaultBaseRegistryURL: someurl
+
 rbac:
 
   # If true, creates the necessary roles and role bindings for nuclio's service account
