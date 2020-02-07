@@ -31,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/status"
+	"github.com/nuclio/nuclio/pkg/processwaiter"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -65,6 +66,7 @@ type AbstractRuntime struct {
 	runtime        Runtime
 	startChan      chan struct{}
 	socketType     SocketType
+	processWaiter  *processwaiter.ProcessWaiter
 }
 
 type rpcLogRecord struct {
@@ -107,11 +109,6 @@ func (r *AbstractRuntime) Start() error {
 
 // ProcessEvent processes an event
 func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-
-	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
-		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
-	}
-
 	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
 		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
 	}
@@ -145,6 +142,12 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 // Stop stops the runtime
 func (r *AbstractRuntime) Stop() error {
 	if r.wrapperProcess != nil {
+
+		// stop waiting for process
+		if err := r.processWaiter.Cancel(); err != nil {
+			r.Logger.WarnWith("Failed to cancel process waiting")
+		}
+
 		err := r.wrapperProcess.Kill()
 		if err != nil {
 			r.SetStatus(status.Error)
@@ -214,11 +217,18 @@ func (r *AbstractRuntime) startWrapper() error {
 		return errors.Wrap(err, "Can't create listener")
 	}
 
+	r.processWaiter, err = processwaiter.NewProcessWaiter()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create process waiter")
+	}
+
 	wrapperProcess, err := r.runtime.RunWrapper(address)
 	if err != nil {
 		return errors.Wrap(err, "Can't run wrapper")
 	}
+
 	r.wrapperProcess = wrapperProcess
+
 	go r.watchWrapperProcess()
 
 	conn, err := listener.Accept()
@@ -226,7 +236,7 @@ func (r *AbstractRuntime) startWrapper() error {
 		return errors.Wrap(err, "Can't get connection from wrapper")
 	}
 
-	r.Logger.Info("Wrapper connected")
+	r.Logger.InfoWith("Wrapper connected", "wid", r.Context.WorkerID)
 
 	r.eventEncoder = r.runtime.GetEventEncoder(conn)
 	r.resultChan = make(chan *result)
@@ -298,7 +308,7 @@ func (r *AbstractRuntime) wrapperOutputHandler(conn io.Reader, resultChan chan *
 	// Reset might close outChan, which will cause panic when sending
 	defer func() {
 		if err := recover(); err != nil {
-			r.Logger.WarnWith("panic handling wrapper output (Reset called?)")
+			r.Logger.WarnWith("Recovered during output handler (Restart called?)", "err", err)
 		}
 	}()
 
@@ -410,21 +420,35 @@ func (r *AbstractRuntime) newResultChan() {
 }
 
 func (r *AbstractRuntime) watchWrapperProcess() {
-	procStatus, err := r.wrapperProcess.Wait()
-	if r.GetStatus() == status.Ready && (err != nil || !procStatus.Success()) {
-		r.Logger.ErrorWith("Unexpected termination of child process",
-			"error", err,
-			"status", procStatus.String())
 
-		var panicMessage string
-		if err != nil {
-			panicMessage = err.Error()
-		} else {
-			panicMessage = procStatus.String()
-		}
+	// whatever happens, clear wrapper process
+	defer func() { r.wrapperProcess = nil }()
 
-		panic(fmt.Sprintf("Wrapper process exited unexpectedly with: %s", panicMessage))
+	// wait for the process
+	processWaitResult := <-r.processWaiter.Wait(r.wrapperProcess, nil)
+
+	// if we were simply canceled, do nothing
+	if processWaitResult.Err == processwaiter.ErrCancelled {
+		r.Logger.DebugWith("Process watch cancelled. Returning", "wid", r.Context.WorkerID)
+		return
 	}
-	r.SetStatus(status.Stopped)
-	r.wrapperProcess = nil
+
+	// if process exited gracefully (i.e. wasn't force killed), do nothing
+	if processWaitResult.Err == nil && processWaitResult.ProcessState.Success() {
+		r.Logger.DebugWith("Process watch done - process exited successfully")
+		return
+	}
+
+	r.Logger.ErrorWith("Unexpected termination of child process",
+		"error", processWaitResult.Err,
+		"status", processWaitResult.ProcessState.String())
+
+	var panicMessage string
+	if processWaitResult.Err != nil {
+		panicMessage = processWaitResult.Err.Error()
+	} else {
+		panicMessage = processWaitResult.ProcessState.String()
+	}
+
+	panic(fmt.Sprintf("Wrapper process for worker %d exited unexpectedly with: %s", r.Context.WorkerID, panicMessage))
 }

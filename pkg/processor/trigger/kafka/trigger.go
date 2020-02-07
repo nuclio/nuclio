@@ -33,7 +33,7 @@ import (
 type submittedEvent struct {
 	event  Event
 	worker *worker.Worker
-	done   chan struct{}
+	done   chan error
 }
 
 type kafka struct {
@@ -180,7 +180,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	consumeMessages := true
 
 	submittedEventInstance := submittedEvent{
-		done: make(chan struct{}),
+		done: make(chan error),
 	}
 
 	submittedEventChan := make(chan *submittedEvent)
@@ -211,10 +211,12 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 		// wait for handling done or indication to stop
 		select {
-		case <-submittedEventInstance.done:
+		case err := <-submittedEventInstance.done:
 
-			// we're done handling the message. mark it
-			session.MarkMessage(message, "")
+			// we successfully submitted the message to the handler. mark it
+			if err == nil {
+				session.MarkMessage(message, "")
+			}
 
 		case <-claim.StopConsuming():
 			k.Logger.DebugWith("Got signal to stop consumption",
@@ -230,7 +232,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 				k.Logger.DebugWith("Handler done, rebalancing will commence")
 
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
-				k.Logger.DebugWith("Timed out waiting for handler to complete")
+				k.Logger.DebugWith("Timed out waiting for handler to complete", "partition", claim.Partition())
 
 				// restart the worker, and having failed that shut down
 				if err := k.cancelEventHandling(workerInstance, claim); err != nil {
@@ -265,20 +267,22 @@ func (k *kafka) eventSubmitter(submittedEventChan chan *submittedEvent) {
 	for submittedEvent := range submittedEventChan {
 
 		// submit the event to the worker
-		k.SubmitEventToWorker(nil, submittedEvent.worker, &submittedEvent.event) // nolint: errcheck
+		_, processErr := k.SubmitEventToWorker(nil, submittedEvent.worker, &submittedEvent.event) // nolint: errcheck
+		if processErr != nil {
+			k.Logger.DebugWith("Process error",
+				"partition", submittedEvent.event.kafkaMessage.Partition,
+				"err", processErr)
+		}
 
 		// indicate that we're done
-		submittedEvent.done <- struct{}{}
+		submittedEvent.done <- processErr
 	}
 
 	k.Logger.DebugWith("Event submitter stopped")
 }
 
-func (k *kafka) cancelEventHandling(workerInstance *worker.Worker,
-	claim sarama.ConsumerGroupClaim) error {
+func (k *kafka) cancelEventHandling(workerInstance *worker.Worker, claim sarama.ConsumerGroupClaim) error {
 	if workerInstance.SupportsRestart() {
-		k.Logger.DebugWith("Restarting worker", "partition", claim.Partition())
-
 		return workerInstance.Restart()
 	}
 
