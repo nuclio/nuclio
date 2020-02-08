@@ -18,23 +18,37 @@ package golang
 
 import (
 	"github.com/nuclio/nuclio-sdk-go"
+	"sync/atomic"
+	"time"
 )
+
+var counters [64]int
+var num uint64
 
 // this is used for running a standalone processor during development
 func builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	context.Logger.InfoWith("Got event",
-		"URL", event.GetURL(),
-		"Path", event.GetPath(),
-		"Type", event.GetType(),
-		"TypeVersion", event.GetTypeVersion(),
-		"Version", event.GetVersion(),
-		"Source", event.GetTriggerInfo().GetKind(),
-		"ID", event.GetID(),
-		"Time", event.GetTimestamp().String(),
-		"Headers", event.GetHeaders(),
-		"ContentType", event.GetContentType(),
-		"ShardID", event.GetShardID(),
-		"Body", string(event.GetBody()))
+	//context.Logger.InfoWith("Got event",
+	//	"URL", event.GetURL(),
+	//	"Path", event.GetPath(),
+	//	"Type", event.GetType(),
+	//	"TypeVersion", event.GetTypeVersion(),
+	//	"Version", event.GetVersion(),
+	//	"Source", event.GetTriggerInfo().GetKind(),
+	//	"ID", event.GetID(),
+	//	"Time", event.GetTimestamp().String(),
+	//	"Headers", event.GetHeaders(),
+	//	"ContentType", event.GetContentType(),
+	//	"ShardID", event.GetShardID(),
+	//	"Body", string(event.GetBody()))
+
+	counters[event.GetShardID()]++
+	currNum := atomic.AddUint64(&num, 1)
+
+	if currNum%100 == 0 {
+		context.Logger.DebugWith("Counters", "ctr", counters)
+	}
+
+	time.Sleep(12 * time.Second)
 
 	return "Built in handler called", nil
 }

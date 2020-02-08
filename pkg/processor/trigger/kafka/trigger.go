@@ -28,6 +28,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/nuclio/logger"
+	"github.com/rcrowley/go-metrics"
 )
 
 type submittedEvent struct {
@@ -50,6 +51,9 @@ func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 	var err error
+
+	// first - disable sarama metrics, as they leak memory
+	metrics.UseNilMetrics = true
 
 	loggerInstance := parentLogger.GetChild(configuration.ID)
 
@@ -186,7 +190,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	submittedEventChan := make(chan *submittedEvent)
 
 	// submit the events in a goroutine so that we can unblock immediately
-	go k.eventSubmitter(submittedEventChan)
+	go k.eventSubmitter(claim, submittedEventChan)
 
 	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
 	// to stop consumption
@@ -260,8 +264,10 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	return submitError
 }
 
-func (k *kafka) eventSubmitter(submittedEventChan chan *submittedEvent) {
-	k.Logger.DebugWith("Event submitter started")
+func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventChan chan *submittedEvent) {
+	k.Logger.DebugWith("Event submitter started",
+		"topic", claim.Topic(),
+		"partition", claim.Partition())
 
 	// while there are events to submit, submit them to the given worker
 	for submittedEvent := range submittedEventChan {
@@ -278,7 +284,9 @@ func (k *kafka) eventSubmitter(submittedEventChan chan *submittedEvent) {
 		submittedEvent.done <- processErr
 	}
 
-	k.Logger.DebugWith("Event submitter stopped")
+	k.Logger.DebugWith("Event submitter stopped",
+		"topic", claim.Topic(),
+		"partition", claim.Partition())
 }
 
 func (k *kafka) cancelEventHandling(workerInstance *worker.Worker, claim sarama.ConsumerGroupClaim) error {
