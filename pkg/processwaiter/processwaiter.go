@@ -45,7 +45,15 @@ func (pw *ProcessWaiter) Wait(process *os.Process, timeout *time.Duration) <-cha
 		case <-timeoutChan:
 			pw.resultChan <- WaitResult{nil, ErrTimeout}
 		case waitResult := <-processExitedChan:
-			pw.resultChan <- waitResult
+
+			// check if cancelled (could be that both cancelled and process exited at the same time)
+			// and prefer that over a process termination
+			select {
+			case <-pw.cancelChan:
+				pw.resultChan <- WaitResult{nil, ErrCancelled}
+			default:
+				pw.resultChan <- waitResult
+			}
 		case <-pw.cancelChan:
 			pw.resultChan <- WaitResult{nil, ErrCancelled}
 		}
