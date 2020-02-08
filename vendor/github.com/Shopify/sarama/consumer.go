@@ -720,7 +720,7 @@ func (c *consumer) newBrokerConsumer(broker *Broker) *brokerConsumer {
 	bc := &brokerConsumer{
 		consumer:         c,
 		broker:           broker,
-		input:            make(chan *partitionConsumer),
+		input:            make(chan *partitionConsumer, 4096),
 		newSubscriptions: make(chan []*partitionConsumer),
 		wait:             make(chan none),
 		subscriptions:    make(map[*partitionConsumer]none),
@@ -739,36 +739,56 @@ func (c *consumer) newBrokerConsumer(broker *Broker) *brokerConsumer {
 // it nil if no new subscriptions are available. We also write to `wait` only when new subscriptions is available,
 // so the main goroutine can block waiting for work if it has none.
 func (bc *brokerConsumer) subscriptionManager() {
-	var buffer []*partitionConsumer
+	var subscribingPartitionConsumers []*partitionConsumer
 
 	for {
-		if len(buffer) > 0 {
-			select {
-			case event, ok := <-bc.input:
-				if !ok {
-					goto done
-				}
-				buffer = append(buffer, event)
-			case bc.newSubscriptions <- buffer:
-				buffer = nil
-			case bc.wait <- none{}:
+
+		// get a partition consumer asking to subscribe. if there isn't any,
+		// kick off the network request by shoving "nil" to the newSubscriptions
+		// channel
+		select {
+
+		case subscribingPartitionConsumer, ok := <-bc.input:
+			if !ok {
+				goto done
 			}
-		} else {
-			select {
-			case event, ok := <-bc.input:
-				if !ok {
-					goto done
+
+			// add to list of subscribing
+			subscribingPartitionConsumers = append(subscribingPartitionConsumers, subscribingPartitionConsumer)
+
+			batchComplete := false
+
+			// drain input, if there's more stuff in there. wait half a second for this
+			for !batchComplete {
+				select {
+				case subscribingPartitionConsumer, ok := <-bc.input:
+					if !ok {
+						goto done
+					}
+
+					// shove new consumer to consumers
+					subscribingPartitionConsumers = append(subscribingPartitionConsumers, subscribingPartitionConsumer)
+				case <-time.After(250 * time.Millisecond):
+					batchComplete = true
 				}
-				buffer = append(buffer, event)
-			case bc.newSubscriptions <- nil:
 			}
+
+			Logger.Printf("Accumulated %d new subscriptions", len(subscribingPartitionConsumers))
+
+			bc.wait <- none{}
+			bc.newSubscriptions <- subscribingPartitionConsumers
+
+			// clear out the batch
+			subscribingPartitionConsumers = nil
+
+		case bc.newSubscriptions <- nil:
 		}
 	}
 
 done:
 	close(bc.wait)
-	if len(buffer) > 0 {
-		bc.newSubscriptions <- buffer
+	if len(subscribingPartitionConsumers) > 0 {
+		bc.newSubscriptions <- subscribingPartitionConsumers
 	}
 	close(bc.newSubscriptions)
 }

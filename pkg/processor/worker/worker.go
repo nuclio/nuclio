@@ -58,7 +58,6 @@ func NewWorker(parentLogger logger.Logger,
 
 // ProcessEvent sends the event to the associated runtime
 func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-
 	w.eventTime = clock.Now()
 
 	// process the event at the runtime
