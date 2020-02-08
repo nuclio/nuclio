@@ -2,7 +2,6 @@ package processwaiter
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"time"
 )
@@ -65,7 +64,6 @@ func (pw *ProcessWaiter) Wait(process *os.Process, timeout *time.Duration) <-cha
 func (pw *ProcessWaiter) Cancel() error {
 	select {
 	case pw.cancelChan <- struct{}{}:
-		fmt.Println("### CANCELLED")
 	default:
 		// already cancelled
 	}

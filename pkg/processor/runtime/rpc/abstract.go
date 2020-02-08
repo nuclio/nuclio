@@ -141,17 +141,12 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 
 // Stop stops the runtime
 func (r *AbstractRuntime) Stop() error {
-	r.Logger.WarnWith("### STOPPING")
-
 	if r.wrapperProcess != nil {
-		r.Logger.WarnWith("### CANCELLING")
 
 		// stop waiting for process
 		if err := r.processWaiter.Cancel(); err != nil {
 			r.Logger.WarnWith("Failed to cancel process waiting")
 		}
-
-		r.Logger.WarnWith("### KILLING")
 
 		err := r.wrapperProcess.Kill()
 		if err != nil {
@@ -159,8 +154,6 @@ func (r *AbstractRuntime) Stop() error {
 			return errors.Wrap(err, "Can't kill wrapper process")
 		}
 	}
-
-	r.Logger.WarnWith("### STOPPED")
 
 	r.SetStatus(status.Stopped)
 	return nil
@@ -431,12 +424,8 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 	// whatever happens, clear wrapper process
 	defer func() { r.wrapperProcess = nil }()
 
-	r.Logger.WarnWith("### WATCHING")
-
 	// wait for the process
 	processWaitResult := <-r.processWaiter.Wait(r.wrapperProcess, nil)
-
-	r.Logger.WarnWith("### WAIT COMPLETE", "res", processWaitResult)
 
 	// if we were simply canceled, do nothing
 	if processWaitResult.Err == processwaiter.ErrCancelled {
