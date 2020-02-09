@@ -159,7 +159,7 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 
 	if containerBuilderConfiguration.DefaultBaseRegistryURL == "" {
 		containerBuilderConfiguration.DefaultBaseRegistryURL =
-			common.GetEnvOrDefaultString("NUCLIO_DEFAULT_BASE_REGISTRY_URL", "docker-registry:5000")
+			common.GetEnvOrDefaultString("NUCLIO_DEFAULT_BASE_REGISTRY_URL", "quay.io")
 	}
 
 	return &containerBuilderConfiguration
