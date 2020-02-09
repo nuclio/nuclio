@@ -215,9 +215,9 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:  "kaniko-executor",
-							Image: k.builderConfiguration.KanikoImage,
-							Args:  buildArgs,
+							Name:         "kaniko-executor",
+							Image:        k.builderConfiguration.KanikoImage,
+							Args:         buildArgs,
 							VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
 						},
 					},
