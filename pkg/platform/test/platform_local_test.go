@@ -142,6 +142,9 @@ func (suite *TestSuite) GetMockDeploymentFunction(functionName string) *platform
 	}
 
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
+	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": platform.DefaultProjectName,
+	}
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = "/dev/null"
 
