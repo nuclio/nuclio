@@ -118,6 +118,11 @@ func (fer *functionEventResource) Create(request *http.Request) (id string, attr
 		functionEventInfo.Meta.Name = uuid.NewV4().String()
 	}
 
+	// if no trigger kind was specified, fallback to HTTP
+	if functionEventInfo.Spec.TriggerKind == "" {
+		functionEventInfo.Spec.TriggerKind = "http"
+	}
+
 	// create a functionEvent config
 	functionEventConfig := platform.FunctionEventConfig{
 		Meta: *functionEventInfo.Meta,
