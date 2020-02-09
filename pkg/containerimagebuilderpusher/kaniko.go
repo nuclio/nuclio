@@ -218,14 +218,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 							Name:  "kaniko-executor",
 							Image: k.builderConfiguration.KanikoImage,
 							Args:  buildArgs,
-							VolumeMounts: []v1.VolumeMount{
-								tmpFolderVolumeMount,
-								{
-									Name:      "docker-config",
-									MountPath: "/kaniko/.docker",
-									ReadOnly:  true,
-								},
-							},
+							VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
 						},
 					},
 					InitContainers: []v1.Container{
@@ -260,25 +253,37 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 								EmptyDir: &v1.EmptyDirVolumeSource{},
 							},
 						},
-						{
-							Name: "docker-config",
-							VolumeSource: v1.VolumeSource{
-								Secret: &v1.SecretVolumeSource{
-									SecretName: k.builderConfiguration.RegistryCredentialsSecretName,
-									Items: []v1.KeyToPath{
-										{
-											Key:  ".dockerconfigjson",
-											Path: "config.json",
-										},
-									},
-								},
-							},
-						},
 					},
 					RestartPolicy: v1.RestartPolicyNever,
 				},
 			},
 		},
+	}
+
+	// if RegistryCredentialsSecretName is defined - configure mount with docker credentials
+	if len(k.builderConfiguration.RegistryCredentialsSecretName) > 0 {
+		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
+			append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
+				Name:      "docker-config",
+				MountPath: "/kaniko/.docker",
+				ReadOnly:  true,
+			})
+
+		kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes, v1.Volume{
+			Name:
+			"docker-config",
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: k.builderConfiguration.RegistryCredentialsSecretName,
+					Items: []v1.KeyToPath{
+						{
+							Key:  ".dockerconfigjson",
+							Path: "config.json",
+						},
+					},
+				},
+			},
+		})
 	}
 
 	return kanikoJobSpec

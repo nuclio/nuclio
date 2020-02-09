@@ -152,10 +152,10 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 			"kanikojob")
 	}
 
-	if containerBuilderConfiguration.RegistryCredentialsSecretName == "" {
-		containerBuilderConfiguration.RegistryCredentialsSecretName =
-			common.GetEnvOrDefaultString("NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME", "nuclio-registry-credentials")
-	}
+	containerBuilderConfiguration.InsecureRegistry = common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_REGISTRY", false)
+
+	containerBuilderConfiguration.RegistryCredentialsSecretName =
+		common.GetEnvOrDefaultString("NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME", "")
 
 	if containerBuilderConfiguration.DefaultBaseRegistryURL == "" {
 		containerBuilderConfiguration.DefaultBaseRegistryURL =

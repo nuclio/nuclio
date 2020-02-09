@@ -84,8 +84,10 @@ spec:
         - name: NUCLIO_TEMPLATES_GIT_REF
           value: "nil"
         {{- end }}
+        {{- if .Values.registry.secretName }}
         - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
-          value: {{ template "nuclio.registryCredentialsName" . }}
+          value: {{ .Values.registry.secretName }}
+        {{- end }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ .Values.dashboard.externalIPAddresses | join "," | quote }}
         - name: NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE
