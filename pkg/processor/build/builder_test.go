@@ -28,7 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/local"
+	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -51,7 +51,7 @@ type testSuite struct {
 	builder      *Builder
 	testID       string
 	mockS3Client *mockS3Client
-	mockPlatform *local.MockPlatform
+	mockPlatform *mockplatform.Platform
 }
 
 type mockS3Client struct {
@@ -76,7 +76,7 @@ func (suite *testSuite) SetupSuite() {
 	suite.Require().NoError(err)
 
 	suite.mockS3Client = &mockS3Client{}
-	suite.mockPlatform = &local.MockPlatform{}
+	suite.mockPlatform = &mockplatform.Platform{}
 }
 
 // SetupTest is called before each test in the suite
