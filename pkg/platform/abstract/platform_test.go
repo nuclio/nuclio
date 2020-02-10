@@ -3,18 +3,32 @@ package abstract
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/rs/xid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
+
+type TestPlatform struct {
+	platform.Platform
+	logger         logger.Logger
+	suiteAssertion *assert.Assertions
+}
+
+// GetProjects will list existing projects
+func (mp *TestPlatform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	project, err := platform.NewAbstractProject(mp.logger, nil, platform.ProjectConfig{})
+	mp.suiteAssertion.NoError(err, "Failed to create new abstract project")
+	return []platform.Project{
+		project,
+	}, nil
+}
 
 type TestAbstractSuite struct {
 	suite.Suite
@@ -48,10 +62,11 @@ func (suite *TestAbstractSuite) SetupSuite() {
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
 	suite.Require().NoError(err, "Docker client should create successfully")
 
-	platformType := common.GetEnvOrDefaultString("NUCLIO_PLATFORM", "local")
-	localPlatform, err := factory.CreatePlatform(suite.Logger, platformType, nil, suite.DefaultNamespace)
-	suite.Require().NoError(err, "Platform should create successfully")
-	suite.Platform, err = NewPlatform(suite.Logger, localPlatform, nil)
+	testPlatform := &TestPlatform{
+		logger:         suite.Logger,
+		suiteAssertion: suite.Assert(),
+	}
+	suite.Platform, err = NewPlatform(suite.Logger, testPlatform, nil)
 	suite.NoError(err, "Could not create platform")
 }
 
@@ -97,7 +112,9 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 			Logger:         suite.Logger,
 			FunctionConfig: functionConfig,
 		}
-		createFunctionOptions.FunctionConfig.Meta.Name = string(idx)
+
+		// Name it with index and shift with 65 to get A as first letter
+		createFunctionOptions.FunctionConfig.Meta.Name = string(idx + 65)
 		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
 			"nuclio.io/project-name": platform.DefaultProjectName,
 		}
@@ -111,6 +128,7 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 		err = suite.Platform.ValidateCreateFunctionOptions(createFunctionOptions)
 		if MinMaxReplicas.shouldFailValidation {
 			suite.Error(err, "Validation should fail")
+			suite.Logger.DebugWith("Validation failed as expected ", "name", createFunctionOptions.FunctionConfig.Meta.Name)
 			continue
 		}
 		suite.NoError(err, "Failed to validate function")
@@ -127,6 +145,7 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 		} else {
 			suite.Assert().Nil(functionConfigSpec.MaxReplicas)
 		}
+		suite.Logger.DebugWith("Validation passed successfully", "name", createFunctionOptions.FunctionConfig.Meta.Name)
 	}
 }
 
