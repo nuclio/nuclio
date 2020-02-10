@@ -13,8 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
-package test
+package local
 
 import (
 	"fmt"
@@ -26,8 +25,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/factory"
-	"github.com/nuclio/nuclio/pkg/platform/local"
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
@@ -68,8 +65,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
 	suite.Require().NoError(err, "Docker client should create successfully")
 
-	platformType := common.GetEnvOrDefaultString("NUCLIO_PLATFORM", "local")
-	suite.Platform, err = factory.CreatePlatform(suite.Logger, platformType, nil, suite.DefaultNamespace)
+	suite.Platform, err = NewPlatform(suite.Logger, nil)
 	suite.Require().NoError(err, "Platform should create successfully")
 }
 
@@ -115,7 +111,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 	suite.Require().NoError(err, "Could not remove container")
 
 	// Trigger function containers healthiness validation
-	suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness()
+	suite.Platform.(*Platform).ValidateFunctionContainersHealthiness()
 
 	// Get functions again from local store
 	functions, err = suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
@@ -142,6 +138,9 @@ func (suite *TestSuite) GetMockDeploymentFunction(functionName string) *platform
 	}
 
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
+	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": platform.DefaultProjectName,
+	}
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = "/dev/null"
 
