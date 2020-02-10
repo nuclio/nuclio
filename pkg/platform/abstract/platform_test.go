@@ -1,4 +1,4 @@
-package abstract_test
+package abstract
 
 import (
 	"testing"
@@ -7,7 +7,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/version"
 
@@ -21,7 +20,7 @@ type TestAbstractSuite struct {
 	suite.Suite
 	Logger           logger.Logger
 	DockerClient     dockerclient.Client
-	Platform         *abstract.Platform
+	Platform         *Platform
 	TestID           string
 	Runtime          string
 	RuntimeDir       string
@@ -52,7 +51,7 @@ func (suite *TestAbstractSuite) SetupSuite() {
 	platformType := common.GetEnvOrDefaultString("NUCLIO_PLATFORM", "local")
 	localPlatform, err := factory.CreatePlatform(suite.Logger, platformType, nil, suite.DefaultNamespace)
 	suite.Require().NoError(err, "Platform should create successfully")
-	suite.Platform, err = abstract.NewPlatform(suite.Logger, localPlatform, nil)
+	suite.Platform, err = NewPlatform(suite.Logger, localPlatform, nil)
 	suite.NoError(err, "Could not create platform")
 }
 

@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package local_test
+package local
 
 import (
 	"fmt"
@@ -26,7 +26,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
-	"github.com/nuclio/nuclio/pkg/platform/local"
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
@@ -114,7 +113,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 	suite.Require().NoError(err, "Could not remove container")
 
 	// Trigger function containers healthiness validation
-	suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness()
+	suite.Platform.(*Platform).ValidateFunctionContainersHealthiness()
 
 	// Get functions again from local store
 	functions, err = suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
