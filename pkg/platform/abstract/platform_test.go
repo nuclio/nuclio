@@ -96,16 +96,19 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 		{MinReplicas: &zero, MaxReplicas: &one, ExpectedMinReplicas: &zero, ExpectedMaxReplicas: &one, shouldFailValidation: false},
 		{MinReplicas: &zero, MaxReplicas: &two, ExpectedMinReplicas: &zero, ExpectedMaxReplicas: &two, shouldFailValidation: false},
 
-		{MinReplicas: &one, MaxReplicas: nil, ExpectedMinReplicas: &one, ExpectedMaxReplicas: nil, shouldFailValidation: false},
+		{MinReplicas: &one, MaxReplicas: nil, ExpectedMinReplicas: &one, ExpectedMaxReplicas: &one, shouldFailValidation: false},
 		{MinReplicas: &one, MaxReplicas: &zero, shouldFailValidation: true},
 		{MinReplicas: &one, MaxReplicas: &one, ExpectedMinReplicas: &one, ExpectedMaxReplicas: &one, shouldFailValidation: false},
 		{MinReplicas: &one, MaxReplicas: &two, ExpectedMinReplicas: &one, ExpectedMaxReplicas: &two, shouldFailValidation: false},
 
-		{MinReplicas: &two, MaxReplicas: nil, ExpectedMinReplicas: &two, ExpectedMaxReplicas: nil, shouldFailValidation: false},
+		{MinReplicas: &two, MaxReplicas: nil, ExpectedMinReplicas: &two, ExpectedMaxReplicas: &two, shouldFailValidation: false},
 		{MinReplicas: &two, MaxReplicas: &zero, shouldFailValidation: true},
 		{MinReplicas: &two, MaxReplicas: &one, shouldFailValidation: true},
 		{MinReplicas: &two, MaxReplicas: &two, ExpectedMinReplicas: &two, ExpectedMaxReplicas: &two, shouldFailValidation: false},
 	} {
+
+		// name it with index and shift with 65 to get A as first letter
+		functionName := string(idx + 65)
 		functionConfig := *functionconfig.NewConfig()
 
 		createFunctionOptions := &platform.CreateFunctionOptions{
@@ -113,14 +116,13 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 			FunctionConfig: functionConfig,
 		}
 
-		// Name it with index and shift with 65 to get A as first letter
-		createFunctionOptions.FunctionConfig.Meta.Name = string(idx + 65)
+		createFunctionOptions.FunctionConfig.Meta.Name = functionName
 		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
 			"nuclio.io/project-name": platform.DefaultProjectName,
 		}
 		createFunctionOptions.FunctionConfig.Spec.MinReplicas = MinMaxReplicas.MinReplicas
 		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = MinMaxReplicas.MaxReplicas
-		suite.Logger.DebugWith("Checking function ", "name", createFunctionOptions.FunctionConfig.Meta.Name)
+		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
 		err := suite.Platform.EnrichCreateFunctionOptions(createFunctionOptions)
 		suite.NoError(err, "Failed to enrich function")
@@ -128,7 +130,7 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 		err = suite.Platform.ValidateCreateFunctionOptions(createFunctionOptions)
 		if MinMaxReplicas.shouldFailValidation {
 			suite.Error(err, "Validation should fail")
-			suite.Logger.DebugWith("Validation failed as expected ", "name", createFunctionOptions.FunctionConfig.Meta.Name)
+			suite.Logger.DebugWith("Validation failed as expected ", "functionName", functionName)
 			continue
 		}
 		suite.NoError(err, "Failed to validate function")
@@ -145,7 +147,7 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 		} else {
 			suite.Assert().Nil(functionConfigSpec.MaxReplicas)
 		}
-		suite.Logger.DebugWith("Validation passed successfully", "name", createFunctionOptions.FunctionConfig.Meta.Name)
+		suite.Logger.DebugWith("Validation passed successfully", "functionName", functionName)
 	}
 }
 

@@ -654,21 +654,17 @@ func (ap *Platform) validateMinMaxReplicas(createFunctionOptions *platform.Creat
 	maxReplicas := createFunctionOptions.FunctionConfig.Spec.MaxReplicas
 
 	if minReplicas != nil {
-		if maxReplicas != nil {
-			if *minReplicas > *maxReplicas {
-				return errors.New("Min replicas must be smaller than max replicas")
-			}
-		} else {
-			if *minReplicas == 0 {
-				return errors.New("Max replicas must be set")
-			}
+		if maxReplicas == nil && *minReplicas == 0 {
+			return errors.New("Max replicas must be set if min replicas is zero")
+		}
+		if maxReplicas != nil && *minReplicas > *maxReplicas {
+			return errors.New("Min replicas must be smaller than max replicas")
 		}
 	}
-	if maxReplicas != nil {
-		if *maxReplicas == 0 {
-			return errors.New("Max replicas must be greater than zero")
-		}
+	if maxReplicas != nil && *maxReplicas == 0 {
+		return errors.New("Max replicas must be greater than zero")
 	}
+
 	return nil
 }
 
@@ -678,5 +674,11 @@ func (ap *Platform) enrichMinMaxReplicas(createFunctionOptions *platform.CreateF
 	if createFunctionOptions.FunctionConfig.Spec.MinReplicas == nil &&
 		createFunctionOptions.FunctionConfig.Spec.MaxReplicas != nil {
 		createFunctionOptions.FunctionConfig.Spec.MinReplicas = createFunctionOptions.FunctionConfig.Spec.MaxReplicas
+	}
+
+	// if max replicas was not set, and min replicas is set, assign min replicas to max replicas
+	if createFunctionOptions.FunctionConfig.Spec.MaxReplicas == nil &&
+		createFunctionOptions.FunctionConfig.Spec.MinReplicas != nil {
+		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = createFunctionOptions.FunctionConfig.Spec.MinReplicas
 	}
 }
