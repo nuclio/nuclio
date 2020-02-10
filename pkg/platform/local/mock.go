@@ -1,4 +1,4 @@
-package test
+package local
 
 import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
