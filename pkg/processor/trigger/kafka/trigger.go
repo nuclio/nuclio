@@ -127,6 +127,7 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Net.SASL.Enable = k.configuration.SASL.Enable
 	config.Net.SASL.User = k.configuration.SASL.User
 	config.Net.SASL.Password = k.configuration.SASL.Password
+	config.Consumer.Offsets.AutoCommit.Enable = false
 	config.ClientID = k.ID
 	config.Consumer.Offsets.Initial = k.configuration.initialOffset
 	config.Consumer.Offsets.AutoCommit.Enable = true
