@@ -270,8 +270,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 			})
 
 		kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes, v1.Volume{
-			Name:
-			"docker-config",
+			Name: "docker-config",
 			VolumeSource: v1.VolumeSource{
 				Secret: &v1.SecretVolumeSource{
 					SecretName: k.builderConfiguration.RegistryCredentialsSecretName,
