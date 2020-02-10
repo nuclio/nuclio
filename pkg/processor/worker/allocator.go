@@ -42,6 +42,9 @@ type Allocator interface {
 
 	// GetStatistics returns worker allocator statistics
 	GetStatistics() *AllocatorStatistics
+
+	// get number of workers available in the allocator
+	GetNumWorkersAvailable() int
 }
 
 //
@@ -83,6 +86,10 @@ func (s *singleton) GetWorkers() []*Worker {
 // GetStatistics returns worker allocator statistics
 func (s *singleton) GetStatistics() *AllocatorStatistics {
 	return &s.statistics
+}
+
+func (s *singleton) GetNumWorkersAvailable() int {
+	return 1
 }
 
 //
@@ -172,4 +179,8 @@ func (fp *fixedPool) GetWorkers() []*Worker {
 // GetStatistics returns worker allocator statistics
 func (fp *fixedPool) GetStatistics() *AllocatorStatistics {
 	return &fp.statistics
+}
+
+func (fp *fixedPool) GetNumWorkersAvailable() int {
+	return len(fp.workerChan)
 }

@@ -19,6 +19,7 @@ package common
 import (
 	"bufio"
 	"bytes"
+	"math"
 	"os"
 	"regexp"
 	"strconv"
@@ -242,4 +243,25 @@ func renderTemplate(templateToRender *template.Template, data map[string]interfa
 	}
 
 	return templateToRenderBuffer.String(), nil
+}
+
+func MaxIntInSlice(values []int) int {
+	maxValue := math.MinInt64
+
+	for _, value := range values {
+		if value > maxValue {
+			maxValue = value
+		}
+	}
+
+	return maxValue
+}
+
+func GetDurationOrInfinite(timeout *time.Duration) time.Duration {
+	if timeout != nil {
+		return *timeout
+	}
+
+	// essentially infinite
+	return 100 * 365 * 24 * time.Hour
 }
