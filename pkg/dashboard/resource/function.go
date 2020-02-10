@@ -121,7 +121,8 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	if err != nil {
 		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
 		return
-	} else if len(functions) > 0 {
+	}
+	if len(functions) > 0 {
 		responseErr = nuclio.NewErrConflict("Cannot create two functions with the same name")
 		return
 	}
@@ -151,7 +152,8 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 	if err != nil {
 		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
 		return
-	} else if len(functions) == 0 {
+	}
+	if len(functions) == 0 {
 		responseErr = nuclio.NewErrNotFound("Cannot update non existing function")
 		return
 	}
