@@ -64,33 +64,32 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 	zero := 0
 	one := 1
 	two := 2
-	for idx, MinMaxReplicas := range []struct{
-		MinReplicas *int
-		MaxReplicas *int
-		ExpectedMinReplicas *int
-		ExpectedMaxReplicas *int
+	for idx, MinMaxReplicas := range []struct {
+		MinReplicas          *int
+		MaxReplicas          *int
+		ExpectedMinReplicas  *int
+		ExpectedMaxReplicas  *int
 		shouldFailValidation bool
-
 	}{
-		{MinReplicas: nil, MaxReplicas: nil, ExpectedMinReplicas: nil, ExpectedMaxReplicas: nil, shouldFailValidation:false},
-		{MinReplicas: nil, MaxReplicas: &zero, shouldFailValidation:true},
-		{MinReplicas: nil, MaxReplicas: &one, ExpectedMinReplicas: &one, ExpectedMaxReplicas:&one, shouldFailValidation:false},
-		{MinReplicas: nil, MaxReplicas: &two, ExpectedMinReplicas: &two, ExpectedMaxReplicas:&two, shouldFailValidation:false},
+		{MinReplicas: nil, MaxReplicas: nil, ExpectedMinReplicas: nil, ExpectedMaxReplicas: nil, shouldFailValidation: false},
+		{MinReplicas: nil, MaxReplicas: &zero, shouldFailValidation: true},
+		{MinReplicas: nil, MaxReplicas: &one, ExpectedMinReplicas: &one, ExpectedMaxReplicas: &one, shouldFailValidation: false},
+		{MinReplicas: nil, MaxReplicas: &two, ExpectedMinReplicas: &two, ExpectedMaxReplicas: &two, shouldFailValidation: false},
 
-		{MinReplicas: &zero, MaxReplicas: nil, shouldFailValidation:true},
-		{MinReplicas: &zero, MaxReplicas: &zero, shouldFailValidation:true},
-		{MinReplicas: &zero, MaxReplicas: &one, ExpectedMinReplicas: &zero, ExpectedMaxReplicas:&one, shouldFailValidation:false},
-		{MinReplicas: &zero, MaxReplicas: &two, ExpectedMinReplicas: &zero, ExpectedMaxReplicas:&two, shouldFailValidation:false},
+		{MinReplicas: &zero, MaxReplicas: nil, shouldFailValidation: true},
+		{MinReplicas: &zero, MaxReplicas: &zero, shouldFailValidation: true},
+		{MinReplicas: &zero, MaxReplicas: &one, ExpectedMinReplicas: &zero, ExpectedMaxReplicas: &one, shouldFailValidation: false},
+		{MinReplicas: &zero, MaxReplicas: &two, ExpectedMinReplicas: &zero, ExpectedMaxReplicas: &two, shouldFailValidation: false},
 
-		{MinReplicas: &one, MaxReplicas: nil, ExpectedMinReplicas: &one, ExpectedMaxReplicas:nil, shouldFailValidation:false},
-		{MinReplicas: &one, MaxReplicas: &zero, shouldFailValidation:true},
-		{MinReplicas: &one, MaxReplicas: &one, ExpectedMinReplicas: &one, ExpectedMaxReplicas:&one, shouldFailValidation:false},
-		{MinReplicas: &one, MaxReplicas: &two, ExpectedMinReplicas: &one, ExpectedMaxReplicas:&two, shouldFailValidation:false},
+		{MinReplicas: &one, MaxReplicas: nil, ExpectedMinReplicas: &one, ExpectedMaxReplicas: nil, shouldFailValidation: false},
+		{MinReplicas: &one, MaxReplicas: &zero, shouldFailValidation: true},
+		{MinReplicas: &one, MaxReplicas: &one, ExpectedMinReplicas: &one, ExpectedMaxReplicas: &one, shouldFailValidation: false},
+		{MinReplicas: &one, MaxReplicas: &two, ExpectedMinReplicas: &one, ExpectedMaxReplicas: &two, shouldFailValidation: false},
 
-		{MinReplicas: &two, MaxReplicas: nil, ExpectedMinReplicas: &two, ExpectedMaxReplicas:nil, shouldFailValidation:false},
-		{MinReplicas: &two, MaxReplicas: &zero, shouldFailValidation:true},
-		{MinReplicas: &two, MaxReplicas: &one, shouldFailValidation:true},
-		{MinReplicas: &two, MaxReplicas: &two, ExpectedMinReplicas: &two, ExpectedMaxReplicas:&two, shouldFailValidation:false},
+		{MinReplicas: &two, MaxReplicas: nil, ExpectedMinReplicas: &two, ExpectedMaxReplicas: nil, shouldFailValidation: false},
+		{MinReplicas: &two, MaxReplicas: &zero, shouldFailValidation: true},
+		{MinReplicas: &two, MaxReplicas: &one, shouldFailValidation: true},
+		{MinReplicas: &two, MaxReplicas: &two, ExpectedMinReplicas: &two, ExpectedMaxReplicas: &two, shouldFailValidation: false},
 	} {
 		functionConfig := *functionconfig.NewConfig()
 		createFunctionOptions := &platform.CreateFunctionOptions{
