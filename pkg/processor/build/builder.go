@@ -1138,6 +1138,12 @@ func (b *Builder) getRuntimeCommentParser(logger logger.Logger, runtimeName stri
 }
 
 func (b *Builder) getHandlerDir(stagingDir string) string {
+
+	// when it is a java function, and it is not structured as a java project - apply java project structure
+	if b.runtime.GetName() == "java" && !common.IsJavaProjectDir(b.options.FunctionConfig.Spec.Build.Path) {
+		stagingDir = path.Join(stagingDir, "src", "main", "java")
+	}
+
 	return path.Join(stagingDir, "handler")
 }
 

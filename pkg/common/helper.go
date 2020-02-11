@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"math"
 	"os"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -209,6 +210,17 @@ func GetEnvOrDefaultString(key string, defaultValue string) string {
 
 func GetEnvOrDefaultBool(key string, defaultValue bool) bool {
 	return strings.ToLower(GetEnvOrDefaultString(key, strconv.FormatBool(defaultValue))) == "true"
+}
+
+// Checks if the given @dirPath is in a java project structure
+// for example if the following dir existed "/my-project/src/main/java" then IsJavaProjectDir("/my-project") -> true
+func IsJavaProjectDir(dirPath string) bool {
+	javaProjectStructurePath := path.Join(dirPath, "src", "main", "java")
+	if _, err := os.Stat(javaProjectStructurePath); os.IsNotExist(err) {
+		return false
+	}
+
+	return true
 }
 
 func RenderTemplate(text string, data map[string]interface{}) (string, error) {
