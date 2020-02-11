@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/worker"
 )
 
 type DurationConfigField struct {
@@ -104,14 +105,18 @@ func (c *Configuration) ParseDurationOrDefault(durationConfigField *DurationConf
 }
 
 type Statistics struct {
-	EventsHandleSuccessTotal uint64
-	EventsHandleFailureTotal uint64
+	EventsHandleSuccessTotal  uint64
+	EventsHandleFailureTotal  uint64
+	WorkerAllocatorStatistics worker.AllocatorStatistics
 }
 
 func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
+	workerAllocatorStatisticsDiff := s.WorkerAllocatorStatistics.DiffFrom(&prev.WorkerAllocatorStatistics)
+
 	return Statistics{
-		EventsHandleSuccessTotal: s.EventsHandleSuccessTotal - prev.EventsHandleSuccessTotal,
-		EventsHandleFailureTotal: s.EventsHandleFailureTotal - prev.EventsHandleFailureTotal,
+		EventsHandleSuccessTotal:  s.EventsHandleSuccessTotal - prev.EventsHandleSuccessTotal,
+		EventsHandleFailureTotal:  s.EventsHandleFailureTotal - prev.EventsHandleFailureTotal,
+		WorkerAllocatorStatistics: workerAllocatorStatisticsDiff,
 	}
 }
 
