@@ -891,7 +891,7 @@ func (b *Builder) prepareStagingDir() error {
 
 	handlerSubPath := b.getHandlerSubPath()
 
-	// make sure the handler stagind dir exists
+	// make sure the handler staging dir exists
 	handlerDirIncludingSubPath := path.Join(handlerDirInStaging, handlerSubPath)
 	if err := os.MkdirAll(handlerDirIncludingSubPath, 0755); err != nil {
 		return errors.Wrapf(err, "Failed to create handler path in staging @ %s", handlerDirIncludingSubPath)
@@ -910,12 +910,11 @@ func (b *Builder) prepareStagingDir() error {
 	return nil
 }
 
-
 func (b *Builder) getHandlerSubPath() string {
 
 	// when it is a java function, and it is not structured as a java project - apply java project structure
 	if b.runtime.GetName() == "java" && !common.IsJavaProjectDir(b.options.FunctionConfig.Spec.Build.Path) {
-		return path.Join( "src", "main", "java")
+		return path.Join("src", "main", "java")
 	}
 
 	return ""
