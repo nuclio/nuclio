@@ -19,11 +19,12 @@ const (
 )
 
 type Docker struct {
-	dockerClient dockerclient.Client
-	logger       logger.Logger
+	dockerClient         dockerclient.Client
+	logger               logger.Logger
+	builderConfiguration *ContainerBuilderConfiguration
 }
 
-func NewDocker(logger logger.Logger) (*Docker, error) {
+func NewDocker(logger logger.Logger, builderConfiguration *ContainerBuilderConfiguration) (*Docker, error) {
 
 	dockerClient, err := dockerclient.NewShellClient(logger, nil)
 	if err != nil {
@@ -31,8 +32,9 @@ func NewDocker(logger logger.Logger) (*Docker, error) {
 	}
 
 	dockerBuilder := &Docker{
-		dockerClient: dockerClient,
-		logger:       logger,
+		dockerClient:         dockerClient,
+		logger:               logger,
+		builderConfiguration: builderConfiguration,
 	}
 
 	return dockerBuilder, nil
@@ -69,6 +71,10 @@ func (d *Docker) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string
 
 	// Currently docker builder doesn't utilize multistage docker builds
 	return []string{}, nil
+}
+
+func (d *Docker) GetSecretName() string {
+	return d.builderConfiguration.RegistryCredentialsSecretName
 }
 
 func (d *Docker) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {

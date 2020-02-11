@@ -94,6 +94,10 @@ ARG NUCLIO_ARCH
 	return onbuildStages, nil
 }
 
+func (k *Kaniko) GetSecretName() string {
+	return k.builderConfiguration.RegistryCredentialsSecretName
+}
+
 func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
 
 	stagedArtifactPaths := make(map[string]string)
@@ -174,6 +178,10 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 	if k.builderConfiguration.InsecureRegistry {
 		buildArgs = append(buildArgs, "--insecure")
 		buildArgs = append(buildArgs, "--insecure-pull")
+	}
+
+	if k.builderConfiguration.CacheRegistryURL != "" {
+		buildArgs = append(buildArgs, fmt.Sprintf("--cache-repo=%s", k.builderConfiguration.CacheRegistryURL))
 	}
 
 	// Add build options args

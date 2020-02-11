@@ -132,6 +132,9 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 			// use the function configuration augmented by the builder
 			createFunctionOptions.FunctionConfig.Spec.Image = buildResult.Image
 
+			// Update function config with ImagePull secrets so image we just build can be pulled from docker registry
+			createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets = buildResult.UpdatedFunctionConfig.Spec.ImagePullSecrets
+
 			// if run registry isn't set, set it to that of the build
 			if createFunctionOptions.FunctionConfig.Spec.RunRegistry == "" {
 				createFunctionOptions.FunctionConfig.Spec.RunRegistry = createFunctionOptions.FunctionConfig.Spec.Build.Registry
@@ -158,6 +161,9 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		if err = onAfterConfigUpdatedWrapper(&createFunctionOptions.FunctionConfig); err != nil {
 			return nil, errors.Wrap(err, "Failed to trigger on after config update")
 		}
+
+		// Update function config with ImagePull secrets so image can be pulled from docker registry
+		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets = ap.platform.GetSecretName()
 	}
 
 	// wrap the deployer's deploy with the base HandleDeployFunction
@@ -383,6 +389,11 @@ func (ap *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Art
 // GetBaseImageRegistry returns onbuild base registry
 func (ap *Platform) GetBaseImageRegistry(registry string) string {
 	return ap.ContainerBuilder.GetBaseImageRegistry(registry)
+}
+
+// // GetSecretName returns secret with credentials to push/pull from docker registry
+func (ap *Platform) GetSecretName() string {
+	return ap.ContainerBuilder.GetSecretName()
 }
 
 func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {

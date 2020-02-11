@@ -159,8 +159,11 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 
 	if containerBuilderConfiguration.DefaultBaseRegistryURL == "" {
 		containerBuilderConfiguration.DefaultBaseRegistryURL =
-			common.GetEnvOrDefaultString("NUCLIO_DEFAULT_BASE_REGISTRY_URL", "quay.io")
+			common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_BASE_REGISTRY_URL", "quay.io")
 	}
+
+	containerBuilderConfiguration.CacheRegistryURL =
+		common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_CACHE_REGISTRY_URL", "")
 
 	return &containerBuilderConfiguration
 }

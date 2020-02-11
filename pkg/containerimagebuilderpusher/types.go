@@ -23,5 +23,6 @@ type ContainerBuilderConfiguration struct {
 	JobPrefix                     string
 	RegistryCredentialsSecretName string
 	DefaultBaseRegistryURL        string
+	CacheRegistryURL              string
 	InsecureRegistry              bool
 }

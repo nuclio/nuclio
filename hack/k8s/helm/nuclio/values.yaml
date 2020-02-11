@@ -100,6 +100,10 @@ registry:
   #
   # defaultBaseRegistryURL: someurl
 
+  #  Set this flag to specify a remote repository that will be used to store cached layers
+  #
+  # cacheRegistryURL: someurl
+
 rbac:
 
   # If true, creates the necessary roles and role bindings for nuclio's service account

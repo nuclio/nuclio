@@ -246,6 +246,8 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		enrichedConfiguration.Spec.Image = processorImage
 	}
 
+	enrichedConfiguration.Spec.ImagePullSecrets = b.platform.GetSecretName()
+
 	buildResult := &platform.CreateFunctionBuildResult{
 		Image:                 processorImage,
 		UpdatedFunctionConfig: enrichedConfiguration,
