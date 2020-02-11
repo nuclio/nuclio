@@ -91,6 +91,9 @@ spec:
         {{- if .Values.registry.secretName }}
         - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
           value: {{ .Values.registry.secretName }}
+        {{- else }}
+        - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
+          value: {{ template "nuclio.registryCredentialsName" . }}
         {{- end }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ .Values.dashboard.externalIPAddresses | join "," | quote }}

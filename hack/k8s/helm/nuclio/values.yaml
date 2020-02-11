@@ -77,7 +77,7 @@ registry:
   # the credentials stanza below. The chart will create a secret for you (note: the credentials will be
   # visible to anyone with access to helm) and name it after the release
   #
-  secretName: registry-credentials
+  # secretName: registry-credentials
 
   # In some cases the docker server URL in the registry secrets isn't the same as the URL with which
   # you push and pull. For example, in GKE you login to `gcr.io` (or some other regional URL) yet have
