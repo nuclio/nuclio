@@ -216,7 +216,7 @@ func GetEnvOrDefaultBool(key string, defaultValue bool) bool {
 // for example if the following dir existed "/my-project/src/main/java" then IsJavaProjectDir("/my-project") -> true
 func IsJavaProjectDir(dirPath string) bool {
 	javaProjectStructurePath := path.Join(dirPath, "src", "main", "java")
-	if _, err := os.Stat(javaProjectStructurePath); os.IsNotExist(err) {
+	if _, err := os.Stat(javaProjectStructurePath); err != nil {
 		return false
 	}
 
