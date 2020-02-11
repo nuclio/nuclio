@@ -42,6 +42,9 @@ type Allocator interface {
 
 	// get number of workers available in the allocator
 	GetNumWorkersAvailable() int
+
+	// GetStatistics returns worker allocator statistics
+	GetStatistics() *AllocatorStatistics
 }
 
 //
@@ -50,8 +53,9 @@ type Allocator interface {
 //
 
 type singleton struct {
-	logger logger.Logger
-	worker *Worker
+	logger     logger.Logger
+	worker     *Worker
+	statistics AllocatorStatistics
 }
 
 func NewSingletonWorkerAllocator(parentLogger logger.Logger, worker *Worker) (Allocator, error) {
@@ -83,6 +87,11 @@ func (s *singleton) GetNumWorkersAvailable() int {
 	return 1
 }
 
+// GetStatistics returns worker allocator statistics
+func (s *singleton) GetStatistics() *AllocatorStatistics {
+	return &s.statistics
+}
+
 //
 // Fixed pool of workers
 // Holds a fixed number of workers. When a worker is unavailable, caller is blocked
@@ -92,6 +101,7 @@ type fixedPool struct {
 	logger     logger.Logger
 	workerChan chan *Worker
 	workers    []*Worker
+	statistics AllocatorStatistics
 }
 
 func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) (Allocator, error) {
@@ -100,6 +110,7 @@ func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) 
 		logger:     parentLogger.GetChild("fixed_pool_allocator"),
 		workerChan: make(chan *Worker, len(workers)),
 		workers:    workers,
+		statistics: AllocatorStatistics{},
 	}
 
 	// iterate over workers, shove to pool
@@ -111,23 +122,43 @@ func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) 
 }
 
 func (fp *fixedPool) Allocate(timeout time.Duration) (*Worker, error) {
+	fp.statistics.WorkerAllocationCount++
 
-	// if no timeout is specified, just try to get a worker
-	if timeout == 0 {
-		select {
-		case workerInstance := <-fp.workerChan:
-			return workerInstance, nil
-		default:
+	// get total number of workers
+	totalNumberWorkers := len(fp.workers)
+	currentNumberOfAvailableWorkers := len(fp.workerChan)
+	percentageOfAvailableWorkers := float64(currentNumberOfAvailableWorkers*100.0) / float64(totalNumberWorkers)
+
+	// measure how many workers are available in the queue while we're allocating
+	fp.statistics.WorkerAllocationWorkersAvailablePercentage += uint64(percentageOfAvailableWorkers)
+
+	// try to allocate a worker and fall back to default immediately if there's none available
+	select {
+	case workerInstance := <-fp.workerChan:
+		fp.statistics.WorkerAllocationSuccessImmediateTotal++
+
+		return workerInstance, nil
+	default:
+
+		// if there's no timeout, return now
+		if timeout == 0 {
+			fp.statistics.WorkerAllocationTimeoutTotal++
 			return nil, ErrNoAvailableWorkers
 		}
-	} else {
+
+		waitStartAt := time.Now()
+
+		// if there is a timeout, try to allocate while waiting for the time
+		// to pass
 		select {
 		case workerInstance := <-fp.workerChan:
+			fp.statistics.WorkerAllocationSuccessAfterWaitTotal++
+			fp.statistics.WorkerAllocationWaitDurationMilliSecondsSum += uint64(time.Since(waitStartAt).Nanoseconds() / 1e6)
 			return workerInstance, nil
 		case <-time.After(timeout):
+			fp.statistics.WorkerAllocationTimeoutTotal++
 			return nil, ErrNoAvailableWorkers
 		}
-
 	}
 }
 
@@ -147,4 +178,9 @@ func (fp *fixedPool) GetWorkers() []*Worker {
 
 func (fp *fixedPool) GetNumWorkersAvailable() int {
 	return len(fp.workerChan)
+}
+
+// GetStatistics returns worker allocator statistics
+func (fp *fixedPool) GetStatistics() *AllocatorStatistics {
+	return &fp.statistics
 }

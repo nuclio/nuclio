@@ -89,6 +89,7 @@ func NewAbstractTrigger(logger logger.Logger,
 	configuration *Configuration,
 	class string,
 	kind string) (AbstractTrigger, error) {
+
 	return AbstractTrigger{
 		Logger:          logger,
 		ID:              configuration.ID,
@@ -184,6 +185,10 @@ func (at *AbstractTrigger) GetWorkers() []*worker.Worker {
 
 // GetStatistics returns trigger statistics
 func (at *AbstractTrigger) GetStatistics() *Statistics {
+
+	// copy worker allocator statistics
+	at.Statistics.WorkerAllocatorStatistics = *at.WorkerAllocator.GetStatistics()
+
 	return &at.Statistics
 }
 
