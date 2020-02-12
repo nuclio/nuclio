@@ -152,7 +152,8 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 			"kanikojob")
 	}
 
-	containerBuilderConfiguration.InsecureRegistry = common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_REGISTRY", false)
+	containerBuilderConfiguration.InsecurePushRegistry = common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY", false)
+	containerBuilderConfiguration.InsecurePullRegistry = common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_PULL_REGISTRY", false)
 
 	containerBuilderConfiguration.RegistryCredentialsSecretName =
 		common.GetEnvOrDefaultString("NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME", "")

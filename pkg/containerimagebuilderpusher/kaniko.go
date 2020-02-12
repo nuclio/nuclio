@@ -175,8 +175,10 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 		buildArgs = append(buildArgs, "--cache=true")
 	}
 
-	if k.builderConfiguration.InsecureRegistry {
+	if k.builderConfiguration.InsecurePushRegistry {
 		buildArgs = append(buildArgs, "--insecure")
+	}
+	if k.builderConfiguration.InsecurePullRegistry {
 		buildArgs = append(buildArgs, "--insecure-pull")
 	}
 
@@ -269,7 +271,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 	}
 
 	// if RegistryCredentialsSecretName is defined - configure mount with docker credentials
-	if !k.builderConfiguration.InsecureRegistry && len(k.builderConfiguration.RegistryCredentialsSecretName) > 0 {
+	if !k.builderConfiguration.InsecurePushRegistry && len(k.builderConfiguration.RegistryCredentialsSecretName) > 0 {
 		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
 			append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
 				Name:      "docker-config",

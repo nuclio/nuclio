@@ -24,5 +24,6 @@ type ContainerBuilderConfiguration struct {
 	RegistryCredentialsSecretName string
 	DefaultBaseRegistryURL        string
 	CacheRepo                     string
-	InsecureRegistry              bool
+	InsecurePushRegistry          bool
+	InsecurePullRegistry          bool
 }

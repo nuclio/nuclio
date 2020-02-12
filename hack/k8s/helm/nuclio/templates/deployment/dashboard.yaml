@@ -58,8 +58,12 @@ spec:
           value: {{ template "nuclio.dashboardName" . }}
         - name: NUCLIO_CONTAINER_BUILDER_KIND
           value: {{ .Values.dashboard.containerBuilderKind }}
-        {{- if .Values.dashboard.insecureRegistry }}
-        - name: NUCLIO_KANIKO_INSECURE_REGISTRY
+        {{- if .Values.dashboard.insecurePushRegistry }}
+        - name: NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY
+          value: "true"
+        {{- end }}
+        {{- if .Values.dashboard.insecurePullRegistry }}
+        - name: NUCLIO_KANIKO_INSECURE_PULL_REGISTRY
           value: "true"
         {{- end }}
         {{- if .Values.registry.defaultBaseRegistryURL }}

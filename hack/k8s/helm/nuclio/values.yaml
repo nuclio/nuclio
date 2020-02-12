@@ -29,8 +29,11 @@ dashboard:
   # Supported container builders: "kaniko", "docker"
   containerBuilderKind: "docker"
 
-  # Set this flag to use plain HTTP requests when accessing a registry (kaniko only)
-  insecureRegistry: false
+  # Set this flag to push images to a plain HTTP registry (kaniko only)
+  insecurePushRegistry: false
+
+  # Set this flag to pull images from a plain HTTP registry (kaniko only)
+  insecurePullRegistry: false
 
   # Uncomment to configure node port
   # nodePort: 32050
