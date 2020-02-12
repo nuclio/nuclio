@@ -17,10 +17,27 @@ limitations under the License.
 package trigger
 
 import (
+	"strconv"
+	"time"
+
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 )
+
+type DurationConfigField struct {
+	Name    string
+	Value   string
+	Field   *time.Duration
+	Default time.Duration
+}
+
+type AnnotationConfigField struct {
+	Key         string
+	ValueString *string
+	ValueInt    *int
+}
 
 type Configuration struct {
 	functionconfig.Trigger
@@ -48,6 +65,43 @@ func NewConfiguration(ID string,
 	}
 
 	return configuration
+}
+
+// allows setting configuration via annotations, for experimental settings
+func (c *Configuration) PopulateConfigurationFromAnnotations(annotationConfigFields []AnnotationConfigField) error {
+	var err error
+
+	for _, annotationConfigField := range annotationConfigFields {
+		if annotationValue, annotationKeyExists := c.RuntimeConfiguration.Config.Meta.Annotations[annotationConfigField.Key]; annotationKeyExists {
+			if annotationConfigField.ValueString != nil {
+				*annotationConfigField.ValueString = annotationValue
+			} else if annotationConfigField.ValueInt != nil {
+				*annotationConfigField.ValueInt, err = strconv.Atoi(annotationValue)
+				if err != nil {
+					return errors.Wrapf(err, "Annotation %s must be numeric", annotationConfigField.Key)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// parses a duration string into a time.duration field. if empty, sets the field to the default
+func (c *Configuration) ParseDurationOrDefault(durationConfigField *DurationConfigField) error {
+	if durationConfigField.Value == "" {
+		*durationConfigField.Field = durationConfigField.Default
+		return nil
+	}
+
+	parsedDurationValue, err := time.ParseDuration(durationConfigField.Value)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to parse %s", durationConfigField.Name)
+	}
+
+	*durationConfigField.Field = parsedDurationValue
+
+	return nil
 }
 
 type Statistics struct {

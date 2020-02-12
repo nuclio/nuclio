@@ -204,6 +204,8 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 		return errors.Wrap(err, "Failed enriching image name")
 	}
 
+	ap.enrichMinMaxReplicas(createFunctionOptions)
+
 	return nil
 }
 
@@ -242,6 +244,10 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 			}
 			return errors.New("There's more than one http trigger (unsupported)")
 		}
+	}
+
+	if err := ap.validateMinMaxReplicas(createFunctionOptions); err != nil {
+		return errors.Wrap(err, "Failed to validate min max replicas")
 	}
 
 	return nil
@@ -652,4 +658,38 @@ func (ap *Platform) enrichImageName(createFunctionOptions *platform.CreateFuncti
 	}
 
 	return nil
+}
+
+func (ap *Platform) validateMinMaxReplicas(createFunctionOptions *platform.CreateFunctionOptions) error {
+	minReplicas := createFunctionOptions.FunctionConfig.Spec.MinReplicas
+	maxReplicas := createFunctionOptions.FunctionConfig.Spec.MaxReplicas
+
+	if minReplicas != nil {
+		if maxReplicas == nil && *minReplicas == 0 {
+			return errors.New("Max replicas must be set if min replicas is zero")
+		}
+		if maxReplicas != nil && *minReplicas > *maxReplicas {
+			return errors.New("Min replicas must be smaller than max replicas")
+		}
+	}
+	if maxReplicas != nil && *maxReplicas == 0 {
+		return errors.New("Max replicas must be greater than zero")
+	}
+
+	return nil
+}
+
+func (ap *Platform) enrichMinMaxReplicas(createFunctionOptions *platform.CreateFunctionOptions) {
+
+	// if min replicas was not set, and max replicas is set, assign max replicas to min replicas
+	if createFunctionOptions.FunctionConfig.Spec.MinReplicas == nil &&
+		createFunctionOptions.FunctionConfig.Spec.MaxReplicas != nil {
+		createFunctionOptions.FunctionConfig.Spec.MinReplicas = createFunctionOptions.FunctionConfig.Spec.MaxReplicas
+	}
+
+	// if max replicas was not set, and min replicas is set, assign min replicas to max replicas
+	if createFunctionOptions.FunctionConfig.Spec.MaxReplicas == nil &&
+		createFunctionOptions.FunctionConfig.Spec.MinReplicas != nil {
+		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = createFunctionOptions.FunctionConfig.Spec.MinReplicas
+	}
 }

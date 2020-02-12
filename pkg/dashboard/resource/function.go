@@ -112,19 +112,16 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
+	// TODO: Add a lock to prevent race conditions here (prevent 2 functions created with the same name)
 	// validate there are no 2 functions with the same name
-	getFunctionsOptions := &platform.GetFunctionsOptions{
+	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Name:      functionInfo.Meta.Name,
 		Namespace: fr.getNamespaceFromRequest(request),
-	}
-
-	// TODO: Add a lock to prevent race conditions here (prevent 2 functions created with the same name)
-	functions, err := fr.getPlatform().GetFunctions(getFunctionsOptions)
+	})
 	if err != nil {
 		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
 		return
 	}
-
 	if len(functions) > 0 {
 		responseErr = nuclio.NewErrConflict("Cannot create two functions with the same name")
 		return
@@ -143,6 +140,21 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 func (fr *functionResource) Update(request *http.Request, id string) (attributes restful.Attributes, responseErr error) {
 	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
 	if responseErr != nil {
+		return
+	}
+
+	// TODO: Add a lock to prevent race conditions here
+	// validate the function exists
+	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
+		Name:      functionInfo.Meta.Name,
+		Namespace: fr.getNamespaceFromRequest(request),
+	})
+	if err != nil {
+		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
+		return
+	}
+	if len(functions) == 0 {
+		responseErr = nuclio.NewErrNotFound("Cannot update non existing function")
 		return
 	}
 
