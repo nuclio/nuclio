@@ -145,6 +145,6 @@ type Platform interface {
 	// GetBaseImageRegistry returns onbuild base registry
 	GetBaseImageRegistry(registry string) string
 
-	// GetSecretName returns secret with credentials to push/pull from docker registry
-	GetSecretName() string
+	// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
+	GetDefaultRegistryCredentialsSecretName() string
 }

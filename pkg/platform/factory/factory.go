@@ -141,7 +141,7 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 	}
 	if containerBuilderConfiguration.BusyBoxImage == "" {
 		containerBuilderConfiguration.BusyBoxImage = common.GetEnvOrDefaultString("NUCLIO_BUSYBOX_CONTAINER_IMAGE",
-			"busybox:1.31.1")
+			"busybox:1.31")
 	}
 	if containerBuilderConfiguration.KanikoImage == "" {
 		containerBuilderConfiguration.KanikoImage = common.GetEnvOrDefaultString("NUCLIO_KANIKO_CONTAINER_IMAGE",
@@ -155,7 +155,7 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 	containerBuilderConfiguration.InsecurePushRegistry = common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY", false)
 	containerBuilderConfiguration.InsecurePullRegistry = common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_PULL_REGISTRY", false)
 
-	containerBuilderConfiguration.RegistryCredentialsSecretName =
+	containerBuilderConfiguration.DefaultRegistryCredentialsSecretName =
 		common.GetEnvOrDefaultString("NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME", "")
 
 	if containerBuilderConfiguration.DefaultBaseRegistryURL == "" {
@@ -163,7 +163,7 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 			common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_BASE_REGISTRY_URL", "quay.io")
 	}
 
-	containerBuilderConfiguration.CacheRepo = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_CACHE_REPO", "")
+	containerBuilderConfiguration.CacheRepo = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_KANIKO_CACHE_REPO", "")
 
 	return &containerBuilderConfiguration
 }

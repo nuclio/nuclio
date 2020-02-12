@@ -246,8 +246,6 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		enrichedConfiguration.Spec.Image = processorImage
 	}
 
-	enrichedConfiguration.Spec.ImagePullSecrets = b.platform.GetSecretName()
-
 	buildResult := &platform.CreateFunctionBuildResult{
 		Image:                 processorImage,
 		UpdatedFunctionConfig: enrichedConfiguration,
@@ -1008,6 +1006,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		NoBaseImagePull:     b.GetNoBaseImagePull(),
 		BuildArgs:           buildArgs,
 		RegistryURL:         b.options.FunctionConfig.Spec.Build.Registry,
+		SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
 		OutputImageFile:     b.options.OutputImageFile,
 		BuildTimeoutSeconds: BuildTimeoutSeconds,
 	})

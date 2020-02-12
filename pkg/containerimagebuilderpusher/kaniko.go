@@ -94,8 +94,8 @@ ARG NUCLIO_ARCH
 	return onbuildStages, nil
 }
 
-func (k *Kaniko) GetSecretName() string {
-	return k.builderConfiguration.RegistryCredentialsSecretName
+func (k *Kaniko) GetDefaultRegistryCredentialsSecretName() string {
+	return k.builderConfiguration.DefaultRegistryCredentialsSecretName
 }
 
 func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
@@ -270,8 +270,10 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 		},
 	}
 
-	// if RegistryCredentialsSecretName is defined - configure mount with docker credentials
-	if !k.builderConfiguration.InsecurePushRegistry && len(k.builderConfiguration.RegistryCredentialsSecretName) > 0 {
+	// if SecretName is defined - configure mount with docker credentials
+	if !(k.builderConfiguration.InsecurePushRegistry && k.builderConfiguration.InsecurePullRegistry) &&
+		len(buildOptions.SecretName) > 0 {
+
 		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
 			append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
 				Name:      "docker-config",
@@ -283,7 +285,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 			Name: "docker-config",
 			VolumeSource: v1.VolumeSource{
 				Secret: &v1.SecretVolumeSource{
-					SecretName: k.builderConfiguration.RegistryCredentialsSecretName,
+					SecretName: buildOptions.SecretName,
 					Items: []v1.KeyToPath{
 						{
 							Key:  ".dockerconfigjson",
@@ -316,7 +318,7 @@ func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, Bu
 				return nil
 			}
 
-			k.logger.Debug("Kaniko job was completed successfully", "logs", jobLogs)
+			k.logger.Debug("Kaniko job was completed successfully", "jobLogs", jobLogs)
 			return nil
 		}
 		if runningJob.Status.Failed > 0 {

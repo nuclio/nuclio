@@ -73,8 +73,8 @@ func (d *Docker) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string
 	return []string{}, nil
 }
 
-func (d *Docker) GetSecretName() string {
-	return d.builderConfiguration.RegistryCredentialsSecretName
+func (d *Docker) GetDefaultRegistryCredentialsSecretName() string {
+	return d.builderConfiguration.DefaultRegistryCredentialsSecretName
 }
 
 func (d *Docker) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {

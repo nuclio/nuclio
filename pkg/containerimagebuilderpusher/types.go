@@ -12,18 +12,19 @@ type BuildOptions struct {
 	NoBaseImagePull     bool
 	BuildArgs           map[string]string
 	RegistryURL         string
+	SecretName          string
 	OutputImageFile     string
 	BuildTimeoutSeconds int64
 }
 
 type ContainerBuilderConfiguration struct {
-	Kind                          string
-	BusyBoxImage                  string
-	KanikoImage                   string
-	JobPrefix                     string
-	RegistryCredentialsSecretName string
-	DefaultBaseRegistryURL        string
-	CacheRepo                     string
-	InsecurePushRegistry          bool
-	InsecurePullRegistry          bool
+	Kind                                 string
+	BusyBoxImage                         string
+	KanikoImage                          string
+	JobPrefix                            string
+	DefaultRegistryCredentialsSecretName string
+	DefaultBaseRegistryURL               string
+	CacheRepo                            string
+	InsecurePushRegistry                 bool
+	InsecurePullRegistry                 bool
 }

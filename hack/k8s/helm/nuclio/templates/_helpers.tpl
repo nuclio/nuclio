@@ -41,7 +41,11 @@
 {{- end -}}
 
 {{- define "nuclio.registryCredentialsName" -}}
+{{- if .Values.registry.secretName -}}
+{{- .Values.registry.secretName -}}
+{{- else -}}
 {{- printf "%s-registry-credentials" .Release.Name -}}
+{{- end -}}
 {{- end -}}
 
 {{- define "nuclio.registryPushPullUrlName" -}}
