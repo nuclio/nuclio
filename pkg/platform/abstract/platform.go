@@ -114,6 +114,10 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		return nil, errors.New("Non existing function cannot be created with neverBuild mode")
 	}
 
+	if createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets == "" {
+		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets = ap.platform.GetDefaultRegistryCredentialsSecretName()
+	}
+
 	// clear build mode
 	createFunctionOptions.FunctionConfig.Spec.Build.Mode = ""
 
@@ -389,6 +393,11 @@ func (ap *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Art
 // GetBaseImageRegistry returns onbuild base registry
 func (ap *Platform) GetBaseImageRegistry(registry string) string {
 	return ap.ContainerBuilder.GetBaseImageRegistry(registry)
+}
+
+// // GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
+func (ap *Platform) GetDefaultRegistryCredentialsSecretName() string {
+	return ap.ContainerBuilder.GetDefaultRegistryCredentialsSecretName()
 }
 
 func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {

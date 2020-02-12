@@ -1021,6 +1021,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		NoBaseImagePull:     b.GetNoBaseImagePull(),
 		BuildArgs:           buildArgs,
 		RegistryURL:         b.options.FunctionConfig.Spec.Build.Registry,
+		SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
 		OutputImageFile:     b.options.OutputImageFile,
 		BuildTimeoutSeconds: BuildTimeoutSeconds,
 	})
