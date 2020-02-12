@@ -23,7 +23,7 @@ When a partition is assigned to a replica, its messages will be handled one by o
 #### How many workers should my replica have?
 Currently the number of workers is statically determined by the user. The fewer workers there are, the less memory a replica consumes, but the more time a partition will have to wait until a worker becomes available to handle its messages. A good rule of thumb is to set this to `ceil((number of partitions / max number of replicas) * 1.2)`.
 
-For example, if you have 16 paratitions and you set your max number of replicas to 4 then during steady state each replica will handle `16 / 4 = 4` partitions. However, if one of the replicas goes down, each replica will handle `16 / 3 = 5 or 6` partitions. Following the formula above we set max workers to `ceil((16 / 4) * 1.2) = 5`. We will spend an extra worker during steady state but allow for a single replica to go down without adding too much stalling during processing.
+For example, if you have 16 partitions and you set your max number of replicas to 4 then during steady state each replica will handle `16 / 4 = 4` partitions. However, if one of the replicas goes down, each replica will handle `16 / 3 = 5 or 6` partitions. Following the formula above we set max workers to `ceil((16 / 4) * 1.2) = 5`. We will spend an extra worker during steady state but allow for a single replica to go down without adding too much stalling during processing.
 
 #### How are workers allocated to a partition?
 Nuclio supports two worker allocation modes:
@@ -64,7 +64,7 @@ The Nuclio trigger reads directly from this partition consumer queue (remember -
 ## Offset management
 Nuclio replicas can come up and go down on a whim (mostly due to auto-scaling) and the responsibility for a given partition migrates from one replica to the other. It is important to make sure that the new replica picks up where the previous replica left off (so as to not lose messages or re-process message). Kafka offers a persistent "offset" per partition that indicates at which point in the partition the consumer group is. New Nuclio replicas can read this and simply start reading the partition from there.
 
-However, it is the Nuclio replica's responsiblity to update this offset. Naively, whenever a message is handled Nuclio can contact Kafka and tell it to increment the offset of the partition. This would carry a large overhead per message and therefore be very slow. 
+However, it is the Nuclio replica's responsibility to update this offset. Naively, whenever a message is handled Nuclio can contact Kafka and tell it to increment the offset of the partition. This would carry a large overhead per message and therefore be very slow. 
 
 The `sarama` library offers an "auto-commit" feature wherein Nuclio replicas need only "mark" the message as handled and `sarama` will, in the background and periodically, update Kafka about the current offsets of all partitions. The default interval is 1s and cannot be configured at this time. 
 
@@ -103,7 +103,7 @@ To join the rebalancing process as quickly as possible, you would have to stop p
 To configure for this scenario you would simply have to set `MaxWaitHandlerDuringRebalance` to something short like 5 or 10 seconds. Nuclio will only wait this short amount of time before stopping the event processing, joining the rebalance process and causing a duplicate.
 
 #### I prefer to minimize duplicates
-Under many scenarios, like when duplicate processing incurs a high cost, users might choose to simply instruct Nuclio to wait until all events currently being processed are complete. Doing so means blocking the rebalancing process until this happens and effecively halting event processing until it's done.
+Under many scenarios, like when duplicate processing incurs a high cost, users might choose to simply instruct Nuclio to wait until all events currently being processed are complete. Doing so means blocking the rebalancing process until this happens and effectively halting event processing until it's done.
 
 To configure for this scenario you would have to set `MaxWaitHandlerDuringRebalance` to your worst case event processing time and `RebalanceTimeout` to around 120% of that. For example, if your worse case event processing time is 4 minutes, you would set `MaxWaitHandlerDuringRebalance` to 4 minutes and the `RebalanceTimeout` to 5 minutes. Upping the rebalance timeout guarantees that the replica or replicas waiting (up to) 4 minutes for the event to process will not be ejected from the consumer group for 5 minutes (causing another rebalance).
 
