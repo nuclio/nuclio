@@ -897,13 +897,13 @@ func (b *Builder) prepareStagingDir() error {
 		return errors.Wrapf(err, "Failed to create handler path in staging @ %s", handlerDirIncludingSubPath)
 	}
 
-	// first, tell the specific runtime to do its thing
-	if err := b.runtime.OnAfterStagingDirCreated(b.stagingDir); err != nil {
+	// copy any objects the runtime needs into staging
+	if err := b.copyHandlerToStagingDir(handlerSubPath); err != nil {
 		return errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
-	// copy any objects the runtime needs into staging
-	if err := b.copyHandlerToStagingDir(handlerSubPath); err != nil {
+	// first, tell the specific runtime to do its thing
+	if err := b.runtime.OnAfterStagingDirCreated(b.stagingDir); err != nil {
 		return errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
