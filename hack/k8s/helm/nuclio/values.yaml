@@ -28,6 +28,8 @@ dashboard:
 
   # Supported container builders: "kaniko", "docker"
   containerBuilderKind: "docker"
+
+  # Set this flag to use plain HTTP requests when accessing a registry (kaniko only)
   insecureRegistry: false
 
   # Uncomment to configure node port
@@ -77,14 +79,14 @@ registry:
   # the credentials stanza below. The chart will create a secret for you (note: the credentials will be
   # visible to anyone with access to helm) and name it after the release
   #
-  # IMPORTANT: docker-registry secret must be present BOTH in default namespace and in the namespace
-  # to which nuclio function is deployed.
-  #
-  # Copy secrets between namespaces using following command:
+  # IMPORTANT:
+  # K8S doesn't allow secret sharing between namespaces, so in order to deploy a nuclio function
+  # to namespace which differs from a namespace in which nuclio is running,
+  # secret must be copied to that namespace:
   #
   #  kubectl get secret <secret-name> -n <source-namespace> -o yaml \
-  #  | sed s/"namespace: <source-namespace>"/"namespace: <destination-namespace>"/\
-  #  | kubectl apply -n <destination-namespace> -f -
+  #     | sed s/"namespace: <source-namespace>"/"namespace: <destination-namespace>"/ \
+  #     | kubectl apply -n <destination-namespace> -f -
   #
   # secretName: registry-credentials
 
@@ -109,9 +111,9 @@ registry:
   #
   # defaultBaseRegistryURL: someurl
 
-  #  Set this flag to specify a remote repository that will be used to store cached layers
+  #  Set this flag to specify a remote repository that will be used to store cached layers (kaniko only)
   #
-  # cacheRegistryURL: someurl
+  # cacheRepo: someurl
 
 rbac:
 

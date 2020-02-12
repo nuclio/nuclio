@@ -180,8 +180,8 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 		buildArgs = append(buildArgs, "--insecure-pull")
 	}
 
-	if k.builderConfiguration.CacheRegistryURL != "" {
-		buildArgs = append(buildArgs, fmt.Sprintf("--cache-repo=%s", k.builderConfiguration.CacheRegistryURL))
+	if k.builderConfiguration.CacheRepo != "" {
+		buildArgs = append(buildArgs, fmt.Sprintf("--cache-repo=%s", k.builderConfiguration.CacheRepo))
 	}
 
 	// Add build options args
@@ -308,7 +308,13 @@ func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, Bu
 		}
 
 		if runningJob.Status.Succeeded > 0 {
-			k.logger.Debug("Kaniko job was completed successfully")
+			jobLogs, err := k.getJobLogs(namespace, jobName)
+			if err != nil {
+				k.logger.Debug("Kaniko job was completed successfully but failed to retrieve job logs")
+				return nil
+			}
+
+			k.logger.Debug("Kaniko job was completed successfully", "logs", jobLogs)
 			return nil
 		}
 		if runningJob.Status.Failed > 0 {
@@ -323,7 +329,7 @@ func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, Bu
 	}
 	jobLogs, err := k.getJobLogs(namespace, jobName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to retrieve kaniko job logs")
+		return errors.Wrap(err, "Kaniko job failed and was unable to retrieve job logs")
 	}
 	return fmt.Errorf("Kaniko job has timed out. Job logs:\n%s", jobLogs)
 }

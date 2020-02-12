@@ -66,9 +66,9 @@ spec:
         - name: NUCLIO_DASHBOARD_DEFAULT_BASE_REGISTRY_URL
           value: {{ .Values.registry.defaultBaseRegistryURL }}
         {{- end }}
-        {{- if .Values.registry.cacheRegistryURL }}
-        - name: NUCLIO_DASHBOARD_CACHE_REGISTRY_URL
-          value: {{ .Values.registry.cacheRegistryURL }}
+        {{- if .Values.registry.cacheRepo }}
+        - name: NUCLIO_DASHBOARD_CACHE_REPO
+          value: {{ .Values.registry.cacheRepo }}
         {{- end }}
 #        - name: NUCLIO_DASHBOARD_RUN_REGISTRY_URL
 #          value: "localhost:5000"
