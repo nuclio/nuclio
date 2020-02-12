@@ -39,7 +39,7 @@ COPY --from=processor /home/nuclio/bin/processor /home/gradle/bin/processor
 # Build user handler jar
 #
 
-RUN mkdir -p /home/gradle/src/userHandler/src/main/java
+RUN mkdir -p /home/gradle/src/userHandler
 
 # Copy the user handler builder script
 COPY pkg/processor/build/runtime/java/docker/onbuild/build-user-handler.sh /home/gradle/src/userHandler/build-user-handler.sh
@@ -54,9 +54,9 @@ ONBUILD COPY handler/build.gradle /home/gradle/src/userHandler
 # Specify the directory where the handler is kept. By default it is the context dir, but it is overridable
 ONBUILD ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
 
-# Copy the entire code to /home/gradle/src/userHandler/src/main/java, where gradle expects it to reside. Note that
+# Copy the entire code to /home/gradle/src/userHandler, where gradle expects it to reside. Note that
 # this will also copy build.gradle... but we'll ignore it
-ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /home/gradle/src/userHandler/src/main/java
+ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /home/gradle/src/userHandler
 
 # Run the handle builder to create /home/gradle/src/userHandler/build/libs/user-handler.jar.
 ONBUILD RUN cd /home/gradle/src/userHandler \
