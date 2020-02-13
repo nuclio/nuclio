@@ -592,8 +592,8 @@ func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage str
 	}
 
 	// when the log message contains a known failure prefix
-	for _, prefix := range knownFailureSubstrings {
-		if strings.Contains(logMessage, prefix) {
+	for _, knownFailureSubstring := range knownFailureSubstrings {
+		if strings.Contains(logMessage, knownFailureSubstring) {
 			return true
 		}
 	}
