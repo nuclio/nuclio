@@ -91,7 +91,7 @@ registry:
   #     | sed s/"namespace: <source-namespace>"/"namespace: <destination-namespace>"/ \
   #     | kubectl apply -n <destination-namespace> -f -
   #
-  # secretName: registry-credentials
+   secretName: registry-credentials
 
   # In some cases the docker server URL in the registry secrets isn't the same as the URL with which
   # you push and pull. For example, in GKE you login to `gcr.io` (or some other regional URL) yet have
