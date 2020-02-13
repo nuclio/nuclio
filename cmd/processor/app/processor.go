@@ -171,15 +171,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 func (p *Processor) Start() error {
 	p.logger.DebugWith("Starting")
 
-	// start the web interface
-	err := p.healthCheckServer.Start()
-	if err != nil {
-		return errors.Wrap(err, "Failed to start health check server")
-	}
-
 	// iterate over all triggers and start them
 	for _, trigger := range p.triggers {
-		if err = trigger.Start(nil); err != nil {
+		if err := trigger.Start(nil); err != nil {
 			p.logger.ErrorWith("Failed to start trigger",
 				"kind", trigger.GetKind(),
 				"err", err.Error())
@@ -188,7 +182,7 @@ func (p *Processor) Start() error {
 	}
 
 	// start the web interface
-	err = p.webAdminServer.Start()
+	err := p.webAdminServer.Start()
 	if err != nil {
 		return errors.Wrap(err, "Failed to start web interface")
 	}
@@ -199,6 +193,13 @@ func (p *Processor) Start() error {
 		if err != nil {
 			return errors.Wrap(err, "Failed to start metric pushing")
 		}
+	}
+
+	// start the health check server (starting after all the other servers)
+	// this server's successful response means that the processor is healthy and ready
+	err = p.healthCheckServer.Start()
+	if err != nil {
+		return errors.Wrap(err, "Failed to start health check server")
 	}
 
 	<-p.stop // Wait for stop
