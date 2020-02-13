@@ -13,7 +13,7 @@ controller:
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
 
-  # uncomment to override operator parameters. The defaults are in the commented out block below
+  # Uncomment to override operator parameters. The defaults are in the commented out block below
   # operator:
   #   function:
   #     numWorkers: 4
