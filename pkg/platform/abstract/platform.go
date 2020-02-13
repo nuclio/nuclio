@@ -593,7 +593,7 @@ func (ap *Platform) getLogLineAdditionalKwargs(log []byte) (map[string]string, e
 }
 
 func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage string) bool {
-	knownFailurePrefixes := [...]string{"Failed to connect to broker"}
+	knownFailureSubstrings := [...]string{"Failed to connect to broker"}
 
 	// when log level is warning or above
 	if logLevel != 'D' && logLevel != 'I' {
@@ -601,8 +601,8 @@ func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage str
 	}
 
 	// when the log message contains a known failure prefix
-	for _, prefix := range knownFailurePrefixes {
-		if strings.HasPrefix(logMessage, prefix) {
+	for _, knownFailureSubstring := range knownFailureSubstrings {
+		if strings.Contains(logMessage, knownFailureSubstring) {
 			return true
 		}
 	}
