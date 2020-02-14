@@ -40,7 +40,7 @@ type projectOperator struct {
 func newProjectOperator(parentLogger logger.Logger,
 	controller *Controller,
 	resyncInterval *time.Duration,
-	projectOperatorNumWorkers int) (*projectOperator, error) {
+	numWorkers int) (*projectOperator, error) {
 	var err error
 
 	loggerInstance := parentLogger.GetChild("project")
@@ -52,7 +52,7 @@ func newProjectOperator(parentLogger logger.Logger,
 
 	// create a project operator
 	newProjectOperator.operator, err = operator.NewMultiWorker(loggerInstance,
-		projectOperatorNumWorkers,
+		numWorkers,
 		newProjectOperator.getListWatcher(controller.namespace),
 		&nuclioio.NuclioProject{},
 		resyncInterval,
@@ -63,7 +63,7 @@ func newProjectOperator(parentLogger logger.Logger,
 	}
 
 	parentLogger.DebugWith("Created project operator",
-		"projectOperatorNumWorkers", projectOperatorNumWorkers,
+		"numWorkers", numWorkers,
 		"resyncInterval", resyncInterval)
 
 	return newProjectOperator, nil

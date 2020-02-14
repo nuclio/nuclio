@@ -40,7 +40,7 @@ type functionEventOperator struct {
 func newFunctionEventOperator(parentLogger logger.Logger,
 	controller *Controller,
 	resyncInterval *time.Duration,
-	functionEventOperatorNumWorkers int) (*functionEventOperator, error) {
+	numWorkers int) (*functionEventOperator, error) {
 	var err error
 
 	loggerInstance := parentLogger.GetChild("function_event")
@@ -52,7 +52,7 @@ func newFunctionEventOperator(parentLogger logger.Logger,
 
 	// create a function event operator
 	newFunctionEventOperator.operator, err = operator.NewMultiWorker(loggerInstance,
-		functionEventOperatorNumWorkers,
+		numWorkers,
 		newFunctionEventOperator.getListWatcher(controller.namespace),
 		&nuclioio.NuclioFunctionEvent{},
 		resyncInterval,
@@ -63,7 +63,7 @@ func newFunctionEventOperator(parentLogger logger.Logger,
 	}
 
 	parentLogger.DebugWith("Created function event operator",
-		"functionEventOperatorNumWorkers", functionEventOperatorNumWorkers,
+		"numWorkers", numWorkers,
 		"resyncInterval", resyncInterval)
 
 	return newFunctionEventOperator, nil
