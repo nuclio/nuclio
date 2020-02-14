@@ -46,6 +46,9 @@ dashboard:
   # Uncomment to configure node port
   # nodePort: 32050
 
+  # Uncomment if you serve the templates locally (for offline environments) - else will be pulled from github
+  # templatesArchiveAddress: <url>
+
   ingress:
     enabled: false
     annotations: {}
@@ -58,6 +61,12 @@ dashboard:
     #  - secretName: nuclio-tls
     #    hosts:
     #      - nuclio.local
+
+kaniko:
+  image:
+    repository: gcr.io/kaniko-project/executor
+    tag: v0.17.1
+    pullPolicy: IfNotPresent
 
 autoscaler:
   enabled: false

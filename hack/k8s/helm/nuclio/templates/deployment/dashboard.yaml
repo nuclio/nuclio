@@ -60,6 +60,10 @@ spec:
           value: {{ template "nuclio.dashboardName" . }}
         - name: NUCLIO_CONTAINER_BUILDER_KIND
           value: {{ .Values.dashboard.containerBuilderKind }}
+        - name: NUCLIO_KANIKO_CONTAINER_IMAGE
+          value: {{ .Values.kaniko.image.repository }}:{{ .Values.kaniko.image.tag }}
+        - name: NUCLIO_KANIKO_CONTAINER_IMAGE_PULL_POLICY
+          value: {{ .Values.kaniko.image.pullPolicy }}
         {{- if .Values.dashboard.insecurePushRegistry }}
         - name: NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY
           value: "true"

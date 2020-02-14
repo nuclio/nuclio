@@ -21,6 +21,7 @@ type ContainerBuilderConfiguration struct {
 	Kind                                 string
 	BusyBoxImage                         string
 	KanikoImage                          string
+	KanikoImagePullPolicy                string
 	JobPrefix                            string
 	DefaultRegistryCredentialsSecretName string
 	DefaultBaseRegistryURL               string
