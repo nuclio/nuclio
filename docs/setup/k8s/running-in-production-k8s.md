@@ -49,7 +49,7 @@ Below is a quick example of how to setup the latest stable version of nuclio via
         .
     ```
   
-  See full [values file](/hack/k8s/helm/nuclio/values.yaml) for a full list of configurable parameters
+  See [the helm chart's values file](/hack/k8s/helm/nuclio/values.yaml) for a full list of configurable parameters
 
 ## Multi Tenancy
 
