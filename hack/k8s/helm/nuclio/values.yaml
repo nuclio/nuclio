@@ -13,6 +13,14 @@ controller:
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
 
+  operator:
+    function:
+      numWorkers: 4
+    functionEvent:
+      numWorkers: 2
+    project:
+      numWorkers: 2
+
 # Dashboard settings
 dashboard:
   enabled: true

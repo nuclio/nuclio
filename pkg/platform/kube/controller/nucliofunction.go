@@ -48,7 +48,8 @@ func newFunctionOperator(parentLogger logger.Logger,
 	controller *Controller,
 	resyncInterval *time.Duration,
 	imagePullSecrets string,
-	functionresClient functionres.Client) (*functionOperator, error) {
+	functionresClient functionres.Client,
+	numWorkers int) (*functionOperator, error) {
 	var err error
 
 	loggerInstance := parentLogger.GetChild("function")
@@ -62,7 +63,7 @@ func newFunctionOperator(parentLogger logger.Logger,
 
 	// create a function operator
 	newFunctionOperator.operator, err = operator.NewMultiWorker(loggerInstance,
-		4,
+		numWorkers,
 		newFunctionOperator.getListWatcher(controller.namespace),
 		&nuclioio.NuclioFunction{},
 		resyncInterval,
@@ -71,6 +72,10 @@ func newFunctionOperator(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function operator")
 	}
+
+	parentLogger.DebugWith("Created function operator",
+		"numWorkers", numWorkers,
+		"resyncInterval", resyncInterval)
 
 	return newFunctionOperator, nil
 }
