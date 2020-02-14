@@ -100,7 +100,7 @@ func NewConfiguration(ID string,
 		return nil, errors.Wrap(err, "Failed to populate configuration from annotations")
 	}
 
-	newConfiguration.WorkerAllocationMode = workerAllocationMode(workerAllocationModeValue)
+	newConfiguration.WorkerAllocationMode = partitionworker.AllocationMode(workerAllocationModeValue)
 
 	// set default
 	if triggerConfiguration.MaxWorkers == 0 {
@@ -146,7 +146,7 @@ func NewConfiguration(ID string,
 	}
 
 	if newConfiguration.WorkerAllocationMode == "" {
-		newConfiguration.WorkerAllocationMode = workerAllocationModePool
+		newConfiguration.WorkerAllocationMode = partitionworker.AllocationModePool
 	}
 
 	if newConfiguration.RebalanceRetryMax == 0 {
