@@ -1,4 +1,4 @@
-package kafka
+package partitionworker
 
 import (
 	"time"
@@ -10,24 +10,24 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type partitionWorkerAllocator interface {
-	allocateWorker(string, int, *time.Duration) (*worker.Worker, interface{}, error)
-	releaseWorker(interface{}, *worker.Worker) error
-	stop() error
+type Allocator interface {
+	AllocateWorker(string, int, *time.Duration) (*worker.Worker, interface{}, error)
+	ReleaseWorker(interface{}, *worker.Worker) error
+	Stop() error
 }
 
 // holds a shared pool of workers for all partitions to use. cannot guarantee that single worker will always
 // be used to handle the same partition but offers the best throughput since all partitions of a given topic
 // share the same pool of workers
-type pooledWorkerAllocator struct {
+type PooledWorkerAllocator struct {
 	logger          logger.Logger
 	workerAllocator worker.Allocator
 }
 
-func newPooledWorkerAllocator(parentLogger logger.Logger,
-	workerAllocator worker.Allocator) (*pooledWorkerAllocator, error) {
+func NewPooledWorkerAllocator(parentLogger logger.Logger,
+	workerAllocator worker.Allocator) (*PooledWorkerAllocator, error) {
 
-	newPooledWorkerAllocator := pooledWorkerAllocator{
+	newPooledWorkerAllocator := PooledWorkerAllocator{
 		logger:          parentLogger.GetChild("pooled"),
 		workerAllocator: workerAllocator,
 	}
@@ -37,7 +37,7 @@ func newPooledWorkerAllocator(parentLogger logger.Logger,
 	return &newPooledWorkerAllocator, nil
 }
 
-func (wa *pooledWorkerAllocator) allocateWorker(topic string,
+func (wa *PooledWorkerAllocator) AllocateWorker(topic string,
 	partitionID int,
 	timeout *time.Duration) (*worker.Worker, interface{}, error) {
 
@@ -47,13 +47,13 @@ func (wa *pooledWorkerAllocator) allocateWorker(topic string,
 	return workerInstance, nil, err
 }
 
-func (wa *pooledWorkerAllocator) releaseWorker(cookie interface{}, workerInstance *worker.Worker) error {
+func (wa *PooledWorkerAllocator) ReleaseWorker(cookie interface{}, workerInstance *worker.Worker) error {
 	wa.workerAllocator.Release(workerInstance)
 
 	return nil
 }
 
-func (wa *pooledWorkerAllocator) stop() error {
+func (wa *PooledWorkerAllocator) Stop() error {
 	return nil
 }
 
@@ -62,7 +62,7 @@ func (wa *pooledWorkerAllocator) stop() error {
 // this will be useful. however, the cost is throughput - it segments the worker pool such that it's possible
 // that a partition mapped to a busy worker will wait processing an event even though there are free workers (which
 // are mapped to other partitions)
-type staticWorkerAllocator struct {
+type StaticWorkerAllocator struct {
 	logger          logger.Logger
 	workerAllocator worker.Allocator
 	workerChans     []chan *worker.Worker
@@ -73,12 +73,12 @@ type staticWorkerAllocator struct {
 	topicPartitionWorkers map[string]map[int]chan *worker.Worker
 }
 
-func newStaticWorkerAllocator(parentLogger logger.Logger,
+func NewStaticWorkerAllocator(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
-	topicPartitionIDs map[string][]int) (*staticWorkerAllocator, error) {
+	topicPartitionIDs map[string][]int) (*StaticWorkerAllocator, error) {
 	var err error
 
-	newStaticWorkerAllocator := staticWorkerAllocator{
+	newStaticWorkerAllocator := StaticWorkerAllocator{
 		logger:          parentLogger.GetChild("static"),
 		workerAllocator: workerAllocator,
 	}
@@ -97,7 +97,7 @@ func newStaticWorkerAllocator(parentLogger logger.Logger,
 	return &newStaticWorkerAllocator, nil
 }
 
-func (wa *staticWorkerAllocator) allocateWorker(topic string,
+func (wa *StaticWorkerAllocator) AllocateWorker(topic string,
 	partitionID int,
 	timeout *time.Duration) (*worker.Worker, interface{}, error) {
 
@@ -139,7 +139,7 @@ func (wa *staticWorkerAllocator) allocateWorker(topic string,
 	return workerInstance, workerChan, nil
 }
 
-func (wa *staticWorkerAllocator) releaseWorker(cookie interface{}, workerInstance *worker.Worker) error {
+func (wa *StaticWorkerAllocator) ReleaseWorker(cookie interface{}, workerInstance *worker.Worker) error {
 
 	// try to get the worker chan
 	workerChan, cookieIsWorkerChan := cookie.(chan *worker.Worker)
@@ -153,7 +153,7 @@ func (wa *staticWorkerAllocator) releaseWorker(cookie interface{}, workerInstanc
 	return nil
 }
 
-func (wa *staticWorkerAllocator) stop() error {
+func (wa *StaticWorkerAllocator) Stop() error {
 	wa.logger.Debug("Releasing workers back to worker allocator")
 
 	// iterate over worker channels, allocate the worker (it *must* be returned) and release it back to the allocator
@@ -168,7 +168,7 @@ func (wa *staticWorkerAllocator) stop() error {
 	return nil
 }
 
-func (wa *staticWorkerAllocator) assignTopicPartitionWorkers(workerAllocator worker.Allocator,
+func (wa *StaticWorkerAllocator) assignTopicPartitionWorkers(workerAllocator worker.Allocator,
 	topicPartitionIDs map[string][]int) ([]chan *worker.Worker, map[string]map[int]chan *worker.Worker, error) {
 
 	var workerChans []chan *worker.Worker

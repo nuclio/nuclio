@@ -18,6 +18,7 @@ package kafka
 
 import (
 	"context"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -44,7 +45,7 @@ type kafka struct {
 	consumerGroup            sarama.ConsumerGroup
 	shutdownSignal           chan struct{}
 	stopConsumptionChan      chan struct{}
-	partitionWorkerAllocator partitionWorkerAllocator
+	partitionWorkerAllocator partitionworker.Allocator
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -164,7 +165,7 @@ func (k *kafka) Setup(session sarama.ConsumerGroupSession) error {
 }
 
 func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
-	err := k.partitionWorkerAllocator.stop()
+	err := k.partitionWorkerAllocator.Stop()
 	if err != nil {
 		return errors.Wrap(err, "Failed to stop partition worker allocator")
 	}
@@ -202,7 +203,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 		}
 
 		// allocate a worker for this topic/partition
-		workerInstance, cookie, err := k.partitionWorkerAllocator.allocateWorker(claim.Topic(), int(claim.Partition()), nil)
+		workerInstance, cookie, err := k.partitionWorkerAllocator.AllocateWorker(claim.Topic(), int(claim.Partition()), nil)
 		if err != nil {
 			return errors.Wrap(err, "Failed to allocate worker")
 		}
@@ -250,7 +251,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 		}
 
 		// release the worker from whence it came
-		err = k.partitionWorkerAllocator.releaseWorker(cookie, workerInstance)
+		err = k.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance)
 		if err != nil {
 			return errors.Wrap(err, "Failed to release worker")
 		}
@@ -337,12 +338,12 @@ func (k *kafka) newConsumerGroup() (sarama.ConsumerGroup, error) {
 	return consumerGroup, nil
 }
 
-func (k *kafka) createPartitionWorkerAllocator(session sarama.ConsumerGroupSession) (partitionWorkerAllocator, error) {
+func (k *kafka) createPartitionWorkerAllocator(session sarama.ConsumerGroupSession) (partitionworker.Allocator, error) {
 	switch k.configuration.WorkerAllocationMode {
-	case workerAllocationModePool:
-		return newPooledWorkerAllocator(k.Logger, k.WorkerAllocator)
+	case partitionworker.AllocationModePool:
+		return partitionworker.NewPooledWorkerAllocator(k.Logger, k.WorkerAllocator)
 
-	case workerAllocationModeStatic:
+	case partitionworker.AllocationModeStatic:
 		topicPartitionIDs := map[string][]int{}
 
 		// convert int32 -> int
@@ -352,7 +353,7 @@ func (k *kafka) createPartitionWorkerAllocator(session sarama.ConsumerGroupSessi
 			}
 		}
 
-		return newStaticWorkerAllocator(k.Logger, k.WorkerAllocator, topicPartitionIDs)
+		return partitionworker.NewStaticWorkerAllocator(k.Logger, k.WorkerAllocator, topicPartitionIDs)
 
 	default:
 		return nil, errors.Errorf("Unknown worker allocation mode: %s", k.configuration.WorkerAllocationMode)

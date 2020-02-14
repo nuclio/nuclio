@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kafka
+package partitionworker
 
 import (
 	"sync"
@@ -44,7 +44,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestAllocationBlocking() {
 	workerAllocator, err := worker.NewFixedPoolWorkerAllocator(suite.logger, suite.createWorkers(2))
 	suite.Require().NoError(err)
 
-	partitionWorkerAllocator, err := newStaticWorkerAllocator(suite.logger,
+	partitionWorkerAllocator, err := NewStaticWorkerAllocator(suite.logger,
 		workerAllocator,
 		map[string][]int{
 			"t1": {0, 1, 2, 3},
@@ -53,29 +53,29 @@ func (suite *partitionWorkerAllocatorTestSuite) TestAllocationBlocking() {
 	suite.Require().NoError(err)
 
 	// allocate a worker - should succeed
-	workerInstance, cookie, err := partitionWorkerAllocator.allocateWorker("t1", 0, nil)
+	workerInstance, cookie, err := partitionWorkerAllocator.AllocateWorker("t1", 0, nil)
 	suite.Require().NoError(err)
 
 	// allocate a worker for the same partition with no timeout - should fail immediately
 	noTimeout := time.Duration(0)
-	failedWorkerInstance, failedCookie, err := partitionWorkerAllocator.allocateWorker("t1", 0, &noTimeout)
+	failedWorkerInstance, failedCookie, err := partitionWorkerAllocator.AllocateWorker("t1", 0, &noTimeout)
 	suite.Require().Equal(err, worker.ErrNoAvailableWorkers)
 	suite.Require().Nil(failedCookie)
 	suite.Require().Nil(failedWorkerInstance)
 
 	// allocate a worker for the same partition with a timeout - should fail after a while
 	smallTimeout := 2 * time.Second
-	failedWorkerInstance, failedCookie, err = partitionWorkerAllocator.allocateWorker("t1", 0, &smallTimeout)
+	failedWorkerInstance, failedCookie, err = partitionWorkerAllocator.AllocateWorker("t1", 0, &smallTimeout)
 	suite.Require().Equal(err, worker.ErrNoAvailableWorkers)
 	suite.Require().Nil(failedCookie)
 	suite.Require().Nil(failedWorkerInstance)
 
 	// release worker
-	err = partitionWorkerAllocator.releaseWorker(cookie, workerInstance)
+	err = partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance)
 	suite.Require().NoError(err)
 
 	// try to allocate again
-	workerInstance, cookie, err = partitionWorkerAllocator.allocateWorker("t1", 0, &smallTimeout)
+	workerInstance, cookie, err = partitionWorkerAllocator.AllocateWorker("t1", 0, &smallTimeout)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(cookie)
 	suite.Require().NotNil(workerInstance)
@@ -134,7 +134,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorAllocations()
 			suite.createWorkers(testCase.numWorkers))
 		suite.Require().NoError(err)
 
-		partitionWorkerAllocator, err := newStaticWorkerAllocator(suite.logger, workerAllocator, testCase.topicPartitionIDs)
+		partitionWorkerAllocator, err := NewStaticWorkerAllocator(suite.logger, workerAllocator, testCase.topicPartitionIDs)
 		suite.Require().NoError(err)
 
 		for repititions := 0; repititions < 100000; repititions++ {
@@ -142,13 +142,13 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorAllocations()
 			for topic, partitionIDs := range testCase.topicPartitionIDs {
 				for partitionIndex, partitionID := range partitionIDs {
 
-					workerInstance, cookie, err := partitionWorkerAllocator.allocateWorker(topic, partitionID, nil)
+					workerInstance, cookie, err := partitionWorkerAllocator.AllocateWorker(topic, partitionID, nil)
 					suite.Require().NoError(err)
 					suite.Require().NotNil(workerInstance)
 					suite.Require().NotNil(cookie)
 					suite.Require().Equal(testCase.expectedWorkerID[topic][partitionIndex], workerInstance.GetIndex())
 
-					partitionWorkerAllocator.releaseWorker(cookie, workerInstance)
+					partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance)
 				}
 			}
 		}
@@ -184,7 +184,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 	suite.Require().NoError(err)
 
 	// create a static worker allocator
-	partitionWorkerAllocator, err := newStaticWorkerAllocator(suite.logger, workerAllocator, map[string][]int{
+	partitionWorkerAllocator, err := NewStaticWorkerAllocator(suite.logger, workerAllocator, map[string][]int{
 		topic: partitionIDs,
 	})
 	suite.Require().NoError(err)
@@ -203,7 +203,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 			for {
 				select {
 				case <-messageChannels[partitionReaderIdx]:
-					workerInstance, cookie, err := partitionWorkerAllocator.allocateWorker(topic,
+					workerInstance, cookie, err := partitionWorkerAllocator.AllocateWorker(topic,
 						partitionIDs[partitionReaderIdx],
 						nil)
 					suite.Require().NoError(err)
@@ -220,7 +220,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 					time.Sleep(100 * time.Microsecond)
 
 					// release the worker
-					err = partitionWorkerAllocator.releaseWorker(cookie, workerInstance)
+					err = partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance)
 					suite.Require().NoError(err)
 
 				default:

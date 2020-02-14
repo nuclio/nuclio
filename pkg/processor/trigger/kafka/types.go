@@ -17,6 +17,7 @@ limitations under the License.
 package kafka
 
 import (
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"strings"
 	"time"
 
@@ -27,13 +28,6 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/mitchellh/mapstructure"
-)
-
-type workerAllocationMode string
-
-const (
-	workerAllocationModePool   workerAllocationMode = "pool"
-	workerAllocationModeStatic workerAllocationMode = "static"
 )
 
 type Configuration struct {
@@ -57,7 +51,7 @@ type Configuration struct {
 	RetryBackoff                  string
 	MaxWaitTime                   string
 	MaxWaitHandlerDuringRebalance string
-	WorkerAllocationMode          workerAllocationMode
+	WorkerAllocationMode          partitionworker.AllocationMode
 	RebalanceRetryMax             int
 	FetchMin                      int
 	FetchDefault                  int
