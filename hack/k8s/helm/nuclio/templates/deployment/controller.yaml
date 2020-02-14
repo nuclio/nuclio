@@ -42,18 +42,12 @@ spec:
         - name: NUCLIO_CONTROLLER_NAMESPACE
           value: {{ .Values.controller.namespace | quote }}
         {{- end }}
-        {{- if hasKey .Values.controller.operator.function.numWorkers }}
         - name: NUCLIO_CONTROLLER_FUNCTION_OPERATOR_NUM_WORKERS
           value: {{ .Values.controller.operator.function.numWorkers | quote }}
-        {{- end }}
-        {{- if hasKey .Values.controller.operator.functionEvent.numWorkers }}
         - name: NUCLIO_CONTROLLER_FUNCTION_EVENT_OPERATOR_NUM_WORKERS
           value: {{ .Values.controller.operator.functionEvent.numWorkers | quote }}
-        {{- end }}
-        {{- if hasKey .Values.controller.operator.project.numWorkers }}
         - name: NUCLIO_CONTROLLER_PROJECT_OPERATOR_NUM_WORKERS
           value: {{ .Values.controller.operator.project.numWorkers | quote }}
-        {{- end }}
         {{- if .Values.platform }}
         volumeMounts:
         - name: platform-config

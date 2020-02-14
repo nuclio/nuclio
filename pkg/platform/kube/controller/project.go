@@ -62,6 +62,10 @@ func newProjectOperator(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create project operator")
 	}
 
+	parentLogger.DebugWith("Created project operator",
+		"projectOperatorNumWorkers", projectOperatorNumWorkers,
+		"resyncInterval", resyncInterval)
+
 	return newProjectOperator, nil
 }
 

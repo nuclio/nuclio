@@ -62,6 +62,10 @@ func newFunctionEventOperator(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create function event operator")
 	}
 
+	parentLogger.DebugWith("Created function event operator",
+		"functionEventOperatorNumWorkers", functionEventOperatorNumWorkers,
+		"resyncInterval", resyncInterval)
+
 	return newFunctionEventOperator, nil
 }
 
