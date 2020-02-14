@@ -56,7 +56,7 @@ Below is a quick example of how to setup the latest stable version of nuclio via
 Implementation of multi-tenancy can be done in many different forms and to various degrees. Our experience have led us to adopt the k8s approach of tenant isolation using namespaces.
 - To achieve tenant separation for various nuclio projects and functions, and to avoid cross-tenant contamination and resource races, we have opted to deploy in each namespace a fully functioning Nuclio deployment, and configure Nuclio's controller to be namespaced.
   This means the controller will handle Nuclio resources (functions, function-events, projects) only within its own namespace. This is supported via `Values.controller.namespace` in the helm chart values.  
-- To provide ample separation on the docker image level, we highly recommend that the Nuclio deployments of various tenants will not share docker registries, or will not share a tenant, if some a multi tenant registry is used (like `docker.io` or `quay.io`) 
+- To provide ample separation on the docker image level, we highly recommend that the Nuclio deployments of various tenants will not share docker registries, or will not share a tenant, if a multi-tenant registry is used (like `docker.io` or `quay.io`) 
  
 ## Dark site operation
 
