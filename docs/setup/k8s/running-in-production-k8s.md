@@ -15,7 +15,8 @@ Here you will find more advanced configuration options, and some practices which
 
 ## Preferred installation method
 
-Even though you may, of course, use any of the available methods, we find that heavy-lifting over k8s is best done with helm charts. and so, Nuclio's [helm chart](/hack/k8s/helm/nuclio/) is our preferred mode of deploying Nuclio.
+Even though you may, of course, use any of the available methods, we find that heavy-lifting over k8s is best done with helm charts.
+Nuclio's [helm chart](/hack/k8s/helm/nuclio/) is our preferred mode of deploying Nuclio in [Iguazio](https://www.iguazio.com/) as of writing this document.
 This is also where you'll find most of the production oriented features appearing first, and is the most closely maintained form of deployment.
 
 Below is a quick example of how to setup the latest stable version of nuclio via helm charts:
