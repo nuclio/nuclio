@@ -1,4 +1,4 @@
-# Running Nuclio over k8s in production
+# Running Nuclio over Kubernetes in production
 
 After familiarizing yourself with Nuclio, and [deploying it over k8s](/docs/setup/k8s/getting-started-k8s.md) you may find yourself looking for extra configuration knobs, and proper practices for using it in a production environment.
 In [Iguazio](https://www.iguazio.com/) we integrated Nuclio as part of our [Data science PaaS](https://www.iguazio.com/platform/), and it is in extensive use in production, for both our customers and ourselves, running various workloads.
