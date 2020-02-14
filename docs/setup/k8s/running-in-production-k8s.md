@@ -81,7 +81,8 @@ That being said, here are a few guidelines to get you on your way:
 When dealing with production deployments, bind-mounting the docker socket into Nuclio dashboard's pod is a bit of a no-no. Having access to the host machine's docker daemon by the Nuclio dashboard is akin to giving it root access to the machine.
 This is understandably a concern for real production use cases. Ideally, no pod should access the docker daemon directly, but since Nuclio is a docker based serverless framework, it needs the ability to build [OCI images](https://github.com/opencontainers/image-spec) at run time.
 While there are several alternatives to bind-mounting the docker socket, we have opted to integrate [Kaniko](https://github.com/GoogleContainerTools/kaniko) as a production-ready alternative to build ICO images in a secured way in latest versions.
-It is well maintained, stable, easy to use, and provides an ample set of features
+It is well maintained, stable, easy to use, and provides an ample set of features.
+Kaniko is available to use as of version 1.3.15 of Nuclio, currently only on k8s.
 
 To deploy nuclio and direct it to use the Kaniko engine to build images, apply the appropriate helm values as such:
 
