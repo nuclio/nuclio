@@ -3,7 +3,7 @@
 After familiarizing yourself with Nuclio, and [deploying it over k8s](/docs/setup/k8s/getting-started-k8s.md) you may find yourself looking for extra configuration knobs, and proper practices for using it in a production environment.
 In [Iguazio](https://www.iguazio.com/) we integrated Nuclio as part of our [Data science PaaS](https://www.iguazio.com/platform/), and it is in extensive use in production, for both our customers and ourselves, running various workloads.
 
-In this document you can find more advanced configuration options, and some practices which address the needs of running Nuclio in production environments. 
+Here you will find more advanced configuration options, and some practices which address the needs of running Nuclio in production environments. 
 
 
 #### In this document
