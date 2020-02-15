@@ -75,5 +75,9 @@ func NewConfiguration(ID string,
 		newConfiguration.URL = "http://" + newConfiguration.URL
 	}
 
+	if newConfiguration.WorkerAllocationMode == "" {
+		newConfiguration.WorkerAllocationMode = partitionworker.AllocationModePool
+	}
+
 	return &newConfiguration, nil
 }

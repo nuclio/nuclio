@@ -118,8 +118,13 @@ func (vs *v3iostream) GetConfig() map[string]interface{} {
 func (vs *v3iostream) Setup(session streamconsumergroup.Session) error {
 	var err error
 
+	var shardIDs []int
+	for _, claim := range session.GetClaims() {
+		shardIDs = append(shardIDs, claim.GetShardID())
+	}
+
 	vs.Logger.InfoWith("Starting consumer session",
-		"claims", session.GetClaims(),
+		"shardIDs", shardIDs,
 		"memberID", session.GetMemberID(),
 		"workersAvailable", vs.WorkerAllocator.GetNumWorkersAvailable())
 
@@ -258,7 +263,7 @@ func (vs *v3iostream) newConsumerGroup() (streamconsumergroup.StreamConsumerGrou
 	}
 
 	v3ioSession, err := v3ioContext.NewSession(&v3io.NewSessionInput{
-		URL:       clusterURL,
+		URL:       "https://" + clusterURL,
 		Username:  vs.configuration.Username,
 		Password:  vs.configuration.Password,
 		AccessKey: vs.configuration.Secret,
