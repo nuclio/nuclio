@@ -50,8 +50,6 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/mqtt/iotcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/nats"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/eventhub"
-	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/kafka"
-	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/v3io"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/pubsub"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"

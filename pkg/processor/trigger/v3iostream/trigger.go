@@ -18,14 +18,13 @@ package v3iostream
 
 import (
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	v3ioutil "github.com/nuclio/nuclio/pkg/processor/util/v3io"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/Shopify/sarama"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/v3io-go/pkg/dataplane"
 	v3iohttp "github.com/v3io/v3io-go/pkg/dataplane/http"
@@ -237,7 +236,7 @@ func (vs *v3iostream) eventSubmitter(claim streamconsumergroup.Claim, submittedE
 	vs.Logger.DebugWith("Event submitter stopped", "shardID", claim.GetShardID())
 }
 
-func (vs *v3iostream) cancelEventHandling(workerInstance *worker.Worker, claim sarama.ConsumerGroupClaim) error {
+func (vs *v3iostream) cancelEventHandling(workerInstance *worker.Worker) error {
 	if workerInstance.SupportsRestart() {
 		return workerInstance.Restart()
 	}
