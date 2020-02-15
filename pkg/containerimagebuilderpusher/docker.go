@@ -2,8 +2,8 @@ package containerimagebuilderpusher
 
 import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/errors"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

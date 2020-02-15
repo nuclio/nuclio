@@ -19,9 +19,8 @@ package eventhubutil
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
 	eventhubclient "github.com/nuclio/amqp"
+	"github.com/nuclio/errors"
 )
 
 func CreateSession(namespace string,

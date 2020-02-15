@@ -22,9 +22,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
 	"github.com/mholt/archiver"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

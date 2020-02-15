@@ -23,12 +23,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

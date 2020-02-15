@@ -22,7 +22,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -30,6 +29,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

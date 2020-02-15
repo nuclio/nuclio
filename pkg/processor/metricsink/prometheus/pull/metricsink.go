@@ -23,11 +23,11 @@ import (
 	"os"
 	"text/template"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	prometheusclient "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

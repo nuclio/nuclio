@@ -20,10 +20,10 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/restful"
 	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 

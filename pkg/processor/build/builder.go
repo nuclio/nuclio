@@ -32,7 +32,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
@@ -49,6 +48,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/rs/xid"
 	"gopkg.in/yaml.v2"

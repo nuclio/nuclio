@@ -20,12 +20,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/nuclio/errors"
 )
 
 type seekToType string

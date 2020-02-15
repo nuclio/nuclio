@@ -20,8 +20,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"

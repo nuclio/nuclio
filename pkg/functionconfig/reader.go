@@ -22,10 +22,10 @@ import (
 	"io/ioutil"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

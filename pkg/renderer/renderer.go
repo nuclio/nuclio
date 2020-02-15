@@ -22,9 +22,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
 	"github.com/ghodss/yaml"
+	"github.com/nuclio/errors"
 	"github.com/olekukonko/tablewriter"
 )
 

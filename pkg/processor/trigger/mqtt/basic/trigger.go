@@ -17,11 +17,11 @@ limitations under the License.
 package basicmqtt
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/mqtt"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

@@ -22,9 +22,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
+
+	"github.com/nuclio/errors"
 )
 
 type tunnelResource struct {

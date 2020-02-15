@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
@@ -12,6 +11,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/scaler-types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

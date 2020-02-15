@@ -17,11 +17,11 @@ limitations under the License.
 package eventhub
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/nuclio/errors"
 )
 
 type Configuration struct {
