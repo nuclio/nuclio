@@ -74,5 +74,5 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 // register factory
 func init() {
-	trigger.RegistrySingleton.Register("iotcoremqtt", &factory{})
+	trigger.RegistrySingleton.Register("iotCoreMqtt", &factory{})
 }

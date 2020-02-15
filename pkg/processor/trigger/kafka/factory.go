@@ -68,4 +68,5 @@ func (f *factory) Create(parentLogger logger.Logger,
 // register factory
 func init() {
 	trigger.RegistrySingleton.Register("kafka-cluster", &factory{})
+	trigger.RegistrySingleton.Register("kafka", &factory{})
 }

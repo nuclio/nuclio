@@ -65,4 +65,5 @@ func (f *factory) Create(parentLogger logger.Logger,
 // register factory
 func init() {
 	trigger.RegistrySingleton.Register("rabbit-mq", &factory{})
+	trigger.RegistrySingleton.Register("rabbitmq", &factory{})
 }

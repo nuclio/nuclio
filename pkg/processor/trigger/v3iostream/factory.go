@@ -67,5 +67,5 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 // register factory
 func init() {
-	trigger.RegistrySingleton.Register("v3io-stream", &factory{})
+	trigger.RegistrySingleton.Register("v3ioStream", &factory{})
 }
