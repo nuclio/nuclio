@@ -48,6 +48,7 @@ type TestTriggerInfoProvider struct{}
 
 func (ti *TestTriggerInfoProvider) GetClass() string { return "test class" }
 func (ti *TestTriggerInfoProvider) GetKind() string  { return "test kind" }
+func (ti *TestTriggerInfoProvider) GetName() string  { return "test name" }
 
 type TestEvent struct {
 	// We don't embed nuclio.AbstractEvent so we'll have all methods
@@ -182,8 +183,8 @@ func (suite *EventJSONEncoderSuite) TestEncode() {
 	require.Equal(int(fields["f2"].(float64)), testFields["f2"], "bad f2 field")
 
 	triggerInfo := out["trigger"].(map[string]interface{})
-	require.Equal(testTriggerInfoProvider.GetClass(), triggerInfo["class"], "bad trigger class")
 	require.Equal(testTriggerInfoProvider.GetKind(), triggerInfo["kind"], "bad trigger kind")
+	require.Equal(testTriggerInfoProvider.GetName(), triggerInfo["name"], "bad trigger name")
 
 	require.Equal(testEvent.GetMethod(), out["method"], "bad method")
 	require.Equal(testEvent.GetPath(), out["path"], "bad path")
