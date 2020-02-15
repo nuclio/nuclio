@@ -188,13 +188,11 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 			submittedEventChan <- &submittedEventInstance
 
 			// wait for handling done or indication to stop
-			select {
-			case err := <-submittedEventInstance.done:
+			err = <-submittedEventInstance.done
 
-				// we successfully submitted the message to the handler. mark it
-				if err == nil {
-					session.MarkRecord(record) // nolint: errcheck
-				}
+			// we successfully submitted the message to the handler. mark it
+			if err == nil {
+				session.MarkRecord(record) // nolint: errcheck
 			}
 
 			// release the worker from whence it came
@@ -281,7 +279,7 @@ func (vs *v3iostream) newConsumerGroup() (streamconsumergroup.StreamConsumerGrou
 	maxReplicas := 1
 	if vs.configuration.RuntimeConfiguration.Config.Spec.MaxReplicas != nil {
 		maxReplicas = *vs.configuration.RuntimeConfiguration.Config.Spec.MaxReplicas
-	} else if vs.configuration.RuntimeConfiguration.Config.Spec.MaxReplicas != nil {
+	} else if vs.configuration.RuntimeConfiguration.Config.Spec.Replicas != nil {
 		maxReplicas = *vs.configuration.RuntimeConfiguration.Config.Spec.Replicas
 	}
 

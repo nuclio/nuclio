@@ -17,13 +17,13 @@ limitations under the License.
 package kafka
 
 import (
-	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
 	"github.com/Shopify/sarama"
 	"github.com/mitchellh/mapstructure"

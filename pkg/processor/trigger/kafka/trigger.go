@@ -18,12 +18,12 @@ package kafka
 
 import (
 	"context"
-	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/Shopify/sarama"

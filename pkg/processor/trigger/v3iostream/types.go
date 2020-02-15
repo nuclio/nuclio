@@ -17,12 +17,13 @@ limitations under the License.
 package v3iostream
 
 import (
-	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
@@ -31,8 +32,8 @@ import (
 type seekToType string
 
 const (
-	seekToTypeLatest  seekToType = "latest"
-	seekToTypeEarlist            = "earliest"
+	seekToTypeLatest   seekToType = "latest"
+	seekToTypeEarliest seekToType = "earliest"
 )
 
 type Configuration struct {
@@ -69,6 +70,13 @@ func NewConfiguration(ID string,
 
 	if newConfiguration.SeekTo == "" {
 		newConfiguration.SeekTo = string(seekToTypeLatest)
+	}
+
+	if !common.StringInSlice(newConfiguration.SeekTo, []string{
+		string(seekToTypeLatest),
+		string(seekToTypeEarliest),
+	}) {
+		return nil, errors.Errorf("Invalid value for seek type: %s", newConfiguration.SeekTo)
 	}
 
 	if !strings.HasPrefix(newConfiguration.URL, "http") {
