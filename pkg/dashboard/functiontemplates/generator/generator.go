@@ -36,8 +36,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/satori/go.uuid"
 
-	"github.com/nuclio/errors"
 	"github.com/ghodss/yaml"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	yamlv2 "gopkg.in/yaml.v2"
