@@ -231,6 +231,7 @@ type Spec struct {
 	Alias                   string                  `json:"alias,omitempty"`
 	Build                   Build                   `json:"build,omitempty"`
 	RunRegistry             string                  `json:"runRegistry,omitempty"`
+	ImagePullSecrets        string                  `json:"imagePullSecrets,omitempty"`
 	RuntimeAttributes       map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 	LoggerSinks             []LoggerSink            `json:"loggerSinks,omitempty"`
 	DealerURI               string                  `json:"dealerURI,omitempty"`

@@ -218,3 +218,7 @@ func (mp *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Art
 func (mp *Platform) GetBaseImageRegistry(registry string) string {
 	return "quay.io"
 }
+
+func (mp *Platform) GetDefaultRegistryCredentialsSecretName() string {
+	return "nuclio-registry-credentials"
+}

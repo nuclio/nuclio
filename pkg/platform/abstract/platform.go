@@ -114,6 +114,10 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		return nil, errors.New("Non existing function cannot be created with neverBuild mode")
 	}
 
+	if createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets == "" {
+		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets = ap.platform.GetDefaultRegistryCredentialsSecretName()
+	}
+
 	// clear build mode
 	createFunctionOptions.FunctionConfig.Spec.Build.Mode = ""
 
@@ -391,6 +395,11 @@ func (ap *Platform) GetBaseImageRegistry(registry string) string {
 	return ap.ContainerBuilder.GetBaseImageRegistry(registry)
 }
 
+// // GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
+func (ap *Platform) GetDefaultRegistryCredentialsSecretName() string {
+	return ap.ContainerBuilder.GetDefaultRegistryCredentialsSecretName()
+}
+
 func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
 
 	// if neverBuild was passed explicitly don't build
@@ -584,7 +593,7 @@ func (ap *Platform) getLogLineAdditionalKwargs(log []byte) (map[string]string, e
 }
 
 func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage string) bool {
-	knownFailurePrefixes := [...]string{"Failed to connect to broker"}
+	knownFailureSubstrings := [...]string{"Failed to connect to broker"}
 
 	// when log level is warning or above
 	if logLevel != 'D' && logLevel != 'I' {
@@ -592,8 +601,8 @@ func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage str
 	}
 
 	// when the log message contains a known failure prefix
-	for _, prefix := range knownFailurePrefixes {
-		if strings.HasPrefix(logMessage, prefix) {
+	for _, knownFailureSubstring := range knownFailureSubstrings {
+		if strings.Contains(logMessage, knownFailureSubstring) {
 			return true
 		}
 	}

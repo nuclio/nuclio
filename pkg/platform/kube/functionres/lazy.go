@@ -536,6 +536,10 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		return (resource).(*apps_v1beta1.Deployment).ObjectMeta.DeletionTimestamp != nil
 	}
 
+	if function.Spec.ImagePullSecrets != "" {
+		imagePullSecrets = function.Spec.ImagePullSecrets
+	}
+
 	createDeployment := func() (interface{}, error) {
 		method := createDeploymentResourceMethod
 		container := v1.Container{Name: "nuclio"}

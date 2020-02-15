@@ -233,7 +233,7 @@ func extractMetaFromKeyPath(keyPath string) (string, string, string, error) {
 
 func (dc *dockerCred) login() error {
 	dc.dockerCreds.logger.DebugWith("Logging in",
-		"url", dc.path,
+		"path", dc.path,
 		"user", dc.credentials.Username)
 
 	// try to login

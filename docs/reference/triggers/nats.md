@@ -9,8 +9,8 @@ The queue name may be a Go template, which may include any of the following fiel
 | Id | string |The trigger id |
 | Namespace | string | The function deployment namespace |
 | Name | string | The deployed function name |
-| Labels | map | Labels sepcified in the funtion metadata |
-| Annotations | map | Annotations sepcified in the funtion metadata |
+| Labels | map | Labels specified in the function metadata |
+| Annotations | map | Annotations specified in the function metadata |
 
 ## Attributes
 

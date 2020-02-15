@@ -36,7 +36,7 @@ The overview above discussed partitions and workers, but a Nuclio replica suppor
 
 ### Configuration parameters
 * Session Timeout (`trigger.attributes.sessionTimeout`, `nuclio.io/kafka-session-timeout`): The timeout used to detect consumer failures when using Kafka's group management facility. The consumer sends periodic heartbeats to indicate its liveness to the broker. If no heartbeats are received by the broker before the expiration of this session timeout, then the broker will remove this consumer from the group and initiate a rebalance. Note that the value must be in the allowable range as configured in the broker configuration by `group.min.session.timeout.ms` and `group.max.session.timeout.ms` (default 10s)
-* Hearbeat Interval (`trigger.attributes.heartbeatInterval`, `nuclio.io/kafka-hearbeat-interval`): The expected time between heartbeats to the consumer coordinator when using Kafka's group management facilities. Heartbeats are used to ensure that the consumer's session stays active and to facilitate rebalancing when new consumers join or leave the group. The value must be set lower than Consumer.Group.Session.Timeout, but typically should be set no higher than 1/3 of that value. It can be adjusted even lower to control the expected time for normal rebalances (default 3s)
+* Heartbeat Interval (`trigger.attributes.heartbeatInterval`, `nuclio.io/kafka-heartbeat-interval`): The expected time between heartbeats to the consumer coordinator when using Kafka's group management facilities. Heartbeats are used to ensure that the consumer's session stays active and to facilitate rebalancing when new consumers join or leave the group. The value must be set lower than Consumer.Group.Session.Timeout, but typically should be set no higher than 1/3 of that value. It can be adjusted even lower to control the expected time for normal rebalances (default 3s)
 * Worker Allocation Mode (`trigger.attributes.workerAllocationMode`, `nuclio.io/kafka-worker-allocation-mode`): One of `pool` or `static` as described above. Defaults to `pool`
 
 ## How a message travels through Nuclio until it reaches the handler
@@ -84,12 +84,12 @@ However, Nuclio may be busy waiting for the user's code to finish processing an 
 
 To prevent this, Nuclio has a hard limit to how long it will wait for handlers to complete processing the event (`MaxWaitHandlerDuringRebalance`). If a rebalance occurs while a handler is still processing an event, Nuclio will wait `MaxWaitHandlerDuringRebalance` before forcefully restarting the worker (in runtimes that support this, e.g. Python) or the replica (in runtimes that don't support worker restart, like Golang).
 
-This aggressive termination helps the consumer groups stabilize in a deterministic timeframe, at the expense of re-processing the message. To reduce this occurance, consider setting a high value for `RebalanceTimeout` and `MaxWaitHandlerDuringRebalance`.
+This aggressive termination helps the consumer groups stabilize in a deterministic time frame, at the expense of re-processing the message. To reduce this occurrence, consider setting a high value for `RebalanceTimeout` and `MaxWaitHandlerDuringRebalance`.
 
 ### Configuration parameters
 * RebalanceTimeout (`trigger.attributes.rebalanceTimeout`, `nuclio.io/kafka-rebalance-timeout`): The maximum allowed time for each worker to join the group once a rebalance has begun. This is basically a limit on the amount of time needed for all tasks to flush any pending data and commit offsets. If the timeout is exceeded, then the worker will be removed from the group, which will cause offset commit failures (default 60s).
 * RebalanceRetryMax (`trigger.attributes.rebalanceRetryMax`, `nuclio.io/kafka-rebalance-retry-max`): When a new consumer joins a consumer group the set of consumers attempt to "rebalance" the load to assign partitions to each consumer. If the set of consumers changes while this assignment is taking place the rebalance will fail and retry. This setting controls the maximum number of attempts before giving up (default 4).
-* RebalanceRetryBackoff (`trigger.attributes.rebalanceRetryBackoff`, `nuclio.io/kafka-rebalance-retry-backoff`): Backoff time between retries during rebalance (default 2s)
+* RebalanceRetryBackoff (`trigger.attributes.rebalanceRetryBackoff`, `nuclio.io/kafka-rebalance-retry-backoff`): Back-off time between retries during rebalance (default 2s)
 * MaxWaitHandlerDuringRebalance (`trigger.attributes.maxWaitHandlerDuringRebalance`, `nuclio.io/kafka-max-wait-handler-during-rebalance`): The time to wait for a handler to return when a rebalancing occurs before restarting the worker or replica (default: 5s). 
 
 ### Choosing the right configuration for rebalancing

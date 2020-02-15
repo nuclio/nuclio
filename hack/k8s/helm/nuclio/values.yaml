@@ -13,6 +13,14 @@ controller:
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
 
+  operator:
+    function:
+      numWorkers: 4
+    functionEvent:
+      numWorkers: 2
+    project:
+      numWorkers: 2
+
 # Dashboard settings
 dashboard:
   enabled: true
@@ -28,7 +36,12 @@ dashboard:
 
   # Supported container builders: "kaniko", "docker"
   containerBuilderKind: "docker"
-  insecureRegistry: false
+
+  # Set this flag to push images to a plain HTTP registry (kaniko only)
+  insecurePushRegistry: false
+
+  # Set this flag to pull images from a plain HTTP registry (kaniko only)
+  insecurePullRegistry: false
 
   # Uncomment to configure node port
   # nodePort: 32050
@@ -77,7 +90,16 @@ registry:
   # the credentials stanza below. The chart will create a secret for you (note: the credentials will be
   # visible to anyone with access to helm) and name it after the release
   #
-  secretName: registry-credentials
+  # IMPORTANT:
+  # K8S doesn't allow secret sharing between namespaces, so in order to deploy a nuclio function
+  # to namespace which differs from a namespace in which nuclio is running,
+  # secret must be copied to that namespace:
+  #
+  #  kubectl get secret <secret-name> -n <source-namespace> -o yaml \
+  #     | sed s/"namespace: <source-namespace>"/"namespace: <destination-namespace>"/ \
+  #     | kubectl apply -n <destination-namespace> -f -
+  #
+   secretName: registry-credentials
 
   # In some cases the docker server URL in the registry secrets isn't the same as the URL with which
   # you push and pull. For example, in GKE you login to `gcr.io` (or some other regional URL) yet have
@@ -95,6 +117,14 @@ registry:
   # credentials:
     # username: someuser
     # password: somepass
+
+  #  Use dedicated base/onbuild images registry (pull registry)
+  #
+  # defaultBaseRegistryURL: someurl
+
+  #  Set this flag to specify a remote repository that will be used to store cached layers (kaniko only)
+  #
+  # cacheRepo: someurl
 
 rbac:
 

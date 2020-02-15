@@ -108,7 +108,7 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string,
 	} else {
 
 		// Default container image builder
-		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger)
+		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger, containerBuilderConfiguration)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create docker builder")
 		}

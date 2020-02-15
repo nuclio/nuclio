@@ -72,11 +72,26 @@ func (j *java) GetProcessorDockerfileInfo(versionInfo *version.Info,
 }
 
 func (j *java) createGradleBuildScript(stagingBuildDir string) error {
-	gradleBuildScriptPath := path.Join(stagingBuildDir, "handler", "build.gradle")
+	handlerPath := path.Join(stagingBuildDir, "handler")
 
 	// if user supplied gradle build script - use it
+	gradleBuildScriptPath := path.Join(handlerPath, "build.gradle")
 	if common.IsFile(gradleBuildScriptPath) {
 		j.Logger.DebugWith("Found user gradle build script, using it", "path", gradleBuildScriptPath)
+		return nil
+	}
+
+	// if the given function files weren't in the standard structure, the gradle might be inside /src/main/java
+	// move build.gradle to the expected path
+	alternativeGradleBuildScriptPath := path.Join(handlerPath, "src", "main", "java", "build.gradle")
+	if common.IsFile(alternativeGradleBuildScriptPath) {
+		j.Logger.DebugWith("Found user gradle build script in alternative path, moving and using it", "path", alternativeGradleBuildScriptPath)
+
+		// move the file to where it's expected to be
+		err := os.Rename(alternativeGradleBuildScriptPath, gradleBuildScriptPath)
+		if err != nil {
+			return errors.Wrap(err, "Failed to move build.gradle from alternative path to expected path")
+		}
 		return nil
 	}
 
