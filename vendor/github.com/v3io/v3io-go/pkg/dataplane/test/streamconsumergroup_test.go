@@ -258,9 +258,9 @@ func newMember(suite *streamConsumerGroupTestSuite,
 	streamConsumerGroupConfig.Claim.RecordBatchFetch.Interval = 50 * time.Millisecond
 
 	streamConsumerGroup, err := streamconsumergroup.NewStreamConsumerGroup(
+		suite.logger,
 		consumerGroupName,
 		id,
-		suite.logger,
 		streamConsumerGroupConfig,
 		suite.streamPath,
 		maxNumMembers,

@@ -40,7 +40,7 @@ func (snh *sequenceNumberHandler) start() error {
 	snh.logger.DebugWith("Starting sequenceNumber handler")
 
 	// stopped on stop()
-	go snh.markedShardSequenceNumbersCommitter(snh.streamConsumerGroup.config.SequenceNumber.Commit.Interval,
+	go snh.markedShardSequenceNumbersCommitter(snh.streamConsumerGroup.config.SequenceNumber.CommitInterval,
 		snh.stopMarkedShardSequenceNumberCommitterChan)
 
 	return nil

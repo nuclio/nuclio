@@ -104,7 +104,7 @@ func (sh *stateHandler) refreshStatePeriodically() {
 			}
 
 		// periodically get the state
-		case <-time.After(sh.streamConsumerGroup.config.State.Heartbeat.Interval):
+		case <-time.After(sh.streamConsumerGroup.config.Session.HeartbeatInterval):
 			lastState, err = sh.refreshState()
 			if err != nil {
 				sh.logger.WarnWith("Failed refreshing state", "err", errors.GetErrorStackString(err, 10))

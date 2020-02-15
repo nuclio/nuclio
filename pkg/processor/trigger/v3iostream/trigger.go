@@ -21,7 +21,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
-	v3ioutil "github.com/nuclio/nuclio/pkg/processor/util/v3io"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/errors"
@@ -70,7 +69,10 @@ func newTrigger(parentLogger logger.Logger,
 		return nil, errors.New("Failed to create abstract trigger")
 	}
 
-	newTrigger.v3iostreamConfig = streamconsumergroup.NewConfig()
+	newTrigger.v3iostreamConfig, err = configuration.getStreamConsumerGroupConfig()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get v3io stream config")
+	}
 
 	return newTrigger, nil
 }
@@ -152,9 +154,6 @@ func (vs *v3iostream) Cleanup(session streamconsumergroup.Session) error {
 func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim streamconsumergroup.Claim) error {
 	var submitError error
 
-	// cleared when the consumption should stop
-	consumeMessages := true
-
 	submittedEventInstance := submittedEvent{
 		done: make(chan error),
 	}
@@ -169,11 +168,6 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 	for recordBatch := range claim.GetRecordBatchChan() {
 		for recordIndex := 0; recordIndex < len(recordBatch.Records); recordIndex++ {
 			record := &recordBatch.Records[recordIndex]
-
-			if !consumeMessages {
-				vs.Logger.DebugWith("Stopping message consumption", "shardID", claim.GetShardID())
-				break
-			}
 
 			// allocate a worker for this topic/partition
 			workerInstance, cookie, err := vs.partitionWorkerAllocator.AllocateWorker(vs.topic, claim.GetShardID(), nil)
@@ -234,33 +228,19 @@ func (vs *v3iostream) eventSubmitter(claim streamconsumergroup.Claim, submittedE
 	vs.Logger.DebugWith("Event submitter stopped", "shardID", claim.GetShardID())
 }
 
-func (vs *v3iostream) cancelEventHandling(workerInstance *worker.Worker) error {
-	if workerInstance.SupportsRestart() {
-		return workerInstance.Restart()
-	}
-
-	return errors.New("Worker doesn't support restart")
-}
-
 func (vs *v3iostream) newConsumerGroup() (streamconsumergroup.StreamConsumerGroup, error) {
-
-	// parse URL
-	clusterURL, containerName, streamPath, err := v3ioutil.ParseURL(vs.configuration.URL)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse URL")
-	}
 
 	v3ioContext, err := v3iohttp.NewContext(vs.Logger,
 		v3iohttp.NewClient(&v3iohttp.NewClientInput{}),
 		&v3io.NewContextInput{
-			NumWorkers: vs.configuration.NumContainerWorkers,
+			NumWorkers: vs.configuration.NumTransportWorkers,
 		})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create v3io context")
 	}
 
 	v3ioSession, err := v3ioContext.NewSession(&v3io.NewSessionInput{
-		URL:       "https://" + clusterURL,
+		URL:       vs.configuration.URL,
 		Username:  vs.configuration.Username,
 		Password:  vs.configuration.Password,
 		AccessKey: vs.configuration.Secret,
@@ -270,7 +250,7 @@ func (vs *v3iostream) newConsumerGroup() (streamconsumergroup.StreamConsumerGrou
 	}
 
 	v3ioContainer, err := v3ioSession.NewContainer(&v3io.NewContainerInput{
-		ContainerName: containerName,
+		ContainerName: vs.configuration.ContainerName,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create v3io container")
@@ -284,10 +264,10 @@ func (vs *v3iostream) newConsumerGroup() (streamconsumergroup.StreamConsumerGrou
 	}
 
 	streamConsumerGroup, err := streamconsumergroup.NewStreamConsumerGroup(vs.Logger,
-		vs.configuration.ConsumerGroup,
+		vs.configuration.ConsumerGroupName,
 		"vs",
 		vs.v3iostreamConfig,
-		streamPath,
+		vs.configuration.StreamPath,
 		maxReplicas,
 		v3ioContainer)
 	if err != nil {
@@ -295,9 +275,9 @@ func (vs *v3iostream) newConsumerGroup() (streamconsumergroup.StreamConsumerGrou
 	}
 
 	vs.Logger.DebugWith("Consumer created",
-		"clusterURL", clusterURL,
-		"containerName", containerName,
-		"streamPath", streamPath)
+		"clusterURL", vs.configuration.URL,
+		"containerName", vs.configuration.ContainerName,
+		"streamPath", vs.configuration.StreamPath)
 
 	return streamConsumerGroup, nil
 }

@@ -71,7 +71,7 @@ func ParseURL(rawURL string) (addr string, containerAlias string, path string, e
 		return
 	}
 
-	addr = parsedURL.Host
+	addr = parsedURL.Scheme + parsedURL.Host
 
 	// get the container alias (at the very least /x (2 chars)
 	if len(parsedURL.RequestURI()) < 2 {
