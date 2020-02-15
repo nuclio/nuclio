@@ -136,7 +136,7 @@ func (c *Configuration) parseURLForBackwardsCompatibility() error {
 	conatinerNameAndStreamPath := splitPathAndConsumerGroupName[0]
 
 	// path starts with "/", remove it
-	strings.TrimPrefix(conatinerNameAndStreamPath, "/")
+	conatinerNameAndStreamPath = strings.TrimPrefix(conatinerNameAndStreamPath, "/")
 
 	// split the path
 	splitPath := strings.SplitN(conatinerNameAndStreamPath, "/", 2)
