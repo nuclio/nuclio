@@ -271,8 +271,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 	}
 
 	// if SecretName is defined - configure mount with docker credentials
-	if !(k.builderConfiguration.InsecurePushRegistry && k.builderConfiguration.InsecurePullRegistry) &&
-		len(buildOptions.SecretName) > 0 {
+	if len(buildOptions.SecretName) > 0 {
 
 		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
 			append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{

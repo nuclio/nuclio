@@ -40,9 +40,11 @@ spec:
         volumeMounts:
         - mountPath: /var/run/docker.sock
           name: docker-sock
+        {{- if or .Values.registry.secretName .Values.registry.credentials }}
         - name: registry-credentials
           mountPath: "/etc/nuclio/dashboard/registry-credentials"
           readOnly: true
+        {{- end }}
         {{- if .Values.platform }}
         - name: platform-config
           mountPath: /etc/nuclio/config/platform
@@ -104,10 +106,12 @@ spec:
       - name: docker-sock
         hostPath:
           path: /var/run/docker.sock
+      {{- if or .Values.registry.secretName .Values.registry.credentials }}
       - name: registry-credentials
         secret:
           secretName: {{ template "nuclio.registryCredentialsName" . }}
           optional: true
+      {{- end }}
       {{- if .Values.platform }}
       - name: platform-config
         configMap:
