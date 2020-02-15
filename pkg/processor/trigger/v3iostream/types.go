@@ -18,18 +18,20 @@ package v3iostream
 
 import (
 	"fmt"
-	"github.com/hashicorp/go-uuid"
-	"github.com/mitchellh/mapstructure"
-	"github.com/nuclio/errors"
+	"net/url"
+	"strings"
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
+
+	"github.com/hashicorp/go-uuid"
+	"github.com/mitchellh/mapstructure"
+	"github.com/nuclio/errors"
 	v3io "github.com/v3io/v3io-go/pkg/dataplane"
 	"github.com/v3io/v3io-go/pkg/dataplane/streamconsumergroup"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type Configuration struct {
