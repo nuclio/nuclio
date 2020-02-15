@@ -21,12 +21,12 @@ import (
 	"path/filepath"
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/local"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

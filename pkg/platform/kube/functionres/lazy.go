@@ -27,7 +27,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
@@ -38,6 +37,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"golang.org/x/sync/errgroup"
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"

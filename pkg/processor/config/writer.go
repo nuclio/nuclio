@@ -19,10 +19,10 @@ package processorconfig
 import (
 	"io"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor"
 
 	"github.com/ghodss/yaml"
+	"github.com/nuclio/errors"
 )
 
 type Writer struct{}

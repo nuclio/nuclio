@@ -25,12 +25,12 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
@@ -148,7 +148,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		// if no brief error message was passed, set it to be the last error
 		if briefErrorMessage == "" {
 			lastError := bytes.Buffer{}
-			errors.PrintErrorStack(&lastError, creationError, 1)
+			errors.PrintErrorStack(&lastError, creationError, 10)
 			briefErrorMessage = lastError.String()
 		}
 

@@ -20,10 +20,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
+
+	"github.com/nuclio/errors"
 )
 
 type DurationConfigField struct {

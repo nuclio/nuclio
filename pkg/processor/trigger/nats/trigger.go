@@ -22,12 +22,12 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	natsio "github.com/nats-io/go-nats"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

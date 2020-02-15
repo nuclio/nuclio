@@ -20,8 +20,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"

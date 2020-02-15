@@ -1,19 +1,3 @@
-/*
-Copyright 2017 The Nuclio Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 // Package errors provides an api similar to github.com/nuclio/nuclio/pkg/errors
 // However we don't carry stack trace around for performance
 // (see https://github.com/pkg/errors/issues/124)
@@ -128,6 +112,10 @@ func (err *Error) Error() string {
 	return err.message
 }
 
+func (err *Error) Unwrap() error {
+	return err.cause
+}
+
 // Cause returns the cause of the error
 func (err *Error) Cause() error {
 	return err.cause
@@ -186,7 +174,7 @@ func GetErrorStackString(err error, depth int) string {
 	return buffer.String()
 }
 
-// PrintErrorStack prints the error stack into out upto depth levels
+// PrintErrorStack prints the error stack into out up to depth levels
 // If n == 1 then prints the whole stack
 func PrintErrorStack(out io.Writer, err error, depth int) {
 	if err == nil {
@@ -242,6 +230,23 @@ func Cause(err error) error {
 	}
 
 	return cause
+}
+
+// RootCause is the cause of the error
+func RootCause(err error) error {
+	currentErr := err
+	for {
+		cause := Cause(currentErr)
+
+		// if there's a cause go deeper
+		if cause == nil || cause == currentErr {
+			break
+		}
+
+		currentErr = cause
+	}
+
+	return currentErr
 }
 
 // sumLengths return sum of lengths of strings

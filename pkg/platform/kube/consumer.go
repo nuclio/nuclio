@@ -17,10 +17,10 @@ limitations under the License.
 package kube
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/client-go/kubernetes"
 	// enable OIDC plugin
