@@ -5,8 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/vmihailenco/msgpack"

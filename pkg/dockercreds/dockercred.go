@@ -24,7 +24,8 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/errors"
 )
 
 type dockerCred struct {

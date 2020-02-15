@@ -19,7 +19,7 @@ package registry
 import (
 	"sync"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/errors"
 )
 
 type Registry struct {

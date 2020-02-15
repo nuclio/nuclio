@@ -24,8 +24,8 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

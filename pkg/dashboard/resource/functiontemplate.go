@@ -23,10 +23,10 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/fatih/structs"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 

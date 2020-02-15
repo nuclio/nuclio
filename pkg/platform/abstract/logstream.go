@@ -20,8 +20,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 )
