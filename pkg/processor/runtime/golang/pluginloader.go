@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"plugin"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 

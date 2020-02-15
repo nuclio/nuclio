@@ -17,11 +17,11 @@ limitations under the License.
 package appinsights
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

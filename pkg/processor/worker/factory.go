@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"golang.org/x/sync/errgroup"
 )

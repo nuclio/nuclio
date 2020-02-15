@@ -20,7 +20,7 @@ import (
 	"math/rand"
 	"strconv"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/logger"

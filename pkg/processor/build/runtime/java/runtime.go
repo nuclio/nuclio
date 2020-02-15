@@ -25,9 +25,10 @@ import (
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/version"
+
+	"github.com/nuclio/errors"
 )
 
 type java struct {

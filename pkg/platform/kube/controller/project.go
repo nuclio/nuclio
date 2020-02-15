@@ -20,10 +20,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

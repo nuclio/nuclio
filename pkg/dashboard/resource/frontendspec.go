@@ -20,10 +20,11 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
+
+	"github.com/nuclio/errors"
 )
 
 type frontendSpecResource struct {

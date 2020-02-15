@@ -17,11 +17,11 @@ limitations under the License.
 package stdout
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/Microsoft/ApplicationInsights-Go/appinsights"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/logger-appinsights"
 )

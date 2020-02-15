@@ -17,10 +17,10 @@ limitations under the License.
 package command
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
+	"github.com/nuclio/errors"
 	"github.com/spf13/cobra"
 )
 

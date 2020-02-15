@@ -21,9 +21,8 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
 	"github.com/ghodss/yaml"
+	"github.com/nuclio/errors"
 )
 
 type Reader struct{}

@@ -19,12 +19,12 @@ package v3io
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 	"github.com/nuclio/nuclio/pkg/processor/util/v3io"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	v3iohttp "github.com/v3io/v3io-go-http"
 )

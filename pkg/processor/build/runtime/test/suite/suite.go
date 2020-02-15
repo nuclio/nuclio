@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
@@ -32,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/test/httpsrv"
 
 	"github.com/mholt/archiver"
+	"github.com/nuclio/errors"
 )
 
 type FunctionInfo struct {
