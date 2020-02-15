@@ -26,7 +26,9 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type factory struct{}
+type factory struct {
+	trigger.Factory
+}
 
 func (f *factory) Create(parentLogger logger.Logger,
 	ID string,
@@ -36,32 +38,36 @@ func (f *factory) Create(parentLogger logger.Logger,
 	var triggerInstance trigger.Trigger
 
 	// create logger parent
-	kafkaLogger := parentLogger.GetChild("kafka-cluster")
+	triggerLogger := parentLogger.GetChild(triggerConfiguration.Kind)
 
 	configuration, err := NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	// create worker allocator
-	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kafkaLogger,
-		configuration.MaxWorkers, // TODO: Allocate dynamically.
-		runtimeConfiguration)
+	// get or create worker allocator
+	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
+		namedWorkerAllocators,
+		func() (worker.Allocator, error) {
+			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger,
+				configuration.MaxWorkers,
+				runtimeConfiguration)
+		})
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
-	triggerInstance, err = newTrigger(kafkaLogger, workerAllocator, configuration)
+	triggerInstance, err = newTrigger(triggerLogger, workerAllocator, configuration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create kafka-cluster trigger")
+		return nil, errors.Wrap(err, "Failed to create trigger")
 	}
 
 	if err := triggerInstance.Initialize(); err != nil {
-		return nil, errors.Wrap(err, "Failed to initialize kafka-cluster trigger")
+		return nil, errors.Wrap(err, "Failed to initialize trigger")
 	}
 
-	kafkaLogger.DebugWith("Created kafka-cluster trigger", "config", configuration)
+	triggerLogger.DebugWith("Created trigger", "config", configuration)
 	return triggerInstance, nil
 }
 

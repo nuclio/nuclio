@@ -196,6 +196,7 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 		WorkerID:        configuration.WorkerID,
 		FunctionName:    configuration.Meta.Name,
 		FunctionVersion: configuration.Spec.Version,
+		TriggerKind:     configuration.TriggerKind,
 		TriggerName:     configuration.TriggerName,
 	}
 

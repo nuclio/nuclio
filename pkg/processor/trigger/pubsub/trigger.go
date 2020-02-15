@@ -48,7 +48,8 @@ func newTrigger(parentLogger logger.Logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
-		"pubsub")
+		"pubsub",
+		configuration.Name)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}

@@ -41,7 +41,8 @@ func NewAbstractPoller(logger logger.Logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"batch",
-		"poller")
+		"poller",
+		configuration.Name)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}

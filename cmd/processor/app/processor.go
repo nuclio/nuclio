@@ -357,11 +357,10 @@ func (p *Processor) hasHTTPTrigger(triggers []trigger.Trigger) bool {
 
 func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.Configuration) (trigger.Trigger, error) {
 	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
-		Class:               "sync",
-		Kind:                "http",
-		MaxWorkers:          1,
-		URL:                 ":8080",
-		WorkerAllocatorName: "defaultHTTPWorkerAllocator",
+		Class:      "sync",
+		Kind:       "http",
+		MaxWorkers: 1,
+		URL:        ":8080",
 	}
 
 	p.logger.DebugWith("Creating default HTTP event source",

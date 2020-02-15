@@ -79,6 +79,7 @@ type AbstractTrigger struct {
 	WorkerAllocator worker.Allocator
 	Class           string
 	Kind            string
+	Name            string
 	Statistics      Statistics
 	Namespace       string
 	FunctionName    string
@@ -88,7 +89,8 @@ func NewAbstractTrigger(logger logger.Logger,
 	allocator worker.Allocator,
 	configuration *Configuration,
 	class string,
-	kind string) (AbstractTrigger, error) {
+	kind string,
+	name string) (AbstractTrigger, error) {
 
 	return AbstractTrigger{
 		Logger:          logger,
@@ -96,6 +98,7 @@ func NewAbstractTrigger(logger logger.Logger,
 		WorkerAllocator: allocator,
 		Class:           class,
 		Kind:            kind,
+		Name:            name,
 		Namespace:       configuration.RuntimeConfiguration.Meta.Namespace,
 		FunctionName:    configuration.RuntimeConfiguration.Meta.Name,
 	}, nil
@@ -114,6 +117,11 @@ func (at *AbstractTrigger) GetClass() string {
 // GetKind return the kind
 func (at *AbstractTrigger) GetKind() string {
 	return at.Kind
+}
+
+// GetName returns the name
+func (at *AbstractTrigger) GetName() string {
+	return at.Name
 }
 
 // AllocateWorkerAndSubmitEvent submits event to allocated worker

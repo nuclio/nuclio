@@ -69,7 +69,8 @@ func newTrigger(parentLogger logger.Logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
-		"kafka-cluster")
+		"kafka-cluster",
+		configuration.Name)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}

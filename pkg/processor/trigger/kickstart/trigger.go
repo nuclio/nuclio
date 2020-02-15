@@ -41,7 +41,8 @@ func newTrigger(logger logger.Logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
-		"kickstart")
+		"kickstart",
+		configuration.Name)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}

@@ -31,7 +31,15 @@ class Wrapper(object):
 
     _max_message_size = 4 * 1024 * 1024
 
-    def __init__(self, logger, handler, socket_path, platform_kind, namespace=None, worker_id=None, trigger_name=None):
+    def __init__(self,
+                 logger,
+                 handler,
+                 socket_path,
+                 platform_kind,
+                 namespace=None,
+                 worker_id=None,
+                 trigger_kind=None,
+                 trigger_name=None):
         self._logger = logger
         self._socket_path = socket_path
         self._json_encoder = nuclio_sdk.json_encoder.Encoder()
@@ -53,7 +61,10 @@ class Wrapper(object):
         entrypoint_module = sys.modules[self._entrypoint.__module__]
 
         # create a context with logger and platform
-        self._context = nuclio_sdk.Context(self._logger, self._platform, worker_id, trigger_name)
+        self._context = nuclio_sdk.Context(self._logger,
+                                           self._platform,
+                                           worker_id,
+                                           nuclio_sdk.TriggerInfo(trigger_kind, trigger_name))
 
         # call init context
         if hasattr(entrypoint_module, 'init_context'):
@@ -241,6 +252,8 @@ def parse_args():
 
     parser.add_argument('--namespace')
 
+    parser.add_argument('--trigger-kind')
+
     parser.add_argument('--trigger-name')
 
     parser.add_argument('--worker-id')
@@ -269,6 +282,7 @@ def run_wrapper():
                                    args.platform_kind,
                                    args.namespace,
                                    args.worker_id,
+                                   args.trigger_kind,
                                    args.trigger_name)
 
     except BaseException as exc:

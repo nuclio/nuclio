@@ -26,7 +26,9 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type factory struct{}
+type factory struct {
+	trigger.Factory
+}
 
 func (f *factory) Create(parentLogger logger.Logger,
 	ID string,
@@ -36,17 +38,21 @@ func (f *factory) Create(parentLogger logger.Logger,
 	var triggerInstance trigger.Trigger
 
 	// create logger parent
-	triggerLogger := parentLogger.GetChild("v3io-stream")
+	triggerLogger := parentLogger.GetChild(triggerConfiguration.Kind)
 
 	configuration, err := NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	// create worker allocator
-	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger,
-		configuration.MaxWorkers, // TODO: Allocate dynamically.
-		runtimeConfiguration)
+	// get or create worker allocator
+	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
+		namedWorkerAllocators,
+		func() (worker.Allocator, error) {
+			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger,
+				configuration.MaxWorkers,
+				runtimeConfiguration)
+		})
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
@@ -54,14 +60,14 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 	triggerInstance, err = newTrigger(triggerLogger, workerAllocator, configuration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create v3io stream trigger")
+		return nil, errors.Wrap(err, "Failed to create trigger")
 	}
 
 	if err := triggerInstance.Initialize(); err != nil {
-		return nil, errors.Wrap(err, "Failed to initialize v3io-stream trigger")
+		return nil, errors.Wrap(err, "Failed to initialize trigger")
 	}
 
-	triggerLogger.DebugWith("Created v3io stream trigger", "config", configuration)
+	triggerLogger.DebugWith("Created trigger", "config", configuration)
 	return triggerInstance, nil
 }
 

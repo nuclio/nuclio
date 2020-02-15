@@ -76,7 +76,8 @@ func newTrigger(logger logger.Logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"sync",
-		"http")
+		"http",
+		configuration.Name)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}

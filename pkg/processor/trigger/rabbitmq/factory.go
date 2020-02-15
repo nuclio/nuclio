@@ -26,7 +26,9 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type factory struct{}
+type factory struct {
+	trigger.Factory
+}
 
 func (f *factory) Create(parentLogger logger.Logger,
 	ID string,
@@ -35,35 +37,39 @@ func (f *factory) Create(parentLogger logger.Logger,
 	namedWorkerAllocators map[string]worker.Allocator) (trigger.Trigger, error) {
 
 	// create logger parent
-	rabbitMqLogger := parentLogger.GetChild("rabbit_mq")
+	triggerLogger := parentLogger.GetChild(triggerConfiguration.Kind)
 
 	configuration, err := NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	// create worker allocator
-	workerAllocator, err := worker.WorkerFactorySingleton.CreateSingletonPoolWorkerAllocator(rabbitMqLogger,
-		runtimeConfiguration)
+	// get or create worker allocator
+	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
+		namedWorkerAllocators,
+		func() (worker.Allocator, error) {
+			return worker.WorkerFactorySingleton.CreateSingletonPoolWorkerAllocator(triggerLogger,
+				runtimeConfiguration)
+		})
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
 	// finally, create the trigger
-	rabbitMqTrigger, err := newTrigger(rabbitMqLogger,
+	triggerInstance, err := newTrigger(triggerLogger,
 		workerAllocator,
 		configuration,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create rabbit-mq trigger")
+		return nil, errors.Wrap(err, "Failed to create trigger")
 	}
 
-	return rabbitMqTrigger, nil
+	return triggerInstance, nil
 }
 
 // register factory
 func init() {
 	trigger.RegistrySingleton.Register("rabbit-mq", &factory{})
-	trigger.RegistrySingleton.Register("rabbitmq", &factory{})
+	trigger.RegistrySingleton.Register("rabbitMq", &factory{})
 }

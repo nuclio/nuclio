@@ -52,6 +52,11 @@ func (s *Binary) GetKind() string {
 	return s.event.GetHeaderString("CE-Source")
 }
 
+// get specific kind of source (http, rabbit mq, etc)
+func (s *Binary) GetName() string {
+	return s.event.GetHeaderString("CE-Name")
+}
+
 // GetTimestamp returns when the event originated
 func (s *Binary) GetTimestamp() time.Time {
 	parsedTime, err := time.Parse(time.RFC3339, s.event.GetHeaderString("CE-EventTime"))
