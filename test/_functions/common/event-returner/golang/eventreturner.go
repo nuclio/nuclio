@@ -26,7 +26,6 @@ import (
 func EventReturner(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	eventFields := struct {
 		ID             nuclio.ID              `json:"id,omitempty"`
-		TriggerClass   string                 `json:"triggerClass,omitempty"`
 		TriggerKind    string                 `json:"eventType,omitempty"`
 		ContentType    string                 `json:"contentType,omitempty"`
 		Headers        map[string]interface{} `json:"headers,omitempty"`
@@ -42,7 +41,6 @@ func EventReturner(context *nuclio.Context, event nuclio.Event) (interface{}, er
 		Body           []byte                 `json:"body,omitempty"`
 	} {
 		ID: event.GetID(),
-		TriggerClass: event.GetTriggerInfo().GetClass(),
 		TriggerKind: event.GetTriggerInfo().GetKind(),
 		ContentType: event.GetContentType(),
 		Headers: event.GetHeaders(),
