@@ -27,7 +27,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
@@ -38,6 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 	"github.com/nuclio/nuclio/test/httpsrv"
 
+	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"

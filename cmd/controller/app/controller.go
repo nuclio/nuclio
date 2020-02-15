@@ -20,7 +20,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
@@ -29,6 +28,7 @@ import (
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 
+	"github.com/nuclio/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"

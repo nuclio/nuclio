@@ -17,13 +17,13 @@ limitations under the License.
 package kafka
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/Shopify/sarama"
 	"github.com/mitchellh/mapstructure"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

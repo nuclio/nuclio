@@ -23,7 +23,8 @@ import (
 
 	"github.com/nuclio/nuclio/cmd/controller/app"
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/errors"
 )
 
 func getNamespace(namespaceArgument string) string {

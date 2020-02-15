@@ -1,10 +1,10 @@
 package shell
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/nuclio/errors"
 )
 
 type Configuration struct {

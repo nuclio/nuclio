@@ -17,8 +17,9 @@ limitations under the License.
 package platformconfig
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+
+	"github.com/nuclio/errors"
 )
 
 type Config struct {

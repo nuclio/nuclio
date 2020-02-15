@@ -26,11 +26,11 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/apimachinery/pkg/util/validation"
 )

@@ -20,10 +20,10 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor"
 
 	"github.com/ghodss/yaml"
+	"github.com/nuclio/errors"
 )
 
 // Reader is processor configuration reader

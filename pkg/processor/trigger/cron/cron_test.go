@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
+	"github.com/nuclio/errors"
 	cronlib "github.com/robfig/cron"
 	"github.com/stretchr/testify/suite"
 )

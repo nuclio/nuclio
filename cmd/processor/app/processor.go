@@ -21,7 +21,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -62,6 +61,7 @@ import (
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"golang.org/x/sync/errgroup"
 )

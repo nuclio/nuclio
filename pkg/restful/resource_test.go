@@ -26,9 +26,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
 	"github.com/go-chi/chi"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"

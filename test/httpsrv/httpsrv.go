@@ -22,7 +22,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/errors"
 )
 
 // ServedObject represents an object that will be returned at a given pattern
