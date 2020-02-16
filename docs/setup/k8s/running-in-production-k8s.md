@@ -88,7 +88,7 @@ We know these things can get a bit tricky. If you want access to a fully-managed
 
 That being said, here are a few guidelines to get you on your way:
 
-- Most definitely [version freeze](#version-freezing). Also, use `*.image.pullPolicy` to `Never` or `IfNotPresent` to make sure k8s won't try to access the web to fetch images at any point in time.
+- Most definitely [version freeze](#version-freezing). Also, set `*.image.pullPolicy` to `Never` or `IfNotPresent` to make sure k8s won't try to access the web to fetch images at any point in time.
 - Set `Values.offline=true` in the helm values, to put nuclio in "offline" mode. Set `dashboard.baseImagePullPolicy=Never`.
 - Needless to say, in this scenario, you will configure nuclio with `registry.pushPullUrl` which is reachable from your system.
 - The processor and onbuild images will also have to be available to the dashboard in your environment, as they must be available for the building process - (by `docker build`, or [kaniko](#using-kaniko-as-an-image-builder)).
