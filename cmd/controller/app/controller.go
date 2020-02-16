@@ -17,9 +17,9 @@ limitations under the License.
 package app
 
 import (
+	"strconv"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
@@ -28,6 +28,7 @@ import (
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 
+	"github.com/nuclio/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -36,9 +37,18 @@ import (
 func Run(kubeconfigPath string,
 	namespace string,
 	imagePullSecrets string,
-	platformConfigurationPath string) error {
+	platformConfigurationPath string,
+	functionOperatorNumWorkersStr string,
+	functionEventOperatorNumWorkersStr string,
+	projectOperatorNumWorkersStr string) error {
 
-	newController, err := createController(kubeconfigPath, namespace, imagePullSecrets, platformConfigurationPath)
+	newController, err := createController(kubeconfigPath,
+		namespace,
+		imagePullSecrets,
+		platformConfigurationPath,
+		functionOperatorNumWorkersStr,
+		functionEventOperatorNumWorkersStr,
+		projectOperatorNumWorkersStr)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create controller")
 	}
@@ -55,7 +65,25 @@ func Run(kubeconfigPath string,
 func createController(kubeconfigPath string,
 	namespace string,
 	imagePullSecrets string,
-	platformConfigurationPath string) (*controller.Controller, error) {
+	platformConfigurationPath string,
+	functionOperatorNumWorkersStr string,
+	functionEventOperatorNumWorkersStr string,
+	projectOperatorNumWorkersStr string) (*controller.Controller, error) {
+
+	functionOperatorNumWorkers, err := strconv.Atoi(functionOperatorNumWorkersStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve number of workers for function operator")
+	}
+
+	functionEventOperatorNumWorkers, err := strconv.Atoi(functionEventOperatorNumWorkersStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve number of workers for function event operator")
+	}
+
+	projectOperatorNumWorkers, err := strconv.Atoi(projectOperatorNumWorkersStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve number of workers for project operator")
+	}
 
 	// read platform configuration
 	platformConfiguration, err := readPlatformConfiguration(platformConfigurationPath)
@@ -97,7 +125,10 @@ func createController(kubeconfigPath string,
 		nuclioClientSet,
 		functionresClient,
 		10*time.Minute,
-		platformConfiguration)
+		platformConfiguration,
+		functionOperatorNumWorkers,
+		functionEventOperatorNumWorkers,
+		projectOperatorNumWorkers)
 
 	if err != nil {
 		return nil, err

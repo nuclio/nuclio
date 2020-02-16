@@ -21,7 +21,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -51,17 +50,17 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/mqtt/iotcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/nats"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/eventhub"
-	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/kafka"
-	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/v3io"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/pubsub"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/v3iostream"
 	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"golang.org/x/sync/errgroup"
 )
@@ -365,11 +364,10 @@ func (p *Processor) hasHTTPTrigger(triggers []trigger.Trigger) bool {
 
 func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.Configuration) (trigger.Trigger, error) {
 	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
-		Class:               "sync",
-		Kind:                "http",
-		MaxWorkers:          1,
-		URL:                 ":8080",
-		WorkerAllocatorName: "defaultHTTPWorkerAllocator",
+		Class:      "sync",
+		Kind:       "http",
+		MaxWorkers: 1,
+		URL:        ":8080",
 	}
 
 	p.logger.DebugWith("Creating default HTTP event source",

@@ -17,12 +17,12 @@ limitations under the License.
 package http
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -37,21 +37,18 @@ func (f *factory) Create(parentLogger logger.Logger,
 	namedWorkerAllocators map[string]worker.Allocator) (trigger.Trigger, error) {
 
 	// create logger parent
-	httpLogger := parentLogger.GetChild("http")
+	triggerLogger := parentLogger.GetChild(triggerConfiguration.Kind)
 
 	configuration, err := NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	// set trigger name as worker allocator name
-	runtimeConfiguration.TriggerName = triggerConfiguration.WorkerAllocatorName
-
 	// get or create worker allocator
 	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
 		namedWorkerAllocators,
 		func() (worker.Allocator, error) {
-			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(httpLogger,
+			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger,
 				configuration.MaxWorkers,
 				runtimeConfiguration)
 		})
@@ -61,15 +58,15 @@ func (f *factory) Create(parentLogger logger.Logger,
 	}
 
 	// finally, create the trigger (only 8080 for now)
-	httpTrigger, err := newTrigger(httpLogger,
+	triggerInstance, err := newTrigger(triggerLogger,
 		workerAllocator,
 		configuration)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
+		return nil, errors.Wrap(err, "Failed to create trigger")
 	}
 
-	return httpTrigger, nil
+	return triggerInstance, nil
 }
 
 // register factory

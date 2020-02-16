@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	batch_v1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -271,8 +271,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 	}
 
 	// if SecretName is defined - configure mount with docker credentials
-	if !(k.builderConfiguration.InsecurePushRegistry && k.builderConfiguration.InsecurePullRegistry) &&
-		len(buildOptions.SecretName) > 0 {
+	if len(buildOptions.SecretName) > 0 {
 
 		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
 			append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{

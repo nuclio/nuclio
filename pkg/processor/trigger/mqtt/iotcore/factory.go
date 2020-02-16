@@ -17,12 +17,12 @@ limitations under the License.
 package iotcoremqtt
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -37,21 +37,18 @@ func (f *factory) Create(parentLogger logger.Logger,
 	namedWorkerAllocators map[string]worker.Allocator) (trigger.Trigger, error) {
 
 	// create logger parent
-	mqttLogger := parentLogger.GetChild("iotcoremqtt")
+	triggerLogger := parentLogger.GetChild(triggerConfiguration.Kind)
 
 	configuration, err := NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	// set trigger name as worker allocator name
-	runtimeConfiguration.TriggerName = triggerConfiguration.WorkerAllocatorName
-
 	// get or create worker allocator
 	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
 		namedWorkerAllocators,
 		func() (worker.Allocator, error) {
-			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(mqttLogger,
+			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger,
 				configuration.MaxWorkers,
 				runtimeConfiguration)
 		})
@@ -61,18 +58,18 @@ func (f *factory) Create(parentLogger logger.Logger,
 	}
 
 	// finally, create the trigger
-	mqttTrigger, err := newTrigger(mqttLogger,
+	triggerInstance, err := newTrigger(triggerLogger,
 		workerAllocator,
 		configuration,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create mqtt trigger")
+		return nil, errors.Wrap(err, "Failed to create trigger")
 	}
 
-	return mqttTrigger, nil
+	return triggerInstance, nil
 }
 
 // register factory
 func init() {
-	trigger.RegistrySingleton.Register("iotcoremqtt", &factory{})
+	trigger.RegistrySingleton.Register("iotCoreMqtt", &factory{})
 }

@@ -23,12 +23,12 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	pubsubClient "cloud.google.com/go/pubsub"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/rs/xid"
 )
@@ -48,7 +48,8 @@ func newTrigger(parentLogger logger.Logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
-		"pubsub")
+		"pubsub",
+		configuration.Name)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}

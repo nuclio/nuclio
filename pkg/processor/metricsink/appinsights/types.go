@@ -19,11 +19,11 @@ package appinsights
 import (
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/nuclio/errors"
 )
 
 type Configuration struct {

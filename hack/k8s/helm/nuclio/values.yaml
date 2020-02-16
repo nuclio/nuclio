@@ -13,6 +13,14 @@ controller:
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
 
+  operator:
+    function:
+      numWorkers: 4
+    functionEvent:
+      numWorkers: 2
+    project:
+      numWorkers: 2
+
 # Dashboard settings
 dashboard:
   enabled: true
@@ -67,7 +75,7 @@ dlx:
     tag: 1.3.14-amd64
     pullPolicy: IfNotPresent
 
-registry:
+registry: {}
 
   # By default, the chart does not advocate using helm to manage registry credentials. You should create a secret
   # manually as follows and specify secret name here:
@@ -78,10 +86,6 @@ registry:
   #     --docker-server <url> \
   #     --docker-email ignored@nuclio.io
   #
-  # If you'd still like to have this managed as part of the helm chart, comment out this line and populate
-  # the credentials stanza below. The chart will create a secret for you (note: the credentials will be
-  # visible to anyone with access to helm) and name it after the release
-  #
   # IMPORTANT:
   # K8S doesn't allow secret sharing between namespaces, so in order to deploy a nuclio function
   # to namespace which differs from a namespace in which nuclio is running,
@@ -91,7 +95,14 @@ registry:
   #     | sed s/"namespace: <source-namespace>"/"namespace: <destination-namespace>"/ \
   #     | kubectl apply -n <destination-namespace> -f -
   #
-   secretName: registry-credentials
+  #
+  # If you'd still like to have this managed as part of the helm chart, populate
+  # the credentials stanza below. The chart will create a secret for you (note: the credentials will be
+  # visible to anyone with access to helm).
+  # If secretName is commented out or empty (and credentials are given) then the
+  # chart will create a secret with default name `{releaseName}-registry-credentials`
+  #
+  # secretName: registry-credentials
 
   # In some cases the docker server URL in the registry secrets isn't the same as the URL with which
   # you push and pull. For example, in GKE you login to `gcr.io` (or some other regional URL) yet have
@@ -100,7 +111,7 @@ registry:
   #
   # pushPullUrl: gcr.io/<project-name>
 
-  # In case you'd like helm to generate the secret for you by uncommenting secretName, `loginUrl` specifies
+  # In case you'd like helm to generate the secret for you, `loginUrl` specifies
   # the URL with which the components in nuclio will try to login to
   #
   # loginUrl: someurl

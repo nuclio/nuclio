@@ -19,10 +19,9 @@ package java
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
 	"github.com/ghodss/yaml"
 	"github.com/mitchellh/mapstructure"
+	"github.com/nuclio/errors"
 )
 
 type dependency struct {

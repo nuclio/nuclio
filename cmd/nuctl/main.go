@@ -20,7 +20,8 @@ import (
 	"os"
 
 	"github.com/nuclio/nuclio/cmd/nuctl/app"
-	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/errors"
 )
 
 func main() {

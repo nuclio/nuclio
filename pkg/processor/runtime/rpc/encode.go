@@ -30,8 +30,8 @@ func eventAsMap(event nuclio.Event) map[string]interface{} {
 		"content_type": event.GetContentType(),
 		"content-type": event.GetContentType(),
 		"trigger": map[string]string{
-			"class": triggerInfo.GetClass(),
-			"kind":  triggerInfo.GetKind(),
+			"kind": triggerInfo.GetKind(),
+			"name": triggerInfo.GetName(),
 		},
 		"fields":       event.GetFields(),
 		"headers":      event.GetHeaders(),

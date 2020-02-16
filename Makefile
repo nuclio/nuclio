@@ -217,6 +217,8 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DLX_IMAGE_NAME)
 NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME=\
 $(NUCLIO_DOCKER_REPO)/handler-builder-python-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
+PIP_REQUIRE_VIRTUALENV=false
+
 handler-builder-python-onbuild:
 
 	# `--exists-action i` means to ignore and skip download if whl already exists

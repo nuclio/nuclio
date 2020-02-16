@@ -19,12 +19,12 @@ package controller
 import (
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -51,7 +51,10 @@ func NewController(parentLogger logger.Logger,
 	nuclioClientSet nuclioio_client.Interface,
 	functionresClient functionres.Client,
 	resyncInterval time.Duration,
-	platformConfiguration *platformconfig.Config) (*Controller, error) {
+	platformConfiguration *platformconfig.Config,
+	functionOperatorNumWorkers int,
+	functionEventOperatorNumWorkers int,
+	projectOperatorNumWorkers int) (*Controller, error) {
 	var err error
 
 	// replace "*" with "", which is actually "all" in kube-speak
@@ -84,27 +87,30 @@ func NewController(parentLogger logger.Logger,
 		newController,
 		&resyncInterval,
 		imagePullSecrets,
-		functionresClient)
+		functionresClient,
+		functionOperatorNumWorkers)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create functions operator")
 	}
 
-	// create a project operator
-	newController.projectOperator, err = newProjectOperator(parentLogger,
-		newController,
-		&resyncInterval)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create project operator")
-	}
-
 	// create a function event operator
 	newController.functionEventOperator, err = newFunctionEventOperator(parentLogger,
 		newController,
-		&resyncInterval)
+		&resyncInterval,
+		functionEventOperatorNumWorkers)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function event operator")
+	}
+
+	// create a project operator
+	newController.projectOperator, err = newProjectOperator(parentLogger,
+		newController,
+		&resyncInterval,
+		projectOperatorNumWorkers)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create project operator")
 	}
 
 	return newController, nil

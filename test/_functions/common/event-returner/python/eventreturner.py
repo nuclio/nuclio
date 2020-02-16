@@ -24,7 +24,6 @@ def handler(context, event):
 
     return json.dumps({
         'id': event.id,
-        'triggerClass': event.trigger.klass,
         'eventType': event.trigger.kind,
         'contentType': event.content_type,
         'headers': dict(event.headers),

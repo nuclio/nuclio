@@ -29,7 +29,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/errors"
 )
 
 // IsFile returns true if the object @ path is a file

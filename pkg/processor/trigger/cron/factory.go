@@ -17,12 +17,12 @@ limitations under the License.
 package cron
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -37,21 +37,18 @@ func (f *factory) Create(parentLogger logger.Logger,
 	namedWorkerAllocators map[string]worker.Allocator) (trigger.Trigger, error) {
 
 	// create logger parent
-	cronLogger := parentLogger.GetChild("cron")
+	triggerLogger := parentLogger.GetChild(triggerConfiguration.Kind)
 
 	configuration, err := NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse cron trigger configuration")
+		return nil, errors.Wrap(err, "Failed to parse trigger configuration")
 	}
-
-	// set trigger name as worker allocator name
-	runtimeConfiguration.TriggerName = triggerConfiguration.WorkerAllocatorName
 
 	// get or create worker allocator
 	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
 		namedWorkerAllocators,
 		func() (worker.Allocator, error) {
-			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(cronLogger,
+			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger,
 				configuration.MaxWorkers,
 				runtimeConfiguration)
 		})
@@ -61,15 +58,15 @@ func (f *factory) Create(parentLogger logger.Logger,
 	}
 
 	// finally, create the trigger (only 8080 for now)
-	cronTrigger, err := newTrigger(cronLogger,
+	triggerInstance, err := newTrigger(triggerLogger,
 		workerAllocator,
 		configuration)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create cron trigger")
+		return nil, errors.Wrap(err, "Failed to create trigger")
 	}
 
-	return cronTrigger, nil
+	return triggerInstance, nil
 }
 
 // register factory

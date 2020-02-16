@@ -7,9 +7,9 @@ import (
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/rs/xid"
 )

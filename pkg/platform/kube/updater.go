@@ -20,9 +20,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
