@@ -87,7 +87,7 @@ For more information on Nuclio function configuration, see the [function-configu
   <br/>
   **Type:** `string`
   <br/>
-  **Valid Values:** `"earliers" | "latest"`
+  **Valid Values:** `"earliest" | "latest"`
   <br/>
   **Default Value:** `"earliest"`
 
