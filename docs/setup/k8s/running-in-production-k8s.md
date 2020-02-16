@@ -90,8 +90,8 @@ That being said, here are a few guidelines to get you on your way:
 
 - Most definitely [version freeze](#version-freezing). Also, set `*.image.pullPolicy` to `Never` or `IfNotPresent` to make sure k8s won't try to access the web to fetch images at any point in time.
 - Set `Values.offline=true` in the helm values, to put nuclio in "offline" mode. Set `dashboard.baseImagePullPolicy=Never`.
-- Needless to say, in this scenario, you will configure nuclio with `registry.pushPullUrl` which is reachable from your system.
-- The processor and onbuild images will also have to be available to the dashboard in your environment, as they must be available for the building process - (by `docker build`, or [kaniko](#using-kaniko-as-an-image-builder)).
+- Needless to say, in this scenario, you will have to configure nuclio with `registry.pushPullUrl` which is reachable from your system.
+- The processor and onbuild images will also have to be accessible to the dashboard in your environment, as they are required for the building process - (by `docker build`, or [kaniko](#using-kaniko-as-an-image-builder)).
   This can be tricky as you have to either make those images available to the k8s docker daemon or pull-able from a reachable registry, where they should be preloaded. Use `Values.registy.defaultBaseRegistryURL` to point nuclio at searching in your registry for those images, rather then at the default location of `quay.io/nuclio`.
   To save some work on setting up a registry and preloading the onbuild images to it (or as a reference to what it should include) - take a look at the [prebaked-registry](https://github.com/nuclio/prebaked-registry).
 - For the Nuclio templates library to be available to you, you'll have to package that yourself, and have it served locally, somewhere within reach of your system. To point Nuclio to it, set `Values.dashboard.templatesArchiveAddress` to where you serve the templates.

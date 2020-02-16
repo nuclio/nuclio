@@ -39,7 +39,7 @@ dashboard:
 
   kaniko:
 
-    #  Set this flag to specify a remote repository that will be used to store cached layers (kaniko only)
+    #  Set this flag to specify a remote repository that will be used to store cached layers
     #
     # cacheRepo: someurl
 
