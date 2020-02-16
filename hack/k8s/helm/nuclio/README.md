@@ -66,16 +66,13 @@ helm install \
 By clearing `registry.secretName`, Nuclio will not try to load Docker secrets.
 
 ``` sh
-helm install \
-	--set registry.secretName= \
-	nuclio/nuclio
+helm install nuclio/nuclio
 ```
 
 ### Advanced: Run on Docker for Mac as a core Nuclio developer
 Make sure your images are up to date and install the helm chart using the latest tag:
 ```sh
 helm install \
-	--set registry.secretName= \
 	--set controller.image.tag=latest-amd64 \
 	--set dashboard.image.tag=latest-amd64 \
 	--set controller.baseImagePullPolicy=Never \
