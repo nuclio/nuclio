@@ -104,19 +104,19 @@ For more information on Nuclio function configuration, see the [function-configu
 
 - <a id="sessionTimeout"></a>**`sessionTimeout`** (`kafka-session-timeout`) - The timeout used to detect consumer failures when using Kafka's group management facility. The consumer sends periodic heartbeats to indicate its liveness to the broker. If no heartbeats are received by the broker before the expiration of this session timeout, the broker removes this consumer from the group and initiates rebalancing. Note that the value must be in the allowable range, as configured in the `group.min.session.timeout.ms` and `group.max.session.timeout.ms` broker configuration parameters.
   <br/>
-  **Type:** `string` &mdash; a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
+  **Type:** `string` - a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
   <br/>
   **Default Value:** `"10s"` (10 seconds)<!-- 10 * time.Second -->
   <!-- Kafka `session.timeout.ms` -->
 
 - <a id="heartbeatInterval"></a>**`heartbeatInterval`** (**`kafka-heartbeat-interval`**) - The expected time between heartbeats to the consumer coordinator when using Kafka's group management facilities. Heartbeats are used to ensure that the consumer's session stays active and to facilitate rebalancing when new consumers join or leave the group. The value must be set lower than the [`sessionTimeout`](#sessionTimeout) configuration, but typically should be set no higher than 1/3 of that value. It can be adjusted even lower to control the expected time for normal rebalancing.
   <br/>
-  **Type:** `string` &mdash; a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
+  **Type:** `string` - a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
   <br/>
   **Default Value:** `"3s"` (3 seconds)<!-- 3 * time.Second -->
   <!-- Kafka `heartbeat.interval.ms` -->
 
-- <a id="workerAllocationMode"></a>**`workerAllocationMode`** (**`kafka-worker-allocation-mode`**) &mdash; The [worker allocation mode](#workers-partition-allocation).
+- <a id="workerAllocationMode"></a>**`workerAllocationMode`** (**`kafka-worker-allocation-mode`**) - The [worker allocation mode](#workers-partition-allocation).
   <br/>
   **Type:** `string`
   <br/>
@@ -194,7 +194,7 @@ You can configure each attribute either in the `triggers.<trigger>.attributes.<a
   <br/>
   If a message is not written to the Messages channel between two ticks of the Sarama ticker (`expiryTicker`), a timeout is detected. Using a ticker instead of a timer to detect timeouts should typically result in much fewer calls to Timer functions, which may result in a significant performance improvement if many messages are being sent and timeouts are infrequent. The disadvantage of using a ticker instead of a timer is that timeouts are less accurate. That is, the effective timeout could be between `MaxProcessingTime` and `2 * MaxProcessingTime`. For example, if `MaxProcessingTime` is 100 ms, then a delay of 180 ms between two messages being sent may not be recognized as a timeout.
   <br/>
-  **Type:** `string` &mdash; a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
+  **Type:** `string` - a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
   <br/>
   **Default Value:** `"5m"` (5 minutes)<!-- 5 * time.Minute -->
   <!-- sarama `MaxProcessingTime`. In sarama the default is 100 ms
@@ -241,7 +241,7 @@ You can configure each attribute either in the `triggers.<trigger>.attributes.<a
 
 - <a id="rebalanceTimeout"></a>**`rebalanceTimeout`** (**`kafka-rebalance-timeout`**) - The maximum allowed time for each worker to join the group after rebalancing starts. This is basically a limit on the amount of time needed for all tasks to flush any pending data and commit offsets. If this timeout is exceeded, the worker is removed from the group, which results in offset commit failures.
   <br/>
-  **Type:** `string` &mdash; a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
+  **Type:** `string` - a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
   <br/>
   **Default Value:** `"60s"` (60 seconds)<!-- 60 * time.Second -->
   <!-- sarama `Rebalance.Timeout` -->
@@ -255,14 +255,14 @@ You can configure each attribute either in the `triggers.<trigger>.attributes.<a
 
 - <a id="rebalanceRetryBackoff"></a>**`rebalanceRetryBackoff`** (**`kafka-rebalance-retry-backoff`**) - Back-off time between retries during rebalancing.
   <br/>
-  **Type:** `string` &mdash; a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
+  **Type:** `string` - a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
   <br/>
   **Default Value:** `"2s"` (2 seconds)<!-- 2 * time.Second -->
   <!-- sarama `Rebalance.Retry.Backoff` -->
 
 - <a id="maxWaitHandlerDuringRebalance"></a>**`maxWaitHandlerDuringRebalance`** (**`kafka-max-wait-handler-during-rebalance`**) - The amount of time to wait for a handler to return when a rebalancing occurs before restarting the worker or replica.
   <br/>
-  **Type:** `string` &mdash; a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
+  **Type:** `string` - a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
   <br/>
   **Default Value:** `"5s"` (5 seconds)<!-- 5 * time.Second -->
 
