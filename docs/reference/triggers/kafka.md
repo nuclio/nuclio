@@ -11,6 +11,7 @@
 - [Rebalancing](#rebalancing)
   - [Configuration parameters](#rebalancing-config-params)
   - [Choosing the right configuration for rebalancing](#rebalancing-config-choice)
+  - [Rebalancing notes](#rebalancing-notes)
 - [Configuration example](#config-example)
 
 ## Overview
@@ -272,7 +273,6 @@ In a perfect world, Nuclio would be configured out of the box to perform in the 
 
 - [Prioritizing throughput (default)](#rebalancing-config-choice-throughput-prioritize)
 - [Prioritizing minimum duplicates](#rebalancing-config-choice-min-duplicates-prioritize)
-- [Message pre-fetching note](#message-pre-fetching-note)
 
 <a id="rebalancing-config-choice-throughput-prioritize"></a>
 #### Prioritizing throughput (default)
@@ -291,10 +291,10 @@ This means blocking the rebalancing process and effectively halting all new even
 
 To configure this processing logic, set [`maxWaitHandlerDuringRebalance`](#maxWaitHandlerDuringRebalance) to your worst-case event-processing time, and set [`rebalanceTimeout`](#rebalanceTimeout) to approximately 120% of `maxWaitHandlerDuringRebalance`. For example, if your worst-case event-processing time is 4 minutes, set `maxWaitHandlerDuringRebalance` to 4 minutes and `rebalanceTimeout` to 5 minutes. Increasing the rebalancing timeout guarantees that the replica or replicas that are waiting for 4 minutes (or less) for the event processing to complete are guaranteed not to be removed from the consumer group for 5 minutes, thus avoiding another rebalancing process that would be triggered if the member replica left the group.
 
-<a id="message-pre-fetching-note"></a>
-#### Message pre-fetching note
+<a id="rebalancing-notes"></a>
+### Rebalancing notes
 
-Note that Nuclio's Kafka client, Sarama, performs pre-fetching of [`channelBufferSize`](#channelBufferSize) messages from Kafka into the partition consumer queue. It does so to reduce the number of times it needs to contact Kafka for messages, and to allow workers to (almost) always have a set of messages waiting to be processed without having to wait a round-trip time for Kafka to fetch the messages. During rebalancing, regardless of whether you prefer a higher throughput or minimum duplicates, the messages in this queue are discarded and have no effect on the rebalancing time. (I.e., it doesn't matter if you have one message in the queue or 256; all messages are discarded and re-fetched by the replica that handles this partition in the new consumer-group generation.)
+<a id="message-pre-fetching"></a>Note that Nuclio's Kafka client, Sarama, performs pre-fetching of [`channelBufferSize`](#channelBufferSize) messages from Kafka into the partition consumer queue. It does so to reduce the number of times it needs to contact Kafka for messages, and to allow workers to (almost) always have a set of messages waiting to be processed without having to wait a round-trip time for Kafka to fetch the messages. During rebalancing, regardless of whether you prefer a higher throughput or minimum duplicates, the messages in this queue are discarded and have no effect on the rebalancing time. (I.e., it doesn't matter if you have one message in the queue or 256; all messages are discarded and re-fetched by the replica that handles this partition in the new consumer-group generation.)
 
 <a id="config-example"></a>
 ## Configuration example
