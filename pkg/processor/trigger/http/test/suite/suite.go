@@ -36,7 +36,6 @@ import (
 // EventFields for events
 type EventFields struct {
 	ID             nuclio.ID              `json:"id,omitempty"`
-	TriggerClass   string                 `json:"triggerClass,omitempty"`
 	TriggerKind    string                 `json:"eventType,omitempty"`
 	ContentType    string                 `json:"contentType,omitempty"`
 	Headers        map[string]interface{} `json:"headers,omitempty"`

@@ -15,13 +15,14 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"golang.org/x/net/internal/nettest"
 )
+
+const defaultMaxOpenFiles = 256
+const timeout = 5 * time.Second
 
 func TestLimitListener(t *testing.T) {
 	const max = 5
-	attempts := (nettest.MaxOpenFiles() - max) / 2
+	attempts := (maxOpenFiles() - max) / 2
 	if attempts > 256 { // maximum length of accept queue is 128 by default
 		attempts = 256
 	}
@@ -81,21 +82,77 @@ var errFake = errors.New("fake error from errorListener")
 
 // This used to hang.
 func TestLimitListenerError(t *testing.T) {
-	donec := make(chan bool, 1)
+	errCh := make(chan error, 1)
 	go func() {
+		defer close(errCh)
 		const n = 2
 		ll := LimitListener(errorListener{}, n)
 		for i := 0; i < n+1; i++ {
 			_, err := ll.Accept()
 			if err != errFake {
-				t.Fatalf("Accept error = %v; want errFake", err)
+				errCh <- fmt.Errorf("Accept error = %v; want errFake", err)
+				return
 			}
 		}
-		donec <- true
 	}()
+
 	select {
-	case <-donec:
-	case <-time.After(5 * time.Second):
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("server: %v", err)
+		}
+	case <-time.After(timeout):
 		t.Fatal("timeout. deadlock?")
+	}
+}
+
+func TestLimitListenerClose(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	ln = LimitListener(ln, 1)
+
+	errCh := make(chan error)
+	go func() {
+		defer close(errCh)
+		c, err := net.DialTimeout("tcp", ln.Addr().String(), timeout)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		c.Close()
+	}()
+
+	c, err := ln.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	err = <-errCh
+	if err != nil {
+		t.Fatalf("DialTimeout: %v", err)
+	}
+
+	acceptDone := make(chan struct{})
+	go func() {
+		c, err := ln.Accept()
+		if err == nil {
+			c.Close()
+			t.Errorf("Unexpected successful Accept()")
+		}
+		close(acceptDone)
+	}()
+
+	// Wait a tiny bit to ensure the Accept() is blocking.
+	time.Sleep(10 * time.Millisecond)
+	ln.Close()
+
+	select {
+	case <-acceptDone:
+	case <-time.After(timeout):
+		t.Fatalf("Accept() still blocking")
 	}
 }

@@ -1,0 +1,22 @@
+{{with .Consts -}}
+// Constants defined in {{$.G.Basename}}.
+const (
+{{range .}}	{{.Name}} = {{$.G.Value . .Const.Type .Const.Value}}
+{{end}}
+)
+{{end}}
+{{with .Vars -}}
+// Constants defined in {{$.G.Basename}}.
+var (
+{{range .}}	{{.Name}} = {{$.G.Value . .Const.Type .Const.Value}}
+{{end}}
+)
+{{end}}
+{{with .Vars -}}
+func init() {
+	// Set traversal limit for constants as Uint64Max since they're safe from amplification attacks.
+	{{- range .}}
+	{{.Name}}.Segment().Message().ReadLimiter().Reset((1<<64) - 1)
+	{{- end}}
+}
+{{end}}

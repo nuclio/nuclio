@@ -65,5 +65,5 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 // register factory
 func init() {
-	trigger.RegistrySingleton.Register("v3io-item-poller", &factory{})
+	trigger.RegistrySingleton.Register("v3ioItemPoller", &factory{})
 }

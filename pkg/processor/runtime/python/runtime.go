@@ -89,6 +89,7 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 		"--platform-kind", py.configuration.PlatformConfig.Kind,
 		"--namespace", py.configuration.Meta.Namespace,
 		"--worker-id", strconv.Itoa(py.configuration.WorkerID),
+		"--trigger-kind", py.configuration.TriggerKind,
 		"--trigger-name", py.configuration.TriggerName,
 	}
 

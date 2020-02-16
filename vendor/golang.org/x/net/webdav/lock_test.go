@@ -69,7 +69,7 @@ var lockTestDurations = []time.Duration{
 // lockTestNames are the names of a set of mutually compatible locks. For each
 // name fragment:
 //	- _ means no explicit lock.
-//	- i means a infinite-depth lock,
+//	- i means an infinite-depth lock,
 //	- z means a zero-depth lock,
 var lockTestNames = []string{
 	"/_/_/_/_/z",
@@ -212,6 +212,10 @@ func TestMemLSConfirm(t *testing.T) {
 		Duration:  infiniteTimeout,
 		ZeroDepth: false,
 	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
 	tweedle, err := m.Create(now, LockDetails{
 		Root:      "/tweedle",
 		Duration:  infiniteTimeout,
