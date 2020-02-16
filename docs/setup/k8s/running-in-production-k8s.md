@@ -33,7 +33,7 @@ Below is a quick example of how to setup the a specific stable version of nuclio
     read -s mypassword
     <enter your password>
     
-    kubectl create secret docker-registry registry-credentials --namespace nuclio \
+    kubectl create secret docker-registry registry-credentials \
         --docker-username <username> \
         --docker-password $mypassword \
         --docker-server <URL> \
@@ -50,9 +50,9 @@ Below is a quick example of how to setup the a specific stable version of nuclio
     helm install \
         --set registry.secretName=registry-credentials \
         --set registry.pushPullUrl=<your registry URL> \
-        --set controller.image.tag=1.3.14-amd64 \
-        --set dashboard.image.tag=1.3.14-amd64\
-        .
+        --set controller.image.tag=<version>-amd64 \
+        --set dashboard.image.tag=<version>-amd64 \
+        ./hack/k8s/helm/nuclio/
     ```
 
   See [the helm chart's values file](/hack/k8s/helm/nuclio/values.yaml) for a full list of configurable parameters
@@ -105,8 +105,8 @@ To deploy nuclio and direct it to use the Kaniko engine to build images, apply t
         --set registry.secretName=registry-credentials \
         --set registry.pushPullUrl=<your registry URL> \
         --set dashboard.containerBuilderKind=kaniko \
-        --set controller.image.tag=1.3.14-amd64 \
-        --set dashboard.image.tag=1.3.14-amd64\
+        --set controller.image.tag=<version>-amd64 \
+        --set dashboard.image.tag=<version>-amd64\
         .
     ```
 
