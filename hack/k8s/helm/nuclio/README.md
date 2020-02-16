@@ -77,7 +77,17 @@ helm install \
 	nuclio/nuclio
 ```
 
+Forward the dashboard port:
+```sh
+kubectl port-forward $(kubectl get pod -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
+```
+
 ### Advanced: Run on Docker for Mac as a core Nuclio developer, with an insecure registry
+
+Build the images locally (with your modified code) by running this on the repo root directory:
+```sh
+make build
+```
 
 Run a local Docker registry:
 ```sh
@@ -95,10 +105,9 @@ helm install \
 	.
 ```
 
-Forward the dashboard port
+Forward the dashboard port:
 ```sh
 kubectl port-forward $(kubectl get pod -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
 
 > Note: You can delete one (or both) of the deployments and run the service in the IDE. It will pick up the local kubeconfig file
-
