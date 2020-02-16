@@ -82,8 +82,10 @@ For more information on Nuclio function configuration, see the [function-configu
   <br/>
   **Type:** `string`
 
-- <a id="initialOffset"></a>**`initialOffset`** - The location (offset) within the partition at which to begin the message processing.
+- <a id="initialOffset"></a>**`initialOffset`** - The location (offset) within the partition at which to begin the message processing when first reading from a partition.
   Currently, you can begin the processing either with the earliest or latest ingested messages.
+  <br/>
+  Note that once a partition is read from and connected to a consumer group, subsequent reads are always done from the offset at which the previous read stopped, and the `initialOffset` configuration is ignored.
   <br/>
   **Type:** `string`
   <br/>
