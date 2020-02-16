@@ -51,7 +51,8 @@ func newTrigger(logger logger.Logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
-		"cron")
+		"cron",
+		configuration.Name)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}

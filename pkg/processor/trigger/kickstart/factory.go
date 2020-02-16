@@ -37,21 +37,18 @@ func (f *factory) Create(parentLogger logger.Logger,
 	namedWorkerAllocators map[string]worker.Allocator) (trigger.Trigger, error) {
 
 	// create logger parent
-	kickstartLogger := parentLogger.GetChild("kickstart")
+	triggerLogger := parentLogger.GetChild(triggerConfiguration.Kind)
 
 	configuration, err := NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse kickstart trigger configuration")
+		return nil, errors.Wrap(err, "Failed to parse trigger configuration")
 	}
-
-	// set trigger name as worker allocator name
-	runtimeConfiguration.TriggerName = triggerConfiguration.WorkerAllocatorName
 
 	// get or create worker allocator
 	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
 		namedWorkerAllocators,
 		func() (worker.Allocator, error) {
-			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kickstartLogger,
+			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger,
 				configuration.MaxWorkers,
 				runtimeConfiguration)
 		})
@@ -61,15 +58,15 @@ func (f *factory) Create(parentLogger logger.Logger,
 	}
 
 	// finally, create the trigger (only 8080 for now)
-	kickstartTrigger, err := newTrigger(kickstartLogger,
+	triggerInstance, err := newTrigger(triggerLogger,
 		workerAllocator,
 		configuration)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create kickstart trigger")
+		return nil, errors.Wrap(err, "Failed to create trigger")
 	}
 
-	return kickstartTrigger, nil
+	return triggerInstance, nil
 }
 
 // register factory
