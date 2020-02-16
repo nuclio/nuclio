@@ -37,9 +37,16 @@ Below is a quick example of how to setup the a specific stable version of nuclio
         --docker-username <username> \
         --docker-password $mypassword \
         --docker-server <URL> \
-        --docker-email ignored@nuclio.io
+        --docker-email <some email>
     
     unset mypassword
+    ```
+
+- Copy the secret to the nuclio namespace, since k8s does not allow for secret sharing between namespaces:
+    ```sh
+    kubectl get secret registry-credentials -n default -o yaml \
+    | sed s/"namespace: default"/"namespace: nuclio"/ \
+    | kubectl apply -f -
     ```
 
  - Checkout the nuclio project and install nuclio from its helm chart: 
@@ -100,22 +107,27 @@ Kaniko is available to use as of version 1.3.15 of Nuclio, currently only on k8s
 
 To deploy nuclio and direct it to use the Kaniko engine to build images, apply the appropriate helm values as such:
 
-    ```sh
-    helm install \
-        --set registry.secretName=registry-credentials \
-        --set registry.pushPullUrl=<your registry URL> \
-        --set dashboard.containerBuilderKind=kaniko \
-        --set controller.image.tag=<version>-amd64 \
-        --set dashboard.image.tag=<version>-amd64\
-        .
-    ```
+```sh
+helm install \
+    --set registry.secretName=<your secret name> \
+    --set registry.pushPullUrl=<your registry URL> \
+    --set dashboard.containerBuilderKind=kaniko \
+    --set controller.image.tag=<version>-amd64 \
+    --set dashboard.image.tag=<version>-amd64\
+    .
+```
 
 Simple enough, right?
 
 A few notes though:
 - If running in an air-gapped environment, kaniko's executor image must also be available to your k8s cluster
 - Kaniko *requires* that you work with a registry, which is used to push the resulting function images to, it is no longer possible to have an image built and be available on the host docker daemon.
-  This means you must configure a `Values.registry.pushPullUrl` for kaniko to push the resulting images to, as well as possibly `Values.registry.defaultBaseRegistryURL` if the onbuild / base images are not preloaded or otherwise available on your `pushPullUrl` at the time of function build.
+  This means you must configure a `Values.registry.pushPullUrl` for kaniko to push the resulting images to, as well as possibly `Values.registry.defaultBaseRegistryURL` if you operate in an air gapped environment.
+- `quay.io` does not support nested repositories. If you are using kaniko as a container-builder, and `quay.io` as a registry (`--set registry.pushPullUrl=quay.io/<repo name>`), add the following to allow kaniko caching to succeed pushing:
+    ```sh
+    --set dashboard.kaniko.cacheRepo=quay.io/<repo name>/cache
+    ```
+
 
 We should also mention that we are looking into enabling docker-in-docker (dind) as a possible mode of operation.
 

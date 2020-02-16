@@ -37,11 +37,22 @@ dashboard:
   # Supported container builders: "kaniko", "docker"
   containerBuilderKind: "docker"
 
-  # Set this flag to push images to a plain HTTP registry (kaniko only)
-  insecurePushRegistry: false
+  kaniko:
 
-  # Set this flag to pull images from a plain HTTP registry (kaniko only)
-  insecurePullRegistry: false
+    #  Set this flag to specify a remote repository that will be used to store cached layers (kaniko only)
+    #
+    # cacheRepo: someurl
+
+    # Set this flag to push images to a plain HTTP registry
+    insecurePushRegistry: false
+
+    # Set this flag to pull images from a plain HTTP registry
+    insecurePullRegistry: false
+
+    image:
+      repository: gcr.io/kaniko-project/executor
+      tag: v0.17.1
+      pullPolicy: IfNotPresent
 
   # Uncomment to configure node port
   # nodePort: 32050
@@ -61,12 +72,6 @@ dashboard:
     #  - secretName: nuclio-tls
     #    hosts:
     #      - nuclio.local
-
-kaniko:
-  image:
-    repository: gcr.io/kaniko-project/executor
-    tag: v0.17.1
-    pullPolicy: IfNotPresent
 
 autoscaler:
   enabled: false
@@ -102,7 +107,7 @@ registry: {}
   #
   #  kubectl get secret <secret-name> -n <source-namespace> -o yaml \
   #     | sed s/"namespace: <source-namespace>"/"namespace: <destination-namespace>"/ \
-  #     | kubectl apply -n <destination-namespace> -f -
+  #     | kubectl apply -f -
   #
   #
   # If you'd still like to have this managed as part of the helm chart, populate
@@ -133,10 +138,6 @@ registry: {}
   #  Use dedicated base/onbuild images registry (pull registry)
   #
   # defaultBaseRegistryURL: someurl
-
-  #  Set this flag to specify a remote repository that will be used to store cached layers (kaniko only)
-  #
-  # cacheRepo: someurl
 
 rbac:
 
