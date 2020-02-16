@@ -166,7 +166,7 @@ You can configure each attribute either in the `triggers.<trigger>.attributes.<a
   <br/>
   **Valid Values:** `[0,...]`
   <br/>
-  **Default Value:** `1 * 1024 * 1024` (1 MB)
+  **Default Value:** `1048576` (1 MB)<!-- 1 * 1024 * 1024 -->
   <!-- sarama `Fetch.Default` -->
 
 - <a id="fetchMax"></a>**`fetchMax`** (**`kafka-fetch-max`**) - The maximum number of message bytes to fetch from the broker in a single request (similar to the JVM's `fetch.message.max.bytes` configuration). Messages larger than this value return `ErrMessageTooLarge` and are not consumable, so ensure that the value is at least as large as the size of the largest message.
