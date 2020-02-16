@@ -56,6 +56,7 @@ type Volume struct {
 type Trigger struct {
 	Class                                 string            `json:"class"`
 	Kind                                  string            `json:"kind"`
+	Name                                  string            `json:"name"`
 	Disabled                              bool              `json:"disabled,omitempty"`
 	MaxWorkers                            int               `json:"maxWorkers,omitempty"`
 	URL                                   string            `json:"url,omitempty"`

@@ -1,0 +1,12 @@
+#!/bin/bash
+# put the capnpc-go binary in /bin
+export PATH=$PATH:${GOPATH}/bin
+
+capnp compile -I$GOPATH/src/github.com/iguazio/go-capnproto2/std -I$(pwd) -ogo node/common/ExtAttrValue.capnp
+capnp compile -I$GOPATH/src/github.com/iguazio/go-capnproto2/std -I$(pwd) -ogo node/common/StringWrapper.capnp
+capnp compile -I$GOPATH/src/github.com/iguazio/go-capnproto2/std -I$(pwd) -ogo node/common/TimeSpec.capnp
+capnp compile -I$GOPATH/src/github.com/iguazio/go-capnproto2/std -I$(pwd) -ogo node/common/VnObjectAttributeKeyMap.capnp
+capnp compile -I$GOPATH/src/github.com/iguazio/go-capnproto2/std -I$(pwd) -ogo node/common/VnObjectAttributeValueMap.capnp
+capnp compile -I$GOPATH/src/github.com/iguazio/go-capnproto2/std -I$(pwd) -ogo node/common/VnObjectItemsGetResponse.capnp
+capnp compile -I$GOPATH/src/github.com/iguazio/go-capnproto2/std -I$(pwd) -ogo node/common/VnObjectItemsScanCookie.capnp
+

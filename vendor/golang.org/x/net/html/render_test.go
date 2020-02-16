@@ -89,6 +89,14 @@ func TestRenderer(t *testing.T) {
 			Type: TextNode,
 			Data: "6",
 		},
+		14: {
+			Type: CommentNode,
+			Data: "comm",
+		},
+		15: {
+			Type: RawNode,
+			Data: "7<pre>8</pre>9",
+		},
 	}
 
 	// Build a tree out of those nodes, based on a textual representation.
@@ -110,6 +118,8 @@ func TestRenderer(t *testing.T) {
 		11: `.	.	<blockquote>`,
 		12: `.	.	<br>`,
 		13: `.	.	"6"`,
+		14: `.	.	"<!--comm-->"`,
+		15: `.	.	"7<pre>8</pre>9"`,
 	}
 	if len(nodes) != len(treeAsText) {
 		t.Fatal("len(nodes) != len(treeAsText)")
@@ -145,7 +155,7 @@ func TestRenderer(t *testing.T) {
 
 	want := `<html><head></head><body>0&lt;1<p id="A" foo="abc&#34;def">` +
 		`2<b empty="">3</b><i backslash="\">&amp;4</i></p>` +
-		`5<blockquote></blockquote><br/>6</body></html>`
+		`5<blockquote></blockquote><br/>6<!--comm-->7<pre>8</pre>9</body></html>`
 	b := new(bytes.Buffer)
 	if err := Render(b, nodes[0]); err != nil {
 		t.Fatal(err)

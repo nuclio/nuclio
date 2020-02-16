@@ -20,7 +20,7 @@ events_log_file_path = '/tmp/events.json'
 def handler(context, event):
     """post event to the request recorder"""
 
-    if event.trigger.klass == 'async':
+    if event.trigger.kind != 'http':
         body = event.body.decode('utf-8')
         context.logger.info('Received event body: {0}'.format(body))
 

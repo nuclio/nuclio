@@ -23,17 +23,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
 	"github.com/Shopify/sarama"
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
-)
-
-type workerAllocationMode string
-
-const (
-	workerAllocationModePool   workerAllocationMode = "pool"
-	workerAllocationModeStatic workerAllocationMode = "static"
 )
 
 type Configuration struct {
@@ -57,7 +51,7 @@ type Configuration struct {
 	RetryBackoff                  string
 	MaxWaitTime                   string
 	MaxWaitHandlerDuringRebalance string
-	WorkerAllocationMode          workerAllocationMode
+	WorkerAllocationMode          partitionworker.AllocationMode
 	RebalanceRetryMax             int
 	FetchMin                      int
 	FetchDefault                  int
@@ -106,7 +100,7 @@ func NewConfiguration(ID string,
 		return nil, errors.Wrap(err, "Failed to populate configuration from annotations")
 	}
 
-	newConfiguration.WorkerAllocationMode = workerAllocationMode(workerAllocationModeValue)
+	newConfiguration.WorkerAllocationMode = partitionworker.AllocationMode(workerAllocationModeValue)
 
 	// set default
 	if triggerConfiguration.MaxWorkers == 0 {
@@ -152,7 +146,7 @@ func NewConfiguration(ID string,
 	}
 
 	if newConfiguration.WorkerAllocationMode == "" {
-		newConfiguration.WorkerAllocationMode = workerAllocationModePool
+		newConfiguration.WorkerAllocationMode = partitionworker.AllocationModePool
 	}
 
 	if newConfiguration.RebalanceRetryMax == 0 {
