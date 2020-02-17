@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	batch_v1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -94,6 +94,10 @@ ARG NUCLIO_ARCH
 	return onbuildStages, nil
 }
 
+func (k *Kaniko) GetDefaultRegistryCredentialsSecretName() string {
+	return k.builderConfiguration.DefaultRegistryCredentialsSecretName
+}
+
 func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
 
 	stagedArtifactPaths := make(map[string]string)
@@ -117,7 +121,7 @@ func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifa
 }
 
 func (k *Kaniko) GetBaseImageRegistry(registry string) string {
-	return registry
+	return k.builderConfiguration.DefaultBaseRegistryURL
 }
 
 func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tempDir string) (string, string, error) {
@@ -171,9 +175,15 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 		buildArgs = append(buildArgs, "--cache=true")
 	}
 
-	if k.builderConfiguration.InsecureRegistry {
+	if k.builderConfiguration.InsecurePushRegistry {
 		buildArgs = append(buildArgs, "--insecure")
+	}
+	if k.builderConfiguration.InsecurePullRegistry {
 		buildArgs = append(buildArgs, "--insecure-pull")
+	}
+
+	if k.builderConfiguration.CacheRepo != "" {
+		buildArgs = append(buildArgs, fmt.Sprintf("--cache-repo=%s", k.builderConfiguration.CacheRepo))
 	}
 
 	// Add build options args
@@ -181,7 +191,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=%s=%s", k, v))
 	}
 
-	volumeMount := v1.VolumeMount{
+	tmpFolderVolumeMount := v1.VolumeMount{
 		Name:      "tmp",
 		MountPath: "/tmp",
 	}
@@ -215,10 +225,11 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:         "kaniko-executor",
-							Image:        k.builderConfiguration.KanikoImage,
-							Args:         buildArgs,
-							VolumeMounts: []v1.VolumeMount{volumeMount},
+							Name:            "kaniko-executor",
+							Image:           k.builderConfiguration.KanikoImage,
+							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
+							Args:            buildArgs,
+							VolumeMounts:    []v1.VolumeMount{tmpFolderVolumeMount},
 						},
 					},
 					InitContainers: []v1.Container{
@@ -231,7 +242,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 								"-P",
 								"/tmp",
 							},
-							VolumeMounts: []v1.VolumeMount{volumeMount},
+							VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
 						},
 						{
 							Name:  "extract-bundle",
@@ -243,7 +254,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 								"-C",
 								"/",
 							},
-							VolumeMounts: []v1.VolumeMount{volumeMount},
+							VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
 						},
 					},
 					Volumes: []v1.Volume{
@@ -258,6 +269,32 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 				},
 			},
 		},
+	}
+
+	// if SecretName is defined - configure mount with docker credentials
+	if len(buildOptions.SecretName) > 0 {
+
+		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
+			append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
+				Name:      "docker-config",
+				MountPath: "/kaniko/.docker",
+				ReadOnly:  true,
+			})
+
+		kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes, v1.Volume{
+			Name: "docker-config",
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: buildOptions.SecretName,
+					Items: []v1.KeyToPath{
+						{
+							Key:  ".dockerconfigjson",
+							Path: "config.json",
+						},
+					},
+				},
+			},
+		})
 	}
 
 	return kanikoJobSpec
@@ -275,7 +312,13 @@ func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, Bu
 		}
 
 		if runningJob.Status.Succeeded > 0 {
-			k.logger.Debug("Kaniko job was completed successfully")
+			jobLogs, err := k.getJobLogs(namespace, jobName)
+			if err != nil {
+				k.logger.Debug("Kaniko job was completed successfully but failed to retrieve job logs")
+				return nil
+			}
+
+			k.logger.Debug("Kaniko job was completed successfully", "jobLogs", jobLogs)
 			return nil
 		}
 		if runningJob.Status.Failed > 0 {
@@ -290,7 +333,7 @@ func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, Bu
 	}
 	jobLogs, err := k.getJobLogs(namespace, jobName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to retrieve kaniko job logs")
+		return errors.Wrap(err, "Kaniko job failed and was unable to retrieve job logs")
 	}
 	return fmt.Errorf("Kaniko job has timed out. Job logs:\n%s", jobLogs)
 }

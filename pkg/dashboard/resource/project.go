@@ -23,10 +23,10 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
@@ -89,7 +89,7 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 	}
 
 	if len(project) == 0 {
-		return nil, nil
+		return nil, nuclio.ErrNotFound
 	}
 
 	return pr.projectToAttributes(project[0]), nil
@@ -171,9 +171,14 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 
 	err = pr.getPlatform().DeleteProject(&deleteProjectOptions)
 	if err != nil {
+		statusCode := http.StatusInternalServerError
+		if errWithStatus, ok := err.(*nuclio.ErrorWithStatusCode); ok {
+			statusCode = errWithStatus.StatusCode()
+		}
+
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
-			StatusCode: http.StatusInternalServerError,
+			StatusCode: statusCode,
 		}, err
 	}
 

@@ -57,6 +57,11 @@ func (s *Structured) GetKind() string {
 	return s.cloudEvent.Source
 }
 
+// GetKind returns specific kind of source (http, rabbit mq, etc)
+func (s *Structured) GetName() string {
+	return s.cloudEvent.Source
+}
+
 // GetTimestamp returns when the event originated
 func (s *Structured) GetTimestamp() time.Time {
 	return s.cloudEvent.EventTime

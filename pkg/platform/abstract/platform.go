@@ -25,7 +25,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -33,6 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -112,6 +112,10 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	if existingFunctionConfig == nil &&
 		createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
 		return nil, errors.New("Non existing function cannot be created with neverBuild mode")
+	}
+
+	if createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets == "" {
+		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets = ap.platform.GetDefaultRegistryCredentialsSecretName()
 	}
 
 	// clear build mode
@@ -198,6 +202,8 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 		return errors.Wrap(err, "Failed enriching image name")
 	}
 
+	ap.enrichMinMaxReplicas(createFunctionOptions)
+
 	return nil
 }
 
@@ -236,6 +242,10 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 			}
 			return errors.New("There's more than one http trigger (unsupported)")
 		}
+	}
+
+	if err := ap.validateMinMaxReplicas(createFunctionOptions); err != nil {
+		return errors.Wrap(err, "Failed to validate min max replicas")
 	}
 
 	return nil
@@ -383,6 +393,11 @@ func (ap *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Art
 // GetBaseImageRegistry returns onbuild base registry
 func (ap *Platform) GetBaseImageRegistry(registry string) string {
 	return ap.ContainerBuilder.GetBaseImageRegistry(registry)
+}
+
+// // GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
+func (ap *Platform) GetDefaultRegistryCredentialsSecretName() string {
+	return ap.ContainerBuilder.GetDefaultRegistryCredentialsSecretName()
 }
 
 func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
@@ -578,7 +593,7 @@ func (ap *Platform) getLogLineAdditionalKwargs(log []byte) (map[string]string, e
 }
 
 func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage string) bool {
-	knownFailurePrefixes := [...]string{"Failed to connect to broker"}
+	knownFailureSubstrings := [...]string{"Failed to connect to broker"}
 
 	// when log level is warning or above
 	if logLevel != 'D' && logLevel != 'I' {
@@ -586,8 +601,8 @@ func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage str
 	}
 
 	// when the log message contains a known failure prefix
-	for _, prefix := range knownFailurePrefixes {
-		if strings.HasPrefix(logMessage, prefix) {
+	for _, knownFailureSubstring := range knownFailureSubstrings {
+		if strings.Contains(logMessage, knownFailureSubstring) {
 			return true
 		}
 	}
@@ -641,4 +656,38 @@ func (ap *Platform) enrichImageName(createFunctionOptions *platform.CreateFuncti
 	}
 
 	return nil
+}
+
+func (ap *Platform) validateMinMaxReplicas(createFunctionOptions *platform.CreateFunctionOptions) error {
+	minReplicas := createFunctionOptions.FunctionConfig.Spec.MinReplicas
+	maxReplicas := createFunctionOptions.FunctionConfig.Spec.MaxReplicas
+
+	if minReplicas != nil {
+		if maxReplicas == nil && *minReplicas == 0 {
+			return errors.New("Max replicas must be set when min replicas is zero")
+		}
+		if maxReplicas != nil && *minReplicas > *maxReplicas {
+			return errors.New("Min replicas must be less than or equal to max replicas")
+		}
+	}
+	if maxReplicas != nil && *maxReplicas == 0 {
+		return errors.New("Max replicas must be greater than zero")
+	}
+
+	return nil
+}
+
+func (ap *Platform) enrichMinMaxReplicas(createFunctionOptions *platform.CreateFunctionOptions) {
+
+	// if min replicas was not set, and max replicas is set, assign max replicas to min replicas
+	if createFunctionOptions.FunctionConfig.Spec.MinReplicas == nil &&
+		createFunctionOptions.FunctionConfig.Spec.MaxReplicas != nil {
+		createFunctionOptions.FunctionConfig.Spec.MinReplicas = createFunctionOptions.FunctionConfig.Spec.MaxReplicas
+	}
+
+	// if max replicas was not set, and min replicas is set, assign min replicas to max replicas
+	if createFunctionOptions.FunctionConfig.Spec.MaxReplicas == nil &&
+		createFunctionOptions.FunctionConfig.Spec.MinReplicas != nil {
+		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = createFunctionOptions.FunctionConfig.Spec.MinReplicas
+	}
 }

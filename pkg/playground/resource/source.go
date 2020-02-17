@@ -22,12 +22,12 @@ import (
 	"os"
 	"path"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/playground/fixtures"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/go-chi/chi"
+	"github.com/nuclio/errors"
 )
 
 type sourceResource struct {

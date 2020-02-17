@@ -30,7 +30,7 @@ kubectl create namespace nuclio
 ```
 
 **Create a registry secret:** because Nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials. Replace the `<...>` placeholders in the following commands with your username, password, and URL:
-> Note: If you want to use Docker Hub, the URL is `docker.io`.
+> Note: If you want to use Docker Hub, the URL is `docker.io/<username>`.
 
 Create the secret:
 ``` sh
@@ -63,19 +63,41 @@ helm install \
 ```
 
 ### Install on Minikube using a local, insecure registry
-By clearing `registry.secretName`, Nuclio will not try to load Docker secrets.
+
+You will need to run a local Docker registry. Run the following command on the host if you're working with Docker for Mac or on the Minikube VM:
+```sh
+docker run -d -p 5000:5000 registry:2
+```
+
+By not providing a registry secret name (`registry.secretName`) nor credentials (`registry.credentials.username` / `registry.credentials.password`), Nuclio will understand credentials are not needed, and not try to load Docker secrets.
 
 ``` sh
 helm install \
-	--set registry.secretName= \
+    --set registry.pushPullUrl=localhost:5000 \
 	nuclio/nuclio
 ```
 
-### Advanced: Run on Docker for Mac as a core Nuclio developer
+Forward the dashboard port:
+```sh
+kubectl port-forward $(kubectl get pod -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
+```
+
+### Advanced: Run on Docker for Mac as a core Nuclio developer, with an insecure registry
+
+Build the images locally (with your modified code) by running this on the repo root directory:
+```sh
+make build
+```
+
+Run a local Docker registry:
+```sh
+docker run -d -p 5000:5000 registry:2
+```
+
 Make sure your images are up to date and install the helm chart using the latest tag:
 ```sh
 helm install \
-	--set registry.secretName= \
+    --set registry.pushPullUrl=localhost:5000 \
 	--set controller.image.tag=latest-amd64 \
 	--set dashboard.image.tag=latest-amd64 \
 	--set controller.baseImagePullPolicy=Never \
@@ -83,17 +105,9 @@ helm install \
 	.
 ```
 
-You will need to run a local Docker registry. Run the following command on the host if you're working with Docker for Mac or on the Minikube VM:
-```sh
-docker run -d -p 5000:5000 registry:2
-```
-
-Forward the dashboard port
+Forward the dashboard port:
 ```sh
 kubectl port-forward $(kubectl get pod -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
 
 > Note: You can delete one (or both) of the deployments and run the service in the IDE. It will pick up the local kubeconfig file
-
-## Configuration
-TODO

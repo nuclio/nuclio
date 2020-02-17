@@ -20,10 +20,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/version"
+
+	"github.com/nuclio/errors"
 )
 
 type golang struct {

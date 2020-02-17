@@ -17,16 +17,18 @@ limitations under the License.
 package kinesis
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
-type factory struct{}
+type factory struct {
+	trigger.Factory
+}
 
 func (f *factory) Create(parentLogger logger.Logger,
 	ID string,
@@ -35,33 +37,37 @@ func (f *factory) Create(parentLogger logger.Logger,
 	namedWorkerAllocators map[string]worker.Allocator) (trigger.Trigger, error) {
 
 	// create logger parent
-	kinesisLogger := parentLogger.GetChild("kinesis")
+	triggerLogger := parentLogger.GetChild(triggerConfiguration.Kind)
 
 	configuration, err := NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	// create worker allocator
-	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kinesisLogger,
-		len(configuration.Shards),
-		runtimeConfiguration)
+	// get or create worker allocator
+	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
+		namedWorkerAllocators,
+		func() (worker.Allocator, error) {
+			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger,
+				len(configuration.Shards),
+				runtimeConfiguration)
+		})
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
 	// finally, create the trigger
-	kinesisTrigger, err := newTrigger(kinesisLogger,
+	triggerInstance, err := newTrigger(triggerLogger,
 		workerAllocator,
 		configuration,
 	)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create kinesis trigger")
+		return nil, errors.Wrap(err, "Failed to create trigger")
 	}
 
-	return kinesisTrigger, nil
+	return triggerInstance, nil
 }
 
 // register factory

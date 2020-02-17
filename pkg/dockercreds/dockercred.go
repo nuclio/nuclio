@@ -24,7 +24,8 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/errors"
 )
 
 type dockerCred struct {
@@ -232,7 +233,7 @@ func extractMetaFromKeyPath(keyPath string) (string, string, string, error) {
 
 func (dc *dockerCred) login() error {
 	dc.dockerCreds.logger.DebugWith("Logging in",
-		"url", dc.path,
+		"path", dc.path,
 		"user", dc.credentials.Username)
 
 	// try to login

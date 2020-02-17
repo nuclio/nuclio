@@ -20,11 +20,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/api/apps/v1beta1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"

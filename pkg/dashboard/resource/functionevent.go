@@ -22,10 +22,10 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/satori/go.uuid"
 )
@@ -99,7 +99,7 @@ func (fer *functionEventResource) GetByID(request *http.Request, id string) (res
 	}
 
 	if len(functionEvent) == 0 {
-		return nil, nil
+		return nil, nuclio.ErrNotFound
 	}
 
 	return fer.functionEventToAttributes(functionEvent[0]), nil

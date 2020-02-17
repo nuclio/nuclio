@@ -31,7 +31,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/test"
+	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 	"github.com/nuclio/nuclio/test/compare"
@@ -52,7 +52,7 @@ type dashboardTestSuite struct {
 	logger          logger.Logger
 	dashboardServer *dashboard.Server
 	httpServer      *httptest.Server
-	mockPlatform    *test.MockPlatform
+	mockPlatform    *mockplatform.Platform
 }
 
 func (suite *dashboardTestSuite) SetupTest() {
@@ -60,7 +60,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 	trueValue := true
 
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	suite.mockPlatform = &test.MockPlatform{}
+	suite.mockPlatform = &mockplatform.Platform{}
 
 	templateRepository, err := functiontemplates.NewRepository(suite.logger, []functiontemplates.FunctionTemplateFetcher{})
 	suite.Require().NoError(err)

@@ -33,7 +33,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
@@ -50,6 +49,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"gopkg.in/yaml.v2"
 )
@@ -889,9 +889,17 @@ func (b *Builder) prepareStagingDir() error {
 
 	handlerDirInStaging := b.getHandlerDir(b.stagingDir)
 
-	// make sure the handler stagind dir exists
-	if err := os.MkdirAll(handlerDirInStaging, 0755); err != nil {
-		return errors.Wrapf(err, "Failed to create handler path in staging @ %s", handlerDirInStaging)
+	handlerSubPath := b.getHandlerSubPath()
+
+	// make sure the handler staging dir exists
+	handlerDirIncludingSubPath := path.Join(handlerDirInStaging, handlerSubPath)
+	if err := os.MkdirAll(handlerDirIncludingSubPath, 0755); err != nil {
+		return errors.Wrapf(err, "Failed to create handler path in staging @ %s", handlerDirIncludingSubPath)
+	}
+
+	// copy any objects the runtime needs into staging
+	if err := b.copyHandlerToStagingDir(handlerSubPath); err != nil {
+		return errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
 	// first, tell the specific runtime to do its thing
@@ -899,28 +907,35 @@ func (b *Builder) prepareStagingDir() error {
 		return errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
-	// copy any objects the runtime needs into staging
-	if err := b.copyHandlerToStagingDir(); err != nil {
-		return errors.Wrap(err, "Failed to prepare staging dir")
-	}
-
 	return nil
 }
 
-func (b *Builder) copyHandlerToStagingDir() error {
+func (b *Builder) getHandlerSubPath() string {
+
+	// when it is a java function, and it is not structured as a java project - apply java project structure
+	if b.runtime.GetName() == "java" && !common.IsJavaProjectDir(b.options.FunctionConfig.Spec.Build.Path) {
+		return path.Join("src", "main", "java")
+	}
+
+	return ""
+}
+
+func (b *Builder) copyHandlerToStagingDir(handlerSubPath string) error {
 	handlerDirObjectPaths := b.runtime.GetHandlerDirObjectPaths()
 	handlerDirInStaging := b.getHandlerDir(b.stagingDir)
+	handlerDirIncludingSubpath := path.Join(handlerDirInStaging, handlerSubPath)
 
 	b.logger.DebugWith("Runtime provided handler objects to staging dir",
 		"handlerDirObjectPaths", handlerDirObjectPaths,
-		"handlerDirInStaging", handlerDirInStaging)
+		"handlerDirInStaging", handlerDirInStaging,
+		"handlerDirIncludingSubpath", handlerDirIncludingSubpath)
 
 	// copy the files - ignore where we need to copy this in the image, this'll be done later. right now
 	// we just want to copy the file from wherever it is to the staging dir root
 	for _, handlerDirObjectPath := range handlerDirObjectPaths {
 
 		// copy the object (TODO: most likely will need to better support dirs)
-		if err := util.CopyTo(handlerDirObjectPath, handlerDirInStaging); err != nil {
+		if err := util.CopyTo(handlerDirObjectPath, handlerDirIncludingSubpath); err != nil {
 			return errors.Wrap(err, "Failed to copy handler object")
 		}
 	}
@@ -1006,6 +1021,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		NoBaseImagePull:     b.GetNoBaseImagePull(),
 		BuildArgs:           buildArgs,
 		RegistryURL:         b.options.FunctionConfig.Spec.Build.Registry,
+		SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
 		OutputImageFile:     b.options.OutputImageFile,
 		BuildTimeoutSeconds: BuildTimeoutSeconds,
 	})

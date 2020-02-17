@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
@@ -33,6 +32,7 @@ import (
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
@@ -108,7 +108,7 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string,
 	} else {
 
 		// Default container image builder
-		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger)
+		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger, containerBuilderConfiguration)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create docker builder")
 		}
@@ -154,7 +154,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		// if no brief error message was passed, set it to be the last error
 		if briefErrorsMessage == "" {
 			lastError := bytes.Buffer{}
-			errors.PrintError(&lastError, creationError)
+			errors.PrintErrorStack(&lastError, creationError, 10)
 			briefErrorsMessage = lastError.String()
 		}
 
@@ -349,7 +349,7 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 // DeleteProject will delete a previously existing project
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
-		return errors.Wrap(err, "Delete project options validation failed")
+		return err
 	}
 
 	if err := p.consumer.nuclioClientSet.NuclioV1beta1().

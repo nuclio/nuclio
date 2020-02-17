@@ -23,9 +23,10 @@ import (
 	"sort"
 
 	"github.com/nuclio/nuclio/cmd/processor/app"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	_ "github.com/nuclio/nuclio/pkg/processor/webadmin/resource"
+
+	"github.com/nuclio/errors"
 )
 
 func run() error {

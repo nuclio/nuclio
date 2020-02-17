@@ -17,8 +17,7 @@ limitations under the License.
 package functiontemplates
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
-
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

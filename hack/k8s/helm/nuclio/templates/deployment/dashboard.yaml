@@ -40,9 +40,11 @@ spec:
         volumeMounts:
         - mountPath: /var/run/docker.sock
           name: docker-sock
+        {{- if or .Values.registry.secretName .Values.registry.credentials }}
         - name: registry-credentials
           mountPath: "/etc/nuclio/dashboard/registry-credentials"
           readOnly: true
+        {{- end }}
         {{- if .Values.platform }}
         - name: platform-config
           mountPath: /etc/nuclio/config/platform
@@ -58,9 +60,25 @@ spec:
           value: {{ template "nuclio.dashboardName" . }}
         - name: NUCLIO_CONTAINER_BUILDER_KIND
           value: {{ .Values.dashboard.containerBuilderKind }}
-        {{- if .Values.dashboard.insecureRegistry }}
-        - name: NUCLIO_KANIKO_INSECURE_REGISTRY
+        - name: NUCLIO_KANIKO_CONTAINER_IMAGE
+          value: {{ .Values.dashboard.kaniko.image.repository }}:{{ .Values.dashboard.kaniko.image.tag }}
+        - name: NUCLIO_KANIKO_CONTAINER_IMAGE_PULL_POLICY
+          value: {{ .Values.dashboard.kaniko.image.pullPolicy }}
+        {{- if .Values.dashboard.kaniko.insecurePushRegistry }}
+        - name: NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY
           value: "true"
+        {{- end }}
+        {{- if .Values.dashboard.kaniko.insecurePullRegistry }}
+        - name: NUCLIO_KANIKO_INSECURE_PULL_REGISTRY
+          value: "true"
+        {{- end }}
+        {{- if .Values.registry.defaultBaseRegistryURL }}
+        - name: NUCLIO_DASHBOARD_DEFAULT_BASE_REGISTRY_URL
+          value: {{ .Values.registry.defaultBaseRegistryURL }}
+        {{- end }}
+        {{- if .Values.dashboard.kaniko.cacheRepo }}
+        - name: NUCLIO_DASHBOARD_KANIKO_CACHE_REPO
+          value: {{ .Values.dashboard.kaniko.cacheRepo }}
         {{- end }}
 #        - name: NUCLIO_DASHBOARD_RUN_REGISTRY_URL
 #          value: "localhost:5000"
@@ -80,6 +98,8 @@ spec:
         - name: NUCLIO_TEMPLATES_GIT_REF
           value: "nil"
         {{- end }}
+        - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
+          value: {{ template "nuclio.registryCredentialsName" . }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ .Values.dashboard.externalIPAddresses | join "," | quote }}
         - name: NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE
@@ -90,10 +110,12 @@ spec:
       - name: docker-sock
         hostPath:
           path: /var/run/docker.sock
+      {{- if or .Values.registry.secretName .Values.registry.credentials }}
       - name: registry-credentials
         secret:
           secretName: {{ template "nuclio.registryCredentialsName" . }}
           optional: true
+      {{- end }}
       {{- if .Values.platform }}
       - name: platform-config
         configMap:

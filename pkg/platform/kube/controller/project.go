@@ -20,10 +20,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,7 +39,8 @@ type projectOperator struct {
 
 func newProjectOperator(parentLogger logger.Logger,
 	controller *Controller,
-	resyncInterval *time.Duration) (*projectOperator, error) {
+	resyncInterval *time.Duration,
+	numWorkers int) (*projectOperator, error) {
 	var err error
 
 	loggerInstance := parentLogger.GetChild("project")
@@ -51,7 +52,7 @@ func newProjectOperator(parentLogger logger.Logger,
 
 	// create a project operator
 	newProjectOperator.operator, err = operator.NewMultiWorker(loggerInstance,
-		2,
+		numWorkers,
 		newProjectOperator.getListWatcher(controller.namespace),
 		&nuclioio.NuclioProject{},
 		resyncInterval,
@@ -60,6 +61,10 @@ func newProjectOperator(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create project operator")
 	}
+
+	parentLogger.DebugWith("Created project operator",
+		"numWorkers", numWorkers,
+		"resyncInterval", resyncInterval)
 
 	return newProjectOperator, nil
 }

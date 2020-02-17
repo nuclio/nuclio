@@ -720,12 +720,17 @@ func (s *consumerGroupSession) release(withCleanup bool) (err error) {
 		<-s.hbDead
 	})
 
+	Logger.Printf("Session release complete")
+
 	return
 }
 
 func (s *consumerGroupSession) heartbeatLoop() {
 	defer close(s.hbDead)
 	defer s.cancel() // trigger the end of the session on exit
+	defer func() {
+		Logger.Printf("Hearbeat stopped")
+	}()
 
 	pause := time.NewTicker(s.parent.config.Consumer.Group.Heartbeat.Interval)
 	defer pause.Stop()
@@ -764,7 +769,10 @@ func (s *consumerGroupSession) heartbeatLoop() {
 		switch resp.Err {
 		case ErrNoError:
 			retries = s.parent.config.Metadata.Retry.Max
-		case ErrRebalanceInProgress, ErrUnknownMemberId, ErrIllegalGeneration:
+		case ErrRebalanceInProgress:
+			retries = s.parent.config.Metadata.Retry.Max
+			s.cancel()
+		case ErrUnknownMemberId, ErrIllegalGeneration:
 			return
 		default:
 			s.parent.handleError(err, "", -1)
@@ -778,7 +786,6 @@ func (s *consumerGroupSession) heartbeatLoop() {
 			return
 		}
 	}
-
 }
 
 // --------------------------------------------------------------------
@@ -825,6 +832,9 @@ type ConsumerGroupClaim interface {
 	// Config.Consumer.Group.Session.Timeout before the topic/partition is eventually
 	// re-assigned to another group member.
 	Messages() <-chan *ConsumerMessage
+
+	// StopConsuming forces an immediate stop of consumption, in addition to closing the Messages() channel
+	StopConsuming() <-chan struct{}
 }
 
 type consumerGroupClaim struct {

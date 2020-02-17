@@ -19,10 +19,10 @@ package runtime
 import (
 	"os"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 	"github.com/nuclio/nuclio/pkg/processor/status"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
@@ -196,6 +196,7 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 		WorkerID:        configuration.WorkerID,
 		FunctionName:    configuration.Meta.Name,
 		FunctionVersion: configuration.Spec.Version,
+		TriggerKind:     configuration.TriggerKind,
 		TriggerName:     configuration.TriggerName,
 	}
 

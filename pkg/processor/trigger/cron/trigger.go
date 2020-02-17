@@ -21,11 +21,11 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	cronlib "github.com/robfig/cron"
 )
@@ -51,7 +51,8 @@ func newTrigger(logger logger.Logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
-		"cron")
+		"cron",
+		configuration.Name)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}

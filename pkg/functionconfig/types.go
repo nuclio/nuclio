@@ -56,6 +56,7 @@ type Volume struct {
 type Trigger struct {
 	Class                                 string            `json:"class"`
 	Kind                                  string            `json:"kind"`
+	Name                                  string            `json:"name"`
 	Disabled                              bool              `json:"disabled,omitempty"`
 	MaxWorkers                            int               `json:"maxWorkers,omitempty"`
 	URL                                   string            `json:"url,omitempty"`
@@ -231,6 +232,7 @@ type Spec struct {
 	Alias                   string                  `json:"alias,omitempty"`
 	Build                   Build                   `json:"build,omitempty"`
 	RunRegistry             string                  `json:"runRegistry,omitempty"`
+	ImagePullSecrets        string                  `json:"imagePullSecrets,omitempty"`
 	RuntimeAttributes       map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 	LoggerSinks             []LoggerSink            `json:"loggerSinks,omitempty"`
 	DealerURI               string                  `json:"dealerURI,omitempty"`

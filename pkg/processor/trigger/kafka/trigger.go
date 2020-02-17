@@ -21,21 +21,31 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/Shopify/sarama"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/rcrowley/go-metrics"
 )
+
+type submittedEvent struct {
+	event  Event
+	worker *worker.Worker
+	done   chan error
+}
 
 type kafka struct {
 	trigger.AbstractTrigger
-	configuration  *Configuration
-	kafkaConfig    *sarama.Config
-	consumerGroup  sarama.ConsumerGroup
-	shutdownSignal chan struct{}
+	configuration            *Configuration
+	kafkaConfig              *sarama.Config
+	consumerGroup            sarama.ConsumerGroup
+	shutdownSignal           chan struct{}
+	stopConsumptionChan      chan struct{}
+	partitionWorkerAllocator partitionworker.Allocator
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -43,24 +53,43 @@ func newTrigger(parentLogger logger.Logger,
 	configuration *Configuration) (trigger.Trigger, error) {
 	var err error
 
+	// first - disable sarama metrics, as they leak memory
+	metrics.UseNilMetrics = true
+
 	loggerInstance := parentLogger.GetChild(configuration.ID)
 
 	sarama.Logger = NewSaramaLogger(loggerInstance)
 
 	newTrigger := &kafka{
-		configuration: configuration,
+		configuration:       configuration,
+		stopConsumptionChan: make(chan struct{}, 1),
 	}
 
 	newTrigger.AbstractTrigger, err = trigger.NewAbstractTrigger(loggerInstance,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
-		"kafka-cluster")
+		"kafka-cluster",
+		configuration.Name)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
 
-	newTrigger.Logger.DebugWith("Creating consumer", "brokers", configuration.brokers)
+	newTrigger.Logger.DebugWith("Creating consumer",
+		"brokers", configuration.brokers,
+		"workerAllocationMode", configuration.WorkerAllocationMode,
+		"sessionTimeout", configuration.sessionTimeout,
+		"heartbeatInterval", configuration.heartbeatInterval,
+		"rebalanceTimeout", configuration.rebalanceTimeout,
+		"rebalanceTimeout", configuration.rebalanceTimeout,
+		"retryBackoff", configuration.retryBackoff,
+		"maxWaitTime", configuration.maxWaitTime,
+		"rebalanceRetryMax", configuration.RebalanceRetryMax,
+		"fetchMin", configuration.FetchMin,
+		"fetchDefault", configuration.FetchDefault,
+		"fetchMax", configuration.FetchMax,
+		"channelBufferSize", configuration.ChannelBufferSize,
+		"maxWaitHandlerDuringRebalance", configuration.maxWaitHandlerDuringRebalance)
 
 	newTrigger.kafkaConfig, err = newTrigger.newKafkaConfig()
 	if err != nil {
@@ -75,7 +104,6 @@ func newTrigger(parentLogger logger.Logger,
 }
 
 func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
-
 	var err error
 
 	k.consumerGroup, err = k.newConsumerGroup()
@@ -94,7 +122,7 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 			err = k.consumerGroup.Consume(context.Background(), k.configuration.Topics, k)
 
 			if err != nil {
-				k.Logger.WarnWith("Failed to consume from group, waiting before retrying", "err", err.Error())
+				k.Logger.WarnWith("Failed to consume from group, waiting before retrying", "err", errors.GetErrorStackString(err, 10))
 
 				time.Sleep(1 * time.Second)
 			} else {
@@ -109,6 +137,7 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 func (k *kafka) Stop(force bool) (functionconfig.Checkpoint, error) {
 	k.shutdownSignal <- struct{}{}
 	close(k.shutdownSignal)
+
 	err := k.consumerGroup.Close()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to close consumer")
@@ -120,8 +149,157 @@ func (k *kafka) GetConfig() map[string]interface{} {
 	return common.StructureToMap(k.configuration)
 }
 
-func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
+func (k *kafka) Setup(session sarama.ConsumerGroupSession) error {
+	var err error
 
+	k.Logger.InfoWith("Starting consumer session",
+		"claims", session.Claims(),
+		"memberID", session.MemberID(),
+		"workersAvailable", k.WorkerAllocator.GetNumWorkersAvailable())
+
+	k.partitionWorkerAllocator, err = k.createPartitionWorkerAllocator(session)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create partition worker allocator")
+	}
+
+	return nil
+}
+
+func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
+	err := k.partitionWorkerAllocator.Stop()
+	if err != nil {
+		return errors.Wrap(err, "Failed to stop partition worker allocator")
+	}
+
+	k.Logger.InfoWith("Ending consumer session",
+		"claims", session.Claims(),
+		"memberID", session.MemberID(),
+		"workersAvailable", k.WorkerAllocator.GetNumWorkersAvailable())
+
+	return nil
+}
+
+func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	var submitError error
+
+	// cleared when the consumption should stop
+	consumeMessages := true
+
+	submittedEventInstance := submittedEvent{
+		done: make(chan error),
+	}
+
+	submittedEventChan := make(chan *submittedEvent)
+
+	// submit the events in a goroutine so that we can unblock immediately
+	go k.eventSubmitter(claim, submittedEventChan)
+
+	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
+	// to stop consumption
+	for message := range claim.Messages() {
+		if !consumeMessages {
+			k.Logger.DebugWith("Stopping message consumption", "partition", claim.Partition())
+
+			break
+		}
+
+		// allocate a worker for this topic/partition
+		workerInstance, cookie, err := k.partitionWorkerAllocator.AllocateWorker(claim.Topic(), int(claim.Partition()), nil)
+		if err != nil {
+			return errors.Wrap(err, "Failed to allocate worker")
+		}
+
+		submittedEventInstance.event.kafkaMessage = message
+		submittedEventInstance.worker = workerInstance
+
+		// handle in the goroutine so we don't block
+		submittedEventChan <- &submittedEventInstance
+
+		// wait for handling done or indication to stop
+		select {
+		case err := <-submittedEventInstance.done:
+
+			// we successfully submitted the message to the handler. mark it
+			if err == nil {
+				session.MarkMessage(message, "")
+			}
+
+		case <-claim.StopConsuming():
+			k.Logger.DebugWith("Got signal to stop consumption",
+				"wait", k.configuration.maxWaitHandlerDuringRebalance,
+				"partition", claim.Partition())
+
+			// don't consume any more messages
+			consumeMessages = false
+
+			// wait a bit more for event to process
+			select {
+			case <-submittedEventInstance.done:
+				k.Logger.DebugWith("Handler done, rebalancing will commence")
+
+			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
+				k.Logger.DebugWith("Timed out waiting for handler to complete", "partition", claim.Partition())
+
+				// restart the worker, and having failed that shut down
+				if err := k.cancelEventHandling(workerInstance, claim); err != nil {
+					k.Logger.DebugWith("Failed to cancel event handling",
+						"err", err.Error(),
+						"partition", claim.Partition())
+
+					panic("Failed to cancel event handling")
+				}
+			}
+		}
+
+		// release the worker from whence it came
+		err = k.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance)
+		if err != nil {
+			return errors.Wrap(err, "Failed to release worker")
+		}
+	}
+
+	k.Logger.DebugWith("Claim consumption stopped", "partition", claim.Partition())
+
+	// shut down the event submitter
+	close(submittedEventChan)
+
+	return submitError
+}
+
+func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventChan chan *submittedEvent) {
+	k.Logger.DebugWith("Event submitter started",
+		"topic", claim.Topic(),
+		"partition", claim.Partition())
+
+	// while there are events to submit, submit them to the given worker
+	for submittedEvent := range submittedEventChan {
+
+		// submit the event to the worker
+		_, processErr := k.SubmitEventToWorker(nil, submittedEvent.worker, &submittedEvent.event) // nolint: errcheck
+		if processErr != nil {
+			k.Logger.DebugWith("Process error",
+				"partition", submittedEvent.event.kafkaMessage.Partition,
+				"err", processErr)
+		}
+
+		// indicate that we're done
+		submittedEvent.done <- processErr
+	}
+
+	k.Logger.DebugWith("Event submitter stopped",
+		"topic", claim.Topic(),
+		"partition", claim.Partition())
+}
+
+func (k *kafka) cancelEventHandling(workerInstance *worker.Worker, claim sarama.ConsumerGroupClaim) error {
+	if workerInstance.SupportsRestart() {
+		return workerInstance.Restart()
+	}
+
+	return errors.New("Worker doesn't support restart")
+}
+
+func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config := sarama.NewConfig()
 
 	config.Net.SASL.Enable = k.configuration.SASL.Enable
@@ -130,9 +308,18 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.ClientID = k.ID
 	config.Consumer.Offsets.Initial = k.configuration.initialOffset
 	config.Consumer.Offsets.AutoCommit.Enable = true
-	config.Consumer.Group.Session.Timeout = 60 * time.Second
-	config.Consumer.Group.Heartbeat.Interval = 5 * time.Second
-	config.Consumer.MaxProcessingTime = 10 * time.Second
+	config.Consumer.Group.Session.Timeout = k.configuration.sessionTimeout
+	config.Consumer.Group.Heartbeat.Interval = k.configuration.heartbeatInterval
+	config.Consumer.Group.Rebalance.Timeout = k.configuration.rebalanceTimeout
+	config.Consumer.Group.Rebalance.Retry.Max = k.configuration.RebalanceRetryMax
+	config.Consumer.Group.Rebalance.Retry.Backoff = k.configuration.rebalanceRetryBackoff
+	config.Consumer.Retry.Backoff = k.configuration.retryBackoff
+	config.Consumer.Fetch.Min = int32(k.configuration.FetchMin)
+	config.Consumer.Fetch.Default = int32(k.configuration.FetchDefault)
+	config.Consumer.Fetch.Max = int32(k.configuration.FetchMax)
+	config.Consumer.MaxWaitTime = k.configuration.maxWaitTime
+	config.Consumer.MaxProcessingTime = k.configuration.maxProcessingTime
+	config.ChannelBufferSize = k.configuration.ChannelBufferSize
 
 	if err := config.Validate(); err != nil {
 		return nil, errors.Wrap(err, "Kafka config is invalid")
@@ -152,39 +339,24 @@ func (k *kafka) newConsumerGroup() (sarama.ConsumerGroup, error) {
 	return consumerGroup, nil
 }
 
-func (k *kafka) Setup(session sarama.ConsumerGroupSession) error {
-	k.Logger.InfoWith("Starting consumer session",
-		"claims", session.Claims(),
-		"memberID", session.MemberID())
+func (k *kafka) createPartitionWorkerAllocator(session sarama.ConsumerGroupSession) (partitionworker.Allocator, error) {
+	switch k.configuration.WorkerAllocationMode {
+	case partitionworker.AllocationModePool:
+		return partitionworker.NewPooledWorkerAllocator(k.Logger, k.WorkerAllocator)
 
-	return nil
-}
+	case partitionworker.AllocationModeStatic:
+		topicPartitionIDs := map[string][]int{}
 
-func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
-	k.Logger.InfoWith("Ending consumer session",
-		"claims", session.Claims(),
-		"memberID", session.MemberID())
-
-	return nil
-}
-
-func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	event := Event{}
-
-	for message := range claim.Messages() {
-		event.kafkaMessage = message
-
-		// allocate a worker from the pool and handle the event
-		_, err, _ := k.AllocateWorkerAndSubmitEvent(&event, nil, 1*time.Hour)
-		if err != nil {
-			k.Logger.WarnWith("Failed to process event", "err", err.Error())
-			time.Sleep(250 * time.Millisecond)
-		} else {
-
-			// mark message as processed
-			session.MarkMessage(message, "")
+		// convert int32 -> int
+		for topic, partitionIDs := range session.Claims() {
+			for _, partitionID := range partitionIDs {
+				topicPartitionIDs[topic] = append(topicPartitionIDs[topic], int(partitionID))
+			}
 		}
-	}
 
-	return nil
+		return partitionworker.NewStaticWorkerAllocator(k.Logger, k.WorkerAllocator, topicPartitionIDs)
+
+	default:
+		return nil, errors.Errorf("Unknown worker allocation mode: %s", k.configuration.WorkerAllocationMode)
+	}
 }

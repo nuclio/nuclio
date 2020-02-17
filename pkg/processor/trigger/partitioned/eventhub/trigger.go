@@ -17,13 +17,13 @@ limitations under the License.
 package eventhub
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 	"github.com/nuclio/nuclio/pkg/processor/util/eventhub"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	eventhubclient "github.com/nuclio/amqp"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

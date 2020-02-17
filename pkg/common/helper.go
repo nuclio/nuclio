@@ -19,7 +19,9 @@ package common
 import (
 	"bufio"
 	"bytes"
+	"math"
 	"os"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -27,7 +29,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/errors"
 )
 
 // IsFile returns true if the object @ path is a file
@@ -210,6 +212,17 @@ func GetEnvOrDefaultBool(key string, defaultValue bool) bool {
 	return strings.ToLower(GetEnvOrDefaultString(key, strconv.FormatBool(defaultValue))) == "true"
 }
 
+// Checks if the given @dirPath is in a java project structure
+// for example if the following dir existed "/my-project/src/main/java" then IsJavaProjectDir("/my-project") -> true
+func IsJavaProjectDir(dirPath string) bool {
+	javaProjectStructurePath := path.Join(dirPath, "src", "main", "java")
+	if _, err := os.Stat(javaProjectStructurePath); err != nil {
+		return false
+	}
+
+	return true
+}
+
 func RenderTemplate(text string, data map[string]interface{}) (string, error) {
 	templateToRender, err := template.New("t").Parse(text)
 	if err != nil {
@@ -242,4 +255,25 @@ func renderTemplate(templateToRender *template.Template, data map[string]interfa
 	}
 
 	return templateToRenderBuffer.String(), nil
+}
+
+func MaxIntInSlice(values []int) int {
+	maxValue := math.MinInt64
+
+	for _, value := range values {
+		if value > maxValue {
+			maxValue = value
+		}
+	}
+
+	return maxValue
+}
+
+func GetDurationOrInfinite(timeout *time.Duration) time.Duration {
+	if timeout != nil {
+		return *timeout
+	}
+
+	// essentially infinite
+	return 100 * 365 * 24 * time.Hour
 }
