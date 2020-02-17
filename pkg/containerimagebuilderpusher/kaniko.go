@@ -316,8 +316,8 @@ func (k *Kaniko) compileJobName(image string) string {
 	}
 
 	jobName := fmt.Sprintf("%s.%s.%s", k.builderConfiguration.JobPrefix, functionName, timestamp)
-	
-	// Failback
+
+	// Fallback
 	if !k.jobNameRegex.MatchString(jobName) {
 		k.logger.DebugWith("Kaniko job name does not match k8s regex. Won't use function name", "jobName", jobName)
 		jobName = fmt.Sprintf("%s.%s", k.builderConfiguration.JobPrefix, timestamp)
