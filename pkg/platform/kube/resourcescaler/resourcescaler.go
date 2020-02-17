@@ -183,31 +183,46 @@ func (n *NuclioResourceScaler) parseLastScaleEvent(function nuclioio.NuclioFunct
 
 func (n *NuclioResourceScaler) scaleFunctionsToZero(namespace string, functionNames []string) error {
 	n.logger.DebugWith("Scaling to zero", "functionNames", functionNames)
+	failedFunctionNames := make([]string, 0)
 	for _, functionName := range functionNames {
 		err := n.updateFunctionStatus(namespace,
 			functionName,
 			functionconfig.FunctionStateWaitingForScaleResourcesToZero,
 			scaler_types.ScaleToZeroStartedScaleEvent)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to update function status to scale to zero: %s", functionName)
+			failedFunctionNames = append(failedFunctionNames, functionName)
+			n.logger.WarnWith("Failed to update function status to scale to zero", "functionName", functionName)
+			continue
 		}
+	}
+
+	if len(failedFunctionNames) > 0 {
+		return errors.Errorf("Failed to scale some functions to zero: %v", failedFunctionNames)
 	}
 	return nil
 }
 
 func (n *NuclioResourceScaler) scaleFunctionsFromZero(namespace string, functionNames []string) error {
 	n.logger.DebugWith("Scaling from zero", "functionNames", functionNames)
+	failedFunctionNames := make([]string, 0)
 	for _, functionName := range functionNames {
 		err := n.updateFunctionStatus(namespace,
 			functionName,
 			functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
 			scaler_types.ScaleFromZeroStartedScaleEvent)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to update function status to scale from zero: %s", functionName)
+			failedFunctionNames = append(failedFunctionNames, functionName)
+			n.logger.WarnWith("Failed to update function status to scale from zero", "functionName", functionName)
+			continue
 		}
 		if err := n.waitFunctionReadiness(namespace, functionName); err != nil {
-			return errors.Wrapf(err, "Failed waiting for function readiness: %s", functionName)
+			failedFunctionNames = append(failedFunctionNames, functionName)
+			n.logger.WarnWith("Failed waiting for function readiness", "functionName", functionName)
+			continue
 		}
+	}
+	if len(failedFunctionNames) > 0 {
+		return errors.Errorf("Failed to scale some functions from zero: %v", failedFunctionNames)
 	}
 	return nil
 }
