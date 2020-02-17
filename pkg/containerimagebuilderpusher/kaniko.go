@@ -196,17 +196,7 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 		MountPath: "/tmp",
 	}
 
-	functionName := strings.Replace(buildOptions.Image, "/", "-", -1)
-	functionName = strings.Replace(functionName, ":", "-", -1)
-	timestamp := fmt.Sprintf("%d", time.Now().Unix())
-
-	// Truncate function name so the job name won't exceed k8s limit of 63
-	functionNameLimit := 63 - (len(k.builderConfiguration.JobPrefix) + len(timestamp) + 2)
-	if len(functionName) > functionNameLimit {
-		functionName = functionName[0:functionNameLimit]
-	}
-
-	jobName := fmt.Sprintf("%s.%s.%s", k.builderConfiguration.JobPrefix, functionName, timestamp)
+	jobName := k.getJobName(buildOptions.Image)
 
 	kanikoJobSpec := &batch_v1.Job{
 		ObjectMeta: meta_v1.ObjectMeta{
@@ -298,6 +288,26 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 	}
 
 	return kanikoJobSpec
+}
+
+func (k *Kaniko) getJobName(image string) string {
+
+	// Valid job name is composed from a DNS-1123 subdomains which in turn must contain only lower case
+	// alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com',
+	// regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*
+
+	functionName := strings.Replace(image, "/", "", -1)
+	functionName = strings.Replace(functionName, ":", "", -1)
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+
+	// Truncate function name so the job name won't exceed k8s limit of 63
+	functionNameLimit := 63 - (len(k.builderConfiguration.JobPrefix) + len(timestamp) + 2)
+	if len(functionName) > functionNameLimit {
+		functionName = functionName[0:functionNameLimit]
+	}
+
+	jobName := fmt.Sprintf("%s.%s.%s", k.builderConfiguration.JobPrefix, functionName, timestamp)
+	return jobName
 }
 
 func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, BuildTimeoutSeconds int64) error {
