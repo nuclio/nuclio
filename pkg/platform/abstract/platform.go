@@ -664,10 +664,10 @@ func (ap *Platform) validateMinMaxReplicas(createFunctionOptions *platform.Creat
 
 	if minReplicas != nil {
 		if maxReplicas == nil && *minReplicas == 0 {
-			return errors.New("Max replicas must be set if min replicas is zero")
+			return errors.New("Max replicas must be set when min replicas is zero")
 		}
 		if maxReplicas != nil && *minReplicas > *maxReplicas {
-			return errors.New("Min replicas must be smaller than max replicas")
+			return errors.New("Min replicas must be less than or equal to max replicas")
 		}
 	}
 	if maxReplicas != nil && *maxReplicas == 0 {
