@@ -75,6 +75,7 @@ type Processor struct {
 	metricSinks           []metricsink.MetricSink
 	namedWorkerAllocators map[string]worker.Allocator
 	eventTimeoutWatcher   *timeout.EventTimeoutWatcher
+	startComplete         bool
 	stop                  chan bool
 }
 
@@ -168,13 +169,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 // Start starts the processor
 func (p *Processor) Start() error {
-	p.logger.DebugWith("Starting")
+	var err error
 
-	// start the web interface
-	err := p.healthCheckServer.Start()
-	if err != nil {
-		return errors.Wrap(err, "Failed to start health check server")
-	}
+	p.logger.DebugWith("Starting triggers", "triggers", p.triggers)
 
 	// iterate over all triggers and start them
 	for _, trigger := range p.triggers {
@@ -197,6 +194,11 @@ func (p *Processor) Start() error {
 		}
 	}
 
+	// indicate that we're done starting
+	p.startComplete = true
+
+	p.logger.Debug("Processor started")
+
 	<-p.stop // Wait for stop
 	p.logger.Info("Processor quitting")
 
@@ -216,7 +218,6 @@ func (p *Processor) GetWorkers() []*worker.Worker {
 
 	// iterate over the processor's triggers
 	for _, trigger := range p.triggers {
-
 		workers = append(workers, trigger.GetWorkers()...)
 	}
 
@@ -228,7 +229,7 @@ func (p *Processor) GetStatus() status.Status {
 	workers := p.GetWorkers()
 
 	// if no workers exist yet, return initializing
-	if len(workers) == 0 {
+	if !p.startComplete {
 		return status.Initializing
 	}
 
@@ -409,6 +410,11 @@ func (p *Processor) createAndStartHealthCheckServer(platformConfiguration *platf
 	server, err := healthcheck.NewServer(p.logger, p, &platformConfiguration.HealthCheck)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create health check server")
+	}
+
+	// start the web interface
+	if err := server.Start(); err != nil {
+		return nil, errors.Wrap(err, "Failed to start health check server")
 	}
 
 	return server, nil
