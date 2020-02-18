@@ -37,6 +37,12 @@ type RecordBatch struct {
 }
 
 type StreamConsumerGroup interface {
+	GetState() (*State, error)
+	GetShardSequenceNumber(int) (uint64, error)
+	GetNumShards() (int, error)
+}
+
+type Member interface {
 	Consume(Handler) error
 	Close() error
 }

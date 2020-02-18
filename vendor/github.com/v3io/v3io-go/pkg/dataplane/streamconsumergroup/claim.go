@@ -15,19 +15,19 @@ import (
 
 type claim struct {
 	logger                   logger.Logger
-	streamConsumerGroup      *streamConsumerGroup
+	member                   *member
 	shardID                  int
 	recordBatchChan          chan *RecordBatch
 	stopRecordBatchFetchChan chan struct{}
 	currentShardLocation     string
 }
 
-func newClaim(streamConsumerGroup *streamConsumerGroup, shardID int) (*claim, error) {
+func newClaim(member *member, shardID int) (*claim, error) {
 	return &claim{
-		logger:                   streamConsumerGroup.logger.GetChild(fmt.Sprintf("claim-%d", shardID)),
-		streamConsumerGroup:      streamConsumerGroup,
+		logger:                   member.streamConsumerGroup.logger.GetChild(fmt.Sprintf("claim-%d", shardID)),
+		member:                   member,
 		shardID:                  shardID,
-		recordBatchChan:          make(chan *RecordBatch, streamConsumerGroup.config.Claim.RecordBatchChanSize),
+		recordBatchChan:          make(chan *RecordBatch, member.streamConsumerGroup.config.Claim.RecordBatchChanSize),
 		stopRecordBatchFetchChan: make(chan struct{}, 1),
 	}, nil
 }
@@ -37,7 +37,7 @@ func (c *claim) start() error {
 
 	go func() {
 		err := c.fetchRecordBatches(c.stopRecordBatchFetchChan,
-			c.streamConsumerGroup.config.Claim.RecordBatchFetch.Interval)
+			c.member.streamConsumerGroup.config.Claim.RecordBatchFetch.Interval)
 
 		if err != nil {
 			c.logger.WarnWith("Failed to fetch record batches", "err", errors.GetErrorStackString(err, 10))
@@ -48,7 +48,7 @@ func (c *claim) start() error {
 
 		// tell the consumer group handler to consume the claim
 		c.logger.DebugWith("Calling ConsumeClaim on handler")
-		if err := c.streamConsumerGroup.handler.ConsumeClaim(c.streamConsumerGroup.session, c); err != nil {
+		if err := c.member.handler.ConsumeClaim(c.member.session, c); err != nil {
 			c.logger.WarnWith("ConsumeClaim returned with error", "err", errors.GetErrorStackString(err, 10))
 		}
 
@@ -73,7 +73,7 @@ func (c *claim) stop() error {
 }
 
 func (c *claim) GetStreamPath() string {
-	return c.streamConsumerGroup.streamPath
+	return c.member.streamConsumerGroup.streamPath
 }
 
 func (c *claim) GetShardID() int {
@@ -120,12 +120,12 @@ func (c *claim) fetchRecordBatches(stopChannel chan struct{}, fetchInterval time
 
 func (c *claim) fetchRecordBatch(location string) (string, error) {
 	getRecordsInput := v3io.GetRecordsInput{
-		Path:     path.Join(c.streamConsumerGroup.streamPath, strconv.Itoa(c.shardID)),
+		Path:     path.Join(c.member.streamConsumerGroup.streamPath, strconv.Itoa(c.shardID)),
 		Location: location,
-		Limit:    c.streamConsumerGroup.config.Claim.RecordBatchFetch.NumRecordsInBatch,
+		Limit:    c.member.streamConsumerGroup.config.Claim.RecordBatchFetch.NumRecordsInBatch,
 	}
 
-	response, err := c.streamConsumerGroup.container.GetRecordsSync(&getRecordsInput)
+	response, err := c.member.streamConsumerGroup.container.GetRecordsSync(&getRecordsInput)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed fetching record batch: %s", location)
 	}
@@ -168,23 +168,23 @@ func (c *claim) fetchRecordBatch(location string) (string, error) {
 func (c *claim) getCurrentShardLocation(shardID int) (string, error) {
 
 	// get the location from persistency
-	currentShardLocation, err := c.streamConsumerGroup.sequenceNumberHandler.getShardLocationFromPersistency(shardID)
-	if err != nil && errors.RootCause(err) != errShardNotFound {
+	currentShardLocation, err := c.member.streamConsumerGroup.getShardLocationFromPersistency(shardID)
+	if err != nil && errors.RootCause(err) != ErrShardNotFound {
 		return "", errors.Wrap(err, "Failed to get shard location")
 	}
 
 	// if shard wasn't found, try again periodically
-	if errors.RootCause(err) == errShardNotFound {
+	if errors.RootCause(err) == ErrShardNotFound {
 		for {
 			select {
 
 			// TODO: from configuration
-			case <-time.After(c.streamConsumerGroup.config.SequenceNumber.ShardWaitInterval):
+			case <-time.After(c.member.streamConsumerGroup.config.SequenceNumber.ShardWaitInterval):
 
 				// get the location from persistency
-				currentShardLocation, err = c.streamConsumerGroup.sequenceNumberHandler.getShardLocationFromPersistency(shardID)
+				currentShardLocation, err = c.member.streamConsumerGroup.getShardLocationFromPersistency(shardID)
 				if err != nil {
-					if errors.RootCause(err) == errShardNotFound {
+					if errors.RootCause(err) == ErrShardNotFound {
 
 						// shard doesn't exist yet, try again
 						continue

@@ -23,19 +23,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/valyala/fasthttp"
 )
 
 //
 // Control plane
 //
-
-type NewContextInput struct {
-	Client         *fasthttp.Client
-	NumWorkers     int
-	RequestChanLen int
-}
 
 type NewSessionInput struct {
 	URL       string
