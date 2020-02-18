@@ -89,6 +89,6 @@ See the following resources to make the best of your new Nuclio environment:
 - [Deploying functions](/docs/tasks/deploying-functions.md)
 - [Invoking functions by name with an ingress](/docs/concepts/k8s/function-ingress.md)
 - [More function examples](/hack/examples/README.md)
-- [Running Nuclio in production environment over k8s](/docs/setup/k8s/running-in-production-k8s.md)
+- [Running Nuclio in a production environment over Kubernetes](/docs/setup/k8s/running-in-production-k8s.md)
 - [References](/docs/reference/)
 
