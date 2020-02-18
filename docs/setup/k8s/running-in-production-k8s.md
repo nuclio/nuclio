@@ -9,7 +9,7 @@ Here you will find more advanced configuration options, and some practices which
 
 - [Preferred installation method](#preferred-installation-method)
 - [Version freezing](#version-freezing)
-- [Multi Tenancy](#multi-tenancy)
+- [Multi-Tenancy](#multi-tenancy)
 - [Air gapped (dark site) operation](#air-gapped-dark-site-operation)
 - [Using Kaniko as an image builder](#using-kaniko-as-an-image-builder)
 
@@ -62,7 +62,7 @@ Below is a quick example of how to setup the a specific stable version of nuclio
 
   See [the helm chart's values file](/hack/k8s/helm/nuclio/values.yaml) for a full list of configurable parameters
 
-## Multi Tenancy
+## Multi-Tenancy
 
 Implementation of multi-tenancy can be done in many different forms and to various degrees. Our experience have led us to adopt the k8s approach of tenant isolation using namespaces.
 - To achieve tenant separation for various nuclio projects and functions, and to avoid cross-tenant contamination and resource races, we have opted to deploy in each namespace a fully functioning Nuclio deployment, and configure Nuclio's controller to be namespaced.
