@@ -171,7 +171,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 func (p *Processor) Start() error {
 	var err error
 
-	p.logger.DebugWith("Starting")
+	p.logger.DebugWith("Starting triggers", "triggers", p.triggers)
 
 	// iterate over all triggers and start them
 	for _, trigger := range p.triggers {
