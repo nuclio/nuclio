@@ -8,19 +8,19 @@ import (
 )
 
 type session struct {
-	logger              logger.Logger
-	streamConsumerGroup *streamConsumerGroup
-	state               *SessionState
-	claims              []Claim
+	logger logger.Logger
+	member *member
+	state  *SessionState
+	claims []Claim
 }
 
-func newSession(streamConsumerGroup *streamConsumerGroup,
+func newSession(member *member,
 	sessionState *SessionState) (Session, error) {
 
 	return &session{
-		logger:              streamConsumerGroup.logger.GetChild("session"),
-		streamConsumerGroup: streamConsumerGroup,
-		state:               sessionState,
+		logger: member.logger.GetChild("session"),
+		member: member,
+		state:  sessionState,
 	}, nil
 }
 
@@ -29,7 +29,7 @@ func (s *session) start() error {
 
 	// for each shard we need handle, create a StreamConsumerGroupClaim object and start it
 	for _, shardID := range s.state.Shards {
-		claim, err := newClaim(s.streamConsumerGroup, shardID)
+		claim, err := newClaim(s.member, shardID)
 		if err != nil {
 			return errors.Wrapf(err, "Failed creating stream consumer group claim for shard: %d", shardID)
 		}
@@ -40,7 +40,7 @@ func (s *session) start() error {
 
 	// tell the consumer group handler to set up
 	s.logger.DebugWith("Triggering given handler Setup")
-	if err := s.streamConsumerGroup.handler.Setup(s); err != nil {
+	if err := s.member.handler.Setup(s); err != nil {
 		return errors.Wrap(err, "Failed to set up session")
 	}
 
@@ -58,7 +58,7 @@ func (s *session) stop() error {
 	s.logger.DebugWith("Stopping session, triggering given handler cleanup")
 
 	// tell the consumer group handler to set up
-	if err := s.streamConsumerGroup.handler.Cleanup(s); err != nil {
+	if err := s.member.handler.Cleanup(s); err != nil {
 		return errors.Wrap(err, "Failed to cleanup")
 	}
 
@@ -79,11 +79,11 @@ func (s *session) GetClaims() []Claim {
 }
 
 func (s *session) GetMemberID() string {
-	return s.streamConsumerGroup.memberID
+	return s.member.id
 }
 
 func (s *session) MarkRecord(record *v3io.StreamRecord) error {
-	err := s.streamConsumerGroup.sequenceNumberHandler.markShardSequenceNumber(*record.ShardID, record.SequenceNumber)
+	err := s.member.sequenceNumberHandler.markShardSequenceNumber(*record.ShardID, record.SequenceNumber)
 	if err != nil {
 		return errors.Wrap(err, "Failed marking record")
 	}

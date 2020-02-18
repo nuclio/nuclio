@@ -20,25 +20,29 @@ type recordData struct {
 }
 
 type streamConsumerGroupTestSuite struct {
-	StreamTestSuite
+	streamTestSuite
 	streamPath string
 }
 
 func (suite *streamConsumerGroupTestSuite) SetupSuite() {
-	suite.StreamTestSuite.SetupSuite()
+	suite.streamTestSuite.SetupSuite()
 	suite.createContainer()
+}
+
+func (suite *streamConsumerGroupTestSuite) SetupTest() {
+	suite.streamTestSuite.SetupTest()
 	suite.streamPath = fmt.Sprintf("%s/test-stream-0/", suite.testPath)
 }
 
 func (suite *streamConsumerGroupTestSuite) TestLocationHandling() {
-	consumerGroupName := "cg0"
 	numShards := 8
 
 	suite.createStream(suite.streamPath, numShards)
 
+	streamConsumerGroup := suite.createStreamConsumerGroup(2)
+
 	memberGroup := newMemberGroup(suite,
-		consumerGroupName,
-		2,
+		streamConsumerGroup,
 		numShards,
 		2,
 		[]int{0, 0, 0, 0, 0, 0, 0, 0},
@@ -53,6 +57,23 @@ func (suite *streamConsumerGroupTestSuite) TestLocationHandling() {
 	memberGroup.verifyNumActiveClaimConsumptions(numShards)
 	memberGroup.verifyNumRecordsConsumed([]int{0, 0, 0, 0, 0, 0, 0, 0})
 
+	// get the num shards from the observer
+	observedNumShards, err := streamConsumerGroup.GetNumShards()
+	suite.Require().NoError(err)
+	suite.Require().Equal(numShards, observedNumShards)
+
+	// get the num shards from the observer
+	observedState, err := streamConsumerGroup.GetState()
+	suite.Require().NoError(err)
+	suite.Require().Len(observedState.SessionStates, 2)
+
+	// iterate over shards to check their sequence numbers, they shouldn't exist
+	for shardID := 0; shardID < numShards; shardID++ {
+		shardSequenceNumber, err := streamConsumerGroup.GetShardSequenceNumber(shardID)
+		suite.Require().Equal(err, streamconsumergroup.ErrShardNotFound)
+		suite.Require().Equal(uint64(0), shardSequenceNumber)
+	}
+
 	suite.writeRecords([]int{30, 30, 30, 30, 30, 30, 30, 30})
 
 	// wait a bit for things to happen - the members should read data from the shards up to the amount they were
@@ -62,14 +83,16 @@ func (suite *streamConsumerGroupTestSuite) TestLocationHandling() {
 	memberGroup.verifyClaimShards(numShards, []int{4})
 	memberGroup.verifyNumActiveClaimConsumptions(0)
 	memberGroup.verifyNumRecordsConsumed([]int{5, 10, 10, 10, 15, 10, 10, 20})
+	suite.verifyShardSequenceNumbers(numShards, streamConsumerGroup, []int{5, 10, 10, 10, 15, 10, 10, 20})
 
 	// stop the group
 	memberGroup.stop()
 	time.Sleep(3 * time.Second)
 
+	streamConsumerGroup = suite.createStreamConsumerGroup(4)
+
 	memberGroup = newMemberGroup(suite,
-		consumerGroupName,
-		4,
+		streamConsumerGroup,
 		numShards,
 		4,
 		[]int{5, 10, 10, 10, 15, 10, 10, 20},
@@ -78,12 +101,43 @@ func (suite *streamConsumerGroupTestSuite) TestLocationHandling() {
 	// wait a bit for things to happen
 	time.Sleep(30 * time.Second)
 
+	// get the num shards from the observer
+	observedNumShards, err = streamConsumerGroup.GetNumShards()
+	suite.Require().NoError(err)
+	suite.Require().Equal(numShards, observedNumShards)
+
+	// get the num shards from the observer
+	observedState, err = streamConsumerGroup.GetState()
+	suite.Require().NoError(err)
+	suite.Require().Len(observedState.SessionStates, 4)
+
+	// iterate over shards to check their sequence numbers
+	suite.verifyShardSequenceNumbers(numShards, streamConsumerGroup, []int{30, 30, 30, 30, 30, 30, 30, 30})
+
 	memberGroup.verifyClaimShards(numShards, []int{2})
 	memberGroup.verifyNumActiveClaimConsumptions(8)
 	memberGroup.verifyNumRecordsConsumed([]int{25, 20, 20, 20, 15, 20, 20, 10})
 
 	memberGroup.stop()
 	time.Sleep(3 * time.Second)
+}
+
+func (suite *streamConsumerGroupTestSuite) createStreamConsumerGroup(maxReplicas int) streamconsumergroup.StreamConsumerGroup {
+	consumerGroupName := "cg0"
+
+	streamConsumerGroupConfig := streamconsumergroup.NewConfig()
+	streamConsumerGroupConfig.Claim.RecordBatchFetch.NumRecordsInBatch = 10
+	streamConsumerGroupConfig.Claim.RecordBatchFetch.Interval = 50 * time.Millisecond
+
+	streamConsumerGroup, err := streamconsumergroup.NewStreamConsumerGroup(suite.logger,
+		consumerGroupName,
+		streamConsumerGroupConfig,
+		suite.container,
+		suite.streamPath,
+		maxReplicas)
+	suite.Require().NoError(err, "Failed creating stream consumer group")
+
+	return streamConsumerGroup
 }
 
 func (suite *streamConsumerGroupTestSuite) createStream(streamPath string, numShards int) {
@@ -137,6 +191,18 @@ func (suite *streamConsumerGroupTestSuite) writeRecords(numRecordsPerShard []int
 	suite.logger.DebugWith("Done writing records", "numRecordsPerShard", numRecordsPerShard)
 }
 
+func (suite *streamConsumerGroupTestSuite) verifyShardSequenceNumbers(numShards int,
+	streamConsumerGroup streamconsumergroup.StreamConsumerGroup,
+	expectedShardSequenceNumbers []int) {
+
+	// iterate over shards to check their sequence numbers
+	for shardID := 0; shardID < numShards; shardID++ {
+		shardSequenceNumber, err := streamConsumerGroup.GetShardSequenceNumber(shardID)
+		suite.Require().NoError(err)
+		suite.Require().Equal(uint64(expectedShardSequenceNumbers[shardID]), shardSequenceNumber)
+	}
+}
+
 //
 // Orchestrates a group of members
 //
@@ -148,8 +214,7 @@ type memberGroup struct {
 }
 
 func newMemberGroup(suite *streamConsumerGroupTestSuite,
-	consumerGroupName string,
-	maxNumMembers int,
+	streamConsumerGroup streamconsumergroup.StreamConsumerGroup,
 	numShards int,
 	numMembers int,
 	expectedInitialRecordIndex []int,
@@ -164,8 +229,7 @@ func newMemberGroup(suite *streamConsumerGroupTestSuite,
 	for memberIdx := 0; memberIdx < numMembers; memberIdx++ {
 		go func() {
 			memberInstance := newMember(suite,
-				consumerGroupName,
-				maxNumMembers,
+				streamConsumerGroup,
 				numShards,
 				memberIdx,
 				newMemberGroup.numberOfRecordsConsumed)
@@ -236,6 +300,7 @@ func (mg *memberGroup) stop() {
 type member struct {
 	suite                      *streamConsumerGroupTestSuite
 	logger                     logger.Logger
+	streamConsumerGroupMember  streamconsumergroup.Member
 	id                         string
 	expectedStartRecordIndex   []int
 	numberOfRecordToConsume    []int
@@ -246,35 +311,24 @@ type member struct {
 }
 
 func newMember(suite *streamConsumerGroupTestSuite,
-	consumerGroupName string,
-	maxNumMembers int,
+	streamConsumerGroup streamconsumergroup.StreamConsumerGroup,
 	numShards int,
 	index int,
 	numberOfRecordsConsumed []int) *member {
 	id := fmt.Sprintf("m%d", index)
 
-	streamConsumerGroupConfig := streamconsumergroup.NewConfig()
-	streamConsumerGroupConfig.Claim.RecordBatchFetch.NumRecordsInBatch = 10
-	streamConsumerGroupConfig.Claim.RecordBatchFetch.Interval = 50 * time.Millisecond
-
-	streamConsumerGroup, err := streamconsumergroup.NewStreamConsumerGroup(
-		suite.logger,
-		consumerGroupName,
-		id,
-		streamConsumerGroupConfig,
-		suite.streamPath,
-		maxNumMembers,
-		suite.container)
-	suite.Require().NoError(err, "Failed creating stream consumer group")
+	streamConsumerGroupMember, err := streamconsumergroup.NewMember(streamConsumerGroup, id)
+	suite.Require().NoError(err)
 
 	return &member{
-		suite:                    suite,
-		logger:                   suite.logger.GetChild(id),
-		id:                       id,
-		streamConsumerGroup:      streamConsumerGroup,
-		expectedStartRecordIndex: make([]int, numShards),
-		numberOfRecordToConsume:  make([]int, numShards),
-		numberOfRecordsConsumed:  numberOfRecordsConsumed,
+		suite:                     suite,
+		logger:                    suite.logger.GetChild(id),
+		streamConsumerGroupMember: streamConsumerGroupMember,
+		id:                        id,
+		streamConsumerGroup:       streamConsumerGroup,
+		expectedStartRecordIndex:  make([]int, numShards),
+		numberOfRecordToConsume:   make([]int, numShards),
+		numberOfRecordsConsumed:   numberOfRecordsConsumed,
 	}
 }
 
@@ -344,12 +398,12 @@ func (m *member) start(expectedStartRecordIndex []int, numberOfRecordToConsume [
 	m.numberOfRecordToConsume = numberOfRecordToConsume
 
 	// start consuming
-	err := m.streamConsumerGroup.Consume(m)
+	err := m.streamConsumerGroupMember.Consume(m)
 	m.suite.Require().NoError(err)
 }
 
 func (m *member) stop() {
-	err := m.streamConsumerGroup.Close()
+	err := m.streamConsumerGroupMember.Close()
 	m.suite.Require().NoError(err)
 }
 

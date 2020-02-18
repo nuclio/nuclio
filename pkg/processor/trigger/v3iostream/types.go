@@ -36,7 +36,7 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
-	ConsumerGroupName               string
+	ConsumerGroup                   string
 	ContainerName                   string
 	StreamPath                      string
 	NumTransportWorkers             int
@@ -97,7 +97,7 @@ func NewConfiguration(ID string,
 	// name from url
 	if newConfiguration.ContainerName == "" &&
 		newConfiguration.StreamPath == "" &&
-		newConfiguration.ConsumerGroupName == "" {
+		newConfiguration.ConsumerGroup == "" {
 		if err := newConfiguration.parseURLForBackwardsCompatibility(); err != nil {
 			return nil, errors.Wrap(err, "Could not parse URL")
 		}
@@ -131,7 +131,7 @@ func (c *Configuration) parseURLForBackwardsCompatibility() error {
 	}
 
 	// set consumer group name
-	c.ConsumerGroupName = splitPathAndConsumerGroupName[1]
+	c.ConsumerGroup = splitPathAndConsumerGroupName[1]
 
 	conatinerNameAndStreamPath := splitPathAndConsumerGroupName[0]
 

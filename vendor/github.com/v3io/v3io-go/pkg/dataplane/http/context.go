@@ -41,18 +41,18 @@ type context struct {
 }
 
 type NewClientInput struct {
-	tlsConfig       *tls.Config
-	dialTimeout     time.Duration
-	maxConnsPerHost int
+	TLSConfig       *tls.Config
+	DialTimeout     time.Duration
+	MaxConnsPerHost int
 }
 
 func NewClient(newClientInput *NewClientInput) *fasthttp.Client {
-	tlsConfig := newClientInput.tlsConfig
+	tlsConfig := newClientInput.TLSConfig
 	if tlsConfig == nil {
 		tlsConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
-	dialTimeout := newClientInput.dialTimeout
+	dialTimeout := newClientInput.DialTimeout
 	if dialTimeout == 0 {
 		dialTimeout = fasthttp.DefaultDialTimeout
 	}
@@ -63,15 +63,11 @@ func NewClient(newClientInput *NewClientInput) *fasthttp.Client {
 	return &fasthttp.Client{
 		TLSConfig:       tlsConfig,
 		Dial:            dialFunction,
-		MaxConnsPerHost: newClientInput.maxConnsPerHost,
+		MaxConnsPerHost: newClientInput.MaxConnsPerHost,
 	}
 }
 
-func NewDefaultClient() *fasthttp.Client {
-	return NewClient(&NewClientInput{})
-}
-
-func NewContext(parentLogger logger.Logger, client *fasthttp.Client, newContextInput *v3io.NewContextInput) (v3io.Context, error) {
+func NewContext(parentLogger logger.Logger, newContextInput *NewContextInput) (v3io.Context, error) {
 	requestChanLen := newContextInput.RequestChanLen
 	if requestChanLen == 0 {
 		requestChanLen = 1024
@@ -82,9 +78,14 @@ func NewContext(parentLogger logger.Logger, client *fasthttp.Client, newContextI
 		numWorkers = 8
 	}
 
+	httpClient := newContextInput.HTTPClient
+	if httpClient == nil {
+		httpClient = NewClient(&NewClientInput{})
+	}
+
 	newContext := &context{
 		logger:      parentLogger.GetChild("context.http"),
-		httpClient:  client,
+		httpClient:  httpClient,
 		requestChan: make(chan *v3io.Request, requestChanLen),
 		numWorkers:  numWorkers,
 	}
@@ -687,8 +688,6 @@ func (c *context) PutRecordsSync(putRecordsInput *v3io.PutRecordsInput) (*v3io.R
 	}
 
 	buffer.WriteString(`]}`)
-	str := buffer.String()
-	fmt.Println(str)
 
 	response, err := c.sendRequest(&putRecordsInput.DataPlaneInput,
 		http.MethodPost,
