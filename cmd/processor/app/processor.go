@@ -197,7 +197,7 @@ func (p *Processor) Start() error {
 	// indicate that we're done starting
 	p.startComplete = true
 
-	p.logger.DebugWith("Started")
+	p.logger.Debug("Processor started")
 
 	<-p.stop // Wait for stop
 	p.logger.Info("Processor quitting")
