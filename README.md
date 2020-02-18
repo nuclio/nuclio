@@ -31,7 +31,7 @@ Nuclio is extremely fast: a single function instance can process hundreds of tho
 This is 10-100 times faster than some other frameworks. To learn more about how Nuclio works, see the Nuclio [architecture](/docs/concepts/architecture.md) documentation, read this review of [Nuclio vs. AWS Lambda](https://theburningmonk.com/2019/04/comparing-nuclio-and-aws-lambda/), or watch the [Nuclio serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A).
 You can find links to additional articles and tutorials on the [Nuclio web site](https://nuclio.io/).
 
-Nuclio is secure: Nuclio is integrated with [Kaniko](https://github.com/GoogleContainerTools/kaniko) to allow a secure and production-ready way of building docker images at run time.
+Nuclio is secure: Nuclio is integrated with [Kaniko](https://github.com/GoogleContainerTools/kaniko) to allow a secure and production-ready way of building Docker images at run time.
 
 For further questions and support, [click to join](https://lit-oasis-83353.herokuapp.com) the [Nuclio Slack](https://nuclio-io.slack.com) workspace.
 
