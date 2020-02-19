@@ -81,7 +81,7 @@ Note:
 When working in production, you need reproducibility and consistency.
 It's therefore recommended that you don't use the latest stable version, but rather qualify a specific Nuclio version and "freeze" it in your configuration.
 Stick with this version until you qualify a newer version for your system.
-Because Nuclio adheres to backwards-compatibility standards between patch versions, and even minor version updates don't typically break major functionality, the process of qualifying a newer Nuclio version should typically be short and easy.
+Because Nuclio adheres to backwards-compatibility standards between patch versions, and even minor version updates don't typically break major functionality, the process of qualifying a newer Nuclio version should generally be short and easy.
 
 To use Helm to freeze a specific Nuclio version, set all of the `*.image.repository` and `*.image.tag` [Helm values](/hack/k8s/helm/nuclio/values.yaml) to the names and tags that represent the images for your chosen version.
 Note the configured images must be accessible to your Kubernetes deployment (which is especially relevant for [air-gapped deployments](#air-gapped-deployment)).
