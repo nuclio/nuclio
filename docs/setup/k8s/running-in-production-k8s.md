@@ -99,8 +99,7 @@ If you select to handle the implementation yourself, follow these guidelines; th
 - Set `offline` to `true` to put Nuclio in "offline" mode.
 - Set `dashboard.baseImagePullPolicy` to `Never`.
 - Set `registry.pushPullUrl` to a registry URL that's reachable from your system.
-- To use a Nuclio templates library (optional), set `dashboard.templatesArchiveAddress` to a location for serving the templates.
-  Note that you need to package the templates yourself and ensure that they're served locally in a way that's accessible to your system.
+- To use a Nuclio templates library (optional), package the templates into an archive that's served locally and accessible to your system, and set `dashboard.templatesArchiveAddress` to the archive address.
 
 <a id="air-gapped-envir-processor-n-on-build-images"></a>In addition, the processor and on-build images must also be accessible to the dashboard in your environment, as they're required for the build process (either by `docker build` or [Kaniko](#using-kaniko-as-an-image-builder)).
 You can achieve this using either of the following methods:
