@@ -6,14 +6,14 @@ This document describes advanced configuration options and best-practice guideli
 
 #### In this document
 
-- [Selecting the deployment method](#selecting-the-deployment-method)
+- [The preferred deployment method](#preferred-deployment-method)
 - [Freezing a qualified version](#version-freezing)
 - [Multi-Tenancy](#multi-tenancy)
 - [Air-gapped deployment](#air-gapped-deployment)
 - [Using Kaniko as an image builder](#kaniko-image-builder)
 
-<a id="Selecting the deployment method"></a>
-## Selecting the deployment method
+<a id="preferred-deployment-method"></a>
+## The preferred deployment method
 
 You can use any of the deployment (installation) methods described in the Nuclio [Setup](/docs/setup/) documentation also in production.
 However, it's recommended that you use [Helm charts](/hack/k8s/helm/nuclio/), which is currently the preferred deployment method at Iguazio.
