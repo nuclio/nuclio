@@ -138,7 +138,11 @@ registry: {}
 
   #  Use dedicated base/onbuild images registry (pull registry)
   #
-  # defaultBaseRegistryURL: someurl
+  # defaultBaseRegistryURL: someUrl
+
+  # Use this registry url as an override for both base and onbuild images,
+  # so they will be pulled from the given registry URL and not from the default registry their name implies
+  # dependantImageRegistryURL: someUrl
 
 rbac:
 
