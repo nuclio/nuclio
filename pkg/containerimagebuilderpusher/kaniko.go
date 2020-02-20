@@ -36,6 +36,8 @@ func NewKaniko(logger logger.Logger, kubeClientSet kubernetes.Interface,
 		return nil, errors.New("Missing kaniko builder configuration")
 	}
 
+	// Valid job name is composed from a DNS-1123 subdomains which in turn must contain only lower case
+	// alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com')
 	jobNameRegex, err := regexp.Compile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
 	if err != nil {
 		return nil, errors.New("Failed to compile job name regex")
@@ -299,10 +301,6 @@ func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, 
 }
 
 func (k *Kaniko) compileJobName(image string) string {
-
-	// Valid job name is composed from a DNS-1123 subdomains which in turn must contain only lower case
-	// alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com',
-	// regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*
 
 	functionName := strings.Replace(image, "/", "", -1)
 	functionName = strings.Replace(functionName, ":", "", -1)
