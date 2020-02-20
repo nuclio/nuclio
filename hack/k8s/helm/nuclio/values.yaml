@@ -136,7 +136,7 @@ registry: {}
     # username: someuser
     # password: somepass
 
-  #  Use dedicated base/onbuild images registry (pull registry)
+  #  Use dedicated onbuild images registry (pull registry)
   #
   # defaultBaseRegistryURL: someUrl
 
