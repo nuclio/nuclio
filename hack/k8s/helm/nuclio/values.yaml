@@ -120,14 +120,14 @@ registry: {}
   # secretName: registry-credentials
 
   # In some cases the docker server URL in the registry secrets isn't the same as the URL with which
-  # you push and pull. For example, in GKE you login to `gcr.io` (or some other regional URL) yet have
-  # to push/pull from `gcr.io/<project-name>. If this is the case, specify the url here and it will be
-  # used instead of the url in the secrets
+  # you push and pull. For example, in GKE you log into `gcr.io` (or some other regional URL) yet have
+  # to push/pull from `gcr.io/<project-name>. If this is the case, specify the URL here and it will be
+  # used instead of the URL in the secrets
   #
   # pushPullUrl: gcr.io/<project-name>
 
   # In case you'd like helm to generate the secret for you, `loginUrl` specifies
-  # the URL with which the components in nuclio will try to login to
+  # the URL with which the components in nuclio will try to log into
   #
   # loginUrl: someurl
 
@@ -136,12 +136,13 @@ registry: {}
     # username: someuser
     # password: somepass
 
-  #  Use dedicated onbuild images registry (pull registry)
+  #  Use a dedicated "onbuild" images registry (pull registry).
+  #  Note: To override a pull registry for both "onbuild" and base images, use `dependantImageRegistryURL`.
   #
   # defaultBaseRegistryURL: someUrl
 
-  # Use this registry url as an override for both base and onbuild images,
-  # so they will be pulled from the given registry URL and not from the default registry their name implies
+  # Use this registry URL as an override for both base and "onbuild" images, so they'll be pulled from the
+  # specified registry URL and not from the default registry that their name implies
   # dependantImageRegistryURL: someUrl
 
 rbac:

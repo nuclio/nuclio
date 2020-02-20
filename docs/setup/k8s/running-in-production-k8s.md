@@ -98,7 +98,7 @@ If you select to handle the implementation yourself, follow these guidelines; th
 - Set `offline` to `true` to put Nuclio in "offline" mode.
 - Set `dashboard.baseImagePullPolicy` to `Never`.
 - Set `registry.pushPullUrl` to a registry URL that's reachable from your system.
-- <a id="air-gapped-envir-base-n-onbuild-images"></a>Ensure that base, "onbuild" and processor images are accessible to the dashboard in your environment, as they're required for the build process (either by `docker build` or [Kaniko](#using-kaniko-as-an-image-builder)).
+- <a id="air-gapped-envir-base-n-onbuild-images"></a>Ensure that base, "onbuild", and processor images are accessible to the dashboard in your environment, as they're required for the build process (either by `docker build` or [Kaniko](#using-kaniko-as-an-image-builder)).
   You can achieve this using either of the following methods:
 
   - Make the images available on the host Docker daemon (local cache).
@@ -136,7 +136,7 @@ This is rather straightforward; however, note the following:
 - When running in an [air-gapped environment](#air-gapped-deployment), Kaniko's executor image must also be available to your Kubernetes cluster.
 - Kaniko requires that you work with a registry to which push the resulting function images.
   It doesn't support accessing images on the host Docker daemon.
-  Therefore, you must set `registry.pushPullUrl` to the URL of the registry to which Kaniko should push the resulting images, and in air-gapped environments, you must also set `registry.dependantImageRegistryURL` to the URL of an accessible local registry that contains the preloaded base, "onbuild" and processor images (see [Air-gapped deployment](#air-gapped-envir-base-n-onbuild-images)).
+  Therefore, you must set `registry.pushPullUrl` to the URL of the registry to which Kaniko should push the resulting images, and in air-gapped environments, you must also set `registry.dependantImageRegistryURL` to the URL of an accessible local registry that contains the preloaded base, "onbuild", and processor images (see [Air-gapped deployment](#air-gapped-envir-base-n-onbuild-images)).
 - `quay.io` doesn't support nested repositories.
   If you're using Kaniko as a container builder and `quay.io` as a registry (`--set registry.pushPullUrl=quay.io/<repo name>`), add the following to your configuration to allow Kaniko caching to push successfully; (replace the `<repo name>` placeholder with the name of your repository):
     ```sh
