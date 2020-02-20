@@ -15,9 +15,8 @@ This document describes advanced configuration options and best-practice guideli
 <a id="preferred-deployment-method"></a>
 ## The preferred deployment method
 
-You can use any of the deployment (installation) methods described in the Nuclio [Setup](/docs/setup/) documentation also in production.
-However, it's recommended that you use [Helm charts](/hack/k8s/helm/nuclio/), which is currently the preferred deployment method at Iguazio.
-This is the most tightly maintained Nuclio deployment method; it's best suited for "heavy lifting" over Kubernetes; and it's often used to roll out new production-oriented features.
+There are several alternatives to deploying (installing) Nuclio in production, but the recommended method is by using [Helm charts](/hack/k8s/helm/nuclio/).
+This is the currently the preferred deployment method at Iguazio as it's the most tightly maintained, it's best suited for "heavy lifting" over Kubernetes, and it's often used to roll out new production-oriented features.
 
 Following is a quick example of how to use Helm charts to set up a specific stable version of Nuclio.
 Replace the `<...>` placeholders with your specific values; the Nuclio version number is configured in the `image.tag` values (see the `<version>` placeholder):
