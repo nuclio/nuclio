@@ -98,16 +98,16 @@ If you select to handle the implementation yourself, follow these guidelines; th
 - Set `offline` to `true` to put Nuclio in "offline" mode.
 - Set `dashboard.baseImagePullPolicy` to `Never`.
 - Set `registry.pushPullUrl` to a registry URL that's reachable from your system.
-- To use a Nuclio templates library (optional), package the templates into an archive that's served locally and accessible to your system, and set `dashboard.templatesArchiveAddress` to the archive address.
+- <a id="air-gapped-envir-processor-n-onbuild-images"></a>Ensure that the processor and "onbuild" images are accessible to the dashboard in your environment, as they're required for the build process (either by `docker build` or [Kaniko](#using-kaniko-as-an-image-builder)).
+  You can achieve this using either of the following methods:
 
-<a id="air-gapped-envir-processor-n-onbuild-images"></a>In addition, the processor and "onbuild" images must also be accessible to the dashboard in your environment, as they're required for the build process (either by `docker build` or [Kaniko](#using-kaniko-as-an-image-builder)).
-You can achieve this using either of the following methods:
+  - Make the images available to the Kubernetes Docker daemon.
+  - Preload the images to a registry that's accessible to your system, to allow pulling the images from the registry.
+    When using this method, set `registy.defaultBaseRegistryURL` to the URL of an accessible local registry that contains the preloaded images (thus overriding the default location of `quay.io/nuclio`, which isn't accessible in air-gapped environments).
+    <br/><br/>
+    > **Note:** To save yourself some work, you can use the [prebaked Nuclio registry](https://github.com/nuclio/prebaked-registry), either as-is or as a reference for creating your own local registry with preloaded images.
 
-- Make the images available to the Kubernetes Docker daemon.
-- Preload the images to a registry that's accessible to your system, to allow pulling the images from the registry.
-  When using this method, set `registy.defaultBaseRegistryURL` to the URL of an accessible local registry that contains the preloaded images (thus overriding the default location of `quay.io/nuclio`, which isn't accessible in air-gapped environments).
-  <br/><br/>
-  > **Note:** To save yourself some work, you can use the [prebaked Nuclio registry](https://github.com/nuclio/prebaked-registry), either as-is or as a reference for creating your own local registry with preloaded images.
+- To use a Nuclio templates library (optional), package the templates into an archive, and set `dashboard.templatesArchiveAddress` to a local address for serving the archive, which is accessible to your system.
 
 <a id="kaniko-image-builder"></a>
 ## Using Kaniko as an image builder
