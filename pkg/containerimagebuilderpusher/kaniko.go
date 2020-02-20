@@ -36,7 +36,7 @@ func NewKaniko(logger logger.Logger, kubeClientSet kubernetes.Interface,
 		return nil, errors.New("Missing kaniko builder configuration")
 	}
 
-	jobNameRegex, err := regexp.Compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)")
+	jobNameRegex, err := regexp.Compile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
 	if err != nil {
 		return nil, errors.New("Failed to compile job name regex")
 	}
