@@ -107,7 +107,7 @@ If you select to handle the implementation yourself, follow these guidelines; th
     <br/><br/>
     > **Note:** To save yourself some work, you can use the [prebaked Nuclio registry](https://github.com/nuclio/prebaked-registry), either as-is or as a reference for creating your own local registry with preloaded images.
 
-- To use a Nuclio templates library (optional), package the templates into an archive, and set `dashboard.templatesArchiveAddress` to a local address for serving the archive, which is accessible to your system.
+- To use the Nuclio templates library (optional), package the templates into an archive; serve the templates archive via a local server whose address is accessible to your system; and set `dashboard.templatesArchiveAddress` to the address of this local server.
 
 <a id="kaniko-image-builder"></a>
 ## Using Kaniko as an image builder
