@@ -1,59 +1,59 @@
-# Running Nuclio over Kubernetes in production
+# Running Nuclio Over Kubernetes in Production
 
-After familiarizing yourself with Nuclio, and [deploying it over k8s](/docs/setup/k8s/getting-started-k8s.md) you may find yourself looking for extra configuration knobs, and proper practices for using it in a production environment.
-In [Iguazio](https://www.iguazio.com/) we integrated Nuclio as part of our [Data science PaaS](https://www.iguazio.com/platform/), and it is in extensive use in production, for both our customers and ourselves, running various workloads.
-
-Here you will find more advanced configuration options, and some practices which address the needs of running Nuclio in production environments. 
-
+After familiarizing yourself with Nuclio and [deploying it over Kubernetes](/docs/setup/k8s/getting-started-k8s.md), you might find yourself in need of more information pertaining to running Nuclio in production.
+Nuclio is integrated, for example, within the [Iguazio Data Science Platform](https://www.iguazio.com), which is used extensively in production, both by Iguazio and its customers, running various workloads.
+This document describes advanced configuration options and best-practice guidelines for using Nuclio in a production environment.
 
 #### In this document
 
-- [Preferred installation method](#preferred-installation-method)
-- [Version freezing](#version-freezing)
-- [Multi Tenancy](#multi-tenancy)
-- [Air gapped (dark site) operation](#air-gapped-dark-site-operation)
-- [Using Kaniko as an image builder](#using-kaniko-as-an-image-builder)
+- [The preferred deployment method](#preferred-deployment-method)
+- [Freezing a qualified version](#version-freezing)
+- [Multi-Tenancy](#multi-tenancy)
+- [Air-gapped deployment](#air-gapped-deployment)
+- [Using Kaniko as an image builder](#kaniko-image-builder)
 
+<a id="preferred-deployment-method"></a>
+## The preferred deployment method
 
-## Preferred installation method
+There are several alternatives to deploying (installing) Nuclio in production, but the recommended method is by using [Helm charts](/hack/k8s/helm/nuclio/).
+This is currently the preferred deployment method at Iguazio as it's the most tightly maintained, it's best suited for "heavy lifting" over Kubernetes, and it's often used to roll out new production-oriented features.
 
-Even though you may, of course, use any of the available methods, we find that heavy-lifting over k8s is best done with helm charts.
-Nuclio's [helm chart](/hack/k8s/helm/nuclio/) is our preferred mode of deploying Nuclio in [Iguazio](https://www.iguazio.com/) as of writing this document.
-This is also where you'll find most of the production oriented features appearing first, and is the most tightly maintained form of deployment.
+Following is a quick example of how to use Helm charts to set up a specific stable version of Nuclio.
+Replace the `<...>` placeholders with your specific values; the Nuclio version number is configured in the `image.tag` values (see the `<version>` placeholder):
 
-Below is a quick example of how to setup the a specific stable version of nuclio (1.3.14) via helm charts:
-
-- Create a namespace for your functions, and a secret with your intended registry's credentials
+1.  Create a namespace for your Nuclio functions:
 
     ```sh
     kubectl create namespace nuclio
     ```
 
+2.  Create a secret with valid credentials for logging into your target container (Docker) registry:
+
     ```sh
     read -s mypassword
     <enter your password>
-    
+
     kubectl create secret docker-registry registry-credentials \
         --docker-username <username> \
         --docker-password $mypassword \
         --docker-server <URL> \
         --docker-email <some email>
-    
+
     unset mypassword
     ```
 
-- Copy the secret to the nuclio namespace, since k8s does not allow for secret sharing between namespaces:
+3.  Copy your secret to the `nuclio` namespace, as Kubernetes doesn't allow namespaces to share secrets:
     ```sh
     kubectl get secret registry-credentials -n default -o yaml \
     | sed s/"namespace: default"/"namespace: nuclio"/ \
     | kubectl apply -f -
     ```
 
- - Checkout the nuclio project and install nuclio from its helm chart: 
+4.  Check out the `nuclio` project and install Nuclio from its Helm chart; for a full list of configuration parameters, see the Helm values file ([**values.yaml**](/hack/k8s/helm/nuclio/values.yaml)):
 
     ```sh
     git checkout https://github.com/nuclio/nuclio.git
-    
+
     helm install \
         --set registry.secretName=registry-credentials \
         --set registry.pushPullUrl=<your registry URL> \
@@ -62,50 +62,64 @@ Below is a quick example of how to setup the a specific stable version of nuclio
         ./hack/k8s/helm/nuclio/
     ```
 
-  See [the helm chart's values file](/hack/k8s/helm/nuclio/values.yaml) for a full list of configurable parameters
+<a id="multi-tenancy"></a>
+## Multi-Tenancy
 
+Implementation of multi-tenancy can be done in many different ways and to various degrees.
+The experience of the Nuclio team has lead to the adoption of the Kubernetes approach of tenant isolation using namespaces.
+Note:
 
-## Multi Tenancy
+- To achieve tenant separation for various Nuclio projects and functions, and to avoid cross-tenant contamination and resource races, a fully functioning Nuclio deployment is used in each namespace and the Nuclio controller is configured to be namespaced.
+  This means that the controller handles Nuclio resources (functions, function events, and projects) only within its own namespace.
+  This is supported by using the `controller.namespace` [Helm values](/hack/k8s/helm/nuclio/values.yaml) configuration.
+- To provide ample separation at the level of the container registry, it's highly recommended that the Nuclio deployments of multiple tenants either don't share container registries, or that they don't share a tenant when using a multi-tenant registry (such as `docker.io` or `quay.io`).
 
-Implementation of multi-tenancy can be done in many different forms and to various degrees. Our experience have led us to adopt the k8s approach of tenant isolation using namespaces.
-- To achieve tenant separation for various nuclio projects and functions, and to avoid cross-tenant contamination and resource races, we have opted to deploy in each namespace a fully functioning Nuclio deployment, and configure Nuclio's controller to be namespaced.
-  This means the controller will handle Nuclio resources (functions, function-events, projects) only within its own namespace. This is supported via `Values.controller.namespace` in the helm chart values.  
-- To provide ample separation on the docker image level, we highly recommend that the Nuclio deployments of various tenants will not share docker registries, or will not share a tenant, if a multi-tenant registry is used (like `docker.io` or `quay.io`) 
+<a id="version-freezing"></a>
+## Freezing a qualified version
 
+When working in production, you need reproducibility and consistency.
+It's therefore recommended that you don't use the latest stable version, but rather qualify a specific Nuclio version and "freeze" it in your configuration.
+Stick with this version until you qualify a newer version for your system.
+Because Nuclio adheres to backwards-compatibility standards between patch versions, and even minor version updates don't typically break major functionality, the process of qualifying a newer Nuclio version should generally be short and easy.
 
-## Version freezing
+To use Helm to freeze a specific Nuclio version, set all of the `*.image.repository` and `*.image.tag` [Helm values](/hack/k8s/helm/nuclio/values.yaml) to the names and tags that represent the images for your chosen version.
+Note the configured images must be accessible to your Kubernetes deployment (which is especially relevant for [air-gapped deployments](#air-gapped-deployment)).
 
-- Working in production, you need reproducibility and consistency. This means you will not be working with latest stable version, but qualify a specific version and freeze it in your Nuclio configuration ([helm chart values file](/hack/k8s/helm/nuclio/values.yaml)).
-  Stick with this version until you qualify a newer one to work with your system. Since we adhere to backwards compatibility standards between patch versions, and even minor version bumps usually do not break major functionality, the process of qualifying a newer nuclio version should hopefully be short and easy.
-  To version freeze via helm values, set all of the `*.image.repository` and `*.image.tag` configuration keys to the image names and tags which represenr your chosen version's images and are available to your k8s deployment (in case of an [air-gapped installation](#air-gapped-dark-site-operation)).
- 
- 
-## Air gapped (dark site) operation
+<a id="air-gapped-deployment"></a>
+## Air-gapped deployment
 
-We have received various questions about running Nuclio in air gapped environments. Nuclio is fully air-gap compatible, and supports the appropriate configuration to avoid any outside access.
-These guidelines refer to more advanced use cases and they assume the surrounding work (read: devops) can be done by the targeted user.
-We know these things can get a bit tricky. If you want access to a fully-managed, air-gap-friendly, batteries-included, Nuclio deployment, packaged with **Lots** of other goodies - do check out the enterprise grade [Iguazio Data science PaaS](https://www.iguazio.com/platform/)! 
+Nuclio is fully compatible with execution in air-gapped environments ("dark sites"), and supports the appropriate configuration to avoid any outside access.
+The following guidelines refer to more advanced use cases and are based on the assumption that you can handle the related DevOps tasks.
+Note that such implementations can get a bit tricky; to access a fully-managed, air-gap friendly, "batteries-included", Nuclio deployment, which also offers plenty of other tools and features, check out the enterprise-grade [Iguazio Data Science Platform](https://www.iguazio.com/platform/).
+If you select to handle the implementation yourself, follow these guidelines; the referenced configurations are all [Helm values](/hack/k8s/helm/nuclio/values.yaml):
 
-That being said, here are a few guidelines to get you on your way:
+- Set `*.image.repository` and `*.image.tag` to [freeze a qualified version](#version-freezing), and ensure that the configured images are accessible to the Kubernetes deployment.
+- Set `*.image.pullPolicy` to `Never` or to `IfNotPresent` to ensure that Kubernetes doesn't try to fetch the images from the web.
+- Set `offline` to `true` to put Nuclio in "offline" mode.
+- Set `dashboard.baseImagePullPolicy` to `Never`.
+- Set `registry.pushPullUrl` to a registry URL that's reachable from your system.
+- <a id="air-gapped-envir-processor-n-onbuild-images"></a>Ensure that the processor and "onbuild" images are accessible to the dashboard in your environment, as they're required for the build process (either by `docker build` or [Kaniko](#using-kaniko-as-an-image-builder)).
+  You can achieve this using either of the following methods:
 
-- Most definitely [version freeze](#version-freezing). Also, set `*.image.pullPolicy` to `Never` or `IfNotPresent` to make sure k8s won't try to access the web to fetch images at any point in time.
-- Set `Values.offline=true` in the helm values, to put nuclio in "offline" mode. Set `dashboard.baseImagePullPolicy=Never`.
-- Needless to say, in this scenario, you will have to configure nuclio with `registry.pushPullUrl` which is reachable from your system.
-- The processor and onbuild images will also have to be accessible to the dashboard in your environment, as they are required for the building process - (by `docker build`, or [kaniko](#using-kaniko-as-an-image-builder)).
-  This can be tricky as you have to either make those images available to the k8s docker daemon or pull-able from a reachable registry, where they should be preloaded. Use `Values.registy.defaultBaseRegistryURL` to point nuclio at searching in your registry for those images, rather then at the default location of `quay.io/nuclio`.
-  To save some work on setting up a registry and preloading the onbuild images to it (or as a reference to what it should include) - take a look at the [prebaked-registry](https://github.com/nuclio/prebaked-registry).
-- For the Nuclio templates library to be available to you, you'll have to package that yourself, and have it served locally, somewhere within reach of your system. To point Nuclio to it, set `Values.dashboard.templatesArchiveAddress` to where you serve the templates.
+  - Make the images available to the Kubernetes Docker daemon.
+  - Preload the images to a registry that's accessible to your system, to allow pulling the images from the registry.
+    When using this method, set `registy.defaultBaseRegistryURL` to the URL of an accessible local registry that contains the preloaded images (thus overriding the default location of `quay.io/nuclio`, which isn't accessible in air-gapped environments).
+    <br/><br/>
+    > **Note:** To save yourself some work, you can use the [prebaked Nuclio registry](https://github.com/nuclio/prebaked-registry), either as-is or as a reference for creating your own local registry with preloaded images.
 
+- To use the Nuclio templates library (optional), package the templates into an archive; serve the templates archive via a local server whose address is accessible to your system; and set `dashboard.templatesArchiveAddress` to the address of this local server.
 
+<a id="kaniko-image-builder"></a>
 ## Using Kaniko as an image builder
 
-When dealing with production deployments, bind-mounting the docker socket into Nuclio dashboard's pod is a bit of a no-no. Having access to the host machine's docker daemon by the Nuclio dashboard is akin to giving it root access to the machine.
-This is understandably a concern for real production use cases. Ideally, no pod should access the docker daemon directly, but since Nuclio is a docker based serverless framework, it needs the ability to build [OCI images](https://github.com/opencontainers/image-spec) at run time.
-While there are several alternatives to bind-mounting the docker socket, we have opted to integrate [Kaniko](https://github.com/GoogleContainerTools/kaniko) as a production-ready alternative to build OCI images in a secured way in latest versions.
-It is well maintained, stable, easy to use, and provides an ample set of features.
-Kaniko is available to use as of version 1.3.15 of Nuclio, currently only on k8s.
+When dealing with production deployments, you should avoid bind-mounting the Docker socket to the service pod of the Nuclio dashboard; doing so would allow the dashboard access to the host machine's Docker daemon, which is akin to giving it root access to your machine.
+This is understandably a concern for real production use cases.
+Ideally, no pod should access the Docker daemon directly, but because Nuclio is a container-based serverless framework, it needs the ability to build [OCI images](https://github.com/opencontainers/image-spec) at run time.
+While there are several alternatives to bind-mounting the Docker socket, the selected Nuclio solution, starting with Nuclio version 1.3.15, is to integrate [Kaniko](https://github.com/GoogleContainerTools/kaniko) as a production-ready method of building OCI images in a secured way.
+Kaniko is well maintained, stable, easy to use, and provides an extensive set of features.
+Nuclio currently supports Kaniko only on Kubernetes.
 
-To deploy nuclio and direct it to use the Kaniko engine to build images, apply the appropriate helm values as such:
+To deploy Nuclio and direct it to use the Kaniko engine to build images, use the following [Helm values](/hack/k8s/helm/nuclio/values.yaml) parameters; replace the `<...>` placeholders with your specific values:
 
 ```sh
 helm install \
@@ -117,18 +131,17 @@ helm install \
     .
 ```
 
-Simple enough, right?
+This is rather straightforward; however, note the following:
 
-A few notes though:
-- If running in an air-gapped environment, kaniko's executor image must also be available to your k8s cluster
-- Kaniko *requires* that you work with a registry, which is used to push the resulting function images to, it is no longer possible to have an image built and be available on the host docker daemon.
-  This means you must configure a `Values.registry.pushPullUrl` for kaniko to push the resulting images to, as well as possibly `Values.registry.defaultBaseRegistryURL` if you operate in an air gapped environment.
-- `quay.io` does not support nested repositories. If you are using kaniko as a container-builder, and `quay.io` as a registry (`--set registry.pushPullUrl=quay.io/<repo name>`), add the following to allow kaniko caching to succeed pushing:
+- When running in an [air-gapped environment](#air-gapped-deployment), Kaniko's executor image must also be available to your Kubernetes cluster.
+- Kaniko requires that you work with a registry to which push the resulting function images.
+  It doesn't support accessing images on the host Docker daemon.
+  Therefore, you must set `registry.pushPullUrl` to the URL of the registry to which Kaniko should push the resulting images, and in air-gapped environments, you must also set `registry.defaultBaseRegistryURL` to the URL of an accessible local registry that contains the preloaded processor and "onbuild" images (see [Air-gapped deployment](#air-gapped-envir-processor-n-onbuild-images)).
+- `quay.io` doesn't support nested repositories.
+  If you're using Kaniko as a container builder and `quay.io` as a registry (`--set registry.pushPullUrl=quay.io/<repo name>`), add the following to your configuration to allow Kaniko caching to push successfully; (replace the `<repo name>` placeholder with the name of your repository):
     ```sh
     --set dashboard.kaniko.cacheRepo=quay.io/<repo name>/cache
     ```
 
-
-We should also mention that we are looking into enabling docker-in-docker (dind) as a possible mode of operation.
-
+> **Note:** The Nuclio team is also looking into enabling Docker-in-Docker (DinD) as a possible mode of operation.
 

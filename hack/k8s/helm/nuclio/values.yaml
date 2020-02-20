@@ -39,7 +39,7 @@ dashboard:
 
   kaniko:
 
-    #  Set this flag to specify a remote repository that will be used to store cached layers
+    #  Set this flag to specify a remote repository for storing cached layers
     #
     # cacheRepo: someurl
 
@@ -57,7 +57,8 @@ dashboard:
   # Uncomment to configure node port
   # nodePort: 32050
 
-  # Uncomment if you serve the templates locally (for offline environments) - else will be pulled from github
+  # Uncomment if you serve the templates locally (for offline environments);
+  # otherwise, the templates will be pulled from GitHub
   # templatesArchiveAddress: <url>
 
   ingress:
