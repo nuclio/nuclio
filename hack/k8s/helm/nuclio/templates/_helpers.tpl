@@ -36,7 +36,7 @@
 {{- if .Values.rbac.serviceAccountName -}}
 {{- .Values.rbac.serviceAccountName -}}
 {{- else -}}
-{{- printf "%s-nuclio" .Release.Name -}}
+{{- printf "%s-service-account" .Release.Name -}}
 {{- end -}}
 {{- end -}}
 

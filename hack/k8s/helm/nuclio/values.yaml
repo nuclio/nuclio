@@ -152,6 +152,9 @@ rbac:
 
   # serviceAccountName: service-account-name
 
+  # Allow cluster or namespaced CRDs access
+  crdAccessMode: cluster
+
 crd:
   
   # If true, creates cluster wide custom resources definitions for nuclio's resources
