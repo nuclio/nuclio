@@ -17,15 +17,33 @@
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
+  name: {{ template "nuclio.crdAdminName" . }}-clusterrole
+  labels:
+    app: {{ template "nuclio.nuclioName" . }}
+    release: {{ .Release.Name }}
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+
+{{- if eq .Values.rbac.crdAccessMode "cluster" }}
+  - apiGroups: ["nuclio.io"]
+    resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents"]
+    verbs: ["*"]
+
+{{- else if eq .Values.rbac.crdAccessMode "namespaced" }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
   name: {{ template "nuclio.crdAdminName" . }}-role
   labels:
     app: {{ template "nuclio.nuclioName" . }}
     release: {{ .Release.Name }}
 rules:
-- apiGroups: ["nuclio.io", "batch"]
-  resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents", "jobs"]
-  verbs: ["*"]
-- apiGroups: [""]
-  resources: ["nodes"]
-  verbs: ["get", "list"]
+  - apiGroups: ["nuclio.io"]
+    resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents"]
+    verbs: ["*"]
+{{- end }}
 {{- end }}

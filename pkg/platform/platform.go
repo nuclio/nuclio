@@ -57,7 +57,7 @@ type Platform interface {
 	// GetFunctions will list existing functions
 	GetFunctions(getFunctionsOptions *GetFunctionsOptions) ([]Function, error)
 
-	// GetDefaultInvokeIPAddresses will return a list of ip addresses to be used by the platform to inovke a function
+	// GetDefaultInvokeIPAddresses will return a list of ip addresses to be used by the platform to invoke a function
 	GetDefaultInvokeIPAddresses() ([]string, error)
 
 	//

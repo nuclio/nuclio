@@ -152,6 +152,10 @@ rbac:
 
   # serviceAccountName: service-account-name
 
+  # Allow / deny cluster-wide CRD access. values: "cluster", "namespaced".
+  # If set to "namespaced" dashboard will not be able to create nuclio resources in any namespace other than the one in which it is installed
+  crdAccessMode: cluster
+
 crd:
   
   # If true, creates cluster wide custom resources definitions for nuclio's resources
