@@ -36,7 +36,7 @@
 {{- if .Values.rbac.serviceAccountName -}}
 {{- .Values.rbac.serviceAccountName -}}
 {{- else -}}
-{{- printf "%s-service-account" .Release.Name -}}
+{{- .Release.Name -}}
 {{- end -}}
 {{- end -}}
 
