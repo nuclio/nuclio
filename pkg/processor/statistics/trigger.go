@@ -18,6 +18,7 @@ package statistics
 
 import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"sync"
 
 	"github.com/nuclio/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -27,6 +28,7 @@ type triggerGatherer struct {
 	trigger            trigger.Trigger
 	handledEventsTotal *prometheus.CounterVec
 	prevStatistics     trigger.Statistics
+	gatherLock         sync.Locker
 }
 
 func newTriggerGatherer(instanceName string,
@@ -61,6 +63,8 @@ func newTriggerGatherer(instanceName string,
 }
 
 func (esg *triggerGatherer) Gather() error {
+	esg.gatherLock.Lock()
+	defer esg.gatherLock.Lock()
 
 	// read current stats
 	currentStatistics := *esg.trigger.GetStatistics()
