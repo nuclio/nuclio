@@ -632,22 +632,22 @@ func (suite *syncContainerKVTestSuite) SetupSuite() {
 
 type syncStreamTestSuite struct {
 	syncTestSuite
-	StreamTestSuite StreamTestSuite
+	streamTestSuite streamTestSuite
 }
 
 func (suite *syncStreamTestSuite) SetupTest() {
-	suite.StreamTestSuite = StreamTestSuite{
+	suite.streamTestSuite = streamTestSuite{
 		testSuite: suite.syncTestSuite.testSuite,
 	}
-	suite.StreamTestSuite.SetupTest()
+	suite.streamTestSuite.SetupTest()
 }
 
 func (suite *syncStreamTestSuite) TearDownTest() {
-	suite.StreamTestSuite.TearDownTest()
+	suite.streamTestSuite.TearDownTest()
 }
 
 func (suite *syncStreamTestSuite) TestStream() {
-	streamPath := fmt.Sprintf("%s/mystream/", suite.StreamTestSuite.testPath)
+	streamPath := fmt.Sprintf("%s/mystream/", suite.streamTestSuite.testPath)
 
 	//
 	// Create the stream

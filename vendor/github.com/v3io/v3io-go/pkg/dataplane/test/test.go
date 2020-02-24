@@ -37,7 +37,7 @@ func (suite *testSuite) createContext() {
 	var err error
 
 	// create a context
-	suite.container, err = v3iohttp.NewContext(suite.logger, v3iohttp.NewDefaultClient(), &v3io.NewContextInput{})
+	suite.container, err = v3iohttp.NewContext(suite.logger, &v3iohttp.NewContextInput{})
 	suite.Require().NoError(err)
 
 	// populate fields that would have been populated by session/container
@@ -57,7 +57,7 @@ func (suite *testSuite) createContext() {
 func (suite *testSuite) createContainer() {
 
 	// create a context
-	context, err := v3iohttp.NewContext(suite.logger, v3iohttp.NewDefaultClient(), &v3io.NewContextInput{})
+	context, err := v3iohttp.NewContext(suite.logger, &v3iohttp.NewContextInput{})
 	suite.Require().NoError(err)
 
 	session, err := context.NewSession(&v3io.NewSessionInput{
@@ -74,17 +74,13 @@ func (suite *testSuite) createContainer() {
 	suite.Require().NoError(err)
 }
 
-type StreamTestSuite struct { // nolint: deadcode
+type streamTestSuite struct { // nolint: deadcode
 	testSuite
 	testPath string
 }
 
-func (suite *StreamTestSuite) SetupSuite() {
-	suite.testSuite.SetupSuite()
+func (suite *streamTestSuite) SetupTest() {
 	suite.testPath = "/stream-test"
-}
-
-func (suite *StreamTestSuite) SetupTest() {
 	err := suite.deleteAllStreamsInPath(suite.testPath)
 
 	// get the underlying root error
@@ -97,12 +93,12 @@ func (suite *StreamTestSuite) SetupTest() {
 	}
 }
 
-func (suite *StreamTestSuite) TearDownTest() {
+func (suite *streamTestSuite) TearDownTest() {
 	err := suite.deleteAllStreamsInPath(suite.testPath)
 	suite.Require().NoError(err, "Failed to tear down test suite")
 }
 
-func (suite *StreamTestSuite) deleteAllStreamsInPath(path string) error {
+func (suite *streamTestSuite) deleteAllStreamsInPath(path string) error {
 	getContainerContentsInput := v3io.GetContainerContentsInput{
 		Path: path,
 	}
