@@ -49,7 +49,7 @@ func newFunction(parentLogger logger.Logger,
 	newFunction := &function{}
 
 	// create a config from function
-	functionConfig := functionconfig.Config{
+	functionConfig := &functionconfig.Config{
 		Meta: functionconfig.Meta{
 			Name:            nuclioioFunction.Name,
 			Namespace:       nuclioioFunction.Namespace,
@@ -62,7 +62,7 @@ func newFunction(parentLogger logger.Logger,
 
 	newAbstractFunction, err := platform.NewAbstractFunction(parentLogger,
 		parentPlatform,
-		&functionConfig,
+		functionConfig,
 		&nuclioioFunction.Status,
 		newFunction)
 
@@ -152,10 +152,11 @@ func (f *function) GetReplicas() (int, int) {
 func (f *function) GetConfig() *functionconfig.Config {
 	return &functionconfig.Config{
 		Meta: functionconfig.Meta{
-			Name:        f.function.Name,
-			Namespace:   f.function.Namespace,
-			Labels:      f.function.Labels,
-			Annotations: f.function.Annotations,
+			Name:            f.function.Name,
+			Namespace:       f.function.Namespace,
+			Labels:          f.function.Labels,
+			Annotations:     f.function.Annotations,
+			ResourceVersion: f.function.ResourceVersion,
 		},
 		Spec: f.function.Spec,
 	}
