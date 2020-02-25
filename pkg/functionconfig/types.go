@@ -324,7 +324,7 @@ type Meta struct {
 
 	// opaque, readonly value, determines whether the object has changed
 	// more details @ https://kubernetes.io/docs/reference/using-api/api-concepts/#resource-versions
-	ResourceVersion string            `json:"resource_version,omitempty"`
+	ResourceVersion string `json:"resourceVersion,omitempty"`
 }
 
 // GetUniqueID return unique id

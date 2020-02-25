@@ -257,6 +257,7 @@ func (ar *AbstractResource) handleGetList(responseWriter http.ResponseWriter, re
 }
 
 func (ar *AbstractResource) handleGetDetails(responseWriter http.ResponseWriter, request *http.Request) {
+	encoder := ar.encoderFactory.NewEncoder(responseWriter, ar.name)
 
 	// registered as "/:id/"
 	resourceID := chi.URLParam(request, "id")
@@ -279,7 +280,7 @@ func (ar *AbstractResource) handleGetDetails(responseWriter http.ResponseWriter,
 		attributes = Attributes{}
 	}
 
-	ar.encoderFactory.NewEncoder(responseWriter, ar.name).EncodeResource(resourceID, attributes)
+	encoder.EncodeResource(resourceID, attributes)
 }
 
 func (ar *AbstractResource) handleCreate(responseWriter http.ResponseWriter, request *http.Request) {
