@@ -142,6 +142,17 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
 
+	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
+	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" && createFunctionOptions.FunctionConfig.Meta.Name != "" {
+		existingFunctionConfig, err = p.getFunctionConfig(&createFunctionOptions.FunctionConfig.Meta)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get existing function config")
+		}
+		if existingFunctionConfig.Meta.ResourceVersion != createFunctionOptions.FunctionConfig.Meta.ResourceVersion {
+			return nil ,errors.Wrap(err, "Resource Version miss match")
+		}
+	}
+
 	reportCreationError := func(creationError error, briefErrorsMessage string) error {
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
@@ -175,15 +186,6 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 				Message:  briefErrorsMessage,
 			},
 		})
-	}
-
-	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
-	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" && createFunctionOptions.FunctionConfig.Meta.Name != "" {
-		existingFunctionConfig, err = p.getFunctionConfig(createFunctionOptions.FunctionConfig.Meta.Namespace,
-			createFunctionOptions.FunctionConfig.Meta.Name)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get existing function config")
-		}
 	}
 
 	// the builder may update the configuration, so we have to create the function in the platform only after
