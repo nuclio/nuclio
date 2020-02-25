@@ -726,8 +726,8 @@ func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction
 	return function, nil
 }
 
-func (p *Platform) getFunctionConfig(namespace, name string) (*functionconfig.ConfigWithStatus, error) {
-	if functionInstance, err := p.getFunction(namespace, name); err != nil {
+func (p *Platform) getFunctionConfig(meta *functionconfig.Meta) (*functionconfig.ConfigWithStatus, error) {
+	if functionInstance, err := p.getFunction(meta.Namespace, meta.Name	); err != nil {
 		return nil, errors.Wrap(err, "Failed to get function")
 	} else if functionInstance != nil {
 
