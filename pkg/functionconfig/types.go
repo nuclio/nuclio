@@ -321,6 +321,10 @@ type Meta struct {
 	Namespace   string            `json:"namespace,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// opaque, readonly value, determines whether the object has changed
+	// more details @ https://kubernetes.io/docs/reference/using-api/api-concepts/#resource-versions
+	ResourceVersion string            `json:"resource_version,omitempty"`
 }
 
 // GetUniqueID return unique id
