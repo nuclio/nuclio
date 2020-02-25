@@ -149,7 +149,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return nil, errors.Wrap(err, "Failed to get existing function config")
 		}
 		if existingFunctionConfig.Meta.ResourceVersion != createFunctionOptions.FunctionConfig.Meta.ResourceVersion {
-			return nil ,errors.Wrap(err, "Resource Version miss match")
+			return nil, errors.New("Resource Version miss match")
 		}
 	}
 
@@ -727,7 +727,7 @@ func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction
 }
 
 func (p *Platform) getFunctionConfig(meta *functionconfig.Meta) (*functionconfig.ConfigWithStatus, error) {
-	if functionInstance, err := p.getFunction(meta.Namespace, meta.Name	); err != nil {
+	if functionInstance, err := p.getFunction(meta.Namespace, meta.Name); err != nil {
 		return nil, errors.Wrap(err, "Failed to get function")
 	} else if functionInstance != nil {
 
