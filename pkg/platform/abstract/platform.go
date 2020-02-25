@@ -210,42 +210,16 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 // Validation and enforcement of required function creation logic
 func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
 
-	// validate the project exists
-	getProjectsOptions := &platform.GetProjectsOptions{
-		Meta: platform.ProjectMeta{
-			Name:      createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
-			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
-		},
-	}
-	projects, err := ap.platform.GetProjects(getProjectsOptions)
-	if err != nil {
-		return errors.Wrap(err, "Failed getting projects")
-	}
-
-	if len(projects) == 0 {
-		return errors.New("Project doesn't exist")
-	}
-
-	// Verify trigger's MaxWorkers value is making sense, and that there's no more than one http trigger
-	var httpTriggerExists bool
-	for triggerName, _trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
-		if _trigger.MaxWorkers > trigger.MaxWorkersLimit {
-			return errors.Errorf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
-				triggerName,
-				_trigger.MaxWorkers,
-				trigger.MaxWorkersLimit)
-		}
-		if _trigger.Kind == "http" {
-			if !httpTriggerExists {
-				httpTriggerExists = true
-				continue
-			}
-			return errors.New("There's more than one http trigger (unsupported)")
-		}
+	if err := ap.validateTriggers(createFunctionOptions); err != nil {
+		return errors.Wrap(err, "Triggers validation failed")
 	}
 
 	if err := ap.validateMinMaxReplicas(createFunctionOptions); err != nil {
-		return errors.Wrap(err, "Failed to validate min max replicas")
+		return errors.Wrap(err, "Min max replicas validation failed")
+	}
+
+	if err := ap.validateProjectExists(createFunctionOptions); err != nil {
+		return errors.Wrap(err, "Project existence validation failed")
 	}
 
 	return nil
@@ -674,6 +648,51 @@ func (ap *Platform) validateMinMaxReplicas(createFunctionOptions *platform.Creat
 		return errors.New("Max replicas must be greater than zero")
 	}
 
+	return nil
+}
+
+func (ap *Platform) validateProjectExists(createFunctionOptions *platform.CreateFunctionOptions) error {
+
+	// validate the project exists
+	getProjectsOptions := &platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		},
+	}
+	projects, err := ap.platform.GetProjects(getProjectsOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed getting projects")
+	}
+
+	if len(projects) == 0 {
+		return errors.New("Project does not exist")
+	}
+	return nil
+}
+
+func (ap *Platform) validateTriggers(createFunctionOptions *platform.CreateFunctionOptions) error {
+
+	var httpTriggerExists bool
+	for triggerName, _trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
+
+		// no more workers than limitation allows
+		if _trigger.MaxWorkers > trigger.MaxWorkersLimit {
+			return errors.Errorf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
+				triggerName,
+				_trigger.MaxWorkers,
+				trigger.MaxWorkersLimit)
+		}
+
+		// no more than one http trigger is allowed
+		if _trigger.Kind == "http" {
+			if !httpTriggerExists {
+				httpTriggerExists = true
+				continue
+			}
+			return errors.New("There's more than one http trigger (unsupported)")
+		}
+	}
 	return nil
 }
 
