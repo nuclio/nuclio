@@ -51,9 +51,11 @@ func newFunction(parentLogger logger.Logger,
 	// create a config from function
 	functionConfig := functionconfig.Config{
 		Meta: functionconfig.Meta{
-			Name:      nuclioioFunction.Name,
-			Namespace: nuclioioFunction.Namespace,
-			Labels:    nuclioioFunction.Labels,
+			Name:            nuclioioFunction.Name,
+			Namespace:       nuclioioFunction.Namespace,
+			Labels:          nuclioioFunction.Labels,
+			ResourceVersion: nuclioioFunction.ResourceVersion,
+			Annotations:     nuclioioFunction.Annotations,
 		},
 		Spec: nuclioioFunction.Spec,
 	}

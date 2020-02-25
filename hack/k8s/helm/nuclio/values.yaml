@@ -35,7 +35,7 @@ dashboard:
   imageNamePrefixTemplate: ""
 
   # Supported container builders: "kaniko", "docker"
-  containerBuilderKind: "docker"
+  containerBuilderKind: docker
 
   kaniko:
 
