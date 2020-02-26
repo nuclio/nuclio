@@ -34,6 +34,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 //
@@ -224,7 +225,8 @@ func (ap *Platform) ValidateCreateFunctionOptions(existingFunction platform.Func
 	}
 
 	if err := ap.validateResourceVersion(existingFunction, createFunctionOptions); err != nil {
-		return errors.Wrap(err, "Resource version validation error")
+		ap.Logger.ErrorWith("Resource version validation error", "error", err)
+		return nuclio.NewErrConflict("Function is out of sync")
 	}
 
 	return nil
