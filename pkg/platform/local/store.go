@@ -187,6 +187,21 @@ func (s *store) getFunctions(functionMeta *functionconfig.Meta) ([]platform.Func
 	return functions, nil
 }
 
+func (s *store) getFunction(functionMeta *functionconfig.Meta) (platform.Function, error) {
+	functions, err := s.getFunctions(functionMeta)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get functions")
+	}
+
+	if len(functions) == 0 {
+
+		// not found
+		return nil, nil
+	}
+
+	return functions[0], nil
+}
+
 func (s *store) deleteFunction(functionMeta *functionconfig.Meta) error {
 	return s.deleteResource(functionsDir, functionMeta.Namespace, functionMeta.Name)
 }

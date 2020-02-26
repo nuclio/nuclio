@@ -208,7 +208,8 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 }
 
 // Validation and enforcement of required function creation logic
-func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
+func (ap *Platform) ValidateCreateFunctionOptions(existingFunction platform.Function,
+	createFunctionOptions *platform.CreateFunctionOptions) error {
 
 	if err := ap.validateTriggers(createFunctionOptions); err != nil {
 		return errors.Wrap(err, "Triggers validation failed")
@@ -220,6 +221,10 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 
 	if err := ap.validateProjectExists(createFunctionOptions); err != nil {
 		return errors.Wrap(err, "Project existence validation failed")
+	}
+
+	if err := ap.validateResourceVersion(existingFunction, createFunctionOptions); err != nil {
+		return errors.Wrap(err, "Resource version validation error")
 	}
 
 	return nil
@@ -709,4 +714,20 @@ func (ap *Platform) enrichMinMaxReplicas(createFunctionOptions *platform.CreateF
 		createFunctionOptions.FunctionConfig.Spec.MinReplicas != nil {
 		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = createFunctionOptions.FunctionConfig.Spec.MinReplicas
 	}
+}
+
+func (ap *Platform) validateResourceVersion(existingFunction platform.Function,
+	createFunctionOptions *platform.CreateFunctionOptions) error {
+
+	// function is not yet existing
+	if existingFunction == nil {
+		return nil
+	}
+	existingFunctionConfig := existingFunction.GetConfig()
+	if existingFunctionConfig.Meta.ResourceVersion != createFunctionOptions.FunctionConfig.Meta.ResourceVersion {
+		return errors.Errorf("Resource version miss match %s != %s",
+			existingFunctionConfig.Meta.ResourceVersion,
+			createFunctionOptions.FunctionConfig.Meta.ResourceVersion)
+	}
+	return nil
 }
