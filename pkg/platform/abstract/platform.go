@@ -546,7 +546,6 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, string, error)
 
 	messageAndArgs := ap.getMessageAndArgs(*logStruct.Message, logStruct.More, log, workerID)
 
-
 	res := fmt.Sprintf("[%s] (%c) %s",
 		parsedTime.Format("15:04:05.000"),
 		logLevel,
