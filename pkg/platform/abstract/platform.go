@@ -723,6 +723,11 @@ func (ap *Platform) validateResourceVersion(existingFunction platform.Function,
 	if existingFunction == nil {
 		return nil
 	}
+
+	// if not version is given, skip validation
+	if createFunctionOptions.FunctionConfig.Meta.ResourceVersion == "" {
+		return nil
+	}
 	existingFunctionConfig := existingFunction.GetConfig()
 	if existingFunctionConfig.Meta.ResourceVersion != createFunctionOptions.FunctionConfig.Meta.ResourceVersion {
 		return errors.Errorf("Resource version miss match %s != %s",
