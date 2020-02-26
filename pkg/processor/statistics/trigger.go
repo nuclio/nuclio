@@ -17,8 +17,9 @@ limitations under the License.
 package statistics
 
 import (
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"sync"
+
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/errors"
 	"github.com/prometheus/client_golang/prometheus"
