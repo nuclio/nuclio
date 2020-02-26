@@ -284,6 +284,7 @@ func (ar *AbstractResource) handleGetDetails(responseWriter http.ResponseWriter,
 }
 
 func (ar *AbstractResource) handleCreate(responseWriter http.ResponseWriter, request *http.Request) {
+	encoder := ar.encoderFactory.NewEncoder(responseWriter, ar.name)
 
 	// delegate to child
 	resourceID, attributes, err := ar.Resource.Create(request)
@@ -298,10 +299,11 @@ func (ar *AbstractResource) handleCreate(responseWriter http.ResponseWriter, req
 		return
 	}
 
-	ar.encoderFactory.NewEncoder(responseWriter, ar.name).EncodeResource(resourceID, attributes)
+	encoder.EncodeResource(resourceID, attributes)
 }
 
 func (ar *AbstractResource) handleUpdate(responseWriter http.ResponseWriter, request *http.Request) {
+	encoder := ar.encoderFactory.NewEncoder(responseWriter, ar.name)
 
 	// registered as "/:id/"
 	resourceID := chi.URLParam(request, "id")
@@ -319,7 +321,7 @@ func (ar *AbstractResource) handleUpdate(responseWriter http.ResponseWriter, req
 		return
 	}
 
-	ar.encoderFactory.NewEncoder(responseWriter, ar.name).EncodeResource(resourceID, attributes)
+	encoder.EncodeResource(resourceID, attributes)
 }
 
 func (ar *AbstractResource) handleDelete(responseWriter http.ResponseWriter, request *http.Request) {
