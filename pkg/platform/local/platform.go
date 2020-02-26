@@ -114,6 +114,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	var previousHTTPPort int
 	var err error
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
+	var existingFunction platform.Function
 
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
@@ -131,35 +132,21 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Create function options enrichment failed")
 	}
 
-	if err := p.ValidateCreateFunctionOptions(createFunctionOptions); err != nil {
+	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing functions
+	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" && createFunctionOptions.FunctionConfig.Meta.Name != "" {
+		existingFunction, err = p.localStore.getFunction(&createFunctionOptions.FunctionConfig.Meta)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get existing functions")
+		}
+	}
+
+	if err := p.ValidateCreateFunctionOptions(existingFunction, createFunctionOptions); err != nil {
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
 
 	// local currently doesn't support registries of any kind. remove push / run registry
 	createFunctionOptions.FunctionConfig.Spec.RunRegistry = ""
 	createFunctionOptions.FunctionConfig.Spec.Build.Registry = ""
-
-	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
-	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" && createFunctionOptions.FunctionConfig.Meta.Name != "" {
-		existingFunctions, err := p.localStore.getFunctions(&createFunctionOptions.FunctionConfig.Meta)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get existing functions")
-		}
-
-		if len(existingFunctions) == 0 {
-			existingFunctionConfig = nil
-		} else {
-
-			// assume only one
-			existingFunction := existingFunctions[0]
-
-			// build function options
-			existingFunctionConfig = &functionconfig.ConfigWithStatus{
-				Config: *existingFunction.GetConfig(),
-				Status: *existingFunction.GetStatus(),
-			}
-		}
-	}
 
 	reportCreationError := func(creationError error) error {
 		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
@@ -234,6 +221,15 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 
 		return createFunctionResult, nil
+	}
+
+	if existingFunction != nil {
+
+		// build function options
+		existingFunctionConfig = &functionconfig.ConfigWithStatus{
+			Config: *existingFunction.GetConfig(),
+			Status: *existingFunction.GetStatus(),
+		}
 	}
 
 	// If needed, load any docker image from archive into docker
