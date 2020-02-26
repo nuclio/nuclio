@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -432,6 +433,7 @@ func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.Create
 
 func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (string, string) {
 	var formattedProcessorLogs, briefErrorsMessage string
+	var stopWritingRawLinesToBriefErrorsMessage bool
 
 	briefErrorsArray := &[]string{}
 
@@ -442,7 +444,19 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 
 			// when it is unstructured just add the log as a text
 			formattedProcessorLogs += rawLogLine + "\n"
-			*briefErrorsArray = append(*briefErrorsArray, rawLogLine)
+
+			// if there's a panic or call stack is printed,
+			// stop appending raw log lines to the briefErrorsMessage (unnecessary information from now on)
+			// this information can still be found in the full log
+			if strings.HasPrefix(rawLogLine, "panic: Wrapper") ||
+				strings.HasPrefix(rawLogLine, "Call stack:") {
+				stopWritingRawLinesToBriefErrorsMessage = true
+			}
+
+			if !stopWritingRawLinesToBriefErrorsMessage {
+				*briefErrorsArray = append(*briefErrorsArray, rawLogLine)
+			}
+
 			continue
 		}
 
@@ -463,10 +477,13 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 // Prettifies log line, and returns - (formattedLogLine, briefLogLine, error)
 // when line shouldn't be added to brief error message - briefLogLine will be an empty string ("")
 func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, string, error) {
+	var workerID string
+
 	logStruct := struct {
 		Time    *string `json:"time"`
 		Level   *string `json:"level"`
 		Message *string `json:"message"`
+		Name    *string `json:"name,omitempty"`
 		More    *string `json:"more,omitempty"`
 	}{}
 
@@ -477,6 +494,7 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, string, error)
 			Datetime *string           `json:"datetime"`
 			Level    *string           `json:"level"`
 			Message  *string           `json:"message"`
+			Name     *string           `json:"name,omitempty"`
 			With     map[string]string `json:"with,omitempty"`
 		}{}
 
@@ -492,9 +510,14 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, string, error)
 		logStruct.Time = &unparsedTime
 		logStruct.Level = wrapperLogStruct.Level
 		logStruct.Message = wrapperLogStruct.Message
+		logStruct.Name = wrapperLogStruct.Name
 
-		more := common.CreateKeyValuePairs(wrapperLogStruct.With)
-		logStruct.More = &more
+		if wrapperLogStruct.With != nil {
+			workerID = wrapperLogStruct.With["worker_id"]
+
+			more := common.CreateKeyValuePairs(wrapperLogStruct.With)
+			logStruct.More = &more
+		}
 
 	} else {
 
@@ -516,7 +539,13 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, string, error)
 
 	logLevel := strings.ToUpper(*logStruct.Level)[0]
 
-	messageAndArgs := ap.getMessageAndArgs(*logStruct.Message, logStruct.More, log)
+	// if worker ID wasn't explicitly given as an arg, infer worker ID from logger name
+	if workerID == "" {
+		workerID = ap.inferWorkerID(logStruct.Name)
+	}
+
+	messageAndArgs := ap.getMessageAndArgs(*logStruct.Message, logStruct.More, log, workerID)
+
 
 	res := fmt.Sprintf("[%s] (%c) %s",
 		parsedTime.Format("15:04:05.000"),
@@ -524,14 +553,32 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, string, error)
 		messageAndArgs)
 
 	briefLogLine := ""
-	if ap.shouldAddToBriefErrorsMessage(logLevel, *logStruct.Message) {
+	if ap.shouldAddToBriefErrorsMessage(logLevel, *logStruct.Message, workerID) {
 		briefLogLine = messageAndArgs
 	}
 
 	return res, briefLogLine, nil
 }
 
-func (ap *Platform) getMessageAndArgs(message string, args *string, log []byte) string {
+// get the worker ID from the logger name, for example:
+// "processor.http.w5.python.logger" -> 5
+func (ap *Platform) inferWorkerID(loggerName *string) string {
+	if loggerName == nil {
+		return ""
+	}
+
+	// if the logger name is the following pattern, extract the worker ID from it
+	processorRe := regexp.MustCompile(`^processor\..*\.w[0-9]+\..*`)
+	if processorRe.MatchString(*loggerName) {
+		splitName := strings.Split(*loggerName, ".")
+		return splitName[2][1:]
+	}
+
+	return ""
+}
+
+func (ap *Platform) getMessageAndArgs(message string, args *string, log []byte, workerID string) string {
+
 	var argsAsString, additionalKwargsAsString string
 	additionalKwargs, err := ap.getLogLineAdditionalKwargs(log)
 	if err != nil {
@@ -544,6 +591,10 @@ func (ap *Platform) getMessageAndArgs(message string, args *string, log []byte) 
 	}
 
 	if additionalKwargs != nil {
+		if workerID != "" {
+			additionalKwargs["worker_id"] = workerID
+		}
+
 		additionalKwargsAsString = common.CreateKeyValuePairs(additionalKwargs)
 	}
 
@@ -571,7 +622,7 @@ func (ap *Platform) getLogLineAdditionalKwargs(log []byte) (map[string]string, e
 
 	additionalKwargs := map[string]string{}
 
-	defaultArgs := []string{"time", "datetime", "level", "message", "with", "more"}
+	defaultArgs := []string{"time", "datetime", "level", "message", "with", "more", "name"}
 
 	// validate it is a suitable special arg
 	for argKey, argValue := range logAsMap {
@@ -592,15 +643,28 @@ func (ap *Platform) getLogLineAdditionalKwargs(log []byte) (map[string]string, e
 	return additionalKwargs, nil
 }
 
-func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage string) bool {
+func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage, workerID string) bool {
 	knownFailureSubstrings := [...]string{"Failed to connect to broker"}
+	ignoreFailureSubstrings := [...]string{"Unexpected termination of child process"}
 
+	// when the log message contains a failure that should be ignored
+	for _, ignoreFailureSubstring := range ignoreFailureSubstrings {
+		if strings.Contains(logMessage, ignoreFailureSubstring) {
+			return false
+		}
+	}
+
+	// show errors only of the first worker
+	// done to prevent error duplication from several workers
+	if workerID != "" && workerID != "0" {
+		return false
+	}
 	// when log level is warning or above
 	if logLevel != 'D' && logLevel != 'I' {
 		return true
 	}
 
-	// when the log message contains a known failure prefix
+	// when the log message contains a known failure substring
 	for _, knownFailureSubstring := range knownFailureSubstrings {
 		if strings.Contains(logMessage, knownFailureSubstring) {
 			return true
