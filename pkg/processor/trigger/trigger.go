@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -268,9 +269,9 @@ func (at *AbstractTrigger) TimeoutWorker(worker *worker.Worker) error {
 // UpdateStatistics updates the trigger statistics
 func (at *AbstractTrigger) UpdateStatistics(success bool) {
 	if success {
-		at.Statistics.EventsHandleSuccessTotal++
+		atomic.AddUint64(&at.Statistics.EventsHandleSuccessTotal, 1)
 	} else {
-		at.Statistics.EventsHandleFailureTotal++
+		atomic.AddUint64(&at.Statistics.EventsHandleFailureTotal, 1)
 	}
 }
 

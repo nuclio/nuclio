@@ -240,6 +240,9 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
 				k.Logger.DebugWith("Timed out waiting for handler to complete", "partition", claim.Partition())
 
+				// mark this as a failure, metric-wise
+				k.UpdateStatistics(false)
+
 				// restart the worker, and having failed that shut down
 				if err := k.cancelEventHandling(workerInstance, claim); err != nil {
 					k.Logger.DebugWith("Failed to cancel event handling",

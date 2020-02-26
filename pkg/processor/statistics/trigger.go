@@ -26,9 +26,9 @@ import (
 
 type triggerGatherer struct {
 	trigger            trigger.Trigger
+	gatherLock         sync.Locker
 	handledEventsTotal *prometheus.CounterVec
 	prevStatistics     trigger.Statistics
-	gatherLock         sync.Locker
 }
 
 func newTriggerGatherer(instanceName string,
@@ -36,7 +36,8 @@ func newTriggerGatherer(instanceName string,
 	metricRegistry *prometheus.Registry) (*triggerGatherer, error) {
 
 	newTriggerGatherer := &triggerGatherer{
-		trigger: trigger,
+		trigger:    trigger,
+		gatherLock: &sync.Mutex{},
 	}
 
 	// base labels for handle events

@@ -112,8 +112,10 @@ func (ms *MetricSink) Stop() chan struct{} {
 func (ms *MetricSink) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
 
 	// gather all metrics from the processor. reads all the primitive data into the prometheus counters
-	// TODO: handle error
-	ms.gather() // nolint: errcheck
+	if err := ms.gather(); err != nil {
+		ms.Logger.WarnWith("Failure detected while gathering metrics", "err", err)
+		responseWriter.WriteHeader(http.StatusInternalServerError)
+	}
 
 	// proxy to the registry handler
 	ms.metricRegistryHandler.ServeHTTP(responseWriter, request)

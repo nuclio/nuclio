@@ -212,6 +212,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 	if h.status != status.Ready {
+		h.UpdateStatistics(false)
 		ctx.Response.SetStatusCode(net_http.StatusServiceUnavailable)
 		msg := map[string]interface{}{
 			"error":  "Server not ready",
@@ -275,7 +276,7 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 			logContents = logContents[:len(logContents)-1]
 		}
 
-		// write open bracket for JSON
+		// write close bracket for JSON
 		logContents = append(logContents, byte(']'))
 
 		// there's a limit on the amount of logs that can be passed in a header

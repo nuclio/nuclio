@@ -18,6 +18,7 @@ package prometheus
 
 import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"sync"
 
 	"github.com/nuclio/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -31,6 +32,7 @@ type TriggerGatherer struct {
 	workerAllocationWaitDurationMilliSecondsSum prometheus.Counter
 	workerAllocationWorkersAvailablePercentage  prometheus.Counter
 	prevStatistics                              trigger.Statistics
+	gatherLock                                  sync.Locker
 }
 
 func NewTriggerGatherer(instanceName string,
@@ -38,7 +40,8 @@ func NewTriggerGatherer(instanceName string,
 	metricRegistry *prometheus.Registry) (*TriggerGatherer, error) {
 
 	newTriggerGatherer := &TriggerGatherer{
-		trigger: trigger,
+		trigger:    trigger,
+		gatherLock: &sync.Mutex{},
 	}
 
 	// base labels for handle events
@@ -96,6 +99,8 @@ func NewTriggerGatherer(instanceName string,
 }
 
 func (tg *TriggerGatherer) Gather() error {
+	tg.gatherLock.Lock()
+	defer tg.gatherLock.Unlock()
 
 	// read current stats
 	currentStatistics := *tg.trigger.GetStatistics()

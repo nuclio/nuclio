@@ -18,6 +18,7 @@ package prometheus
 
 import (
 	"strconv"
+	"sync"
 
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
@@ -30,6 +31,7 @@ import (
 type WorkerGatherer struct {
 	worker                                 *worker.Worker
 	prevRuntimeStatistics                  runtime.Statistics
+	gatherLock                             sync.Locker
 	handledEventsDurationMillisecondsSum   prometheus.Counter
 	handledEventsDurationMillisecondsCount prometheus.Counter
 }
@@ -40,7 +42,8 @@ func NewWorkerGatherer(instanceName string,
 	metricRegistry *prometheus.Registry) (*WorkerGatherer, error) {
 
 	newWorkerGatherer := &WorkerGatherer{
-		worker: worker,
+		worker:     worker,
+		gatherLock: &sync.Mutex{},
 	}
 
 	// base labels for handle events
@@ -77,6 +80,9 @@ func NewWorkerGatherer(instanceName string,
 }
 
 func (wg *WorkerGatherer) Gather() error {
+
+	wg.gatherLock.Lock()
+	defer wg.gatherLock.Unlock()
 
 	// read current stats
 	currentRuntimeStatistics := *wg.worker.GetRuntime().GetStatistics()
