@@ -17,8 +17,6 @@ limitations under the License.
 package statistics
 
 import (
-	"sync"
-
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/errors"
@@ -27,7 +25,6 @@ import (
 
 type triggerGatherer struct {
 	trigger            trigger.Trigger
-	gatherLock         sync.Locker
 	handledEventsTotal *prometheus.CounterVec
 	prevStatistics     trigger.Statistics
 }
@@ -38,7 +35,6 @@ func newTriggerGatherer(instanceName string,
 
 	newTriggerGatherer := &triggerGatherer{
 		trigger:    trigger,
-		gatherLock: &sync.Mutex{},
 	}
 
 	// base labels for handle events
@@ -65,8 +61,6 @@ func newTriggerGatherer(instanceName string,
 }
 
 func (esg *triggerGatherer) Gather() error {
-	esg.gatherLock.Lock()
-	defer esg.gatherLock.Lock()
 
 	// read current stats
 	currentStatistics := *esg.trigger.GetStatistics()

@@ -17,12 +17,10 @@ limitations under the License.
 package prometheus
 
 import (
-	"strconv"
-	"sync"
-
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"strconv"
 
 	"github.com/nuclio/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -31,7 +29,6 @@ import (
 type WorkerGatherer struct {
 	worker                                 *worker.Worker
 	prevRuntimeStatistics                  runtime.Statistics
-	gatherLock                             sync.Locker
 	handledEventsDurationMillisecondsSum   prometheus.Counter
 	handledEventsDurationMillisecondsCount prometheus.Counter
 }
@@ -43,7 +40,6 @@ func NewWorkerGatherer(instanceName string,
 
 	newWorkerGatherer := &WorkerGatherer{
 		worker:     worker,
-		gatherLock: &sync.Mutex{},
 	}
 
 	// base labels for handle events
@@ -80,9 +76,6 @@ func NewWorkerGatherer(instanceName string,
 }
 
 func (wg *WorkerGatherer) Gather() error {
-
-	wg.gatherLock.Lock()
-	defer wg.gatherLock.Unlock()
 
 	// read current stats
 	currentRuntimeStatistics := *wg.worker.GetRuntime().GetStatistics()

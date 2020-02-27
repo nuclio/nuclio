@@ -17,8 +17,6 @@ limitations under the License.
 package prometheus
 
 import (
-	"sync"
-
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/errors"
@@ -33,7 +31,6 @@ type TriggerGatherer struct {
 	workerAllocationWaitDurationMilliSecondsSum prometheus.Counter
 	workerAllocationWorkersAvailablePercentage  prometheus.Counter
 	prevStatistics                              trigger.Statistics
-	gatherLock                                  sync.Locker
 }
 
 func NewTriggerGatherer(instanceName string,
@@ -42,7 +39,6 @@ func NewTriggerGatherer(instanceName string,
 
 	newTriggerGatherer := &TriggerGatherer{
 		trigger:    trigger,
-		gatherLock: &sync.Mutex{},
 	}
 
 	// base labels for handle events
@@ -100,8 +96,6 @@ func NewTriggerGatherer(instanceName string,
 }
 
 func (tg *TriggerGatherer) Gather() error {
-	tg.gatherLock.Lock()
-	defer tg.gatherLock.Unlock()
 
 	// read current stats
 	currentStatistics := *tg.trigger.GetStatistics()
