@@ -184,18 +184,18 @@ func (suite *TestAbstractSuite) TestGetProcessorLogsWithSpecialSubstrings() {
 // - formatted_function_logs.log
 // - brief_errors_message.log
 func (suite *TestAbstractSuite) testGetProcessorLogs(functionLogsFilePath string) {
-	functionLogsFile, err := os.Open(path.Join(functionLogsFilePath, "function_logs.log"))
+	functionLogsFile, err := os.Open(path.Join(functionLogsFilePath, "function_logs.txt"))
 	suite.NoError(err, "Failed to read function logs file")
 
 	functionLogsScanner := bufio.NewScanner(functionLogsFile)
 
 	formattedPodLogs, briefErrorsMessage := suite.Platform.GetProcessorLogsAndBriefError(functionLogsScanner)
 
-	expectedFormattedFunctionLogsFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, "formatted_function_logs.log"))
+	expectedFormattedFunctionLogsFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, "formatted_function_logs.txt"))
 	suite.NoError(err, "Failed to read formatted function logs file")
 	suite.Assert().Equal(string(expectedFormattedFunctionLogsFileBytes), formattedPodLogs)
 
-	expectedBriefErrorsMessageFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, "brief_errors_message.log"))
+	expectedBriefErrorsMessageFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, "brief_errors_message.txt"))
 	suite.NoError(err, "Failed to read brief errors message file")
 	suite.Assert().Equal(string(expectedBriefErrorsMessageFileBytes), briefErrorsMessage)
 }

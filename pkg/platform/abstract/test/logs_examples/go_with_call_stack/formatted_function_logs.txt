@@ -1,0 +1,16 @@
+[13:51:42.816] (D) Creating worker pool [num=1]
+
+Error - plugin: symbol Handler not found in plugin github.com/nuclio/handler
+    .../pkg/processor/runtime/golang/pluginloader.go:58
+
+Call stack:
+Can't find handler "Handler" in "/opt/nuclio/handler.so"
+    .../pkg/processor/runtime/golang/pluginloader.go:58
+Failed to load handler
+    .../pkg/processor/runtime/golang/runtime.go:54
+Failed to create runtime
+    .../nuclio/nuclio/pkg/processor/worker/factory.go:95
+Failed to create worker
+    .../nuclio/nuclio/pkg/processor/worker/factory.go:122
+Failed to create workers
+    .../nuclio/nuclio/pkg/processor/worker/factory.go:132

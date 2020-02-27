@@ -1,0 +1,2 @@
+{"level":"error","time":"2020-02-27T12:10:04.910Z","name":"processor.http.w0.python.logger","message":"Unexpected termination of child process","error":null,"status":"exit status 1"}
+{"level":"debug","time":"2020-02-27T12:10:04.950Z","name":"processor.http.w0.python.logger","message":"Error - Failed to connect to broker"}

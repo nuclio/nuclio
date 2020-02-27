@@ -1,0 +1,8 @@
+[12:10:04.805] (E) Some error [err="Handler not found"]
+panic: Wrapper process for worker 0 exited unexpectedly with: exit status 1
+
+goroutine 99 [running]:
+github.com/nuclio/nuclio/pkg/processor/runtime/rpc.(*AbstractRuntime).watchWrapperProcess(0xc4204573f0)
+    /go/src/github.com/nuclio/nuclio/pkg/processor/runtime/rpc/abstract.go:453 +0x5bb
+created by github.com/nuclio/nuclio/pkg/processor/runtime/rpc.(*AbstractRuntime).startWrapper
+    /go/src/github.com/nuclio/nuclio/pkg/processor/runtime/rpc/abstract.go:232 +0x1c8

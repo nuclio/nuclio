@@ -1,0 +1,4 @@
+{"level":"error","time":"2020-02-27T12:10:04.805Z","name":"processor.http.w0.python.logger","message":"Processor worker_0 error"}
+{"level":"error","time":"2020-02-27T12:10:04.807Z","name":"processor.http.w1.python.logger","message":"Processor worker_1 error"}
+l{"datetime": "2020-02-27 12:10:04,902", "level": "error", "message": "Handler not found", "with": {"worker_id": "0"}}
+l{"datetime": "2020-02-27 12:10:04,906", "level": "error", "message": "Handler not found", "with": {"worker_id": "1"}}
