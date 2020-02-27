@@ -382,7 +382,7 @@ func (suite *r1TestSuite) TestGetCustomSingle() {
 		"a": "b",
 		"c": "d"
 	}`,
-	nil)
+		nil)
 }
 
 func (suite *r1TestSuite) TestGetCustomMulti() {
@@ -392,7 +392,7 @@ func (suite *r1TestSuite) TestGetCustomMulti() {
 			"c": "d"
 		}
 	}`,
-	nil)
+		nil)
 }
 
 func (suite *r1TestSuite) TestPostCustom() {
