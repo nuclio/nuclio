@@ -439,8 +439,7 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 		return
 	}
 
-	// NOTE: this error message is filtered when reading logs (on shouldAddToBriefErrorsMessage())- consider that when changing it!
-	r.Logger.ErrorWith("Unexpected termination of child process",
+	r.Logger.ErrorWith(common.UnexpectedTerminationChildProcess,
 		"error", processWaitResult.Err,
 		"status", processWaitResult.ProcessState.String())
 

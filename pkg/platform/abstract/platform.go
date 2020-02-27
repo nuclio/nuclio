@@ -477,7 +477,7 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 // Prettifies log line, and returns - (formattedLogLine, briefLogLine, error)
 // when line shouldn't be added to brief error message - briefLogLine will be an empty string ("")
 func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, string, error) {
-	var workerID string
+	var workerID, logStructArgs string
 
 	logStruct := struct {
 		Time    *string `json:"time"`
@@ -539,12 +539,15 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, string, error)
 
 	logLevel := strings.ToUpper(*logStruct.Level)[0]
 
-	// if worker ID wasn't explicitly given as an arg, infer worker ID from logger name
-	if workerID == "" {
-		workerID = ap.inferWorkerID(logStruct.Name)
+	// if worker ID wasn't explicitly given as an arg, try to infer worker ID from logger name
+	if workerID == "" && logStruct.Name != nil {
+		workerID = ap.tryInferWorkerID(*logStruct.Name)
 	}
 
-	messageAndArgs := ap.getMessageAndArgs(*logStruct.Message, logStruct.More, log, workerID)
+	if logStruct.More != nil {
+		logStructArgs = *logStruct.More
+	}
+	messageAndArgs := ap.getMessageAndArgs(*logStruct.Message, logStructArgs, log, workerID)
 
 	res := fmt.Sprintf("[%s] (%c) %s",
 		parsedTime.Format("15:04:05.000"),
@@ -561,46 +564,31 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, string, error)
 
 // get the worker ID from the logger name, for example:
 // "processor.http.w5.python.logger" -> 5
-func (ap *Platform) inferWorkerID(loggerName *string) string {
-	if loggerName == nil {
-		return ""
-	}
-
-	// if the logger name is the following pattern, extract the worker ID from it
+func (ap *Platform) tryInferWorkerID(loggerName string) string {
 	processorRe := regexp.MustCompile(`^processor\..*\.w[0-9]+\..*`)
-	if processorRe.MatchString(*loggerName) {
-		splitName := strings.Split(*loggerName, ".")
+	if processorRe.MatchString(loggerName) {
+		splitName := strings.Split(loggerName, ".")
 		return splitName[2][1:]
 	}
 
 	return ""
 }
 
-func (ap *Platform) getMessageAndArgs(message string, args *string, log []byte, workerID string) string {
+func (ap *Platform) getMessageAndArgs(message string, args string, log []byte, workerID string) string {
+	var additionalKwargsAsString string
 
-	var argsAsString, additionalKwargsAsString string
 	additionalKwargs, err := ap.getLogLineAdditionalKwargs(log)
 	if err != nil {
 		ap.Logger.WarnWith("Failed to get log line's additional kwargs",
 			"logLineMessage", message)
 	}
 
-	if args != nil {
-		argsAsString = *args
-	}
-
-	if additionalKwargs != nil {
-		if workerID != "" {
-			additionalKwargs["worker_id"] = workerID
-		}
-
-		additionalKwargsAsString = common.CreateKeyValuePairs(additionalKwargs)
-	}
+	additionalKwargsAsString = common.CreateKeyValuePairs(additionalKwargs)
 
 	// format result depending on args/additional kwargs existence
 	var messageArgsList []string
-	if argsAsString != "" {
-		messageArgsList = append(messageArgsList, argsAsString)
+	if args != "" {
+		messageArgsList = append(messageArgsList, args)
 	}
 	if additionalKwargsAsString != "" {
 		messageArgsList = append(messageArgsList, additionalKwargsAsString)
@@ -644,7 +632,7 @@ func (ap *Platform) getLogLineAdditionalKwargs(log []byte) (map[string]string, e
 
 func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage, workerID string) bool {
 	knownFailureSubstrings := [...]string{"Failed to connect to broker"}
-	ignoreFailureSubstrings := [...]string{"Unexpected termination of child process"}
+	ignoreFailureSubstrings := [...]string{string(common.UnexpectedTerminationChildProcess)}
 
 	// when the log message contains a failure that should be ignored
 	for _, ignoreFailureSubstring := range ignoreFailureSubstrings {
