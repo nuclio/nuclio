@@ -98,6 +98,9 @@ func (suite *testSuite) GetFunctionInfo(functionName string) buildsuite.Function
 	case "long-initialization":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "long-initialization", "golang", "sleepy.go"}
 
+	case "context-init-fail":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "context-init-fail", "golang", "contextinitfail.go"}
+
 	default:
 		suite.Logger.InfoWith("Test skipped", "functionName", functionName)
 

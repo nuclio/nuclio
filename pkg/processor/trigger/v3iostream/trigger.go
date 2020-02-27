@@ -38,13 +38,13 @@ type submittedEvent struct {
 
 type v3iostream struct {
 	trigger.AbstractTrigger
-	configuration            *Configuration
-	v3iostreamConfig         *streamconsumergroup.Config
-	streamConsumerGroup      streamconsumergroup.StreamConsumerGroup
-	shutdownSignal           chan struct{}
-	stopConsumptionChan      chan struct{}
-	partitionWorkerAllocator partitionworker.Allocator
-	topic                    string
+	configuration             *Configuration
+	v3iostreamConfig          *streamconsumergroup.Config
+	streamConsumerGroupMember streamconsumergroup.Member
+	shutdownSignal            chan struct{}
+	stopConsumptionChan       chan struct{}
+	partitionWorkerAllocator  partitionworker.Allocator
+	topic                     string
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -81,7 +81,7 @@ func newTrigger(parentLogger logger.Logger,
 func (vs *v3iostream) Start(checkpoint functionconfig.Checkpoint) error {
 	var err error
 
-	vs.streamConsumerGroup, err = vs.newConsumerGroup()
+	vs.streamConsumerGroupMember, err = vs.newConsumerGroupMember()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create consumer")
 	}
@@ -93,7 +93,7 @@ func (vs *v3iostream) Start(checkpoint functionconfig.Checkpoint) error {
 		vs.Logger.DebugWith("Starting to consume from v3io")
 
 		// start consuming. this will exit without error if a rebalancing occurs
-		err = vs.streamConsumerGroup.Consume(vs)
+		err = vs.streamConsumerGroupMember.Consume(vs)
 		if err != nil {
 			vs.Logger.WarnWith("Failed to consume from group, waiting before retrying", "err", errors.GetErrorStackString(err, 10))
 		}
@@ -106,7 +106,7 @@ func (vs *v3iostream) Stop(force bool) (functionconfig.Checkpoint, error) {
 	vs.shutdownSignal <- struct{}{}
 	close(vs.shutdownSignal)
 
-	err := vs.streamConsumerGroup.Close()
+	err := vs.streamConsumerGroupMember.Close()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to close consumer")
 	}
@@ -229,11 +229,10 @@ func (vs *v3iostream) eventSubmitter(claim streamconsumergroup.Claim, submittedE
 	vs.Logger.DebugWith("Event submitter stopped", "shardID", claim.GetShardID())
 }
 
-func (vs *v3iostream) newConsumerGroup() (streamconsumergroup.StreamConsumerGroup, error) {
+func (vs *v3iostream) newConsumerGroupMember() (streamconsumergroup.Member, error) {
 
 	v3ioContext, err := v3iohttp.NewContext(vs.Logger,
-		v3iohttp.NewClient(&v3iohttp.NewClientInput{}),
-		&v3io.NewContextInput{
+		&v3iohttp.NewContextInput{
 			NumWorkers: vs.configuration.NumTransportWorkers,
 		})
 	if err != nil {
@@ -258,21 +257,26 @@ func (vs *v3iostream) newConsumerGroup() (streamconsumergroup.StreamConsumerGrou
 	}
 
 	maxReplicas := 1
-	if vs.configuration.RuntimeConfiguration.Config.Spec.MaxReplicas != nil {
-		maxReplicas = *vs.configuration.RuntimeConfiguration.Config.Spec.MaxReplicas
-	} else if vs.configuration.RuntimeConfiguration.Config.Spec.Replicas != nil {
+	if vs.configuration.RuntimeConfiguration.Config.Spec.Replicas != nil {
 		maxReplicas = *vs.configuration.RuntimeConfiguration.Config.Spec.Replicas
+	} else if vs.configuration.RuntimeConfiguration.Config.Spec.MaxReplicas != nil {
+		maxReplicas = *vs.configuration.RuntimeConfiguration.Config.Spec.MaxReplicas
 	}
 
 	streamConsumerGroup, err := streamconsumergroup.NewStreamConsumerGroup(vs.Logger,
-		vs.configuration.ConsumerGroupName,
-		"vs",
+		vs.configuration.ConsumerGroup,
 		vs.v3iostreamConfig,
+		v3ioContainer,
 		vs.configuration.StreamPath,
-		maxReplicas,
-		v3ioContainer)
+		maxReplicas)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create consumer group")
+	}
+
+	streamConsumerGroupMember, err := streamconsumergroup.NewMember(streamConsumerGroup, vs.FunctionName)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create consumer group member")
 	}
 
 	vs.Logger.DebugWith("Consumer created",
@@ -280,7 +284,7 @@ func (vs *v3iostream) newConsumerGroup() (streamconsumergroup.StreamConsumerGrou
 		"containerName", vs.configuration.ContainerName,
 		"streamPath", vs.configuration.StreamPath)
 
-	return streamConsumerGroup, nil
+	return streamConsumerGroupMember, nil
 }
 
 func (vs *v3iostream) createPartitionWorkerAllocator(session streamconsumergroup.Session) (partitionworker.Allocator, error) {

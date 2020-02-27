@@ -153,7 +153,7 @@ func (rc *RootCommandeer) createPlatform(logger logger.Logger) (platform.Platfor
 
 	// set platform specific common
 	switch platformInstance.(type) {
-	case (*kube.Platform):
+	case *kube.Platform:
 		rc.platformConfiguration = &rc.kubeConfiguration
 	}
 

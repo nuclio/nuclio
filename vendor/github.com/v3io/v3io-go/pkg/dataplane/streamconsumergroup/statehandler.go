@@ -1,16 +1,10 @@
 package streamconsumergroup
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
 	"math"
-	"path"
 	"time"
 
 	"github.com/v3io/v3io-go/pkg/common"
-	"github.com/v3io/v3io-go/pkg/dataplane"
-	"github.com/v3io/v3io-go/pkg/errors"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -21,18 +15,18 @@ const stateContentsAttributeKey string = "state"
 var errNoFreeShardGroups = errors.New("No free shard groups")
 
 type stateHandler struct {
-	logger              logger.Logger
-	streamConsumerGroup *streamConsumerGroup
-	stopChan            chan struct{}
-	getStateChan        chan chan *State
+	logger       logger.Logger
+	member       *member
+	stopChan     chan struct{}
+	getStateChan chan chan *State
 }
 
-func newStateHandler(streamConsumerGroup *streamConsumerGroup) (*stateHandler, error) {
+func newStateHandler(member *member) (*stateHandler, error) {
 	return &stateHandler{
-		logger:              streamConsumerGroup.logger.GetChild("stateHandler"),
-		streamConsumerGroup: streamConsumerGroup,
-		stopChan:            make(chan struct{}, 1),
-		getStateChan:        make(chan chan *State),
+		logger:       member.logger.GetChild("stateHandler"),
+		member:       member,
+		stopChan:     make(chan struct{}, 1),
+		getStateChan: make(chan chan *State),
 	}, nil
 }
 
@@ -104,7 +98,7 @@ func (sh *stateHandler) refreshStatePeriodically() {
 			}
 
 		// periodically get the state
-		case <-time.After(sh.streamConsumerGroup.config.Session.HeartbeatInterval):
+		case <-time.After(sh.member.streamConsumerGroup.config.Session.HeartbeatInterval):
 			lastState, err = sh.refreshState()
 			if err != nil {
 				sh.logger.WarnWith("Failed refreshing state", "err", errors.GetErrorStackString(err, 10))
@@ -120,7 +114,7 @@ func (sh *stateHandler) refreshStatePeriodically() {
 }
 
 func (sh *stateHandler) refreshState() (*State, error) {
-	return sh.modifyState(func(state *State) (*State, error) {
+	return sh.member.streamConsumerGroup.setState(func(state *State) (*State, error) {
 
 		// remove stale sessions from state
 		if err := sh.removeStaleSessionStates(state); err != nil {
@@ -128,7 +122,7 @@ func (sh *stateHandler) refreshState() (*State, error) {
 		}
 
 		// find our session by member ID
-		sessionState := state.findSessionStateByMemberID(sh.streamConsumerGroup.memberID)
+		sessionState := state.findSessionStateByMemberID(sh.member.id)
 
 		// session already exists - just set the last heartbeat
 		if sessionState != nil {
@@ -153,7 +147,7 @@ func (sh *stateHandler) createSessionState(state *State) error {
 	}
 
 	// assign shards
-	shards, err := sh.assignShards(sh.streamConsumerGroup.maxReplicas, sh.streamConsumerGroup.totalNumShards, state)
+	shards, err := sh.assignShards(sh.member.streamConsumerGroup.maxReplicas, sh.member.streamConsumerGroup.totalNumShards, state)
 	if err != nil {
 		return errors.Wrap(err, "Failed resolving shards for session")
 	}
@@ -163,7 +157,7 @@ func (sh *stateHandler) createSessionState(state *State) error {
 		"state", state)
 
 	state.SessionStates = append(state.SessionStates, &SessionState{
-		MemberID:      sh.streamConsumerGroup.memberID,
+		MemberID:      sh.member.id,
 		LastHeartbeat: time.Now(),
 		Shards:        shards,
 	})
@@ -247,134 +241,6 @@ func (sh *stateHandler) getAssignEmptyShardGroup(replicaShardGroups [][]int, sta
 
 }
 
-func (sh *stateHandler) modifyState(modifier stateModifier) (*State, error) {
-	var modifiedState *State
-
-	backoff := sh.streamConsumerGroup.config.State.ModifyRetry.Backoff
-	attempts := sh.streamConsumerGroup.config.State.ModifyRetry.Attempts
-
-	err := common.RetryFunc(context.TODO(), sh.logger, attempts, nil, &backoff, func(int) (bool, error) {
-		state, mtime, err := sh.getStateFromPersistency()
-		if err != nil && err != v3ioerrors.ErrNotFound {
-			return true, errors.Wrap(err, "Failed getting current state from persistency")
-		}
-
-		if state == nil {
-			state, err = newState()
-			if err != nil {
-				return true, errors.Wrap(err, "Failed to create state")
-			}
-		}
-
-		// for logging
-		previousState := state.deepCopy()
-
-		modifiedState, err = modifier(state)
-		if err != nil {
-			return true, errors.Wrap(err, "Failed modifying state")
-		}
-
-		sh.logger.DebugWith("Modified state, saving",
-			"previousState", previousState,
-			"modifiedState", modifiedState)
-
-		err = sh.setStateInPersistency(modifiedState, mtime)
-		if err != nil {
-			return true, errors.Wrap(err, "Failed setting state in persistency state")
-		}
-
-		return false, nil
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed modifying state, attempts exhausted")
-	}
-
-	return modifiedState, nil
-}
-
-func (sh *stateHandler) getStateFilePath() (string, error) {
-	return path.Join(sh.streamConsumerGroup.streamPath, fmt.Sprintf("%s-state.json", sh.streamConsumerGroup.name)), nil
-}
-
-func (sh *stateHandler) setStateInPersistency(state *State, mtime *int) error {
-	stateFilePath, err := sh.getStateFilePath()
-	if err != nil {
-		return errors.Wrap(err, "Failed getting state file path")
-	}
-
-	stateContents, err := json.Marshal(state)
-	if err != nil {
-		return errors.Wrap(err, "Failed marshaling state file contents")
-	}
-
-	var condition string
-	if mtime != nil {
-		condition = fmt.Sprintf("__mtime_nsecs == %v", *mtime)
-	}
-
-	err = sh.streamConsumerGroup.container.UpdateItemSync(&v3io.UpdateItemInput{
-		Path:      stateFilePath,
-		Condition: condition,
-		Attributes: map[string]interface{}{
-			stateContentsAttributeKey: string(stateContents),
-		},
-	})
-	if err != nil {
-		return errors.Wrap(err, "Failed setting state in persistency")
-	}
-
-	return nil
-}
-
-func (sh *stateHandler) getStateFromPersistency() (*State, *int, error) {
-	stateFilePath, err := sh.getStateFilePath()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed getting state file path")
-	}
-
-	response, err := sh.streamConsumerGroup.container.GetItemSync(&v3io.GetItemInput{
-		Path:           stateFilePath,
-		AttributeNames: []string{"__mtime_nsecs", stateContentsAttributeKey},
-	})
-
-	if err != nil {
-		errWithStatusCode, errHasStatusCode := err.(v3ioerrors.ErrorWithStatusCode)
-		if !errHasStatusCode {
-			return nil, nil, errors.Wrap(err, "Got error without status code")
-		}
-
-		if errWithStatusCode.StatusCode() != 404 {
-			return nil, nil, errors.Wrap(err, "Failed getting state item")
-		}
-
-		return nil, nil, v3ioerrors.ErrNotFound
-	}
-
-	defer response.Release()
-
-	getItemOutput := response.Output.(*v3io.GetItemOutput)
-
-	stateContents, err := getItemOutput.Item.GetFieldString(stateContentsAttributeKey)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed getting state attribute")
-	}
-
-	var state State
-
-	err = json.Unmarshal([]byte(stateContents), &state)
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed unmarshalling state contents: %s", stateContents)
-	}
-
-	stateMtime, err := getItemOutput.Item.GetFieldInt("__mtime_nsecs")
-	if err != nil {
-		return nil, nil, errors.New("Failed getting mtime attribute")
-	}
-
-	return &state, &stateMtime, nil
-}
-
 func (sh *stateHandler) removeStaleSessionStates(state *State) error {
 
 	// clear out the sessions since we only want the valid sessions
@@ -383,7 +249,7 @@ func (sh *stateHandler) removeStaleSessionStates(state *State) error {
 	for _, sessionState := range state.SessionStates {
 
 		// check if the last heartbeat happened prior to the session timeout
-		if time.Since(sessionState.LastHeartbeat) < sh.streamConsumerGroup.config.Session.Timeout {
+		if time.Since(sessionState.LastHeartbeat) < sh.member.streamConsumerGroup.config.Session.Timeout {
 			activeSessionStates = append(activeSessionStates, sessionState)
 		} else {
 			sh.logger.DebugWith("Removing stale member",
