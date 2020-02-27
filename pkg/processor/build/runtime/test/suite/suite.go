@@ -279,7 +279,7 @@ func (suite *TestSuite) TestBuildLongInitialization() {
 func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
 
 	// long-initialization functions have a 5-second sleep on load
-	createFunctionOptions := suite.getDeployOptions("long-initialization")
+	createFunctionOptions := suite.getDeployOptions("context-init-fail")
 
 	// allow them less time than that to become ready, expect deploy to fail
 	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 3
