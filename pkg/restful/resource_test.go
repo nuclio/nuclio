@@ -109,7 +109,8 @@ func (suite *resourceTestSuite) sendRequest(method string,
 	requestHeaders map[string]string,
 	requestBody io.Reader,
 	expectedStatusCode *int,
-	encodedExpectedResponse interface{}) (*http.Response, map[string]interface{}) {
+	encodedExpectedResponse interface{},
+	expectedResponseHeaders map[string][]string) (*http.Response, map[string]interface{}) {
 
 	request, err := http.NewRequest(method, suite.testHTTPServer.URL+path, nil)
 	suite.Require().NoError(err)
@@ -131,6 +132,12 @@ func (suite *resourceTestSuite) sendRequest(method string,
 	// check if status code was passed
 	if expectedStatusCode != nil {
 		suite.Require().Equal(*expectedStatusCode, response.StatusCode)
+	}
+
+	if expectedResponseHeaders != nil {
+		for headerName, headerValues := range expectedResponseHeaders {
+			suite.Require().Equal(response.Header[headerName], headerValues, "header is missing from response")
+		}
 	}
 
 	// if there's an expected status code, Verify it
@@ -178,25 +185,25 @@ func (suite *resourceTestSuite) sendErrorRequests(method string, path string) {
 	// handler returns an ErrorWithStatusCode, but status code is below 400
 	code = http.StatusAccepted
 	headers = map[string]string{"return": "error-with-status-202"}
-	suite.sendRequest(method, path, headers, nil, &code, nil)
+	suite.sendRequest(method, path, headers, nil, &code, nil, nil)
 
 	// handler returns errors.New() error
 	code = http.StatusInternalServerError
 	headers = map[string]string{"return": "error-golang"}
 	ecv = NewErrorContainsVerifier(suite.logger, []string{"GOLANG"})
-	suite.sendRequest(method, path, headers, nil, &code, ecv)
+	suite.sendRequest(method, path, headers, nil, &code, ecv, nil)
 
 	// handler returns an ErrorWithStatusCode, and status code is above 400
 	code = http.StatusBadRequest
 	ecv = NewErrorContainsVerifier(suite.logger, []string{"BADREQUEST"})
 	headers = map[string]string{"return": "error-with-status-400"}
-	suite.sendRequest(method, path, headers, nil, &code, ecv.Verify)
+	suite.sendRequest(method, path, headers, nil, &code, ecv.Verify, nil)
 
 	// handler returns a *wrapped* ErrorWithStatusCode, and status code is above 400
 	code = http.StatusBadRequest
 	ecv = NewErrorContainsVerifier(suite.logger, []string{"ORIGINAL_ERROR"})
 	headers = map[string]string{"return": "error-with-status-400-wrapped"}
-	suite.sendRequest(method, path, headers, nil, &code, ecv.Verify)
+	suite.sendRequest(method, path, headers, nil, &code, ecv.Verify, nil)
 }
 
 //
@@ -337,7 +344,9 @@ func (suite *r1TestSuite) TestGetList() {
 			"a1": "v1",
 			"a2": 2
 		}
-	}`)
+	}`, map[string][]string{
+		"Content-Type": {"application/json"},
+	})
 }
 
 func (suite *r1TestSuite) TestGetListErrors() {
@@ -345,7 +354,7 @@ func (suite *r1TestSuite) TestGetListErrors() {
 	// handler returns nil attributes and nil error - expect 200 with {} body
 	code := http.StatusOK
 	headers := map[string]string{"return": "nil"}
-	suite.sendRequest("GET", "/r1", headers, nil, &code, `{}`)
+	suite.sendRequest("GET", "/r1", headers, nil, &code, `{}`, nil)
 
 	suite.sendErrorRequests("GET", "/r1")
 }
@@ -353,7 +362,9 @@ func (suite *r1TestSuite) TestGetListErrors() {
 func (suite *r1TestSuite) TestGetDetail() {
 	suite.sendRequest("GET", "/r1/300", nil, nil, nil, `{
 		"got_id": "300"
-	}`)
+	}`, map[string][]string{
+		"Content-Type": {"application/json"},
+	})
 }
 
 func (suite *r1TestSuite) TestGetDetailErrors() {
@@ -361,7 +372,7 @@ func (suite *r1TestSuite) TestGetDetailErrors() {
 	// handler returns nil attributes and nil error - expect 400 with no body
 	code := http.StatusNotFound
 	headers := map[string]string{"return": "nil"}
-	suite.sendRequest("GET", "/r1/300", headers, nil, &code, nil)
+	suite.sendRequest("GET", "/r1/300", headers, nil, &code, nil, nil)
 
 	suite.sendErrorRequests("GET", "/r1/300")
 }
@@ -370,7 +381,7 @@ func (suite *r1TestSuite) TestGetCustomSingle() {
 	suite.sendRequest("GET", "/r1/abc/single", nil, nil, nil, `{
 		"a": "b",
 		"c": "d"
-	}`)
+	}`, nil)
 }
 
 func (suite *r1TestSuite) TestGetCustomMulti() {
@@ -379,7 +390,7 @@ func (suite *r1TestSuite) TestGetCustomMulti() {
 			"a": "b",
 			"c": "d"
 		}
-	}`)
+	}`, nil)
 }
 
 func (suite *r1TestSuite) TestPostCustom() {
@@ -390,6 +401,7 @@ func (suite *r1TestSuite) TestPostCustom() {
 		nil,
 		nil,
 		&code,
+		nil,
 		nil)
 
 	suite.Require().Equal("h1v", response.Header.Get("h1"))
@@ -400,7 +412,9 @@ func (suite *r1TestSuite) TestCreate() {
 	code := http.StatusCreated
 	suite.sendRequest("POST", "/r1", nil, nil, &code, `{
 		"a": "b"
-	}`)
+	}`, map[string][]string{
+		"Content-Type": {"application/json"},
+	})
 }
 
 func (suite *r1TestSuite) TestCreateErrors() {
@@ -411,7 +425,7 @@ func (suite *r1TestSuite) TestUpdate() {
 	code := http.StatusOK
 	suite.sendRequest("PUT", "/r1/444", nil, nil, &code, `{
 		"a": "b"
-	}`)
+	}`, nil)
 }
 
 func (suite *r1TestSuite) TestUpdateErrors() {
@@ -420,7 +434,7 @@ func (suite *r1TestSuite) TestUpdateErrors() {
 
 func (suite *r1TestSuite) TestDelete() {
 	code := http.StatusNoContent
-	suite.sendRequest("DELETE", "/r1/123", nil, nil, &code, nil)
+	suite.sendRequest("DELETE", "/r1/123", nil, nil, &code, nil, nil)
 }
 
 func (suite *r1TestSuite) TestDeleteErrors() {
@@ -485,22 +499,26 @@ func (suite *r2TestSuite) TestGetList() {
 			"a1": "v1",
 			"a2": 2
 		}
-	}`)
+	}`, map[string][]string{
+		"Content-Type": {"application/json"},
+	})
 }
 
 func (suite *r2TestSuite) TestCreate() {
 	code := http.StatusConflict
-	suite.sendRequest("POST", "/r2", nil, nil, &code, nil)
+	suite.sendRequest("POST", "/r2", nil, nil, &code, nil, map[string][]string{
+		"Content-Type": {"application/json"},
+	})
 }
 
 func (suite *r2TestSuite) TestUpdate() {
 	code := http.StatusNoContent
-	suite.sendRequest("PUT", "/r2/444", nil, nil, &code, nil)
+	suite.sendRequest("PUT", "/r2/444", nil, nil, &code, nil, nil)
 }
 
 func (suite *r2TestSuite) TestDelete() {
 	code := http.StatusNotFound
-	suite.sendRequest("DELETE", "/r2/123", nil, nil, &code, nil)
+	suite.sendRequest("DELETE", "/r2/123", nil, nil, &code, nil, nil)
 }
 
 //
@@ -538,7 +556,9 @@ func (suite *r3TestSuite) SetupTest() {
 
 func (suite *r3TestSuite) TestUpdate() {
 	code := http.StatusNotFound
-	suite.sendRequest("PUT", "/r3/444", nil, nil, &code, nil)
+	suite.sendRequest("PUT", "/r3/444", nil, nil, &code, nil, map[string][]string{
+		"Content-Type": {"application/json"},
+	})
 }
 
 //
