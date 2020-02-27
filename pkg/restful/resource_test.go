@@ -381,8 +381,7 @@ func (suite *r1TestSuite) TestGetCustomSingle() {
 	suite.sendRequest("GET", "/r1/abc/single", nil, nil, nil, `{
 		"a": "b",
 		"c": "d"
-	}`,
-		nil)
+	}`, nil)
 }
 
 func (suite *r1TestSuite) TestGetCustomMulti() {
@@ -391,8 +390,7 @@ func (suite *r1TestSuite) TestGetCustomMulti() {
 			"a": "b",
 			"c": "d"
 		}
-	}`,
-		nil)
+	}`, nil)
 }
 
 func (suite *r1TestSuite) TestPostCustom() {
