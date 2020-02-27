@@ -17,6 +17,8 @@ limitations under the License.
 package statistics
 
 import (
+	"sync/atomic"
+
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/errors"
@@ -34,7 +36,7 @@ func newTriggerGatherer(instanceName string,
 	metricRegistry *prometheus.Registry) (*triggerGatherer, error) {
 
 	newTriggerGatherer := &triggerGatherer{
-		trigger:    trigger,
+		trigger: trigger,
 	}
 
 	// base labels for handle events
@@ -70,11 +72,13 @@ func (esg *triggerGatherer) Gather() error {
 
 	esg.handledEventsTotal.With(prometheus.Labels{
 		"result": "success",
-	}).Add(float64(diffStatistics.EventsHandleSuccessTotal))
+	}).Add(float64(
+		atomic.LoadUint64(&diffStatistics.EventsHandleSuccessTotal)))
 
 	esg.handledEventsTotal.With(prometheus.Labels{
 		"result": "failure",
-	}).Add(float64(diffStatistics.EventsHandleFailureTotal))
+	}).Add(float64(
+		atomic.LoadUint64(&diffStatistics.EventsHandleFailureTotal)))
 
 	esg.prevStatistics = currentStatistics
 

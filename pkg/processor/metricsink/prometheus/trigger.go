@@ -38,7 +38,7 @@ func NewTriggerGatherer(instanceName string,
 	metricRegistry *prometheus.Registry) (*TriggerGatherer, error) {
 
 	newTriggerGatherer := &TriggerGatherer{
-		trigger:    trigger,
+		trigger: trigger,
 	}
 
 	// base labels for handle events

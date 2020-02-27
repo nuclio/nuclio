@@ -16,6 +16,8 @@ limitations under the License.
 
 package worker
 
+import "sync/atomic"
+
 type Statistics struct {
 	EventsHandleSuccess uint64
 	EventsHandleError   uint64
@@ -32,11 +34,11 @@ type AllocatorStatistics struct {
 
 func (s *AllocatorStatistics) DiffFrom(prev *AllocatorStatistics) AllocatorStatistics {
 	return AllocatorStatistics{
-		WorkerAllocationCount:                       s.WorkerAllocationCount - prev.WorkerAllocationCount,
-		WorkerAllocationSuccessImmediateTotal:       s.WorkerAllocationSuccessImmediateTotal - prev.WorkerAllocationSuccessImmediateTotal,
-		WorkerAllocationSuccessAfterWaitTotal:       s.WorkerAllocationSuccessAfterWaitTotal - prev.WorkerAllocationSuccessAfterWaitTotal,
-		WorkerAllocationTimeoutTotal:                s.WorkerAllocationTimeoutTotal - prev.WorkerAllocationTimeoutTotal,
-		WorkerAllocationWaitDurationMilliSecondsSum: s.WorkerAllocationWaitDurationMilliSecondsSum - prev.WorkerAllocationWaitDurationMilliSecondsSum,
-		WorkerAllocationWorkersAvailablePercentage:  s.WorkerAllocationWorkersAvailablePercentage - prev.WorkerAllocationWorkersAvailablePercentage,
+		WorkerAllocationCount:                       atomic.AddUint64(&s.WorkerAllocationCount, -prev.WorkerAllocationCount),
+		WorkerAllocationSuccessImmediateTotal:       atomic.AddUint64(&s.WorkerAllocationSuccessImmediateTotal, -prev.WorkerAllocationSuccessImmediateTotal),
+		WorkerAllocationSuccessAfterWaitTotal:       atomic.AddUint64(&s.WorkerAllocationSuccessAfterWaitTotal, -prev.WorkerAllocationSuccessAfterWaitTotal),
+		WorkerAllocationTimeoutTotal:                atomic.AddUint64(&s.WorkerAllocationTimeoutTotal, -prev.WorkerAllocationTimeoutTotal),
+		WorkerAllocationWaitDurationMilliSecondsSum: atomic.AddUint64(&s.WorkerAllocationWaitDurationMilliSecondsSum, -prev.WorkerAllocationWaitDurationMilliSecondsSum),
+		WorkerAllocationWorkersAvailablePercentage:  atomic.AddUint64(&s.WorkerAllocationWorkersAvailablePercentage, -prev.WorkerAllocationWorkersAvailablePercentage),
 	}
 }

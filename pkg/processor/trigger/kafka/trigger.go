@@ -204,7 +204,9 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 		}
 
 		// allocate a worker for this topic/partition
-		workerInstance, cookie, err := k.partitionWorkerAllocator.AllocateWorker(claim.Topic(), int(claim.Partition()), nil)
+		workerInstance, cookie, err := k.partitionWorkerAllocator.AllocateWorker(claim.Topic(),
+			int(claim.Partition()),
+			nil)
 		if err != nil {
 			return errors.Wrap(err, "Failed to allocate worker")
 		}

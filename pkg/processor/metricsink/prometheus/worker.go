@@ -17,10 +17,12 @@ limitations under the License.
 package prometheus
 
 import (
+	"strconv"
+	"sync/atomic"
+
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"strconv"
 
 	"github.com/nuclio/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -39,7 +41,7 @@ func NewWorkerGatherer(instanceName string,
 	metricRegistry *prometheus.Registry) (*WorkerGatherer, error) {
 
 	newWorkerGatherer := &WorkerGatherer{
-		worker:     worker,
+		worker: worker,
 	}
 
 	// base labels for handle events
@@ -83,8 +85,10 @@ func (wg *WorkerGatherer) Gather() error {
 	// diff from previous to get this period
 	diffRuntimeStatistics := currentRuntimeStatistics.DiffFrom(&wg.prevRuntimeStatistics)
 
-	wg.handledEventsDurationMillisecondsSum.Add(float64(diffRuntimeStatistics.DurationMilliSecondsSum))
-	wg.handledEventsDurationMillisecondsCount.Add(float64(diffRuntimeStatistics.DurationMilliSecondsCount))
+	wg.handledEventsDurationMillisecondsSum.Add(
+		float64(atomic.LoadUint64(&diffRuntimeStatistics.DurationMilliSecondsSum)))
+	wg.handledEventsDurationMillisecondsCount.Add(
+		float64(atomic.LoadUint64(&diffRuntimeStatistics.DurationMilliSecondsCount)))
 
 	// save previous
 	wg.prevRuntimeStatistics = currentRuntimeStatistics

@@ -17,6 +17,8 @@ limitations under the License.
 package runtime
 
 import (
+	"sync/atomic"
+
 	"github.com/nuclio/nuclio/pkg/processor"
 
 	"github.com/nuclio/logger"
@@ -29,8 +31,8 @@ type Statistics struct {
 
 func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 	return Statistics{
-		DurationMilliSecondsSum:   s.DurationMilliSecondsSum - prev.DurationMilliSecondsSum,
-		DurationMilliSecondsCount: s.DurationMilliSecondsCount - prev.DurationMilliSecondsCount,
+		DurationMilliSecondsSum:   atomic.AddUint64(&s.DurationMilliSecondsSum, -prev.DurationMilliSecondsSum),
+		DurationMilliSecondsCount: atomic.AddUint64(&s.DurationMilliSecondsCount, -prev.DurationMilliSecondsCount),
 	}
 }
 

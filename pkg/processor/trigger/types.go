@@ -18,6 +18,7 @@ package trigger
 
 import (
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -115,8 +116,8 @@ func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 	workerAllocatorStatisticsDiff := s.WorkerAllocatorStatistics.DiffFrom(&prev.WorkerAllocatorStatistics)
 
 	return Statistics{
-		EventsHandleSuccessTotal:  s.EventsHandleSuccessTotal - prev.EventsHandleSuccessTotal,
-		EventsHandleFailureTotal:  s.EventsHandleFailureTotal - prev.EventsHandleFailureTotal,
+		EventsHandleSuccessTotal:  atomic.AddUint64(&s.EventsHandleSuccessTotal, -prev.EventsHandleSuccessTotal),
+		EventsHandleFailureTotal:  atomic.AddUint64(&s.EventsHandleFailureTotal, -prev.EventsHandleFailureTotal),
 		WorkerAllocatorStatistics: workerAllocatorStatisticsDiff,
 	}
 }
