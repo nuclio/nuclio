@@ -77,6 +77,8 @@ class Wrapper(object):
         # replace the default output with the process socket
         self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
 
+        self._logger.warn('ZZZ - 0 - testing')
+
         # indicate that we're ready
         self._write_packet_to_processor('s')
 

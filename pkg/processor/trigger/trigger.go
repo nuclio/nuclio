@@ -158,7 +158,6 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 	functionLogger logger.Logger,
 	timeout time.Duration) (responses []interface{}, submitError error, processErrors []error) {
-
 	var workerInstance *worker.Worker
 
 	defer at.HandleSubmitPanic(workerInstance, &submitError)
@@ -269,9 +268,9 @@ func (at *AbstractTrigger) TimeoutWorker(worker *worker.Worker) error {
 // UpdateStatistics updates the trigger statistics
 func (at *AbstractTrigger) UpdateStatistics(success bool) {
 	if success {
-		atomic.AddUint64(&at.Statistics.EventsHandleSuccessTotal, 1)
+		atomic.AddUint64(&at.Statistics.EventsHandledSuccessTotal, 1)
 	} else {
-		atomic.AddUint64(&at.Statistics.EventsHandleFailureTotal, 1)
+		atomic.AddUint64(&at.Statistics.EventsHandledFailureTotal, 1)
 	}
 }
 

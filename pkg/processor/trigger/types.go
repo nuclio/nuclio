@@ -107,17 +107,24 @@ func (c *Configuration) ParseDurationOrDefault(durationConfigField *DurationConf
 }
 
 type Statistics struct {
-	EventsHandleSuccessTotal  uint64
-	EventsHandleFailureTotal  uint64
+	EventsHandledSuccessTotal uint64
+	EventsHandledFailureTotal uint64
 	WorkerAllocatorStatistics worker.AllocatorStatistics
 }
 
 func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 	workerAllocatorStatisticsDiff := s.WorkerAllocatorStatistics.DiffFrom(&prev.WorkerAllocatorStatistics)
 
+	// atomically load the counters
+	currEventsHandledSuccessTotal := atomic.LoadUint64(&s.EventsHandledSuccessTotal)
+	currEventsHandledFailureTotal := atomic.LoadUint64(&s.EventsHandledFailureTotal)
+
+	prevEventsHandledSuccessTotal := atomic.LoadUint64(&prev.EventsHandledSuccessTotal)
+	prevEventsHandledFailureTotal := atomic.LoadUint64(&prev.EventsHandledFailureTotal)
+
 	return Statistics{
-		EventsHandleSuccessTotal:  atomic.AddUint64(&s.EventsHandleSuccessTotal, -prev.EventsHandleSuccessTotal),
-		EventsHandleFailureTotal:  atomic.AddUint64(&s.EventsHandleFailureTotal, -prev.EventsHandleFailureTotal),
+		EventsHandledSuccessTotal: currEventsHandledSuccessTotal - prevEventsHandledSuccessTotal,
+		EventsHandledFailureTotal: currEventsHandledFailureTotal - prevEventsHandledFailureTotal,
 		WorkerAllocatorStatistics: workerAllocatorStatisticsDiff,
 	}
 }

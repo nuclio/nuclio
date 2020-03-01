@@ -60,6 +60,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 
 func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 	wrapperScriptPath := py.getWrapperScriptPath()
+	py.Logger.Warn("ZZZ - 0 - py wrapper")
 	py.Logger.DebugWith("Using Python wrapper script path", "path", wrapperScriptPath)
 	if !common.IsFile(wrapperScriptPath) {
 		return nil, fmt.Errorf("Can't find wrapper at %q", wrapperScriptPath)

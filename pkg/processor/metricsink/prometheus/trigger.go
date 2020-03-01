@@ -20,11 +20,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 type TriggerGatherer struct {
 	trigger                                     trigger.Trigger
+	logger                                      logger.Logger
 	handledEventsTotal                          *prometheus.CounterVec
 	workerAllocationCount                       prometheus.Counter
 	workerAllocationTotal                       *prometheus.CounterVec
@@ -35,10 +38,12 @@ type TriggerGatherer struct {
 
 func NewTriggerGatherer(instanceName string,
 	trigger trigger.Trigger,
+	logger logger.Logger,
 	metricRegistry *prometheus.Registry) (*TriggerGatherer, error) {
 
 	newTriggerGatherer := &TriggerGatherer{
 		trigger: trigger,
+		logger:  logger.GetChild("gatherer"),
 	}
 
 	// base labels for handle events
@@ -92,6 +97,10 @@ func NewTriggerGatherer(instanceName string,
 		}
 	}
 
+	newTriggerGatherer.logger.DebugWith("Trigger gatherer created",
+		"triggerID", trigger.GetID(),
+		"triggerClass", trigger.GetKind())
+
 	return newTriggerGatherer, nil
 }
 
@@ -100,20 +109,24 @@ func (tg *TriggerGatherer) Gather() error {
 	// read current stats
 	currentStatistics := *tg.trigger.GetStatistics()
 
-	// diff from previous to get this period
+	// diff from previous to get this period, DiffFrom returns a full copy of statistics,
+	// which can be accessed without atomicity concerns
 	diffStatistics := currentStatistics.DiffFrom(&tg.prevStatistics)
 
 	tg.handledEventsTotal.With(prometheus.Labels{
 		"result": "success",
-	}).Add(float64(diffStatistics.EventsHandleSuccessTotal))
+	}).Add(float64(diffStatistics.EventsHandledSuccessTotal))
 
 	tg.handledEventsTotal.With(prometheus.Labels{
 		"result": "failure",
-	}).Add(float64(diffStatistics.EventsHandleFailureTotal))
+	}).Add(float64(diffStatistics.EventsHandledFailureTotal))
 
-	tg.workerAllocationCount.Add(float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationCount))
-	tg.workerAllocationWaitDurationMilliSecondsSum.Add(float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationWaitDurationMilliSecondsSum))
-	tg.workerAllocationWorkersAvailablePercentage.Add(float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationWorkersAvailablePercentage))
+	tg.workerAllocationCount.Add(
+		float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationCount))
+	tg.workerAllocationWaitDurationMilliSecondsSum.Add(
+		float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationWaitDurationMilliSecondsSum))
+	tg.workerAllocationWorkersAvailablePercentage.Add(
+		float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationWorkersAvailablePercentage))
 
 	tg.workerAllocationTotal.With(prometheus.Labels{
 		"result": "success_immediate",
@@ -126,6 +139,10 @@ func (tg *TriggerGatherer) Gather() error {
 	tg.workerAllocationTotal.With(prometheus.Labels{
 		"result": "error_timeout",
 	}).Add(float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationTimeoutTotal))
+
+	tg.logger.InfoWith("ZZZ - trigger - Gathered",
+		"eventsHandledSuccessTotal", diffStatistics.EventsHandledSuccessTotal,
+		"eventsHandledFailureTotal", diffStatistics.EventsHandledFailureTotal)
 
 	tg.prevStatistics = currentStatistics
 

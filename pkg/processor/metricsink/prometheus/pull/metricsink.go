@@ -53,7 +53,6 @@ func newMetricSink(parentLogger logger.Logger,
 		"promethuesPull",
 		configuration.Name,
 		metricProvider)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract metric sink")
 	}
@@ -77,7 +76,8 @@ func newMetricSink(parentLogger logger.Logger,
 	newMetricPuller.Logger.InfoWith("Created",
 		"env", os.Getenv("NUCLIO_FUNCTION_INSTANCE"),
 		"instanceName", newMetricPuller.instanceName,
-		"listenAddr", configuration.URL)
+		"listenAddr", configuration.URL,
+		"gatherers", len(newMetricPuller.gatherers))
 
 	return newMetricPuller, nil
 }
@@ -145,6 +145,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 		// create a gatherer for the trigger
 		triggerGatherer, err := prometheus.NewTriggerGatherer(ms.instanceName,
 			trigger,
+			ms.Logger,
 			ms.metricRegistry)
 
 		if err != nil {
@@ -157,6 +158,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 		for _, worker := range trigger.GetWorkers() {
 			workerGatherer, err := prometheus.NewWorkerGatherer(ms.instanceName,
 				trigger,
+				ms.Logger,
 				worker,
 				ms.metricRegistry)
 
@@ -167,6 +169,8 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 			ms.gatherers = append(ms.gatherers, workerGatherer)
 		}
 	}
+
+	ms.Logger.DebugWith("Created trigger and worker gatherers", "gatherers", ms.gatherers)
 
 	return nil
 }

@@ -66,7 +66,7 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 
 	// check if there was a processing error. if so, log it
 	if err != nil {
-		w.statistics.EventsHandleError++
+		w.statistics.EventsHandledError++
 	} else {
 		success := true
 
@@ -78,9 +78,9 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 		}
 
 		if success {
-			w.statistics.EventsHandleSuccess++
+			w.statistics.EventsHandledSuccess++
 		} else {
-			w.statistics.EventsHandleError++
+			w.statistics.EventsHandledError++
 		}
 	}
 

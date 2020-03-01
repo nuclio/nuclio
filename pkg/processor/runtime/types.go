@@ -30,9 +30,17 @@ type Statistics struct {
 }
 
 func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
+
+	// atomically load the counters
+	currDurationMilliSecondsSum := atomic.LoadUint64(&s.DurationMilliSecondsSum)
+	currDurationMilliSecondsCount := atomic.LoadUint64(&s.DurationMilliSecondsCount)
+
+	prevDurationMilliSecondsSum := atomic.LoadUint64(&prev.DurationMilliSecondsSum)
+	prevDurationMilliSecondsCount := atomic.LoadUint64(&prev.DurationMilliSecondsCount)
+
 	return Statistics{
-		DurationMilliSecondsSum:   atomic.AddUint64(&s.DurationMilliSecondsSum, -prev.DurationMilliSecondsSum),
-		DurationMilliSecondsCount: atomic.AddUint64(&s.DurationMilliSecondsCount, -prev.DurationMilliSecondsCount),
+		DurationMilliSecondsSum: currDurationMilliSecondsSum - prevDurationMilliSecondsSum,
+		DurationMilliSecondsCount: currDurationMilliSecondsCount - prevDurationMilliSecondsCount,
 	}
 }
 

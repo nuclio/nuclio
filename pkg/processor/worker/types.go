@@ -19,8 +19,8 @@ package worker
 import "sync/atomic"
 
 type Statistics struct {
-	EventsHandleSuccess uint64
-	EventsHandleError   uint64
+	EventsHandledSuccess uint64
+	EventsHandledError   uint64
 }
 
 type AllocatorStatistics struct {
@@ -33,12 +33,28 @@ type AllocatorStatistics struct {
 }
 
 func (s *AllocatorStatistics) DiffFrom(prev *AllocatorStatistics) AllocatorStatistics {
+
+	// atomically load the counters
+	currWorkerAllocationCount := atomic.LoadUint64(&s.WorkerAllocationCount)
+	currWorkerAllocationSuccessImmediateTotal := atomic.LoadUint64(&s.WorkerAllocationSuccessImmediateTotal)
+	currWorkerAllocationSuccessAfterWaitTotal := atomic.LoadUint64(&s.WorkerAllocationSuccessAfterWaitTotal)
+	currWorkerAllocationTimeoutTotal := atomic.LoadUint64(&s.WorkerAllocationTimeoutTotal)
+	currWorkerAllocationWaitDurationMilliSecondsSum := atomic.LoadUint64(&s.WorkerAllocationWaitDurationMilliSecondsSum)
+	currWorkerAllocationWorkersAvailablePercentage := atomic.LoadUint64(&s.WorkerAllocationWorkersAvailablePercentage)
+
+	prevWorkerAllocationCount := atomic.LoadUint64(&prev.WorkerAllocationCount)
+	prevWorkerAllocationSuccessImmediateTotal := atomic.LoadUint64(&prev.WorkerAllocationSuccessImmediateTotal)
+	prevWorkerAllocationSuccessAfterWaitTotal := atomic.LoadUint64(&prev.WorkerAllocationSuccessAfterWaitTotal)
+	prevWorkerAllocationTimeoutTotal := atomic.LoadUint64(&prev.WorkerAllocationTimeoutTotal)
+	prevWorkerAllocationWaitDurationMilliSecondsSum := atomic.LoadUint64(&prev.WorkerAllocationWaitDurationMilliSecondsSum)
+	prevWorkerAllocationWorkersAvailablePercentage := atomic.LoadUint64(&prev.WorkerAllocationWorkersAvailablePercentage)
+
 	return AllocatorStatistics{
-		WorkerAllocationCount:                       atomic.AddUint64(&s.WorkerAllocationCount, -prev.WorkerAllocationCount),
-		WorkerAllocationSuccessImmediateTotal:       atomic.AddUint64(&s.WorkerAllocationSuccessImmediateTotal, -prev.WorkerAllocationSuccessImmediateTotal),
-		WorkerAllocationSuccessAfterWaitTotal:       atomic.AddUint64(&s.WorkerAllocationSuccessAfterWaitTotal, -prev.WorkerAllocationSuccessAfterWaitTotal),
-		WorkerAllocationTimeoutTotal:                atomic.AddUint64(&s.WorkerAllocationTimeoutTotal, -prev.WorkerAllocationTimeoutTotal),
-		WorkerAllocationWaitDurationMilliSecondsSum: atomic.AddUint64(&s.WorkerAllocationWaitDurationMilliSecondsSum, -prev.WorkerAllocationWaitDurationMilliSecondsSum),
-		WorkerAllocationWorkersAvailablePercentage:  atomic.AddUint64(&s.WorkerAllocationWorkersAvailablePercentage, -prev.WorkerAllocationWorkersAvailablePercentage),
+		WorkerAllocationCount: currWorkerAllocationCount - prevWorkerAllocationCount,
+		WorkerAllocationSuccessImmediateTotal: currWorkerAllocationSuccessImmediateTotal - prevWorkerAllocationSuccessImmediateTotal,
+		WorkerAllocationSuccessAfterWaitTotal: currWorkerAllocationSuccessAfterWaitTotal - prevWorkerAllocationSuccessAfterWaitTotal,
+		WorkerAllocationTimeoutTotal: currWorkerAllocationTimeoutTotal - prevWorkerAllocationTimeoutTotal,
+		WorkerAllocationWaitDurationMilliSecondsSum: currWorkerAllocationWaitDurationMilliSecondsSum - prevWorkerAllocationWaitDurationMilliSecondsSum,
+		WorkerAllocationWorkersAvailablePercentage: currWorkerAllocationWorkersAvailablePercentage - prevWorkerAllocationWorkersAvailablePercentage,
 	}
 }
