@@ -651,7 +651,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	return resource.(*apps_v1beta1.Deployment), err
 }
 
-func (lc *lazyClient) canUpdateDeploymentStrategy(deploymentAugmentedConfigs []platformconfig.LabelSelectorAndConfig) (bool) {
+func (lc *lazyClient) canUpdateDeploymentStrategy(deploymentAugmentedConfigs []platformconfig.LabelSelectorAndConfig) bool {
 
 	// check if user didnt provide a deployment strategy
 	for _, augmentedConfig := range deploymentAugmentedConfigs {
