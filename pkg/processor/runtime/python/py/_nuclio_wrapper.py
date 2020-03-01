@@ -273,6 +273,9 @@ def run_wrapper():
     # way all output goes to stdout until a socket is available and then switches exclusively to socket
     root_logger.set_handler('default', sys.stdout, nuclio_sdk.logger.JSONFormatter())
 
+    # bind worker_id to the logger
+    root_logger.bind(worker_id=args.worker_id)
+
     try:
 
         # create a new wrapper

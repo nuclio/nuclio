@@ -1,6 +1,10 @@
 package abstract
 
 import (
+	"bufio"
+	"io/ioutil"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -9,7 +13,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
-	nucliozap "github.com/nuclio/zap"
+	"github.com/nuclio/zap"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -20,6 +24,16 @@ type TestPlatform struct {
 	logger         logger.Logger
 	suiteAssertion *assert.Assertions
 }
+
+const (
+	MultiWorkerFunctionLogsFilePath = "test/logs_examples/multi_worker"
+	PanicFunctionLogsFilePath = "test/logs_examples/panic"
+	GoWithCallStackFunctionLogsFilePath = "test/logs_examples/go_with_call_stack"
+	SpecialSubstringsFunctionLogsFilePath = "test/logs_examples/special_substrings"
+	FunctionLogsFile = "function_logs.txt"
+	FormattedFunctionLogsFile = "formatted_function_logs.txt"
+	BriefErrorsMessageFile = "brief_errors_message.txt"
+)
 
 // GetProjects will list existing projects
 func (mp *TestPlatform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
@@ -149,6 +163,44 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 		}
 		suite.Logger.DebugWith("Validation passed successfully", "functionName", functionName)
 	}
+}
+
+func (suite *TestAbstractSuite) TestGetProcessorLogsOnMultiWorker() {
+	suite.testGetProcessorLogs(MultiWorkerFunctionLogsFilePath)
+}
+
+func (suite *TestAbstractSuite) TestGetProcessorLogsOnPanic() {
+	suite.testGetProcessorLogs(PanicFunctionLogsFilePath)
+}
+
+func (suite *TestAbstractSuite) TestGetProcessorLogsOnGoWithCallStack() {
+	suite.testGetProcessorLogs(GoWithCallStackFunctionLogsFilePath)
+}
+
+func (suite *TestAbstractSuite) TestGetProcessorLogsWithSpecialSubstrings() {
+	suite.testGetProcessorLogs(SpecialSubstringsFunctionLogsFilePath)
+}
+
+// Test that GetProcessorLogs() generates the expected formattedPodLogs and briefErrorsMessage
+// Expects 3 files inside functionLogsFilePath: (kept in these constants)
+// - FunctionLogsFile
+// - FormattedFunctionLogsFile
+// - BriefErrorsMessageFile
+func (suite *TestAbstractSuite) testGetProcessorLogs(functionLogsFilePath string) {
+	functionLogsFile, err := os.Open(path.Join(functionLogsFilePath, FunctionLogsFile))
+	suite.NoError(err, "Failed to read function logs file")
+
+	functionLogsScanner := bufio.NewScanner(functionLogsFile)
+
+	formattedPodLogs, briefErrorsMessage := suite.Platform.GetProcessorLogsAndBriefError(functionLogsScanner)
+
+	expectedFormattedFunctionLogsFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, FormattedFunctionLogsFile))
+	suite.NoError(err, "Failed to read formatted function logs file")
+	suite.Assert().Equal(string(expectedFormattedFunctionLogsFileBytes), formattedPodLogs)
+
+	expectedBriefErrorsMessageFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, BriefErrorsMessageFile))
+	suite.NoError(err, "Failed to read brief errors message file")
+	suite.Assert().Equal(string(expectedBriefErrorsMessageFileBytes), briefErrorsMessage)
 }
 
 func TestAbstractPlatformTestSuite(t *testing.T) {

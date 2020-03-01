@@ -1,0 +1,2 @@
+Processor worker_0 error
+Handler not found [worker_id="0"]

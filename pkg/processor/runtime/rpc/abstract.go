@@ -439,7 +439,7 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 		return
 	}
 
-	r.Logger.ErrorWith("Unexpected termination of child process",
+	r.Logger.ErrorWith(common.UnexpectedTerminationChildProcess,
 		"error", processWaitResult.Err,
 		"status", processWaitResult.ProcessState.String())
 

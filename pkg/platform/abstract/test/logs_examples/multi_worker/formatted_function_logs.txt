@@ -1,0 +1,4 @@
+[12:10:04.805] (E) Processor worker_0 error
+[12:10:04.807] (E) Processor worker_1 error
+[12:10:04.902] (E) Handler not found [worker_id="0"]
+[12:10:04.906] (E) Handler not found [worker_id="1"]
