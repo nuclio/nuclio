@@ -577,11 +577,7 @@ func (ap *Platform) tryInferWorkerID(loggerName string) string {
 func (ap *Platform) getMessageAndArgs(message string, args string, log []byte, workerID string) string {
 	var additionalKwargsAsString string
 
-	additionalKwargs, err := ap.getLogLineAdditionalKwargs(log)
-	if err != nil {
-		ap.Logger.WarnWith("Failed to get log line's additional kwargs",
-			"logLineMessage", message)
-	}
+	additionalKwargs, _ := ap.getLogLineAdditionalKwargs(log)
 
 	additionalKwargsAsString = common.CreateKeyValuePairs(additionalKwargs)
 

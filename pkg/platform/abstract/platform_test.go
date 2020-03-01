@@ -30,6 +30,9 @@ const (
 	PanicFunctionLogsFilePath = "test/logs_examples/panic"
 	GoWithCallStackFunctionLogsFilePath = "test/logs_examples/go_with_call_stack"
 	SpecialSubstringsFunctionLogsFilePath = "test/logs_examples/special_substrings"
+	FunctionLogsFile = "function_logs.txt"
+	FormattedFunctionLogsFile = "formatted_function_logs.txt"
+	BriefErrorsMessageFile = "brief_errors_message.txt"
 )
 
 // GetProjects will list existing projects
@@ -178,24 +181,24 @@ func (suite *TestAbstractSuite) TestGetProcessorLogsWithSpecialSubstrings() {
 	suite.testGetProcessorLogs(SpecialSubstringsFunctionLogsFilePath)
 }
 
-// Test the GetProcessLogs() generates the expected formattedPodLogs and BriefErrorsMessage
-// Expects the following files inside functionLogsFilePath:
-// - function_logs.log
-// - formatted_function_logs.log
-// - brief_errors_message.log
+// Test that GetProcessorLogs() generates the expected formattedPodLogs and briefErrorsMessage
+// Expects 3 files inside functionLogsFilePath: (kept in these constants)
+// - FunctionLogsFile
+// - FormattedFunctionLogsFile
+// - BriefErrorsMessageFile
 func (suite *TestAbstractSuite) testGetProcessorLogs(functionLogsFilePath string) {
-	functionLogsFile, err := os.Open(path.Join(functionLogsFilePath, "function_logs.txt"))
+	functionLogsFile, err := os.Open(path.Join(functionLogsFilePath, FunctionLogsFile))
 	suite.NoError(err, "Failed to read function logs file")
 
 	functionLogsScanner := bufio.NewScanner(functionLogsFile)
 
 	formattedPodLogs, briefErrorsMessage := suite.Platform.GetProcessorLogsAndBriefError(functionLogsScanner)
 
-	expectedFormattedFunctionLogsFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, "formatted_function_logs.txt"))
+	expectedFormattedFunctionLogsFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, FormattedFunctionLogsFile))
 	suite.NoError(err, "Failed to read formatted function logs file")
 	suite.Assert().Equal(string(expectedFormattedFunctionLogsFileBytes), formattedPodLogs)
 
-	expectedBriefErrorsMessageFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, "brief_errors_message.txt"))
+	expectedBriefErrorsMessageFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, BriefErrorsMessageFile))
 	suite.NoError(err, "Failed to read brief errors message file")
 	suite.Assert().Equal(string(expectedBriefErrorsMessageFileBytes), briefErrorsMessage)
 }
