@@ -87,9 +87,5 @@ func (esg *triggerGatherer) Gather() error {
 
 	esg.prevStatistics = currentStatistics
 
-	esg.logger.InfoWith("ZZZ - unused trigger - Gathered",
-		"eventsHandledSuccessTotal", eventsHandledSuccessTotal,
-		"eventsHandledFailureTotal", eventsHandledFailureTotal)
-
 	return nil
 }

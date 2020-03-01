@@ -139,10 +139,6 @@ func (tg *TriggerGatherer) Gather() error {
 		"result": "error_timeout",
 	}).Add(float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationTimeoutTotal))
 
-	tg.logger.InfoWith("ZZZ - trigger - Gathered",
-		"eventsHandledSuccessTotal", diffStatistics.EventsHandledSuccessTotal,
-		"eventsHandledFailureTotal", diffStatistics.EventsHandledFailureTotal)
-
 	tg.prevStatistics = currentStatistics
 
 	return nil
