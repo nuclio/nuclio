@@ -618,7 +618,6 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment
-		// enrich deployment spec with default fields that were passed inside the platform configuration
 		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment, method); err != nil {
 			return nil, err
 		}
@@ -652,18 +651,16 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	return resource.(*apps_v1beta1.Deployment), err
 }
 
-func (lc *lazyClient) canUpdateDeploymentStrategy(deployment *apps_v1beta1.Deployment,
-	function *nuclioio.NuclioFunction,
-	deploymentAugmentedConfigs []platformconfig.LabelSelectorAndConfig) (bool, error) {
+func (lc *lazyClient) canUpdateDeploymentStrategy(deploymentAugmentedConfigs []platformconfig.LabelSelectorAndConfig) bool {
 
 	// check if user didnt provide a deployment strategy
 	for _, augmentedConfig := range deploymentAugmentedConfigs {
 		if augmentedConfig.Kubernetes.Deployment.Spec.Strategy.Type != "" ||
 			augmentedConfig.Kubernetes.Deployment.Spec.Strategy.RollingUpdate != nil {
-			return false, nil
+			return false
 		}
 	}
-	return true, nil
+	return true
 }
 
 func (lc *lazyClient) resolveDefaultDeploymentStrategy(function *nuclioio.NuclioFunction) apps_v1beta1.DeploymentStrategyType {
@@ -692,12 +689,10 @@ func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployme
 		return nil, errors.Wrap(err, "Failed to get deployment augmented configs")
 	}
 
-	// check user didn't provide any deployment strategy specifics
-	canUpdateDeploymentStrategy, err := lc.canUpdateDeploymentStrategy(deployment, function, deploymentAugmentedConfigs)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to decide if deployment strategy can be updated")
-	}
+	canUpdateDeploymentStrategy := lc.canUpdateDeploymentStrategy(deploymentAugmentedConfigs)
 	if !canUpdateDeploymentStrategy {
+
+		// user explicitly asked not to change deployment strategy
 		return deployment, nil
 	}
 
