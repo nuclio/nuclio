@@ -2,8 +2,30 @@ apiVersion: v1
 entries:
   nuclio:
   - apiVersion: v1
+    appVersion: 1.3.17
+    created: "2020-03-01T15:58:32.056179+02:00"
+    description: Serverless for Real-Time and Data-Driven Applications
+    digest: 8456627a1907e72424eb0adf5939722ab730e8a6124c5dd1b605d23e5afbddb9
+    home: https://nuclio.io
+    icon: https://github.com/nuclio/nuclio/raw/master/docs/assets/images/logo.png
+    maintainers:
+    - email: erand@iguazio.com
+      name: Eran Duchan
+    - email: odedm@iguazio.com
+      name: Oded Messer
+    - email: liranb@iguazio.com
+      name: Liran Ben Gida
+    - email: sahare@iguazio.com
+      name: Sahar Elhayani
+    name: nuclio
+    sources:
+    - https://github.com/nuclio/nuclio
+    urls:
+    - https://nuclio.github.io/nuclio/charts/nuclio-0.5.18.tgz
+    version: 0.5.18
+  - apiVersion: v1
     appVersion: 1.3.16
-    created: "2020-02-21T03:09:17.452679+02:00"
+    created: "2020-03-01T15:58:32.055266+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 2f0c8d4397b3d457c333810bb177d6a8c95cfecafe4a156b602be4912fd3d24a
     home: https://nuclio.io
@@ -25,7 +47,7 @@ entries:
     version: 0.5.17
   - apiVersion: v1
     appVersion: 1.3.15
-    created: "2020-02-21T03:09:17.452135+02:00"
+    created: "2020-03-01T15:58:32.054547+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 0ccc97a53aa9ca6e6eb4091684b07ff36aab72705ea399874b600d5face6fd05
     home: https://nuclio.io
@@ -47,7 +69,7 @@ entries:
     version: 0.5.15
   - apiVersion: v1
     appVersion: 1.3.14
-    created: "2020-02-21T03:09:17.451588+02:00"
+    created: "2020-03-01T15:58:32.053839+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 1354f314a65ecc44177ca0cf8bb8f5a075ca1b7fa9fde6e2fae2fb1f8413b09a
     home: https://nuclio.io
@@ -69,7 +91,7 @@ entries:
     version: 0.5.14
   - apiVersion: v1
     appVersion: 1.3.13
-    created: "2020-02-21T03:09:17.451057+02:00"
+    created: "2020-03-01T15:58:32.053201+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: e6fb67e4462785ae8c827808f6750010d5d4732b3df0aa2e2076918ac95b7a1e
     home: https://nuclio.io
@@ -91,7 +113,7 @@ entries:
     version: 0.5.13
   - apiVersion: v1
     appVersion: 1.3.12
-    created: "2020-02-21T03:09:17.450505+02:00"
+    created: "2020-03-01T15:58:32.052581+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 2329e98b308237fb545cc1e12c2ff18d153915bf05e7667550560c1e2c079c55
     home: https://nuclio.io
@@ -113,7 +135,7 @@ entries:
     version: 0.5.12
   - apiVersion: v1
     appVersion: 1.3.11
-    created: "2020-02-21T03:09:17.449952+02:00"
+    created: "2020-03-01T15:58:32.051457+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: ea6ce1baebf912df18bd232b44ab26d5048dea7da3b3819bd7148cc45e4a20c6
     home: https://nuclio.io
@@ -135,7 +157,7 @@ entries:
     version: 0.5.11
   - apiVersion: v1
     appVersion: 1.3.8
-    created: "2020-02-21T03:09:17.44929+02:00"
+    created: "2020-03-01T15:58:32.050773+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: c4228923edcf8d1a7004cee9445f951d8fa2f3a2a183f0816f3b34dd56317953
     home: https://nuclio.io
@@ -157,7 +179,7 @@ entries:
     version: 0.5.10
   - apiVersion: v1
     appVersion: 1.3.7
-    created: "2020-02-21T03:09:17.457346+02:00"
+    created: "2020-03-01T15:58:32.061164+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: f020182573da1d5029055199c0b0f431ccb77c51765e14e6e47dd2a88fea4641
     home: https://nuclio.io
@@ -179,7 +201,7 @@ entries:
     version: 0.5.9
   - apiVersion: v1
     appVersion: 1.3.6
-    created: "2020-02-21T03:09:17.456748+02:00"
+    created: "2020-03-01T15:58:32.060516+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: ad6b3fe26375fdcf92ca54836d04f353a07abaee838d0d1a997aed9563c55641
     home: https://nuclio.io
@@ -201,7 +223,7 @@ entries:
     version: 0.5.8
   - apiVersion: v1
     appVersion: 1.3.5
-    created: "2020-02-21T03:09:17.456167+02:00"
+    created: "2020-03-01T15:58:32.059856+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 21c91bea756f5f2e9cce97b0f2ec82ec5d9e284dafcdff3f6a8f078e7511d9ea
     home: https://nuclio.io
@@ -223,7 +245,7 @@ entries:
     version: 0.5.7
   - apiVersion: v1
     appVersion: 1.3.4
-    created: "2020-02-21T03:09:17.455639+02:00"
+    created: "2020-03-01T15:58:32.058653+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: a5b0a32f260863b6c4518d1e925d7d3e699997b1079844a7b62397397b629211
     home: https://nuclio.io
@@ -245,7 +267,7 @@ entries:
     version: 0.5.6
   - apiVersion: v1
     appVersion: 1.3.3
-    created: "2020-02-21T03:09:17.455123+02:00"
+    created: "2020-03-01T15:58:32.058041+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: fdf1dccfdfd394c3311fe6202e196b89902a93014ba5562310edfaabe3c6a747
     home: https://nuclio.io
@@ -267,7 +289,7 @@ entries:
     version: 0.5.5
   - apiVersion: v1
     appVersion: 1.3.2
-    created: "2020-02-21T03:09:17.454521+02:00"
+    created: "2020-03-01T15:58:32.057422+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: b97e13a4d952c6646312cb55c502d165fce89a015dd5d7b2668ffe0cd1593677
     home: https://nuclio.io
@@ -289,7 +311,7 @@ entries:
     version: 0.5.4
   - apiVersion: v1
     appVersion: 1.3.1
-    created: "2020-02-21T03:09:17.453651+02:00"
+    created: "2020-03-01T15:58:32.056804+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: c15f2848c94d083bcef5dc5a7700094ac456f1719ca7e49a3c62ad45dec29f7b
     home: https://nuclio.io
@@ -311,7 +333,7 @@ entries:
     version: 0.5.2
   - apiVersion: v1
     appVersion: 1.3.0
-    created: "2020-02-21T03:09:17.448611+02:00"
+    created: "2020-03-01T15:58:32.050076+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 133e09129d769a5d331084d60d2ad3a350b016b68c4fa70542d940d2219e30ce
     home: https://nuclio.io
@@ -333,7 +355,7 @@ entries:
     version: 0.5.1
   - apiVersion: v1
     appVersion: 1.3.1
-    created: "2020-02-21T03:09:17.447874+02:00"
+    created: "2020-03-01T15:58:32.049376+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 94b334ac7005f7fb81a50958edd6aec25e2989b162d78fb9193e48342a41539f
     home: https://nuclio.io
@@ -355,7 +377,7 @@ entries:
     version: 0.5.0
   - apiVersion: v1
     appVersion: 1.1.30
-    created: "2020-02-21T03:09:17.443037+02:00"
+    created: "2020-03-01T15:58:32.042844+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 7603139adec72c4e09e3742f8f2da83741bfc1df9ad6f5832392951c76e80c2f
     home: https://nuclio.io
@@ -377,7 +399,7 @@ entries:
     version: 0.4.27
   - apiVersion: v1
     appVersion: 1.1.28
-    created: "2020-02-21T03:09:17.442532+02:00"
+    created: "2020-03-01T15:58:32.04211+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 45810faa80ac45432c600ed6301086160eb7b38eeed8b91feb5a5ae464f029d3
     home: https://nuclio.io
@@ -399,7 +421,7 @@ entries:
     version: 0.4.26
   - apiVersion: v1
     appVersion: 1.1.27
-    created: "2020-02-21T03:09:17.44199+02:00"
+    created: "2020-03-01T15:58:32.041422+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 0a75442f8b7456deb3ef74e482c5911840fca1343fda5e1b19970aa12d043377
     home: https://nuclio.io
@@ -421,7 +443,7 @@ entries:
     version: 0.4.25
   - apiVersion: v1
     appVersion: 1.1.26
-    created: "2020-02-21T03:09:17.441423+02:00"
+    created: "2020-03-01T15:58:32.040723+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 709723212e91f658271f8fbfab4cb834aa106804120e3dc8a9dd2b3137a4e24b
     home: https://nuclio.io
@@ -443,7 +465,7 @@ entries:
     version: 0.4.24
   - apiVersion: v1
     appVersion: 1.1.25
-    created: "2020-02-21T03:09:17.440806+02:00"
+    created: "2020-03-01T15:58:32.040022+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 978fd2512766aa7814ef4a85e12099a39732c89c780a47de5eb5468c6ba300c4
     home: https://nuclio.io
@@ -465,7 +487,7 @@ entries:
     version: 0.4.23
   - apiVersion: v1
     appVersion: 1.1.24
-    created: "2020-02-21T03:09:17.440273+02:00"
+    created: "2020-03-01T15:58:32.039344+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 74db7aee0af30be13adaa799d598ba999af5549bfcf887fdf13e24fdd2137de1
     home: https://nuclio.io
@@ -487,7 +509,7 @@ entries:
     version: 0.4.22
   - apiVersion: v1
     appVersion: 1.1.22
-    created: "2020-02-21T03:09:17.439733+02:00"
+    created: "2020-03-01T15:58:32.038655+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 7cc438cc8e39a811d738928bad8162b17e5baad2193f8b4d266f754b5cbdf462
     home: https://nuclio.io
@@ -509,7 +531,7 @@ entries:
     version: 0.4.21
   - apiVersion: v1
     appVersion: 1.1.20
-    created: "2020-02-21T03:09:17.439168+02:00"
+    created: "2020-03-01T15:58:32.037959+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: cd7062c37f341bf75f6c2a6ebe17a328434bef1d2b528da412b427155e7ace32
     home: https://nuclio.io
@@ -531,7 +553,7 @@ entries:
     version: 0.4.20
   - apiVersion: v1
     appVersion: 1.2.3
-    created: "2020-02-21T03:09:17.437015+02:00"
+    created: "2020-03-01T15:58:32.036609+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 69680275f0c018edce69fc675b1af6b5ae43378113352e1b473e8fab3287b4b4
     home: https://nuclio.io
@@ -553,7 +575,7 @@ entries:
     version: 0.4.19
   - apiVersion: v1
     appVersion: 1.2.2
-    created: "2020-02-21T03:09:17.436492+02:00"
+    created: "2020-03-01T15:58:32.035359+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 36505eb85fc42464c742b5e79648374abdd58da83d510f466b1350c7aeb7e4e7
     home: https://nuclio.io
@@ -575,7 +597,7 @@ entries:
     version: 0.4.18
   - apiVersion: v1
     appVersion: 1.2.1
-    created: "2020-02-21T03:09:17.435946+02:00"
+    created: "2020-03-01T15:58:32.034676+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 80833082d8f29ac2d8a712223ff473aed6b127d3f9f1be1a84fa82e4a516db43
     home: https://nuclio.io
@@ -597,7 +619,7 @@ entries:
     version: 0.4.17
   - apiVersion: v1
     appVersion: 1.2.0
-    created: "2020-02-21T03:09:17.435427+02:00"
+    created: "2020-03-01T15:58:32.033967+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 07f4b6035bcbed32bd3008c54125f41af81f4d32c57761e1cf57a98cc6282e33
     home: https://nuclio.io
@@ -619,7 +641,7 @@ entries:
     version: 0.4.16
   - apiVersion: v1
     appVersion: 1.1.20
-    created: "2020-02-21T03:09:17.434933+02:00"
+    created: "2020-03-01T15:58:32.03329+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 0b3ab192e652043898ad2aab5fc862529b3f272d875b06701d34faef71756274
     home: https://nuclio.io
@@ -641,7 +663,7 @@ entries:
     version: 0.4.15
   - apiVersion: v1
     appVersion: 1.1.19
-    created: "2020-02-21T03:09:17.434415+02:00"
+    created: "2020-03-01T15:58:32.032577+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 8298bf3b0261b3fe8ee9e8905552a33e2e6518b77604a75d7752387198bda3d9
     home: https://nuclio.io
@@ -663,7 +685,7 @@ entries:
     version: 0.4.14
   - apiVersion: v1
     appVersion: 1.1.18
-    created: "2020-02-21T03:09:17.433896+02:00"
+    created: "2020-03-01T15:58:32.031859+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 41cae65bb55431ba0a04909044a591f56a63ea64e21879bbbea3358296608d86
     home: https://nuclio.io
@@ -685,7 +707,7 @@ entries:
     version: 0.4.13
   - apiVersion: v1
     appVersion: 1.1.17
-    created: "2020-02-21T03:09:17.433368+02:00"
+    created: "2020-03-01T15:58:32.03116+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 322ed416564b47511190e964caa459cdc8e07f59b4a39e1aa7e769dc159ad2d8
     home: https://nuclio.io
@@ -707,7 +729,7 @@ entries:
     version: 0.4.12
   - apiVersion: v1
     appVersion: 1.1.14
-    created: "2020-02-21T03:09:17.447276+02:00"
+    created: "2020-03-01T15:58:32.048675+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 31c158a74f9c8aaa9a5e450ed24381a5365b4e602be4d7bc431ee151021d8330
     home: https://nuclio.io
@@ -729,7 +751,7 @@ entries:
     version: 0.4.9
   - apiVersion: v1
     appVersion: 1.1.13
-    created: "2020-02-21T03:09:17.446651+02:00"
+    created: "2020-03-01T15:58:32.047998+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 32c819f28e48f1bde03ab6939b43994812a7867eb40e1cba2fa49936ccba2d46
     home: https://nuclio.io
@@ -751,7 +773,7 @@ entries:
     version: 0.4.8
   - apiVersion: v1
     appVersion: 1.1.12
-    created: "2020-02-21T03:09:17.445576+02:00"
+    created: "2020-03-01T15:58:32.047299+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 1eb9871f698b96b14da994e2ac87036ff54f432e5b78566a507e531def60252b
     home: https://nuclio.io
@@ -771,7 +793,7 @@ entries:
     version: 0.4.7
   - apiVersion: v1
     appVersion: 1.1.11
-    created: "2020-02-21T03:09:17.444951+02:00"
+    created: "2020-03-01T15:58:32.046657+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 426f275a8e21216cb9b765aac7eb799dff34b6edfbd31fe1cfb390459a961095
     home: https://nuclio.io
@@ -791,7 +813,7 @@ entries:
     version: 0.4.6
   - apiVersion: v1
     appVersion: 1.1.10
-    created: "2020-02-21T03:09:17.444475+02:00"
+    created: "2020-03-01T15:58:32.046016+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 28468fb37c8a895bb9760fdef811c747f0ef74474b316975e045f4e9d614ae42
     home: https://nuclio.io
@@ -811,7 +833,7 @@ entries:
     version: 0.4.5
   - apiVersion: v1
     appVersion: 1.1.9
-    created: "2020-02-21T03:09:17.444+02:00"
+    created: "2020-03-01T15:58:32.045344+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: e9d9b740e0b21a774005cc66d4f51c31704c4f18a1a69b3af7e0fadb4898310e
     home: https://nuclio.io
@@ -831,7 +853,7 @@ entries:
     version: 0.4.4
   - apiVersion: v1
     appVersion: 1.1.5
-    created: "2020-02-21T03:09:17.443529+02:00"
+    created: "2020-03-01T15:58:32.043535+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 6d07979a8e6b6aa7fe6d8b25f309768b80f6227db03d36395910fabba0ea532c
     home: https://nuclio.io
@@ -851,7 +873,7 @@ entries:
     version: 0.4.3
   - apiVersion: v1
     appVersion: 1.1.2
-    created: "2020-02-21T03:09:17.437514+02:00"
+    created: "2020-03-01T15:58:32.03727+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 4b8bbd10b268361df68c15290edf6edcb7ed7183a090e3e33d53019f97a34470
     home: https://nuclio.io
@@ -871,7 +893,7 @@ entries:
     version: 0.4.2
   - apiVersion: v1
     appVersion: 1.1.1
-    created: "2020-02-21T03:09:17.432873+02:00"
+    created: "2020-03-01T15:58:32.030426+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: c5a204f7e528e0579bbf1a8d3fd0b87b5245e1750a2b223c8ff06e955d9d2e0c
     home: https://nuclio.io
@@ -891,7 +913,7 @@ entries:
     version: 0.4.1
   - apiVersion: v1
     appVersion: 1.1.0
-    created: "2020-02-21T03:09:17.432405+02:00"
+    created: "2020-03-01T15:58:32.029665+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 878801e17bdba25d8075838bb204e99c54d2ab10ad6df24812a79de921abaf48
     home: https://nuclio.io
@@ -911,7 +933,7 @@ entries:
     version: 0.4.0
   - apiVersion: v1
     appVersion: 1.0.1
-    created: "2020-02-21T03:09:17.431894+02:00"
+    created: "2020-03-01T15:58:32.029027+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 080a62db01df69f314fb2483fc0c7b4e2d6bd7f83bb5c2e053f15eb3c9caf6e8
     home: https://nuclio.io
@@ -931,7 +953,7 @@ entries:
     version: 0.3.1
   - apiVersion: v1
     appVersion: 1.0.0
-    created: "2020-02-21T03:09:17.431311+02:00"
+    created: "2020-03-01T15:58:32.028383+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 151d5ed1ace97e0638cbf238c2b1e18f2adc5d5c30b066591f7e003fe71e7923
     home: https://nuclio.io
@@ -951,7 +973,7 @@ entries:
     version: 0.3.0
   - apiVersion: v1
     appVersion: 0.7.11
-    created: "2020-02-21T03:09:17.430701+02:00"
+    created: "2020-03-01T15:58:32.026795+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: c06a8224544b9c215a77112d5a3487f79b932e166c7c3053fe397fa5e4210549
     home: https://nuclio.io
@@ -971,7 +993,7 @@ entries:
     version: 0.2.8
   - apiVersion: v1
     appVersion: 0.7.10
-    created: "2020-02-21T03:09:17.429681+02:00"
+    created: "2020-03-01T15:58:32.026147+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 2d17d04f4ed2b58bf15226643cd9621d19c76d3146e133a49e00f1c6fd103c3e
     home: https://nuclio.io
@@ -991,7 +1013,7 @@ entries:
     version: 0.2.7
   - apiVersion: v1
     appVersion: 0.7.9
-    created: "2020-02-21T03:09:17.428959+02:00"
+    created: "2020-03-01T15:58:32.025521+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 0437275614eac7c2da4688ba446d0264200d23d5d03f393886b5b1b4cf8dd7f8
     home: https://nuclio.io
@@ -1011,7 +1033,7 @@ entries:
     version: 0.2.6
   - apiVersion: v1
     appVersion: 0.7.8
-    created: "2020-02-21T03:09:17.428344+02:00"
+    created: "2020-03-01T15:58:32.024856+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 39752e2fce3ce7f9b48f7f3b7b92fd61fae62be793c444005eef5f2669600277
     home: https://nuclio.io
@@ -1031,7 +1053,7 @@ entries:
     version: 0.2.5
   - apiVersion: v1
     appVersion: 0.7.7
-    created: "2020-02-21T03:09:17.427789+02:00"
+    created: "2020-03-01T15:58:32.024209+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 8881e3f5edadbd9dabc1f26f858ecc9fa08abc3c85f6570e226c198a509acc40
     home: https://nuclio.io
@@ -1051,7 +1073,7 @@ entries:
     version: 0.2.4
   - apiVersion: v1
     appVersion: 0.7.6
-    created: "2020-02-21T03:09:17.427265+02:00"
+    created: "2020-03-01T15:58:32.023563+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 6bc06e616b83b4ae14d00d6e866e548e398f0ea8c6307f893e4a4bc6953db15a
     home: https://nuclio.io
@@ -1071,7 +1093,7 @@ entries:
     version: 0.2.3
   - apiVersion: v1
     appVersion: 0.7.4
-    created: "2020-02-21T03:09:17.426779+02:00"
+    created: "2020-03-01T15:58:32.02291+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 819e8d5d5df8d6bb3e1f9085d089f5904c50d25a85dac5be9b764c35ec1e68fb
     home: https://nuclio.io
@@ -1091,7 +1113,7 @@ entries:
     version: 0.2.2
   - apiVersion: v1
     appVersion: 0.7.3
-    created: "2020-02-21T03:09:17.426298+02:00"
+    created: "2020-03-01T15:58:32.02218+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 82d9496e0e50193c3fb1466379846842c94912732da9c3e2035d8fbe8a672f68
     home: https://nuclio.io
@@ -1111,7 +1133,7 @@ entries:
     version: 0.2.1
   - apiVersion: v1
     appVersion: 0.7.2
-    created: "2020-02-21T03:09:17.425794+02:00"
+    created: "2020-03-01T15:58:32.021386+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: f774531a6bd983fb42cfd1cbbb5b35ecd02a0e921b8e60bcc209b414570aac57
     home: https://nuclio.io
@@ -1131,7 +1153,7 @@ entries:
     version: 0.2.0
   - apiVersion: v1
     appVersion: 0.5.15
-    created: "2020-02-21T03:09:17.420783+02:00"
+    created: "2020-03-01T15:58:32.016523+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 5450ef4b9a9d0eaadb688107c2675d27132370cbeeff2652fe6d94212d733f98
     home: https://nuclio.io
@@ -1151,7 +1173,7 @@ entries:
     version: 0.1.26
   - apiVersion: v1
     appVersion: 0.5.14
-    created: "2020-02-21T03:09:17.42028+02:00"
+    created: "2020-03-01T15:58:32.015962+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 8b98f09e578449caf067c94eed2f598665580332387a774864d32a41594a1888
     home: https://nuclio.io
@@ -1171,7 +1193,7 @@ entries:
     version: 0.1.25
   - apiVersion: v1
     appVersion: 0.5.13
-    created: "2020-02-21T03:09:17.419702+02:00"
+    created: "2020-03-01T15:58:32.015371+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 4ac8f7eddf854d6735becc5394c5d3deda4c317ee4f6c6e218fffa3824bbd73c
     home: https://nuclio.io
@@ -1191,7 +1213,7 @@ entries:
     version: 0.1.24
   - apiVersion: v1
     appVersion: 0.5.12
-    created: "2020-02-21T03:09:17.419171+02:00"
+    created: "2020-03-01T15:58:32.014796+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: a135cec55d3dc462949d1b572eaddb2b59a14b890e1b2e24df423f2f3e151a8b
     home: https://nuclio.io
@@ -1211,7 +1233,7 @@ entries:
     version: 0.1.23
   - apiVersion: v1
     appVersion: 0.5.12
-    created: "2020-02-21T03:09:17.418656+02:00"
+    created: "2020-03-01T15:58:32.014207+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 0a7387a9709d04da0599a1e5a663719b818a6107d77f519c4834e25b203d86e0
     home: https://nuclio.io
@@ -1231,7 +1253,7 @@ entries:
     version: 0.1.22
   - apiVersion: v1
     appVersion: 0.5.12
-    created: "2020-02-21T03:09:17.418162+02:00"
+    created: "2020-03-01T15:58:32.013603+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: ddceec80cb496068aa1ae18fdc6de57f2b39f462c11352899c64e49406adb093
     home: https://nuclio.io
@@ -1251,7 +1273,7 @@ entries:
     version: 0.1.21
   - apiVersion: v1
     appVersion: 0.5.11
-    created: "2020-02-21T03:09:17.417696+02:00"
+    created: "2020-03-01T15:58:32.013031+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 1b30c2732f97868c8de76011b94f217edb7f0426da64cf5e059ff7ddb44e885a
     home: https://nuclio.io
@@ -1271,7 +1293,7 @@ entries:
     version: 0.1.20
   - apiVersion: v1
     appVersion: 0.5.11
-    created: "2020-02-21T03:09:17.417246+02:00"
+    created: "2020-03-01T15:58:32.012465+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 63009700ab38c6e7b89ee1ae26ff5d9236f1eec98d73af80b447d8054dbfb4e8
     home: https://nuclio.io
@@ -1291,7 +1313,7 @@ entries:
     version: 0.1.19
   - apiVersion: v1
     appVersion: 0.5.10
-    created: "2020-02-21T03:09:17.416746+02:00"
+    created: "2020-03-01T15:58:32.011887+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 4bdc26f97a4b02f8a0b707a3d8be6e20bd2691463033fad84400c61ae4e5b491
     home: https://nuclio.io
@@ -1311,7 +1333,7 @@ entries:
     version: 0.1.18
   - apiVersion: v1
     appVersion: 0.5.9
-    created: "2020-02-21T03:09:17.416238+02:00"
+    created: "2020-03-01T15:58:32.010542+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 9abe39dfdc893067e7e605cd5954048b75d81f6a6d48000b66cf06d53963ea9c
     home: https://nuclio.io
@@ -1331,7 +1353,7 @@ entries:
     version: 0.1.17
   - apiVersion: v1
     appVersion: 0.5.9
-    created: "2020-02-21T03:09:17.415707+02:00"
+    created: "2020-03-01T15:58:32.009918+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 609e51ed2fcc1b7aca0b45a401174c3ff26cdf4e38aca73a43ba2bb64ea06f20
     home: https://nuclio.io
@@ -1351,7 +1373,7 @@ entries:
     version: 0.1.16
   - apiVersion: v1
     appVersion: 0.5.8
-    created: "2020-02-21T03:09:17.415255+02:00"
+    created: "2020-03-01T15:58:32.009303+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 57f85dec6340cb9c9b2ae2b591e4dbc3279693db750029e619869571549f06d4
     home: https://nuclio.io
@@ -1371,7 +1393,7 @@ entries:
     version: 0.1.15
   - apiVersion: v1
     appVersion: 0.5.8
-    created: "2020-02-21T03:09:17.414798+02:00"
+    created: "2020-03-01T15:58:32.008686+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: b6368df9ddac982374982facbefb570151a8ca52b9f62656caa4ed89303a9407
     home: https://nuclio.io
@@ -1389,7 +1411,7 @@ entries:
     version: 0.1.14
   - apiVersion: v1
     appVersion: 0.5.7
-    created: "2020-02-21T03:09:17.414338+02:00"
+    created: "2020-03-01T15:58:32.008088+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 47f28301cb36fd39300d199aa1ee7bbe1e88f0e68d829cff1ae60ac4d8d9ed61
     home: https://nuclio.io
@@ -1407,7 +1429,7 @@ entries:
     version: 0.1.13
   - apiVersion: v1
     appVersion: 0.5.6
-    created: "2020-02-21T03:09:17.412883+02:00"
+    created: "2020-03-01T15:58:32.007497+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: f7c229f877e9de1e9f62f326cb8de404974a5c912e14ec3a0db803e87473de30
     home: https://nuclio.io
@@ -1425,7 +1447,7 @@ entries:
     version: 0.1.12
   - apiVersion: v1
     appVersion: 0.5.5
-    created: "2020-02-21T03:09:17.41242+02:00"
+    created: "2020-03-01T15:58:32.006921+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 42819efaa145050b3a2763e5985a84dca873937098a9e41b18566cc728be9dd1
     home: https://nuclio.io
@@ -1443,7 +1465,7 @@ entries:
     version: 0.1.11
   - apiVersion: v1
     appVersion: 0.5.4
-    created: "2020-02-21T03:09:17.411799+02:00"
+    created: "2020-03-01T15:58:32.006378+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 0f9941aa0c4276acda73a518f05c3c3aa19e8aaee2e3651818dadd0974ab40c4
     home: https://nuclio.io
@@ -1461,7 +1483,7 @@ entries:
     version: 0.1.10
   - apiVersion: v1
     appVersion: 0.5.4
-    created: "2020-02-21T03:09:17.425323+02:00"
+    created: "2020-03-01T15:58:32.020817+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: fa469a5561d7647d06723632cc63b9ecbffd287a0aedb11b125b12f989f2e297
     home: https://nuclio.io
@@ -1479,7 +1501,7 @@ entries:
     version: 0.1.9
   - apiVersion: v1
     appVersion: 0.5.4
-    created: "2020-02-21T03:09:17.424867+02:00"
+    created: "2020-03-01T15:58:32.020224+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 33adc5d5327d1821a8d8030ff82814cd14041bcb21970481432e68680acca6af
     home: https://nuclio.io
@@ -1497,7 +1519,7 @@ entries:
     version: 0.1.8
   - apiVersion: v1
     appVersion: 0.5.4
-    created: "2020-02-21T03:09:17.424371+02:00"
+    created: "2020-03-01T15:58:32.019016+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: afe78d5978cd6634b9aefab81ea15bb71ec10f3bf0f06c48e98f1413dc3d2ce1
     home: https://nuclio.io
@@ -1515,7 +1537,7 @@ entries:
     version: 0.1.7
   - apiVersion: v1
     appVersion: 0.5.3
-    created: "2020-02-21T03:09:17.423563+02:00"
+    created: "2020-03-01T15:58:32.018335+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 08ed7bd4b8b1e2a695ab5dfa4ac92a039b9878ee25bcff4b74123d5c1802a289
     home: https://nuclio.io
@@ -1533,7 +1555,7 @@ entries:
     version: 0.1.6
   - apiVersion: v1
     appVersion: 0.5.2
-    created: "2020-02-21T03:09:17.423103+02:00"
+    created: "2020-03-01T15:58:32.017784+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: ebbeebcb5d1c61d3277175ade4cbc5464b93c73290014b973c3a6d48db310fc1
     home: https://nuclio.io
@@ -1551,7 +1573,7 @@ entries:
     version: 0.1.5
   - apiVersion: v1
     appVersion: 0.2.2
-    created: "2020-02-21T03:09:17.422435+02:00"
+    created: "2020-03-01T15:58:32.017271+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 9491729d5d9ab8a8364f17cf9d01f613625b43574507c263b94e3ea73b1eb60a
     home: https://nuclio.io
@@ -1567,7 +1589,7 @@ entries:
     version: 0.1.4
   - apiVersion: v1
     appVersion: 0.2.1
-    created: "2020-02-21T03:09:17.421096+02:00"
+    created: "2020-03-01T15:58:32.016892+02:00"
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 029ad65ebb4f9136fa7f8ce5a86d1836ffdcb8491e58e2a8109a35b9255e0f56
     home: https://nuclio.io
@@ -1583,7 +1605,7 @@ entries:
     version: 0.1.3
   - apiVersion: v1
     appVersion: 0.2.0
-    created: "2020-02-21T03:09:17.411349+02:00"
+    created: "2020-03-01T15:58:32.005833+02:00"
     description: A Helm chart for installing nuclio
     digest: 3dc239394c21a214cfec2540bd68669d09e4f108c5a2d387c2db25c3430d2244
     home: https://nuclio.io
@@ -1598,7 +1620,7 @@ entries:
     - https://nuclio.github.io/nuclio/charts/nuclio-0.1.1.tgz
     version: 0.1.1
   - apiVersion: v1
-    created: "2020-02-21T03:09:17.410548+02:00"
+    created: "2020-03-01T15:58:32.005424+02:00"
     description: A Helm chart for installing nuclio
     digest: 987c21b1c69c2fdbf918c85272fe18b950091830c8915791fa8b24f53505fd7c
     home: https://nuclio.io
@@ -1611,4 +1633,4 @@ entries:
     urls:
     - https://nuclio.github.io/nuclio/charts/nuclio-0.1.0.tgz
     version: 0.1.0
-generated: "2020-02-21T03:09:17.409748+02:00"
+generated: "2020-03-01T15:58:32.004638+02:00"
