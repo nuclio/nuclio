@@ -21,6 +21,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"sync"
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/processor"
@@ -41,6 +42,7 @@ type MetricSink struct {
 	gatherers             []prometheus.Gatherer
 	httpServer            *http.Server
 	instanceName          string
+	gatherLock            sync.Locker
 }
 
 func newMetricSink(parentLogger logger.Logger,
@@ -61,6 +63,7 @@ func newMetricSink(parentLogger logger.Logger,
 		AbstractMetricSink: newAbstractMetricSink,
 		configuration:      configuration,
 		metricRegistry:     prometheusclient.NewRegistry(),
+		gatherLock:         &sync.Mutex{},
 	}
 
 	newMetricPuller.instanceName, err = newMetricPuller.getInstanceName(processorConfiguration)
@@ -92,7 +95,7 @@ func (ms *MetricSink) Start() error {
 	// create server so that we can stop it
 	ms.httpServer = &http.Server{Addr: ms.configuration.URL, Handler: nil}
 
-	// push in the background
+	// listen in the background
 	go ms.listen() // nolint: errcheck
 
 	return nil
@@ -170,12 +173,16 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 		}
 	}
 
-	ms.Logger.DebugWith("Created trigger and worker gatherers", "gatherers", ms.gatherers)
+	ms.Logger.DebugWith("Created trigger and worker gatherers")
 
 	return nil
 }
 
 func (ms *MetricSink) gather() error {
+
+	// protect against concurrent gatherings, trigger and worker diffs are not atomic (swapping cur <-> prev)
+	ms.gatherLock.Lock()
+	defer ms.gatherLock.Unlock()
 
 	for _, gatherer := range ms.gatherers {
 		if err := gatherer.Gather(); err != nil {
