@@ -45,7 +45,7 @@ func NewWorkerGatherer(instanceName string,
 
 	newWorkerGatherer := &WorkerGatherer{
 		worker: worker,
-		logger:  logger.GetChild("gatherer"),
+		logger: logger.GetChild("gatherer"),
 	}
 
 	// base labels for handle events

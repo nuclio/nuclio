@@ -21,7 +21,6 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-
 	"github.com/prometheus/client_golang/prometheus"
 )
 

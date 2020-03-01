@@ -50,11 +50,11 @@ func (s *AllocatorStatistics) DiffFrom(prev *AllocatorStatistics) AllocatorStati
 	prevWorkerAllocationWorkersAvailablePercentage := atomic.LoadUint64(&prev.WorkerAllocationWorkersAvailablePercentage)
 
 	return AllocatorStatistics{
-		WorkerAllocationCount: currWorkerAllocationCount - prevWorkerAllocationCount,
-		WorkerAllocationSuccessImmediateTotal: currWorkerAllocationSuccessImmediateTotal - prevWorkerAllocationSuccessImmediateTotal,
-		WorkerAllocationSuccessAfterWaitTotal: currWorkerAllocationSuccessAfterWaitTotal - prevWorkerAllocationSuccessAfterWaitTotal,
-		WorkerAllocationTimeoutTotal: currWorkerAllocationTimeoutTotal - prevWorkerAllocationTimeoutTotal,
+		WorkerAllocationCount:                       currWorkerAllocationCount - prevWorkerAllocationCount,
+		WorkerAllocationSuccessImmediateTotal:       currWorkerAllocationSuccessImmediateTotal - prevWorkerAllocationSuccessImmediateTotal,
+		WorkerAllocationSuccessAfterWaitTotal:       currWorkerAllocationSuccessAfterWaitTotal - prevWorkerAllocationSuccessAfterWaitTotal,
+		WorkerAllocationTimeoutTotal:                currWorkerAllocationTimeoutTotal - prevWorkerAllocationTimeoutTotal,
 		WorkerAllocationWaitDurationMilliSecondsSum: currWorkerAllocationWaitDurationMilliSecondsSum - prevWorkerAllocationWaitDurationMilliSecondsSum,
-		WorkerAllocationWorkersAvailablePercentage: currWorkerAllocationWorkersAvailablePercentage - prevWorkerAllocationWorkersAvailablePercentage,
+		WorkerAllocationWorkersAvailablePercentage:  currWorkerAllocationWorkersAvailablePercentage - prevWorkerAllocationWorkersAvailablePercentage,
 	}
 }

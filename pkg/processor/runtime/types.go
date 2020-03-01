@@ -39,7 +39,7 @@ func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 	prevDurationMilliSecondsCount := atomic.LoadUint64(&prev.DurationMilliSecondsCount)
 
 	return Statistics{
-		DurationMilliSecondsSum: currDurationMilliSecondsSum - prevDurationMilliSecondsSum,
+		DurationMilliSecondsSum:   currDurationMilliSecondsSum - prevDurationMilliSecondsSum,
 		DurationMilliSecondsCount: currDurationMilliSecondsCount - prevDurationMilliSecondsCount,
 	}
 }
