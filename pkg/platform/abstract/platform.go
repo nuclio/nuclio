@@ -461,7 +461,7 @@ func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, string, error)
 		More    *string `json:"more,omitempty"`
 	}{}
 
-	if len(log) > 0 && log[0] == 'l' {
+	if ap.isSDKLogLine(log) {
 
 		// when it is a wrapper log line
 		wrapperLogStruct := struct {
@@ -551,8 +551,11 @@ func (ap *Platform) tryInferWorkerID(loggerName string) string {
 func (ap *Platform) getMessageAndArgs(message string, args string, log []byte, workerID string) string {
 	var additionalKwargsAsString string
 
-	additionalKwargs, _ := ap.getLogLineAdditionalKwargs(log)
-
+	additionalKwargs, err := ap.getLogLineAdditionalKwargs(log)
+	if err != nil {
+		ap.Logger.WarnWith("Failed to get log line's additional kwargs",
+			"logLineMessage", message)
+	}
 	additionalKwargsAsString = common.CreateKeyValuePairs(additionalKwargs)
 
 	// format result depending on args/additional kwargs existence
@@ -572,8 +575,12 @@ func (ap *Platform) getMessageAndArgs(message string, args string, log []byte, w
 
 func (ap *Platform) getLogLineAdditionalKwargs(log []byte) (map[string]string, error) {
 	logAsMap := map[string]interface{}{}
-	err := json.Unmarshal(log, &logAsMap)
-	if err != nil {
+
+	if ap.isSDKLogLine(log) {
+		if err := json.Unmarshal(log[1:], &logAsMap); err != nil {
+			return nil, errors.Wrap(err, "Failed to unmarshal log line")
+		}
+	} else if err := json.Unmarshal(log, &logAsMap); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal log line")
 	}
 
@@ -598,6 +605,10 @@ func (ap *Platform) getLogLineAdditionalKwargs(log []byte) (map[string]string, e
 	}
 
 	return additionalKwargs, nil
+}
+
+func (ap *Platform) isSDKLogLine(logLine []byte) bool {
+	return len(logLine) > 0 && logLine[0] == 'l'
 }
 
 func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage, workerID string) bool {
