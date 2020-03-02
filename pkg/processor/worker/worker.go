@@ -18,6 +18,7 @@ package worker
 
 import (
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
@@ -66,7 +67,7 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 
 	// check if there was a processing error. if so, log it
 	if err != nil {
-		w.statistics.EventsHandledError++
+		atomic.AddUint64(&w.statistics.EventsHandledError, 1)
 	} else {
 		success := true
 
@@ -78,9 +79,9 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 		}
 
 		if success {
-			w.statistics.EventsHandledSuccess++
+			atomic.AddUint64(&w.statistics.EventsHandledSuccess, 1)
 		} else {
-			w.statistics.EventsHandledError++
+			atomic.AddUint64(&w.statistics.EventsHandledError, 1)
 		}
 	}
 
