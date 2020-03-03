@@ -603,6 +603,9 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		deployment := resource.(*apps_v1beta1.Deployment)
 		method := updateDeploymentResourceMethod
 
+		lc.logger.DebugWith("Sleeping")
+		time.Sleep(30 * time.Second)
+
 		// If we got nil replicas it means leave as is (in order to prevent unwanted scale down)
 		// but need to make sure the current replicas is not less than the min replicas
 		if replicas == nil {
