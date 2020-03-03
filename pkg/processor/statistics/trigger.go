@@ -17,9 +17,12 @@ limitations under the License.
 package statistics
 
 import (
+	"sync/atomic"
+
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -27,14 +30,17 @@ type triggerGatherer struct {
 	trigger            trigger.Trigger
 	handledEventsTotal *prometheus.CounterVec
 	prevStatistics     trigger.Statistics
+	logger             logger.Logger
 }
 
 func newTriggerGatherer(instanceName string,
+	logger logger.Logger,
 	trigger trigger.Trigger,
 	metricRegistry *prometheus.Registry) (*triggerGatherer, error) {
 
 	newTriggerGatherer := &triggerGatherer{
 		trigger: trigger,
+		logger:  logger.GetChild("gatherer"),
 	}
 
 	// base labels for handle events
@@ -68,13 +74,16 @@ func (esg *triggerGatherer) Gather() error {
 	// diff from previous to get this period
 	diffStatistics := currentStatistics.DiffFrom(&esg.prevStatistics)
 
+	eventsHandledSuccessTotal := atomic.LoadUint64(&diffStatistics.EventsHandledSuccessTotal)
+	eventsHandledFailureTotal := atomic.LoadUint64(&diffStatistics.EventsHandledFailureTotal)
+
 	esg.handledEventsTotal.With(prometheus.Labels{
 		"result": "success",
-	}).Add(float64(diffStatistics.EventsHandleSuccessTotal))
+	}).Add(float64(eventsHandledSuccessTotal))
 
 	esg.handledEventsTotal.With(prometheus.Labels{
 		"result": "failure",
-	}).Add(float64(diffStatistics.EventsHandleFailureTotal))
+	}).Add(float64(eventsHandledFailureTotal))
 
 	esg.prevStatistics = currentStatistics
 

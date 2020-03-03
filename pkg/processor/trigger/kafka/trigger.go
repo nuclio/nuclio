@@ -204,7 +204,9 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 		}
 
 		// allocate a worker for this topic/partition
-		workerInstance, cookie, err := k.partitionWorkerAllocator.AllocateWorker(claim.Topic(), int(claim.Partition()), nil)
+		workerInstance, cookie, err := k.partitionWorkerAllocator.AllocateWorker(claim.Topic(),
+			int(claim.Partition()),
+			nil)
 		if err != nil {
 			return errors.Wrap(err, "Failed to allocate worker")
 		}
@@ -239,6 +241,9 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
 				k.Logger.DebugWith("Timed out waiting for handler to complete", "partition", claim.Partition())
+
+				// mark this as a failure, metric-wise
+				k.UpdateStatistics(false)
 
 				// restart the worker, and having failed that shut down
 				if err := k.cancelEventHandling(workerInstance, claim); err != nil {

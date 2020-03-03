@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -157,7 +158,6 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 	functionLogger logger.Logger,
 	timeout time.Duration) (responses []interface{}, submitError error, processErrors []error) {
-
 	var workerInstance *worker.Worker
 
 	defer at.HandleSubmitPanic(workerInstance, &submitError)
@@ -268,9 +268,9 @@ func (at *AbstractTrigger) TimeoutWorker(worker *worker.Worker) error {
 // UpdateStatistics updates the trigger statistics
 func (at *AbstractTrigger) UpdateStatistics(success bool) {
 	if success {
-		at.Statistics.EventsHandleSuccessTotal++
+		atomic.AddUint64(&at.Statistics.EventsHandledSuccessTotal, 1)
 	} else {
-		at.Statistics.EventsHandleFailureTotal++
+		atomic.AddUint64(&at.Statistics.EventsHandledFailureTotal, 1)
 	}
 }
 

@@ -18,12 +18,14 @@ package prometheus
 
 import (
 	"strconv"
+	"sync/atomic"
 
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -32,15 +34,18 @@ type WorkerGatherer struct {
 	prevRuntimeStatistics                  runtime.Statistics
 	handledEventsDurationMillisecondsSum   prometheus.Counter
 	handledEventsDurationMillisecondsCount prometheus.Counter
+	logger                                 logger.Logger
 }
 
 func NewWorkerGatherer(instanceName string,
 	trigger trigger.Trigger,
+	logger logger.Logger,
 	worker *worker.Worker,
 	metricRegistry *prometheus.Registry) (*WorkerGatherer, error) {
 
 	newWorkerGatherer := &WorkerGatherer{
 		worker: worker,
+		logger: logger.GetChild("gatherer"),
 	}
 
 	// base labels for handle events
@@ -73,6 +78,12 @@ func NewWorkerGatherer(instanceName string,
 		return nil, errors.Wrap(err, "Failed to register handledEventsDurationCount")
 	}
 
+	newWorkerGatherer.logger.DebugWith("Worker gatherer created",
+		"triggerID", trigger.GetID(),
+		"triggerKind", trigger.GetKind(),
+		"worker", worker.GetIndex(),
+		"runtime", worker.GetRuntime())
+
 	return newWorkerGatherer, nil
 }
 
@@ -84,8 +95,11 @@ func (wg *WorkerGatherer) Gather() error {
 	// diff from previous to get this period
 	diffRuntimeStatistics := currentRuntimeStatistics.DiffFrom(&wg.prevRuntimeStatistics)
 
-	wg.handledEventsDurationMillisecondsSum.Add(float64(diffRuntimeStatistics.DurationMilliSecondsSum))
-	wg.handledEventsDurationMillisecondsCount.Add(float64(diffRuntimeStatistics.DurationMilliSecondsCount))
+	durationMilliSecondsSum := atomic.LoadUint64(&diffRuntimeStatistics.DurationMilliSecondsSum)
+	durationMilliSecondsCount := atomic.LoadUint64(&diffRuntimeStatistics.DurationMilliSecondsCount)
+
+	wg.handledEventsDurationMillisecondsSum.Add(float64(durationMilliSecondsSum))
+	wg.handledEventsDurationMillisecondsCount.Add(float64(durationMilliSecondsCount))
 
 	// save previous
 	wg.prevRuntimeStatistics = currentRuntimeStatistics

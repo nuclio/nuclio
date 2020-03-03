@@ -129,6 +129,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 		// create a gatherer for the trigger
 		triggerGatherer, err := prometheus.NewTriggerGatherer(ms.configuration.InstanceName,
 			trigger,
+			ms.Logger,
 			ms.metricRegistry)
 
 		if err != nil {
@@ -141,6 +142,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 		for _, worker := range trigger.GetWorkers() {
 			workerGatherer, err := prometheus.NewWorkerGatherer(ms.configuration.InstanceName,
 				trigger,
+				ms.Logger,
 				worker,
 				ms.metricRegistry)
 

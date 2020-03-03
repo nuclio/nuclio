@@ -108,7 +108,7 @@ func (mp *MetricPusher) createGatherers(triggerProvider triggerProvider) error {
 	for _, trigger := range triggerProvider.GetTriggers() {
 
 		// create a gatherer for the trigger
-		triggerGatherer, err := newTriggerGatherer(mp.instanceName, trigger, mp.metricRegistry)
+		triggerGatherer, err := newTriggerGatherer(mp.instanceName, mp.logger, trigger, mp.metricRegistry)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create trigger gatherer")
 		}
