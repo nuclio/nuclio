@@ -39,21 +39,16 @@ func Run(kubeconfigPath string,
 	imagePullSecrets string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
-	functionOperatorResyncIntervalString string,
+	functionOperatorResyncIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string) error {
-
-	functionOperatorResyncInterval, err := time.ParseDuration(functionOperatorResyncIntervalString)
-	if err != nil {
-		return errors.Wrap(err, "Failed to parse resync interval string")
-	}
 
 	newController, err := createController(kubeconfigPath,
 		namespace,
 		imagePullSecrets,
 		platformConfigurationPath,
 		functionOperatorNumWorkersStr,
-		functionOperatorResyncInterval,
+		functionOperatorResyncIntervalStr,
 		functionEventOperatorNumWorkersStr,
 		projectOperatorNumWorkersStr)
 	if err != nil {
@@ -74,7 +69,7 @@ func createController(kubeconfigPath string,
 	imagePullSecrets string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
-	functionOperatorResyncInterval time.Duration,
+	functionOperatorResyncIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string) (*controller.Controller, error) {
 
@@ -86,6 +81,11 @@ func createController(kubeconfigPath string,
 	functionEventOperatorNumWorkers, err := strconv.Atoi(functionEventOperatorNumWorkersStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve number of workers for function event operator")
+	}
+
+	functionOperatorResyncInterval, err := time.ParseDuration(functionOperatorResyncIntervalStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse resync interval for function operator")
 	}
 
 	projectOperatorNumWorkers, err := strconv.Atoi(projectOperatorNumWorkersStr)
