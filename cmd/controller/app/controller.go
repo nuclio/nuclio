@@ -39,14 +39,21 @@ func Run(kubeconfigPath string,
 	imagePullSecrets string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
+	functionOperatorResyncIntervalString string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string) error {
+
+	functionOperatorResyncInterval, err := time.ParseDuration(functionOperatorResyncIntervalString)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse resync interval string")
+	}
 
 	newController, err := createController(kubeconfigPath,
 		namespace,
 		imagePullSecrets,
 		platformConfigurationPath,
 		functionOperatorNumWorkersStr,
+		functionOperatorResyncInterval,
 		functionEventOperatorNumWorkersStr,
 		projectOperatorNumWorkersStr)
 	if err != nil {
@@ -67,6 +74,7 @@ func createController(kubeconfigPath string,
 	imagePullSecrets string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
+	functionOperatorResyncInterval time.Duration,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string) (*controller.Controller, error) {
 
@@ -124,7 +132,7 @@ func createController(kubeconfigPath string,
 		kubeClientSet,
 		nuclioClientSet,
 		functionresClient,
-		10*time.Minute,
+		functionOperatorResyncInterval,
 		platformConfiguration,
 		functionOperatorNumWorkers,
 		functionEventOperatorNumWorkers,
