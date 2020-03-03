@@ -98,7 +98,7 @@ func NewTriggerGatherer(instanceName string,
 
 	newTriggerGatherer.logger.DebugWith("Trigger gatherer created",
 		"triggerID", trigger.GetID(),
-		"triggerClass", trigger.GetKind())
+		"triggerKind", trigger.GetKind())
 
 	return newTriggerGatherer, nil
 }

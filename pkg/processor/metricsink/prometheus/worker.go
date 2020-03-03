@@ -80,7 +80,7 @@ func NewWorkerGatherer(instanceName string,
 
 	newWorkerGatherer.logger.DebugWith("Worker gatherer created",
 		"triggerID", trigger.GetID(),
-		"triggerClass", trigger.GetKind(),
+		"triggerKind", trigger.GetKind(),
 		"worker", worker.GetIndex(),
 		"runtime", worker.GetRuntime())
 
