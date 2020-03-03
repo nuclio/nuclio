@@ -48,7 +48,6 @@ import (
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 )
@@ -357,59 +356,74 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 	var resource interface{}
 	var err error
 
-	deadline := time.Now().Add(1 * time.Minute)
+	updateDeadline := time.Now().Add(2 * time.Minute)
 
-	// get the resource until it's not deleting
 	for {
+		waitingForDeletionDeadline := time.Now().Add(1 * time.Minute)
 
-		// get resource will return the resource
-		resource, err = getResource()
+		// get the resource until it's not deleting
+		for {
 
-		// if the resource is deleting, wait for it to complete deleting
-		if err == nil && resourceIsDeleting(resource) {
-			lc.logger.DebugWith("Resource is deleting, waiting", "name", resourceName)
+			// get resource will return the resource
+			resource, err = getResource()
 
-			// we need to wait a bit and try again
-			time.Sleep(1 * time.Second)
+			// if the resource is deleting, wait for it to complete deleting
+			if err == nil && resourceIsDeleting(resource) {
+				lc.logger.DebugWith("Resource is deleting, waiting", "name", resourceName)
 
-			// if we passed the deadline
-			if time.Now().After(deadline) {
-				return nil, errors.New("Timed out waiting for service to delete")
+				// we need to wait a bit and try again
+				time.Sleep(1 * time.Second)
+
+				// if we passed the deadline
+				if time.Now().After(waitingForDeletionDeadline) {
+					return nil, errors.New("Timed out waiting for service to delete")
+				}
+
+			} else {
+
+				// there was either an error or the resource exists and is not being deleted
+				break
+			}
+		}
+
+		// if there's an error
+		if err != nil {
+
+			// if there was an error and it wasn't not found - there was an error. bail
+			if !apierrors.IsNotFound(err) {
+				return nil, errors.Wrapf(err, "Failed to get resource")
 			}
 
-		} else {
+			// create the resource
+			resource, err = createResource()
 
-			// there was either an error or the resource exists and is not being deleted
-			break
-		}
-	}
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to create resource")
+			}
 
-	// if there's an error
-	if err != nil {
-
-		// if there was an error and it wasn't not found - there was an error. bail
-		if !apierrors.IsNotFound(err) {
-			return nil, errors.Wrapf(err, "Failed to get resource")
+			return resource, nil
 		}
 
-		// create the resource
-		resource, err = createResource()
-
+		resource, err = updateResource(resource)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create resource")
+
+			// if there was an error and it wasn't conflict - there was an error. Bail
+			if !apierrors.IsConflict(err) {
+				return nil, errors.Wrapf(err, "Failed to update resource")
+			}
+
+			// if we passed the deadline
+			if time.Now().After(updateDeadline) {
+				return nil, errors.Errorf("Timed out updating resource: %s", resourceName)
+			}
+
+			lc.logger.DebugWith("Got conflict while trying to update resource. Retrying", "name", resourceName)
+			continue
 		}
 
+		lc.logger.DebugWith("Resource updated", "name", resourceName)
 		return resource, nil
 	}
-
-	resource, err = updateResource(resource)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to update resource")
-	}
-
-	lc.logger.DebugWith("Resource updated", "name", resourceName)
-
-	return resource, nil
 }
 
 func (lc *lazyClient) createOrUpdateConfigMap(function *nuclioio.NuclioFunction) (*v1.ConfigMap, error) {
@@ -602,6 +616,13 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 				replicas = &maxReplicas
 			} else if deployment.Status.Replicas < minReplicas {
 				replicas = &minReplicas
+			} else {
+
+				// if we're within the valid range - and want to leave as is (since replicas == nil) - use current value
+				// NOTE: since we're using the deployment we got (given by our get function) ResourceVersion is set
+				// meaning the update will fail with conflict if something has changed in the meanwhile (e.g. HPA
+				// changed the replicas count) - retry is handled by the createOrUpdateResource wrapper
+				replicas = &deployment.Status.Replicas
 			}
 		}
 
@@ -622,20 +643,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			return nil, err
 		}
 
-		body, err := json.Marshal(deployment)
-		if err != nil {
-			return "", errors.Wrap(err, "Failed to marshal deployment resource")
-		}
-
-		deployment, err = lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Patch(deployment.Name,
-			types.MergePatchType,
-			body)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to patch the updated deployment")
-		}
-
-		// we must call it after, as marshal will omit the deployment's rollingUpdate field change to nil (omitempty)
-		return lc.updateDeploymentStrategy(deployment, function)
+		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
 	}
 
 	resource, err := lc.createOrUpdateResource("deployment",
@@ -649,18 +657,6 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	}
 
 	return resource.(*apps_v1beta1.Deployment), err
-}
-
-func (lc *lazyClient) canUpdateDeploymentStrategy(deploymentAugmentedConfigs []platformconfig.LabelSelectorAndConfig) bool {
-
-	// check if user didnt provide a deployment strategy
-	for _, augmentedConfig := range deploymentAugmentedConfigs {
-		if augmentedConfig.Kubernetes.Deployment.Spec.Strategy.Type != "" ||
-			augmentedConfig.Kubernetes.Deployment.Spec.Strategy.RollingUpdate != nil {
-			return false
-		}
-	}
-	return true
 }
 
 func (lc *lazyClient) resolveDefaultDeploymentStrategy(function *nuclioio.NuclioFunction) apps_v1beta1.DeploymentStrategyType {
@@ -679,55 +675,6 @@ func (lc *lazyClient) resolveDefaultDeploymentStrategy(function *nuclioio.Nuclio
 
 	// no gpu resources requested, set to rollingUpdate (default)
 	return apps_v1beta1.RollingUpdateDeploymentStrategyType
-}
-
-func (lc *lazyClient) updateDeploymentStrategy(deployment *apps_v1beta1.Deployment, function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
-	var jsonPatchMapper []map[string]string
-
-	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get deployment augmented configs")
-	}
-
-	canUpdateDeploymentStrategy := lc.canUpdateDeploymentStrategy(deploymentAugmentedConfigs)
-	if !canUpdateDeploymentStrategy {
-
-		// user explicitly asked not to change deployment strategy
-		return deployment, nil
-	}
-
-	newDeploymentStrategyType := lc.resolveDefaultDeploymentStrategy(function)
-	if newDeploymentStrategyType == deployment.Spec.Strategy.Type {
-
-		// nothing has changed
-		return deployment, nil
-	}
-
-	jsonPatchMapper = append(jsonPatchMapper, map[string]string{
-		"op":    "replace",
-		"path":  "/spec/strategy/type",
-		"value": string(newDeploymentStrategyType),
-	})
-
-	// if current strategy is rolling update, in order to change it to `Recreate`
-	// we must remove `rollingUpdate` field
-	if deployment.Spec.Strategy.Type == apps_v1beta1.RollingUpdateDeploymentStrategyType &&
-		newDeploymentStrategyType == apps_v1beta1.RecreateDeploymentStrategyType {
-		jsonPatchMapper = append(jsonPatchMapper, map[string]string{
-			"op":   "remove",
-			"path": "/spec/strategy/rollingUpdate",
-		})
-	}
-
-	deploymentBody, err := json.Marshal(jsonPatchMapper)
-	if err != nil {
-		return nil, errors.Wrap(err, "Could not marshal json patch mapper")
-	}
-
-	lc.logger.DebugWith("Patching deployment strategy", "deploymentBody", string(deploymentBody))
-	return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Patch(deployment.Name,
-		types.JSONPatchType,
-		deploymentBody)
 }
 
 func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclioio.NuclioFunction,
