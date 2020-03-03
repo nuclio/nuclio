@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import argparse
-import json
 import logging
 import re
 import socket
@@ -22,6 +21,8 @@ import time
 import traceback
 
 import msgpack
+import simplejson as json
+
 import nuclio_sdk
 import nuclio_sdk.json_encoder
 import nuclio_sdk.logger
@@ -94,8 +95,10 @@ class Wrapper(object):
             try:
 
                 should_be_four = self._processor_sock.recv_into(int_buf, 4)
+
                 # client disconnect
                 if should_be_four < 4:
+
                     # If socket is done, we can't log
                     print('Client disconnect')
                     return
@@ -105,6 +108,7 @@ class Wrapper(object):
                 bytes_to_read += int_buf[1] << 16
                 bytes_to_read += int_buf[0] << 24
                 if bytes_to_read > self._max_message_size or bytes_to_read <= 0:
+
                     # If socket is done, we can't log
                     print('Illegal message size: ' + str(bytes_to_read))
                     return
@@ -117,6 +121,7 @@ class Wrapper(object):
 
                     # client disconnect
                     if not bytes_read:
+
                         # If socket is done, we can't log
                         print('Client disconnect')
                         return
