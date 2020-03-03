@@ -118,6 +118,7 @@ func (ms *MetricSink) ServeHTTP(responseWriter http.ResponseWriter, request *htt
 	if err := ms.gather(); err != nil {
 		ms.Logger.WarnWith("Failure detected while gathering metrics", "err", err)
 		responseWriter.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	// proxy to the registry handler
