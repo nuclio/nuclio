@@ -10,6 +10,8 @@ import (
 )
 
 func TestNewStreamReader(t *testing.T) {
+	t.Parallel()
+
 	ch := make(chan struct{})
 	r := NewStreamReader(func(w *bufio.Writer) {
 		fmt.Fprintf(w, "Hello, world\n")
@@ -38,6 +40,8 @@ func TestNewStreamReader(t *testing.T) {
 }
 
 func TestStreamReaderClose(t *testing.T) {
+	t.Parallel()
+
 	firstLine := "the first line must pass"
 	ch := make(chan error, 1)
 	r := NewStreamReader(func(w *bufio.Writer) {
@@ -49,7 +53,7 @@ func TestStreamReaderClose(t *testing.T) {
 
 		data := createFixedBody(4000)
 		for i := 0; i < 100; i++ {
-			w.Write(data)
+			w.Write(data) //nolint:errcheck
 		}
 		if err := w.Flush(); err == nil {
 			ch <- fmt.Errorf("expecting error on the second flush")
