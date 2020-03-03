@@ -439,7 +439,7 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 		return
 	}
 
-	r.Logger.ErrorWith(common.UnexpectedTerminationChildProcess,
+	r.Logger.ErrorWith(string(common.UnexpectedTerminationChildProcess),
 		"error", processWaitResult.Err,
 		"status", processWaitResult.ProcessState.String())
 
