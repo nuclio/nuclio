@@ -36,7 +36,8 @@ func (p *python) GetName() string {
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
+	baseImageRegistry string,
+	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 	pythonCommonModules := []string{
@@ -49,6 +50,10 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	} else {
 		processorDockerfileInfo.BaseImage = "python:3.6"
 	}
+	if baseImageRegistry != "" {
+		processorDockerfileInfo.BaseImage =
+			fmt.Sprintf("%s/%s", baseImageRegistry, processorDockerfileInfo.BaseImage)
+	}
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",
@@ -58,7 +63,7 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	artifact := runtime.Artifact{
 		Name: "python-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-python-onbuild:%s-%s",
-			registryURL,
+			onbuildImageRegistry,
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

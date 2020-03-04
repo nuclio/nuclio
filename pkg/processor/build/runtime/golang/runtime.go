@@ -61,7 +61,8 @@ func (g *golang) GetName() string {
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
+	baseImageRegistry string,
+	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
@@ -80,7 +81,7 @@ func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info,
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
-		Image: fmt.Sprintf(onbuildImage, registryURL, versionInfo.Label, versionInfo.Arch),
+		Image: fmt.Sprintf(onbuildImage, onbuildImageRegistry, versionInfo.Label, versionInfo.Arch),
 		Name:  "golang-onbuild",
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
@@ -91,6 +92,11 @@ func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info,
 
 	// set the default base image
 	processorDockerfileInfo.BaseImage = "alpine:3.7"
+
+	if baseImageRegistry != "" {
+		processorDockerfileInfo.BaseImage =
+			fmt.Sprintf("%s/%s", baseImageRegistry, processorDockerfileInfo.BaseImage)
+	}
 
 	return &processorDockerfileInfo, nil
 }

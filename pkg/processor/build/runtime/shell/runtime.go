@@ -34,18 +34,23 @@ func (s *shell) GetName() string {
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (s *shell) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
+	baseImageRegistry string,
+	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// set the default base image
 	processorDockerfileInfo.BaseImage = "alpine:3.7"
+	if baseImageRegistry != "" {
+		processorDockerfileInfo.BaseImage =
+			fmt.Sprintf("%s/%s", baseImageRegistry, processorDockerfileInfo.BaseImage)
+	}
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
 		Name: "nuclio-processor",
 		Image: fmt.Sprintf("%s/nuclio/processor:%s-%s",
-			registryURL,
+			onbuildImageRegistry,
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

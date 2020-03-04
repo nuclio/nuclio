@@ -134,6 +134,12 @@ func (k *Kaniko) GetBaseImageRegistry(registry string) string {
 	return k.builderConfiguration.DefaultBaseRegistryURL
 }
 
+func (k *Kaniko) GetOnbuildImageRegistry(registry string) string {
+
+	// take the onbuild images from the default base registry URL given
+	return k.builderConfiguration.DefaultBaseRegistryURL
+}
+
 func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tempDir string) (string, string, error) {
 	var err error
 

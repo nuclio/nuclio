@@ -49,16 +49,21 @@ func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (j *java) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
+	baseImageRegistry string,
+	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 	processorDockerfileInfo.BaseImage = "openjdk:9-jre-slim"
+	if baseImageRegistry != "" {
+		processorDockerfileInfo.BaseImage =
+			fmt.Sprintf("%s/%s", baseImageRegistry, processorDockerfileInfo.BaseImage)
+	}
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
 		Name: "java-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-java-onbuild:%s-%s",
-			registryURL,
+			onbuildImageRegistry,
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

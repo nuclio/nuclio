@@ -143,6 +143,9 @@ type Platform interface {
 	TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error)
 
 	// GetBaseImageRegistry returns onbuild base registry
+	GetOnbuildImageRegistry(registry string) string
+
+	// GetBaseImageRegistry returns base image registry
 	GetBaseImageRegistry(registry string) string
 
 	// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry

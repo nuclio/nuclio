@@ -365,9 +365,14 @@ func (ap *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Art
 	return ap.ContainerBuilder.TransformOnbuildArtifactPaths(onbuildArtifacts)
 }
 
-// GetBaseImageRegistry returns onbuild base registry
+// GetBaseImageRegistry returns base image registry
 func (ap *Platform) GetBaseImageRegistry(registry string) string {
 	return ap.ContainerBuilder.GetBaseImageRegistry(registry)
+}
+
+// GetOnbuildImageRegistry returns onbuild image registry
+func (ap *Platform) GetOnbuildImageRegistry(registry string) string {
+	return ap.ContainerBuilder.GetOnbuildImageRegistry(registry)
 }
 
 // // GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
