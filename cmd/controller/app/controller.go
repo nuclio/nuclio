@@ -39,6 +39,7 @@ func Run(kubeconfigPath string,
 	imagePullSecrets string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
+	functionOperatorResyncIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string) error {
 
@@ -47,6 +48,7 @@ func Run(kubeconfigPath string,
 		imagePullSecrets,
 		platformConfigurationPath,
 		functionOperatorNumWorkersStr,
+		functionOperatorResyncIntervalStr,
 		functionEventOperatorNumWorkersStr,
 		projectOperatorNumWorkersStr)
 	if err != nil {
@@ -67,6 +69,7 @@ func createController(kubeconfigPath string,
 	imagePullSecrets string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
+	functionOperatorResyncIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string) (*controller.Controller, error) {
 
@@ -78,6 +81,11 @@ func createController(kubeconfigPath string,
 	functionEventOperatorNumWorkers, err := strconv.Atoi(functionEventOperatorNumWorkersStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve number of workers for function event operator")
+	}
+
+	functionOperatorResyncInterval, err := time.ParseDuration(functionOperatorResyncIntervalStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse resync interval for function operator")
 	}
 
 	projectOperatorNumWorkers, err := strconv.Atoi(projectOperatorNumWorkersStr)
@@ -124,7 +132,7 @@ func createController(kubeconfigPath string,
 		kubeClientSet,
 		nuclioClientSet,
 		functionresClient,
-		10*time.Minute,
+		functionOperatorResyncInterval,
 		platformConfiguration,
 		functionOperatorNumWorkers,
 		functionEventOperatorNumWorkers,

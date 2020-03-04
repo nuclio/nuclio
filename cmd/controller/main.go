@@ -49,6 +49,7 @@ func main() {
 	imagePullSecrets := flag.String("image-pull-secrets", os.Getenv("NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS"), "Optional secret name to use for pull")
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
 	functionOperatorNumWorkersStr := flag.String("function-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_OPERATOR_NUM_WORKERS", "4"), "Set number of workers for the function operator (optional)")
+	functionOperatorResyncIntervalStr := flag.String("function-operator-resync-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_OPERATOR_RESYNC_INTERVAL", "10m"), "Set resync interval for the function operator (optional)")
 	functionEventOperatorNumWorkersStr := flag.String("function-event-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_EVENT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function event operator (optional)")
 	projectOperatorNumWorkersStr := flag.String("project-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PROJECT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function operator (optional)")
 	flag.Parse()
@@ -70,6 +71,7 @@ func main() {
 		*imagePullSecrets,
 		*platformConfigurationPath,
 		*functionOperatorNumWorkersStr,
+		*functionOperatorResyncIntervalStr,
 		*functionEventOperatorNumWorkersStr,
 		*projectOperatorNumWorkersStr); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
