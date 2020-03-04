@@ -665,12 +665,15 @@ func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunctio
 	// redeploying a Nuclio function will get stuck if no GPU is available
 	// to overcome it, we simply change the update strategy to recreate
 	// so k8s will kill the existing pod\function and create the new one
-	if gpuResource, ok := function.Spec.Resources.Limits[nvidiaGpuResourceName]; ok {
-
-		// requested a gpu resource, change to recreate
-		if !gpuResource.IsZero() {
-			return apps_v1beta1.RecreateDeploymentStrategyType
-		}
+	//if gpuResource, ok := function.Spec.Resources.Limits[nvidiaGpuResourceName]; ok {
+	//
+	//	// requested a gpu resource, change to recreate
+	//	if !gpuResource.IsZero() {
+	//		return apps_v1beta1.RecreateDeploymentStrategyType
+	//	}
+	//}
+	if function.ObjectMeta.Annotations["rolling"] == "no" {
+		return apps_v1beta1.RecreateDeploymentStrategyType
 	}
 
 	// no gpu resources requested, set to rollingUpdate (default)
