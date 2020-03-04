@@ -659,7 +659,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	return resource.(*apps_v1beta1.Deployment), err
 }
 
-func (lc *lazyClient) resolveDefaultDeploymentStrategy(function *nuclioio.NuclioFunction) apps_v1beta1.DeploymentStrategyType {
+func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunction) apps_v1beta1.DeploymentStrategyType {
 
 	// Since k8s (ATM) does not support rolling update for GPU
 	// redeploying a Nuclio function will get stuck if no GPU is available
@@ -679,7 +679,7 @@ func (lc *lazyClient) resolveDefaultDeploymentStrategy(function *nuclioio.Nuclio
 
 func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclioio.NuclioFunction,
 	deployment *apps_v1beta1.Deployment, method deploymentResourceMethod) error {
-	var allowSetDefaultDeploymentStrategy = true
+	var allowSetDeploymentStrategy = true
 
 	// get deployment augmented configurations
 	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
@@ -691,7 +691,7 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 	for _, augmentedConfig := range deploymentAugmentedConfigs {
 		if augmentedConfig.Kubernetes.Deployment.Spec.Strategy.Type != "" ||
 			augmentedConfig.Kubernetes.Deployment.Spec.Strategy.RollingUpdate != nil {
-			allowSetDefaultDeploymentStrategy = false
+			allowSetDeploymentStrategy = false
 		}
 		if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
 			return errors.Wrap(err, "Failed to merge deployment spec")
@@ -702,8 +702,22 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 
 	// on create, change inplace the deployment strategy
 	case createDeploymentResourceMethod:
-		if allowSetDefaultDeploymentStrategy {
-			deployment.Spec.Strategy.Type = lc.resolveDefaultDeploymentStrategy(function)
+		if allowSetDeploymentStrategy {
+			deployment.Spec.Strategy.Type = lc.resolveDeploymentStrategy(function)
+		}
+	case updateDeploymentResourceMethod:
+		if allowSetDeploymentStrategy {
+			newDeploymentStrategyType := lc.resolveDeploymentStrategy(function)
+			if newDeploymentStrategyType != deployment.Spec.Strategy.Type {
+
+				// if current strategy is rolling update, in order to change it to `Recreate`
+				// we must remove `rollingUpdate` field
+				if deployment.Spec.Strategy.Type == apps_v1beta1.RollingUpdateDeploymentStrategyType &&
+					newDeploymentStrategyType == apps_v1beta1.RecreateDeploymentStrategyType {
+					deployment.Spec.Strategy.RollingUpdate = nil
+				}
+				deployment.Spec.Strategy.Type = newDeploymentStrategyType
+			}
 		}
 	}
 	return nil
