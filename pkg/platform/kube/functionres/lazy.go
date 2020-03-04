@@ -619,7 +619,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			} else {
 
 				// if we're within the valid range - and want to leave as is (since replicas == nil) - use current value
-				// NOTE: since we're using the deployment we got (given by our get function) ResourceVersion is set
+				// NOTE: since we're using the existing deployment (given by our get function) ResourceVersion is set
 				// meaning the update will fail with conflict if something has changed in the meanwhile (e.g. HPA
 				// changed the replicas count) - retry is handled by the createOrUpdateResource wrapper
 				replicas = &deployment.Status.Replicas
