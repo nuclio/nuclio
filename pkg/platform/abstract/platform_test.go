@@ -26,13 +26,13 @@ type TestPlatform struct {
 }
 
 const (
-	MultiWorkerFunctionLogsFilePath = "test/logs_examples/multi_worker"
-	PanicFunctionLogsFilePath = "test/logs_examples/panic"
-	GoWithCallStackFunctionLogsFilePath = "test/logs_examples/go_with_call_stack"
+	MultiWorkerFunctionLogsFilePath       = "test/logs_examples/multi_worker"
+	PanicFunctionLogsFilePath             = "test/logs_examples/panic"
+	GoWithCallStackFunctionLogsFilePath   = "test/logs_examples/go_with_call_stack"
 	SpecialSubstringsFunctionLogsFilePath = "test/logs_examples/special_substrings"
-	FunctionLogsFile = "function_logs.txt"
-	FormattedFunctionLogsFile = "formatted_function_logs.txt"
-	BriefErrorsMessageFile = "brief_errors_message.txt"
+	FunctionLogsFile                      = "function_logs.txt"
+	FormattedFunctionLogsFile             = "formatted_function_logs.txt"
+	BriefErrorsMessageFile                = "brief_errors_message.txt"
 )
 
 // GetProjects will list existing projects
