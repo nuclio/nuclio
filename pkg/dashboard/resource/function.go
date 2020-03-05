@@ -99,7 +99,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	}
 
 	if len(function) == 0 {
-		return nil, nuclio.ErrNotFound
+		return nil, nuclio.NewErrNotFound("Function not found")
 	}
 
 	return fr.functionToAttributes(function[0]), nil
