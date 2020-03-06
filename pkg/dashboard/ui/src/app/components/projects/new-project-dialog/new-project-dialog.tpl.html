@@ -13,9 +13,6 @@
                 {{ 'functions:PROJECT_NAME' | i18next }}
             </div>
             <div class="field-input">
-                <div class="error" data-ng-show="$ctrl.isShowFieldInvalidState(newProjectForm, 'metadata.name')">
-                    {{ 'common:ERROR_MSG.INVALID_INPUTS' | i18next }}
-                </div>
                 <igz-validating-input-field class="nuclio-validating-input"
                                             data-field-type="input"
                                             data-input-name="metadata.name"
@@ -24,12 +21,9 @@
                                             data-form-object="newProjectForm"
                                             data-validation-is-required="true"
                                             data-update-data-callback="$ctrl.inputValueCallback(newData, field)"
-                                            data-validation-pattern="$ctrl.nameValidationPattern"
-                                            data-placeholder-text="{{ 'functions:PLACEHOLDER.ENTER_PROJECT_NAME' | i18next }}"
-                                            data-uib-tooltip="{{ 'functions:TOOLTIP.PROJECT_FUNCTION_NAME' | i18next }}"
-                                            data-tooltip-popup-delay="500"
-                                            data-tooltip-placement="bottom"
-                                            data-tooltip-append-to-body="true">
+                                            data-validation-max-length="{{$ctrl.nameMaxLength}}"
+                                            data-validation-rules="$ctrl.nameValidationRules"
+                                            data-placeholder-text="{{ 'functions:PLACEHOLDER.ENTER_PROJECT_NAME' | i18next }}">
                 </igz-validating-input-field>
             </div>
         </div>
