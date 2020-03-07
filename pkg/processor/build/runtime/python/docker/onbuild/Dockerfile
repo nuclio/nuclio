@@ -23,25 +23,25 @@ COPY pkg/processor/runtime/python/py/requirements /requirements
 RUN pip download \
         -d /whl \
         --exists-action i \
-        -r /requirements/py2.txt
+        -r /requirements/python2.txt
 
-# Supplies python 3 & common wheels
+# Supplies python 3.6 & common wheels
 FROM python:3.6 as python36-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 # Common wheels
 RUN pip download \
-		--no-binary msgpack \
-		-d /whl \
-		--exists-action i \
-		-r /requirements/common.txt
+        --no-binary msgpack \
+        -d /whl \
+        --exists-action i \
+        -r /requirements/common.txt
 
-# Python 3 wheels
+# Python 3.6 wheels
 RUN pip download \
         -d /whl \
         --exists-action i \
-        -r /requirements/py3.txt
+        -r /requirements/python3_6.txt
 
 # Supplies processor
 FROM quay.io/nuclio/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
