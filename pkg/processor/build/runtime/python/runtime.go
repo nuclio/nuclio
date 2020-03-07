@@ -71,10 +71,10 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
 		"postCopy": {
 			{
-				Kind:  "RUN",
+				Kind: "RUN",
 				Value: fmt.Sprintf(
 					"pip install %s --no-index --find-links /opt/nuclio/whl",
-					strings.Join(pythonCommonModules," ")),
+					strings.Join(pythonCommonModules, " ")),
 			},
 		},
 	}
