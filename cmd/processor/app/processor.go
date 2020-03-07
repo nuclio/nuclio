@@ -21,6 +21,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -364,7 +365,7 @@ func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.C
 		Class:      "sync",
 		Kind:       "http",
 		MaxWorkers: 1,
-		URL:        ":8080",
+		URL:        common.GetEnvOrDefaultString("NUCLIO_DEFAULT_HTTP_TRIGGER_URL", ":8080"),
 	}
 
 	p.logger.DebugWith("Creating default HTTP event source",
