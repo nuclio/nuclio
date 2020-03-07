@@ -15,11 +15,49 @@
 ARG NUCLIO_LABEL=latest
 ARG NUCLIO_ARCH=amd64
 
+# Supplies python 2 wheels
+FROM python:2 as python2-builder
+
+COPY pkg/processor/runtime/python/py/requirements /requirements
+
+RUN pip download \
+        --no-binary simplejson \
+        -d /whl \
+        --exists-action i \
+        -r /requirements/py2.txt
+
+# Supplies python 3 & common wheels
+FROM python:3.6 as python36-builder
+
+COPY pkg/processor/runtime/python/py/requirements /requirements
+
+# Download common wheels
+RUN pip download \
+		--no-binary msgpack \
+		-d /whl \
+		--exists-action i \
+		-r /requirements/common.txt
+
+# Install rust to compile orjson & download python 3 wheels
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y && \
+    . $HOME/.cargo/env && \
+    pip download \
+        --no-binary orjson \
+        -d /whl \
+        --exists-action i \
+        -r /requirements/py3.txt
+
 # Supplies processor
 FROM quay.io/nuclio/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
 
 # Doesn't do anything but hold processor binary and all Python code required to run the handler
 FROM scratch
 
-COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 COPY pkg/processor/runtime/python/py /home/nuclio/bin/py
+
+# Copy processor
+COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
+
+# Copy wheels
+COPY --from=python2-builder /whl /home/nuclio/bin/py/whl
+COPY --from=python36-builder /whl /home/nuclio/bin/py/whl

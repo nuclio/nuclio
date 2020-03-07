@@ -18,6 +18,7 @@ package python
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -38,6 +39,10 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
+	pythonCommonModules := []string{
+		"nuclio-sdk",
+		"msgpack",
+	}
 
 	if p.FunctionConfig.Spec.Runtime == "python:2.7" {
 		processorDockerfileInfo.BaseImage = "python:2.7-alpine"
@@ -67,7 +72,9 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
 		"postCopy": {
 			{
 				Kind:  "RUN",
-				Value: "pip install nuclio-sdk msgpack --no-index --find-links /opt/nuclio/whl",
+				Value: fmt.Sprintf(
+					"pip install %s --no-index --find-links /opt/nuclio/whl",
+					strings.Join(pythonCommonModules," ")),
 			},
 		},
 	}
