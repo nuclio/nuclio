@@ -21,7 +21,6 @@ FROM python:2 as python2-builder
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 RUN pip download \
-        --no-binary simplejson \
         -d /whl \
         --exists-action i \
         -r /requirements/py2.txt
@@ -31,18 +30,15 @@ FROM python:3.6 as python36-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
-# Download common wheels
+# Common wheels
 RUN pip download \
 		--no-binary msgpack \
 		-d /whl \
 		--exists-action i \
 		-r /requirements/common.txt
 
-# Install rust to compile orjson & download python 3 wheels
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y && \
-    . $HOME/.cargo/env && \
-    pip download \
-        --no-binary orjson \
+# Python 3 wheels
+RUN pip download \
         -d /whl \
         --exists-action i \
         -r /requirements/py3.txt
