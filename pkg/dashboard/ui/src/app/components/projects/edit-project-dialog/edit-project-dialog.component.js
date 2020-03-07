@@ -12,12 +12,14 @@
         });
 
     function IgzEditProjectDialogController($scope, $i18next, i18next, lodash, EventHelperService,
-                                            FormValidationService, NuclioProjectsDataService) {
+                                            FormValidationService, NuclioProjectsDataService,
+                                            ValidatingPatternsService) {
         var ctrl = this;
         var lng = i18next.language;
 
         ctrl.data = {};
         ctrl.isLoadingState = false;
+        ctrl.nameValidationRules = [];
         ctrl.serverError = '';
 
         ctrl.$onInit = onInit;
@@ -39,6 +41,7 @@
          */
         function onInit() {
             ctrl.data = lodash.cloneDeep(ctrl.project);
+            ctrl.nameValidationRules = ValidatingPatternsService.getValidationRules('k8s.dns1035Label');
         }
 
         //

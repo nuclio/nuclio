@@ -18,7 +18,8 @@
 
         ctrl.data = {};
         ctrl.isLoadingState = false;
-        ctrl.nameValidationPattern = ValidatingPatternsService.functionName;
+        ctrl.nameMaxLength = null;
+        ctrl.nameValidationRules = [];
         ctrl.serverError = '';
 
         ctrl.$onInit = onInit;
@@ -40,6 +41,8 @@
          */
         function onInit() {
             ctrl.data = getBlankData();
+            ctrl.nameMaxLength = ValidatingPatternsService.getMaxLength('k8s.dns1035Label');
+            ctrl.nameValidationRules = ValidatingPatternsService.getValidationRules('k8s.dns1035Label');
         }
 
         //
