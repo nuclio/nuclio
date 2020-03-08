@@ -1204,8 +1204,8 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, on
 	return processorDockerfileInfo, nil
 }
 
-func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string, onbuildImageRegistry string) (
-	*runtime.ProcessorDockerfileInfo, error) {
+func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
+	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 	versionInfo, err := version.Get()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get version info")
@@ -1272,17 +1272,17 @@ func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string
 	switch b.options.FunctionConfig.Spec.Build.BaseImage {
 
 	// if user didn't pass anything, use default as specified in Dockerfile
-	// if a non empty baseImageRegistry was passed, use it as a registry prefix for the default base image
 	case "":
 		if baseImageRegistry == "" {
 			return runtimeDefaultBaseImage
-		} else {
-			sepIndex := strings.Index(runtimeDefaultBaseImage, "/")
-			if sepIndex != -1 {
-				runtimeDefaultBaseImage = runtimeDefaultBaseImage[sepIndex+1:]
-			}
-			return strings.Join([]string{baseImageRegistry, runtimeDefaultBaseImage}, "/")
 		}
+
+		// if a non empty baseImageRegistry was passed, use it as a registry prefix for the default base image
+		sepIndex := strings.Index(runtimeDefaultBaseImage, "/")
+		if sepIndex != -1 {
+			runtimeDefaultBaseImage = runtimeDefaultBaseImage[sepIndex+1:]
+		}
+		return strings.Join([]string{baseImageRegistry, runtimeDefaultBaseImage}, "/")
 
 	// if user specified something - use that, as is
 	// see description on https://github.com/nuclio/nuclio/pull/1544 - we don't implicitly mutate the given baseimage

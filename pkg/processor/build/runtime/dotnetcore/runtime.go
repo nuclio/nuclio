@@ -18,6 +18,7 @@ package dotnetcore
 
 import (
 	"fmt"
+
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/version"
 )
