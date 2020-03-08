@@ -25,8 +25,8 @@ import java.io.PrintWriter;
 class WrapperContext implements Context {
     private WrapperLogger logger;
 
-    public WrapperContext(OutputStream out) {
-        this.logger = new WrapperLogger(out);
+    public WrapperContext(OutputStream out, String workerID) {
+        this.logger = new WrapperLogger(out, workerID);
     }
 
     @Override
