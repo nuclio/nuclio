@@ -31,9 +31,10 @@ public class WrapperLogger implements Logger {
     private Gson gson;
     private BufferedOutputStream out;
 
-    public WrapperLogger(OutputStream out) {
+    public WrapperLogger(OutputStream out, String workerID) {
         this.out = new BufferedOutputStream(out);
         this.gson = new Gson();
+        this.workerID = workerID;
     }
 
     /**
@@ -47,7 +48,7 @@ public class WrapperLogger implements Logger {
         Map<String, Object> withMap = new HashMap<String, Object>();
         if (with.length % 2 != 0) {
             System.err.println(
-                    String.format("error: bad width length - %d", with.length));
+                    String.format("error: bad with length - %d", with.length));
             return withMap;
         }
 
@@ -73,7 +74,9 @@ public class WrapperLogger implements Logger {
      * @param with    With parameters
      */
     private void log(LogLevel level, String message, Object... with) {
-        Log log = new Log(level, message, encodeWith(with));
+        Map<String, Object> encodedWith = encodeWith(with);
+        encodedWith.put("worker_id", this.workerID);
+        Log log = new Log(level, message, encodedWith);
 
         try {
             this.out.write('l');

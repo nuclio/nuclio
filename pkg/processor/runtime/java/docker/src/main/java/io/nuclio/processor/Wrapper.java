@@ -83,6 +83,7 @@ public class Wrapper {
         String[][] optsArray = {
                 {"handler", "handler class name"},
                 {"port", "communication port"},
+                {"worker-id", "worker id"},
         };
 
         Options options = new Options();
@@ -142,13 +143,14 @@ public class Wrapper {
         debugLog("port: %d", port);
 
         Socket sock = new Socket("localhost", port);
-        WrapperLogger logger = new WrapperLogger(sock.getOutputStream());
+        String workerID = cmd.getOptionValue("worker-id");
+        WrapperLogger wrapperLogger = new WrapperLogger(sock.getOutputStream(), workerID);
 
         try {
             handler = loadHandler(handlerClassName);
             debugLog("Handler %s loaded", handlerClassName);
         } catch (Exception e) {
-            logger.errorWith("Failed to load handler", "handlerClassName", handlerClassName, "error", e.toString());
+            wrapperLogger.errorWith("Failed to load handler", "handlerClassName", handlerClassName, "error", e.toString());
             System.exit(1);
         }
 
