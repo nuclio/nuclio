@@ -224,8 +224,6 @@ func (r *AbstractRuntime) startWrapper() error {
 
 	wrapperProcess, err := r.runtime.RunWrapper(address)
 	if err != nil {
-		r.Logger.ErrorWith("Failed to run wrapper",
-			"err", err)
 		return errors.Wrap(err, "Can't run wrapper")
 	}
 
