@@ -145,7 +145,7 @@ public class Wrapper {
         Socket sock = new Socket("localhost", port);
         String workerID = cmd.getOptionValue("worker-id");
         Context context = new WrapperContext(sock.getOutputStream(), workerID);
-        Logger logger = context.getLogger()
+        Logger logger = context.getLogger();
 
         try {
             handler = loadHandler(handlerClassName);
