@@ -142,7 +142,7 @@ public class Wrapper {
         debugLog("port: %d", port);
 
         Socket sock = new Socket("localhost", port);
-        WrapperLogger wrapperLogger = new WrapperLogger(sock.getOutputStream());
+        WrapperLogger logger = new WrapperLogger(sock.getOutputStream());
 
         try {
             handler = loadHandler(handlerClassName);
