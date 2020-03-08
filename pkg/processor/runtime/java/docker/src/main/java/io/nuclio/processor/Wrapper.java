@@ -19,6 +19,7 @@ package io.nuclio.processor;
 import io.nuclio.Context;
 import io.nuclio.Event;
 import io.nuclio.EventHandler;
+import io.nuclio.Logger;
 import io.nuclio.Response;
 
 
