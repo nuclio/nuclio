@@ -613,7 +613,8 @@ func (ap *Platform) isSDKLogLine(logLine []byte) bool {
 
 func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage, workerID string) bool {
 	knownFailureSubstrings := [...]string{"Failed to connect to broker"}
-	ignoreFailureSubstrings := [...]string{string(common.UnexpectedTerminationChildProcess)}
+	ignoreFailureSubstrings := [...]string{string(common.UnexpectedTerminationChildProcess),
+		string(common.FailedReadFromConnection)}
 
 	// when the log message contains a failure that should be ignored
 	for _, ignoreFailureSubstring := range ignoreFailureSubstrings {

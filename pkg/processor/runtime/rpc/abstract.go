@@ -322,7 +322,7 @@ func (r *AbstractRuntime) wrapperOutputHandler(conn io.Reader, resultChan chan *
 		data, unmarshalledResult.err = outReader.ReadBytes('\n')
 
 		if unmarshalledResult.err != nil {
-			r.Logger.WarnWith("Failed to read from connection", "err", unmarshalledResult.err)
+			r.Logger.WarnWith(string(common.FailedReadFromConnection), "err", unmarshalledResult.err)
 			resultChan <- unmarshalledResult
 			continue
 		}
