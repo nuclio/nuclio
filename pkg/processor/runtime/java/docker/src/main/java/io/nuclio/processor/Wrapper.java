@@ -140,8 +140,16 @@ public class Wrapper {
 
         debugLog("port: %d", port);
 
-        EventHandler handler = loadHandler(handlerClassName);
-        debugLog("Handler %s loaded", handlerClassName);
+        try {
+            EventHandler handler = loadHandler(handlerClassName);
+            debugLog("Handler %s loaded", handlerClassName);
+        } catch (Exception e) {
+            System.out.println(String.format("Failed to load handler: %s", handlerClassName);
+            debugLog("Handler %s failed to load", handlerClassName);
+            System.out.println(e.getMessage());
+            System.exit(1);
+            return;
+        }
 
         Socket sock = new Socket("localhost", port);
         ResponseEncoder responseEncoder = new ResponseEncoder(sock.getOutputStream());
