@@ -141,10 +141,14 @@ public class Wrapper {
 
         debugLog("port: %d", port);
 
+        Socket sock = new Socket("localhost", port);
+        WrapperLogger wrapperLogger = new WrapperLogger(sock.getOutputStream());
+
         try {
             handler = loadHandler(handlerClassName);
             debugLog("Handler %s loaded", handlerClassName);
         } catch (Exception e) {
+            logger.Error("Failed to load handler", "handler", handlerClassName, "error", e.toString())
             System.out.println(String.format("Failed to load handler: %s", handlerClassName));
             debugLog("Handler %s failed to load", handlerClassName);
             System.out.println(e.getMessage());
@@ -152,7 +156,6 @@ public class Wrapper {
             return;
         }
 
-        Socket sock = new Socket("localhost", port);
         ResponseEncoder responseEncoder = new ResponseEncoder(sock.getOutputStream());
         EventReader eventReader = new EventReader(sock.getInputStream());
 
