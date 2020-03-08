@@ -144,7 +144,7 @@ public class Wrapper {
             EventHandler handler = loadHandler(handlerClassName);
             debugLog("Handler %s loaded", handlerClassName);
         } catch (Exception e) {
-            System.out.println(String.format("Failed to load handler: %s", handlerClassName);
+            System.out.println(String.format("Failed to load handler: %s", handlerClassName));
             debugLog("Handler %s failed to load", handlerClassName);
             System.out.println(e.getMessage());
             System.exit(1);
