@@ -24,8 +24,10 @@ import java.io.PrintWriter;
 
 class WrapperContext implements Context {
     private WrapperLogger logger;
+    private String workerID;
 
     public WrapperContext(OutputStream out, String workerID) {
+        this.workerID = workerID;
         this.logger = new WrapperLogger(out, workerID);
     }
 
