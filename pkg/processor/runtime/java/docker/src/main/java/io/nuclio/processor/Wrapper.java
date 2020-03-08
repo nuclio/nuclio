@@ -142,7 +142,7 @@ public class Wrapper {
         debugLog("port: %d", port);
 
         try {
-            EventHandler handler = loadHandler(handlerClassName);
+            handler = loadHandler(handlerClassName);
             debugLog("Handler %s loaded", handlerClassName);
         } catch (Exception e) {
             System.out.println(String.format("Failed to load handler: %s", handlerClassName));
