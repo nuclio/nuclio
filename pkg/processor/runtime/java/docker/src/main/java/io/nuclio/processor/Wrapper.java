@@ -19,6 +19,7 @@ package io.nuclio.processor;
 import io.nuclio.Context;
 import io.nuclio.Event;
 import io.nuclio.EventHandler;
+import io.nuclio.Logger;
 import io.nuclio.Response;
 
 
@@ -33,7 +34,7 @@ import org.apache.commons.cli.*;
 public class Wrapper {
     private static boolean verbose = false;
     private static SimpleDateFormat dateFormat;
-    private static String usage = "wrapper -handler HANDLER -port PORT";
+    private static String usage = "wrapper -handler HANDLER -port PORT -workerid WORKER_ID";
 
     static {
         dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -83,6 +84,7 @@ public class Wrapper {
         String[][] optsArray = {
                 {"handler", "handler class name"},
                 {"port", "communication port"},
+                {"workerid", "worker id"},
         };
 
         Options options = new Options();
@@ -116,6 +118,7 @@ public class Wrapper {
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd;
+        EventHandler handler;
 
         try {
             cmd = parser.parse(options, args);
@@ -140,14 +143,23 @@ public class Wrapper {
 
         debugLog("port: %d", port);
 
-        EventHandler handler = loadHandler(handlerClassName);
-        debugLog("Handler %s loaded", handlerClassName);
-
         Socket sock = new Socket("localhost", port);
+        String workerID = cmd.getOptionValue("workerid");
+        Context context = new WrapperContext(sock.getOutputStream(), workerID);
+        Logger logger = context.getLogger();
+
+        try {
+            handler = loadHandler(handlerClassName);
+            debugLog("Handler %s loaded", handlerClassName);
+        } catch (Exception e) {
+            logger.errorWith("Failed to load handler", "handlerClassName", handlerClassName, "error", e.toString());
+            System.exit(1);
+            return;
+        }
+
         ResponseEncoder responseEncoder = new ResponseEncoder(sock.getOutputStream());
         EventReader eventReader = new EventReader(sock.getInputStream());
 
-        Context context = new WrapperContext(sock.getOutputStream());
         Response response;
         Long start = 0L, end = 0L;
 
