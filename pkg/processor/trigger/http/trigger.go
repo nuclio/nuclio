@@ -105,7 +105,6 @@ func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 		Handler:        h.requestHandler,
 		Name:           "nuclio",
 		ReadBufferSize: h.configuration.ReadBufferSize,
-		LogAllErrors:   true,
 		Logger:         NewFastHTTPLogger(h.Logger),
 	}
 
