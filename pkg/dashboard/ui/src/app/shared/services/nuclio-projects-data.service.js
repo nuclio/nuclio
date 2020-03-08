@@ -128,8 +128,7 @@
 
         /**
          * Gets front-end spec.
-         * @returns {Promise.<{defaultHTTPIngressHostTemplate: string, externalIPAddresses: Array.<string>,
-         * namespace: string}>}
+         * @returns {Promise.<Object>}
          */
         function getFrontendSpec() {
             return NuclioClientService.makeRequest({
