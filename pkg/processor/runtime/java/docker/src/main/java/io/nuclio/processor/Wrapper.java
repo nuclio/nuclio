@@ -33,7 +33,7 @@ import org.apache.commons.cli.*;
 public class Wrapper {
     private static boolean verbose = false;
     private static SimpleDateFormat dateFormat;
-    private static String usage = "wrapper -handler HANDLER -port PORT";
+    private static String usage = "wrapper -handler HANDLER -port PORT -worker-id WORKER_ID";
 
     static {
         dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");

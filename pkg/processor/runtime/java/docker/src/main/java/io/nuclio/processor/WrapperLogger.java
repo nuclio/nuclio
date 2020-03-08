@@ -30,6 +30,7 @@ import java.util.Date;
 public class WrapperLogger implements Logger {
     private Gson gson;
     private BufferedOutputStream out;
+    private String workerID;
 
     public WrapperLogger(OutputStream out, String workerID) {
         this.out = new BufferedOutputStream(out);
