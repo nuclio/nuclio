@@ -111,7 +111,6 @@ func (p *pypy) GetName() string {
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (p *pypy) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	baseImageRegistry string,
 	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 	return nil, nil
 }

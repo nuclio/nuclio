@@ -36,7 +36,6 @@ func (p *python) GetName() string {
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	baseImageRegistry string,
 	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
@@ -49,10 +48,6 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
 		processorDockerfileInfo.BaseImage = "python:2.7-alpine"
 	} else {
 		processorDockerfileInfo.BaseImage = "python:3.6"
-	}
-	if baseImageRegistry != "" {
-		processorDockerfileInfo.BaseImage =
-			fmt.Sprintf("%s/%s", baseImageRegistry, processorDockerfileInfo.BaseImage)
 	}
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{

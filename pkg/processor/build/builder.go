@@ -986,12 +986,12 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	// to it's fully qualified image name (different for each runtime)
 	// - An empty onbuildImageRegistry will result in onbuild images looked for in quay.io
 	baseImageRegistry := b.options.FunctionConfig.Spec.Build.BaseImageRegistry
-	if len(baseImageRegistry) == 0 {
+	if baseImageRegistry == "" {
 		baseImageRegistry = b.platform.GetBaseImageRegistry(b.options.FunctionConfig.Spec.Build.Registry)
 	}
 
 	onbuildImageRegistry := b.options.FunctionConfig.Spec.Build.BaseImageRegistry
-	if len(onbuildImageRegistry) == 0 {
+	if onbuildImageRegistry == "" {
 		onbuildImageRegistry = b.platform.GetOnbuildImageRegistry(b.options.FunctionConfig.Spec.Build.Registry)
 	}
 
@@ -1167,7 +1167,7 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, on
 	*runtime.ProcessorDockerfileInfo, error) {
 
 	// gather the processor dockerfile info
-	processorDockerfileInfo, err := b.getProcessorDockerfileInfo(baseImageRegistry, onbuildImageRegistry)
+	processorDockerfileInfo, err := b.resolveProcessorDockerfileInfo(baseImageRegistry, onbuildImageRegistry)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
@@ -1204,7 +1204,7 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, on
 	return processorDockerfileInfo, nil
 }
 
-func (b *Builder) getProcessorDockerfileInfo(baseImageRegistry string, onbuildImageRegistry string) (
+func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string, onbuildImageRegistry string) (
 	*runtime.ProcessorDockerfileInfo, error) {
 	versionInfo, err := version.Get()
 	if err != nil {
@@ -1213,7 +1213,6 @@ func (b *Builder) getProcessorDockerfileInfo(baseImageRegistry string, onbuildIm
 
 	// get defaults from the runtime
 	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(versionInfo,
-		baseImageRegistry,
 		onbuildImageRegistry)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
@@ -1226,7 +1225,8 @@ func (b *Builder) getProcessorDockerfileInfo(baseImageRegistry string, onbuildIm
 	}
 
 	// set the base image
-	processorDockerfileInfo.BaseImage = b.getProcessorDockerfileBaseImage(runtimeProcessorDockerfileInfo.BaseImage)
+	processorDockerfileInfo.BaseImage = b.getProcessorDockerfileBaseImage(runtimeProcessorDockerfileInfo.BaseImage,
+		baseImageRegistry)
 	processorDockerfileInfo.BaseImage, err = b.renderDependantImageURL(processorDockerfileInfo.BaseImage,
 		b.options.DependantImagesRegistryURL)
 	if err != nil {
@@ -1266,16 +1266,26 @@ func (b *Builder) getProcessorDockerfileInfo(baseImageRegistry string, onbuildIm
 	return &processorDockerfileInfo, nil
 }
 
-func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string) string {
+func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string, baseImageRegistry string) string {
 
 	// override base image, if required
 	switch b.options.FunctionConfig.Spec.Build.BaseImage {
 
 	// if user didn't pass anything, use default as specified in Dockerfile
+	// if a non empty baseImageRegistry was passed, use it as a registry prefix for the default base image
 	case "":
-		return runtimeDefaultBaseImage
+		if baseImageRegistry == "" {
+			return runtimeDefaultBaseImage
+		} else {
+			sepIndex := strings.Index(runtimeDefaultBaseImage, "/")
+			if sepIndex != -1 {
+				runtimeDefaultBaseImage = runtimeDefaultBaseImage[sepIndex+1:]
+			}
+			return strings.Join([]string{baseImageRegistry, runtimeDefaultBaseImage}, "/")
+		}
 
-	// if user specified something - use that
+	// if user specified something - use that, as is
+	// see description on https://github.com/nuclio/nuclio/pull/1544 - we don't implicitly mutate the given baseimage
 	default:
 		return b.options.FunctionConfig.Spec.Build.BaseImage
 	}

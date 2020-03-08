@@ -61,7 +61,6 @@ func (g *golang) GetName() string {
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	baseImageRegistry string,
 	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
@@ -92,11 +91,6 @@ func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info,
 
 	// set the default base image
 	processorDockerfileInfo.BaseImage = "alpine:3.7"
-
-	if baseImageRegistry != "" {
-		processorDockerfileInfo.BaseImage =
-			fmt.Sprintf("%s/%s", baseImageRegistry, processorDockerfileInfo.BaseImage)
-	}
 
 	return &processorDockerfileInfo, nil
 }

@@ -18,8 +18,6 @@ package dotnetcore
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/version"
 )
@@ -35,7 +33,6 @@ func (d *dotnetcore) GetName() string {
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (d *dotnetcore) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	baseImageRegistry string,
 	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
@@ -58,10 +55,6 @@ func (d *dotnetcore) GetProcessorDockerfileInfo(versionInfo *version.Info,
 
 	// set the default base image
 	processorDockerfileInfo.BaseImage = "mcr.microsoft.com/dotnet/core/runtime:3.1"
-	if baseImageRegistry != "" {
-		processorDockerfileInfo.BaseImage =
-			strings.Replace(processorDockerfileInfo.BaseImage, "mcr.microsoft.com", baseImageRegistry, 1)
-	}
 
 	return &processorDockerfileInfo, nil
 }
