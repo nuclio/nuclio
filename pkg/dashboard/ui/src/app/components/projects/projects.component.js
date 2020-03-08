@@ -9,9 +9,8 @@
             controller: ProjectsController
         });
 
-    function ProjectsController($element, $filter, $interval, $q, $rootScope, $scope, $state,
-                                $stateParams, $timeout, $transitions, $i18next, i18next, lodash,
-                                ngDialog, ActionCheckboxAllService, CommonTableService, ConfigService,
+    function ProjectsController($element, $filter, $q, $rootScope, $scope, $state, $transitions, $i18next, i18next,
+                                lodash, ngDialog, ActionCheckboxAllService, CommonTableService, ConfigService,
                                 DialogsService, ExportService, ImportService, NuclioFunctionsDataService,
                                 NuclioProjectsDataService, ProjectsService) {
         var ctrl = this;
@@ -329,7 +328,9 @@
                     }
                 })
                 .catch(function (error) {
-                    DialogsService.alert($i18next.t('functions:ERROR_MSG.GET_PROJECTS', {lng: i18next.language}));
+                    var defaultMsg = $i18next.t('functions:ERROR_MSG.GET_PROJECTS', {lng: i18next.language});
+
+                    DialogsService.alert(lodash.get(error, 'data.error', defaultMsg));
                 });
         }
 
