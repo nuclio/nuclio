@@ -90,7 +90,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log an error message
-     * e.g. logger.Error("%s not responding after %d seconds", dbHost, timeout)
+     * e.g. logger.error("%s not responding after %d seconds", dbHost, timeout)
      *
      * @param format Message format
      * @param args   formatting arguments
@@ -103,7 +103,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log a warning message
-     * e.g. logger.Warn("%s %.2f full", "memory", mem_full)
+     * e.g. logger.warn("%s %.2f full", "memory", mem_full)
      *
      * @param format Message format
      * @param args   formatting arguments
@@ -116,7 +116,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log an info message
-     * e.g. logger.Info("event with %d bytes", event.GetSize())
+     * e.g. logger.info("event with %d bytes", event.GetSize())
      *
      * @param format Message format
      * @param args   formatting arguments
@@ -129,7 +129,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log a debug message
-     * e.g. logger.Debug("event with %d bytes", event.GetSize())
+     * e.g. logger.debug("event with %d bytes", event.GetSize())
      *
      * @param format Message format
      * @param args   formatting arguments
@@ -142,7 +142,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log a structured error message
-     * e.g. logger.ErrorWith("bad request", "error", "daffy not found", "time", 7)
+     * e.g. logger.errorWith("bad request", "error", "daffy not found", "time", 7)
      *
      * @param format Message format
      * @param with   formatting arguments
@@ -154,7 +154,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log a structured warning message
-     * e.g. logger.WarnWith("system overload", "resource", "memory", "used", 0.9)
+     * e.g. logger.warnWith("system overload", "resource", "memory", "used", 0.9)
      *
      * @param format Message format
      * @param with   formatting arguments
@@ -166,7 +166,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log a structured info message
-     * e.g. logger.InfoWith("event processed", "time", 0.3, "count", 9009)
+     * e.g. logger.infoWith("event processed", "time", 0.3, "count", 9009)
      *
      * @param format Message format
      * @param with   formatting arguments
@@ -178,7 +178,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log a structured debug message
-     * e.g. logger.DebugWith("event", "body_size", 2339, "content-type", "text/plain")
+     * e.g. logger.debugWith("event", "body_size", 2339, "content-type", "text/plain")
      *
      * @param format Message format
      * @param with   formatting arguments
