@@ -116,6 +116,7 @@ public class Wrapper {
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd;
+        EventHandler handler;
 
         try {
             cmd = parser.parse(options, args);
