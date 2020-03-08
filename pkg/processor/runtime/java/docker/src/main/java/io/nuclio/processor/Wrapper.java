@@ -154,6 +154,7 @@ public class Wrapper {
         } catch (Exception e) {
             logger.errorWith("Failed to load handler", "handlerClassName", handlerClassName, "error", e.toString());
             System.exit(1);
+            return;
         }
 
         ResponseEncoder responseEncoder = new ResponseEncoder(sock.getOutputStream());
