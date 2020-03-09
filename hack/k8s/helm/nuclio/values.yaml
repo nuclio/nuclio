@@ -136,13 +136,19 @@ registry: {}
     # username: someuser
     # password: somepass
 
-  #  Use a dedicated "onbuild" images registry (pull registry).
+  #  Use a custom "base" images registry (pull registry). Default behavior will pull the default
+  #  base images from the web
   #  Note: To override a pull registry for both "onbuild" and base images, use `dependantImageRegistryURL`.
   #
   # defaultBaseRegistryURL: someUrl
 
+  #  Use a custom "onbuild" images registry (pull registry). Default behavior will pull from quay.io
+  #  Note: To override a pull registry for both "onbuild" and base images, use `dependantImageRegistryURL`.
+  #
+  # defaultOnbuildRegistryURL: someUrl
+
   # Use this registry URL as an override for both base and "onbuild" images, so they'll be pulled from the
-  # specified registry URL and not from the default registry that their name implies
+  # specified registry URL and not from the default registries
   # dependantImageRegistryURL: someUrl
 
 rbac:

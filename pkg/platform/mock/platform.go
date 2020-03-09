@@ -219,6 +219,10 @@ func (mp *Platform) GetBaseImageRegistry(registry string) string {
 	return "quay.io"
 }
 
+func (mp *Platform) GetOnbuildImageRegistry(registry string) string {
+	return ""
+}
+
 func (mp *Platform) GetDefaultRegistryCredentialsSecretName() string {
 	return "nuclio-registry-credentials"
 }

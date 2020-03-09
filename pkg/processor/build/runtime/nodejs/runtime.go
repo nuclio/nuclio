@@ -35,7 +35,7 @@ func (n *nodejs) GetName() string {
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	registryURL string) (*runtime.ProcessorDockerfileInfo, error) {
+	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
@@ -50,7 +50,7 @@ func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	artifact := runtime.Artifact{
 		Name: "nodejs-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-nodejs-onbuild:%s-%s",
-			registryURL,
+			onbuildImageRegistry,
 			versionInfo.Label,
 			versionInfo.Arch),
 		Paths: map[string]string{

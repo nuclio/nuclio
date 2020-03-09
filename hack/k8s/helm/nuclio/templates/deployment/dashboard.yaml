@@ -76,6 +76,10 @@ spec:
         - name: NUCLIO_DASHBOARD_DEFAULT_BASE_REGISTRY_URL
           value: {{ .Values.registry.defaultBaseRegistryURL }}
         {{- end }}
+        {{- if .Values.registry.defaultOnbuildRegistryURL }}
+        - name: NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL
+          value: {{ .Values.registry.defaultOnbuildRegistryURL }}
+        {{- end }}
         {{- if .Values.registry.dependantImageRegistryURL }}
         - name: NUCLIO_DASHBOARD_DEPENDANT_IMAGE_REGISTRY_URL
           value: {{ .Values.registry.dependantImageRegistryURL }}
