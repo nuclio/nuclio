@@ -1044,7 +1044,10 @@ func (b *Builder) createProcessorDockerfile(baseImageRegistry string, onbuildIma
 	}
 
 	// log the resulting dockerfile
-	b.logger.DebugWith("Created processor Dockerfile", "dockerfileInfo", processorDockerfileInfo.DockerfileContents)
+	b.logger.DebugWith("Created processor Dockerfile",
+		"dockerfileInfo", processorDockerfileInfo.DockerfileContents,
+		"baseImageRegistry", baseImageRegistry,
+		"onbuildImageRegistry", onbuildImageRegistry)
 
 	// write the contents to the path
 	if err := ioutil.WriteFile(processorDockerfileInfo.DockerfilePath,
