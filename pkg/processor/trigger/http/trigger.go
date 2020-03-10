@@ -324,6 +324,7 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		}
 
 		ctx.Response.SetStatusCode(statusCode)
+		ctx.Response.SetBodyString(processError.Error())
 		return
 	}
 
