@@ -760,7 +760,7 @@ func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (stri
 		}
 		resolvedUserSpecifiedArchiveWorkdir := filepath.Join(decompressDir, userSpecifiedWorkDirectory)
 		if !common.FileExists(resolvedUserSpecifiedArchiveWorkdir) {
-			return "", nuclio.NewErrBadRequest("Work directory doesn't exist")
+			return "", nuclio.NewErrBadRequest("Failed to resolve work directory")
 		}
 	}
 	return resolvedUserSpecifiedArchiveWorkdir, nil
