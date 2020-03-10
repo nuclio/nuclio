@@ -51,6 +51,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"gopkg.in/yaml.v2"
 )
 
@@ -755,11 +756,11 @@ func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (stri
 	if found {
 		userSpecifiedWorkDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
 		if !ok {
-			return "", errors.New("work directory is expected to be string")
+			return "", nuclio.NewErrBadRequest("Work directory is expected to be string")
 		}
 		resolvedUserSpecifiedArchiveWorkdir := filepath.Join(decompressDir, userSpecifiedWorkDirectory)
 		if !common.IsFile(resolvedUserSpecifiedArchiveWorkdir) {
-			return "", errors.New("work directory doesn't exist")
+			return "", nuclio.NewErrBadRequest("Work directory doesn't exist")
 		}
 	}
 	return resolvedUserSpecifiedArchiveWorkdir, nil
