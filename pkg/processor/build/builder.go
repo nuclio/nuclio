@@ -748,16 +748,21 @@ func (b *Builder) resolveGithubArchiveWorkDir(decompressDir string) (string, err
 }
 
 func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (string, error) {
+	var resolvedUserSpecifiedArchiveWorkdir string
+
 	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
 
 	if found {
 		userSpecifiedWorkDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
 		if !ok {
-			return "", errors.New("workDir is expected to be string")
+			return "", errors.New("work directory is expected to be string")
 		}
-		decompressDir = filepath.Join(decompressDir, userSpecifiedWorkDirectory)
+		resolvedUserSpecifiedArchiveWorkdir := filepath.Join(decompressDir, userSpecifiedWorkDirectory)
+		if !common.IsFile(resolvedUserSpecifiedArchiveWorkdir) {
+			return "", errors.New("work directory doesn't exist")
+		}
 	}
-	return decompressDir, nil
+	return resolvedUserSpecifiedArchiveWorkdir, nil
 }
 
 func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
