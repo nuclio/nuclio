@@ -758,9 +758,9 @@ func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (stri
 		if !ok {
 			return "", nuclio.NewErrBadRequest("Work directory is expected to be string")
 		}
-		resolvedUserSpecifiedArchiveWorkdir := filepath.Join(decompressDir, userSpecifiedWorkDirectory)
+		resolvedUserSpecifiedArchiveWorkdir = filepath.Join(decompressDir, userSpecifiedWorkDirectory)
 		if !common.FileExists(resolvedUserSpecifiedArchiveWorkdir) {
-			return "", nuclio.NewErrBadRequest("Failed to resolve work directory")
+			return "", nuclio.NewErrBadRequest("Work directory does not exist")
 		}
 	}
 	return resolvedUserSpecifiedArchiveWorkdir, nil
