@@ -698,7 +698,6 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 				return errors.Wrap(err, "Failed to merge deployment spec")
 			}
 		}
-
 	}
 
 	switch method {
