@@ -689,12 +689,14 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 
 	// merge
 	for _, augmentedConfig := range deploymentAugmentedConfigs {
-		if augmentedConfig.Kubernetes.Deployment.Spec.Strategy.Type != "" ||
-			augmentedConfig.Kubernetes.Deployment.Spec.Strategy.RollingUpdate != nil {
-			allowSetDeploymentStrategy = false
-		}
-		if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
-			return errors.Wrap(err, "Failed to merge deployment spec")
+		if augmentedConfig.Kubernetes.Deployment != nil {
+			if augmentedConfig.Kubernetes.Deployment.Spec.Strategy.Type != "" ||
+				augmentedConfig.Kubernetes.Deployment.Spec.Strategy.RollingUpdate != nil {
+				allowSetDeploymentStrategy = false
+			}
+			if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
+				return errors.Wrap(err, "Failed to merge deployment spec")
+			}
 		}
 	}
 
