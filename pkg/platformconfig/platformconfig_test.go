@@ -18,6 +18,7 @@ package platformconfig
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -444,7 +445,11 @@ metrics:
 }
 
 func (suite *PlatformConfigTestSuite) TestFunctionAugmentedConfigs() {
-	configurationContents := `
+	var readConfiguration Config
+	zero := 0
+	ten := 10
+	minReadySeconds := 90
+	configurationContents := fmt.Sprintf(`
 functionAugmentedConfigs:
 - labelSelector:
     matchLabels:
@@ -452,17 +457,12 @@ functionAugmentedConfigs:
   kubernetes:
     deployment:
       spec:
-        minReadySeconds: 90
+        minReadySeconds: %d
 - functionConfig:
     spec:
-      minReplicas: 0
-      maxReplicas: 10
-
-`
-
-	var readConfiguration Config
-	zero := 0
-	ten := 10
+      minReplicas: %d
+      maxReplicas: %d
+`, minReadySeconds, zero, ten)
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
@@ -499,7 +499,6 @@ functionAugmentedConfigs:
 
 	suite.Require().True(compare.CompareNoOrder(expectedFunctionAugumentedConfigs,
 		readConfiguration.FunctionAugmentedConfigs))
-
 }
 
 func TestRegistryTestSuite(t *testing.T) {
