@@ -26,6 +26,8 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/apps/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type PlatformConfigTestSuite struct {
@@ -439,6 +441,65 @@ metrics:
 	}
 
 	suite.Require().True(compare.CompareNoOrder(expectedFunctionMetricSinks, functionMetricSinks))
+}
+
+func (suite *PlatformConfigTestSuite) TestFunctionAugmentedConfigs() {
+	configurationContents := `
+functionAugmentedConfigs:
+- labelSelector:
+    matchLabels:
+      nuclio.io/class: function
+  kubernetes:
+    deployment:
+      spec:
+        minReadySeconds: 90
+- functionConfig:
+    spec:
+      minReplicas: 0
+      maxReplicas: 10
+
+`
+
+	var readConfiguration Config
+	zero := 0
+	ten := 10
+
+	// read configuration
+	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
+	suite.Require().NoError(err)
+
+	expectedFunctionAugumentedConfigs := []LabelSelectorAndConfig{
+		{
+
+			// all function matches `nuclio.io/class: function` should have deployment spec of MinReadySeconds: 90
+			v1.LabelSelector{
+				MatchLabels: map[string]string{
+					"nuclio.io/class": "function",
+				},
+			},
+			functionconfig.Config{},
+			Kubernetes{
+				Deployment: &v1beta1.Deployment{
+					Spec: v1beta1.DeploymentSpec{
+						MinReadySeconds: 90,
+					},
+				},
+			},
+		},
+		{
+
+			// set min replicas to 0 and max replicas to 10 for all functions
+			v1.LabelSelector{},
+			functionconfig.Config{
+				Spec: functionconfig.Spec{MinReplicas: &zero, MaxReplicas: &ten},
+			},
+			Kubernetes{},
+		},
+	}
+
+	suite.Require().True(compare.CompareNoOrder(expectedFunctionAugumentedConfigs,
+		readConfiguration.FunctionAugmentedConfigs))
+
 }
 
 func TestRegistryTestSuite(t *testing.T) {
