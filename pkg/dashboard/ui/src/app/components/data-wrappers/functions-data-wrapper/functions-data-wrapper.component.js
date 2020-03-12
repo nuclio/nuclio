@@ -7,8 +7,10 @@
             controller: FunctionsDataWrapperController
         });
 
-    function FunctionsDataWrapperController($q, NuclioProjectsDataService, NuclioFunctionsDataService) {
+    function FunctionsDataWrapperController($q, $i18next, i18next, NuclioProjectsDataService,
+                                            NuclioFunctionsDataService) {
         var ctrl = this;
+        var lng = i18next.language;
 
         ctrl.createFunction = createFunction;
         ctrl.getProject = getProject;
@@ -64,7 +66,7 @@
          * @returns {Promise}
          */
         function getStatistics() {
-            return $q.reject({msg: 'N/A'});
+            return $q.reject({msg: $i18next.t('common:N_A', {lng: lng})});
         }
 
         /**

@@ -27,7 +27,9 @@
                     .then(function (response) {
                         lodash.assign(ConfigService.nuclio, {
                             externalIPAddress: lodash.get(response, 'externalIPAddresses[0]', ''),
-                            ingressHostTemplate: lodash.get(response, 'defaultHTTPIngressHostTemplate', '')
+                            ingressHostTemplate: lodash.get(response, 'defaultHTTPIngressHostTemplate', ''),
+                            namespace: lodash.get(response, 'namespace', ''),
+                            scaleToZero: lodash.get(response, 'scaleToZero', {})
                         });
                     });
             })

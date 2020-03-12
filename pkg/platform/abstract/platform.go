@@ -365,9 +365,14 @@ func (ap *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Art
 	return ap.ContainerBuilder.TransformOnbuildArtifactPaths(onbuildArtifacts)
 }
 
-// GetBaseImageRegistry returns onbuild base registry
+// GetBaseImageRegistry returns base image registry
 func (ap *Platform) GetBaseImageRegistry(registry string) string {
 	return ap.ContainerBuilder.GetBaseImageRegistry(registry)
+}
+
+// GetOnbuildImageRegistry returns onbuild image registry
+func (ap *Platform) GetOnbuildImageRegistry(registry string) string {
+	return ap.ContainerBuilder.GetOnbuildImageRegistry(registry)
 }
 
 // // GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
@@ -613,7 +618,10 @@ func (ap *Platform) isSDKLogLine(logLine []byte) bool {
 
 func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage, workerID string) bool {
 	knownFailureSubstrings := [...]string{"Failed to connect to broker"}
-	ignoreFailureSubstrings := [...]string{string(common.UnexpectedTerminationChildProcess)}
+	ignoreFailureSubstrings := [...]string{
+		string(common.UnexpectedTerminationChildProcess),
+		string(common.FailedReadFromConnection),
+	}
 
 	// when the log message contains a failure that should be ignored
 	for _, ignoreFailureSubstring := range ignoreFailureSubstrings {
