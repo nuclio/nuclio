@@ -35,7 +35,7 @@ func (f *factory) Create(logger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create abstract runtime")
 	}
 
-	return &python{
+	return &Python{
 		AbstractRuntime: abstractRuntime,
 	}, nil
 }

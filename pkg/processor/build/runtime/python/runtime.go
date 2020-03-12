@@ -28,17 +28,17 @@ import (
 	"github.com/nuclio/errors"
 )
 
-type python struct {
+type Python struct {
 	*runtime.AbstractRuntime
 }
 
 // GetName returns the name of the runtime, including version if applicable
-func (p *python) GetName() string {
+func (p *Python) GetName() string {
 	return "python"
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
+func (p *Python) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}

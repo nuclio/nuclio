@@ -9,6 +9,13 @@ import (
 )
 
 func GetPythonExePath(logger logger.Logger, runtimeVersion string) (string, error) {
+
+	// allow user to provide with default python exe path
+	defaultPythonExePath := GetEnvOrDefaultString("NUCLIO_PYTHON_EXE_PATH", "")
+	if defaultPythonExePath != "" {
+		return defaultPythonExePath, nil
+	}
+
 	baseName := "python3"
 
 	if strings.HasPrefix(runtimeVersion, "2") {
