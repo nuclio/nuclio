@@ -308,7 +308,6 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// if the function returned an error - just return 500
 	if processError != nil {
 		var statusCode int
 
