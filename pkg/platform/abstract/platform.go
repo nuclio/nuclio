@@ -447,7 +447,7 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 		formattedProcessorLogs += currentLogLine + "\n"
 	}
 
-	*briefErrorsArray = ap.aggregateDuplicateConsecutiveMessages(*briefErrorsArray)
+	*briefErrorsArray = ap.aggregateConsecutiveDuplicateMessages(*briefErrorsArray)
 
 	// create brief errors log as string, and remove double newlines
 	briefErrorsMessage = strings.Join(*briefErrorsArray, "\n")
@@ -455,7 +455,7 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 	return common.FixEscapeChars(formattedProcessorLogs), common.FixEscapeChars(briefErrorsMessage)
 }
 
-func (ap *Platform) aggregateDuplicateConsecutiveMessages(errorMessagesArray []string) []string {
+func (ap *Platform) aggregateConsecutiveDuplicateMessages(errorMessagesArray []string) []string {
 	var aggregatedErrorsArray []string
 
 	for i := 0; i < len(errorMessagesArray); i++ {
