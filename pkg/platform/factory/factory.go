@@ -48,7 +48,10 @@ func CreatePlatform(parentLogger logger.Logger,
 
 	case "kube":
 		containerBuilderConfiguration := getContainerBuilderConfiguration(platformConfiguration)
-		newPlatform, err = kube.NewPlatform(parentLogger, getKubeconfigPath(platformConfiguration), containerBuilderConfiguration, platformConfiguration)
+		newPlatform, err = kube.NewPlatform(parentLogger,
+			getKubeconfigPath(platformConfiguration),
+			containerBuilderConfiguration,
+			platformConfiguration)
 
 	case "auto":
 
@@ -148,26 +151,34 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 			"gcr.io/kaniko-project/executor:v0.17.1")
 	}
 	if containerBuilderConfiguration.KanikoImagePullPolicy == "" {
-		containerBuilderConfiguration.KanikoImagePullPolicy = common.GetEnvOrDefaultString("NUCLIO_KANIKO_CONTAINER_IMAGE_PULL_POLICY",
-			"IfNotPresent")
+		containerBuilderConfiguration.KanikoImagePullPolicy = common.GetEnvOrDefaultString(
+			"NUCLIO_KANIKO_CONTAINER_IMAGE_PULL_POLICY", "IfNotPresent")
 	}
 	if containerBuilderConfiguration.JobPrefix == "" {
 		containerBuilderConfiguration.JobPrefix = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_JOB_NAME_PREFIX",
 			"kanikojob")
 	}
 
-	containerBuilderConfiguration.InsecurePushRegistry = common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY", false)
-	containerBuilderConfiguration.InsecurePullRegistry = common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_PULL_REGISTRY", false)
+	containerBuilderConfiguration.InsecurePushRegistry =
+		common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY", false)
+	containerBuilderConfiguration.InsecurePullRegistry =
+		common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_PULL_REGISTRY", false)
 
 	containerBuilderConfiguration.DefaultRegistryCredentialsSecretName =
 		common.GetEnvOrDefaultString("NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME", "")
 
 	if containerBuilderConfiguration.DefaultBaseRegistryURL == "" {
 		containerBuilderConfiguration.DefaultBaseRegistryURL =
-			common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_BASE_REGISTRY_URL", "quay.io")
+			common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_BASE_REGISTRY_URL", "")
 	}
 
-	containerBuilderConfiguration.CacheRepo = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_KANIKO_CACHE_REPO", "")
+	if containerBuilderConfiguration.DefaultOnbuildRegistryURL == "" {
+		containerBuilderConfiguration.DefaultOnbuildRegistryURL =
+			common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL", "quay.io")
+	}
+
+	containerBuilderConfiguration.CacheRepo =
+		common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_KANIKO_CACHE_REPO", "")
 
 	return &containerBuilderConfiguration
 }

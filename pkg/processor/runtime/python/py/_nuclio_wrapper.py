@@ -85,6 +85,7 @@ class Wrapper(object):
 
         int_buf = bytearray(4)
         buf = memoryview(bytearray(self._max_message_size))
+        minimum_float_duration = sys.float_info.min
 
         while True:
 
@@ -138,8 +139,8 @@ class Wrapper(object):
                     # call the entrypoint
                     entrypoint_output = self._entrypoint(self._context, event)
 
-                    # measure duration
-                    duration = time.time() - start_time
+                    # measure duration, set to minimum float in case execution was too fast
+                    duration = time.time() - start_time or minimum_float_duration
 
                     self._write_packet_to_processor('m' + json.dumps({'duration': duration}))
 

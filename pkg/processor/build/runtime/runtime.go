@@ -57,7 +57,8 @@ type Runtime interface {
 	OnAfterStagingDirCreated(stagingDir string) error
 
 	// GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-	GetProcessorDockerfileInfo(versionInfo *version.Info, registryURL string) (*ProcessorDockerfileInfo, error)
+	GetProcessorDockerfileInfo(versionInfo *version.Info, onbuildImageRegistry string) (
+		*ProcessorDockerfileInfo, error)
 
 	// GetName returns the name of the runtime, including version if applicable
 	GetName() string

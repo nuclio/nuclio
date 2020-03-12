@@ -322,7 +322,7 @@ func (r *AbstractRuntime) wrapperOutputHandler(conn io.Reader, resultChan chan *
 		data, unmarshalledResult.err = outReader.ReadBytes('\n')
 
 		if unmarshalledResult.err != nil {
-			r.Logger.WarnWith("Failed to read from connection", "err", unmarshalledResult.err)
+			r.Logger.WarnWith(string(common.FailedReadFromConnection), "err", unmarshalledResult.err)
 			resultChan <- unmarshalledResult
 			continue
 		}
@@ -348,7 +348,7 @@ func (r *AbstractRuntime) wrapperOutputHandler(conn io.Reader, resultChan chan *
 			// write back to result channel
 			resultChan <- unmarshalledResult
 		case 'm':
-			r.handleReponseMetric(data[1:])
+			r.handleResponseMetric(data[1:])
 		case 'l':
 			r.handleResponseLog(data[1:])
 		case 's':
@@ -381,7 +381,7 @@ func (r *AbstractRuntime) handleResponseLog(response []byte) {
 	logFunc(logRecord.Message, vars...)
 }
 
-func (r *AbstractRuntime) handleReponseMetric(response []byte) {
+func (r *AbstractRuntime) handleResponseMetric(response []byte) {
 	var metrics struct {
 		DurationSec float64 `json:"duration"`
 	}

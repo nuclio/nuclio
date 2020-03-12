@@ -13,7 +13,14 @@
         },
         nuclio: {
             externalIPAddress: '',
-            ingressHostTemplate: ''
+            imageNamePrefixTemplate: '',
+            ingressHostTemplate: '',
+            namespace: '',
+            scaleToZero: {
+                inactivityWindowPresets: null,
+                mode: 'disabled',
+                scaleResources: null
+            }
         }
     };
 
