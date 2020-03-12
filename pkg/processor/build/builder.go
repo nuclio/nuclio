@@ -749,8 +749,6 @@ func (b *Builder) resolveGithubArchiveWorkDir(decompressDir string) (string, err
 }
 
 func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (string, error) {
-	var resolvedUserSpecifiedArchiveWorkdir string
-
 	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
 
 	if found {
@@ -758,12 +756,13 @@ func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (stri
 		if !ok {
 			return "", nuclio.NewErrBadRequest("Work directory is expected to be string")
 		}
-		resolvedUserSpecifiedArchiveWorkdir = filepath.Join(decompressDir, userSpecifiedWorkDirectory)
-		if !common.FileExists(resolvedUserSpecifiedArchiveWorkdir) {
+		decompressDir = filepath.Join(decompressDir, userSpecifiedWorkDirectory)
+		if !common.FileExists(decompressDir) {
 			return "", nuclio.NewErrBadRequest("Work directory does not exist")
 		}
 	}
-	return resolvedUserSpecifiedArchiveWorkdir, nil
+
+	return decompressDir, nil
 }
 
 func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
