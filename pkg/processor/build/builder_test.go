@@ -701,9 +701,9 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 	httpmock.DeactivateAndReset()
 }
 
-func (suite *testSuite) testResolveFunctionPathArchiveBadWorkDir(
-	buildConfiguration functionconfig.Build,
-	archiveFileURL, expectedError string) {
+func (suite *testSuite) testResolveFunctionPathArchiveBadWorkDir(buildConfiguration functionconfig.Build,
+	archiveFileURL string,
+	expectedError string) {
 
 	suite.mockArchiveFileURLEndpoint(buildConfiguration, archiveFileURL)
 
