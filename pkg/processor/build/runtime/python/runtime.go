@@ -20,9 +20,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/version"
+
+	"github.com/nuclio/errors"
 )
 
 type python struct {
@@ -68,12 +71,20 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	}
 	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
+	_, runtimeVersion := p.GetRuntimeNameAndVersion()
+	pythonExePath, err := common.GetPythonExePath(p.Logger, runtimeVersion)
+	if err != nil {
+		p.Logger.ErrorWith("Failed to find Python exe", "error", err, "runtimeVersion", runtimeVersion)
+		return nil, errors.Wrap(err, "Failed to get python exe")
+	}
+
 	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
 		"postCopy": {
 			{
 				Kind: "RUN",
 				Value: fmt.Sprintf(
-					"pip install %s --no-index --find-links /opt/nuclio/whl",
+					"%s -m pip install %s --no-index --find-links /opt/nuclio/whl",
+					pythonExePath,
 					strings.Join(pythonCommonModules, " ")),
 			},
 		},

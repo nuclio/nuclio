@@ -68,12 +68,13 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 	handler := py.getHandler()
 	py.Logger.DebugWith("Using Python handler", "handler", handler)
 
-	pythonExePath, err := py.getPythonExePath()
+	_, runtimeVersion := py.configuration.Spec.GetRuntimeNameAndVersion()
+	pythonExePath, err := common.GetPythonExePath(py.Logger, runtimeVersion)
 	if err != nil {
-		py.Logger.ErrorWith("Can't find Python exe", "error", err)
-		return nil, err
+		py.Logger.ErrorWith("Failed to find Python exe", "error", err, "runtimeVersion", runtimeVersion)
+		return nil, errors.Wrap(err, "Failed to get python exe")
 	}
-	py.Logger.DebugWith("Using Python executable", "path", pythonExePath)
+	py.Logger.DebugWith("Using Python executable", "path", pythonExePath, "runtimeVersion", runtimeVersion)
 
 	// pass global environment onto the process, and sprinkle in some added env vars
 	env := os.Environ()
@@ -83,7 +84,8 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 	env = append(env, envPath)
 
 	args := []string{
-		pythonExePath, "-u", wrapperScriptPath,
+		pythonExePath,
+		"-u", wrapperScriptPath,
 		"--handler", handler,
 		"--socket-path", socketPath,
 		"--platform-kind", py.configuration.PlatformConfig.Kind,
@@ -137,31 +139,6 @@ func (py *python) getPythonPath() string {
 	}
 
 	return pythonPath
-}
-
-func (py *python) getPythonExePath() (string, error) {
-	baseName := "python3"
-
-	_, runtimeVersion := py.configuration.Spec.GetRuntimeNameAndVersion()
-
-	if strings.HasPrefix(runtimeVersion, "2") {
-		baseName = "python2"
-	}
-
-	exePath, err := exec.LookPath(baseName)
-	if err == nil {
-		return exePath, nil
-	}
-
-	py.Logger.WarnWith("Can't find specific python exe", "name", baseName)
-
-	// Try just "python"
-	exePath, err = exec.LookPath("python")
-	if err == nil {
-		return exePath, nil
-	}
-
-	return "", errors.Wrap(err, "Can't find python executable")
 }
 
 func (py *python) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
