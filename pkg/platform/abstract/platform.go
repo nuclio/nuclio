@@ -463,7 +463,7 @@ func (ap *Platform) aggregateConsecutiveDuplicateMessages(errorMessagesArray []s
 		consecutiveErrorMessageCount := 1
 
 		// count how many consecutive times current error message reoccurs
-		for i + 1 < len(errorMessagesArray) && errorMessagesArray[i+1] == currentErrorMessage {
+		for i+1 < len(errorMessagesArray) && errorMessagesArray[i+1] == currentErrorMessage {
 			consecutiveErrorMessageCount++
 			i++
 		}
