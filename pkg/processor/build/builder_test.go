@@ -651,11 +651,7 @@ func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension stri
 	suite.Assert().Equal(codeFileContent, string(resultSourceCode))
 }
 
-func (suite *testSuite) setUpBeforeResolveFunctionPath(buildConfiguration functionconfig.Build, archiveFileURL string) {
-	err := suite.builder.createTempDir()
-	suite.NoError(err)
-
-	// mock the http response to be the test function archive file
+func (suite *testSuite) mockArchiveFileURLEndpoint(buildConfiguration functionconfig.Build, archiveFileURL string) {
 	if buildConfiguration.CodeEntryType != S3EntryType {
 		httpmock.Activate()
 		functionArchiveFileBytes, err := ioutil.ReadFile(FunctionsArchiveFilePath)
@@ -672,19 +668,17 @@ func (suite *testSuite) setUpBeforeResolveFunctionPath(buildConfiguration functi
 		}
 		httpmock.RegisterResponder("GET", archiveFileURL, responder)
 	}
-
-	suite.builder.options.FunctionConfig.Spec.Build = buildConfiguration
-}
-
-func (suite *testSuite) tearDownAfterResolveFunctionPath() {
-	suite.builder.cleanupTempDir() // nolint: errcheck
-	httpmock.DeactivateAndReset()
 }
 
 func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functionconfig.Build, archiveFileURL string) {
 	var destinationWorkDir string
 
-	suite.setUpBeforeResolveFunctionPath(buildConfiguration, archiveFileURL)
+	suite.mockArchiveFileURLEndpoint(buildConfiguration, archiveFileURL)
+
+	err := suite.builder.createTempDir()
+	suite.NoError(err)
+
+	suite.builder.options.FunctionConfig.Spec.Build = buildConfiguration
 
 	path, _, err := suite.builder.resolveFunctionPath(buildConfiguration.Path)
 	suite.NoError(err)
@@ -703,17 +697,26 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 	return "hello world"
 `, string(decompressedPythonFileContent))
 
-	suite.tearDownAfterResolveFunctionPath()
+	suite.builder.cleanupTempDir() // nolint: errcheck
+	httpmock.DeactivateAndReset()
 }
 
 func (suite *testSuite) testResolveFunctionPathArchiveBadWorkDir(
-	buildConfiguration functionconfig.Build, archiveFileURL, expectedError string) {
-	suite.setUpBeforeResolveFunctionPath(buildConfiguration, archiveFileURL)
+	buildConfiguration functionconfig.Build,
+	archiveFileURL, expectedError string) {
 
-	_, _, err := suite.builder.resolveFunctionPath(buildConfiguration.Path)
+	suite.mockArchiveFileURLEndpoint(buildConfiguration, archiveFileURL)
+
+	err := suite.builder.createTempDir()
+	suite.NoError(err)
+
+	suite.builder.options.FunctionConfig.Spec.Build = buildConfiguration
+
+	_, _, err = suite.builder.resolveFunctionPath(buildConfiguration.Path)
 	suite.EqualError(errors.RootCause(err), expectedError)
 
-	suite.tearDownAfterResolveFunctionPath()
+	suite.builder.cleanupTempDir() // nolint: errcheck
+	httpmock.DeactivateAndReset()
 }
 
 func TestBuilderSuite(t *testing.T) {
