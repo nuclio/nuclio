@@ -308,22 +308,23 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// if the function returned an error - just return 500
 	if processError != nil {
 		var statusCode int
 
 		// check if the user returned an error with a status code
-		errorWithStatusCode, errorHasStatusCode := processError.(nuclio.ErrorWithStatusCode)
+		switch typedError := processError.(type) {
+		case nuclio.ErrorWithStatusCode:
+			statusCode = typedError.StatusCode()
+		case *nuclio.ErrorWithStatusCode:
+			statusCode = typedError.StatusCode()
+		default:
 
-		// if the user didn't use one of the errors with status code, return internal error
-		// otherwise return the status code the user wanted
-		if !errorHasStatusCode {
+			// if the user didn't use one of the errors with status code, return internal error
 			statusCode = net_http.StatusInternalServerError
-		} else {
-			statusCode = errorWithStatusCode.StatusCode()
 		}
 
 		ctx.Response.SetStatusCode(statusCode)
+		ctx.Response.SetBodyString(processError.Error())
 		return
 	}
 
