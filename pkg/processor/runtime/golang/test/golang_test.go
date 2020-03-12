@@ -49,10 +49,8 @@ func (suite *TestSuite) SetupTest() {
 }
 
 func (suite *TestSuite) TestOutputs() {
-	// TODO: Have common tests and use here and in Python
-	// see https://github.com/nuclio/nuclio/issues/227
-
 	statusOK := http.StatusOK
+	badRequest := http.StatusBadRequest
 	statusCreated := http.StatusCreated
 	statusInternalError := http.StatusInternalServerError
 	logLevelDebug := "debug"
@@ -67,6 +65,13 @@ func (suite *TestSuite) TestOutputs() {
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		testRequests := []httpsuite.Request{
+			{
+				Name:                       "error-check",
+				RequestBody:                "return_body_error",
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "error string body",
+				ExpectedResponseStatusCode: &badRequest,
+			},
 			{
 				Name:                       "string",
 				RequestBody:                "return_string",
