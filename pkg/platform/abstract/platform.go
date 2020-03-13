@@ -447,10 +447,37 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 		formattedProcessorLogs += currentLogLine + "\n"
 	}
 
+	*briefErrorsArray = ap.aggregateConsecutiveDuplicateMessages(*briefErrorsArray)
+
 	// create brief errors log as string, and remove double newlines
 	briefErrorsMessage = strings.Join(*briefErrorsArray, "\n")
 
 	return common.FixEscapeChars(formattedProcessorLogs), common.FixEscapeChars(briefErrorsMessage)
+}
+
+func (ap *Platform) aggregateConsecutiveDuplicateMessages(errorMessagesArray []string) []string {
+	var aggregatedErrorsArray []string
+
+	for i := 0; i < len(errorMessagesArray); i++ {
+		currentErrorMessage := errorMessagesArray[i]
+		consecutiveErrorMessageCount := 1
+
+		// count how many consecutive times current error message reoccurs
+		for i+1 < len(errorMessagesArray) && errorMessagesArray[i+1] == currentErrorMessage {
+			consecutiveErrorMessageCount++
+			i++
+		}
+
+		if consecutiveErrorMessageCount > 1 {
+			aggregatedErrorsArray = append(aggregatedErrorsArray,
+				fmt.Sprintf("[repeated %d times] %s", consecutiveErrorMessageCount, currentErrorMessage))
+			continue
+		}
+
+		aggregatedErrorsArray = append(aggregatedErrorsArray, currentErrorMessage)
+	}
+
+	return aggregatedErrorsArray
 }
 
 // Prettifies log line, and returns - (formattedLogLine, briefLogLine, error)
