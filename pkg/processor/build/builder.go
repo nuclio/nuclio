@@ -116,14 +116,18 @@ type Builder struct {
 	originalFunctionConfig functionconfig.Config
 
 	s3Client common.S3Client
+
+	// default timeout before bailing build process
+	defaultBuildTimeoutSeconds int64
 }
 
 // NewBuilder returns a new builder
 func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client common.S3Client) (*Builder, error) {
 	newBuilder := &Builder{
-		logger:   parentLogger,
-		platform: platform,
-		s3Client: s3Client,
+		logger:                     parentLogger,
+		platform:                   platform,
+		s3Client:                   s3Client,
+		defaultBuildTimeoutSeconds: 3600,
 	}
 
 	newBuilder.initializeSupportedRuntimes()
@@ -1615,17 +1619,16 @@ func (b *Builder) getFunctionTempFile(tempDir string, functionPath string, isArc
 }
 
 func (b *Builder) getBuildTimeoutSeconds() int64 {
-	var buildTimeoutSeconds int64
 	if b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds != nil {
 		if *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds > 0 {
-			buildTimeoutSeconds = *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds
-		} else {
-
-			// no timeout
-			buildTimeoutSeconds = math.MaxInt64 - time.Now().UnixNano()
+			return *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds
 		}
-	} else {
-		buildTimeoutSeconds = 3600 // sec
+
+		// no timeout
+		return math.MaxInt64 - time.Now().UnixNano()
 	}
-	return buildTimeoutSeconds
+
+	// default timeout
+	return b.defaultBuildTimeoutSeconds
+
 }
