@@ -116,9 +116,6 @@ type Builder struct {
 	originalFunctionConfig functionconfig.Config
 
 	s3Client common.S3Client
-
-	// default timeout before bailing build process
-	defaultBuildTimeoutSeconds int64
 }
 
 // NewBuilder returns a new builder
@@ -127,7 +124,6 @@ func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client
 		logger:                     parentLogger,
 		platform:                   platform,
 		s3Client:                   s3Client,
-		defaultBuildTimeoutSeconds: 3600,
 	}
 
 	newBuilder.initializeSupportedRuntimes()
@@ -1024,7 +1020,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		RegistryURL:         b.options.FunctionConfig.Spec.Build.Registry,
 		SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
 		OutputImageFile:     b.options.OutputImageFile,
-		BuildTimeoutSeconds: b.getBuildTimeoutSeconds(),
+		BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
 	})
 
 	return imageName, err
@@ -1618,7 +1614,7 @@ func (b *Builder) getFunctionTempFile(tempDir string, functionPath string, isArc
 	return os.OpenFile(path.Join(tempDir, functionPathBase), os.O_RDWR|os.O_CREATE, 0600)
 }
 
-func (b *Builder) getBuildTimeoutSeconds() int64 {
+func (b *Builder) resolveBuildTimeoutSeconds() int64 {
 	if b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds != nil {
 		if *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds > 0 {
 			return *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds
@@ -1628,7 +1624,6 @@ func (b *Builder) getBuildTimeoutSeconds() int64 {
 		return math.MaxInt64 - time.Now().UnixNano()
 	}
 
-	// default timeout
-	return b.defaultBuildTimeoutSeconds
-
+	// default timeout in seconds
+	return 60 * 60
 }
