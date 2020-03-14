@@ -121,9 +121,9 @@ type Builder struct {
 // NewBuilder returns a new builder
 func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client common.S3Client) (*Builder, error) {
 	newBuilder := &Builder{
-		logger:                     parentLogger,
-		platform:                   platform,
-		s3Client:                   s3Client,
+		logger:   parentLogger,
+		platform: platform,
+		s3Client: s3Client,
 	}
 
 	newBuilder.initializeSupportedRuntimes()
