@@ -1000,19 +1000,6 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		onbuildImageRegistry = b.platform.GetOnbuildImageRegistry(b.options.FunctionConfig.Spec.Build.Registry)
 	}
 
-	var BuildTimeoutSeconds int64
-	if b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds != nil {
-		if *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds > 0 {
-			BuildTimeoutSeconds = *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds
-		} else {
-
-			// no timeout
-			BuildTimeoutSeconds = math.MaxInt64 - time.Now().UnixNano()
-		}
-	} else {
-		BuildTimeoutSeconds = 3600 // sec
-	}
-
 	processorDockerfileInfo, err := b.createProcessorDockerfile(baseImageRegistry, onbuildImageRegistry)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
@@ -1033,7 +1020,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		RegistryURL:         b.options.FunctionConfig.Spec.Build.Registry,
 		SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
 		OutputImageFile:     b.options.OutputImageFile,
-		BuildTimeoutSeconds: BuildTimeoutSeconds,
+		BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
 	})
 
 	return imageName, err
@@ -1625,4 +1612,18 @@ func (b *Builder) getFunctionTempFile(tempDir string, functionPath string, isArc
 
 	// for non-archives, must retain file name
 	return os.OpenFile(path.Join(tempDir, functionPathBase), os.O_RDWR|os.O_CREATE, 0600)
+}
+
+func (b *Builder) resolveBuildTimeoutSeconds() int64 {
+	if b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds != nil {
+		if *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds > 0 {
+			return *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds
+		}
+
+		// no timeout
+		return math.MaxInt64 - time.Now().UnixNano()
+	}
+
+	// default timeout in seconds
+	return 60 * 60
 }

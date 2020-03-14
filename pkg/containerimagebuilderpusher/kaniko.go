@@ -330,9 +330,9 @@ func (k *Kaniko) compileJobName(image string) string {
 	return jobName
 }
 
-func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, BuildTimeoutSeconds int64) error {
-	k.logger.DebugWith("Waiting for kaniko to finish", "BuildTimeoutSeconds", BuildTimeoutSeconds)
-	timeout := time.Now().Add(time.Duration(BuildTimeoutSeconds) * time.Second)
+func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, buildTimeoutSeconds int64) error {
+	k.logger.DebugWith("Waiting for kaniko to finish", "buildTimeoutSeconds", buildTimeoutSeconds)
+	timeout := time.Now().Add(time.Duration(buildTimeoutSeconds) * time.Second)
 	for time.Now().Before(timeout) {
 		runningJob, err := k.kubeClientSet.BatchV1().Jobs(namespace).
 			Get(jobName, meta_v1.GetOptions{IncludeUninitialized: true})
