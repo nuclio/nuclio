@@ -124,7 +124,7 @@ func (zftf *ZipFunctionTemplateFetcher) parseFiles(zipReader *zip.Reader) map[st
 
 		// if functionTemplateFileContents was not created for this function - create it
 		if _, ok := functionTemplateFileContents[functionName]; !ok {
-			zftf.logger.Debug("Found new function files", "functionName", functionName)
+			zftf.logger.DebugWith("Found new function files", "functionName", functionName)
 
 			functionTemplateFileContents[functionName] = &FunctionTemplateFileContents{}
 		}
