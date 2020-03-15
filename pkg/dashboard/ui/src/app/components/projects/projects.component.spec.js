@@ -62,7 +62,7 @@ describe('nclProjects component: ', function () {
                 {
                     label: 'Description',
                     value: 'spec.description',
-                    active: false,
+                    active: false
                 }
             ];
 
