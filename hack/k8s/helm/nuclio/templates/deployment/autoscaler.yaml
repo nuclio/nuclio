@@ -13,12 +13,19 @@
 # limitations under the License.
 
 {{- if .Values.autoscaler.enabled }}
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "nuclio.scalerName" . }}
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "nuclio.nuclioName" . }}
+      release: {{ .Release.Name }}
+      nuclio.io/app: autoscaler
+      nuclio.io/class: service
+      nuclio.io/name: {{ template "nuclio.scalerName" . }}
   template:
     metadata:
       labels:
