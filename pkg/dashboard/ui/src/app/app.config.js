@@ -4,6 +4,11 @@
     var injectedConfig = angular.fromJson('/* @echo IGZ_CUSTOM_CONFIG */' || '{}');
 
     var defaultConfig = {
+        url: {
+            nuclio: {
+                baseUrl: location.protocol + '//' + location.hostname + ':8070/api'
+            }
+        },
         mode: 'production',
         isDemoMode: function () {
             return defaultConfig.mode === 'demo';

@@ -131,6 +131,14 @@
             1,
             4,
             {
+                "CallExpression": {
+                    "arguments": "first"
+                },
+                "FunctionDeclaration": {
+                    "parameters": "first"
+                },
+                "ignoreComments": true,
+                "ignoredNodes": ["ConditionalExpression"],
                 "SwitchCase": 1
             }
         ],

@@ -590,7 +590,7 @@ gulp.task('test-unit', function (next) {
  */
 gulp.task('test-e2e', function (next) {
     runSequence('e2e-help', 'update-web-driver', 'set-e2e-testing', 'build', 'serve-static', 'test-e2e-mock-module', 'test-e2e-mock-html',
-        'test-e2e-run', 'stop-server', next);
+                'test-e2e-run', 'stop-server', next);
 });
 
 /**
