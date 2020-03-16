@@ -151,11 +151,9 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			errorStack.Truncate(4 * Mib)
 		}
 
-		// if no brief error message was passed, set it to be the last error
+		// if no brief error message was passed, set it to be root cause
 		if briefErrorsMessage == "" {
-			lastError := bytes.Buffer{}
-			errors.PrintErrorStack(&lastError, creationError, 10)
-			briefErrorsMessage = lastError.String()
+			briefErrorsMessage = errors.RootCause(creationError).Error()
 		}
 
 		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
