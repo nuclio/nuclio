@@ -129,7 +129,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	// save the log stream for the name
-	p.DeployLogStreams[createFunctionOptions.FunctionConfig.Meta.GetUniqueID()] = logStream
+	p.DeployLogStreams.Store(createFunctionOptions.FunctionConfig.Meta.GetUniqueID(), logStream)
 
 	// replace logger
 	createFunctionOptions.Logger = logStream.GetLogger()
@@ -253,14 +253,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
-	// iterate over functions and enrich with deploy logs
-	for _, function := range functions {
-
-		// enrich with build logs
-		if deployLogStream, exists := p.DeployLogStreams[function.GetConfig().Meta.GetUniqueID()]; exists {
-			deployLogStream.ReadLogs(nil, &function.GetStatus().Logs)
-		}
-	}
+	p.EnrichFunctionsWithDeployLogStream(functions)
 
 	return functions, nil
 }
