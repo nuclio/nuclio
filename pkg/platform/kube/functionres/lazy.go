@@ -53,11 +53,12 @@ import (
 )
 
 const (
-	containerHTTPPort       = 8080
-	containerHTTPPortName   = "http"
-	containerMetricPort     = 8090
-	containerMetricPortName = "metrics"
-	nvidiaGpuResourceName   = "nvidia.com/gpu"
+	containerHTTPPort             = 8080
+	containerHTTPPortName         = "http"
+	containerMetricPort           = 8090
+	containerMetricPortName       = "metrics"
+	nvidiaGpuResourceName         = "nvidia.com/gpu"
+	nginxIngressUpdateGracePeriod = 5 * time.Second
 )
 
 type deploymentResourceMethod string
@@ -885,10 +886,15 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 			return nil, nil
 		}
 
-		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Create(&ext_v1beta1.Ingress{
+		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Create(&ext_v1beta1.Ingress{
 			ObjectMeta: ingressMeta,
 			Spec:       ingressSpec,
 		})
+
+		// a safe period to let nginx create the ingress successfully
+		time.Sleep(nginxIngressUpdateGracePeriod)
+
+		return resultIngress, err
 	}
 
 	updateIngress := func(resource interface{}) (interface{}, error) {
@@ -919,7 +925,12 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 			return nil, nil
 		}
 
-		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
+		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
+
+		// a safe period to let nginx update the ingress successfully
+		time.Sleep(nginxIngressUpdateGracePeriod)
+
+		return resultIngress, err
 	}
 
 	resource, err := lc.createOrUpdateResource("ingress",
