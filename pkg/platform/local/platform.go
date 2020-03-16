@@ -122,7 +122,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	// save the log stream for the name
-	p.DeployLogStreams[createFunctionOptions.FunctionConfig.Meta.GetUniqueID()] = logStream
+	p.DeployLogStreams.Store(createFunctionOptions.FunctionConfig.Meta.GetUniqueID(), logStream)
 
 	// replace logger
 	createFunctionOptions.Logger = logStream.GetLogger()
@@ -268,21 +268,16 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		return nil, errors.Wrap(err, "Failed to read functions from local store")
 	}
 
-	// return a map of functions by name
+	// filter by project name
 	for _, localStoreFunction := range localStoreFunctions {
-
-		// filter by project name
 		if projectName != "" && localStoreFunction.GetConfig().Meta.Labels["nuclio.io/project-name"] != projectName {
 			continue
 		}
-
-		// enrich with build logs
-		if deployLogStream, exists := p.DeployLogStreams[localStoreFunction.GetConfig().Meta.GetUniqueID()]; exists {
-			deployLogStream.ReadLogs(nil, &localStoreFunction.GetStatus().Logs)
-		}
-
 		functions = append(functions, localStoreFunction)
 	}
+
+	// enrich with build logs
+	p.EnrichFunctionsWithDeployLogStream(functions)
 
 	return functions, nil
 }
