@@ -194,7 +194,7 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 		case functionconfig.FunctionStateReady:
 			return true, nil
 		case functionconfig.FunctionStateError:
-			return false, errors.Errorf("NuclioFunction in error state (%s)", function.Status.Message)
+			return false, errors.Errorf("NuclioFunction in error state:\n%s", function.Status.Message)
 		default:
 			return false, nil
 		}

@@ -153,8 +153,12 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 		// if no brief error message was passed, set it to be root cause
 		if briefErrorsMessage == "" {
-			briefErrorsMessage = errors.RootCause(creationError).Error()
+			if rootCause := errors.RootCause(creationError); rootCause != nil {
+				briefErrorsMessage = rootCause.Error()
+			}
 		}
+
+		briefErrorsMessage = p.clearCallStack(briefErrorsMessage)
 
 		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
 			"errorStack", errorStack.String())
@@ -672,6 +676,15 @@ func (p *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, e
 	default:
 		return nil, errors.New("Not a valid configuration instance")
 	}
+}
+
+func (p *Platform) clearCallStack(message string) string {
+	if message == "" {
+		return ""
+	}
+
+	splitMessage := strings.Split(message, "\nCall stack:\n")
+	return splitMessage[0]
 }
 
 func (p *Platform) setScaleToZeroSpec(functionSpec *functionconfig.Spec) error {
