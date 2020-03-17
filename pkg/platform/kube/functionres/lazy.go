@@ -53,11 +53,12 @@ import (
 )
 
 const (
-	containerHTTPPort       = 8080
-	containerHTTPPortName   = "http"
-	containerMetricPort     = 8090
-	containerMetricPortName = "metrics"
-	nvidiaGpuResourceName   = "nvidia.com/gpu"
+	containerHTTPPort             = 8080
+	containerHTTPPortName         = "http"
+	containerMetricPort           = 8090
+	containerMetricPortName       = "metrics"
+	nvidiaGpuResourceName         = "nvidia.com/gpu"
+	nginxIngressUpdateGracePeriod = 5 * time.Second
 )
 
 type deploymentResourceMethod string
@@ -885,10 +886,15 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 			return nil, nil
 		}
 
-		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Create(&ext_v1beta1.Ingress{
+		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Create(&ext_v1beta1.Ingress{
 			ObjectMeta: ingressMeta,
 			Spec:       ingressSpec,
 		})
+		if err != nil {
+			lc.waitForNginxIngressToStabilize()
+		}
+
+		return resultIngress, err
 	}
 
 	updateIngress := func(resource interface{}) (interface{}, error) {
@@ -919,7 +925,12 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 			return nil, nil
 		}
 
-		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
+		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
+		if err != nil {
+			lc.waitForNginxIngressToStabilize()
+		}
+
+		return resultIngress, err
 	}
 
 	resource, err := lc.createOrUpdateResource("ingress",
@@ -937,6 +948,13 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 	}
 
 	return resource.(*ext_v1beta1.Ingress), err
+}
+
+// nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
+func (lc *lazyClient) waitForNginxIngressToStabilize() {
+	lc.logger.DebugWith("Waiting for nginx ingress to stabilize", "nginxIngressUpdateGracePeriod", nginxIngressUpdateGracePeriod)
+	time.Sleep(nginxIngressUpdateGracePeriod)
+	lc.logger.Debug("Finished waiting for nginx ingress to stabilize")
 }
 
 func (lc *lazyClient) initClassLabels() {
