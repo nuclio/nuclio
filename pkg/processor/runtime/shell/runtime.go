@@ -101,7 +101,7 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	cmd.Env = append(cmd.Env, s.getEnvFromEvent(event)...)
 
 	// save timestamp
-	start := time.Now()
+	startTime := time.Now()
 
 	// run the command
 	out, err := cmd.CombinedOutput()
