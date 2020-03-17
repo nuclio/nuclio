@@ -66,7 +66,7 @@ type Trigger struct {
 	Secret                                string            `json:"secret,omitempty"`
 	Partitions                            []Partition       `json:"partitions,omitempty"`
 	Annotations                           map[string]string `json:"annotations,omitempty"`
-	WorkerAvailabilityTimeoutMilliseconds int               `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
+	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
 	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
 
 	// Dealer Information

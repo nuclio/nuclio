@@ -42,6 +42,10 @@ import (
 // Base for all platforms
 //
 
+const (
+	defaultWorkerAvailabilityTimeout = int(10 * time.Second)
+)
+
 type Platform struct {
 	Logger                         logger.Logger
 	platform                       platform.Platform
@@ -205,6 +209,8 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 	}
 
 	ap.enrichMinMaxReplicas(createFunctionOptions)
+
+	ap.enrichTriggerSpec(createFunctionOptions)
 
 	return nil
 }
@@ -813,5 +819,15 @@ func (ap *Platform) enrichMinMaxReplicas(createFunctionOptions *platform.CreateF
 	if createFunctionOptions.FunctionConfig.Spec.MaxReplicas == nil &&
 		createFunctionOptions.FunctionConfig.Spec.MinReplicas != nil {
 		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = createFunctionOptions.FunctionConfig.Spec.MinReplicas
+	}
+}
+
+func (ap *Platform) enrichTriggerSpec(createFunctionOptions *platform.CreateFunctionOptions) {
+	for _, _trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
+
+		// set default worker availability timeout if not passed or is negative
+		if _trigger.WorkerAvailabilityTimeoutMilliseconds == nil || *_trigger.WorkerAvailabilityTimeoutMilliseconds < 0 {
+			*_trigger.WorkerAvailabilityTimeoutMilliseconds = defaultWorkerAvailabilityTimeout
+		}
 	}
 }
