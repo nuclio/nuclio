@@ -100,11 +100,21 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	// add event stuff to env
 	cmd.Env = append(cmd.Env, s.getEnvFromEvent(event)...)
 
+	// save timestamp
+	start := time.Now()
+
 	// run the command
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to run shell command")
 	}
+
+	// calculate call duration
+	duration := time.Since(start)
+
+	// add duration to sum
+	s.Statistics.DurationMilliSecondsSum += uint64(duration.Nanoseconds() / 1000000)
+	s.Statistics.DurationMilliSecondsCount++
 
 	s.Logger.DebugWith("Shell executed",
 		"eventID", event.GetID())
