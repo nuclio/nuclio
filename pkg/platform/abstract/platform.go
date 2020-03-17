@@ -827,7 +827,8 @@ func (ap *Platform) enrichTriggerSpec(createFunctionOptions *platform.CreateFunc
 
 		// set default worker availability timeout if not passed or is negative
 		if _trigger.WorkerAvailabilityTimeoutMilliseconds == nil || *_trigger.WorkerAvailabilityTimeoutMilliseconds < 0 {
-			*_trigger.WorkerAvailabilityTimeoutMilliseconds = defaultWorkerAvailabilityTimeout
+			workerAvailabilityTimeout := defaultWorkerAvailabilityTimeout
+			_trigger.WorkerAvailabilityTimeoutMilliseconds = &workerAvailabilityTimeout
 		}
 	}
 }
