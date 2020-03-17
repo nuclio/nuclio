@@ -890,10 +890,8 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 			ObjectMeta: ingressMeta,
 			Spec:       ingressSpec,
 		})
-
-		// a safe period to let nginx create the ingress successfully
 		if err != nil {
-			time.Sleep(nginxIngressUpdateGracePeriod)
+			lc.waitForNginxIngressToStabilize()
 		}
 
 		return resultIngress, err
@@ -928,10 +926,8 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 		}
 
 		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
-
-		// a safe period to let nginx update the ingress successfully
 		if err != nil {
-			time.Sleep(nginxIngressUpdateGracePeriod)
+			lc.waitForNginxIngressToStabilize()
 		}
 
 		return resultIngress, err
@@ -952,6 +948,13 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 	}
 
 	return resource.(*ext_v1beta1.Ingress), err
+}
+
+// nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
+func (lc *lazyClient) waitForNginxIngressToStabilize() {
+	lc.logger.DebugWith("Waiting for nginx ingress to stabilize", "nginxIngressUpdateGracePeriod", nginxIngressUpdateGracePeriod)
+	time.Sleep(nginxIngressUpdateGracePeriod)
+	lc.logger.Debug("Finished waiting for nginx ingress to stabilize")
 }
 
 func (lc *lazyClient) initClassLabels() {
