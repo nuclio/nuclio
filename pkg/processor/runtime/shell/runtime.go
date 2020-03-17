@@ -110,7 +110,7 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	}
 
 	// calculate call duration
-	duration := time.Since(start)
+	callDuration := time.Since(startTime)
 
 	// add duration to sum
 	s.Statistics.DurationMilliSecondsSum += uint64(duration.Nanoseconds() / 1000000)
