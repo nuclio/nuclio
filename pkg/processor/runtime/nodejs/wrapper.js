@@ -89,6 +89,12 @@ function response_from_output(handler_output) {
 }
 
 function send_reply(handler_output) {
+    end = new Date();
+    var duration = {
+        duration: Math.max(0.00000000001, (end.getTime() - start.getTime()) / 1000)
+    }
+    socket.write('m' + JSON.stringify(duration) + '\n');
+    
     var response = response_from_output(handler_output);
     socket.write('r' + JSON.stringify(response) + '\n');
 }
@@ -127,6 +133,8 @@ function connectSocket() {
             var evt = JSON.parse(data);
             evt.body = new Buffer(evt.body, 'base64');
             evt.timestamp = new Date(evt['timestamp'] * 1000);
+
+            start = new Date();
 
             // call the handler
             handlerFunc(context, evt);
@@ -169,6 +177,9 @@ if (require.main === module) {
 
     var module = require(handlerPath);
     var socket = new net.Socket();
+
+    var start = null;
+    var end = null;
 
     // attempt to find the handler for a few seconds - connect if/when we do
     // if the handler wasn't found within the limit set here, give up
