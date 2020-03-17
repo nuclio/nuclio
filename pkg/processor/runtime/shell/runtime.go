@@ -113,7 +113,7 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	callDuration := time.Since(startTime)
 
 	// add duration to sum
-	s.Statistics.DurationMilliSecondsSum += uint64(duration.Nanoseconds() / 1000000)
+	s.Statistics.DurationMilliSecondsSum += uint64(callDuration.Nanoseconds() / 1000000)
 	s.Statistics.DurationMilliSecondsCount++
 
 	s.Logger.DebugWith("Shell executed",
