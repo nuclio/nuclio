@@ -43,7 +43,7 @@ import (
 //
 
 const (
-	defaultWorkerAvailabilityTimeout = int(10 * time.Second)
+	defaultWorkerAvailabilityTimeoutMilliseconds = 10000 // 10 seconds
 )
 
 type Platform struct {
@@ -210,7 +210,7 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 
 	ap.enrichMinMaxReplicas(createFunctionOptions)
 
-	ap.enrichTriggerSpec(createFunctionOptions)
+	ap.enrichTrigges(createFunctionOptions)
 
 	return nil
 }
@@ -822,13 +822,17 @@ func (ap *Platform) enrichMinMaxReplicas(createFunctionOptions *platform.CreateF
 	}
 }
 
-func (ap *Platform) enrichTriggerSpec(createFunctionOptions *platform.CreateFunctionOptions) {
+func (ap *Platform) enrichTrigges(createFunctionOptions *platform.CreateFunctionOptions) {
 	for _, _trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
 
 		// set default worker availability timeout if not passed or is negative
 		if _trigger.WorkerAvailabilityTimeoutMilliseconds == nil || *_trigger.WorkerAvailabilityTimeoutMilliseconds < 0 {
-			workerAvailabilityTimeout := defaultWorkerAvailabilityTimeout
-			_trigger.WorkerAvailabilityTimeoutMilliseconds = &workerAvailabilityTimeout
+			ap.Logger.InfoWith("Setting default worker availability timeout",
+				"defaultWorkerAvailabilityTimeoutMilliseconds",
+				defaultWorkerAvailabilityTimeoutMilliseconds)
+
+			workerAvailabilityTimeoutMilliseconds := defaultWorkerAvailabilityTimeoutMilliseconds
+			_trigger.WorkerAvailabilityTimeoutMilliseconds = &workerAvailabilityTimeoutMilliseconds
 		}
 	}
 }
