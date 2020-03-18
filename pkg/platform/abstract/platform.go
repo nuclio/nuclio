@@ -823,7 +823,7 @@ func (ap *Platform) enrichMinMaxReplicas(createFunctionOptions *platform.CreateF
 }
 
 func (ap *Platform) enrichTrigges(createFunctionOptions *platform.CreateFunctionOptions) {
-	for _, _trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
+	for triggerName, _trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
 
 		// set default worker availability timeout if not passed or is negative
 		if _trigger.WorkerAvailabilityTimeoutMilliseconds == nil || *_trigger.WorkerAvailabilityTimeoutMilliseconds < 0 {
@@ -834,5 +834,7 @@ func (ap *Platform) enrichTrigges(createFunctionOptions *platform.CreateFunction
 			workerAvailabilityTimeoutMilliseconds := defaultWorkerAvailabilityTimeoutMilliseconds
 			_trigger.WorkerAvailabilityTimeoutMilliseconds = &workerAvailabilityTimeoutMilliseconds
 		}
+
+		createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName] = _trigger
 	}
 }
