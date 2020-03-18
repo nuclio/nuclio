@@ -72,7 +72,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | triggers.(name).kind | string | The trigger type (kind) - `cron` \| `eventhub` \| `http` \| `kafka-cluster` \| `kinesis` \| `nats` \| `rabbitmq` |
 | triggers.(name).url | string | The trigger specific URL (not used by all triggers) |
 | triggers.(name).annotations | list of strings | Annotations to be assigned to the trigger, if applicable |
-| triggers.(name).workerAvailabilityTimeoutMilliseconds | int | The number of milliseconds to wait for a worker if one is not available. 0 = never wait |
+| triggers.(name).workerAvailabilityTimeoutMilliseconds | int | The number of milliseconds to wait for a worker if one is not available. 0 = never wait (default: 10000, which is 10 seconds)|
 | triggers.(name).attributes | See [reference](/docs/reference/triggers) | The per-trigger attributes |
 | <a id="spec.build.path"></a>build.path | string | The URL of a GitHub repository or an archive-file that contains the function code &mdash; for the `github` or `archive` [code-entry type](#spec.build.codeEntryType) &mdash; or the URL of a function source-code file; see [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md) |
 | <a id="spec.build.functionSourceCode"></a>build.functionSourceCode | string | Base-64 encoded function source code for the `sourceCode` [code-entry type](#spec.build.codeEntryType); see [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md#code-entry-type-sourcecode) |

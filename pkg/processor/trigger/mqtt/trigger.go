@@ -187,7 +187,7 @@ func (t *AbstractTrigger) allocateWorker(message mqttclient.Message) (*worker.Wo
 		workerAllocator = t.WorkerAllocator
 	}
 
-	workerAvailabilityTimeout := time.Duration(t.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond
+	workerAvailabilityTimeout := time.Duration(*t.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond
 
 	// try to allocate the worker
 	workerInstance, err := workerAllocator.Allocate(workerAvailabilityTimeout)

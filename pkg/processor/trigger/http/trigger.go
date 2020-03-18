@@ -250,7 +250,7 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 
 	response, timedOut, submitError, processError := h.AllocateWorkerAndSubmitEvent(ctx,
 		functionLogger,
-		time.Duration(h.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond)
+		time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond)
 
 	if timedOut {
 		return

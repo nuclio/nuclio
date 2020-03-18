@@ -51,7 +51,7 @@ func (suite *workerWaitTestSuite) deploySleeperWithTimeout(workerAvailabilityTim
 		"http": {
 			Kind:                                  "http",
 			MaxWorkers:                            1,
-			WorkerAvailabilityTimeoutMilliseconds: workerAvailabilityTimeoutMilliseconds,
+			WorkerAvailabilityTimeoutMilliseconds: &workerAvailabilityTimeoutMilliseconds,
 		},
 	}
 
