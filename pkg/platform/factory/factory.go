@@ -73,7 +73,7 @@ func CreatePlatform(parentLogger logger.Logger,
 	}
 
 	if err != nil {
-		return nil, errors.Errorf("Failed to create %s platform", platformType)
+		return nil, errors.Wrapf(err, "Failed to create %s platform", platformType)
 	}
 
 	if err = ensureDefaultProjectExistence(parentLogger, newPlatform, defaultNamespace); err != nil {
