@@ -21,7 +21,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
@@ -58,6 +60,25 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 		"scaleResources":          scaleResources,
 	}
 
+	one := 1
+	defaultWorkerAvailabilityTimeoutMilliseconds := trigger.DefaultWorkerAvailabilityTimeoutMilliseconds
+	defaultFunctionSpec := functionconfig.Spec{
+		MinReplicas: &one,
+		MaxReplicas: &one,
+		ReadinessTimeoutSeconds: abstract.DefaultReadinessTimeoutSeconds,
+		Triggers: map[string]functionconfig.Trigger{
+
+			// notice that this is a mapping between trigger kind and its default values
+			"http": {
+				WorkerAvailabilityTimeoutMilliseconds: &defaultWorkerAvailabilityTimeoutMilliseconds,
+			},
+			"cron": {
+				WorkerAvailabilityTimeoutMilliseconds: &defaultWorkerAvailabilityTimeoutMilliseconds,
+			},
+		},
+	}
+
+
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
 			"externalIPAddresses":            externalIPAddresses,
@@ -65,6 +86,7 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 			"defaultHTTPIngressHostTemplate": fesr.getPlatform().GetDefaultHTTPIngressHostTemplate(),
 			"imageNamePrefixTemplate":        fesr.getPlatform().GetImageNamePrefixTemplate(),
 			"scaleToZero":                    scaleToZeroAttribute,
+			"defaultFunctionConfig":          functionconfig.Config{Spec: defaultFunctionSpec},
 		},
 	}
 
