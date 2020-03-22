@@ -6,7 +6,7 @@ import (
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
-	apps_v1beta1 "k8s.io/api/apps/v1beta1"
+	apps_v1 "k8s.io/api/apps/v1"
 	autos_v2 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
@@ -43,7 +43,7 @@ type Client interface {
 type Resources interface {
 
 	// Deployment returns the deployment
-	Deployment() (*apps_v1beta1.Deployment, error)
+	Deployment() (*apps_v1.Deployment, error)
 
 	// ConfigMap returns the configmap
 	ConfigMap() (*v1.ConfigMap, error)

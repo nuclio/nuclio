@@ -17,6 +17,7 @@ limitations under the License.
 package functionres
 
 import (
+	"k8s.io/api/apps/v1beta1"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -26,7 +27,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
-	"k8s.io/api/apps/v1beta1"
+	apps_v1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -263,8 +264,8 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 					},
 					functionconfig.Config{},
 					platformconfig.Kubernetes{
-						Deployment: &v1beta1.Deployment{
-							Spec: v1beta1.DeploymentSpec{
+						Deployment: &apps_v1.Deployment{
+							Spec: apps_v1.DeploymentSpec{
 								Paused: true,
 							},
 						},
@@ -278,8 +279,8 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 					},
 					functionconfig.Config{},
 					platformconfig.Kubernetes{
-						Deployment: &v1beta1.Deployment{
-							Spec: v1beta1.DeploymentSpec{
+						Deployment: &apps_v1.Deployment{
+							Spec: apps_v1.DeploymentSpec{
 								Template: v1.PodTemplateSpec{
 									Spec: v1.PodSpec{
 										ServiceAccountName: "pleasedont",
@@ -293,10 +294,10 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 					meta_v1.LabelSelector{},
 					functionconfig.Config{},
 					platformconfig.Kubernetes{
-						Deployment: &v1beta1.Deployment{
-							Spec: v1beta1.DeploymentSpec{
-								Strategy: v1beta1.DeploymentStrategy{
-									Type:          v1beta1.RecreateDeploymentStrategyType,
+						Deployment: &apps_v1.Deployment{
+							Spec: apps_v1.DeploymentSpec{
+								Strategy: apps_v1.DeploymentStrategy{
+									Type:          apps_v1.RecreateDeploymentStrategyType,
 									RollingUpdate: nil,
 								},
 							},
@@ -314,7 +315,7 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 		"nuclio.io/class": "apply-me",
 	}
 
-	deployment := v1beta1.Deployment{}
+	deployment := apps_v1.Deployment{}
 	err := suite.client.enrichDeploymentFromPlatformConfiguration(&functionInstance,
 		&deployment,
 		updateDeploymentResourceMethod)
