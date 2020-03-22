@@ -25,6 +25,7 @@ RUN go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/logger \
     && go get github.com/nuclio/nuclio-sdk-go \
     && go get github.com/nuclio/amqp \
+    && go get golang.org/x/net/... \
     && go get github.com/v3io/scaler-types \
     && cd $GOPATH/src/github.com/v3io/scaler-types \
     && git checkout v1.5.0 \
@@ -55,6 +56,8 @@ COPY --from=processor /go/src/github.com/v3io/v3io-go-http /go/src/github.com/v3
 COPY --from=processor /go/src/github.com/nuclio/logger /go/src/github.com/nuclio/logger
 COPY --from=processor /go/src/github.com/nuclio/nuclio-sdk-go /go/src/github.com/nuclio/nuclio-sdk-go
 COPY --from=processor /go/src/github.com/nuclio/amqp /go/src/github.com/nuclio/amqp
+COPY --from=processor /go/src/github.com/v3io/scaler-types /go/src/github.com/v3io/scaler-types
+COPY --from=processor /go/src/golang.org/x/net /go/src/golang.org/x/net
 
 # This script builds the processor
 COPY pkg/processor/build/runtime/golang/docker/onbuild/build-handler.sh /

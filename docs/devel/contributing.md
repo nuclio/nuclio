@@ -38,7 +38,7 @@ cd $GOPATH/src/github.com/nuclio/nuclio && git checkout development
 Now, use `go get` to get some dependencies that are injected into functions and cannot be vendored:
 
 ```sh
-go get github.com/v3io/v3io-go-http/... && go get github.com/nuclio/logger/... && go get github.com/nuclio/nuclio-sdk-go/... && go get github.com/nuclio/amqp/... && go get github.com/v3io/scaler-types/... && cd $GOPATH/src/github.com/v3io/scaler-types && git checkout v1.5.0 && cd $GOPATH/src/github.com/nuclio/nuclio
+go get github.com/v3io/v3io-go-http/... && go get github.com/nuclio/logger/... && go get github.com/nuclio/nuclio-sdk-go/... && go get github.com/nuclio/amqp/... && go get golang.org/x/net/... && go get github.com/v3io/scaler-types/... && cd $GOPATH/src/github.com/v3io/scaler-types && git checkout v1.5.0 && cd $GOPATH/src/github.com/nuclio/nuclio
 ```
 
 Build Nuclio artifacts (`nuctl`, container images):
