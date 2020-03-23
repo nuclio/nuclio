@@ -100,7 +100,6 @@ helm install \
     --set registry.pushPullUrl=localhost:5000 \
 	--set controller.image.tag=latest-amd64 \
 	--set dashboard.image.tag=latest-amd64 \
-	--set controller.baseImagePullPolicy=Never \
 	--set dashboard.baseImagePullPolicy=Never \
 	.
 ```
