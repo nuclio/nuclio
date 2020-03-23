@@ -59,6 +59,7 @@ const (
 	containerMetricPortName       = "metrics"
 	nvidiaGpuResourceName         = "nvidia.com/gpu"
 	nginxIngressUpdateGracePeriod = 5 * time.Second
+	DefaultTargetCPU              = 75
 )
 
 type deploymentResourceMethod string
@@ -771,7 +772,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 
 	targetCPU := int32(function.Spec.TargetCPU)
 	if targetCPU == 0 {
-		targetCPU = 75
+		targetCPU = DefaultTargetCPU
 	}
 
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
