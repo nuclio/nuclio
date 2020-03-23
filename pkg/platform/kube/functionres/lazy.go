@@ -155,11 +155,11 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 
 	// set a few constants
 	functionLabels["nuclio.io/function-name"] = function.Name
+	functionLabels["nuclio.io/function-version"] = "latest"
 
 	// TODO: remove when versioning is back in
 	function.Spec.Version = -1
 	function.Spec.Alias = "latest"
-	functionLabels["nuclio.io/function-version"] = "latest"
 
 	resources := lazyResources{}
 
@@ -562,6 +562,15 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		container.VolumeMounts = volumeMounts
 
 		deploymentSpec := apps_v1.DeploymentSpec{
+			Selector: &meta_v1.LabelSelector{
+				MatchLabels: map[string]string{
+					"nuclio.io/app": "functionres",
+					"nuclio.io/class": "function",
+					"nuclio.io/function-name": function.Name,
+					"nuclio.io/project-name": function.Labels["nuclio.io/project-name"],
+					"nuclio.io/function-version": "latest",
+				},
+			},
 			Replicas: replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
