@@ -18,11 +18,11 @@ package controller
 
 import (
 	"context"
-	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"

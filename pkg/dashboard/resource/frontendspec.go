@@ -80,7 +80,6 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 		},
 	}
 
-
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
 			"externalIPAddresses":            externalIPAddresses,
