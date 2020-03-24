@@ -61,6 +61,28 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 		"scaleResources":          scaleResources,
 	}
 
+	defaultFunctionConfig := fesr.getDefaultFunctionConfig()
+
+	frontendSpec := map[string]restful.Attributes{
+		"frontendSpec": { // frontendSpec is the ID of this singleton resource
+			"externalIPAddresses":            externalIPAddresses,
+			"namespace":                      fesr.getNamespaceOrDefault(""),
+			"defaultHTTPIngressHostTemplate": fesr.getPlatform().GetDefaultHTTPIngressHostTemplate(),
+			"imageNamePrefixTemplate":        fesr.getPlatform().GetImageNamePrefixTemplate(),
+			"scaleToZero":                    scaleToZeroAttribute,
+			"defaultFunctionConfig":          defaultFunctionConfig,
+		},
+	}
+
+	return &restful.CustomRouteFuncResponse{
+		Single:     true,
+		StatusCode: http.StatusOK,
+		Resources:  frontendSpec,
+		Headers:    map[string]string{"Content-Type": "application/json"},
+	}, nil
+}
+
+func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface{} {
 	one := 1
 	defaultWorkerAvailabilityTimeoutMilliseconds := trigger.DefaultWorkerAvailabilityTimeoutMilliseconds
 	defaultFunctionSpec := functionconfig.Spec{
@@ -80,23 +102,7 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 		},
 	}
 
-	frontendSpec := map[string]restful.Attributes{
-		"frontendSpec": { // frontendSpec is the ID of this singleton resource
-			"externalIPAddresses":            externalIPAddresses,
-			"namespace":                      fesr.getNamespaceOrDefault(""),
-			"defaultHTTPIngressHostTemplate": fesr.getPlatform().GetDefaultHTTPIngressHostTemplate(),
-			"imageNamePrefixTemplate":        fesr.getPlatform().GetImageNamePrefixTemplate(),
-			"scaleToZero":                    scaleToZeroAttribute,
-			"defaultFunctionConfig":          map[string]interface{}{"attributes": functionconfig.Config{Spec: defaultFunctionSpec}},
-		},
-	}
-
-	return &restful.CustomRouteFuncResponse{
-		Single:     true,
-		StatusCode: http.StatusOK,
-		Resources:  frontendSpec,
-		Headers:    map[string]string{"Content-Type": "application/json"},
-	}, nil
+	return map[string]interface{}{"attributes": functionconfig.Config{Spec: defaultFunctionSpec}}
 }
 
 // returns a list of custom routes for the resource

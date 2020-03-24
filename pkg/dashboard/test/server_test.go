@@ -1681,21 +1681,57 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 
 	expectedStatusCode := http.StatusOK
 	expectedResponseBody := `{
-		"externalIPAddresses":            	["address1", "address2", "address3"],
-		"defaultHTTPIngressHostTemplate":	"{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
-		"imageNamePrefixTemplate":	"{{ .ProjectName }}-{{ .FunctionName }}-",
-		"namespace":                      	"",
-		"scaleToZero":						{
-			"mode": "enabled",
-			"inactivityWindowPresets": ["1m", "2m"],
-			"scaleResources": [
-				{
-					"metricName": "metric_name",
-					"windowSize": "1m",
-					"threshold": 0
-				}
-			]
-		}
+    "defaultFunctionConfig": {
+        "attributes": {
+            "metadata": {},
+            "spec": {
+                "resources": {},
+                "minReplicas": 1,
+                "maxReplicas": 1,
+                "targetCPU": 75,
+                "triggers": {
+                    "cron": {
+                        "class": "",
+                        "kind": "",
+                        "name": "",
+                        "workerAvailabilityTimeoutMilliseconds": 10000
+                    },
+                    "http": {
+                        "class": "",
+                        "kind": "",
+                        "name": "",
+                        "workerAvailabilityTimeoutMilliseconds": 10000
+                    }
+                },
+                "build": {},
+                "platform": {},
+                "readinessTimeoutSeconds": 60,
+                "eventTimeout": ""
+            }
+        }
+    },
+    "defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
+    "externalIPAddresses": [
+        "address1",
+        "address2",
+        "address3"
+    ],
+    "imageNamePrefixTemplate": "{{ .ProjectName }}-{{ .FunctionName }}-",
+    "namespace": "",
+    "scaleToZero": {
+        "inactivityWindowPresets": [
+            "1m",
+            "2m"
+        ],
+        "mode": "enabled",
+        "scaleResources": [
+            {
+                "metricName": "metric_name",
+                "windowSize": "1m",
+                "threshold": 0
+            }
+        ]
+    }
 }`
 
 	suite.sendRequest("GET",
