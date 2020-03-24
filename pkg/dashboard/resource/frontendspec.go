@@ -64,10 +64,10 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 	one := 1
 	defaultWorkerAvailabilityTimeoutMilliseconds := trigger.DefaultWorkerAvailabilityTimeoutMilliseconds
 	defaultFunctionSpec := functionconfig.Spec{
-		MinReplicas: &one,
-		MaxReplicas: &one,
+		MinReplicas:             &one,
+		MaxReplicas:             &one,
 		ReadinessTimeoutSeconds: abstract.DefaultReadinessTimeoutSeconds,
-		TargetCPU: functionres.DefaultTargetCPU,
+		TargetCPU:               functionres.DefaultTargetCPU,
 		Triggers: map[string]functionconfig.Trigger{
 
 			// notice that this is a mapping between trigger kind and its default values
