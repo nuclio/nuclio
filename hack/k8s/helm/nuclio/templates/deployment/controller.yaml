@@ -24,16 +24,16 @@ spec:
       app: {{ template "nuclio.nuclioName" . }}
       release: {{ .Release.Name }}
       nuclio.io/app: controller
-      nuclio.io/name: {{ template "nuclio.controllerName" . }}
       nuclio.io/class: service
+      nuclio.io/name: {{ template "nuclio.controllerName" . }}
   template:
     metadata:
       labels:
         app: {{ template "nuclio.nuclioName" . }}
         release: {{ .Release.Name }}
         nuclio.io/app: controller
-        nuclio.io/name: {{ template "nuclio.controllerName" . }}
         nuclio.io/class: service
+        nuclio.io/name: {{ template "nuclio.controllerName" . }}
       annotations:
         nuclio.io/version: {{ .Values.controller.image.tag }}
     spec:
