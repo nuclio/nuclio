@@ -24,16 +24,16 @@ spec:
       app: {{ template "nuclio.nuclioName" . }}
       release: {{ .Release.Name }}
       nuclio.io/app: autoscaler
-      nuclio.io/class: service
       nuclio.io/name: {{ template "nuclio.scalerName" . }}
+      nuclio.io/class: service
   template:
     metadata:
       labels:
         app: {{ template "nuclio.nuclioName" . }}
         release: {{ .Release.Name }}
         nuclio.io/app: autoscaler
-        nuclio.io/class: service
         nuclio.io/name: {{ template "nuclio.scalerName" . }}
+        nuclio.io/class: service
       annotations:
         nuclio.io/version: {{ .Values.autoscaler.image.tag }}
     spec:

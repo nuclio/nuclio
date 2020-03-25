@@ -24,16 +24,16 @@ spec:
       app: {{ template "nuclio.nuclioName" . }}
       release: {{ .Release.Name }}
       nuclio.io/app: dlx
-      nuclio.io/class: service
       nuclio.io/name: {{ template "nuclio.dlxName" . }}
+      nuclio.io/class: service
   template:
     metadata:
       labels:
         app: {{ template "nuclio.nuclioName" . }}
         release: {{ .Release.Name }}
         nuclio.io/app: dlx
-        nuclio.io/class: service
         nuclio.io/name: {{ template "nuclio.dlxName" . }}
+        nuclio.io/class: service
       annotations:
         nuclio.io/version: {{ .Values.dlx.image.tag }}
     spec:
