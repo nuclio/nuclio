@@ -17,7 +17,6 @@ limitations under the License.
 package functionres
 
 import (
-	"k8s.io/api/apps/v1beta1"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -319,7 +318,7 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 	err := suite.client.enrichDeploymentFromPlatformConfiguration(&functionInstance,
 		&deployment,
 		updateDeploymentResourceMethod)
-	suite.Equal(deployment.Spec.Strategy.Type, v1beta1.RecreateDeploymentStrategyType)
+	suite.Equal(deployment.Spec.Strategy.Type, apps_v1.RecreateDeploymentStrategyType)
 	suite.True(deployment.Spec.Paused)
 	suite.Equal(deployment.Spec.Template.Spec.ServiceAccountName, "")
 	suite.Require().NoError(err)
