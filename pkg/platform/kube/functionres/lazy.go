@@ -559,11 +559,11 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		method := createDeploymentResourceMethod
 		container := v1.Container{Name: "nuclio"}
 		lc.populateDeploymentContainer(functionLabels, function, &container)
-		deploymentSelectors := lc.compileDeploymentSelectors(function)
+		deploymentLabelSelectors := lc.compileDeploymentLabelSelectors(function)
 		container.VolumeMounts = volumeMounts
 
 		deploymentSpec := apps_v1.DeploymentSpec{
-			Selector: deploymentSelectors,
+			Selector: deploymentLabelSelectors,
 			Replicas: replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
@@ -1399,7 +1399,7 @@ func (lc *lazyClient) configMapNameFromFunctionName(functionName string) string 
 	return functionName
 }
 
-func (lc *lazyClient) compileDeploymentSelectors(function *nuclioio.NuclioFunction) *meta_v1.LabelSelector {
+func (lc *lazyClient) compileDeploymentLabelSelectors(function *nuclioio.NuclioFunction) *meta_v1.LabelSelector {
 	labelSelector := meta_v1.LabelSelector{
 		MatchLabels: map[string]string{},
 	}
