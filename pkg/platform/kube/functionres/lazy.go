@@ -40,7 +40,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"golang.org/x/sync/errgroup"
-	apps_v1beta1 "k8s.io/api/apps/v1beta1"
+	apps_v1 "k8s.io/api/apps/v1"
 	autos_v2 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
@@ -101,7 +101,7 @@ func (lc *lazyClient) List(ctx context.Context, namespace string) ([]Resources, 
 		LabelSelector: "nuclio.io/class=function",
 	}
 
-	result, err := lc.kubeClientSet.AppsV1beta1().Deployments(namespace).List(listOptions)
+	result, err := lc.kubeClientSet.AppsV1().Deployments(namespace).List(listOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list deployments")
 	}
@@ -123,9 +123,9 @@ func (lc *lazyClient) List(ctx context.Context, namespace string) ([]Resources, 
 }
 
 func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (Resources, error) {
-	var result *apps_v1beta1.Deployment
+	var result *apps_v1.Deployment
 
-	result, err := lc.kubeClientSet.AppsV1beta1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
+	result, err := lc.kubeClientSet.AppsV1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
 	lc.logger.DebugWith("Got deployment",
 		"namespace", namespace,
 		"name", name,
@@ -247,7 +247,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 		}
 
 		// get the deployment. if it doesn't exist yet, retry a bit later
-		result, err := lc.kubeClientSet.AppsV1beta1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
+		result, err := lc.kubeClientSet.AppsV1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
 		if err != nil {
 			continue
 		}
@@ -257,7 +257,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 
 			// when we find the right condition, check its Status to see if it's true.
 			// a DeploymentCondition whose Type == Available and Status == True means the deployment is available
-			if deploymentCondition.Type == apps_v1beta1.DeploymentAvailable {
+			if deploymentCondition.Type == apps_v1.DeploymentAvailable {
 				available := deploymentCondition.Status == v1.ConditionTrue
 
 				if available && result.Status.UnavailableReplicas == 0 {
@@ -313,7 +313,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	}
 
 	// Delete Deployment if exists
-	err = lc.kubeClientSet.AppsV1beta1().Deployments(namespace).Delete(name, deleteOptions)
+	err = lc.kubeClientSet.AppsV1().Deployments(namespace).Delete(name, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete deployment")
@@ -521,7 +521,7 @@ func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 
 func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	imagePullSecrets string,
-	function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
+	function *nuclioio.NuclioFunction) (*apps_v1.Deployment, error) {
 
 	// to make sure the pod re-pulls the image, we need to specify a unique string here
 	podAnnotations, err := lc.getPodAnnotations(function)
@@ -544,11 +544,11 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	volumes, volumeMounts := lc.getFunctionVolumeAndMounts(function)
 
 	getDeployment := func() (interface{}, error) {
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+		return lc.kubeClientSet.AppsV1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	}
 
 	deploymentIsDeleting := func(resource interface{}) bool {
-		return (resource).(*apps_v1beta1.Deployment).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*apps_v1.Deployment).ObjectMeta.DeletionTimestamp != nil
 	}
 
 	if function.Spec.ImagePullSecrets != "" {
@@ -561,7 +561,10 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		lc.populateDeploymentContainer(functionLabels, function, &container)
 		container.VolumeMounts = volumeMounts
 
-		deploymentSpec := apps_v1beta1.DeploymentSpec{
+		deploymentSpec := apps_v1.DeploymentSpec{
+			Selector: &meta_v1.LabelSelector{
+				MatchLabels: functionLabels,
+			},
 			Replicas: replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
@@ -583,7 +586,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			},
 		}
 
-		deployment := &apps_v1beta1.Deployment{
+		deployment := &apps_v1.Deployment{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:        function.Name,
 				Namespace:   function.Namespace,
@@ -597,11 +600,11 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment, method); err != nil {
 			return nil, err
 		}
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(deployment)
+		return lc.kubeClientSet.AppsV1().Deployments(function.Namespace).Create(deployment)
 	}
 
 	updateDeployment := func(resource interface{}) (interface{}, error) {
-		deployment := resource.(*apps_v1beta1.Deployment)
+		deployment := resource.(*apps_v1.Deployment)
 		method := updateDeploymentResourceMethod
 
 		// If we got nil replicas it means leave as is (in order to prevent unwanted scale down)
@@ -644,7 +647,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			return nil, err
 		}
 
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
+		return lc.kubeClientSet.AppsV1().Deployments(function.Namespace).Update(deployment)
 	}
 
 	resource, err := lc.createOrUpdateResource("deployment",
@@ -657,10 +660,10 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		return nil, err
 	}
 
-	return resource.(*apps_v1beta1.Deployment), err
+	return resource.(*apps_v1.Deployment), err
 }
 
-func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunction) apps_v1beta1.DeploymentStrategyType {
+func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunction) apps_v1.DeploymentStrategyType {
 
 	// Since k8s (ATM) does not support rolling update for GPU
 	// redeploying a Nuclio function will get stuck if no GPU is available
@@ -670,16 +673,16 @@ func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunctio
 
 		// requested a gpu resource, change to recreate
 		if !gpuResource.IsZero() {
-			return apps_v1beta1.RecreateDeploymentStrategyType
+			return apps_v1.RecreateDeploymentStrategyType
 		}
 	}
 
 	// no gpu resources requested, set to rollingUpdate (default)
-	return apps_v1beta1.RollingUpdateDeploymentStrategyType
+	return apps_v1.RollingUpdateDeploymentStrategyType
 }
 
 func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclioio.NuclioFunction,
-	deployment *apps_v1beta1.Deployment, method deploymentResourceMethod) error {
+	deployment *apps_v1.Deployment, method deploymentResourceMethod) error {
 	var allowSetDeploymentStrategy = true
 
 	// get deployment augmented configurations
@@ -715,8 +718,8 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 
 				// if current strategy is rolling update, in order to change it to `Recreate`
 				// we must remove `rollingUpdate` field
-				if deployment.Spec.Strategy.Type == apps_v1beta1.RollingUpdateDeploymentStrategyType &&
-					newDeploymentStrategyType == apps_v1beta1.RecreateDeploymentStrategyType {
+				if deployment.Spec.Strategy.Type == apps_v1.RollingUpdateDeploymentStrategyType &&
+					newDeploymentStrategyType == apps_v1.RecreateDeploymentStrategyType {
 					deployment.Spec.Strategy.RollingUpdate = nil
 				}
 				deployment.Spec.Strategy.Type = newDeploymentStrategyType
@@ -804,7 +807,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 				MaxReplicas: maxReplicas,
 				Metrics:     metricSpecs,
 				ScaleTargetRef: autos_v2.CrossVersionObjectReference{
-					APIVersion: "apps/apps_v1beta1",
+					APIVersion: "apps/apps_v1",
 					Kind:       "Deployment",
 					Name:       function.Name,
 				},
@@ -1580,7 +1583,7 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 
 type lazyResources struct {
 	logger                  logger.Logger
-	deployment              *apps_v1beta1.Deployment
+	deployment              *apps_v1.Deployment
 	configMap               *v1.ConfigMap
 	service                 *v1.Service
 	horizontalPodAutoscaler *autos_v2.HorizontalPodAutoscaler
@@ -1588,7 +1591,7 @@ type lazyResources struct {
 }
 
 // Deployment returns the deployment
-func (lr *lazyResources) Deployment() (*apps_v1beta1.Deployment, error) {
+func (lr *lazyResources) Deployment() (*apps_v1.Deployment, error) {
 	return lr.deployment, nil
 }
 

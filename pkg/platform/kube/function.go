@@ -26,7 +26,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"k8s.io/api/apps/v1beta1"
+	apps_v1 "k8s.io/api/apps/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -78,7 +78,7 @@ func newFunction(parentLogger logger.Logger,
 
 // Initialize loads sub-resources so we can populate our configuration
 func (f *function) Initialize([]string) error {
-	var deployment *v1beta1.Deployment
+	var deployment *apps_v1.Deployment
 	var ingress *ext_v1beta1.Ingress
 	var deploymentErr, ingressErr error
 
@@ -90,7 +90,7 @@ func (f *function) Initialize([]string) error {
 	// get deployment info
 	go func() {
 		if deployment == nil {
-			deployment, deploymentErr = f.consumer.kubeClientSet.AppsV1beta1().
+			deployment, deploymentErr = f.consumer.kubeClientSet.AppsV1().
 				Deployments(f.Config.Meta.Namespace).
 				Get(f.Config.Meta.Name, meta_v1.GetOptions{})
 		}
