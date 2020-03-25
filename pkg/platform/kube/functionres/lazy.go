@@ -559,11 +559,12 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		method := createDeploymentResourceMethod
 		container := v1.Container{Name: "nuclio"}
 		lc.populateDeploymentContainer(functionLabels, function, &container)
-		deploymentLabelSelectors := lc.compileDeploymentLabelSelectors(function)
 		container.VolumeMounts = volumeMounts
 
 		deploymentSpec := apps_v1.DeploymentSpec{
-			Selector: deploymentLabelSelectors,
+			Selector: &meta_v1.LabelSelector{
+				MatchLabels: functionLabels,
+			},
 			Replicas: replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
@@ -1397,27 +1398,6 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 
 func (lc *lazyClient) configMapNameFromFunctionName(functionName string) string {
 	return functionName
-}
-
-func (lc *lazyClient) compileDeploymentLabelSelectors(function *nuclioio.NuclioFunction) *meta_v1.LabelSelector {
-	labelSelector := meta_v1.LabelSelector{
-		MatchLabels: map[string]string{},
-	}
-
-	// take class-level labels
-	for labelKey, labelValue := range lc.classLabels {
-		labelSelector.MatchLabels[labelKey] = labelValue
-	}
-
-	// take function-level labels
-	for _, labelName := range []string{
-		"nuclio.io/function-name",
-		"nuclio.io/project-name",
-	} {
-		labelSelector.MatchLabels[labelName] = function.Labels[labelName]
-	}
-
-	return &labelSelector
 }
 
 func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFunction) ([]v1.Volume, []v1.VolumeMount) {
