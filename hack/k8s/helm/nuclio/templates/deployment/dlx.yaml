@@ -13,12 +13,19 @@
 # limitations under the License.
 
 {{- if .Values.dlx.enabled }}
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "nuclio.dlxName" . }}
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "nuclio.nuclioName" . }}
+      release: {{ .Release.Name }}
+      nuclio.io/app: dlx
+      nuclio.io/class: service
+      nuclio.io/name: {{ template "nuclio.dlxName" . }}
   template:
     metadata:
       labels:
