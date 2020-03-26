@@ -1,3 +1,9 @@
+*
+!pkg
+!cmd
+!test
+!vendor
+
 pkg/dashboard/ui/node_modules
 pkg/dashboard/ui/vendor
 pkg/dashboard/ui/dist
