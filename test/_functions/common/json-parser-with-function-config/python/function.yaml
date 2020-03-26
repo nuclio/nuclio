@@ -16,8 +16,14 @@ metadata:
   name: parser
 spec:
   runtime: python
+  minReplicas: 1
+  maxReplicas: 8
   handler: parser:handler
   build:
     commands:
       - pip install simplejson
-
+  triggers:
+    api:
+      kind: http
+      workerAvailabilityTimeoutMilliseconds: 200
+      maxWorkers: 1
