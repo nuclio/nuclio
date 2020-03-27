@@ -173,7 +173,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		return false
 	}
 
-	suite.Require().NoError(err, "Failed to send request, message: %s", err.Error())
+	suite.Require().NoError(err, "Failed to send request")
 
 	if request.ExpectedResponseStatusCode != nil {
 		suite.Require().Equal(*request.ExpectedResponseStatusCode,
