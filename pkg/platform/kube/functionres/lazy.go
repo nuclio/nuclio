@@ -1397,7 +1397,7 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 }
 
 func (lc *lazyClient) configMapNameFromFunctionName(functionName string) string {
-	return functionName
+	return fmt.Sprintf("nucliofunction-%s", functionName)
 }
 
 func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFunction) ([]v1.Volume, []v1.VolumeMount) {
@@ -1469,9 +1469,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 			}
 		}
 
-		lc.logger.DebugWith("Adding volume",
-			"configVolume",
-			configVolume)
+		lc.logger.DebugWith("Adding volume", "configVolume", configVolume)
 
 		volumes = append(volumes, configVolume.Volume)
 		volumeMounts = append(volumeMounts, configVolume.VolumeMount)
