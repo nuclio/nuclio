@@ -646,7 +646,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, string, erro
 	}
 
 	// when no code entry type was passed and it's an archive or jar
-	if codeEntryType == "" && (util.IsCompressed(resolvedPath) || util.IsJar(resolvedPath)) {
+	if codeEntryType == "" && (util.IsCompressed(resolvedPath) || util.IsJar(resolvedPath) || common.IsDir(resolvedPath)) {
 
 		// if it's a URL, set it as an archive code entry type, otherwise save the built image so it'll be possible to redeploy
 		if isURL {
