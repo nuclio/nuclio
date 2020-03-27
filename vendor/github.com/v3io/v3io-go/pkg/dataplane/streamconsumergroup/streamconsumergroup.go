@@ -88,7 +88,7 @@ func (scg *streamConsumerGroup) getTotalNumberOfShards() (int, error) {
 }
 
 func (scg *streamConsumerGroup) setState(modifier stateModifier) (*State, error) {
-	var modifiedState *State
+	var previousState, modifiedState *State
 
 	backoff := scg.config.State.ModifyRetry.Backoff
 	attempts := scg.config.State.ModifyRetry.Attempts
@@ -107,7 +107,7 @@ func (scg *streamConsumerGroup) setState(modifier stateModifier) (*State, error)
 		}
 
 		// for logging
-		previousState := state.deepCopy()
+		previousState = state.deepCopy()
 
 		modifiedState, err = modifier(state)
 		if err != nil {
@@ -130,7 +130,7 @@ func (scg *streamConsumerGroup) setState(modifier stateModifier) (*State, error)
 	})
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed modifying state, attempts exhausted")
+		return nil, errors.Wrapf(err, "Failed modifying state, attempts exhausted. currentState(%s)", previousState.String())
 	}
 
 	return modifiedState, nil
@@ -147,7 +147,7 @@ func (scg *streamConsumerGroup) setStateInPersistency(state *State, mtime *int) 
 		condition = fmt.Sprintf("__mtime_nsecs == %v", *mtime)
 	}
 
-	err = scg.container.UpdateItemSync(&v3io.UpdateItemInput{
+	_, err = scg.container.UpdateItemSync(&v3io.UpdateItemInput{
 		Path:      scg.getStateFilePath(),
 		Condition: condition,
 		Attributes: map[string]interface{}{
@@ -308,12 +308,13 @@ func (scg *streamConsumerGroup) setShardSequenceNumberInPersistency(shardID int,
 		return errors.Wrapf(err, "Failed getting shard path: %v", shardID)
 	}
 
-	return scg.container.UpdateItemSync(&v3io.UpdateItemInput{
+	_, err = scg.container.UpdateItemSync(&v3io.UpdateItemInput{
 		Path: shardPath,
 		Attributes: map[string]interface{}{
 			scg.getShardCommittedSequenceNumberAttributeName(): sequenceNumber,
 		},
 	})
+	return err
 }
 
 // returns true if the states are equal, ignoring heartbeat times

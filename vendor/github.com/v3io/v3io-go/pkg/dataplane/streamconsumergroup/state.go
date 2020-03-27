@@ -1,5 +1,9 @@
 package streamconsumergroup
 
+import (
+	"encoding/json"
+)
+
 type State struct {
 	SchemasVersion string          `json:"schema_version"`
 	SessionStates  []*SessionState `json:"session_states"`
@@ -10,6 +14,15 @@ func newState() (*State, error) {
 		SchemasVersion: "0.0.1",
 		SessionStates:  []*SessionState{},
 	}, nil
+}
+
+func (s *State) String() string {
+	marshalledState, err := json.Marshal(s)
+	if err != nil {
+		return err.Error()
+	}
+
+	return string(marshalledState)
 }
 
 func (s *State) deepCopy() *State {
