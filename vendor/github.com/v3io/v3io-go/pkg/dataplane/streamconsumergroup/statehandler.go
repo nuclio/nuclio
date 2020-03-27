@@ -59,6 +59,10 @@ func (sh *stateHandler) getOrCreateSessionState(memberID string) (*SessionState,
 	// wait on it
 	state := <-stateResponseChan
 
+	if state == nil {
+		return nil, errors.New("Failed to get state")
+	}
+
 	// get the member's session state
 	return sh.getSessionState(state, memberID)
 }

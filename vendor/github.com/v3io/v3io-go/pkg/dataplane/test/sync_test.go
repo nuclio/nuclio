@@ -19,6 +19,22 @@ type syncTestSuite struct {
 // Container tests
 //
 
+func (suite *syncContainerTestSuite) TestGetClusterMD() {
+	suite.containerName = "bigdata"
+
+	getClusterMDInput := v3io.GetClusterMDInput{}
+
+	// when run against a context
+	suite.populateDataPlaneInput(&getClusterMDInput.DataPlaneInput)
+
+	// get cluster md
+	response, err := suite.container.GetClusterMDSync(&getClusterMDInput)
+	suite.Require().NoError(err, "Failed to get cluster meta data")
+	getClusteMDOutput := response.Output.(*v3io.GetClusterMDOutput)
+	suite.Require().NotEqual(getClusteMDOutput.NumberOfVNs, 0)
+	response.Release()
+}
+
 type syncContainerTestSuite struct {
 	syncTestSuite
 }
@@ -359,7 +375,7 @@ func (suite *syncKVTestSuite) TestEMD() {
 		suite.populateDataPlaneInput(&input.DataPlaneInput)
 
 		// get a specific bucket
-		err := suite.container.PutItemSync(&input)
+		_, err := suite.container.PutItemSync(&input)
 		suite.Require().NoError(err, "Failed to put item")
 	}
 
@@ -381,7 +397,7 @@ func (suite *syncKVTestSuite) TestEMD() {
 	// when run against a context, will populate fields like container name
 	suite.populateDataPlaneInput(&updateItemInput.DataPlaneInput)
 
-	err := suite.container.UpdateItemSync(&updateItemInput)
+	_, err := suite.container.UpdateItemSync(&updateItemInput)
 	suite.Require().NoError(err, "Failed to update item")
 
 	// get louise
@@ -449,7 +465,7 @@ func (suite *syncKVTestSuite) TestEMD() {
 	// when run against a context, will populate fields like container name
 	suite.populateDataPlaneInput(&updateItemInput.DataPlaneInput)
 
-	err = suite.container.UpdateItemSync(&updateItemInput)
+	_, err = suite.container.UpdateItemSync(&updateItemInput)
 	suite.Require().NoError(err, "Failed to update item")
 
 	// get tina
