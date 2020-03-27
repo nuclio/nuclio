@@ -42,7 +42,6 @@ func (suite *testSuite) createContext() {
 
 	// populate fields that would have been populated by session/container
 	suite.containerName = "bigdata"
-
 	suite.url = os.Getenv("V3IO_DATAPLANE_URL")
 	username := os.Getenv("V3IO_DATAPLANE_USERNAME")
 	password := os.Getenv("V3IO_DATAPLANE_PASSWORD")
