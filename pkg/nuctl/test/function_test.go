@@ -504,7 +504,10 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
 
 	// check that the function's CET was modified to 'image'
-	err = suite.ExecuteNutcl([]string{"get", "function", functionName, "-o yaml"}, nil)
+	err = suite.ExecuteNutcl([]string{"get", "function", functionName},
+		map[string]string{
+			"output": "yaml",
+		})
 	suite.Require().NoError(err)
 	suite.Require().Contains(suite.outputBuffer.String(), "codeEntryType: image")
 
@@ -521,7 +524,6 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 
 		return err == nil
 	})
-
 	suite.Require().NoError(err)
 
 	// check that invoke printed the value
