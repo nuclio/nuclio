@@ -430,8 +430,9 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 func (lc *lazyClient) createOrUpdateConfigMap(function *nuclioio.NuclioFunction) (*v1.ConfigMap, error) {
 
 	getConfigMap := func() (interface{}, error) {
-		return lc.kubeClientSet.CoreV1().ConfigMaps(function.Namespace).Get(lc.configMapNameFromFunctionName(function.Name),
-			meta_v1.GetOptions{})
+		return lc.kubeClientSet.CoreV1().
+			ConfigMaps(function.Namespace).
+			Get(lc.configMapNameFromFunctionName(function.Name), meta_v1.GetOptions{})
 	}
 
 	configMapIsDeleting := func(resource interface{}) bool {
@@ -475,7 +476,9 @@ func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction) (*v1.Service, error) {
 
 	getService := func() (interface{}, error) {
-		return lc.kubeClientSet.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+		return lc.kubeClientSet.CoreV1().
+			Services(function.Namespace).
+			Get(lc.serviceNameFromFunctionName(function.Name), meta_v1.GetOptions{})
 	}
 
 	serviceIsDeleting := func(resource interface{}) bool {
@@ -488,7 +491,7 @@ func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 
 		return lc.kubeClientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
 			ObjectMeta: meta_v1.ObjectMeta{
-				Name:      function.Name,
+				Name:      lc.serviceNameFromFunctionName(function.Name),
 				Namespace: function.Namespace,
 				Labels:    functionLabels,
 			},
@@ -544,7 +547,9 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	volumes, volumeMounts := lc.getFunctionVolumeAndMounts(function)
 
 	getDeployment := func() (interface{}, error) {
-		return lc.kubeClientSet.AppsV1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+		return lc.kubeClientSet.AppsV1().Deployments(function.Namespace).Get(
+			lc.deploymentNameFromFunctionName(function.Name),
+			meta_v1.GetOptions{})
 	}
 
 	deploymentIsDeleting := func(resource interface{}) bool {
@@ -778,7 +783,9 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 	}
 
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
-		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,
+		return lc.kubeClientSet.AutoscalingV2beta1().
+			HorizontalPodAutoscalers(function.Namespace).
+			Get(lc.hpaNameFromFunctionName(function.Name),
 			meta_v1.GetOptions{})
 	}
 
@@ -798,7 +805,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 
 		hpa := autos_v2.HorizontalPodAutoscaler{
 			ObjectMeta: meta_v1.ObjectMeta{
-				Name:      function.Name,
+				Name:      lc.hpaNameFromFunctionName(function.Name),
 				Namespace: function.Namespace,
 				Labels:    functionLabels,
 			},
@@ -809,7 +816,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 				ScaleTargetRef: autos_v2.CrossVersionObjectReference{
 					APIVersion: "apps/apps_v1",
 					Kind:       "Deployment",
-					Name:       function.Name,
+					Name:       lc.deploymentNameFromFunctionName(function.Name),
 				},
 			},
 		}
@@ -864,7 +871,9 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction) (*ext_v1beta1.Ingress, error) {
 
 	getIngress := func() (interface{}, error) {
-		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+		return lc.kubeClientSet.ExtensionsV1beta1().
+			Ingresses(function.Namespace).
+			Get(lc.ingressNameFromFunctionName(function.Name), meta_v1.GetOptions{})
 	}
 
 	ingressIsDeleting := func(resource interface{}) bool {
@@ -873,7 +882,7 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 
 	createIngress := func() (interface{}, error) {
 		ingressMeta := meta_v1.ObjectMeta{
-			Name:      function.Name,
+			Name:      lc.ingressNameFromFunctionName(function.Name),
 			Namespace: function.Namespace,
 			Labels:    functionLabels,
 		}
@@ -955,7 +964,8 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 
 // nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
 func (lc *lazyClient) waitForNginxIngressToStabilize() {
-	lc.logger.DebugWith("Waiting for nginx ingress to stabilize", "nginxIngressUpdateGracePeriod", nginxIngressUpdateGracePeriod)
+	lc.logger.DebugWith("Waiting for nginx ingress to stabilize",
+		"nginxIngressUpdateGracePeriod", nginxIngressUpdateGracePeriod)
 	time.Sleep(nginxIngressUpdateGracePeriod)
 	lc.logger.Debug("Finished waiting for nginx ingress to stabilize")
 }
@@ -1396,7 +1406,23 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 	return nil
 }
 
+func (lc *lazyClient) deploymentNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nucliofunction-%s", functionName)
+}
+
 func (lc *lazyClient) configMapNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nucliofunction-%s", functionName)
+}
+
+func (lc *lazyClient) hpaNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nucliofunction-%s", functionName)
+}
+
+func (lc *lazyClient) ingressNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nucliofunction-%s", functionName)
+}
+
+func (lc *lazyClient) serviceNameFromFunctionName(functionName string) string {
 	return fmt.Sprintf("nucliofunction-%s", functionName)
 }
 
@@ -1496,7 +1522,9 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 
 	for _, functionEvent := range result.Items {
 		errGroup.Go(func() error {
-			err = lc.nuclioClientSet.NuclioV1beta1().NuclioFunctionEvents(namespace).Delete(functionEvent.Name, &meta_v1.DeleteOptions{})
+			err = lc.nuclioClientSet.NuclioV1beta1().
+				NuclioFunctionEvents(namespace).
+				Delete(functionEvent.Name, &meta_v1.DeleteOptions{})
 			if err != nil {
 				return errors.Wrap(err, "Failed to delete function event")
 			}
