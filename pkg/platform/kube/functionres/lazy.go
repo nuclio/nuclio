@@ -573,7 +573,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			Replicas: replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
-					Name:        function.Name,
+					Name:        lc.podNameFromFunctionName(function.Name),
 					Namespace:   function.Namespace,
 					Labels:      functionLabels,
 					Annotations: podAnnotations,
@@ -593,7 +593,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 
 		deployment := &apps_v1.Deployment{
 			ObjectMeta: meta_v1.ObjectMeta{
-				Name:        function.Name,
+				Name:        lc.deploymentNameFromFunctionName(function.Name),
 				Namespace:   function.Namespace,
 				Labels:      functionLabels,
 				Annotations: deploymentAnnotations,
@@ -844,9 +844,12 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 				PropagationPolicy: &propogationPolicy,
 			}
 
-			lc.logger.DebugWith("Deleting hpa - min replicas and max replicas are equal", "name", hpa.Name)
+			lc.logger.DebugWith("Deleting hpa - min replicas and max replicas are equal",
+				"name", hpa.Name)
 
-			err := lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
+			err := lc.kubeClientSet.AutoscalingV2beta1().
+				HorizontalPodAutoscalers(function.Namespace).
+				Delete(hpa.Name, deleteOptions)
 			return nil, err
 		}
 
@@ -898,10 +901,12 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 			return nil, nil
 		}
 
-		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Create(&ext_v1beta1.Ingress{
-			ObjectMeta: ingressMeta,
-			Spec:       ingressSpec,
-		})
+		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().
+			Ingresses(function.Namespace).
+			Create(&ext_v1beta1.Ingress{
+				ObjectMeta: ingressMeta,
+				Spec:       ingressSpec,
+			})
 		if err != nil {
 			lc.waitForNginxIngressToStabilize()
 		}
@@ -928,7 +933,9 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 					PropagationPolicy: &propogationPolicy,
 				}
 
-				err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Delete(function.Name, deleteOptions)
+				err := lc.kubeClientSet.ExtensionsV1beta1().
+					Ingresses(function.Namespace).
+					Delete(lc.ingressNameFromFunctionName(function.Name), deleteOptions)
 				return nil, err
 
 			}
@@ -1250,6 +1257,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 
 	lc.logger.DebugWith("Adding ingress",
 		"function", function.Name,
+		"ingressName", lc.ingressNameFromFunctionName(function.Name),
 		"labels", functionLabels,
 		"host", ingress.Host,
 		"paths", ingress.Paths,
@@ -1271,7 +1279,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 		httpIngressPath := ext_v1beta1.HTTPIngressPath{
 			Path: formattedPath,
 			Backend: ext_v1beta1.IngressBackend{
-				ServiceName: function.Name,
+				ServiceName: lc.serviceNameFromFunctionName(function.Name),
 				ServicePort: intstr.IntOrString{
 					Type:   intstr.String,
 					StrVal: containerHTTPPortName,
@@ -1407,6 +1415,10 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 }
 
 func (lc *lazyClient) deploymentNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nucliofunction-%s", functionName)
+}
+
+func (lc *lazyClient) podNameFromFunctionName(functionName string) string {
 	return fmt.Sprintf("nucliofunction-%s", functionName)
 }
 
