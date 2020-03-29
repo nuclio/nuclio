@@ -124,11 +124,14 @@ func (lc *lazyClient) List(ctx context.Context, namespace string) ([]Resources, 
 
 func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (Resources, error) {
 	var result *apps_v1.Deployment
-
-	result, err := lc.kubeClientSet.AppsV1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
-	lc.logger.DebugWith("Got deployment",
+	deploymentName := lc.deploymentNameFromFunctionName(name)
+	result, err := lc.kubeClientSet.AppsV1().
+		Deployments(namespace).
+		Get(deploymentName, meta_v1.GetOptions{})
+	lc.logger.DebugWithCtx(ctx,
+		"Got deployment",
 		"namespace", namespace,
-		"name", name,
+		"deploymentName", deploymentName,
 		"result", result,
 		"err", err)
 
@@ -563,9 +566,9 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	volumes, volumeMounts := lc.getFunctionVolumeAndMounts(function)
 
 	getDeployment := func() (interface{}, error) {
-		return lc.kubeClientSet.AppsV1().Deployments(function.Namespace).Get(
-			lc.deploymentNameFromFunctionName(function.Name),
-			meta_v1.GetOptions{})
+		return lc.kubeClientSet.AppsV1().
+			Deployments(function.Namespace).
+			Get(lc.deploymentNameFromFunctionName(function.Name), meta_v1.GetOptions{})
 	}
 
 	deploymentIsDeleting := func(resource interface{}) bool {
@@ -801,8 +804,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
 		return lc.kubeClientSet.AutoscalingV2beta1().
 			HorizontalPodAutoscalers(function.Namespace).
-			Get(lc.hpaNameFromFunctionName(function.Name),
-				meta_v1.GetOptions{})
+			Get(lc.hpaNameFromFunctionName(function.Name), meta_v1.GetOptions{})
 	}
 
 	horizontalPodAutoscalerIsDeleting := func(resource interface{}) bool {

@@ -78,7 +78,9 @@ func newFunction(parentLogger logger.Logger,
 
 // Initialize loads sub-resources so we can populate our configuration
 func (f *function) Initialize([]string) error {
+	var deploymentList *apps_v1.DeploymentList
 	var deployment *apps_v1.Deployment
+	var ingressList *ext_v1beta1.IngressList
 	var ingress *ext_v1beta1.Ingress
 	var deploymentErr, ingressErr error
 
@@ -87,22 +89,49 @@ func (f *function) Initialize([]string) error {
 	// wait for service, ingress and deployment
 	waitGroup.Add(2)
 
+	listOptions := meta_v1.ListOptions{
+		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", f.Config.Meta.Name),
+	}
+
 	// get deployment info
 	go func() {
-		if deployment == nil {
-			deployment, deploymentErr = f.consumer.kubeClientSet.AppsV1().
+		if deploymentList == nil {
+			deploymentList, deploymentErr = f.consumer.kubeClientSet.AppsV1().
 				Deployments(f.Config.Meta.Namespace).
-				Get(f.Config.Meta.Name, meta_v1.GetOptions{})
+				List(listOptions)
+
+			if deploymentErr != nil {
+				return
+			}
+
+			// there should be only one
+			if len(deploymentList.Items) > 1 {
+				deploymentErr = errors.New("Found more then 1 deployment for function")
+			} else {
+				deployment = &deploymentList.Items[0]
+			}
 		}
 
 		waitGroup.Done()
 	}()
 
 	go func() {
-		if ingress == nil {
-			ingress, ingressErr = f.consumer.kubeClientSet.ExtensionsV1beta1().
+		if ingressList == nil {
+			ingressList, ingressErr = f.consumer.kubeClientSet.ExtensionsV1beta1().
 				Ingresses(f.Config.Meta.Namespace).
-				Get(f.Config.Meta.Name, meta_v1.GetOptions{})
+				List(listOptions)
+
+			if ingressErr != nil {
+				return
+			}
+
+			// there should be only one
+			if len(ingressList.Items) > 1 {
+				ingressErr = errors.New("Found more then 1 ingress for function")
+			} else {
+				ingress = &ingressList.Items[0]
+			}
+
 		}
 
 		waitGroup.Done()
