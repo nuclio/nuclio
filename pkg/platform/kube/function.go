@@ -110,7 +110,7 @@ func (f *function) Initialize([]string) error {
 			}
 
 			// there should be only one
-			if len(deploymentList.Items) !=  1 {
+			if len(deploymentList.Items) != 1 {
 				deploymentErr = fmt.Errorf("Found unexptected number of deployments for function %s: %d",
 					f.function.Name,
 					len(deploymentList.Items))
@@ -165,7 +165,7 @@ func (f *function) Initialize([]string) error {
 					f.function.Name,
 					len(ingressList.Items))
 
-			// there can be 0
+				// there can be 0
 			} else if len(ingressList.Items) == 1 {
 				ingress = &ingressList.Items[0]
 			}
