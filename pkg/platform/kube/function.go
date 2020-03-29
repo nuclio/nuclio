@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	apps_v1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -39,6 +40,7 @@ type function struct {
 	availableReplicas  int
 	ingressAddress     string
 	httpPort           int
+	service            *v1.Service
 }
 
 func newFunction(parentLogger logger.Logger,
@@ -79,15 +81,18 @@ func newFunction(parentLogger logger.Logger,
 // Initialize loads sub-resources so we can populate our configuration
 func (f *function) Initialize([]string) error {
 	var deploymentList *apps_v1.DeploymentList
-	var deployment *apps_v1.Deployment
 	var ingressList *ext_v1beta1.IngressList
+	var serviceList *v1.ServiceList
+
+	var deployment *apps_v1.Deployment
 	var ingress *ext_v1beta1.Ingress
-	var deploymentErr, ingressErr error
+	var service *v1.Service
+	var deploymentErr, ingressErr, serviceErr error
 
 	waitGroup := sync.WaitGroup{}
 
 	// wait for service, ingress and deployment
-	waitGroup.Add(2)
+	waitGroup.Add(3)
 
 	listOptions := meta_v1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", f.Config.Meta.Name),
@@ -115,6 +120,30 @@ func (f *function) Initialize([]string) error {
 		waitGroup.Done()
 	}()
 
+	// get service info
+	// get deployment info
+	go func() {
+		if serviceList == nil {
+			serviceList, serviceErr = f.consumer.kubeClientSet.CoreV1().
+				Services(f.Config.Meta.Namespace).
+				List(listOptions)
+
+			if serviceErr != nil {
+				return
+			}
+
+			// there should be only one
+			if len(serviceList.Items) > 1 {
+				serviceErr = errors.New("Found more then 1 service for function")
+			} else {
+				service = &serviceList.Items[0]
+			}
+		}
+
+		waitGroup.Done()
+	}()
+
+	// get ingress info
 	go func() {
 		if ingressList == nil {
 			ingressList, ingressErr = f.consumer.kubeClientSet.ExtensionsV1beta1().
@@ -150,6 +179,8 @@ func (f *function) Initialize([]string) error {
 	}
 
 	// update fields
+	f.service = service
+
 	f.availableReplicas = int(deployment.Status.AvailableReplicas)
 	if deployment.Spec.Replicas != nil {
 		f.configuredReplicas = int(*deployment.Spec.Replicas)
@@ -276,10 +307,10 @@ func (f *function) getDomainNameInvokeURL() (string, int, string, error) {
 	var domainName string
 
 	if f.function.ObjectMeta.Namespace == "" {
-		domainName = f.function.ObjectMeta.Name
+		domainName = f.service.ObjectMeta.Name
 	} else {
 		domainName = fmt.Sprintf("%s.%s.svc.cluster.local",
-			f.function.ObjectMeta.Name,
+			f.service.ObjectMeta.Name,
 			f.function.ObjectMeta.Namespace)
 	}
 
