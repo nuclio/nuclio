@@ -110,8 +110,10 @@ func (f *function) Initialize([]string) error {
 			}
 
 			// there should be only one
-			if len(deploymentList.Items) > 1 {
-				deploymentErr = errors.New("Found more then 1 deployment for function")
+			if len(deploymentList.Items) !=  1 {
+				deploymentErr = fmt.Errorf("Found unexptected number of deployments for function %s: %s",
+					f.function.Name,
+					len(deploymentList.Items))
 			} else {
 				deployment = &deploymentList.Items[0]
 			}
@@ -133,8 +135,10 @@ func (f *function) Initialize([]string) error {
 			}
 
 			// there should be only one
-			if len(serviceList.Items) > 1 {
-				serviceErr = errors.New("Found more then 1 service for function")
+			if len(serviceList.Items) != 1 {
+				serviceErr = fmt.Errorf("Found unexptected number of services for function %s: %s",
+					f.function.Name,
+					len(deploymentList.Items))
 			} else {
 				service = &serviceList.Items[0]
 			}
@@ -154,13 +158,17 @@ func (f *function) Initialize([]string) error {
 				return
 			}
 
-			// there should be only one
 			if len(ingressList.Items) > 1 {
-				ingressErr = errors.New("Found more then 1 ingress for function")
-			} else {
+
+				// no more then one
+				ingressErr = fmt.Errorf("Found more then 1 ingress for function %s: %s",
+					f.function.Name,
+					len(ingressList.Items))
+
+			// there can be 0
+			} else if len(ingressList.Items) == 1 {
 				ingress = &ingressList.Items[0]
 			}
-
 		}
 
 		waitGroup.Done()
