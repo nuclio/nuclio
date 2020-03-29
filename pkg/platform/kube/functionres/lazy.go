@@ -1433,27 +1433,27 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 }
 
 func (lc *lazyClient) deploymentNameFromFunctionName(functionName string) string {
-	return fmt.Sprintf("nucliofunction-%s", functionName)
+	return fmt.Sprintf("nuclio-%s", functionName)
 }
 
 func (lc *lazyClient) podNameFromFunctionName(functionName string) string {
-	return fmt.Sprintf("nucliofunction-%s", functionName)
+	return fmt.Sprintf("nuclio-%s", functionName)
 }
 
 func (lc *lazyClient) configMapNameFromFunctionName(functionName string) string {
-	return fmt.Sprintf("nucliofunction-%s", functionName)
+	return fmt.Sprintf("nuclio-%s", functionName)
 }
 
 func (lc *lazyClient) hpaNameFromFunctionName(functionName string) string {
-	return fmt.Sprintf("nucliofunction-%s", functionName)
+	return fmt.Sprintf("nuclio-%s", functionName)
 }
 
 func (lc *lazyClient) ingressNameFromFunctionName(functionName string) string {
-	return fmt.Sprintf("nucliofunction-%s", functionName)
+	return fmt.Sprintf("nuclio-%s", functionName)
 }
 
 func (lc *lazyClient) serviceNameFromFunctionName(functionName string) string {
-	return fmt.Sprintf("nucliofunction-%s", functionName)
+	return fmt.Sprintf("nuclio-%s", functionName)
 }
 
 func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFunction) ([]v1.Volume, []v1.VolumeMount) {
