@@ -802,7 +802,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 		return lc.kubeClientSet.AutoscalingV2beta1().
 			HorizontalPodAutoscalers(function.Namespace).
 			Get(lc.hpaNameFromFunctionName(function.Name),
-			meta_v1.GetOptions{})
+				meta_v1.GetOptions{})
 	}
 
 	horizontalPodAutoscalerIsDeleting := func(resource interface{}) bool {

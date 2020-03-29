@@ -214,8 +214,8 @@ func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 	functionPods, listPodErr := d.consumer.kubeClientSet.CoreV1().
 		Pods(namespace).
 		List(meta_v1.ListOptions{
-		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", name),
-	})
+			LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", name),
+		})
 
 	if listPodErr != nil {
 		podLogsMessage += fmt.Sprintf("Failed to list pods: %s\n", listPodErr.Error())
