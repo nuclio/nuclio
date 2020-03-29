@@ -185,7 +185,9 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 	conditionFunc := func() (bool, error) {
 
 		// get the appropriate function CR
-		function, err = consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(name, meta_v1.GetOptions{})
+		function, err = consumer.nuclioClientSet.NuclioV1beta1().
+			NuclioFunctions(namespace).
+			Get(name, meta_v1.GetOptions{})
 		if err != nil {
 			return true, err
 		}
@@ -209,7 +211,9 @@ func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 	podLogsMessage := "\nPod logs:\n"
 
 	// list pods
-	functionPods, listPodErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).List(meta_v1.ListOptions{
+	functionPods, listPodErr := d.consumer.kubeClientSet.CoreV1().
+		Pods(namespace).
+		List(meta_v1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", name),
 	})
 
@@ -236,7 +240,10 @@ func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 		podLogsMessage += "\n* " + pod.Name + "\n"
 
 		maxLogLines := int64(MaxLogLines)
-		logsRequest, getLogsErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).Stream()
+		logsRequest, getLogsErr := d.consumer.kubeClientSet.CoreV1().
+			Pods(namespace).
+			GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).
+			Stream()
 		if getLogsErr != nil {
 			podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
 		} else {

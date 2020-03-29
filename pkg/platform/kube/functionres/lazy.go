@@ -226,7 +226,11 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 }
 
 func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name string) error {
-	lc.logger.DebugWith("Waiting for deployment to be available", "namespace", namespace, "name", name)
+	deploymentName := lc.deploymentNameFromFunctionName(name)
+	lc.logger.DebugWith("Waiting for deployment to be available",
+		"namespace", namespace,
+		"functionName", name,
+		"deploymentName", deploymentName)
 
 	waitMs := 250
 
@@ -247,7 +251,9 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 		}
 
 		// get the deployment. if it doesn't exist yet, retry a bit later
-		result, err := lc.kubeClientSet.AppsV1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
+		result, err := lc.kubeClientSet.AppsV1().
+			Deployments(namespace).
+			Get(deploymentName, meta_v1.GetOptions{})
 		if err != nil {
 			continue
 		}
@@ -261,13 +267,16 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 				available := deploymentCondition.Status == v1.ConditionTrue
 
 				if available && result.Status.UnavailableReplicas == 0 {
-					lc.logger.DebugWith("Deployment is available", "reason", deploymentCondition.Reason)
+					lc.logger.DebugWith("Deployment is available",
+						"reason", deploymentCondition.Reason,
+						"deploymentName", deploymentName)
 					return nil
 				}
 
 				lc.logger.DebugWith("Deployment not available yet",
 					"reason", deploymentCondition.Reason,
-					"unavailableReplicas", result.Status.UnavailableReplicas)
+					"unavailableReplicas", result.Status.UnavailableReplicas,
+					"deploymentName", deploymentName)
 
 				// we found the condition, wasn't available
 				break
@@ -277,59 +286,66 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 }
 
 func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string) error {
-	propogationPolicy := meta_v1.DeletePropagationForeground
+	propagationPolicy := meta_v1.DeletePropagationForeground
 	deleteOptions := &meta_v1.DeleteOptions{
-		PropagationPolicy: &propogationPolicy,
+		PropagationPolicy: &propagationPolicy,
 	}
 
 	// Delete ingress
-	err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(namespace).Delete(name, deleteOptions)
+	ingressName := lc.ingressNameFromFunctionName(name)
+	err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(namespace).Delete(ingressName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete ingress")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted ingress", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted ingress", "namespace", namespace, "ingressName", ingressName)
 	}
 
 	// Delete HPA if exists
-	err = lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Delete(name, deleteOptions)
+	hpaName := lc.hpaNameFromFunctionName(name)
+	err = lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Delete(hpaName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete HPA")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted HPA", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted HPA", "namespace", namespace, "hpaName", hpaName)
 	}
 
 	// Delete Service if exists
-	err = lc.kubeClientSet.CoreV1().Services(namespace).Delete(name, deleteOptions)
+	serviceName := lc.serviceNameFromFunctionName(name)
+	err = lc.kubeClientSet.CoreV1().Services(namespace).Delete(serviceName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete service")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted service", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted service", "namespace", namespace, "serviceName", serviceName)
 	}
 
 	// Delete Deployment if exists
-	err = lc.kubeClientSet.AppsV1().Deployments(namespace).Delete(name, deleteOptions)
+	deploymentName := lc.deploymentNameFromFunctionName(name)
+	err = lc.kubeClientSet.AppsV1().Deployments(namespace).Delete(deploymentName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete deployment")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted deployment", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted deployment",
+			"namespace", namespace,
+			"deploymentName", deploymentName)
 	}
 
 	// Delete configMap if exists
-	err = lc.kubeClientSet.CoreV1().ConfigMaps(namespace).Delete(name, deleteOptions)
+	configMapName := lc.configMapNameFromFunctionName(name)
+	err = lc.kubeClientSet.CoreV1().ConfigMaps(namespace).Delete(configMapName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete configMap")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted configMap", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted configMap", "namespace", namespace, "configMapName", configMapName)
 	}
 
 	err = lc.deleteFunctionEvents(ctx, name, namespace)
