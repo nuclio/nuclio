@@ -481,6 +481,55 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
+// Expecting the Code Entry Type to be modified to image
+func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
+	randomString := xid.New().String()
+	uniqueSuffix := "-" + randomString
+	imageName := "nuclio/deploy-local-dir" + uniqueSuffix
+	functionName := "local-dir-reverser"
+
+	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+			"runtime": "python:3.6",
+			"handler": "reverser:handler",
+		})
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use nuctl to delete the function when we're done
+	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+
+	// check that the function's CET was modified to 'image'
+	err = suite.ExecuteNutcl([]string{"get", "function", functionName},
+		map[string]string{
+			"output": "yaml",
+		})
+	suite.Require().NoError(err)
+	suite.Require().Contains(suite.outputBuffer.String(), "codeEntryType: image")
+
+	// try a few times to invoke, until it succeeds
+	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
+
+		// invoke the function
+		err = suite.ExecuteNutcl([]string{"invoke", functionName},
+			map[string]string{
+				"method": "POST",
+				"body":   "-reverse this string+",
+				"via":    "external-ip",
+			})
+
+		return err == nil
+	})
+	suite.Require().NoError(err)
+
+	// check that invoke printed the value
+	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+}
+
 type functionGetTestSuite struct {
 	Suite
 }
