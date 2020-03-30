@@ -80,7 +80,6 @@ func newFunction(parentLogger logger.Logger,
 
 // Initialize loads sub-resources so we can populate our configuration
 func (f *function) Initialize([]string) error {
-	var deployment *v1beta1.Deployment
 	var deploymentList *v1beta1.DeploymentList
 	var ingressList *ext_v1beta1.IngressList
 	var serviceList *v1.ServiceList
