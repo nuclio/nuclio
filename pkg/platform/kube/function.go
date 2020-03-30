@@ -123,7 +123,6 @@ func (f *function) Initialize([]string) error {
 	}()
 
 	// get service info
-	// get deployment info
 	go func() {
 		if serviceList == nil {
 			serviceList, serviceErr = f.consumer.kubeClientSet.CoreV1().
