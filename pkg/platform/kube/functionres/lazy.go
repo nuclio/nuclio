@@ -124,11 +124,14 @@ func (lc *lazyClient) List(ctx context.Context, namespace string) ([]Resources, 
 
 func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (Resources, error) {
 	var result *apps_v1.Deployment
-
-	result, err := lc.kubeClientSet.AppsV1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
-	lc.logger.DebugWith("Got deployment",
+	deploymentName := lc.deploymentNameFromFunctionName(name)
+	result, err := lc.kubeClientSet.AppsV1().
+		Deployments(namespace).
+		Get(deploymentName, meta_v1.GetOptions{})
+	lc.logger.DebugWithCtx(ctx,
+		"Got deployment",
 		"namespace", namespace,
-		"name", name,
+		"deploymentName", deploymentName,
 		"result", result,
 		"err", err)
 
@@ -226,7 +229,11 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 }
 
 func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name string) error {
-	lc.logger.DebugWith("Waiting for deployment to be available", "namespace", namespace, "name", name)
+	deploymentName := lc.deploymentNameFromFunctionName(name)
+	lc.logger.DebugWith("Waiting for deployment to be available",
+		"namespace", namespace,
+		"functionName", name,
+		"deploymentName", deploymentName)
 
 	waitMs := 250
 
@@ -247,7 +254,9 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 		}
 
 		// get the deployment. if it doesn't exist yet, retry a bit later
-		result, err := lc.kubeClientSet.AppsV1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
+		result, err := lc.kubeClientSet.AppsV1().
+			Deployments(namespace).
+			Get(deploymentName, meta_v1.GetOptions{})
 		if err != nil {
 			continue
 		}
@@ -261,13 +270,16 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 				available := deploymentCondition.Status == v1.ConditionTrue
 
 				if available && result.Status.UnavailableReplicas == 0 {
-					lc.logger.DebugWith("Deployment is available", "reason", deploymentCondition.Reason)
+					lc.logger.DebugWith("Deployment is available",
+						"reason", deploymentCondition.Reason,
+						"deploymentName", deploymentName)
 					return nil
 				}
 
 				lc.logger.DebugWith("Deployment not available yet",
 					"reason", deploymentCondition.Reason,
-					"unavailableReplicas", result.Status.UnavailableReplicas)
+					"unavailableReplicas", result.Status.UnavailableReplicas,
+					"deploymentName", deploymentName)
 
 				// we found the condition, wasn't available
 				break
@@ -277,59 +289,66 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 }
 
 func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string) error {
-	propogationPolicy := meta_v1.DeletePropagationForeground
+	propagationPolicy := meta_v1.DeletePropagationForeground
 	deleteOptions := &meta_v1.DeleteOptions{
-		PropagationPolicy: &propogationPolicy,
+		PropagationPolicy: &propagationPolicy,
 	}
 
 	// Delete ingress
-	err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(namespace).Delete(name, deleteOptions)
+	ingressName := lc.ingressNameFromFunctionName(name)
+	err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(namespace).Delete(ingressName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete ingress")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted ingress", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted ingress", "namespace", namespace, "ingressName", ingressName)
 	}
 
 	// Delete HPA if exists
-	err = lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Delete(name, deleteOptions)
+	hpaName := lc.hpaNameFromFunctionName(name)
+	err = lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Delete(hpaName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete HPA")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted HPA", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted HPA", "namespace", namespace, "hpaName", hpaName)
 	}
 
 	// Delete Service if exists
-	err = lc.kubeClientSet.CoreV1().Services(namespace).Delete(name, deleteOptions)
+	serviceName := lc.serviceNameFromFunctionName(name)
+	err = lc.kubeClientSet.CoreV1().Services(namespace).Delete(serviceName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete service")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted service", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted service", "namespace", namespace, "serviceName", serviceName)
 	}
 
 	// Delete Deployment if exists
-	err = lc.kubeClientSet.AppsV1().Deployments(namespace).Delete(name, deleteOptions)
+	deploymentName := lc.deploymentNameFromFunctionName(name)
+	err = lc.kubeClientSet.AppsV1().Deployments(namespace).Delete(deploymentName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete deployment")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted deployment", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted deployment",
+			"namespace", namespace,
+			"deploymentName", deploymentName)
 	}
 
 	// Delete configMap if exists
-	err = lc.kubeClientSet.CoreV1().ConfigMaps(namespace).Delete(name, deleteOptions)
+	configMapName := lc.configMapNameFromFunctionName(name)
+	err = lc.kubeClientSet.CoreV1().ConfigMaps(namespace).Delete(configMapName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete configMap")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted configMap", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted configMap", "namespace", namespace, "configMapName", configMapName)
 	}
 
 	err = lc.deleteFunctionEvents(ctx, name, namespace)
@@ -430,8 +449,9 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 func (lc *lazyClient) createOrUpdateConfigMap(function *nuclioio.NuclioFunction) (*v1.ConfigMap, error) {
 
 	getConfigMap := func() (interface{}, error) {
-		return lc.kubeClientSet.CoreV1().ConfigMaps(function.Namespace).Get(lc.configMapNameFromFunctionName(function.Name),
-			meta_v1.GetOptions{})
+		return lc.kubeClientSet.CoreV1().
+			ConfigMaps(function.Namespace).
+			Get(lc.configMapNameFromFunctionName(function.Name), meta_v1.GetOptions{})
 	}
 
 	configMapIsDeleting := func(resource interface{}) bool {
@@ -475,7 +495,9 @@ func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction) (*v1.Service, error) {
 
 	getService := func() (interface{}, error) {
-		return lc.kubeClientSet.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+		return lc.kubeClientSet.CoreV1().
+			Services(function.Namespace).
+			Get(lc.serviceNameFromFunctionName(function.Name), meta_v1.GetOptions{})
 	}
 
 	serviceIsDeleting := func(resource interface{}) bool {
@@ -488,7 +510,7 @@ func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 
 		return lc.kubeClientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
 			ObjectMeta: meta_v1.ObjectMeta{
-				Name:      function.Name,
+				Name:      lc.serviceNameFromFunctionName(function.Name),
 				Namespace: function.Namespace,
 				Labels:    functionLabels,
 			},
@@ -544,7 +566,9 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	volumes, volumeMounts := lc.getFunctionVolumeAndMounts(function)
 
 	getDeployment := func() (interface{}, error) {
-		return lc.kubeClientSet.AppsV1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+		return lc.kubeClientSet.AppsV1().
+			Deployments(function.Namespace).
+			Get(lc.deploymentNameFromFunctionName(function.Name), meta_v1.GetOptions{})
 	}
 
 	deploymentIsDeleting := func(resource interface{}) bool {
@@ -568,7 +592,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			Replicas: replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
-					Name:        function.Name,
+					Name:        lc.podNameFromFunctionName(function.Name),
 					Namespace:   function.Namespace,
 					Labels:      functionLabels,
 					Annotations: podAnnotations,
@@ -588,7 +612,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 
 		deployment := &apps_v1.Deployment{
 			ObjectMeta: meta_v1.ObjectMeta{
-				Name:        function.Name,
+				Name:        lc.deploymentNameFromFunctionName(function.Name),
 				Namespace:   function.Namespace,
 				Labels:      functionLabels,
 				Annotations: deploymentAnnotations,
@@ -778,8 +802,9 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 	}
 
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
-		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,
-			meta_v1.GetOptions{})
+		return lc.kubeClientSet.AutoscalingV2beta1().
+			HorizontalPodAutoscalers(function.Namespace).
+			Get(lc.hpaNameFromFunctionName(function.Name), meta_v1.GetOptions{})
 	}
 
 	horizontalPodAutoscalerIsDeleting := func(resource interface{}) bool {
@@ -798,7 +823,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 
 		hpa := autos_v2.HorizontalPodAutoscaler{
 			ObjectMeta: meta_v1.ObjectMeta{
-				Name:      function.Name,
+				Name:      lc.hpaNameFromFunctionName(function.Name),
 				Namespace: function.Namespace,
 				Labels:    functionLabels,
 			},
@@ -809,7 +834,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 				ScaleTargetRef: autos_v2.CrossVersionObjectReference{
 					APIVersion: "apps/apps_v1",
 					Kind:       "Deployment",
-					Name:       function.Name,
+					Name:       lc.deploymentNameFromFunctionName(function.Name),
 				},
 			},
 		}
@@ -837,9 +862,12 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 				PropagationPolicy: &propogationPolicy,
 			}
 
-			lc.logger.DebugWith("Deleting hpa - min replicas and max replicas are equal", "name", hpa.Name)
+			lc.logger.DebugWith("Deleting hpa - min replicas and max replicas are equal",
+				"name", hpa.Name)
 
-			err := lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
+			err := lc.kubeClientSet.AutoscalingV2beta1().
+				HorizontalPodAutoscalers(function.Namespace).
+				Delete(hpa.Name, deleteOptions)
 			return nil, err
 		}
 
@@ -864,7 +892,9 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction) (*ext_v1beta1.Ingress, error) {
 
 	getIngress := func() (interface{}, error) {
-		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+		return lc.kubeClientSet.ExtensionsV1beta1().
+			Ingresses(function.Namespace).
+			Get(lc.ingressNameFromFunctionName(function.Name), meta_v1.GetOptions{})
 	}
 
 	ingressIsDeleting := func(resource interface{}) bool {
@@ -873,7 +903,7 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 
 	createIngress := func() (interface{}, error) {
 		ingressMeta := meta_v1.ObjectMeta{
-			Name:      function.Name,
+			Name:      lc.ingressNameFromFunctionName(function.Name),
 			Namespace: function.Namespace,
 			Labels:    functionLabels,
 		}
@@ -889,10 +919,12 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 			return nil, nil
 		}
 
-		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Create(&ext_v1beta1.Ingress{
-			ObjectMeta: ingressMeta,
-			Spec:       ingressSpec,
-		})
+		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().
+			Ingresses(function.Namespace).
+			Create(&ext_v1beta1.Ingress{
+				ObjectMeta: ingressMeta,
+				Spec:       ingressSpec,
+			})
 		if err != nil {
 			lc.waitForNginxIngressToStabilize()
 		}
@@ -919,7 +951,9 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 					PropagationPolicy: &propogationPolicy,
 				}
 
-				err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Delete(function.Name, deleteOptions)
+				err := lc.kubeClientSet.ExtensionsV1beta1().
+					Ingresses(function.Namespace).
+					Delete(lc.ingressNameFromFunctionName(function.Name), deleteOptions)
 				return nil, err
 
 			}
@@ -955,7 +989,8 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 
 // nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
 func (lc *lazyClient) waitForNginxIngressToStabilize() {
-	lc.logger.DebugWith("Waiting for nginx ingress to stabilize", "nginxIngressUpdateGracePeriod", nginxIngressUpdateGracePeriod)
+	lc.logger.DebugWith("Waiting for nginx ingress to stabilize",
+		"nginxIngressUpdateGracePeriod", nginxIngressUpdateGracePeriod)
 	time.Sleep(nginxIngressUpdateGracePeriod)
 	lc.logger.Debug("Finished waiting for nginx ingress to stabilize")
 }
@@ -1240,6 +1275,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 
 	lc.logger.DebugWith("Adding ingress",
 		"function", function.Name,
+		"ingressName", lc.ingressNameFromFunctionName(function.Name),
 		"labels", functionLabels,
 		"host", ingress.Host,
 		"paths", ingress.Paths,
@@ -1261,7 +1297,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 		httpIngressPath := ext_v1beta1.HTTPIngressPath{
 			Path: formattedPath,
 			Backend: ext_v1beta1.IngressBackend{
-				ServiceName: function.Name,
+				ServiceName: lc.serviceNameFromFunctionName(function.Name),
 				ServicePort: intstr.IntOrString{
 					Type:   intstr.String,
 					StrVal: containerHTTPPortName,
@@ -1396,8 +1432,28 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 	return nil
 }
 
+func (lc *lazyClient) deploymentNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nuclio-%s", functionName)
+}
+
+func (lc *lazyClient) podNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nuclio-%s", functionName)
+}
+
 func (lc *lazyClient) configMapNameFromFunctionName(functionName string) string {
-	return functionName
+	return fmt.Sprintf("nuclio-%s", functionName)
+}
+
+func (lc *lazyClient) hpaNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nuclio-%s", functionName)
+}
+
+func (lc *lazyClient) ingressNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nuclio-%s", functionName)
+}
+
+func (lc *lazyClient) serviceNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nuclio-%s", functionName)
 }
 
 func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFunction) ([]v1.Volume, []v1.VolumeMount) {
@@ -1469,9 +1525,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 			}
 		}
 
-		lc.logger.DebugWith("Adding volume",
-			"configVolume",
-			configVolume)
+		lc.logger.DebugWith("Adding volume", "configVolume", configVolume)
 
 		volumes = append(volumes, configVolume.Volume)
 		volumeMounts = append(volumeMounts, configVolume.VolumeMount)
@@ -1498,7 +1552,9 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 
 	for _, functionEvent := range result.Items {
 		errGroup.Go(func() error {
-			err = lc.nuclioClientSet.NuclioV1beta1().NuclioFunctionEvents(namespace).Delete(functionEvent.Name, &meta_v1.DeleteOptions{})
+			err = lc.nuclioClientSet.NuclioV1beta1().
+				NuclioFunctionEvents(namespace).
+				Delete(functionEvent.Name, &meta_v1.DeleteOptions{})
 			if err != nil {
 				return errors.Wrap(err, "Failed to delete function event")
 			}
