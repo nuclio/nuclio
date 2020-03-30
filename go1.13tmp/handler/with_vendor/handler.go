@@ -15,9 +15,21 @@ package main
 
 import (
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/someorg/somerepo"
+	"github.com/nuclio/errors"
+	"github.com/InVisionApp/tabular"
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	return somerepo.ReturnSomething(), nil
+	if event.GetContentType() == "" {
+		return "", errors.New("Error!")
+	}
+	tab := tabular.New()
+	tab.ColRJ("id", "ID", 6)
+	tab.Col("env", "Environment", 14)
+	tab.Col("cls", "Cluster", 10)
+	tab.Col("svc", "Service", 25)
+	tab.Col("hst", "Database Host", 25)
+	tab.ColRJ("pct", "%CPU", 5)
+	text := tab.Print("id", "env", "cls")
+	return text, nil
 }

@@ -1,37 +1,50 @@
 #!/usr/bin/env sh
 
-# TODO: Finish here and implement for go's onbuild
 
-set +ex
+# exit on failure
+set -o errexit
 
-cd /go/src/github.com/nuclio/handler
+# show command before execute
+set -o xtrace
 
-if [ ! -f "go.mod" ]; then
-    cp /processor_go.mod ./go.mod
-    cp /processor_go.sum ./go.sum
-fi
+if [ -d "vendor" ]; then
 
-if [ "${NUCLIO_BUILD_OFFLINE}" != "true" ]; then
+	# merge processor vendor modules
+	cp -R /processor_vendor/* vendor/
+	cp /processor_go.mod go.mod
+	cp /processor_go.sum go.sum
 
-    # online, user supplied his own vendor
-    if [ -d "vendor" ]; then
-        echo "TODO"
-    else
-        echo "TODO"
-    fi
+elif [ -f "go.mod" ]; then
+
+	if [ "${NUCLIO_BUILD_OFFLINE}" == "true" ]; then
+
+		# error
+		echo "Impossible to accept go.mod when building offline"
+		exit 1
+	else
+
+		# add any missing modules & remove unused modules
+		go mod tidy
+
+		# make a vendor
+		go mod vendor
+	fi
 else
-    # darksite, user supplied his own vendor
-    if [ -d "vendor" ]; then
-        rm -rf ./go.mod ./go.sum  # in case the exists, bye bye
-        touch go.mod
-        mv vendor vendor-temp
-        mv /processor_vendor ./vendor
-        cp -r vendor-temp/* ./vendor
-        rm -rf vendor-temp
-        echo "TODO"
-    else
-        # copy vendor dir from processor
-        echo "TODO"
-    fi
+
+	# use processor vendor to build function
+	mv /processor_vendor vendor
+	cp /processor_go.mod go.mod
+	cp /processor_go.sum go.sum
+
+	if [ "${NUCLIO_BUILD_OFFLINE}" == "false" ]; then
+
+		# remove unused modules
+		go mod tidy
+
+		# recreate vendor based on processor
+		go mod vendor
+	fi
 fi
 
+# Removing breadcrums
+rm -rf /processor_vendor /processor_go.mod /processor_go.sum

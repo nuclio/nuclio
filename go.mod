@@ -1,6 +1,6 @@
 module github.com/nuclio/nuclio
 
-go 1.13
+go 1.14
 
 require (
 	cloud.google.com/go v0.44.3
