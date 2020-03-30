@@ -16,10 +16,8 @@ ADD pkg ./pkg
 ADD cmd ./cmd
 ADD test ./test
 
-RUN go mod vendor
-
 # compile processor
-RUN GOOS=linux GOARCH=amd64 go build -mod=vendor -trimpath -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
+RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
 
 ################
 #    PLUGIN    #
@@ -33,7 +31,6 @@ RUN apk --update --no-cache add git gcc musl-dev file
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
 # Store processor go build artifacts
-COPY --from=processor /nuclio/vendor /processor_vendor
 COPY --from=processor /nuclio/go.mod /processor_go.mod
 COPY --from=processor /nuclio/go.sum /processor_go.sum
 
@@ -41,8 +38,8 @@ COPY --from=processor /nuclio/go.sum /processor_go.sum
 WORKDIR /handler
 
 # copy handler
-ARG HANDLER="with_vendor"
-ARG NUCLIO_BUILD_OFFLINE="true"
+ARG HANDLER
+ARG NUCLIO_BUILD_OFFLINE
 
 RUN mkdir -p /etc/nuclio/config/processor
 
@@ -55,7 +52,7 @@ ADD ./go1.13tmp/handler/moduler.sh .
 RUN chmod +x moduler.sh && ./moduler.sh
 
 # creating plugin
-RUN GOOS=linux GOARCH=amd64 go build -mod=vendor -trimpath -buildmode=plugin -o /opt/nuclio/handler.so .
+RUN GOOS=linux GOARCH=amd64 go build -mod=mod -buildmode=plugin -o /opt/nuclio/handler.so .
 
 # DOD
 CMD ["/home/nuclio/bin/processor"]

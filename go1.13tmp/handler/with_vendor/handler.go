@@ -14,22 +14,13 @@ limitations under the License.
 package main
 
 import (
-	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/nuclio/errors"
 	"github.com/InVisionApp/tabular"
+	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	if event.GetContentType() == "" {
-		return "", errors.New("Error!")
-	}
 	tab := tabular.New()
-	tab.ColRJ("id", "ID", 6)
-	tab.Col("env", "Environment", 14)
-	tab.Col("cls", "Cluster", 10)
-	tab.Col("svc", "Service", 25)
-	tab.Col("hst", "Database Host", 25)
-	tab.ColRJ("pct", "%CPU", 5)
-	text := tab.Print("id", "env", "cls")
-	return text, nil
+	context.Logger.DebugWith("Request", "tab", tab, "err", errors.New("Error!"))
+	return "ok", nil
 }
