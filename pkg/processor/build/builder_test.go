@@ -26,7 +26,6 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"

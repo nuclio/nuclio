@@ -22,7 +22,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 
-	"github.com/nuclio/amqp"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"pack.ag/amqp"

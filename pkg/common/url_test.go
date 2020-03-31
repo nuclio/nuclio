@@ -21,9 +21,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/jarcoal/httpmock"
+	"github.com/nuclio/errors"
 	"github.com/stretchr/testify/suite"
 )
 
