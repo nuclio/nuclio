@@ -13,7 +13,7 @@ require (
 	github.com/Azure/go-autorest/autorest/validation v0.2.0 // indirect
 	github.com/Microsoft/ApplicationInsights-Go v0.4.2
 	github.com/Shopify/sarama v1.23.1
-	github.com/aws/aws-sdk-go v1.23.6
+	github.com/aws/aws-sdk-go v1.30.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/disintegration/imaging v1.6.0
 	github.com/dsnet/compress v0.0.1 // indirect
@@ -60,7 +60,7 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/streadway/amqp v0.0.0-20190815230801-eade30b20f1d
 	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25 // indirect
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.5.1
 	github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc // indirect
 	github.com/tsenart/vegeta v6.3.0+incompatible
 	github.com/v3io/scaler-types v1.0.0
