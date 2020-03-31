@@ -65,4 +65,4 @@ ONBUILD ARG NUCLIO_BUILD_OFFLINE
 ONBUILD RUN mv /moduler.sh . && chmod +x moduler.sh && ./moduler.sh
 
 # Compile handler as plugin
-ONBUILD RUN GOOS=linux GOARCH=amd64 go build -mod=mod -buildmode=plugin -o /opt/nuclio/handler.so .
+ONBUILD RUN GOOS=linux GOARCH=amd64 go build -mod=mod -buildmode=plugin -o /home/nuclio/bin/handler.so .
