@@ -119,6 +119,7 @@ DOCKER_IMAGES_RULES = \
 	autoscaler \
 	dlx \
 	handler-builder-golang-onbuild \
+	handler-builder-golang-onbuild-alpine \
 	handler-builder-java-onbuild \
 	handler-builder-ruby-onbuild \
 	handler-builder-python-onbuild \
@@ -233,12 +234,13 @@ $(NUCLIO_DOCKER_REPO)/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME=\
 $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)-alpine
 
-handler-builder-golang-onbuild:
+handler-builder-golang-onbuild-alpine:
 	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
-		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
-		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME) .
+    		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+    		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
+    		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME) .
 
+handler-builder-golang-onbuild:
 	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
