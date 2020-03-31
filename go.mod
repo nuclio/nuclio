@@ -25,11 +25,13 @@ require (
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/googleapis/gnostic v0.3.1 // indirect
+	github.com/hashicorp/go-uuid v1.0.1
 	github.com/heptiolabs/healthcheck v0.0.0-20180807145615-6ff867650f40
 	github.com/howeyc/gopass v0.0.0-20170109162249-bf9dde6d0d2c // indirect
 	github.com/icza/dyno v0.0.0-20180601094105-0c96289f9585
 	github.com/imdario/mergo v0.3.7
 	github.com/jarcoal/httpmock v1.0.4
+	github.com/klauspost/compress v1.10.3 // indirect
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b
@@ -40,6 +42,7 @@ require (
 	github.com/nats-io/go-nats v1.7.2
 	github.com/nats-io/nkeys v0.1.0 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
+	github.com/nuclio/errors v0.0.2
 	github.com/nuclio/logger v0.0.1
 	github.com/nuclio/logger-appinsights v0.0.0-20190306192918-3277172d7ba9
 	github.com/nuclio/nuclio-sdk-go v0.0.0-20190501142538-2a54f51950d3
@@ -48,8 +51,8 @@ require (
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/onsi/ginkgo v1.10.0 // indirect
 	github.com/onsi/gomega v1.7.0 // indirect
-	github.com/pavius/zap v1.4.2-0.20180228181622-8d52692529b8 // indirect
 	github.com/prometheus/client_golang v1.1.0
+	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/robfig/cron v1.2.0
 	github.com/rs/xid v1.2.1
 	github.com/satori/go.uuid v1.2.0
@@ -61,18 +64,18 @@ require (
 	github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc // indirect
 	github.com/tsenart/vegeta v6.3.0+incompatible
 	github.com/v3io/scaler-types v1.0.0
+	github.com/v3io/v3io-go v0.1.4
 	github.com/v3io/v3io-go-http v0.0.0-20190415143924-cc2fbcde6663
-	github.com/valyala/fasthttp v1.4.0
+	github.com/valyala/fasthttp v1.9.0
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	go.uber.org/atomic v1.4.0 // indirect
-	go.uber.org/multierr v1.1.0 // indirect
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/jcmturner/goidentity.v3 v3.0.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1
-	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.2.8
 	k8s.io/api v0.0.0-20180713172427-0f11257a8a25
 	k8s.io/apimachinery v0.0.0-20180619225948-e386b2658ed2
 	k8s.io/client-go v7.0.0+incompatible
