@@ -33,7 +33,7 @@ RUN npm install -g gulp \
 # Build binary stage: builds the dashboard binary
 #
 
-FROM golang:1.13 as build-binary
+FROM golang:1.14 as build-binary
 
 WORKDIR /go/src/github.com/nuclio/nuclio
 

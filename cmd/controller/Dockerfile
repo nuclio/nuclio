@@ -16,7 +16,7 @@
 # Build stage: builds the controller binary
 #
 
-FROM golang:1.13 as build
+FROM golang:1.14 as build
 
 WORKDIR /go/src/github.com/nuclio/nuclio
 
@@ -35,7 +35,7 @@ RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflag
 # Output stage: Creates version file, copies binary to an alpine based image
 #
 
-FROM alpine:3.10
+FROM alpine:3.11
 
 RUN apk add --no-cache ca-certificates
 

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Build the processor
-FROM golang:1.13 as processor
+FROM golang:1.14 as processor
 
 WORKDIR /go/src/github.com/nuclio/nuclio
 
@@ -29,7 +29,7 @@ COPY . .
 RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
 
 # Build the plugin
-FROM golang:1.13
+FROM golang:1.14
 
 # If build passes NUCLIO_ARCH, use it as GOARCH
 ARG NUCLIO_ARCH

@@ -314,7 +314,7 @@ func (s *store) runCommand(env map[string]string, format string, args ...interfa
 		}
 
 		// run a container that simply volumizes the volume with the storage and sleeps for 6 hours
-		_, err = s.dockerClient.RunContainer("alpine:3.10", &dockerclient.RunOptions{
+		_, err = s.dockerClient.RunContainer("alpine:3.11", &dockerclient.RunOptions{
 			Volumes:          map[string]string{volumeName: baseDir},
 			Remove:           true,
 			Command:          `/bin/sh -c "/bin/sleep 6h"`,

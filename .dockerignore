@@ -2,15 +2,13 @@
 !pkg
 !cmd
 !test
-!vendor
 
 !go.mod
 !go.sum
 
 pkg/dashboard/ui/node_modules
-pkg/dashboard/ui/vendor
 pkg/dashboard/ui/dist
 
-
+# TODO: REMOVE
 !go1.13tmp/handler
 !go1.13tmp/processor.yaml

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Build the processor
-FROM golang:1.13-alpine3.10 as processor
+FROM golang:1.14-alpine3.11 as processor
 
 RUN apk --update --no-cache add git gcc musl-dev
 
@@ -31,7 +31,7 @@ COPY . .
 RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
 
 # Build the plugin
-FROM golang:1.13-alpine3.10
+FROM golang:1.14-alpine3.11
 
 # If build passes NUCLIO_ARCH, use it as GOARCH
 ARG NUCLIO_ARCH

@@ -16,7 +16,7 @@
 # Build stage: builds the playground binary
 #
 
-FROM golang:1.13 as build
+FROM golang:1.14 as build
 
 # copy source tree
 WORKDIR /go/src/github.com/nuclio/nuclio
@@ -30,7 +30,7 @@ RUN go mod download
 # Output stage: Creates version file, copies binary to an alpine based image
 #
 
-FROM alpine:3.10
+FROM alpine:3.11
 
 ARG DOCKER_CLI_VERSION="18.09.6"
 

@@ -16,7 +16,7 @@
 # Build stage: builds the dlx binary
 #
 
-FROM golang:1.13-alpine3.10 as builder
+FROM golang:1.14-alpine3.11 as builder
 
 RUN apk --update --no-cache add \
     git \
@@ -38,7 +38,7 @@ RUN mkdir -p /home/nuclio/bin \
             -o /home/nuclio/plugins/plugin.so pkg/platform/kube/resourcescaler/resourcescaler.go \
             && rm -rf /go/src/github.com/nuclio/nuclio
 
-FROM alpine:3.10
+FROM alpine:3.11
 
 WORKDIR /home/nuclio
 

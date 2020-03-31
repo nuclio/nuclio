@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-FROM golang:1.12
+FROM golang:1.14
 
 ENV GOOS=linux
 ENV GOARCH=amd64

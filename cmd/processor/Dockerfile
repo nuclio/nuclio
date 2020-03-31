@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.13 as processor
+FROM golang:1.14 as processor
 
 ENV GOOS=linux
 ENV GOARCH=amd64

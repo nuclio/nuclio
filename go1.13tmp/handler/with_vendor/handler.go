@@ -14,13 +14,11 @@ limitations under the License.
 package main
 
 import (
-	"github.com/InVisionApp/tabular"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	tab := tabular.New()
-	context.Logger.DebugWith("Request", "tab", tab, "err", errors.New("Error!"))
+	context.Logger.DebugWith("Request", "err", errors.New("Error!"))
 	return "ok", nil
 }
