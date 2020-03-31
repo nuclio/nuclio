@@ -45,7 +45,7 @@ require (
 	github.com/nuclio/errors v0.0.2
 	github.com/nuclio/logger v0.0.1
 	github.com/nuclio/logger-appinsights v0.0.0-20190306192918-3277172d7ba9
-	github.com/nuclio/nuclio-sdk-go v0.0.0-20190501142538-2a54f51950d3
+	github.com/nuclio/nuclio-sdk-go v0.0.0-20200215185402-c5d7db4628cf
 	github.com/nuclio/zap v0.0.2
 	github.com/nwaples/rardecode v1.0.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.1
