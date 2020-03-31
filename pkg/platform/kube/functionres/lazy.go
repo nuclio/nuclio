@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -59,7 +60,6 @@ const (
 	containerMetricPortName       = "metrics"
 	nvidiaGpuResourceName         = "nvidia.com/gpu"
 	nginxIngressUpdateGracePeriod = 5 * time.Second
-	DefaultTargetCPU              = 75
 )
 
 type deploymentResourceMethod string
@@ -772,7 +772,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 
 	targetCPU := int32(function.Spec.TargetCPU)
 	if targetCPU == 0 {
-		targetCPU = DefaultTargetCPU
+		targetCPU = abstract.DefaultTargetCPU
 	}
 
 	getHorizontalPodAutoscaler := func() (interface{}, error) {

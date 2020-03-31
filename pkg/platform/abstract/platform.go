@@ -44,6 +44,7 @@ import (
 
 const (
 	DefaultReadinessTimeoutSeconds = 60
+	DefaultTargetCPU               = 75
 )
 
 type Platform struct {

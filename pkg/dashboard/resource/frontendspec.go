@@ -22,7 +22,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
-	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -89,7 +88,7 @@ func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interfac
 		MinReplicas:             &one,
 		MaxReplicas:             &one,
 		ReadinessTimeoutSeconds: abstract.DefaultReadinessTimeoutSeconds,
-		TargetCPU:               functionres.DefaultTargetCPU,
+		TargetCPU:               abstract.DefaultTargetCPU,
 		Triggers: map[string]functionconfig.Trigger{
 
 			// notice that this is a mapping between trigger kind and its default values
