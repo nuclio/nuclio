@@ -63,13 +63,14 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc // indirect
 	github.com/tsenart/vegeta v6.3.0+incompatible
-	github.com/v3io/scaler-types v1.0.0
+	github.com/v3io/scaler-types v1.5.0
 	github.com/v3io/v3io-go v0.1.4
 	github.com/v3io/v3io-go-http v0.0.0-20190415143924-cc2fbcde6663
 	github.com/valyala/fasthttp v1.9.0
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	go.uber.org/atomic v1.4.0 // indirect
+	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e // indirect
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 	golang.org/x/tools v0.0.0-20200331025713-a30bf2db82d4 // indirect
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
@@ -80,5 +81,5 @@ require (
 	k8s.io/api v0.0.0-20180713172427-0f11257a8a25
 	k8s.io/apimachinery v0.0.0-20180619225948-e386b2658ed2
 	k8s.io/client-go v7.0.0+incompatible
-	pack.ag/amqp v0.12.3
+	pack.ag/amqp v0.12.5
 )
