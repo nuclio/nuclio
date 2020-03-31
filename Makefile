@@ -25,7 +25,8 @@ NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
 
 ifeq ($(OS_NAME), Linux)
 	NUCLIO_DEFAULT_TEST_HOST := $(shell docker network inspect bridge | grep "Gateway" | grep -o '"[^"]*"$$')
-	# On EC2 we don't have gateway, use default
+
+# On EC2 we don't have gateway, use default
 	ifeq ($(NUCLIO_DEFAULT_TEST_HOST),)
 		NUCLIO_DEFAULT_TEST_HOST := "172.17.0.1"
 	endif
@@ -40,9 +41,9 @@ NUCLIO_TEST_HOST := $(if $(NUCLIO_TEST_HOST),$(NUCLIO_TEST_HOST),$(NUCLIO_DEFAUL
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
 
 NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
-\"label\": \"$(NUCLIO_LABEL)\",  \
-\"os\": \"$(NUCLIO_OS)\",  \
-\"arch\": \"$(NUCLIO_ARCH)\"}
+ \"label\": \"$(NUCLIO_LABEL)\",  \
+ \"os\": \"$(NUCLIO_OS)\",  \
+ \"arch\": \"$(NUCLIO_ARCH)\"}
 
 # Dockerized tests variables - not available for changes
 NUCLIO_DOCKER_TEST_DOCKERFILE_PATH := test/docker/Dockerfile
@@ -119,7 +120,6 @@ DOCKER_IMAGES_RULES = \
 	autoscaler \
 	dlx \
 	handler-builder-golang-onbuild \
-	handler-builder-golang-onbuild-alpine \
 	handler-builder-java-onbuild \
 	handler-builder-ruby-onbuild \
 	handler-builder-python-onbuild \
@@ -229,10 +229,10 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME)
 
 # Go
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=\
-$(NUCLIO_DOCKER_REPO)/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+ $(NUCLIO_DOCKER_REPO)/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME=\
-$(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)-alpine
+ $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)-alpine
 
 handler-builder-golang-onbuild-alpine:
 	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
@@ -240,7 +240,7 @@ handler-builder-golang-onbuild-alpine:
     		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
     		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME) .
 
-handler-builder-golang-onbuild:
+handler-builder-golang-onbuild: handler-builder-golang-onbuild-alpine
 	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \

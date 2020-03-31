@@ -15,48 +15,48 @@
 # Build the processor
 FROM golang:1.14 as processor
 
-WORKDIR /go/src/github.com/nuclio/nuclio
+# Set processor work dir
+WORKDIR /nuclio
 
-# copy go modules first, will help docker caching upon building
-COPY go.mod go.sum ./
+# Copy go modules first, will help docker caching upon building
+ADD go.mod go.sum ./
 
+# Download modules
 RUN go mod download
 
-# copy source tree
+# Copy source tree
 COPY . .
 
-# build the processor
+# Build the processor
 RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
 
 # Build the plugin
 FROM golang:1.14
 
-# If build passes NUCLIO_ARCH, use it as GOARCH
-ARG NUCLIO_ARCH
-ENV GOARCH ${NUCLIO_ARCH}
-
-# Copy processor binary
+# Store processor binary
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
-# Copy processor go.mod & go.sum, we will need it for building the handler.so (the actual function)
-COPY --from=processor /go/src/github.com/nuclio/nuclio/go.sum /go
-COPY --from=processor /go/src/github.com/nuclio/nuclio/go.mod /go
-COPY --from=processor /go/pkg/mod /go/pkg/mod
+# Store processor go build artifacts
+COPY --from=processor /nuclio/go.mod /processor_go.mod
+COPY --from=processor /nuclio/go.sum /processor_go.sum
 
 # Copy the script that builds the plugin
-COPY pkg/processor/build/runtime/golang/docker/onbuild/build-handler.sh /
+COPY pkg/processor/build/runtime/golang/docker/onbuild/moduler.sh /
+
+# Set handler work dir
+WORKDIR /handler
 
 # Specify the directory where the handler is kept. By default it is the context dir, but it is overridable
 ONBUILD ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
 
-# Specify the directory where the handler is written to (aka the module path, used on go.mod)
-ONBUILD ARG NUCLIO_BUILD_IMAGE_HANDLER_DIR=github.com/nuclio/handler
-
 # Copy handler sources to container, build-handler will move it to the right place
-ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /go/src/${NUCLIO_BUILD_IMAGE_HANDLER_DIR}
+ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} ./
 
 # Specify an onbuild arg to specify offline
 ONBUILD ARG NUCLIO_BUILD_OFFLINE
 
-# Run build
-ONBUILD RUN /build-handler.sh ${NUCLIO_BUILD_IMAGE_HANDLER_DIR}
+# Run moduler to ensure go modules exists and downloaded
+ONBUILD RUN mv /moduler.sh . && chmod +x moduler.sh && ./moduler.sh
+
+# Compile handler as plugin
+ONBUILD RUN GOOS=linux GOARCH=amd64 go build -mod=mod -buildmode=plugin -o /opt/nuclio/handler.so .

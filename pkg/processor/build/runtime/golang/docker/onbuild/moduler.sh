@@ -19,33 +19,19 @@
 # If handler DLL exists (/handler.so), compilation was successful. if it
 # doesn't /handler_build.log should explain why
 
-set -e
+# exit on failure
+set -o errexit
 
-cd /go/src/$1
+# show command before execute
+set -o xtrace
 
-# moving the go.mod & go.sum to the right place if needed
-if [ ! -f "./go.mod" ]
-then
-    mv /go/go.mod ./go.mod
-    mv /go/go.sum ./go.sum
-else
-
-    # we dont need it, we HAVE remove it
-    rm /go/go.mod /go/go.sum
+if [ ! -f "go.mod" ]; then
+	mv /processor_go.mod go.mod
+	mv /processor_go.sum go.sum
 fi
 
-# since we are using Nuclio projects go.mod & sum, we need to replace the module package accordingly to the new handler
-go mod edit --module $1
+# download missing modules & remove unused modules
+go mod tidy
 
-# if specified to build offline, skip go get
-if [ "${NUCLIO_BUILD_OFFLINE}" != "true" ]; then
-
-    # omit unneeded packages
-    go mod tidy
-    go mod download
-fi
-
-# if go deps succeeded, build plugin
-if [ $? -eq 0 ]; then
-    go build -buildmode=plugin -o /home/nuclio/bin/handler.so
-fi
+# Removing breadcrums
+rm -rf /processor_go.mod /processor_go.sum
