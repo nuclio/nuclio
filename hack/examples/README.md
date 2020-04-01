@@ -13,7 +13,7 @@ To help you make the most of Nuclio, the following function examples are provide
 - [Call Function](golang/callfunction) (`callfunction`): A set of two functions that demonstrates the `CallFunction` feature:
 
     - [`fibonacci`](golang/callfunction/fibonacci/fibonacci.go) - For input parameter `n`, returns the `n`-th number in the Fibonacci series (`fib(n)`).
-    - [`fibonaccisum`](golang/callfunction/fibonacci/fibonaccisum.go) - Uses `CallFunction` to call the `fibonacci` function for input numbers 2, 10, and 17, and returns the sum of the three returned Fibonacci numbers (`fib(2)+fib(10)+fib(17)`).
+    - [`fibonaccisum`](golang/callfunction/fibonaccisum/fibonaccisum.go) - Uses `CallFunction` to call the `fibonacci` function for input numbers 2, 10, and 17, and returns the sum of the three returned Fibonacci numbers (`fib(2)+fib(10)+fib(17)`).
 
     To try the example, deploy the `fibonacci` function and name it `fibonacci`; then, deploy the `fibonaccisum` function to the same namespace, using your preferred function name, and call it.
 

@@ -319,7 +319,7 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME)
 .PHONY: modules
 modules: ensure-gopath
 	@echo Getting go modules
-	go mod download
+	@go mod download
 
 #
 # Testing
@@ -327,16 +327,17 @@ modules: ensure-gopath
 .PHONY: lint
 lint: modules
 	@echo Installing linters...
-	go get -u github.com/pavius/impi/cmd/impi
-	@test -e $(GOPATH)/bin/golangci-lint || curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.21.0
+	@test -e $(GOPATH)/bin/impi || go get -u github.com/pavius/impi
+	@test -e $(GOPATH)/bin/golangci-lint || \
+	  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.24.0
 
 	@echo Verifying imports...
 	$(GOPATH)/bin/impi \
-		--local github.com/nuclio/nuclio/ \
-		--scheme stdLocalThirdParty \
-		--skip pkg/platform/kube/apis \
-		--skip pkg/platform/kube/client \
-		./cmd/... ./pkg/...
+			--local github.com/nuclio/nuclio/ \
+			--scheme stdLocalThirdParty \
+			--skip pkg/platform/kube/apis \
+			--skip pkg/platform/kube/client \
+			./cmd/... ./pkg/...
 
 	@echo Linting...
 	$(GOPATH)/bin/golangci-lint run -v

@@ -96,10 +96,11 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 	networkInterface := common.GetEnvOrDefaultString("NUCLIO_DOCKER_BUILD_NETWORK", "")
 	switch networkInterface {
 	case "host":
+		fallthrough
 	case "default":
+		fallthrough
 	case "none":
 		hostNetString = fmt.Sprintf("--network %s", networkInterface)
-		break
 	default:
 		hostNetString = ""
 	}

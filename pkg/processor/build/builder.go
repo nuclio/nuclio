@@ -49,8 +49,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/version"
 
-	"github.com/nuclio/errors"
 	"github.com/mholt/archiver"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"gopkg.in/yaml.v2"
@@ -354,7 +354,7 @@ CMD [ "processor" ]
 
 	onbuildStages, err := b.platform.GetOnbuildStages(onbuildArtifacts)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to transform retrive onbuild stages")
+		return "", errors.Wrap(err, "Failed to transform retrieve onbuild stages")
 	}
 
 	// Transform `onbuildArtifactPaths` depending on the builder being used

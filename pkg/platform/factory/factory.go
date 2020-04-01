@@ -128,13 +128,9 @@ func ensureDefaultProjectExistence(parentLogger logger.Logger, p platform.Platfo
 func getContainerBuilderConfiguration(platformConfiguration interface{}) *containerimagebuilderpusher.ContainerBuilderConfiguration {
 	containerBuilderConfiguration := containerimagebuilderpusher.ContainerBuilderConfiguration{}
 
-	// if kubeconfig is passed in the options, use that
-	if platformConfiguration != nil {
-
-		// it might not be a kube configuration
-		if _, ok := platformConfiguration.(*config.Configuration); ok {
-			containerBuilderConfiguration = platformConfiguration.(*config.Configuration).ContainerBuilderConfiguration
-		}
+	// it might not be a kube configuration
+	if _, ok := platformConfiguration.(*config.Configuration); ok {
+		containerBuilderConfiguration = platformConfiguration.(*config.Configuration).ContainerBuilderConfiguration
 	}
 
 	// if some of the parameters are undefined, try environment variables
@@ -186,13 +182,9 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 func getKubeconfigPath(platformConfiguration interface{}) string {
 	var kubeconfigPath string
 
-	// if kubeconfig is passed in the options, use that
-	if platformConfiguration != nil {
-
-		// it might not be a kube configuration
-		if _, ok := platformConfiguration.(*config.Configuration); ok {
-			kubeconfigPath = platformConfiguration.(*config.Configuration).KubeconfigPath
-		}
+	// it might not be a kube configuration
+	if _, ok := platformConfiguration.(*config.Configuration); ok {
+		kubeconfigPath = platformConfiguration.(*config.Configuration).KubeconfigPath
 	}
 
 	// do we still not have a kubeconfig path?

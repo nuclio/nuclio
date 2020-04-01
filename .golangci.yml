@@ -1,46 +1,40 @@
 linters:
   disable-all: true
   enable:
-    - bodyclose
     - deadcode
-    - depguard
-    - dogsled
-    - dupl
-    - errcheck
-    - funlen
-    - gochecknoinits
     - goconst
-    - gocritic
-    - gocyclo
     - gofmt
-    - goimports
     - golint
-    - gosec
     - gosimple
-    - govet
     - ineffassign
     - interfacer
-    - lll
     - misspell
-    - nakedret
-    - scopelint
     - staticcheck
-    - structcheck
-    - stylecheck
-    - typecheck
     - unconvert
-    - unparam
-    - unused
     - varcheck
-    - whitespace
+    - vet
+    - vetshadow
+    - errcheck
 
 run:
+
   # timeout for analysis
   timeout: 5m
 
   # include test files or not, default is true
-  tests: true
+  tests: false
 
   skip-dirs:
     - hack
     - docs
+    - test
+    - pkg/platform/kube/apis
+    - pkg/platform/kube/client
+
+issues:
+
+  # List of regexps of issue texts to exclude
+  exclude:
+    - "comment on"
+    - "error should be the last"
+    - "should have comment"

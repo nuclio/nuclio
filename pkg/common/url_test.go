@@ -21,7 +21,6 @@ import (
 	"os"
 	"testing"
 
-
 	"github.com/jarcoal/httpmock"
 	"github.com/nuclio/errors"
 	"github.com/stretchr/testify/suite"
