@@ -337,7 +337,7 @@ lint: modules
 	  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.24.0
 
 	@echo Verifying imports...
-	$(GOPATH)/bin/impi \
+	chmod +x $(GOPATH)/bin/impi && $(GOPATH)/bin/impi \
 			--local github.com/nuclio/nuclio/ \
 			--scheme stdLocalThirdParty \
 			--skip pkg/platform/kube/apis \
