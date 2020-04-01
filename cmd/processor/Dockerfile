@@ -14,9 +14,6 @@
 
 FROM golang:1.14 as processor
 
-ENV GOOS=linux
-ENV GOARCH=amd64
-
 WORKDIR /processor
 
 COPY go.mod go.sum ./
@@ -27,4 +24,4 @@ RUN go mod download
 COPY . .
 
 # build the processor
-RUN CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go

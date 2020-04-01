@@ -16,8 +16,7 @@ Ensure that your setup includes the following prerequisite components:
 - Linux or OSX
 - Git
 - Docker version 17.05+ (because Nuclio uses [multi-stage builds](https://docs.docker.com/engine/userguide/eng-image/multistage-build/))
-- The Go toolchain (CI tests with 1.13, best use that)
-- A **GOPATH** directory and a `GOPATH` environment variable that's set to that directory
+- The Go toolchain (CI tests with 1.14, best use that)
 - Kubernetes version 1.7+ (mostly for testing) - `minikube` recommended; (you can follow the [Minikube getting-started guide](/docs/setup/minikube/getting-started-minikube.md))
 
 <a id="get-source"></a>
@@ -60,9 +59,10 @@ git checkout -b my-feature
 <a id="goland-setup"></a>
 ## Setting up a GoLand project
 
-The Nuclio team is a fan of GoLand and uses it heavily for Go projects. It was decided not to include the **.idea** files at this time, but it's very easy to create run/debug targets and use the debugger:
-1. Create a new project that points to `$GOPATH/src/github.com/nuclio/nuclio`.
-2. Select **GoLand > Preferences > Go > GOPATH** and add the value of your `GOPATH` environment variable.
+The Nuclio team is a fan of GoLand and uses it heavily for Go projects. It was decided not to include the **.idea** files at this time, but it's very easy to create run/debug targets and use the debugger
+1. Clone nuclio `git clone git@github.com:nuclio/nuclio.git > ~/nuclio`
+2. Open GoLand and **File > Open** and select `~/nuclio`
+3. Enable go modules **GoLand > Preferences > Go > Go Modules (vgo)** and ensure `Enable Go mMdules` box is checked
 
 <a id="goland-versioning-note"></a>
 ### Versioning note
