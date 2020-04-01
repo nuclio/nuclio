@@ -327,7 +327,12 @@ modules: ensure-gopath
 .PHONY: lint
 lint: modules
 	@echo Installing linters...
-	@test -e $(GOPATH)/bin/impi || go get -u github.com/pavius/impi
+	@test -e $(GOPATH)/bin/impi || \
+		curl -s https://api.github.com/repos/pavius/impi/releases/latest \
+			| grep -i "browser_download_url.*impi.*$(OS_NAME)" \
+			| cut -d : -f 2,3 \
+			| tr -d \" \
+			| wget -O $(GOPATH)/bin/impi -qi -
 	@test -e $(GOPATH)/bin/golangci-lint || \
 	  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.24.0
 
