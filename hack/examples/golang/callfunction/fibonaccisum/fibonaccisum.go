@@ -19,7 +19,7 @@ limitations under the License.
 //   spec:
 //     runtime: "golang"
 
-package fibonaccisum
+package main
 
 import (
 	"strconv"
