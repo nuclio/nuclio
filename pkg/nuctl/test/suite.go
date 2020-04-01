@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
 	"github.com/nuclio/nuclio/pkg/version"
@@ -124,7 +125,7 @@ func (suite *Suite) ExecuteNutcl(positionalArgs []string,
 
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *Suite) GetNuclioSourceDir() string {
-	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
+	return common.GetSourceDir()
 }
 
 // GetNuclioSourceDir returns path to nuclio source directory

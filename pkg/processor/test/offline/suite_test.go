@@ -40,6 +40,7 @@ func (suite *offlineTestSuite) SetupTest() {
 }
 
 func (suite *offlineTestSuite) TestGolang() {
+	suite.T().Skipf("TODO: Once will be able to pass go mod cache from processor to function plugin")
 	createFunctionOptions := suite.GetDeployOptions("withmodules",
 		path.Join(suite.GetTestFunctionsDir(), "golang", "with-modules"))
 
