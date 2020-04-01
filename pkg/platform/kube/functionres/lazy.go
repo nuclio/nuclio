@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -798,7 +799,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 
 	targetCPU := int32(function.Spec.TargetCPU)
 	if targetCPU == 0 {
-		targetCPU = 75
+		targetCPU = abstract.DefaultTargetCPU
 	}
 
 	getHorizontalPodAutoscaler := func() (interface{}, error) {

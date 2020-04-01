@@ -21,7 +21,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
@@ -58,6 +60,8 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 		"scaleResources":          scaleResources,
 	}
 
+	defaultFunctionConfig := fesr.getDefaultFunctionConfig()
+
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
 			"externalIPAddresses":            externalIPAddresses,
@@ -65,6 +69,7 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 			"defaultHTTPIngressHostTemplate": fesr.getPlatform().GetDefaultHTTPIngressHostTemplate(),
 			"imageNamePrefixTemplate":        fesr.getPlatform().GetImageNamePrefixTemplate(),
 			"scaleToZero":                    scaleToZeroAttribute,
+			"defaultFunctionConfig":          defaultFunctionConfig,
 		},
 	}
 
@@ -74,6 +79,29 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 		Resources:  frontendSpec,
 		Headers:    map[string]string{"Content-Type": "application/json"},
 	}, nil
+}
+
+func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface{} {
+	one := 1
+	defaultWorkerAvailabilityTimeoutMilliseconds := trigger.DefaultWorkerAvailabilityTimeoutMilliseconds
+	defaultFunctionSpec := functionconfig.Spec{
+		MinReplicas:             &one,
+		MaxReplicas:             &one,
+		ReadinessTimeoutSeconds: abstract.DefaultReadinessTimeoutSeconds,
+		TargetCPU:               abstract.DefaultTargetCPU,
+		Triggers: map[string]functionconfig.Trigger{
+
+			// notice that this is a mapping between trigger kind and its default values
+			"http": {
+				WorkerAvailabilityTimeoutMilliseconds: &defaultWorkerAvailabilityTimeoutMilliseconds,
+			},
+			"cron": {
+				WorkerAvailabilityTimeoutMilliseconds: &defaultWorkerAvailabilityTimeoutMilliseconds,
+			},
+		},
+	}
+
+	return map[string]interface{}{"attributes": functionconfig.Config{Spec: defaultFunctionSpec}}
 }
 
 // returns a list of custom routes for the resource

@@ -42,6 +42,11 @@ import (
 // Base for all platforms
 //
 
+const (
+	DefaultReadinessTimeoutSeconds = 60
+	DefaultTargetCPU               = 75
+)
+
 type Platform struct {
 	Logger                         logger.Logger
 	platform                       platform.Platform

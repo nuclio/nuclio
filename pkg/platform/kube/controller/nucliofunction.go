@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
@@ -122,7 +123,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	// wait for up to 60 seconds or whatever was set in the spec
 	readinessTimeout := function.Spec.ReadinessTimeoutSeconds
 	if readinessTimeout == 0 {
-		readinessTimeout = 60
+		readinessTimeout = abstract.DefaultReadinessTimeoutSeconds
 	}
 
 	waitContext, cancel := context.WithDeadline(ctx, time.Now().Add(time.Duration(readinessTimeout)*time.Second))
