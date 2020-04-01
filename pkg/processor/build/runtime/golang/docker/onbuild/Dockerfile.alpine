@@ -21,7 +21,6 @@ RUN apk --update --no-cache add git gcc musl-dev file
 # Set processor work dir
 WORKDIR /nuclio
 
-# Copy go modules first, will help docker caching upon building
 ADD go.mod go.sum ./
 
 # Download modules

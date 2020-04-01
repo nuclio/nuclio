@@ -18,7 +18,6 @@ FROM golang:1.14 as processor
 # Set processor work dir
 WORKDIR /nuclio
 
-# Copy go modules first, will help docker caching upon building
 ADD go.mod go.sum ./
 
 # Download modules

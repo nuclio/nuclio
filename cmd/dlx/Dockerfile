@@ -25,7 +25,6 @@ RUN apk --update --no-cache add \
 
 WORKDIR /dlx
 
-# copy go modules first, will help docker caching upon building
 COPY go.mod go.sum ./
 
 RUN go mod download

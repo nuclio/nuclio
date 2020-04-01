@@ -20,7 +20,6 @@ FROM golang:1.14 as build
 
 WORKDIR /playground
 
-# copy go modules first, will help docker caching upon building
 COPY go.mod go.sum ./
 
 RUN go mod download

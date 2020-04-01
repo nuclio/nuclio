@@ -37,7 +37,6 @@ FROM golang:1.14 as build-binary
 
 WORKDIR /dashboard
 
-# copy go modules first, will help docker caching upon building
 COPY go.mod go.sum ./
 
 RUN go mod download

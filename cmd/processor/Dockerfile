@@ -19,7 +19,6 @@ ENV GOARCH=amd64
 
 WORKDIR /processor
 
-# copy go modules first, will help docker caching upon building
 COPY go.mod go.sum ./
 
 RUN go mod download
