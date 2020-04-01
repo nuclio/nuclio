@@ -361,7 +361,7 @@ test: ensure-gopath
 
 	docker run --rm \
 	--volume /var/run/docker.sock:/var/run/docker.sock \
-	--volume $(GOPATH):/go \
+	--volume $(GOPATH)/bin:/go/bin \
 	--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
 	--volume /tmp:/tmp \
 	--workdir $(GO_BUILD_TOOL_WORKDIR) \

@@ -283,7 +283,7 @@ func GetDurationOrInfinite(timeout *time.Duration) time.Duration {
 func GetSourceDir() string {
 
 	// get caller filename
-	_, fileName, _, _ := runtime.Caller(1)
+	_, fileName, _, _ := runtime.Caller(0)
 
 	// get filename dir
 	dirName := path.Dir(fileName)
