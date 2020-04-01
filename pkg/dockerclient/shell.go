@@ -93,7 +93,8 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 	}
 
 	var hostNetString string
-	networkInterface := common.GetEnvOrDefaultString("NUCLIO_DOCKER_BUILD_NETWORK", "")
+	networkInterface := common.GetEnvOrDefaultString("NUCLIO_DOCKER_BUILD_NETWORK",
+		common.GetEnvOrDefaultString("NUCLIO_BUILD_USE_HOST_NET", "host"))
 	switch networkInterface {
 	case "host":
 		fallthrough

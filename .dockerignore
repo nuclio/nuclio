@@ -11,7 +11,3 @@ pkg/dashboard/ui/dist
 
 **/Dockerfile
 **/Dockerfile.alpine
-
-# TODO: REMOVE
-!go1.13tmp/handler
-!go1.13tmp/processor.yaml

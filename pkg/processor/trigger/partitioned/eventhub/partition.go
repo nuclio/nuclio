@@ -51,10 +51,6 @@ func newPartition(parentLogger logger.Logger, eventhubTrigger *eventhub, partiti
 		return nil, errors.Wrap(err, "Failed to create abstract partition")
 	}
 
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create partition consumer")
-	}
-
 	return newPartition, nil
 }
 
