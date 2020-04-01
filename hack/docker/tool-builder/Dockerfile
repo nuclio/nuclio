@@ -19,17 +19,9 @@ ENV GOOS=linux
 ENV GOARCH=amd64
 
 # copy source tree
-WORKDIR /go/src/github.com/nuclio/nuclio
+WORKDIR /nuclio
 
-ADD cmd     ./cmd
-ADD vendor  ./vendor
-ADD pkg     ./pkg
+# copy go modules first, will help docker caching upon building
+COPY go.mod go.sum ./
 
-# build the dashboard
-RUN go get github.com/nuclio/nuclio-sdk-go \
-    && go get github.com/nuclio/logger \
-    && go get golang.org/x/net/... \
-    && go get github.com/v3io/scaler-types \
-    && cd ../../v3io/scaler-types \
-    && git checkout v1.5.0 \
-    && cd /go/src/github.com/nuclio/nuclio
+RUN go mod download
