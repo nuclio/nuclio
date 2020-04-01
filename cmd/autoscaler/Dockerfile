@@ -23,7 +23,7 @@ RUN apk --update --no-cache add \
     gcc \
     musl-dev
 
-WORKDIR /go/src/github.com/nuclio/nuclio
+WORKDIR /autoscaler
 
 # copy go modules first, will help docker caching upon building
 COPY go.mod go.sum ./
@@ -33,16 +33,13 @@ RUN go mod download
 # copy source tree
 COPY . .
 
-RUN mkdir -p /home/nuclio/bin \
-            && GOOS=linux GOARCH=amd64 go build -buildmode=plugin -a -installsuffix cgo -ldflags="-s -w" \
-            -o /home/nuclio/plugins/plugin.so pkg/platform/kube/resourcescaler/resourcescaler.go \
-            && rm -rf /go/src/github.com/nuclio/nuclio
+RUN GOOS=linux GOARCH=amd64 go build -buildmode=plugin -a -installsuffix cgo -ldflags="-s -w" -o plugin.so pkg/platform/kube/resourcescaler/resourcescaler.go
 
 FROM alpine:3.11
 
 WORKDIR /home/nuclio
 
-COPY --from=builder /home/nuclio/plugins/plugin.so /home/nuclio/plugins/plugin.so
+COPY --from=builder /autoscaler/plugin.so /home/nuclio/plugins/plugin.so
 COPY --from=quay.io/v3io/autoscaler:v0.2.0 /home/v3io/bin/autoscaler /home/nuclio/autoscaler
 
 CMD [ "/home/nuclio/autoscaler" ]

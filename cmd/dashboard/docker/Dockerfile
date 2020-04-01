@@ -35,7 +35,7 @@ RUN npm install -g gulp \
 
 FROM golang:1.14 as build-binary
 
-WORKDIR /go/src/github.com/nuclio/nuclio
+WORKDIR /dashboard
 
 # copy go modules first, will help docker caching upon building
 COPY go.mod go.sum ./
@@ -79,7 +79,7 @@ COPY cmd/dashboard/docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build-static /home/nuclio/dashboard/src/dist /etc/nginx/static/
 
 # copy dashboard binary from build binary stage
-COPY --from=build-binary /go/src/github.com/nuclio/nuclio/dashboard /usr/local/bin
+COPY --from=build-binary /dashboard/dashboard /usr/local/bin
 
 # generate a version file
 ARG NUCLIO_VERSION_INFO_FILE_CONTENTS

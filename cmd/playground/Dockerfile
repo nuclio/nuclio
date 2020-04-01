@@ -18,13 +18,18 @@
 
 FROM golang:1.14 as build
 
+WORKDIR /playground
+
+# copy go modules first, will help docker caching upon building
+COPY go.mod go.sum ./
+
+RUN go mod download
+
 # copy source tree
-WORKDIR /go/src/github.com/nuclio/nuclio
 COPY . .
 
 # build the playground
-RUN go mod download
-    && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o playground cmd/playground/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o playground cmd/playground/main.go
 
 #
 # Output stage: Creates version file, copies binary to an alpine based image
@@ -44,7 +49,7 @@ RUN apk --update --no-cache add ca-certificates git curl \
     && apk del curl
 
 # copy playground binary from build stage
-COPY --from=build /go/src/github.com/nuclio/nuclio/playground /usr/local/bin
+COPY --from=build /playground/playground /usr/local/bin
 COPY cmd/playground/static /etc/nuclio/playground/assets
 
 RUN mkdir -p /etc/nuclio/playground/sources

@@ -18,7 +18,7 @@
 
 FROM golang:1.14 as build
 
-WORKDIR /go/src/github.com/nuclio/nuclio
+WORKDIR /controller
 
 # copy go modules first, will help docker caching upon building
 COPY go.mod go.sum ./
@@ -40,7 +40,7 @@ FROM alpine:3.11
 RUN apk add --no-cache ca-certificates
 
 # copy controller binary from build stage
-COPY --from=build /go/src/github.com/nuclio/nuclio/controller /usr/local/bin
+COPY --from=build /controller/controller /usr/local/bin
 
 # generate a version file
 ARG NUCLIO_VERSION_INFO_FILE_CONTENTS

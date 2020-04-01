@@ -17,7 +17,7 @@ FROM golang:1.14 as processor
 ENV GOOS=linux
 ENV GOARCH=amd64
 
-WORKDIR /go/src/github.com/nuclio/nuclio
+WORKDIR /processor
 
 # copy go modules first, will help docker caching upon building
 COPY go.mod go.sum ./
