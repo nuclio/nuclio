@@ -90,7 +90,7 @@ dlx:
     tag: 1.4.0-amd64
     pullPolicy: IfNotPresent
 
-registry: {}
+registry:
 
   # By default, the chart does not advocate using helm to manage registry credentials. You should create a secret
   # manually as follows and specify secret name here:
