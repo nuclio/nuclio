@@ -308,17 +308,13 @@ func (s *store) runCommand(env map[string]string, format string, args ...interfa
 			break
 		}
 
-		// if there was an error
-		// and it wasn't because the file wasn't created yet
-		// and it wasn't because the container doesn't exist
-		// return the error
-		if err != nil &&
-			!strings.Contains(err.Error(), "No such container") {
+		// if ontainer doesn't exist return the error
+		if !strings.Contains(err.Error(), "No such container") {
 			return "", "", errors.Wrapf(err, "Failed to execute command: %s", command)
 		}
 
 		// run a container that simply volumizes the volume with the storage and sleeps for 6 hours
-		_, err = s.dockerClient.RunContainer("alpine:3.7", &dockerclient.RunOptions{
+		_, err = s.dockerClient.RunContainer("alpine:3.11", &dockerclient.RunOptions{
 			Volumes:          map[string]string{volumeName: baseDir},
 			Remove:           true,
 			Command:          `/bin/sh -c "/bin/sleep 6h"`,

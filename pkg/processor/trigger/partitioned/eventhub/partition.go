@@ -22,9 +22,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 
-	"github.com/nuclio/amqp"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"pack.ag/amqp"
 )
 
 type partition struct {
@@ -49,10 +49,6 @@ func newPartition(parentLogger logger.Logger, eventhubTrigger *eventhub, partiti
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract partition")
-	}
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create partition consumer")
 	}
 
 	return newPartition, nil
@@ -89,10 +85,13 @@ func (p *partition) Read() error {
 		}
 
 		// Accept message
-		msg.Accept()
+		err = msg.Accept()
+		if err != nil {
+			return errors.Wrap(err, "Error Accepting message from AMQP")
+		}
 
 		// set event data
-		p.event.body = msg.Data
+		p.event.body = msg.Data[0]
 
 		// process the event, don't really do anything with response
 		p.eventhubTrigger.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck

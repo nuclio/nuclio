@@ -30,13 +30,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/jarcoal/httpmock.v1"
 )
 
 const (
@@ -627,6 +627,9 @@ func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension stri
 	responder := func(req *http.Request) (*http.Response, error) {
 		responder := httpmock.NewStringResponder(200, codeFileContent)
 		response, err := responder(req)
+		if err != nil {
+			return nil, errors.Wrap(err, "Could not get response")
+		}
 		response.ContentLength = int64(len(codeFileContent))
 		return response, err
 	}
@@ -681,7 +684,7 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 	suite.builder.options.FunctionConfig.Spec.Build = buildConfiguration
 
 	path, _, err := suite.builder.resolveFunctionPath(buildConfiguration.Path)
-	suite.NoError(err)
+	suite.Require().NoError(err)
 
 	// make sure the path is set to the work dir inside the decompressed folder
 	if buildConfiguration.CodeEntryType == GithubEntryType {

@@ -242,7 +242,7 @@ func (i *invokeCommandeer) outputResponseHeaders(invokeResult *platform.CreateFu
 	for headerName, headerValue := range invokeResult.Headers {
 
 		// skip the log headers
-		if strings.ToLower(headerName) == strings.ToLower("X-Nuclio-Logs") {
+		if strings.EqualFold(headerName, "X-Nuclio-Logs") {
 			continue
 		}
 

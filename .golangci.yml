@@ -1,0 +1,40 @@
+linters:
+  disable-all: true
+  enable:
+    - deadcode
+    - goconst
+    - gofmt
+    - golint
+    - gosimple
+    - ineffassign
+    - interfacer
+    - misspell
+    - staticcheck
+    - unconvert
+    - varcheck
+    - vet
+    - vetshadow
+    - errcheck
+
+run:
+
+  # timeout for analysis
+  timeout: 5m
+
+  # include test files or not, default is true
+  tests: false
+
+  skip-dirs:
+    - hack
+    - docs
+    - test
+    - pkg/platform/kube/apis
+    - pkg/platform/kube/client
+
+issues:
+
+  # List of regexps of issue texts to exclude
+  exclude:
+    - "comment on"
+    - "error should be the last"
+    - "should have comment"

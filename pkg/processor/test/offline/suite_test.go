@@ -17,6 +17,7 @@ limitations under the License.
 package offline
 
 import (
+	"os"
 	"path"
 	"testing"
 
@@ -30,19 +31,29 @@ type offlineTestSuite struct { // nolint
 	httpsuite.TestSuite
 }
 
+func (suite *offlineTestSuite) SetupTest() {
+	suite.TestSuite.SetupTest()
+
+	// since we build offline, force docker build command to run with --network none
+	err := os.Setenv("NUCLIO_DOCKER_BUILD_NETWORK", "none")
+	suite.Require().NoError(err)
+}
+
 func (suite *offlineTestSuite) TestGolang() {
-	createFunctionOptions := suite.GetDeployOptions("withvendor",
-		path.Join(suite.GetTestFunctionsDir(), "golang", "with-vendor"))
+	suite.T().Skipf("TODO: Once will be able to pass go mod cache from processor to function plugin")
+	createFunctionOptions := suite.GetDeployOptions("withmodules",
+		path.Join(suite.GetTestFunctionsDir(), "golang", "with-modules"))
 
 	createFunctionOptions.FunctionConfig.Spec.Build.Offline = true
 	createFunctionOptions.FunctionConfig.Spec.Build.NoCache = true
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "golang"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "WithModules"
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		testRequest := httpsuite.Request{
 			RequestMethod:        "GET",
 			RequestPort:          deployResult.Port,
-			ExpectedResponseBody: "from_vendor",
+			ExpectedResponseBody: "from_go_modules",
 		}
 
 		if !suite.SendRequestVerifyResponse(&testRequest) {

@@ -16,34 +16,30 @@
 # Build stage: builds the controller binary
 #
 
-FROM golang:1.10 as build
+FROM golang:1.14 as build
+
+WORKDIR /controller
+
+COPY go.mod go.sum ./
+
+RUN go mod download
 
 # copy source tree
-WORKDIR /go/src/github.com/nuclio/nuclio
 COPY . .
 
 # build the controller
-RUN go get github.com/v3io/v3io-go-http \
-    && go get github.com/nuclio/logger \
-    && go get github.com/nuclio/nuclio-sdk-go \
-    && go get github.com/nuclio/amqp \
-    && go get golang.org/x/net/... \
-    && go get github.com/v3io/scaler-types \
-    && cd $GOPATH/src/github.com/v3io/scaler-types \
-    && git checkout v1.5.0 \
-    && cd /go/src/github.com/nuclio/nuclio \
-    && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o controller cmd/controller/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o controller cmd/controller/main.go
 
 #
 # Output stage: Creates version file, copies binary to an alpine based image
 #
 
-FROM alpine:3.7
+FROM alpine:3.11
 
 RUN apk add --no-cache ca-certificates
 
 # copy controller binary from build stage
-COPY --from=build /go/src/github.com/nuclio/nuclio/controller /usr/local/bin
+COPY --from=build /controller/controller /usr/local/bin
 
 # generate a version file
 ARG NUCLIO_VERSION_INFO_FILE_CONTENTS

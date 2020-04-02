@@ -30,7 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 	"github.com/nuclio/nuclio/test/httpsrv"
 
-	"github.com/mholt/archiver"
+	"github.com/mholt/archiver/v3"
 	"github.com/nuclio/errors"
 )
 
@@ -47,7 +47,7 @@ type RuntimeSuite interface {
 
 type archiveInfo struct {
 	extension  string
-	compressor func(string, []string) error
+	compressor func([]string, string) error
 }
 
 type TestSuite struct {
@@ -61,8 +61,8 @@ func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 
 	suite.archiveInfos = []archiveInfo{
-		{".zip", archiver.Zip.Make},
-		{".tar.gz", archiver.TarGz.Make},
+		{".zip", archiver.DefaultZip.Archive},
+		{".tar.gz", archiver.DefaultTarGz.Archive},
 	}
 }
 
@@ -322,7 +322,7 @@ func (suite *TestSuite) DeployFunctionFromURL(createFunctionOptions *platform.Cr
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string,
-	compressor func(string, []string) error,
+	compressor func([]string, string) error,
 	archivePattern string) {
 
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
@@ -336,7 +336,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromURLWithCustomDir(archiveExtension string,
-	compressor func(string, []string) error,
+	compressor func([]string, string) error,
 	archivePattern string) {
 
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
@@ -354,7 +354,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromURLWithCustomDir(archiveExt
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromGithub(archiveExtension string,
-	compressor func(string, []string) error,
+	compressor func([]string, string) error,
 	archivePattern string) {
 
 	branch := "master"
@@ -433,7 +433,7 @@ func (suite *TestSuite) getDeployOptionsDir(functionName string) *platform.Creat
 	return createFunctionOptions
 }
 
-func (suite *TestSuite) compressAndDeployFunction(archiveExtension string, compressor func(string, []string) error) {
+func (suite *TestSuite) compressAndDeployFunction(archiveExtension string, compressor func([]string, string) error) {
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
 
 	archivePath := suite.createFunctionArchive(createFunctionOptions.FunctionConfig.Spec.Build.Path,
@@ -455,7 +455,7 @@ func (suite *TestSuite) compressAndDeployFunction(archiveExtension string, compr
 func (suite *TestSuite) createFunctionArchive(functionDir string,
 	archiveExtension string,
 	archivePattern string,
-	compressor func(string, []string) error) string {
+	compressor func([]string, string) error) string {
 
 	// create a temp directory that will hold the archive
 	archiveDir, err := ioutil.TempDir("", "build-zip-"+suite.TestID)
@@ -478,7 +478,7 @@ func (suite *TestSuite) createFunctionArchive(functionDir string,
 	}
 
 	// create the archive
-	err = compressor(archivePath, functionFileNames)
+	err = compressor(functionFileNames, archivePath)
 	suite.Require().NoError(err)
 
 	return archivePath

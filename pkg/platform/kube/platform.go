@@ -53,7 +53,8 @@ type Platform struct {
 const Mib = 1048576
 
 // NewPlatform instantiates a new kubernetes platform
-func NewPlatform(parentLogger logger.Logger, kubeconfigPath string,
+func NewPlatform(parentLogger logger.Logger,
+	kubeconfigPath string,
 	containerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration,
 	platformConfiguration interface{}) (*Platform, error) {
 	newPlatform := &Platform{}
@@ -325,10 +326,7 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 
 	updatedProject := nuclioio.NuclioProject{}
 	p.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
-
-	if &updatedProject.Spec != nil {
-		project.Spec = updatedProject.Spec
-	}
+	project.Spec = updatedProject.Spec
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
@@ -455,10 +453,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 		return errors.Wrap(err, "Failed to get function event")
 	}
 
-	// update it with spec if passed
-	if &updateFunctionEventOptions.FunctionEventConfig.Spec != nil {
-		functionEvent.Spec = updatedFunctionEvent.Spec
-	}
+	functionEvent.Spec = updatedFunctionEvent.Spec
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).

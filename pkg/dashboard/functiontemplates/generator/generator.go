@@ -477,8 +477,8 @@ func newGenerator(logger logger.Logger, examplesDir string, outputPath string) (
 }
 
 func main() {
-	examplesDir := flag.String("p", "", "Path to examples directory")
-	outputPath := flag.String("o", "", "Path to output file")
+	examplesDir := flag.String("p", "hack/examples", "Path to examples directory")
+	outputPath := flag.String("o", "pkg/dashboard/functiontemplates/generated.go", "Path to output file")
 	flag.Parse()
 
 	if err := func() error {
