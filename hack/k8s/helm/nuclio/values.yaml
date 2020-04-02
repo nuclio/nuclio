@@ -139,13 +139,11 @@ registry: {}
   #  Use a custom "base" images registry (pull registry). Default behavior will pull the default
   #  base images from the web
   #  Note: To override a pull registry for both "onbuild" and base images, use `dependantImageRegistryURL`.
-  #
-  # defaultBaseRegistryURL: someUrl
+  defaultBaseRegistryURL: ""
 
-  #  Use a custom "onbuild" images registry (pull registry). Default behavior will pull from quay.io
+  #  Use a custom "onbuild" images registry (pull registry).
   #  Note: To override a pull registry for both "onbuild" and base images, use `dependantImageRegistryURL`.
-  #
-  # defaultOnbuildRegistryURL: someUrl
+  defaultOnbuildRegistryURL: "quay.io"
 
   # Use this registry URL as an override for both base and "onbuild" images, so they'll be pulled from the
   # specified registry URL and not from the default registries
