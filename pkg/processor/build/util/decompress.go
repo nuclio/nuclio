@@ -20,7 +20,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/mholt/archiver"
+	"github.com/mholt/archiver/v3"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
@@ -52,11 +52,11 @@ func IsCompressed(source string) bool {
 		return false
 	}
 
-	uaIface, err := archiver.ByExtension(source)
+	unarchiver, err := archiver.ByExtension(source)
 	if err != nil {
 		return false
 	}
-	u, ok := uaIface.(archiver.Unarchiver)
+	u, ok := unarchiver.(archiver.Unarchiver)
 	if !ok {
 		return false
 	}

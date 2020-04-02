@@ -49,7 +49,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/version"
 
-	"github.com/mholt/archiver"
+	"github.com/mholt/archiver/v3"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"

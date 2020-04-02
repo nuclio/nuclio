@@ -18,9 +18,13 @@ package main
 
 import (
 	"github.com/nuclio/nuclio-sdk-go"
+
+	"github.com/aidarkhanov/nanoid"
 )
 
 func WithModules(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	id := nanoid.New()
+	context.Logger.DebugWith("Generated an id", "id", id)
 	return nuclio.Response{
 		StatusCode:  200,
 		ContentType: "text/plain",

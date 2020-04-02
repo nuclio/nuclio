@@ -16,7 +16,6 @@ require (
 	github.com/aws/aws-sdk-go v1.30.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/disintegration/imaging v1.6.0
-	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/fatih/structs v1.1.0
 	github.com/ghodss/yaml v1.0.0
@@ -34,7 +33,7 @@ require (
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b
-	github.com/mholt/archiver v3.1.1+incompatible
+	github.com/mholt/archiver/v3 v3.3.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/nats-io/gnatsd v1.4.1 // indirect
@@ -46,10 +45,11 @@ require (
 	github.com/nuclio/logger-appinsights v0.0.1
 	github.com/nuclio/nuclio-sdk-go v0.0.1
 	github.com/nuclio/zap v0.0.2
-	github.com/nwaples/rardecode v1.0.0 // indirect
+	github.com/nwaples/rardecode v1.1.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/onsi/ginkgo v1.10.0 // indirect
 	github.com/onsi/gomega v1.7.0 // indirect
+	github.com/pierrec/lz4 v2.4.1+incompatible // indirect
 	github.com/prometheus/client_golang v1.1.0
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/robfig/cron v1.2.0
@@ -62,12 +62,12 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc // indirect
 	github.com/tsenart/vegeta v6.3.0+incompatible
+	github.com/ulikunitz/xz v0.5.7 // indirect
 	github.com/v3io/scaler-types v1.5.0
 	github.com/v3io/v3io-go v0.1.4
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/valyala/fasthttp v1.9.0
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
-	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	go.uber.org/atomic v1.4.0 // indirect
 	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e // indirect
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a

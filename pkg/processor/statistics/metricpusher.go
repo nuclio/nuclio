@@ -22,7 +22,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	processorTrigger "github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -31,7 +31,7 @@ import (
 )
 
 type triggerProvider interface {
-	GetTriggers() []processorTrigger.Trigger
+	GetTriggers() []trigger.Trigger
 }
 
 type MetricPusher struct {
@@ -105,10 +105,10 @@ func (mp *MetricPusher) readConfiguration(metricSinkConfiguration *platformconfi
 
 func (mp *MetricPusher) createGatherers(triggerProvider triggerProvider) error {
 
-	for _, trigger := range triggerProvider.GetTriggers() {
+	for _, _trigger := range triggerProvider.GetTriggers() {
 
 		// create a gatherer for the trigger
-		triggerGatherer, err := newTriggerGatherer(mp.instanceName, mp.logger, trigger, mp.metricRegistry)
+		triggerGatherer, err := newTriggerGatherer(mp.instanceName, mp.logger, _trigger, mp.metricRegistry)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create trigger gatherer")
 		}
@@ -116,8 +116,8 @@ func (mp *MetricPusher) createGatherers(triggerProvider triggerProvider) error {
 		mp.gatherers = append(mp.gatherers, triggerGatherer)
 
 		// now add workers
-		for _, worker := range trigger.GetWorkers() {
-			workerGatherer, err := newWorkerGatherer(mp.instanceName, trigger, worker, mp.metricRegistry)
+		for _, worker := range _trigger.GetWorkers() {
+			workerGatherer, err := newWorkerGatherer(mp.instanceName, _trigger, worker, mp.metricRegistry)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create worker gatherer")
 			}

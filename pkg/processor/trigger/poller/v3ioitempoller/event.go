@@ -24,17 +24,17 @@ import (
 
 type Event struct {
 	nuclio.AbstractEvent
-	item *map[string]interface{}
+	item map[string]interface{}
 	url  string
 	path string
 }
 
 func (e *Event) GetHeader(key string) interface{} {
-	return (*e.item)[key]
+	return e.item[key]
 }
 
 func (e *Event) GetHeaders() map[string]interface{} {
-	return *e.item
+	return e.item
 }
 
 func (e *Event) GetTimestamp() time.Time {

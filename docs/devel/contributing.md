@@ -62,7 +62,7 @@ git checkout -b my-feature
 The Nuclio team is a fan of GoLand and uses it heavily for Go projects. It was decided not to include the **.idea** files at this time, but it's very easy to create run/debug targets and use the debugger
 1. Clone nuclio `git clone git@github.com:nuclio/nuclio.git > ~/nuclio`
 2. Open GoLand and **File > Open** and select `~/nuclio`
-3. Enable go modules **GoLand > Preferences > Go > Go Modules (vgo)** and ensure `Enable Go mMdules` box is checked
+3. Enable go modules **GoLand > Preferences > Go > Go Modules (vgo)** and ensure `Enable Go Modules` box is checked
 
 <a id="goland-versioning-note"></a>
 ### Versioning note

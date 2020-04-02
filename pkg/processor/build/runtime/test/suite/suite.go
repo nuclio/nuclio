@@ -30,7 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 	"github.com/nuclio/nuclio/test/httpsrv"
 
-	"github.com/mholt/archiver"
+	"github.com/mholt/archiver/v3"
 	"github.com/nuclio/errors"
 )
 
