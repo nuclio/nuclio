@@ -5,7 +5,7 @@ go 1.14
 require (
 	cloud.google.com/go v0.55.0 // indirect
 	cloud.google.com/go/pubsub v1.2.0
-	code.cloudfoundry.org/clock v0.0.0-20180518195852-02e53af36e6c // indirect
+	code.cloudfoundry.org/clock v1.0.0 // indirect
 	github.com/Azure/azure-sdk-for-go v36.0.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.9.2 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.8.0 // indirect
@@ -43,8 +43,8 @@ require (
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nuclio/errors v0.0.2
 	github.com/nuclio/logger v0.0.1
-	github.com/nuclio/logger-appinsights v0.0.0-20190306192918-3277172d7ba9
-	github.com/nuclio/nuclio-sdk-go v0.0.0-20200215185402-c5d7db4628cf
+	github.com/nuclio/logger-appinsights v0.0.1
+	github.com/nuclio/nuclio-sdk-go v0.0.1
 	github.com/nuclio/zap v0.0.2
 	github.com/nwaples/rardecode v1.0.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.1
@@ -64,7 +64,7 @@ require (
 	github.com/tsenart/vegeta v6.3.0+incompatible
 	github.com/v3io/scaler-types v1.5.0
 	github.com/v3io/v3io-go v0.1.4
-	github.com/v3io/v3io-go-http v0.0.0-20190415143924-cc2fbcde6663
+	github.com/v3io/v3io-go-http v0.0.1
 	github.com/valyala/fasthttp v1.9.0
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect

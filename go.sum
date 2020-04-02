@@ -25,8 +25,8 @@ cloud.google.com/go/storage v1.0.0/go.mod h1:IhtSnM/ZTZV8YYJWCY8RULGVqBDmpoyjwiy
 cloud.google.com/go/storage v1.5.0/go.mod h1:tpKbwo567HUNpVclU5sGELwQWBDZ8gh0ZeosJ0Rtdos=
 cloud.google.com/go/storage v1.6.0 h1:UDpwYIwla4jHGzZJaEJYx1tOejbgSoNqsAfHAUYe2r8=
 cloud.google.com/go/storage v1.6.0/go.mod h1:N7U0C8pVQ/+NIKOBQyamJIeKQKkZ+mxpohlUTyfDhBk=
-code.cloudfoundry.org/clock v0.0.0-20180518195852-02e53af36e6c h1:5eeuG0BHx1+DHeT3AP+ISKZ2ht1UjGhm581ljqYpVeQ=
-code.cloudfoundry.org/clock v0.0.0-20180518195852-02e53af36e6c/go.mod h1:QD9Lzhd/ux6eNQVUDVRJX/RKTigpewimNYBi7ivZKY8=
+code.cloudfoundry.org/clock v1.0.0 h1:kFXWQM4bxYvdBw2X8BbBeXwQNgfoWv1vqAk2ZZyBN2o=
+code.cloudfoundry.org/clock v1.0.0/go.mod h1:QD9Lzhd/ux6eNQVUDVRJX/RKTigpewimNYBi7ivZKY8=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 github.com/Azure/azure-sdk-for-go v36.0.0+incompatible h1:XIaBmA4pgKqQ7jInQPaNJQ4pOHrdJjw9gYXhbyiChaU=
 github.com/Azure/azure-sdk-for-go v36.0.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
@@ -278,10 +278,10 @@ github.com/nuclio/errors v0.0.2/go.mod h1:it2rUqDarIL8PasLYZo0Q1Ebsx4NRPM+OyYYak
 github.com/nuclio/logger v0.0.0-20190303161055-fc1e4b16d127/go.mod h1:ttazNAqTxKjQ7XrGDZxecumGa9KCIuJh88gzFY1mRXo=
 github.com/nuclio/logger v0.0.1 h1:e+vT/Ug65RC+u0QX2J+lq3P57ZBwJ1ZA6Q2LCEcViwE=
 github.com/nuclio/logger v0.0.1/go.mod h1:ttazNAqTxKjQ7XrGDZxecumGa9KCIuJh88gzFY1mRXo=
-github.com/nuclio/logger-appinsights v0.0.0-20190306192918-3277172d7ba9 h1:/ZuhGdmCtYZrX7GnF/ePre+iECw+I3bMZdcma5vvFJE=
-github.com/nuclio/logger-appinsights v0.0.0-20190306192918-3277172d7ba9/go.mod h1:SRy3eM+sWa2ZeI0QpJg1O0Ja+WcsRXtlE2oUjPMXNck=
-github.com/nuclio/nuclio-sdk-go v0.0.0-20200215185402-c5d7db4628cf h1:DXjMWJF9hLL+Uw5sr9P4xcJhwPF22lJBm4P0+MXh65A=
-github.com/nuclio/nuclio-sdk-go v0.0.0-20200215185402-c5d7db4628cf/go.mod h1:NqMgotiF6Y0Ho4+i5AvJhH3FRKAyL4IMaMv/eoUOkKQ=
+github.com/nuclio/logger-appinsights v0.0.1 h1:yYOUN0FUcqnWytZg+A1OeOaR0N/gcEnAkutWA49MMso=
+github.com/nuclio/logger-appinsights v0.0.1/go.mod h1:SRy3eM+sWa2ZeI0QpJg1O0Ja+WcsRXtlE2oUjPMXNck=
+github.com/nuclio/nuclio-sdk-go v0.0.1 h1:mgV8U+WDI3dfFtOGbDaES8Uae2feEbVAOIFu8jb2eFU=
+github.com/nuclio/nuclio-sdk-go v0.0.1/go.mod h1:NqMgotiF6Y0Ho4+i5AvJhH3FRKAyL4IMaMv/eoUOkKQ=
 github.com/nuclio/zap v0.0.2 h1:rY5PkMOl8CTkqRqIPuxziBiKK6Mq/8oEurfgRnNtqf0=
 github.com/nuclio/zap v0.0.2/go.mod h1:SUxPsgePvlyjx6c5MtGdB50pf0IQThtlyLwISLboeuc=
 github.com/nwaples/rardecode v1.0.0 h1:r7vGuS5akxOnR4JQSkko62RJ1ReCMXxQRPtxsiFMBOs=
@@ -375,8 +375,8 @@ github.com/v3io/scaler-types v1.5.0 h1:3nA56ewksIWmcGPW45wXUBMT3AZ4m61HMInR33j4u
 github.com/v3io/scaler-types v1.5.0/go.mod h1:Q2xufg8/9sLUOHh8/ckhHaAzZy2M8AgEknMTJ5HxvFI=
 github.com/v3io/v3io-go v0.1.4 h1:zg/B0ATSxaLm0/Z7nNnlyrCtDQTIBTSoaIo2wKnKx+M=
 github.com/v3io/v3io-go v0.1.4/go.mod h1:D0W1tjsVgcp4xk3ZI2fjKTKaOpYJLewN1BPN0x2osO4=
-github.com/v3io/v3io-go-http v0.0.0-20190415143924-cc2fbcde6663 h1:WZcM/GRBAastacksmv5pODbtr8fJ/0/9EsPDpPfXkRk=
-github.com/v3io/v3io-go-http v0.0.0-20190415143924-cc2fbcde6663/go.mod h1:GXYcR9MxgfbE3BJdkXki5EclvtS8Nxu2RQNLA8hMMog=
+github.com/v3io/v3io-go-http v0.0.1 h1:uE+PmPkVfGi6vIMpoFgrSot4yIow5Id48Gj9ZPt02pU=
+github.com/v3io/v3io-go-http v0.0.1/go.mod h1:GXYcR9MxgfbE3BJdkXki5EclvtS8Nxu2RQNLA8hMMog=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasthttp v1.2.0/go.mod h1:4vX61m6KN+xDduDNwXrhIAVZaZaZiQ1luJk8LWSxF3s=
