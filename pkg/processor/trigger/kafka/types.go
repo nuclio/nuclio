@@ -44,7 +44,7 @@ type Configuration struct {
 	}
 
 	SessionTimeout                string
-	HearbeatInterval              string
+	HeartbeatInterval             string
 	MaxProcessingTime             string
 	RebalanceTimeout              string
 	RebalanceRetryBackoff         string
@@ -81,7 +81,7 @@ func NewConfiguration(ID string,
 
 	err := newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
 		{Key: "nuclio.io/kafka-session-timeout", ValueString: &newConfiguration.SessionTimeout},
-		{Key: "nuclio.io/kafka-heartbeat-interval", ValueString: &newConfiguration.HearbeatInterval},
+		{Key: "nuclio.io/kafka-heartbeat-interval", ValueString: &newConfiguration.HeartbeatInterval},
 		{Key: "nuclio.io/kafka-max-processing-time", ValueString: &newConfiguration.MaxProcessingTime},
 		{Key: "nuclio.io/kafka-rebalance-timeout", ValueString: &newConfiguration.RebalanceTimeout},
 		{Key: "nuclio.io/kafka-rebalance-retry-backoff", ValueString: &newConfiguration.RebalanceRetryBackoff},
@@ -139,7 +139,7 @@ func NewConfiguration(ID string,
 		},
 		{
 			Name:    "heartbeat interval",
-			Value:   newConfiguration.HearbeatInterval,
+			Value:   newConfiguration.HeartbeatInterval,
 			Field:   &newConfiguration.heartbeatInterval,
 			Default: 3 * time.Second,
 		},

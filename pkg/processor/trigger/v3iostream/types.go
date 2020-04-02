@@ -44,7 +44,7 @@ type Configuration struct {
 	SeekTo                          string
 	ReadBatchSize                   int
 	SessionTimeout                  string
-	HearbeatInterval                string
+	HeartbeatInterval               string
 	SequenceNumberCommitInterval    string
 	SequenceNumberShardWaitInterval string
 	RecordBatchSizeChan             int
@@ -168,7 +168,7 @@ func (c *Configuration) getStreamConsumerGroupConfig() (*streamconsumergroup.Con
 		},
 		{
 			Name:    "heartbeat interval",
-			Value:   c.HearbeatInterval,
+			Value:   c.HeartbeatInterval,
 			Field:   &streamConsumerGroupConfig.Session.HeartbeatInterval,
 			Default: 3 * time.Second,
 		},
