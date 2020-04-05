@@ -96,7 +96,10 @@ func (d *Docker) GetBaseImageRegistry(registry string) string {
 }
 
 func (d *Docker) GetOnbuildImageRegistry(registry string) string {
-	return d.builderConfiguration.DefaultOnbuildRegistryURL
+
+	// TODO: uncomment and make sure docker platform is being initialized correctly
+	// return d.builderConfiguration.DefaultOnbuildRegistryURL
+	return "quay.io"
 }
 
 func (d *Docker) buildContainerImage(buildOptions *BuildOptions) error {
