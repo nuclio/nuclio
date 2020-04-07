@@ -161,7 +161,9 @@ func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 func (pr *projectResource) Export(project platform.Project) restful.Attributes {
 	projectMeta := project.GetConfig().Meta
 
-	// clean namespace from project
+	pr.Logger.DebugWith("Exporting project", "project", projectMeta.Name)
+
+	// scrub namespace from project
 	projectMeta.Namespace = ""
 
 	attributes := restful.Attributes{
@@ -236,15 +238,20 @@ func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id s
 func (pr *projectResource) importProject(projectImportInfoInstance *projectImportInfo) (id string,
 	attributes restful.Attributes, responseErr error) {
 
+	pr.Logger.DebugWith("Checking if project exists", "project", projectImportInfoInstance.Project.Meta.Name)
+
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: *projectImportInfoInstance.Project.Meta,
 	})
 	if err != nil || len(projects) == 0 {
+		pr.Logger.DebugWith("Project doesn't exist, creating it", "project", projectImportInfoInstance.Project.Meta.Name)
 		err = pr.createAndWaitForProjectCreation(projectImportInfoInstance.Project)
 		if err != nil {
 			return "", nil, nuclio.WrapErrInternalServerError(err)
 		}
 	}
+
+	pr.Logger.Debug("Importing project functions")
 
 	var failedFunctions []restful.Attributes
 	for functionName, functionImport := range projectImportInfoInstance.Functions {

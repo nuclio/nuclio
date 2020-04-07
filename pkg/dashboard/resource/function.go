@@ -195,6 +195,8 @@ func (fr *functionResource) Export(function platform.Function) restful.Attribute
 	functionSpec := function.GetConfig().Spec
 	functionMeta := function.GetConfig().Meta
 
+	fr.Logger.DebugWith("Exporting function", "function", functionMeta.Name)
+
 	fr.prepareFunctionForExport(&functionMeta, &functionSpec)
 
 	attributes := restful.Attributes{
@@ -237,12 +239,17 @@ func (fr *functionResource) ExportFunctionEvents(function platform.Function) res
 
 func (fr *functionResource) prepareFunctionForExport(functionMeta *functionconfig.Meta, functionSpec *functionconfig.Spec) {
 
+	fr.Logger.DebugWith("Preparing function for export", "function", functionMeta.Name)
+
 	if functionMeta.Annotations == nil {
 		functionMeta.Annotations = map[string]string{}
 	}
+
+	// add annotations for not deploying or building on import
 	functionMeta.Annotations[functionconfig.FunctionAnnotationSkipBuild] = strconv.FormatBool(true)
 	functionMeta.Annotations[functionconfig.FunctionAnnotationSkipDeploy] = strconv.FormatBool(true)
 
+	// scrub namespace from function meta
 	functionMeta.Namespace = ""
 
 	// artifacts are created unique to the cluster not needed to be returned to any client of nuclio REST API
@@ -251,11 +258,6 @@ func (fr *functionResource) prepareFunctionForExport(functionMeta *functionconfi
 	if functionSpec.Build.FunctionSourceCode != "" {
 		functionSpec.Image = ""
 	}
-
-	//if functionSpec.MinReplicas != nil && functionSpec.MaxReplicas != nil &&
-	//	*functionSpec.MinReplicas > 0 && *functionSpec.MaxReplicas > 0 {
-	//	functionSpec.Replicas = nil
-	//}
 }
 
 func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, request *http.Request) error {
