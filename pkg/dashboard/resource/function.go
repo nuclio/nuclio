@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -72,9 +73,15 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
+	exportFunction := fr.GetBooleanParam(restful.ParamExport, request)
+
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
-		response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function)
+		if exportFunction {
+			response[function.GetConfig().Meta.Name] = fr.Export(function)
+		} else {
+			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function)
+		}
 	}
 
 	return response, nil
@@ -100,6 +107,11 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 
 	if len(function) == 0 {
 		return nil, nuclio.NewErrNotFound("Function not found")
+	}
+
+	exportFunction := fr.GetBooleanParam(restful.ParamExport, request)
+	if exportFunction {
+		return fr.Export(function[0]), nil
 	}
 
 	return fr.functionToAttributes(function[0]), nil
@@ -177,6 +189,71 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 			RouteFunc: fr.deleteFunction,
 		},
 	}, nil
+}
+
+func (fr *functionResource) Export(function platform.Function) restful.Attributes {
+	functionSpec := function.GetConfig().Spec
+	functionMeta := function.GetConfig().Meta
+
+	fr.prepareFunctionForExport(&functionMeta, &functionSpec)
+
+	attributes := restful.Attributes{
+		"metadata": functionMeta,
+		"spec":     functionSpec,
+	}
+
+	return attributes
+}
+
+func (fr *functionResource) ExportFunctionEvents(function platform.Function) restful.Attributes {
+
+	attributes := restful.Attributes{}
+
+	getFunctionEventOptions := platform.GetFunctionEventsOptions{
+		Meta: platform.FunctionEventMeta{
+			Name:      "",
+			Namespace: function.GetConfig().Meta.Namespace,
+			Labels: map[string]string{
+				"nuclio.io/function-name": function.GetConfig().Meta.Name,
+			},
+		},
+	}
+
+	functionEvents, err := fr.getPlatform().GetFunctionEvents(&getFunctionEventOptions)
+
+	if err == nil {
+
+		// create a map of attributes keyed by the function event id (name)
+		for _, functionEvent := range functionEvents {
+			attributes[functionEvent.GetConfig().Meta.Name] = restful.Attributes{
+				"metadata": functionEvent.GetConfig().Meta,
+				"spec":     functionEvent.GetConfig().Spec,
+			}
+		}
+	}
+
+	return attributes
+}
+
+func (fr *functionResource) prepareFunctionForExport(functionMeta *functionconfig.Meta, functionSpec *functionconfig.Spec) {
+
+	if functionMeta.Annotations == nil {
+		functionMeta.Annotations = map[string]string{}
+	}
+	functionMeta.Annotations[functionconfig.FunctionAnnotationSkipBuild] = strconv.FormatBool(true)
+	functionMeta.Annotations[functionconfig.FunctionAnnotationSkipDeploy] = strconv.FormatBool(true)
+
+	// artifacts are created unique to the cluster not needed to be returned to any client of nuclio REST API
+	functionSpec.RunRegistry = ""
+	functionSpec.Build.Registry = ""
+	if functionSpec.Build.FunctionSourceCode != "" {
+		functionSpec.Image = ""
+	}
+
+	//if functionSpec.MinReplicas != nil && functionSpec.MaxReplicas != nil &&
+	//	*functionSpec.MinReplicas > 0 && *functionSpec.MaxReplicas > 0 {
+	//	functionSpec.Replicas = nil
+	//}
 }
 
 func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, request *http.Request) error {
@@ -356,6 +433,15 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
+	err = fr.ProcessFunctionInfo(&functionInfoInstance, request.Header.Get("x-nuclio-project-name"))
+	if err != nil {
+		return nil, err
+	}
+
+	return &functionInfoInstance, nil
+}
+
+func (fr *functionResource) ProcessFunctionInfo(functionInfoInstance *functionInfo, projectName string) error {
 	// override namespace if applicable
 	if functionInfoInstance.Meta != nil {
 		functionInfoInstance.Meta.Namespace = fr.getNamespaceOrDefault(functionInfoInstance.Meta.Namespace)
@@ -367,18 +453,17 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		functionInfoInstance.Meta.Namespace == "" {
 		err := errors.New("Function name must be provided in metadata")
 
-		return nil, nuclio.WrapErrBadRequest(err)
+		return nuclio.WrapErrBadRequest(err)
 	}
 
 	// validate function name is according to k8s convention
 	errorMessages := validation.IsQualifiedName(functionInfoInstance.Meta.Name)
 	if len(errorMessages) != 0 {
 		joinedErrorMessage := strings.Join(errorMessages, ", ")
-		return nil, nuclio.NewErrBadRequest("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
+		return nuclio.NewErrBadRequest("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
 	}
 
 	// add project name label if given via header
-	projectName := request.Header.Get("x-nuclio-project-name")
 	if projectName != "" {
 		if functionInfoInstance.Meta.Labels == nil {
 			functionInfoInstance.Meta.Labels = map[string]string{}
@@ -387,7 +472,7 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
 	}
 
-	return &functionInfoInstance, nil
+	return nil
 }
 
 // register the resource

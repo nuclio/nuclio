@@ -315,6 +315,11 @@ func (s *Spec) GetEventTimeout() (time.Duration, error) {
 	return timeout, err
 }
 
+const (
+	FunctionAnnotationSkipBuild  = "skip-build"
+	FunctionAnnotationSkipDeploy = "skip-deploy"
+)
+
 // Meta identifies a function
 type Meta struct {
 	Name        string            `json:"name,omitempty"`

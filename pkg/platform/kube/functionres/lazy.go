@@ -167,6 +167,15 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 
 	resources := lazyResources{}
 
+	skipFunctionDeploy := false
+	if skipFunctionBuildStr, ok := function.Annotations[functionconfig.FunctionAnnotationSkipDeploy]; ok {
+		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildStr)
+		delete(function.Annotations, functionconfig.FunctionAnnotationSkipDeploy)
+	}
+	if skipFunctionDeploy {
+		return &resources, nil
+	}
+
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
 	for _, augmentedConfig := range platformConfig.FunctionAugmentedConfigs {
 

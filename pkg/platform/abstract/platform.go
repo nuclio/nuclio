@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -128,8 +129,13 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	// clear build mode
 	createFunctionOptions.FunctionConfig.Spec.Build.Mode = ""
 
+	skipFunctionBuild := false
+	if skipFunctionBuildStr, ok := createFunctionOptions.FunctionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipBuild]; ok {
+		skipFunctionBuild, _ = strconv.ParseBool(skipFunctionBuildStr)
+	}
+
 	// check if we need to build the image
-	if functionBuildRequired {
+	if functionBuildRequired && !skipFunctionBuild {
 		buildResult, buildErr = ap.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
 			Logger:                     createFunctionOptions.Logger,
 			FunctionConfig:             createFunctionOptions.FunctionConfig,

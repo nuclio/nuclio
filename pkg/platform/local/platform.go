@@ -216,19 +216,36 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return nil, buildErr
 		}
 
-		createFunctionResult, deployErr := p.deployFunction(createFunctionOptions, previousHTTPPort)
-		if deployErr != nil {
-			reportCreationError(deployErr) // nolint: errcheck
-			return nil, deployErr
+		skipFunctionDeploy := false
+		if skipFunctionBuildStr, ok := createFunctionOptions.FunctionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipDeploy]; ok {
+			skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildStr)
+			delete(createFunctionOptions.FunctionConfig.Meta.Annotations, functionconfig.FunctionAnnotationSkipDeploy)
+		}
+
+		delete(createFunctionOptions.FunctionConfig.Meta.Annotations, functionconfig.FunctionAnnotationSkipBuild)
+
+		var createFunctionResult *platform.CreateFunctionResult
+		functionStatus := functionconfig.Status{
+			State: functionconfig.FunctionStateScaledToZero,
+		}
+
+		if !skipFunctionDeploy {
+			createFunctionResult, deployErr := p.deployFunction(createFunctionOptions, previousHTTPPort)
+			if deployErr != nil {
+				reportCreationError(deployErr) // nolint: errcheck
+				return nil, deployErr
+			}
+
+			functionStatus = functionconfig.Status{
+				HTTPPort: createFunctionResult.Port,
+				State:    functionconfig.FunctionStateReady,
+			}
 		}
 
 		// update the function
 		if err = p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
 			Config: createFunctionOptions.FunctionConfig,
-			Status: functionconfig.Status{
-				HTTPPort: createFunctionResult.Port,
-				State:    functionconfig.FunctionStateReady,
-			},
+			Status: functionStatus,
 		}); err != nil {
 			return nil, errors.Wrap(err, "Failed to update function with state")
 		}

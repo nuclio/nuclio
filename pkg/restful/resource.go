@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/registry"
 
@@ -92,6 +93,11 @@ const (
 	ResourceMethodCreate
 	ResourceMethodUpdate
 	ResourceMethodDelete
+)
+
+const (
+	ParamImport = "import"
+	ParamExport = "export"
 )
 
 // AbstractResource is base for resources
@@ -181,6 +187,23 @@ func (ar *AbstractResource) GetCustomRoutes() ([]CustomRoute, error) {
 // GetRouter returns raw routes, those that don't return an attribute
 func (ar *AbstractResource) GetRouter() chi.Router {
 	return ar.router
+}
+
+func (ar *AbstractResource) GetBooleanParam(param string, request *http.Request) bool {
+	var importFunction bool
+	var err error
+
+	importKeys, ok := request.URL.Query()[param]
+	if !ok || len(importKeys) == 0 {
+		return false
+	}
+
+	importFunction, err = strconv.ParseBool(importKeys[0])
+	if err != nil {
+		return false
+	}
+
+	return importFunction
 }
 
 func (ar *AbstractResource) registerRoutes() error {
