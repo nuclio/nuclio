@@ -243,6 +243,8 @@ func (fr *functionResource) prepareFunctionForExport(functionMeta *functionconfi
 	functionMeta.Annotations[functionconfig.FunctionAnnotationSkipBuild] = strconv.FormatBool(true)
 	functionMeta.Annotations[functionconfig.FunctionAnnotationSkipDeploy] = strconv.FormatBool(true)
 
+	functionMeta.Namespace = ""
+
 	// artifacts are created unique to the cluster not needed to be returned to any client of nuclio REST API
 	functionSpec.RunRegistry = ""
 	functionSpec.Build.Registry = ""

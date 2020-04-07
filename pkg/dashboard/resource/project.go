@@ -159,9 +159,14 @@ func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 }
 
 func (pr *projectResource) Export(project platform.Project) restful.Attributes {
+	projectMeta := project.GetConfig().Meta
+
+	// clean namespace from project
+	projectMeta.Namespace = ""
+
 	attributes := restful.Attributes{
 		"project": restful.Attributes{
-			"metadata": project.GetConfig().Meta,
+			"metadata": projectMeta,
 			"spec":     project.GetConfig().Spec,
 		},
 		"functions": map[string]restful.Attributes{},
