@@ -111,7 +111,7 @@ func (f *function) Initialize([]string) error {
 
 			// there should be only one
 			if len(deploymentList.Items) != 1 {
-				deploymentErr = fmt.Errorf("Found unexptected number of deployments for function %s: %d",
+				deploymentErr = fmt.Errorf("Found unexpected number of deployments for function %s: %d",
 					f.function.Name,
 					len(deploymentList.Items))
 			} else {
@@ -137,7 +137,7 @@ func (f *function) Initialize([]string) error {
 			if len(serviceList.Items) != 1 {
 				serviceErr = fmt.Errorf("Found unexptected number of services for function %s: %d",
 					f.function.Name,
-					len(deploymentList.Items))
+					len(serviceList.Items))
 			} else {
 				service = &serviceList.Items[0]
 			}
