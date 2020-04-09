@@ -22,7 +22,9 @@ import (
 	"math"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
@@ -276,4 +278,29 @@ func GetDurationOrInfinite(timeout *time.Duration) time.Duration {
 
 	// essentially infinite
 	return 100 * 365 * 24 * time.Hour
+}
+
+func GetSourceDir() string {
+
+	// get caller filename
+	_, fileName, _, _ := runtime.Caller(0)
+
+	// get filename dir
+	dirName := path.Dir(fileName)
+
+	for {
+
+		// we determine source dir by having a `go.mod` file there
+		if _, err := os.Stat(filepath.Join(dirName, "go.mod")); !os.IsNotExist(err) {
+			return dirName
+		}
+
+		// if we didn't find source yet, try on parent dir
+		dirName = filepath.Dir(dirName)
+
+		// we're out of parents, stop here
+		if dirName == "/" {
+			return dirName
+		}
+	}
 }

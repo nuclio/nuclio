@@ -26,10 +26,19 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	apps_v1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type mockedPlatformConfigurationProvider struct {
+	platformConfiguration *platformconfig.Config
+}
+
+func (c *mockedPlatformConfigurationProvider) GetPlatformConfiguration() *platformconfig.Config {
+	return c.platformConfiguration
+}
 
 type lazyTestSuite struct {
 	suite.Suite
@@ -231,6 +240,88 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 
 	// should not be added
 	suite.Require().Len(toServicePorts, 2)
+}
+
+func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			FunctionAugmentedConfigs: []platformconfig.LabelSelectorAndConfig{
+				{
+					meta_v1.LabelSelector{
+						MatchLabels: map[string]string{
+							"nuclio.io/class": "apply-me",
+						},
+					},
+					functionconfig.Config{},
+					platformconfig.Kubernetes{},
+				},
+				{
+					meta_v1.LabelSelector{
+						MatchLabels: map[string]string{
+							"nuclio.io/class": "apply-me",
+						},
+					},
+					functionconfig.Config{},
+					platformconfig.Kubernetes{
+						Deployment: &apps_v1.Deployment{
+							Spec: apps_v1.DeploymentSpec{
+								Paused: true,
+							},
+						},
+					},
+				},
+				{
+					meta_v1.LabelSelector{
+						MatchLabels: map[string]string{
+							"nuclio.io/class": "dont-apply-me",
+						},
+					},
+					functionconfig.Config{},
+					platformconfig.Kubernetes{
+						Deployment: &apps_v1.Deployment{
+							Spec: apps_v1.DeploymentSpec{
+								Template: v1.PodTemplateSpec{
+									Spec: v1.PodSpec{
+										ServiceAccountName: "pleasedont",
+									},
+								},
+							},
+						},
+					},
+				},
+				{
+					meta_v1.LabelSelector{},
+					functionconfig.Config{},
+					platformconfig.Kubernetes{
+						Deployment: &apps_v1.Deployment{
+							Spec: apps_v1.DeploymentSpec{
+								Strategy: apps_v1.DeploymentStrategy{
+									Type:          apps_v1.RecreateDeploymentStrategyType,
+									RollingUpdate: nil,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	functionInstance := nuclioio.NuclioFunction{}
+	functionInstance.Name = "func-name"
+	functionInstance.Namespace = "func-namespace"
+	functionInstance.Labels = map[string]string{
+		"nuclio.io/class": "apply-me",
+	}
+
+	deployment := apps_v1.Deployment{}
+	err := suite.client.enrichDeploymentFromPlatformConfiguration(&functionInstance,
+		&deployment,
+		updateDeploymentResourceMethod)
+	suite.Equal(deployment.Spec.Strategy.Type, apps_v1.RecreateDeploymentStrategyType)
+	suite.True(deployment.Spec.Paused)
+	suite.Equal(deployment.Spec.Template.Spec.ServiceAccountName, "")
+	suite.Require().NoError(err)
 }
 
 func (suite *lazyTestSuite) getIngressRuleByHost(rules []ext_v1beta1.IngressRule, host string) *ext_v1beta1.IngressRule {

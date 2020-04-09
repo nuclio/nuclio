@@ -16,24 +16,25 @@
 # Build stage: builds the playground binary
 #
 
-FROM golang:1.10 as build
+FROM golang:1.14 as build
+
+WORKDIR /playground
+
+COPY go.mod go.sum ./
+
+RUN go mod download
 
 # copy source tree
-WORKDIR /go/src/github.com/nuclio/nuclio
 COPY . .
 
 # build the playground
-RUN go get github.com/v3io/v3io-go-http \
-    && go get github.com/nuclio/logger \
-    && go get github.com/nuclio/nuclio-sdk-go \
-    && go get github.com/nuclio/amqp \
-    && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o playground cmd/playground/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o playground cmd/playground/main.go
 
 #
 # Output stage: Creates version file, copies binary to an alpine based image
 #
 
-FROM alpine:3.7
+FROM alpine:3.11
 
 ARG DOCKER_CLI_VERSION="18.09.6"
 
@@ -47,7 +48,7 @@ RUN apk --update --no-cache add ca-certificates git curl \
     && apk del curl
 
 # copy playground binary from build stage
-COPY --from=build /go/src/github.com/nuclio/nuclio/playground /usr/local/bin
+COPY --from=build /playground/playground /usr/local/bin
 COPY cmd/playground/static /etc/nuclio/playground/assets
 
 RUN mkdir -p /etc/nuclio/playground/sources

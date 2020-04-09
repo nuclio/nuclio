@@ -63,7 +63,9 @@ func (g *golang) GetName() string {
 func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
-	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
+	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{
+		BaseImage: "alpine:3.11",
+	}
 
 	// if the base image is not default (which is alpine) and is not alpine based, must use the non-alpine onbuild image
 	var onbuildImage string
@@ -88,9 +90,6 @@ func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info,
 		},
 	}
 	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
-
-	// set the default base image
-	processorDockerfileInfo.BaseImage = "alpine:3.7"
 
 	return &processorDockerfileInfo, nil
 }

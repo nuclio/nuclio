@@ -44,7 +44,7 @@ type Configuration struct {
 	}
 
 	SessionTimeout                string
-	HearbeatInterval              string
+	HeartbeatInterval             string
 	MaxProcessingTime             string
 	RebalanceTimeout              string
 	RebalanceRetryBackoff         string
@@ -81,7 +81,7 @@ func NewConfiguration(ID string,
 
 	err := newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
 		{Key: "nuclio.io/kafka-session-timeout", ValueString: &newConfiguration.SessionTimeout},
-		{Key: "nuclio.io/kafka-heartbeat-interval", ValueString: &newConfiguration.HearbeatInterval},
+		{Key: "nuclio.io/kafka-heartbeat-interval", ValueString: &newConfiguration.HeartbeatInterval},
 		{Key: "nuclio.io/kafka-max-processing-time", ValueString: &newConfiguration.MaxProcessingTime},
 		{Key: "nuclio.io/kafka-rebalance-timeout", ValueString: &newConfiguration.RebalanceTimeout},
 		{Key: "nuclio.io/kafka-rebalance-retry-backoff", ValueString: &newConfiguration.RebalanceRetryBackoff},
@@ -131,14 +131,54 @@ func NewConfiguration(ID string,
 	}
 
 	for _, durationConfigField := range []trigger.DurationConfigField{
-		{"session timeout", newConfiguration.SessionTimeout, &newConfiguration.sessionTimeout, 10 * time.Second},
-		{"heartbeat interval", newConfiguration.HearbeatInterval, &newConfiguration.heartbeatInterval, 3 * time.Second},
-		{"max processing timeout", newConfiguration.MaxProcessingTime, &newConfiguration.maxProcessingTime, 5 * time.Minute},
-		{"rebalance timeout", newConfiguration.RebalanceTimeout, &newConfiguration.rebalanceTimeout, 60 * time.Second},
-		{"rebalance retry backoff", newConfiguration.RebalanceRetryBackoff, &newConfiguration.rebalanceRetryBackoff, 2 * time.Second},
-		{"retry backoff", newConfiguration.RetryBackoff, &newConfiguration.retryBackoff, 2 * time.Second},
-		{"max wait time", newConfiguration.MaxWaitTime, &newConfiguration.maxWaitTime, 250 * time.Millisecond},
-		{"max wait handler during rebalance", newConfiguration.MaxWaitHandlerDuringRebalance, &newConfiguration.maxWaitHandlerDuringRebalance, 5 * time.Second},
+		{
+			Name:    "session timeout",
+			Value:   newConfiguration.SessionTimeout,
+			Field:   &newConfiguration.sessionTimeout,
+			Default: 10 * time.Second,
+		},
+		{
+			Name:    "heartbeat interval",
+			Value:   newConfiguration.HeartbeatInterval,
+			Field:   &newConfiguration.heartbeatInterval,
+			Default: 3 * time.Second,
+		},
+		{
+			Name:    "max processing timeout",
+			Value:   newConfiguration.MaxProcessingTime,
+			Field:   &newConfiguration.maxProcessingTime,
+			Default: 5 * time.Minute,
+		},
+		{
+			Name:    "rebalance timeout",
+			Value:   newConfiguration.RebalanceTimeout,
+			Field:   &newConfiguration.rebalanceTimeout,
+			Default: 60 * time.Second,
+		},
+		{
+			Name:    "rebalance retry backoff",
+			Value:   newConfiguration.RebalanceRetryBackoff,
+			Field:   &newConfiguration.rebalanceRetryBackoff,
+			Default: 2 * time.Second,
+		},
+		{
+			Name:    "retry backoff",
+			Value:   newConfiguration.RetryBackoff,
+			Field:   &newConfiguration.retryBackoff,
+			Default: 2 * time.Second,
+		},
+		{
+			Name:    "max wait time",
+			Value:   newConfiguration.MaxWaitTime,
+			Field:   &newConfiguration.maxWaitTime,
+			Default: 250 * time.Millisecond,
+		},
+		{
+			Name:    "max wait handler during rebalance",
+			Value:   newConfiguration.MaxWaitHandlerDuringRebalance,
+			Field:   &newConfiguration.maxWaitHandlerDuringRebalance,
+			Default: 5 * time.Second,
+		},
 	} {
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {
 			return nil, err

@@ -66,7 +66,7 @@ type Trigger struct {
 	Secret                                string            `json:"secret,omitempty"`
 	Partitions                            []Partition       `json:"partitions,omitempty"`
 	Annotations                           map[string]string `json:"annotations,omitempty"`
-	WorkerAvailabilityTimeoutMilliseconds int               `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
+	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
 	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
 
 	// Dealer Information
@@ -206,7 +206,7 @@ type Build struct {
 	CodeEntryType       string                 `json:"codeEntryType,omitempty"`
 	CodeEntryAttributes map[string]interface{} `json:"codeEntryAttributes,omitempty"`
 	Timestamp           int64                  `json:"timestamp,omitempty"`
-	BuildTimeoutSeconds *int64                 `json:"BuildTimeoutSeconds,omitempty"`
+	BuildTimeoutSeconds *int64                 `json:"buildTimeoutSeconds,omitempty"`
 	Mode                BuildMode              `json:"mode,omitempty"`
 }
 

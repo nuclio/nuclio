@@ -167,12 +167,13 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	httpResponse, err := suite.httpClient.Do(httpRequest)
 
 	// if we fail to connect, fail
-	if err != nil && strings.Contains(err.Error(), "EOF") {
+	if err != nil && (strings.Contains(err.Error(), "EOF") ||
+		strings.Contains(err.Error(), "connection reset by peer")) {
 		time.Sleep(500 * time.Millisecond)
 		return false
 	}
 
-	suite.Require().NoError(err)
+	suite.Require().NoError(err, "Failed to send request")
 
 	if request.ExpectedResponseStatusCode != nil {
 		suite.Require().Equal(*request.ExpectedResponseStatusCode,

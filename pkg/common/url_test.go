@@ -17,13 +17,13 @@ limitations under the License.
 package common
 
 import (
-	"errors"
 	"net/http"
 	"os"
 	"testing"
 
+	"github.com/jarcoal/httpmock"
+	"github.com/nuclio/errors"
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/jarcoal/httpmock.v1"
 )
 
 type IsURLTestSuite struct {
@@ -67,6 +67,9 @@ func (ts *DownloadFileTestSuite) TestDownloadFile() {
 	errResult := ts.testDownloadFile(func(req *http.Request) (*http.Response, error) {
 		responder := httpmock.NewStringResponder(200, content)
 		response, err := responder(req)
+		if err != nil {
+			return nil, errors.Wrap(err, "Could not get response")
+		}
 		response.ContentLength = int64(len(content))
 		return response, err
 	})
@@ -78,6 +81,9 @@ func (ts *DownloadFileTestSuite) TestDownloadFileContentLengthMissMatch() {
 	errResult := ts.testDownloadFile(func(req *http.Request) (*http.Response, error) {
 		responder := httpmock.NewStringResponder(200, content)
 		response, err := responder(req)
+		if err != nil {
+			return nil, errors.Wrap(err, "Could not get response")
+		}
 		response.ContentLength = int64(len(content)) - 1
 		return response, err
 	})

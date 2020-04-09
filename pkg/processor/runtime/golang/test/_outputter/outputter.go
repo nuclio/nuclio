@@ -73,6 +73,9 @@ func Outputter(context *nuclio.Context, event nuclio.Event) (interface{}, error)
 		sort.Strings(fields)
 		return strings.Join(fields, ","), nil
 
+	case "return_body_error":
+		return nil, nuclio.WrapErrBadRequest(fmt.Errorf("error string body"))
+
 	case "return_path":
 		return event.GetPath(), nil
 	}

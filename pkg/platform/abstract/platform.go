@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -41,13 +42,18 @@ import (
 // Base for all platforms
 //
 
+const (
+	DefaultReadinessTimeoutSeconds = 60
+	DefaultTargetCPU               = 75
+)
+
 type Platform struct {
 	Logger                         logger.Logger
 	platform                       platform.Platform
 	invoker                        *invoker
 	Config                         interface{}
 	ExternalIPAddresses            []string
-	DeployLogStreams               map[string]*LogStream
+	DeployLogStreams               *sync.Map
 	ContainerBuilder               containerimagebuilderpusher.BuilderPusher
 	DefaultHTTPIngressHostTemplate string
 	ImageNamePrefixTemplate        string
@@ -60,7 +66,7 @@ func NewPlatform(parentLogger logger.Logger, platform platform.Platform, platfor
 		Logger:           parentLogger.GetChild("platform"),
 		platform:         platform,
 		Config:           platformConfiguration,
-		DeployLogStreams: map[string]*LogStream{},
+		DeployLogStreams: &sync.Map{},
 	}
 
 	// create invoker
@@ -206,6 +212,17 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 	ap.enrichMinMaxReplicas(createFunctionOptions)
 
 	return nil
+}
+
+// Enrich functions status with logs
+func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Function) {
+
+	// iterate over functions and enrich with deploy logs
+	for _, function := range functions {
+		if deployLogStream, exists := ap.DeployLogStreams.Load(function.GetConfig().Meta.GetUniqueID()); exists {
+			deployLogStream.(*LogStream).ReadLogs(nil, &function.GetStatus().Logs)
+		}
+	}
 }
 
 // Validation and enforcement of required function creation logic
@@ -447,10 +464,37 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 		formattedProcessorLogs += currentLogLine + "\n"
 	}
 
+	*briefErrorsArray = ap.aggregateConsecutiveDuplicateMessages(*briefErrorsArray)
+
 	// create brief errors log as string, and remove double newlines
 	briefErrorsMessage = strings.Join(*briefErrorsArray, "\n")
 
 	return common.FixEscapeChars(formattedProcessorLogs), common.FixEscapeChars(briefErrorsMessage)
+}
+
+func (ap *Platform) aggregateConsecutiveDuplicateMessages(errorMessagesArray []string) []string {
+	var aggregatedErrorsArray []string
+
+	for i := 0; i < len(errorMessagesArray); i++ {
+		currentErrorMessage := errorMessagesArray[i]
+		consecutiveErrorMessageCount := 1
+
+		// count how many consecutive times current error message reoccurs
+		for i+1 < len(errorMessagesArray) && errorMessagesArray[i+1] == currentErrorMessage {
+			consecutiveErrorMessageCount++
+			i++
+		}
+
+		if consecutiveErrorMessageCount > 1 {
+			aggregatedErrorsArray = append(aggregatedErrorsArray,
+				fmt.Sprintf("[repeated %d times] %s", consecutiveErrorMessageCount, currentErrorMessage))
+			continue
+		}
+
+		aggregatedErrorsArray = append(aggregatedErrorsArray, currentErrorMessage)
+	}
+
+	return aggregatedErrorsArray
 }
 
 // Prettifies log line, and returns - (formattedLogLine, briefLogLine, error)

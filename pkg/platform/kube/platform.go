@@ -53,7 +53,8 @@ type Platform struct {
 const Mib = 1048576
 
 // NewPlatform instantiates a new kubernetes platform
-func NewPlatform(parentLogger logger.Logger, kubeconfigPath string,
+func NewPlatform(parentLogger logger.Logger,
+	kubeconfigPath string,
 	containerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration,
 	platformConfiguration interface{}) (*Platform, error) {
 	newPlatform := &Platform{}
@@ -129,7 +130,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	// save the log stream for the name
-	p.DeployLogStreams[createFunctionOptions.FunctionConfig.Meta.GetUniqueID()] = logStream
+	p.DeployLogStreams.Store(createFunctionOptions.FunctionConfig.Meta.GetUniqueID(), logStream)
 
 	// replace logger
 	createFunctionOptions.Logger = logStream.GetLogger()
@@ -151,12 +152,14 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			errorStack.Truncate(4 * Mib)
 		}
 
-		// if no brief error message was passed, set it to be the last error
+		// if no brief error message was passed, set it to be root cause
 		if briefErrorsMessage == "" {
-			lastError := bytes.Buffer{}
-			errors.PrintErrorStack(&lastError, creationError, 10)
-			briefErrorsMessage = lastError.String()
+			if rootCause := errors.RootCause(creationError); rootCause != nil {
+				briefErrorsMessage = rootCause.Error()
+			}
 		}
+
+		briefErrorsMessage = p.clearCallStack(briefErrorsMessage)
 
 		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
 			"errorStack", errorStack.String())
@@ -253,14 +256,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
-	// iterate over functions and enrich with deploy logs
-	for _, function := range functions {
-
-		// enrich with build logs
-		if deployLogStream, exists := p.DeployLogStreams[function.GetConfig().Meta.GetUniqueID()]; exists {
-			deployLogStream.ReadLogs(nil, &function.GetStatus().Logs)
-		}
-	}
+	p.EnrichFunctionsWithDeployLogStream(functions)
 
 	return functions, nil
 }
@@ -330,10 +326,7 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 
 	updatedProject := nuclioio.NuclioProject{}
 	p.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
-
-	if &updatedProject.Spec != nil {
-		project.Spec = updatedProject.Spec
-	}
+	project.Spec = updatedProject.Spec
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
@@ -460,10 +453,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 		return errors.Wrap(err, "Failed to get function event")
 	}
 
-	// update it with spec if passed
-	if &updateFunctionEventOptions.FunctionEventConfig.Spec != nil {
-		functionEvent.Spec = updatedFunctionEvent.Spec
-	}
+	functionEvent.Spec = updatedFunctionEvent.Spec
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
@@ -674,6 +664,15 @@ func (p *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, e
 	default:
 		return nil, errors.New("Not a valid configuration instance")
 	}
+}
+
+func (p *Platform) clearCallStack(message string) string {
+	if message == "" {
+		return ""
+	}
+
+	splitMessage := strings.Split(message, "\nCall stack:\n")
+	return splitMessage[0]
 }
 
 func (p *Platform) setScaleToZeroSpec(functionSpec *functionconfig.Spec) error {

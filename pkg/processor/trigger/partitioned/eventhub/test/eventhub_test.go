@@ -25,8 +25,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 	"github.com/nuclio/nuclio/pkg/processor/util/eventhub"
 
-	"github.com/nuclio/amqp"
 	"github.com/stretchr/testify/suite"
+	"pack.ag/amqp"
 )
 
 type testSuite struct {
@@ -87,7 +87,7 @@ func (suite *testSuite) TestReceiveRecords() {
 
 func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
 	message := amqp.Message{
-		Data: []byte(body),
+		Data: [][]byte{[]byte(body)},
 	}
 
 	return suite.eventhubSender.Send(context.Background(), &message)

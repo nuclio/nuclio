@@ -44,7 +44,7 @@ type Configuration struct {
 	SeekTo                          string
 	ReadBatchSize                   int
 	SessionTimeout                  string
-	HearbeatInterval                string
+	HeartbeatInterval               string
 	SequenceNumberCommitInterval    string
 	SequenceNumberShardWaitInterval string
 	RecordBatchSizeChan             int
@@ -160,10 +160,30 @@ func (c *Configuration) getStreamConsumerGroupConfig() (*streamconsumergroup.Con
 	streamConsumerGroupConfig.Claim.RecordBatchFetch.InitialLocation = c.seekTo
 
 	for _, durationConfigField := range []trigger.DurationConfigField{
-		{"session timeout", c.SessionTimeout, &streamConsumerGroupConfig.Session.Timeout, 10 * time.Second},
-		{"heartbeat interval", c.HearbeatInterval, &streamConsumerGroupConfig.Session.HeartbeatInterval, 3 * time.Second},
-		{"sequence number commit interval", c.SequenceNumberCommitInterval, &streamConsumerGroupConfig.SequenceNumber.CommitInterval, 1 * time.Second},
-		{"sequence number shard wait interval", c.SequenceNumberShardWaitInterval, &streamConsumerGroupConfig.SequenceNumber.ShardWaitInterval, 1 * time.Second},
+		{
+			Name:    "session timeout",
+			Value:   c.SessionTimeout,
+			Field:   &streamConsumerGroupConfig.Session.Timeout,
+			Default: 10 * time.Second,
+		},
+		{
+			Name:    "heartbeat interval",
+			Value:   c.HeartbeatInterval,
+			Field:   &streamConsumerGroupConfig.Session.HeartbeatInterval,
+			Default: 3 * time.Second,
+		},
+		{
+			Name:    "sequence number commit interval",
+			Value:   c.SequenceNumberCommitInterval,
+			Field:   &streamConsumerGroupConfig.SequenceNumber.CommitInterval,
+			Default: 1 * time.Second,
+		},
+		{
+			Name:    "sequence number shard wait interval",
+			Value:   c.SequenceNumberShardWaitInterval,
+			Field:   &streamConsumerGroupConfig.SequenceNumber.ShardWaitInterval,
+			Default: 1 * time.Second,
+		},
 	} {
 		if err := c.ParseDurationOrDefault(&durationConfigField); err != nil {
 			return nil, err

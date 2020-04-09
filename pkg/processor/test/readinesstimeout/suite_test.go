@@ -80,7 +80,7 @@ func (suite *readinessTimeoutTestSuite) deployFailingPythonFunction(readinessTim
 	})
 }
 
-func TestOfflineSuite(t *testing.T) {
+func TestReadinessTimeoutSuite(t *testing.T) {
 	if testing.Short() {
 		return
 	}

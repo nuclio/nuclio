@@ -13,12 +13,19 @@
 # limitations under the License.
 
 {{- if .Values.dashboard.enabled }}
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "nuclio.dashboardName" . }}
 spec:
   replicas: {{ .Values.dashboard.replicas }}
+  selector:
+    matchLabels:
+      app: {{ template "nuclio.nuclioName" . }}
+      release: {{ .Release.Name }}
+      nuclio.io/app: dashboard
+      nuclio.io/name: {{ template "nuclio.dashboardName" . }}
+      nuclio.io/class: service
   template:
     metadata:
       labels:

@@ -49,8 +49,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/mholt/archiver/v3"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"gopkg.in/yaml.v2"
 )
 
@@ -352,7 +354,7 @@ CMD [ "processor" ]
 
 	onbuildStages, err := b.platform.GetOnbuildStages(onbuildArtifacts)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to transform retrive onbuild stages")
+		return "", errors.Wrap(err, "Failed to transform retrieve onbuild stages")
 	}
 
 	// Transform `onbuildArtifactPaths` depending on the builder being used
@@ -645,7 +647,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, string, erro
 	}
 
 	// when no code entry type was passed and it's an archive or jar
-	if codeEntryType == "" && (util.IsCompressed(resolvedPath) || util.IsJar(resolvedPath)) {
+	if codeEntryType == "" && (util.IsCompressed(resolvedPath) || util.IsJar(resolvedPath) || common.IsDir(resolvedPath)) {
 
 		// if it's a URL, set it as an archive code entry type, otherwise save the built image so it'll be possible to redeploy
 		if isURL {
@@ -753,10 +755,14 @@ func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (stri
 	if found {
 		userSpecifiedWorkDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
 		if !ok {
-			return "", errors.New("workDir is expected to be string")
+			return "", nuclio.NewErrBadRequest(string(common.WorkDirectoryExpectedBeString))
 		}
 		decompressDir = filepath.Join(decompressDir, userSpecifiedWorkDirectory)
+		if !common.FileExists(decompressDir) {
+			return "", nuclio.NewErrBadRequest(string(common.WorkDirectoryDoesNotExist))
+		}
 	}
+
 	return decompressDir, nil
 }
 
@@ -995,19 +1001,6 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		onbuildImageRegistry = b.platform.GetOnbuildImageRegistry(b.options.FunctionConfig.Spec.Build.Registry)
 	}
 
-	var BuildTimeoutSeconds int64
-	if b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds != nil {
-		if *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds > 0 {
-			BuildTimeoutSeconds = *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds
-		} else {
-
-			// no timeout
-			BuildTimeoutSeconds = math.MaxInt64 - time.Now().UnixNano()
-		}
-	} else {
-		BuildTimeoutSeconds = 3600 // sec
-	}
-
 	processorDockerfileInfo, err := b.createProcessorDockerfile(baseImageRegistry, onbuildImageRegistry)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
@@ -1028,7 +1021,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		RegistryURL:         b.options.FunctionConfig.Spec.Build.Registry,
 		SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
 		OutputImageFile:     b.options.OutputImageFile,
-		BuildTimeoutSeconds: BuildTimeoutSeconds,
+		BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
 	})
 
 	return imageName, err
@@ -1479,17 +1472,6 @@ func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegist
 	return renderedImageURL, nil
 }
 
-func (b *Builder) getFileExtensionByURL(inputURL string) (string, error) {
-
-	// parse the url
-	parsedURL, err := url.Parse(inputURL)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to parse URL")
-	}
-
-	return path.Ext(parsedURL.Path), nil
-}
-
 func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType string) (string, error) {
 	var err error
 
@@ -1608,16 +1590,37 @@ func (b *Builder) getFunctionTempFile(tempDir string, functionPath string, isArc
 
 	// for archives, use a temporary local file renamed to something short to allow wacky long archive URLs
 	if isArchive || util.IsCompressed(functionPathBase) {
+		var fileExtension string
 
-		// retain file extension
-		fileExtension, err := b.getFileExtensionByURL(functionPath)
+		// get file archiver by its extension
+		fileArchiver, err := archiver.ByExtension(functionPath)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get file extension from URL")
-		}
 
-		return ioutil.TempFile(tempDir, "nuclio-function-*"+fileExtension)
+			// fallback to .zip
+			b.logger.DebugWith("Could not determine file extension, fallback to .zip",
+				"functionPath",
+				functionPath)
+			fileExtension = "zip"
+		} else {
+			fileExtension = fmt.Sprint(fileArchiver)
+		}
+		return ioutil.TempFile(tempDir, fmt.Sprintf("nuclio-function-*.%s", fileExtension))
 	}
 
 	// for non-archives, must retain file name
 	return os.OpenFile(path.Join(tempDir, functionPathBase), os.O_RDWR|os.O_CREATE, 0600)
+}
+
+func (b *Builder) resolveBuildTimeoutSeconds() int64 {
+	if b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds != nil {
+		if *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds > 0 {
+			return *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds
+		}
+
+		// no timeout
+		return math.MaxInt64 - time.Now().UnixNano()
+	}
+
+	// default timeout in seconds
+	return 60 * 60
 }

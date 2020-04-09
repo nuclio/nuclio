@@ -33,7 +33,8 @@ import (
 )
 
 const (
-	MaxWorkersLimit = 100000
+	MaxWorkersLimit                              = 100000
+	DefaultWorkerAvailabilityTimeoutMilliseconds = 10000 // 10 seconds
 )
 
 // Trigger is common trigger interface
@@ -96,6 +97,16 @@ func NewAbstractTrigger(logger logger.Logger,
 	class string,
 	kind string,
 	name string) (AbstractTrigger, error) {
+
+	// enrich default trigger configuration
+	if configuration.WorkerAvailabilityTimeoutMilliseconds == nil || *configuration.WorkerAvailabilityTimeoutMilliseconds < 0 {
+		logger.InfoWith("Setting default worker availability timeout",
+			"DefaultWorkerAvailabilityTimeoutMilliseconds",
+			DefaultWorkerAvailabilityTimeoutMilliseconds)
+
+		defaultWorkerAvailabilityTimeoutMilliseconds := DefaultWorkerAvailabilityTimeoutMilliseconds
+		configuration.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
+	}
 
 	return AbstractTrigger{
 		Logger:          logger,

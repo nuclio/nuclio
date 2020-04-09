@@ -62,7 +62,8 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	functionExisted := functionInstance != nil
 
 	createFunctionOptions.Logger.DebugWith("Creating/updating function",
-		"existed", functionExisted)
+		"existed", functionExisted,
+		"functionInstance", functionInstance)
 
 	if !functionExisted {
 		functionInstance = &nuclioio.NuclioFunction{}
@@ -185,7 +186,9 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 	conditionFunc := func() (bool, error) {
 
 		// get the appropriate function CR
-		function, err = consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(name, meta_v1.GetOptions{})
+		function, err = consumer.nuclioClientSet.NuclioV1beta1().
+			NuclioFunctions(namespace).
+			Get(name, meta_v1.GetOptions{})
 		if err != nil {
 			return true, err
 		}
@@ -194,7 +197,7 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 		case functionconfig.FunctionStateReady:
 			return true, nil
 		case functionconfig.FunctionStateError:
-			return false, errors.Errorf("NuclioFunction in error state (%s)", function.Status.Message)
+			return false, errors.Errorf("NuclioFunction in error state:\n%s", function.Status.Message)
 		default:
 			return false, nil
 		}
@@ -209,9 +212,11 @@ func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 	podLogsMessage := "\nPod logs:\n"
 
 	// list pods
-	functionPods, listPodErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).List(meta_v1.ListOptions{
-		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", name),
-	})
+	functionPods, listPodErr := d.consumer.kubeClientSet.CoreV1().
+		Pods(namespace).
+		List(meta_v1.ListOptions{
+			LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", name),
+		})
 
 	if listPodErr != nil {
 		podLogsMessage += fmt.Sprintf("Failed to list pods: %s\n", listPodErr.Error())
@@ -236,7 +241,10 @@ func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 		podLogsMessage += "\n* " + pod.Name + "\n"
 
 		maxLogLines := int64(MaxLogLines)
-		logsRequest, getLogsErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).Stream()
+		logsRequest, getLogsErr := d.consumer.kubeClientSet.CoreV1().
+			Pods(namespace).
+			GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).
+			Stream()
 		if getLogsErr != nil {
 			podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
 		} else {

@@ -1,0 +1,4 @@
+dist
+resources
+tests
+**/*.spec.js

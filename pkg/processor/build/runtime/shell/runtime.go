@@ -39,7 +39,7 @@ func (s *shell) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "alpine:3.7"
+	processorDockerfileInfo.BaseImage = "alpine:3.11"
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{

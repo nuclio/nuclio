@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -215,9 +214,7 @@ func (suite *TestSuite) DeployFunctionAndRedeploy(createFunctionOptions *platfor
 
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *TestSuite) GetNuclioSourceDir() string {
-	// Take the first
-	goPath := strings.Split(os.Getenv("GOPATH"), ":")[0]
-	return path.Join(goPath, "src", "github.com", "nuclio", "nuclio")
+	return common.GetSourceDir()
 }
 
 // GetTestFunctionsDir returns the test function dir

@@ -48,9 +48,5 @@ func NewAbstractPartition(logger logger.Logger, stream *AbstractStream) (*Abstra
 		return nil, errors.Wrap(err, "Failed to allocate worker")
 	}
 
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create partition consumer")
-	}
-
 	return newPartition, nil
 }

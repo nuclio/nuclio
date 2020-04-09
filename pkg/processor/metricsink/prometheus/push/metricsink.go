@@ -107,13 +107,9 @@ func (ms *MetricSink) pushPeriodically() {
 				continue
 			}
 
-			// AddFromGatherer is used here rather than FromGatherer to not delete a
-			// previously pushed success timestamp in case of a failure of this
-			// backup.
-			if err := push.AddFromGatherer(ms.configuration.JobName,
-				nil,
-				ms.configuration.URL,
-				ms.metricRegistry); err != nil {
+			// Add is used here rather than Put to not delete a
+			// previously pushed success timestamp in case of a failure of this backup.
+			if err := push.New(ms.configuration.URL, ms.configuration.JobName).Gatherer(ms.metricRegistry).Add(); err != nil {
 				ms.Logger.WarnWith("Failed to push metrics", "err", err)
 			}
 		case <-ms.StopChannel:

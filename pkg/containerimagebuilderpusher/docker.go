@@ -92,12 +92,13 @@ func (d *Docker) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifa
 }
 
 func (d *Docker) GetBaseImageRegistry(registry string) string {
-
-	// keep base image registry as is
-	return ""
+	return d.builderConfiguration.DefaultBaseRegistryURL
 }
 
 func (d *Docker) GetOnbuildImageRegistry(registry string) string {
+
+	// TODO: uncomment and make sure docker platform is being initialized correctly
+	// return d.builderConfiguration.DefaultOnbuildRegistryURL
 	return "quay.io"
 }
 

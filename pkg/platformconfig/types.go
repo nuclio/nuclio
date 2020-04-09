@@ -19,7 +19,7 @@ package platformconfig
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
-	"k8s.io/api/apps/v1beta1"
+	apps_v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -95,5 +95,5 @@ type LabelSelectorAndConfig struct {
 }
 
 type Kubernetes struct {
-	Deployment *v1beta1.Deployment `json:"deployment,omitempty"`
+	Deployment *apps_v1.Deployment `json:"deployment,omitempty"`
 }

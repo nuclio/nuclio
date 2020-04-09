@@ -6,7 +6,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.3.18-amd64
+    tag: 1.4.2-amd64
     pullPolicy: IfNotPresent  
 
   # Uncomment to have the controller to listen only the namespace's events, 
@@ -27,7 +27,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.3.18-amd64
+    tag: 1.4.2-amd64
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
@@ -79,7 +79,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.3.18-amd64
+    tag: 1.4.2-amd64
     pullPolicy: IfNotPresent
 
 dlx:
@@ -87,10 +87,10 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.3.18-amd64
+    tag: 1.4.2-amd64
     pullPolicy: IfNotPresent
 
-registry: {}
+registry:
 
   # By default, the chart does not advocate using helm to manage registry credentials. You should create a secret
   # manually as follows and specify secret name here:
@@ -139,13 +139,11 @@ registry: {}
   #  Use a custom "base" images registry (pull registry). Default behavior will pull the default
   #  base images from the web
   #  Note: To override a pull registry for both "onbuild" and base images, use `dependantImageRegistryURL`.
-  #
-  # defaultBaseRegistryURL: someUrl
+  defaultBaseRegistryURL: ""
 
-  #  Use a custom "onbuild" images registry (pull registry). Default behavior will pull from quay.io
+  #  Use a custom "onbuild" images registry (pull registry).
   #  Note: To override a pull registry for both "onbuild" and base images, use `dependantImageRegistryURL`.
-  #
-  # defaultOnbuildRegistryURL: someUrl
+  defaultOnbuildRegistryURL: "quay.io"
 
   # Use this registry URL as an override for both base and "onbuild" images, so they'll be pulled from the
   # specified registry URL and not from the default registries

@@ -13,12 +13,19 @@
 # limitations under the License.
 
 {{- if .Values.controller.enabled }}
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "nuclio.controllerName" . }}
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "nuclio.nuclioName" . }}
+      release: {{ .Release.Name }}
+      nuclio.io/app: controller
+      nuclio.io/class: service
+      nuclio.io/name: {{ template "nuclio.controllerName" . }}
   template:
     metadata:
       labels:
