@@ -10,7 +10,7 @@ trap _term SIGINT
 
 echo "Running in parallel"
 
-parallel --citation
+echo 'will cite' | parallel --citation 1> /dev/null 2> /dev/null &
 
 # ensure each runner gets a jobslot
 # buffer output on line basis
