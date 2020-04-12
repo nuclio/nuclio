@@ -11,7 +11,7 @@ env:
   REPO: docker.pkg.github.com
   REPO_OWNER: ${{ github.event.repository.owner.login }}
   REPO_NAME: nuclio
-  NUCLIO_LABEL: ${{ github.sha }}
+  NUCLIO_LABEL: ${{ github.run_number }}
   FUNCTION_NAME: test-function
   NAMESPACE: nuclio
   NUCLIO_NUCTL_CREATE_SYMLINK: false
@@ -113,7 +113,6 @@ jobs:
       - build_docker_images
       - build_nuctl
     steps:
-
       - uses: actions/checkout@v2
 
       - uses: azure/setup-helm@v1
