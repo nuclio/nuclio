@@ -34,15 +34,19 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"golang.org/x/sync/errgroup"
 	apps_v1 "k8s.io/api/apps/v1"
 	autos_v2 "k8s.io/api/autoscaling/v2beta1"
+	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/api/batch/v1beta1"
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -222,6 +226,12 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 	resources.ingress, err = lc.createOrUpdateIngress(functionLabels, function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update ingress")
+	}
+
+	// create or update cron job (in case there's a cron trigger)
+	resources.cronJob, err = lc.createOrUpdateCronJob(functionLabels, function, &resources)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create/update cron job")
 	}
 
 	lc.logger.Debug("Deployment created/updated")
@@ -988,6 +998,100 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 	return resource.(*ext_v1beta1.Ingress), err
 }
 
+func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
+	function *nuclioio.NuclioFunction,
+	resources Resources) (*v1beta1.CronJob, error) {
+
+	getCronJob := func() (interface{}, error) {
+		return lc.kubeClientSet.BatchV1beta1().
+			CronJobs(function.Namespace).
+			Get(lc.cronJobNameFromFunctionName(function.Name),meta_v1.GetOptions{})
+	}
+
+	cronJobIsDeleting := func(resource interface{}) bool {
+		return (resource).(*v1beta1.CronJob).ObjectMeta.DeletionTimestamp != nil
+	}
+
+	createCronJob := func() (interface{}, error) {
+		cronJobMeta := meta_v1.ObjectMeta{
+			Name:      lc.cronJobNameFromFunctionName(function.Name),
+			Namespace: function.Namespace,
+			Labels:    functionLabels,
+		}
+
+		cronJobSpec := v1beta1.CronJobSpec{}
+
+		if err := lc.populateCronJobConfig(functionLabels, function, resources, &cronJobMeta, &cronJobSpec); err != nil {
+			return nil, errors.Wrap(err, "Failed to populate ingress spec")
+		}
+
+		resultCronJob, err := lc.kubeClientSet.BatchV1beta1().
+			CronJobs(function.Namespace).
+			Create(&v1beta1.CronJob{
+				ObjectMeta: cronJobMeta,
+				Spec:       cronJobSpec,
+			})
+
+		return resultCronJob, err
+	}
+
+	// TODO: Implement this...
+	updateCronJob := func(resource interface{}) (interface{}, error) {
+		//ingress := resource.(*ext_v1beta1.Ingress)
+		//
+		//// save to bool if there are current rules
+		//ingressRulesExist := len(ingress.Spec.Rules) > 0
+		//
+		//if err := lc.populateIngressConfig(functionLabels, function, &ingress.ObjectMeta, &ingress.Spec); err != nil {
+		//	return nil, errors.Wrap(err, "Failed to populate ingress spec")
+		//}
+		//
+		//if len(ingress.Spec.Rules) == 0 {
+		//
+		//	// if there are no rules and previously were, delete the ingress resource
+		//	if ingressRulesExist {
+		//		propogationPolicy := meta_v1.DeletePropagationForeground
+		//		deleteOptions := &meta_v1.DeleteOptions{
+		//			PropagationPolicy: &propogationPolicy,
+		//		}
+		//
+		//		err := lc.kubeClientSet.ExtensionsV1beta1().
+		//			Ingresses(function.Namespace).
+		//			Delete(lc.ingressNameFromFunctionName(function.Name), deleteOptions)
+		//		return nil, err
+		//
+		//	}
+		//
+		//	// there's nothing to update
+		//	return nil, nil
+		//}
+		//
+		//resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
+		//if err != nil {
+		//	lc.waitForNginxIngressToStabilize()
+		//}
+		//
+		//return resultIngress, err
+		return nil, nil
+	}
+
+	resource, err := lc.createOrUpdateResource("cronJob",
+		getCronJob,
+		cronJobIsDeleting,
+		createCronJob,
+		updateCronJob)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resource == nil {
+		return nil, nil
+	}
+
+	return resource.(*v1beta1.CronJob), err
+}
+
 // nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
 func (lc *lazyClient) waitForNginxIngressToStabilize() {
 	lc.logger.DebugWith("Waiting for nginx ingress to stabilize",
@@ -1197,6 +1301,72 @@ func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.Ser
 	}
 
 	return to
+}
+
+func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
+	function *nuclioio.NuclioFunction,
+	resources Resources,
+	meta *meta_v1.ObjectMeta,
+	spec *v1beta1.CronJobSpec) error {
+
+	lc.logger.DebugWith("Preparing cron job", "function", function)
+
+	cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
+	//if len(cronTriggers) == 0 {
+	//	// TODO: handle this case if no cron triggers given
+	//
+	//}
+
+	type cronAttributes struct {
+		Schedule string
+		Event    cron.Event
+	}
+
+	functionService, err := resources.Service()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function service")
+	}
+
+	// get the first Cron trigger and fill the spec from it
+	for _, cronTrigger := range cronTriggers {
+		var attributes cronAttributes
+
+		// parse cron trigger attributes
+		if err := mapstructure.Decode(cronTrigger.Attributes, &attributes); err != nil {
+			return errors.Wrap(err, "Failed to decode cron trigger attributes")
+		}
+
+		spec.Schedule = attributes.Schedule
+
+		lc.logger.DebugWith("Found schedule", "schedule", attributes.Schedule)
+
+		// ignore any other cron triggers, validation should catch that
+		break
+	}
+
+	// TODO: fill this with real schedule function's address and other stuff
+	spec.Schedule = "*/1 * * * *"
+
+	functionAddress := fmt.Sprintf("%s:%s", functionService.Spec.ClusterIP, "8080")
+	lc.logger.DebugWith("Function address", "address", functionAddress)
+
+	spec.JobTemplate = v1beta1.JobTemplateSpec{
+		Spec: batchv1.JobSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name: "function-invocator",
+							Image: "yauritux/busybox-curl",
+							Args: []string{"/bin/sh", "-c", fmt.Sprintf("curl %s", functionAddress)},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return nil
 }
 
 func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
@@ -1453,6 +1623,10 @@ func (lc *lazyClient) ingressNameFromFunctionName(functionName string) string {
 	return fmt.Sprintf("nuclio-%s", functionName)
 }
 
+func (lc *lazyClient) cronJobNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nuclio-%s", functionName)
+}
+
 func (lc *lazyClient) serviceNameFromFunctionName(functionName string) string {
 	return fmt.Sprintf("nuclio-%s", functionName)
 }
@@ -1645,6 +1819,7 @@ type lazyResources struct {
 	service                 *v1.Service
 	horizontalPodAutoscaler *autos_v2.HorizontalPodAutoscaler
 	ingress                 *ext_v1beta1.Ingress
+	cronJob                 *v1beta1.CronJob
 }
 
 // Deployment returns the deployment
@@ -1670,4 +1845,9 @@ func (lr *lazyResources) HorizontalPodAutoscaler() (*autos_v2.HorizontalPodAutos
 // Ingress returns the ingress
 func (lr *lazyResources) Ingress() (*ext_v1beta1.Ingress, error) {
 	return lr.ingress, nil
+}
+
+// CronJob returns the cron job
+func (lr *lazyResources) CronJob() (*v1beta1.CronJob, error) {
+	return lr.cronJob, nil
 }
