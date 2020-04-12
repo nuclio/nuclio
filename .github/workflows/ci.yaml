@@ -4,6 +4,8 @@ on:
   pull_request:
     branches:
       - development
+      - 1.1.x
+      - 1.3.x
 
 env:
   REPO: docker.pkg.github.com
