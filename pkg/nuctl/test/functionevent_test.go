@@ -49,7 +49,7 @@ func (suite *functionEventGetTestSuite) TestGet() {
 			"body":         fmt.Sprintf("body-%d", functionEventIdx),
 		}
 
-		err := suite.ExecuteNutcl([]string{
+		err := suite.ExecuteNuctl([]string{
 			"create",
 			"functionevent",
 			functionEventName,
@@ -61,19 +61,19 @@ func (suite *functionEventGetTestSuite) TestGet() {
 		defer func(functionEventName string) {
 
 			// use nutctl to delete the function event when we're done
-			suite.ExecuteNutcl([]string{"delete", "fe", functionEventName}, nil)
+			suite.ExecuteNuctl([]string{"delete", "fe", functionEventName}, nil)
 
 		}(functionEventName)
 	}
 
-	err := suite.ExecuteNutcl([]string{"get", "functionevent"}, nil)
+	err := suite.ExecuteNuctl([]string{"get", "functionevent"}, nil)
 	suite.Require().NoError(err)
 
 	// find function names in get result
 	suite.findPatternsInOutput(functionEventNames, nil)
 
 	// get all function events for function-2
-	err = suite.ExecuteNutcl([]string{"get", "functionevent"}, map[string]string{"function": "function-1"})
+	err = suite.ExecuteNuctl([]string{"get", "functionevent"}, map[string]string{"function": "function-1"})
 	suite.Require().NoError(err)
 
 	// find function names in get result
@@ -81,11 +81,11 @@ func (suite *functionEventGetTestSuite) TestGet() {
 		[]string{functionEventNames[0], functionEventNames[2]})
 
 	// delete the second function event
-	err = suite.ExecuteNutcl([]string{"delete", "fe", functionEventNames[1]}, nil)
+	err = suite.ExecuteNuctl([]string{"delete", "fe", functionEventNames[1]}, nil)
 	suite.Require().NoError(err)
 
 	// get again
-	err = suite.ExecuteNutcl([]string{"get", "functionevent"}, nil)
+	err = suite.ExecuteNuctl([]string{"get", "functionevent"}, nil)
 	suite.Require().NoError(err)
 
 	// verify second function event deleted
