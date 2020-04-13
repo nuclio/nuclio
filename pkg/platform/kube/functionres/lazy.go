@@ -27,6 +27,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -1019,9 +1020,17 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 			Labels:    functionLabels,
 		}
 
-		cronJobSpec := v1beta1.CronJobSpec{}
 
-		if err := lc.populateCronJobConfig(functionLabels, function, resources, &cronJobMeta, &cronJobSpec); err != nil {
+		cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
+		if len(cronTriggers) == 0 {
+			lc.logger.DebugWith("No cron trigger set for function, skipping cron job creation",
+				"functionName",
+				function.Name)
+			return nil, nil
+		}
+
+		cronJobSpec := v1beta1.CronJobSpec{}
+		if err := lc.populateCronJobConfig(functionLabels, function, resources, cronTriggers, &cronJobMeta, &cronJobSpec); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate ingress spec")
 		}
 
@@ -1306,49 +1315,60 @@ func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.Ser
 func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	resources Resources,
+	cronTriggers map[string]functionconfig.Trigger,
 	meta *meta_v1.ObjectMeta,
 	spec *v1beta1.CronJobSpec) error {
+	var err error
 
-	lc.logger.DebugWith("Preparing cron job", "function", function)
-
-	cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
-	//if len(cronTriggers) == 0 {
-	//	// TODO: handle this case if no cron triggers given
-	//
-	//}
+	lc.logger.DebugWith("Preparing cron job")
 
 	type cronAttributes struct {
 		Schedule string
 		Event    cron.Event
 	}
 
+	// get the first cron trigger and fill the spec from it
+	var attributes cronAttributes
+	for _, cronTrigger := range cronTriggers {
+
+		// parse cron trigger attributes
+		if err = mapstructure.Decode(cronTrigger.Attributes, &attributes); err != nil {
+			return errors.Wrap(err, "Failed to decode cron trigger attributes")
+		}
+
+		break
+	}
+
+	// populate schedule
+	spec.Schedule, err = common.NormalizeCronScheduleToFive(attributes.Schedule)
+	if err != nil {
+		return errors.Wrap(err, "Failed to normalize cron schedule")
+	}
+
+	// generate a string containing all of the headers with -H flag as prefix, to be used by cURL later
+	headersString := ""
+	for headerKey, headerValue := range attributes.Event.Headers {
+		headerValueAsString, ok := headerValue.(string)
+		if !ok {
+			return errors.New(fmt.Sprintf("Unexpected header value type (expected string). header key: %s", headerKey))
+		}
+
+		headersString = fmt.Sprintf("%s -H \"%s: %s\"", headersString, headerKey, headerValueAsString)
+	}
+
+	// set invoke trigger header to cron
+	headersString = fmt.Sprintf("%s -H \"%s: %s\"", headersString, "x-nuclio-invoke-trigger", "cron")
+
+	// get the function http trigger address from the service
 	functionService, err := resources.Service()
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function service")
 	}
 
-	// get the first Cron trigger and fill the spec from it
-	for _, cronTrigger := range cronTriggers {
-		var attributes cronAttributes
-
-		// parse cron trigger attributes
-		if err := mapstructure.Decode(cronTrigger.Attributes, &attributes); err != nil {
-			return errors.Wrap(err, "Failed to decode cron trigger attributes")
-		}
-
-		spec.Schedule = attributes.Schedule
-
-		lc.logger.DebugWith("Found schedule", "schedule", attributes.Schedule)
-
-		// ignore any other cron triggers, validation should catch that
-		break
-	}
-
-	// TODO: fill this with real schedule function's address and other stuff
-	spec.Schedule = "*/1 * * * *"
-
 	functionAddress := fmt.Sprintf("%s:%s", functionService.Spec.ClusterIP, "8080")
-	lc.logger.DebugWith("Function address", "address", functionAddress)
+
+	// generate the whole curl command to be run by the CronJob to invoke the function
+	curlCommand := fmt.Sprintf("curl %s %s", functionAddress, headersString)
 
 	spec.JobTemplate = v1beta1.JobTemplateSpec{
 		Spec: batchv1.JobSpec{
@@ -1358,7 +1378,7 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 						{
 							Name: "function-invocator",
 							Image: "yauritux/busybox-curl",
-							Args: []string{"/bin/sh", "-c", fmt.Sprintf("curl %s", functionAddress)},
+							Args: []string{"/bin/sh", "-c", curlCommand},
 						},
 					},
 					RestartPolicy: v1.RestartPolicyNever,

@@ -19,6 +19,7 @@ package common
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"math"
 	"os"
 	"path"
@@ -303,4 +304,14 @@ func GetSourceDir() string {
 			return dirName
 		}
 	}
+}
+
+// Normalizes cron schedules of length 6 to be of length 5 (removes the seconds slot)
+func NormalizeCronScheduleToFive(schedule string) (string, error) {
+	splittedSchedule := strings.Split(schedule, " ")
+	if len(splittedSchedule) != 6 {
+		return "", errors.New(fmt.Sprintf("Unexpected cron schedule syntax: %s", schedule))
+	}
+
+	return strings.Join(splittedSchedule[1:6], " "), nil
 }
