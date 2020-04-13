@@ -1020,18 +1020,15 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 			Labels:    functionLabels,
 		}
 
-
 		cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
 		if len(cronTriggers) == 0 {
-			lc.logger.DebugWith("No cron trigger set for function, skipping cron job creation",
-				"functionName",
-				function.Name)
+			lc.logger.Debug("No cron trigger set on function creation")
 			return nil, nil
 		}
 
 		cronJobSpec := v1beta1.CronJobSpec{}
 		if err := lc.populateCronJobConfig(functionLabels, function, resources, cronTriggers, &cronJobMeta, &cronJobSpec); err != nil {
-			return nil, errors.Wrap(err, "Failed to populate ingress spec")
+			return nil, errors.Wrap(err, "Failed to populate cron job spec")
 		}
 
 		resultCronJob, err := lc.kubeClientSet.BatchV1beta1().
@@ -1044,44 +1041,42 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 		return resultCronJob, err
 	}
 
-	// TODO: Implement this...
 	updateCronJob := func(resource interface{}) (interface{}, error) {
-		//ingress := resource.(*ext_v1beta1.Ingress)
-		//
-		//// save to bool if there are current rules
-		//ingressRulesExist := len(ingress.Spec.Rules) > 0
-		//
-		//if err := lc.populateIngressConfig(functionLabels, function, &ingress.ObjectMeta, &ingress.Spec); err != nil {
-		//	return nil, errors.Wrap(err, "Failed to populate ingress spec")
-		//}
-		//
-		//if len(ingress.Spec.Rules) == 0 {
-		//
-		//	// if there are no rules and previously were, delete the ingress resource
-		//	if ingressRulesExist {
-		//		propogationPolicy := meta_v1.DeletePropagationForeground
-		//		deleteOptions := &meta_v1.DeleteOptions{
-		//			PropagationPolicy: &propogationPolicy,
-		//		}
-		//
-		//		err := lc.kubeClientSet.ExtensionsV1beta1().
-		//			Ingresses(function.Namespace).
-		//			Delete(lc.ingressNameFromFunctionName(function.Name), deleteOptions)
-		//		return nil, err
-		//
-		//	}
-		//
-		//	// there's nothing to update
-		//	return nil, nil
-		//}
-		//
-		//resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
-		//if err != nil {
-		//	lc.waitForNginxIngressToStabilize()
-		//}
-		//
-		//return resultIngress, err
-		return nil, nil
+		var err error
+
+		cronJob := resource.(*v1beta1.CronJob)
+		previousCronJobExists := cronJob != nil
+
+		cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
+		if len(cronTriggers) == 0 {
+			lc.logger.Debug("No cron trigger set on function update")
+
+			// if there was cron job and now there's not
+			if previousCronJobExists {
+				lc.logger.InfoWith("Removing previous cron job",
+					"functionName", function.Name)
+				err = lc.kubeClientSet.BatchV1beta1().
+					CronJobs(function.Namespace).
+					Delete(lc.cronJobNameFromFunctionName(function.Name), &meta_v1.DeleteOptions{})
+			}
+
+			return nil, err
+		}
+
+		if err := lc.populateCronJobConfig(functionLabels,
+			function,
+			resources,
+			cronTriggers,
+			&cronJob.ObjectMeta,
+			&cronJob.Spec); err != nil {
+			return nil, errors.Wrap(err, "Failed to populate cron job spec")
+		}
+
+		resultCronJob, err := lc.kubeClientSet.BatchV1beta1().
+			CronJobs(function.Namespace).
+			Update(cronJob)
+
+		return resultCronJob, err
 	}
 
 	resource, err := lc.createOrUpdateResource("cronJob",
