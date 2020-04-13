@@ -1003,6 +1003,12 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	resources Resources) (*v1beta1.CronJob, error) {
 
+	cronJobMeta := meta_v1.ObjectMeta{
+		Name:      lc.cronJobNameFromFunctionName(function.Name),
+		Namespace: function.Namespace,
+		Labels:    functionLabels,
+	}
+
 	getCronJob := func() (interface{}, error) {
 		return lc.kubeClientSet.BatchV1beta1().
 			CronJobs(function.Namespace).
@@ -1014,12 +1020,6 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	}
 
 	createCronJob := func() (interface{}, error) {
-		cronJobMeta := meta_v1.ObjectMeta{
-			Name:      lc.cronJobNameFromFunctionName(function.Name),
-			Namespace: function.Namespace,
-			Labels:    functionLabels,
-		}
-
 		cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
 		if len(cronTriggers) == 0 {
 			lc.logger.Debug("No cron trigger set on function creation")
@@ -1046,6 +1046,11 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 
 		cronJob := resource.(*v1beta1.CronJob)
 		previousCronJobExists := cronJob != nil
+
+		// if there's no previous cron job populate with meta and empty spec
+		if cronJob == nil {
+			cronJob = &v1beta1.CronJob{ObjectMeta: cronJobMeta, Spec: v1beta1.CronJobSpec{}}
+		}
 
 		cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
 		if len(cronTriggers) == 0 {
