@@ -54,7 +54,7 @@
                     $q.all(importProjectPromisesList)
                         .then(function () {
                             resolve();
-                            checkConflictFunctionsList()
+                            checkConflictFunctionsList();
                         });
                 };
 
@@ -96,7 +96,7 @@
                     }
                 })
                 .then(function () {
-                    return NuclioProjectsDataService.getProjects()
+                    return NuclioProjectsDataService.getProjects();
                 })
                 .then(function () {
                     var projectName = lodash.get(project, 'metadata.name');
@@ -163,13 +163,12 @@
             openConfirmDialog(currentFunction.metadata.name, currentProject)
                 .then(function (data) {
                     if (data.value.option === 'allProjects') {
-                        lodash.mapKeys(conflictProjectsData, function (functionsList, projectName) {
+                        lodash.forEach(conflictProjectsData, function (functionsList, projectName) {
                             resolveConflictFunctionsInProject(functionsList, projectName, data.value.action, data.value.option);
                         });
-                    } else if (data.value.option === 'singleProject') {
-                        resolveConflictFunctionsInProject(conflictProjectsData[currentProject], currentProject, data.value.action, data.value.option);
                     } else {
-                        resolveConflictFunctionsInProject([currentFunction], currentProject, data.value.action, data.value.option);
+                        var functions = data.value.option === 'singleProject' ? conflictProjectsData[currentProject] : [currentFunction];
+                        resolveConflictFunctionsInProject(functions, currentProject, data.value.action, data.value.option);
                     }
                 });
         }
