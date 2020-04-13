@@ -17,6 +17,7 @@ def main():
     run_number = 1
 
     while True:
+        print('Running test #{0}'.format(run_number))
         start_time = datetime.datetime.now()
         process = subprocess.run(['/bin/bash', '-c', make_cmd],
                                  cwd=repo_root,
