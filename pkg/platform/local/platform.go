@@ -227,7 +227,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		var createFunctionResult *platform.CreateFunctionResult
 		var deployErr error
 		functionStatus := functionconfig.Status{
-			State: functionconfig.FunctionStateScaledToZero,
+			State: functionconfig.FunctionStateImported,
 		}
 
 		if !skipFunctionDeploy {

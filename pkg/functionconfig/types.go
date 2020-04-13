@@ -362,6 +362,7 @@ const (
 	FunctionStateReady                            FunctionState = "ready"
 	FunctionStateError                            FunctionState = "error"
 	FunctionStateScaledToZero                     FunctionState = "scaledToZero"
+	FunctionStateImported                         FunctionState = "imported"
 )
 
 func FunctionStateInSlice(a FunctionState, list []FunctionState) bool {

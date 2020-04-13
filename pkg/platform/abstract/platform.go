@@ -188,7 +188,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	}
 
 	if skipFunctionDeploy {
-		ap.Logger.Debug("Deployer skipped deploy step because of skip-deploy annotation")
+		ap.Logger.Info("Skipped deployment due to import")
 		return &platform.CreateFunctionResult{
 			CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
 				Image:                 createFunctionOptions.FunctionConfig.Spec.Image,

@@ -148,7 +148,7 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 	function := functions[0]
 
 	// Check its state is scaled to zero and not deployed
-	suite.Equal(function.GetStatus().State, functionconfig.FunctionStateScaledToZero)
+	suite.Equal(function.GetStatus().State, functionconfig.FunctionStateImported)
 
 	// Check that the annotations have been removed
 	_, skipBuildExists := function.GetConfig().Meta.Annotations["skip-build"]

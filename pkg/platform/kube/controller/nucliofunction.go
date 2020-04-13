@@ -125,7 +125,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			"state", function.Status.State,
 			"namespace", function.Namespace)
 		return fo.setFunctionStatus(function, &functionconfig.Status{
-			State: functionconfig.FunctionStateScaledToZero,
+			State: functionconfig.FunctionStateImported,
 		})
 	}
 

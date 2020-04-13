@@ -170,6 +170,12 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		return
 	}
 
+	err = fr.validateUpdateInfo(functionInfo, functions[0])
+	if err != nil {
+		responseErr = nuclio.WrapErrBadRequest(errors.Wrap(err, "Requested update fields are invalid"))
+		return
+	}
+
 	if responseErr = fr.storeAndDeployFunction(functionInfo, request); responseErr != nil {
 		return
 	}
@@ -443,6 +449,16 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	}
 
 	return &functionInfoInstance, nil
+}
+
+func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, function platform.Function) error {
+
+	// if function is imported and user tries to disable, don't allow it
+	if functionInfo.Spec.Disable && function.GetStatus().State == functionconfig.FunctionStateImported {
+		return errors.New("cannot disable imported function")
+	}
+
+	return nil
 }
 
 func (fr *functionResource) ProcessFunctionInfo(functionInfoInstance *functionInfo, projectName string) error {
