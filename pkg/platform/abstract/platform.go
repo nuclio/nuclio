@@ -133,6 +133,10 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	if skipFunctionBuildStr, ok := createFunctionOptions.FunctionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipBuild]; ok {
 		skipFunctionBuild, _ = strconv.ParseBool(skipFunctionBuildStr)
 	}
+	skipFunctionDeploy := false
+	if skipFunctionDeployStr, ok := createFunctionOptions.FunctionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipDeploy]; ok {
+		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionDeployStr)
+	}
 
 	// check if we need to build the image
 	if functionBuildRequired && !skipFunctionBuild {
@@ -181,6 +185,16 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	deployResult, err := onAfterBuild(buildResult, buildErr)
 	if buildErr != nil || err != nil {
 		return nil, errors.Wrap(err, "Failed to deploy function")
+	}
+
+	if skipFunctionDeploy {
+		ap.Logger.Debug("Deployer skipped deploy step because of skip-deploy annotation")
+		return &platform.CreateFunctionResult{
+			CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
+				Image:                 createFunctionOptions.FunctionConfig.Spec.Image,
+				UpdatedFunctionConfig: createFunctionOptions.FunctionConfig,
+			},
+		}, nil
 	}
 
 	// sanity

@@ -225,12 +225,13 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		delete(createFunctionOptions.FunctionConfig.Meta.Annotations, functionconfig.FunctionAnnotationSkipBuild)
 
 		var createFunctionResult *platform.CreateFunctionResult
+		var deployErr error
 		functionStatus := functionconfig.Status{
 			State: functionconfig.FunctionStateScaledToZero,
 		}
 
 		if !skipFunctionDeploy {
-			createFunctionResult, deployErr := p.deployFunction(createFunctionOptions, previousHTTPPort)
+			createFunctionResult, deployErr = p.deployFunction(createFunctionOptions, previousHTTPPort)
 			if deployErr != nil {
 				reportCreationError(deployErr) // nolint: errcheck
 				return nil, deployErr

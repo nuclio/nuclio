@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -112,6 +113,20 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			"namespace", function.Namespace)
 
 		return nil
+	}
+
+	skipFunctionDeploy := false
+	if skipFunctionBuildStr, ok := function.Annotations[functionconfig.FunctionAnnotationSkipDeploy]; ok {
+		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildStr)
+	}
+	if skipFunctionDeploy {
+		fo.logger.InfoWith("NuclioFunction has skip-deploy annotation, probably from import, skipping create/update",
+			"name", function.Name,
+			"state", function.Status.State,
+			"namespace", function.Namespace)
+		return fo.setFunctionStatus(function, &functionconfig.Status{
+			State: functionconfig.FunctionStateScaledToZero,
+		})
 	}
 
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
