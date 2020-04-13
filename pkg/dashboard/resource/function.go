@@ -264,6 +264,15 @@ func (fr *functionResource) prepareFunctionForExport(functionMeta *functionconfi
 	if functionSpec.Build.FunctionSourceCode != "" {
 		functionSpec.Image = ""
 	}
+
+	// remove secrets and passwords from triggers
+	newTriggers := functionSpec.Triggers
+	for triggerName, trigger := range newTriggers {
+		trigger.Password = ""
+		trigger.Secret = ""
+		newTriggers[triggerName] = trigger
+	}
+	functionSpec.Triggers = newTriggers
 }
 
 func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, request *http.Request) error {
