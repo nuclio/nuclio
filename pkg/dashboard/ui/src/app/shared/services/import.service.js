@@ -107,7 +107,8 @@
                             .catch(function (error) {
                                 if (error.status === 409) {
                                     if (lodash.has(conflictProjectsData, projectName)) {
-                                        return conflictProjectsData[projectName].push(func);
+                                        conflictProjectsData[projectName].push(func);
+                                        return conflictProjectsData[projectName];
                                     } else {
                                         return lodash.set(conflictProjectsData, [projectName], [func]);
                                     }
