@@ -26,6 +26,7 @@
                 NuclioProjectsDataService.getFrontendSpec()
                     .then(function (response) {
                         lodash.assign(ConfigService.nuclio, {
+                            defaultFunctionConfig: lodash.get(response, 'defaultFunctionConfig', {}),
                             externalIPAddress: lodash.get(response, 'externalIPAddresses[0]', ''),
                             ingressHostTemplate: lodash.get(response, 'defaultHTTPIngressHostTemplate', ''),
                             namespace: lodash.get(response, 'namespace', ''),
