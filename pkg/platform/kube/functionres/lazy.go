@@ -1334,7 +1334,7 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 	// generate a string to be sent as the request body argument to curl
 	eventBodyAsCurlArg := ""
 	if attributes.Event.Body != "" {
-		eventBodyAsCurlArg = fmt.Sprintf("-d %s", attributes.Event.Body)
+		eventBodyAsCurlArg = fmt.Sprintf("-d \"%s\"", attributes.Event.Body)
 	}
 
 	// generate a string containing all of the headers with -H flag as prefix, to be used by cURL later
