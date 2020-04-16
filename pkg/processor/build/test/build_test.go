@@ -597,16 +597,11 @@ func (suite *testSuite) TestBuildFuncFromLocalArchiveRedeployUsesSameImage() {
 }
 
 func (suite *testSuite) TestGenerateProcessorDockerfile() {
-
-	newPlatform, err := local.NewPlatform(suite.Logger, nil)
-	if err != nil {
-		suite.Fail("Instantiating Platform failed:", err)
-	}
+	newPlatform, err := local.NewPlatform(suite.Logger, nil, nil)
+	suite.Require().NoError(err, "Instantiating Platform failed: %s", err)
 
 	builder, err := build.NewBuilder(suite.Logger, newPlatform, nil)
-	if err != nil {
-		suite.Fail("Instantiating Builder failed:", err)
-	}
+	suite.Require().NoError(err, "Instantiating Builder failed: %s", err)
 
 	// all elements, health check required
 	suite.generateDockerfileAndVerify(builder, true, &runtime.ProcessorDockerfileInfo{
