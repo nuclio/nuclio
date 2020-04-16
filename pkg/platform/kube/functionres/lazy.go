@@ -1319,9 +1319,8 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 		Event    cron.Event
 	}
 
-	// get the first cron trigger and fill the spec from it
+	// get the attributes from the cron trigger
 	var attributes cronAttributes
-
 	if err = mapstructure.Decode(cronTrigger.Attributes, &attributes); err != nil {
 		return errors.Wrap(err, "Failed to decode cron trigger attributes")
 	}
@@ -1332,19 +1331,25 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 		return errors.Wrap(err, "Failed to normalize cron schedule")
 	}
 
+	// generate a string to be sent as the request body argument to curl
+	eventBodyAsCurlArg := ""
+	if attributes.Event.Body != "" {
+		eventBodyAsCurlArg = fmt.Sprintf("-d %s", attributes.Event.Body)
+	}
+
 	// generate a string containing all of the headers with -H flag as prefix, to be used by cURL later
-	headersString := ""
+	headersAsCurlArg := ""
 	for headerKey, headerValue := range attributes.Event.Headers {
 		headerValueAsString, ok := headerValue.(string)
 		if !ok {
 			return errors.New(fmt.Sprintf("Unexpected header value type (expected string). header key: %s", headerKey))
 		}
 
-		headersString = fmt.Sprintf("%s -H \"%s: %s\"", headersString, headerKey, headerValueAsString)
+		headersAsCurlArg = fmt.Sprintf("%s -H \"%s: %s\"", headersAsCurlArg, headerKey, headerValueAsString)
 	}
 
-	// set invoke trigger header to cron
-	headersString = fmt.Sprintf("%s -H \"%s: %s\"", headersString, "x-nuclio-invoke-trigger", "cron")
+	// add cron invoke trigger header
+	headersAsCurlArg = fmt.Sprintf("%s -H \"%s: %s\"", headersAsCurlArg, "x-nuclio-invoke-trigger", "cron")
 
 	// get the function http trigger address from the service
 	functionService, err := resources.Service()
@@ -1355,7 +1360,7 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 	functionAddress := fmt.Sprintf("%s:%s", functionService.Spec.ClusterIP, "8080")
 
 	// generate the whole curl command to be run by the CronJob to invoke the function
-	curlCommand := fmt.Sprintf("curl %s %s", functionAddress, headersString)
+	curlCommand := fmt.Sprintf("curl --request POST %s %s %s", eventBodyAsCurlArg, headersAsCurlArg, functionAddress)
 
 	spec.JobTemplate = v1beta1.JobTemplateSpec{
 		Spec: batchv1.JobSpec{
@@ -1365,7 +1370,7 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 						{
 							Name: "function-invocator",
 							Image: "yauritux/busybox-curl",
-							Args: []string{"/bin/sh", "-c", curlCommand},
+							Args: []string{"/bin/sh", curlCommand},
 						},
 					},
 					RestartPolicy: v1.RestartPolicyNever,
