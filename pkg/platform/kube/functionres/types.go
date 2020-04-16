@@ -59,5 +59,5 @@ type Resources interface {
 	Ingress() (*ext_v1beta1.Ingress, error)
 
 	// CronJob returns the cron job
-	CronJob() (*v1beta1.CronJob, error)
+	CronJobs() ([]*v1beta1.CronJob, error)
 }
