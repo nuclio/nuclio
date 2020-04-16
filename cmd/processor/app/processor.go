@@ -294,6 +294,8 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 		// skipping cron triggers when scale to zero is enabled - k8s cron jobs will be created instead
 		if triggerConfiguration.Kind == "cron" &&
 			processorConfiguration.PlatformConfig.ScaleToZero.Mode == platformconfig.EnabledScaleToZeroMode {
+			p.logger.DebugWith("Skipping cron trigger creation inside the processor (Scale to zero is on)",
+				"triggerName", triggerName)
 			continue
 		}
 
