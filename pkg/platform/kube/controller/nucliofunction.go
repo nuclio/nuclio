@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"strconv"
 	"strings"
 	"time"
 
@@ -115,11 +114,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return nil
 	}
 
-	var skipFunctionDeploy bool
-	if skipFunctionBuildStr, ok := function.Annotations[functionconfig.FunctionAnnotationSkipDeploy]; ok {
-		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildStr)
-	}
-	if skipFunctionDeploy {
+	if function.SkipDeploy() {
 		fo.logger.InfoWith("Skipping function deploy",
 			"name", function.Name,
 			"state", function.Status.State,

@@ -18,6 +18,7 @@ package functionconfig
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -331,6 +332,30 @@ type Meta struct {
 // GetUniqueID return unique id
 func (m *Meta) GetUniqueID() string {
 	return m.Namespace + ":" + m.Name
+}
+
+func (m *Meta) SkipDeploy() bool {
+	var skipFunctionDeploy bool
+	if skipFunctionBuildStr, ok := m.Annotations[FunctionAnnotationSkipDeploy]; ok {
+		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildStr)
+	}
+	return skipFunctionDeploy
+}
+
+func (m *Meta) SkipBuild() bool {
+	var skipFunctionDeploy bool
+	if skipFunctionBuildStr, ok := m.Annotations[FunctionAnnotationSkipBuild]; ok {
+		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildStr)
+	}
+	return skipFunctionDeploy
+}
+
+func (m *Meta) RemoveSkipDeployAnnotation() {
+	delete(m.Annotations, FunctionAnnotationSkipDeploy)
+}
+
+func (m *Meta) RemoveSkipBuildAnnotation() {
+	delete(m.Annotations, FunctionAnnotationSkipBuild)
 }
 
 // Config holds the configuration of a function - meta and spec

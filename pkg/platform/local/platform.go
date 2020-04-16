@@ -216,15 +216,12 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return nil, buildErr
 		}
 
-		var skipFunctionDeploy bool
-		if skipFunctionBuildStr, ok := createFunctionOptions.FunctionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipDeploy]; ok {
-			skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildStr)
-			delete(createFunctionOptions.FunctionConfig.Meta.Annotations, functionconfig.FunctionAnnotationSkipDeploy)
-		}
+		skipFunctionDeploy := createFunctionOptions.FunctionConfig.Meta.SkipDeploy()
 
-		// after a function build (or skip-build) if the annotation FunctionAnnotationSkipBuild exists, it should be removed
-		// so next time, the build will happen.
-		delete(createFunctionOptions.FunctionConfig.Meta.Annotations, functionconfig.FunctionAnnotationSkipBuild)
+		// after a function build (or skip-build) if the annotations FunctionAnnotationSkipBuild or FunctionAnnotationSkipDeploy
+		// exist, they should be removed so next time, the build will happen.
+		createFunctionOptions.FunctionConfig.Meta.RemoveSkipDeployAnnotation()
+		createFunctionOptions.FunctionConfig.Meta.RemoveSkipBuildAnnotation()
 
 		var createFunctionResult *platform.CreateFunctionResult
 		var deployErr error

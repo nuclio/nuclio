@@ -43,11 +43,28 @@ type projectInfo struct {
 	Spec *platform.ProjectSpec `json:"spec,omitempty"`
 }
 
-type projectImportInfo struct {
-	Project   *projectInfo
-	Functions map[string]*struct {
+type functionImportMap map[string]*functionInfo
+
+func (fim *functionImportMap) UnmarshalJSON(data []byte) error {
+	var functionImports map[string]*struct {
 		Function *functionInfo
 	}
+	if err := json.Unmarshal(data, &functionImports); err != nil {
+		return err
+	}
+
+	unmarshalFunctionImports := map[string]*functionInfo{}
+	for functionName, functionImport := range functionImports {
+		unmarshalFunctionImports[functionName] = functionImport.Function
+	}
+
+	*fim = unmarshalFunctionImports
+	return nil
+}
+
+type projectImportInfo struct {
+	Project   *projectInfo
+	Functions functionImportMap
 }
 
 // GetAll returns all projects
@@ -71,7 +88,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 		return nil, errors.Wrap(err, "Failed to get projects")
 	}
 
-	exportProject := pr.GetBoolUrlParam(restful.ParamExport, request)
+	exportProject := pr.GetBoolURLParam(restful.ParamExport, request)
 
 	// create a map of attributes keyed by the project id (name)
 	for _, project := range projects {
@@ -110,7 +127,7 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 	}
 	project := projects[0]
 
-	exportProject := pr.GetBoolUrlParam(restful.ParamExport, request)
+	exportProject := pr.GetBoolURLParam(restful.ParamExport, request)
 	if exportProject {
 		return pr.export(project), nil
 	}
@@ -121,7 +138,7 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 // Create deploys a project
 func (pr *projectResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
 
-	importProject := pr.GetBoolUrlParam(restful.ParamImport, request)
+	importProject := pr.GetBoolURLParam(restful.ParamImport, request)
 	if importProject {
 		projectImportInfo, responseErr := pr.getProjectImportInfoFromRequest(request)
 		if responseErr != nil {
@@ -257,13 +274,13 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 
 	var failedFunctions []restful.Attributes
 	for functionName, functionImport := range projectImportInfoInstance.Functions {
-		go func(){
-			if functionImport.Function.Meta.Labels == nil {
-				functionImport.Function.Meta.Labels = map[string]string{}
+		go func(functionName string, functionImport *functionInfo) {
+			if functionImport.Meta.Labels == nil {
+				functionImport.Meta.Labels = map[string]string{}
 			}
-			functionImport.Function.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
+			functionImport.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
 
-			err = pr.importFunction(functionImport.Function)
+			err = pr.importFunction(functionImport)
 			if err != nil {
 				pr.Logger.WarnWith("Failed posting function", "functionName", functionName, "err", err)
 				functionCreateChan <- restful.Attributes{
@@ -272,7 +289,7 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 				}
 			}
 			functionCreateChan <- nil
-		}()
+		}(functionName, functionImport)
 	}
 
 	for range projectImportInfoInstance.Functions {

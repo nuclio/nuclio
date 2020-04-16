@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -129,17 +128,8 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	// clear build mode
 	createFunctionOptions.FunctionConfig.Spec.Build.Mode = ""
 
-	var skipFunctionBuild bool
-	if skipFunctionBuildStr, ok := createFunctionOptions.FunctionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipBuild]; ok {
-		skipFunctionBuild, _ = strconv.ParseBool(skipFunctionBuildStr)
-	}
-	var skipFunctionDeploy bool
-	if skipFunctionDeployStr, ok := createFunctionOptions.FunctionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipDeploy]; ok {
-		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionDeployStr)
-	}
-
 	// check if we need to build the image
-	if functionBuildRequired && !skipFunctionBuild {
+	if functionBuildRequired && !createFunctionOptions.FunctionConfig.Meta.SkipBuild() {
 		buildResult, buildErr = ap.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
 			Logger:                     createFunctionOptions.Logger,
 			FunctionConfig:             createFunctionOptions.FunctionConfig,
@@ -187,7 +177,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		return nil, errors.Wrap(err, "Failed to deploy function")
 	}
 
-	if skipFunctionDeploy {
+	if createFunctionOptions.FunctionConfig.Meta.SkipDeploy() {
 		ap.Logger.Info("Skipping function deployment")
 		return &platform.CreateFunctionResult{
 			CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
