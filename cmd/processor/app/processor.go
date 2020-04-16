@@ -291,6 +291,12 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
 		triggerName, triggerConfiguration := triggerName, triggerConfiguration
 
+		// skipping cron triggers when scale to zero is enabled - k8s cron jobs will be created instead
+		if triggerConfiguration.Kind == "cron" &&
+			processorConfiguration.PlatformConfig.ScaleToZero.Mode == platformconfig.EnabledScaleToZeroMode {
+			continue
+		}
+
 		errGroup.Go(func() error {
 
 			// create an event source based on event source configuration and runtime configuration
