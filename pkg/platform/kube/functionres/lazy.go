@@ -1370,7 +1370,7 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 						{
 							Name: "function-invocator",
 							Image: "yauritux/busybox-curl",
-							Args: []string{"/bin/sh -c", curlCommand},
+							Args: []string{"/bin/sh", "-c", curlCommand},
 						},
 					},
 					RestartPolicy: v1.RestartPolicyNever,
