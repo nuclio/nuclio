@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -276,10 +277,12 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 	pr.Logger.Debug("Importing project functions")
 
 	functionCreateChan := make(chan restful.Attributes, len(projectImportInfoInstance.Functions))
+	var functionCreateWaitGroup sync.WaitGroup
+	functionCreateWaitGroup.Add(len(projectImportInfoInstance.Functions))
 
 	var failedFunctions []restful.Attributes
 	for functionName, functionImport := range projectImportInfoInstance.Functions {
-		go func(functionName string, functionImport *functionInfo) {
+		go func(functionName string, functionImport *functionInfo, wg *sync.WaitGroup) {
 			functionImport.Meta.Namespace = projectImportInfoInstance.Project.Meta.Namespace
 			if functionImport.Meta.Labels == nil {
 				functionImport.Meta.Labels = map[string]string{}
@@ -293,17 +296,19 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 					"error":    err.Error(),
 				}
 			}
-			functionCreateChan <- nil
-		}(functionName, functionImport)
+
+			wg.Done()
+		}(functionName, functionImport, &functionCreateWaitGroup)
 	}
 
-	for range projectImportInfoInstance.Functions {
-		createError := <-functionCreateChan
+	functionCreateWaitGroup.Wait()
+	close(functionCreateChan)
+
+	for createError := range functionCreateChan {
 		if createError != nil {
 			failedFunctions = append(failedFunctions, createError)
 		}
 	}
-	close(functionCreateChan)
 
 	attributes = restful.Attributes{
 		"createdFunctionAmount": len(projectImportInfoInstance.Functions) - len(failedFunctions),
