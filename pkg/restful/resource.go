@@ -189,16 +189,16 @@ func (ar *AbstractResource) GetRouter() chi.Router {
 	return ar.router
 }
 
-func (ar *AbstractResource) GetBooleanParam(param string, request *http.Request) bool {
+func (ar *AbstractResource) GetBooleanParam(paramKey string, request *http.Request) bool {
 	var importFunction bool
 	var err error
 
-	importKeys, ok := request.URL.Query()[param]
-	if !ok || len(importKeys) == 0 {
+	paramValues, ok := request.URL.Query()[paramKey]
+	if !ok || len(paramValues) == 0 {
 		return false
 	}
 
-	importFunction, err = strconv.ParseBool(importKeys[0])
+	importFunction, err = strconv.ParseBool(paramValues[0])
 	if err != nil {
 		return false
 	}

@@ -115,12 +115,12 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return nil
 	}
 
-	skipFunctionDeploy := false
+	var skipFunctionDeploy bool
 	if skipFunctionBuildStr, ok := function.Annotations[functionconfig.FunctionAnnotationSkipDeploy]; ok {
 		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildStr)
 	}
 	if skipFunctionDeploy {
-		fo.logger.InfoWith("NuclioFunction has skip-deploy annotation, probably from import, skipping create/update",
+		fo.logger.InfoWith("Skipping function deploy",
 			"name", function.Name,
 			"state", function.Status.State,
 			"namespace", function.Namespace)

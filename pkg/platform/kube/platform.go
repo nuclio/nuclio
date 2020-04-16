@@ -199,6 +199,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return errors.Wrap(err, "Failed to get function")
 		}
 
+		// if the function already exists then it either doesn't have the FunctionAnnotationSkipDeploy annotation, or it
+		// was imported and has the annotation, but on this recreate it shouldn't. So the annotation should be removed.
 		if existingFunctionInstance != nil {
 			delete(createFunctionOptions.FunctionConfig.Meta.Annotations, functionconfig.FunctionAnnotationSkipDeploy)
 		}
@@ -225,6 +227,9 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
+
+		// after a function build (or skip-build) if the annotation FunctionAnnotationSkipBuild exists, it should be removed
+		// so next time, the build will happen.
 		delete(createFunctionOptions.FunctionConfig.Meta.Annotations, functionconfig.FunctionAnnotationSkipBuild)
 
 		if buildErr != nil {

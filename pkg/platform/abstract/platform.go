@@ -129,11 +129,11 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	// clear build mode
 	createFunctionOptions.FunctionConfig.Spec.Build.Mode = ""
 
-	skipFunctionBuild := false
+	var skipFunctionBuild bool
 	if skipFunctionBuildStr, ok := createFunctionOptions.FunctionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipBuild]; ok {
 		skipFunctionBuild, _ = strconv.ParseBool(skipFunctionBuildStr)
 	}
-	skipFunctionDeploy := false
+	var skipFunctionDeploy bool
 	if skipFunctionDeployStr, ok := createFunctionOptions.FunctionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipDeploy]; ok {
 		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionDeployStr)
 	}
@@ -188,7 +188,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	}
 
 	if skipFunctionDeploy {
-		ap.Logger.Info("Skipped deployment due to import")
+		ap.Logger.Info("Skipping function deployment")
 		return &platform.CreateFunctionResult{
 			CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
 				Image:                 createFunctionOptions.FunctionConfig.Spec.Image,

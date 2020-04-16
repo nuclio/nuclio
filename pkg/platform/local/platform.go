@@ -216,12 +216,14 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return nil, buildErr
 		}
 
-		skipFunctionDeploy := false
+		var skipFunctionDeploy bool
 		if skipFunctionBuildStr, ok := createFunctionOptions.FunctionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipDeploy]; ok {
 			skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildStr)
 			delete(createFunctionOptions.FunctionConfig.Meta.Annotations, functionconfig.FunctionAnnotationSkipDeploy)
 		}
 
+		// after a function build (or skip-build) if the annotation FunctionAnnotationSkipBuild exists, it should be removed
+		// so next time, the build will happen.
 		delete(createFunctionOptions.FunctionConfig.Meta.Annotations, functionconfig.FunctionAnnotationSkipBuild)
 
 		var createFunctionResult *platform.CreateFunctionResult

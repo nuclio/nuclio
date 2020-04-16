@@ -132,18 +132,18 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 	// Create the function
 	createFunctionOptions := suite.GetMockDeploymentFunction("echoer")
 	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
-		"skip-build": "true",
-		"skip-deploy": "true",
+		functionconfig.FunctionAnnotationSkipBuild: "true",
+		functionconfig.FunctionAnnotationSkipDeploy: "true",
 	}
 	createdFunction, err := suite.Platform.CreateFunction(createFunctionOptions)
-	suite.NoError(err, "Could not create function")
+	suite.NoError(err, "Failed to create function")
 
 	// Get the functions from local store
 	functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
 		Namespace: createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace,
 		Name:      createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
 	})
-	suite.NoError(err, "Could not get functions")
+	suite.NoError(err, "Failed to get functions")
 	suite.Len(functions, 1, "Expected to find the newly created function")
 	function := functions[0]
 
@@ -164,14 +164,14 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 		},
 	}
 	recreatedFunction, err := suite.Platform.CreateFunction(recreateFunctionOptions)
-	suite.NoError(err, "Could not create function")
+	suite.NoError(err, "Failed to create function")
 
 	// Get the recreated functions from local store
 	recreatedFunctions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
 		Namespace: recreatedFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace,
 		Name:      recreatedFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
 	})
-	suite.NoError(err, "Could not get functions")
+	suite.NoError(err, "Failed to get functions")
 	suite.Len(functions, 1, "Expected to find the newly created function")
 	function = recreatedFunctions[0]
 

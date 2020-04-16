@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -77,7 +76,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 	// create a map of attributes keyed by the project id (name)
 	for _, project := range projects {
 		if exportProject {
-			response[project.GetConfig().Meta.Name] = pr.Export(project)
+			response[project.GetConfig().Meta.Name] = pr.export(project)
 		} else {
 			response[project.GetConfig().Meta.Name] = pr.projectToAttributes(project)
 		}
@@ -95,7 +94,7 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	project, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
+	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      id,
 			Namespace: pr.getNamespaceFromRequest(request),
@@ -106,16 +105,17 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 		return nil, errors.Wrap(err, "Failed to get projects")
 	}
 
-	if len(project) == 0 {
+	if len(projects) == 0 {
 		return nil, nuclio.NewErrNotFound("Project not found")
 	}
+	project := projects[0]
 
 	exportProject := pr.GetBooleanParam(restful.ParamExport, request)
 	if exportProject {
-		return pr.Export(project[0]), nil
+		return pr.export(project), nil
 	}
 
-	return pr.projectToAttributes(project[0]), nil
+	return pr.projectToAttributes(project), nil
 }
 
 // Create deploys a project
@@ -158,10 +158,10 @@ func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	}, nil
 }
 
-func (pr *projectResource) Export(project platform.Project) restful.Attributes {
+func (pr *projectResource) export(project platform.Project) restful.Attributes {
 	projectMeta := project.GetConfig().Meta
 
-	pr.Logger.DebugWith("Exporting project", "project", projectMeta.Name)
+	pr.Logger.DebugWith("Exporting project", "projectName", projectMeta.Name)
 
 	// scrub namespace from project
 	projectMeta.Namespace = ""
@@ -191,8 +191,8 @@ func (pr *projectResource) Export(project platform.Project) restful.Attributes {
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
 		functionsMap[function.GetConfig().Meta.Name] = restful.Attributes{
-			"function": functionResourceInstance.Export(function),
-			"events":   functionResourceInstance.ExportFunctionEvents(function),
+			"function": functionResourceInstance.export(function),
+			"events":   functionResourceInstance.exportFunctionEvents(function),
 		}
 	}
 
@@ -238,7 +238,7 @@ func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id s
 func (pr *projectResource) importProject(projectImportInfoInstance *projectImportInfo) (id string,
 	attributes restful.Attributes, responseErr error) {
 
-	pr.Logger.DebugWith("Checking if project exists", "project", projectImportInfoInstance.Project.Meta.Name)
+	pr.Logger.DebugWith("Checking if project exists", "projectName", projectImportInfoInstance.Project.Meta.Name)
 
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: *projectImportInfoInstance.Project.Meta,
@@ -253,22 +253,35 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 
 	pr.Logger.Debug("Importing project functions")
 
+	functionCreateChan := make(chan restful.Attributes, len(projectImportInfoInstance.Functions))
+
 	var failedFunctions []restful.Attributes
 	for functionName, functionImport := range projectImportInfoInstance.Functions {
-		if functionImport.Function.Meta.Labels == nil {
-			functionImport.Function.Meta.Labels = map[string]string{}
-		}
-		functionImport.Function.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
+		go func(){
+			if functionImport.Function.Meta.Labels == nil {
+				functionImport.Function.Meta.Labels = map[string]string{}
+			}
+			functionImport.Function.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
 
-		err = pr.postFunctionForImport(functionImport.Function)
-		if err != nil {
-			pr.Logger.WarnWith("Failed posting function", "name", functionName, "err", err)
-			failedFunctions = append(failedFunctions, restful.Attributes{
-				"function": functionName,
-				"error":    err.Error(),
-			})
+			err = pr.importFunction(functionImport.Function)
+			if err != nil {
+				pr.Logger.WarnWith("Failed posting function", "functionName", functionName, "err", err)
+				functionCreateChan <- restful.Attributes{
+					"function": functionName,
+					"error":    err.Error(),
+				}
+			}
+			functionCreateChan <- nil
+		}()
+	}
+
+	for range projectImportInfoInstance.Functions {
+		createError := <-functionCreateChan
+		if createError != nil {
+			failedFunctions = append(failedFunctions, createError)
 		}
 	}
+	close(functionCreateChan)
 
 	attributes = restful.Attributes{
 		"createdFunctionAmount": len(projectImportInfoInstance.Functions) - len(failedFunctions),
@@ -279,7 +292,8 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 	return
 }
 
-func (pr *projectResource) postFunctionForImport(functionInfo *functionInfo) error {
+func (pr *projectResource) importFunction(functionInfo *functionInfo) error {
+
 	jsonStr, err := json.Marshal(functionInfo)
 	if err != nil {
 		return err
@@ -287,7 +301,7 @@ func (pr *projectResource) postFunctionForImport(functionInfo *functionInfo) err
 	urlStr := "http://localhost" + pr.getListenAddress() + "/api/functions"
 	request, err := http.NewRequest("POST", urlStr, bytes.NewBuffer(jsonStr))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to create new function")
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -298,10 +312,10 @@ func (pr *projectResource) postFunctionForImport(functionInfo *functionInfo) err
 		return err
 	}
 	if response.StatusCode == http.StatusConflict {
-		return errors.New("function name already exists")
+		return errors.New("Function name already exists")
 	}
 	if response.StatusCode != http.StatusAccepted {
-		return errors.New("received unexpected status code: " + strconv.FormatInt(int64(response.StatusCode), 10))
+		return errors.New(fmt.Sprintf("received unexpected status code: %d", response.StatusCode))
 	}
 
 	return nil
@@ -329,7 +343,10 @@ func (pr *projectResource) createAndWaitForProjectCreation(projectInfoInstance *
 		return nuclio.WrapErrInternalServerError(err)
 	}
 
-	err = common.RetryUntilSuccessful(30*time.Second, 1*time.Second, func() bool {
+	timeout := 30 * time.Second
+	retryInterval := 1 * time.Second
+	err = common.RetryUntilSuccessful(timeout, retryInterval, func() bool {
+		pr.Logger.DebugWith("Trying to get projects", "timeout", timeout, "retryInterval", retryInterval)
 		projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 			Meta: *projectInfoInstance.Meta,
 		})
@@ -450,7 +467,7 @@ func (pr *projectResource) getProjectInfoFromRequest(request *http.Request, name
 
 	err = pr.processProjectInfo(&projectInfoInstance, nameRequired)
 	if err != nil {
-		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Project Info Object Invalid"))
+		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to process project info"))
 	}
 
 	return &projectInfoInstance, nil
@@ -472,7 +489,7 @@ func (pr *projectResource) getProjectImportInfoFromRequest(request *http.Request
 
 	err = pr.processProjectInfo(projectImportInfoInstance.Project, true)
 	if err != nil {
-		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Project Info Object Invalid"))
+		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to process project info"))
 	}
 
 	return &projectImportInfoInstance, nil
