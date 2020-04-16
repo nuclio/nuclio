@@ -67,7 +67,10 @@ func (suite *TestSuite) SetupSuite() {
 	suite.Require().NoError(err, "Docker client should create successfully")
 
 	suite.Platform, err = NewPlatform(suite.Logger,
-		&containerimagebuilderpusher.ContainerBuilderConfiguration{},
+		&containerimagebuilderpusher.ContainerBuilderConfiguration{
+		DefaultOnbuildRegistryURL: common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL",
+			"quay.io"),
+		},
 		nil)
 	suite.Require().NoError(err, "Platform should create successfully")
 }
