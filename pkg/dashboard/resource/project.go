@@ -286,8 +286,7 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 			}
 			functionImport.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
 
-			err = pr.importFunction(functionImport, authConfig)
-			if err != nil {
+			if err = pr.importFunction(functionImport, authConfig); err != nil {
 				pr.Logger.WarnWith("Failed posting function", "functionName", functionName, "err", err)
 				functionCreateChan <- restful.Attributes{
 					"function": functionName,
