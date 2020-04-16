@@ -56,8 +56,12 @@ func (suite *Suite) SetupSuite() {
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
 
+	// create shell runner
+	suite.shellClient, err = cmdrunner.NewShellRunner(suite.logger)
+	suite.Require().NoError(err)
+
 	// create docker client
-	suite.dockerClient, err = dockerclient.NewShellClient(suite.logger, nil)
+	suite.dockerClient, err = dockerclient.NewShellClient(suite.logger, suite.shellClient)
 	suite.Require().NoError(err)
 
 	// save platform type before the test
@@ -68,9 +72,6 @@ func (suite *Suite) SetupSuite() {
 		err = os.Setenv(nuctlPlatformEnvVarName, "local")
 		suite.Require().NoError(err)
 	}
-
-	suite.shellClient, err = cmdrunner.NewShellRunner(suite.logger)
-	suite.Require().NoError(err)
 
 	// update version so that linker doesn't need to inject it
 	err = version.Set(&version.Info{
@@ -89,14 +90,14 @@ func (suite *Suite) TearDownSuite() {
 	suite.Require().NoError(err)
 }
 
-// ExecuteNutcl populates os.Args and executes nuctl as if it were executed from shell
-func (suite *Suite) ExecuteNutcl(positionalArgs []string,
+// ExecuteNuctl populates os.Args and executes nuctl as if it were executed from shell
+func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 	namedArgs map[string]string) error {
 
 	suite.rootCommandeer = command.NewRootCommandeer()
 
 	// set the output so we can capture it (but also output to stdout)
-	suite.rootCommandeer.GetCmd().SetOutput(io.MultiWriter(os.Stdout, &suite.outputBuffer))
+	suite.rootCommandeer.GetCmd().SetOut(io.MultiWriter(os.Stdout, &suite.outputBuffer))
 
 	// since args[0] is the executable name, just shove something there
 	argsStringSlice := []string{

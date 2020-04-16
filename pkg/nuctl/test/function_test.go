@@ -37,7 +37,7 @@ func (suite *functionBuildTestSuite) TestBuild() {
 	functionName := "reverser" + uniqueSuffix
 	imageName := "nuclio/build-test" + uniqueSuffix
 
-	err := suite.ExecuteNutcl([]string{"build", functionName, "--verbose", "--no-pull"},
+	err := suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
 			"image":   imageName,
@@ -50,7 +50,7 @@ func (suite *functionBuildTestSuite) TestBuild() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// use deploy with the image we just created
-	err = suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose"},
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
 		map[string]string{
 			"run-image": imageName,
 			"runtime":   "golang",
@@ -60,13 +60,13 @@ func (suite *functionBuildTestSuite) TestBuild() {
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// try a few times to invoke, until it succeeds
 	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
 
 		// invoke the function
-		err = suite.ExecuteNutcl([]string{"invoke", functionName},
+		err = suite.ExecuteNuctl([]string{"invoke", functionName},
 			map[string]string{
 				"method": "POST",
 				"body":   "-reverse this string+",
@@ -98,7 +98,7 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 		"handler": "main:Reverse",
 	}
 
-	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
 
 	suite.Require().NoError(err)
 
@@ -106,13 +106,13 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// try a few times to invoke, until it succeeds
 	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
 
 		// invoke the function
-		err = suite.ExecuteNutcl([]string{"invoke", functionName},
+		err = suite.ExecuteNuctl([]string{"invoke", functionName},
 			map[string]string{
 				"method": "POST",
 				"body":   "-reverse this string+",
@@ -133,7 +133,7 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 	functionName := "envprinter" + uniqueSuffix
 	imageName := "nuclio/deploy-test" + uniqueSuffix
 
-	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "envprinter", "python"),
 			"env":     "FIRST_ENV=11223344,SECOND_ENV=0099887766",
@@ -148,13 +148,13 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// try a few times to invoke, until it succeeds
 	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
 
 		// invoke the function
-		err = suite.ExecuteNutcl([]string{"invoke", functionName},
+		err = suite.ExecuteNuctl([]string{"invoke", functionName},
 			map[string]string{
 				"method": "POST",
 				"body":   "-reverse this string+",
@@ -176,7 +176,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	uniqueSuffix := "-" + randomString
 	imageName := "nuclio/deploy-test" + uniqueSuffix
 
-	err := suite.ExecuteNutcl([]string{"deploy", "", "--verbose", "--no-pull"},
+	err := suite.ExecuteNuctl([]string{"deploy", "", "--verbose", "--no-pull"},
 		map[string]string{
 			"path": path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
 		})
@@ -187,13 +187,13 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNutcl([]string{"delete", "fu", "parser"}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", "parser"}, nil)
 
 	// try a few times to invoke, until it succeeds
 	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
 
 		// invoke the function
-		err = suite.ExecuteNutcl([]string{"invoke", "parser"},
+		err = suite.ExecuteNuctl([]string{"invoke", "parser"},
 			map[string]string{
 				"method": "POST",
 				"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
@@ -221,7 +221,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 		"handler": "main:Logging",
 	}
 
-	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
 	suite.Require().NoError(err)
 
 	time.Sleep(2 * time.Second)
@@ -230,7 +230,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	for _, testCase := range []struct {
 		logLevel           string
@@ -293,7 +293,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 		suite.outputBuffer.Reset()
 
 		// invoke the function
-		err = suite.ExecuteNutcl([]string{"invoke", functionName},
+		err = suite.ExecuteNuctl([]string{"invoke", functionName},
 			map[string]string{
 				"method":    "POST",
 				"log-level": testCase.logLevel,
@@ -319,7 +319,7 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnMissingPath() {
 	functionName := "reverser" + uniqueSuffix
 	imageName := "nuclio/deploy-test" + uniqueSuffix
 
-	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"image":   imageName,
 			"runtime": "golang",
@@ -334,7 +334,7 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnShellMissingPathAndHandle
 	functionName := "reverser" + uniqueSuffix
 	imageName := "nuclio/deploy-test" + uniqueSuffix
 
-	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"image":   imageName,
 			"runtime": "shell",
@@ -348,7 +348,7 @@ func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 	functionName := "reverser" + uniqueSuffix
 	imageName := "nuclio/deploy-test" + uniqueSuffix
 
-	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"image":   imageName,
 			"runtime": "shell",
@@ -361,12 +361,12 @@ func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// try a few times to invoke, until it succeeds
 	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
 
-		err = suite.ExecuteNutcl([]string{"invoke", functionName},
+		err = suite.ExecuteNuctl([]string{"invoke", functionName},
 			map[string]string{
 				"method": "POST",
 				"body":   "-reverse this string+",
@@ -388,7 +388,7 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 	functionEventName := "reverser-event" + uniqueSuffix
 	imageName := "nuclio/deploy-test" + uniqueSuffix
 
-	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"image":   imageName,
 			"runtime": "shell",
@@ -401,25 +401,25 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// create a function event using nuclt
-	err = suite.ExecuteNutcl([]string{"create", "functionevent", functionEventName},
+	err = suite.ExecuteNuctl([]string{"create", "functionevent", functionEventName},
 		map[string]string{
 			"function": functionName,
 		})
 	suite.Require().NoError(err)
 
 	// check to see we have created the function event
-	err = suite.ExecuteNutcl([]string{"get", "functionevent"}, nil)
+	err = suite.ExecuteNuctl([]string{"get", "functionevent"}, nil)
 	suite.Require().NoError(err)
 
 	// find function event names in get result
 	suite.findPatternsInOutput([]string{functionEventName}, nil)
 
 	// delete the function
-	err = suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 	suite.Require().NoError(err)
 
 	// check to see the function event was deleted as well
-	err = suite.ExecuteNutcl([]string{"get", "functionevent"}, nil)
+	err = suite.ExecuteNuctl([]string{"get", "functionevent"}, nil)
 	suite.Require().NoError(err)
 
 	// make sure function event names is not in get result
@@ -432,7 +432,7 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 	imageName := "nuclio/build-test" + uniqueSuffix
 	tarName := functionName + ".tar"
 
-	err := suite.ExecuteNutcl([]string{"build", functionName, "--verbose", "--no-pull"},
+	err := suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"path":              path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
 			"image":             imageName,
@@ -448,7 +448,7 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 	defer suite.shellClient.Run(nil, "rm %s", tarName)
 
 	// use deploy with the image we just created
-	err = suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose"},
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
 		map[string]string{
 			"run-image":        imageName,
 			"runtime":          "golang",
@@ -459,13 +459,13 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// try a few times to invoke, until it succeeds
 	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
 
 		// invoke the function
-		err = suite.ExecuteNutcl([]string{"invoke", functionName},
+		err = suite.ExecuteNuctl([]string{"invoke", functionName},
 			map[string]string{
 				"method": "POST",
 				"body":   "-reverse this string+",
@@ -488,7 +488,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	imageName := "nuclio/deploy-local-dir" + uniqueSuffix
 	functionName := "local-dir-reverser"
 
-	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
 			"runtime": "python:3.6",
@@ -501,10 +501,10 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// check that the function's CET was modified to 'image'
-	err = suite.ExecuteNutcl([]string{"get", "function", functionName},
+	err = suite.ExecuteNuctl([]string{"get", "function", functionName},
 		map[string]string{
 			"output": "yaml",
 		})
@@ -515,7 +515,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
 
 		// invoke the function
-		err = suite.ExecuteNutcl([]string{"invoke", functionName},
+		err = suite.ExecuteNuctl([]string{"invoke", functionName},
 			map[string]string{
 				"method": "POST",
 				"body":   "-reverse this string+",
@@ -554,7 +554,7 @@ func (suite *functionGetTestSuite) TestGet() {
 			"handler": "main:Reverse",
 		}
 
-		err := suite.ExecuteNutcl([]string{
+		err := suite.ExecuteNuctl([]string{
 			"deploy",
 			functionName,
 			"--verbose",
@@ -570,11 +570,11 @@ func (suite *functionGetTestSuite) TestGet() {
 			suite.dockerClient.RemoveImage(imageName)
 
 			// use nutctl to delete the function when we're done
-			suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+			suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 		}(imageName, functionName)
 	}
 
-	err := suite.ExecuteNutcl([]string{"get", "function"}, nil)
+	err := suite.ExecuteNuctl([]string{"get", "function"}, nil)
 	suite.Require().NoError(err)
 
 	// find function names in get result
