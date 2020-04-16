@@ -71,7 +71,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 		return nil, errors.Wrap(err, "Failed to get projects")
 	}
 
-	exportProject := pr.GetBooleanParam(restful.ParamExport, request)
+	exportProject := pr.GetBoolUrlParam(restful.ParamExport, request)
 
 	// create a map of attributes keyed by the project id (name)
 	for _, project := range projects {
@@ -110,7 +110,7 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 	}
 	project := projects[0]
 
-	exportProject := pr.GetBooleanParam(restful.ParamExport, request)
+	exportProject := pr.GetBoolUrlParam(restful.ParamExport, request)
 	if exportProject {
 		return pr.export(project), nil
 	}
@@ -121,7 +121,7 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 // Create deploys a project
 func (pr *projectResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
 
-	importProject := pr.GetBooleanParam(restful.ParamImport, request)
+	importProject := pr.GetBoolUrlParam(restful.ParamImport, request)
 	if importProject {
 		projectImportInfo, responseErr := pr.getProjectImportInfoFromRequest(request)
 		if responseErr != nil {

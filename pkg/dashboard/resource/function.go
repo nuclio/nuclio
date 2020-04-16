@@ -73,7 +73,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
-	exportFunction := fr.GetBooleanParam(restful.ParamExport, request)
+	exportFunction := fr.GetBoolUrlParam(restful.ParamExport, request)
 
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
@@ -110,7 +110,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	}
 	function := functions[0]
 
-	exportFunction := fr.GetBooleanParam(restful.ParamExport, request)
+	exportFunction := fr.GetBoolUrlParam(restful.ParamExport, request)
 	if exportFunction {
 		return fr.export(function), nil
 	}

@@ -189,21 +189,96 @@ func (ar *AbstractResource) GetRouter() chi.Router {
 	return ar.router
 }
 
-func (ar *AbstractResource) GetBooleanParam(paramKey string, request *http.Request) bool {
-	var importFunction bool
-	var err error
+func (ar *AbstractResource) parseUrlParamValue(paramValue string) interface{} {
+	parsedBool, err := strconv.ParseBool(paramValue)
+	if err == nil {
+		return parsedBool
+	}
 
+	parsedInt, err := strconv.ParseInt(paramValue, 10, 64)
+	if err == nil {
+		return parsedInt
+	}
+
+	parsedUint, err := strconv.ParseUint(paramValue, 10, 64)
+	if err == nil {
+		return parsedUint
+	}
+
+	parsedFloat, err := strconv.ParseFloat(paramValue, 10)
+	if err == nil {
+		return parsedFloat
+	}
+
+	return paramValue
+}
+
+func (ar *AbstractResource) GetUrlParams(paramKey string, request *http.Request) []interface{} {
 	paramValues, ok := request.URL.Query()[paramKey]
 	if !ok || len(paramValues) == 0 {
+		return nil
+	}
+
+	var values []interface{}
+	for _, value := range paramValues {
+		values = append(values, ar.parseUrlParamValue(value))
+	}
+
+	return values
+}
+
+func (ar *AbstractResource) GetUrlParam(paramKey string, request *http.Request) interface{} {
+	paramValues, ok := request.URL.Query()[paramKey]
+	if !ok || len(paramValues) == 0 {
+		return nil
+	}
+
+	return ar.parseUrlParamValue(paramValues[0])
+}
+
+func (ar *AbstractResource) GetBoolUrlParam(paramKey string, request *http.Request) bool {
+	booleanParam, ok := ar.GetUrlParam(paramKey, request).(bool)
+	if !ok {
 		return false
 	}
 
-	importFunction, err = strconv.ParseBool(paramValues[0])
-	if err != nil {
-		return false
+	return booleanParam
+}
+
+func (ar *AbstractResource) GetInt64UrlParam(paramKey string, request *http.Request) int64 {
+	int64Param, ok := ar.GetUrlParam(paramKey, request).(int64)
+	if !ok {
+		return 0
 	}
 
-	return importFunction
+	return int64Param
+}
+
+func (ar *AbstractResource) GetUint64UrlParam(paramKey string, request *http.Request) uint64 {
+	uint64Param, ok := ar.GetUrlParam(paramKey, request).(uint64)
+	if !ok {
+		return 0
+	}
+
+	return uint64Param
+}
+
+func (ar *AbstractResource) GetFloatUrlParam(paramKey string, request *http.Request) float64 {
+	float64Param, ok := ar.GetUrlParam(paramKey, request).(float64)
+	if !ok {
+		return 0
+	}
+
+	return float64Param
+}
+
+func (ar *AbstractResource) GetStringUrlParam(paramKey string, request *http.Request) string {
+	stringParam, ok := ar.GetUrlParam(paramKey, request).(string)
+	if !ok {
+		return ""
+	}
+
+	return stringParam
 }
 
 func (ar *AbstractResource) registerRoutes() error {
