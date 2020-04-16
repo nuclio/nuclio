@@ -33,7 +33,7 @@ func ConfigMapNameFromFunctionName(functionName string) string {
 	return fmt.Sprintf("nuclio-%s", functionName)
 }
 
-func HpaNameFromFunctionName(functionName string) string {
+func HPANameFromFunctionName(functionName string) string {
 	return fmt.Sprintf("nuclio-%s", functionName)
 }
 

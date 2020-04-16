@@ -307,7 +307,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	}
 
 	// Delete HPA if exists
-	hpaName := kube.HpaNameFromFunctionName(name)
+	hpaName := kube.HPANameFromFunctionName(name)
 	err = lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Delete(hpaName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -802,7 +802,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
 		return lc.kubeClientSet.AutoscalingV2beta1().
 			HorizontalPodAutoscalers(function.Namespace).
-			Get(kube.HpaNameFromFunctionName(function.Name), meta_v1.GetOptions{})
+			Get(kube.HPANameFromFunctionName(function.Name), meta_v1.GetOptions{})
 	}
 
 	horizontalPodAutoscalerIsDeleting := func(resource interface{}) bool {
@@ -821,7 +821,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 
 		hpa := autos_v2.HorizontalPodAutoscaler{
 			ObjectMeta: meta_v1.ObjectMeta{
-				Name:      kube.HpaNameFromFunctionName(function.Name),
+				Name:      kube.HPANameFromFunctionName(function.Name),
 				Namespace: function.Namespace,
 				Labels:    functionLabels,
 			},
