@@ -3,8 +3,6 @@ package v1beta1
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"strconv"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -118,14 +116,6 @@ func (nf *NuclioFunction) GetComputedMaxReplicas() int32 {
 			return 1
 		}
 	}
-}
-
-func (nf *NuclioFunction) SkipDeploy() bool {
-	var skipFunctionDeploy bool
-	if skipFunctionBuildStr, ok := nf.Annotations[functionconfig.FunctionAnnotationSkipDeploy]; ok {
-		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildStr)
-	}
-	return skipFunctionDeploy
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -140,8 +140,16 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
+	// get the authentication configuration for the request
+	authConfig, responseErr := fr.getRequestAuthConfig(request)
+	if responseErr != nil {
+		return
+	}
+
+	waitForFunction := request.Header.Get("x-nuclio-wait-function-action") == "true"
+
 	// validation finished successfully - store and deploy the given function
-	if responseErr = fr.storeAndDeployFunction(functionInfo, request); responseErr != nil {
+	if responseErr = fr.storeAndDeployFunction(functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return
 	}
 
@@ -177,7 +185,15 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		return
 	}
 
-	if responseErr = fr.storeAndDeployFunction(functionInfo, request); responseErr != nil {
+	// get the authentication configuration for the request
+	authConfig, responseErr := fr.getRequestAuthConfig(request)
+	if responseErr != nil {
+		return
+	}
+
+	waitForFunction := request.Header.Get("x-nuclio-wait-function-action") == "true"
+
+	if responseErr = fr.storeAndDeployFunction(functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return
 	}
 
@@ -279,19 +295,13 @@ func (fr *functionResource) prepareFunctionForExport(functionMeta *functionconfi
 	functionSpec.Triggers = newTriggers
 }
 
-func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, request *http.Request) error {
+func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, authConfig *platform.AuthConfig, waitForFunction bool) error {
 
 	creationStateUpdatedTimeout := 45 * time.Second
 
 	doneChan := make(chan bool, 1)
 	creationStateUpdatedChan := make(chan bool, 1)
 	errDeployingChan := make(chan error, 1)
-
-	// get the authentication configuration for the request
-	authConfig, err := fr.getRequestAuthConfig(request)
-	if err != nil {
-		return err
-	}
 
 	// asynchronously, do the deploy so that the user doesn't wait
 	go func() {
@@ -354,7 +364,7 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, r
 	}
 
 	// mostly for testing, but can also be for clients that want to wait for some reason
-	if request.Header.Get("x-nuclio-wait-function-action") == "true" {
+	if waitForFunction {
 		<-doneChan
 	}
 

@@ -334,28 +334,28 @@ func (m *Meta) GetUniqueID() string {
 	return m.Namespace + ":" + m.Name
 }
 
-func (m *Meta) SkipDeploy() bool {
-	var skipFunctionDeploy bool
-	if skipFunctionBuildStr, ok := m.Annotations[FunctionAnnotationSkipDeploy]; ok {
-		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildStr)
-	}
-	return skipFunctionDeploy
-}
-
-func (m *Meta) SkipBuild() bool {
-	var skipFunctionDeploy bool
-	if skipFunctionBuildStr, ok := m.Annotations[FunctionAnnotationSkipBuild]; ok {
-		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildStr)
-	}
-	return skipFunctionDeploy
-}
-
 func (m *Meta) RemoveSkipDeployAnnotation() {
 	delete(m.Annotations, FunctionAnnotationSkipDeploy)
 }
 
 func (m *Meta) RemoveSkipBuildAnnotation() {
 	delete(m.Annotations, FunctionAnnotationSkipBuild)
+}
+
+func SkipDeploy(annotations map[string]string) bool {
+	var skipFunctionDeploy bool
+	if skipFunctionBuildDeploy, ok := annotations[FunctionAnnotationSkipDeploy]; ok {
+		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildDeploy)
+	}
+	return skipFunctionDeploy
+}
+
+func SkipBuild(annotations map[string]string) bool {
+	var skipFunctionBuild bool
+	if skipFunctionBuildStr, ok := annotations[FunctionAnnotationSkipBuild]; ok {
+		skipFunctionBuild, _ = strconv.ParseBool(skipFunctionBuildStr)
+	}
+	return skipFunctionBuild
 }
 
 // Config holds the configuration of a function - meta and spec

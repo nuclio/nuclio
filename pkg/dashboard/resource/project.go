@@ -17,7 +17,6 @@ limitations under the License.
 package resource
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -138,6 +137,12 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 // Create deploys a project
 func (pr *projectResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
 
+	// get the authentication configuration for the request
+	authConfig, responseErr := pr.getRequestAuthConfig(request)
+	if responseErr != nil {
+		return
+	}
+
 	importProject := pr.GetBoolURLParam(restful.ParamImport, request)
 	if importProject {
 		projectImportInfo, responseErr := pr.getProjectImportInfoFromRequest(request)
@@ -145,7 +150,7 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 			return "", nil, responseErr
 		}
 
-		return pr.importProject(projectImportInfo)
+		return pr.importProject(projectImportInfo, authConfig)
 	}
 
 	projectInfo, responseErr := pr.getProjectInfoFromRequest(request, true)
@@ -252,7 +257,7 @@ func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id s
 	return
 }
 
-func (pr *projectResource) importProject(projectImportInfoInstance *projectImportInfo) (id string,
+func (pr *projectResource) importProject(projectImportInfoInstance *projectImportInfo, authConfig *platform.AuthConfig) (id string,
 	attributes restful.Attributes, responseErr error) {
 
 	pr.Logger.DebugWith("Checking if project exists", "projectName", projectImportInfoInstance.Project.Meta.Name)
@@ -275,12 +280,13 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 	var failedFunctions []restful.Attributes
 	for functionName, functionImport := range projectImportInfoInstance.Functions {
 		go func(functionName string, functionImport *functionInfo) {
+			functionImport.Meta.Namespace = projectImportInfoInstance.Project.Meta.Namespace
 			if functionImport.Meta.Labels == nil {
 				functionImport.Meta.Labels = map[string]string{}
 			}
 			functionImport.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
 
-			err = pr.importFunction(functionImport)
+			err = pr.importFunction(functionImport, authConfig)
 			if err != nil {
 				pr.Logger.WarnWith("Failed posting function", "functionName", functionName, "err", err)
 				functionCreateChan <- restful.Attributes{
@@ -309,33 +315,20 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 	return
 }
 
-func (pr *projectResource) importFunction(functionInfo *functionInfo) error {
-
-	jsonStr, err := json.Marshal(functionInfo)
+func (pr *projectResource) importFunction(functionInfo *functionInfo, authConfig *platform.AuthConfig) error {
+	functions, err := pr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
+		Name:      functionInfo.Meta.Name,
+		Namespace: functionInfo.Meta.Namespace,
+	})
 	if err != nil {
-		return err
+		return errors.New("Failed to get functions")
 	}
-	urlStr := "http://localhost" + pr.getListenAddress() + "/api/functions"
-	request, err := http.NewRequest("POST", urlStr, bytes.NewBuffer(jsonStr))
-	if err != nil {
-		return errors.Wrap(err, "Failed to create new function")
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	response, err := client.Do(request)
-	if err != nil {
-		return err
-	}
-	if response.StatusCode == http.StatusConflict {
+	if len(functions) > 0 {
 		return errors.New("Function name already exists")
 	}
-	if response.StatusCode != http.StatusAccepted {
-		return errors.New(fmt.Sprintf("received unexpected status code: %d", response.StatusCode))
-	}
 
-	return nil
+	// validation finished successfully - store and deploy the given function
+	return functionResourceInstance.storeAndDeployFunction(functionInfo, authConfig, false)
 }
 
 func (pr *projectResource) createAndWaitForProjectCreation(projectInfoInstance *projectInfo) error {

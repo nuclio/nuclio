@@ -216,7 +216,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return nil, buildErr
 		}
 
-		skipFunctionDeploy := createFunctionOptions.FunctionConfig.Meta.SkipDeploy()
+		skipFunctionDeploy := functionconfig.SkipDeploy(createFunctionOptions.FunctionConfig.Meta.Annotations)
 
 		// after a function build (or skip-build) if the annotations FunctionAnnotationSkipBuild or FunctionAnnotationSkipDeploy
 		// exist, they should be removed so next time, the build will happen.
