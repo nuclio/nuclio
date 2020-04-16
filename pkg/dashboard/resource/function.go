@@ -73,7 +73,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
-	exportFunction := fr.GetBoolURLParam(restful.ParamExport, request)
+	exportFunction := fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
 
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
@@ -110,7 +110,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	}
 	function := functions[0]
 
-	exportFunction := fr.GetBoolURLParam(restful.ParamExport, request)
+	exportFunction := fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
 	if exportFunction {
 		return fr.export(function), nil
 	}
@@ -179,8 +179,7 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		return
 	}
 
-	err = fr.validateUpdateInfo(functionInfo, functions[0])
-	if err != nil {
+	if err = fr.validateUpdateInfo(functionInfo, functions[0]); err != nil {
 		responseErr = nuclio.WrapErrBadRequest(errors.Wrap(err, "Requested update fields are invalid"))
 		return
 	}
@@ -475,7 +474,7 @@ func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, funct
 	// if the user tries to disable the function, it will in turn build and deploy the function and then disable it.
 	// so here we don't allow users to disable an imported function.
 	if functionInfo.Spec.Disable && function.GetStatus().State == functionconfig.FunctionStateImported {
-		return errors.New("cannot disable imported function")
+		return errors.New("Failed to disable function: non-deployed functions cannot be disabled")
 	}
 
 	return nil

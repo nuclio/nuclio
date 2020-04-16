@@ -213,7 +213,7 @@ func (ar *AbstractResource) parseURLParamValue(paramValue string) interface{} {
 	return paramValue
 }
 
-func (ar *AbstractResource) GetURLParams(paramKey string, request *http.Request) []interface{} {
+func (ar *AbstractResource) GetURLParamValues(paramKey string, request *http.Request) []interface{} {
 	paramValues, ok := request.URL.Query()[paramKey]
 	if !ok || len(paramValues) == 0 {
 		return nil
@@ -227,7 +227,7 @@ func (ar *AbstractResource) GetURLParams(paramKey string, request *http.Request)
 	return values
 }
 
-func (ar *AbstractResource) GetURLParam(paramKey string, request *http.Request) interface{} {
+func (ar *AbstractResource) GetURLParamValue(paramKey string, request *http.Request) interface{} {
 	paramValues, ok := request.URL.Query()[paramKey]
 	if !ok || len(paramValues) == 0 {
 		return nil
@@ -236,46 +236,46 @@ func (ar *AbstractResource) GetURLParam(paramKey string, request *http.Request) 
 	return ar.parseURLParamValue(paramValues[0])
 }
 
-func (ar *AbstractResource) GetBoolURLParam(paramKey string, request *http.Request) bool {
-	booleanParam, ok := ar.GetURLParam(paramKey, request).(bool)
+func (ar *AbstractResource) GetURLParamBoolOrDefault(request *http.Request, paramKey string, defaultValue bool) bool {
+	booleanParam, ok := ar.GetURLParamValue(paramKey, request).(bool)
 	if !ok {
-		return false
+		return defaultValue
 	}
 
 	return booleanParam
 }
 
-func (ar *AbstractResource) GetInt64URLParam(paramKey string, request *http.Request) int64 {
-	int64Param, ok := ar.GetURLParam(paramKey, request).(int64)
+func (ar *AbstractResource) GetURLParamInt64OrDefault(request *http.Request, paramKey string, defaultValue int64) int64 {
+	int64Param, ok := ar.GetURLParamValue(paramKey, request).(int64)
 	if !ok {
-		return 0
+		return defaultValue
 	}
 
 	return int64Param
 }
 
-func (ar *AbstractResource) GetUint64URLParam(paramKey string, request *http.Request) uint64 {
-	uint64Param, ok := ar.GetURLParam(paramKey, request).(uint64)
+func (ar *AbstractResource) GetURLParamUint64OrDefault(request *http.Request, paramKey string, defaultValue uint64) uint64 {
+	uint64Param, ok := ar.GetURLParamValue(paramKey, request).(uint64)
 	if !ok {
-		return 0
+		return defaultValue
 	}
 
 	return uint64Param
 }
 
-func (ar *AbstractResource) GetFloatURLParam(paramKey string, request *http.Request) float64 {
-	float64Param, ok := ar.GetURLParam(paramKey, request).(float64)
+func (ar *AbstractResource) GetURLParamFloatOrDefault(request *http.Request, paramKey string, defaultValue float64) float64 {
+	float64Param, ok := ar.GetURLParamValue(paramKey, request).(float64)
 	if !ok {
-		return 0
+		return defaultValue
 	}
 
 	return float64Param
 }
 
-func (ar *AbstractResource) GetStringURLParam(paramKey string, request *http.Request) string {
-	stringParam, ok := ar.GetURLParam(paramKey, request).(string)
+func (ar *AbstractResource) GetURLParamStringOrDefault(request *http.Request, paramKey string, defaultValue string) string {
+	stringParam, ok := ar.GetURLParamValue(paramKey, request).(string)
 	if !ok {
-		return ""
+		return defaultValue
 	}
 
 	return stringParam

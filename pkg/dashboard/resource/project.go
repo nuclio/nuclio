@@ -87,7 +87,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 		return nil, errors.Wrap(err, "Failed to get projects")
 	}
 
-	exportProject := pr.GetBoolURLParam(restful.ParamExport, request)
+	exportProject := pr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
 
 	// create a map of attributes keyed by the project id (name)
 	for _, project := range projects {
@@ -126,7 +126,7 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 	}
 	project := projects[0]
 
-	exportProject := pr.GetBoolURLParam(restful.ParamExport, request)
+	exportProject := pr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
 	if exportProject {
 		return pr.export(project), nil
 	}
@@ -143,7 +143,7 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 		return
 	}
 
-	importProject := pr.GetBoolURLParam(restful.ParamImport, request)
+	importProject := pr.GetURLParamBoolOrDefault(request, restful.ParamImport, false)
 	if importProject {
 		projectImportInfo, responseErr := pr.getProjectImportInfoFromRequest(request)
 		if responseErr != nil {
@@ -201,7 +201,7 @@ func (pr *projectResource) export(project platform.Project) restful.Attributes {
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Name:      "",
 		Namespace: project.GetConfig().Meta.Namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", project.GetConfig().Meta.Name),
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
 	}
 
 	functions, err := pr.getPlatform().GetFunctions(getFunctionsOptions)
@@ -356,14 +356,19 @@ func (pr *projectResource) createAndWaitForProjectCreation(projectInfoInstance *
 	timeout := 30 * time.Second
 	retryInterval := 1 * time.Second
 	err = common.RetryUntilSuccessful(timeout, retryInterval, func() bool {
-		pr.Logger.DebugWith("Trying to get projects", "timeout", timeout, "retryInterval", retryInterval)
+		pr.Logger.DebugWith("Trying to get created project",
+			"projectName", projectConfig.Meta.Name,
+			"timeout", timeout,
+			"retryInterval", retryInterval)
 		projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 			Meta: *projectInfoInstance.Meta,
 		})
 		return err == nil && len(projects) > 0
 	})
 	if err != nil {
-		return nuclio.WrapErrInternalServerError(err)
+		return nuclio.WrapErrInternalServerError(errors.Wrapf(err,
+			"Failed to wait for a created project %s",
+			projectConfig.Meta.Name))
 	}
 
 	return nil
@@ -492,13 +497,11 @@ func (pr *projectResource) getProjectImportInfoFromRequest(request *http.Request
 	}
 
 	projectImportInfoInstance := projectImportInfo{}
-	err = json.Unmarshal(body, &projectImportInfoInstance)
-	if err != nil {
+	if err = json.Unmarshal(body, &projectImportInfoInstance); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
-	err = pr.processProjectInfo(projectImportInfoInstance.Project, true)
-	if err != nil {
+	if err = pr.processProjectInfo(projectImportInfoInstance.Project, true); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to process project info"))
 	}
 
