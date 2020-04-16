@@ -231,7 +231,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 
 	// always delete existing cron jobs on function creation/update
 	// (done to prevent existence of removed cron triggers)
-	if err := lc.deleteExistingCronJobs(function); err != nil {
+	if err := lc.deleteExistingCronJobs(function.Name, function.Namespace); err != nil {
 		return nil, errors.Wrap(err, "Failed to delete existing cron jobs")
 	}
 
@@ -240,7 +240,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 	for triggerName, cronTrigger := range cronTriggers {
 		cronJob, err := lc.createOrUpdateCronJob(functionLabels, function, &resources, triggerName, cronTrigger)
 		if err != nil {
-			if deleteCronJobsErr := lc.deleteExistingCronJobs(function); deleteCronJobsErr != nil {
+			if deleteCronJobsErr := lc.deleteExistingCronJobs(function.Name, function.Namespace); deleteCronJobsErr != nil {
 				lc.logger.WarnWith("Failed to delete cron jobs on cron jobs creation failure",
 					"deleteCronJobsErr", deleteCronJobsErr)
 			}
@@ -384,7 +384,10 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		return errors.Wrap(err, "Failed to delete function events")
 	}
 
-	// TODO: Remove created cronjobs
+	err = lc.deleteExistingCronJobs(name, namespace)
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete function cron jobs")
+	}
 
 	lc.logger.DebugWith("Deleted deployed function", "namespace", namespace, "name", name)
 
@@ -1017,11 +1020,11 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 	return resource.(*ext_v1beta1.Ingress), err
 }
 
-func (lc *lazyClient) deleteExistingCronJobs(function *nuclioio.NuclioFunction) error {
+func (lc *lazyClient) deleteExistingCronJobs(functionName, functionNamespace string) error {
 	return lc.kubeClientSet.BatchV1beta1().
-		CronJobs(function.Namespace).
+		CronJobs(functionNamespace).
 		DeleteCollection(&meta_v1.DeleteOptions{},
-			meta_v1.ListOptions{LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", function.Name)})
+			meta_v1.ListOptions{LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName)})
 }
 
 func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
