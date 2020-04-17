@@ -82,7 +82,4 @@ require (
 	pack.ag/amqp v0.12.5
 )
 
-replace (
-    github.com/Shopify/sarama => github.com/iguazio/sarama v1.25.1-0.20200331135945-d92101249c96
-    github.com/v3io/scaler-types => github.com/hedingber/scaler-types v1.6.0
-)
+replace github.com/Shopify/sarama => github.com/iguazio/sarama v1.25.1-0.20200331135945-d92101249c96
