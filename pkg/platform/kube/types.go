@@ -16,5 +16,31 @@ limitations under the License.
 
 package kube
 
+import "fmt"
+
 type DeployOptions struct {
+}
+
+func DeploymentNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nuclio-%s", functionName)
+}
+
+func PodNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nuclio-%s", functionName)
+}
+
+func ConfigMapNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nuclio-%s", functionName)
+}
+
+func HPANameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nuclio-%s", functionName)
+}
+
+func IngressNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nuclio-%s", functionName)
+}
+
+func ServiceNameFromFunctionName(functionName string) string {
+	return fmt.Sprintf("nuclio-%s", functionName)
 }

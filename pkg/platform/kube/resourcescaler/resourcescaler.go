@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	// load all sinks
@@ -151,6 +152,10 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 			ResourceReadinessTimeout: scaler_types.Duration{Duration: resourceReadinessTimeout},
 		},
 	}, nil
+}
+
+func (n *NuclioResourceScaler) ResolveServiceName(resource scaler_types.Resource) (string, error) {
+	return kube.ServiceNameFromFunctionName(resource.Name), nil
 }
 
 func (n *NuclioResourceScaler) parseScaleResources(function nuclioio.NuclioFunction) ([]scaler_types.ScaleResource, error) {

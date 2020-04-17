@@ -63,7 +63,7 @@ require (
 	github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc // indirect
 	github.com/tsenart/vegeta v6.3.0+incompatible
 	github.com/ulikunitz/xz v0.5.7 // indirect
-	github.com/v3io/scaler-types v1.5.0
+	github.com/v3io/scaler-types v1.6.0
 	github.com/v3io/v3io-go v0.1.4
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/valyala/fasthttp v1.9.0
