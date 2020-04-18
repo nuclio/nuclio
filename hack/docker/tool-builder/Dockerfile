@@ -31,5 +31,5 @@ RUN go get github.com/nuclio/nuclio-sdk-go \
     && go get golang.org/x/net/... \
     && go get github.com/v3io/scaler-types \
     && cd ../../v3io/scaler-types \
-    && git checkout v1.5.0 \
+    && git checkout v1.6.0 \
     && cd /go/src/github.com/nuclio/nuclio

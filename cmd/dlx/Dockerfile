@@ -34,7 +34,7 @@ RUN go get github.com/v3io/scaler-types \
     && go get github.com/nuclio/nuclio-sdk-go
 
 RUN cd $GOPATH/src/github.com/v3io/scaler-types \
-    && git checkout v1.5.0 \
+    && git checkout v1.6.0 \
     && cd /go/src/github.com/nuclio/nuclio
 
 RUN mkdir -p /home/nuclio/bin \
@@ -47,6 +47,6 @@ FROM alpine:3.7
 WORKDIR /home/nuclio
 
 COPY --from=builder /home/nuclio/plugins/plugin.so /home/nuclio/plugins/plugin.so
-COPY --from=quay.io/v3io/dlx:v0.2.0 /home/v3io/bin/dlx /home/nuclio/dlx
+COPY --from=quay.io/v3io/dlx:v0.2.1 /home/v3io/bin/dlx /home/nuclio/dlx
 
 CMD ["/home/nuclio/dlx"]
