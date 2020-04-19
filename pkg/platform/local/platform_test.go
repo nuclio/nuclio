@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -65,7 +66,12 @@ func (suite *TestSuite) SetupSuite() {
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
 	suite.Require().NoError(err, "Docker client should create successfully")
 
-	suite.Platform, err = NewPlatform(suite.Logger, nil)
+	suite.Platform, err = NewPlatform(suite.Logger,
+		&containerimagebuilderpusher.ContainerBuilderConfiguration{
+		DefaultOnbuildRegistryURL: common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL",
+			"quay.io"),
+		},
+		nil)
 	suite.Require().NoError(err, "Platform should create successfully")
 }
 

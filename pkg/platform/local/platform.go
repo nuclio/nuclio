@@ -58,7 +58,9 @@ type Platform struct {
 const Mib = 1048576
 
 // NewPlatform instantiates a new local platform
-func NewPlatform(parentLogger logger.Logger, platformConfiguration interface{}) (*Platform, error) {
+func NewPlatform(parentLogger logger.Logger,
+	containerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration,
+	platformConfiguration interface{}) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
@@ -81,8 +83,7 @@ func NewPlatform(parentLogger logger.Logger, platformConfiguration interface{}) 
 	}
 
 	if newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger,
-		&containerimagebuilderpusher.ContainerBuilderConfiguration{}); err != nil {
-
+		containerBuilderConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to create containerimagebuilderpusher")
 	}
 
