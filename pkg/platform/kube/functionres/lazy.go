@@ -235,10 +235,10 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 		return nil, errors.Wrap(err, "Failed to delete existing cron jobs")
 	}
 
-	// if scale to zero is enabled - create k8s cron jobs instead of creating the processor's cron trigger
-	// this way, the k8s cron jobs will invoke the function's default http trigger on their schedule
-	// in this way we use the scale to zero functionality of http triggers for cron triggers
-	if platformConfig.ScaleToZero.Mode == platformconfig.EnabledScaleToZeroMode {
+	// if platform kind is "kube" - create k8s cron jobs instead of creating the processor's cron trigger
+	// the k8s cron jobs will invoke the function's default http trigger on their schedule
+	// this will enable using the scale to zero functionality of http triggers for cron triggers
+	if platformConfig.Kind == "kube" {
 
 		cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
 		for triggerName, cronTrigger := range cronTriggers {

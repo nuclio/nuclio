@@ -287,13 +287,13 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 
 	// create error group
 	errGroup := errgroup.Group{}
+	platformKind, _ := p.detectPlatformKind() // nolint: errcheck
 
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
 		triggerName, triggerConfiguration := triggerName, triggerConfiguration
 
-		// skipping cron triggers when scale to zero is enabled - k8s cron jobs will be created instead
-		if triggerConfiguration.Kind == "cron" &&
-			processorConfiguration.PlatformConfig.ScaleToZero.Mode == platformconfig.EnabledScaleToZeroMode {
+		// skipping cron triggers when platform kind is "kube" - k8s cron jobs will be created instead
+		if triggerConfiguration.Kind == "cron" && platformKind == "kube" {
 			p.logger.DebugWith("Skipping cron trigger creation inside the processor (Scale to zero is on)",
 				"triggerName", triggerName)
 			continue
