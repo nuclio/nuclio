@@ -1,12 +1,13 @@
 package controller
 
 import (
-	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/fields"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nuclio/logger"
 
+	"k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -41,12 +42,12 @@ func (cjpd *cronJobStalePodsDeleter) start() error {
 
 // delete all stale cron job pods - identify by status.phase of the cron job pods
 func (cjpd *cronJobStalePodsDeleter) startStaleCronJobPodsDeletionLoop() error {
-	var fieldSelectors []fields.Selector
+	var fieldSelectors []string
 
-	// prepare field selectors
-	stalePodPhases := []v1.PodPhase{v1.PodFailed, v1.PodSucceeded, v1.PodUnknown}
-	for stalePodPhase := range stalePodPhases {
-		selector := fields.OneTermEqualSelector("status.phase", string(stalePodPhase))
+	// prepare field selectors - filter out non stale pods
+	nonStalePodPhases := []v1.PodPhase{v1.PodPending, v1.PodRunning}
+	for nonStalePodPhase := range nonStalePodPhases {
+		selector := fmt.Sprintf("status.phase!=%s", string(nonStalePodPhase))
 		fieldSelectors = append(fieldSelectors, selector)
 	}
 
@@ -60,7 +61,7 @@ func (cjpd *cronJobStalePodsDeleter) startStaleCronJobPodsDeletionLoop() error {
 		err := cjpd.controller.kubeClientSet.CoreV1().Pods(cjpd.controller.namespace).DeleteCollection(&meta_v1.DeleteOptions{},
 			meta_v1.ListOptions{
 				LabelSelector: "nuclio.io/function-cron-job-pod=true",
-				FieldSelector: fields.AndSelectors(fieldSelectors...).String(),
+				FieldSelector: strings.Join(fieldSelectors, ","),
 			})
 		if err != nil {
 			cjpd.logger.WarnWith("Failed to delete stale cron job pods", "err", err)
