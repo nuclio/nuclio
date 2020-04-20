@@ -1365,6 +1365,9 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 	spec.JobTemplate = v1beta1.JobTemplateSpec{
 		Spec: batchv1.JobSpec{
 			Template: v1.PodTemplateSpec{
+				ObjectMeta: meta_v1.ObjectMeta{
+					Labels: map[string]string{"nuclio.io/function-cron-job-pod": "true"},
+				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{

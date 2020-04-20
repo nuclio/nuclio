@@ -31,17 +31,18 @@ import (
 )
 
 type Controller struct {
-	logger                logger.Logger
-	namespace             string
-	restConfig            *rest.Config
-	kubeClientSet         kubernetes.Interface
-	nuclioClientSet       nuclioio_client.Interface
-	functionresClient     functionres.Client
-	imagePullSecrets      string
-	functionOperator      *functionOperator
-	projectOperator       *projectOperator
-	functionEventOperator *functionEventOperator
-	platformConfiguration *platformconfig.Config
+	logger                  logger.Logger
+	namespace               string
+	restConfig              *rest.Config
+	kubeClientSet           kubernetes.Interface
+	nuclioClientSet         nuclioio_client.Interface
+	functionresClient       functionres.Client
+	imagePullSecrets        string
+	functionOperator        *functionOperator
+	projectOperator         *projectOperator
+	functionEventOperator   *functionEventOperator
+	cronJobStalePodsDeleter *cronJobStalePodsDeleter
+	platformConfiguration   *platformconfig.Config
 }
 
 func NewController(parentLogger logger.Logger,
@@ -51,6 +52,7 @@ func NewController(parentLogger logger.Logger,
 	nuclioClientSet nuclioio_client.Interface,
 	functionresClient functionres.Client,
 	resyncInterval time.Duration,
+	cronJobStalePodsDeletionInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
 	functionOperatorNumWorkers int,
 	functionEventOperatorNumWorkers int,
@@ -113,6 +115,14 @@ func NewController(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create project operator")
 	}
 
+	// create a project operator
+	newController.cronJobStalePodsDeleter, err = newCronJobStalePodsDeleter(parentLogger,
+		newController,
+		&cronJobStalePodsDeletionInterval)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create cron job pod deleter")
+	}
+
 	return newController, nil
 }
 
@@ -131,6 +141,16 @@ func (c *Controller) Start() error {
 
 	// start the function event operator
 	if err := c.functionEventOperator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start function event operator")
+	}
+
+	// start the function event operator
+	if err := c.functionEventOperator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start function event operator")
+	}
+
+	// start the cron job stale pods deleter
+	if err := c.cronJobStalePodsDeleter.start(); err != nil {
 		return errors.Wrap(err, "Failed to start function event operator")
 	}
 
