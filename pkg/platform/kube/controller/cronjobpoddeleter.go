@@ -46,7 +46,7 @@ func (cjpd *cronJobStalePodsDeleter) startStaleCronJobPodsDeletionLoop() error {
 
 	// prepare field selectors - filter out non stale pods
 	nonStalePodPhases := []v1.PodPhase{v1.PodPending, v1.PodRunning}
-	for nonStalePodPhase := range nonStalePodPhases {
+	for _, nonStalePodPhase := range nonStalePodPhases {
 		selector := fmt.Sprintf("status.phase!=%s", string(nonStalePodPhase))
 		fieldSelectors = append(fieldSelectors, selector)
 	}
