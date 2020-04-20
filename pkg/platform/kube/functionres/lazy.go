@@ -235,25 +235,22 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 		return nil, errors.Wrap(err, "Failed to delete existing cron jobs")
 	}
 
-	// if platform kind is "kube" - create k8s cron jobs instead of creating the processor's cron trigger
-	// the k8s cron jobs will invoke the function's default http trigger on their schedule
+	// create k8s cron jobs instead of creating them inside the processor
+	// the k8s cron jobs will invoke the function's default http trigger on their schedule/interval
 	// this will enable using the scale to zero functionality of http triggers for cron triggers
-	if platformConfig.Kind == "kube" {
-
-		cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
-		for triggerName, cronTrigger := range cronTriggers {
-			cronJob, err := lc.createOrUpdateCronJob(functionLabels, function, &resources, triggerName, cronTrigger)
-			if err != nil {
-				if deleteCronJobsErr := lc.deleteExistingCronJobs(function.Name, function.Namespace); deleteCronJobsErr != nil {
-					lc.logger.WarnWith("Failed to delete cron jobs on cron jobs creation failure",
-						"deleteCronJobsErr", deleteCronJobsErr)
-				}
-
-				return nil, errors.Wrap(err, fmt.Sprintf("Failed to create cron job from trigger: %s", triggerName))
+	cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
+	for triggerName, cronTrigger := range cronTriggers {
+		cronJob, err := lc.createOrUpdateCronJob(functionLabels, function, &resources, triggerName, cronTrigger)
+		if err != nil {
+			if deleteCronJobsErr := lc.deleteExistingCronJobs(function.Name, function.Namespace); deleteCronJobsErr != nil {
+				lc.logger.WarnWith("Failed to delete cron jobs on cron jobs creation failure",
+					"deleteCronJobsErr", deleteCronJobsErr)
 			}
 
-			resources.cronJobs = append(resources.cronJobs, cronJob)
+			return nil, errors.Wrap(err, fmt.Sprintf("Failed to create cron job from trigger: %s", triggerName))
 		}
+
+		resources.cronJobs = append(resources.cronJobs, cronJob)
 	}
 
 	lc.logger.Debug("Deployment created/updated")
