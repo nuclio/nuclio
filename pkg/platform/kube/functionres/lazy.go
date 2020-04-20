@@ -1316,6 +1316,7 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 
 	type cronAttributes struct {
 		Schedule string
+		Interval string
 		Event    cron.Event
 	}
 
@@ -1326,9 +1327,13 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 	}
 
 	// populate schedule
-	spec.Schedule, err = common.NormalizeCronScheduleToFive(attributes.Schedule)
-	if err != nil {
-		return errors.Wrap(err, "Failed to normalize cron schedule")
+	if attributes.Interval != "" {
+		spec.Schedule = fmt.Sprintf("@every %s", attributes.Interval)
+	} else {
+		spec.Schedule, err = common.NormalizeCronScheduleToFive(attributes.Schedule)
+		if err != nil {
+			return errors.Wrap(err, "Failed to normalize cron schedule")
+		}
 	}
 
 	// generate a string to be sent as the request body argument to curl
