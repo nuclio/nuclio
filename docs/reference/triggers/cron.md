@@ -8,6 +8,7 @@ Triggers the function according to a schedule or interval, with an optional body
 | :--- | :--- | :--- |
 | schedule | string | A cron-like schedule (for example, `*/5 * * * *`) |
 | interval | string | An interval (for example, `1s`, `30m`) |
+| concurrencyPolicy | string | Concurrency policy [Allow, Forbid, Replace]. (relevant for k8s env)|
 | event.body | string | The body passed in the event |
 | event.headers | map of string/int | The headers passed in the event |
 

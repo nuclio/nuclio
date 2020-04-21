@@ -1338,7 +1338,7 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 	// generate a string to be sent as the request body argument to curl
 	eventBodyAsCurlArg := ""
 	if attributes.Event.Body != "" {
-		eventBodyAsCurlArg = fmt.Sprintf("-d \"%s\"", attributes.Event.Body)
+		eventBodyAsCurlArg = fmt.Sprintf("--post-data \"%s\"", attributes.Event.Body)
 	}
 
 	// generate a string containing all of the headers with -H flag as prefix, to be used by cURL later
@@ -1349,11 +1349,12 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 			return errors.New(fmt.Sprintf("Unexpected header value type (expected string). header key: %s", headerKey))
 		}
 
-		headersAsCurlArg = fmt.Sprintf("%s -H \"%s: %s\"", headersAsCurlArg, headerKey, headerValueAsString)
+		headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, headerKey, headerValueAsString)
 	}
 
-	// add cron invoke trigger header
-	headersAsCurlArg = fmt.Sprintf("%s -H \"%s: %s\"", headersAsCurlArg, "x-nuclio-invoke-trigger", "cron")
+	// add default headers
+	headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, "Content-type", "application/text")
+	headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, "x-nuclio-invoke-trigger", "cron")
 
 	// get the function http trigger address from the service
 	functionService, err := resources.Service()
@@ -1364,7 +1365,7 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 	functionAddress := fmt.Sprintf("%s:%s", functionService.Spec.ClusterIP, "8080")
 
 	// generate the whole curl command to be run by the CronJob to invoke the function
-	curlCommand := fmt.Sprintf("curl --request POST %s %s %s", eventBodyAsCurlArg, headersAsCurlArg, functionAddress)
+	curlCommand := fmt.Sprintf("wget %s %s %s", eventBodyAsCurlArg, headersAsCurlArg, functionAddress)
 
 	spec.JobTemplate = v1beta1.JobTemplateSpec{
 		Spec: batchv1.JobSpec{
@@ -1376,7 +1377,7 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 					Containers: []v1.Container{
 						{
 							Name: "function-invocator",
-							Image: "yauritux/busybox-curl",
+							Image: "busybox",
 							Args: []string{"/bin/sh", "-c", curlCommand},
 						},
 					},
