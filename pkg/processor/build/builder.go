@@ -491,6 +491,12 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.processorImage.imageName = processorImageName
 	}
 
+	splitProcessorImageName := strings.Split(b.processorImage.imageName, ":")
+	if len(splitProcessorImageName) == 2 {
+		b.processorImage.imageName = splitProcessorImageName[0]
+		b.processorImage.imageTag = splitProcessorImageName[1]
+	}
+
 	// if tag isn't set - set latest
 	if b.processorImage.imageTag == "" {
 		b.processorImage.imageTag = "latest"
@@ -501,7 +507,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		"platform", b.options.PlatformName,
 		"dependantImagesRegistryURL", b.options.DependantImagesRegistryURL,
 		"outputImageFile", b.options.OutputImageFile,
-		"pi", b.processorImage)
+		"processorImage", b.processorImage)
 
 	return nil
 }
