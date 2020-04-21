@@ -131,12 +131,18 @@ func (py *python) getWrapperScriptPath() string {
 }
 
 func (py *python) getPythonPath() string {
-	pythonPath := os.Getenv("NUCLIO_PYTHON_PATH")
-	if len(pythonPath) == 0 {
-		return "/opt/nuclio"
-	}
 
-	return pythonPath
+	// check if image contains pre-configured PYTHONPATH
+	pythonPath := os.Getenv("PYTHONPATH")
+
+	// get user default nuclio python path
+	nuclioPythonPath := common.GetEnvOrDefaultString("NUCLIO_PYTHON_PATH", "/opt/nuclio")
+
+	// preserve PYTHONPATH if given, let nuclio come first
+	if pythonPath != "" {
+		return fmt.Sprintf("%s:%s", nuclioPythonPath, pythonPath)
+	}
+	return nuclioPythonPath
 }
 
 func (py *python) getPythonExePath() (string, error) {
