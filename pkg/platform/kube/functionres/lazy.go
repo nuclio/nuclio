@@ -1040,7 +1040,7 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	getCronJob := func() (interface{}, error) {
 		return lc.kubeClientSet.BatchV1beta1().
 			CronJobs(function.Namespace).
-			Get(kube.CronJobNameFromFunctionName(function.Name, triggerName),meta_v1.GetOptions{})
+			Get(kube.CronJobNameFromFunctionName(function.Name, triggerName), meta_v1.GetOptions{})
 	}
 
 	cronJobIsDeleting := func(resource interface{}) bool {
@@ -1376,9 +1376,9 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name: "function-invocator",
+							Name:  "function-invocator",
 							Image: "busybox",
-							Args: []string{"/bin/sh", "-c", curlCommand},
+							Args:  []string{"/bin/sh", "-c", curlCommand},
 						},
 					},
 					RestartPolicy: v1.RestartPolicyNever,
