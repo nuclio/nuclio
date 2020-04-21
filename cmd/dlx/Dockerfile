@@ -39,6 +39,6 @@ FROM alpine:3.11
 WORKDIR /home/nuclio
 
 COPY --from=builder /dlx/plugin.so /home/nuclio/plugins/plugin.so
-COPY --from=quay.io/v3io/dlx:v0.3.0 /home/v3io/bin/dlx /home/nuclio/dlx
+COPY --from=quay.io/v3io/dlx:v0.3.1 /home/v3io/bin/dlx /home/nuclio/dlx
 
 CMD [ "/home/nuclio/dlx" ]

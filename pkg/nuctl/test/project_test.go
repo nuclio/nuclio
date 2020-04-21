@@ -34,7 +34,7 @@ func (suite *projectGetTestSuite) TestGet() {
 	var projectNames []string
 
 	// get with nothing created - should pass
-	err := suite.ExecuteNutcl([]string{"get", "project"}, nil)
+	err := suite.ExecuteNuctl([]string{"get", "project"}, nil)
 	suite.Require().NoError(err)
 
 	for projectIdx := 0; projectIdx < numOfProjects; projectIdx++ {
@@ -49,7 +49,7 @@ func (suite *projectGetTestSuite) TestGet() {
 			"description": fmt.Sprintf("description-%d", projectIdx),
 		}
 
-		err := suite.ExecuteNutcl([]string{
+		err := suite.ExecuteNuctl([]string{
 			"create",
 			"project",
 			projectName,
@@ -62,23 +62,23 @@ func (suite *projectGetTestSuite) TestGet() {
 		defer func(projectName string) {
 
 			// use nutctl to delete the project when we're done
-			suite.ExecuteNutcl([]string{"delete", "proj", projectName}, nil)
+			suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
 
 		}(projectName)
 	}
 
-	err = suite.ExecuteNutcl([]string{"get", "project"}, nil)
+	err = suite.ExecuteNuctl([]string{"get", "project"}, nil)
 	suite.Require().NoError(err)
 
 	// find function names in get result
 	suite.findPatternsInOutput(projectNames, nil)
 
 	// delete the second project
-	err = suite.ExecuteNutcl([]string{"delete", "proj", projectNames[1], "--verbose"}, nil)
+	err = suite.ExecuteNuctl([]string{"delete", "proj", projectNames[1], "--verbose"}, nil)
 	suite.Require().NoError(err)
 
 	// get again
-	err = suite.ExecuteNutcl([]string{"get", "project"}, nil)
+	err = suite.ExecuteNuctl([]string{"get", "project"}, nil)
 	suite.Require().NoError(err)
 
 	// verify second project deleted
@@ -99,7 +99,7 @@ func (suite *projectGetTestSuite) TestDeleteWithFunctions() {
 	projectName := "get-test-project" + uniqueSuffix
 
 	// create a project
-	err := suite.ExecuteNutcl([]string{
+	err := suite.ExecuteNuctl([]string{
 		"create",
 		"project",
 		projectName,
@@ -111,7 +111,7 @@ func (suite *projectGetTestSuite) TestDeleteWithFunctions() {
 	defer func(projectName string) {
 
 		// use nutctl to delete the project when we're done
-		suite.ExecuteNutcl([]string{"delete", "proj", projectName}, nil)
+		suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
 
 	}(projectName)
 
@@ -125,25 +125,25 @@ func (suite *projectGetTestSuite) TestDeleteWithFunctions() {
 		"project-name": projectName,
 	}
 
-	err = suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// make sure the function is deleted
-	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// try to delete the project - should fail
-	err = suite.ExecuteNutcl([]string{"delete", "proj", projectName}, nil)
+	err = suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
 	suite.Require().Error(err)
 
 	// delete the function
-	err = suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 	suite.Require().NoError(err)
 
 	// now delete the project again - should succeed
-	err = suite.ExecuteNutcl([]string{"delete", "proj", projectName}, nil)
+	err = suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
 	suite.Require().NoError(err)
 }
 

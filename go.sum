@@ -382,8 +382,8 @@ github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljT
 github.com/ulikunitz/xz v0.5.6/go.mod h1:2bypXElzHzzJZwzH67Y6wb67pO62Rzfn7BSiF4ABRW8=
 github.com/ulikunitz/xz v0.5.7 h1:YvTNdFzX6+W5m9msiYg/zpkSURPPtOlzbqYjrFn7Yt4=
 github.com/ulikunitz/xz v0.5.7/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=
-github.com/v3io/scaler-types v1.5.0 h1:3nA56ewksIWmcGPW45wXUBMT3AZ4m61HMInR33j4uvY=
-github.com/v3io/scaler-types v1.5.0/go.mod h1:Q2xufg8/9sLUOHh8/ckhHaAzZy2M8AgEknMTJ5HxvFI=
+github.com/v3io/scaler-types v1.6.0 h1:QgffuiQayMV8r1lznMsrCGU+4iXfFfBe0Ydr4wgiX1g=
+github.com/v3io/scaler-types v1.6.0/go.mod h1:Q2xufg8/9sLUOHh8/ckhHaAzZy2M8AgEknMTJ5HxvFI=
 github.com/v3io/v3io-go v0.1.4 h1:zg/B0ATSxaLm0/Z7nNnlyrCtDQTIBTSoaIo2wKnKx+M=
 github.com/v3io/v3io-go v0.1.4/go.mod h1:D0W1tjsVgcp4xk3ZI2fjKTKaOpYJLewN1BPN0x2osO4=
 github.com/v3io/v3io-go-http v0.0.1 h1:uE+PmPkVfGi6vIMpoFgrSot4yIow5Id48Gj9ZPt02pU=
