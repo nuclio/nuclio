@@ -54,7 +54,7 @@
          */
         function saveProject(event) {
             if (angular.isUndefined(event) || event.keyCode === EventHelperService.ENTER) {
-                $scope.editProjectForm.$submitted = true;
+                $scope.editProjectForm.$setSubmitted();
 
                 if ($scope.editProjectForm.$valid) {
                     ctrl.isLoadingState = true;

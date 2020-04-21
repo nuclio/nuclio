@@ -55,7 +55,7 @@
          */
         function createProject(event) {
             if (angular.isUndefined(event) || event.keyCode === EventHelperService.ENTER) {
-                $scope.newProjectForm.$submitted = true;
+                $scope.newProjectForm.$setSubmitted();
 
                 if ($scope.newProjectForm.$valid) {
                     ctrl.isLoadingState = true;
