@@ -67,6 +67,11 @@ type projectImportInfo struct {
 	Functions functionImportMap
 }
 
+const (
+	ProjectGetUponCreationTimeout       = 30 * time.Second
+	ProjectGetUponCreationRetryInterval = 1 * time.Second
+)
+
 // GetAll returns all projects
 func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	response := map[string]restful.Attributes{}
@@ -184,16 +189,16 @@ func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 func (pr *projectResource) export(project platform.Project) restful.Attributes {
 	projectMeta := project.GetConfig().Meta
 
-	pr.Logger.DebugWith("Exporting project", "projectName", projectMeta.Name)
+	pr.Logger.InfoWith("Exporting project", "projectName", projectMeta.Name)
 
 	// scrub namespace from project
 	projectMeta.Namespace = ""
 
+	projectAttributes := pr.projectToAttributes(project)
+	projectAttributes["metadata"] = projectMeta
+
 	attributes := restful.Attributes{
-		"project": restful.Attributes{
-			"metadata": projectMeta,
-			"spec":     project.GetConfig().Spec,
-		},
+		"project":   projectAttributes,
 		"functions": map[string]restful.Attributes{},
 	}
 
@@ -261,20 +266,29 @@ func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id s
 func (pr *projectResource) importProject(projectImportInfoInstance *projectImportInfo, authConfig *platform.AuthConfig) (id string,
 	attributes restful.Attributes, responseErr error) {
 
+	pr.Logger.InfoWith("Importing project", "projectName", projectImportInfoInstance.Project.Meta.Name)
 	pr.Logger.DebugWith("Checking if project exists", "projectName", projectImportInfoInstance.Project.Meta.Name)
 
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: *projectImportInfoInstance.Project.Meta,
 	})
 	if err != nil || len(projects) == 0 {
-		pr.Logger.DebugWith("Project doesn't exist, creating it", "project", projectImportInfoInstance.Project.Meta.Name)
+		pr.Logger.InfoWith("Project doesn't exist, creating it", "project", projectImportInfoInstance.Project.Meta.Name)
 		err = pr.createAndWaitForProjectCreation(projectImportInfoInstance.Project)
 		if err != nil {
 			return "", nil, nuclio.WrapErrInternalServerError(err)
 		}
 	}
 
-	pr.Logger.Debug("Importing project functions")
+	attributes = pr.importProjectFunctions(projectImportInfoInstance, authConfig)
+
+	return
+}
+
+func (pr *projectResource) importProjectFunctions(projectImportInfoInstance *projectImportInfo,
+	authConfig *platform.AuthConfig) restful.Attributes {
+
+	pr.Logger.InfoWith("Importing project functions", "project", projectImportInfoInstance.Project.Meta.Name)
 
 	functionCreateChan := make(chan restful.Attributes, len(projectImportInfoInstance.Functions))
 	var functionCreateWaitGroup sync.WaitGroup
@@ -289,8 +303,11 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 			}
 			functionImport.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
 
-			if err = pr.importFunction(functionImport, authConfig); err != nil {
-				pr.Logger.WarnWith("Failed posting function", "functionName", functionName, "err", err)
+			if err := pr.importFunction(functionImport, authConfig); err != nil {
+				pr.Logger.WarnWith("Failed importing function upon project import ",
+					"functionName", functionName,
+					"err", err,
+					"projectName", projectImportInfoInstance.Project.Meta.Name)
 				functionCreateChan <- restful.Attributes{
 					"function": functionName,
 					"error":    err.Error(),
@@ -304,22 +321,23 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 	functionCreateWaitGroup.Wait()
 	close(functionCreateChan)
 
-	for createError := range functionCreateChan {
-		if createError != nil {
-			failedFunctions = append(failedFunctions, createError)
+	for creationError := range functionCreateChan {
+		if creationError != nil {
+			failedFunctions = append(failedFunctions, creationError)
 		}
 	}
 
-	attributes = restful.Attributes{
-		"createdFunctionAmount": len(projectImportInfoInstance.Functions) - len(failedFunctions),
-		"failedFunctionsAmount": len(failedFunctions),
-		"failedFunctions":       failedFunctions,
+	return restful.Attributes{
+		"createdFunctionsAmount": len(projectImportInfoInstance.Functions) - len(failedFunctions),
+		"failedFunctionsAmount":  len(failedFunctions),
+		"failedFunctions":        failedFunctions,
 	}
-
-	return
 }
 
 func (pr *projectResource) importFunction(functionInfo *functionInfo, authConfig *platform.AuthConfig) error {
+	pr.Logger.InfoWith("Importing project function",
+		"function", functionInfo.Meta.Name,
+		"project", functionInfo.Meta.Labels["nuclio.io/project-name"])
 	functions, err := pr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Name:      functionInfo.Meta.Name,
 		Namespace: functionInfo.Meta.Namespace,
@@ -357,13 +375,11 @@ func (pr *projectResource) createAndWaitForProjectCreation(projectInfoInstance *
 		return nuclio.WrapErrInternalServerError(err)
 	}
 
-	timeout := 30 * time.Second
-	retryInterval := 1 * time.Second
-	err = common.RetryUntilSuccessful(timeout, retryInterval, func() bool {
+	err = common.RetryUntilSuccessful(ProjectGetUponCreationTimeout, ProjectGetUponCreationRetryInterval, func() bool {
 		pr.Logger.DebugWith("Trying to get created project",
 			"projectName", projectConfig.Meta.Name,
-			"timeout", timeout,
-			"retryInterval", retryInterval)
+			"timeout", ProjectGetUponCreationTimeout,
+			"retryInterval", ProjectGetUponCreationRetryInterval)
 		projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 			Meta: *projectInfoInstance.Meta,
 		})

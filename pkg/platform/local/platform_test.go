@@ -147,7 +147,7 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 	suite.Len(functions, 1, "Expected to find the newly created function")
 	function := functions[0]
 
-	// Check its state is scaled to zero and not deployed
+	// Check its state is imported and not deployed
 	suite.Equal(function.GetStatus().State, functionconfig.FunctionStateImported)
 
 	// Check that the annotations have been removed
@@ -175,7 +175,7 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 	suite.Len(functions, 1, "Expected to find the newly created function")
 	function = recreatedFunctions[0]
 
-	// Check its state is scaled to zero and not deployed
+	// Check its state is ready
 	suite.Equal(function.GetStatus().State, functionconfig.FunctionStateReady)
 }
 

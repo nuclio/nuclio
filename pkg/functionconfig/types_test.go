@@ -58,7 +58,7 @@ func (suite *ReaderTestSuite) TestFunctionMetaSkipDeployAnnotationTrue() {
 		functionMeta := Meta{
 			Annotations: testCase.Annotations,
 		}
-		suite.Assert().Equal(testCase.ExpectedResult, SkipDeploy(functionMeta.Annotations))
+		suite.Assert().Equal(testCase.ExpectedResult, ShouldSkipDeploy(functionMeta.Annotations))
 	}
 }
 
@@ -87,7 +87,7 @@ func (suite *ReaderTestSuite) TestFunctionMetaSkipBuildAnnotationTrue() {
 		functionMeta := Meta{
 			Annotations: testCase.Annotations,
 		}
-		suite.Assert().Equal(testCase.ExpectedResult, SkipBuild(functionMeta.Annotations))
+		suite.Assert().Equal(testCase.ExpectedResult, ShouldSkipBuild(functionMeta.Annotations))
 	}
 }
 

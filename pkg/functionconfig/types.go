@@ -342,7 +342,7 @@ func (m *Meta) RemoveSkipBuildAnnotation() {
 	delete(m.Annotations, FunctionAnnotationSkipBuild)
 }
 
-func SkipDeploy(annotations map[string]string) bool {
+func ShouldSkipDeploy(annotations map[string]string) bool {
 	var skipFunctionDeploy bool
 	if skipFunctionBuildDeploy, ok := annotations[FunctionAnnotationSkipDeploy]; ok {
 		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildDeploy)
@@ -350,7 +350,7 @@ func SkipDeploy(annotations map[string]string) bool {
 	return skipFunctionDeploy
 }
 
-func SkipBuild(annotations map[string]string) bool {
+func ShouldSkipBuild(annotations map[string]string) bool {
 	var skipFunctionBuild bool
 	if skipFunctionBuildStr, ok := annotations[FunctionAnnotationSkipBuild]; ok {
 		skipFunctionBuild, _ = strconv.ParseBool(skipFunctionBuildStr)

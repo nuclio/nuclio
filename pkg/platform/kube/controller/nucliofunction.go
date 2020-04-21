@@ -114,7 +114,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return nil
 	}
 
-	if functionconfig.SkipDeploy(function.Annotations) {
+	if functionconfig.ShouldSkipDeploy(function.Annotations) {
 		fo.logger.InfoWith("Skipping function deploy",
 			"name", function.Name,
 			"state", function.Status.State,
