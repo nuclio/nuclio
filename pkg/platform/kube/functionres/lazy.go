@@ -1352,8 +1352,7 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 		headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, headerKey, headerValueAsString)
 	}
 
-	// add default headers
-	headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, "Content-type", "application/text")
+	// add default header
 	headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, "x-nuclio-invoke-trigger", "cron")
 
 	// get the function http trigger address from the service
