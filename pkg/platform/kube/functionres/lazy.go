@@ -38,6 +38,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/aws/aws-sdk-go/private/util"
 	"github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
 	"github.com/mitchellh/mapstructure"
@@ -1312,9 +1313,10 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 	lc.logger.DebugWith("Preparing cron job")
 
 	type cronAttributes struct {
-		Schedule string
-		Interval string
-		Event    cron.Event
+		Schedule          string
+		Interval          string
+		ConcurrencyPolicy string
+		Event             cron.Event
 	}
 
 	// get the attributes from the cron trigger
@@ -1382,6 +1384,11 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 				},
 			},
 		},
+	}
+
+	// set concurrency policy if given
+	if attributes.ConcurrencyPolicy != "" {
+		spec.ConcurrencyPolicy = v1beta1.ConcurrencyPolicy(util.Capitalize(attributes.ConcurrencyPolicy))
 	}
 
 	return nil
