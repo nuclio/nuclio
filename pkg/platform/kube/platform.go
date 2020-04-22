@@ -152,10 +152,17 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			errorStack.Truncate(4 * Mib)
 		}
 
-		// if no brief error message was passed, set it to be root cause
+		// when no brief error message was passed - infer it from the creation error
 		if briefErrorsMessage == "" {
-			if rootCause := errors.RootCause(creationError); rootCause != nil {
+			rootCause := errors.RootCause(creationError)
+
+			// when clearCallStack is requested and there's a root cause - set it to be the specific root cause
+			if clearCallStack && rootCause != nil {
 				briefErrorsMessage = rootCause.Error()
+
+			// otherwise, set it to be the whole error stack
+			} else {
+				briefErrorsMessage = errorStack.String()
 			}
 		}
 
