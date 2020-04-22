@@ -160,7 +160,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			if clearCallStack && rootCause != nil {
 				briefErrorsMessage = rootCause.Error()
 
-			// otherwise, set it to be the whole error stack
+				// otherwise, set it to be the whole error stack
 			} else {
 				briefErrorsMessage = errorStack.String()
 			}
