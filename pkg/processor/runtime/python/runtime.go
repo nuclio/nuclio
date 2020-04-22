@@ -146,6 +146,13 @@ func (py *python) getPythonPath() string {
 }
 
 func (py *python) getPythonExePath() (string, error) {
+
+	// let user bring his own python binary
+	pythonExePath := os.Getenv("NUCLIO_PYTHON_EXE_PATH")
+	if pythonExePath != "" {
+		return exec.LookPath(pythonExePath)
+	}
+
 	baseName := "python3"
 
 	_, runtimeVersion := py.configuration.Spec.GetRuntimeNameAndVersion()
