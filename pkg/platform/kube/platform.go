@@ -143,7 +143,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
 
-	reportCreationError := func(creationError error, briefErrorsMessage string) error {
+	reportCreationError := func(creationError error, briefErrorsMessage string, clearCallStack bool) error {
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
 
@@ -159,7 +159,9 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			}
 		}
 
-		briefErrorsMessage = p.clearCallStack(briefErrorsMessage)
+		if clearCallStack {
+			briefErrorsMessage = p.clearCallStack(briefErrorsMessage)
+		}
 
 		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
 			"errorStack", errorStack.String())
@@ -224,7 +226,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		if buildErr != nil {
 
 			// try to report the error
-			reportCreationError(buildErr, "") // nolint: errcheck
+			reportCreationError(buildErr, "", false) // nolint: errcheck
 
 			return nil, buildErr
 		}
@@ -237,7 +239,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		if deployErr != nil {
 
 			// try to report the error
-			reportCreationError(deployErr, briefErrorsMessage) // nolint: errcheck
+			reportCreationError(deployErr, briefErrorsMessage, true) // nolint: errcheck
 
 			return nil, deployErr
 		}
