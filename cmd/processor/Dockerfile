@@ -26,6 +26,6 @@ COPY . .
 # build the processor
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o processor cmd/processor/main.go
 
-FROM golang:1.14
+FROM scratch
 
 COPY --from=builder  /processor/processor /home/nuclio/bin/processor
