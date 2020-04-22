@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.14
+FROM golang:1.14 as builder
 
 WORKDIR /processor
 
@@ -24,4 +24,8 @@ RUN go mod download
 COPY . .
 
 # build the processor
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o processor cmd/processor/main.go
+
+FROM scratch
+
+COPY --from=builder  /processor/processor /home/nuclio/bin/processor
