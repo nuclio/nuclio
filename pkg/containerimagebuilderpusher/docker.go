@@ -101,7 +101,7 @@ func (d *Docker) GetOnbuildImageRegistry(registry string) string {
 
 func (d *Docker) buildContainerImage(buildOptions *BuildOptions) error {
 
-	d.logger.DebugWith("Building docker image", "image", buildOptions.Image)
+	d.logger.InfoWith("Building docker image", "image", buildOptions.Image)
 
 	return d.dockerClient.Build(&dockerclient.BuildOptions{
 		ContextDir:     buildOptions.ContextDir,
