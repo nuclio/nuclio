@@ -100,8 +100,6 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	createFunctionOptions.Logger.InfoWith("Deploying function",
 		"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
-	skipDeploy := functionconfig.ShouldSkipDeploy(createFunctionOptions.FunctionConfig.Meta.Annotations)
-
 	var buildResult *platform.CreateFunctionBuildResult
 	var buildErr error
 
@@ -177,16 +175,6 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	deployResult, err := onAfterBuild(buildResult, buildErr)
 	if buildErr != nil || err != nil {
 		return nil, errors.Wrap(err, "Failed to deploy function")
-	}
-
-	if skipDeploy {
-		ap.Logger.Info("Skipping function deployment")
-		return &platform.CreateFunctionResult{
-			CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
-				Image:                 createFunctionOptions.FunctionConfig.Spec.Image,
-				UpdatedFunctionConfig: createFunctionOptions.FunctionConfig,
-			},
-		}, nil
 	}
 
 	// sanity

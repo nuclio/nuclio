@@ -228,8 +228,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
 
+		skipDeploy := functionconfig.ShouldSkipDeploy(createFunctionOptions.FunctionConfig.Meta.Annotations)
+
 		// after a function build (or skip-build) if the annotation FunctionAnnotationSkipBuild exists, it should be removed
-		// so next time, the build will happen.
+		// so next time, the build will happen. (skip-deploy will be removed on next update so the controller can use the
+		// annotation as well).
 		createFunctionOptions.FunctionConfig.Meta.RemoveSkipBuildAnnotation()
 
 		if buildErr != nil {
@@ -242,6 +245,23 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 		if err := p.setScaleToZeroSpec(&createFunctionOptions.FunctionConfig.Spec); err != nil {
 			return nil, errors.Wrap(err, "Failed setting scale to zero spec")
+		}
+
+		if skipDeploy {
+			p.Logger.Info("Skipping function deployment")
+
+			_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
+				createFunctionOptions,
+				&functionconfig.Status{
+					State: functionconfig.FunctionAnnotationSkipDeploy,
+				})
+
+			return &platform.CreateFunctionResult{
+				CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
+					Image:                 createFunctionOptions.FunctionConfig.Spec.Image,
+					UpdatedFunctionConfig: createFunctionOptions.FunctionConfig,
+				},
+			}, nil
 		}
 
 		createFunctionResult, briefErrorsMessage, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)

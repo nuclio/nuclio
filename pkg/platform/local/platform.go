@@ -240,6 +240,14 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 				HTTPPort: createFunctionResult.Port,
 				State:    functionconfig.FunctionStateReady,
 			}
+		} else {
+			p.Logger.Info("Skipping function deployment")
+			createFunctionResult = &platform.CreateFunctionResult{
+				CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
+					Image:                 createFunctionOptions.FunctionConfig.Spec.Image,
+					UpdatedFunctionConfig: createFunctionOptions.FunctionConfig,
+				},
+			}
 		}
 
 		// update the function
