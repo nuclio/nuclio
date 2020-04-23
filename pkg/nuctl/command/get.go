@@ -30,10 +30,10 @@ import (
 )
 
 const (
-	outputFormatText = "text"
-	outputFormatWide = "wide"
-	outputFormatJSON = "json"
-	outputFormatYAML = "yaml"
+	OutputFormatText = "text"
+	OutputFormatWide = "wide"
+	OutputFormatJSON = "json"
+	OutputFormatYAML = "yaml"
 )
 
 type getCommandeer struct {
@@ -113,7 +113,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
 
@@ -133,9 +133,9 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 	rendererInstance := renderer.NewRenderer(writer)
 
 	switch format {
-	case outputFormatText, outputFormatWide:
+	case OutputFormatText, OutputFormatWide:
 		header := []string{"Namespace", "Name", "Project", "State", "Node Port", "Replicas"}
-		if format == outputFormatWide {
+		if format == OutputFormatWide {
 			header = append(header, []string{
 				"Labels",
 				"Ingresses",
@@ -159,7 +159,7 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 			}
 
 			// add fields for wide view
-			if format == outputFormatWide {
+			if format == OutputFormatWide {
 				functionFields = append(functionFields, []string{
 					common.StringMapToString(function.GetConfig().Meta.Labels),
 					g.formatFunctionIngresses(function),
@@ -171,9 +171,9 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 		}
 
 		rendererInstance.RenderTable(header, functionRecords)
-	case outputFormatYAML:
+	case OutputFormatYAML:
 		return g.renderFunctionConfig(functions, rendererInstance.RenderYAML)
-	case outputFormatJSON:
+	case OutputFormatJSON:
 		return g.renderFunctionConfig(functions, rendererInstance.RenderJSON)
 	}
 
@@ -262,7 +262,7 @@ func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
 
@@ -274,9 +274,9 @@ func (g *getProjectCommandeer) renderProjects(projects []platform.Project, forma
 	rendererInstance := renderer.NewRenderer(writer)
 
 	switch format {
-	case outputFormatText, outputFormatWide:
+	case OutputFormatText, OutputFormatWide:
 		header := []string{"Namespace", "Name", "Display Name"}
-		if format == outputFormatWide {
+		if format == OutputFormatWide {
 			header = append(header, []string{
 				"Description",
 			}...)
@@ -295,7 +295,7 @@ func (g *getProjectCommandeer) renderProjects(projects []platform.Project, forma
 			}
 
 			// add fields for wide view
-			if format == outputFormatWide {
+			if format == OutputFormatWide {
 				projectFields = append(projectFields, []string{
 					project.GetConfig().Spec.Description,
 				}...)
@@ -306,9 +306,9 @@ func (g *getProjectCommandeer) renderProjects(projects []platform.Project, forma
 		}
 
 		rendererInstance.RenderTable(header, projectRecords)
-	case outputFormatYAML:
+	case OutputFormatYAML:
 		return g.renderProjectConfig(projects, rendererInstance.RenderYAML)
-	case outputFormatJSON:
+	case OutputFormatJSON:
 		return g.renderProjectConfig(projects, rendererInstance.RenderJSON)
 	}
 
@@ -379,7 +379,7 @@ func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEve
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.functionName, "function", "f", "", "Filter by owning function (optional)")
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
 
@@ -391,9 +391,9 @@ func (g *getFunctionEventCommandeer) renderFunctionEvents(functionEvents []platf
 	rendererInstance := renderer.NewRenderer(writer)
 
 	switch format {
-	case outputFormatText, outputFormatWide:
+	case OutputFormatText, OutputFormatWide:
 		header := []string{"Namespace", "Name", "Display Name", "Function", "Trigger Name", "Trigger Kind"}
-		if format == outputFormatWide {
+		if format == OutputFormatWide {
 			header = append(header, []string{
 				"Body",
 			}...)
@@ -415,7 +415,7 @@ func (g *getFunctionEventCommandeer) renderFunctionEvents(functionEvents []platf
 			}
 
 			// add fields for wide view
-			if format == outputFormatWide {
+			if format == OutputFormatWide {
 				functionEventFields = append(functionEventFields, []string{
 					functionEvent.GetConfig().Spec.Body,
 				}...)
@@ -426,9 +426,9 @@ func (g *getFunctionEventCommandeer) renderFunctionEvents(functionEvents []platf
 		}
 
 		rendererInstance.RenderTable(header, functionEventRecords)
-	case outputFormatYAML:
+	case OutputFormatYAML:
 		return g.renderFunctionEventConfig(functionEvents, rendererInstance.RenderYAML)
-	case outputFormatJSON:
+	case OutputFormatJSON:
 		return g.renderFunctionEventConfig(functionEvents, rendererInstance.RenderJSON)
 	}
 
