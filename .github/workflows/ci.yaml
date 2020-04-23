@@ -1,0 +1,168 @@
+name: Nuclio CI
+
+on:
+  pull_request:
+    branches:
+      - development
+      - 1.1.x
+      - 1.3.x
+
+env:
+  REPO: quay.io
+  REPO_NAME: nuclio
+  NUCLIO_LABEL: ${{ github.run_number }}
+  FUNCTION_NAME: test-function
+  NAMESPACE: nuclio
+  NUCLIO_NUCTL_CREATE_SYMLINK: false
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2-beta
+        with:
+          go-version: '^1.14.0'
+
+      - uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Lint
+        run: make lint
+
+  short_test:
+    name: Short test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2-beta
+        with:
+          go-version: '^1.14.0'
+
+      - uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run short test suites
+        run: make test-short
+
+  build_nuctl:
+    name: Build nuctl
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2-beta
+        with:
+          go-version: '^1.14.0'
+
+      - name: Build
+        run: |
+          make nuctl
+          sudo mv $(go env GOPATH)/bin/nuctl-${NUCLIO_LABEL}-linux-amd64 nuctl
+          sudo chmod +x nuctl
+          ./nuctl version
+
+      - uses: actions/upload-artifact@v1
+        with:
+          name: nuctl-bin
+          path: nuctl
+
+  build_docker_images:
+    name: Build nuclio docker images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # since disk-size is currently too-low, we will build only the docker images required for our puposes
+      - name: Build
+        run: |
+          make controller dashboard handler-builder-golang-onbuild
+        env:
+          NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
+
+      - name: Save
+        run: |
+          docker save \
+            ${REPO}/${REPO_NAME}/dashboard:${NUCLIO_LABEL}-amd64 \
+            ${REPO}/${REPO_NAME}/controller:${NUCLIO_LABEL}-amd64 \
+            ${REPO}/${REPO_NAME}/handler-builder-golang-onbuild:${NUCLIO_LABEL}-amd64-alpine \
+            | gzip > nuclio_docker_images.tar.gz
+      - name: Upload
+        uses: actions/upload-artifact@v1
+        with:
+          name: nuclio-docker-images
+          path: nuclio_docker_images.tar.gz
+
+  test_nuctl_deploy_invoke:
+    name: Test deploy and invoke function using nuctl
+    runs-on: ubuntu-latest
+    needs:
+      - build_docker_images
+      - build_nuctl
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: azure/setup-helm@v1
+        with:
+          version: 'v3.1.2'
+
+      - uses: manusa/actions-setup-minikube@v1.0.2
+        with:
+          minikube version: 'v1.9.2'
+          kubernetes version: 'v1.17.3'
+          github token: ${{ github.token }}
+
+      - name: Fetch nuctl binary
+        uses: actions/download-artifact@v1
+        with:
+          name: nuctl-bin
+
+      - name: Fetch nuclio docker images
+        uses: actions/download-artifact@v1
+        with:
+          name: nuclio-docker-images
+
+      - name: Prepare k8s cluster
+        run: |
+          mv ./nuctl-bin/nuctl . && chmod +x nuctl
+          kubectl create namespace ${NAMESPACE}
+          docker run -d -p 5000:5000 registry:2
+          docker load -i nuclio-docker-images/nuclio_docker_images.tar.gz
+
+      - name: Helm install nuclio
+        run: |
+          cat test/k8s/ci_assets/helm_values.yaml \
+            | envsubst \
+            | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
+
+      - name: Deploy function
+        run: |
+          ./nuctl \
+            --verbose \
+            deploy ${FUNCTION_NAME} \
+            --path https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go \
+            --registry localhost:5000 \
+            --run-registry localhost:5000 \
+            --namespace ${NAMESPACE} \
+            --no-pull
+        env:
+          NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL: ${{ env.REPO }}
+
+      - name: Invoke function
+        run: |
+          ./nuctl \
+            --verbose \
+            invoke ${FUNCTION_NAME} \
+            --namespace ${NAMESPACE}

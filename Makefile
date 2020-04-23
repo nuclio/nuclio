@@ -17,7 +17,7 @@ GOPATH ?= $(shell go env GOPATH)
 OS_NAME = $(shell uname)
 
 # upstream repo
-NUCLIO_DOCKER_REPO := quay.io/nuclio
+NUCLIO_DOCKER_REPO ?= quay.io/nuclio
 
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
@@ -147,6 +147,7 @@ print-docker-images:
 # Tools
 #
 
+NUCLIO_NUCTL_CREATE_SYMLINK := $(if $(NUCLIO_NUCTL_CREATE_SYMLINK),$(NUCLIO_NUCTL_CREATE_SYMLINK),true)
 NUCTL_BIN_NAME = nuctl-$(NUCLIO_LABEL)-$(NUCLIO_OS)-$(NUCLIO_ARCH)
 NUCTL_TARGET = $(GOPATH)/bin/nuctl
 
@@ -154,7 +155,9 @@ nuctl: ensure-gopath
 	$(GO_BUILD_TOOL_DOCKER)
 	$(GO_BUILD_NUCTL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 	@rm -f $(NUCTL_TARGET)
+ifeq ($(NUCLIO_NUCTL_CREATE_SYMLINK), true)
 	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
+endif
 
 processor: ensure-gopath
 	docker build --file cmd/processor/Dockerfile --tag $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG) .
