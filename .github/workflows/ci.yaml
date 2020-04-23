@@ -8,8 +8,7 @@ on:
       - 1.3.x
 
 env:
-  REPO: docker.pkg.github.com
-  REPO_OWNER: ${{ github.event.repository.owner.login }}
+  REPO: quay.io
   REPO_NAME: nuclio
   NUCLIO_LABEL: ${{ github.run_number }}
   FUNCTION_NAME: test-function
@@ -86,28 +85,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      # since disk-size is currently too-low, we will build only the docker images required for our puposes
       - name: Build
         run: |
           make controller dashboard handler-builder-golang-onbuild
         env:
-          NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}
+          NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
 
       - name: Save
         run: |
           docker save \
-            ${REPO}/${REPO_OWNER}/${REPO_NAME}/dashboard:${NUCLIO_LABEL}-amd64 \
-            ${REPO}/${REPO_OWNER}/${REPO_NAME}/controller:${NUCLIO_LABEL}-amd64 \
-            ${REPO}/${REPO_OWNER}/${REPO_NAME}/handler-builder-golang-onbuild:${NUCLIO_LABEL}-amd64-alpine \
+            ${REPO}/${REPO_NAME}/dashboard:${NUCLIO_LABEL}-amd64 \
+            ${REPO}/${REPO_NAME}/controller:${NUCLIO_LABEL}-amd64 \
+            ${REPO}/${REPO_NAME}/handler-builder-golang-onbuild:${NUCLIO_LABEL}-amd64-alpine \
             | gzip > nuclio_docker_images.tar.gz
-
       - name: Upload
         uses: actions/upload-artifact@v1
         with:
           name: nuclio-docker-images
           path: nuclio_docker_images.tar.gz
 
-  nuctl_deploy_invoke:
-    name: Deploy and invoke function using nuctl
+  test_nuctl_deploy_invoke:
+    name: Test deploy and invoke function using nuctl
     runs-on: ubuntu-latest
     needs:
       - build_docker_images
@@ -119,9 +118,9 @@ jobs:
         with:
           version: 'v3.1.2'
 
-      - uses: manusa/actions-setup-minikube@v1.0.1
+      - uses: manusa/actions-setup-minikube@v1.0.2
         with:
-          minikube version: 'v1.9.0'
+          minikube version: 'v1.9.2'
           kubernetes version: 'v1.17.3'
           github token: ${{ github.token }}
 
@@ -144,20 +143,9 @@ jobs:
 
       - name: Helm install nuclio
         run: |
-          cat << EOF | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
-          controller:
-            image:
-              tag: ${NUCLIO_LABEL}-amd64
-              repository: ${REPO}/${REPO_OWNER}/${REPO_NAME}/controller
-              pullPolicy: Never
-          dashboard:
-            image:
-              tag: ${NUCLIO_LABEL}-amd64
-              repository: ${REPO}/${REPO_OWNER}/${REPO_NAME}/dashboard
-              pullPolicy: Never
-          registry:
-            defaultOnbuildRegistryURL: ${REPO}/${REPO_OWNER}/${REPO_NAME}
-          EOF
+          cat test/k8s/ci_assets/helm_values.yaml \
+            | envsubst \
+            | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
 
       - name: Deploy function
         run: |
@@ -170,7 +158,7 @@ jobs:
             --namespace ${NAMESPACE} \
             --no-pull
         env:
-          NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL: ${{ env.REPO }}/${{ env.REPO_OWNER }}
+          NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL: ${{ env.REPO }}
 
       - name: Invoke function
         run: |
