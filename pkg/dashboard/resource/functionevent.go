@@ -164,6 +164,41 @@ func (fer *functionEventResource) GetCustomRoutes() ([]restful.CustomRoute, erro
 	}, nil
 }
 
+func (fer *functionEventResource) export(function platform.Function) (attributes restful.Attributes) {
+
+	attributes = restful.Attributes{}
+
+	getFunctionEventOptions := platform.GetFunctionEventsOptions{
+		Meta: platform.FunctionEventMeta{
+			Name:      "",
+			Namespace: function.GetConfig().Meta.Namespace,
+			Labels: map[string]string{
+				"nuclio.io/function-name": function.GetConfig().Meta.Name,
+			},
+		},
+	}
+
+	functionEvents, err := fer.getPlatform().GetFunctionEvents(&getFunctionEventOptions)
+
+	if err != nil {
+
+		// if an error occurs just return zero events
+		fer.Logger.DebugWith("Function has no function events, returning 0 events",
+			"functionName", function.GetConfig().Meta.Name)
+		return
+	}
+
+	// create a map of attributes keyed by the function event id (name)
+	for _, functionEvent := range functionEvents {
+		attributes[functionEvent.GetConfig().Meta.Name] = restful.Attributes{
+			"metadata": functionEvent.GetConfig().Meta,
+			"spec":     functionEvent.GetConfig().Spec,
+		}
+	}
+
+	return
+}
+
 func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	// get function event config and status from body

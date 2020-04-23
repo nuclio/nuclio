@@ -19,6 +19,7 @@ package resource
 import (
 	"encoding/json"
 	"fmt"
+	uuid "github.com/satori/go.uuid"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -43,28 +44,14 @@ type projectInfo struct {
 	Spec *platform.ProjectSpec `json:"spec,omitempty"`
 }
 
-type functionImportMap map[string]*functionInfo
-
-func (fim *functionImportMap) UnmarshalJSON(data []byte) error {
-	var functionImports map[string]*struct {
-		Function *functionInfo
-	}
-	if err := json.Unmarshal(data, &functionImports); err != nil {
-		return err
-	}
-
-	unmarshalFunctionImports := map[string]*functionInfo{}
-	for functionName, functionImport := range functionImports {
-		unmarshalFunctionImports[functionName] = functionImport.Function
-	}
-
-	*fim = unmarshalFunctionImports
-	return nil
+type functionImportInfo struct {
+	Function *functionInfo
+	Events   map[string]*functionEventInfo
 }
 
 type projectImportInfo struct {
 	Project   *projectInfo
-	Functions functionImportMap
+	Functions map[string]*functionImportInfo
 }
 
 const (
@@ -220,7 +207,7 @@ func (pr *projectResource) export(project platform.Project) restful.Attributes {
 	for _, function := range functions {
 		functionsMap[function.GetConfig().Meta.Name] = restful.Attributes{
 			"function": functionResourceInstance.export(function),
-			"events":   functionResourceInstance.exportFunctionEvents(function),
+			"events":   functionEventResourceInstance.export(function),
 		}
 	}
 
@@ -296,12 +283,12 @@ func (pr *projectResource) importProjectFunctions(projectImportInfoInstance *pro
 
 	var failedFunctions []restful.Attributes
 	for functionName, functionImport := range projectImportInfoInstance.Functions {
-		go func(functionName string, functionImport *functionInfo, wg *sync.WaitGroup) {
-			functionImport.Meta.Namespace = projectImportInfoInstance.Project.Meta.Namespace
-			if functionImport.Meta.Labels == nil {
-				functionImport.Meta.Labels = map[string]string{}
+		go func(functionName string, functionImport *functionImportInfo, wg *sync.WaitGroup) {
+			functionImport.Function.Meta.Namespace = projectImportInfoInstance.Project.Meta.Namespace
+			if functionImport.Function.Meta.Labels == nil {
+				functionImport.Function.Meta.Labels = map[string]string{}
 			}
-			functionImport.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
+			functionImport.Function.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
 
 			if err := pr.importFunction(functionImport, authConfig); err != nil {
 				pr.Logger.WarnWith("Failed importing function upon project import ",
@@ -334,13 +321,13 @@ func (pr *projectResource) importProjectFunctions(projectImportInfoInstance *pro
 	}
 }
 
-func (pr *projectResource) importFunction(functionInfo *functionInfo, authConfig *platform.AuthConfig) error {
+func (pr *projectResource) importFunction(functionImportInfo *functionImportInfo, authConfig *platform.AuthConfig) error {
 	pr.Logger.InfoWith("Importing project function",
-		"function", functionInfo.Meta.Name,
-		"project", functionInfo.Meta.Labels["nuclio.io/project-name"])
+		"function", functionImportInfo.Function.Meta.Name,
+		"project", functionImportInfo.Function.Meta.Labels["nuclio.io/project-name"])
 	functions, err := pr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Name:      functionInfo.Meta.Name,
-		Namespace: functionInfo.Meta.Namespace,
+		Name:      functionImportInfo.Function.Meta.Name,
+		Namespace: functionImportInfo.Function.Meta.Namespace,
 	})
 	if err != nil {
 		return errors.New("Failed to get functions")
@@ -350,7 +337,39 @@ func (pr *projectResource) importFunction(functionInfo *functionInfo, authConfig
 	}
 
 	// validation finished successfully - store and deploy the given function
-	return functionResourceInstance.storeAndDeployFunction(functionInfo, authConfig, false)
+	err = functionResourceInstance.storeAndDeployFunction(functionImportInfo.Function, authConfig, false)
+	if err != nil {
+		return err
+	}
+
+	// import function's events
+	for _, functionEvent := range functionImportInfo.Events {
+
+		// generate new name for events to avoid collisions
+		functionEvent.Meta.Name = uuid.NewV4().String()
+
+		// create a functionEvent config
+		functionEventConfig := platform.FunctionEventConfig{
+			Meta: *functionEvent.Meta,
+			Spec: *functionEvent.Spec,
+		}
+
+		// create a functionEvent
+		newFunctionEvent, err := platform.NewAbstractFunctionEvent(pr.Logger, pr.getPlatform(), functionEventConfig)
+		if err != nil {
+			return err
+		}
+
+		// just deploy. the status is async through polling
+		err = pr.getPlatform().CreateFunctionEvent(&platform.CreateFunctionEventOptions{
+			FunctionEventConfig: *newFunctionEvent.GetConfig(),
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (pr *projectResource) createAndWaitForProjectCreation(projectInfoInstance *projectInfo) error {

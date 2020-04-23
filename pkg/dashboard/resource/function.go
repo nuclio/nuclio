@@ -229,41 +229,6 @@ func (fr *functionResource) export(function platform.Function) restful.Attribute
 	return attributes
 }
 
-func (fr *functionResource) exportFunctionEvents(function platform.Function) (attributes restful.Attributes) {
-
-	attributes = restful.Attributes{}
-
-	getFunctionEventOptions := platform.GetFunctionEventsOptions{
-		Meta: platform.FunctionEventMeta{
-			Name:      "",
-			Namespace: function.GetConfig().Meta.Namespace,
-			Labels: map[string]string{
-				"nuclio.io/function-name": function.GetConfig().Meta.Name,
-			},
-		},
-	}
-
-	functionEvents, err := fr.getPlatform().GetFunctionEvents(&getFunctionEventOptions)
-
-	if err != nil {
-
-		// if an error occurs just return zero events
-		fr.Logger.DebugWith("Function has no function events, returning 0 events",
-			"functionName", function.GetConfig().Meta.Name)
-		return
-	}
-
-	// create a map of attributes keyed by the function event id (name)
-	for _, functionEvent := range functionEvents {
-		attributes[functionEvent.GetConfig().Meta.Name] = restful.Attributes{
-			"metadata": functionEvent.GetConfig().Meta,
-			"spec":     functionEvent.GetConfig().Spec,
-		}
-	}
-
-	return
-}
-
 func (fr *functionResource) prepareFunctionForExport(functionMeta *functionconfig.Meta, functionSpec *functionconfig.Spec) {
 
 	fr.Logger.DebugWith("Preparing function for export", "functionName", functionMeta.Name)

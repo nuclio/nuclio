@@ -1023,6 +1023,15 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 	returnedFunction1.Config.Meta.Namespace = "fNamespace"
 	returnedFunction1.Config.Spec.Runtime = "r1"
 
+	returnedFunctionEvent := platform.AbstractFunctionEvent{}
+	returnedFunctionEvent.FunctionEventConfig.Meta.Name = "fe1"
+	returnedFunctionEvent.FunctionEventConfig.Meta.Namespace = "fNamespace"
+	returnedFunctionEvent.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/function-name": "f1"}
+	returnedFunctionEvent.FunctionEventConfig.Spec.DisplayName = "fe1DisplayName"
+	returnedFunctionEvent.FunctionEventConfig.Spec.TriggerName = "fe1TriggerName"
+	returnedFunctionEvent.FunctionEventConfig.Spec.TriggerKind = "fe1TriggerKind"
+	returnedFunctionEvent.FunctionEventConfig.Spec.Body = "fe1Body"
+
 	returnedFunction2 := platform.AbstractFunction{}
 	returnedFunction2.Config.Meta.Name = "f2"
 	returnedFunction2.Config.Meta.Namespace = "fNamespace"
@@ -1045,7 +1054,14 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 
 		return true
 	}
-	verifyGetFunctionEvents := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
+	verifyGetFunction1Events := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
+		suite.Require().Equal("", getFunctionEventsOptions.Meta.Name)
+		suite.Require().Equal("fNamespace", getFunctionEventsOptions.Meta.Namespace)
+
+		return true
+	}
+	verifyGetFunction2Events := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
+		suite.Require().Equal("", getFunctionEventsOptions.Meta.Name)
 		suite.Require().Equal("fNamespace", getFunctionEventsOptions.Meta.Namespace)
 
 		return true
@@ -1062,11 +1078,15 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 		Once()
 
 	suite.mockPlatform.
-		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunctionEvents)).
-		Return([]platform.FunctionEvent{}, nil).Twice()
+		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunction1Events)).
+		Return([]platform.FunctionEvent{&returnedFunctionEvent}, nil).Once()
+
+	suite.mockPlatform.
+		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunction2Events)).
+		Return([]platform.FunctionEvent{}, nil).Once()
 
 	headers := map[string]string{
-		"x-nuclio-project-namespace": "fNamespace",
+		"x-nuclio-project-namespace":  "fNamespace",
 		"x-nuclio-function-namespace": "fNamespace",
 	}
 
@@ -1080,6 +1100,23 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 	},
 	"functions": {
 		"f1": {
+			"events": {
+				"fe1": {
+					"metadata": {
+						"name": "fe1",
+						"namespace": "fNamespace",
+						"labels": {
+							"nuclio.io/function-name": "f1"
+						}
+					},
+					"spec": {
+						"displayName": "fe1DisplayName",
+						"triggerName": "fe1TriggerName",
+						"triggerKind": "fe1TriggerKind",
+						"body": "fe1Body"
+					}
+				}
+			},
 			"function": {
 				"metadata": {
 					"name": "f1",
@@ -1095,8 +1132,7 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 					"runtime": "r1",
 					"eventTimeout": ""
 				}
-			},
-			"events": {}
+			}
 		},
 		"f2": {
 			"function": {
@@ -1188,7 +1224,7 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 		Return([]platform.FunctionEvent{}, nil).Twice()
 
 	headers := map[string]string{
-		"x-nuclio-project-namespace": "fNamespace",
+		"x-nuclio-project-namespace":  "fNamespace",
 		"x-nuclio-function-namespace": "fNamespace",
 	}
 
@@ -1263,7 +1299,6 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
-
 
 func (suite *projectTestSuite) TestCreateSuccessful() {
 
@@ -1499,6 +1534,13 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 		suite.Require().Equal("p1Namespace", getFunctionsOptions.Namespace)
 		return true
 	}
+	verifyCreateFunctionEvent := func(createFunctionOptions *platform.CreateFunctionEventOptions) bool {
+		suite.Require().NotEqual("fe1", createFunctionOptions.FunctionEventConfig.Meta.Name)
+		suite.Require().Equal("p1Namespace", createFunctionOptions.FunctionEventConfig.Meta.Namespace)
+		suite.Require().Equal("f1", createFunctionOptions.FunctionEventConfig.Meta.Labels["nuclio.io/function-name"])
+
+		return true
+	}
 
 	suite.mockPlatform.
 		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
@@ -1523,6 +1565,11 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 	suite.mockPlatform.
 		On("CreateFunction", mock.MatchedBy(verifyCreateFunction)).
 		Return(&platform.CreateFunctionResult{}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("CreateFunctionEvent", mock.MatchedBy(verifyCreateFunctionEvent)).
+		Return(nil).
 		Once()
 
 	headers := map[string]string{
@@ -1552,6 +1599,23 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 					"build": {},
 					"platform": {},
 					"runtime": "r1"
+				}
+			},
+			"events": {
+				"fe1": {
+					"metadata": {
+						"name": "fe1",
+						"namespace": "p1Namespace",
+						"labels": {
+							"nuclio.io/function-name": "f1"
+						}
+					},
+					"spec": {
+						"displayName": "fe1DisplayName",
+						"triggerName": "fe1TriggerName",
+						"triggerKind": "fe1TriggerKind",
+						"body": "fe1Body"
+					}
 				}
 			}
 		}
@@ -1584,7 +1648,6 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 	createdProject.ProjectConfig.Meta.Name = "p1"
 	createdProject.ProjectConfig.Meta.Namespace = "p1Namespace"
 	createdProject.ProjectConfig.Spec.Description = "p1Description"
-
 
 	// verify
 	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
@@ -1626,7 +1689,6 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 		Return([]platform.Function{&existingFunction1}, nil).
 		Once()
 
-
 	expectedStatusCode := http.StatusCreated
 	requestBody := `{
 	"project": {
@@ -1650,6 +1712,23 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 					"build": {},
 					"platform": {},
 					"runtime": "r1"
+				}
+			},
+			"events": {
+				"fe1": {
+					"metadata": {
+						"name": "fe1",
+						"namespace": "fNamespace",
+						"labels": {
+							"nuclio.io/function-name": "f1"
+						}
+					},
+					"spec": {
+						"displayName": "fe1DisplayName",
+						"triggerName": "fe1TriggerName",
+						"triggerKind": "fe1TriggerKind",
+						"body": "fe1Body"
+					}
 				}
 			}
 		}
