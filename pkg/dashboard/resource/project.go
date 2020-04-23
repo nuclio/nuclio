@@ -19,7 +19,6 @@ package resource
 import (
 	"encoding/json"
 	"fmt"
-	uuid "github.com/satori/go.uuid"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -33,6 +32,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
+	uuid "github.com/satori/go.uuid"
 )
 
 type projectResource struct {
