@@ -143,7 +143,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
 
-	reportCreationError := func(creationError error, briefErrorsMessage string) error {
+	reportCreationError := func(creationError error, briefErrorsMessage string, clearCallStack bool) error {
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
 
@@ -152,14 +152,23 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			errorStack.Truncate(4 * Mib)
 		}
 
-		// if no brief error message was passed, set it to be root cause
+		// when no brief error message was passed - infer it from the creation error
 		if briefErrorsMessage == "" {
-			if rootCause := errors.RootCause(creationError); rootCause != nil {
+			rootCause := errors.RootCause(creationError)
+
+			// when clearCallStack is requested and there's a root cause - set it to be the specific root cause
+			if clearCallStack && rootCause != nil {
 				briefErrorsMessage = rootCause.Error()
+
+				// otherwise, set it to be the whole error stack
+			} else {
+				briefErrorsMessage = errorStack.String()
 			}
 		}
 
-		briefErrorsMessage = p.clearCallStack(briefErrorsMessage)
+		if clearCallStack {
+			briefErrorsMessage = p.clearCallStack(briefErrorsMessage)
+		}
 
 		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
 			"errorStack", errorStack.String())
@@ -224,7 +233,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		if buildErr != nil {
 
 			// try to report the error
-			reportCreationError(buildErr, "") // nolint: errcheck
+			reportCreationError(buildErr, "", false) // nolint: errcheck
 
 			return nil, buildErr
 		}
@@ -237,7 +246,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		if deployErr != nil {
 
 			// try to report the error
-			reportCreationError(deployErr, briefErrorsMessage) // nolint: errcheck
+			reportCreationError(deployErr, briefErrorsMessage, true) // nolint: errcheck
 
 			return nil, deployErr
 		}
