@@ -17,13 +17,17 @@ limitations under the License.
 package test
 
 import (
+	"encoding/json"
 	"fmt"
 	"path"
 	"testing"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/nuctl/command"
 
+	"github.com/ghodss/yaml"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -506,7 +510,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	// check that the function's CET was modified to 'image'
 	err = suite.ExecuteNuctl([]string{"get", "function", functionName},
 		map[string]string{
-			"output": "yaml",
+			"output": command.OutputFormatYAML,
 		})
 	suite.Require().NoError(err)
 	suite.Require().Contains(suite.outputBuffer.String(), "codeEntryType: image")
@@ -579,6 +583,35 @@ func (suite *functionGetTestSuite) TestGet() {
 
 	// find function names in get result
 	suite.findPatternsInOutput(functionNames, nil)
+
+	for _, testCase := range []struct {
+		FunctionName string
+		GetOutput    string
+	}{
+		{
+			FunctionName: functionNames[0],
+			GetOutput:    command.OutputFormatJSON,
+		},
+		{
+			FunctionName: functionNames[0],
+			GetOutput:    command.OutputFormatYAML,
+		},
+	} {
+		// reset buffer
+		suite.outputBuffer.Reset()
+		parsedFunction := functionconfig.Config{}
+
+		err = suite.ExecuteNuctl([]string{"get", "function", testCase.FunctionName, "--output", testCase.GetOutput}, nil)
+		suite.Require().NoError(err)
+		switch testCase.GetOutput {
+		case command.OutputFormatJSON:
+			err = json.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
+		case command.OutputFormatYAML:
+			err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
+		}
+		suite.Require().NoError(err, "Failed to unmarshal function")
+		suite.Assert().Equal(testCase.FunctionName, parsedFunction.Meta.Name)
+	}
 }
 
 func TestFunctionTestSuite(t *testing.T) {
