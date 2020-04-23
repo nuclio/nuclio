@@ -586,30 +586,38 @@ func (suite *functionGetTestSuite) TestGet() {
 
 	for _, testCase := range []struct {
 		FunctionName string
-		GetOutput    string
+		OutputFormat string
 	}{
 		{
 			FunctionName: functionNames[0],
-			GetOutput:    command.OutputFormatJSON,
+			OutputFormat: command.OutputFormatJSON,
 		},
 		{
 			FunctionName: functionNames[0],
-			GetOutput:    command.OutputFormatYAML,
+			OutputFormat: command.OutputFormatYAML,
 		},
 	} {
 		// reset buffer
 		suite.outputBuffer.Reset()
+
 		parsedFunction := functionconfig.Config{}
 
-		err = suite.ExecuteNuctl([]string{"get", "function", testCase.FunctionName, "--output", testCase.GetOutput}, nil)
+		// get function in format
+		err = suite.ExecuteNuctl([]string{"get", "function", testCase.FunctionName, "--output", testCase.OutputFormat}, nil)
 		suite.Require().NoError(err)
-		switch testCase.GetOutput {
+
+		// unmarshal response correspondingly to output format
+		switch testCase.OutputFormat {
 		case command.OutputFormatJSON:
 			err = json.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
 		case command.OutputFormatYAML:
 			err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
 		}
+
+		// ensure parsing went well, and response is valid (json/yaml)
 		suite.Require().NoError(err, "Failed to unmarshal function")
+
+		// sanity, we got the function we asked for
 		suite.Assert().Equal(testCase.FunctionName, parsedFunction.Meta.Name)
 	}
 }
