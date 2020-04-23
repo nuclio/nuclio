@@ -4,58 +4,69 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/common"
+
+	"k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"strings"
 
 	"github.com/nuclio/errors"
 )
 
+type SystemSpec struct {
+	IngressTLSSecret string
+	IguazioSigninURL string
+	IguazioAuthURL string
+}
+
 func GenerateIngressResource(ctx context.Context,
-	spec Spec) (string, error) {
+	spec Spec,
+	systemSpec *SystemSpec) (*v1beta1.Ingress, *v1.Secret,  error) {
 
 	var err error
-	var secretResourceContents string
-	ingressAnnotations := map[string]AnnotationValue{
-		"kubernetes.io/ingress.class": {Value: "nginx"},
+	var secretResource *v1.Secret
+
+	ingressAnnotations := map[string]string{
+		"kubernetes.io/ingress.class": "nginx",
 	}
 	if spec.RewriteTarget != "" {
-		ingressAnnotations["nginx.ingress.kubernetes.io/rewrite-target"] = AnnotationValue{Value: spec.RewriteTarget}
+		ingressAnnotations["nginx.ingress.kubernetes.io/rewrite-target"] = spec.RewriteTarget
 	}
 
 	if spec.UpstreamVhost != "" {
-		ingressAnnotations["nginx.ingress.kubernetes.io/upstream-vhost"] = AnnotationValue{Value: spec.UpstreamVhost}
+		ingressAnnotations["nginx.ingress.kubernetes.io/upstream-vhost"] = spec.UpstreamVhost
 	}
 
 	if spec.BackendProtocol != "" {
-		ingressAnnotations["nginx.ingress.kubernetes.io/backend-protocol"] =
-			AnnotationValue{Value: spec.BackendProtocol}
+		ingressAnnotations["nginx.ingress.kubernetes.io/backend-protocol"] = spec.BackendProtocol
 	}
 
 	if spec.SSLPassthrough {
-		ingressAnnotations["nginx.ingress.kubernetes.io/ssl-passthrough"] = AnnotationValue{Value: "true"}
+		ingressAnnotations["nginx.ingress.kubernetes.io/ssl-passthrough"] = "true"
 	} else {
-		var authIngressAnnotations map[string]AnnotationValue
+		var authIngressAnnotations map[string]string
 
 		switch spec.AuthenticationMode {
 		case AuthenticationModeNone:
 			//do nothing
 		case AuthenticationModeBasicAuth:
-			authIngressAnnotations, secretResourceContents, err = getBasicAuthIngressAnnotationsAndSecret(ctx, spec)
+			authIngressAnnotations, secretResource, err = getBasicAuthIngressAnnotationsAndSecret(ctx, spec)
 			if err != nil {
-				return "", errors.Wrap(err, "Failed to get basic auth annotations")
+				return nil, nil, errors.Wrap(err, "Failed to get basic auth annotations")
 			}
 		case AuthenticationModeAccessKey:
-			authIngressAnnotations, err = getSessionVerificationAnnotations("/api/data_sessions/verifications")
+			authIngressAnnotations, err = getSessionVerificationAnnotations(systemSpec, "/api/data_sessions/verifications")
 			if err != nil {
-				return "", errors.Wrap(err, "Failed to get access key auth mode annotations")
+				return nil, nil, errors.Wrap(err, "Failed to get access key auth mode annotations")
 			}
 		case AuthenticationModeDex:
 			authIngressAnnotations, err = getDexAuthIngressAnnotations(spec)
 			if err != nil {
-				return "", errors.Wrap(err, "Failed to get dex auth annotations")
+				return nil, nil, errors.Wrap(err, "Failed to get dex auth annotations")
 			}
 		default:
-			return "", errors.Errorf("Unknown ingress authentication mode: %s", spec.AuthenticationMode)
+			return nil, nil, errors.Errorf("Unknown ingress authentication mode: %s", spec.AuthenticationMode)
 		}
 
 		// merge with existing annotation map
@@ -63,22 +74,22 @@ func GenerateIngressResource(ctx context.Context,
 			ingressAnnotations[annotation] = annotationValue
 		}
 
-		ingressAnnotations["nginx.ingress.kubernetes.io/proxy-body-size"] = AnnotationValue{Value: "0"}
+		ingressAnnotations["nginx.ingress.kubernetes.io/proxy-body-size"] = "0"
 
 		// redirect to SSL if spec allows it, and given the system is configured to not allow HTTP in allowed-protocols
 		if spec.AllowSSLRedirect && len(spec.AllowedProtocols) == 1 && spec.AllowedProtocols[0] == "https" {
-			ingressAnnotations["nginx.ingress.kubernetes.io/ssl-redirect"] = AnnotationValue{Value: "true"}
+			ingressAnnotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "true"
 		} else {
-			ingressAnnotations["nginx.ingress.kubernetes.io/ssl-redirect"] = AnnotationValue{Value: "false"}
+			ingressAnnotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "false"
 		}
 	}
 
 	if spec.ProxyReadTimeout != "" {
-		ingressAnnotations["nginx.ingress.kubernetes.io/proxy-read-timeout"] = AnnotationValue{Value: spec.ProxyReadTimeout}
+		ingressAnnotations["nginx.ingress.kubernetes.io/proxy-read-timeout"] = spec.ProxyReadTimeout
 	}
 
 	if spec.WhitelistIPAddresses != nil {
-		ingressAnnotations["nginx.ingress.kubernetes.io/whitelist-source-range"] = AnnotationValue{Value: strings.Join(spec.WhitelistIPAddresses, ",")}
+		ingressAnnotations["nginx.ingress.kubernetes.io/whitelist-source-range"] = strings.Join(spec.WhitelistIPAddresses, ",")
 	}
 
 	if spec.Annotations != nil {
@@ -87,57 +98,50 @@ func GenerateIngressResource(ctx context.Context,
 		}
 	}
 
-	quotedAnnotations := make(map[string]string)
-	for annotation, annotationValue := range ingressAnnotations {
-		if annotationValue.QuoteEscapingNeeded {
-			quotedAnnotations[annotation] = common.Quote(annotationValue.Value)
-		} else {
-			quotedAnnotations[annotation] = fmt.Sprintf("\"%s\"", annotationValue.Value)
-		}
+	// if no specific TLS secret was given - set it to be system's TLS secret
+	tlsSecret := spec.TLSSecret
+	if tlsSecret == "" {
+		tlsSecret = systemSpec.IngressTLSSecret
 	}
 
-	templateText := `
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: {{ .Name }}
-  namespace: {{ .Namespace }}
-  annotations:
-    {{- range $annotationKey, $annotationValue := .Annotations }}
-    {{ $annotationKey }}: {{ $annotationValue }}
-    {{- end }}
-spec:
-  tls:
-  - hosts: [{{ .Host }}]
-    {{ .TLSSecret }}
-  rules:
-  - host: {{ .Host }}
-    http:
-      paths:
-      - path: {{ .Path }}
-        backend:
-          serviceName: {{ .ServiceName }}
-          servicePort: {{ .ServicePort }}
-{{- if .SecretResourceContents }}
----
-{{ .SecretResourceContents }}
-{{- end }}
-`
+	ingressResource := &v1beta1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: spec.Name,
+			Namespace: spec.Namespace,
+			Annotations: ingressAnnotations,
+		},
+		Spec: v1beta1.IngressSpec{
+			TLS: []v1beta1.IngressTLS{
+				{
+					Hosts: []string{spec.Host},
+					SecretName: tlsSecret,
+				},
+			},
+			Rules: []v1beta1.IngressRule{
+				{
+					Host: spec.Host,
+					IngressRuleValue: v1beta1.IngressRuleValue{
+						HTTP: &v1beta1.HTTPIngressRuleValue{
+							Paths: []v1beta1.HTTPIngressPath{
+								{
+									Path: spec.Path,
+									Backend: v1beta1.IngressBackend{
+										ServiceName: spec.ServiceName,
+										ServicePort: intstr.FromInt(spec.ServicePort),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 
-	return common.RenderTemplate(templateText, map[string]interface{}{
-		"Name":                   spec.Name,
-		"Namespace":              spec.Namespace,
-		"Annotations":            quotedAnnotations,
-		"Host":                   spec.Host,
-		"ServiceName":            spec.ServiceName,
-		"ServicePort":            spec.ServicePort,
-		"SecretResourceContents": secretResourceContents,
-		"TLSSecret":              spec.TLSSecret,
-		"Path":                   spec.Path,
-	})
+	return ingressResource, secretResource, nil
 }
 
-func getDexAuthIngressAnnotations(spec Spec) (map[string]AnnotationValue, error) {
+func getDexAuthIngressAnnotations(spec Spec) (map[string]string, error) {
 
 	if spec.Authentication == nil || spec.Authentication.DexAuth == nil {
 		return nil, errors.New("Dex auth spec is missing")
@@ -146,45 +150,41 @@ func getDexAuthIngressAnnotations(spec Spec) (map[string]AnnotationValue, error)
 	authURL := fmt.Sprintf("%s/oauth2/auth", spec.Authentication.DexAuth.Oauth2ProxyURL)
 	signinURL := fmt.Sprintf("%s/oauth2/start?rd=https://$host$escaped_request_uri", spec.Authentication.DexAuth.Oauth2ProxyURL)
 
-	return map[string]AnnotationValue{
-		"nginx.ingress.kubernetes.io/auth-response-headers": {Value: "Authorization"},
-		"nginx.ingress.kubernetes.io/auth-url":              {Value: authURL},
-		"nginx.ingress.kubernetes.io/auth-signin":           {Value: signinURL},
-		"nginx.ingress.kubernetes.io/configuration-snippet": {Value: `auth_request_set $name_upstream_1 $upstream_cookie__oauth2_proxy_1;
+	return map[string]string{
+		"nginx.ingress.kubernetes.io/auth-response-headers": "Authorization",
+		"nginx.ingress.kubernetes.io/auth-url":              authURL,
+		"nginx.ingress.kubernetes.io/auth-signin":           signinURL,
+		"nginx.ingress.kubernetes.io/configuration-snippet": `auth_request_set $name_upstream_1 $upstream_cookie__oauth2_proxy_1;
       
       access_by_lua_block {
         if ngx.var.name_upstream_1 ~= "" then
           ngx.header["Set-Cookie"] = "_oauth2_proxy_1=" .. ngx.var.name_upstream_1 .. ngx.var.auth_cookie:match("(; .*)")
         end
-      }`, QuoteEscapingNeeded: true},
+      }`,
 	}, nil
 }
 
-func getSessionVerificationAnnotations(sessionVerificationEndpoint,
-	iguazioAuthURL,
-	iguazioSigninURL string) (map[string]AnnotationValue, error) {
+func getSessionVerificationAnnotations(systemSpec *SystemSpec,
+	sessionVerificationEndpoint string) (map[string]string, error) {
 
-	return map[string]AnnotationValue{
-		"nginx.ingress.kubernetes.io/auth-method":           {Value: "POST"},
-		"nginx.ingress.kubernetes.io/auth-response-headers": {Value: "X-Remote-User,X-V3io-Session-Key"},
-		"nginx.ingress.kubernetes.io/auth-url": {Value: fmt.Sprintf(
+	return map[string]string{
+		"nginx.ingress.kubernetes.io/auth-method": "POST",
+		"nginx.ingress.kubernetes.io/auth-response-headers": "X-Remote-User,X-V3io-Session-Key",
+		"nginx.ingress.kubernetes.io/auth-url": fmt.Sprintf(
 			"https://%s%s",
-			iguazioAuthURL,
-			sessionVerificationEndpoint)},
-		"nginx.ingress.kubernetes.io/auth-signin": {Value: fmt.Sprintf(
-			"https://%s/login", iguazioSigninURL)},
-		"nginx.ingress.kubernetes.io/configuration-snippet": {
-			Value:               "proxy_set_header authorization \"\";",
-			QuoteEscapingNeeded: true,
-		},
+			systemSpec.IguazioAuthURL,
+			sessionVerificationEndpoint),
+		"nginx.ingress.kubernetes.io/auth-signin": fmt.Sprintf("https://%s/login", systemSpec.IguazioSigninURL),
+		"nginx.ingress.kubernetes.io/configuration-snippet": "proxy_set_header authorization \"\";",
 	}, nil
 }
 
 func getBasicAuthIngressAnnotationsAndSecret(ctx context.Context,
-	spec Spec) (map[string]AnnotationValue, string, error) {
+	spec Spec) (map[string]string, *v1.Secret, error) {
+	var encodedHtpasswdContents []byte
 
 	if spec.Authentication == nil || spec.Authentication.BasicAuth == nil {
-		return nil, "", errors.New("Basic auth spec is missing")
+		return nil, nil, errors.New("Basic auth spec is missing")
 	}
 
 	authSecretName := fmt.Sprintf("%s-basic-auth", spec.Authentication.BasicAuth.Name)
@@ -199,26 +199,25 @@ func getBasicAuthIngressAnnotationsAndSecret(ctx context.Context,
 	//	return nil, "", errors.Wrap(err, "Failed to get htpasswd")
 	//}
 
-	ingressAnnotations := map[string]AnnotationValue{
-		"nginx.ingress.kubernetes.io/auth-type":   {Value: "basic"},
-		"nginx.ingress.kubernetes.io/auth-secret": {Value: authSecretName},
-		"nginx.ingress.kubernetes.io/auth-realm":  {Value: "Authentication Required"},
+	ingressAnnotations := map[string]string{
+		"nginx.ingress.kubernetes.io/auth-type":   "basic",
+		"nginx.ingress.kubernetes.io/auth-secret": authSecretName,
+		"nginx.ingress.kubernetes.io/auth-realm":  "Authentication Required",
 	}
 
-	templateText := `
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ .Name }}
-type: Opaque
-data:
-  auth: {{ .EncodedHtpasswd }}
-`
+	// encode secret auth
+	base64.StdEncoding.Encode(encodedHtpasswdContents, []byte(htpasswdContents))
 
-	renderedTemplate, err := common.RenderTemplate(templateText, map[string]interface{}{
-		"Name":            authSecretName,
-		"EncodedHtpasswd": base64.StdEncoding.EncodeToString([]byte(htpasswdContents)),
-	})
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: authSecretName,
+			Namespace: spec.Namespace,
+		},
+		Type: v1.SecretType("Opaque"),
+		Data: map[string][]byte {
+			"auth": encodedHtpasswdContents,
+		},
+	}
 
-	return ingressAnnotations, renderedTemplate, err
+	return ingressAnnotations, secret, nil
 }

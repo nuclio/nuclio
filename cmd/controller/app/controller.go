@@ -53,7 +53,10 @@ func Run(kubeconfigPath string,
 		functionOperatorNumWorkersStr,
 		functionOperatorResyncIntervalStr,
 		functionEventOperatorNumWorkersStr,
-		projectOperatorNumWorkersStr)
+		projectOperatorNumWorkersStr,
+		ingressTLSSecret,
+		iguazioSigninURL,
+		iguazioAuthURL)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create controller")
 	}
@@ -74,7 +77,10 @@ func createController(kubeconfigPath string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
-	projectOperatorNumWorkersStr string) (*controller.Controller, error) {
+	projectOperatorNumWorkersStr string,
+	ingressTLSSecret string,
+	iguazioSigninURL string,
+	iguazioAuthURL string) (*controller.Controller, error) {
 
 	functionOperatorNumWorkers, err := strconv.Atoi(functionOperatorNumWorkersStr)
 	if err != nil {
