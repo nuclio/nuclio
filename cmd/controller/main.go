@@ -52,6 +52,12 @@ func main() {
 	functionOperatorResyncIntervalStr := flag.String("function-operator-resync-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_OPERATOR_RESYNC_INTERVAL", "10m"), "Set resync interval for the function operator (optional)")
 	functionEventOperatorNumWorkersStr := flag.String("function-event-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_EVENT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function event operator (optional)")
 	projectOperatorNumWorkersStr := flag.String("project-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PROJECT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function operator (optional)")
+	ingressTLSSecret := flag.String("ingress-tls-secret", os.Getenv("NUCLIO_DASHBOARD_INGRESS_TLS_SECRET"), "Optional Kubernetes TLS secret name (for ingresses creation)")
+
+	// iguazio platform specific flags
+	iguazioSigninURL := flag.String("iguazio-signin-url", os.Getenv("NUCLIO_DASHBOARD_IGUAZIO_SIGNIN_URL"), "Optional Iguazio system signing URL")
+	iguazioAuthURL := flag.String("iguazio-auth-url", os.Getenv("NUCLIO_DASHBOARD_IGUAZIO_AUTH_URL"), "Optional Iguazio system auth URL")
+
 	flag.Parse()
 
 	// get the namespace from args -> env -> default (*)
@@ -73,7 +79,10 @@ func main() {
 		*functionOperatorNumWorkersStr,
 		*functionOperatorResyncIntervalStr,
 		*functionEventOperatorNumWorkersStr,
-		*projectOperatorNumWorkersStr); err != nil {
+		*projectOperatorNumWorkersStr,
+		*ingressTLSSecret,
+		*iguazioSigninURL,
+		*iguazioAuthURL); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)

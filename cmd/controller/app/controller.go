@@ -41,7 +41,10 @@ func Run(kubeconfigPath string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
-	projectOperatorNumWorkersStr string) error {
+	projectOperatorNumWorkersStr string,
+	ingressTLSSecret string,
+	iguazioSigninURL string,
+	iguazioAuthURL string) error {
 
 	newController, err := createController(kubeconfigPath,
 		namespace,
