@@ -122,8 +122,7 @@ func (rc *RootCommandeer) initialize() error {
 		rc.namespace = rc.platform.ResolveDefaultNamespace(rc.namespace)
 	}
 
-	rc.loggerInstance.InfoWith("Created platform", "name", rc.platform.GetName())
-
+	rc.loggerInstance.DebugWith("Created platform", "name", rc.platform.GetName())
 	return nil
 }
 
