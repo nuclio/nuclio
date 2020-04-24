@@ -171,7 +171,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 
 		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
-			"errorStack", errorStack.String())
+			"errorStack", errorStack.String(),
+			"briefErrorsMessage", briefErrorsMessage)
 
 		defaultHTTPPort := 0
 		if existingFunctionInstance != nil {
@@ -203,7 +204,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
 		var err error
 
-		existingFunctionInstance, err = p.getFunction(updatedFunctionConfig.Meta.Namespace, updatedFunctionConfig.Meta.Name)
+		existingFunctionInstance, err = p.getFunction(updatedFunctionConfig.Meta.Namespace,
+			updatedFunctionConfig.Meta.Name)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function")
 		}
@@ -242,7 +244,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return nil, errors.Wrap(err, "Failed setting scale to zero spec")
 		}
 
-		createFunctionResult, briefErrorsMessage, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
+		createFunctionResult, briefErrorsMessage, deployErr := p.deployer.deploy(existingFunctionInstance,
+			createFunctionOptions)
 		if deployErr != nil {
 
 			// try to report the error

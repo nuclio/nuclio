@@ -47,7 +47,9 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	u.logger.InfoWith("Updating function", "name", updateFunctionOptions.FunctionMeta.Name)
 
 	// get specific function CR
-	function, err := u.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).Get(updateFunctionOptions.FunctionMeta.Name, meta_v1.GetOptions{})
+	function, err := u.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
+		Get(updateFunctionOptions.FunctionMeta.Name, meta_v1.GetOptions{})
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
@@ -62,10 +64,12 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 		function.Spec.ImageHash = strconv.Itoa(int(time.Now().UnixNano()))
 	}
 
-	// update it with status if passed
-	if updateFunctionOptions.FunctionStatus != nil {
-		function.Status = *updateFunctionOptions.FunctionStatus
+	// update it with status - must have or waitForFunctionReadiness will continue forever
+	if updateFunctionOptions.FunctionStatus == nil {
+		return errors.Wrapf(err, "Update function called but no status was filled: %v", updateFunctionOptions)
 	}
+
+	function.Status = *updateFunctionOptions.FunctionStatus
 
 	// get clientset
 	nuclioClientSet, err := u.consumer.getNuclioClientSet(updateFunctionOptions.AuthConfig)
@@ -74,7 +78,9 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	}
 
 	// trigger an update
-	updatedFunction, err := nuclioClientSet.NuclioV1beta1().NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).Update(function)
+	updatedFunction, err := nuclioClientSet.NuclioV1beta1().
+		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
+		Update(function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function CR")
 	}

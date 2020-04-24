@@ -78,7 +78,8 @@ func NewPlatform(parentLogger logger.Logger, platform platform.Platform, platfor
 	return newPlatform, nil
 }
 
-func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
+func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (
+	*platform.CreateFunctionBuildResult, error) {
 
 	// execute a build
 	builder, err := build.NewBuilder(createFunctionBuildOptions.Logger, ap.platform, &common.AbstractS3Client{})
@@ -122,7 +123,8 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	}
 
 	if createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets == "" {
-		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets = ap.platform.GetDefaultRegistryCredentialsSecretName()
+		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets =
+			ap.platform.GetDefaultRegistryCredentialsSecretName()
 	}
 
 	// clear build mode
@@ -145,11 +147,19 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 
 			// if run registry isn't set, set it to that of the build
 			if createFunctionOptions.FunctionConfig.Spec.RunRegistry == "" {
-				createFunctionOptions.FunctionConfig.Spec.RunRegistry = createFunctionOptions.FunctionConfig.Spec.Build.Registry
+				createFunctionOptions.FunctionConfig.Spec.RunRegistry =
+					createFunctionOptions.FunctionConfig.Spec.Build.Registry
 			}
 
 			// on successful build set the timestamp of build
 			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
+		} else {
+
+			// on kube platform, this can happen before a function CR was created.
+			// trigger the on after config which will create the CR before onAfterBuild is called
+			if err = onAfterConfigUpdatedWrapper(&createFunctionOptions.FunctionConfig); err != nil {
+				return nil, errors.Wrap(err, "Failed to trigger on after config update post build failure")
+			}
 		}
 	} else {
 		createFunctionOptions.Logger.InfoWith("Skipping build",
