@@ -18,6 +18,7 @@ package dockerclient
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -93,8 +94,12 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 	}
 
 	var hostNetString string
-	networkInterface := common.GetEnvOrDefaultString("NUCLIO_DOCKER_BUILD_NETWORK",
-		common.GetEnvOrDefaultString("NUCLIO_BUILD_USE_HOST_NET", "host"))
+
+	// may contain none as a value
+	networkInterface := os.Getenv("NUCLIO_DOCKER_BUILD_NETWORK")
+	if networkInterface == "" {
+		networkInterface = common.GetEnvOrDefaultString("NUCLIO_BUILD_USE_HOST_NET", "host")
+	}
 	switch networkInterface {
 	case "host":
 		fallthrough
