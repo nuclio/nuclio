@@ -61,11 +61,32 @@ type Request struct {
 	RequestPath     string
 	RequestPort     int
 
-	ExpectedLogMessages        []string
-	ExpectedLogRecords         []map[string]interface{}
-	ExpectedResponseBody       interface{}
-	ExpectedResponseHeaders    map[string]string
-	ExpectedResponseStatusCode *int
+	ExpectedLogMessages           []string
+	ExpectedLogRecords            []map[string]interface{}
+	ExpectedResponseBody          interface{}
+	ExpectedResponseHeaders       map[string]string
+	ExpectedResponseHeadersValues map[string][]string
+	ExpectedResponseStatusCode    *int
+}
+
+func (r *Request) Enrich() {
+	defaultStatusCode := http.StatusOK
+	if r.ExpectedResponseStatusCode == nil {
+		r.ExpectedResponseStatusCode = &defaultStatusCode
+	}
+
+	// by default BuildAndRunFunction will map 8080
+	if r.RequestPort == 0 {
+		r.RequestPort = 8080
+	}
+
+	if r.RequestPath == "" {
+		r.RequestPath = "/"
+	}
+
+	if r.RequestMethod == "" {
+		r.RequestMethod = "POST"
+	}
 }
 
 // TestSuite is an HTTP test suite
@@ -96,31 +117,25 @@ func (suite *TestSuite) DeployFunctionAndExpectError(createFunctionOptions *plat
 // DeployFunctionAndRequest deploys a function and call it with request
 func (suite *TestSuite) DeployFunctionAndRequest(createFunctionOptions *platform.CreateFunctionOptions,
 	request *Request) *platform.CreateFunctionResult {
+	return suite.DeployFunctionAndRequests(createFunctionOptions, []*Request{request})
+}
 
-	defaultStatusCode := http.StatusOK
-	if request.ExpectedResponseStatusCode == nil {
-		request.ExpectedResponseStatusCode = &defaultStatusCode
-	}
-
-	// by default BuildAndRunFunction will map 8080
-	if request.RequestPort == 0 {
-		request.RequestPort = 8080
-	}
-
-	if request.RequestPath == "" {
-		request.RequestPath = "/"
-	}
-
-	if request.RequestMethod == "" {
-		request.RequestMethod = "POST"
-	}
+// DeployFunctionAndRequests deploys a function and call it with multiple requests
+func (suite *TestSuite) DeployFunctionAndRequests(createFunctionOptions *platform.CreateFunctionOptions,
+	requests []*Request) *platform.CreateFunctionResult {
 
 	return suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		for _, request := range requests {
+			request.Enrich()
+			request.RequestPort = deployResult.Port
 
-		// modify request port to that of the deployed
-		request.RequestPort = deployResult.Port
+			if !suite.SendRequestVerifyResponse(request) {
 
-		return suite.SendRequestVerifyResponse(request)
+				// fail fast
+				return false
+			}
+		}
+		return true
 	})
 }
 
@@ -178,11 +193,21 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	suite.Require().NoError(err)
 
 	// verify header correctness
+	// the httpResponse may contain more headers. just check that all the expected
+
 	if request.ExpectedResponseHeaders != nil {
-		// the httpResponse may contain more headers. just check that all the expected
+
 		// headers contain the proper values
 		for expectedHeaderName, expectedHeaderValue := range request.ExpectedResponseHeaders {
 			suite.Require().Equal(expectedHeaderValue, httpResponse.Header.Get(expectedHeaderName))
+		}
+	}
+
+	if request.ExpectedResponseHeadersValues != nil {
+
+		// header may contain list of values
+		for expectedHeaderName, expectedHeaderValues := range request.ExpectedResponseHeadersValues {
+			suite.Require().Equal(expectedHeaderValues, httpResponse.Header.Values(expectedHeaderName))
 		}
 	}
 
