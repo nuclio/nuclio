@@ -62,7 +62,7 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	functionExists := functionInstance != nil
 
 	createFunctionOptions.Logger.DebugWith("Creating/updating function",
-		"existed", functionExists,
+		"functionExists", functionExists,
 		"functionInstance", functionInstance)
 
 	if !functionExists {
