@@ -181,10 +181,9 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			defaultHTTPPort = existingFunctionInstance.Status.HTTPPort
 		}
 
-		// post logs and error
-		// create or update the function if existing. FunctionInstance is nil, the function will be created
-		// with the configuration and status. if it exists, it will be updated with the configuration and status.
-		// the goal here is for the function to exist prior to building so that it is gettable
+		// create or update the function. The possible creation needs to happen here, since on cases of
+		// early build failures we might get here before the function CR was created. After this point
+		// it is guaranteed to be created and updated with te reported error state
 		_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
 			createFunctionOptions,
 			&functionconfig.Status{
@@ -215,7 +214,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return errors.Wrap(err, "Failed to get function")
 		}
 
-		// create or update the function if existing. FunctionInstance is nil, the function will be created
+		// create or update the function if it exists. If functionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
 		// the goal here is for the function to exist prior to building so that it is gettable
 		existingFunctionInstance, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
