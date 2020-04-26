@@ -180,7 +180,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 
 		// post logs and error
-		return p.UpdateFunction(&platform.UpdateFunctionOptions{
+		return p.updater.createOrUpdate(&platform.UpdateFunctionOptions{
 			FunctionMeta: &createFunctionOptions.FunctionConfig.Meta,
 			FunctionStatus: &functionconfig.Status{
 				HTTPPort: defaultHTTPPort,
@@ -275,7 +275,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 
 // UpdateFunction will update a previously deployed function
 func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
-	return p.updater.update(updateFunctionOptions)
+	return p.updater.createOrUpdate(updateFunctionOptions)
 }
 
 // DeleteFunction will delete a previously deployed function

@@ -153,13 +153,6 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 
 			// on successful build set the timestamp of build
 			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
-		} else {
-
-			// on kube platform, this can happen before a function CR was created.
-			// trigger the on after config which will create the CR before onAfterBuild is called
-			if err = onAfterConfigUpdatedWrapper(&createFunctionOptions.FunctionConfig); err != nil {
-				return nil, errors.Wrap(err, "Failed to trigger on after config update post build failure")
-			}
 		}
 	} else {
 		createFunctionOptions.Logger.InfoWith("Skipping build",

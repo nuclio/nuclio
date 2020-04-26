@@ -167,23 +167,23 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 }
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsOnMultiWorker() {
-	suite.testGetProcessorLogs(MultiWorkerFunctionLogsFilePath)
+	suite.testGetProcessorLogsTestFromFile(MultiWorkerFunctionLogsFilePath)
 }
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsOnPanic() {
-	suite.testGetProcessorLogs(PanicFunctionLogsFilePath)
+	suite.testGetProcessorLogsTestFromFile(PanicFunctionLogsFilePath)
 }
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsOnGoWithCallStack() {
-	suite.testGetProcessorLogs(GoWithCallStackFunctionLogsFilePath)
+	suite.testGetProcessorLogsTestFromFile(GoWithCallStackFunctionLogsFilePath)
 }
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsWithSpecialSubstrings() {
-	suite.testGetProcessorLogs(SpecialSubstringsFunctionLogsFilePath)
+	suite.testGetProcessorLogsTestFromFile(SpecialSubstringsFunctionLogsFilePath)
 }
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsWithConsecutiveDuplicateMessages() {
-	suite.testGetProcessorLogs(ConsecutiveDuplicateFunctionLogsFilePath)
+	suite.testGetProcessorLogsTestFromFile(ConsecutiveDuplicateFunctionLogsFilePath)
 }
 
 // Test that GetProcessorLogs() generates the expected formattedPodLogs and briefErrorsMessage
@@ -191,7 +191,7 @@ func (suite *TestAbstractSuite) TestGetProcessorLogsWithConsecutiveDuplicateMess
 // - FunctionLogsFile
 // - FormattedFunctionLogsFile
 // - BriefErrorsMessageFile
-func (suite *TestAbstractSuite) testGetProcessorLogs(functionLogsFilePath string) {
+func (suite *TestAbstractSuite) testGetProcessorLogsTestFromFile(functionLogsFilePath string) {
 	functionLogsFile, err := os.Open(path.Join(functionLogsFilePath, FunctionLogsFile))
 	suite.NoError(err, "Failed to read function logs file")
 
