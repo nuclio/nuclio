@@ -151,10 +151,4 @@ jobs:
         run: make test-k8s-nuctl
         env:
           NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL: ${{ env.REPO }}
-#
-#      - name: Invoke function
-#        run: |
-#          ./nuctl \
-#            --verbose \
-#            invoke ${FUNCTION_NAME} \
-#            --namespace ${NAMESPACE}
+          NUCTL_BIN: ./nuctl
