@@ -96,11 +96,11 @@ func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.ConfigWithStatus,
 	createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterConfigUpdated func(*functionconfig.Config) error,
-	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
+	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (
+	*platform.CreateFunctionResult, error) {
 
 	createFunctionOptions.Logger.InfoWith("Deploying function",
-		"name", createFunctionOptions.FunctionConfig.Meta.Name,
-		"functionConfig", createFunctionOptions.FunctionConfig)
+		"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 	var buildResult *platform.CreateFunctionBuildResult
 	var buildErr error
