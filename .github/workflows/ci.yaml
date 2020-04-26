@@ -11,7 +11,6 @@ env:
   REPO: quay.io
   REPO_NAME: nuclio
   NUCLIO_LABEL: ${{ github.run_number }}
-  FUNCTION_NAME: test-function
   NAMESPACE: nuclio
   NUCLIO_NUCTL_CREATE_SYMLINK: false
 
@@ -141,7 +140,7 @@ jobs:
           docker run -d -p 5000:5000 registry:2
           docker load -i nuclio-docker-images/nuclio_docker_images.tar.gz
 
-      - name: Helm install nuclio
+      - name: Install nuclio helm chart
         run: |
           cat test/k8s/ci_assets/helm_values.yaml \
             | envsubst \

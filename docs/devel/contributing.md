@@ -48,7 +48,21 @@ You should now have quite a few `nuclio/<something>` images tagged as `latest-am
 make lint test
 ```
 
-This may take a while (about 10 minutes) and requires only Docker. End to end testing on Kubernetes is still done manually.
+This may take a while (over 10 minutes) and requires only Docker.
+
+To run a limited kubernetes nuctl suite (Also runs in CI):
+
+- On linux:
+    ```sh
+    make test-k8s-nuctl
+    ```
+- On Mac
+    ```sh
+    NUCTL_EXTERNAL_IP_ADDRESSES=<external-ip> make test-k8s-nuctl
+    ```
+
+Running end-to-end tests on kubernetes is currently done manually.
+End to end testing on Kubernetes is still done manually.
 
 When you're done, create a feature branch from the `development` branch; (Nuclio follows the GitFlow branching model):
 
