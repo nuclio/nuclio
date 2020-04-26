@@ -85,7 +85,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      # since disk-size is currently too-low, we will build only the docker images required for our puposes
+      # since disk-size is currently too-low, we will build only the docker images required for our purposes
       - name: Build
         run: |
           make controller dashboard handler-builder-golang-onbuild
@@ -147,22 +147,25 @@ jobs:
             | envsubst \
             | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
 
-      - name: Deploy function
-        run: |
-          ./nuctl \
-            --verbose \
-            deploy ${FUNCTION_NAME} \
-            --path https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go \
-            --registry localhost:5000 \
-            --run-registry localhost:5000 \
-            --namespace ${NAMESPACE} \
-            --no-pull
-        env:
-          NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL: ${{ env.REPO }}
+      - name: Run nuctl tests
+        run: ./test/k8s/ci_assets/nuctl.sh
 
-      - name: Invoke function
-        run: |
-          ./nuctl \
-            --verbose \
-            invoke ${FUNCTION_NAME} \
-            --namespace ${NAMESPACE}
+#      - name: Deploy function
+#        run: |
+#          ./nuctl \
+#            --verbose \
+#            deploy ${FUNCTION_NAME} \
+#            --path hack/examples/golang/helloworld/helloworld.go \
+#            --registry localhost:5000 \
+#            --run-registry localhost:5000 \
+#            --namespace ${NAMESPACE} \
+#            --no-pull
+#        env:
+#          NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL: ${{ env.REPO }}
+#
+#      - name: Invoke function
+#        run: |
+#          ./nuctl \
+#            --verbose \
+#            invoke ${FUNCTION_NAME} \
+#            --namespace ${NAMESPACE}

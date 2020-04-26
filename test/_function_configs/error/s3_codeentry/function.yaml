@@ -1,0 +1,27 @@
+metadata:
+  name: s3-fast-failure
+  namespace: default
+  labels:
+    nuclio.io/project-name: default
+  annotations: {}
+spec:
+  description: 'This function will fail swiftly'
+  triggers: {}
+  env: []
+  loggerSinks:
+  - level: debug
+  handler: main:Handler
+  runtime: golang
+  build:
+    noCache: false
+    offline: false
+    codeEntryType: s3
+    codeEntryAttributes:
+      s3Bucket: sdfsd
+      s3ItemKey: sdfsdff
+      s3AccessKeyId: sdfdsf
+      s3SecretAccessKey: sdfsd
+      s3Region: sdfsdf
+      s3SessionToken: sdfsdf
+      workDir: dsfsd
+    mode: alwaysBuild
