@@ -35,8 +35,8 @@ jobs:
       - name: Lint
         run: make lint
 
-  short_test:
-    name: Short test
+  test_short:
+    name: Test short
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -104,8 +104,8 @@ jobs:
           name: nuclio-docker-images
           path: nuclio_docker_images.tar.gz
 
-  test_nuctl_deploy_invoke:
-    name: Test deploy and invoke function using nuctl
+  test_k8s_nuctl:
+    name: Test Kubernetes nuctl
     runs-on: ubuntu-latest
     needs:
       - build_docker_images
