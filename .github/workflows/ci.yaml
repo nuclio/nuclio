@@ -148,20 +148,9 @@ jobs:
             | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
 
       - name: Run nuctl tests
-        run: ./test/k8s/ci_assets/nuctl.sh
-
-#      - name: Deploy function
-#        run: |
-#          ./nuctl \
-#            --verbose \
-#            deploy ${FUNCTION_NAME} \
-#            --path hack/examples/golang/helloworld/helloworld.go \
-#            --registry localhost:5000 \
-#            --run-registry localhost:5000 \
-#            --namespace ${NAMESPACE} \
-#            --no-pull
-#        env:
-#          NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL: ${{ env.REPO }}
+        run: make test-k8s-nuctl
+        env:
+          NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL: ${{ env.REPO }}
 #
 #      - name: Invoke function
 #        run: |

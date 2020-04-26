@@ -2,31 +2,14 @@
 
 set -e
 
-if [[ -z "${NUCTL_BIN}" ]]; then
-  NUCTL_BIN="$nuctl"
-else
-  NUCTL_BIN="${NUCTL_BIN}"
-fi
+NUCTL_BIN="${NUCTL_BIN:-nuctl}"
+NAMESPACE="${NAMESPACE:-default}"
+FUNCTION_NAME="${FUNCTION_NAME:-test-function}"
 
-if [[ -z "${NAMESPACE}" ]]; then
-  NAMESPACE="default"
-else
-  NAMESPACE="${NAMESPACE}"
-fi
-
-if [[ -z "${FUNCTION_NAME}" ]]; then
-  FUNCTION_NAME="test-function"
-else
-  FUNCTION_NAME="${FUNCTION_NAME}"
-fi
-
-if [[ -z "${NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL}" ]]; then
-  NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL="localhost:500"
-else
-  NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL="${REPO}"
-fi
-
-echo Deploying function ${FUNCTION_NAME}...
+echo "##############################################"
+echo "Deploying function ${FUNCTION_NAME}..."
+echo "##############################################"
+echo
 
 ${NUCTL_BIN} \
   --verbose \
@@ -37,9 +20,17 @@ ${NUCTL_BIN} \
   --namespace ${NAMESPACE} \
   --no-pull
 
-echo Invoking function ${FUNCTION_NAME}...
+echo "##############################################"
+echo "Invoking function ${FUNCTION_NAME}..."
+echo "##############################################"
+echo
 
 ${NUCTL_BIN} \
   --verbose \
   invoke ${FUNCTION_NAME} \
   --namespace ${NAMESPACE}
+
+
+echo "##############################################"
+echo "nuctl test Done"
+echo "##############################################"
