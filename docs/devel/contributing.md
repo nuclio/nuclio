@@ -61,8 +61,7 @@ To run a limited kubernetes nuctl suite (Also runs in CI):
     NUCTL_EXTERNAL_IP_ADDRESSES=<external-ip> make test-k8s-nuctl
     ```
 
-Running end-to-end tests on kubernetes is currently done manually.
-End to end testing on Kubernetes is still done manually.
+Running more comprehensive end-to-end tests on kubernetes is currently done manually.
 
 When you're done, create a feature branch from the `development` branch; (Nuclio follows the GitFlow branching model):
 
