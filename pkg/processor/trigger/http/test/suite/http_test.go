@@ -43,7 +43,7 @@ func (suite *HTTPTestSuite) TestCORS() {
 	allowMethods := "OPTIONS, GET, POST, HEAD, PUT"
 	allowOrigin := "foo.bar"
 	createFunctionOptions := suite.getHTTPDeployOptions()
-	createFunctionOptions.FunctionConfig.Spec.Triggers[suite.triggerName].Attributes["CORS"] = map[string]interface{}{
+	createFunctionOptions.FunctionConfig.Spec.Triggers[suite.triggerName].Attributes["cors"] = map[string]interface{}{
 		"enabled":      true,
 		"allowOrigin":  allowOrigin,
 		"allowHeaders": strings.Split(allowHeaders, ", "),

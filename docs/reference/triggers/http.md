@@ -66,7 +66,7 @@ triggers:
   myCORSHttpTrigger:
     kind: "http"
     attributes:
-      CORS:
+      cors:
         enabled: true
         allowOrigin: "foo.bar"
         allowHeaders:

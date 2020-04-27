@@ -217,7 +217,7 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 	return func(ctx *fasthttp.RequestCtx) {
 		if h.configuration.CORS != nil &&
 			h.configuration.CORS.Enabled &&
-			common.ByteSlice2String(ctx.Method()) == h.configuration.CORS.PreflightRequestMethod {
+			common.ByteSliceToString(ctx.Method()) == h.configuration.CORS.PreflightRequestMethod {
 
 			// when CORS is enabled, processor HTTP server is responding to "PreflightRequestMethod" (e.g.: OPTIONS)
 			// That means => function will not be able to answer on the method configured by PreflightRequestMethod
@@ -233,7 +233,7 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 	// default to bad preflight request unless all specifications are valid
 	ctx.SetStatusCode(fasthttp.StatusBadRequest)
 
-	origin := common.ByteSlice2String(ctx.Request.Header.Peek("Origin"))
+	origin := common.ByteSliceToString(ctx.Request.Header.Peek("Origin"))
 	if !h.preflightRequestValidation(ctx, origin) {
 		h.UpdateStatistics(false)
 		return
@@ -245,20 +245,20 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 	// indicate resource support credentials
 	if h.configuration.CORS.AllowCredentials {
 		ctx.Response.Header.Set("Access-Control-Allow-Credentials",
-			h.configuration.CORS.GetComputedAllowCredentialsHeaderStr())
+			h.configuration.CORS.EncodeAllowCredentialsHeader())
 	}
 
 	// set preflight results max age
 	ctx.Response.Header.Set("Access-Control-Max-Age",
-		h.configuration.CORS.GetComputedPreflightMaxAgeSecondsStr())
+		h.configuration.CORS.EncodePreflightMaxAgeSeconds())
 
 	// indicate what methods can be used
 	ctx.Response.Header.Set("Access-Control-Allow-Methods",
-		h.configuration.CORS.GetComputedAllowMethodsStr())
+		h.configuration.CORS.EncodedAllowMethods())
 
 	// indicate what headers can be used
 	ctx.Response.Header.Set("Access-Control-Allow-Headers",
-		h.configuration.CORS.GetComputedAllowHeadersStr())
+		h.configuration.CORS.EncodeAllowHeaders())
 
 	// specifications met, set preflight request as OK
 	ctx.SetStatusCode(fasthttp.StatusOK)
@@ -420,22 +420,22 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 func (h *http) preflightRequestValidation(ctx *fasthttp.RequestCtx, origin string) bool {
 
 	// ensure origin is given, otherwise the request is outside the scope of CORS specifications
-	if !h.configuration.CORS.IsSetAndMatchOrigin(origin) {
+	if !h.configuration.CORS.OriginAllowed(origin) {
 		return false
 	}
 
-	method := common.ByteSlice2String(ctx.Request.Header.Peek("Access-Control-Request-Method"))
+	method := common.ByteSliceToString(ctx.Request.Header.Peek("Access-Control-Request-Method"))
 
 	// ensure method is given, otherwise the request is outside the scope of CORS specifications
-	if !h.configuration.CORS.IsSetAndMatchMethod(method) {
+	if !h.configuration.CORS.MethodAllowed(method) {
 		return false
 	}
 
-	headers := common.ByteSlice2String(ctx.Request.Header.Peek("Access-Control-Request-Headers"))
+	headers := common.ByteSliceToString(ctx.Request.Header.Peek("Access-Control-Request-Headers"))
 	if headers != "" {
 
 		// ensure request headers allowed (it can also be empty)
-		if !h.configuration.CORS.AreMatchHeaders(strings.Split(headers, ", ")) {
+		if !h.configuration.CORS.HeadersAllowed(strings.Split(headers, ", ")) {
 			h.UpdateStatistics(false)
 			return false
 		}

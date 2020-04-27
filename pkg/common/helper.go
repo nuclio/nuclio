@@ -317,7 +317,7 @@ func GetSourceDir() string {
 	}
 }
 
-func ByteSlice2String(b []byte) string {
+func ByteSliceToString(b []byte) string {
 
 	// https://golang.org/src/strings/builder.go#L45
 	// effectively converts bytes to string
