@@ -30,6 +30,7 @@ import (
 	"text/template"
 	"time"
 	"unicode/utf8"
+	"unsafe"
 
 	"github.com/nuclio/errors"
 )
@@ -303,4 +304,12 @@ func GetSourceDir() string {
 			return dirName
 		}
 	}
+}
+
+func ByteSlice2String(b []byte) string {
+
+	// https://golang.org/src/strings/builder.go#L45
+	// effectively converts bytes to string
+	// !! use with caution as returned string is mutable !!
+	return *(*string)(unsafe.Pointer(&b))
 }

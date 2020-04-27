@@ -30,6 +30,8 @@ type Configuration struct {
 	ReadBufferSize int
 }
 
+const DefaultReadBufferSize = 16 * 1024
+
 func NewConfiguration(ID string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
@@ -48,7 +50,7 @@ func NewConfiguration(ID string,
 	}
 
 	if newConfiguration.ReadBufferSize == 0 {
-		newConfiguration.ReadBufferSize = 16 * 1024
+		newConfiguration.ReadBufferSize = DefaultReadBufferSize
 	}
 
 	return &newConfiguration, nil
