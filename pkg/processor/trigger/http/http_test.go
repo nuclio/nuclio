@@ -22,10 +22,9 @@ import (
 	nethttp "net/http"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-	httpcors "github.com/nuclio/nuclio/pkg/processor/trigger/http/cors"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http/cors"
 
 	"github.com/stretchr/testify/suite"
 	"github.com/valyala/fasthttp"
@@ -34,40 +33,26 @@ import (
 
 type TestSuite struct {
 	processorsuite.TestSuite
-	trigger             http
-	fastDummyHttpServer *fasthttputil.InmemoryListener
+	trigger http
+
+	fastDummyHTTPServer        *fasthttputil.InmemoryListener
+	fastDummyHTTPServerStarted bool
 }
 
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 	suite.trigger = http{
 		AbstractTrigger: trigger.AbstractTrigger{
-			Logger:          suite.Logger,
-			WorkerAllocator: nil,
+			Logger: suite.Logger,
 		},
-		events: []Event{},
-		configuration: &Configuration{
-			Configuration: trigger.Configuration{
-				Trigger: functionconfig.Trigger{
-					URL: ":0", // let OS pick a port for me
-				},
-				ID: "999",
-			},
-			ReadBufferSize: DefaultReadBufferSize,
-			CORS:           *httpcors.NewCORS(),
-		},
+		configuration: &Configuration{},
 	}
-	suite.fastDummyHttpServer = fasthttputil.NewInmemoryListener()
-	go func() {
-		err := fasthttp.Serve(suite.fastDummyHttpServer, suite.trigger.handleRequest())
-		if err != nil {
-			suite.Require().NoError(err, "Failed to serve")
-		}
-	}()
+	suite.fastDummyHTTPServer = fasthttputil.NewInmemoryListener()
+	suite.serveDummyHTTPServer(suite.trigger.onRequestFromFastHTTP())
 }
 
 func (suite *TestSuite) TearDownSuite() {
-	suite.fastDummyHttpServer.Close() // nolint: errcheck
+	suite.stopDummyHTTPServer()
 }
 
 func (suite *TestSuite) TestCORS() {
@@ -126,11 +111,11 @@ func (suite *TestSuite) TestCORS() {
 		suite.Logger.DebugWith("Testing CORS", "testCase", testCase)
 
 		// set cors configuration
-		cors := httpcors.NewCORS()
+		corsInstance := cors.NewCORS()
 		if testCase.CORSAllowOrigin != "" {
-			cors.AllowOrigin = testCase.CORSAllowOrigin
+			corsInstance.AllowOrigin = testCase.CORSAllowOrigin
 		}
-		suite.trigger.configuration.CORS = *cors
+		suite.trigger.configuration.CORS = corsInstance
 
 		// create request, use OPTIONS to trigger preflight flow
 		request, err := nethttp.NewRequest(fasthttp.MethodOptions, "http://foo.bar/", nil)
@@ -158,14 +143,30 @@ func (suite *TestSuite) TestCORS() {
 			suite.Equal(response.Header.Get(headerName), headerValue)
 		}
 	}
+}
 
+func (suite *TestSuite) serveDummyHTTPServer(handler fasthttp.RequestHandler) {
+	go func() {
+		suite.fastDummyHTTPServerStarted = true
+		err := fasthttp.Serve(suite.fastDummyHTTPServer, handler)
+		if err != nil {
+			suite.Require().NoError(err, "Failed to serve")
+		}
+	}()
+}
+
+func (suite *TestSuite) stopDummyHTTPServer() {
+	if suite.fastDummyHTTPServerStarted {
+		suite.fastDummyHTTPServer.Close() // nolint: errcheck
+	}
+	suite.fastDummyHTTPServerStarted = false
 }
 
 func (suite *TestSuite) getClient() *nethttp.Client {
 	return &nethttp.Client{
 		Transport: &nethttp.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return suite.fastDummyHttpServer.Dial()
+				return suite.fastDummyHTTPServer.Dial()
 			},
 		},
 	}

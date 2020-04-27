@@ -38,7 +38,7 @@ func (suite *HTTPTestSuite) SetupTest() {
 	suite.triggerName = "testHTTP"
 }
 
-func (suite *HTTPTestSuite) TestPostCORS() {
+func (suite *HTTPTestSuite) TestCORS() {
 	allowHeaders := "Accept, Content-Length, Content-Type, X-nuclio-log-level"
 	allowMethods := "OPTIONS, GET, POST, HEAD, PUT"
 	allowOrigin := "foo.bar"

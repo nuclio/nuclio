@@ -29,7 +29,7 @@ import (
 type Configuration struct {
 	trigger.Configuration
 	ReadBufferSize int
-	CORS           cors.CORS
+	CORS           *cors.CORS
 }
 
 const DefaultReadBufferSize = 16 * 1024
@@ -55,32 +55,36 @@ func NewConfiguration(ID string,
 		newConfiguration.ReadBufferSize = DefaultReadBufferSize
 	}
 
-	if newConfiguration.CORS.Enabled {
+	if newConfiguration.CORS != nil && newConfiguration.CORS.Enabled {
+		newConfiguration.CORS = createCORSConfiguration(newConfiguration.CORS)
+	}
+	return &newConfiguration, nil
+}
 
-		// take defaults
-		_cors := cors.NewCORS()
+func createCORSConfiguration(CORSConfiguration *cors.CORS) *cors.CORS {
 
-		// override with custom configuration if provided
-		if len(newConfiguration.CORS.AllowHeaders) > 0 {
-			_cors.AllowHeaders = newConfiguration.CORS.AllowHeaders
-		}
+	// take defaults
+	corsInstance := cors.NewCORS()
 
-		if len(newConfiguration.CORS.AllowMethods) > 0 {
-			_cors.AllowMethods = newConfiguration.CORS.AllowMethods
-		}
-
-		if newConfiguration.CORS.AllowOrigin != "" {
-			_cors.AllowOrigin = newConfiguration.CORS.AllowOrigin
-		}
-
-		if newConfiguration.CORS.AllowCredentials {
-			_cors.AllowCredentials = newConfiguration.CORS.AllowCredentials
-		}
-
-		_cors.PreflightMaxAgeSeconds = newConfiguration.CORS.PreflightMaxAgeSeconds
-
-		newConfiguration.CORS = *_cors
+	// override with custom configuration if provided
+	if len(CORSConfiguration.AllowHeaders) > 0 {
+		corsInstance.AllowHeaders = CORSConfiguration.AllowHeaders
 	}
 
-	return &newConfiguration, nil
+	if len(CORSConfiguration.AllowMethods) > 0 {
+		corsInstance.AllowMethods = CORSConfiguration.AllowMethods
+	}
+
+	if CORSConfiguration.AllowOrigin != "" {
+		corsInstance.AllowOrigin = CORSConfiguration.AllowOrigin
+	}
+
+	if CORSConfiguration.AllowCredentials {
+		corsInstance.AllowCredentials = CORSConfiguration.AllowCredentials
+	}
+
+	corsInstance.PreflightMaxAgeSeconds = CORSConfiguration.PreflightMaxAgeSeconds
+
+	return corsInstance
+
 }

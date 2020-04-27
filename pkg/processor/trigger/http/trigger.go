@@ -104,7 +104,7 @@ func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 		"cors", h.configuration.CORS)
 
 	h.server = &fasthttp.Server{
-		Handler:        h.handleRequest(),
+		Handler:        h.onRequestFromFastHTTP(),
 		Name:           "nuclio",
 		ReadBufferSize: h.configuration.ReadBufferSize,
 		Logger:         NewFastHTTPLogger(h.Logger),
@@ -213,16 +213,17 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	return response, false, nil, processError
 }
 
-func (h *http) handleRequest() fasthttp.RequestHandler {
+func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 	return func(ctx *fasthttp.RequestCtx) {
-		if h.configuration.CORS.Enabled &&
+		if h.configuration.CORS != nil &&
+			h.configuration.CORS.Enabled &&
 			common.ByteSlice2String(ctx.Method()) == h.configuration.CORS.PreflightRequestMethod {
 
 			// when CORS is enabled, processor HTTP server is responding to "PreflightRequestMethod" (e.g.: OPTIONS)
 			// That means => function will not be able to answer on the method configured by PreflightRequestMethod
 			h.handlePreflightRequest(ctx)
 		} else {
-			h.handleActualRequest(ctx)
+			h.handleRequest(ctx)
 		}
 	}
 }
@@ -233,31 +234,13 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusBadRequest)
 
 	origin := common.ByteSlice2String(ctx.Request.Header.Peek("Origin"))
-
-	// ensure origin is given, otherwise the request is outside the scope of CORS specifications
-	if !h.configuration.CORS.IsSetAndMatchOrigin(origin) {
+	if !h.preflightRequestValidation(ctx, origin) {
+		h.UpdateStatistics(false)
 		return
-	}
-
-	method := common.ByteSlice2String(ctx.Request.Header.Peek("Access-Control-Request-Method"))
-
-	// ensure method is given, otherwise the request is outside the scope of CORS specifications
-	if !h.configuration.CORS.IsSetAndMatchMethod(method) {
-		return
-	}
-
-	headers := common.ByteSlice2String(ctx.Request.Header.Peek("Access-Control-Request-Headers"))
-	if headers != "" {
-
-		// ensure request headers allowed (it can also be empty)
-		if !h.configuration.CORS.AreMatchHeaders(strings.Split(headers, ", ")) {
-			return
-		}
 	}
 
 	// indicate whether resource can be shared
-	ctx.Response.Header.Set("Access-Control-Allow-Origin",
-		origin)
+	ctx.Response.Header.Set("Access-Control-Allow-Origin", origin)
 
 	// indicate resource support credentials
 	if h.configuration.CORS.AllowCredentials {
@@ -279,9 +262,10 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 
 	// specifications met, set preflight request as OK
 	ctx.SetStatusCode(fasthttp.StatusOK)
+	h.UpdateStatistics(true)
 }
 
-func (h *http) handleActualRequest(ctx *fasthttp.RequestCtx) {
+func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	if h.status != status.Ready {
 		h.UpdateStatistics(false)
 		ctx.Response.SetStatusCode(net_http.StatusServiceUnavailable)
@@ -431,6 +415,32 @@ func (h *http) handleActualRequest(ctx *fasthttp.RequestCtx) {
 	case string:
 		ctx.WriteString(typedResponse) // nolint: errcheck
 	}
+}
+
+func (h *http) preflightRequestValidation(ctx *fasthttp.RequestCtx, origin string) bool {
+
+	// ensure origin is given, otherwise the request is outside the scope of CORS specifications
+	if !h.configuration.CORS.IsSetAndMatchOrigin(origin) {
+		return false
+	}
+
+	method := common.ByteSlice2String(ctx.Request.Header.Peek("Access-Control-Request-Method"))
+
+	// ensure method is given, otherwise the request is outside the scope of CORS specifications
+	if !h.configuration.CORS.IsSetAndMatchMethod(method) {
+		return false
+	}
+
+	headers := common.ByteSlice2String(ctx.Request.Header.Peek("Access-Control-Request-Headers"))
+	if headers != "" {
+
+		// ensure request headers allowed (it can also be empty)
+		if !h.configuration.CORS.AreMatchHeaders(strings.Split(headers, ", ")) {
+			h.UpdateStatistics(false)
+			return false
+		}
+	}
+	return true
 }
 
 func (h *http) allocateEvents(size int) {
