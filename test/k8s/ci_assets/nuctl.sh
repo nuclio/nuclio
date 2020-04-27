@@ -1,44 +1,48 @@
 #!/usr/bin/env bash
 
-set -e
+set -o errexit
 
 NUCTL_BIN="${NUCTL_BIN:-nuctl}"
 NAMESPACE="${NAMESPACE:-default}"
 
 FUNCTION_NAME="test-function"
 
+echo
 echo "##############################################"
 echo "Cleaning up function ${FUNCTION_NAME}..."
 echo "##############################################"
 echo
 
-${NUCTL_BIN} --verbose delete function ${FUNCTION_NAME} || true
+#${NUCTL_BIN} --verbose delete function ${FUNCTION_NAME} || true
 
+echo
 echo "##############################################"
 echo "Deploying function ${FUNCTION_NAME}..."
 echo "##############################################"
 echo
 
-${NUCTL_BIN} \
-  --verbose \
-  deploy ${FUNCTION_NAME} \
-  --path=hack/examples/golang/helloworld/helloworld.go \
-  --registry=localhost:5000 \
-  --namespace=${NAMESPACE} \
-  --no-pull
+#${NUCTL_BIN} \
+#  --verbose \
+#  deploy ${FUNCTION_NAME} \
+#  --path=hack/examples/golang/helloworld/helloworld.go \
+#  --registry=localhost:5000 \
+#  --namespace=${NAMESPACE} \
+#  --no-pull
 
+echo
 echo "##############################################"
 echo "Invoking function ${FUNCTION_NAME}..."
 echo "##############################################"
 echo
 
-${NUCTL_BIN} \
-  --verbose \
-  invoke ${FUNCTION_NAME} \
-  --namespace=${NAMESPACE}
+#${NUCTL_BIN} \
+#  --verbose \
+#  invoke ${FUNCTION_NAME} \
+#  --namespace=${NAMESPACE}
 
 FUNCTION_NAME="s3-fast-failure"
 
+echo
 echo "##############################################"
 echo "Cleaning up function ${FUNCTION_NAME}..."
 echo "##############################################"
@@ -46,6 +50,7 @@ echo
 
 ${NUCTL_BIN} --verbose delete function ${FUNCTION_NAME} || true
 
+echo
 echo "##############################################"
 echo "Deploying function ${FUNCTION_NAME}..."
 echo "##############################################"
@@ -58,7 +63,7 @@ if [[ $(${NUCTL_BIN} \
   --file=test/_function_configs/error/s3_codeentry/function.yaml \
   --registry=localhost:5000 \
   --namespace=${NAMESPACE} \
-  --no-pull | tee /dev/tty | grep "Failed to download file from s3") ]]; then
+  --no-pull | tee /dev/fd/2 | grep "Failed to download file from s3") ]]; then
   echo
   echo "SUCCESS: Function ${FUNCTION_NAME} deployment failed expectedly"
 else
@@ -67,6 +72,8 @@ else
   exit 1
 fi
 
+echo
 echo "##############################################"
 echo "nuctl test Done"
 echo "##############################################"
+echo

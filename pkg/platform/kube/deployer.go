@@ -58,7 +58,8 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 
 	var err error
 
-	// boolean which indicates whether the function existed or not
+	// boolean which indicates whether the function exists or not
+	// the function will be created if it doesn't exit, otherwise will updated
 	functionExists := functionInstance != nil
 
 	createFunctionOptions.Logger.DebugWith("Creating/updating function",

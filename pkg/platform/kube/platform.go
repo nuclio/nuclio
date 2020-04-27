@@ -172,9 +172,12 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			briefErrorsMessage = p.clearCallStack(briefErrorsMessage)
 		}
 
-		createFunctionOptions.Logger.WarnWith("Function creation failed, updating function status",
-			"errorStack", errorStack.String(),
+		// low severity to not over log in the warning
+		createFunctionOptions.Logger.DebugWith("Function creation failed, brief error message extracted",
 			"briefErrorsMessage", briefErrorsMessage)
+
+		createFunctionOptions.Logger.WarnWith("Function creation failed, updating function status",
+			"errorStack", errorStack.String())
 
 		defaultHTTPPort := 0
 		if existingFunctionInstance != nil {
@@ -183,7 +186,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 		// create or update the function. The possible creation needs to happen here, since on cases of
 		// early build failures we might get here before the function CR was created. After this point
-		// it is guaranteed to be created and updated with te reported error state
+		// it is guaranteed to be created and updated with the reported error state
 		_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
 			createFunctionOptions,
 			&functionconfig.Status{
@@ -247,7 +250,6 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 				return nil, reportingErr
 			}
 			return nil, buildErr
-
 		}
 
 		if err := p.setScaleToZeroSpec(&createFunctionOptions.FunctionConfig.Spec); err != nil {

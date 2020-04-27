@@ -1,30 +1,20 @@
 metadata:
   name: s3-fast-failure
-  labels:
-    nuclio.io/project-name: default
 spec:
   description: 'This function will fail swiftly'
-  triggers: {}
-  env: []
-  disable: false
   loggerSinks:
   - level: debug
   handler: main:Handler
   runtime: golang
   build:
-    runtimeAttributes:
-      repositories: []
-    noCache: false
     offline: false
     codeEntryType: s3
-    dependencies: []
     codeEntryAttributes:
-      s3Bucket: sdfsd
-      s3ItemKey: sdfsdff
-      s3AccessKeyId: sdfdsf
-      s3SecretAccessKey: sdfsd
-      s3Region: sdfsdf
-      s3SessionToken: sdfsdf
-      workDir: dsfsd
-    image: ""
+      s3Bucket: not-a-real-s3-bucket
+      s3ItemKey: not-a-real-s3-item-key
+      s3AccessKeyId: not-a-real-s3-access-key-id
+      s3SecretAccessKey: not-a-real-s3-secret-access-key
+      s3Region: not-a-real-s3-region
+      s3SessionToken: not-a-real-s3-session-token
+      workDir: not-a-real-work-dir
     mode: alwaysBuild
