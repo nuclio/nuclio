@@ -56,8 +56,11 @@ func NewConfiguration(ID string,
 	}
 
 	if newConfiguration.CORS.Enabled {
+
+		// take defaults
 		_cors := cors.NewCORS()
 
+		// override with custom configuration if provided
 		if len(newConfiguration.CORS.AllowHeaders) > 0 {
 			_cors.AllowHeaders = newConfiguration.CORS.AllowHeaders
 		}
@@ -73,6 +76,8 @@ func NewConfiguration(ID string,
 		if newConfiguration.CORS.AllowCredentials {
 			_cors.AllowCredentials = newConfiguration.CORS.AllowCredentials
 		}
+
+		_cors.PreflightMaxAgeSeconds = newConfiguration.CORS.PreflightMaxAgeSeconds
 
 		newConfiguration.CORS = *_cors
 	}
