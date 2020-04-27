@@ -97,7 +97,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 	// Create the function
 	createFunctionOptions := suite.GetMockDeploymentFunction("echoer")
 	createdFunction, err := suite.Platform.CreateFunction(createFunctionOptions)
-	suite.NoError(err, "Could not create function")
+	suite.Require().NoError(err, "Could not create function")
 	suite.containerID = createdFunction.ContainerID
 
 	// Get the functions from local store
@@ -105,7 +105,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 		Namespace: createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace,
 		Name:      createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
 	})
-	suite.NoError(err, "Could not get functions")
+	suite.Require().NoError(err, "Could not get functions")
 	suite.Len(functions, 1, "Expected to find the newly created function")
 	function := functions[0]
 
@@ -124,7 +124,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 		Namespace: createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace,
 		Name:      createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
 	})
-	suite.NoError(err, "Could not get functions")
+	suite.Require().NoError(err, "Could not get functions")
 	suite.Len(functions, 1, "Expected to find the newly created function")
 	function = functions[0]
 

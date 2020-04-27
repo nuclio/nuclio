@@ -11,7 +11,6 @@ env:
   REPO: quay.io
   REPO_NAME: nuclio
   NUCLIO_LABEL: ${{ github.run_number }}
-  FUNCTION_NAME: test-function
   NAMESPACE: nuclio
   NUCLIO_NUCTL_CREATE_SYMLINK: false
 
@@ -36,8 +35,8 @@ jobs:
       - name: Lint
         run: make lint
 
-  short_test:
-    name: Short test
+  test_short:
+    name: Test short
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -85,7 +84,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      # since disk-size is currently too-low, we will build only the docker images required for our puposes
+      # since disk-size is currently too-low, we will build only the docker images required for our purposes
       - name: Build
         run: |
           make controller dashboard handler-builder-golang-onbuild
@@ -105,8 +104,8 @@ jobs:
           name: nuclio-docker-images
           path: nuclio_docker_images.tar.gz
 
-  test_nuctl_deploy_invoke:
-    name: Test deploy and invoke function using nuctl
+  test_k8s_nuctl:
+    name: Test Kubernetes nuctl
     runs-on: ubuntu-latest
     needs:
       - build_docker_images
@@ -141,28 +140,14 @@ jobs:
           docker run -d -p 5000:5000 registry:2
           docker load -i nuclio-docker-images/nuclio_docker_images.tar.gz
 
-      - name: Helm install nuclio
+      - name: Install nuclio helm chart
         run: |
           cat test/k8s/ci_assets/helm_values.yaml \
             | envsubst \
             | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
 
-      - name: Deploy function
-        run: |
-          ./nuctl \
-            --verbose \
-            deploy ${FUNCTION_NAME} \
-            --path https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go \
-            --registry localhost:5000 \
-            --run-registry localhost:5000 \
-            --namespace ${NAMESPACE} \
-            --no-pull
+      - name: Run nuctl tests
+        run: make test-k8s-nuctl
         env:
           NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL: ${{ env.REPO }}
-
-      - name: Invoke function
-        run: |
-          ./nuctl \
-            --verbose \
-            invoke ${FUNCTION_NAME} \
-            --namespace ${NAMESPACE}
+          NUCTL_BIN: ./nuctl

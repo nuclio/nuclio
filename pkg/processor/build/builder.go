@@ -168,7 +168,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	b.originalFunctionConfig.Spec.Build.Path = b.options.FunctionConfig.Spec.Build.Path
 
 	// resolve the function path - download in case its a URL
-	b.options.FunctionConfig.Spec.Build.Path, inferredCodeEntryType, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
+	b.options.FunctionConfig.Spec.Build.Path,
+		inferredCodeEntryType,
+		err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
 		return nil, err
 	}

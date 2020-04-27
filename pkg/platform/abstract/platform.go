@@ -78,7 +78,8 @@ func NewPlatform(parentLogger logger.Logger, platform platform.Platform, platfor
 	return newPlatform, nil
 }
 
-func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
+func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (
+	*platform.CreateFunctionBuildResult, error) {
 
 	// execute a build
 	builder, err := build.NewBuilder(createFunctionBuildOptions.Logger, ap.platform, &common.AbstractS3Client{})
@@ -95,7 +96,8 @@ func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.ConfigWithStatus,
 	createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterConfigUpdated func(*functionconfig.Config) error,
-	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
+	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (
+	*platform.CreateFunctionResult, error) {
 
 	createFunctionOptions.Logger.InfoWith("Deploying function",
 		"name", createFunctionOptions.FunctionConfig.Meta.Name)
@@ -122,7 +124,8 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	}
 
 	if createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets == "" {
-		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets = ap.platform.GetDefaultRegistryCredentialsSecretName()
+		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets =
+			ap.platform.GetDefaultRegistryCredentialsSecretName()
 	}
 
 	// clear build mode
@@ -145,7 +148,8 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 
 			// if run registry isn't set, set it to that of the build
 			if createFunctionOptions.FunctionConfig.Spec.RunRegistry == "" {
-				createFunctionOptions.FunctionConfig.Spec.RunRegistry = createFunctionOptions.FunctionConfig.Spec.Build.Registry
+				createFunctionOptions.FunctionConfig.Spec.RunRegistry =
+					createFunctionOptions.FunctionConfig.Spec.Build.Registry
 			}
 
 			// on successful build set the timestamp of build
