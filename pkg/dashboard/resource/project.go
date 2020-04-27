@@ -44,14 +44,10 @@ type projectInfo struct {
 	Spec *platform.ProjectSpec `json:"spec,omitempty"`
 }
 
-type functionImportInfo struct {
-	Function *functionInfo
-	Events   map[string]*functionEventInfo
-}
-
 type projectImportInfo struct {
-	Project   *projectInfo
-	Functions map[string]*functionImportInfo
+	Project        *projectInfo
+	Functions      map[string]*functionInfo
+	FunctionEvents map[string]*functionEventInfo
 }
 
 const (
@@ -185,11 +181,13 @@ func (pr *projectResource) export(project platform.Project) restful.Attributes {
 	projectAttributes["metadata"] = projectMeta
 
 	attributes := restful.Attributes{
-		"project":   projectAttributes,
-		"functions": map[string]restful.Attributes{},
+		"project":        projectAttributes,
+		"functions":      map[string]restful.Attributes{},
+		"functionEvents": map[string]restful.Attributes{},
 	}
 
 	functionsMap := map[string]restful.Attributes{}
+	functionEventsMap := map[string]restful.Attributes{}
 
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Name:      "",
@@ -205,13 +203,17 @@ func (pr *projectResource) export(project platform.Project) restful.Attributes {
 
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
-		functionsMap[function.GetConfig().Meta.Name] = restful.Attributes{
-			"function": functionResourceInstance.export(function),
-			"events":   functionEventResourceInstance.export(function),
+		functionsMap[function.GetConfig().Meta.Name] = functionResourceInstance.export(function)
+
+		functionEvents := functionEventResourceInstance.getFunctionEvents(function)
+		for _, functionEvent := range functionEvents {
+			functionEventsMap[functionEvent.GetConfig().Meta.Name] =
+				functionEventResourceInstance.functionEventToAttributes(functionEvent)
 		}
 	}
 
 	attributes["functions"] = functionsMap
+	attributes["functionEvents"] = functionEventsMap
 
 	return attributes
 }
@@ -267,13 +269,27 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 		}
 	}
 
-	attributes = pr.importProjectFunctions(projectImportInfoInstance, authConfig)
+	failedFunctions := pr.importProjectFunctions(projectImportInfoInstance, authConfig)
+	failedFunctionEvents := pr.importProjectFunctionEvents(projectImportInfoInstance, failedFunctions)
+
+	attributes = restful.Attributes{
+		"functionImportResult": restful.Attributes{
+			"createdAmount":   len(projectImportInfoInstance.Functions) - len(failedFunctions),
+			"failedAmount":    len(failedFunctions),
+			"failedFunctions": failedFunctions,
+		},
+		"functionEventImportResult": restful.Attributes{
+			"createdAmount":        len(projectImportInfoInstance.FunctionEvents) - len(failedFunctionEvents),
+			"failedAmount":         len(failedFunctionEvents),
+			"failedFunctionEvents": failedFunctionEvents,
+		},
+	}
 
 	return
 }
 
 func (pr *projectResource) importProjectFunctions(projectImportInfoInstance *projectImportInfo,
-	authConfig *platform.AuthConfig) restful.Attributes {
+	authConfig *platform.AuthConfig) []restful.Attributes {
 
 	pr.Logger.InfoWith("Importing project functions", "project", projectImportInfoInstance.Project.Meta.Name)
 
@@ -282,15 +298,15 @@ func (pr *projectResource) importProjectFunctions(projectImportInfoInstance *pro
 	functionCreateWaitGroup.Add(len(projectImportInfoInstance.Functions))
 
 	var failedFunctions []restful.Attributes
-	for functionName, functionImport := range projectImportInfoInstance.Functions {
-		go func(functionName string, functionImport *functionImportInfo, wg *sync.WaitGroup) {
-			functionImport.Function.Meta.Namespace = projectImportInfoInstance.Project.Meta.Namespace
-			if functionImport.Function.Meta.Labels == nil {
-				functionImport.Function.Meta.Labels = map[string]string{}
+	for functionName, function := range projectImportInfoInstance.Functions {
+		go func(functionName string, function *functionInfo, wg *sync.WaitGroup) {
+			function.Meta.Namespace = projectImportInfoInstance.Project.Meta.Namespace
+			if function.Meta.Labels == nil {
+				function.Meta.Labels = map[string]string{}
 			}
-			functionImport.Function.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
+			function.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
 
-			if err := pr.importFunction(functionImport, authConfig); err != nil {
+			if err := pr.importFunction(function, authConfig); err != nil {
 				pr.Logger.WarnWith("Failed importing function upon project import ",
 					"functionName", functionName,
 					"err", err,
@@ -302,7 +318,7 @@ func (pr *projectResource) importProjectFunctions(projectImportInfoInstance *pro
 			}
 
 			wg.Done()
-		}(functionName, functionImport, &functionCreateWaitGroup)
+		}(functionName, function, &functionCreateWaitGroup)
 	}
 
 	functionCreateWaitGroup.Wait()
@@ -314,20 +330,16 @@ func (pr *projectResource) importProjectFunctions(projectImportInfoInstance *pro
 		}
 	}
 
-	return restful.Attributes{
-		"createdFunctionsAmount": len(projectImportInfoInstance.Functions) - len(failedFunctions),
-		"failedFunctionsAmount":  len(failedFunctions),
-		"failedFunctions":        failedFunctions,
-	}
+	return failedFunctions
 }
 
-func (pr *projectResource) importFunction(functionImportInfo *functionImportInfo, authConfig *platform.AuthConfig) error {
+func (pr *projectResource) importFunction(function *functionInfo, authConfig *platform.AuthConfig) error {
 	pr.Logger.InfoWith("Importing project function",
-		"function", functionImportInfo.Function.Meta.Name,
-		"project", functionImportInfo.Function.Meta.Labels["nuclio.io/project-name"])
+		"function", function.Meta.Name,
+		"project", function.Meta.Labels["nuclio.io/project-name"])
 	functions, err := pr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Name:      functionImportInfo.Function.Meta.Name,
-		Namespace: functionImportInfo.Function.Meta.Namespace,
+		Name:      function.Meta.Name,
+		Namespace: function.Meta.Namespace,
 	})
 	if err != nil {
 		return errors.New("Failed to get functions")
@@ -337,39 +349,55 @@ func (pr *projectResource) importFunction(functionImportInfo *functionImportInfo
 	}
 
 	// validation finished successfully - store and deploy the given function
-	err = functionResourceInstance.storeAndDeployFunction(functionImportInfo.Function, authConfig, false)
+	err = functionResourceInstance.storeAndDeployFunction(function, authConfig, false)
 	if err != nil {
 		return err
 	}
 
-	// import function's events
-	for _, functionEvent := range functionImportInfo.Events {
+	return nil
+}
 
-		// generate new name for events to avoid collisions
-		functionEvent.Meta.Name = uuid.NewV4().String()
+func (pr *projectResource) importProjectFunctionEvents(projectImportInfoInstance *projectImportInfo,
+	failedFunctions []restful.Attributes) []restful.Attributes {
 
-		// create a functionEvent config
-		functionEventConfig := platform.FunctionEventConfig{
-			Meta: *functionEvent.Meta,
-			Spec: *functionEvent.Spec,
+	creationErrorContainsFunction := func(functionName string) bool {
+		for _, functionCreationError := range failedFunctions {
+			if functionCreationError["function"] == functionName {
+				return true
+			}
 		}
-
-		// create a functionEvent
-		newFunctionEvent, err := platform.NewAbstractFunctionEvent(pr.Logger, pr.getPlatform(), functionEventConfig)
-		if err != nil {
-			return err
-		}
-
-		// just deploy. the status is async through polling
-		err = pr.getPlatform().CreateFunctionEvent(&platform.CreateFunctionEventOptions{
-			FunctionEventConfig: *newFunctionEvent.GetConfig(),
-		})
-		if err != nil {
-			return err
-		}
+		return false
 	}
 
-	return nil
+	var failedFunctionEvents []restful.Attributes
+
+	for _, functionEvent := range projectImportInfoInstance.FunctionEvents {
+		functionName, ok := functionEvent.Meta.Labels["nuclio.io/function-name"]
+		if !ok {
+			failedFunctionEvents = append(failedFunctionEvents, restful.Attributes{
+				"functionEvent": functionEvent.Spec.DisplayName,
+				"error":         "Event doesn't belong to any function",
+			})
+		} else if creationErrorContainsFunction(functionName) {
+			failedFunctionEvents = append(failedFunctionEvents, restful.Attributes{
+				"functionEvent": functionEvent.Spec.DisplayName,
+				"error":         fmt.Sprintf("Event belongs to function that failed import: %s", functionName),
+			})
+		} else {
+
+			// generate new name for events to avoid collisions
+			functionEvent.Meta.Name = uuid.NewV4().String()
+
+			_, err := functionEventResourceInstance.storeAndDeployFunctionEvent(functionEvent)
+			if err != nil {
+				failedFunctionEvents = append(failedFunctionEvents, restful.Attributes{
+					"functionEvent": functionEvent.Spec.DisplayName,
+					"error":         err.Error(),
+				})
+			}
+		}
+	}
+	return failedFunctionEvents
 }
 
 func (pr *projectResource) createAndWaitForProjectCreation(projectInfoInstance *projectInfo) error {

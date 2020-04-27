@@ -1100,58 +1100,53 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 	},
 	"functions": {
 		"f1": {
-			"events": {
-				"fe1": {
-					"metadata": {
-						"name": "fe1",
-						"namespace": "fNamespace",
-						"labels": {
-							"nuclio.io/function-name": "f1"
-						}
-					},
-					"spec": {
-						"displayName": "fe1DisplayName",
-						"triggerName": "fe1TriggerName",
-						"triggerKind": "fe1TriggerKind",
-						"body": "fe1Body"
-					}
+			"metadata": {
+				"name": "f1",
+				"annotations": {
+					"skip-build": "true",
+					"skip-deploy": "true"
 				}
 			},
-			"function": {
-				"metadata": {
-					"name": "f1",
-					"annotations": {
-						"skip-build": "true",
-						"skip-deploy": "true"
-					}
-				},
-				"spec": {
-					"resources": {},
-					"build": {},
-					"platform": {},
-					"runtime": "r1",
-					"eventTimeout": ""
-				}
+			"spec": {
+				"resources": {},
+				"build": {},
+				"platform": {},
+				"runtime": "r1",
+				"eventTimeout": ""
 			}
 		},
 		"f2": {
-			"function": {
-				"metadata": {
-					"name": "f2",
-					"annotations": {
-						"skip-build": "true",
-						"skip-deploy": "true"
-					}
-				},
-				"spec": {
-					"resources": {},
-					"build": {},
-					"platform": {},
-					"runtime": "r2",
-					"eventTimeout": ""
+			"metadata": {
+				"name": "f2",
+				"annotations": {
+					"skip-build": "true",
+					"skip-deploy": "true"
 				}
 			},
-			"events": {}
+			"spec": {
+				"resources": {},
+				"build": {},
+				"platform": {},
+				"runtime": "r2",
+				"eventTimeout": ""
+			}
+		}
+	},
+	"functionEvents": {
+		"fe1": {
+			"metadata": {
+				"name": "fe1",
+				"namespace": "fNamespace",
+				"labels": {
+					"nuclio.io/function-name": "f1"
+				}
+			},
+			"spec": {
+				"displayName": "fe1DisplayName",
+				"triggerName": "fe1TriggerName",
+				"triggerKind": "fe1TriggerKind",
+				"body": "fe1Body"
+			}
 		}
 	}
 }`
@@ -1239,25 +1234,23 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 		},
 		"functions": {
 			"f1": {
-				"function": {
-					"metadata": {
-						"name": "f1",
-						"annotations": {
-							"skip-build": "true",
-							"skip-deploy": "true"
-						}
-					},
-					"spec": {
-						"resources": {},
-						"build": {},
-						"platform": {},
-						"runtime": "r1",
-						"eventTimeout": ""
+				"metadata": {
+					"name": "f1",
+					"annotations": {
+						"skip-build": "true",
+						"skip-deploy": "true"
 					}
 				},
-				"events": {}
+				"spec": {
+					"resources": {},
+					"build": {},
+					"platform": {},
+					"runtime": "r1",
+					"eventTimeout": ""
+				}
 			}
-		}
+		},
+		"functionEvents": {}
 	},
 	"p2": {
 		"project": {
@@ -1268,25 +1261,23 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 		},
 		"functions": {
 			"f2": {
-				"function": {
-					"metadata": {
-						"name": "f2",
-						"annotations": {
-							"skip-build": "true",
-							"skip-deploy": "true"
-						}
-					},
-					"spec": {
-						"resources": {},
-						"build": {},
-						"platform": {},
-						"runtime": "r2",
-						"eventTimeout": ""
+				"metadata": {
+					"name": "f2",
+					"annotations": {
+						"skip-build": "true",
+						"skip-deploy": "true"
 					}
 				},
-				"events": {}
+				"spec": {
+					"resources": {},
+					"build": {},
+					"platform": {},
+					"runtime": "r2",
+					"eventTimeout": ""
+				}
 			}
-		}
+		},
+		"functionEvents": {}
 	}
 }`
 
@@ -1589,43 +1580,48 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 	},
 	"functions": {
 		"f1": {
-			"function": {
-				"metadata": {
-					"name": "f1",
-					"namespace": "p1Namespace"
-				},
-				"spec": {
-					"resources": {},
-					"build": {},
-					"platform": {},
-					"runtime": "r1"
+			"metadata": {
+				"name": "f1",
+				"namespace": "p1Namespace"
+			},
+			"spec": {
+				"resources": {},
+				"build": {},
+				"platform": {},
+				"runtime": "r1"
+			}
+		}
+	},
+	"functionEvents": {
+		"fe1": {
+			"metadata": {
+				"name": "fe1",
+				"namespace": "p1Namespace",
+				"labels": {
+					"nuclio.io/function-name": "f1"
 				}
 			},
-			"events": {
-				"fe1": {
-					"metadata": {
-						"name": "fe1",
-						"namespace": "p1Namespace",
-						"labels": {
-							"nuclio.io/function-name": "f1"
-						}
-					},
-					"spec": {
-						"displayName": "fe1DisplayName",
-						"triggerName": "fe1TriggerName",
-						"triggerKind": "fe1TriggerKind",
-						"body": "fe1Body"
-					}
-				}
+			"spec": {
+				"displayName": "fe1DisplayName",
+				"triggerName": "fe1TriggerName",
+				"triggerKind": "fe1TriggerKind",
+				"body": "fe1Body"
 			}
 		}
 	}
 }`
 
 	expectedResponseBody := `{
-	"createdFunctionsAmount": 1,
-	"failedFunctions": null,
-	"failedFunctionsAmount": 0
+	"functionImportResult": {
+		"createdAmount": 1,
+		"failedFunctions": null,
+		"failedAmount": 0
+	},
+	"functionEventImportResult": {
+		"createdAmount": 1,
+		"failedFunctionEvents": null,
+		"failedAmount": 0
+	}
 }`
 
 	suite.sendRequest("POST",
@@ -1702,48 +1698,58 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 	},
 	"functions": {
 		"f1": {
-			"function": {
-				"metadata": {
-					"name": "f1",
-					"namespace": "p1Namespace"
-				},
-				"spec": {
-					"resources": {},
-					"build": {},
-					"platform": {},
-					"runtime": "r1"
+			"metadata": {
+				"name": "f1",
+				"namespace": "p1Namespace"
+			},
+			"spec": {
+				"resources": {},
+				"build": {},
+				"platform": {},
+				"runtime": "r1"
+			}
+		}
+	},
+	"functionEvents": {
+		"fe1": {
+			"metadata": {
+				"name": "fe1",
+				"namespace": "fNamespace",
+				"labels": {
+					"nuclio.io/function-name": "f1"
 				}
 			},
-			"events": {
-				"fe1": {
-					"metadata": {
-						"name": "fe1",
-						"namespace": "fNamespace",
-						"labels": {
-							"nuclio.io/function-name": "f1"
-						}
-					},
-					"spec": {
-						"displayName": "fe1DisplayName",
-						"triggerName": "fe1TriggerName",
-						"triggerKind": "fe1TriggerKind",
-						"body": "fe1Body"
-					}
-				}
+			"spec": {
+				"displayName": "fe1DisplayName",
+				"triggerName": "fe1TriggerName",
+				"triggerKind": "fe1TriggerKind",
+				"body": "fe1Body"
 			}
 		}
 	}
 }`
 
 	expectedResponseBody := `{
-	"createdFunctionsAmount": 0,
-	"failedFunctions": [
-		{
-			"error": "Function name already exists",
-			"function": "f1"
-		}
-	],
-	"failedFunctionsAmount": 1
+	"functionImportResult": {
+		"createdAmount": 0,
+		"failedFunctions": [
+			{
+				"error": "Function name already exists",
+				"function": "f1"
+			}
+		],
+		"failedAmount": 1
+	},
+	"functionEventImportResult": {
+		"createdAmount": 0,
+		"failedFunctionEvents": [
+			{
+				"error": "Event belongs to function that failed import: f1",
+				"functionEvent": "fe1DisplayName"
+			}
+		],
+		"failedAmount": 1
+	}
 }`
 
 	suite.sendRequest("POST",
