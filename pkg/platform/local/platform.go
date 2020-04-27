@@ -217,19 +217,44 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return nil, buildErr
 		}
 
-		createFunctionResult, deployErr := p.deployFunction(createFunctionOptions, previousHTTPPort)
-		if deployErr != nil {
-			reportCreationError(deployErr) // nolint: errcheck
-			return nil, deployErr
+		skipFunctionDeploy := functionconfig.ShouldSkipDeploy(createFunctionOptions.FunctionConfig.Meta.Annotations)
+
+		// after a function build (or skip-build) if the annotations FunctionAnnotationSkipBuild or FunctionAnnotationSkipDeploy
+		// exist, they should be removed so next time, the build will happen.
+		createFunctionOptions.FunctionConfig.Meta.RemoveSkipDeployAnnotation()
+		createFunctionOptions.FunctionConfig.Meta.RemoveSkipBuildAnnotation()
+
+		var createFunctionResult *platform.CreateFunctionResult
+		var deployErr error
+		functionStatus := functionconfig.Status{
+			State: functionconfig.FunctionStateImported,
+		}
+
+		if !skipFunctionDeploy {
+			createFunctionResult, deployErr = p.deployFunction(createFunctionOptions, previousHTTPPort)
+			if deployErr != nil {
+				reportCreationError(deployErr) // nolint: errcheck
+				return nil, deployErr
+			}
+
+			functionStatus = functionconfig.Status{
+				HTTPPort: createFunctionResult.Port,
+				State:    functionconfig.FunctionStateReady,
+			}
+		} else {
+			p.Logger.Info("Skipping function deployment")
+			createFunctionResult = &platform.CreateFunctionResult{
+				CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
+					Image:                 createFunctionOptions.FunctionConfig.Spec.Image,
+					UpdatedFunctionConfig: createFunctionOptions.FunctionConfig,
+				},
+			}
 		}
 
 		// update the function
 		if err = p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
 			Config: createFunctionOptions.FunctionConfig,
-			Status: functionconfig.Status{
-				HTTPPort: createFunctionResult.Port,
-				State:    functionconfig.FunctionStateReady,
-			},
+			Status: functionStatus,
 		}); err != nil {
 			return nil, errors.Wrap(err, "Failed to update function with state")
 		}

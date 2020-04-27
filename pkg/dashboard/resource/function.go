@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -72,9 +73,15 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
+	exportFunction := fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
+
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
-		response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function)
+		if exportFunction {
+			response[function.GetConfig().Meta.Name] = fr.export(function)
+		} else {
+			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function)
+		}
 	}
 
 	return response, nil
@@ -89,7 +96,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	function, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
+	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Namespace: fr.getNamespaceFromRequest(request),
 		Name:      id,
 	})
@@ -98,11 +105,17 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
-	if len(function) == 0 {
+	if len(functions) == 0 {
 		return nil, nuclio.NewErrNotFound("Function not found")
 	}
+	function := functions[0]
 
-	return fr.functionToAttributes(function[0]), nil
+	exportFunction := fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
+	if exportFunction {
+		return fr.export(function), nil
+	}
+
+	return fr.functionToAttributes(function), nil
 }
 
 // Create and deploy a function
@@ -127,8 +140,16 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
+	// get the authentication configuration for the request
+	authConfig, responseErr := fr.getRequestAuthConfig(request)
+	if responseErr != nil {
+		return
+	}
+
+	waitForFunction := request.Header.Get("x-nuclio-wait-function-action") == "true"
+
 	// validation finished successfully - store and deploy the given function
-	if responseErr = fr.storeAndDeployFunction(functionInfo, request); responseErr != nil {
+	if responseErr = fr.storeAndDeployFunction(functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return
 	}
 
@@ -158,7 +179,20 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		return
 	}
 
-	if responseErr = fr.storeAndDeployFunction(functionInfo, request); responseErr != nil {
+	if err = fr.validateUpdateInfo(functionInfo, functions[0]); err != nil {
+		responseErr = nuclio.WrapErrBadRequest(errors.Wrap(err, "Requested update fields are invalid"))
+		return
+	}
+
+	// get the authentication configuration for the request
+	authConfig, responseErr := fr.getRequestAuthConfig(request)
+	if responseErr != nil {
+		return
+	}
+
+	waitForFunction := request.Header.Get("x-nuclio-wait-function-action") == "true"
+
+	if responseErr = fr.storeAndDeployFunction(functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return
 	}
 
@@ -179,19 +213,54 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	}, nil
 }
 
-func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, request *http.Request) error {
+func (fr *functionResource) export(function platform.Function) restful.Attributes {
+	functionSpec := fr.cleanFunctionSpec(function.GetConfig().Spec)
+	functionMeta := function.GetConfig().Meta
+
+	fr.Logger.DebugWith("Exporting function", "functionName", functionMeta.Name)
+
+	fr.prepareFunctionForExport(&functionMeta, &functionSpec)
+
+	attributes := restful.Attributes{
+		"metadata": functionMeta,
+		"spec":     functionSpec,
+	}
+
+	return attributes
+}
+
+func (fr *functionResource) prepareFunctionForExport(functionMeta *functionconfig.Meta, functionSpec *functionconfig.Spec) {
+
+	fr.Logger.DebugWith("Preparing function for export", "functionName", functionMeta.Name)
+
+	if functionMeta.Annotations == nil {
+		functionMeta.Annotations = map[string]string{}
+	}
+
+	// add annotations for not deploying or building on import
+	functionMeta.Annotations[functionconfig.FunctionAnnotationSkipBuild] = strconv.FormatBool(true)
+	functionMeta.Annotations[functionconfig.FunctionAnnotationSkipDeploy] = strconv.FormatBool(true)
+
+	// scrub namespace from function meta
+	functionMeta.Namespace = ""
+
+	// remove secrets and passwords from triggers
+	newTriggers := functionSpec.Triggers
+	for triggerName, trigger := range newTriggers {
+		trigger.Password = ""
+		trigger.Secret = ""
+		newTriggers[triggerName] = trigger
+	}
+	functionSpec.Triggers = newTriggers
+}
+
+func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, authConfig *platform.AuthConfig, waitForFunction bool) error {
 
 	creationStateUpdatedTimeout := 45 * time.Second
 
 	doneChan := make(chan bool, 1)
 	creationStateUpdatedChan := make(chan bool, 1)
 	errDeployingChan := make(chan error, 1)
-
-	// get the authentication configuration for the request
-	authConfig, err := fr.getRequestAuthConfig(request)
-	if err != nil {
-		return err
-	}
 
 	// asynchronously, do the deploy so that the user doesn't wait
 	go func() {
@@ -254,7 +323,7 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, r
 	}
 
 	// mostly for testing, but can also be for clients that want to wait for some reason
-	if request.Header.Get("x-nuclio-wait-function-action") == "true" {
+	if waitForFunction {
 		<-doneChan
 	}
 
@@ -313,8 +382,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 	}, err
 }
 
-func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
-	functionSpec := function.GetConfig().Spec
+func (fr *functionResource) cleanFunctionSpec(functionSpec functionconfig.Spec) functionconfig.Spec {
 
 	// artifacts are created unique to the cluster not needed to be returned to any client of nuclio REST API
 	functionSpec.RunRegistry = ""
@@ -322,6 +390,12 @@ func (fr *functionResource) functionToAttributes(function platform.Function) res
 	if functionSpec.Build.FunctionSourceCode != "" {
 		functionSpec.Image = ""
 	}
+
+	return functionSpec
+}
+
+func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
+	functionSpec := fr.cleanFunctionSpec(function.GetConfig().Spec)
 
 	attributes := restful.Attributes{
 		"metadata": function.GetConfig().Meta,
@@ -356,6 +430,22 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
+	return fr.processFunctionInfo(&functionInfoInstance, request.Header.Get("x-nuclio-project-name"))
+}
+
+func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, function platform.Function) error {
+
+	// in the imported state, after the function has the skip-build and skip-deploy annotations removed,
+	// if the user tries to disable the function, it will in turn build and deploy the function and then disable it.
+	// so here we don't allow users to disable an imported function.
+	if functionInfo.Spec.Disable && function.GetStatus().State == functionconfig.FunctionStateImported {
+		return errors.New("Failed to disable function: non-deployed functions cannot be disabled")
+	}
+
+	return nil
+}
+
+func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionInfo, projectName string) (*functionInfo, error) {
 	// override namespace if applicable
 	if functionInfoInstance.Meta != nil {
 		functionInfoInstance.Meta.Namespace = fr.getNamespaceOrDefault(functionInfoInstance.Meta.Namespace)
@@ -378,7 +468,6 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	}
 
 	// add project name label if given via header
-	projectName := request.Header.Get("x-nuclio-project-name")
 	if projectName != "" {
 		if functionInfoInstance.Meta.Labels == nil {
 			functionInfoInstance.Meta.Labels = map[string]string{}
@@ -387,7 +476,7 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
 	}
 
-	return &functionInfoInstance, nil
+	return functionInfoInstance, nil
 }
 
 // register the resource

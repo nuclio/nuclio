@@ -649,6 +649,133 @@ func (suite *functionTestSuite) TestInvokeNoNamespace() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+func (suite *functionTestSuite) TestExportFunctionSuccessful() {
+	replicas := 10
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "f1"
+	returnedFunction.Config.Meta.Namespace = "f1Namespace"
+	returnedFunction.Config.Spec.Replicas = &replicas
+
+	// verify
+	verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1Namespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctionsOptions)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-function-namespace": "f1Namespace",
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+	"metadata": {
+		"name": "f1",
+		"annotations": {
+			"skip-build": "true",
+			"skip-deploy": "true"
+		}
+	},
+	"spec": {
+		"resources": {},
+		"build": {},
+		"platform": {},
+		"replicas": 10,
+		"eventTimeout": ""
+	}
+}`
+
+	suite.sendRequest("GET",
+		"/api/functions/f1?export=true",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
+	replicas := 10
+	returnedFunction1 := platform.AbstractFunction{}
+	returnedFunction1.Config.Meta.Name = "f1"
+	returnedFunction1.Config.Meta.Namespace = "fNamespace"
+	returnedFunction1.Config.Spec.Replicas = &replicas
+
+	returnedFunction2 := platform.AbstractFunction{}
+	returnedFunction2.Config.Meta.Name = "f2"
+	returnedFunction2.Config.Meta.Namespace = "fNamespace"
+	returnedFunction2.Config.Spec.Replicas = &replicas
+
+	// verify
+	verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("", getFunctionsOptions.Name)
+		suite.Require().Equal("fNamespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctionsOptions)).
+		Return([]platform.Function{&returnedFunction1, &returnedFunction2}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-function-namespace": "fNamespace",
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+	"f1": {
+		"metadata": {
+			"name": "f1",
+			"annotations": {
+				"skip-build": "true",
+				"skip-deploy": "true"
+			}
+		},
+		"spec": {
+			"resources": {},
+			"build": {},
+			"platform": {},
+			"replicas": 10,
+			"eventTimeout": ""
+		}
+	},
+	"f2": {
+		"metadata": {
+			"name": "f2",
+			"annotations": {
+				"skip-build": "true",
+				"skip-deploy": "true"
+			}
+		},
+		"spec": {
+			"resources": {},
+			"build": {},
+			"platform": {},
+			"replicas": 10,
+			"eventTimeout": ""
+		}
+	}
+}`
+
+	suite.sendRequest("GET",
+		"/api/functions/?export=true",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
 func (suite *functionTestSuite) sendRequestNoMetadata(method string) {
 	suite.sendRequestWithInvalidBody(method, `{
 	"spec": {
@@ -890,6 +1017,280 @@ func (suite *projectTestSuite) TestGetListNoNamespace() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+func (suite *projectTestSuite) TestExportProjectSuccessful() {
+	returnedFunction1 := platform.AbstractFunction{}
+	returnedFunction1.Config.Meta.Name = "f1"
+	returnedFunction1.Config.Meta.Namespace = "fNamespace"
+	returnedFunction1.Config.Spec.Runtime = "r1"
+
+	returnedFunctionEvent := platform.AbstractFunctionEvent{}
+	returnedFunctionEvent.FunctionEventConfig.Meta.Name = "fe1"
+	returnedFunctionEvent.FunctionEventConfig.Meta.Namespace = "fNamespace"
+	returnedFunctionEvent.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/function-name": "f1"}
+	returnedFunctionEvent.FunctionEventConfig.Spec.DisplayName = "fe1DisplayName"
+	returnedFunctionEvent.FunctionEventConfig.Spec.TriggerName = "fe1TriggerName"
+	returnedFunctionEvent.FunctionEventConfig.Spec.TriggerKind = "fe1TriggerKind"
+	returnedFunctionEvent.FunctionEventConfig.Spec.Body = "fe1Body"
+
+	returnedFunction2 := platform.AbstractFunction{}
+	returnedFunction2.Config.Meta.Name = "f2"
+	returnedFunction2.Config.Meta.Namespace = "fNamespace"
+	returnedFunction2.Config.Spec.Runtime = "r2"
+
+	returnedProject1 := platform.AbstractProject{}
+	returnedProject1.ProjectConfig.Meta.Name = "p1"
+	returnedProject1.ProjectConfig.Meta.Namespace = "fNamespace"
+
+	// verify
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("p1", getProjectsOptions.Meta.Name)
+		suite.Require().Equal("fNamespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("", getFunctionsOptions.Name)
+		suite.Require().Equal("fNamespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+	verifyGetFunction1Events := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
+		suite.Require().Equal("", getFunctionEventsOptions.Meta.Name)
+		suite.Require().Equal("fNamespace", getFunctionEventsOptions.Meta.Namespace)
+
+		return true
+	}
+	verifyGetFunction2Events := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
+		suite.Require().Equal("", getFunctionEventsOptions.Meta.Name)
+		suite.Require().Equal("fNamespace", getFunctionEventsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{&returnedProject1}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunction1, &returnedFunction2}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunction1Events)).
+		Return([]platform.FunctionEvent{&returnedFunctionEvent}, nil).Once()
+
+	suite.mockPlatform.
+		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunction2Events)).
+		Return([]platform.FunctionEvent{}, nil).Once()
+
+	headers := map[string]string{
+		"x-nuclio-project-namespace":  "fNamespace",
+		"x-nuclio-function-namespace": "fNamespace",
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+	"project": {
+		"metadata": {
+			"name": "p1"
+		},
+		"spec": {}
+	},
+	"functions": {
+		"f1": {
+			"metadata": {
+				"name": "f1",
+				"annotations": {
+					"skip-build": "true",
+					"skip-deploy": "true"
+				}
+			},
+			"spec": {
+				"resources": {},
+				"build": {},
+				"platform": {},
+				"runtime": "r1",
+				"eventTimeout": ""
+			}
+		},
+		"f2": {
+			"metadata": {
+				"name": "f2",
+				"annotations": {
+					"skip-build": "true",
+					"skip-deploy": "true"
+				}
+			},
+			"spec": {
+				"resources": {},
+				"build": {},
+				"platform": {},
+				"runtime": "r2",
+				"eventTimeout": ""
+			}
+		}
+	},
+	"functionEvents": {
+		"fe1": {
+			"metadata": {
+				"name": "fe1",
+				"namespace": "fNamespace",
+				"labels": {
+					"nuclio.io/function-name": "f1"
+				}
+			},
+			"spec": {
+				"displayName": "fe1DisplayName",
+				"triggerName": "fe1TriggerName",
+				"triggerKind": "fe1TriggerKind",
+				"body": "fe1Body"
+			}
+		}
+	}
+}`
+
+	suite.sendRequest("GET",
+		"/api/projects/p1?export=true",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *projectTestSuite) TestExportProjectListSuccessful() {
+	returnedFunction1 := platform.AbstractFunction{}
+	returnedFunction1.Config.Meta.Name = "f1"
+	returnedFunction1.Config.Meta.Namespace = "fNamespace"
+	returnedFunction1.Config.Spec.Runtime = "r1"
+
+	returnedFunction2 := platform.AbstractFunction{}
+	returnedFunction2.Config.Meta.Name = "f2"
+	returnedFunction2.Config.Meta.Namespace = "fNamespace"
+	returnedFunction2.Config.Spec.Runtime = "r2"
+
+	returnedProject1 := platform.AbstractProject{}
+	returnedProject1.ProjectConfig.Meta.Name = "p1"
+	returnedProject1.ProjectConfig.Meta.Namespace = "fNamespace"
+
+	returnedProject2 := platform.AbstractProject{}
+	returnedProject2.ProjectConfig.Meta.Name = "p2"
+	returnedProject2.ProjectConfig.Meta.Namespace = "fNamespace"
+
+	// verify
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("", getProjectsOptions.Meta.Name)
+		suite.Require().Equal("fNamespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("", getFunctionsOptions.Name)
+		suite.Require().Equal("fNamespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+	verifyGetFunctionEvents := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
+		suite.Require().Equal("fNamespace", getFunctionEventsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{&returnedProject1, &returnedProject2}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunction1}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunction2}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunctionEvents)).
+		Return([]platform.FunctionEvent{}, nil).Twice()
+
+	headers := map[string]string{
+		"x-nuclio-project-namespace":  "fNamespace",
+		"x-nuclio-function-namespace": "fNamespace",
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+	"p1": {
+		"project": {
+			"metadata": {
+				"name": "p1"
+			},
+			"spec": {}
+		},
+		"functions": {
+			"f1": {
+				"metadata": {
+					"name": "f1",
+					"annotations": {
+						"skip-build": "true",
+						"skip-deploy": "true"
+					}
+				},
+				"spec": {
+					"resources": {},
+					"build": {},
+					"platform": {},
+					"runtime": "r1",
+					"eventTimeout": ""
+				}
+			}
+		},
+		"functionEvents": {}
+	},
+	"p2": {
+		"project": {
+			"metadata": {
+				"name": "p2"
+			},
+			"spec": {}
+		},
+		"functions": {
+			"f2": {
+				"metadata": {
+					"name": "f2",
+					"annotations": {
+						"skip-build": "true",
+						"skip-deploy": "true"
+					}
+				},
+				"spec": {
+					"resources": {},
+					"build": {},
+					"platform": {},
+					"runtime": "r2",
+					"eventTimeout": ""
+				}
+			}
+		},
+		"functionEvents": {}
+	}
+}`
+
+	suite.sendRequest("GET",
+		"/api/projects/?export=true",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
 func (suite *projectTestSuite) TestCreateSuccessful() {
 
 	// verify
@@ -1090,6 +1491,275 @@ func (suite *projectTestSuite) TestDeleteNoName() {
 
 func (suite *projectTestSuite) TestDeleteNoNamespace() {
 	suite.sendRequestNoNamespace("DELETE")
+}
+
+func (suite *projectTestSuite) TestImportSuccessful() {
+	createdProject := platform.AbstractProject{}
+	createdProject.ProjectConfig.Meta.Name = "p1"
+	createdProject.ProjectConfig.Meta.Namespace = "p1Namespace"
+	createdProject.ProjectConfig.Spec.Description = "p1Description"
+
+	// verify
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("p1", getProjectsOptions.Meta.Name)
+		suite.Require().Equal("p1Namespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+	verifyCreateProject := func(createProjectOptions *platform.CreateProjectOptions) bool {
+		suite.Require().Equal("p1", createProjectOptions.ProjectConfig.Meta.Name)
+		suite.Require().Equal("p1Namespace", createProjectOptions.ProjectConfig.Meta.Namespace)
+		suite.Require().Equal("p1Description", createProjectOptions.ProjectConfig.Spec.Description)
+
+		return true
+	}
+	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
+		suite.Require().Equal("f1", createFunctionOptions.FunctionConfig.Meta.Name)
+		suite.Require().Equal("p1Namespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
+		suite.Require().Equal("p1", createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"])
+
+		return true
+	}
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("p1Namespace", getFunctionsOptions.Namespace)
+		return true
+	}
+	verifyCreateFunctionEvent := func(createFunctionOptions *platform.CreateFunctionEventOptions) bool {
+		suite.Require().NotEqual("fe1", createFunctionOptions.FunctionEventConfig.Meta.Name)
+		suite.Require().Equal("p1Namespace", createFunctionOptions.FunctionEventConfig.Meta.Namespace)
+		suite.Require().Equal("f1", createFunctionOptions.FunctionEventConfig.Meta.Labels["nuclio.io/function-name"])
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("CreateProject", mock.MatchedBy(verifyCreateProject)).
+		Return(nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{&createdProject}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("CreateFunction", mock.MatchedBy(verifyCreateFunction)).
+		Return(&platform.CreateFunctionResult{}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("CreateFunctionEvent", mock.MatchedBy(verifyCreateFunctionEvent)).
+		Return(nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-wait-function-action": "true",
+	}
+
+	expectedStatusCode := http.StatusCreated
+	requestBody := `{
+	"project": {
+		"metadata": {
+			"name": "p1",
+			"namespace": "p1Namespace"
+		},
+		"spec": {
+			"description": "p1Description"
+		}
+	},
+	"functions": {
+		"f1": {
+			"metadata": {
+				"name": "f1",
+				"namespace": "p1Namespace"
+			},
+			"spec": {
+				"resources": {},
+				"build": {},
+				"platform": {},
+				"runtime": "r1"
+			}
+		}
+	},
+	"functionEvents": {
+		"fe1": {
+			"metadata": {
+				"name": "fe1",
+				"namespace": "p1Namespace",
+				"labels": {
+					"nuclio.io/function-name": "f1"
+				}
+			},
+			"spec": {
+				"displayName": "fe1DisplayName",
+				"triggerName": "fe1TriggerName",
+				"triggerKind": "fe1TriggerKind",
+				"body": "fe1Body"
+			}
+		}
+	}
+}`
+
+	expectedResponseBody := `{
+	"functionImportResult": {
+		"createdAmount": 1,
+		"failedFunctions": null,
+		"failedAmount": 0
+	},
+	"functionEventImportResult": {
+		"createdAmount": 1,
+		"failedFunctionEvents": null,
+		"failedAmount": 0
+	}
+}`
+
+	suite.sendRequest("POST",
+		"/api/projects?import=true",
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
+	existingFunction1 := platform.AbstractFunction{}
+	existingFunction1.Config.Meta.Name = "f1"
+	existingFunction1.Config.Meta.Namespace = "p1Namespace"
+	existingFunction1.Config.Spec.Runtime = "r1"
+
+	createdProject := platform.AbstractProject{}
+	createdProject.ProjectConfig.Meta.Name = "p1"
+	createdProject.ProjectConfig.Meta.Namespace = "p1Namespace"
+	createdProject.ProjectConfig.Spec.Description = "p1Description"
+
+	// verify
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("p1", getProjectsOptions.Meta.Name)
+		suite.Require().Equal("p1Namespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+	verifyCreateProject := func(createProjectOptions *platform.CreateProjectOptions) bool {
+		suite.Require().Equal("p1", createProjectOptions.ProjectConfig.Meta.Name)
+		suite.Require().Equal("p1Namespace", createProjectOptions.ProjectConfig.Meta.Namespace)
+		suite.Require().Equal("p1Description", createProjectOptions.ProjectConfig.Spec.Description)
+
+		return true
+	}
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("p1Namespace", getFunctionsOptions.Namespace)
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("CreateProject", mock.MatchedBy(verifyCreateProject)).
+		Return(nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{&createdProject}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&existingFunction1}, nil).
+		Once()
+
+	expectedStatusCode := http.StatusCreated
+	requestBody := `{
+	"project": {
+		"metadata": {
+			"name": "p1",
+			"namespace": "p1Namespace"
+		},
+		"spec": {
+			"description": "p1Description"
+		}
+	},
+	"functions": {
+		"f1": {
+			"metadata": {
+				"name": "f1",
+				"namespace": "p1Namespace"
+			},
+			"spec": {
+				"resources": {},
+				"build": {},
+				"platform": {},
+				"runtime": "r1"
+			}
+		}
+	},
+	"functionEvents": {
+		"fe1": {
+			"metadata": {
+				"name": "fe1",
+				"namespace": "fNamespace",
+				"labels": {
+					"nuclio.io/function-name": "f1"
+				}
+			},
+			"spec": {
+				"displayName": "fe1DisplayName",
+				"triggerName": "fe1TriggerName",
+				"triggerKind": "fe1TriggerKind",
+				"body": "fe1Body"
+			}
+		}
+	}
+}`
+
+	expectedResponseBody := `{
+	"functionImportResult": {
+		"createdAmount": 0,
+		"failedFunctions": [
+			{
+				"error": "Function name already exists",
+				"function": "f1"
+			}
+		],
+		"failedAmount": 1
+	},
+	"functionEventImportResult": {
+		"createdAmount": 0,
+		"failedFunctionEvents": [
+			{
+				"error": "Event belongs to function that failed import: f1",
+				"functionEvent": "fe1DisplayName"
+			}
+		],
+		"failedAmount": 1
+	}
+}`
+
+	suite.sendRequest("POST",
+		"/api/projects?import=true",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
 func (suite *projectTestSuite) sendRequestNoMetadata(method string) {

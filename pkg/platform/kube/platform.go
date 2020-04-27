@@ -217,6 +217,12 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return errors.Wrap(err, "Failed to get function")
 		}
 
+		// if the function already exists then it either doesn't have the FunctionAnnotationSkipDeploy annotation, or it
+		// was imported and has the annotation, but on this recreate it shouldn't. So the annotation should be removed.
+		if existingFunctionInstance != nil {
+			createFunctionOptions.FunctionConfig.Meta.RemoveSkipDeployAnnotation()
+		}
+
 		// create or update the function if it exists. If functionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
 		// the goal here is for the function to exist prior to building so that it is gettable
@@ -239,6 +245,14 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
+
+		skipDeploy := functionconfig.ShouldSkipDeploy(createFunctionOptions.FunctionConfig.Meta.Annotations)
+
+		// after a function build (or skip-build) if the annotation FunctionAnnotationSkipBuild exists, it should be removed
+		// so next time, the build will happen. (skip-deploy will be removed on next update so the controller can use the
+		// annotation as well).
+		createFunctionOptions.FunctionConfig.Meta.RemoveSkipBuildAnnotation()
+
 		if buildErr != nil {
 
 			// try to report the error
@@ -254,6 +268,23 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 		if err := p.setScaleToZeroSpec(&createFunctionOptions.FunctionConfig.Spec); err != nil {
 			return nil, errors.Wrap(err, "Failed setting scale to zero spec")
+		}
+
+		if skipDeploy {
+			p.Logger.Info("Skipping function deployment")
+
+			_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
+				createFunctionOptions,
+				&functionconfig.Status{
+					State: functionconfig.FunctionAnnotationSkipDeploy,
+				})
+
+			return &platform.CreateFunctionResult{
+				CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
+					Image:                 createFunctionOptions.FunctionConfig.Spec.Image,
+					UpdatedFunctionConfig: createFunctionOptions.FunctionConfig,
+				},
+			}, nil
 		}
 
 		createFunctionResult, briefErrorsMessage, deployErr := p.deployer.deploy(existingFunctionInstance,

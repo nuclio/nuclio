@@ -132,7 +132,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	createFunctionOptions.FunctionConfig.Spec.Build.Mode = ""
 
 	// check if we need to build the image
-	if functionBuildRequired {
+	if functionBuildRequired && !functionconfig.ShouldSkipBuild(createFunctionOptions.FunctionConfig.Meta.Annotations) {
 		buildResult, buildErr = ap.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
 			Logger:                     createFunctionOptions.Logger,
 			FunctionConfig:             createFunctionOptions.FunctionConfig,
