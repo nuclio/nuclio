@@ -89,6 +89,17 @@ func StringSliceContainsString(slice []string, str string) bool {
 	return false
 }
 
+// returns whether the input str is in the slice case-insensitive
+func StringSliceContainsStringCaseInsensitive(slice []string, str string) bool {
+	for _, stringInSlice := range slice {
+		if strings.EqualFold(stringInSlice, str) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // strips out ANSI Colors chars from string
 // example: "\u001b[31mHelloWorld" -> "HelloWorld"
 func RemoveANSIColorsFromString(s string) string {

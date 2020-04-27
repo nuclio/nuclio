@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	net_http "net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -99,10 +100,11 @@ func newTrigger(logger logger.Logger,
 func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 	h.Logger.InfoWith("Starting",
 		"listenAddress", h.configuration.URL,
-		"readBufferSize", h.configuration.ReadBufferSize)
+		"readBufferSize", h.configuration.ReadBufferSize,
+		"cors", h.configuration.CORS)
 
 	h.server = &fasthttp.Server{
-		Handler:        h.requestHandler,
+		Handler:        h.handleRequest(),
 		Name:           "nuclio",
 		ReadBufferSize: h.configuration.ReadBufferSize,
 		Logger:         NewFastHTTPLogger(h.Logger),
@@ -211,7 +213,75 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	return response, false, nil, processError
 }
 
-func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
+func (h *http) handleRequest() fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		if h.configuration.CORS.Enabled &&
+			common.ByteSlice2String(ctx.Method()) == h.configuration.CORS.PreflightRequestMethod {
+
+			// when CORS is enabled, processor HTTP server is responding to "PreflightRequestMethod" (e.g.: OPTIONS)
+			// That means => function will not be able to answer on the method configured by PreflightRequestMethod
+			h.handlePreflightRequest(ctx)
+		} else {
+			h.handleActualRequest(ctx)
+		}
+	}
+}
+
+func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
+
+	// default to bad preflight request unless all specifications are valid
+	ctx.SetStatusCode(fasthttp.StatusBadRequest)
+
+	origin := common.ByteSlice2String(ctx.Request.Header.Peek("Origin"))
+
+	// ensure origin is given, otherwise the request is outside the scope of CORS specifications
+	if !h.configuration.CORS.IsSetAndMatchOrigin(origin) {
+		return
+	}
+
+	method := common.ByteSlice2String(ctx.Request.Header.Peek("Access-Control-Request-Method"))
+
+	// ensure method is given, otherwise the request is outside the scope of CORS specifications
+	if !h.configuration.CORS.IsSetAndMatchMethod(method) {
+		return
+	}
+
+	headers := common.ByteSlice2String(ctx.Request.Header.Peek("Access-Control-Request-Headers"))
+	if headers != "" {
+
+		// ensure request headers allowed (it can also be empty)
+		if !h.configuration.CORS.AreMatchHeaders(strings.Split(headers, ", ")) {
+			return
+		}
+	}
+
+	// indicate whether resource can be shared
+	ctx.Response.Header.Set("Access-Control-Allow-Origin",
+		origin)
+
+	// indicate resource support credentials
+	if h.configuration.CORS.AllowCredentials {
+		ctx.Response.Header.Set("Access-Control-Allow-Credentials",
+			h.configuration.CORS.GetComputedAllowCredentialsHeaderStr())
+	}
+
+	// set preflight results max age
+	ctx.Response.Header.Set("Access-Control-Max-Age",
+		h.configuration.CORS.GetComputedPreflightMaxAgeSecondsStr())
+
+	// indicate what methods can be used
+	ctx.Response.Header.Set("Access-Control-Allow-Methods",
+		h.configuration.CORS.GetComputedAllowMethodsStr())
+
+	// indicate what headers can be used
+	ctx.Response.Header.Set("Access-Control-Allow-Headers",
+		h.configuration.CORS.GetComputedAllowHeadersStr())
+
+	// specifications met, set preflight request as OK
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func (h *http) handleActualRequest(ctx *fasthttp.RequestCtx) {
 	if h.status != status.Ready {
 		h.UpdateStatistics(false)
 		ctx.Response.SetStatusCode(net_http.StatusServiceUnavailable)

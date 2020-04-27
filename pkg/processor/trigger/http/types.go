@@ -20,6 +20,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http/cors"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
@@ -28,6 +29,7 @@ import (
 type Configuration struct {
 	trigger.Configuration
 	ReadBufferSize int
+	CORS           cors.CORS
 }
 
 const DefaultReadBufferSize = 16 * 1024
@@ -51,6 +53,28 @@ func NewConfiguration(ID string,
 
 	if newConfiguration.ReadBufferSize == 0 {
 		newConfiguration.ReadBufferSize = DefaultReadBufferSize
+	}
+
+	if newConfiguration.CORS.Enabled {
+		_cors := cors.NewCORS()
+
+		if len(newConfiguration.CORS.AllowHeaders) > 0 {
+			_cors.AllowHeaders = newConfiguration.CORS.AllowHeaders
+		}
+
+		if len(newConfiguration.CORS.AllowMethods) > 0 {
+			_cors.AllowMethods = newConfiguration.CORS.AllowMethods
+		}
+
+		if newConfiguration.CORS.AllowOrigin != "" {
+			_cors.AllowOrigin = newConfiguration.CORS.AllowOrigin
+		}
+
+		if newConfiguration.CORS.AllowCredentials {
+			_cors.AllowCredentials = newConfiguration.CORS.AllowCredentials
+		}
+
+		newConfiguration.CORS = *_cors
 	}
 
 	return &newConfiguration, nil
