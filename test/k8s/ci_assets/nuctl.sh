@@ -58,7 +58,7 @@ if [[ $(${NUCTL_BIN} \
   --file=test/_function_configs/error/s3_codeentry/function.yaml \
   --registry=localhost:5000 \
   --namespace=${NAMESPACE} \
-  --no-pull | grep "Failed to download file from s3") ]]; then
+  --no-pull | tee /dev/tty | grep "Failed to download file from s3") ]]; then
   echo
   echo "SUCCESS: Function ${FUNCTION_NAME} deployment failed expectedly"
 else
