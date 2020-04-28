@@ -285,12 +285,3 @@ func (s *Server) loadDockerKeys(dockerKeyDir string) error {
 
 	return s.dockerCreds.LoadFromDir(dockerKeyDir)
 }
-
-func (s *Server) readPlatformConfiguration(configurationPath string) (*platformconfig.Config, error) {
-	platformConfigurationReader, err := platformconfig.NewReader()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
-	}
-
-	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
-}

@@ -17,6 +17,8 @@ limitations under the License.
 package platformconfig
 
 import (
+	"os"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/errors"
@@ -31,6 +33,28 @@ type Config struct {
 	ScaleToZero              ScaleToZero              `json:"scaleToZero,omitempty"`
 	AutoScale                AutoScale                `json:"autoScale,omitempty"`
 	FunctionAugmentedConfigs []LabelSelectorAndConfig `json:"functionAugmentedConfigs,omitempty"`
+}
+
+func NewPlatformConfig(configurationPath string) (*Config, error) {
+
+	// read or get default platform config
+	platformConfigurationReader, err := NewReader()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
+	}
+
+	config, err := platformConfigurationReader.ReadFileOrDefault(configurationPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read platform configuration")
+	}
+
+	// determine config kind
+	if len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0 {
+		config.Kind = "kube"
+	}
+	config.Kind = "local"
+
+	return config, nil
 }
 
 func (config *Config) GetSystemLoggerSinks() (map[string]LoggerSinkWithLevel, error) {

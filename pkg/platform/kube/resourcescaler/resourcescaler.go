@@ -31,9 +31,12 @@ type NuclioResourceScaler struct {
 
 // New is called when plugin loaded on scaler, so it's considered "dead code" for the linter
 func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, error) { // nolint: deadcode
-	platformConfiguration, err := readPlatformConfiguration()
+
+	// get platform configuration
+	platformConfigurationPath := "/etc/nuclio/config/platform/platform.yaml"
+	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read platform configuration")
+		return nil, errors.Wrap(err, "Failed to get platform configuration")
 	}
 
 	resourceScalerLogger, err := nucliozap.NewNuclioZap("resource-scaler",
@@ -121,9 +124,12 @@ func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
 }
 
 func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, error) {
-	platformConfiguration, err := readPlatformConfiguration()
+
+	// get platform configuration
+	platformConfigurationPath := "/etc/nuclio/config/platform/platform.yaml"
+	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read platform configuration")
+		return nil, errors.Wrap(err, "Failed to get platform configuration")
 	}
 
 	scaleInterval, err := time.ParseDuration(platformConfiguration.ScaleToZero.ScalerInterval)
@@ -275,16 +281,6 @@ func (n *NuclioResourceScaler) waitFunctionReadiness(namespace string, functionN
 
 		time.Sleep(3 * time.Second)
 	}
-}
-
-func readPlatformConfiguration() (*platformconfig.Config, error) {
-	configurationPath := "/etc/nuclio/config/platform/platform.yaml"
-	platformConfigurationReader, err := platformconfig.NewReader()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
-	}
-
-	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
 }
 
 func getClientConfig(kubeconfigPath string) (*rest.Config, error) {
