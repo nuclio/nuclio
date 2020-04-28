@@ -190,6 +190,10 @@ func (s *Server) GetDefaultNamespace() string {
 	return s.defaultNamespace
 }
 
+func (s *Server) GetPlatformConfiguration() *platformconfig.Config {
+	return s.platformConfiguration
+}
+
 func (s *Server) InstallMiddleware(router chi.Router) error {
 	if err := s.AbstractServer.InstallMiddleware(router); err != nil {
 		return err
