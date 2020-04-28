@@ -431,6 +431,7 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 				continue
 			}
 
+			lc.logger.DebugWith("Resource created", "name", resourceName)
 			return resource, nil
 		}
 
