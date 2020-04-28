@@ -17,7 +17,6 @@ limitations under the License.
 package trigger
 
 import (
-	"fmt"
 	"runtime/debug"
 	"strings"
 	"sync/atomic"
@@ -243,7 +242,7 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance *worker.Worker,
 			"stack",
 			string(callStack))
 
-		*submitError = fmt.Errorf("Caught panic: %s", err)
+		*submitError = errors.Errorf("Caught panic: %s", err)
 
 		if workerInstance != nil {
 			workerInstance.ResetEventTime()
