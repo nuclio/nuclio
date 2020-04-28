@@ -425,7 +425,7 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 				}
 
 				// this case could happen if several controllers are running in parallel. (may happen on rolling upgrade of the controller)
-				lc.logger.DebugWith("Got \"resource already exists\" error on creation. Retrying",
+				lc.logger.WarnWith("Got \"resource already exists\" error on creation. Retrying (Perhaps more than 1 controller is running?)",
 					"name", resourceName,
 					"err", err.Error())
 				continue
