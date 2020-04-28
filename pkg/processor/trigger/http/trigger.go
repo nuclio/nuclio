@@ -436,7 +436,6 @@ func (h *http) preflightRequestValidation(ctx *fasthttp.RequestCtx, origin strin
 
 		// ensure request headers allowed (it can also be empty)
 		if !h.configuration.CORS.HeadersAllowed(strings.Split(headers, ", ")) {
-			h.UpdateStatistics(false)
 			return false
 		}
 	}

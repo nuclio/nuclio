@@ -58,12 +58,14 @@ func (suite *TestSuite) TearDownSuite() {
 func (suite *TestSuite) TestCORS() {
 	client := suite.getClient()
 	for _, testCase := range []struct {
-		CORSAllowOrigin            string
-		RequestOrigin              string
-		RequestMethod              string
-		RequestHeaders             []string
-		ExpectedResponseStatusCode int
-		ExpectedResponseHeaders    map[string]string
+		CORSAllowOrigin                   string
+		RequestOrigin                     string
+		RequestMethod                     string
+		RequestHeaders                    []string
+		ExpectedResponseStatusCode        int
+		ExpectedResponseHeaders           map[string]string
+		ExpectedEventsHandledSuccessTotal uint64
+		ExpectedEventsHandledFailureTotal uint64
 	}{
 
 		// happy flow
@@ -81,14 +83,18 @@ func (suite *TestSuite) TestCORS() {
 				"Access-Control-Max-Age":       "-1",
 				"Access-Control-Allow-Headers": "Accept, Content-Length, Content-Type, X-nuclio-log-level",
 			},
+			ExpectedEventsHandledSuccessTotal: 1,
+			ExpectedEventsHandledFailureTotal: 0,
 		},
 
 		// invalid origin
 		{
-			CORSAllowOrigin:            "foo.bar",
-			RequestOrigin:              "baz.bar",
-			RequestMethod:              "GET",
-			ExpectedResponseStatusCode: fasthttp.StatusBadRequest,
+			CORSAllowOrigin:                   "foo.bar",
+			RequestOrigin:                     "baz.bar",
+			RequestMethod:                     "GET",
+			ExpectedResponseStatusCode:        fasthttp.StatusBadRequest,
+			ExpectedEventsHandledSuccessTotal: 0,
+			ExpectedEventsHandledFailureTotal: 1,
 		},
 
 		// invalid request header
@@ -98,14 +104,18 @@ func (suite *TestSuite) TestCORS() {
 			RequestHeaders: []string{
 				"Not-supported-header",
 			},
-			ExpectedResponseStatusCode: fasthttp.StatusBadRequest,
+			ExpectedResponseStatusCode:        fasthttp.StatusBadRequest,
+			ExpectedEventsHandledSuccessTotal: 0,
+			ExpectedEventsHandledFailureTotal: 1,
 		},
 
 		// invalid request method
 		{
-			RequestOrigin:              "foo.bar",
-			RequestMethod:              "ABC",
-			ExpectedResponseStatusCode: fasthttp.StatusBadRequest,
+			RequestOrigin:                     "foo.bar",
+			RequestMethod:                     "ABC",
+			ExpectedResponseStatusCode:        fasthttp.StatusBadRequest,
+			ExpectedEventsHandledSuccessTotal: 0,
+			ExpectedEventsHandledFailureTotal: 1,
 		},
 	} {
 		suite.Logger.DebugWith("Testing CORS", "testCase", testCase)
@@ -116,6 +126,10 @@ func (suite *TestSuite) TestCORS() {
 			corsInstance.AllowOrigin = testCase.CORSAllowOrigin
 		}
 		suite.trigger.configuration.CORS = corsInstance
+
+		// reset statistics
+		suite.trigger.Statistics.EventsHandledSuccessTotal = 0
+		suite.trigger.Statistics.EventsHandledFailureTotal = 0
 
 		// create request, use OPTIONS to trigger preflight flow
 		request, err := nethttp.NewRequest(fasthttp.MethodOptions, "http://foo.bar/", nil)
@@ -142,6 +156,15 @@ func (suite *TestSuite) TestCORS() {
 		for headerName, headerValue := range testCase.ExpectedResponseHeaders {
 			suite.Equal(response.Header.Get(headerName), headerValue)
 		}
+
+		// check statistic were update correspondingly
+		suite.Equal(testCase.ExpectedEventsHandledSuccessTotal,
+			suite.trigger.Statistics.EventsHandledSuccessTotal)
+
+		// check statistic were update correspondingly
+		suite.Equal(testCase.ExpectedEventsHandledFailureTotal,
+			suite.trigger.Statistics.EventsHandledFailureTotal)
+
 	}
 }
 
