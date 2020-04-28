@@ -18,6 +18,7 @@ package functionconfig
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -315,6 +316,11 @@ func (s *Spec) GetEventTimeout() (time.Duration, error) {
 	return timeout, err
 }
 
+const (
+	FunctionAnnotationSkipBuild  = "skip-build"
+	FunctionAnnotationSkipDeploy = "skip-deploy"
+)
+
 // Meta identifies a function
 type Meta struct {
 	Name        string            `json:"name,omitempty"`
@@ -326,6 +332,30 @@ type Meta struct {
 // GetUniqueID return unique id
 func (m *Meta) GetUniqueID() string {
 	return m.Namespace + ":" + m.Name
+}
+
+func (m *Meta) RemoveSkipDeployAnnotation() {
+	delete(m.Annotations, FunctionAnnotationSkipDeploy)
+}
+
+func (m *Meta) RemoveSkipBuildAnnotation() {
+	delete(m.Annotations, FunctionAnnotationSkipBuild)
+}
+
+func ShouldSkipDeploy(annotations map[string]string) bool {
+	var skipFunctionDeploy bool
+	if skipFunctionBuildDeploy, ok := annotations[FunctionAnnotationSkipDeploy]; ok {
+		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildDeploy)
+	}
+	return skipFunctionDeploy
+}
+
+func ShouldSkipBuild(annotations map[string]string) bool {
+	var skipFunctionBuild bool
+	if skipFunctionBuildStr, ok := annotations[FunctionAnnotationSkipBuild]; ok {
+		skipFunctionBuild, _ = strconv.ParseBool(skipFunctionBuildStr)
+	}
+	return skipFunctionBuild
 }
 
 // Config holds the configuration of a function - meta and spec
@@ -357,6 +387,7 @@ const (
 	FunctionStateReady                            FunctionState = "ready"
 	FunctionStateError                            FunctionState = "error"
 	FunctionStateScaledToZero                     FunctionState = "scaledToZero"
+	FunctionStateImported                         FunctionState = "imported"
 )
 
 func FunctionStateInSlice(a FunctionState, list []FunctionState) bool {

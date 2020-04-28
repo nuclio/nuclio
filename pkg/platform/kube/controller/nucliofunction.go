@@ -114,6 +114,16 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return nil
 	}
 
+	if functionconfig.ShouldSkipDeploy(function.Annotations) {
+		fo.logger.InfoWith("Skipping function deploy",
+			"name", function.Name,
+			"state", function.Status.State,
+			"namespace", function.Namespace)
+		return fo.setFunctionStatus(function, &functionconfig.Status{
+			State: functionconfig.FunctionStateImported,
+		})
+	}
+
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
 	if err != nil {
 		return fo.setFunctionError(function, errors.Wrap(err,
