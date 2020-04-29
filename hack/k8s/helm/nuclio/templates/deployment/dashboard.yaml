@@ -38,6 +38,7 @@ spec:
         nuclio.io/version: {{ .Values.dashboard.image.tag }}
         checksum/secret-registry-credentials: {{ include (print $.Template.BasePath "/secret/registry-credentials.yaml") . | sha256sum }}
         checksum/configmap-registry-url: {{ include (print $.Template.BasePath "/configmap/registry-url.yaml") . | sha256sum }}
+        checksum/configmap-platform: {{ include (print $.Template.BasePath "/configmap/platform.yaml") . | sha256sum }}
     spec:
       serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
       containers:
