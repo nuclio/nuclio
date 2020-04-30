@@ -420,9 +420,18 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 			resource, err = createResource()
 
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to create resource")
+				if !apierrors.IsAlreadyExists(err) {
+					return nil, errors.Wrap(err, "Failed to create resource")
+				}
+
+				// this case could happen if several controllers are running in parallel. (may happen on rolling upgrade of the controller)
+				lc.logger.WarnWith("Got \"resource already exists\" error on creation. Retrying (Perhaps more than 1 controller is running?)",
+					"name", resourceName,
+					"err", err.Error())
+				continue
 			}
 
+			lc.logger.DebugWith("Resource created", "name", resourceName)
 			return resource, nil
 		}
 

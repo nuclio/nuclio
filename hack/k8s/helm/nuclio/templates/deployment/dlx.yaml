@@ -36,6 +36,7 @@ spec:
         nuclio.io/name: {{ template "nuclio.dlxName" . }}
       annotations:
         nuclio.io/version: {{ .Values.dlx.image.tag }}
+        checksum/configmap-platform: {{ include (print $.Template.BasePath "/configmap/platform.yaml") . | sha256sum }}
     spec:
       serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
       containers:
