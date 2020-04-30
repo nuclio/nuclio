@@ -16,18 +16,20 @@
 # Build stage: builds the dlx binary
 #
 
-FROM golang:1.14-alpine3.11 as builder
+ARG NUCLIO_LABEL
+
+FROM nuclio-builder:$NUCLIO_LABEL as nuclio-modules
+
+FROM golang:1.14-alpine3.11 as build-plugin
 
 RUN apk --update --no-cache add \
     git \
     gcc \
     musl-dev
 
+COPY --from=nuclio-modules $GOPATH/pkg/mod $GOPATH/pkg/mod
+
 WORKDIR /dlx
-
-COPY go.mod go.sum ./
-
-RUN go mod download
 
 # copy source tree
 COPY . .
@@ -38,7 +40,7 @@ FROM alpine:3.11
 
 WORKDIR /home/nuclio
 
-COPY --from=builder /dlx/plugin.so /home/nuclio/plugins/plugin.so
-COPY --from=quay.io/v3io/dlx:v0.3.1 /home/v3io/bin/dlx /home/nuclio/dlx
+COPY --from=build-plugin /dlx/plugin.so ./plugins/plugin.so
+COPY --from=quay.io/v3io/dlx:v0.3.1 /home/v3io/bin/dlx ./dlx
 
 CMD [ "/home/nuclio/dlx" ]

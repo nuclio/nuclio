@@ -16,16 +16,9 @@
 # Build stage: builds the playground binary
 #
 
-FROM golang:1.14 as build
+ARG NUCLIO_LABEL
 
-WORKDIR /playground
-
-COPY go.mod go.sum ./
-
-RUN go mod download
-
-# copy source tree
-COPY . .
+FROM nuclio-builder:$NUCLIO_LABEL as build
 
 # build the playground
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o playground cmd/playground/main.go
@@ -48,7 +41,7 @@ RUN apk --update --no-cache add ca-certificates git curl \
     && apk del curl
 
 # copy playground binary from build stage
-COPY --from=build /playground/playground /usr/local/bin
+COPY --from=build /nuclio/playground /usr/local/bin
 COPY cmd/playground/static /etc/nuclio/playground/assets
 
 RUN mkdir -p /etc/nuclio/playground/sources

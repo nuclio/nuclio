@@ -16,18 +16,21 @@
 # Build stage: builds the autoscaler binary
 #
 
-FROM golang:1.14-alpine3.11 as builder
+ARG NUCLIO_LABEL
+
+FROM nuclio-builder:$NUCLIO_LABEL as nuclio-modules
+
+FROM golang:1.14-alpine3.11 as build-plugin
 
 RUN apk --update --no-cache add \
     git \
     gcc \
     musl-dev
 
+# copy modules
+COPY --from=nuclio-modules $GOPATH/pkg/mod $GOPATH/pkg/mod
+
 WORKDIR /autoscaler
-
-COPY go.mod go.sum ./
-
-RUN go mod download
 
 # copy source tree
 COPY . .
@@ -38,7 +41,7 @@ FROM alpine:3.11
 
 WORKDIR /home/nuclio
 
-COPY --from=builder /autoscaler/plugin.so /home/nuclio/plugins/plugin.so
-COPY --from=quay.io/v3io/autoscaler:v0.3.1 /home/v3io/bin/autoscaler /home/nuclio/autoscaler
+COPY --from=build-plugin /autoscaler/plugin.so ./plugins/plugin.so
+COPY --from=quay.io/v3io/autoscaler:v0.3.1 /home/v3io/bin/autoscaler ./autoscaler
 
 CMD [ "/home/nuclio/autoscaler" ]

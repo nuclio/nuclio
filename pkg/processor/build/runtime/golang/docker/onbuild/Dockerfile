@@ -12,19 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ARG NUCLIO_LABEL
+
 # Build the processor
-FROM golang:1.14 as processor
-
-# Set processor work dir
-WORKDIR /nuclio
-
-ADD go.mod go.sum ./
-
-# Download modules
-RUN go mod download
-
-# Copy source tree
-COPY . .
+FROM nuclio-builder:$NUCLIO_LABEL as processor
 
 # Build the processor
 RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go

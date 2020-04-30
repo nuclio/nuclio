@@ -71,7 +71,7 @@ DOCKER_CLI_VERSION := 18.09.6
 #  Must be first target
 #
 all:
-	$(error Please pick a target (run "make targets" to view targets))
+	$(error "Please pick a target (run 'make targets' to view targets)")
 
 
 #
@@ -96,7 +96,6 @@ helm-publish:
 
 # tools get built with the specified OS/arch and inject version
 GO_BUILD_TOOL_WORKDIR = /nuclio
-GO_BUILD_TOOL_DOCKER = docker build -f hack/docker/tool-builder/Dockerfile -t nuclio-tool-builder:$(NUCLIO_LABEL) .
 GO_BUILD_NUCTL = docker run \
 	--volume $(GOPATH)/bin:/go/bin \
 	--env GOOS=$(NUCLIO_OS) \
@@ -151,16 +150,18 @@ NUCLIO_NUCTL_CREATE_SYMLINK := $(if $(NUCLIO_NUCTL_CREATE_SYMLINK),$(NUCLIO_NUCT
 NUCTL_BIN_NAME = nuctl-$(NUCLIO_LABEL)-$(NUCLIO_OS)-$(NUCLIO_ARCH)
 NUCTL_TARGET = $(GOPATH)/bin/nuctl
 
-nuctl: ensure-gopath
-	$(GO_BUILD_TOOL_DOCKER)
+nuctl: ensure-gopath ensure-builder
 	$(GO_BUILD_NUCTL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 	@rm -f $(NUCTL_TARGET)
 ifeq ($(NUCLIO_NUCTL_CREATE_SYMLINK), true)
 	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
 endif
 
-processor: ensure-gopath
-	docker build --file cmd/processor/Dockerfile --tag $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG) .
+processor: ensure-gopath ensure-builder
+	docker build \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--file cmd/processor/Dockerfile \
+		--tag $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG)
 
@@ -171,9 +172,10 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG)
 # Controller
 NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/controller:$(NUCLIO_DOCKER_IMAGE_TAG)
 
-controller: ensure-gopath
+controller: ensure-gopath ensure-builder
 	docker build \
 		$(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/controller/Dockerfile \
 		--tag $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -183,10 +185,11 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
 # Dashboard
 NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
 
-dashboard: ensure-gopath
+dashboard: ensure-gopath ensure-builder
 	docker build \
 		$(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
 		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/dashboard/docker/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -196,9 +199,10 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME)
 # Scaler
 NUCLIO_DOCKER_SCALER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/autoscaler:$(NUCLIO_DOCKER_IMAGE_TAG)
 
-autoscaler: ensure-gopath
+autoscaler: ensure-gopath ensure-builder
 	docker build \
 		$(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/autoscaler/Dockerfile \
 		--tag $(NUCLIO_DOCKER_SCALER_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -208,9 +212,10 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_SCALER_IMAGE_NAME)
 # Dlx
 NUCLIO_DOCKER_DLX_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_TAG)
 
-dlx: ensure-gopath
+dlx: ensure-gopath ensure-builder
 	docker build \
 		$(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/dlx/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DLX_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -243,14 +248,14 @@ NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=\
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME=\
  $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)-alpine
 
-handler-builder-golang-onbuild-alpine:
+handler-builder-golang-onbuild-alpine: ensure-builder
 	docker build \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME) .
 
-handler-builder-golang-onbuild: handler-builder-golang-onbuild-alpine
+handler-builder-golang-onbuild: ensure-builder handler-builder-golang-onbuild-alpine
 	docker build \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
@@ -373,8 +378,9 @@ test-undockerized: ensure-gopath
 	go test -v ./cmd/... ./pkg/... -p 1
 
 .PHONY: test
-test: ensure-gopath
+test: ensure-gopath ensure-builder
 	docker build \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
 		--file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
 		--tag $(NUCLIO_DOCKER_TEST_TAG) .
@@ -411,6 +417,10 @@ test-k8s-nuctl:
 	NUCTL_EXTERNAL_IP_ADDRESSES=$(NUCTL_EXTERNAL_IP_ADDRESSES) \
 	NAMESPACE=$(NAMESPACE) \
 	./test/k8s/ci_assets/nuctl.sh
+
+.PHONY: ensure-builder
+ensure-builder:
+	docker build -f hack/docker/builder/Dockerfile -t nuclio-builder:$(NUCLIO_LABEL) .
 
 .PHONY: ensure-gopath
 ensure-gopath:
