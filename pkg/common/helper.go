@@ -31,6 +31,7 @@ import (
 	"text/template"
 	"time"
 	"unicode/utf8"
+	"unsafe"
 
 	"github.com/nuclio/errors"
 )
@@ -82,6 +83,17 @@ func StringSliceToIntSlice(stringSlice []string) ([]int, error) {
 func StringSliceContainsString(slice []string, str string) bool {
 	for _, stringInSlice := range slice {
 		if stringInSlice == str {
+			return true
+		}
+	}
+
+	return false
+}
+
+// returns whether the input str is in the slice case-insensitive
+func StringSliceContainsStringCaseInsensitive(slice []string, str string) bool {
+	for _, stringInSlice := range slice {
+		if strings.EqualFold(stringInSlice, str) {
 			return true
 		}
 	}
@@ -314,4 +326,12 @@ func NormalizeCronScheduleToFive(schedule string) (string, error) {
 	}
 
 	return strings.Join(splittedSchedule[1:6], " "), nil
+}
+
+func ByteSliceToString(b []byte) string {
+
+	// https://golang.org/src/strings/builder.go#L45
+	// effectively converts bytes to string
+	// !! use with caution as returned string is mutable !!
+	return *(*string)(unsafe.Pointer(&b))
 }

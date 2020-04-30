@@ -168,7 +168,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	b.originalFunctionConfig.Spec.Build.Path = b.options.FunctionConfig.Spec.Build.Path
 
 	// resolve the function path - download in case its a URL
-	b.options.FunctionConfig.Spec.Build.Path, inferredCodeEntryType, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
+	b.options.FunctionConfig.Spec.Build.Path,
+		inferredCodeEntryType,
+		err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -491,6 +493,11 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.processorImage.imageName = processorImageName
 	}
 
+	splitProcessorImageName := strings.Split(b.processorImage.imageName, ":")
+	if len(splitProcessorImageName) == 2 {
+		b.processorImage.imageTag = splitProcessorImageName[1]
+	}
+
 	// if tag isn't set - set latest
 	if b.processorImage.imageTag == "" {
 		b.processorImage.imageTag = "latest"
@@ -501,7 +508,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		"platform", b.options.PlatformName,
 		"dependantImagesRegistryURL", b.options.DependantImagesRegistryURL,
 		"outputImageFile", b.options.OutputImageFile,
-		"pi", b.processorImage)
+		"processorImage", b.processorImage)
 
 	return nil
 }

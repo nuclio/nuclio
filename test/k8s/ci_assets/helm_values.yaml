@@ -11,21 +11,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-FROM golang:1.14 as builder
+# Expected environment variables
 
-WORKDIR /processor
+# ENV NAME      DESCRIPTION         EXAMPLE
+# NUCLIO_LABEL: nuclio version      latest / 1.4.4
+# REPO:         repository url      quay.io / docker.pkg.github.com/nuclio
+# REPO_NAME     repository name     nuclio
 
-COPY go.mod go.sum ./
 
-RUN go mod download
-
-# copy source tree
-COPY . .
-
-# build the processor
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o processor cmd/processor/main.go
-
-FROM scratch
-
-COPY --from=builder  /processor/processor /home/nuclio/bin/processor
+controller:
+  image:
+    tag: ${NUCLIO_LABEL}-amd64
+    repository: ${REPO}/${REPO_NAME}/controller
+    pullPolicy: Never
+dashboard:
+  image:
+    tag: ${NUCLIO_LABEL}-amd64
+    repository: ${REPO}/${REPO_NAME}/dashboard
+    pullPolicy: Never
+registry:
+  defaultOnbuildRegistryURL: ${REPO}/${REPO_NAME}

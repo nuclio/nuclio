@@ -20,6 +20,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http/cors"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
@@ -28,7 +29,10 @@ import (
 type Configuration struct {
 	trigger.Configuration
 	ReadBufferSize int
+	CORS           *cors.CORS
 }
+
+const DefaultReadBufferSize = 16 * 1024
 
 func NewConfiguration(ID string,
 	triggerConfiguration *functionconfig.Trigger,
@@ -48,8 +52,39 @@ func NewConfiguration(ID string,
 	}
 
 	if newConfiguration.ReadBufferSize == 0 {
-		newConfiguration.ReadBufferSize = 16 * 1024
+		newConfiguration.ReadBufferSize = DefaultReadBufferSize
 	}
 
+	if newConfiguration.CORS != nil && newConfiguration.CORS.Enabled {
+		newConfiguration.CORS = createCORSConfiguration(newConfiguration.CORS)
+	}
 	return &newConfiguration, nil
+}
+
+func createCORSConfiguration(CORSConfiguration *cors.CORS) *cors.CORS {
+
+	// take defaults
+	corsInstance := cors.NewCORS()
+
+	// override with custom configuration if provided
+	if len(CORSConfiguration.AllowHeaders) > 0 {
+		corsInstance.AllowHeaders = CORSConfiguration.AllowHeaders
+	}
+
+	if len(CORSConfiguration.AllowMethods) > 0 {
+		corsInstance.AllowMethods = CORSConfiguration.AllowMethods
+	}
+
+	if CORSConfiguration.AllowOrigin != "" {
+		corsInstance.AllowOrigin = CORSConfiguration.AllowOrigin
+	}
+
+	if CORSConfiguration.AllowCredentials {
+		corsInstance.AllowCredentials = CORSConfiguration.AllowCredentials
+	}
+
+	corsInstance.PreflightMaxAgeSeconds = CORSConfiguration.PreflightMaxAgeSeconds
+
+	return corsInstance
+
 }

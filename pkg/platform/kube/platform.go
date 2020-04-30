@@ -119,7 +119,9 @@ func NewPlatform(parentLogger logger.Logger,
 }
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
-func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
+func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (
+	*platform.CreateFunctionResult, error) {
+
 	var existingFunctionInstance *nuclioio.NuclioFunction
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
@@ -143,7 +145,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
 
-	reportCreationError := func(creationError error, briefErrorsMessage string) error {
+	reportCreationError := func(creationError error, briefErrorsMessage string, clearCallStack bool) error {
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
 
@@ -152,16 +154,29 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			errorStack.Truncate(4 * Mib)
 		}
 
-		// if no brief error message was passed, set it to be root cause
+		// when no brief error message was passed - infer it from the creation error
 		if briefErrorsMessage == "" {
-			if rootCause := errors.RootCause(creationError); rootCause != nil {
+			rootCause := errors.RootCause(creationError)
+
+			// when clearCallStack is requested and there's a root cause - set it to be the specific root cause
+			if clearCallStack && rootCause != nil {
 				briefErrorsMessage = rootCause.Error()
+
+				// otherwise, set it to be the whole error stack
+			} else {
+				briefErrorsMessage = errorStack.String()
 			}
 		}
 
-		briefErrorsMessage = p.clearCallStack(briefErrorsMessage)
+		if clearCallStack {
+			briefErrorsMessage = p.clearCallStack(briefErrorsMessage)
+		}
 
-		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
+		// low severity to not over log in the warning
+		createFunctionOptions.Logger.DebugWith("Function creation failed, brief error message extracted",
+			"briefErrorsMessage", briefErrorsMessage)
+
+		createFunctionOptions.Logger.WarnWith("Function creation failed, updating function status",
 			"errorStack", errorStack.String())
 
 		defaultHTTPPort := 0
@@ -169,15 +184,17 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			defaultHTTPPort = existingFunctionInstance.Status.HTTPPort
 		}
 
-		// post logs and error
-		return p.UpdateFunction(&platform.UpdateFunctionOptions{
-			FunctionMeta: &createFunctionOptions.FunctionConfig.Meta,
-			FunctionStatus: &functionconfig.Status{
+		// create or update the function. The possible creation needs to happen here, since on cases of
+		// early build failures we might get here before the function CR was created. After this point
+		// it is guaranteed to be created and updated with the reported error state
+		_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
+			createFunctionOptions,
+			&functionconfig.Status{
 				HTTPPort: defaultHTTPPort,
 				State:    functionconfig.FunctionStateError,
 				Message:  briefErrorsMessage,
-			},
-		})
+			})
+		return err
 	}
 
 	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
@@ -194,12 +211,19 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
 		var err error
 
-		existingFunctionInstance, err = p.getFunction(updatedFunctionConfig.Meta.Namespace, updatedFunctionConfig.Meta.Name)
+		existingFunctionInstance, err = p.getFunction(updatedFunctionConfig.Meta.Namespace,
+			updatedFunctionConfig.Meta.Name)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function")
 		}
 
-		// create or update the function if existing. FunctionInstance is nil, the function will be created
+		// if the function already exists then it either doesn't have the FunctionAnnotationSkipDeploy annotation, or it
+		// was imported and has the annotation, but on this recreate it shouldn't. So the annotation should be removed.
+		if existingFunctionInstance != nil {
+			createFunctionOptions.FunctionConfig.Meta.RemoveSkipDeployAnnotation()
+		}
+
+		// create or update the function if it exists. If functionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
 		// the goal here is for the function to exist prior to building so that it is gettable
 		existingFunctionInstance, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
@@ -221,11 +245,24 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
+
+		skipDeploy := functionconfig.ShouldSkipDeploy(createFunctionOptions.FunctionConfig.Meta.Annotations)
+
+		// after a function build (or skip-build) if the annotation FunctionAnnotationSkipBuild exists, it should be removed
+		// so next time, the build will happen. (skip-deploy will be removed on next update so the controller can use the
+		// annotation as well).
+		createFunctionOptions.FunctionConfig.Meta.RemoveSkipBuildAnnotation()
+
 		if buildErr != nil {
 
 			// try to report the error
-			reportCreationError(buildErr, "") // nolint: errcheck
-
+			reportingErr := reportCreationError(buildErr, "", false)
+			if reportingErr != nil {
+				p.Logger.ErrorWith("Creation error reporting failed",
+					"reportingErr", reportingErr,
+					"buildErr", buildErr)
+				return nil, reportingErr
+			}
 			return nil, buildErr
 		}
 
@@ -233,11 +270,35 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return nil, errors.Wrap(err, "Failed setting scale to zero spec")
 		}
 
-		createFunctionResult, briefErrorsMessage, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
+		if skipDeploy {
+			p.Logger.Info("Skipping function deployment")
+
+			_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
+				createFunctionOptions,
+				&functionconfig.Status{
+					State: functionconfig.FunctionAnnotationSkipDeploy,
+				})
+
+			return &platform.CreateFunctionResult{
+				CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
+					Image:                 createFunctionOptions.FunctionConfig.Spec.Image,
+					UpdatedFunctionConfig: createFunctionOptions.FunctionConfig,
+				},
+			}, nil
+		}
+
+		createFunctionResult, briefErrorsMessage, deployErr := p.deployer.deploy(existingFunctionInstance,
+			createFunctionOptions)
 		if deployErr != nil {
 
 			// try to report the error
-			reportCreationError(deployErr, briefErrorsMessage) // nolint: errcheck
+			reportingErr := reportCreationError(deployErr, briefErrorsMessage, true)
+			if reportingErr != nil {
+				p.Logger.ErrorWith("Deployment error reporting failed",
+					"reportingErr", reportingErr,
+					"buildErr", buildErr)
+				return nil, reportingErr
+			}
 
 			return nil, deployErr
 		}

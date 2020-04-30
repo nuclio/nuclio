@@ -118,23 +118,7 @@ func (fer *functionEventResource) Create(request *http.Request) (id string, attr
 		functionEventInfo.Meta.Name = uuid.NewV4().String()
 	}
 
-	// create a functionEvent config
-	functionEventConfig := platform.FunctionEventConfig{
-		Meta: *functionEventInfo.Meta,
-		Spec: *functionEventInfo.Spec,
-	}
-
-	// create a functionEvent
-	newFunctionEvent, err := platform.NewAbstractFunctionEvent(fer.Logger, fer.getPlatform(), functionEventConfig)
-	if err != nil {
-		return "", nil, nuclio.WrapErrInternalServerError(err)
-	}
-
-	// just deploy. the status is async through polling
-	err = fer.getPlatform().CreateFunctionEvent(&platform.CreateFunctionEventOptions{
-		FunctionEventConfig: *newFunctionEvent.GetConfig(),
-	})
-
+	newFunctionEvent, err := fer.storeAndDeployFunctionEvent(functionEventInfo)
 	if err != nil {
 		return "", nil, nuclio.WrapErrInternalServerError(err)
 	}
@@ -162,6 +146,50 @@ func (fer *functionEventResource) GetCustomRoutes() ([]restful.CustomRoute, erro
 			RouteFunc: fer.deleteFunctionEvent,
 		},
 	}, nil
+}
+
+func (fer *functionEventResource) storeAndDeployFunctionEvent(functionEvent *functionEventInfo) (platform.FunctionEvent, error) {
+
+	// create a functionEvent config
+	functionEventConfig := platform.FunctionEventConfig{
+		Meta: *functionEvent.Meta,
+		Spec: *functionEvent.Spec,
+	}
+
+	// create a functionEvent
+	newFunctionEvent, err := platform.NewAbstractFunctionEvent(fer.Logger, fer.getPlatform(), functionEventConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// just deploy. the status is async through polling
+	err = fer.getPlatform().CreateFunctionEvent(&platform.CreateFunctionEventOptions{
+		FunctionEventConfig: *newFunctionEvent.GetConfig(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return newFunctionEvent, nil
+}
+
+func (fer *functionEventResource) getFunctionEvents(function platform.Function) []platform.FunctionEvent {
+	getFunctionEventOptions := platform.GetFunctionEventsOptions{
+		Meta: platform.FunctionEventMeta{
+			Name:      "",
+			Namespace: function.GetConfig().Meta.Namespace,
+			Labels: map[string]string{
+				"nuclio.io/function-name": function.GetConfig().Meta.Name,
+			},
+		},
+	}
+
+	functionEvents, err := fer.getPlatform().GetFunctionEvents(&getFunctionEventOptions)
+	if err == nil {
+		return functionEvents
+	}
+
+	return []platform.FunctionEvent{}
 }
 
 func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*restful.CustomRouteFuncResponse, error) {

@@ -58,14 +58,15 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 
 	var err error
 
-	// boolean which indicates whether the function existed or not
-	functionExisted := functionInstance != nil
+	// boolean which indicates whether the function exists or not
+	// the function will be created if it doesn't exit, otherwise will updated
+	functionExists := functionInstance != nil
 
 	createFunctionOptions.Logger.DebugWith("Creating/updating function",
-		"existed", functionExisted,
+		"functionExists", functionExists,
 		"functionInstance", functionInstance)
 
-	if !functionExisted {
+	if !functionExists {
 		functionInstance = &nuclioio.NuclioFunction{}
 		functionInstance.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 	} else {
@@ -73,7 +74,7 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	}
 
 	// convert config, status -> function
-	d.populateFunction(&createFunctionOptions.FunctionConfig, functionStatus, functionInstance, functionExisted)
+	d.populateFunction(&createFunctionOptions.FunctionConfig, functionStatus, functionInstance, functionExists)
 
 	createFunctionOptions.Logger.DebugWith("Populated function with configuration and status",
 		"function", functionInstance)
@@ -85,10 +86,14 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	}
 
 	// if function didn't exist, create. otherwise update
-	if !functionExisted {
-		functionInstance, err = nuclioClientSet.NuclioV1beta1().NuclioFunctions(functionInstance.Namespace).Create(functionInstance)
+	if !functionExists {
+		functionInstance, err = nuclioClientSet.NuclioV1beta1().
+			NuclioFunctions(functionInstance.Namespace).
+			Create(functionInstance)
 	} else {
-		functionInstance, err = nuclioClientSet.NuclioV1beta1().NuclioFunctions(functionInstance.Namespace).Update(functionInstance)
+		functionInstance, err = nuclioClientSet.NuclioV1beta1().
+			NuclioFunctions(functionInstance.Namespace).
+			Update(functionInstance)
 	}
 
 	if err != nil {

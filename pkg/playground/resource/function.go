@@ -155,7 +155,7 @@ func (f *function) validateAndDeploy() (*platform.CreateFunctionResult, error) {
 		return nil, errors.New("Function namespace must be defined")
 	}
 
-	// deploy the runction
+	// deploy the function
 	return f.platform.CreateFunction(f.createDeployOptions())
 }
 

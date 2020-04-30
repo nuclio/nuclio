@@ -1,0 +1,20 @@
+metadata:
+  name: s3-fast-failure
+spec:
+  description: 'This function will fail swiftly'
+  loggerSinks:
+  - level: debug
+  handler: main:Handler
+  runtime: golang
+  build:
+    offline: false
+    codeEntryType: s3
+    codeEntryAttributes:
+      s3Bucket: not-a-real-s3-bucket
+      s3ItemKey: not-a-real-s3-item-key
+      s3AccessKeyId: not-a-real-s3-access-key-id
+      s3SecretAccessKey: not-a-real-s3-secret-access-key
+      s3Region: not-a-real-s3-region
+      s3SessionToken: not-a-real-s3-session-token
+      workDir: not-a-real-work-dir
+    mode: alwaysBuild
