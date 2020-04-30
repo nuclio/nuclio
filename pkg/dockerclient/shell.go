@@ -111,7 +111,7 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		hostNetString = ""
 	}
 
-	return common.RetryUntilSuccessful(time.Hour*1, 1*time.Minute, func() bool {
+	return common.RetryUntilSuccessful(1*time.Hour, 1*time.Minute, func() bool {
 		runResults, err := c.runCommand(runOptions,
 			"docker build %s --force-rm -t %s -f %s %s %s .",
 			hostNetString,
