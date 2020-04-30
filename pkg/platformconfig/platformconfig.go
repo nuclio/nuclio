@@ -51,8 +51,9 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 	// determine config kind
 	if len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0 {
 		config.Kind = "kube"
+	} else {
+		config.Kind = "local"
 	}
-	config.Kind = "local"
 
 	return config, nil
 }
