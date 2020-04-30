@@ -100,7 +100,7 @@ GO_BUILD_NUCTL = docker run \
 	--volume $(GOPATH)/bin:/go/bin \
 	--env GOOS=$(NUCLIO_OS) \
 	--env GOARCH=$(NUCLIO_ARCH) \
-	nuclio-tool-builder:$(NUCLIO_LABEL) \
+	nuclio-builder:$(NUCLIO_LABEL) \
 	go build -a \
 	-installsuffix cgo \
 	-ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
