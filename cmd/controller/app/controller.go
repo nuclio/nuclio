@@ -93,7 +93,7 @@ func createController(kubeconfigPath string,
 
 	cronJobStalePodsDeletionInterval, err := time.ParseDuration(cronJobStalePodsDeletionIntervalStr)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse deletion interval for cron job stale pods deletion")
+		return nil, errors.Wrap(err, "Failed to parse cron job stale pods deletion interval")
 	}
 
 	projectOperatorNumWorkers, err := strconv.Atoi(projectOperatorNumWorkersStr)

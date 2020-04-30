@@ -115,8 +115,8 @@ func NewController(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create project operator")
 	}
 
-	// create a project operator
-	newController.cronJobStalePodsDeleter, err = newCronJobStalePodsDeleter(parentLogger,
+	// create cron job monitoring
+	newController.cronJobStalePodsDeleter, err = NewCronJobStalePodsDeleter(parentLogger,
 		newController,
 		&cronJobStalePodsDeletionInterval)
 	if err != nil {
@@ -137,11 +137,6 @@ func (c *Controller) Start() error {
 	// start the project operator
 	if err := c.projectOperator.start(); err != nil {
 		return errors.Wrap(err, "Failed to start project operator")
-	}
-
-	// start the function event operator
-	if err := c.functionEventOperator.start(); err != nil {
-		return errors.Wrap(err, "Failed to start function event operator")
 	}
 
 	// start the function event operator

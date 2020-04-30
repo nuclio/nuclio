@@ -294,8 +294,10 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 
 		// skipping cron triggers when platform kind is "kube" - k8s cron jobs will be created instead
 		if triggerConfiguration.Kind == "cron" && platformKind == "kube" {
-			p.logger.DebugWith("Skipping cron trigger creation inside the processor (Scale to zero is on)",
-				"triggerName", triggerName)
+			p.logger.DebugWith("Skipping cron trigger creation inside the processor",
+				"triggerName", triggerName,
+				"platformKind", platformKind)
+
 			continue
 		}
 

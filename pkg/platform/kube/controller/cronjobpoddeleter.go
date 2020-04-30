@@ -13,26 +13,28 @@ import (
 type cronJobStalePodsDeleter struct {
 	logger           logger.Logger
 	controller       *Controller
-	deletionInterval *time.Duration
+	interval *time.Duration
 }
 
-func newCronJobStalePodsDeleter(parentLogger logger.Logger,
+func NewCronJobStalePodsDeleter(parentLogger logger.Logger,
 	controller *Controller,
-	deletionInterval *time.Duration) (*cronJobStalePodsDeleter, error) {
+	interval *time.Duration) (*cronJobStalePodsDeleter, error) {
 
 	loggerInstance := parentLogger.GetChild("cron_job_stale_pods_deleter")
 
 	newCronJobStalePodsDeleter := &cronJobStalePodsDeleter{
 		logger:           loggerInstance,
 		controller:       controller,
-		deletionInterval: deletionInterval,
+		interval: interval,
 	}
 
-	parentLogger.DebugWith("Created cron job stale pods deleter", "deletionInterval", deletionInterval)
+	parentLogger.DebugWith("Successfuly created cron job stale pods deleter instance",
+		"interval", interval)
 
 	return newCronJobStalePodsDeleter, nil
 }
 
+// run cron job stale pods deletion loop (as k8s lacks this logic, CronJobs are never deleted)
 func (cjpd *cronJobStalePodsDeleter) start() error {
 	go cjpd.startStaleCronJobPodsDeletionLoop() // nolint: errcheck
 
@@ -51,17 +53,21 @@ func (cjpd *cronJobStalePodsDeleter) startStaleCronJobPodsDeletionLoop() error {
 	}
 
 	cjpd.logger.InfoWith("Starting stale cron job pods deletion loop",
-		"deletionInterval", cjpd.deletionInterval)
+		"interval", cjpd.interval,
+		"fieldSelectors", fieldSelectors)
 	for {
 
 		// sleep until next deletion time interval
-		time.Sleep(*cjpd.deletionInterval)
+		time.Sleep(*cjpd.interval)
 
-		err := cjpd.controller.kubeClientSet.CoreV1().Pods(cjpd.controller.namespace).DeleteCollection(&meta_v1.DeleteOptions{},
-			meta_v1.ListOptions{
-				LabelSelector: "nuclio.io/function-cron-job-pod=true",
-				FieldSelector: strings.Join(fieldSelectors, ","),
-			})
+		err := cjpd.controller.kubeClientSet.
+			CoreV1().
+			Pods(cjpd.controller.namespace).
+			DeleteCollection(&meta_v1.DeleteOptions{},
+				meta_v1.ListOptions{
+					LabelSelector: "nuclio.io/function-cron-job-pod=true",
+					FieldSelector: strings.Join(fieldSelectors, ","),
+				})
 		if err != nil {
 			cjpd.logger.WarnWith("Failed to delete stale cron job pods", "err", err)
 		}

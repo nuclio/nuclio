@@ -27,7 +27,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -48,7 +47,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	apps_v1 "k8s.io/api/apps/v1"
 	autos_v2 "k8s.io/api/autoscaling/v2beta1"
-	batchv1 "k8s.io/api/batch/v1"
+	batch_v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
@@ -233,29 +232,16 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 
 	// always delete existing cron jobs on function creation/update
 	// (done to prevent existence of removed cron triggers)
-	if err := lc.deleteExistingCronJobs(function.Name, function.Namespace); err != nil {
+	if err := lc.deleteCronTriggerCronJobs(function.Name, function.Namespace); err != nil {
 		return nil, errors.Wrap(err, "Failed to delete existing cron jobs")
 	}
 
-	// create k8s cron jobs instead of creating them inside the processor
-	// the k8s cron jobs will invoke the function's default http trigger on their schedule/interval
-	// this will enable using the scale to zero functionality of http triggers for cron triggers
-	cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
-	for triggerName, cronTrigger := range cronTriggers {
-		cronJob, err := lc.createOrUpdateCronJob(functionLabels, function, &resources, triggerName, cronTrigger)
-		if err != nil {
-			if deleteCronJobsErr := lc.deleteExistingCronJobs(function.Name, function.Namespace); deleteCronJobsErr != nil {
-				lc.logger.WarnWith("Failed to delete cron jobs on cron jobs creation failure",
-					"deleteCronJobsErr", deleteCronJobsErr)
-			}
-
-			return nil, errors.Wrap(err, fmt.Sprintf("Failed to create cron job from trigger: %s", triggerName))
-		}
-
-		resources.cronJobs = append(resources.cronJobs, cronJob)
+	resources.cronJobs, err = lc.createCronJobsFromCronTriggers(functionLabels, function, &resources)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create cron jobs from cron triggers")
 	}
 
-	lc.logger.Debug("Deployment created/updated")
+	lc.logger.Debug("Successfully created/updated resources")
 
 	return &resources, nil
 }
@@ -388,7 +374,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		return errors.Wrap(err, "Failed to delete function events")
 	}
 
-	err = lc.deleteExistingCronJobs(name, namespace)
+	err = lc.deleteCronTriggerCronJobs(name, namespace)
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete function cron jobs")
 	}
@@ -401,6 +387,32 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 // SetPlatformConfigurationProvider sets the provider of the platform configuration for any future access
 func (lc *lazyClient) SetPlatformConfigurationProvider(platformConfigurationProvider PlatformConfigurationProvider) {
 	lc.platformConfigurationProvider = platformConfigurationProvider
+}
+
+// create k8s cron jobs instead of creating them inside the processor
+// the k8s cron jobs will invoke the function's default http trigger on their schedule/interval
+// this will enable using the scale to zero functionality of http triggers for cron triggers
+func (lc *lazyClient) createCronJobsFromCronTriggers(functionLabels labels.Set,
+	function *nuclioio.NuclioFunction,
+	resources Resources) ([]*v1beta1.CronJob, error){
+	var cronJobs []*v1beta1.CronJob
+
+	cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
+	for triggerName, cronTrigger := range cronTriggers {
+		cronJob, err := lc.createOrUpdateCronJob(functionLabels, function, resources, triggerName, cronTrigger)
+		if err != nil {
+			if deleteCronJobsErr := lc.deleteCronTriggerCronJobs(function.Name, function.Namespace); deleteCronJobsErr != nil {
+				lc.logger.WarnWith("Failed to delete cron jobs on cron jobs creation failure",
+					"deleteCronJobsErr", deleteCronJobsErr,)
+			}
+
+			return nil, errors.Wrapf(err, "Failed to create cron job for trigger: %s", triggerName)
+		}
+
+		cronJobs = append(cronJobs, cronJob)
+	}
+
+	return cronJobs, nil
 }
 
 // as a closure so resourceExists can update
@@ -1024,11 +1036,16 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 	return resource.(*ext_v1beta1.Ingress), err
 }
 
-func (lc *lazyClient) deleteExistingCronJobs(functionName, functionNamespace string) error {
+func (lc *lazyClient) deleteCronTriggerCronJobs(functionName, functionNamespace string) error {
+	lc.logger.InfoWith("Deleting function's cron trigger cron jobs. (if there are any)", "functionName", functionName)
+
+	functionNameLabel := fmt.Sprintf("nuclio.io/function-name=%s", functionName)
+	cronTriggerCronJobLabel := "nuclio.io/function-cron-trigger-cron-job=true"
+
 	return lc.kubeClientSet.BatchV1beta1().
 		CronJobs(functionNamespace).
 		DeleteCollection(&meta_v1.DeleteOptions{},
-			meta_v1.ListOptions{LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName)})
+			meta_v1.ListOptions{LabelSelector: fmt.Sprintf("%s,%s", functionNameLabel, cronTriggerCronJobLabel)})
 }
 
 func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
@@ -1048,14 +1065,22 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	}
 
 	createCronJob := func() (interface{}, error) {
+		cronJobLabels := map[string]string{}
+
+		// prepare cron job labels
+		for labelKey, labelValue := range functionLabels {
+			cronJobLabels[labelKey] = labelValue
+		}
+		cronJobLabels["nuclio.io/function-cron-trigger-cron-job"] = "true"
+
 		cronJobMeta := meta_v1.ObjectMeta{
 			Name:      kube.CronJobNameFromFunctionName(function.Name, triggerName),
 			Namespace: function.Namespace,
-			Labels:    functionLabels,
+			Labels:    cronJobLabels,
 		}
 
 		cronJobSpec := v1beta1.CronJobSpec{}
-		if err := lc.populateCronJobConfig(functionLabels, function, resources, cronTrigger, &cronJobMeta, &cronJobSpec); err != nil {
+		if err := lc.populateCronJobConfig(function, resources, cronTrigger, &cronJobMeta, &cronJobSpec); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate cron job spec")
 		}
 
@@ -1071,7 +1096,8 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 
 	// should never perform update - because all cron jobs are deleted before creation of new ones
 	updateCronJob := func(resource interface{}) (interface{}, error) {
-		lc.logger.WarnWith("This log message should never be shown, means some cron job still exists when it should not")
+		lc.logger.WarnWith("This log message should never be shown, means some cron trigger cron job still exists when it should not",
+			"cronJobName", kube.CronJobNameFromFunctionName(function.Name, triggerName))
 		return nil, nil
 	}
 
@@ -1303,8 +1329,7 @@ func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.Ser
 	return to
 }
 
-func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
-	function *nuclioio.NuclioFunction,
+func (lc *lazyClient) populateCronJobConfig(function *nuclioio.NuclioFunction,
 	resources Resources,
 	cronTrigger functionconfig.Trigger,
 	meta *meta_v1.ObjectMeta,
@@ -1330,7 +1355,7 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 	if attributes.Interval != "" {
 		spec.Schedule = fmt.Sprintf("@every %s", attributes.Interval)
 	} else {
-		spec.Schedule, err = common.NormalizeCronScheduleToFive(attributes.Schedule)
+		spec.Schedule, err = lc.normalizeCronTriggerScheduleInput(attributes.Schedule)
 		if err != nil {
 			return errors.Wrap(err, "Failed to normalize cron schedule")
 		}
@@ -1368,7 +1393,7 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 	curlCommand := fmt.Sprintf("wget %s %s %s", eventBodyAsCurlArg, headersAsCurlArg, functionAddress)
 
 	spec.JobTemplate = v1beta1.JobTemplateSpec{
-		Spec: batchv1.JobSpec{
+		Spec: batch_v1.JobSpec{
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: meta_v1.ObjectMeta{
 					Labels: map[string]string{"nuclio.io/function-cron-job-pod": "true"},
@@ -1393,6 +1418,23 @@ func (lc *lazyClient) populateCronJobConfig(functionLabels labels.Set,
 	}
 
 	return nil
+}
+
+func (lc *lazyClient) normalizeCronTriggerScheduleInput(schedule string) (string, error) {
+
+	splittedSchedule := strings.Split(schedule, " ")
+
+	// if schedule is of length 5, do nothing
+	if len(splittedSchedule) == 5 {
+		return schedule, nil
+	}
+
+	// normalizes cron schedules of length 6 to be of length 5 (removes the seconds slot)
+	if len(splittedSchedule) != 6 {
+		return "", errors.New(fmt.Sprintf("Unexpected cron schedule syntax: %s. (expects standard UNIX cron schedule)", schedule))
+	}
+
+	return strings.Join(splittedSchedule[1:6], " "), nil
 }
 
 func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
