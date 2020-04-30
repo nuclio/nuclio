@@ -111,15 +111,21 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		hostNetString = ""
 	}
 
-	_, err := c.runCommand(runOptions,
-		"docker build %s --force-rm -t %s -f %s %s %s .",
-		hostNetString,
-		buildOptions.Image,
-		buildOptions.DockerfilePath,
-		cacheOption,
-		buildArgs)
+	return common.RetryUntilSuccessful(1*time.Hour, 1*time.Minute, func() bool {
+		runResults, err := c.runCommand(runOptions,
+			"docker build %s --force-rm -t %s -f %s %s %s .",
+			hostNetString,
+			buildOptions.Image,
+			buildOptions.DockerfilePath,
+			cacheOption,
+			buildArgs)
 
-	return err
+		// retry on a race condition where `--force-rm` removes a cached layer for other function build in process
+		if err != nil && strings.HasPrefix(runResults.Stderr, "No such image: sha256:") {
+			return false
+		}
+		return true
+	})
 }
 
 // CopyObjectsFromImage copies objects (files, directories) from a given image to local storage. it does
