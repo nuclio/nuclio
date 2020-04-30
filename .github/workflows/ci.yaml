@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2-beta
+      - uses: actions/setup-go@v2
         with:
           go-version: '^1.14.0'
 
@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2-beta
+      - uses: actions/setup-go@v2
         with:
           go-version: '^1.14.0'
 
@@ -61,7 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2-beta
+      - uses: actions/setup-go@v2
         with:
           go-version: '^1.14.0'
 
@@ -84,10 +84,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      # since disk-size is currently too-low, we will build only the docker images required for our purposes
       - name: Build
         run: |
-          make controller dashboard handler-builder-golang-onbuild
+          make build
         env:
           NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
 
