@@ -93,8 +93,12 @@ jobs:
       - name: Save
         run: |
           docker save \
+            ${REPO}/${REPO_NAME}/processor:${NUCLIO_LABEL}-amd64 \
+            ${REPO}/${REPO_NAME}/dlx:${NUCLIO_LABEL}-amd64 \
+            ${REPO}/${REPO_NAME}/autoscaler:${NUCLIO_LABEL}-amd64 \
             ${REPO}/${REPO_NAME}/dashboard:${NUCLIO_LABEL}-amd64 \
             ${REPO}/${REPO_NAME}/controller:${NUCLIO_LABEL}-amd64 \
+            ${REPO}/${REPO_NAME}/handler-builder-python-onbuild:${NUCLIO_LABEL}-amd64 \
             ${REPO}/${REPO_NAME}/handler-builder-golang-onbuild:${NUCLIO_LABEL}-amd64-alpine \
             | gzip > nuclio_docker_images.tar.gz
       - name: Upload

@@ -31,5 +31,18 @@ dashboard:
     tag: ${NUCLIO_LABEL}-amd64
     repository: ${REPO}/${REPO_NAME}/dashboard
     pullPolicy: Never
+dlx:
+  enabled: true
+  image:
+    tag: ${NUCLIO_LABEL}-amd64
+    repository: ${REPO}/${REPO_NAME}/dlx
+    pullPolicy: Never
+autoscaler:
+  enabled: true
+  image:
+    tag: ${NUCLIO_LABEL}-amd64
+    repository: ${REPO}/${REPO_NAME}/autoscaler
+    pullPolicy: Never
+
 registry:
   defaultOnbuildRegistryURL: ${REPO}/${REPO_NAME}
