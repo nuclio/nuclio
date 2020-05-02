@@ -3,8 +3,9 @@
 **In This Document**
 - [Overview](#overview)
 - [Consuming messages through a consumer group](#consume-messages)
-  - [Example](#example)
+  - [Consumption example](#consumption-example)
 - [Dashboard configuration](#ui-config)
+- [Example](#example)
 
 <a id="overview"></a>
 ## Overview
@@ -35,7 +36,7 @@ Upon receiving its shard assignment, the replica spawns a Go routine ("thread") 
 For each read message, Nuclio "marks" the sequence number as handled. Periodically, the latest marked sequence number for each shard is "committed" (written to the shard's offset attribute). This allows future replicas to pick up where the previous replica left off without affecting performance.
 
 <a id="example"></a>
-### Example
+### Consumption example
 
 To illustrate the consumption mechanism, assume a deployed Nuclio function with minimum and maximum replicas configurations of`3`; the function is configured to read from a `/my-stream` stream with 12 shards using the consumer group `my-consumer-group`.
 
@@ -99,3 +100,56 @@ As of Nuclio v1.1.33 / v1.3.20, you can configure the following configuration pa
 
 > **Note:** In future versions of Nuclio, it's planned that the dashboard will better reflect the role of the configuration parameters and add more parameters (such as session timeout and heartbeat interval, which are currently always set to the default values of 10s and 3s, respectively, unless you edit the function-configuration file).
 
+## Example
+
+The easiet way to set up a stream is with v3ctl. [Download the latest release](https://github.com/v3io/v3ctl/releases), rename it to v3ctl and make it an executable (`chmod +x`). Use it to create a stream with 32 shards:
+```bash
+./v3ctl create stream test-stream-0 \
+    --container users \
+    --retention-period 24 \
+    --shard-count 32
+```
+
+> Note: If you're running outside of the platform, you'll need to provide --access-key and --webapi-url as well to all v3ctl commands
+
+Now create a few records across all the shards, specifying the shard:
+
+```bash
+for shard_id in {0..31}
+do
+    for record_id in {1..10}
+    do
+        ./v3ctl create stream record \
+            --container users \
+            --shard-id $shard_id \
+            --data shard-$shard_id-record-$record_id /test-stream-0
+    done;
+done;
+```
+
+The stream is ready for consumption by a Nuclio function. Deploy a Python function that logs the body and sleeps for 5 seconds:
+
+```python
+import time
+
+
+def handler(context, event):
+    context.logger.debug_with('Got event', shard_id=event.shard_id, body=event.body.decode('utf-8'))
+    time.sleep(5)
+```
+
+Under `Triggers`, create a `V3IO stream` with the following configuration:
+* URL: http://v3io-webapi:8081/users/test-stream-0@cg0
+* Max Workers: 8 (can be more, but here we'll have 8 workers reading all the shards)
+* Seek To: Earliest (if we use `Latest`, we'll never read the records we put into the stream - only records we create after deploy)
+* Password: Your access key
+
+Leave everything else default / empty and deploy (if Partitions requires a value, just put `0` there). Follow the logs of the function pods and watch the events being handled. The logs should contain:
+```
+{ ... "message":"Got event","more":"shard_id=28 || body=shard-28-record-4 || worker_id=7" ...}
+```
+
+To clean up, delete the function and delete the stream:
+```bash
+./v3ctl create stream --container users test-stream-0
+```
