@@ -14,9 +14,9 @@ The Nuclio `v3ioStream` trigger allows users to process messages that are sent t
 
 In the real world, however, you might want to divide the message-processing load across the replicas by using multiple function replicas to read from the same stream. These function replicas must work together to split the stream messages among themselves as fairly as possible, without losing any messages and without processing the same message more than once (to the best of their ability).
 
-To this end, Nuclio leverages consumer groups that are built into the platform's Go library (`v3io-go`). When one or more Nuclio replicas join a consumer group, each replica receives its equal share of the shards, based on the number of replicas that are defined in the function (see details later in this document). 
+To this end, Nuclio leverages consumer groups that are built into the platform's Go library (`v3io-go`). When one or more Nuclio replicas join a consumer group, each replica receives its equal share of the shards, based on the number of replicas that are defined in the function (see details later in this document).
 
-When a Nuclio replica is assigned a set of shards, the replica can start using Nuclio workers to read from the shards and handle the records consumption. It's currently guaranteed that a given shard is handled only by one replica, and that the messages are processed sequentially; that is, a message is read and handled only after the handling of the previous message in the shard is completed. 
+When a Nuclio replica is assigned a set of shards, the replica can start using Nuclio workers to read from the shards and handle the records consumption. It's currently guaranteed that a given shard is handled only by one replica, and that the messages are processed sequentially; that is, a message is read and handled only after the handling of the previous message in the shard is completed.
 
 <a id="consume-messages"></a>
 ## Consuming messages through a consumer group
@@ -74,11 +74,11 @@ The following demonstrates the replica configurations for this example:
 <a id="example-function-redeployment"></a>
 #### Function redeployment
 
-At some point, the user decides to redeploy the function. Because by default, Nuclio uses the rolling-update deployment strategy, Kubernetes terminates the replicas one by one. The `replica1` pod stops, and a new `replica1` pod is brought up and follows the same startup procedure: it reads the state object's consumer-group attribute and looks for free shards to take over; initially, it won't find any, because the `last_heartbeat` field of `replica1` is still within the session timeout period and `replica2` and `replica3` keep updating their `last_heartbeat` field. 
+At some point, the user decides to redeploy the function. Because by default, Nuclio uses the rolling-update deployment strategy, Kubernetes terminates the replicas one by one. The `replica1` pod stops, and a new `replica1` pod is brought up and follows the same startup procedure: it reads the state object's consumer-group attribute and looks for free shards to take over; initially, it won't find any, because the `last_heartbeat` field of `replica1` is still within the session timeout period and `replica2` and `replica3` keep updating their `last_heartbeat` field.
 
 At this stage, `replica1` backs off and retries periodically until it eventually detects that the elapsed time since `replica1`'s `last_heartbeat` value exceeds the session's timeout period. `replica1` then removes the previous `replica1` instance from the consumer group (by removing its entry from the group's attribute in the stream's state object). It then detects that there are free shards and adds a `replica1` entry to the state object's consumer-group attribute to register itself as a member and take over a fair portion of the free shards.
 
-> **Note:** It's also possible for `replica1` to be removed from the consumer group by `replica2` or `replica3`, because each replica cleans up all stale group members when updating its `last_heartbeat` field. 
+> **Note:** It's also possible for `replica1` to be removed from the consumer group by `replica2` or `replica3`, because each replica cleans up all stale group members when updating its `last_heartbeat` field.
 
 For shards 0-3, the new instance of `replica1` then reads the shard's offset attribute, which indicates the location in the shard at which the previous instance of `replica1` left off; seeks the read offset in the shard; and continues reading messages from this location. The same process is executed for `replica2` and `replica3`.
 
@@ -88,7 +88,7 @@ For shards 0-3, the new instance of `replica1` then reads the shard's offset att
 As of Nuclio v1.1.33 / v1.3.20, you can configure the following configuration parameters from the Nuclio dashboard:
 
 - **URL**: A consumer-group URL of the form `http://v3io-webapi:8081/<container name>/<stream path>@<consumer group name>`; for example, ` http://v3io-webapi:8081/bigdata/my-stream@my-consumer-group`.
-- **Max Workers**: The maximum number of workers to allocate for handling the messages of incoming stream shards. Whenever a worker is available and a message reads a shard, the processing is handled by the available worker. 
+- **Max Workers**: The maximum number of workers to allocate for handling the messages of incoming stream shards. Whenever a worker is available and a message reads a shard, the processing is handled by the available worker.
 - **Worker Availability Timeout**: DEPRECATED (ignored)
 - **Partitions**: DEPRECATED (ignored). As explained in the previous sections, in the current release, the assignment of shards ("partitions") to replicas is handled automatically.
 - **Seek To**: The location (offset) within the message from which to consume records when there's no committed offset in the shard's offset attribute. After an offset is committed for a shard in the consumer group, this offset is always used and the **Seek To** parameter is ignored for this shard.
@@ -103,54 +103,81 @@ As of Nuclio v1.1.33 / v1.3.20, you can configure the following configuration pa
 <a id="example"></a>
 ## Example
 
-The easiet way to set up a stream is with v3ctl. [Download the latest release](https://github.com/v3io/v3ctl/releases), rename it to v3ctl and make it an executable (`chmod +x`). Use it to create a stream with 32 shards:
-```bash
+The easiest way to set up a stream is with the [`v3ctl`](https://github.com/v3io/v3ctl) platform CLI.
+[Download the latest CLI release](https://github.com/v3io/v3ctl/releases), rename the executable binary to **v3ctl**, and add executable permissions by running the following command from a command-line shell:
+```sh
+chmod +x v3ctl
+```
+
+> **Note:**
+> - When running remotely, from outside of the platform, you need to add the `--access-key` and `--webapi-url` options to all `v3ctl` commands to provide a valid access key and the API URL of the web-APIs service for your platform environment.
+> - For full usage instructions, including additional options, run `v3ctl <command> --help`.
+>   For example, `v3ctl create stream --help` or `v3ctl create stream record --help`.
+
+Run the following from a command-line shell to create a platform stream named "test-stream-0" (see the stream-path argument) in the predefined "users" platform data container (`--container`).
+The stream has a retention period of 24 hours (`--retention-period`) and 32 shards (`--shard-count`):
+```sh
 ./v3ctl create stream test-stream-0 \
     --container users \
     --retention-period 24 \
     --shard-count 32
 ```
 
-> Note: If you're running outside of the platform, you'll need to provide --access-key and --webapi-url as well to all v3ctl commands
-
-Now create a few records across all the shards, specifying the shard:
-
-```bash
+Now, use the `create stream record` CLI command to add 10 records (IDs `1`-`10`) to each stream shard (`--shard-id`, which is set to a zero-based shard ID - `0`-`9`).
+For test purposes, the ingested record data in the example is a string denoting the shard and record IDs - `shard-$shard_id-record-$record_id` (`--data`).
+As in the `create stream` command, the stream path is set to a "test-stream-0" stream in the root directory of the "users" data container, by using the stream-path argument and the `--container` option.
+```sh
 for shard_id in {0..31}
 do
     for record_id in {1..10}
     do
-        ./v3ctl create stream record \
+        ./v3ctl create stream record /test-stream-0 \
             --container users \
             --shard-id $shard_id \
-            --data shard-$shard_id-record-$record_id /test-stream-0
+            --data shard-$shard_id-record-$record_id
     done;
 done;
 ```
 
-The stream is ready for consumption by a Nuclio function. Deploy a Python function that logs the body and sleeps for 5 seconds:
+After the command completes successfully, the stream is ready for consumption by a Nuclio function. To test this, do the following from the dashboard's **Projects** page, to define and deploy a function that consumes the stream records and uses a `v3ioStream` trigger.
 
-```python
-import time
+> **Note:** Before you deploy the function, ensure that the log-forwarder service is enabled (see the **Services** dashboard page), so that you can view the function logs.
+
+1.  Select and existing project or create a new project, and then create a new Python function. Select to create the function from scratch.
+
+2.  On the function page, in the **Code** tab, set **Code entry type** to "Source code (edit online)" (default), and enter the following code in the **Source code** text box to define a function that logs the shard-ID event body and sleeps for 5 seconds:
+    ```python
+    import time
 
 
-def handler(context, event):
-    context.logger.debug_with('Got event', shard_id=event.shard_id, body=event.body.decode('utf-8'))
-    time.sleep(5)
+    def handler(context, event):
+        context.logger.debug_with('Got event', shard_id=event.shard_id, body=event.body.decode('utf-8'))
+        time.sleep(5)
+    ```
+
+3.  Select the **Triggers** tab, and then select **Create a new trigger**.
+    In the **Name** text box, enter the trigger name "V3IO stream", and in the **Class** field select "V3IO stream" from the drop-down list.
+    Use the following trigger configuration:
+
+    - **URL** - `http://v3io-webapi:8081/users/test-stream-0@cg0`.
+    - **Max Workers** - `8`.
+      (You can also set this to a higher number, but then you'll have 8 workers reading all the shards.)
+    - **Seek To** - `Earliest`.
+      (If you use `Latest`, only records that are ingested after the function is deployed will be read, so you won't read the records that you already added in the previous step.)
+    - **Password** - a valid platform access key.
+
+    For all other configuration fields, use the default configuration.
+    (If you're required to set **Partitions**, enter `0`).
+
+4.  Select **Deploy** to deploy your function.
+
+After the deployment succeeds, check the logs of the function pods (see the **Logs** dashboard page) and watch the events being handled (see the **Events** dashboard page). The logs should contain the following:
+```
+{ ... "message":"Got event","more":"shard_id=<shard ID> || body=shard-<shard ID>-record-<record ID> || worker_id=<worker ID>" ...}
 ```
 
-Under `Triggers`, create a `V3IO stream` with the following configuration:
-* URL: http://v3io-webapi:8081/users/test-stream-0@cg0
-* Max Workers: 8 (can be more, but here we'll have 8 workers reading all the shards)
-* Seek To: Earliest (if we use `Latest`, we'll never read the records we put into the stream - only records we create after deploy)
-* Password: Your access key
-
-Leave everything else default / empty and deploy (if Partitions requires a value, just put `0` there). Follow the logs of the function pods and watch the events being handled. The logs should contain:
-```
-{ ... "message":"Got event","more":"shard_id=28 || body=shard-28-record-4 || worker_id=7" ...}
+To clean up, delete the function from the dashboard's **Projects | &lt;project&gt; | Functions** tab, and then run the following `v3ctl` CLI command from a command-line shell to delete the stream:
+```sh
+./v3ctl delete stream --container users test-stream-0
 ```
 
-To clean up, delete the function and delete the stream:
-```bash
-./v3ctl create stream --container users test-stream-0
-```
