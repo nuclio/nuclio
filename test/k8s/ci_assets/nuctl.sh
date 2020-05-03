@@ -13,7 +13,7 @@ echo "Cleaning up function ${FUNCTION_NAME}..."
 echo "##############################################"
 echo
 
-#${NUCTL_BIN} --verbose delete function ${FUNCTION_NAME} || true
+${NUCTL_BIN} --verbose delete function ${FUNCTION_NAME} || true
 
 echo
 echo "##############################################"
@@ -21,13 +21,13 @@ echo "Deploying function ${FUNCTION_NAME}..."
 echo "##############################################"
 echo
 
-#${NUCTL_BIN} \
-#  --verbose \
-#  deploy ${FUNCTION_NAME} \
-#  --path=hack/examples/golang/helloworld/helloworld.go \
-#  --registry=localhost:5000 \
-#  --namespace=${NAMESPACE} \
-#  --no-pull
+${NUCTL_BIN} \
+  --verbose \
+  deploy ${FUNCTION_NAME} \
+  --path=hack/examples/golang/helloworld/helloworld.go \
+  --registry=localhost:5000 \
+  --namespace=${NAMESPACE} \
+  --no-pull
 
 echo
 echo "##############################################"
@@ -35,10 +35,10 @@ echo "Invoking function ${FUNCTION_NAME}..."
 echo "##############################################"
 echo
 
-#${NUCTL_BIN} \
-#  --verbose \
-#  invoke ${FUNCTION_NAME} \
-#  --namespace=${NAMESPACE}
+${NUCTL_BIN} \
+  --verbose \
+  invoke ${FUNCTION_NAME} \
+  --namespace=${NAMESPACE}
 
 FUNCTION_NAME="s3-fast-failure"
 
