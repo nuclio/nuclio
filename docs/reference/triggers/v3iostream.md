@@ -123,7 +123,7 @@ The stream has a retention period of 24 hours (`--retention-period`) and 32 shar
     --shard-count 32
 ```
 
-Now, use the `create stream record` CLI command to add 10 records (IDs `1`-`10`) to each stream shard (`--shard-id`, which is set to a zero-based shard ID - `0`-`9`).
+Now, use the `create stream record` CLI command to add 10 records (IDs `1`-`10`) to each stream shard (`--shard-id`, which is set to a zero-based shard ID - `0`-`31`).
 For test purposes, the ingested record data in the example is a string denoting the shard and record IDs - `shard-$shard_id-record-$record_id` (`--data`).
 As in the `create stream` command, the stream path is set to a "test-stream-0" stream in the root directory of the "users" data container, by using the stream-path argument and the `--container` option.
 ```sh
