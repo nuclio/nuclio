@@ -143,7 +143,7 @@ After the command completes successfully, the stream is ready for consumption by
 
 > **Note:** Before you deploy the function, ensure that the log-forwarder service is enabled (see the **Services** dashboard page), so that you can view the function logs.
 
-1.  Select and existing project or create a new project, and then create a new Python function. Select to create the function from scratch.
+1.  Select an existing project or create a new project, and then create a new Python function. Select to create the function from scratch.
 
 2.  On the function page, in the **Code** tab, set **Code entry type** to "Source code (edit online)" (default), and enter the following code in the **Source code** text box to define a function that logs the shard-ID event body and sleeps for 5 seconds:
     ```python
