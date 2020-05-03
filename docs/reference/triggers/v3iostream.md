@@ -159,7 +159,8 @@ After the command completes successfully, the stream is ready for consumption by
 
     - **URL** - `http://v3io-webapi:8081/users/test-stream-0@cg0`.
     - **Max Workers** - `8`.
-      (You can also set this to a higher number, but then you'll have 8 workers reading all the shards.)
+      This value signifies the number of workers assigned to handle all the shards.
+      You can also set it to a different number.
     - **Seek To** - `Earliest`.
       (If you use `Latest`, only records that are ingested after the function is deployed will be read, so you won't read the records that you already added in the previous step.)
     - **Password** - a valid platform access key.
