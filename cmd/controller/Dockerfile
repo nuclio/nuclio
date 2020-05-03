@@ -18,7 +18,15 @@
 
 ARG NUCLIO_LABEL
 
-FROM nuclio-builder:$NUCLIO_LABEL as build-binary
+FROM nuclio-builder:$NUCLIO_LABEL as builder
+
+FROM golang:1.14 as build-controller
+
+COPY --from=builder $GOPATH/pkg/mod $GOPATH/pkg/mod
+
+WORKDIR /nuclio
+
+COPY . .
 
 # build the controller
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o controller cmd/controller/main.go
@@ -32,7 +40,7 @@ FROM alpine:3.11
 RUN apk add --no-cache ca-certificates
 
 # copy controller binary from build stage
-COPY --from=build-binary /nuclio/controller /usr/local/bin
+COPY --from=build-controller /nuclio/controller /usr/local/bin
 
 # generate a version file
 ARG NUCLIO_VERSION_INFO_FILE_CONTENTS

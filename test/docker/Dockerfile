@@ -14,7 +14,15 @@
 
 ARG NUCLIO_LABEL
 
-FROM nuclio-builder:$NUCLIO_LABEL as build-binary
+FROM nuclio-builder:$NUCLIO_LABEL as builder
+
+FROM golang:1.14
+
+COPY --from=builder $GOPATH/pkg/mod $GOPATH/pkg/mod
+
+WORKDIR /nuclio
+
+COPY . .
 
 ARG DOCKER_CLI_VERSION="18.09.6"
 

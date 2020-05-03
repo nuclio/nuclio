@@ -33,8 +33,15 @@ RUN npm install -g gulp \
 #
 # Build binary stage: builds the dashboard binary
 #
+FROM nuclio-builder:$NUCLIO_LABEL as builder
 
-FROM nuclio-builder:$NUCLIO_LABEL as build-binary
+FROM golang:1.14 as build-binary
+
+COPY --from=builder $GOPATH/pkg/mod $GOPATH/pkg/mod
+
+WORKDIR /nuclio
+
+COPY . .
 
 # build the dashboard
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o dashboard cmd/dashboard/main.go

@@ -14,11 +14,19 @@
 
 ARG NUCLIO_LABEL
 
-FROM nuclio-builder:$NUCLIO_LABEL as build-binary
+FROM nuclio-builder:$NUCLIO_LABEL as builder
+
+FROM golang:1.14 as build-processor
+
+COPY --from=builder $GOPATH/pkg/mod $GOPATH/pkg/mod
+
+WORKDIR /nuclio
+
+COPY . .
 
 # build the processor
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o processor cmd/processor/main.go
 
 FROM scratch
 
-COPY --from=build-binary  /nuclio/processor /home/nuclio/bin/processor
+COPY --from=build-processor  /nuclio/processor /home/nuclio/bin/processor

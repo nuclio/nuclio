@@ -18,7 +18,7 @@
 
 ARG NUCLIO_LABEL
 
-FROM nuclio-builder:$NUCLIO_LABEL as nuclio-modules
+FROM nuclio-builder:$NUCLIO_LABEL as builder
 
 FROM golang:1.14-alpine3.11 as build-plugin
 
@@ -28,7 +28,7 @@ RUN apk --update --no-cache add \
     musl-dev
 
 # copy modules
-COPY --from=nuclio-modules $GOPATH/pkg/mod $GOPATH/pkg/mod
+COPY --from=builder $GOPATH/pkg/mod $GOPATH/pkg/mod
 
 WORKDIR /autoscaler
 

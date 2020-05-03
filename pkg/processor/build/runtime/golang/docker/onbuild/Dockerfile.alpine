@@ -15,7 +15,7 @@
 # Build the processor
 ARG NUCLIO_LABEL
 
-FROM nuclio-builder:$NUCLIO_LABEL as nuclio-modules
+FROM nuclio-builder:$NUCLIO_LABEL as builder
 
 FROM golang:1.14-alpine3.11 as processor
 
@@ -28,7 +28,7 @@ WORKDIR /nuclio
 # Copy source tree
 COPY . .
 
-COPY --from=nuclio-modules $GOPATH/pkg/mod $GOPATH/pkg/mod
+COPY --from=builder $GOPATH/pkg/mod $GOPATH/pkg/mod
 
 # Build the processor
 RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
