@@ -157,7 +157,7 @@ After the command completes successfully, the stream is ready for consumption by
     In the **Name** text box, enter the trigger name "V3IO stream", and in the **Class** field select "V3IO stream" from the drop-down list.
     Use the following trigger configuration:
 
-    - **URL** - `http://v3io-webapi:8081/users/test-stream-0@cg0`.
+    - **URL** - `http://v3io-webapi:8081/users/test-stream-0@cg0` (where `/users/test-stream-0` is the stream path and `cg0` is the name of the consumer group to use).
     - **Max Workers** - `8`.
       This value signifies the number of workers assigned to handle all the shards.
       You can also set it to a different number.
