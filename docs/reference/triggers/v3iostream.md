@@ -35,7 +35,7 @@ Upon receiving its shard assignment, the replica spawns a Go routine ("thread") 
 
 For each read message, Nuclio "marks" the sequence number as handled. Periodically, the latest marked sequence number for each shard is "committed" (written to the shard's offset attribute). This allows future replicas to pick up where the previous replica left off without affecting performance.
 
-<a id="example"></a>
+<a id="consumption-example"></a>
 ### Consumption example
 
 To illustrate the consumption mechanism, assume a deployed Nuclio function with minimum and maximum replicas configurations of`3`; the function is configured to read from a `/my-stream` stream with 12 shards using the consumer group `my-consumer-group`.
@@ -100,6 +100,7 @@ As of Nuclio v1.1.33 / v1.3.20, you can configure the following configuration pa
 
 > **Note:** In future versions of Nuclio, it's planned that the dashboard will better reflect the role of the configuration parameters and add more parameters (such as session timeout and heartbeat interval, which are currently always set to the default values of 10s and 3s, respectively, unless you edit the function-configuration file).
 
+<a id="example"></a>
 ## Example
 
 The easiet way to set up a stream is with v3ctl. [Download the latest release](https://github.com/v3io/v3ctl/releases), rename it to v3ctl and make it an executable (`chmod +x`). Use it to create a stream with 32 shards:
