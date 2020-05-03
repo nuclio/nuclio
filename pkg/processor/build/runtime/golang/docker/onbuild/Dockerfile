@@ -15,7 +15,7 @@
 ARG NUCLIO_LABEL
 
 # Build the processor
-FROM nuclio-builder:$NUCLIO_LABEL as processor
+FROM nuclio-base:$NUCLIO_LABEL as build-processor
 
 # Build the processor
 RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
@@ -24,11 +24,11 @@ RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /
 FROM golang:1.14
 
 # Store processor binary
-COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
+COPY --from=build-processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
 # Store processor go build artifacts
-COPY --from=processor /nuclio/go.mod /processor_go.mod
-COPY --from=processor /nuclio/go.sum /processor_go.sum
+COPY --from=build-processor /nuclio/go.mod /processor_go.mod
+COPY --from=build-processor /nuclio/go.sum /processor_go.sum
 
 # Copy the script that builds the plugin
 COPY pkg/processor/build/runtime/golang/docker/onbuild/moduler.sh /

@@ -18,21 +18,7 @@
 
 ARG NUCLIO_LABEL
 
-FROM nuclio-builder:$NUCLIO_LABEL as builder
-
-FROM golang:1.14-alpine3.11 as build-plugin
-
-RUN apk --update --no-cache add \
-    git \
-    gcc \
-    musl-dev
-
-COPY --from=builder $GOPATH/pkg/mod $GOPATH/pkg/mod
-
-WORKDIR /dlx
-
-# copy source tree
-COPY . .
+FROM nuclio-base-alpine:$NUCLIO_LABEL as build-plugin
 
 RUN GOOS=linux GOARCH=amd64 go build -buildmode=plugin -a -installsuffix cgo -ldflags="-s -w" -o plugin.so pkg/platform/kube/resourcescaler/resourcescaler.go
 
@@ -40,7 +26,7 @@ FROM alpine:3.11
 
 WORKDIR /home/nuclio
 
-COPY --from=build-plugin /dlx/plugin.so ./plugins/plugin.so
+COPY --from=build-plugin /nuclio/plugin.so ./plugins/plugin.so
 COPY --from=quay.io/v3io/dlx:v0.3.1 /home/v3io/bin/dlx ./dlx
 
 CMD [ "/home/nuclio/dlx" ]
