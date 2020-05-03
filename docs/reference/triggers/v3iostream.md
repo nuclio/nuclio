@@ -141,8 +141,6 @@ done;
 
 After the command completes successfully, the stream is ready for consumption by a Nuclio function. To test this, do the following from the dashboard's **Projects** page, to define and deploy a function that consumes the stream records and uses a `v3ioStream` trigger.
 
-> **Note:** Before you deploy the function, ensure that the log-forwarder service is enabled (see the **Services** dashboard page), so that you can view the function logs.
-
 1.  Select an existing project or create a new project, and then create a new Python function. Select to create the function from scratch.
 
 2.  On the function page, in the **Code** tab, set **Code entry type** to "Source code (edit online)" (default), and enter the following code in the **Source code** text box to define a function that logs the shard-ID event body and sleeps for 5 seconds:
@@ -171,7 +169,7 @@ After the command completes successfully, the stream is ready for consumption by
 
 4.  Select **Deploy** to deploy your function.
 
-After the deployment succeeds, check the logs of the function pods (see the **Logs** dashboard page) and watch the events being handled (see the **Events** dashboard page). The logs should contain the following:
+After the deployment succeeds, check the logs of the function pods and see the information about the Nuclio events that are handled by the function. You can view the logs by running `kubectl` from a platform web-shell or a Jupyter Notebook service, or from the platform dashboard's **Logs** page (when the log-forwarder service is enabled). The logs should contain the following:
 ```
 { ... "message":"Got event","more":"shard_id=<shard ID> || body=shard-<shard ID>-record-<record ID> || worker_id=<worker ID>" ...}
 ```
