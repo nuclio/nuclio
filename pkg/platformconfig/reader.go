@@ -83,9 +83,5 @@ func (r *Reader) GetDefaultConfiguration() *Config {
 				{Level: "debug", Sink: "stdout"},
 			},
 		},
-		ScaleToZero: ScaleToZero{
-			ScalerInterval:           "1m",
-			ResourceReadinessTimeout: "2m",
-		},
 	}
 }
