@@ -108,8 +108,7 @@ jobs:
           docker images \
               --filter="reference=${REPO}/${REPO_NAME}/*:${NUCLIO_LABEL}*" \
               --format "{{ .Repository }}:{{ .Tag }}" \
-            | paste -sd " " - \
-            | docker save $(</dev/stdin) \
+            | xargs docker save \
             | pigz --fast > nuclio_docker_images.tar.gz
 
       - name: Upload
