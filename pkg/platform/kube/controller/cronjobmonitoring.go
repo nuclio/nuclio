@@ -23,8 +23,8 @@ func NewCronJobMonitoring(parentLogger logger.Logger,
 	loggerInstance := parentLogger.GetChild("cron_job_monitoring")
 
 	newCronJobMonitoring := &cronJobMonitoring{
-		logger: loggerInstance,
-		controller: controller,
+		logger:                           loggerInstance,
+		controller:                       controller,
 		staleCronJobPodsDeletionInterval: staleCronJobPodsDeletionInterval,
 	}
 

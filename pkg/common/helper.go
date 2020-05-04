@@ -324,4 +324,3 @@ func ByteSliceToString(b []byte) string {
 	// !! use with caution as returned string is mutable !!
 	return *(*string)(unsafe.Pointer(&b))
 }
-

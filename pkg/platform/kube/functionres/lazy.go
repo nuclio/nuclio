@@ -27,6 +27,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -391,7 +392,7 @@ func (lc *lazyClient) SetPlatformConfigurationProvider(platformConfigurationProv
 // this will enable using the scale to zero functionality of http triggers for cron triggers
 func (lc *lazyClient) createCronJobsFromCronTriggers(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
-	resources Resources) ([]*v1beta1.CronJob, error){
+	resources Resources) ([]*v1beta1.CronJob, error) {
 	var cronJobs []*v1beta1.CronJob
 
 	cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
@@ -414,7 +415,7 @@ func (lc *lazyClient) createCronJobsFromCronTriggers(functionLabels labels.Set,
 		if err != nil {
 			if deleteCronJobsErr := lc.deleteCronJobs(function.Name, function.Namespace); deleteCronJobsErr != nil {
 				lc.logger.WarnWith("Failed to delete cron jobs on cron job creation failure",
-					"deleteCronJobsErr", deleteCronJobsErr,)
+					"deleteCronJobsErr", deleteCronJobsErr)
 			}
 
 			return nil, errors.Wrapf(err, "Failed to create/update cron job for trigger: %s", triggerName)
@@ -439,9 +440,15 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set
 		return errors.Wrap(err, "Failed to list cron jobs")
 	}
 
+	// make a list of all the new cron trigger cron job names
+	newCronJobNames := []string{}
+	for newCronTriggerName := range newCronTriggers {
+		newCronJobNames = append(newCronJobNames, kube.CronJobNameFromFunctionName(function.Name, newCronTriggerName))
+	}
+
 	// delete each cron job that is not inside the new cron triggers
 	for _, existingCronJob := range existingCronJobs.Items {
-		if newCronTriggers[existingCronJob.Name].Name == existingCronJob.Name {
+		if common.StringSliceContainsString(newCronJobNames, existingCronJob.Name) {
 
 			// means that this existing cron job is still inside the function's cron triggers (shall not be deleted)
 			continue
