@@ -42,20 +42,12 @@ func (cjpd *cronJobMonitoring) start() error {
 }
 
 // delete all stale cron job pods (as k8s lacks this logic, and CronJob pods are never deleted)
-// identify by status.phase of the cron job pods
 func (cjpd *cronJobMonitoring) startStaleCronJobPodsDeletionLoop() error {
-	var fieldSelectors []string
-
-	// prepare field selectors - filter out non stale pods
-	nonStalePodPhases := []v1.PodPhase{v1.PodPending, v1.PodRunning}
-	for _, nonStalePodPhase := range nonStalePodPhases {
-		selector := fmt.Sprintf("status.phase!=%s", string(nonStalePodPhase))
-		fieldSelectors = append(fieldSelectors, selector)
-	}
+	stalePodsFieldSelector := cjpd.compileStalePodsFieldSelector()
 
 	cjpd.logger.InfoWith("Starting stale cron job pods deletion loop",
 		"staleCronJobPodsDeletionInterval", cjpd.staleCronJobPodsDeletionInterval,
-		"fieldSelectors", fieldSelectors)
+		"fieldSelectors", stalePodsFieldSelector)
 
 	for {
 
@@ -68,10 +60,24 @@ func (cjpd *cronJobMonitoring) startStaleCronJobPodsDeletionLoop() error {
 			DeleteCollection(&meta_v1.DeleteOptions{},
 				meta_v1.ListOptions{
 					LabelSelector: "nuclio.io/function-cron-job-pod=true",
-					FieldSelector: strings.Join(fieldSelectors, ","),
+					FieldSelector: stalePodsFieldSelector,
 				})
 		if err != nil {
 			cjpd.logger.WarnWith("Failed to delete stale cron job pods", "err", err)
 		}
 	}
+}
+
+// create a field selector(string) for stale pods
+func (cjpd *cronJobMonitoring) compileStalePodsFieldSelector() string {
+	var fieldSelectors []string
+
+	// filter out non stale pods by their phase
+	nonStalePodPhases := []v1.PodPhase{v1.PodPending, v1.PodRunning}
+	for _, nonStalePodPhase := range nonStalePodPhases {
+		selector := fmt.Sprintf("status.phase!=%s", string(nonStalePodPhase))
+		fieldSelectors = append(fieldSelectors, selector)
+	}
+
+	return strings.Join(fieldSelectors, ",")
 }

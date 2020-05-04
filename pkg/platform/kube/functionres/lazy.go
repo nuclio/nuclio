@@ -371,7 +371,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		return errors.Wrap(err, "Failed to delete function events")
 	}
 
-	err = lc.deleteCronTriggerCronJobs(name, namespace)
+	err = lc.deleteCronJobs(name, namespace)
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete function cron jobs")
 	}
@@ -412,8 +412,8 @@ func (lc *lazyClient) createCronJobsFromCronTriggers(functionLabels labels.Set,
 		}
 		cronJob, err := lc.createOrUpdateCronJob(functionLabels, extraMetaLabels, function, triggerName, cronJobSpec)
 		if err != nil {
-			if deleteCronJobsErr := lc.deleteCronTriggerCronJobs(function.Name, function.Namespace); deleteCronJobsErr != nil {
-				lc.logger.WarnWith("Failed to delete cron jobs on cron jobs creation failure",
+			if deleteCronJobsErr := lc.deleteCronJobs(function.Name, function.Namespace); deleteCronJobsErr != nil {
+				lc.logger.WarnWith("Failed to delete cron jobs on cron job creation failure",
 					"deleteCronJobsErr", deleteCronJobsErr,)
 			}
 
@@ -1083,7 +1083,7 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 	return resource.(*ext_v1beta1.Ingress), err
 }
 
-func (lc *lazyClient) deleteCronTriggerCronJobs(functionName, functionNamespace string) error {
+func (lc *lazyClient) deleteCronJobs(functionName, functionNamespace string) error {
 	lc.logger.InfoWith("Deleting function's cron trigger cron jobs. (if there are any)", "functionName", functionName)
 
 	functionNameLabel := fmt.Sprintf("nuclio.io/function-name=%s", functionName)
