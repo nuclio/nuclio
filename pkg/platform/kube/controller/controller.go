@@ -31,18 +31,18 @@ import (
 )
 
 type Controller struct {
-	logger                  logger.Logger
-	namespace               string
-	restConfig              *rest.Config
-	kubeClientSet           kubernetes.Interface
-	nuclioClientSet         nuclioio_client.Interface
-	functionresClient       functionres.Client
-	imagePullSecrets        string
-	functionOperator        *functionOperator
-	projectOperator         *projectOperator
-	functionEventOperator   *functionEventOperator
-	cronJobStalePodsDeleter *cronJobStalePodsDeleter
-	platformConfiguration   *platformconfig.Config
+	logger                logger.Logger
+	namespace             string
+	restConfig            *rest.Config
+	kubeClientSet         kubernetes.Interface
+	nuclioClientSet       nuclioio_client.Interface
+	functionresClient     functionres.Client
+	imagePullSecrets      string
+	functionOperator      *functionOperator
+	projectOperator       *projectOperator
+	functionEventOperator *functionEventOperator
+	cronJobMonitoring     *cronJobMonitoring
+	platformConfiguration *platformconfig.Config
 }
 
 func NewController(parentLogger logger.Logger,
@@ -116,11 +116,11 @@ func NewController(parentLogger logger.Logger,
 	}
 
 	// create cron job monitoring
-	newController.cronJobStalePodsDeleter, err = NewCronJobStalePodsDeleter(parentLogger,
+	newController.cronJobMonitoring, err = NewCronJobMonitoring(parentLogger,
 		newController,
 		&cronJobStalePodsDeletionInterval)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create cron job pod deleter")
+		return nil, errors.Wrap(err, "Failed to create cron job monitoring")
 	}
 
 	return newController, nil
@@ -144,9 +144,9 @@ func (c *Controller) Start() error {
 		return errors.Wrap(err, "Failed to start function event operator")
 	}
 
-	// start the cron job stale pods deleter
-	if err := c.cronJobStalePodsDeleter.start(); err != nil {
-		return errors.Wrap(err, "Failed to start function event operator")
+	// start cron job monitoring
+	if err := c.cronJobMonitoring.start(); err != nil {
+		return errors.Wrap(err, "Failed to start cron job monitoring")
 	}
 
 	return nil

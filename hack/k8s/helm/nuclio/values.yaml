@@ -21,6 +21,11 @@ controller:
     project:
       numWorkers: 2
 
+  # the image of the created k8s cron job for function cron triggers
+  cronTriggerCronJobImage:
+    repository: busybox
+    tag: latest
+
 # Dashboard settings
 dashboard:
   enabled: true

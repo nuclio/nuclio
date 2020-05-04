@@ -53,6 +53,7 @@ func main() {
 	cronJobStalePodsDeletionIntervalStr := flag.String("cron-job-stale-pods-deletion-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_JOB_STALE_PODS_DELETION_INTERVAL", "10m"), "Set interval for the deletion of stale cron job pods (optional)")
 	functionEventOperatorNumWorkersStr := flag.String("function-event-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_EVENT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function event operator (optional)")
 	projectOperatorNumWorkersStr := flag.String("project-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PROJECT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function operator (optional)")
+	cronTriggerCronJobImage := flag.String("cron-trigger-cron-job-image", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE", "busybox:latest"), "Set the image used by cron jobs that are used as cron triggers (optional)")
 	flag.Parse()
 
 	// get the namespace from args -> env -> default (*)
@@ -75,7 +76,8 @@ func main() {
 		*functionOperatorResyncIntervalStr,
 		*cronJobStalePodsDeletionIntervalStr,
 		*functionEventOperatorNumWorkersStr,
-		*projectOperatorNumWorkersStr); err != nil {
+		*projectOperatorNumWorkersStr,
+		*cronTriggerCronJobImage); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)
