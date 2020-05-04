@@ -205,7 +205,7 @@ func (pr *projectResource) export(project platform.Project) restful.Attributes {
 	for _, function := range functions {
 		functionsMap[function.GetConfig().Meta.Name] = functionResourceInstance.export(function)
 
-		functionEvents := functionEventResourceInstance.getFunctionEvents(function)
+		functionEvents := functionEventResourceInstance.getFunctionEvents(function, project.GetConfig().Meta.Namespace)
 		for _, functionEvent := range functionEvents {
 			functionEventsMap[functionEvent.GetConfig().Meta.Name] =
 				functionEventResourceInstance.functionEventToAttributes(functionEvent)
