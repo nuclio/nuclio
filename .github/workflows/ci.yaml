@@ -12,7 +12,6 @@ env:
   REPO_NAME: nuclio
   NUCLIO_LABEL: ${{ github.run_number }}
   NAMESPACE: nuclio
-  NUCLIO_NUCTL_CREATE_SYMLINK: false
 
 jobs:
   lint:
@@ -21,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2-beta
+      - uses: actions/setup-go@v2
         with:
           go-version: '^1.14.0'
 
@@ -41,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2-beta
+      - uses: actions/setup-go@v2
         with:
           go-version: '^1.14.0'
 
@@ -61,7 +60,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2-beta
+      - uses: actions/setup-go@v2
         with:
           go-version: '^1.14.0'
 
@@ -71,6 +70,8 @@ jobs:
           sudo mv $(go env GOPATH)/bin/nuctl-${NUCLIO_LABEL}-linux-amd64 nuctl
           sudo chmod +x nuctl
           ./nuctl version
+        env:
+          NUCLIO_NUCTL_CREATE_SYMLINK: false
 
       - uses: actions/upload-artifact@v1
         with:
@@ -84,20 +85,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      # since disk-size is currently too-low, we will build only the docker images required for our purposes
+      # since github-actions gives us 14G only, and fill it up with some garbage
+      # we will free up some space for us (~2GB)
+      - name: Freeing some disk space
+        run: docker system prune --all --force
+
       - name: Build
-        run: |
-          make controller dashboard handler-builder-golang-onbuild
+        run: make docker-images
         env:
           NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
 
+      # Clean build leftovers
+      - name: Post build cleanup
+        run: docker system prune --force
+
       - name: Save
         run: |
-          docker save \
-            ${REPO}/${REPO_NAME}/dashboard:${NUCLIO_LABEL}-amd64 \
-            ${REPO}/${REPO_NAME}/controller:${NUCLIO_LABEL}-amd64 \
-            ${REPO}/${REPO_NAME}/handler-builder-golang-onbuild:${NUCLIO_LABEL}-amd64-alpine \
-            | gzip > nuclio_docker_images.tar.gz
+          # list built images
+          # join with " "
+          # save docker images
+          # compress using pigz (use fast, the difference is insignificant)
+          docker images \
+              --filter="reference=${REPO}/${REPO_NAME}/*:${NUCLIO_LABEL}*" \
+              --format "{{ .Repository }}:{{ .Tag }}" \
+            | xargs docker save \
+            | pigz --fast > nuclio_docker_images.tar.gz
+
       - name: Upload
         uses: actions/upload-artifact@v1
         with:
