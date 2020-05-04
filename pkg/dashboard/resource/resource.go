@@ -75,3 +75,7 @@ func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthCo
 	// the default behavior
 	return nil, nil
 }
+
+func (r *resource) getListenAddress() string {
+	return r.GetServer().(*dashboard.Server).ListenAddress
+}

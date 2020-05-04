@@ -123,7 +123,6 @@ func (rc *RootCommandeer) initialize() error {
 	}
 
 	rc.loggerInstance.DebugWith("Created platform", "name", rc.platform.GetName())
-
 	return nil
 }
 

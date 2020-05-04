@@ -24,6 +24,7 @@ func (nf *NuclioFunction) GetComputedReplicas() *int32 {
 	one := int32(1)
 
 	if nf.Spec.Disable ||
+		nf.Status.State == functionconfig.FunctionStateImported ||
 		nf.Status.State == functionconfig.FunctionStateScaledToZero ||
 		nf.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero {
 		return &zero

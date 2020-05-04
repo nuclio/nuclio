@@ -97,7 +97,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 	// Create the function
 	createFunctionOptions := suite.GetMockDeploymentFunction("echoer")
 	createdFunction, err := suite.Platform.CreateFunction(createFunctionOptions)
-	suite.NoError(err, "Could not create function")
+	suite.Require().NoError(err, "Could not create function")
 	suite.containerID = createdFunction.ContainerID
 
 	// Get the functions from local store
@@ -105,7 +105,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 		Namespace: createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace,
 		Name:      createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
 	})
-	suite.NoError(err, "Could not get functions")
+	suite.Require().NoError(err, "Could not get functions")
 	suite.Len(functions, 1, "Expected to find the newly created function")
 	function := functions[0]
 
@@ -124,12 +124,65 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 		Namespace: createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace,
 		Name:      createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
 	})
-	suite.NoError(err, "Could not get functions")
+	suite.Require().NoError(err, "Could not get functions")
 	suite.Len(functions, 1, "Expected to find the newly created function")
 	function = functions[0]
 
 	// Now the function state should be error
 	suite.Require().Equal(function.GetStatus().State, functionconfig.FunctionStateError)
+}
+
+// Test function import without deploy and build, then deploy calls build and deploy
+func (suite *TestSuite) TestImportFunctionFlow() {
+
+	// Create the function
+	createFunctionOptions := suite.GetMockDeploymentFunction("echoer")
+	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
+		functionconfig.FunctionAnnotationSkipBuild: "true",
+		functionconfig.FunctionAnnotationSkipDeploy: "true",
+	}
+	createdFunction, err := suite.Platform.CreateFunction(createFunctionOptions)
+	suite.NoError(err, "Failed to create function")
+
+	// Get the functions from local store
+	functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		Namespace: createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace,
+		Name:      createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
+	})
+	suite.NoError(err, "Failed to get functions")
+	suite.Len(functions, 1, "Expected to find the newly created function")
+	function := functions[0]
+
+	// Check its state is imported and not deployed
+	suite.Equal(function.GetStatus().State, functionconfig.FunctionStateImported)
+
+	// Check that the annotations have been removed
+	_, skipBuildExists := function.GetConfig().Meta.Annotations["skip-build"]
+	_, skipDeployExists := function.GetConfig().Meta.Annotations["skip-deploy"]
+	suite.Assert().False(skipBuildExists)
+	suite.Assert().False(skipDeployExists)
+
+	recreateFunctionOptions := &platform.CreateFunctionOptions{
+		Logger:         suite.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: function.GetConfig().Meta,
+			Spec: function.GetConfig().Spec,
+		},
+	}
+	recreatedFunction, err := suite.Platform.CreateFunction(recreateFunctionOptions)
+	suite.NoError(err, "Failed to create function")
+
+	// Get the recreated functions from local store
+	recreatedFunctions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		Namespace: recreatedFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace,
+		Name:      recreatedFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
+	})
+	suite.NoError(err, "Failed to get functions")
+	suite.Len(functions, 1, "Expected to find the newly created function")
+	function = recreatedFunctions[0]
+
+	// Check its state is ready
+	suite.Equal(function.GetStatus().State, functionconfig.FunctionStateReady)
 }
 
 // GetDeployOptions populates a platform.CreateFunctionOptions structure from function name and path

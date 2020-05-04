@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -124,7 +125,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 	cmd.Flags().StringVarP(&commandeer.headers, "headers", "d", "", "HTTP headers (name=val1[,name=val2,...])")
 	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "Invoke the function via - \"any\": a load balancer or an external IP; \"loadbalancer\": a load balancer; \"external-ip\": an external IP")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.LogLevelName, "log-level", "l", "info", "Log level - \"none\", \"debug\", \"info\", \"warn\", or \"error\"")
-	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", "", "External IP addresses (comma-delimited) with which to invoke the function")
+	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", os.Getenv("NUCTL_EXTERNAL_IP_ADDRESSES"), "External IP addresses (comma-delimited) with which to invoke the function")
 
 	commandeer.cmd = cmd
 
