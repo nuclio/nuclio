@@ -27,8 +27,8 @@ import (
 
 func main() {
 	if err := app.Run(); err != nil {
-		if o := err.(*nuclio.ErrorWithStatusCode); o != nil {
-			os.Stdout.WriteString(o.Error())
+		if errWithCode := err.(*nuclio.ErrorWithStatusCode); errWithCode != nil {
+			os.Stdout.WriteString(errWithCode.Error())
 		} else {
 			errors.PrintErrorStack(os.Stderr, err, 5)
 		}
