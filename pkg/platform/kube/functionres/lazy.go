@@ -1463,7 +1463,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	// generate a string to be sent as the request body argument to wget
 	eventBodyAsWgetArg := ""
 	if attributes.Event.Body != "" {
-		eventBodyAsWgetArg = fmt.Sprintf("--post-data \"%s\"", attributes.Event.Body)
+		eventBodyAsWgetArg = fmt.Sprintf("--post-data '%s'", attributes.Event.Body)
 	}
 
 	// generate a string containing all of the headers with --header flag as prefix, to be used by wget later
@@ -1485,8 +1485,8 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function service")
 	}
-
-	functionAddress := fmt.Sprintf("%s:%s", functionService.Spec.ClusterIP, "8080")
+	host, port := kube.GetDomainNameInvokeURL(functionService.Name, function.Namespace)
+	functionAddress := fmt.Sprintf("%s:%d", host, port)
 
 	// generate the whole wget command to be run by the CronJob to invoke the function
 	wgetCommand := fmt.Sprintf("wget %s %s %s", eventBodyAsWgetArg, headersAsWgetArg, functionAddress)
