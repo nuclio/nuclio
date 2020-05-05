@@ -25,6 +25,7 @@ controller:
   cronTriggerCronJobImage:
     repository: busybox
     tag: latest
+    pullPolicy: IfNotPresent
 
 # Dashboard settings
 dashboard:

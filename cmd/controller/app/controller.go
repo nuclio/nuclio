@@ -42,8 +42,7 @@ func Run(kubeconfigPath string,
 	functionOperatorResyncIntervalStr string,
 	cronJobStalePodsDeletionIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
-	projectOperatorNumWorkersStr string,
-	cronTriggerCronJobImage string) error {
+	projectOperatorNumWorkersStr string) error {
 
 	newController, err := createController(kubeconfigPath,
 		namespace,
@@ -53,8 +52,7 @@ func Run(kubeconfigPath string,
 		functionOperatorResyncIntervalStr,
 		cronJobStalePodsDeletionIntervalStr,
 		functionEventOperatorNumWorkersStr,
-		projectOperatorNumWorkersStr,
-		cronTriggerCronJobImage)
+		projectOperatorNumWorkersStr)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create controller")
 	}
@@ -76,8 +74,7 @@ func createController(kubeconfigPath string,
 	functionOperatorResyncIntervalStr string,
 	cronJobStalePodsDeletionIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
-	projectOperatorNumWorkersStr string,
-	cronTriggerCronJobImage string) (*controller.Controller, error) {
+	projectOperatorNumWorkersStr string) (*controller.Controller, error) {
 
 	functionOperatorNumWorkers, err := strconv.Atoi(functionOperatorNumWorkersStr)
 	if err != nil {
@@ -132,7 +129,7 @@ func createController(kubeconfigPath string,
 	}
 
 	// create a client for function deployments
-	functionresClient, err := functionres.NewLazyClient(rootLogger, kubeClientSet, nuclioClientSet, cronTriggerCronJobImage)
+	functionresClient, err := functionres.NewLazyClient(rootLogger, kubeClientSet, nuclioClientSet)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function deployment client")
 	}

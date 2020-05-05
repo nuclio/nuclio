@@ -18,7 +18,7 @@ type CronJobMonitoring struct {
 
 func NewCronJobMonitoring(parentLogger logger.Logger,
 	controller *Controller,
-	staleCronJobPodsDeletionInterval *time.Duration) (*CronJobMonitoring, error) {
+	staleCronJobPodsDeletionInterval *time.Duration) *CronJobMonitoring {
 
 	loggerInstance := parentLogger.GetChild("cron_job_monitoring")
 
@@ -31,14 +31,13 @@ func NewCronJobMonitoring(parentLogger logger.Logger,
 	parentLogger.DebugWith("Successfully created cron job monitoring instance",
 		"staleCronJobPodsDeletionInterval", staleCronJobPodsDeletionInterval)
 
-	return newCronJobMonitoring, nil
+	return newCronJobMonitoring
 }
 
-func (cjpd *CronJobMonitoring) start() error {
+func (cjpd *CronJobMonitoring) start() {
 
 	go cjpd.startStaleCronJobPodsDeletionLoop() // nolint: errcheck
 
-	return nil
 }
 
 // delete all stale cron job pods (as k8s lacks this logic, and CronJob pods are never deleted)

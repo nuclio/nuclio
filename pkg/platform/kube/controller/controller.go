@@ -116,12 +116,9 @@ func NewController(parentLogger logger.Logger,
 	}
 
 	// create cron job monitoring
-	newController.cronJobMonitoring, err = NewCronJobMonitoring(parentLogger,
+	newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
 		newController,
 		&cronJobStalePodsDeletionInterval)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create cron job monitoring")
-	}
 
 	return newController, nil
 }
@@ -145,9 +142,7 @@ func (c *Controller) Start() error {
 	}
 
 	// start cron job monitoring
-	if err := c.cronJobMonitoring.start(); err != nil {
-		return errors.Wrap(err, "Failed to start cron job monitoring")
-	}
+	c.cronJobMonitoring.start()
 
 	return nil
 }
