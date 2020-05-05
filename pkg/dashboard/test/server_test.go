@@ -2402,7 +2402,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
             }
         ]
     },
-	"platformKind": "kube"
+	"platformKind": ""
 }`
 
 	suite.sendRequest("GET",
