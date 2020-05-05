@@ -334,7 +334,8 @@ func (i *importProjectCommandeer) importFunctionEvent(functionEvent platform.Fun
 	// generate new name for events to avoid collisions
 	functionEvent.Meta.Name = uuid.NewV4().String()
 
-	i.rootCommandeer.loggerInstance.Debug("event", functionEvent)
+	// populate namespace
+	functionEvent.Meta.Namespace = i.rootCommandeer.namespace
 
 	// just deploy. the status is async through polling
 	return i.rootCommandeer.platform.CreateFunctionEvent(&platform.CreateFunctionEventOptions{
