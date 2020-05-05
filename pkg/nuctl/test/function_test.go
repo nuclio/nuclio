@@ -387,6 +387,10 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 
 	suite.Require().NoError(err)
 
+	// ensure function created
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+	suite.Require().NoError(err)
+
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)
 
@@ -405,8 +409,19 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 	suite.Require().NoError(err)
 
+	// ensure function created
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, true)
+	suite.Require().NoError(err)
+
 	// check to see the function event was deleted as well
 	err = suite.ExecuteNuctlAndWait([]string{"get", "functionevent", functionEventName}, nil, true)
+	suite.Require().NoError(err)
+
+	// reset buffer
+	suite.outputBuffer.Reset()
+
+	// get function events
+	err = suite.ExecuteNuctl([]string{"get", "functionevent"}, nil)
 	suite.Require().NoError(err)
 
 	// make sure function event names is not in get result
