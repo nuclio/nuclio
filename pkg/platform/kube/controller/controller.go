@@ -41,7 +41,7 @@ type Controller struct {
 	functionOperator      *functionOperator
 	projectOperator       *projectOperator
 	functionEventOperator *functionEventOperator
-	cronJobMonitoring     *cronJobMonitoring
+	cronJobMonitoring     *CronJobMonitoring
 	platformConfiguration *platformconfig.Config
 }
 

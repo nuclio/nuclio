@@ -10,7 +10,7 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type cronJobMonitoring struct {
+type CronJobMonitoring struct {
 	logger                           logger.Logger
 	controller                       *Controller
 	staleCronJobPodsDeletionInterval *time.Duration
@@ -18,11 +18,11 @@ type cronJobMonitoring struct {
 
 func NewCronJobMonitoring(parentLogger logger.Logger,
 	controller *Controller,
-	staleCronJobPodsDeletionInterval *time.Duration) (*cronJobMonitoring, error) {
+	staleCronJobPodsDeletionInterval *time.Duration) (*CronJobMonitoring, error) {
 
 	loggerInstance := parentLogger.GetChild("cron_job_monitoring")
 
-	newCronJobMonitoring := &cronJobMonitoring{
+	newCronJobMonitoring := &CronJobMonitoring{
 		logger:                           loggerInstance,
 		controller:                       controller,
 		staleCronJobPodsDeletionInterval: staleCronJobPodsDeletionInterval,
@@ -34,7 +34,7 @@ func NewCronJobMonitoring(parentLogger logger.Logger,
 	return newCronJobMonitoring, nil
 }
 
-func (cjpd *cronJobMonitoring) start() error {
+func (cjpd *CronJobMonitoring) start() error {
 
 	go cjpd.startStaleCronJobPodsDeletionLoop() // nolint: errcheck
 
@@ -42,7 +42,7 @@ func (cjpd *cronJobMonitoring) start() error {
 }
 
 // delete all stale cron job pods (as k8s lacks this logic, and CronJob pods are never deleted)
-func (cjpd *cronJobMonitoring) startStaleCronJobPodsDeletionLoop() error {
+func (cjpd *CronJobMonitoring) startStaleCronJobPodsDeletionLoop() error {
 	stalePodsFieldSelector := cjpd.compileStalePodsFieldSelector()
 
 	cjpd.logger.InfoWith("Starting stale cron job pods deletion loop",
@@ -69,7 +69,7 @@ func (cjpd *cronJobMonitoring) startStaleCronJobPodsDeletionLoop() error {
 }
 
 // create a field selector(string) for stale pods
-func (cjpd *cronJobMonitoring) compileStalePodsFieldSelector() string {
+func (cjpd *CronJobMonitoring) compileStalePodsFieldSelector() string {
 	var fieldSelectors []string
 
 	// filter out non stale pods by their phase
