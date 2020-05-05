@@ -83,6 +83,7 @@ func NewRootCommandeer() *RootCommandeer {
 		newVersionCommandeer(commandeer).cmd,
 		newCreateCommandeer(commandeer).cmd,
 		newExportCommandeer(commandeer).cmd,
+		newImportCommandeer(commandeer).cmd,
 	)
 
 	commandeer.cmd = cmd

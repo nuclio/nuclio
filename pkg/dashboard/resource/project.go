@@ -23,9 +23,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -49,11 +47,6 @@ type projectImportInfo struct {
 	Functions      map[string]*functionInfo
 	FunctionEvents map[string]*functionEventInfo
 }
-
-const (
-	ProjectGetUponCreationTimeout       = 30 * time.Second
-	ProjectGetUponCreationRetryInterval = 1 * time.Second
-)
 
 // GetAll returns all projects
 func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
@@ -263,8 +256,20 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 	})
 	if err != nil || len(projects) == 0 {
 		pr.Logger.InfoWith("Project doesn't exist, creating it", "project", projectImportInfoInstance.Project.Meta.Name)
-		err = pr.createAndWaitForProjectCreation(projectImportInfoInstance.Project)
+
+		// create a project config
+		projectConfig := platform.ProjectConfig{
+			Meta: *projectImportInfoInstance.Project.Meta,
+			Spec: *projectImportInfoInstance.Project.Spec,
+		}
+
+		// create a project
+		newProject, err := platform.NewAbstractProject(pr.Logger, pr.getPlatform(), projectConfig)
 		if err != nil {
+			return "", nil, nuclio.WrapErrInternalServerError(err)
+		}
+
+		if err = newProject.CreateAndWait(); err != nil {
 			return "", nil, nuclio.WrapErrInternalServerError(err)
 		}
 	}
@@ -398,47 +403,6 @@ func (pr *projectResource) importProjectFunctionEvents(projectImportInfoInstance
 		}
 	}
 	return failedFunctionEvents
-}
-
-func (pr *projectResource) createAndWaitForProjectCreation(projectInfoInstance *projectInfo) error {
-
-	// create a project config
-	projectConfig := platform.ProjectConfig{
-		Meta: *projectInfoInstance.Meta,
-		Spec: *projectInfoInstance.Spec,
-	}
-
-	// create a project
-	newProject, err := platform.NewAbstractProject(pr.Logger, pr.getPlatform(), projectConfig)
-	if err != nil {
-		return nuclio.WrapErrInternalServerError(err)
-	}
-
-	// just deploy. the status is async through polling
-	err = pr.getPlatform().CreateProject(&platform.CreateProjectOptions{
-		ProjectConfig: *newProject.GetConfig(),
-	})
-	if err != nil {
-		return nuclio.WrapErrInternalServerError(err)
-	}
-
-	err = common.RetryUntilSuccessful(ProjectGetUponCreationTimeout, ProjectGetUponCreationRetryInterval, func() bool {
-		pr.Logger.DebugWith("Trying to get created project",
-			"projectName", projectConfig.Meta.Name,
-			"timeout", ProjectGetUponCreationTimeout,
-			"retryInterval", ProjectGetUponCreationRetryInterval)
-		projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
-			Meta: *projectInfoInstance.Meta,
-		})
-		return err == nil && len(projects) > 0
-	})
-	if err != nil {
-		return nuclio.WrapErrInternalServerError(errors.Wrapf(err,
-			"Failed to wait for a created project %s",
-			projectConfig.Meta.Name))
-	}
-
-	return nil
 }
 
 func (pr *projectResource) deleteProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {

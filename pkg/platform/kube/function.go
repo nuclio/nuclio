@@ -109,13 +109,15 @@ func (f *function) Initialize([]string) error {
 				return
 			}
 
-			// there should be only one
-			if len(deploymentList.Items) != 1 {
+			// there should be only one or none (if imported)
+			if len(deploymentList.Items) == 0 {
+				deployment = nil
+			} else if len(deploymentList.Items) == 1 {
+				deployment = &deploymentList.Items[0]
+			} else {
 				deploymentErr = fmt.Errorf("Found unexpected number of deployments for function %s: %d",
 					f.function.Name,
 					len(deploymentList.Items))
-			} else {
-				deployment = &deploymentList.Items[0]
 			}
 		}
 
@@ -188,9 +190,11 @@ func (f *function) Initialize([]string) error {
 	// update fields
 	f.service = service
 
-	f.availableReplicas = int(deployment.Status.AvailableReplicas)
-	if deployment.Spec.Replicas != nil {
-		f.configuredReplicas = int(*deployment.Spec.Replicas)
+	if deployment != nil {
+		f.availableReplicas = int(deployment.Status.AvailableReplicas)
+		if deployment.Spec.Replicas != nil {
+			f.configuredReplicas = int(*deployment.Spec.Replicas)
+		}
 	}
 
 	if ingressErr != nil && ingress != nil && len(ingress.Status.LoadBalancer.Ingress) > 0 {
