@@ -23,8 +23,8 @@ controller:
 
   # the image of the created k8s cron job for function cron triggers
   cronTriggerCronJobImage:
-    repository: busybox
-    tag: latest
+    repository: curlimages/curl
+    tag: 7.70.0
     pullPolicy: IfNotPresent
 
 # Dashboard settings

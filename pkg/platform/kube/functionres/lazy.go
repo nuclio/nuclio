@@ -1460,25 +1460,19 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 		}
 	}
 
-	// generate a string to be sent as the request body argument to wget
-	eventBodyAsWgetArg := ""
-	if attributes.Event.Body != "" {
-		eventBodyAsWgetArg = fmt.Sprintf("--post-data '%s'", attributes.Event.Body)
-	}
-
-	// generate a string containing all of the headers with --header flag as prefix, to be used by wget later
-	headersAsWgetArg := ""
+	// generate a string containing all of the headers with --header flag as prefix, to be used by curl later
+	headersAsCurlArg := ""
 	for headerKey, headerValue := range attributes.Event.Headers {
 		headerValueAsString, ok := headerValue.(string)
 		if !ok {
 			return nil, errors.New(fmt.Sprintf("Unexpected header value type (expected string). header key: %s", headerKey))
 		}
 
-		headersAsWgetArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsWgetArg, headerKey, headerValueAsString)
+		headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, headerKey, headerValueAsString)
 	}
 
 	// add default header
-	headersAsWgetArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsWgetArg, "x-nuclio-invoke-trigger", "cron")
+	headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, "x-nuclio-invoke-trigger", "cron")
 
 	// get the function http trigger address from the service
 	functionService, err := resources.Service()
@@ -1488,8 +1482,28 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	host, port := kube.GetDomainNameInvokeURL(functionService.Name, function.Namespace)
 	functionAddress := fmt.Sprintf("%s:%d", host, port)
 
-	// generate the whole wget command to be run by the CronJob to invoke the function
-	wgetCommand := fmt.Sprintf("wget %s %s %s", eventBodyAsWgetArg, headersAsWgetArg, functionAddress)
+	// generate the curl command to be run by the CronJob to invoke the function
+	curlCommand := fmt.Sprintf("curl %s %s", headersAsCurlArg, functionAddress)
+
+	if attributes.Event.Body != "" {
+		eventBody := attributes.Event.Body
+
+		// if a body exists - dump it into a file, and pass this file as argument (done to support JSON body)
+		eventBodyFilePath := "/tmp/eventbody.out"
+		eventBodyCurlArg := fmt.Sprintf("--data '@%s'", eventBodyFilePath)
+
+		// if body is a valid JSON parse it accordingly
+		eventBodyAsJSON, err := json.Marshal(eventBody)
+		if err == nil {
+			eventBody = string(eventBodyAsJSON)
+		}
+
+		curlCommand = fmt.Sprintf("echo %s > %s && %s %s",
+			eventBody,
+			eventBodyFilePath,
+			curlCommand,
+			eventBodyCurlArg)
+	}
 
 	spec.JobTemplate = batch_v1beta1.JobTemplateSpec{
 		Spec: batch_v1.JobSpec{
@@ -1498,8 +1512,8 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 					Containers: []v1.Container{
 						{
 							Name:  "function-invocator",
-							Image: common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME", "busybox:latest"),
-							Args:  []string{"/bin/sh", "-c", wgetCommand},
+							Image: common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME", "curlimages/curl:7.70.0"),
+							Args:  []string{"/bin/sh", "-c", curlCommand},
 							ImagePullPolicy: v1.PullPolicy(common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_PULL_POLICY", "IfNotPresent")),
 						},
 					},
