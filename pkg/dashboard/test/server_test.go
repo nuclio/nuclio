@@ -2401,7 +2401,8 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
                 "threshold": 0
             }
         ]
-    }
+    },
+	"platformKind": "kube"
 }`
 
 	suite.sendRequest("GET",

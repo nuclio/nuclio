@@ -152,4 +152,3 @@ func getClientConfig(kubeconfigPath string) (*rest.Config, error) {
 
 	return rest.InClusterConfig()
 }
-
