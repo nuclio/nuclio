@@ -1,4 +1,4 @@
-name: Nuclio CI
+name: CI
 
 on:
   pull_request:
@@ -12,6 +12,7 @@ env:
   REPO_NAME: nuclio
   NUCLIO_LABEL: ${{ github.run_number }}
   NAMESPACE: nuclio
+  NUCTL_REGISTRY: localhost:5000
 
 jobs:
   lint:
@@ -22,7 +23,7 @@ jobs:
 
       - uses: actions/setup-go@v2
         with:
-          go-version: '^1.14.0'
+          go-version: "^1.14.0"
 
       - uses: actions/cache@v1
         with:
@@ -42,7 +43,7 @@ jobs:
 
       - uses: actions/setup-go@v2
         with:
-          go-version: '^1.14.0'
+          go-version: "^1.14.0"
 
       - uses: actions/cache@v1
         with:
@@ -62,7 +63,7 @@ jobs:
 
       - uses: actions/setup-go@v2
         with:
-          go-version: '^1.14.0'
+          go-version: "^1.14.0"
 
       - name: Build
         run: |
@@ -128,18 +129,20 @@ jobs:
 
       - uses: azure/setup-helm@v1
         with:
-          version: 'v3.1.2'
+          version: "v3.1.2"
+
+      - uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - uses: manusa/actions-setup-minikube@v1.0.2
         with:
-          minikube version: 'v1.9.2'
-          kubernetes version: 'v1.17.3'
+          minikube version: "v1.9.2"
+          kubernetes version: "v1.17.3"
           github token: ${{ github.token }}
-
-      - name: Fetch nuctl binary
-        uses: actions/download-artifact@v1
-        with:
-          name: nuctl-bin
 
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v1
@@ -148,7 +151,6 @@ jobs:
 
       - name: Prepare k8s cluster
         run: |
-          mv ./nuctl-bin/nuctl . && chmod +x nuctl
           kubectl create namespace ${NAMESPACE}
           docker run -d -p 5000:5000 registry:2
           docker load -i nuclio-docker-images/nuclio_docker_images.tar.gz
@@ -160,7 +162,15 @@ jobs:
             | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
 
       - name: Run nuctl tests
-        run: make test-k8s-nuctl
+        run: |
+          set -o pipefail
+          make test-k8s-nuctl 2>&1 | tee nuctl-test-results-${NUCLIO_LABEL}.log
         env:
           NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL: ${{ env.REPO }}
-          NUCTL_BIN: ./nuctl
+          NUCTL_REGISTRY: "localhost:5000"
+
+      - uses: actions/upload-artifact@v1
+        with:
+          name: Nuctl tests results
+          path: nuctl-test-results-${{ env.NUCLIO_LABEL }}.log
+        if: ${{ always() }}

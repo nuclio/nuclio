@@ -19,10 +19,12 @@ package test
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
@@ -41,12 +43,14 @@ const (
 
 type Suite struct {
 	suite.Suite
-	origPlatformType string
-	logger           logger.Logger
-	rootCommandeer   *command.RootCommandeer
-	dockerClient     dockerclient.Client
-	shellClient      *cmdrunner.ShellRunner
-	outputBuffer     bytes.Buffer
+	origPlatformType    string
+	logger              logger.Logger
+	rootCommandeer      *command.RootCommandeer
+	dockerClient        dockerclient.Client
+	shellClient         *cmdrunner.ShellRunner
+	outputBuffer        bytes.Buffer
+	defaultWaitDuration time.Duration
+	defaultWaitInterval time.Duration
 }
 
 func (suite *Suite) SetupSuite() {
@@ -67,6 +71,10 @@ func (suite *Suite) SetupSuite() {
 	// save platform type before the test
 	suite.origPlatformType = os.Getenv(nuctlPlatformEnvVarName)
 
+	// init default wait values to be used during tests for retries
+	suite.defaultWaitDuration = 1 * time.Minute
+	suite.defaultWaitInterval = 5 * time.Second
+
 	// default to local platform if platform isn't set
 	if os.Getenv(nuctlPlatformEnvVarName) == "" {
 		err = os.Setenv(nuctlPlatformEnvVarName, "local")
@@ -76,7 +84,7 @@ func (suite *Suite) SetupSuite() {
 	// update version so that linker doesn't need to inject it
 	err = version.Set(&version.Info{
 		GitCommit: "c",
-		Label:     "latest",
+		Label:     common.GetEnvOrDefaultString("NUCLIO_LABEL", "latest"),
 		Arch:      "amd64",
 		OS:        "linux",
 	})
@@ -108,11 +116,7 @@ func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 	argsStringSlice = append(argsStringSlice, positionalArgs...)
 
 	for argName, argValue := range namedArgs {
-		argsStringSlice = append(argsStringSlice, "--"+argName)
-
-		if argValue != "" {
-			argsStringSlice = append(argsStringSlice, argValue)
-		}
+		argsStringSlice = append(argsStringSlice, fmt.Sprintf("--%s", argName), argValue)
 	}
 
 	// override os.Args (this can't go wrong horribly, can it?)
@@ -124,6 +128,24 @@ func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 	return suite.rootCommandeer.Execute()
 }
 
+// ExecuteNuctl populates os.Args and executes nuctl as if it were executed from shell
+func (suite *Suite) ExecuteNuctlAndWait(positionalArgs []string,
+	namedArgs map[string]string,
+	expectFailure bool) error {
+
+	return common.RetryUntilSuccessful(suite.defaultWaitDuration,
+		suite.defaultWaitInterval,
+		func() bool {
+
+			// execute
+			err := suite.ExecuteNuctl(positionalArgs, namedArgs)
+			if expectFailure {
+				return err != nil
+			}
+			return err == nil
+		})
+}
+
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *Suite) GetNuclioSourceDir() string {
 	return common.GetSourceDir()
@@ -132,6 +154,10 @@ func (suite *Suite) GetNuclioSourceDir() string {
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *Suite) GetFunctionsDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "test", "_functions")
+}
+
+func (suite *Suite) GetFunctionConfigsDir() string {
+	return path.Join(suite.GetNuclioSourceDir(), "test", "_function_configs")
 }
 
 func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMustNotExist []string) {
