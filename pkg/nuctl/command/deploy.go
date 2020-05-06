@@ -69,9 +69,22 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var err error
 
+			// initialize root
+			if err := rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
 			// update build stuff
 			if len(args) == 1 {
 				commandeer.functionConfig.Meta.Name = args[0]
+
+				importedFunction, err := commandeer.getImportedFunction(args[0])
+				if err != nil {
+					return err
+				}
+				if importedFunction != nil {
+					return commandeer.reDeployFunction(importedFunction)
+				}
 			}
 
 			// parse volumes
@@ -293,4 +306,48 @@ func parseVolumes(volumes stringSliceFlag) ([]functionconfig.Volume, error) {
 	}
 
 	return originVolumes, nil
+}
+
+func (d *deployCommandeer) getImportedFunction(functionName string) (platform.Function, error) {
+	functions, err := d.rootCommandeer.platform.GetFunctions(&platform.GetFunctionsOptions{
+		Name:      functionName,
+		Namespace: d.rootCommandeer.namespace,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to check existing functions")
+	}
+
+	if len(functions) == 0 {
+		return nil, nil
+	}
+
+	function := functions[0]
+	if err := function.Initialize(nil); err != nil {
+		return nil, err
+	}
+
+	if function.GetStatus().State == functionconfig.FunctionStateImported {
+		return function, nil
+	}
+
+	return nil, nil
+}
+
+func (d *deployCommandeer) reDeployFunction(importedFunction platform.Function) error {
+	functionConfig := importedFunction.GetConfig()
+
+	// Ensure build and deployment works
+	functionConfig.Meta.RemoveSkipBuildAnnotation()
+	functionConfig.Meta.RemoveSkipDeployAnnotation()
+
+	// Ensure RunRegistry is taken from the commandeer config
+	functionconfig.CleanFunctionSpec(functionConfig)
+	functionConfig.Spec.RunRegistry = d.functionConfig.Spec.RunRegistry
+
+	_, err := d.rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
+		Logger:         d.rootCommandeer.loggerInstance,
+		FunctionConfig: *functionConfig,
+	})
+
+	return err
 }
