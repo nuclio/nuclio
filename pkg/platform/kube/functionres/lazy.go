@@ -231,7 +231,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 		return nil, errors.Wrap(err, "Failed to create/update ingress")
 	}
 
-	resources.cronJobs, err = lc.createCronJobs(functionLabels, function, &resources)
+	resources.cronJobs, err = lc.createOrUpdateCronJobs(functionLabels, function, &resources)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create cron jobs from cron triggers")
 	}
@@ -384,12 +384,18 @@ func (lc *lazyClient) SetPlatformConfigurationProvider(platformConfigurationProv
 	lc.platformConfigurationProvider = platformConfigurationProvider
 }
 
-func (lc *lazyClient) createCronJobs(functionLabels labels.Set,
+func (lc *lazyClient) createOrUpdateCronJobs(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	resources Resources) ([]*batch_v1beta1.CronJob, error) {
 	var cronJobs []*batch_v1beta1.CronJob
+	var suspendCronJobs bool
 
-	cronTriggerCronJobs, err := lc.createCronTriggerCronJobs(functionLabels, function, resources)
+	// if function was paused - suspend all cron jobs
+	if function.Spec.Disable {
+		suspendCronJobs = true
+	}
+
+	cronTriggerCronJobs, err := lc.createOrUpdateCronTriggerCronJobs(functionLabels, function, resources, suspendCronJobs)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create cron trigger cron jobs")
 	}
@@ -401,9 +407,10 @@ func (lc *lazyClient) createCronJobs(functionLabels labels.Set,
 // create cron triggers as k8s cron jobs instead of creating them inside the processor
 // these k8s cron jobs will invoke the function's default http trigger on their schedule/interval
 // this will enable using the scale to zero functionality of http triggers for cron triggers
-func (lc *lazyClient) createCronTriggerCronJobs(functionLabels labels.Set,
+func (lc *lazyClient) createOrUpdateCronTriggerCronJobs(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
-	resources Resources) ([]*batch_v1beta1.CronJob, error) {
+	resources Resources,
+	suspendCronJobs bool) ([]*batch_v1beta1.CronJob, error) {
 	var cronJobs []*batch_v1beta1.CronJob
 
 	cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
@@ -422,7 +429,12 @@ func (lc *lazyClient) createCronTriggerCronJobs(functionLabels labels.Set,
 		extraMetaLabels := labels.Set{
 			"nuclio.io/function-cron-trigger-cron-job": "true",
 		}
-		cronJob, err := lc.createOrUpdateCronJob(functionLabels, extraMetaLabels, function, triggerName, cronJobSpec)
+		cronJob, err := lc.createOrUpdateCronJob(functionLabels,
+			extraMetaLabels,
+			function,
+			triggerName,
+			cronJobSpec,
+			suspendCronJobs)
 		if err != nil {
 
 			go func() {
@@ -1144,7 +1156,11 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	extraMetaLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	jobName string,
-	cronJobSpec *batch_v1beta1.CronJobSpec) (*batch_v1beta1.CronJob, error) {
+	cronJobSpec *batch_v1beta1.CronJobSpec,
+	suspendCronJob bool) (*batch_v1beta1.CronJob, error) {
+
+	// should cron job be suspended or not (true when function is paused)
+	cronJobSpec.Suspend = &suspendCronJob
 
 	getCronJob := func() (interface{}, error) {
 		return lc.kubeClientSet.BatchV1beta1().
