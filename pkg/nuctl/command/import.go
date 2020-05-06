@@ -3,17 +3,19 @@ package command
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ghodss/yaml"
-	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/platform"
-	uuid "github.com/satori/go.uuid"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform"
+
+	"github.com/ghodss/yaml"
+	"github.com/nuclio/errors"
+	uuid "github.com/satori/go.uuid"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -61,9 +63,8 @@ func (i *importCommandeer) addImportCommandFlags(cmd *cobra.Command) {
 func (i *importCommandeer) readFromStdinOrFile(args []string) ([]byte, error) {
 	if len(args) >= 1 {
 		return ioutil.ReadFile(args[0])
-	} else {
-		return ioutil.ReadAll(os.Stdin)
 	}
+	return ioutil.ReadAll(os.Stdin)
 }
 
 func (i *importCommandeer) getUnmarshalFunc(format string) func(data []byte, v interface{}) error {
