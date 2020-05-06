@@ -93,10 +93,10 @@ func NewLazyClient(parentLogger logger.Logger,
 	nuclioClientSet nuclioio_client.Interface) (Client, error) {
 
 	newClient := lazyClient{
-		logger:                  parentLogger.GetChild("functionres"),
-		kubeClientSet:           kubeClientSet,
-		nuclioClientSet:         nuclioClientSet,
-		classLabels:             make(labels.Set),
+		logger:          parentLogger.GetChild("functionres"),
+		kubeClientSet:   kubeClientSet,
+		nuclioClientSet: nuclioClientSet,
+		classLabels:     make(labels.Set),
 	}
 
 	newClient.initClassLabels()
@@ -1527,9 +1527,9 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:  "function-invocator",
-							Image: common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME", "curlimages/curl:7.70.0"),
-							Args:  []string{"/bin/sh", "-c", curlCommand},
+							Name:            "function-invocator",
+							Image:           common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME", "curlimages/curl:7.70.0"),
+							Args:            []string{"/bin/sh", "-c", curlCommand},
 							ImagePullPolicy: v1.PullPolicy(common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_PULL_POLICY", "IfNotPresent")),
 						},
 					},
