@@ -99,7 +99,7 @@ For more information on Nuclio function configuration, see the [function-configu
   **Type:** `object` with the following attributes -
 
   - **`enable`** (`bool`) - Enable authentication.
-  - **`user`** (`string`) - Username to be used for authenticatio.
+  - **`user`** (`string`) - Username to be used for authentication.
   - **`password`** (`string`) - Password to be used for authentication.
 
 - <a id="sessionTimeout"></a>**`sessionTimeout`** (`kafka-session-timeout`) - The timeout used to detect consumer failures when using Kafka's group management facility. The consumer sends periodic heartbeats to indicate its liveness to the broker. If no heartbeats are received by the broker before the expiration of this session timeout, the broker removes this consumer from the group and initiates rebalancing. Note that the value must be in the allowable range, as configured in the `group.min.session.timeout.ms` and `group.max.session.timeout.ms` broker configuration parameters.

@@ -276,7 +276,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
 				createFunctionOptions,
 				&functionconfig.Status{
-					State: functionconfig.FunctionAnnotationSkipDeploy,
+					State: functionconfig.FunctionStateImported,
 				})
 
 			return &platform.CreateFunctionResult{

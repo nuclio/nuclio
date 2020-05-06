@@ -126,6 +126,16 @@ func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
 }
 
 func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, error) {
+
+	// enrich
+	if n.platformConfiguration.ScaleToZero.ResourceReadinessTimeout == "" {
+		n.platformConfiguration.ScaleToZero.ResourceReadinessTimeout = "2m"
+	}
+
+	if n.platformConfiguration.ScaleToZero.ScalerInterval == "" {
+		n.platformConfiguration.ScaleToZero.ScalerInterval = "1m"
+	}
+
 	scaleInterval, err := time.ParseDuration(n.platformConfiguration.ScaleToZero.ScalerInterval)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse scaler interval duration")

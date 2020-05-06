@@ -175,7 +175,6 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
 - References
     - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
     - [Triggers](/docs/reference/triggers)
-    - [nuctl](/docs/reference/nuctl)
     - [Runtime - .NET Core 3.1](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
     - [Runtime - Shell](/docs/reference/runtimes/shell/writing-a-shell-function.md)
 - [Examples](hack/examples/README.md)
@@ -183,8 +182,6 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
 - Contributing
     - [Code conventions](/docs/devel/coding-conventions.md)
     - [Contributing to Nuclio](/docs/devel/contributing.md)
-- Reference
-    - [nuctl Reference](/docs/reference/nuctl/nuctl.md)
 - Media
     - [Running High-Speed Serverless with nuclio (slides)](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio)
     - [CNCF Webinar – Serverless and AI (video)](https://www.youtube.com/watch?v=pTCx569Kd4A)

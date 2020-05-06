@@ -52,14 +52,7 @@ This may take a while (over 10 minutes) and requires only Docker.
 
 To run a limited kubernetes nuctl suite (Also runs in CI):
 
-- On linux:
-    ```sh
-    make test-k8s-nuctl
-    ```
-- On Mac
-    ```sh
-    NUCTL_EXTERNAL_IP_ADDRESSES=<external-ip> make test-k8s-nuctl
-    ```
+`NUCTL_REGISTRY=<registry> make test-k8s-nuctl`
 
 Running more comprehensive end-to-end tests on kubernetes is currently done manually.
 
