@@ -1,4 +1,4 @@
-name: Nuclio CI
+name: CI
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ env:
   REPO_NAME: nuclio
   NUCLIO_LABEL: ${{ github.run_number }}
   NAMESPACE: nuclio
-  NUCLIO_NUCTL_CREATE_SYMLINK: false
+  NUCTL_REGISTRY: localhost:5000
 
 jobs:
   lint:
@@ -21,9 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2-beta
+      - uses: actions/setup-go@v2
         with:
-          go-version: '^1.14.0'
+          go-version: "^1.14.0"
 
       - uses: actions/cache@v1
         with:
@@ -41,9 +41,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2-beta
+      - uses: actions/setup-go@v2
         with:
-          go-version: '^1.14.0'
+          go-version: "^1.14.0"
 
       - uses: actions/cache@v1
         with:
@@ -61,9 +61,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2-beta
+      - uses: actions/setup-go@v2
         with:
-          go-version: '^1.14.0'
+          go-version: "^1.14.0"
 
       - name: Build
         run: |
@@ -71,6 +71,8 @@ jobs:
           sudo mv $(go env GOPATH)/bin/nuctl-${NUCLIO_LABEL}-linux-amd64 nuctl
           sudo chmod +x nuctl
           ./nuctl version
+        env:
+          NUCLIO_NUCTL_CREATE_SYMLINK: false
 
       - uses: actions/upload-artifact@v1
         with:
@@ -84,20 +86,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      # since disk-size is currently too-low, we will build only the docker images required for our purposes
+      # since github-actions gives us 14G only, and fill it up with some garbage
+      # we will free up some space for us (~2GB)
+      - name: Freeing some disk space
+        run: docker system prune --all --force
+
       - name: Build
-        run: |
-          make controller dashboard handler-builder-golang-onbuild
+        run: make docker-images
         env:
           NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
 
+      # Clean build leftovers
+      - name: Post build cleanup
+        run: docker system prune --force
+
       - name: Save
         run: |
-          docker save \
-            ${REPO}/${REPO_NAME}/dashboard:${NUCLIO_LABEL}-amd64 \
-            ${REPO}/${REPO_NAME}/controller:${NUCLIO_LABEL}-amd64 \
-            ${REPO}/${REPO_NAME}/handler-builder-golang-onbuild:${NUCLIO_LABEL}-amd64-alpine \
-            | gzip > nuclio_docker_images.tar.gz
+          # list built images
+          # join with " "
+          # save docker images
+          # compress using pigz (use fast, the difference is insignificant)
+          docker images \
+              --filter="reference=${REPO}/${REPO_NAME}/*:${NUCLIO_LABEL}*" \
+              --format "{{ .Repository }}:{{ .Tag }}" \
+            | xargs docker save \
+            | pigz --fast > nuclio_docker_images.tar.gz
+
       - name: Upload
         uses: actions/upload-artifact@v1
         with:
@@ -115,18 +129,20 @@ jobs:
 
       - uses: azure/setup-helm@v1
         with:
-          version: 'v3.1.2'
+          version: "v3.1.2"
+
+      - uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - uses: manusa/actions-setup-minikube@v1.0.2
         with:
-          minikube version: 'v1.9.2'
-          kubernetes version: 'v1.17.3'
+          minikube version: "v1.9.2"
+          kubernetes version: "v1.17.3"
           github token: ${{ github.token }}
-
-      - name: Fetch nuctl binary
-        uses: actions/download-artifact@v1
-        with:
-          name: nuctl-bin
 
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v1
@@ -135,7 +151,6 @@ jobs:
 
       - name: Prepare k8s cluster
         run: |
-          mv ./nuctl-bin/nuctl . && chmod +x nuctl
           kubectl create namespace ${NAMESPACE}
           docker run -d -p 5000:5000 registry:2
           docker load -i nuclio-docker-images/nuclio_docker_images.tar.gz
@@ -147,7 +162,15 @@ jobs:
             | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
 
       - name: Run nuctl tests
-        run: make test-k8s-nuctl
+        run: |
+          set -o pipefail
+          make test-k8s-nuctl 2>&1 | tee nuctl-test-results-${NUCLIO_LABEL}.log
         env:
           NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL: ${{ env.REPO }}
-          NUCTL_BIN: ./nuctl
+          NUCTL_REGISTRY: "localhost:5000"
+
+      - uses: actions/upload-artifact@v1
+        with:
+          name: Nuctl tests results
+          path: nuctl-test-results-${{ env.NUCLIO_LABEL }}.log
+        if: ${{ always() }}

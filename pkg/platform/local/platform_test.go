@@ -68,8 +68,8 @@ func (suite *TestSuite) SetupSuite() {
 
 	suite.Platform, err = NewPlatform(suite.Logger,
 		&containerimagebuilderpusher.ContainerBuilderConfiguration{
-		DefaultOnbuildRegistryURL: common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL",
-			"quay.io"),
+			DefaultOnbuildRegistryURL: common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL",
+				"quay.io"),
 		},
 		nil)
 	suite.Require().NoError(err, "Platform should create successfully")
@@ -138,7 +138,7 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 	// Create the function
 	createFunctionOptions := suite.GetMockDeploymentFunction("echoer")
 	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
-		functionconfig.FunctionAnnotationSkipBuild: "true",
+		functionconfig.FunctionAnnotationSkipBuild:  "true",
 		functionconfig.FunctionAnnotationSkipDeploy: "true",
 	}
 	createdFunction, err := suite.Platform.CreateFunction(createFunctionOptions)
@@ -163,7 +163,7 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 	suite.Assert().False(skipDeployExists)
 
 	recreateFunctionOptions := &platform.CreateFunctionOptions{
-		Logger:         suite.Logger,
+		Logger: suite.Logger,
 		FunctionConfig: functionconfig.Config{
 			Meta: function.GetConfig().Meta,
 			Spec: function.GetConfig().Spec,

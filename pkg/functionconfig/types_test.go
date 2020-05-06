@@ -35,7 +35,7 @@ func (suite *TypesTestSuite) SetupTest() {
 
 func (suite *ReaderTestSuite) TestFunctionMetaSkipDeployAnnotationTrue() {
 	for _, testCase := range []struct {
-		Annotations map[string]string
+		Annotations    map[string]string
 		ExpectedResult bool
 	}{
 		{
@@ -51,7 +51,7 @@ func (suite *ReaderTestSuite) TestFunctionMetaSkipDeployAnnotationTrue() {
 			ExpectedResult: false,
 		},
 		{
-			Annotations: map[string]string{},
+			Annotations:    map[string]string{},
 			ExpectedResult: false,
 		},
 	} {
@@ -64,7 +64,7 @@ func (suite *ReaderTestSuite) TestFunctionMetaSkipDeployAnnotationTrue() {
 
 func (suite *ReaderTestSuite) TestFunctionMetaSkipBuildAnnotationTrue() {
 	for _, testCase := range []struct {
-		Annotations map[string]string
+		Annotations    map[string]string
 		ExpectedResult bool
 	}{
 		{
@@ -80,7 +80,7 @@ func (suite *ReaderTestSuite) TestFunctionMetaSkipBuildAnnotationTrue() {
 			ExpectedResult: false,
 		},
 		{
-			Annotations: map[string]string{},
+			Annotations:    map[string]string{},
 			ExpectedResult: false,
 		},
 	} {

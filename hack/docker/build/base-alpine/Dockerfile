@@ -11,22 +11,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-#
-# Build stage: builds the autoscaler binary
 #
 
 ARG NUCLIO_LABEL
 
-FROM nuclio-base-alpine:$NUCLIO_LABEL as build-plugin
+FROM nuclio-builder:$NUCLIO_LABEL as builder
 
-RUN GOOS=linux GOARCH=amd64 go build -buildmode=plugin -a -installsuffix cgo -ldflags="-s -w" -o plugin.so pkg/platform/kube/resourcescaler/resourcescaler.go
+FROM golang:1.14-alpine3.11
 
-FROM alpine:3.11
+ENV GOOS=linux
 
-WORKDIR /home/nuclio
+ENV GOARCH=amd64
 
-COPY --from=build-plugin /nuclio/plugin.so ./plugins/plugin.so
-COPY --from=quay.io/v3io/autoscaler:v0.3.1 /home/v3io/bin/autoscaler ./autoscaler
+COPY --from=builder $GOPATH/pkg/mod $GOPATH/pkg/mod
 
-CMD [ "/home/nuclio/autoscaler" ]
+RUN apk --update --no-cache add \
+    git \
+    gcc \
+    musl-dev \
+    file
+
+WORKDIR /nuclio
+
+COPY . .
