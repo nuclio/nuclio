@@ -187,36 +187,13 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		// create or update the function. The possible creation needs to happen here, since on cases of
 		// early build failures we might get here before the function CR was created. After this point
 		// it is guaranteed to be created and updated with the reported error state
-		createOrUpdateRetryAttempts := 3
-		for currentAttempt := 0; currentAttempt < createOrUpdateRetryAttempts ; currentAttempt++ {
-			_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
-				createFunctionOptions,
-				&functionconfig.Status{
-					HTTPPort: defaultHTTPPort,
-					State:    functionconfig.FunctionStateError,
-					Message:  briefErrorsMessage,
-				})
-
-			// in case creation/update failed, try to get updated function object
-			// relevant when the object's generation changed from another place
-			if err != nil {
-				p.Logger.WarnWith("Failed to create/update function with creation error. Retrying",
-					"err", err,
-					"currentAttempt", currentAttempt,
-					"createOrUpdateRetryAttempts", createOrUpdateRetryAttempts)
-
-				if existingFunctionInstance != nil {
-					var getFuncError error
-
-					// try to get updated function instance
-					existingFunctionInstance, getFuncError = p.getFunction(createFunctionOptions.FunctionConfig.Meta.Namespace,
-						createFunctionOptions.FunctionConfig.Meta.Name)
-					if getFuncError != nil {
-						p.Logger.WarnWith("Failed to get existing function instance")
-					}
-				}
-			}
-		}
+		_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
+			createFunctionOptions,
+			&functionconfig.Status{
+				HTTPPort: defaultHTTPPort,
+				State:    functionconfig.FunctionStateError,
+				Message:  briefErrorsMessage,
+			})
 		return err
 	}
 

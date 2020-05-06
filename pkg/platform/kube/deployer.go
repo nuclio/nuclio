@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -94,6 +95,17 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 		functionInstance, err = nuclioClientSet.NuclioV1beta1().
 			NuclioFunctions(functionInstance.Namespace).
 			Update(functionInstance)
+
+		if !apierrors.IsResourceExpired(err) {
+
+			// if the resource expired - get the updated resource object and retry
+			functionInstance, err = nuclioClientSet.NuclioV1beta1().
+				NuclioFunctions(functionInstance.Namespace).
+				Get(functionInstance.Name, meta_v1.GetOptions{})
+
+			// retry with the updated functionInstance
+			return d.createOrUpdateFunction(functionInstance, createFunctionOptions, functionStatus)
+		}
 	}
 
 	if err != nil {
