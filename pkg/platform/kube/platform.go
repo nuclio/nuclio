@@ -291,7 +291,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			createFunctionOptions)
 
 		// update the function instance (after the deployment)
-		existingFunctionInstance = updatedFunctionInstance
+		if updatedFunctionInstance != nil {
+			existingFunctionInstance = updatedFunctionInstance
+		}
+
 		if deployErr != nil {
 
 			// try to report the error
