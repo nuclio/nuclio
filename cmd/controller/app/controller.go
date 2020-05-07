@@ -101,10 +101,10 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to resolve number of workers for project operator")
 	}
 
-	// read platform configuration
-	platformConfiguration, err := readPlatformConfiguration(platformConfigurationPath)
+	// get platform configuration
+	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read platform configuration")
+		return nil, errors.Wrap(err, "Failed to get platform configuration")
 	}
 
 	// create a root logger
@@ -160,13 +160,4 @@ func getClientConfig(kubeconfigPath string) (*rest.Config, error) {
 	}
 
 	return rest.InClusterConfig()
-}
-
-func readPlatformConfiguration(configurationPath string) (*platformconfig.Config, error) {
-	platformConfigurationReader, err := platformconfig.NewReader()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
-	}
-
-	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
 }

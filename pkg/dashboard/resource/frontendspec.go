@@ -39,6 +39,15 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 		return nil, errors.Wrap(err, "Failed to get external IP addresses")
 	}
 
+	// try to get platform kind
+	platformKind := ""
+	if dashboardServer, ok := fesr.resource.GetServer().(*dashboard.Server); ok {
+		platformConfiguration := dashboardServer.GetPlatformConfiguration()
+		if platformConfiguration != nil {
+			platformKind = platformConfiguration.Kind
+		}
+	}
+
 	scaleToZeroConfiguration, err := fesr.getPlatform().GetScaleToZeroConfiguration()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed getting scale to zero configuration")
@@ -70,6 +79,7 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 			"imageNamePrefixTemplate":        fesr.getPlatform().GetImageNamePrefixTemplate(),
 			"scaleToZero":                    scaleToZeroAttribute,
 			"defaultFunctionConfig":          defaultFunctionConfig,
+			"platformKind":                   platformKind,
 		},
 	}
 

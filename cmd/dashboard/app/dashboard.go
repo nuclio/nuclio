@@ -57,10 +57,10 @@ func Run(listenAddress string,
 	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
 	var functionZipTemplateFetcher *functiontemplates.ZipFunctionTemplateFetcher
 
-	// read platform configuration
-	platformConfiguration, err := readPlatformConfiguration(platformConfigurationPath)
+	// get platform configuration
+	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
 	if err != nil {
-		return errors.Wrap(err, "Failed to read platform configuration")
+		return errors.Wrap(err, "Failed to get platform configuration")
 	}
 
 	// create a root logger
@@ -232,15 +232,6 @@ func getDefaultCredRefreshInterval(logger logger.Logger, defaultCredRefreshInter
 	}
 
 	return &defaultCredRefreshInterval
-}
-
-func readPlatformConfiguration(configurationPath string) (*platformconfig.Config, error) {
-	platformConfigurationReader, err := platformconfig.NewReader()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
-	}
-
-	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
 }
 
 // create new repo URL with the credentials inside of it (when credentials are passed)

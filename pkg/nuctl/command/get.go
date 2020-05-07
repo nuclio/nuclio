@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/renderer"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/spf13/cobra"
 )
 
@@ -103,6 +104,9 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			if len(functions) == 0 {
+				if commandeer.getFunctionsOptions.Name != "" {
+					return nuclio.NewErrNotFound("No functions found")
+				}
 				cmd.OutOrStdout().Write([]byte("No functions found")) // nolint: errcheck
 				return nil
 			}
@@ -253,6 +257,9 @@ func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer
 			}
 
 			if len(projects) == 0 {
+				if commandeer.getProjectsOptions.Meta.Name != "" {
+					return nuclio.NewErrNotFound("No projects found")
+				}
 				cmd.OutOrStdout().Write([]byte("No projects found")) // nolint: errcheck
 				return nil
 			}
@@ -369,6 +376,9 @@ func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEve
 			}
 
 			if len(functionEvents) == 0 {
+				if commandeer.getFunctionEventsOptions.Meta.Name != "" {
+					return nuclio.NewErrNotFound("No function events found")
+				}
 				cmd.OutOrStdout().Write([]byte("No function events found")) // nolint: errcheck
 				return nil
 			}
