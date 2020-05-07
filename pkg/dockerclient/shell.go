@@ -548,7 +548,6 @@ func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string, cacheO
 		WorkingDir:        &buildOptions.ContextDir,
 	}
 
-
 	// retry build on predefined errors that occur during race condition and collisions between
 	// shared onbuild layers
 	common.RetryUntilSuccessful(1*time.Hour, 1*time.Minute, func() bool { // nolint: errcheck
