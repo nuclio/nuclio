@@ -627,7 +627,7 @@ type functionExportImportTestSuite struct {
 	Suite
 }
 
-func (suite *functionExportImportTestSuite) TestExportImportFullRound() {
+func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "reverser" + uniqueSuffix
 	imageName := "nuclio/processor-" + functionName
