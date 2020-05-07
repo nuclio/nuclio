@@ -19,6 +19,8 @@ package test
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path"
 	"testing"
 	"time"
@@ -621,6 +623,84 @@ func (suite *functionGetTestSuite) TestGet() {
 	}
 }
 
+type functionExportImportTestSuite struct {
+	Suite
+}
+
+func (suite *functionExportImportTestSuite) TestExportImportFullRound() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "reverser" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"runtime": "golang",
+		"handler": "main:Reverse",
+	}
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+
+	// export the function
+	err = suite.ExecuteNuctl([]string{"export", "fu", functionName}, map[string]string{
+		"output": "json",
+	})
+	suite.Require().NoError(err)
+
+	exportedFunctionConfig := functionconfig.Config{}
+	err = json.Unmarshal(suite.outputBuffer.Bytes(), &exportedFunctionConfig)
+	suite.Require().NoError(err)
+
+	// assert skip annotations
+	suite.Assert().True(functionconfig.ShouldSkipBuild(exportedFunctionConfig.Meta.Annotations))
+	suite.Assert().True(functionconfig.ShouldSkipDeploy(exportedFunctionConfig.Meta.Annotations))
+
+	// edit the exported function's name
+	exportedFunctionName := "export-reverser-" + xid.New().String()
+	exportedFunctionConfig.Meta.Name = exportedFunctionName
+	exportedFunctionConfigJson, _ := json.Marshal(exportedFunctionConfig)
+
+	// write exported function config to temp file
+	exportTempFile, err := ioutil.TempFile("", "reverser.*.json")
+	suite.Require().NoError(err)
+	defer os.Remove(exportTempFile.Name())
+
+	_, err = exportTempFile.Write(exportedFunctionConfigJson)
+	suite.Require().NoError(err)
+
+	// import the function
+	err = suite.ExecuteNuctl([]string{"import", "fu", exportTempFile.Name()}, map[string]string{
+		"input-format": "json",
+	})
+	suite.Require().NoError(err)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", exportedFunctionName}, nil)
+
+	// deploy imported function
+	err = suite.ExecuteNuctl([]string{"deploy", exportedFunctionName, "--verbose"}, map[string]string{})
+	suite.Require().NoError(err)
+
+	// try a few times to invoke, until it succeeds
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", exportedFunctionName},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+			"via":    "external-ip",
+		},
+		false)
+	suite.Require().NoError(err)
+
+	// make sure reverser worked
+	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+}
+
 func TestFunctionTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
@@ -629,4 +709,5 @@ func TestFunctionTestSuite(t *testing.T) {
 	suite.Run(t, new(functionBuildTestSuite))
 	suite.Run(t, new(functionDeployTestSuite))
 	suite.Run(t, new(functionGetTestSuite))
+	suite.Run(t, new(functionExportImportTestSuite))
 }
