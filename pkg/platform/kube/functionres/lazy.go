@@ -1478,13 +1478,9 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 
 	// generate a string containing all of the headers with --header flag as prefix, to be used by curl later
 	headersAsCurlArg := ""
-	for headerKey, headerValue := range attributes.Event.Headers {
-		headerValueAsString, ok := headerValue.(string)
-		if !ok {
-			return nil, errors.New(fmt.Sprintf("Unexpected header value type (expected string). header key: %s", headerKey))
-		}
-
-		headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, headerKey, headerValueAsString)
+	for headerKey := range attributes.Event.Headers {
+		headerValue := attributes.Event.GetHeaderString(headerKey)
+		headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, headerKey, headerValue)
 	}
 
 	// add default header

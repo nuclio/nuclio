@@ -275,7 +275,7 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 
 	// create error group
 	errGroup := errgroup.Group{}
-	platformKind, _ := p.detectPlatformKind() // nolint: errcheck
+	platformKind := processorConfiguration.PlatformConfig.Kind
 
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
 		triggerName, triggerConfiguration := triggerName, triggerConfiguration

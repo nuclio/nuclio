@@ -8,7 +8,7 @@ import (
 
 	apps_v1 "k8s.io/api/apps/v1"
 	autos_v2 "k8s.io/api/autoscaling/v2beta1"
-	"k8s.io/api/batch/v1beta1"
+	batch_v1beta1"k8s.io/api/batch/v1beta1"
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 )
@@ -59,5 +59,5 @@ type Resources interface {
 	Ingress() (*ext_v1beta1.Ingress, error)
 
 	// CronJob returns the cron job
-	CronJobs() ([]*v1beta1.CronJob, error)
+	CronJobs() ([]*batch_v1beta1.CronJob, error)
 }
