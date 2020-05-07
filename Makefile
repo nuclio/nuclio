@@ -67,6 +67,10 @@ NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTE
 # Docker client version to be used
 DOCKER_CLI_VERSION := 18.09.6
 
+# Nuclio test timeout
+NUCLIO_TEST_TIMEOUT ?= "10m"
+NUCLIO_GO_TEST_NUCTL_COMMAND = $(go test -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_TEST_TIMEOUT))
+
 #
 #  Must be first target
 #
@@ -375,7 +379,7 @@ lint: modules
 
 .PHONY: test-undockerized
 test-undockerized: ensure-gopath
-	go test -v ./cmd/... ./pkg/... -p 1
+	go test -v --parallel 1 --timeout $(NUCLIO_TEST_TIMEOUT) ./cmd/... ./pkg/...
 
 .PHONY: test
 test: ensure-gopath build-base
@@ -393,6 +397,11 @@ test: ensure-gopath build-base
 		--volume /tmp:/tmp \
 		--workdir $(GO_BUILD_TOOL_WORKDIR) \
 		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
+		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
+		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--env NUCLIO_OS=$(NUCLIO_OS) \
+		--env NUCLIO_TEST_TIMEOUT=$(NUCLIO_TEST_TIMEOUT) \
 		$(NUCLIO_DOCKER_TEST_TAG) \
 		/bin/bash -c "make test-undockerized"
 
@@ -405,13 +414,28 @@ test-python:
 test-short: modules ensure-gopath
 	go test -v ./cmd/... ./pkg/... -short
 
-.PHONY: test-nuctl
+.PHONY: test-k8s-nuctl
 test-k8s-nuctl:
 	NUCTL_EXTERNAL_IP_ADDRESSES=$(if $(NUCTL_EXTERNAL_IP_ADDRESSES),$(NUCTL_EXTERNAL_IP_ADDRESSES),"localhost") \
 		NUCTL_RUN_REGISTRY=$(NUCTL_REGISTRY) \
 		NUCTL_PLATFORM=kube \
 		NAMESPACE=$(if $(NAMESPACE),$(NAMESPACE),"default")
-		go test -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1
+		$(NUCLIO_GO_TEST_NUCTL_COMMAND)
+
+.PHONY: test-docker-nuctl
+test-docker-nuctl:
+	NUCTL_PLATFORM=local $(NUCLIO_GO_TEST_NUCTL_COMMAND)
+
+.PHONY: build-base
+build-base: build-builder
+	docker build \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--file hack/docker/build/base/Dockerfile \
+		--tag nuclio-base:$(NUCLIO_LABEL) .
+	docker build \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--file hack/docker/build/base-alpine/Dockerfile \
+		--tag nuclio-base-alpine:$(NUCLIO_LABEL) .
 
 .PHONY: build-base
 build-base: build-builder
