@@ -4,7 +4,7 @@
     angular.module('nuclio.app')
         .component('nclNewProjectDialog', {
             bindings: {
-                closeDialog: '&',
+                closeDialog: '&'
             },
             templateUrl: 'projects/new-project-dialog/new-project-dialog.tpl.html',
             controller: IgzNewProjectDialogController
@@ -12,14 +12,19 @@
 
     function IgzNewProjectDialogController($scope, $i18next, i18next, lodash, moment, ConfigService, DialogsService,
                                            EventHelperService, FormValidationService, NuclioProjectsDataService,
-                                           ValidatingPatternsService) {
+                                           ValidationService) {
         var ctrl = this;
         var lng = i18next.language;
 
         ctrl.data = {};
         ctrl.isLoadingState = false;
         ctrl.nameMaxLength = null;
-        ctrl.nameValidationRules = [];
+        ctrl.maxLengths = {
+            projectName: ValidationService.getMaxLength('k8s.dns1035Label')
+        };
+        ctrl.validationRules = {
+            projectName: ValidationService.getValidationRules('k8s.dns1035Label')
+        };
         ctrl.serverError = '';
 
         ctrl.$onInit = onInit;
@@ -41,8 +46,6 @@
          */
         function onInit() {
             ctrl.data = getBlankData();
-            ctrl.nameMaxLength = ValidatingPatternsService.getMaxLength('k8s.dns1035Label');
-            ctrl.nameValidationRules = ValidatingPatternsService.getValidationRules('k8s.dns1035Label');
         }
 
         //
