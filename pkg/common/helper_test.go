@@ -222,7 +222,7 @@ func (suite *RetryUntilSuccessfulOnErrorPatternsTestSuite) TestSucceedIfErrorMes
 			shouldFail: true,
 		},
 		{
-			description:   "Failed due to timeout",
+			description: "Failed due to timeout",
 			callbackErrors: []string{
 				"A",
 			},
