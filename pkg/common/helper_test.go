@@ -156,6 +156,107 @@ func (suite *StringSliceToIntSliceTestSuite) TestNegativeData() {
 	suite.Require().Error(err)
 }
 
+type RetryUntilSuccessfulOnErrorPatternsTestSuite struct {
+	suite.Suite
+}
+
+func (suite *RetryUntilSuccessfulOnErrorPatternsTestSuite) TestSucceedIfErrorMessageIsEmpty() {
+	var calls int
+	for _, testCase := range []struct {
+		description    string
+		expectedCalls  int
+		callbackErrors []string
+		errorPatterns  []string
+		shouldFail     bool
+
+		// on timeout error we dont assert call count since we cannot anticipate its counter
+		shouldTimeout bool
+	}{
+		{
+			description:   "Succeeded after 3 retries",
+			expectedCalls: 3,
+			callbackErrors: []string{
+				"First",
+				"Second failure",
+				"",
+			},
+			errorPatterns: []string{
+				"^First$",
+				"Second",
+			},
+			shouldFail: false,
+		},
+		{
+			description:   "Succeeded after 1 call when callback error is empty",
+			expectedCalls: 1,
+			callbackErrors: []string{
+				"",
+			},
+			errorPatterns: []string{
+				"dont-care",
+			},
+			shouldFail: false,
+		},
+		{
+			description:   "Succeeded after 1 call when callback error is empty",
+			expectedCalls: 1,
+			callbackErrors: []string{
+				"",
+			},
+			errorPatterns: []string{
+				"dont-care",
+			},
+			shouldFail: false,
+		},
+		{
+			description:   "Failed fast due to unmatched error",
+			expectedCalls: 1,
+			callbackErrors: []string{
+				"A",
+				"B",
+				"C",
+			},
+			errorPatterns: []string{
+				"^That$",
+			},
+			shouldFail: true,
+		},
+		{
+			description:   "Failed due to timeout",
+			callbackErrors: []string{
+				"A",
+			},
+			errorPatterns: []string{
+				"^A",
+			},
+			shouldFail:    true,
+			shouldTimeout: true,
+		},
+	} {
+		calls = 0
+		err := RetryUntilSuccessfulOnErrorPatterns(50*time.Millisecond,
+			10*time.Millisecond,
+			testCase.errorPatterns,
+			func() string {
+				errorMessage := testCase.callbackErrors[calls]
+				if !testCase.shouldTimeout {
+					calls += 1
+				}
+				return errorMessage
+			})
+		if testCase.shouldFail {
+			suite.Error(err)
+		} else {
+			suite.NoError(err)
+		}
+
+		if !testCase.shouldTimeout {
+			suite.Equal(testCase.expectedCalls, calls)
+		}
+	}
+
+}
+
 type RetryUntilSuccessfulTestSuite struct {
 	suite.Suite
 }
@@ -202,7 +303,7 @@ func (suite *RetryUntilSuccessfulTestSuite) TestTimeBetweenIntervals() {
 		_, _, _, ok := runtime.Caller(1)
 		if ok {
 
-			// If call was successfull create finishIntervalTime variable and set currentTime
+			// If call was successful create finishIntervalTime variable and set currentTime
 			finishIntervalTime := getCurrentTimeInMilliseconds()
 
 			// Verify that difference between previous interval and current interval is from 60 to 120ms
@@ -254,6 +355,7 @@ func (suite *StripPrefixesTestSuite) TestPositive() {
 
 func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
+	suite.Run(t, new(RetryUntilSuccessfulOnErrorPatternsTestSuite))
 	suite.Run(t, new(StringSliceToIntSliceTestSuite))
 	suite.Run(t, new(FileExistTestSuite))
 	suite.Run(t, new(IsDirTestSuite))

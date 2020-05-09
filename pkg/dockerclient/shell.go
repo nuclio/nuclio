@@ -33,9 +33,11 @@ import (
 
 // ShellClient is a docker client that uses the shell to communicate with docker
 type ShellClient struct {
-	logger         logger.Logger
-	cmdRunner      cmdrunner.CmdRunner
-	redactedValues []string
+	logger             logger.Logger
+	cmdRunner          cmdrunner.CmdRunner
+	redactedValues     []string
+	buildTimeout       time.Duration
+	buildRetryInterval time.Duration
 }
 
 // NewShellClient creates a new docker client
@@ -43,8 +45,10 @@ func NewShellClient(parentLogger logger.Logger, runner cmdrunner.CmdRunner) (*Sh
 	var err error
 
 	newClient := &ShellClient{
-		logger:    parentLogger.GetChild("docker"),
-		cmdRunner: runner,
+		logger:             parentLogger.GetChild("docker"),
+		cmdRunner:          runner,
+		buildTimeout:       1 * time.Hour,
+		buildRetryInterval: 3 * time.Second,
 	}
 
 	// set cmdrunner
@@ -533,14 +537,14 @@ func (c *ShellClient) resolveDockerBuildNetwork() string {
 }
 
 func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string, cacheOption string) error {
-	var err error
+	var lastBuildErr error
 	retryOnErrorMessages := []string{
 
 		// when one of the underlying image is gone (from cache)
-		"No such image: sha256:",
+		"^No such image: sha256:",
 
 		// when overlay image is gone (from disk)
-		"failed to get digest sha256:",
+		"^failed to get digest sha256:",
 	}
 
 	runOptions := &cmdrunner.RunOptions{
@@ -550,26 +554,25 @@ func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string, cacheO
 
 	// retry build on predefined errors that occur during race condition and collisions between
 	// shared onbuild layers
-	common.RetryUntilSuccessful(1*time.Hour, 1*time.Minute, func() bool { // nolint: errcheck
-		runResults, runErr := c.runCommand(runOptions,
-			"docker build %s --force-rm -t %s -f %s %s %s .",
-			c.resolveDockerBuildNetwork(),
-			buildOptions.Image,
-			buildOptions.DockerfilePath,
-			cacheOption,
-			buildArgs)
+	common.RetryUntilSuccessfulOnErrorPatterns(c.buildTimeout, // nolint: errcheck
+		c.buildRetryInterval,
+		retryOnErrorMessages,
+		func() string { // nolint: errcheck
+			runResults, err := c.runCommand(runOptions,
+				"docker build %s --force-rm -t %s -f %s %s %s .",
+				c.resolveDockerBuildNetwork(),
+				buildOptions.Image,
+				buildOptions.DockerfilePath,
+				cacheOption,
+				buildArgs)
 
-		// preserve error
-		err = runErr
+			// preserve error
+			lastBuildErr = err
 
-		// retry on a race condition where `--force-rm` removes a cached layer for other function build in process
-		for _, errorMessage := range retryOnErrorMessages {
-			if runErr != nil && strings.HasPrefix(runResults.Stderr, errorMessage) {
-				return false
+			if err != nil {
+				return runResults.Stderr
 			}
-
-		}
-		return true
-	})
-	return err
+			return ""
+		})
+	return lastBuildErr
 }

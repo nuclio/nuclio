@@ -19,8 +19,10 @@ package processorsuite
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -35,7 +37,6 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	"github.com/tsenart/vegeta/lib"
-	"github.com/valyala/fasthttp"
 )
 
 const (
@@ -113,11 +114,10 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
 	// deploy the function
 	suite.deployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-
-		// give the container time to stabilize before we blast him
-		time.Sleep(5 * time.Second)
-
 		configuration.URL = fmt.Sprintf("http://%s:%d", suite.GetTestHost(), deployResult.Port)
+
+		err := suite.probeAndWaitForFunctionReadiness(&configuration)
+		suite.Require().NoError(err, "Failed to probe and wait for function readiness")
 
 		// blast the function
 		totalResults, err = suite.blastFunction(&configuration)
@@ -145,7 +145,7 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 // NewBlastConfiguration populates BlastRequest struct with default values
 func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
 	return BlastConfiguration{
-		Method:        fasthttp.MethodGet,
+		Method:        http.MethodGet,
 		Workers:       32,
 		RatePerWorker: 5,
 		Duration:      10 * time.Second,
@@ -421,4 +421,38 @@ func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFun
 	}
 
 	return deployResult
+}
+
+func (suite *TestSuite) probeAndWaitForFunctionReadiness(configuration *BlastConfiguration) error {
+
+	// sending some probe requests to function, to ensure it responses before blasting it
+	return common.RetryUntilSuccessful(30*time.Second, 1*time.Second, func() bool {
+
+		// create a request
+		httpRequest, err := http.NewRequest(configuration.Method, configuration.URL, nil)
+		suite.Require().NoError(err)
+
+		suite.Logger.DebugWith("Sending function probe request",
+			"configurationMethod", configuration.Method,
+			"configurationURL", configuration.URL)
+		httpResponse, responseErr := http.DefaultClient.Do(httpRequest)
+
+		// if we fail to connect, fail
+		if responseErr != nil {
+			if strings.Contains(responseErr.Error(), "EOF") ||
+				strings.Contains(responseErr.Error(), "connection reset by peer") {
+
+				// function isn't ready yet, give it another try
+				suite.Logger.DebugWith("Function is not ready yet, retrying")
+				return false
+			}
+
+			// if we got here, we failed on something more fatal, fail test
+			suite.Fail("Function probing failed",
+				"responseErr", responseErr)
+		}
+
+		// we need at least one good answer in the range of [200, 500)
+		return http.StatusOK <= httpResponse.StatusCode && httpResponse.StatusCode < http.StatusInternalServerError
+	})
 }

@@ -111,20 +111,58 @@ func RemoveANSIColorsFromString(s string) string {
 
 // RetryUntilSuccessful calls callback every interval for duration until it returns true
 func RetryUntilSuccessful(duration time.Duration, interval time.Duration, callback func() bool) error {
+	return retryUntilSuccessful(duration, interval, func() (bool, error) {
+
+		// callback results indicate whether to retry
+		return !callback(), nil
+	})
+}
+
+// RetryUntilSuccessfulOnErrorPatterns calls callback every interval for duration as long as error pattern is matched
+func RetryUntilSuccessfulOnErrorPatterns(duration time.Duration,
+	interval time.Duration,
+	errorRegexPatterns []string,
+	callback func() string) error {
+
+	return retryUntilSuccessful(duration, interval, func() (bool, error) {
+		callbackErrorStr := callback()
+		if callbackErrorStr == "" {
+
+			// no error message means no error, succeeded
+			return false, nil
+		}
+
+		// find a matching error pattern
+		errorPatternFound, matchingErr := MatchStringPatterns(errorRegexPatterns, callbackErrorStr)
+		if matchingErr != nil {
+			return false, errors.Wrap(matchingErr, "Failed to match string patterns")
+		}
+
+		// no error pattern found, dont retry, bail
+		if !errorPatternFound {
+			return false, errors.Errorf("Failed matching an error pattern for callback: %s", callbackErrorStr)
+		}
+
+		return true, nil
+
+	})
+}
+
+func retryUntilSuccessful(duration time.Duration,
+	interval time.Duration,
+	callback func() (bool, error)) error {
 	deadline := time.Now().Add(duration)
 
 	// while we haven't passed the deadline
 	for !time.Now().After(deadline) {
-
-		// if callback returns true, we're done
-		if callback() {
-			return nil
+		retry, err := callback()
+		if retry {
+			time.Sleep(interval)
+			continue
 		}
-
-		time.Sleep(interval)
+		return err
 	}
-
-	return errors.New("Timed out waiting until successful")
+	return errors.Errorf("Timed out waiting until successful")
 }
 
 // RunningInContainer returns true if currently running in a container, false otherwise
@@ -323,4 +361,19 @@ func ByteSliceToString(b []byte) string {
 	// effectively converts bytes to string
 	// !! use with caution as returned string is mutable !!
 	return *(*string)(unsafe.Pointer(&b))
+}
+
+func MatchStringPatterns(patterns []string, s string) (bool, error) {
+	for _, pattern := range patterns {
+		matched, err := regexp.MatchString(pattern, s)
+		if err != nil {
+			return false, errors.Wrapf(err, "Failed to match string pattern: %s", pattern)
+		}
+		if matched {
+
+			// one matching pattern is enough
+			return true, nil
+		}
+	}
+	return false, nil
 }
