@@ -181,3 +181,15 @@ func (me *mockEvent) GetVersion() string {
 	args := me.Called()
 	return args.String(0)
 }
+
+// GetLastInBatch returns whether the event is the last event in a trigger specific batch
+func (me *mockEvent) GetLastInBatch() bool {
+	args := me.Called()
+	return args.Bool(0)
+}
+
+// GetOffset returns the offset of the event
+func (me *mockEvent) GetOffset() int {
+	args := me.Called()
+	return args.Int(0)
+}
