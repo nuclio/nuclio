@@ -114,6 +114,16 @@ func (te *TestEvent) GetVersion() string {
 	return "test event version"
 }
 
+// GetLastInBatch returns whether the event is the last event in a trigger specific batch
+func (te *TestEvent) GetLastInBatch() bool {
+	return false
+}
+
+// GetOffset returns the offset of the event
+func (te *TestEvent) GetOffset() int {
+	return 0
+}
+
 func (te *TestEvent) GetTriggerInfo() nuclio.TriggerInfoProvider {
 	return testTriggerInfoProvider
 }
