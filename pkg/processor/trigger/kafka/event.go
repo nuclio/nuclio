@@ -41,3 +41,7 @@ func (e *Event) GetShardID() int {
 func (e *Event) GetPath() string {
 	return e.kafkaMessage.Topic
 }
+
+func (e *Event) GetOffset() int {
+	return int(e.kafkaMessage.Offset)
+}
