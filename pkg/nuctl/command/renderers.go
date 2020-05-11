@@ -2,13 +2,14 @@ package command
 
 import (
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"io"
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/renderer"
+
+	"golang.org/x/sync/errgroup"
 )
 
 func formatFunctionIngresses(function platform.Function) string {
@@ -38,7 +39,7 @@ func formatFunctionIngresses(function platform.Function) string {
 func renderFunctions(functions []platform.Function,
 	format string,
 	writer io.Writer,
-	renderCallback func (functions []platform.Function, renderer func(interface{}) error) error) error {
+	renderCallback func(functions []platform.Function, renderer func(interface{}) error) error) error {
 
 	var g errgroup.Group
 
@@ -105,7 +106,7 @@ func renderFunctions(functions []platform.Function,
 func renderProjects(projects []platform.Project,
 	format string,
 	writer io.Writer,
-	renderCallback func (functions []platform.Project, renderer func(interface{}) error) error) error {
+	renderCallback func(functions []platform.Project, renderer func(interface{}) error) error) error {
 
 	rendererInstance := renderer.NewRenderer(writer)
 

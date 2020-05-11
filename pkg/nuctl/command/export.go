@@ -2,11 +2,12 @@ package command
 
 import (
 	"fmt"
-	"github.com/nuclio/nuclio-sdk-go"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/spf13/cobra"
 )
 

@@ -19,7 +19,7 @@ nuctl export function --namespace nuclio function-name
 ```
 The command will print the exported function config to the stdout.
 
-> **Note:** This command by default will export the function in json format. However, you can supply the flag `--output yaml` if you prefer a yaml output.
+> **Note:** This command by default will export the function in yaml format. However, you can supply the flag `--output json` if you prefer a json output.
 
 Next, it's recommended that you save the output to a file.
 
@@ -36,8 +36,6 @@ Or pipe the function config to the command:
 ```sh
 cat path-to-exported-function-file | nuctl import function --namespace nuclio
 ```
-
-> **Note:** Remember, if you outputted the export in yaml format, to supply the import command with the flag `--input-format yaml`
 
 ## Redeploying an imported function
 
@@ -56,7 +54,7 @@ nuctl export function --namespace nuclio project-name
 ```
 
 The output of this command will contain the config for the project, the config for each of the project's functions and the configs for all their function events.
-> **Note:** Again similarly to [exporting a function](#exporting-a-deployed-function), this command by default will export the function in json format. However, you can supply the flag `--output yaml` if you prefer a yaml output.
+> **Note:** Again similarly to [exporting a function](#exporting-a-deployed-function), this command by default will export the function in yaml format. However, you can supply the flag `--output json` if you prefer a json output.
 
 ## Importing a project
 
@@ -68,8 +66,6 @@ nuctl import project --namespace nuclio path-to-exported-project-file
 
 cat path-to-exported-project-file | nuctl import project --namespace nuclio
 ```
-
-> **Note:** Again similarly to [importing a function](#importing-a-function) if you outputted the export in yaml format, remember to supply the import command with the flag `--input-format yaml`
 
 > **Important Note**: As said earlier, importing a project is a procedure with many sub-procedures:
 > - Importing the project config

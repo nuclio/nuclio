@@ -237,13 +237,17 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 				return errors.Wrap(err, "Failed identifying input format")
 			}
 
+			// First try parsing multiple projects
 			err = commandeer.parseMultipleProjectsImport(projBytes, commandeer.projectImportConfigs, unmarshalFunc)
-
-			commandeer.projectImportConfigs = map[string]*projectImportConfig{}
-			err = commandeer.parseProjectImport(projBytes, commandeer.projectImportConfigs, unmarshalFunc)
-
 			if err != nil {
-				return errors.Wrap(err, "Failed to parse function data")
+
+				// If that fails, try parsing a single project
+				commandeer.projectImportConfigs = map[string]*projectImportConfig{}
+				err = commandeer.parseProjectImport(projBytes, commandeer.projectImportConfigs, unmarshalFunc)
+
+				if err != nil {
+					return errors.Wrap(err, "Failed to parse function data")
+				}
 			}
 
 			return commandeer.importProjects(commandeer.projectImportConfigs, commandeer.deploy)
