@@ -649,17 +649,26 @@ func (suite *functionGetTestSuite) TestDelete() {
 		"handler": "main:Reverse",
 	}
 
-	err = suite.ExecuteNuctlAndWait([]string{
+	err = suite.ExecuteNuctl([]string{
 		"deploy",
 		functionName,
 		"--verbose",
 		"--no-pull",
-	}, namedArgs,
-	false)
+	}, namedArgs)
 	suite.Require().NoError(err)
 
 	// cleanup
 	defer suite.dockerClient.RemoveImage(imageName)
+
+	// try a few times to invoke, until it succeeds
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+			"via":    "external-ip",
+		},
+		false)
+	suite.Require().NoError(err)
 
 	// function removed
 	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
@@ -668,6 +677,16 @@ func (suite *functionGetTestSuite) TestDelete() {
 	// ensure delete is idempotent
 	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 	suite.Require().NoError(err)
+
+	// try invoke, it should failed
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+			"via":    "external-ip",
+		},
+		true)
+	suite.Require().NoError(err, "Function was suppose to be deleted!")
 }
 
 func TestFunctionTestSuite(t *testing.T) {
