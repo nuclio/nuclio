@@ -209,7 +209,7 @@ func (suite *RetryUntilSuccessfulOnErrorPatternsTestSuite) TestSucceedIfErrorMes
 			shouldFail: false,
 		},
 		{
-			description:   "Failed fast due to unmatched error",
+			description:   "Failed after 1 call due to unmatched error",
 			expectedCalls: 1,
 			callbackErrors: []string{
 				"A",

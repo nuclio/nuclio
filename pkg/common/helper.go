@@ -148,21 +148,33 @@ func RetryUntilSuccessfulOnErrorPatterns(duration time.Duration,
 	})
 }
 
+// retryUntilSuccessful calls callback every interval until duration as long as it should retry
 func retryUntilSuccessful(duration time.Duration,
 	interval time.Duration,
 	callback func() (bool, error)) error {
+	var lastErr error
+	timedOutErrorMessage := "Timed out waiting until successful"
 	deadline := time.Now().Add(duration)
 
 	// while we haven't passed the deadline
 	for !time.Now().After(deadline) {
-		retry, err := callback()
-		if retry {
-			time.Sleep(interval)
-			continue
+		shouldRetry, err := callback()
+		lastErr = err
+		if !shouldRetry {
+			return err
 		}
-		return err
+		time.Sleep(interval)
+		continue
+
 	}
-	return errors.Errorf("Timed out waiting until successful")
+	if lastErr != nil {
+
+		// wrap last error
+		return errors.Wrapf(lastErr, timedOutErrorMessage)
+	}
+
+	// duration expired without any last error
+	return errors.Errorf(timedOutErrorMessage)
 }
 
 // RunningInContainer returns true if currently running in a container, false otherwise
