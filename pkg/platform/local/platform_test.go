@@ -50,13 +50,8 @@ type TestSuite struct {
 }
 
 func (suite *TestSuite) SetupSuite() {
-	err := version.Set(&version.Info{
-		GitCommit: "c",
-		Label:     "latest",
-		Arch:      "amd64",
-		OS:        "linux",
-	})
-	suite.Require().NoError(err, "Failed to set version info")
+	var err error
+	version.SetFromEnv()
 
 	suite.DefaultNamespace = "nuclio"
 

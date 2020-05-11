@@ -33,9 +33,11 @@ import (
 
 // ShellClient is a docker client that uses the shell to communicate with docker
 type ShellClient struct {
-	logger         logger.Logger
-	cmdRunner      cmdrunner.CmdRunner
-	redactedValues []string
+	logger             logger.Logger
+	cmdRunner          cmdrunner.CmdRunner
+	redactedValues     []string
+	buildTimeout       time.Duration
+	buildRetryInterval time.Duration
 }
 
 // NewShellClient creates a new docker client
@@ -43,8 +45,10 @@ func NewShellClient(parentLogger logger.Logger, runner cmdrunner.CmdRunner) (*Sh
 	var err error
 
 	newClient := &ShellClient{
-		logger:    parentLogger.GetChild("docker"),
-		cmdRunner: runner,
+		logger:             parentLogger.GetChild("docker"),
+		cmdRunner:          runner,
+		buildTimeout:       1 * time.Hour,
+		buildRetryInterval: 3 * time.Second,
 	}
 
 	// set cmdrunner
@@ -66,7 +70,6 @@ func NewShellClient(parentLogger logger.Logger, runner cmdrunner.CmdRunner) (*Sh
 
 // Build will build a docker image, given build options
 func (c *ShellClient) Build(buildOptions *BuildOptions) error {
-	var err error
 	c.logger.DebugWith("Building image", "buildOptions", buildOptions)
 
 	// if context dir is not passed, use the dir containing the dockerfile
@@ -89,48 +92,7 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		cacheOption = "--no-cache"
 	}
 
-	runOptions := &cmdrunner.RunOptions{
-		CaptureOutputMode: cmdrunner.CaptureOutputModeStdout,
-		WorkingDir:        &buildOptions.ContextDir,
-	}
-
-	var hostNetString string
-
-	// may contain none as a value
-	networkInterface := os.Getenv("NUCLIO_DOCKER_BUILD_NETWORK")
-	if networkInterface == "" {
-		networkInterface = common.GetEnvOrDefaultString("NUCLIO_BUILD_USE_HOST_NET", "host")
-	}
-	switch networkInterface {
-	case "host":
-		fallthrough
-	case "default":
-		fallthrough
-	case "none":
-		hostNetString = fmt.Sprintf("--network %s", networkInterface)
-	default:
-		hostNetString = ""
-	}
-
-	common.RetryUntilSuccessful(1*time.Hour, 1*time.Minute, func() bool { // nolint: errcheck
-		runResults, runErr := c.runCommand(runOptions,
-			"docker build %s --force-rm -t %s -f %s %s %s .",
-			hostNetString,
-			buildOptions.Image,
-			buildOptions.DockerfilePath,
-			cacheOption,
-			buildArgs)
-
-		// preserve error
-		err = runErr
-
-		// retry on a race condition where `--force-rm` removes a cached layer for other function build in process
-		if runErr != nil && strings.HasPrefix(runResults.Stderr, "No such image: sha256:") {
-			return false
-		}
-		return true
-	})
-	return err
+	return c.build(buildOptions, buildArgs, cacheOption)
 }
 
 // CopyObjectsFromImage copies objects (files, directories) from a given image to local storage. it does
@@ -553,4 +515,64 @@ func (c *ShellClient) getLastNonEmptyLine(lines []string, offset int) string {
 
 func (c *ShellClient) replaceSingleQuotes(input string) string {
 	return strings.Replace(input, "'", "’", -1)
+}
+
+func (c *ShellClient) resolveDockerBuildNetwork() string {
+
+	// may contain none as a value
+	networkInterface := os.Getenv("NUCLIO_DOCKER_BUILD_NETWORK")
+	if networkInterface == "" {
+		networkInterface = common.GetEnvOrDefaultString("NUCLIO_BUILD_USE_HOST_NET", "host")
+	}
+	switch networkInterface {
+	case "host":
+		fallthrough
+	case "default":
+		fallthrough
+	case "none":
+		return fmt.Sprintf("--network %s", networkInterface)
+	default:
+		return ""
+	}
+}
+
+func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string, cacheOption string) error {
+	var lastBuildErr error
+	retryOnErrorMessages := []string{
+
+		// when one of the underlying image is gone (from cache)
+		"^No such image: sha256:",
+
+		// when overlay image is gone (from disk)
+		"^failed to get digest sha256:",
+	}
+
+	runOptions := &cmdrunner.RunOptions{
+		CaptureOutputMode: cmdrunner.CaptureOutputModeStdout,
+		WorkingDir:        &buildOptions.ContextDir,
+	}
+
+	// retry build on predefined errors that occur during race condition and collisions between
+	// shared onbuild layers
+	common.RetryUntilSuccessfulOnErrorPatterns(c.buildTimeout, // nolint: errcheck
+		c.buildRetryInterval,
+		retryOnErrorMessages,
+		func() string { // nolint: errcheck
+			runResults, err := c.runCommand(runOptions,
+				"docker build %s --force-rm -t %s -f %s %s %s .",
+				c.resolveDockerBuildNetwork(),
+				buildOptions.Image,
+				buildOptions.DockerfilePath,
+				cacheOption,
+				buildArgs)
+
+			// preserve error
+			lastBuildErr = err
+
+			if err != nil {
+				return runResults.Stderr
+			}
+			return ""
+		})
+	return lastBuildErr
 }
