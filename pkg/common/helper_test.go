@@ -173,7 +173,7 @@ func (suite *RetryUntilSuccessfulOnErrorPatternsTestSuite) TestSucceedIfErrorMes
 		shouldTimeout bool
 	}{
 		{
-			description:   "Succeeded after 3 retries",
+			description:   "Succeeded after 2 retries",
 			expectedCalls: 3,
 			callbackErrors: []string{
 				"First",
