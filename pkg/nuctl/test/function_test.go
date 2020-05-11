@@ -631,6 +631,45 @@ func (suite *functionGetTestSuite) TestGet() {
 	}
 }
 
+type functionDeleteTestSuite struct {
+	Suite
+}
+
+func (suite *functionGetTestSuite) TestDelete() {
+	var err error
+
+	uniqueSuffix := xid.New().String()
+	imageName := "nuclio/deploy-test" + uniqueSuffix
+	functionName := "reverser" + uniqueSuffix
+
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"image":   imageName,
+		"runtime": "golang",
+		"handler": "main:Reverse",
+	}
+
+	err = suite.ExecuteNuctlAndWait([]string{
+		"deploy",
+		functionName,
+		"--verbose",
+		"--no-pull",
+	}, namedArgs,
+	false)
+	suite.Require().NoError(err)
+
+	// cleanup
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// function removed
+	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	suite.Require().NoError(err)
+
+	// ensure delete is idempotent
+	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	suite.Require().NoError(err)
+}
+
 func TestFunctionTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
@@ -639,4 +678,5 @@ func TestFunctionTestSuite(t *testing.T) {
 	suite.Run(t, new(functionBuildTestSuite))
 	suite.Run(t, new(functionDeployTestSuite))
 	suite.Run(t, new(functionGetTestSuite))
+	suite.Run(t, new(functionDeleteTestSuite))
 }
