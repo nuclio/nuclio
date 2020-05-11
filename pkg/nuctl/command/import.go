@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -16,19 +14,13 @@ import (
 	"github.com/nuclio/errors"
 	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/cobra"
-)
-
-const (
-	InputFormatJSON = OutputFormatJSON
-	InputFormatYAML = OutputFormatYAML
+	"golang.org/x/sync/errgroup"
 )
 
 type importCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	format         string
 	deploy         bool
-	multiple       bool
 }
 
 func newImportCommandeer(rootCommandeer *RootCommandeer) *importCommandeer {
@@ -55,9 +47,7 @@ func newImportCommandeer(rootCommandeer *RootCommandeer) *importCommandeer {
 }
 
 func (i *importCommandeer) addImportCommandFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVarP(&i.format, "input-format", "i", InputFormatJSON, "Input format - \"yaml\", or \"json\"")
 	cmd.Flags().BoolVar(&i.deploy, "deploy", false, "Deploy the function or functions after import, false by default")
-	cmd.Flags().BoolVarP(&i.multiple, "multiple", "m", false, "Input contains multiple functions/projects to import")
 }
 
 func (i *importCommandeer) readFromStdinOrFile(args []string) ([]byte, error) {
@@ -67,47 +57,22 @@ func (i *importCommandeer) readFromStdinOrFile(args []string) ([]byte, error) {
 	return ioutil.ReadAll(os.Stdin)
 }
 
-func (i *importCommandeer) getUnmarshalFunc(format string) func(data []byte, v interface{}) error {
-	switch format {
-	case InputFormatJSON:
-		return json.Unmarshal
-	case InputFormatYAML:
-		return yaml.Unmarshal
+func (i *importCommandeer) getUnmarshalFunc(bytes []byte) (func(data []byte, v interface{}) error, error) {
+	var err error
+	var obj map[string]interface{}
+
+	if err = json.Unmarshal(bytes, &obj); err == nil {
+		return json.Unmarshal, nil
 	}
-	return nil
+
+	if err = yaml.Unmarshal(bytes, &obj); err == nil {
+		return yaml.Unmarshal, nil
+	}
+
+	return nil, errors.New("Input is neither json nor yaml")
 }
 
-func (i *importCommandeer) mapParallel(objMap map[string]interface{}, mapFunc func(obj interface{}, errCh chan error)) error {
-	var wg sync.WaitGroup
-	wg.Add(len(objMap))
-
-	errCh := make(chan error, len(objMap))
-	var mapErrorStrings []string
-
-	for _, obj := range objMap {
-		go func(obj interface{}, errCh chan error, wg *sync.WaitGroup) {
-			mapFunc(obj, errCh)
-			wg.Done()
-		}(obj, errCh, &wg)
-	}
-
-	wg.Wait()
-	close(errCh)
-
-	for err := range errCh {
-		if err != nil {
-			mapErrorStrings = append(mapErrorStrings, err.Error())
-		}
-	}
-
-	if len(mapErrorStrings) != 0 {
-		return errors.New(strings.Join(mapErrorStrings, "\n"))
-	}
-
-	return nil
-}
-
-func (i *importCommandeer) importFunction(functionConfig functionconfig.Config, deploy bool, project string) error {
+func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config, deploy bool, project string) error {
 
 	// populate namespace
 	functionConfig.Meta.Namespace = i.rootCommandeer.namespace
@@ -122,13 +87,7 @@ func (i *importCommandeer) importFunction(functionConfig functionconfig.Config, 
 		functionConfig.Meta.RemoveSkipBuildAnnotation()
 		functionConfig.Meta.RemoveSkipDeployAnnotation()
 	} else {
-
-		// Ensure skip annotations exist
-		if functionConfig.Meta.Annotations == nil {
-			functionConfig.Meta.Annotations = map[string]string{}
-		}
-		functionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipBuild] = strconv.FormatBool(true)
-		functionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipDeploy] = strconv.FormatBool(true)
+		functionConfig.AddSkipAnnotations()
 	}
 
 	functions, err := i.rootCommandeer.platform.GetFunctions(&platform.GetFunctionsOptions{
@@ -140,39 +99,34 @@ func (i *importCommandeer) importFunction(functionConfig functionconfig.Config, 
 	}
 
 	if len(functions) > 0 {
-		return errors.New(fmt.Sprintf("function with the name: %s already exists", functionConfig.Meta.Name))
+		return errors.New(fmt.Sprintf("Function with the name: %s already exists", functionConfig.Meta.Name))
 	}
 
 	_, err = i.rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 		Logger:         i.rootCommandeer.loggerInstance,
-		FunctionConfig: functionConfig,
+		FunctionConfig: *functionConfig,
 	})
 
 	return err
 }
 
-func (i *importCommandeer) importFunctions(functionConfigs map[string]functionconfig.Config,
+func (i *importCommandeer) importFunctions(functionConfigs map[string]*functionconfig.Config,
 	deploy bool,
 	project string) error {
-	interfaceMap := map[string]interface{}{}
-	for functionName, functionConfig := range functionConfigs {
-		interfaceMap[functionName] = functionConfig
+	var g errgroup.Group
+
+	for _, functionConfig := range functionConfigs {
+		g.Go(func() error {
+			return i.importFunction(functionConfig, deploy, project)
+		})
 	}
 
-	return i.mapParallel(interfaceMap, func(obj interface{}, errCh chan error) {
-		functionConfig, ok := obj.(functionconfig.Config)
-		if !ok {
-			errCh <- errors.New("Failed to assert function config")
-			return
-		}
-
-		errCh <- i.importFunction(functionConfig, deploy, project)
-	})
+	return g.Wait()
 }
 
 type importFunctionCommandeer struct {
 	*importCommandeer
-	functionConfigs map[string]functionconfig.Config
+	functionConfigs map[string]*functionconfig.Config
 }
 
 func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunctionCommandeer {
@@ -181,7 +135,7 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 	}
 
 	cmd := &cobra.Command{
-		Use:     "function function-config-file",
+		Use:     "function [path-to-exported-function-file]",
 		Aliases: []string{"fu"},
 		Short:   "Import function, and by default don't deploy it",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -195,16 +149,21 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			unmarshalFunc := commandeer.getUnmarshalFunc(commandeer.format)
-
-			if commandeer.multiple {
-				err = commandeer.parseMultipleFunctionsImport(funcBytes, &commandeer.functionConfigs, unmarshalFunc)
-			} else {
-				commandeer.functionConfigs = map[string]functionconfig.Config{}
-				err = commandeer.parseFunctionImport(funcBytes, &commandeer.functionConfigs, unmarshalFunc)
-			}
+			unmarshalFunc, err := commandeer.getUnmarshalFunc(funcBytes)
 			if err != nil {
-				return errors.Wrap(err, "Failed to parse function data")
+				return errors.Wrap(err, "Failed identifying input format")
+			}
+
+			// First try parsing multiple functions
+			err = commandeer.parseMultipleFunctionsImport(funcBytes, commandeer.functionConfigs, unmarshalFunc)
+			if err != nil {
+
+				// If that fails, try parsing a single function
+				commandeer.functionConfigs = map[string]*functionconfig.Config{}
+				err = commandeer.parseFunctionImport(funcBytes, commandeer.functionConfigs, unmarshalFunc)
+				if err != nil {
+					return errors.Wrap(err, "Failed to parse function data")
+				}
 			}
 
 			return commandeer.importFunctions(commandeer.functionConfigs, commandeer.deploy, "")
@@ -219,7 +178,7 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 }
 
 func (i *importFunctionCommandeer) parseFunctionImport(funcBytes []byte,
-	functionConfigs *map[string]functionconfig.Config,
+	functionConfigs map[string]*functionconfig.Config,
 	unmarshalFunc func(data []byte, v interface{}) error) error {
 
 	functionConfig := &functionconfig.Config{}
@@ -227,13 +186,13 @@ func (i *importFunctionCommandeer) parseFunctionImport(funcBytes []byte,
 		return errors.Wrap(err, "Failed encoding function import config")
 	}
 
-	(*functionConfigs)[functionConfig.Meta.Name] = *functionConfig
+	functionConfigs[functionConfig.Meta.Name] = functionConfig
 
 	return nil
 }
 
 func (i *importFunctionCommandeer) parseMultipleFunctionsImport(funcBytes []byte,
-	functionConfigs *map[string]functionconfig.Config,
+	functionConfigs map[string]*functionconfig.Config,
 	unmarshalFunc func(data []byte, v interface{}) error) error {
 	if err := unmarshalFunc(funcBytes, functionConfigs); err != nil {
 		return errors.Wrap(err, "Failed encoding function import config")
@@ -244,13 +203,13 @@ func (i *importFunctionCommandeer) parseMultipleFunctionsImport(funcBytes []byte
 
 type projectImportConfig struct {
 	Project        platform.ProjectConfig
-	Functions      map[string]functionconfig.Config
-	FunctionEvents map[string]platform.FunctionEventConfig
+	Functions      map[string]*functionconfig.Config
+	FunctionEvents map[string]*platform.FunctionEventConfig
 }
 
 type importProjectCommandeer struct {
 	*importCommandeer
-	projectImportConfigs map[string]projectImportConfig
+	projectImportConfigs map[string]*projectImportConfig
 }
 
 func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProjectCommandeer {
@@ -259,9 +218,9 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 	}
 
 	cmd := &cobra.Command{
-		Use:     "project project-config-file",
+		Use:     "project [path-to-exported-project-file]",
 		Aliases: []string{"proj"},
-		Short:   "Import project, all it's functions and functionEvents",
+		Short:   "Import project and all its functions and functionEvents",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projBytes, err := commandeer.readFromStdinOrFile(args)
 			if err != nil {
@@ -273,14 +232,16 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			unmarshalFunc := commandeer.getUnmarshalFunc(commandeer.format)
-
-			if commandeer.multiple {
-				err = commandeer.parseMultipleProjectsImport(projBytes, &commandeer.projectImportConfigs, unmarshalFunc)
-			} else {
-				commandeer.projectImportConfigs = map[string]projectImportConfig{}
-				err = commandeer.parseProjectImport(projBytes, &commandeer.projectImportConfigs, unmarshalFunc)
+			unmarshalFunc, err := commandeer.getUnmarshalFunc(projBytes)
+			if err != nil {
+				return errors.Wrap(err, "Failed identifying input format")
 			}
+
+			err = commandeer.parseMultipleProjectsImport(projBytes, commandeer.projectImportConfigs, unmarshalFunc)
+
+			commandeer.projectImportConfigs = map[string]*projectImportConfig{}
+			err = commandeer.parseProjectImport(projBytes, commandeer.projectImportConfigs, unmarshalFunc)
+
 			if err != nil {
 				return errors.Wrap(err, "Failed to parse function data")
 			}
@@ -297,7 +258,7 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 }
 
 func (i *importProjectCommandeer) parseProjectImport(projBytes []byte,
-	projectConfigs *map[string]projectImportConfig,
+	projectConfigs map[string]*projectImportConfig,
 	unmarshalFunc func(data []byte, v interface{}) error) error {
 
 	projectConfig := &projectImportConfig{}
@@ -305,13 +266,13 @@ func (i *importProjectCommandeer) parseProjectImport(projBytes []byte,
 		return errors.Wrap(err, "Failed encoding function import config")
 	}
 
-	(*projectConfigs)[projectConfig.Project.Meta.Name] = *projectConfig
+	projectConfigs[projectConfig.Project.Meta.Name] = projectConfig
 
 	return nil
 }
 
 func (i *importProjectCommandeer) parseMultipleProjectsImport(projBytes []byte,
-	projectConfigs *map[string]projectImportConfig,
+	projectConfigs map[string]*projectImportConfig,
 	unmarshalFunc func(data []byte, v interface{}) error) error {
 	if err := unmarshalFunc(projBytes, projectConfigs); err != nil {
 		return errors.Wrap(err, "Failed encoding function import config")
@@ -320,7 +281,7 @@ func (i *importProjectCommandeer) parseMultipleProjectsImport(projBytes []byte,
 	return nil
 }
 
-func (i *importProjectCommandeer) importFunctionEvent(functionEvent platform.FunctionEventConfig) error {
+func (i *importProjectCommandeer) importFunctionEvent(functionEvent *platform.FunctionEventConfig) error {
 	functions, err := i.rootCommandeer.platform.GetFunctions(&platform.GetFunctionsOptions{
 		Name:      functionEvent.Meta.Labels["nuclio.io/function-name"],
 		Namespace: i.rootCommandeer.namespace,
@@ -347,24 +308,19 @@ func (i *importProjectCommandeer) importFunctionEvent(functionEvent platform.Fun
 	})
 }
 
-func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string]platform.FunctionEventConfig) error {
-	interfaceMap := map[string]interface{}{}
-	for functionEventName, functionEventConfig := range functionEvents {
-		interfaceMap[functionEventName] = functionEventConfig
+func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string]*platform.FunctionEventConfig) error {
+	var g errgroup.Group
+
+	for _, functionEventConfig := range functionEvents {
+		g.Go(func() error {
+			return i.importFunctionEvent(functionEventConfig)
+		})
 	}
 
-	return i.mapParallel(interfaceMap, func(obj interface{}, errCh chan error) {
-		functionEventConfig, ok := obj.(platform.FunctionEventConfig)
-		if !ok {
-			errCh <- errors.New("Failed to assert project config")
-			return
-		}
-
-		errCh <- i.importFunctionEvent(functionEventConfig)
-	})
+	return g.Wait()
 }
 
-func (i *importProjectCommandeer) importProject(projectConfig projectImportConfig, deploy bool) error {
+func (i *importProjectCommandeer) importProject(projectConfig *projectImportConfig, deploy bool) error {
 	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
 		Meta: projectConfig.Project.Meta,
 	})
@@ -402,19 +358,14 @@ func (i *importProjectCommandeer) importProject(projectConfig projectImportConfi
 	return nil
 }
 
-func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string]projectImportConfig, deploy bool) error {
-	interfaceMap := map[string]interface{}{}
-	for projectName, projectConfig := range projectImportConfigs {
-		interfaceMap[projectName] = projectConfig
+func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string]*projectImportConfig, deploy bool) error {
+	var g errgroup.Group
+
+	for _, projectConfig := range projectImportConfigs {
+		g.Go(func() error {
+			return i.importProject(projectConfig, deploy)
+		})
 	}
 
-	return i.mapParallel(interfaceMap, func(obj interface{}, errCh chan error) {
-		projectConfig, ok := obj.(projectImportConfig)
-		if !ok {
-			errCh <- errors.New("Failed to assert project config")
-			return
-		}
-
-		errCh <- i.importProject(projectConfig, deploy)
-	})
+	return g.Wait()
 }

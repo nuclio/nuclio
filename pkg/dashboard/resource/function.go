@@ -216,7 +216,7 @@ func (fr *functionResource) export(function platform.Function) restful.Attribute
 	functionConfig := function.GetConfig()
 
 	fr.Logger.DebugWith("Preparing function for export", "functionName", function.GetConfig().Meta.Name)
-	functionconfig.PrepareFunctionForExport(functionConfig, false)
+	functionConfig.PrepareFunctionForExport(false)
 
 	fr.Logger.DebugWith("Exporting function", "functionName", functionConfig.Meta.Name)
 
@@ -358,7 +358,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
 	functionConfig := function.GetConfig()
-	functionconfig.CleanFunctionSpec(functionConfig)
+	functionConfig.CleanFunctionSpec()
 
 	attributes := restful.Attributes{
 		"metadata": functionConfig.Meta,

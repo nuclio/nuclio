@@ -194,11 +194,13 @@ func (pr *projectResource) export(project platform.Project) restful.Attributes {
 		return attributes
 	}
 
+	namespace := project.GetConfig().Meta.Namespace
+
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
 		functionsMap[function.GetConfig().Meta.Name] = functionResourceInstance.export(function)
 
-		functionEvents := functionEventResourceInstance.getFunctionEvents(function, project.GetConfig().Meta.Namespace)
+		functionEvents := functionEventResourceInstance.getFunctionEvents(function, namespace)
 		for _, functionEvent := range functionEvents {
 			functionEventsMap[functionEvent.GetConfig().Meta.Name] =
 				functionEventResourceInstance.functionEventToAttributes(functionEvent)

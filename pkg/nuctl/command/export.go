@@ -2,11 +2,9 @@ package command
 
 import (
 	"fmt"
-	"io"
-
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/renderer"
 
 	"github.com/nuclio/errors"
 	"github.com/spf13/cobra"
@@ -55,7 +53,7 @@ func newExportFunctionCommandeer(exportCommandeer *exportCommandeer) *exportFunc
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
 		Aliases: []string{"fu"},
-		Short:   "Export function to json format",
+		Short:   "Export function to yaml format",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -78,50 +76,31 @@ func newExportFunctionCommandeer(exportCommandeer *exportCommandeer) *exportFunc
 			}
 
 			if len(functions) == 0 {
+				if commandeer.getFunctionsOptions.Name != "" {
+					return nuclio.NewErrNotFound("No functions found")
+				}
 				cmd.OutOrStdout().Write([]byte("No functions found")) // nolint: errcheck
 				return nil
 			}
 
 			// render the functions
-			return commandeer.renderFunctions(functions, commandeer.output, cmd.OutOrStdout())
+			return renderFunctions(functions, commandeer.output, cmd.OutOrStdout(), commandeer.renderFunctionConfig)
 		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", OutputFormatJSON, "Output format - \"yaml\", or \"json\"")
-	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Don't scrub function data")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", OutputFormatYAML, "Output format - \"yaml\", or \"json\"")
+	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Allow function sensitive data to be exported")
 
 	commandeer.cmd = cmd
 
 	return commandeer
 }
 
-func (e *exportFunctionCommandeer) renderFunctions(functions []platform.Function, format string, writer io.Writer) error {
-
-	// iterate over each function and make sure it's initialized
-	// TODO: parallelize
-	for _, function := range functions {
-		if err := function.Initialize(nil); err != nil {
-			return err
-		}
-	}
-
-	rendererInstance := renderer.NewRenderer(writer)
-
-	switch format {
-	case OutputFormatYAML:
-		return e.renderFunctionConfig(functions, rendererInstance.RenderYAML)
-	case OutputFormatJSON:
-		return e.renderFunctionConfig(functions, rendererInstance.RenderJSON)
-	}
-
-	return nil
-}
-
 func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error) error {
 	if len(functions) == 1 {
 		functionConfig := functions[0].GetConfig()
-		functionconfig.PrepareFunctionForExport(functionConfig, e.noScrub)
+		functionConfig.PrepareFunctionForExport(e.noScrub)
 		if err := renderer(functionConfig); err != nil {
 			return errors.Wrap(err, "Failed to render function config")
 		}
@@ -131,7 +110,7 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 	functionConfigs := map[string]*functionconfig.Config{}
 	for _, function := range functions {
 		functionConfig := function.GetConfig()
-		functionconfig.PrepareFunctionForExport(functionConfig, e.noScrub)
+		functionConfig.PrepareFunctionForExport(e.noScrub)
 		functionConfigs[functionConfig.Meta.Name] = functionConfig
 	}
 	if err := renderer(functionConfigs); err != nil {
@@ -179,34 +158,23 @@ func newExportProjectCommandeer(exportCommandeer *exportCommandeer) *exportProje
 			}
 
 			if len(projects) == 0 {
+				if commandeer.getProjectsOptions.Meta.Name != "" {
+					return nuclio.NewErrNotFound("No functions found")
+				}
 				cmd.OutOrStdout().Write([]byte("No projects found")) // nolint: errcheck
 				return nil
 			}
 
 			// render the projects
-			return commandeer.renderProjects(projects, commandeer.output, cmd.OutOrStdout())
+			return renderProjects(projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig)
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", OutputFormatJSON, "Output format - \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", OutputFormatYAML, "Output format - \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
 
 	return commandeer
-}
-
-func (e *exportProjectCommandeer) renderProjects(projects []platform.Project, format string, writer io.Writer) error {
-
-	rendererInstance := renderer.NewRenderer(writer)
-
-	switch format {
-	case OutputFormatYAML:
-		return e.renderProjectConfig(projects, rendererInstance.RenderYAML)
-	case OutputFormatJSON:
-		return e.renderProjectConfig(projects, rendererInstance.RenderJSON)
-	}
-
-	return nil
 }
 
 func (e *exportProjectCommandeer) getFunctionEvents(functionConfig *functionconfig.Config) ([]platform.FunctionEvent, error) {
@@ -257,7 +225,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(projec
 			functionEventMap[functionEventConfig.Meta.Name] = functionEventConfig
 		}
 
-		functionconfig.PrepareFunctionForExport(functionConfig, false)
+		functionConfig.PrepareFunctionForExport(false)
 		functionMap[functionConfig.Meta.Name] = functionConfig
 	}
 

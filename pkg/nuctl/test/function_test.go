@@ -638,23 +638,21 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 		"handler": "main:Reverse",
 	}
 
-	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	err := suite.ExecuteNuctlAndWait([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs, false)
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctlAndWait([]string{"delete", "fu", functionName}, nil, false)
 
 	// export the function
-	err = suite.ExecuteNuctl([]string{"export", "fu", functionName}, map[string]string{
-		"output": "json",
-	})
+	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, map[string]string{}, false)
 	suite.Require().NoError(err)
 
 	exportedFunctionConfig := functionconfig.Config{}
-	err = json.Unmarshal(suite.outputBuffer.Bytes(), &exportedFunctionConfig)
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &exportedFunctionConfig)
 	suite.Require().NoError(err)
 
 	// assert skip annotations
@@ -675,16 +673,14 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// import the function
-	err = suite.ExecuteNuctl([]string{"import", "fu", exportTempFile.Name()}, map[string]string{
-		"input-format": "json",
-	})
+	err = suite.ExecuteNuctlAndWait([]string{"import", "fu", exportTempFile.Name()}, map[string]string{}, false)
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", exportedFunctionName}, nil)
+	defer suite.ExecuteNuctlAndWait([]string{"delete", "fu", exportedFunctionName}, nil, false)
 
 	// deploy imported function
-	err = suite.ExecuteNuctl([]string{"deploy", exportedFunctionName, "--verbose"}, map[string]string{})
+	err = suite.ExecuteNuctlAndWait([]string{"deploy", exportedFunctionName, "--verbose"}, map[string]string{}, false)
 	suite.Require().NoError(err)
 
 	// try a few times to invoke, until it succeeds

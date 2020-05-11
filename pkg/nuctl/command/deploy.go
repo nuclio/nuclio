@@ -80,9 +80,10 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 
 				importedFunction, err := commandeer.getImportedFunction(args[0])
 				if err != nil {
-					return err
+					return errors.Wrap(err, "Failed getting the imported function's data")
 				}
 				if importedFunction != nil {
+					commandeer.rootCommandeer.loggerInstance.Debug("Function was already imported, deploying it")
 					return commandeer.reDeployFunction(importedFunction)
 				}
 			}
@@ -140,11 +141,6 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			if err := json.Unmarshal([]byte(commandeer.encodedBuildCodeEntryAttributes),
 				&commandeer.functionConfig.Spec.Build.CodeEntryAttributes); err != nil {
 				return errors.Wrap(err, "Failed to decode code entry attributes")
-			}
-
-			// initialize root
-			if err := rootCommandeer.initialize(); err != nil {
-				return errors.Wrap(err, "Failed to initialize root")
 			}
 
 			// decode labels
@@ -308,6 +304,8 @@ func parseVolumes(volumes stringSliceFlag) ([]functionconfig.Volume, error) {
 	return originVolumes, nil
 }
 
+// If user runs deploy with a function name of a function that was already imported, this checks if that function
+// exists and is imported. If so, returns that function, otherwise returns nil.
 func (d *deployCommandeer) getImportedFunction(functionName string) (platform.Function, error) {
 	functions, err := d.rootCommandeer.platform.GetFunctions(&platform.GetFunctionsOptions{
 		Name:      functionName,
@@ -341,7 +339,7 @@ func (d *deployCommandeer) reDeployFunction(importedFunction platform.Function) 
 	functionConfig.Meta.RemoveSkipDeployAnnotation()
 
 	// Ensure RunRegistry is taken from the commandeer config
-	functionconfig.CleanFunctionSpec(functionConfig)
+	functionConfig.CleanFunctionSpec()
 	functionConfig.Spec.RunRegistry = d.functionConfig.Spec.RunRegistry
 
 	_, err := d.rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
