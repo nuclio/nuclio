@@ -168,6 +168,7 @@ jobs:
         env:
           NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL: ${{ env.REPO }}
           NUCTL_REGISTRY: "localhost:5000"
+          NUCTL_NAMESPACE: ${{ env.NAMESPACE }}
 
       - name: Upload test results
         uses: actions/upload-artifact@v2

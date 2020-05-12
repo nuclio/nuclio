@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -125,14 +126,19 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 }
 
 func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, format string, writer io.Writer) error {
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(len(functions))
 
 	// iterate over each function and make sure it's initialized
-	// TODO: parallelize
 	for _, function := range functions {
-		if err := function.Initialize(nil); err != nil {
-			return err
-		}
+		go func(function platform.Function) {
+			if err := function.Initialize(nil); err != nil {
+				g.rootCommandeer.loggerInstance.WarnWith("Failed to initialize function", "err", err.Error())
+			}
+			waitGroup.Done()
+		}(function)
 	}
+	waitGroup.Wait()
 
 	rendererInstance := renderer.NewRenderer(writer)
 

@@ -314,6 +314,12 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnMissingPath() {
 	functionName := "reverser" + uniqueSuffix
 	imageName := "nuclio/deploy-test" + uniqueSuffix
 
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use nuctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"image":   imageName,
@@ -322,6 +328,10 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnMissingPath() {
 		})
 
 	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
+
+	// ensure get functions succeeded for failing functions
+	err = suite.ExecuteNuctl([]string{"get", "function"}, nil)
+	suite.Require().NoError(err)
 }
 
 func (suite *functionDeployTestSuite) TestDeployFailsOnShellMissingPathAndHandler() {
