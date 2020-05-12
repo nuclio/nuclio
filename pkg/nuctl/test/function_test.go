@@ -650,6 +650,7 @@ func (suite *functionGetTestSuite) TestDelete() {
 		"runtime": "golang",
 		"handler": "main:Reverse",
 	}
+
 	err = suite.ExecuteNuctl([]string{
 		"deploy",
 		functionName,
