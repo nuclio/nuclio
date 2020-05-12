@@ -638,14 +638,14 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 		"handler": "main:Reverse",
 	}
 
-	err := suite.ExecuteNuctlAndWait([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs, false)
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctlAndWait([]string{"delete", "fu", functionName}, nil, false)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// export the function
 	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, map[string]string{}, false)
@@ -673,14 +673,18 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// import the function
-	err = suite.ExecuteNuctlAndWait([]string{"import", "fu", exportTempFile.Name()}, map[string]string{}, false)
+	err = suite.ExecuteNuctl([]string{"import", "fu", exportTempFile.Name()}, map[string]string{})
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctlAndWait([]string{"delete", "fu", exportedFunctionName}, nil, false)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", exportedFunctionName}, nil)
+
+	// wait until able to get the function
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", exportedFunctionName}, map[string]string{}, false)
+	suite.Require().NoError(err)
 
 	// deploy imported function
-	err = suite.ExecuteNuctlAndWait([]string{"deploy", exportedFunctionName, "--verbose"}, map[string]string{}, false)
+	err = suite.ExecuteNuctl([]string{"deploy", exportedFunctionName, "--verbose"}, map[string]string{})
 	suite.Require().NoError(err)
 
 	// try a few times to invoke, until it succeeds

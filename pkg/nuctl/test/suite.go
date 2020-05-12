@@ -160,6 +160,10 @@ func (suite *Suite) GetFunctionConfigsDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "test", "_function_configs")
 }
 
+func (suite *Suite) GetImportsDir() string {
+	return path.Join(suite.GetNuclioSourceDir(), "test", "_imports")
+}
+
 func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMustNotExist []string) {
 	foundPatternsMustExist := make([]bool, len(patternsMustExist))
 	foundPatternsMustNotExist := make([]bool, len(patternsMustNotExist))

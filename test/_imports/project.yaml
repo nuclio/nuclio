@@ -1,0 +1,90 @@
+functionEvents:
+  test-function-event-2:
+    Meta:
+      labels:
+        nuclio.io/function-name: test-function-2
+      name: test-function-event-2
+    Spec:
+      attributes:
+        headers:
+          Content-Type: text/plain
+        method: POST
+        path: ""
+      body: test-function-event-2-body
+      displayName: test-function-event-2
+      triggerKind: http
+  test-function-event-1:
+    Meta:
+      labels:
+        nuclio.io/function-name: test-function-1
+      name: test-function-event-1
+    Spec:
+      attributes:
+        headers:
+          Content-Type: text/plain
+        method: POST
+        path: ""
+      body: test-function-event-1-body
+      displayName: test-function-event-1
+      triggerKind: http
+functions:
+  test-function-1:
+    metadata:
+      annotations:
+        skip-build: "true"
+        skip-deploy: "true"
+      labels:
+        nuclio.io/project-name: test-project
+      name: test-function-1
+    spec:
+      alias: latest
+      build:
+        codeEntryType: sourceCode
+        functionSourceCode: ZWNobyAidGVzdDEi
+        noBaseImagesPull: true
+        runtimeAttributes:
+          repositories: []
+        timestamp: 1589201803
+      eventTimeout: ""
+      handler: main.sh
+      imageHash: "1589201800506618900"
+      loggerSinks:
+        - level: debug
+      platform: {}
+      resources: {}
+      runtime: shell
+      serviceType: NodePort
+      version: -1
+  test-function-2:
+    metadata:
+      annotations:
+        skip-build: "true"
+        skip-deploy: "true"
+      labels:
+        nuclio.io/project-name: test-project
+      name: test-function-2
+    spec:
+      alias: latest
+      build:
+        codeEntryType: sourceCode
+        functionSourceCode: ZWNobyAidGVzdDIi
+        noBaseImagesPull: true
+        runtimeAttributes:
+          repositories: []
+        timestamp: 1589201859
+      eventTimeout: ""
+      handler: main.sh
+      imageHash: "1589201857880298700"
+      loggerSinks:
+        - level: debug
+      platform: {}
+      resources: {}
+      runtime: shell
+      serviceType: NodePort
+      version: -1
+project:
+  Meta:
+    name: test-project
+    namespace: nuclio
+  Spec:
+    description: test-project

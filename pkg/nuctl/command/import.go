@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -116,6 +115,7 @@ func (i *importCommandeer) importFunctions(functionConfigs map[string]*functionc
 	var g errgroup.Group
 
 	for _, functionConfig := range functionConfigs {
+		functionConfig := functionConfig // https://golang.org/doc/faq#closures_and_goroutines
 		g.Go(func() error {
 			return i.importFunction(functionConfig, deploy, project)
 		})
@@ -201,7 +201,7 @@ func (i *importFunctionCommandeer) parseMultipleFunctionsImport(funcBytes []byte
 	return nil
 }
 
-type projectImportConfig struct {
+type ProjectImportConfig struct {
 	Project        platform.ProjectConfig
 	Functions      map[string]*functionconfig.Config
 	FunctionEvents map[string]*platform.FunctionEventConfig
@@ -209,7 +209,7 @@ type projectImportConfig struct {
 
 type importProjectCommandeer struct {
 	*importCommandeer
-	projectImportConfigs map[string]*projectImportConfig
+	projectImportConfigs map[string]*ProjectImportConfig
 }
 
 func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProjectCommandeer {
@@ -242,7 +242,7 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 			if err != nil {
 
 				// If that fails, try parsing a single project
-				commandeer.projectImportConfigs = map[string]*projectImportConfig{}
+				commandeer.projectImportConfigs = map[string]*ProjectImportConfig{}
 				err = commandeer.parseProjectImport(projBytes, commandeer.projectImportConfigs, unmarshalFunc)
 
 				if err != nil {
@@ -262,10 +262,10 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 }
 
 func (i *importProjectCommandeer) parseProjectImport(projBytes []byte,
-	projectConfigs map[string]*projectImportConfig,
+	projectConfigs map[string]*ProjectImportConfig,
 	unmarshalFunc func(data []byte, v interface{}) error) error {
 
-	projectConfig := &projectImportConfig{}
+	projectConfig := &ProjectImportConfig{}
 	if err := unmarshalFunc(projBytes, projectConfig); err != nil {
 		return errors.Wrap(err, "Failed encoding function import config")
 	}
@@ -276,7 +276,7 @@ func (i *importProjectCommandeer) parseProjectImport(projBytes []byte,
 }
 
 func (i *importProjectCommandeer) parseMultipleProjectsImport(projBytes []byte,
-	projectConfigs map[string]*projectImportConfig,
+	projectConfigs map[string]*ProjectImportConfig,
 	unmarshalFunc func(data []byte, v interface{}) error) error {
 	if err := unmarshalFunc(projBytes, projectConfigs); err != nil {
 		return errors.Wrap(err, "Failed encoding function import config")
@@ -316,6 +316,7 @@ func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string
 	var g errgroup.Group
 
 	for _, functionEventConfig := range functionEvents {
+		functionEventConfig := functionEventConfig // https://golang.org/doc/faq#closures_and_goroutines
 		g.Go(func() error {
 			return i.importFunctionEvent(functionEventConfig)
 		})
@@ -324,7 +325,7 @@ func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string
 	return g.Wait()
 }
 
-func (i *importProjectCommandeer) importProject(projectConfig *projectImportConfig, deploy bool) error {
+func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConfig, deploy bool) error {
 	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
 		Meta: projectConfig.Project.Meta,
 	})
@@ -346,23 +347,20 @@ func (i *importProjectCommandeer) importProject(projectConfig *projectImportConf
 		}
 	}
 
-	var importErrorStrings []string
+	functionImportErr := i.importFunctions(projectConfig.Functions, deploy, projectConfig.Project.Meta.Name)
+	functionEventImportErr := i.importFunctionEvents(projectConfig.FunctionEvents)
 
-	if err = i.importFunctions(projectConfig.Functions, deploy, projectConfig.Project.Meta.Name); err != nil {
-		importErrorStrings = append(importErrorStrings, err.Error())
+	if functionImportErr != nil {
+		return errors.Wrap(functionImportErr, "Failed to import some functions")
 	}
-	if err = i.importFunctionEvents(projectConfig.FunctionEvents); err != nil {
-		importErrorStrings = append(importErrorStrings, err.Error())
-	}
-
-	if len(importErrorStrings) != 0 {
-		return errors.New(strings.Join(importErrorStrings, "\n"))
+	if functionEventImportErr != nil {
+		return errors.Wrap(functionImportErr, "Failed to import some function events")
 	}
 
 	return nil
 }
 
-func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string]*projectImportConfig, deploy bool) error {
+func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string]*ProjectImportConfig, deploy bool) error {
 	var g errgroup.Group
 
 	for _, projectConfig := range projectImportConfigs {
