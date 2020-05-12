@@ -250,7 +250,7 @@ func (e *exportProjectCommandeer) renderProjectConfig(projects []platform.Projec
 	if len(projects) == 1 {
 		projectExport, err := e.exportProject(projects[0].GetConfig())
 		if err != nil {
-			return errors.Wrap(err, "Failed to gather functions and function events")
+			return errors.Wrap(err, "Failed to export project")
 		}
 		if err := renderer(projectExport); err != nil {
 			return errors.Wrap(err, "Failed to render function config")

@@ -84,7 +84,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				}
 				if importedFunction != nil {
 					commandeer.rootCommandeer.loggerInstance.Debug("Function was already imported, deploying it")
-					return commandeer.reDeployFunction(importedFunction)
+					commandeer.functionConfig = commandeer.prepareFunctionConfigForRedeploy(importedFunction)
 				}
 			}
 
@@ -331,7 +331,7 @@ func (d *deployCommandeer) getImportedFunction(functionName string) (platform.Fu
 	return nil, nil
 }
 
-func (d *deployCommandeer) reDeployFunction(importedFunction platform.Function) error {
+func (d *deployCommandeer) prepareFunctionConfigForRedeploy(importedFunction platform.Function) functionconfig.Config {
 	functionConfig := importedFunction.GetConfig()
 
 	// Ensure build and deployment works
@@ -342,10 +342,5 @@ func (d *deployCommandeer) reDeployFunction(importedFunction platform.Function) 
 	functionConfig.CleanFunctionSpec()
 	functionConfig.Spec.RunRegistry = d.functionConfig.Spec.RunRegistry
 
-	_, err := d.rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
-		Logger:         d.rootCommandeer.loggerInstance,
-		FunctionConfig: *functionConfig,
-	})
-
-	return err
+	return *functionConfig
 }
