@@ -147,7 +147,7 @@ func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 }
 
 func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
-	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, string, error) {
+	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, *nuclioio.NuclioFunction, string, error) {
 
 	// get the logger with which we need to deploy
 	deployLogger := createFunctionOptions.Logger
@@ -162,22 +162,22 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
 		})
 	if err != nil {
-		return nil, err.Error(), errors.Wrap(err, "Failed to create function")
+		return nil, nil, err.Error(), errors.Wrap(err, "Failed to create function")
 	}
 
 	// wait for the function to be ready
-	_, err = waitForFunctionReadiness(deployLogger,
+	updatedFunctionInstance, err := waitForFunctionReadiness(deployLogger,
 		d.consumer,
 		functionInstance.Namespace,
 		functionInstance.Name)
 	if err != nil {
 		podLogs, briefErrorsMessage := d.getFunctionPodLogsAndEvents(functionInstance.Namespace, functionInstance.Name)
-		return nil, briefErrorsMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
+		return nil, updatedFunctionInstance, briefErrorsMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
 	}
 
 	return &platform.CreateFunctionResult{
 		Port: functionInstance.Status.HTTPPort,
-	}, "", nil
+	}, updatedFunctionInstance, "", nil
 }
 
 func waitForFunctionReadiness(loggerInstance logger.Logger,

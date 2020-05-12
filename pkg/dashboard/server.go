@@ -190,6 +190,10 @@ func (s *Server) GetDefaultNamespace() string {
 	return s.defaultNamespace
 }
 
+func (s *Server) GetPlatformConfiguration() *platformconfig.Config {
+	return s.platformConfiguration
+}
+
 func (s *Server) InstallMiddleware(router chi.Router) error {
 	if err := s.AbstractServer.InstallMiddleware(router); err != nil {
 		return err
@@ -280,13 +284,4 @@ func (s *Server) loadDockerKeys(dockerKeyDir string) error {
 	}
 
 	return s.dockerCreds.LoadFromDir(dockerKeyDir)
-}
-
-func (s *Server) readPlatformConfiguration(configurationPath string) (*platformconfig.Config, error) {
-	platformConfigurationReader, err := platformconfig.NewReader()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
-	}
-
-	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
 }

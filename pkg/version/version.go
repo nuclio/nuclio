@@ -20,6 +20,9 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	oslib "os"
+	"runtime"
+
+	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/logger"
 )
@@ -78,14 +81,21 @@ func Get() (*Info, error) {
 }
 
 // Set will update the stored version info, used primarily for tests
-func Set(info *Info) error {
+func Set(info *Info) {
 	label = info.Label
 	gitCommit = info.GitCommit
 	os = info.OS
 	arch = info.Arch
 	goVersion = info.GoVersion
+}
 
-	return nil
+// SetFromEnv will update the stored version info, used primarily for tests
+func SetFromEnv() {
+	gitCommit = common.GetEnvOrDefaultString("NUCLIO_VERSION_GIT_COMMIT", "c")
+	label = common.GetEnvOrDefaultString("NUCLIO_LABEL", "latest")
+	arch = common.GetEnvOrDefaultString("NUCLIO_ARCH", "amd64")
+	os = common.GetEnvOrDefaultString("NUCLIO_OS", "linux")
+	goVersion = runtime.Version()
 }
 
 // Log will log the version, or an error

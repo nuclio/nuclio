@@ -115,7 +115,7 @@ func (f *function) Initialize([]string) error {
 			} else if len(deploymentList.Items) == 1 {
 				deployment = &deploymentList.Items[0]
 			} else {
-				deploymentErr = fmt.Errorf("Found unexpected number of deployments for function %s: %d",
+				deploymentErr = errors.Errorf("Found unexpected number of deployments for function %s: %d",
 					f.function.Name,
 					len(deploymentList.Items))
 			}
@@ -137,7 +137,7 @@ func (f *function) Initialize([]string) error {
 
 			// there should be only one
 			if len(serviceList.Items) != 1 {
-				serviceErr = fmt.Errorf("Found unexptected number of services for function %s: %d",
+				serviceErr = errors.Errorf("Found unexpected number of services for function %s: %d",
 					f.function.Name,
 					len(serviceList.Items))
 			} else {
@@ -159,10 +159,9 @@ func (f *function) Initialize([]string) error {
 				return
 			}
 
+			// no more than one
 			if len(ingressList.Items) > 1 {
-
-				// no more then one
-				ingressErr = fmt.Errorf("Found more then 1 ingress for function %s: %d",
+				ingressErr = errors.Errorf("Found unexpected number of ingresses for function %s: %d",
 					f.function.Name,
 					len(ingressList.Items))
 

@@ -40,7 +40,7 @@ func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info,
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "node:10.3-alpine"
+	processorDockerfileInfo.BaseImage = "node:10.20-alpine"
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",
