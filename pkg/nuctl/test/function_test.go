@@ -769,6 +769,68 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
+func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunction() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "reverser" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use nuctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"image":   imageName,
+			"runtime": "golang",
+			"handler": "main:Reverse",
+		})
+
+	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
+
+	// export the function
+	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, map[string]string{}, false)
+	suite.Require().NoError(err)
+
+	exportedFunctionConfig := functionconfig.Config{}
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &exportedFunctionConfig)
+	suite.Require().NoError(err)
+
+	// assert skip annotations
+	suite.Assert().True(functionconfig.ShouldSkipBuild(exportedFunctionConfig.Meta.Annotations))
+	suite.Assert().True(functionconfig.ShouldSkipDeploy(exportedFunctionConfig.Meta.Annotations))
+
+	// edit the exported function's name
+	exportedFunctionName := "export-reverser-" + xid.New().String()
+	exportedFunctionConfig.Meta.Name = exportedFunctionName
+	exportedFunctionConfigJson, _ := json.Marshal(exportedFunctionConfig)
+
+	// write exported function config to temp file
+	exportTempFile, err := ioutil.TempFile("", "reverser.*.json")
+	suite.Require().NoError(err)
+	defer os.Remove(exportTempFile.Name())
+
+	_, err = exportTempFile.Write(exportedFunctionConfigJson)
+	suite.Require().NoError(err)
+
+	// import the function
+	err = suite.ExecuteNuctl([]string{"import", "fu", exportTempFile.Name()}, map[string]string{})
+	suite.Require().NoError(err)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", exportedFunctionName}, nil)
+
+	// wait until able to get the function
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", exportedFunctionName}, map[string]string{}, false)
+	suite.Require().NoError(err)
+
+	// deploy imported function
+	err = suite.ExecuteNuctl([]string{"deploy", exportedFunctionName, "--verbose"}, map[string]string{})
+
+	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
+}
+
 func TestFunctionTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
