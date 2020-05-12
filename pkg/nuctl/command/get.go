@@ -109,7 +109,11 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			// render the functions
-			return renderFunctions(functions, commandeer.output, cmd.OutOrStdout(), commandeer.renderFunctionConfig)
+			return renderFunctions(commandeer.rootCommandeer.loggerInstance,
+				functions,
+				commandeer.output,
+				cmd.OutOrStdout(),
+				commandeer.renderFunctionConfig)
 		},
 	}
 

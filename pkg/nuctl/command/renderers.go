@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/renderer"
 
-	"golang.org/x/sync/errgroup"
+	"github.com/nuclio/logger"
 )
 
 func formatFunctionIngresses(function platform.Function) string {
@@ -36,22 +37,25 @@ func formatFunctionIngresses(function platform.Function) string {
 	return formattedIngresses
 }
 
-func renderFunctions(functions []platform.Function,
+func renderFunctions(logger logger.Logger,
+	functions []platform.Function,
 	format string,
 	writer io.Writer,
 	renderCallback func(functions []platform.Function, renderer func(interface{}) error) error) error {
 
-	var g errgroup.Group
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(len(functions))
 
+	// iterate over each function and make sure it's initialized
 	for _, function := range functions {
-		g.Go(func() error {
-			return function.Initialize(nil)
-		})
+		go func(function platform.Function) {
+			if err := function.Initialize(nil); err != nil {
+				logger.WarnWith("Failed to initialize function", "err", err.Error())
+			}
+			waitGroup.Done()
+		}(function)
 	}
-
-	if err := g.Wait(); err != nil {
-		return err
-	}
+	waitGroup.Wait()
 
 	rendererInstance := renderer.NewRenderer(writer)
 
