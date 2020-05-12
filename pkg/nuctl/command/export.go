@@ -93,7 +93,6 @@ func newExportFunctionCommandeer(exportCommandeer *exportCommandeer) *exportFunc
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", OutputFormatYAML, "Output format - \"yaml\", or \"json\"")
 	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Allow function sensitive data to be exported")
 
