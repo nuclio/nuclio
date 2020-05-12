@@ -1495,7 +1495,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	functionAddress := fmt.Sprintf("%s:%d", host, port)
 
 	// generate the curl command to be run by the CronJob to invoke the function
-	curlCommand := fmt.Sprintf("curl %s %s", headersAsCurlArg, functionAddress)
+	curlCommand := fmt.Sprintf("curl --silent %s %s", headersAsCurlArg, functionAddress)
 
 	if attributes.Event.Body != "" {
 		eventBody := attributes.Event.Body
