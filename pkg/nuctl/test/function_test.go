@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -581,9 +582,11 @@ func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// wait 10 seconds so at least 1 interval will pass
-	suite.logger.InfoWith("Sleeping for 10 sec (so at least 1 interval will pass")
+	suite.logger.InfoWith("Sleeping for 10 sec (so at least 1 interval will pass)")
 	time.Sleep(10 * time.Second)
 	suite.logger.InfoWith("Done sleeping")
+
+	suite.outputBuffer.Reset()
 
 	// try a few times to invoke, until it succeeds
 	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
@@ -594,7 +597,7 @@ func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
 		false)
 	suite.Require().NoError(err)
 
-	events := suite.parseEventsRecorderOutput()
+	events := suite.parseEventsRecorderOutput(suite.outputBuffer.String())
 
 	// validate at least 1 cron job ran
 	suite.Require().GreaterOrEqual(len(events), 1)
@@ -608,13 +611,21 @@ func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
 	suite.Require().Contains(events[0].Headers, "Extra-Header-2")
 }
 
-func (suite *functionDeployTestSuite) parseEventsRecorderOutput() []triggertest.Event {
+func (suite *functionDeployTestSuite) parseEventsRecorderOutput(outputBufferString string) []triggertest.Event {
 	var foundResponseBody bool
 	var responseBody string
 	var events []triggertest.Event
 
+	suite.logger.InfoWith("Parsing event recorder output", "outputBufferString", outputBufferString)
+
+	// try unquote response from output buffer (continue normally if it's not a quoted string)
+	response, err := strconv.Unquote(outputBufferString)
+	if err != nil {
+		response = outputBufferString
+	}
+
 	// find the response body in the output buffer
-	responseLines := strings.Split(suite.outputBuffer.String(), "\n")
+	responseLines := strings.Split(response, "\n")
 	for _, line := range responseLines {
 		if foundResponseBody {
 			responseBody = line
@@ -626,8 +637,8 @@ func (suite *functionDeployTestSuite) parseEventsRecorderOutput() []triggertest.
 		}
 	}
 
-	suite.logger.DebugWith("Parsing events from response body", "responseBody", responseBody)
-	err := json.Unmarshal([]byte(responseBody), &events)
+	suite.logger.InfoWith("Parsing events from response body", "responseBody", responseBody)
+	err = json.Unmarshal([]byte(responseBody), &events)
 	suite.Require().NoError(err)
 
 	return events
