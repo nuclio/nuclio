@@ -316,6 +316,12 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnMissingPath() {
 	functionName := "reverser" + uniqueSuffix
 	imageName := "nuclio/deploy-test" + uniqueSuffix
 
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use nuctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"image":   imageName,
@@ -324,6 +330,10 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnMissingPath() {
 		})
 
 	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
+
+	// ensure get functions succeeded for failing functions
+	err = suite.ExecuteNuctl([]string{"get", "function"}, nil)
+	suite.Require().NoError(err)
 }
 
 func (suite *functionDeployTestSuite) TestDeployFailsOnShellMissingPathAndHandler() {
@@ -720,6 +730,64 @@ func (suite *functionGetTestSuite) TestGet() {
 	}
 }
 
+type functionDeleteTestSuite struct {
+	Suite
+}
+
+func (suite *functionGetTestSuite) TestDelete() {
+	var err error
+
+	uniqueSuffix := xid.New().String()
+	imageName := "nuclio/deploy-test" + uniqueSuffix
+	functionName := "reverser" + uniqueSuffix
+
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"image":   imageName,
+		"runtime": "golang",
+		"handler": "main:Reverse",
+	}
+
+	err = suite.ExecuteNuctl([]string{
+		"deploy",
+		functionName,
+		"--verbose",
+		"--no-pull",
+	}, namedArgs)
+	suite.Require().NoError(err)
+
+	// cleanup
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// try a few times to invoke, until it succeeds
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+			"via":    "external-ip",
+		},
+		false)
+	suite.Require().NoError(err)
+
+	// function removed
+	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	suite.Require().NoError(err)
+
+	// ensure delete is idempotent
+	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	suite.Require().NoError(err)
+
+	// try invoke, it should failed
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+			"via":    "external-ip",
+		},
+		true)
+	suite.Require().NoError(err, "Function was suppose to be deleted!")
+}
+
 func TestFunctionTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
@@ -728,4 +796,5 @@ func TestFunctionTestSuite(t *testing.T) {
 	suite.Run(t, new(functionBuildTestSuite))
 	suite.Run(t, new(functionDeployTestSuite))
 	suite.Run(t, new(functionGetTestSuite))
+	suite.Run(t, new(functionDeleteTestSuite))
 }

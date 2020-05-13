@@ -31,6 +31,7 @@ dashboard:
     tag: ${NUCLIO_LABEL}-amd64
     repository: ${REPO}/${REPO_NAME}/dashboard
     pullPolicy: Never
+  baseImagePullPolicy: Never
 dlx:
   enabled: true
   image:
@@ -45,4 +46,4 @@ autoscaler:
     pullPolicy: Never
 
 registry:
-  defaultOnbuildRegistryURL: ${REPO}/${REPO_NAME}
+  defaultOnbuildRegistryURL: ${REPO}

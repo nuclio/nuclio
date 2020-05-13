@@ -114,7 +114,7 @@ func (rc *RootCommandeer) initialize() error {
 
 	rc.platform, err = rc.createPlatform(rc.loggerInstance)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create logger")
+		return errors.Wrap(err, "Failed to create platform")
 	}
 
 	// use default namespace by platform if specified

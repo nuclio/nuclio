@@ -287,8 +287,14 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			}, nil
 		}
 
-		createFunctionResult, briefErrorsMessage, deployErr := p.deployer.deploy(existingFunctionInstance,
+		createFunctionResult, updatedFunctionInstance, briefErrorsMessage, deployErr := p.deployer.deploy(existingFunctionInstance,
 			createFunctionOptions)
+
+		// update the function instance (after the deployment)
+		if updatedFunctionInstance != nil {
+			existingFunctionInstance = updatedFunctionInstance
+		}
+
 		if deployErr != nil {
 
 			// try to report the error

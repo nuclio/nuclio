@@ -22,6 +22,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -54,8 +55,11 @@ func (d *deleter) delete(consumer *consumer, deleteFunctionOptions *platform.Del
 	}
 
 	// get specific function CR
-	err = nuclioClientSet.NuclioV1beta1().NuclioFunctions(deleteFunctionOptions.FunctionConfig.Meta.Namespace).Delete(resourceName, &meta_v1.DeleteOptions{})
-	if err != nil {
+	err = nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(deleteFunctionOptions.FunctionConfig.Meta.Namespace).
+		Delete(resourceName, &meta_v1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
 		return errors.Wrap(err, "Failed to delete function CR")
 	}
 
