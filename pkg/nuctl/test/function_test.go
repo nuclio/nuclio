@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/nuctl/command"
+	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
@@ -517,7 +517,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	// check that the function's CET was modified to 'image'
 	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName},
 		map[string]string{
-			"output": command.OutputFormatYAML,
+			"output": common.OutputFormatYAML,
 		},
 		false)
 	suite.Require().NoError(err)
@@ -598,11 +598,11 @@ func (suite *functionGetTestSuite) TestGet() {
 	}{
 		{
 			FunctionName: functionNames[0],
-			OutputFormat: command.OutputFormatJSON,
+			OutputFormat: common.OutputFormatJSON,
 		},
 		{
 			FunctionName: functionNames[0],
-			OutputFormat: command.OutputFormatYAML,
+			OutputFormat: common.OutputFormatYAML,
 		},
 	} {
 		// reset buffer
@@ -619,9 +619,9 @@ func (suite *functionGetTestSuite) TestGet() {
 
 		// unmarshal response correspondingly to output format
 		switch testCase.OutputFormat {
-		case command.OutputFormatJSON:
+		case common.OutputFormatJSON:
 			err = json.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
-		case command.OutputFormatYAML:
+		case common.OutputFormatYAML:
 			err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
 		}
 
@@ -751,6 +751,16 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	err = suite.ExecuteNuctlAndWait([]string{"get", "function", exportedFunctionName}, map[string]string{}, false)
 	suite.Require().NoError(err)
 
+	// try to invoke, and ensure it fails - because it is imported and not deployed
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", exportedFunctionName},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+			"via":    "external-ip",
+		},
+		true)
+	suite.Require().NoError(err)
+
 	// deploy imported function
 	err = suite.ExecuteNuctl([]string{"deploy", exportedFunctionName, "--verbose"}, map[string]string{})
 	suite.Require().NoError(err)
@@ -823,6 +833,16 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 
 	// wait until able to get the function
 	err = suite.ExecuteNuctlAndWait([]string{"get", "function", exportedFunctionName}, map[string]string{}, false)
+	suite.Require().NoError(err)
+
+	// try to invoke, and ensure it fails - because it is imported and not deployed
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", exportedFunctionName},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+			"via":    "external-ip",
+		},
+		true)
 	suite.Require().NoError(err)
 
 	// deploy imported function

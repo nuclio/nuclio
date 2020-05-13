@@ -2,7 +2,6 @@ package command
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -98,7 +97,7 @@ func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config,
 	}
 
 	if len(functions) > 0 {
-		return errors.New(fmt.Sprintf("Function with the name: %s already exists", functionConfig.Meta.Name))
+		return errors.Errorf("Function with the name: %s already exists", functionConfig.Meta.Name)
 	}
 
 	_, err = i.rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
@@ -112,16 +111,16 @@ func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config,
 func (i *importCommandeer) importFunctions(functionConfigs map[string]*functionconfig.Config,
 	deploy bool,
 	project string) error {
-	var g errgroup.Group
+	var errGroup errgroup.Group
 
 	for _, functionConfig := range functionConfigs {
 		functionConfig := functionConfig // https://golang.org/doc/faq#closures_and_goroutines
-		g.Go(func() error {
+		errGroup.Go(func() error {
 			return i.importFunction(functionConfig, deploy, project)
 		})
 	}
 
-	return g.Wait()
+	return errGroup.Wait()
 }
 
 type importFunctionCommandeer struct {
@@ -313,16 +312,16 @@ func (i *importProjectCommandeer) importFunctionEvent(functionEvent *platform.Fu
 }
 
 func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string]*platform.FunctionEventConfig) error {
-	var g errgroup.Group
+	var errGroup errgroup.Group
 
 	for _, functionEventConfig := range functionEvents {
 		functionEventConfig := functionEventConfig // https://golang.org/doc/faq#closures_and_goroutines
-		g.Go(func() error {
+		errGroup.Go(func() error {
 			return i.importFunctionEvent(functionEventConfig)
 		})
 	}
 
-	return g.Wait()
+	return errGroup.Wait()
 }
 
 func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConfig, deploy bool) error {

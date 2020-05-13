@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/errors"
@@ -85,7 +86,7 @@ func newExportFunctionCommandeer(exportCommandeer *exportCommandeer) *exportFunc
 			}
 
 			// render the functions
-			return renderFunctions(commandeer.rootCommandeer.loggerInstance,
+			return common.RenderFunctions(commandeer.rootCommandeer.loggerInstance,
 				functions,
 				commandeer.output,
 				cmd.OutOrStdout(),
@@ -93,7 +94,7 @@ func newExportFunctionCommandeer(exportCommandeer *exportCommandeer) *exportFunc
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", OutputFormatYAML, "Output format - \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, "Output format - \"yaml\", or \"json\"")
 	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Allow function sensitive data to be exported")
 
 	commandeer.cmd = cmd
@@ -170,11 +171,11 @@ func newExportProjectCommandeer(exportCommandeer *exportCommandeer) *exportProje
 			}
 
 			// render the projects
-			return renderProjects(projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig)
+			return common.RenderProjects(projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig)
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", OutputFormatYAML, "Output format - \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, "Output format - \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
 

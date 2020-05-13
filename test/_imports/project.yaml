@@ -1,10 +1,10 @@
 functionEvents:
   test-function-event-2:
-    Meta:
+    meta:
       labels:
         nuclio.io/function-name: test-function-2
       name: test-function-event-2
-    Spec:
+    spec:
       attributes:
         headers:
           Content-Type: text/plain
@@ -14,11 +14,11 @@ functionEvents:
       displayName: test-function-event-2
       triggerKind: http
   test-function-event-1:
-    Meta:
+    meta:
       labels:
         nuclio.io/function-name: test-function-1
       name: test-function-event-1
-    Spec:
+    spec:
       attributes:
         headers:
           Content-Type: text/plain
@@ -83,8 +83,8 @@ functions:
       serviceType: NodePort
       version: -1
 project:
-  Meta:
+  meta:
     name: test-project
     namespace: nuclio
-  Spec:
+  spec:
     description: test-project

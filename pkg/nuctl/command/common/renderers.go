@@ -1,4 +1,4 @@
-package command
+package common
 
 import (
 	"fmt"
@@ -13,31 +13,14 @@ import (
 	"github.com/nuclio/logger"
 )
 
-func formatFunctionIngresses(function platform.Function) string {
-	var formattedIngresses string
+const (
+	OutputFormatText = "text"
+	OutputFormatWide = "wide"
+	OutputFormatJSON = "json"
+	OutputFormatYAML = "yaml"
+)
 
-	ingresses := function.GetIngresses()
-
-	for _, ingress := range ingresses {
-		host := ingress.Host
-		if host != "" {
-			host += ":<port>"
-		}
-
-		for _, path := range ingress.Paths {
-			formattedIngresses += fmt.Sprintf("%s%s, ", host, path)
-		}
-	}
-
-	// add default ingress
-	formattedIngresses += fmt.Sprintf("/%s/%s",
-		function.GetConfig().Meta.Name,
-		function.GetVersion())
-
-	return formattedIngresses
-}
-
-func renderFunctions(logger logger.Logger,
+func RenderFunctions(logger logger.Logger,
 	functions []platform.Function,
 	format string,
 	writer io.Writer,
@@ -107,7 +90,59 @@ func renderFunctions(logger logger.Logger,
 	return nil
 }
 
-func renderProjects(projects []platform.Project,
+func RenderFunctionEvents(functionEvents []platform.FunctionEvent,
+	format string,
+	writer io.Writer,
+	renderCallback func(functions []platform.FunctionEvent, renderer func(interface{}) error) error) error {
+
+	rendererInstance := renderer.NewRenderer(writer)
+
+	switch format {
+	case OutputFormatText, OutputFormatWide:
+		header := []string{"Namespace", "Name", "Display Name", "Function", "Trigger Name", "Trigger Kind"}
+		if format == OutputFormatWide {
+			header = append(header, []string{
+				"Body",
+			}...)
+		}
+
+		var functionEventRecords [][]string
+
+		// for each field
+		for _, functionEvent := range functionEvents {
+
+			// get its fields
+			functionEventFields := []string{
+				functionEvent.GetConfig().Meta.Namespace,
+				functionEvent.GetConfig().Meta.Name,
+				functionEvent.GetConfig().Spec.DisplayName,
+				functionEvent.GetConfig().Meta.Labels["nuclio.io/function-name"],
+				functionEvent.GetConfig().Spec.TriggerName,
+				functionEvent.GetConfig().Spec.TriggerKind,
+			}
+
+			// add fields for wide view
+			if format == OutputFormatWide {
+				functionEventFields = append(functionEventFields, []string{
+					functionEvent.GetConfig().Spec.Body,
+				}...)
+			}
+
+			// add to records
+			functionEventRecords = append(functionEventRecords, functionEventFields)
+		}
+
+		rendererInstance.RenderTable(header, functionEventRecords)
+	case OutputFormatYAML:
+		return renderCallback(functionEvents, rendererInstance.RenderYAML)
+	case OutputFormatJSON:
+		return renderCallback(functionEvents, rendererInstance.RenderJSON)
+	}
+
+	return nil
+}
+
+func RenderProjects(projects []platform.Project,
 	format string,
 	writer io.Writer,
 	renderCallback func(functions []platform.Project, renderer func(interface{}) error) error) error {

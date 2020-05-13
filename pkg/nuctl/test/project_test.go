@@ -156,123 +156,11 @@ type projectExportImportTestSuite struct {
 	Suite
 }
 
-func (suite *projectExportImportTestSuite) createProject(projectName string) {
-	namedArgs := map[string]string{
-		"description": projectName,
-	}
-
-	err := suite.ExecuteNuctl([]string{
-		"create",
-		"project",
-		projectName,
-		"--verbose",
-	}, namedArgs)
-	suite.Require().NoError(err)
-
-	// wait until able to get the project
-	err = suite.ExecuteNuctlAndWait([]string{"get", "project", projectName}, map[string]string{}, false)
-	suite.Require().NoError(err)
-}
-
-func (suite *projectExportImportTestSuite) createFunction(functionName, projectName string) {
-	namedArgs := map[string]string{
-		"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-		"project-name": projectName,
-		"runtime":      "golang",
-		"handler":      "main:Reverse",
-	}
-
-	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
-	suite.Require().NoError(err)
-
-	// wait until able to get the project
-	err = suite.ExecuteNuctl([]string{"get", "function", functionName}, map[string]string{})
-	suite.Require().NoError(err)
-}
-
-func (suite *projectExportImportTestSuite) createFunctionEvent(functionEventName, functionName string) {
-	namedArgs := map[string]string{
-		"function":     functionName,
-		"display-name": fmt.Sprintf("display-name-%s", functionEventName),
-		"trigger-name": fmt.Sprintf("trigger-name-%s", functionEventName),
-		"trigger-kind": fmt.Sprintf("trigger-kind-%s", functionEventName),
-		"body":         fmt.Sprintf("body-%s", functionEventName),
-	}
-
-	err := suite.ExecuteNuctl([]string{
-		"create",
-		"functionevent",
-		functionEventName,
-	}, namedArgs)
-
-	suite.Require().NoError(err)
-}
-
-func (suite *projectExportImportTestSuite) assertProjectImported(projectName string) {
-
-	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
-	err := suite.ExecuteNuctlAndWait([]string{"get", "project", projectName}, map[string]string{
-		"output": "yaml",
-	}, false)
-	suite.Require().NoError(err)
-
-	project := platform.ProjectConfig{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &project)
-	suite.Require().NoError(err)
-
-	suite.Assert().Equal(projectName, project.Meta.Name)
-}
-
-func (suite *projectExportImportTestSuite) assertFunctionImported(functionName string, imported bool) {
-
-	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
-	err := suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{
-		"output": "yaml",
-	}, false)
-	suite.Require().NoError(err)
-
-	function := functionconfig.Config{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &function)
-	suite.Require().NoError(err)
-
-	suite.Assert().Equal(functionName, function.Meta.Name)
-	if imported {
-
-		// get imported functions
-		err = suite.ExecuteNuctl([]string{"get", "function", functionName}, nil)
-		suite.Require().NoError(err)
-
-		// ensure function state is imported
-		suite.findPatternsInOutput([]string{"imported"}, nil)
-	}
-}
-
-func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunction(functionEventDisplayName,
-	functionName string) string {
-
-	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
-	err := suite.ExecuteNuctlAndWait([]string{"get", "functionevent"}, map[string]string{
-		"output": "yaml",
-		"function": functionName,
-	}, false)
-	suite.Require().NoError(err)
-
-	functionEvent := platform.FunctionEventConfig{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &functionEvent)
-	suite.Require().NoError(err)
-
-	suite.Assert().Equal(functionEventDisplayName, functionEvent.Spec.DisplayName)
-	suite.Assert().Equal(functionName, functionEvent.Meta.Labels["nuclio.io/function-name"])
-	return functionEvent.Meta.Name
-}
-
 func (suite *projectExportImportTestSuite) TestExportProject() {
-	projectName := "test-project"
-	functionName := "test-function"
-	functionEventName := "test-function-event"
+	uniqueSuffix := "-" + xid.New().String()
+	projectName := "test-project" + uniqueSuffix
+	functionName := "test-function" + uniqueSuffix
+	functionEventName := "test-function-event" + uniqueSuffix
 
 	suite.createProject(projectName)
 	suite.createFunction(functionName, projectName)
@@ -353,6 +241,119 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction
 
 	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil)
 	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil)
+}
+
+func (suite *projectExportImportTestSuite) createProject(projectName string) {
+	namedArgs := map[string]string{
+		"description": projectName,
+	}
+
+	err := suite.ExecuteNuctl([]string{
+		"create",
+		"project",
+		projectName,
+		"--verbose",
+	}, namedArgs)
+	suite.Require().NoError(err)
+
+	// wait until able to get the project
+	err = suite.ExecuteNuctlAndWait([]string{"get", "project", projectName}, map[string]string{}, false)
+	suite.Require().NoError(err)
+}
+
+func (suite *projectExportImportTestSuite) createFunction(functionName, projectName string) {
+	namedArgs := map[string]string{
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"project-name": projectName,
+		"runtime":      "golang",
+		"handler":      "main:Reverse",
+	}
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	suite.Require().NoError(err)
+
+	// wait until able to get the function
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+	suite.Require().NoError(err)
+}
+
+func (suite *projectExportImportTestSuite) createFunctionEvent(functionEventName, functionName string) {
+	namedArgs := map[string]string{
+		"function":     functionName,
+		"display-name": fmt.Sprintf("display-name-%s", functionEventName),
+		"trigger-name": fmt.Sprintf("trigger-name-%s", functionEventName),
+		"trigger-kind": fmt.Sprintf("trigger-kind-%s", functionEventName),
+		"body":         fmt.Sprintf("body-%s", functionEventName),
+	}
+
+	err := suite.ExecuteNuctl([]string{
+		"create",
+		"functionevent",
+		functionEventName,
+	}, namedArgs)
+
+	suite.Require().NoError(err)
+}
+
+func (suite *projectExportImportTestSuite) assertProjectImported(projectName string) {
+
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
+	err := suite.ExecuteNuctlAndWait([]string{"get", "project", projectName}, map[string]string{
+		"output": "yaml",
+	}, false)
+	suite.Require().NoError(err)
+
+	project := platform.ProjectConfig{}
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &project)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal(projectName, project.Meta.Name)
+}
+
+func (suite *projectExportImportTestSuite) assertFunctionImported(functionName string, imported bool) {
+
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
+	err := suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{
+		"output": "yaml",
+	}, false)
+	suite.Require().NoError(err)
+
+	function := functionconfig.Config{}
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &function)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal(functionName, function.Meta.Name)
+	if imported {
+
+		// get imported functions
+		err = suite.ExecuteNuctl([]string{"get", "function", functionName}, nil)
+		suite.Require().NoError(err)
+
+		// ensure function state is imported
+		suite.findPatternsInOutput([]string{"imported"}, nil)
+	}
+}
+
+func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunction(functionEventDisplayName,
+	functionName string) string {
+
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
+	err := suite.ExecuteNuctlAndWait([]string{"get", "functionevent"}, map[string]string{
+		"output": "yaml",
+		"function": functionName,
+	}, false)
+	suite.Require().NoError(err)
+
+	functionEvent := platform.FunctionEventConfig{}
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &functionEvent)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal(functionEventDisplayName, functionEvent.Spec.DisplayName)
+	suite.Assert().Equal(functionName, functionEvent.Meta.Labels["nuclio.io/function-name"])
+	return functionEvent.Meta.Name
 }
 
 func TestProjectTestSuite(t *testing.T) {

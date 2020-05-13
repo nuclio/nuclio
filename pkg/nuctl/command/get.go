@@ -17,21 +17,12 @@ limitations under the License.
 package command
 
 import (
-	"io"
-
+	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/renderer"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/spf13/cobra"
-)
-
-const (
-	OutputFormatText = "text"
-	OutputFormatWide = "wide"
-	OutputFormatJSON = "json"
-	OutputFormatYAML = "yaml"
 )
 
 type getCommandeer struct {
@@ -109,7 +100,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			// render the functions
-			return renderFunctions(commandeer.rootCommandeer.loggerInstance,
+			return common.RenderFunctions(commandeer.rootCommandeer.loggerInstance,
 				functions,
 				commandeer.output,
 				cmd.OutOrStdout(),
@@ -118,7 +109,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
 
@@ -181,11 +172,11 @@ func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer
 			}
 
 			// render the projects
-			return renderProjects(projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig)
+			return common.RenderProjects(projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig)
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
 
@@ -254,65 +245,16 @@ func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEve
 			}
 
 			// render the function events
-			return commandeer.renderFunctionEvents(functionEvents, commandeer.output, cmd.OutOrStdout())
+			return common.RenderFunctionEvents(functionEvents, commandeer.output, cmd.OutOrStdout(), commandeer.renderFunctionEventConfig)
 		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.functionName, "function", "f", "", "Filter by owning function (optional)")
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
 
 	return commandeer
-}
-
-func (g *getFunctionEventCommandeer) renderFunctionEvents(functionEvents []platform.FunctionEvent, format string, writer io.Writer) error {
-
-	rendererInstance := renderer.NewRenderer(writer)
-
-	switch format {
-	case OutputFormatText, OutputFormatWide:
-		header := []string{"Namespace", "Name", "Display Name", "Function", "Trigger Name", "Trigger Kind"}
-		if format == OutputFormatWide {
-			header = append(header, []string{
-				"Body",
-			}...)
-		}
-
-		var functionEventRecords [][]string
-
-		// for each field
-		for _, functionEvent := range functionEvents {
-
-			// get its fields
-			functionEventFields := []string{
-				functionEvent.GetConfig().Meta.Namespace,
-				functionEvent.GetConfig().Meta.Name,
-				functionEvent.GetConfig().Spec.DisplayName,
-				functionEvent.GetConfig().Meta.Labels["nuclio.io/function-name"],
-				functionEvent.GetConfig().Spec.TriggerName,
-				functionEvent.GetConfig().Spec.TriggerKind,
-			}
-
-			// add fields for wide view
-			if format == OutputFormatWide {
-				functionEventFields = append(functionEventFields, []string{
-					functionEvent.GetConfig().Spec.Body,
-				}...)
-			}
-
-			// add to records
-			functionEventRecords = append(functionEventRecords, functionEventFields)
-		}
-
-		rendererInstance.RenderTable(header, functionEventRecords)
-	case OutputFormatYAML:
-		return g.renderFunctionEventConfig(functionEvents, rendererInstance.RenderYAML)
-	case OutputFormatJSON:
-		return g.renderFunctionEventConfig(functionEvents, rendererInstance.RenderJSON)
-	}
-
-	return nil
 }
 
 func (g *getFunctionEventCommandeer) renderFunctionEventConfig(functionEvents []platform.FunctionEvent, renderer func(interface{}) error) error {
