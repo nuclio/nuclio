@@ -18,7 +18,6 @@ import (
 type importCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	deploy         bool
 }
 
 func newImportCommandeer(rootCommandeer *RootCommandeer) *importCommandeer {
@@ -44,10 +43,6 @@ func newImportCommandeer(rootCommandeer *RootCommandeer) *importCommandeer {
 	return commandeer
 }
 
-func (i *importCommandeer) addImportCommandFlags(cmd *cobra.Command) {
-	cmd.Flags().BoolVar(&i.deploy, "deploy", false, "Deploy the function or functions after import, false by default")
-}
-
 func (i *importCommandeer) readFromStdinOrFile(args []string) ([]byte, error) {
 	if len(args) >= 1 {
 		return ioutil.ReadFile(args[0])
@@ -70,22 +65,13 @@ func (i *importCommandeer) getUnmarshalFunc(bytes []byte) (func(data []byte, v i
 	return nil, errors.New("Input is neither json nor yaml")
 }
 
-func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config, deploy bool, project string) error {
+func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config, project string) error {
 
 	// populate namespace
 	functionConfig.Meta.Namespace = i.rootCommandeer.namespace
 
 	if project != "" {
 		functionConfig.Meta.Labels["nuclio.io/project-name"] = project
-	}
-
-	if deploy {
-
-		// Remove skip annotations
-		functionConfig.Meta.RemoveSkipBuildAnnotation()
-		functionConfig.Meta.RemoveSkipDeployAnnotation()
-	} else {
-		functionConfig.AddSkipAnnotations()
 	}
 
 	functions, err := i.rootCommandeer.platform.GetFunctions(&platform.GetFunctionsOptions{
@@ -108,15 +94,13 @@ func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config,
 	return err
 }
 
-func (i *importCommandeer) importFunctions(functionConfigs map[string]*functionconfig.Config,
-	deploy bool,
-	project string) error {
+func (i *importCommandeer) importFunctions(functionConfigs map[string]*functionconfig.Config, project string) error {
 	var errGroup errgroup.Group
 
 	for _, functionConfig := range functionConfigs {
 		functionConfig := functionConfig // https://golang.org/doc/faq#closures_and_goroutines
 		errGroup.Go(func() error {
-			return i.importFunction(functionConfig, deploy, project)
+			return i.importFunction(functionConfig, project)
 		})
 	}
 
@@ -165,11 +149,9 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 				}
 			}
 
-			return commandeer.importFunctions(commandeer.functionConfigs, commandeer.deploy, "")
+			return commandeer.importFunctions(commandeer.functionConfigs, "")
 		},
 	}
-
-	commandeer.addImportCommandFlags(cmd)
 
 	commandeer.cmd = cmd
 
@@ -249,11 +231,9 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 				}
 			}
 
-			return commandeer.importProjects(commandeer.projectImportConfigs, commandeer.deploy)
+			return commandeer.importProjects(commandeer.projectImportConfigs)
 		},
 	}
-
-	commandeer.addImportCommandFlags(cmd)
 
 	commandeer.cmd = cmd
 
@@ -324,7 +304,7 @@ func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string
 	return errGroup.Wait()
 }
 
-func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConfig, deploy bool) error {
+func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConfig) error {
 	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
 		Meta: projectConfig.Project.Meta,
 	})
@@ -346,7 +326,7 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 		}
 	}
 
-	functionImportErr := i.importFunctions(projectConfig.Functions, deploy, projectConfig.Project.Meta.Name)
+	functionImportErr := i.importFunctions(projectConfig.Functions, projectConfig.Project.Meta.Name)
 	functionEventImportErr := i.importFunctionEvents(projectConfig.FunctionEvents)
 
 	if functionImportErr != nil {
@@ -359,12 +339,12 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 	return nil
 }
 
-func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string]*ProjectImportConfig, deploy bool) error {
+func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string]*ProjectImportConfig) error {
 	var g errgroup.Group
 
 	for _, projectConfig := range projectImportConfigs {
 		g.Go(func() error {
-			return i.importProject(projectConfig, deploy)
+			return i.importProject(projectConfig)
 		})
 	}
 

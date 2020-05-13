@@ -103,22 +103,20 @@ func newExportFunctionCommandeer(exportCommandeer *exportCommandeer) *exportFunc
 }
 
 func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error) error {
-	if len(functions) == 1 {
-		functionConfig := functions[0].GetConfig()
-		functionConfig.PrepareFunctionForExport(e.noScrub)
-		if err := renderer(functionConfig); err != nil {
-			return errors.Wrap(err, "Failed to render function config")
-		}
-		return nil
-	}
-
 	functionConfigs := map[string]*functionconfig.Config{}
 	for _, function := range functions {
 		functionConfig := function.GetConfig()
 		functionConfig.PrepareFunctionForExport(e.noScrub)
 		functionConfigs[functionConfig.Meta.Name] = functionConfig
 	}
-	if err := renderer(functionConfigs); err != nil {
+
+	var err error
+	if len(functions) == 1 {
+		err = renderer(functionConfigs[functions[0].GetConfig().Meta.Name])
+	} else {
+		err = renderer(functionConfigs)
+	}
+	if err != nil {
 		return errors.Wrap(err, "Failed to render function config")
 	}
 
@@ -251,17 +249,6 @@ func (e *exportProjectCommandeer) exportProject(projectConfig *platform.ProjectC
 }
 
 func (e *exportProjectCommandeer) renderProjectConfig(projects []platform.Project, renderer func(interface{}) error) error {
-	if len(projects) == 1 {
-		projectExport, err := e.exportProject(projects[0].GetConfig())
-		if err != nil {
-			return errors.Wrap(err, "Failed to export project")
-		}
-		if err := renderer(projectExport); err != nil {
-			return errors.Wrap(err, "Failed to render function config")
-		}
-		return nil
-	}
-
 	projectConfigs := map[string]interface{}{}
 	for _, project := range projects {
 		projectConfig := project.GetConfig()
@@ -271,7 +258,15 @@ func (e *exportProjectCommandeer) renderProjectConfig(projects []platform.Projec
 		}
 		projectConfigs[projectConfig.Meta.Name] = projectExport
 	}
-	if err := renderer(projectConfigs); err != nil {
+
+	var err error
+	if len(projects) == 1 {
+		err = renderer(projectConfigs[projects[0].GetConfig().Meta.Name])
+	} else {
+		err = renderer(projectConfigs)
+	}
+
+	if err != nil {
 		return errors.Wrap(err, "Failed to render function config")
 	}
 

@@ -43,8 +43,11 @@ cat path-to-exported-function-file | http post 'http://<nuclio-system-url>/api/f
 ## Redeploying an imported function
 
 Once you import a function, you'll notice it's state is `imported` and it is not deployed.
-To deploy a function during the import, supply the import command with the flag `--deploy`.
-However, if you already imported the function without the `--deploy` flag, you can deploy the imported function with this command:
+To deploy an exported function, use the deploy command and supply the command with exported function config file:
+```sh
+nuctl deploy --namespace nuclio --file path-to-exported-function-file
+```
+However, if you already imported the function, you can deploy the imported function with this command:
 ```sh
 nuctl deploy --namespace nuclio imported-function-name
 ```

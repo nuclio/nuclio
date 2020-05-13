@@ -187,6 +187,10 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				commandeer.functionConfig.Spec.MaxReplicas = &commandeer.maxReplicas
 			}
 
+			// Ensure the skip-annotations never exist on deploy
+			commandeer.functionConfig.Meta.RemoveSkipBuildAnnotation()
+			commandeer.functionConfig.Meta.RemoveSkipDeployAnnotation()
+
 			// update function
 			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
@@ -333,10 +337,6 @@ func (d *deployCommandeer) getImportedFunction(functionName string) (platform.Fu
 
 func (d *deployCommandeer) prepareFunctionConfigForRedeploy(importedFunction platform.Function) functionconfig.Config {
 	functionConfig := importedFunction.GetConfig()
-
-	// Ensure build and deployment works
-	functionConfig.Meta.RemoveSkipBuildAnnotation()
-	functionConfig.Meta.RemoveSkipDeployAnnotation()
 
 	// Ensure RunRegistry is taken from the commandeer config
 	functionConfig.CleanFunctionSpec()
