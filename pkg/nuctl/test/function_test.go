@@ -559,7 +559,7 @@ func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
     "crontrig": {
         "kind": "cron",
         "attributes": {
-            "interval": "5s",
+            "interval": "3s",
             "event": {
                 "body": "somebody",
                 "headers": {
@@ -581,8 +581,8 @@ func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)
 
-	// wait 10 seconds so at least 1 interval will pass
-	suite.logger.InfoWith("Sleeping for 10 sec (so at least 1 interval will pass)")
+	// wait 15 seconds so at least 1 interval will pass
+	suite.logger.InfoWith("Sleeping for 15 sec (so at least 1 interval will pass)")
 	time.Sleep(10 * time.Second)
 	suite.logger.InfoWith("Done sleeping")
 
