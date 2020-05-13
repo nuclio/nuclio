@@ -712,8 +712,8 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)
 
-	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
 
 	// export the function
 	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, map[string]string{}, false)
@@ -727,10 +727,8 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Assert().True(functionconfig.ShouldSkipBuild(exportedFunctionConfig.Meta.Annotations))
 	suite.Assert().True(functionconfig.ShouldSkipDeploy(exportedFunctionConfig.Meta.Annotations))
 
-	// edit the exported function's name
-	exportedFunctionName := "export-reverser-" + xid.New().String()
-	exportedFunctionConfig.Meta.Name = exportedFunctionName
-	exportedFunctionConfigJson, _ := json.Marshal(exportedFunctionConfig)
+	exportedFunctionConfigJson, err := json.Marshal(exportedFunctionConfig)
+	suite.Require().NoError(err)
 
 	// write exported function config to temp file
 	exportTempFile, err := ioutil.TempFile("", "reverser.*.json")
@@ -740,19 +738,27 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	_, err = exportTempFile.Write(exportedFunctionConfigJson)
 	suite.Require().NoError(err)
 
+	// delete original function in order to resolve conflict while importing the function
+	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	suite.Require().NoError(err)
+
+	// wait until function is deleted
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{}, true)
+	suite.Require().NoError(err)
+
 	// import the function
 	err = suite.ExecuteNuctl([]string{"import", "fu", exportTempFile.Name()}, map[string]string{})
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", exportedFunctionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// wait until able to get the function
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", exportedFunctionName}, map[string]string{}, false)
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{}, false)
 	suite.Require().NoError(err)
 
 	// try to invoke, and ensure it fails - because it is imported and not deployed
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", exportedFunctionName},
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -762,11 +768,11 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// deploy imported function
-	err = suite.ExecuteNuctl([]string{"deploy", exportedFunctionName, "--verbose"}, map[string]string{})
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"}, map[string]string{})
 	suite.Require().NoError(err)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", exportedFunctionName},
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -787,9 +793,6 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)
 
-	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
-
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"image":   imageName,
@@ -798,6 +801,9 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 		})
 
 	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
+
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
 
 	// export the function
 	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, map[string]string{}, false)
@@ -811,10 +817,8 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Assert().True(functionconfig.ShouldSkipBuild(exportedFunctionConfig.Meta.Annotations))
 	suite.Assert().True(functionconfig.ShouldSkipDeploy(exportedFunctionConfig.Meta.Annotations))
 
-	// edit the exported function's name
-	exportedFunctionName := "export-reverser-" + xid.New().String()
-	exportedFunctionConfig.Meta.Name = exportedFunctionName
-	exportedFunctionConfigJson, _ := json.Marshal(exportedFunctionConfig)
+	exportedFunctionConfigJson, err := json.Marshal(exportedFunctionConfig)
+	suite.Require().NoError(err)
 
 	// write exported function config to temp file
 	exportTempFile, err := ioutil.TempFile("", "reverser.*.json")
@@ -824,19 +828,27 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	_, err = exportTempFile.Write(exportedFunctionConfigJson)
 	suite.Require().NoError(err)
 
+	// delete original function in order to resolve conflict while importing the function
+	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	suite.Require().NoError(err)
+
+	// wait until function is deleted
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{}, true)
+	suite.Require().NoError(err)
+
 	// import the function
 	err = suite.ExecuteNuctl([]string{"import", "fu", exportTempFile.Name()}, map[string]string{})
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", exportedFunctionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// wait until able to get the function
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", exportedFunctionName}, map[string]string{}, false)
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{}, false)
 	suite.Require().NoError(err)
 
 	// try to invoke, and ensure it fails - because it is imported and not deployed
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", exportedFunctionName},
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -846,7 +858,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Require().NoError(err)
 
 	// deploy imported function
-	err = suite.ExecuteNuctl([]string{"deploy", exportedFunctionName, "--verbose"}, map[string]string{})
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"}, map[string]string{})
 
 	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
 }

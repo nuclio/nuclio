@@ -18,6 +18,8 @@ package test
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path"
 	"testing"
 
@@ -187,19 +189,31 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 }
 
 func (suite *projectExportImportTestSuite) TestImportProject() {
+	uniqueSuffix := "-" + xid.New().String()
 	projectConfigPath := path.Join(suite.GetImportsDir(), "project.yaml")
-	projectName := "test-project"
+	projectName := "test-project" + uniqueSuffix
 	function1Name := "test-function-1"
 	function2Name := "test-function-2"
 	function1EventDisplayName := "test-function-event-1"
 	function2EventDisplayName := "test-function-event-2"
+
+	uniqueProjectConfigPath := suite.addUniqueSuffixToImportConfig(projectConfigPath,
+		uniqueSuffix,
+		[]string{function1Name, function2Name},
+		[]string{function1EventDisplayName, function2EventDisplayName})
+	defer os.Remove(uniqueProjectConfigPath)
+
+	function1Name = function1Name + uniqueSuffix
+	function2Name = function2Name + uniqueSuffix
+	function1EventDisplayName = function1EventDisplayName + uniqueSuffix
+	function2EventDisplayName = function2EventDisplayName + uniqueSuffix
 
 	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
 
 	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "proj", projectConfigPath, "--verbose"}, map[string]string{})
+	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, map[string]string{})
 	suite.Require().NoError(err)
 
 	suite.assertProjectImported(projectName)
@@ -213,12 +227,24 @@ func (suite *projectExportImportTestSuite) TestImportProject() {
 }
 
 func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction() {
+	uniqueSuffix := "-" + xid.New().String()
 	projectConfigPath := path.Join(suite.GetImportsDir(), "project.yaml")
-	projectName := "test-project"
+	projectName := "test-project" + uniqueSuffix
 	function1Name := "test-function-1"
 	function2Name := "test-function-2"
 	function1EventDisplayName := "test-function-event-1"
 	function2EventDisplayName := "test-function-event-2"
+
+	uniqueProjectConfigPath := suite.addUniqueSuffixToImportConfig(projectConfigPath,
+		uniqueSuffix,
+		[]string{function1Name, function2Name},
+		[]string{function1EventDisplayName, function2EventDisplayName})
+	defer os.Remove(uniqueProjectConfigPath)
+
+	function1Name = function1Name + uniqueSuffix
+	function2Name = function2Name + uniqueSuffix
+	function1EventDisplayName = function1EventDisplayName + uniqueSuffix
+	function2EventDisplayName = function2EventDisplayName + uniqueSuffix
 
 	suite.createProject(projectName)
 	suite.createFunction(function1Name, projectName)
@@ -228,7 +254,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
 
 	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "proj", projectConfigPath, "--verbose"}, map[string]string{})
+	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, map[string]string{})
 
 	// Expect error for existing function
 	suite.Require().Error(err)
@@ -241,6 +267,47 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction
 
 	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil)
 	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil)
+}
+
+func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configPath, uniqueSuffix string,
+	functionNames, functionEventNames []string) string {
+	file, err := ioutil.ReadFile(configPath)
+	suite.Require().NoError(err)
+
+	projectConfig := &command.ProjectImportConfig{}
+	err = yaml.Unmarshal(file, projectConfig)
+	suite.Require().NoError(err)
+
+	projectConfig.Project.Meta.Name = projectConfig.Project.Meta.Name + uniqueSuffix
+	functions := map[string]*functionconfig.Config{}
+	for _, functionName := range functionNames {
+		functions[functionName + uniqueSuffix] = projectConfig.Functions[functionName]
+		functions[functionName + uniqueSuffix].Meta.Name = functionName + uniqueSuffix
+		functions[functionName + uniqueSuffix].Meta.Labels["nuclio.io/project-name"] =
+			functions[functionName + uniqueSuffix].Meta.Labels["nuclio.io/project-name"] + uniqueSuffix
+	}
+	projectConfig.Functions = functions
+
+	functionEvents := map[string]*platform.FunctionEventConfig{}
+	for _, functionEventName := range functionEventNames {
+		functionEvents[functionEventName + uniqueSuffix] = projectConfig.FunctionEvents[functionEventName]
+		functionEvents[functionEventName + uniqueSuffix].Spec.DisplayName = functionEventName + uniqueSuffix
+		functionEvents[functionEventName + uniqueSuffix].Meta.Labels["nuclio.io/function-name"] =
+			functionEvents[functionEventName + uniqueSuffix].Meta.Labels["nuclio.io/function-name"] + uniqueSuffix
+	}
+	projectConfig.FunctionEvents = functionEvents
+
+	projectConfigYaml, err := yaml.Marshal(projectConfig)
+	suite.Require().NoError(err)
+
+	// write exported function config to temp file
+	tempFile, err := ioutil.TempFile("", "project-import.*.json")
+	suite.Require().NoError(err)
+
+	_, err = tempFile.Write(projectConfigYaml)
+	suite.Require().NoError(err)
+
+	return tempFile.Name()
 }
 
 func (suite *projectExportImportTestSuite) createProject(projectName string) {

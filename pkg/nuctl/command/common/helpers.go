@@ -6,7 +6,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 )
 
-func formatFunctionIngresses(function platform.Function) string {
+func FormatFunctionIngresses(function platform.Function) string {
 	var formattedIngresses string
 
 	ingresses := function.GetIngresses()
