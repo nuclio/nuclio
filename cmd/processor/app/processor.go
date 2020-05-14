@@ -275,9 +275,19 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 
 	// create error group
 	errGroup := errgroup.Group{}
+	platformKind := processorConfiguration.PlatformConfig.Kind
 
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
 		triggerName, triggerConfiguration := triggerName, triggerConfiguration
+
+		// skipping cron triggers when platform kind is "kube" - k8s cron jobs will be created instead
+		if triggerConfiguration.Kind == "cron" && platformKind == "kube" {
+			p.logger.DebugWith("Skipping cron trigger creation inside the processor",
+				"triggerName", triggerName,
+				"platformKind", platformKind)
+
+			continue
+		}
 
 		errGroup.Go(func() error {
 
