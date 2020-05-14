@@ -90,48 +90,50 @@ func (suite *TestSuite) TearDownTest() {
 func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 
 	// Create the function
-	createFunctionOptions := suite.GetMockDeploymentFunction("echoer")
+	createFunctionOptions := suite.GetMockDeploymentFunction(fmt.Sprintf("echoer-%s", suite.TestID))
 	createdFunction, err := suite.Platform.CreateFunction(createFunctionOptions)
 	suite.Require().NoError(err, "Could not create function")
 	suite.containerID = createdFunction.ContainerID
+	functionName := createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name
+	namespace := createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace
 
-	// Get the functions from local store
-	functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
-		Namespace: createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace,
-		Name:      createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
-	})
-	suite.Require().NoError(err, "Could not get functions")
-	suite.Len(functions, 1, "Expected to find the newly created function")
-	function := functions[0]
+	function := suite.getFunction(functionName, namespace)
 
 	// Check its state is ready
 	suite.Equal(function.GetStatus().State, functionconfig.FunctionStateReady)
 
-	// Remove the container
-	err = suite.DockerClient.RemoveContainer(createdFunction.ContainerID)
-	suite.Require().NoError(err, "Could not remove container")
+	// Stop the container
+	err = suite.DockerClient.StopContainer(createdFunction.ContainerID)
+	suite.Require().NoError(err, "Could not stop container")
+
+	// Trigger function containers healthiness validation
+	suite.Platform.(*Platform).ValidateFunctionContainersHealthiness()
+
+	// Get functions again
+	function = suite.getFunction(functionName, namespace)
+
+	// Now the function state should be error
+	suite.Require().Equal(function.GetStatus().State, functionconfig.FunctionStateError)
+
+	// Start the container
+	err = suite.DockerClient.StartContainer(createdFunction.ContainerID)
+	suite.Require().NoError(err, "Could not start container")
 
 	// Trigger function containers healthiness validation
 	suite.Platform.(*Platform).ValidateFunctionContainersHealthiness()
 
 	// Get functions again from local store
-	functions, err = suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
-		Namespace: createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace,
-		Name:      createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
-	})
-	suite.Require().NoError(err, "Could not get functions")
-	suite.Len(functions, 1, "Expected to find the newly created function")
-	function = functions[0]
+	function = suite.getFunction(functionName, namespace)
 
-	// Now the function state should be error
-	suite.Require().Equal(function.GetStatus().State, functionconfig.FunctionStateError)
+	// Function is healthy again
+	suite.Equal(function.GetStatus().State, functionconfig.FunctionStateReady)
 }
 
 // Test function import without deploy and build, then deploy calls build and deploy
 func (suite *TestSuite) TestImportFunctionFlow() {
 
 	// Create the function
-	createFunctionOptions := suite.GetMockDeploymentFunction("echoer")
+	createFunctionOptions := suite.GetMockDeploymentFunction(fmt.Sprintf("echoer-%s", suite.TestID))
 	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
 		functionconfig.FunctionAnnotationSkipBuild:  "true",
 		functionconfig.FunctionAnnotationSkipDeploy: "true",
@@ -139,21 +141,15 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 	createdFunction, err := suite.Platform.CreateFunction(createFunctionOptions)
 	suite.NoError(err, "Failed to create function")
 
-	// Get the functions from local store
-	functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
-		Namespace: createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace,
-		Name:      createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
-	})
-	suite.NoError(err, "Failed to get functions")
-	suite.Len(functions, 1, "Expected to find the newly created function")
-	function := functions[0]
+	function := suite.getFunction(createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
+		createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace)
 
 	// Check its state is imported and not deployed
 	suite.Equal(function.GetStatus().State, functionconfig.FunctionStateImported)
 
 	// Check that the annotations have been removed
-	_, skipBuildExists := function.GetConfig().Meta.Annotations["skip-build"]
-	_, skipDeployExists := function.GetConfig().Meta.Annotations["skip-deploy"]
+	_, skipBuildExists := function.GetConfig().Meta.Annotations[functionconfig.FunctionAnnotationSkipBuild]
+	_, skipDeployExists := function.GetConfig().Meta.Annotations[functionconfig.FunctionAnnotationSkipDeploy]
 	suite.Assert().False(skipBuildExists)
 	suite.Assert().False(skipDeployExists)
 
@@ -167,14 +163,9 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 	recreatedFunction, err := suite.Platform.CreateFunction(recreateFunctionOptions)
 	suite.NoError(err, "Failed to create function")
 
-	// Get the recreated functions from local store
-	recreatedFunctions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
-		Namespace: recreatedFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace,
-		Name:      recreatedFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
-	})
-	suite.NoError(err, "Failed to get functions")
-	suite.Len(functions, 1, "Expected to find the newly created function")
-	function = recreatedFunctions[0]
+	// Get the recreated functions
+	function = suite.getFunction(recreatedFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
+		recreatedFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace)
 
 	// Check its state is ready
 	suite.Equal(function.GetStatus().State, functionconfig.FunctionStateReady)
@@ -215,6 +206,16 @@ func (suite *TestSuite) CreateTempDir() string {
 	tempDir, err := ioutil.TempDir("", fmt.Sprintf("build-test-%s", suite.TestID))
 	suite.Require().NoErrorf(err, "Failed to create temporary dir %s for test %s", suite.TempDir, suite.TestID)
 	return tempDir
+}
+
+func (suite *TestSuite) getFunction(functionName string, namespace string) platform.Function {
+	functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		Namespace: namespace,
+		Name:      functionName,
+	})
+	suite.Require().NoError(err, "Failed to get functions")
+	suite.Len(functions, 1, "Expected to find one function")
+	return functions[0]
 }
 
 func TestProjectTestSuite(t *testing.T) {
