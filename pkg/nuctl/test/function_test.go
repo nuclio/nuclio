@@ -22,11 +22,15 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	"github.com/nuclio/nuclio/pkg/nuctl/command"
+  "github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
@@ -534,6 +538,123 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 
 	// check that invoke printed the value
 	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+}
+
+func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
+
+	// relevant only for kube platform
+	if suite.origPlatformType != "kube" {
+		suite.logger.InfoWith("Not on kube platform. Skipping test", "platformType", suite.origPlatformType)
+		return
+	}
+	suite.logger.InfoWith("On kube platform. continuing", "platformType", suite.origPlatformType)
+
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "event-recorder" + uniqueSuffix
+	imageName := "nuclio/deploy-test" + uniqueSuffix
+
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+		"image":   imageName,
+		"runtime": "python",
+		"handler": "event_recorder:handler",
+		"triggers": `{
+    "crontrig": {
+        "kind": "cron",
+        "attributes": {
+            "interval": "3s",
+            "event": {
+                "body": "somebody",
+                "headers": {
+                    "Extra-Header-1": "value1",
+                    "Extra-Header-2": "value2"
+                }
+            }
+        }
+    }
+}`,
+	}
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	suite.Require().NoError(err)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// try a few times to invoke, until it succeeds (validate function deployment finished)
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"via":    "external-ip",
+		},
+		false)
+	suite.Require().NoError(err)
+
+	// wait 15 seconds so at least 1 interval will pass
+	suite.logger.InfoWith("Sleeping for 15 sec (so at least 1 interval will pass)")
+	time.Sleep(15 * time.Second)
+	suite.logger.InfoWith("Done sleeping")
+
+	suite.outputBuffer.Reset()
+
+	// try a few times to invoke, until it succeeds
+	// the output buffer should contain a response body with the function's called events from the cron trigger
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"via":    "external-ip",
+		},
+		false)
+	suite.Require().NoError(err)
+
+	events := suite.parseEventsRecorderOutput(suite.outputBuffer.String())
+
+	// validate at least 1 cron job ran
+	suite.Require().GreaterOrEqual(len(events), 1)
+
+	// validate the body was sent
+	suite.Require().Equal(events[0].Body, "somebody")
+
+	// validate headers were attached properly
+	suite.Require().Contains(events[0].Headers, "X-Nuclio-Invoke-Trigger")
+	suite.Require().Contains(events[0].Headers, "Extra-Header-1")
+	suite.Require().Contains(events[0].Headers, "Extra-Header-2")
+}
+
+func (suite *functionDeployTestSuite) parseEventsRecorderOutput(outputBufferString string) []triggertest.Event {
+	var foundResponseBody bool
+	var responseBody string
+	var events []triggertest.Event
+
+	suite.logger.InfoWith("Parsing event recorder output", "outputBufferString", outputBufferString)
+
+	// try unquote response from output buffer (continue normally if it's not a quoted string)
+	response, err := strconv.Unquote(outputBufferString)
+	if err != nil {
+		response = outputBufferString
+	}
+
+	// find the response body in the output buffer
+	responseLines := strings.Split(response, "\n")
+	for _, line := range responseLines {
+		if foundResponseBody {
+			responseBody = line
+			break
+		}
+		if strings.Contains(line, "Response body") {
+			foundResponseBody = true
+			continue
+		}
+	}
+
+	suite.logger.InfoWith("Parsing events from response body", "responseBody", responseBody)
+	err = json.Unmarshal([]byte(responseBody), &events)
+	suite.Require().NoError(err)
+
+	return events
 }
 
 type functionGetTestSuite struct {

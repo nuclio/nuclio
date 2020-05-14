@@ -46,6 +46,10 @@ spec:
         env:
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
           value: {{ template "nuclio.registryCredentialsName" . }}
+        - name: NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME
+          value: {{ .Values.controller.cronTriggerCronJobImage.repository }}:{{ .Values.controller.cronTriggerCronJobImage.tag }}
+        - name: NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_PULL_POLICY
+          value: {{ .Values.controller.cronTriggerCronJobImage.pullPolicy }}
         {{- if .Values.controller.namespace }}
         - name: NUCLIO_CONTROLLER_NAMESPACE
           value: {{ .Values.controller.namespace | quote }}
