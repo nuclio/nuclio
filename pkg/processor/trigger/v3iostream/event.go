@@ -41,3 +41,7 @@ func (e *Event) GetShardID() int {
 func (e *Event) GetPath() string {
 	return "Unsupported"
 }
+
+func (e *Event) GetOffset() int {
+	return int(e.record.SequenceNumber)
+}

@@ -81,3 +81,13 @@ func (s *Binary) GetTypeVersion() string {
 func (s *Binary) GetVersion() string {
 	return s.event.GetHeaderString("CE-CloudEventsVersion")
 }
+
+// GetLastInBatch returns whether the event is the last event in a trigger specific batch
+func (s *Binary) GetLastInBatch() bool {
+	return s.event.GetLastInBatch()
+}
+
+// GetOffset returns the offset of the event
+func (s *Binary) GetOffset() int {
+	return s.event.GetOffset()
+}

@@ -679,7 +679,7 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 }
 
 func (p *Platform) getContainerNameByCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) string {
-	return fmt.Sprintf("%s-%s",
+	return fmt.Sprintf("nuclio-%s-%s",
 		createFunctionOptions.FunctionConfig.Meta.Namespace,
 		createFunctionOptions.FunctionConfig.Meta.Name)
 }
