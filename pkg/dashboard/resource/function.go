@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"time"
 
@@ -214,44 +213,19 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 }
 
 func (fr *functionResource) export(function platform.Function) restful.Attributes {
-	functionSpec := fr.cleanFunctionSpec(function.GetConfig().Spec)
-	functionMeta := function.GetConfig().Meta
+	functionConfig := function.GetConfig()
 
-	fr.Logger.DebugWith("Exporting function", "functionName", functionMeta.Name)
+	fr.Logger.DebugWith("Preparing function for export", "functionName", functionConfig.Meta.Name)
+	functionConfig.PrepareFunctionForExport(false)
 
-	fr.prepareFunctionForExport(&functionMeta, &functionSpec)
+	fr.Logger.DebugWith("Exporting function", "functionName", functionConfig.Meta.Name)
 
 	attributes := restful.Attributes{
-		"metadata": functionMeta,
-		"spec":     functionSpec,
+		"metadata": functionConfig.Meta,
+		"spec":     functionConfig.Spec,
 	}
 
 	return attributes
-}
-
-func (fr *functionResource) prepareFunctionForExport(functionMeta *functionconfig.Meta, functionSpec *functionconfig.Spec) {
-
-	fr.Logger.DebugWith("Preparing function for export", "functionName", functionMeta.Name)
-
-	if functionMeta.Annotations == nil {
-		functionMeta.Annotations = map[string]string{}
-	}
-
-	// add annotations for not deploying or building on import
-	functionMeta.Annotations[functionconfig.FunctionAnnotationSkipBuild] = strconv.FormatBool(true)
-	functionMeta.Annotations[functionconfig.FunctionAnnotationSkipDeploy] = strconv.FormatBool(true)
-
-	// scrub namespace from function meta
-	functionMeta.Namespace = ""
-
-	// remove secrets and passwords from triggers
-	newTriggers := functionSpec.Triggers
-	for triggerName, trigger := range newTriggers {
-		trigger.Password = ""
-		trigger.Secret = ""
-		newTriggers[triggerName] = trigger
-	}
-	functionSpec.Triggers = newTriggers
 }
 
 func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, authConfig *platform.AuthConfig, waitForFunction bool) error {
@@ -382,24 +356,13 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 	}, err
 }
 
-func (fr *functionResource) cleanFunctionSpec(functionSpec functionconfig.Spec) functionconfig.Spec {
-
-	// artifacts are created unique to the cluster not needed to be returned to any client of nuclio REST API
-	functionSpec.RunRegistry = ""
-	functionSpec.Build.Registry = ""
-	if functionSpec.Build.FunctionSourceCode != "" {
-		functionSpec.Image = ""
-	}
-
-	return functionSpec
-}
-
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
-	functionSpec := fr.cleanFunctionSpec(function.GetConfig().Spec)
+	functionConfig := function.GetConfig()
+	functionConfig.CleanFunctionSpec()
 
 	attributes := restful.Attributes{
-		"metadata": function.GetConfig().Meta,
-		"spec":     functionSpec,
+		"metadata": functionConfig.Meta,
+		"spec":     functionConfig.Spec,
 	}
 
 	status := function.GetStatus()

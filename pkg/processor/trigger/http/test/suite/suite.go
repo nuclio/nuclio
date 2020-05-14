@@ -69,15 +69,14 @@ type Request struct {
 	ExpectedResponseStatusCode    *int
 }
 
-func (r *Request) Enrich() {
+func (r *Request) Enrich(deployResult *platform.CreateFunctionResult) {
 	defaultStatusCode := http.StatusOK
 	if r.ExpectedResponseStatusCode == nil {
 		r.ExpectedResponseStatusCode = &defaultStatusCode
 	}
 
-	// by default BuildAndRunFunction will map 8080
 	if r.RequestPort == 0 {
-		r.RequestPort = 8080
+		r.RequestPort = deployResult.Port
 	}
 
 	if r.RequestPath == "" {
@@ -126,9 +125,7 @@ func (suite *TestSuite) DeployFunctionAndRequests(createFunctionOptions *platfor
 
 	return suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		for _, request := range requests {
-			request.Enrich()
-			request.RequestPort = deployResult.Port
-
+			request.Enrich(deployResult)
 			if !suite.SendRequestVerifyResponse(request) {
 
 				// fail fast

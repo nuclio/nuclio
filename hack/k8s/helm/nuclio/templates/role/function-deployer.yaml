@@ -38,6 +38,6 @@ rules:
   resources: ["*"]
   verbs: ["*"]
 - apiGroups: ["batch"]
-  resources: ["jobs"]
+  resources: ["jobs", "cronjobs"]
   verbs: ["*"]
 {{- end }}

@@ -56,6 +56,9 @@ type Suite struct {
 func (suite *Suite) SetupSuite() {
 	var err error
 
+	// update version so that linker doesn't need to inject it
+	version.SetFromEnv()
+
 	// create logger
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
@@ -80,15 +83,6 @@ func (suite *Suite) SetupSuite() {
 		err = os.Setenv(nuctlPlatformEnvVarName, "local")
 		suite.Require().NoError(err)
 	}
-
-	// update version so that linker doesn't need to inject it
-	err = version.Set(&version.Info{
-		GitCommit: "c",
-		Label:     common.GetEnvOrDefaultString("NUCLIO_LABEL", "latest"),
-		Arch:      "amd64",
-		OS:        "linux",
-	})
-	suite.Require().NoError(err)
 }
 
 func (suite *Suite) TearDownSuite() {
@@ -158,6 +152,10 @@ func (suite *Suite) GetFunctionsDir() string {
 
 func (suite *Suite) GetFunctionConfigsDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "test", "_function_configs")
+}
+
+func (suite *Suite) GetImportsDir() string {
+	return path.Join(suite.GetNuclioSourceDir(), "test", "_imports")
 }
 
 func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMustNotExist []string) {

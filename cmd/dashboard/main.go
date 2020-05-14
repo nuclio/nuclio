@@ -44,7 +44,6 @@ func getNamespace(namespaceArgument string) string {
 }
 
 func main() {
-	defaultNoPullBaseImages := os.Getenv("NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES") == "true"
 	defaultOffline := os.Getenv("NUCLIO_DASHBOARD_OFFLINE") == "true"
 
 	externalIPAddressesDefault := os.Getenv("NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES")
@@ -67,7 +66,7 @@ func main() {
 	platformType := flag.String("platform", "auto", "One of kube/local/auto")
 	defaultRegistryURL := flag.String("registry", os.Getenv("NUCLIO_DASHBOARD_REGISTRY_URL"), "Default registry URL")
 	defaultRunRegistryURL := flag.String("run-registry", os.Getenv("NUCLIO_DASHBOARD_RUN_REGISTRY_URL"), "Default run registry URL")
-	noPullBaseImages := flag.Bool("no-pull", defaultNoPullBaseImages, "Default run registry URL")
+	noPullBaseImages := flag.Bool("no-pull", common.GetEnvOrDefaultBool("NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES", false), "Whether to pull base images (Default: false)")
 	credsRefreshInterval := flag.String("creds-refresh-interval", os.Getenv("NUCLIO_DASHBOARD_CREDS_REFRESH_INTERVAL"), "Default credential refresh interval, or 'none' (12h by default)")
 	externalIPAddresses := flag.String("external-ip-addresses", externalIPAddressesDefault, "Comma delimited list of external IP addresses")
 	namespace := flag.String("namespace", "", "Namespace in which all actions apply to, if not passed in request")

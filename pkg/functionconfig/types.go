@@ -334,6 +334,14 @@ func (m *Meta) GetUniqueID() string {
 	return m.Namespace + ":" + m.Name
 }
 
+func (m *Meta) AddSkipDeployAnnotation() {
+	m.Annotations[FunctionAnnotationSkipDeploy] = strconv.FormatBool(true)
+}
+
+func (m *Meta) AddSkipBuildAnnotation() {
+	m.Annotations[FunctionAnnotationSkipBuild] = strconv.FormatBool(true)
+}
+
 func (m *Meta) RemoveSkipDeployAnnotation() {
 	delete(m.Annotations, FunctionAnnotationSkipDeploy)
 }
@@ -371,6 +379,50 @@ func NewConfig() *Config {
 			Namespace: "default",
 		},
 	}
+}
+
+func (c *Config) CleanFunctionSpec() {
+
+	// artifacts are created unique to the cluster not needed to be returned to any client of nuclio REST API
+	c.Spec.RunRegistry = ""
+	c.Spec.Build.Registry = ""
+	if c.Spec.Build.FunctionSourceCode != "" {
+		c.Spec.Image = ""
+	}
+}
+
+func (c *Config) PrepareFunctionForExport(noScrub bool) {
+	if !noScrub {
+		c.scrubFunctionData()
+	}
+	c.AddSkipAnnotations()
+}
+
+func (c *Config) AddSkipAnnotations() {
+
+	if c.Meta.Annotations == nil {
+		c.Meta.Annotations = map[string]string{}
+	}
+
+	// add annotations for not deploying or building on import
+	c.Meta.AddSkipBuildAnnotation()
+	c.Meta.AddSkipDeployAnnotation()
+}
+
+func (c *Config) scrubFunctionData() {
+	c.CleanFunctionSpec()
+
+	// scrub namespace from function meta
+	c.Meta.Namespace = ""
+
+	// remove secrets and passwords from triggers
+	newTriggers := c.Spec.Triggers
+	for triggerName, trigger := range newTriggers {
+		trigger.Password = ""
+		trigger.Secret = ""
+		newTriggers[triggerName] = trigger
+	}
+	c.Spec.Triggers = newTriggers
 }
 
 // FunctionState is state of function
