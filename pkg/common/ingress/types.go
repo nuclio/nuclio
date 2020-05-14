@@ -9,7 +9,6 @@ type Spec struct {
 	ServicePort          int
 	AuthenticationMode   AuthenticationMode
 	Authentication       *Authentication
-	HtpasswdContents     string
 	WhitelistIPAddresses []string
 	AllowedProtocols     []string
 	SSLPassthrough       bool

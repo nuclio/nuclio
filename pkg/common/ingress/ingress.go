@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os/exec"
 
+	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio/pkg/common"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"strings"
-
-	"github.com/nuclio/errors"
 )
 
 type SystemSpec struct {
@@ -21,8 +22,7 @@ type SystemSpec struct {
 }
 
 func GenerateIngressResource(ctx context.Context,
-	spec Spec,
-	systemSpec *SystemSpec) (*v1beta1.Ingress, *v1.Secret,  error) {
+	spec Spec) (*v1beta1.Ingress, *v1.Secret,  error) {
 
 	var err error
 	var secretResource *v1.Secret
@@ -56,7 +56,7 @@ func GenerateIngressResource(ctx context.Context,
 				return nil, nil, errors.Wrap(err, "Failed to get basic auth annotations")
 			}
 		case AuthenticationModeAccessKey:
-			authIngressAnnotations, err = getSessionVerificationAnnotations(systemSpec, "/api/data_sessions/verifications")
+			authIngressAnnotations, err = getSessionVerificationAnnotations("/api/data_sessions/verifications")
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "Failed to get access key auth mode annotations")
 			}
@@ -101,7 +101,7 @@ func GenerateIngressResource(ctx context.Context,
 	// if no specific TLS secret was given - set it to be system's TLS secret
 	tlsSecret := spec.TLSSecret
 	if tlsSecret == "" {
-		tlsSecret = systemSpec.IngressTLSSecret
+		tlsSecret = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_INGRESS_TLS_SECRET", "")
 	}
 
 	ingressResource := &v1beta1.Ingress{
@@ -164,17 +164,17 @@ func getDexAuthIngressAnnotations(spec Spec) (map[string]string, error) {
 	}, nil
 }
 
-func getSessionVerificationAnnotations(systemSpec *SystemSpec,
-	sessionVerificationEndpoint string) (map[string]string, error) {
+func getSessionVerificationAnnotations(sessionVerificationEndpoint string) (map[string]string, error) {
 
 	return map[string]string{
 		"nginx.ingress.kubernetes.io/auth-method": "POST",
 		"nginx.ingress.kubernetes.io/auth-response-headers": "X-Remote-User,X-V3io-Session-Key",
 		"nginx.ingress.kubernetes.io/auth-url": fmt.Sprintf(
 			"https://%s%s",
-			systemSpec.IguazioAuthURL,
+			common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_IGUAZIO_AUTH_URL", ""),
 			sessionVerificationEndpoint),
-		"nginx.ingress.kubernetes.io/auth-signin": fmt.Sprintf("https://%s/login", systemSpec.IguazioSigninURL),
+		"nginx.ingress.kubernetes.io/auth-signin": fmt.Sprintf("https://%s/login",
+			common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_IGUAZIO_SIGNIN_URL", "")),
 		"nginx.ingress.kubernetes.io/configuration-snippet": "proxy_set_header authorization \"\";",
 	}, nil
 }
@@ -189,15 +189,12 @@ func getBasicAuthIngressAnnotationsAndSecret(ctx context.Context,
 
 	authSecretName := fmt.Sprintf("%s-basic-auth", spec.Authentication.BasicAuth.Name)
 
-	// TODO: implement without htpasswd
-	htpasswdContents := ""
-	//htpasswdContents, err := common.GetHtpasswdContents(ctx,
-	//	spec.Authentication.BasicAuth.Username,
-	//	spec.Authentication.BasicAuth.Password,
-	//	cmdRunnerSession)
-	//if err != nil {
-	//	return nil, "", errors.Wrap(err, "Failed to get htpasswd")
-	//}
+	htpasswdContents, err := GenerateHtpasswdContents(ctx,
+		spec.Authentication.BasicAuth.Username,
+		spec.Authentication.BasicAuth.Password)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to generate htpasswd contents")
+	}
 
 	ingressAnnotations := map[string]string{
 		"nginx.ingress.kubernetes.io/auth-type":   "basic",
@@ -220,4 +217,15 @@ func getBasicAuthIngressAnnotationsAndSecret(ctx context.Context,
 	}
 
 	return ingressAnnotations, secret, nil
+}
+
+func GenerateHtpasswdContents(ctx context.Context,
+	username string,
+	password string) ([]byte, error) {
+
+	cmd := exec.CommandContext(ctx,
+		"htpasswdGeneration",
+		fmt.Sprintf("echo %s | htpasswd -n -i %s", common.Quote(password), username))
+
+	return cmd.Output()
 }
