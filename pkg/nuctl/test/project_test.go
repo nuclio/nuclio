@@ -281,19 +281,19 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 	projectConfig.Project.Meta.Name = projectConfig.Project.Meta.Name + uniqueSuffix
 	functions := map[string]*functionconfig.Config{}
 	for _, functionName := range functionNames {
-		functions[functionName + uniqueSuffix] = projectConfig.Functions[functionName]
-		functions[functionName + uniqueSuffix].Meta.Name = functionName + uniqueSuffix
-		functions[functionName + uniqueSuffix].Meta.Labels["nuclio.io/project-name"] =
-			functions[functionName + uniqueSuffix].Meta.Labels["nuclio.io/project-name"] + uniqueSuffix
+		functions[functionName+uniqueSuffix] = projectConfig.Functions[functionName]
+		functions[functionName+uniqueSuffix].Meta.Name = functionName + uniqueSuffix
+		functions[functionName+uniqueSuffix].Meta.Labels["nuclio.io/project-name"] =
+			functions[functionName+uniqueSuffix].Meta.Labels["nuclio.io/project-name"] + uniqueSuffix
 	}
 	projectConfig.Functions = functions
 
 	functionEvents := map[string]*platform.FunctionEventConfig{}
 	for _, functionEventName := range functionEventNames {
-		functionEvents[functionEventName + uniqueSuffix] = projectConfig.FunctionEvents[functionEventName]
-		functionEvents[functionEventName + uniqueSuffix].Spec.DisplayName = functionEventName + uniqueSuffix
-		functionEvents[functionEventName + uniqueSuffix].Meta.Labels["nuclio.io/function-name"] =
-			functionEvents[functionEventName + uniqueSuffix].Meta.Labels["nuclio.io/function-name"] + uniqueSuffix
+		functionEvents[functionEventName+uniqueSuffix] = projectConfig.FunctionEvents[functionEventName]
+		functionEvents[functionEventName+uniqueSuffix].Spec.DisplayName = functionEventName + uniqueSuffix
+		functionEvents[functionEventName+uniqueSuffix].Meta.Labels["nuclio.io/function-name"] =
+			functionEvents[functionEventName+uniqueSuffix].Meta.Labels["nuclio.io/function-name"] + uniqueSuffix
 	}
 	projectConfig.FunctionEvents = functionEvents
 
@@ -409,7 +409,7 @@ func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunctio
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 	err := suite.ExecuteNuctlAndWait([]string{"get", "functionevent"}, map[string]string{
-		"output": "yaml",
+		"output":   "yaml",
 		"function": functionName,
 	}, false)
 	suite.Require().NoError(err)
