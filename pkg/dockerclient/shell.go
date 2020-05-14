@@ -298,6 +298,18 @@ func (c *ShellClient) RemoveContainer(containerID string) error {
 	return err
 }
 
+// StopContainer stops a container given a container ID
+func (c *ShellClient) StopContainer(containerID string) error {
+	_, err := c.runCommand(nil, "docker stop %s", containerID)
+	return err
+}
+
+// StartContainer stops a container given a container ID
+func (c *ShellClient) StartContainer(containerID string) error {
+	_, err := c.runCommand(nil, "docker start %s", containerID)
+	return err
+}
+
 // GetContainerLogs returns raw logs from a given container ID
 // Concatenating stdout and stderr since there's no way to re-interlace them
 func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {

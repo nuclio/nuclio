@@ -47,6 +47,12 @@ type Client interface {
 	// RemoveContainer removes a container given a container ID
 	RemoveContainer(containerID string) error
 
+	// StopContainer removes a container given a container ID
+	StopContainer(containerID string) error
+
+	// StartContainer starts a container given a container ID
+	StartContainer(containerID string) error
+
 	// GetContainerLogs returns raw logs from a given container ID
 	GetContainerLogs(containerID string) (string, error)
 
