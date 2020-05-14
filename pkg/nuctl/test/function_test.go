@@ -581,14 +581,24 @@ func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)
 
+	// try a few times to invoke, until it succeeds (validate function deployment finished)
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"via":    "external-ip",
+		},
+		false)
+	suite.Require().NoError(err)
+
 	// wait 15 seconds so at least 1 interval will pass
 	suite.logger.InfoWith("Sleeping for 15 sec (so at least 1 interval will pass)")
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 	suite.logger.InfoWith("Done sleeping")
 
 	suite.outputBuffer.Reset()
 
 	// try a few times to invoke, until it succeeds
+	// the output buffer should contain a response body with the function's called events from the cron trigger
 	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
