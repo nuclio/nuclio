@@ -29,8 +29,8 @@ RUN go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/amqp \
     && go get golang.org/x/net/... \
     && go get github.com/v3io/scaler-types \
-    && cd $GOPATH/src/github.com/v3io/scaler-types \
-    && git checkout v1.6.0 \
+    && cd $GOPATH/src/github.com/nuclio/nuclio-sdk-go && git checkout v0.0.1 \
+    && cd $GOPATH/src/github.com/v3io/scaler-types && git checkout v1.6.0 \
     && cd /go/src/github.com/nuclio/nuclio \
     && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o controller cmd/controller/main.go
 
