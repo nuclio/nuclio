@@ -99,6 +99,11 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 
 	function := suite.getFunction(functionName, namespace)
 
+	// delete function when done
+	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+		FunctionConfig: *function.GetConfig(),
+	})
+
 	// Check its state is ready
 	suite.Equal(function.GetStatus().State, functionconfig.FunctionStateReady)
 
@@ -143,6 +148,11 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 
 	function := suite.getFunction(createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Name,
 		createdFunction.CreateFunctionBuildResult.UpdatedFunctionConfig.Meta.Namespace)
+
+	// delete function when done
+	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+		FunctionConfig: *function.GetConfig(),
+	})
 
 	// Check its state is imported and not deployed
 	suite.Equal(function.GetStatus().State, functionconfig.FunctionStateImported)
