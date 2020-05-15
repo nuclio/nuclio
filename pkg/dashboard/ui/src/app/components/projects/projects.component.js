@@ -9,8 +9,8 @@
             controller: ProjectsController
         });
 
-    function ProjectsController($element, $filter, $q, $rootScope, $scope, $state, $transitions, $i18next, i18next,
-                                lodash, ngDialog, ActionCheckboxAllService, CommonTableService, ConfigService,
+    function ProjectsController($element, $filter, $q, $rootScope, $scope, $state, $timeout, $transitions, $i18next,
+                                i18next, lodash, ngDialog, ActionCheckboxAllService, CommonTableService, ConfigService,
                                 DialogsService, ExportService, ImportService, NuclioFunctionsDataService,
                                 NuclioProjectsDataService, ProjectsService) {
         var ctrl = this;
@@ -102,6 +102,11 @@
 
                     updatePanelActions();
                     sortTableByColumn(ctrl.sortedColumnName, true);
+                })
+                .finally(function () {
+                    $timeout(function () {
+                        $rootScope.$broadcast('igzWatchWindowResize::resize');
+                    });
                 });
 
             $scope.$on('action-panel_fire-action', onFireAction);
