@@ -581,6 +581,62 @@ func (suite *functionGetTestSuite) TestGet() {
 	suite.findPatternsInOutput(functionNames, nil)
 }
 
+type functionDeleteTestSuite struct {
+	Suite
+}
+
+func (suite *functionGetTestSuite) TestDelete() {
+	var err error
+
+	uniqueSuffix := xid.New().String()
+	imageName := "nuclio/deploy-test" + uniqueSuffix
+	functionName := "reverser" + uniqueSuffix
+
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"image":   imageName,
+		"runtime": "golang",
+		"handler": "main:Reverse",
+	}
+
+	err = suite.ExecuteNutcl([]string{
+		"deploy",
+		functionName,
+		"--verbose",
+		"--no-pull",
+	}, namedArgs)
+	suite.Require().NoError(err)
+
+	// cleanup
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// try a few times to invoke, until it succeeds
+	err = suite.ExecuteNutcl([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+			"via":    "external-ip",
+		})
+	suite.Require().NoError(err)
+
+	// function removed
+	err = suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	suite.Require().NoError(err)
+
+	// ensure delete is idempotent
+	err = suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	suite.Require().NoError(err)
+
+	// try invoke, it should failed
+	err = suite.ExecuteNutcl([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+			"via":    "external-ip",
+		})
+	suite.Require().Error(err, "Function was suppose to be deleted!")
+}
+
 func TestFunctionTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
@@ -589,4 +645,5 @@ func TestFunctionTestSuite(t *testing.T) {
 	suite.Run(t, new(functionBuildTestSuite))
 	suite.Run(t, new(functionDeployTestSuite))
 	suite.Run(t, new(functionGetTestSuite))
+	suite.Run(t, new(functionDeleteTestSuite))
 }

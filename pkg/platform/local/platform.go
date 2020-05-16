@@ -292,13 +292,7 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 
 	// delete the function from the local store
 	err := p.localStore.deleteFunction(&deleteFunctionOptions.FunctionConfig.Meta)
-	if err != nil {
-
-		// propagate not found errors
-		if err == nuclio.ErrNotFound {
-			return err
-		}
-
+	if err != nil && err != nuclio.ErrNotFound {
 		p.Logger.WarnWith("Failed to delete function from local store", "err", err.Error())
 	}
 
@@ -343,10 +337,6 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get containers")
-	}
-
-	if len(containersInfo) == 0 {
-		return nil
 	}
 
 	// iterate over contains and delete them. It's possible that under some weird circumstances
