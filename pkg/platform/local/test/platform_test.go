@@ -58,7 +58,7 @@ func (suite *TestSuite) TestRunFunctionContainerWithCustomRestartPolicy() {
 
 	// ensure function is restartable
 	createFunctionOptions.FunctionConfig.Spec.Platform.Attributes = map[string]interface{}{}
-	createFunctionOptions.FunctionConfig.Spec.Platform.Attributes["restartpolicy"] = dockerclient.RestartPolicy{
+	createFunctionOptions.FunctionConfig.Spec.Platform.Attributes["restartPolicy"] = dockerclient.RestartPolicy{
 		Name:              dockerclient.RestartPolicyNameOnFailure,
 		MaximumRetryCount: functionContainerMaximumRetryCount,
 	}
