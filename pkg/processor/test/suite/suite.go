@@ -97,6 +97,7 @@ func (suite *TestSuite) SetupSuite() {
 
 	suite.Platform, err = factory.CreatePlatform(suite.Logger, "local", nil, "default")
 	suite.Require().NoError(err)
+	suite.Require().NotNil(suite.Platform)
 }
 
 // SetupTest is called before each test in the suite

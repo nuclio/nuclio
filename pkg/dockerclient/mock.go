@@ -95,6 +95,11 @@ func (mdc *MockDockerClient) GetContainers(options *GetContainerOptions) ([]Cont
 	return nil, nil
 }
 
+// GetContainerEvents returns a list of container events occurred between a time range
+func (mdc *MockDockerClient) GetContainerEvents(containerName string, since string, until string) ([]string, error) {
+	return nil, nil
+}
+
 // AwaitContainerHealth blocks until the given container is healthy or the timeout passes
 func (mdc *MockDockerClient) AwaitContainerHealth(containerID string, timeout *time.Duration) error {
 	return nil

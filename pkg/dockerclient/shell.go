@@ -160,6 +160,22 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		portsArgument += fmt.Sprintf("-p %d:%d ", localPort, dockerPort)
 	}
 
+	restartPolicy := ""
+	if runOptions.RestartPolicy != nil && runOptions.RestartPolicy.Name != RestartPolicyNameNo {
+
+		// sanity check
+		// https://docs.docker.com/engine/reference/run/#restart-policies---restart
+		// combining --restart (restart policy) with the --rm (clean up) flag results in an error.
+		if runOptions.Remove {
+			return "", errors.Errorf("Cannot combine restart policy with container removal")
+		}
+		restartMaxRetries := runOptions.RestartPolicy.MaximumRetryCount
+		restartPolicy = fmt.Sprintf("--restart %s", runOptions.RestartPolicy.Name)
+		if runOptions.RestartPolicy.Name == RestartPolicyNameOnFailure && restartMaxRetries >= 0 {
+			restartPolicy += fmt.Sprintf(":%d", restartMaxRetries)
+		}
+	}
+
 	detach := "-d"
 	if runOptions.Attach {
 		detach = ""
@@ -203,7 +219,8 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 
 	runResult, err := c.cmdRunner.Run(
 		&cmdrunner.RunOptions{LogRedactions: c.redactedValues},
-		"docker run %s %s %s %s %s %s %s %s %s %s",
+		"docker run %s %s %s %s %s %s %s %s %s %s %s",
+		restartPolicy,
 		detach,
 		removeContainer,
 		portsArgument,
@@ -356,6 +373,7 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 
 			// wait a bit before retrying
 			c.logger.DebugWith("Container not healthy yet, retrying soon",
+				"timeout", timeout,
 				"containerID", containerID,
 				"inspectOutput", runResult.Output,
 				"nextCheckIn", inspectInterval)
@@ -448,6 +466,18 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 	}
 
 	return containersInfo, nil
+}
+
+// GetContainerEvents returns a list of container events occurred between a time range
+func (c *ShellClient) GetContainerEvents(containerName string, since string, until string) ([]string, error) {
+	runResults, err := c.runCommand(nil, "docker events --filter container=%s --since %s --until %s",
+		containerName,
+		since,
+		until)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get container events")
+	}
+	return strings.Split(strings.TrimSpace(runResults.Output), "\n"), nil
 }
 
 // LogIn allows docker client to access secured registries
