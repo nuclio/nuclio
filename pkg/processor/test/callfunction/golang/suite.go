@@ -73,7 +73,7 @@ func (suite *CallFunctionTestSuite) TestCallFunction() {
 			}
 
 			testRequest := httpsuite.Request{
-				RequestBody:    fmt.Sprintf(`{"callee_name": "%s"}`,
+				RequestBody: fmt.Sprintf(`{"callee_name": "%s"}`,
 					calleeDeployOptions.FunctionConfig.Meta.Name),
 				RequestHeaders: map[string]interface{}{"Content-Type": "application/json"},
 				RequestMethod:  "POST",
