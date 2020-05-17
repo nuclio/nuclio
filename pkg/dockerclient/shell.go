@@ -298,6 +298,18 @@ func (c *ShellClient) RemoveContainer(containerID string) error {
 	return err
 }
 
+// StopContainer stops a container given a container ID
+func (c *ShellClient) StopContainer(containerID string) error {
+	_, err := c.runCommand(nil, "docker stop %s", containerID)
+	return err
+}
+
+// StartContainer stops a container given a container ID
+func (c *ShellClient) StartContainer(containerID string) error {
+	_, err := c.runCommand(nil, "docker start %s", containerID)
+	return err
+}
+
 // GetContainerLogs returns raw logs from a given container ID
 // Concatenating stdout and stderr since there's no way to re-interlace them
 func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
@@ -344,6 +356,7 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 
 			// wait a bit before retrying
 			c.logger.DebugWith("Container not healthy yet, retrying soon",
+				"containerID", containerID,
 				"inspectOutput", runResult.Output,
 				"nextCheckIn", inspectInterval)
 
@@ -359,15 +372,21 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 	// wait for either the container to be healthy or the timeout
 	select {
 	case <-containerHealthy:
-		c.logger.Debug("Container is healthy")
+		c.logger.DebugWith("Container is healthy", "containerID", containerID)
 	case <-timeoutChan:
 		timedOut = true
 
 		containerLogs, err := c.GetContainerLogs(containerID)
 		if err != nil {
-			c.logger.ErrorWith("Container wasn't healthy within timeout (failed to get logs)", "timeout", timeout, "err", err)
+			c.logger.ErrorWith("Container wasn't healthy within timeout (failed to get logs)",
+				"containerID", containerID,
+				"timeout", timeout,
+				"err", err)
 		} else {
-			c.logger.WarnWith("Container wasn't healthy within timeout", "timeout", timeout, "logs", containerLogs)
+			c.logger.WarnWith("Container wasn't healthy within timeout",
+				"containerID", containerID,
+				"timeout", timeout,
+				"logs", containerLogs)
 		}
 
 		return errors.New("Container wasn't healthy in time")
