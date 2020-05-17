@@ -16,12 +16,12 @@ limitations under the License.
 package test
 
 import (
-	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/local"
