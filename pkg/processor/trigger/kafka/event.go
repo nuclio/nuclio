@@ -66,8 +66,12 @@ func (e *Event) getHeadersAsMap() map[string]interface{} {
 
 	// iterate over the header records and add each key-value to the map
 	for _, headerRecord := range e.kafkaMessage.Headers {
-		headersMap[string(headerRecord.Key)] = string(headerRecord.Value)
+		headersMap[string(headerRecord.Key)] = headerRecord.Value
 	}
 
 	return headersMap
+}
+
+func (e *Event) GetOffset() int {
+	return int(e.kafkaMessage.Offset)
 }

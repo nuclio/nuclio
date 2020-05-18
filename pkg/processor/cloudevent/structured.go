@@ -108,3 +108,13 @@ func (s *Structured) GetTypeVersion() string {
 func (s *Structured) GetVersion() string {
 	return s.cloudEvent.CloudEventsVersion
 }
+
+// GetLastInBatch returns whether the event is the last event in a trigger specific batch
+func (s *Structured) GetLastInBatch() bool {
+	return s.cloudEvent.LastInBatch
+}
+
+// GetOffset returns the offset of the event
+func (s *Structured) GetOffset() int {
+	return s.cloudEvent.Offset
+}

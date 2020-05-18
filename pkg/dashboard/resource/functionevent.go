@@ -173,11 +173,11 @@ func (fer *functionEventResource) storeAndDeployFunctionEvent(functionEvent *fun
 	return newFunctionEvent, nil
 }
 
-func (fer *functionEventResource) getFunctionEvents(function platform.Function) []platform.FunctionEvent {
+func (fer *functionEventResource) getFunctionEvents(function platform.Function, namespace string) []platform.FunctionEvent {
 	getFunctionEventOptions := platform.GetFunctionEventsOptions{
 		Meta: platform.FunctionEventMeta{
 			Name:      "",
-			Namespace: function.GetConfig().Meta.Namespace,
+			Namespace: namespace,
 			Labels: map[string]string{
 				"nuclio.io/function-name": function.GetConfig().Meta.Name,
 			},

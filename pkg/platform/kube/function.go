@@ -310,15 +310,20 @@ func (f *function) getExternalIPInvokeURL() (string, int, string, error) {
 }
 
 func (f *function) getDomainNameInvokeURL() (string, int, string, error) {
+	host, port := GetDomainNameInvokeURL(f.service.Name, f.function.Namespace)
+	return host, port, "", nil
+}
+
+func GetDomainNameInvokeURL(serviceName, namespace string) (string, int) {
 	var domainName string
 
-	if f.function.ObjectMeta.Namespace == "" {
-		domainName = f.service.ObjectMeta.Name
+	if namespace == "" {
+		domainName = serviceName
 	} else {
 		domainName = fmt.Sprintf("%s.%s.svc.cluster.local",
-			f.service.ObjectMeta.Name,
-			f.function.ObjectMeta.Namespace)
+			serviceName,
+			namespace)
 	}
 
-	return domainName, 8080, "", nil
+	return domainName, 8080
 }

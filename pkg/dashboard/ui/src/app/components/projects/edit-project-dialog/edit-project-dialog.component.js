@@ -13,7 +13,7 @@
 
     function IgzEditProjectDialogController($scope, $i18next, i18next, lodash, EventHelperService,
                                             FormValidationService, NuclioProjectsDataService,
-                                            ValidatingPatternsService) {
+                                            ValidationService) {
         var ctrl = this;
         var lng = i18next.language;
 
@@ -21,6 +21,9 @@
         ctrl.isLoadingState = false;
         ctrl.nameValidationRules = [];
         ctrl.serverError = '';
+        ctrl.validationRules = {
+            projectName: ValidationService.getValidationRules('k8s.dns1035Label')
+        };
 
         ctrl.$onInit = onInit;
 
@@ -41,7 +44,6 @@
          */
         function onInit() {
             ctrl.data = lodash.cloneDeep(ctrl.project);
-            ctrl.nameValidationRules = ValidatingPatternsService.getValidationRules('k8s.dns1035Label');
         }
 
         //

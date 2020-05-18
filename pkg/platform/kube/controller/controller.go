@@ -41,6 +41,7 @@ type Controller struct {
 	functionOperator      *functionOperator
 	projectOperator       *projectOperator
 	functionEventOperator *functionEventOperator
+	cronJobMonitoring     *CronJobMonitoring
 	platformConfiguration *platformconfig.Config
 }
 
@@ -51,6 +52,7 @@ func NewController(parentLogger logger.Logger,
 	nuclioClientSet nuclioio_client.Interface,
 	functionresClient functionres.Client,
 	resyncInterval time.Duration,
+	cronJobStalePodsDeletionInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
 	functionOperatorNumWorkers int,
 	functionEventOperatorNumWorkers int,
@@ -113,6 +115,11 @@ func NewController(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create project operator")
 	}
 
+	// create cron job monitoring
+	newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
+		newController,
+		&cronJobStalePodsDeletionInterval)
+
 	return newController, nil
 }
 
@@ -133,6 +140,9 @@ func (c *Controller) Start() error {
 	if err := c.functionEventOperator.start(); err != nil {
 		return errors.Wrap(err, "Failed to start function event operator")
 	}
+
+	// start cron job monitoring
+	c.cronJobMonitoring.start()
 
 	return nil
 }
