@@ -22,7 +22,7 @@ FROM nuclio-base-alpine:$NUCLIO_LABEL as build-processor
 RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
 
 # Build the plugin
-FROM golang:1.14-alpine3.11
+FROM golang:1.14.3-alpine3.11
 
 # Download required packages for plugin compilation
 RUN apk --update --no-cache add git gcc musl-dev file
