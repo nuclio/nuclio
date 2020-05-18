@@ -21,7 +21,7 @@ FROM nuclio-base:$NUCLIO_LABEL as build-processor
 RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
 
 # Build the plugin
-FROM golang:1.14
+FROM golang:1.14.3
 
 # Store processor binary
 COPY --from=build-processor /home/nuclio/bin/processor /home/nuclio/bin/processor
