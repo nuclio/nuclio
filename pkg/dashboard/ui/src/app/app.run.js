@@ -28,8 +28,10 @@
                         lodash.assign(ConfigService.nuclio, {
                             defaultFunctionConfig: lodash.get(response, 'defaultFunctionConfig', {}),
                             externalIPAddress: lodash.get(response, 'externalIPAddresses[0]', ''),
+                            imageNamePrefixTemplate: lodash.get(response, 'imageNamePrefixTemplate', ''),
                             ingressHostTemplate: lodash.get(response, 'defaultHTTPIngressHostTemplate', ''),
                             namespace: lodash.get(response, 'namespace', ''),
+                            platformKind: lodash.get(response, 'namespace', ''),
                             scaleToZero: lodash.get(response, 'scaleToZero', {})
                         });
                     });
