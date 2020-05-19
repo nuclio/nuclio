@@ -17,6 +17,7 @@ limitations under the License.
 package local
 
 import (
+	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/mitchellh/mapstructure"
@@ -24,7 +25,8 @@ import (
 )
 
 type functionPlatformConfiguration struct {
-	Network string
+	Network       string
+	RestartPolicy *dockerclient.RestartPolicy
 }
 
 func newFunctionPlatformConfiguration(functionConfig *functionconfig.Config) (*functionPlatformConfiguration, error) {
