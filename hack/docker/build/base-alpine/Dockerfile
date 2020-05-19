@@ -17,7 +17,7 @@ ARG NUCLIO_LABEL
 
 FROM nuclio-builder:$NUCLIO_LABEL as builder
 
-FROM golang:1.14-alpine3.11
+FROM golang:1.14.3-alpine3.11
 
 ENV GOOS=linux
 
