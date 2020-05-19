@@ -96,9 +96,11 @@ func newTrigger(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	// This is the minimum required for sarama's consumer groups implementation.
+	// V0_10_2_0 is the minimum required for sarama's consumer groups implementation.
 	// Therefore, we do not support anything older that this version.
-	newTrigger.kafkaConfig.Version = sarama.V0_10_2_0
+	// Update: increasing version to V0_11_0_0 because it's the minimum version that is required
+	// to support kafka headers.
+	newTrigger.kafkaConfig.Version = sarama.V0_11_0_0
 
 	return newTrigger, nil
 }
