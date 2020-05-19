@@ -468,7 +468,7 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 	return containersInfo, nil
 }
 
-// GetContainerEvents returns a list of container events occurred between a time range
+// GetContainerEvents returns a list of container events which occurred within a time range
 func (c *ShellClient) GetContainerEvents(containerName string, since string, until string) ([]string, error) {
 	runResults, err := c.runCommand(nil, "docker events --filter container=%s --since %s --until %s",
 		containerName,

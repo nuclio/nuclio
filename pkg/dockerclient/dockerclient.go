@@ -59,7 +59,7 @@ type Client interface {
 	// GetContainers returns a list of container IDs which match a certain criteria
 	GetContainers(*GetContainerOptions) ([]Container, error)
 
-	// GetContainerEvents returns a list of container events occurred between a time range
+	// GetContainerEvents returns a list of container events which occurred within a time range
 	GetContainerEvents(containerName string, since string, until string) ([]string, error)
 
 	// AwaitContainerHealth blocks until the given container is healthy or the timeout passes
