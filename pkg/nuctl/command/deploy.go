@@ -325,7 +325,9 @@ func (d *deployCommandeer) getImportedFunction(functionName string) (platform.Fu
 
 	function := functions[0]
 	if err := function.Initialize(nil); err != nil {
-		d.rootCommandeer.loggerInstance.WarnWith("Failed to initialize function", "err", err.Error())
+
+		// debug level, we don't want to spam user output when we just try to import an non-existent function
+		d.rootCommandeer.loggerInstance.DebugWith("Failed to initialize function", "err", err.Error())
 	}
 
 	if function.GetStatus().State == functionconfig.FunctionStateImported {
