@@ -3,7 +3,6 @@ package common
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -33,23 +32,6 @@ func FormatFunctionIngresses(function platform.Function) string {
 		function.GetVersion())
 
 	return formattedIngresses
-}
-
-func ReadFromStdin(r io.Reader) ([]byte, error) {
-	switch in := r.(type) {
-	case *os.File:
-		info, err := in.Stat()
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to stat from stdin")
-		}
-		// ensuring input is from pipe
-		if info.Mode()&os.ModeCharDevice == 0 && info.Size() > 0 {
-			return ioutil.ReadAll(os.Stdin)
-		}
-	default:
-		return ioutil.ReadAll(in)
-	}
-	return nil, nil
 }
 
 func OpenFile(filepath string) (io.Reader, error) {

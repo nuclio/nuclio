@@ -973,18 +973,18 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// wait until function is deleted
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{}, true)
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, true)
 	suite.Require().NoError(err)
 
 	// import the function
-	err = suite.ExecuteNuctl([]string{"import", "fu", exportTempFile.Name()}, map[string]string{})
+	err = suite.ExecuteNuctl([]string{"import", "fu", exportTempFile.Name()}, nil)
 	suite.Require().NoError(err)
 
-	// use nutctl to delete the function when we're done
+	// use nuctl to delete the function when we're done
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// wait until able to get the function
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{}, false)
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	// try to invoke, and ensure it fails - because it is imported and not deployed

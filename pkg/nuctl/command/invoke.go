@@ -21,12 +21,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/mgutz/ansi"
@@ -74,7 +74,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			// try parse body input from flag
 			commandeer.createFunctionInvocationOptions.Body, err = commandeer.resolveBody()
 			if err != nil {
-				return errors.Wrap(err, "Failed to resolve input body")
+				return errors.Wrap(err, "Failed to resolve body")
 			}
 			commandeer.createFunctionInvocationOptions.Headers = http.Header{}
 
@@ -167,11 +167,11 @@ func (i *invokeCommandeer) resolveBody() ([]byte, error) {
 
 	// try resolve body from flag
 	if i.body != "" {
-		return []byte(i.body), nil
+		i.cmd.SetIn(bytes.NewBufferString(i.body))
 	}
 
 	// fallback to stdin
-	return nuctlcommon.ReadFromStdin(i.rootCommandeer.GetCmd().InOrStdin())
+	return ioutil.ReadAll(i.cmd.InOrStdin())
 }
 
 func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) error {
