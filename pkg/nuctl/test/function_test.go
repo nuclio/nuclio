@@ -17,6 +17,7 @@ limitations under the License.
 package test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -125,6 +126,43 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
+func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "reverser" + uniqueSuffix
+	imageName := "nuclio/deploy-test" + uniqueSuffix
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"image":   imageName,
+		"runtime": "python",
+		"handler": "reverser:handler",
+	}
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+
+	suite.inputBuffer = bytes.Buffer{}
+	suite.inputBuffer.WriteString("-reverse this string+")
+
+	// try a few times to invoke, until it succeeds
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"via":    "external-ip",
+		},
+		false)
+	suite.Require().NoError(err)
+
+	// make sure reverser worked
+	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+}
+
 func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "envprinter" + uniqueSuffix
@@ -224,8 +262,6 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
 	suite.Require().NoError(err)
 
-	time.Sleep(2 * time.Second)
-
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)
 
@@ -293,13 +329,12 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 		suite.outputBuffer.Reset()
 
 		// invoke the function
-		err = suite.ExecuteNuctl([]string{"invoke", functionName},
+		err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
 			map[string]string{
 				"method":    "POST",
 				"log-level": testCase.logLevel,
 				"via":       "external-ip",
-			})
-
+			}, false)
 		suite.Require().NoError(err)
 
 		// make sure expected strings are in output
@@ -813,6 +848,81 @@ func (suite *functionGetTestSuite) TestDelete() {
 
 type functionExportImportTestSuite struct {
 	Suite
+}
+
+func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "export-import-stdin" + uniqueSuffix
+	imageName := fmt.Sprintf("nuclio/%s", functionName)
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"runtime": "python:3.6",
+		"handler": "reverser:handler",
+	}
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use nuctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+
+	// reset output buffer for reading the next output cleanly
+	suite.outputBuffer.Reset()
+	suite.inputBuffer.Reset()
+
+	// export the function
+	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
+	suite.Require().NoError(err)
+
+	exportedFunctionBody := suite.outputBuffer.Bytes()
+
+	// delete original function in order to resolve conflict while importing the function
+	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	suite.Require().NoError(err)
+
+	// wait until function is deleted
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, true)
+	suite.Require().NoError(err)
+
+	// import the function from stdin
+	suite.inputBuffer.Write(exportedFunctionBody)
+	err = suite.ExecuteNuctl([]string{"import", "fu"}, nil)
+	suite.Require().NoError(err)
+
+	// wait until able to get the function
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+	suite.Require().NoError(err)
+	suite.Require().Contains(suite.outputBuffer.String(), "imported")
+
+
+	// try to invoke, and ensure it fails - because it is imported and not deployed
+	err = suite.ExecuteNuctl([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+			"via":    "external-ip",
+		})
+	suite.Require().Error(err)
+
+	// deploy imported function
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"}, nil)
+	suite.Require().NoError(err)
+
+	// try a few times to invoke, until it succeeds
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+			"via":    "external-ip",
+		},
+		false)
+	suite.Require().NoError(err)
+
+	// make sure reverser worked
+	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
 func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {

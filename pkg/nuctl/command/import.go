@@ -2,10 +2,9 @@ package command
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"os"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/ghodss/yaml"
@@ -43,11 +42,16 @@ func newImportCommandeer(rootCommandeer *RootCommandeer) *importCommandeer {
 	return commandeer
 }
 
-func (i *importCommandeer) readFromStdinOrFile(args []string) ([]byte, error) {
+func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 	if len(args) >= 1 {
-		return ioutil.ReadFile(args[0])
+		file, err := common.OpenFile(args[0])
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to open file")
+		}
+		i.rootCommandeer.GetCmd().SetIn(file)
 	}
-	return ioutil.ReadAll(os.Stdin)
+
+	return common.ReadFromStdin(i.rootCommandeer.GetCmd().InOrStdin())
 }
 
 func (i *importCommandeer) getUnmarshalFunc(bytes []byte) (func(data []byte, v interface{}) error, error) {
@@ -122,7 +126,7 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 		Aliases: []string{"fu"},
 		Short:   "Import function, and by default don't deploy it",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			funcBytes, err := commandeer.readFromStdinOrFile(args)
+			functionBody, err := commandeer.resolveInputData(args)
 			if err != nil {
 				return errors.Wrap(err, "Failed to read function data")
 			}
@@ -132,18 +136,18 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			unmarshalFunc, err := commandeer.getUnmarshalFunc(funcBytes)
+			unmarshalFunc, err := commandeer.getUnmarshalFunc(functionBody)
 			if err != nil {
 				return errors.Wrap(err, "Failed identifying input format")
 			}
 
 			// First try parsing multiple functions
-			err = commandeer.parseMultipleFunctionsImport(funcBytes, commandeer.functionConfigs, unmarshalFunc)
+			err = commandeer.parseMultipleFunctionsImport(functionBody, commandeer.functionConfigs, unmarshalFunc)
 			if err != nil {
 
 				// If that fails, try parsing a single function
 				commandeer.functionConfigs = map[string]*functionconfig.Config{}
-				err = commandeer.parseFunctionImport(funcBytes, commandeer.functionConfigs, unmarshalFunc)
+				err = commandeer.parseFunctionImport(functionBody, commandeer.functionConfigs, unmarshalFunc)
 				if err != nil {
 					return errors.Wrap(err, "Failed to parse function data")
 				}
@@ -203,7 +207,7 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 		Aliases: []string{"proj"},
 		Short:   "Import project and all its functions and functionEvents",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			projBytes, err := commandeer.readFromStdinOrFile(args)
+			projectBody, err := commandeer.resolveInputData(args)
 			if err != nil {
 				return errors.Wrap(err, "Failed to read function data")
 			}
@@ -213,18 +217,18 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			unmarshalFunc, err := commandeer.getUnmarshalFunc(projBytes)
+			unmarshalFunc, err := commandeer.getUnmarshalFunc(projectBody)
 			if err != nil {
 				return errors.Wrap(err, "Failed identifying input format")
 			}
 
 			// First try parsing multiple projects
-			err = commandeer.parseMultipleProjectsImport(projBytes, commandeer.projectImportConfigs, unmarshalFunc)
+			err = commandeer.parseMultipleProjectsImport(projectBody, commandeer.projectImportConfigs, unmarshalFunc)
 			if err != nil {
 
 				// If that fails, try parsing a single project
 				commandeer.projectImportConfigs = map[string]*ProjectImportConfig{}
-				err = commandeer.parseProjectImport(projBytes, commandeer.projectImportConfigs, unmarshalFunc)
+				err = commandeer.parseProjectImport(projectBody, commandeer.projectImportConfigs, unmarshalFunc)
 
 				if err != nil {
 					return errors.Wrap(err, "Failed to parse function data")

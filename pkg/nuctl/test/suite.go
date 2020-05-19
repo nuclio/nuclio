@@ -49,6 +49,7 @@ type Suite struct {
 	dockerClient        dockerclient.Client
 	shellClient         *cmdrunner.ShellRunner
 	outputBuffer        bytes.Buffer
+	inputBuffer         bytes.Buffer
 	defaultWaitDuration time.Duration
 	defaultWaitInterval time.Duration
 }
@@ -85,6 +86,11 @@ func (suite *Suite) SetupSuite() {
 	}
 }
 
+func (suite *Suite) SetupTest() {
+	suite.outputBuffer.Reset()
+	suite.inputBuffer.Reset()
+}
+
 func (suite *Suite) TearDownSuite() {
 
 	// restore platform type
@@ -100,6 +106,9 @@ func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 
 	// set the output so we can capture it (but also output to stdout)
 	suite.rootCommandeer.GetCmd().SetOut(io.MultiWriter(os.Stdout, &suite.outputBuffer))
+
+	// set the input so we can write to stdin
+	suite.rootCommandeer.GetCmd().SetIn(&suite.inputBuffer)
 
 	// since args[0] is the executable name, just shove something there
 	argsStringSlice := []string{
