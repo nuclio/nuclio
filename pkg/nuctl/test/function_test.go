@@ -44,13 +44,12 @@ type functionBuildTestSuite struct {
 
 func (suite *functionBuildTestSuite) TestBuild() {
 	uniqueSuffix := "-" + xid.New().String()
-	functionName := "reverser" + uniqueSuffix
-	imageName := "nuclio/build-test" + uniqueSuffix
+	functionName := "reverser-build" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
 
 	err := suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-			"image":   imageName,
 			"runtime": "golang",
 		})
 
@@ -92,12 +91,11 @@ type functionDeployTestSuite struct {
 
 func (suite *functionDeployTestSuite) TestDeploy() {
 	uniqueSuffix := "-" + xid.New().String()
-	functionName := "reverser" + uniqueSuffix
-	imageName := "nuclio/deploy-test" + uniqueSuffix
+	functionName := "deploy-reverser" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
 		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-		"image":   imageName,
 		"runtime": "golang",
 		"handler": "main:Reverse",
 	}
@@ -128,11 +126,10 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 
 func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
 	uniqueSuffix := "-" + xid.New().String()
-	functionName := "reverser" + uniqueSuffix
-	imageName := "nuclio/deploy-test" + uniqueSuffix
+	functionName := "invoke-body-stdin-reverser" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
 	namedArgs := map[string]string{
 		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-		"image":   imageName,
 		"runtime": "python",
 		"handler": "reverser:handler",
 	}
@@ -166,7 +163,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
 func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "envprinter" + uniqueSuffix
-	imageName := "nuclio/deploy-test" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
@@ -175,7 +172,6 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 			"labels":  "label1=first,label2=second",
 			"runtime": "python",
 			"handler": "envprinter:handler",
-			"image":   imageName,
 		})
 
 	suite.Require().NoError(err)
@@ -202,10 +198,9 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 }
 
 func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
-	randomString := xid.New().String()
-	uniqueSuffix := "-" + randomString
-	imageName := "nuclio/deploy-test" + uniqueSuffix
-	functionName := "parser"
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "deploy-from-function-config" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
 
 	err := suite.ExecuteNuctl([]string{"deploy", "", "--verbose", "--no-pull"},
 		map[string]string{
@@ -225,22 +220,32 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
-			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
+			"body":   fmt.Sprintf(`{"return_this": "%s"}`, uniqueSuffix),
 			"via":    "external-ip",
 		},
 		false)
 	suite.Require().NoError(err)
 
 	// check that invoke printed the value
-	suite.Require().Contains(suite.outputBuffer.String(), randomString)
+	suite.Require().Contains(suite.outputBuffer.String(), uniqueSuffix)
 }
 
 func (suite *functionDeployTestSuite) TestDeployFromCodeEntryTypeS3InvalidValues() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "s3-fast-failure" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
 
 	// deploy function with invalid s3 values
-	err := suite.ExecuteNuctl([]string{"deploy", "s3-fast-failure", "--verbose", "--no-pull"},
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"file":            path.Join(suite.GetFunctionConfigsDir(), "error", "s3_codeentry/function.yaml"),
+			"image":           imageName,
 			"code-entry-type": "s3",
 		})
 	suite.Require().Error(err)
@@ -249,12 +254,11 @@ func (suite *functionDeployTestSuite) TestDeployFromCodeEntryTypeS3InvalidValues
 
 func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 	uniqueSuffix := "-" + xid.New().String()
-	functionName := "reverser" + uniqueSuffix
-	imageName := "nuclio/deploy-test" + uniqueSuffix
+	functionName := "invoke-logging" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
 		"path":    path.Join(suite.GetFunctionsDir(), "common", "logging", "golang"),
-		"image":   imageName,
 		"runtime": "golang",
 		"handler": "main:Logging",
 	}
@@ -351,8 +355,8 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 
 func (suite *functionDeployTestSuite) TestDeployFailsOnMissingPath() {
 	uniqueSuffix := "-" + xid.New().String()
-	functionName := "reverser" + uniqueSuffix
-	imageName := "nuclio/deploy-test" + uniqueSuffix
+	functionName := "missing-path-reverser" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
 
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)
@@ -362,7 +366,6 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnMissingPath() {
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"image":   imageName,
 			"runtime": "golang",
 			"handler": "main:Reverse",
 		})
@@ -376,12 +379,17 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnMissingPath() {
 
 func (suite *functionDeployTestSuite) TestDeployFailsOnShellMissingPathAndHandler() {
 	uniqueSuffix := "-" + xid.New().String()
-	functionName := "reverser" + uniqueSuffix
-	imageName := "nuclio/deploy-test" + uniqueSuffix
+	functionName := "missing-path" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"image":   imageName,
 			"runtime": "shell",
 		})
 
@@ -390,8 +398,8 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnShellMissingPathAndHandle
 
 func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 	uniqueSuffix := "-" + xid.New().String()
-	functionName := "reverser" + uniqueSuffix
-	imageName := "nuclio/deploy-test" + uniqueSuffix
+	functionName := "shell-handler" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
@@ -424,9 +432,9 @@ func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 
 func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 	uniqueSuffix := "-" + xid.New().String()
-	functionName := "reverser" + uniqueSuffix
+	functionName := "function-event" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
 	functionEventName := "reverser-event" + uniqueSuffix
-	imageName := "nuclio/deploy-test" + uniqueSuffix
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
@@ -531,19 +539,16 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 
 // Expecting the Code Entry Type to be modified to image
 func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
-	randomString := xid.New().String()
-	uniqueSuffix := "-" + randomString
-	imageName := "nuclio/deploy-local-dir" + uniqueSuffix
-	functionName := "local-dir-reverser"
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "local-dir" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
 			"runtime": "python:3.6",
 			"handler": "reverser:handler",
-			"image":   imageName,
 		})
-
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
@@ -578,18 +583,15 @@ func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
 
 	// relevant only for kube platform
 	if suite.origPlatformType != "kube" {
-		suite.logger.InfoWith("Not on kube platform. Skipping test", "platformType", suite.origPlatformType)
-		return
+		suite.T().Skipf("Not on kube platform")
 	}
-	suite.logger.InfoWith("On kube platform. continuing", "platformType", suite.origPlatformType)
 
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "event-recorder" + uniqueSuffix
-	imageName := "nuclio/deploy-test" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
 		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
-		"image":   imageName,
 		"runtime": "python",
 		"handler": "event_recorder:handler",
 		"triggers": `{
@@ -702,28 +704,17 @@ func (suite *functionGetTestSuite) TestGet() {
 
 	for functionIdx := 0; functionIdx < numOfFunctions; functionIdx++ {
 		uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), functionIdx)
-
-		imageName := "nuclio/deploy-test" + uniqueSuffix
 		functionName := "reverser" + uniqueSuffix
+		imageName := "nuclio/processor-" + functionName
 
 		// add function name to list
 		functionNames = append(functionNames, functionName)
 
 		namedArgs := map[string]string{
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-			"image":   imageName,
 			"runtime": "golang",
 			"handler": "main:Reverse",
 		}
-
-		err := suite.ExecuteNuctl([]string{
-			"deploy",
-			functionName,
-			"--verbose",
-			"--no-pull",
-		}, namedArgs)
-
-		suite.Require().NoError(err)
 
 		// cleanup
 		defer func(imageName string, functionName string) {
@@ -734,6 +725,15 @@ func (suite *functionGetTestSuite) TestGet() {
 			// use nutctl to delete the function when we're done
 			suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 		}(imageName, functionName)
+
+		err := suite.ExecuteNuctl([]string{
+			"deploy",
+			functionName,
+			"--verbose",
+			"--no-pull",
+		}, namedArgs)
+
+		suite.Require().NoError(err)
 
 		// wait for function to ensure deployed successfully
 		err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
@@ -795,13 +795,12 @@ type functionDeleteTestSuite struct {
 func (suite *functionGetTestSuite) TestDelete() {
 	var err error
 
-	uniqueSuffix := xid.New().String()
-	imageName := "nuclio/deploy-test" + uniqueSuffix
+	uniqueSuffix := "-" + xid.New().String()
 	functionName := "reverser" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
 		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-		"image":   imageName,
 		"runtime": "golang",
 		"handler": "main:Reverse",
 	}
@@ -853,7 +852,7 @@ type functionExportImportTestSuite struct {
 func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "export-import-stdin" + uniqueSuffix
-	imageName := fmt.Sprintf("nuclio/%s", functionName)
+	imageName := "nuclio/processor-" + functionName
 	namedArgs := map[string]string{
 		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
 		"runtime": "python:3.6",
@@ -896,7 +895,6 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
 	suite.Require().Contains(suite.outputBuffer.String(), "imported")
-
 
 	// try to invoke, and ensure it fails - because it is imported and not deployed
 	err = suite.ExecuteNuctl([]string{"invoke", functionName},
@@ -1017,7 +1015,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 
 func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunction() {
 	uniqueSuffix := "-" + xid.New().String()
-	functionName := "reverser" + uniqueSuffix
+	functionName := "export-import-failing-function" + uniqueSuffix
 	imageName := "nuclio/processor-" + functionName
 
 	// make sure to clean up after the test
@@ -1025,18 +1023,18 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"image":   imageName,
-			"runtime": "golang",
-			"handler": "main:Reverse",
+			"file":            path.Join(suite.GetFunctionConfigsDir(), "error", "s3_codeentry/function.yaml"),
+			"code-entry-type": "s3",
+			"runtime":         "golang",
+			"handler":         "main:Reverse",
 		})
-
-	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
+	suite.Require().Error(err)
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 
 	// export the function
-	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, map[string]string{}, false)
+	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	exportedFunctionConfig := functionconfig.Config{}

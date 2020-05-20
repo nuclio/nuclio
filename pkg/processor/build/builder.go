@@ -473,7 +473,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 	if b.options.FunctionConfig.Spec.Handler == "" {
 		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.GetFunctionPath())
 		if err != nil {
-			return errors.Wrap(err, "Failed to detect ")
+			return errors.Wrap(err, "Failed to detect function handler")
 		}
 
 		if len(functionHandlers) == 0 {
@@ -646,7 +646,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, string, erro
 	// Assume it's a local path
 	resolvedPath, err := filepath.Abs(filepath.Clean(functionPath))
 	if err != nil {
-		return "", "", errors.Wrap(err, "Failed to resolve non-url path")
+		return "", "", errors.Wrap(err, "Failed to resolve function path")
 	}
 
 	if !common.FileExists(resolvedPath) {
