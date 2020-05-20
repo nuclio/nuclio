@@ -21,12 +21,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/mgutz/ansi"
@@ -171,7 +171,7 @@ func (i *invokeCommandeer) resolveBody() ([]byte, error) {
 	}
 
 	// fallback to stdin
-	return ioutil.ReadAll(i.cmd.InOrStdin())
+	return nuctlcommon.ReadFromInOrStdin(i.cmd.InOrStdin())
 }
 
 func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) error {

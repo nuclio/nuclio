@@ -2,7 +2,6 @@ package command
 
 import (
 	"encoding/json"
-	"io/ioutil"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
@@ -52,7 +51,7 @@ func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 		i.cmd.SetIn(file)
 	}
 
-	return ioutil.ReadAll(i.cmd.InOrStdin())
+	return common.ReadFromInOrStdin(i.cmd.InOrStdin())
 }
 
 func (i *importCommandeer) getUnmarshalFunc(bytes []byte) (func(data []byte, v interface{}) error, error) {

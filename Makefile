@@ -59,7 +59,8 @@ GO_LINK_FLAGS ?= -s -w
 GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) -X github.com/nuclio/nuclio/pkg/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
 	-X github.com/nuclio/nuclio/pkg/version.label=$(NUCLIO_LABEL) \
 	-X github.com/nuclio/nuclio/pkg/version.os=$(NUCLIO_OS) \
-	-X github.com/nuclio/nuclio/pkg/version.arch=$(NUCLIO_ARCH)
+	-X github.com/nuclio/nuclio/pkg/version.arch=$(NUCLIO_ARCH) \
+	-X github.com/nuclio/nuclio/pkg/version.goVersion=$(GO_VERSION)
 
 # inject version info as file
 NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTENTS="$(NUCLIO_VERSION_INFO)"
