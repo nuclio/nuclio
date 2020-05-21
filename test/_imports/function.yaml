@@ -1,0 +1,12 @@
+metadata:
+  annotations:
+    skip-build: "true"
+    skip-deploy: "true"
+  name: test-function
+spec:
+  build:
+    codeEntryType: sourceCode
+    functionSourceCode: ZWNobyAidGVzdDEi
+    noBaseImagesPull: true
+  handler: main.sh
+  runtime: shell

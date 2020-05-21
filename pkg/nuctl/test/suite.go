@@ -29,9 +29,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
 	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/ghodss/yaml"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -198,5 +200,31 @@ func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMus
 	// all patterns that must not exist must not exist
 	for _, foundPattern := range foundPatternsMustNotExist {
 		suite.Require().False(foundPattern)
+	}
+}
+
+func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
+
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
+	err := suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{
+		"output": "yaml",
+	}, false)
+	suite.Require().NoError(err)
+
+	function := functionconfig.Config{}
+	functionBodyBytes := suite.outputBuffer.Bytes()
+	err = yaml.Unmarshal(functionBodyBytes, &function)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal(functionName, function.Meta.Name)
+	if imported {
+
+		// get imported functions
+		err = suite.ExecuteNuctl([]string{"get", "function", functionName}, nil)
+		suite.Require().NoError(err)
+
+		// ensure function state is imported
+		suite.findPatternsInOutput([]string{"imported"}, nil)
 	}
 }

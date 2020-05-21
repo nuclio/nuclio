@@ -858,6 +858,39 @@ type functionExportImportTestSuite struct {
 	Suite
 }
 
+func (suite *functionExportImportTestSuite) TestImportMultiFunctions() {
+	functionsConfigPath := path.Join(suite.GetImportsDir(), "functions.yaml")
+
+	// these names are defined within functions.yaml
+	function1Name := "test-function-1"
+	function2Name := "test-function-2"
+
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
+
+	// import the project
+	err := suite.ExecuteNuctl([]string{"import", "fu", functionsConfigPath, "--verbose"}, map[string]string{})
+	suite.Require().NoError(err)
+
+	suite.assertFunctionImported(function1Name, true)
+	suite.assertFunctionImported(function2Name, true)
+}
+
+func (suite *functionExportImportTestSuite) TestImportFunction() {
+	functionConfigPath := path.Join(suite.GetImportsDir(), "function.yaml")
+
+	// this name is defined within function.yaml
+	functionName := "test-function"
+
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+
+	// import the project
+	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, map[string]string{})
+	suite.Require().NoError(err)
+
+	suite.assertFunctionImported(functionName, true)
+}
+
 func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "export-import-stdin" + uniqueSuffix

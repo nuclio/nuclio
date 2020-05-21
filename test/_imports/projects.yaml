@@ -1,0 +1,135 @@
+projectA:
+  functionEvents:
+    test-function-event-2:
+      meta:
+        labels:
+          nuclio.io/function-name: test-function-2
+        name: test-function-event-2
+      spec:
+        attributes:
+          headers:
+            Content-Type: text/plain
+          method: POST
+          path: ""
+        body: test-function-event-2-body
+        displayName: test-function-event-2
+        triggerKind: http
+    test-function-event-1:
+      meta:
+        labels:
+          nuclio.io/function-name: test-function-1
+        name: test-function-event-1
+      spec:
+        attributes:
+          headers:
+            Content-Type: text/plain
+          method: POST
+          path: ""
+        body: test-function-event-1-body
+        displayName: test-function-event-1
+        triggerKind: http
+  functions:
+    test-function-1:
+      metadata:
+        annotations:
+          skip-build: "true"
+          skip-deploy: "true"
+        labels:
+          nuclio.io/project-name: projectA
+        name: test-function-1
+      spec:
+        build:
+          codeEntryType: sourceCode
+          functionSourceCode: ZWNobyAidGVzdDEi
+          noBaseImagesPull: true
+        handler: main.sh
+        runtime: shell
+    test-function-2:
+      metadata:
+        annotations:
+          skip-build: "true"
+          skip-deploy: "true"
+        labels:
+          nuclio.io/project-name: projectA
+        name: test-function-2
+      spec:
+        build:
+          codeEntryType: sourceCode
+          functionSourceCode: ZWNobyAidGVzdDEi
+          noBaseImagesPull: true
+        handler: main.sh
+        runtime: shell
+  project:
+    meta:
+      name: projectA
+      namespace: nuclio
+    spec:
+      description: test-project-a
+
+projectB:
+  functionEvents:
+    test-function-event-2:
+      meta:
+        labels:
+          nuclio.io/function-name: test-function-3
+        name: test-function-event-3
+      spec:
+        attributes:
+          headers:
+            Content-Type: text/plain
+          method: POST
+          path: ""
+        body: test-function-event-3-body
+        displayName: test-function-event-3
+        triggerKind: http
+    test-function-event-4:
+      meta:
+        labels:
+          nuclio.io/function-name: test-function-4
+        name: test-function-event-4
+      spec:
+        attributes:
+          headers:
+            Content-Type: text/plain
+          method: POST
+          path: ""
+        body: test-function-event-4-body
+        displayName: test-function-event-4
+        triggerKind: http
+  functions:
+    test-function-4:
+      metadata:
+        annotations:
+          skip-build: "true"
+          skip-deploy: "true"
+        labels:
+          nuclio.io/project-name: test-project-b
+        name: test-function-4
+      spec:
+        build:
+          codeEntryType: sourceCode
+          functionSourceCode: ZWNobyAidGVzdDEi
+          noBaseImagesPull: true
+        handler: main.sh
+        runtime: shell
+    test-function-3:
+      metadata:
+        annotations:
+          skip-build: "true"
+          skip-deploy: "true"
+        labels:
+          nuclio.io/project-name: projectB
+        name: test-function-3
+      spec:
+        build:
+          codeEntryType: sourceCode
+          functionSourceCode: ZWNobyAidGVzdDEi
+          noBaseImagesPull: true
+        handler: main.sh
+        runtime: shell
+  project:
+    meta:
+      name: projectB
+      namespace: nuclio
+    spec:
+      description: test-project-b
