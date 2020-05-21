@@ -104,6 +104,7 @@ func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config,
 func (i *importCommandeer) importFunctions(functionConfigs map[string]*functionconfig.Config, project string) error {
 	var errGroup errgroup.Group
 
+	i.rootCommandeer.loggerInstance.DebugWith("Importing functions", "functions", functionConfigs)
 	for _, functionConfig := range functionConfigs {
 		functionConfig := functionConfig // https://golang.org/doc/faq#closures_and_goroutines
 		errGroup.Go(func() error {
@@ -145,12 +146,13 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 				return errors.Wrap(err, "Failed identifying input format")
 			}
 
+			commandeer.functionConfigs = map[string]*functionconfig.Config{}
+
 			// First try parsing multiple functions
 			err = commandeer.parseMultipleFunctionsImport(functionBody, commandeer.functionConfigs, unmarshalFunc)
 			if err != nil {
 
 				// If that fails, try parsing a single function
-				commandeer.functionConfigs = map[string]*functionconfig.Config{}
 				err = commandeer.parseFunctionImport(functionBody, commandeer.functionConfigs, unmarshalFunc)
 				if err != nil {
 					return errors.Wrap(err, "Failed to parse function data")
@@ -183,7 +185,7 @@ func (i *importFunctionCommandeer) parseFunctionImport(funcBytes []byte,
 func (i *importFunctionCommandeer) parseMultipleFunctionsImport(funcBytes []byte,
 	functionConfigs map[string]*functionconfig.Config,
 	unmarshalFunc func(data []byte, v interface{}) error) error {
-	if err := unmarshalFunc(funcBytes, functionConfigs); err != nil {
+	if err := unmarshalFunc(funcBytes, &functionConfigs); err != nil {
 		return errors.Wrap(err, "Failed encoding function import config")
 	}
 
@@ -227,15 +229,16 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 				return errors.Wrap(err, "Failed identifying input format")
 			}
 
+			commandeer.projectImportConfigs = map[string]*ProjectImportConfig{}
+
 			// First try parsing multiple projects
 			err = commandeer.parseMultipleProjectsImport(projectBody, commandeer.projectImportConfigs, unmarshalFunc)
 			if err != nil {
 
 				// If that fails, try parsing a single project
-				commandeer.projectImportConfigs = map[string]*ProjectImportConfig{}
-				err = commandeer.parseProjectImport(projectBody, commandeer.projectImportConfigs, unmarshalFunc)
-
-				if err != nil {
+				if err = commandeer.parseProjectImport(projectBody,
+					commandeer.projectImportConfigs,
+					unmarshalFunc); err != nil {
 					return errors.Wrap(err, "Failed to parse function data")
 				}
 			}
@@ -266,10 +269,9 @@ func (i *importProjectCommandeer) parseProjectImport(projBytes []byte,
 func (i *importProjectCommandeer) parseMultipleProjectsImport(projBytes []byte,
 	projectConfigs map[string]*ProjectImportConfig,
 	unmarshalFunc func(data []byte, v interface{}) error) error {
-	if err := unmarshalFunc(projBytes, projectConfigs); err != nil {
-		return errors.Wrap(err, "Failed encoding function import config")
+	if err := unmarshalFunc(projBytes, &projectConfigs); err != nil {
+		return errors.Wrap(err, "Failed encoding project import config")
 	}
-
 	return nil
 }
 
@@ -303,6 +305,8 @@ func (i *importProjectCommandeer) importFunctionEvent(functionEvent *platform.Fu
 func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string]*platform.FunctionEventConfig) error {
 	var errGroup errgroup.Group
 
+	i.rootCommandeer.loggerInstance.DebugWith("Importing function events",
+		"functionEvents", functionEvents)
 	for _, functionEventConfig := range functionEvents {
 		functionEventConfig := functionEventConfig // https://golang.org/doc/faq#closures_and_goroutines
 		errGroup.Go(func() error {
@@ -342,7 +346,7 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 		return errors.Wrap(functionImportErr, "Failed to import some functions")
 	}
 	if functionEventImportErr != nil {
-		return errors.Wrap(functionImportErr, "Failed to import some function events")
+		return errors.Wrap(functionEventImportErr, "Failed to import some function events")
 	}
 
 	return nil
@@ -351,9 +355,12 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string]*ProjectImportConfig) error {
 	var g errgroup.Group
 
-	for _, projectConfig := range projectImportConfigs {
+	i.rootCommandeer.loggerInstance.DebugWith("Importing projects", "projects", projectImportConfigs)
+	for projectName, projectConfig := range projectImportConfigs {
+		projectConfig := projectConfig
+		projectName := projectName
 		g.Go(func() error {
-			i.rootCommandeer.loggerInstance.DebugWith("Importing project", "project", projectConfig)
+			i.rootCommandeer.loggerInstance.DebugWith("Importing project", "projectName", projectName)
 			return i.importProject(projectConfig)
 		})
 	}
