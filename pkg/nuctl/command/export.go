@@ -162,7 +162,7 @@ func newExportProjectCommandeer(exportCommandeer *exportCommandeer) *exportProje
 
 			if len(projects) == 0 {
 				if commandeer.getProjectsOptions.Meta.Name != "" {
-					return nuclio.NewErrNotFound("No functions found")
+					return nuclio.NewErrNotFound("Project not found")
 				}
 				cmd.OutOrStdout().Write([]byte("No projects found")) // nolint: errcheck
 				return nil
