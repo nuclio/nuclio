@@ -44,7 +44,9 @@ func newImportCommandeer(rootCommandeer *RootCommandeer) *importCommandeer {
 
 func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 	if len(args) >= 1 {
-		file, err := common.OpenFile(args[0])
+		filename := args[0]
+		i.rootCommandeer.loggerInstance.DebugWith("Reading from a file", "filename", filename)
+		file, err := common.OpenFile(filename)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to open file")
 		}
@@ -127,14 +129,15 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 		Aliases: []string{"fu"},
 		Short:   "Import function, and by default don't deploy it",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			functionBody, err := commandeer.resolveInputData(args)
-			if err != nil {
-				return errors.Wrap(err, "Failed to read function data")
-			}
 
 			// initialize root
 			if err := importCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
+			}
+
+			functionBody, err := commandeer.resolveInputData(args)
+			if err != nil {
+				return errors.Wrap(err, "Failed to read function data")
 			}
 
 			unmarshalFunc, err := commandeer.getUnmarshalFunc(functionBody)
@@ -208,14 +211,15 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 		Aliases: []string{"proj"},
 		Short:   "Import project and all its functions and functionEvents",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			projectBody, err := commandeer.resolveInputData(args)
-			if err != nil {
-				return errors.Wrap(err, "Failed to read function data")
-			}
 
 			// initialize root
 			if err := importCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
+			}
+
+			projectBody, err := commandeer.resolveInputData(args)
+			if err != nil {
+				return errors.Wrap(err, "Failed to read function data")
 			}
 
 			unmarshalFunc, err := commandeer.getUnmarshalFunc(projectBody)
@@ -349,6 +353,7 @@ func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string
 
 	for _, projectConfig := range projectImportConfigs {
 		g.Go(func() error {
+			i.rootCommandeer.loggerInstance.DebugWith("Importing project", "project", projectConfig)
 			return i.importProject(projectConfig)
 		})
 	}
