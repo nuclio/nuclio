@@ -43,12 +43,8 @@ func ReadFromInOrStdin(r io.Reader) ([]byte, error) {
 			return nil, errors.Wrap(err, "Failed to stat file")
 		}
 
-		if info.Size() == 0 {
-			return nil, nil
-		}
-
 		// ensuring input piped or file
-		if info.Mode()&os.ModeNamedPipe == os.ModeNamedPipe || info.Mode().IsRegular() {
+		if info.Mode()&os.ModeNamedPipe != 0 || info.Mode().IsRegular() {
 			return ioutil.ReadAll(r)
 		}
 	default:
