@@ -49,6 +49,7 @@ func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 			return nil, errors.Wrap(err, "Failed to open file")
 		}
 		i.cmd.SetIn(file)
+		defer file.Close() // nolint: errcheck
 	}
 
 	return common.ReadFromInOrStdin(i.cmd.InOrStdin())

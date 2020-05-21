@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -30,6 +31,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/ghodss/yaml"
@@ -198,11 +200,18 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 }
 
 func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
-	uniqueSuffix := "-" + xid.New().String()
-	functionName := "deploy-from-function-config" + uniqueSuffix
+	randomString := xid.New().String()
+
+	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
+	functionConfig := functionconfig.Config{}
+	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	suite.Require().NoError(err)
+	err = yaml.Unmarshal(functionBody, &functionConfig)
+	suite.Require().NoError(err)
+	functionName := functionConfig.Meta.Name
 	imageName := "nuclio/processor-" + functionName
 
-	err := suite.ExecuteNuctl([]string{"deploy", "", "--verbose", "--no-pull"},
+	err = suite.ExecuteNuctl([]string{"deploy", "", "--verbose", "--no-pull"},
 		map[string]string{
 			"path":  path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
 			"image": imageName,
@@ -220,14 +229,14 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
-			"body":   fmt.Sprintf(`{"return_this": "%s"}`, uniqueSuffix),
+			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
 			"via":    "external-ip",
 		},
 		false)
 	suite.Require().NoError(err)
 
 	// check that invoke printed the value
-	suite.Require().Contains(suite.outputBuffer.String(), uniqueSuffix)
+	suite.Require().Contains(suite.outputBuffer.String(), randomString)
 }
 
 func (suite *functionDeployTestSuite) TestDeployFromCodeEntryTypeS3InvalidValues() {

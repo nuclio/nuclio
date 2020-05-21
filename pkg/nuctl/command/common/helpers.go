@@ -57,7 +57,8 @@ func ReadFromInOrStdin(r io.Reader) ([]byte, error) {
 	return nil, nil
 }
 
-func OpenFile(filepath string) (io.Reader, error) {
+// OpenFile validates filepath existence and returns a file (it is the caller responsibility to close it)
+func OpenFile(filepath string) (*os.File, error) {
 	fileInfo, err := os.Stat(filepath)
 	if err != nil {
 		if os.IsNotExist(err) {
