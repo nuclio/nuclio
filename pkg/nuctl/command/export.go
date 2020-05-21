@@ -214,7 +214,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(projec
 
 	for _, function := range functions {
 		if err := function.Initialize(nil); err != nil {
-			e.rootCommandeer.loggerInstance.WarnWith("Failed to initialize function", "err", err.Error())
+			e.rootCommandeer.loggerInstance.DebugWith("Failed to initialize function", "err", err.Error())
 		}
 		functionConfig := function.GetConfig()
 
