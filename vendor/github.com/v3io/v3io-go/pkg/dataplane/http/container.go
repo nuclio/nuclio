@@ -204,6 +204,18 @@ func (c *container) DescribeStreamSync(describeStreamInput *v3io.DescribeStreamI
 	return c.session.context.DescribeStreamSync(describeStreamInput)
 }
 
+// CheckPathExists
+func (c *container) CheckPathExists(checkPathExistsInput *v3io.CheckPathExistsInput, context interface{}, responseChan chan *v3io.Response) (*v3io.Request, error) {
+	c.populateInputFields(&checkPathExistsInput.DataPlaneInput)
+	return c.session.context.CheckPathExists(checkPathExistsInput, context, responseChan)
+}
+
+// CheckPathExistsSync
+func (c *container) CheckPathExistsSync(checkPathExistsInput *v3io.CheckPathExistsInput) error {
+	c.populateInputFields(&checkPathExistsInput.DataPlaneInput)
+	return c.session.context.CheckPathExistsSync(checkPathExistsInput)
+}
+
 // DeleteStream
 func (c *container) DeleteStream(deleteStreamInput *v3io.DeleteStreamInput, context interface{}, responseChan chan *v3io.Response) (*v3io.Request, error) {
 	c.populateInputFields(&deleteStreamInput.DataPlaneInput)
