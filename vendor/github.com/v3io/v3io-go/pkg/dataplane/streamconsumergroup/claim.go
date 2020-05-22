@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/v3io/v3io-go/pkg/dataplane"
@@ -104,11 +105,32 @@ func (c *claim) fetchRecordBatches(stopChannel chan struct{}, fetchInterval time
 	for {
 		select {
 		case <-time.After(fetchInterval):
-			c.currentShardLocation, err = c.fetchRecordBatch(c.currentShardLocation)
+			location, err := c.fetchRecordBatch(c.currentShardLocation)
 			if err != nil {
-				c.logger.WarnWith("Failed fetching record batch", "err", errors.GetErrorStackString(err, 10))
+				c.logger.WarnWith("Failed fetching record batch",
+					"shardId", c.shardID,
+					"err", errors.GetErrorStackString(err, 10))
+
+				// if the error is that the location we asked for is bad, try to seek earliest
+				if c.checkIllegalLocationErr(err) {
+					location, err := c.recoverLocationAfterIllegalLocationErr()
+
+					if err != nil {
+						c.logger.WarnWith("Failed to recover after illegal location",
+							"shardId", c.shardID,
+							"err", errors.GetErrorStackString(err, 10))
+
+						continue
+					}
+
+					// set next location for next time
+					c.currentShardLocation = location
+				}
+
 				continue
 			}
+
+			c.currentShardLocation = location
 
 		case <-stopChannel:
 			close(c.recordBatchChan)
@@ -201,4 +223,48 @@ func (c *claim) getCurrentShardLocation(shardID int) (string, error) {
 	}
 
 	return currentShardLocation, nil
+}
+
+func (c *claim) checkIllegalLocationErr(err error) bool {
+
+	// sanity
+	if err == nil {
+		return false
+	}
+
+	// try to get the cause
+	causeErr := errors.Cause(err)
+	if causeErr == nil {
+
+		// if we can't determind the cause, don't assume location (sanity)
+		return false
+	}
+
+	return strings.Contains(causeErr.Error(), "IllegalLocationException")
+}
+
+func (c *claim) recoverLocationAfterIllegalLocationErr() (string, error) {
+	c.logger.InfoWith("Location requested is invalid. Trying to seek to earliest",
+		"shardId", c.shardID,
+		"location", c.currentShardLocation)
+
+	streamPath, err := c.member.streamConsumerGroup.getShardPath(c.shardID)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get shard path")
+	}
+
+	location, err := c.member.streamConsumerGroup.getShardLocationWithSeek(&v3io.SeekShardInput{
+		Path: streamPath,
+		Type: v3io.SeekShardInputTypeEarliest,
+	})
+
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to seek to earliest")
+	}
+
+	c.logger.InfoWith("Got new location after seeking to earliest",
+		"shardId", c.shardID,
+		"location", location)
+
+	return location, nil
 }
