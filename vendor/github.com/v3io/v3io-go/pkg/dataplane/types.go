@@ -191,6 +191,7 @@ type PutObjectInput struct {
 	Path   string
 	Offset int
 	Body   []byte
+	Append bool
 }
 
 type DeleteObjectInput struct {
@@ -304,6 +305,11 @@ type CreateStreamInput struct {
 	Path                 string
 	ShardCount           int
 	RetentionPeriodHours int
+}
+
+type CheckPathExistsInput struct {
+	DataPlaneInput
+	Path string
 }
 
 type DescribeStreamInput struct {

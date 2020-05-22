@@ -43,6 +43,11 @@ type Container interface {
 	//
 	// Object
 	//
+	// CheckPathExists
+	CheckPathExists(*CheckPathExistsInput, interface{}, chan *Response) (*Request, error)
+
+	// CheckPathExistsSync
+	CheckPathExistsSync(*CheckPathExistsInput) error
 
 	// GetObject
 	GetObject(*GetObjectInput, interface{}, chan *Response) (*Request, error)
