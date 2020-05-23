@@ -293,12 +293,12 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction
 	suite.createProject(projectName)
 	suite.createFunction(function1Name, projectName)
 
-	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
 
 	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, map[string]string{})
+	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, nil)
 
 	// Expect error for existing function
 	suite.Require().Error(err)

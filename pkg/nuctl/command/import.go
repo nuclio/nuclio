@@ -279,6 +279,7 @@ func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string
 }
 
 func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConfig) error {
+	var err error
 	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
 		Meta: projectConfig.Project.Meta,
 	})
@@ -300,16 +301,27 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 		}
 	}
 
-	if functionImportErr := i.importFunctions(projectConfig.Functions,
-		projectConfig.Project.Meta.Name); functionImportErr != nil {
-		return errors.Wrap(functionImportErr, "Failed to import some functions")
+	functionImportErr := i.importFunctions(projectConfig.Functions, projectConfig.Project.Meta.Name)
+	if functionImportErr != nil {
+		i.rootCommandeer.loggerInstance.WarnWith("Unable to import all functions",
+			"functionImportErr", functionImportErr)
+
+		// return this error
+		err = functionImportErr
 	}
 
-	if functionEventImportErr := i.importFunctionEvents(projectConfig.FunctionEvents); functionEventImportErr != nil {
-		return errors.Wrap(functionEventImportErr, "Failed to import some function events")
+	functionEventImportErr := i.importFunctionEvents(projectConfig.FunctionEvents)
+	if functionEventImportErr != nil {
+		i.rootCommandeer.loggerInstance.WarnWith("Unable to import all function events",
+			"functionEventImportErr", functionEventImportErr)
+
+		// return this err only if not previously set
+		if err == nil {
+			err = functionEventImportErr
+		}
 	}
 
-	return nil
+	return err
 }
 
 func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string]*ProjectImportConfig) error {
