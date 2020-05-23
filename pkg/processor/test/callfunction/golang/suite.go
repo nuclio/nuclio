@@ -61,6 +61,7 @@ func (suite *CallFunctionTestSuite) TestCallFunction() {
 		// now deploy the caller function
 		suite.HTTPSuite.DeployFunction(callerDeployOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
+			requestBody := fmt.Sprintf(`{"callee_name": "%s"}`, calleeDeployOptions.FunctionConfig.Meta.Name)
 			bodyVerifier := func(body []byte) {
 				var parsedResponseBody map[string]string
 				err := json.Unmarshal(body, &parsedResponseBody)
@@ -73,8 +74,7 @@ func (suite *CallFunctionTestSuite) TestCallFunction() {
 			}
 
 			testRequest := httpsuite.Request{
-				RequestBody:    fmt.Sprintf(`{"callee_name": "%s"}`,
-					calleeDeployOptions.FunctionConfig.Meta.Name),
+				RequestBody:    requestBody,
 				RequestHeaders: map[string]interface{}{"Content-Type": "application/json"},
 				RequestMethod:  "POST",
 				RequestPort:    deployResult.Port,

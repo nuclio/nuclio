@@ -241,7 +241,6 @@ func (suite *projectExportImportTestSuite) TestImportProjects() {
 	function3EventDisplayName := "test-function-event-3"
 	function4EventDisplayName := "test-function-event-4"
 
-
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function3Name}, nil)
