@@ -213,7 +213,7 @@ func (suite *projectExportImportTestSuite) TestImportProject() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
 
 	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, map[string]string{})
+	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, nil)
 	suite.Require().NoError(err)
 
 	suite.assertProjectImported(projectName)
@@ -230,8 +230,8 @@ func (suite *projectExportImportTestSuite) TestImportProjects() {
 	projectConfigPath := path.Join(suite.GetImportsDir(), "projects.yaml")
 
 	// these names explicitly defined within projects.yaml
-	projectAName := "projectA"
-	projectBName := "projectB"
+	projectAName := "project-a"
+	projectBName := "project-b"
 	function1Name := "test-function-1"
 	function2Name := "test-function-2"
 	function3Name := "test-function-3"

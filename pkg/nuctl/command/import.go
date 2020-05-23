@@ -300,13 +300,12 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 		}
 	}
 
-	functionImportErr := i.importFunctions(projectConfig.Functions, projectConfig.Project.Meta.Name)
-	functionEventImportErr := i.importFunctionEvents(projectConfig.FunctionEvents)
-
-	if functionImportErr != nil {
+	if functionImportErr := i.importFunctions(projectConfig.Functions,
+		projectConfig.Project.Meta.Name); functionImportErr != nil {
 		return errors.Wrap(functionImportErr, "Failed to import some functions")
 	}
-	if functionEventImportErr != nil {
+
+	if functionEventImportErr := i.importFunctionEvents(projectConfig.FunctionEvents); functionEventImportErr != nil {
 		return errors.Wrap(functionEventImportErr, "Failed to import some function events")
 	}
 
@@ -320,8 +319,7 @@ func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string
 	for _, projectConfig := range projectImportConfigs {
 		i.rootCommandeer.loggerInstance.DebugWith("Importing project",
 			"projectName", projectConfig.Project.Meta.Name)
-		err := i.importProject(projectConfig)
-		if err != nil {
+		if err := i.importProject(projectConfig); err != nil {
 			return errors.Wrap(err, "Failed to import project")
 		}
 	}

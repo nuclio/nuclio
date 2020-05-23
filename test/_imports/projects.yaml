@@ -1,4 +1,4 @@
-projectA:
+project-a:
   functionEvents:
     test-function-event-2:
       meta:
@@ -35,7 +35,7 @@ projectA:
           skip-build: "true"
           skip-deploy: "true"
         labels:
-          nuclio.io/project-name: projectA
+          nuclio.io/project-name: project-a
         name: test-function-1
       spec:
         build:
@@ -50,7 +50,7 @@ projectA:
           skip-build: "true"
           skip-deploy: "true"
         labels:
-          nuclio.io/project-name: projectA
+          nuclio.io/project-name: project-a
         name: test-function-2
       spec:
         build:
@@ -61,12 +61,12 @@ projectA:
         runtime: shell
   project:
     meta:
-      name: projectA
+      name: project-a
       namespace: nuclio
     spec:
       description: test-project-a
 
-projectB:
+project-b:
   functionEvents:
     test-function-event-2:
       meta:
@@ -118,7 +118,7 @@ projectB:
           skip-build: "true"
           skip-deploy: "true"
         labels:
-          nuclio.io/project-name: projectB
+          nuclio.io/project-name: project-b
         name: test-function-3
       spec:
         build:
@@ -129,7 +129,7 @@ projectB:
         runtime: shell
   project:
     meta:
-      name: projectB
+      name: project-b
       namespace: nuclio
     spec:
       description: test-project-b
