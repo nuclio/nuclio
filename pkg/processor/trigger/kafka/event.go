@@ -17,6 +17,8 @@ limitations under the License.
 package kafka
 
 import (
+	"time"
+
 	"github.com/Shopify/sarama"
 	"github.com/nuclio/nuclio-sdk-go"
 )
@@ -40,6 +42,34 @@ func (e *Event) GetShardID() int {
 
 func (e *Event) GetPath() string {
 	return e.kafkaMessage.Topic
+}
+
+func (e *Event) GetTimestamp() time.Time {
+	return e.kafkaMessage.Timestamp
+}
+
+func (e *Event) GetHeaders() map[string]interface{} {
+	return e.getHeadersAsMap()
+}
+
+// GetHeader returns the header by name as an interface{}
+func (e *Event) GetHeader(key string) interface{} {
+	return e.getHeadersAsMap()[key]
+}
+
+func (e *Event) getHeadersAsMap() map[string]interface{} {
+	headersMap := map[string]interface{}{}
+
+	if e.kafkaMessage.Headers == nil {
+		return headersMap
+	}
+
+	// iterate over the header records and add each key-value to the map
+	for _, headerRecord := range e.kafkaMessage.Headers {
+		headersMap[string(headerRecord.Key)] = headerRecord.Value
+	}
+
+	return headersMap
 }
 
 func (e *Event) GetOffset() int {

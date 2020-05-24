@@ -17,10 +17,12 @@
             return defaultConfig.mode === 'staging' || !strict && defaultConfig.mode === 'demo';
         },
         nuclio: {
+            defaultFunctionConfig: {},
             externalIPAddress: '',
             imageNamePrefixTemplate: '',
             ingressHostTemplate: '',
             namespace: '',
+            platformKind: '',
             scaleToZero: {
                 inactivityWindowPresets: null,
                 mode: 'disabled',

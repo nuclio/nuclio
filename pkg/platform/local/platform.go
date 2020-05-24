@@ -566,12 +566,13 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 
 	// run the docker image
 	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image, &dockerclient.RunOptions{
-		ContainerName: p.getContainerNameByCreateFunctionOptions(createFunctionOptions),
+		ContainerName: p.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
 		Ports:         map[int]int{functionHTTPPort: 8080},
 		Env:           envMap,
 		Labels:        labels,
 		Volumes:       volumesMap,
 		Network:       functionPlatformConfiguration.Network,
+		RestartPolicy: functionPlatformConfiguration.RestartPolicy,
 	})
 
 	if err != nil {
@@ -680,7 +681,7 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 	return freeLocalPort, nil
 }
 
-func (p *Platform) getContainerNameByCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) string {
+func (p *Platform) GetContainerNameByCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) string {
 	return fmt.Sprintf("nuclio-%s-%s",
 		createFunctionOptions.FunctionConfig.Meta.Namespace,
 		createFunctionOptions.FunctionConfig.Meta.Name)
@@ -717,7 +718,7 @@ func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.Crea
 	createFunctionOptions.Logger.InfoWith("Cleaning up before deployment")
 
 	getContainerOptions := &dockerclient.GetContainerOptions{
-		Name:    p.getContainerNameByCreateFunctionOptions(createFunctionOptions),
+		Name:    p.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
 		Stopped: true,
 	}
 
@@ -782,7 +783,7 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 			}
 
 			// get function container id
-			containerID := p.getContainerNameByCreateFunctionOptions(&platform.CreateFunctionOptions{
+			containerID := p.GetContainerNameByCreateFunctionOptions(&platform.CreateFunctionOptions{
 				FunctionConfig: functionconfig.Config{
 					Meta: functionconfig.Meta{
 						Name:      functionName,
