@@ -50,7 +50,7 @@ func ReadFromInOrStdin(r io.Reader) ([]byte, error) {
 	case io.Reader:
 		return ioutil.ReadAll(r)
 	}
-	return nil, errors.New("Failed to read input data")
+	return nil, nil
 }
 
 // OpenFile validates filepath existence and returns a file (it is the caller's responsibility to close it)
