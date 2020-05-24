@@ -176,7 +176,7 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 	suite.outputBuffer.Reset()
 
 	// export the project
-	err := suite.ExecuteNuctlAndWait([]string{"export", "proj", projectName, "--verbose"}, map[string]string{}, false)
+	err := suite.ExecuteNuctlAndWait([]string{"export", "proj", projectName, "--verbose"}, nil, false)
 	suite.Require().NoError(err)
 
 	exportedProjectConfig := &command.ProjectImportConfig{}
@@ -249,7 +249,7 @@ func (suite *projectExportImportTestSuite) TestImportProjects() {
 	defer suite.ExecuteNuctl([]string{"delete", "proj", projectBName}, nil)
 
 	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "proj", projectConfigPath, "--verbose"}, map[string]string{})
+	err := suite.ExecuteNuctl([]string{"import", "proj", projectConfigPath, "--verbose"}, nil)
 	suite.Require().NoError(err)
 
 	suite.assertProjectImported(projectAName)
@@ -267,6 +267,14 @@ func (suite *projectExportImportTestSuite) TestImportProjects() {
 	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil)
 	defer suite.ExecuteNuctl([]string{"delete", "fe", function3EventName}, nil)
 	defer suite.ExecuteNuctl([]string{"delete", "fe", function4EventName}, nil)
+}
+
+func (suite *projectExportImportTestSuite) TestFailToImportProjectNoInput() {
+
+	// import function without input
+	err := suite.ExecuteNuctl([]string{"import", "project", "--verbose"}, nil)
+	suite.Require().Error(err)
+
 }
 
 func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction() {
@@ -367,7 +375,7 @@ func (suite *projectExportImportTestSuite) createProject(projectName string) {
 	suite.Require().NoError(err)
 
 	// wait until able to get the project
-	err = suite.ExecuteNuctlAndWait([]string{"get", "project", projectName}, map[string]string{}, false)
+	err = suite.ExecuteNuctlAndWait([]string{"get", "project", projectName}, nil, false)
 	suite.Require().NoError(err)
 }
 

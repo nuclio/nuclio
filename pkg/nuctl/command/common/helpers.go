@@ -47,10 +47,10 @@ func ReadFromInOrStdin(r io.Reader) ([]byte, error) {
 		if info.Mode()&os.ModeNamedPipe != 0 || info.Mode().IsRegular() {
 			return ioutil.ReadAll(r)
 		}
-	default:
+	case io.Reader:
 		return ioutil.ReadAll(r)
 	}
-	return nil, nil
+	return nil, errors.New("Failed to read input data")
 }
 
 // OpenFile validates filepath existence and returns a file (it is the caller's responsibility to close it)
@@ -67,7 +67,7 @@ func OpenFile(filepath string) (*os.File, error) {
 	}
 	file, err := os.Open(filepath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to open file %s", filepath)
+		return nil, errors.Wrapf(err, "Failed to open file `%s`", filepath)
 	}
 	return file, err
 }

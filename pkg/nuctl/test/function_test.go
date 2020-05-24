@@ -858,6 +858,14 @@ type functionExportImportTestSuite struct {
 	Suite
 }
 
+func (suite *functionExportImportTestSuite) TestFailToImportFunctionNoInput() {
+
+	// import function without input
+	err := suite.ExecuteNuctl([]string{"import", "fu", "--verbose"}, nil)
+	suite.Require().Error(err)
+
+}
+
 func (suite *functionExportImportTestSuite) TestImportMultiFunctions() {
 	functionsConfigPath := path.Join(suite.GetImportsDir(), "functions.yaml")
 
@@ -869,7 +877,7 @@ func (suite *functionExportImportTestSuite) TestImportMultiFunctions() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
 
 	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "fu", functionsConfigPath, "--verbose"}, map[string]string{})
+	err := suite.ExecuteNuctl([]string{"import", "fu", functionsConfigPath, "--verbose"}, nil)
 	suite.Require().NoError(err)
 
 	suite.assertFunctionImported(function1Name, true)
@@ -885,7 +893,7 @@ func (suite *functionExportImportTestSuite) TestImportFunction() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, map[string]string{})
+	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil)
 	suite.Require().NoError(err)
 
 	suite.assertFunctionImported(functionName, true)
@@ -986,7 +994,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.outputBuffer.Reset()
 
 	// export the function
-	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, map[string]string{}, false)
+	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	exportedFunctionConfig := functionconfig.Config{}
@@ -1038,7 +1046,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// deploy imported function
-	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"}, map[string]string{})
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"}, nil)
 	suite.Require().NoError(err)
 
 	// try a few times to invoke, until it succeeds
@@ -1103,18 +1111,18 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Require().NoError(err)
 
 	// wait until function is deleted
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{}, true)
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, true)
 	suite.Require().NoError(err)
 
 	// import the function
-	err = suite.ExecuteNuctl([]string{"import", "fu", exportTempFile.Name()}, map[string]string{})
+	err = suite.ExecuteNuctl([]string{"import", "fu", exportTempFile.Name()}, nil)
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// wait until able to get the function
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{}, false)
+	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	// try to invoke, and ensure it fails - because it is imported and not deployed
@@ -1128,7 +1136,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Require().NoError(err)
 
 	// deploy imported function
-	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"}, map[string]string{})
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"}, nil)
 
 	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
 }

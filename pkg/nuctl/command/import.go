@@ -51,9 +51,12 @@ func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 			return nil, errors.Wrap(err, "Failed to open file")
 		}
 		i.cmd.SetIn(file)
+
+		// close file after reading from it
 		defer file.Close() // nolint: errcheck
 	}
 
+	// read from file if given, fallback to stdin
 	return common.ReadFromInOrStdin(i.cmd.InOrStdin())
 }
 
@@ -140,6 +143,12 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 				return errors.Wrap(err, "Failed to read function data")
 			}
 
+			if functionBody == nil || len(functionBody) == 0 {
+				return errors.New(`Failed to resolve function body.
+Make sure to provide its content via STDIN / file path.
+Use --help for more information`)
+			}
+
 			unmarshalFunc, err := commandeer.getUnmarshalFunc(functionBody)
 			if err != nil {
 				return errors.Wrap(err, "Failed identifying input format")
@@ -215,6 +224,12 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 			projectBody, err := commandeer.resolveInputData(args)
 			if err != nil {
 				return errors.Wrap(err, "Failed to read function data")
+			}
+
+			if projectBody == nil || len(projectBody) == 0 {
+				return errors.New(`Failed to resolve project body.
+Make sure to provide its content via STDIN / file path.
+Use --help for more information`)
 			}
 
 			unmarshalFunc, err := commandeer.getUnmarshalFunc(projectBody)
