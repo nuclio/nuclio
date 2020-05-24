@@ -143,7 +143,7 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 				return errors.Wrap(err, "Failed to read function data")
 			}
 
-			if functionBody == nil || len(functionBody) == 0 {
+			if len(functionBody) == 0 {
 				return errors.New(`Failed to resolve function body.
 Make sure to provide its content via STDIN / file path.
 Use --help for more information`)
@@ -226,7 +226,7 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 				return errors.Wrap(err, "Failed to read function data")
 			}
 
-			if projectBody == nil || len(projectBody) == 0 {
+			if len(projectBody) == 0 {
 				return errors.New(`Failed to resolve project body.
 Make sure to provide its content via STDIN / file path.
 Use --help for more information`)
