@@ -2,10 +2,9 @@ package command
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"os"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/ghodss/yaml"
@@ -43,11 +42,22 @@ func newImportCommandeer(rootCommandeer *RootCommandeer) *importCommandeer {
 	return commandeer
 }
 
-func (i *importCommandeer) readFromStdinOrFile(args []string) ([]byte, error) {
+func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 	if len(args) >= 1 {
-		return ioutil.ReadFile(args[0])
+		filename := args[0]
+		i.rootCommandeer.loggerInstance.DebugWith("Reading from a file", "filename", filename)
+		file, err := common.OpenFile(filename)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to open file")
+		}
+		i.cmd.SetIn(file)
+
+		// close file after reading from it
+		defer file.Close() // nolint: errcheck
 	}
-	return ioutil.ReadAll(os.Stdin)
+
+	// read from file if given, fallback to stdin
+	return common.ReadFromInOrStdin(i.cmd.InOrStdin())
 }
 
 func (i *importCommandeer) getUnmarshalFunc(bytes []byte) (func(data []byte, v interface{}) error, error) {
@@ -97,6 +107,7 @@ func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config,
 func (i *importCommandeer) importFunctions(functionConfigs map[string]*functionconfig.Config, project string) error {
 	var errGroup errgroup.Group
 
+	i.rootCommandeer.loggerInstance.DebugWith("Importing functions", "functions", functionConfigs)
 	for _, functionConfig := range functionConfigs {
 		functionConfig := functionConfig // https://golang.org/doc/faq#closures_and_goroutines
 		errGroup.Go(func() error {
@@ -109,7 +120,6 @@ func (i *importCommandeer) importFunctions(functionConfigs map[string]*functionc
 
 type importFunctionCommandeer struct {
 	*importCommandeer
-	functionConfigs map[string]*functionconfig.Config
 }
 
 func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunctionCommandeer {
@@ -122,34 +132,34 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 		Aliases: []string{"fu"},
 		Short:   "Import function, and by default don't deploy it",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			funcBytes, err := commandeer.readFromStdinOrFile(args)
-			if err != nil {
-				return errors.Wrap(err, "Failed to read function data")
-			}
 
 			// initialize root
 			if err := importCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			unmarshalFunc, err := commandeer.getUnmarshalFunc(funcBytes)
+			functionBody, err := commandeer.resolveInputData(args)
+			if err != nil {
+				return errors.Wrap(err, "Failed to read function data")
+			}
+
+			if len(functionBody) == 0 {
+				return errors.New(`Failed to resolve function body.
+Make sure to provide its content via STDIN / file path.
+Use --help for more information`)
+			}
+
+			unmarshalFunc, err := commandeer.getUnmarshalFunc(functionBody)
 			if err != nil {
 				return errors.Wrap(err, "Failed identifying input format")
 			}
 
-			// First try parsing multiple functions
-			err = commandeer.parseMultipleFunctionsImport(funcBytes, commandeer.functionConfigs, unmarshalFunc)
+			functionConfigs, err := commandeer.resolveFunctionImportConfigs(functionBody, unmarshalFunc)
 			if err != nil {
-
-				// If that fails, try parsing a single function
-				commandeer.functionConfigs = map[string]*functionconfig.Config{}
-				err = commandeer.parseFunctionImport(funcBytes, commandeer.functionConfigs, unmarshalFunc)
-				if err != nil {
-					return errors.Wrap(err, "Failed to parse function data")
-				}
+				return errors.Wrap(err, "Failed to resolve function import configs")
 			}
 
-			return commandeer.importFunctions(commandeer.functionConfigs, "")
+			return commandeer.importFunctions(functionConfigs, "")
 		},
 	}
 
@@ -158,39 +168,41 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 	return commandeer
 }
 
-func (i *importFunctionCommandeer) parseFunctionImport(funcBytes []byte,
-	functionConfigs map[string]*functionconfig.Config,
-	unmarshalFunc func(data []byte, v interface{}) error) error {
+func (i *importFunctionCommandeer) resolveFunctionImportConfigs(functionBody []byte,
+	unmarshalFunc func(data []byte, v interface{}) error) (map[string]*functionconfig.Config, error) {
 
+	// initialize
+	functionConfigs := map[string]*functionconfig.Config{}
+
+	// try single
 	functionConfig := &functionconfig.Config{}
-	if err := unmarshalFunc(funcBytes, functionConfig); err != nil {
-		return errors.Wrap(err, "Failed encoding function import config")
+	if err := unmarshalFunc(functionBody, &functionConfig); err != nil {
+		return nil, errors.Wrap(err, "Failed to parse single project config")
 	}
 
-	functionConfigs[functionConfig.Meta.Name] = functionConfig
+	// no match, try multi
+	if functionConfig.Meta.Name == "" {
+		if err := unmarshalFunc(functionBody, &functionConfigs); err != nil {
+			return nil, errors.Wrap(err, "Failed to parse multi projects data")
+		}
 
-	return nil
-}
+	} else {
 
-func (i *importFunctionCommandeer) parseMultipleFunctionsImport(funcBytes []byte,
-	functionConfigs map[string]*functionconfig.Config,
-	unmarshalFunc func(data []byte, v interface{}) error) error {
-	if err := unmarshalFunc(funcBytes, functionConfigs); err != nil {
-		return errors.Wrap(err, "Failed encoding function import config")
+		// successfully parsed a single-project
+		functionConfigs[functionConfig.Meta.Name] = functionConfig
 	}
 
-	return nil
+	return functionConfigs, nil
 }
 
 type ProjectImportConfig struct {
-	Project        platform.ProjectConfig
+	Project        *platform.ProjectConfig
 	Functions      map[string]*functionconfig.Config
 	FunctionEvents map[string]*platform.FunctionEventConfig
 }
 
 type importProjectCommandeer struct {
 	*importCommandeer
-	projectImportConfigs map[string]*ProjectImportConfig
 }
 
 func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProjectCommandeer {
@@ -203,65 +215,40 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 		Aliases: []string{"proj"},
 		Short:   "Import project and all its functions and functionEvents",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			projBytes, err := commandeer.readFromStdinOrFile(args)
-			if err != nil {
-				return errors.Wrap(err, "Failed to read function data")
-			}
 
 			// initialize root
 			if err := importCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			unmarshalFunc, err := commandeer.getUnmarshalFunc(projBytes)
+			projectBody, err := commandeer.resolveInputData(args)
+			if err != nil {
+				return errors.Wrap(err, "Failed to read function data")
+			}
+
+			if len(projectBody) == 0 {
+				return errors.New(`Failed to resolve project body.
+Make sure to provide its content via STDIN / file path.
+Use --help for more information`)
+			}
+
+			unmarshalFunc, err := commandeer.getUnmarshalFunc(projectBody)
 			if err != nil {
 				return errors.Wrap(err, "Failed identifying input format")
 			}
 
-			// First try parsing multiple projects
-			err = commandeer.parseMultipleProjectsImport(projBytes, commandeer.projectImportConfigs, unmarshalFunc)
+			projectImportConfigs, err := commandeer.resolveProjectImportConfigs(projectBody, unmarshalFunc)
 			if err != nil {
-
-				// If that fails, try parsing a single project
-				commandeer.projectImportConfigs = map[string]*ProjectImportConfig{}
-				err = commandeer.parseProjectImport(projBytes, commandeer.projectImportConfigs, unmarshalFunc)
-
-				if err != nil {
-					return errors.Wrap(err, "Failed to parse function data")
-				}
+				return errors.Wrap(err, "Failed to resolve project import configs")
 			}
 
-			return commandeer.importProjects(commandeer.projectImportConfigs)
+			return commandeer.importProjects(projectImportConfigs)
 		},
 	}
 
 	commandeer.cmd = cmd
 
 	return commandeer
-}
-
-func (i *importProjectCommandeer) parseProjectImport(projBytes []byte,
-	projectConfigs map[string]*ProjectImportConfig,
-	unmarshalFunc func(data []byte, v interface{}) error) error {
-
-	projectConfig := &ProjectImportConfig{}
-	if err := unmarshalFunc(projBytes, projectConfig); err != nil {
-		return errors.Wrap(err, "Failed encoding function import config")
-	}
-
-	projectConfigs[projectConfig.Project.Meta.Name] = projectConfig
-
-	return nil
-}
-
-func (i *importProjectCommandeer) parseMultipleProjectsImport(projBytes []byte,
-	projectConfigs map[string]*ProjectImportConfig,
-	unmarshalFunc func(data []byte, v interface{}) error) error {
-	if err := unmarshalFunc(projBytes, projectConfigs); err != nil {
-		return errors.Wrap(err, "Failed encoding function import config")
-	}
-
-	return nil
 }
 
 func (i *importProjectCommandeer) importFunctionEvent(functionEvent *platform.FunctionEventConfig) error {
@@ -294,6 +281,8 @@ func (i *importProjectCommandeer) importFunctionEvent(functionEvent *platform.Fu
 func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string]*platform.FunctionEventConfig) error {
 	var errGroup errgroup.Group
 
+	i.rootCommandeer.loggerInstance.DebugWith("Importing function events",
+		"functionEvents", functionEvents)
 	for _, functionEventConfig := range functionEvents {
 		functionEventConfig := functionEventConfig // https://golang.org/doc/faq#closures_and_goroutines
 		errGroup.Go(func() error {
@@ -305,6 +294,7 @@ func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string
 }
 
 func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConfig) error {
+	var err error
 	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
 		Meta: projectConfig.Project.Meta,
 	})
@@ -327,26 +317,65 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 	}
 
 	functionImportErr := i.importFunctions(projectConfig.Functions, projectConfig.Project.Meta.Name)
-	functionEventImportErr := i.importFunctionEvents(projectConfig.FunctionEvents)
-
 	if functionImportErr != nil {
-		return errors.Wrap(functionImportErr, "Failed to import some functions")
-	}
-	if functionEventImportErr != nil {
-		return errors.Wrap(functionImportErr, "Failed to import some function events")
+		i.rootCommandeer.loggerInstance.WarnWith("Unable to import all functions",
+			"functionImportErr", functionImportErr)
+
+		// return this error
+		err = functionImportErr
 	}
 
-	return nil
+	functionEventImportErr := i.importFunctionEvents(projectConfig.FunctionEvents)
+	if functionEventImportErr != nil {
+		i.rootCommandeer.loggerInstance.WarnWith("Unable to import all function events",
+			"functionEventImportErr", functionEventImportErr)
+
+		// return this err only if not previously set
+		if err == nil {
+			err = functionEventImportErr
+		}
+	}
+
+	return err
 }
 
 func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string]*ProjectImportConfig) error {
-	var g errgroup.Group
+	i.rootCommandeer.loggerInstance.DebugWith("Importing projects", "projects", projectImportConfigs)
 
+	// TODO: parallel this with errorGroup, mutex is required due to multi map writers
 	for _, projectConfig := range projectImportConfigs {
-		g.Go(func() error {
-			return i.importProject(projectConfig)
-		})
+		i.rootCommandeer.loggerInstance.DebugWith("Importing project",
+			"projectName", projectConfig.Project.Meta.Name)
+		if err := i.importProject(projectConfig); err != nil {
+			return errors.Wrap(err, "Failed to import project")
+		}
+	}
+	return nil
+}
+
+func (i *importProjectCommandeer) resolveProjectImportConfigs(projectBody []byte,
+	unmarshalFunc func(data []byte, v interface{}) error) (map[string]*ProjectImportConfig, error) {
+
+	// initialize
+	projectImportConfigs := map[string]*ProjectImportConfig{}
+
+	// try single
+	projectImportConfig := ProjectImportConfig{}
+	if err := unmarshalFunc(projectBody, &projectImportConfig); err != nil {
+		return nil, errors.Wrap(err, "Failed to parse project config (is project body malformed?)")
 	}
 
-	return g.Wait()
+	// no match, try multi
+	if projectImportConfig.Project == nil {
+		if err := unmarshalFunc(projectBody, &projectImportConfigs); err != nil {
+			return nil, errors.Wrap(err, "Failed to parse project configs (is project body malformed?)")
+		}
+
+	} else {
+
+		// successfully parsed a single-project
+		projectImportConfigs[projectImportConfig.Project.Meta.Name] = &projectImportConfig
+	}
+
+	return projectImportConfigs, nil
 }

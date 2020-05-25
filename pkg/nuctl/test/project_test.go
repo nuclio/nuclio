@@ -176,7 +176,7 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 	suite.outputBuffer.Reset()
 
 	// export the project
-	err := suite.ExecuteNuctlAndWait([]string{"export", "proj", projectName, "--verbose"}, map[string]string{}, false)
+	err := suite.ExecuteNuctlAndWait([]string{"export", "proj", projectName, "--verbose"}, nil, false)
 	suite.Require().NoError(err)
 
 	exportedProjectConfig := &command.ProjectImportConfig{}
@@ -213,7 +213,7 @@ func (suite *projectExportImportTestSuite) TestImportProject() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
 
 	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, map[string]string{})
+	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, nil)
 	suite.Require().NoError(err)
 
 	suite.assertProjectImported(projectName)
@@ -224,6 +224,57 @@ func (suite *projectExportImportTestSuite) TestImportProject() {
 
 	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil)
 	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil)
+}
+
+func (suite *projectExportImportTestSuite) TestImportProjects() {
+	projectConfigPath := path.Join(suite.GetImportsDir(), "projects.yaml")
+
+	// these names explicitly defined within projects.yaml
+	projectAName := "project-a"
+	projectBName := "project-b"
+	function1Name := "test-function-1"
+	function2Name := "test-function-2"
+	function3Name := "test-function-3"
+	function4Name := "test-function-4"
+	function1EventDisplayName := "test-function-event-1"
+	function2EventDisplayName := "test-function-event-2"
+	function3EventDisplayName := "test-function-event-3"
+	function4EventDisplayName := "test-function-event-4"
+
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function3Name}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function4Name}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectAName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectBName}, nil)
+
+	// import the project
+	err := suite.ExecuteNuctl([]string{"import", "proj", projectConfigPath, "--verbose"}, nil)
+	suite.Require().NoError(err)
+
+	suite.assertProjectImported(projectAName)
+	suite.assertProjectImported(projectBName)
+	suite.assertFunctionImported(function1Name, true)
+	suite.assertFunctionImported(function2Name, true)
+	suite.assertFunctionImported(function3Name, true)
+	suite.assertFunctionImported(function4Name, true)
+	function1EventName := suite.assertFunctionEventExistenceByFunction(function1EventDisplayName, function1Name)
+	function2EventName := suite.assertFunctionEventExistenceByFunction(function2EventDisplayName, function2Name)
+	function3EventName := suite.assertFunctionEventExistenceByFunction(function3EventDisplayName, function3Name)
+	function4EventName := suite.assertFunctionEventExistenceByFunction(function4EventDisplayName, function4Name)
+
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function3EventName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function4EventName}, nil)
+}
+
+func (suite *projectExportImportTestSuite) TestFailToImportProjectNoInput() {
+
+	// import function without input
+	err := suite.ExecuteNuctl([]string{"import", "project", "--verbose"}, nil)
+	suite.Require().Error(err)
+
 }
 
 func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction() {
@@ -249,12 +300,12 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction
 	suite.createProject(projectName)
 	suite.createFunction(function1Name, projectName)
 
-	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
 
 	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, map[string]string{})
+	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, nil)
 
 	// Expect error for existing function
 	suite.Require().Error(err)
@@ -324,7 +375,7 @@ func (suite *projectExportImportTestSuite) createProject(projectName string) {
 	suite.Require().NoError(err)
 
 	// wait until able to get the project
-	err = suite.ExecuteNuctlAndWait([]string{"get", "project", projectName}, map[string]string{}, false)
+	err = suite.ExecuteNuctlAndWait([]string{"get", "project", projectName}, nil, false)
 	suite.Require().NoError(err)
 }
 
@@ -376,31 +427,6 @@ func (suite *projectExportImportTestSuite) assertProjectImported(projectName str
 	suite.Require().NoError(err)
 
 	suite.Assert().Equal(projectName, project.Meta.Name)
-}
-
-func (suite *projectExportImportTestSuite) assertFunctionImported(functionName string, imported bool) {
-
-	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
-	err := suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{
-		"output": "yaml",
-	}, false)
-	suite.Require().NoError(err)
-
-	function := functionconfig.Config{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &function)
-	suite.Require().NoError(err)
-
-	suite.Assert().Equal(functionName, function.Meta.Name)
-	if imported {
-
-		// get imported functions
-		err = suite.ExecuteNuctl([]string{"get", "function", functionName}, nil)
-		suite.Require().NoError(err)
-
-		// ensure function state is imported
-		suite.findPatternsInOutput([]string{"imported"}, nil)
-	}
 }
 
 func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunction(functionEventDisplayName,

@@ -29,9 +29,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
 	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/ghodss/yaml"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -49,6 +51,7 @@ type Suite struct {
 	dockerClient        dockerclient.Client
 	shellClient         *cmdrunner.ShellRunner
 	outputBuffer        bytes.Buffer
+	inputBuffer         bytes.Buffer
 	defaultWaitDuration time.Duration
 	defaultWaitInterval time.Duration
 }
@@ -85,6 +88,11 @@ func (suite *Suite) SetupSuite() {
 	}
 }
 
+func (suite *Suite) SetupTest() {
+	suite.outputBuffer.Reset()
+	suite.inputBuffer.Reset()
+}
+
 func (suite *Suite) TearDownSuite() {
 
 	// restore platform type
@@ -100,6 +108,9 @@ func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 
 	// set the output so we can capture it (but also output to stdout)
 	suite.rootCommandeer.GetCmd().SetOut(io.MultiWriter(os.Stdout, &suite.outputBuffer))
+
+	// set the input so we can write to stdin
+	suite.rootCommandeer.GetCmd().SetIn(&suite.inputBuffer)
 
 	// since args[0] is the executable name, just shove something there
 	argsStringSlice := []string{
@@ -189,5 +200,31 @@ func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMus
 	// all patterns that must not exist must not exist
 	for _, foundPattern := range foundPatternsMustNotExist {
 		suite.Require().False(foundPattern)
+	}
+}
+
+func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
+
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
+	err := suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{
+		"output": "yaml",
+	}, false)
+	suite.Require().NoError(err)
+
+	function := functionconfig.Config{}
+	functionBodyBytes := suite.outputBuffer.Bytes()
+	err = yaml.Unmarshal(functionBodyBytes, &function)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal(functionName, function.Meta.Name)
+	if imported {
+
+		// get imported functions
+		err = suite.ExecuteNuctl([]string{"get", "function", functionName}, nil)
+		suite.Require().NoError(err)
+
+		// ensure function state is imported
+		suite.findPatternsInOutput([]string{"imported"}, nil)
 	}
 }

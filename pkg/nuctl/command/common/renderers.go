@@ -33,7 +33,7 @@ func RenderFunctions(logger logger.Logger,
 	for _, function := range functions {
 		go func(function platform.Function) {
 			if err := function.Initialize(nil); err != nil {
-				logger.WarnWith("Failed to initialize function", "err", err.Error())
+				logger.DebugWith("Failed to initialize function", "err", err.Error())
 			}
 			waitGroup.Done()
 		}(function)

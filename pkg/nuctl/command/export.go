@@ -162,7 +162,7 @@ func newExportProjectCommandeer(exportCommandeer *exportCommandeer) *exportProje
 
 			if len(projects) == 0 {
 				if commandeer.getProjectsOptions.Meta.Name != "" {
-					return nuclio.NewErrNotFound("No functions found")
+					return nuclio.NewErrNotFound("Project not found")
 				}
 				cmd.OutOrStdout().Write([]byte("No projects found")) // nolint: errcheck
 				return nil
@@ -214,7 +214,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(projec
 
 	for _, function := range functions {
 		if err := function.Initialize(nil); err != nil {
-			e.rootCommandeer.loggerInstance.WarnWith("Failed to initialize function", "err", err.Error())
+			e.rootCommandeer.loggerInstance.DebugWith("Failed to initialize function", "err", err.Error())
 		}
 		functionConfig := function.GetConfig()
 

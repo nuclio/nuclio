@@ -52,7 +52,7 @@ func (suite *TestSuite) TestRunFunctionContainerWithCustomRestartPolicy() {
 	functionContainerMaximumRetryCount := 1
 	functionPath := []string{suite.GetTestFunctionsDir(), "common", "context-init-fail", "python", "contextinitfail.py"}
 	createFunctionOptions := suite.TestSuite.GetDeployOptions("restartable", filepath.Join(functionPath...))
-	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 30
+	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
 	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
 
 	// ensure function is restartable
@@ -61,9 +61,9 @@ func (suite *TestSuite) TestRunFunctionContainerWithCustomRestartPolicy() {
 		Name:              dockerclient.RestartPolicyNameOnFailure,
 		MaximumRetryCount: functionContainerMaximumRetryCount,
 	}
+	containerName := suite.Platform.(*local.Platform).GetContainerNameByCreateFunctionOptions(createFunctionOptions)
 	suite.DeployFunctionExpectError(createFunctionOptions,
 		func(deployResult *platform.CreateFunctionResult) bool {
-			containerName := deployResult.ContainerID
 
 			// sample container events
 			restartEventsUntil := time.Now()

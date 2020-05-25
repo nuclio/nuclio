@@ -64,7 +64,7 @@ func (ap *AbstractProject) CreateAndWait() error {
 		ProjectConfig: *ap.GetConfig(),
 	})
 	if err != nil {
-		return nuclio.WrapErrInternalServerError(err)
+		return errors.Wrap(err, "Failed to create project")
 	}
 
 	err = common.RetryUntilSuccessful(ProjectGetUponCreationTimeout, ProjectGetUponCreationRetryInterval, func() bool {

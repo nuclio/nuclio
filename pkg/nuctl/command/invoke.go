@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/mgutz/ansi"
@@ -55,6 +56,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 		Use:   "invoke function-name",
 		Short: "Invoke a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var err error
 
 			// if we got positional arguments
 			if len(args) != 1 {
@@ -68,7 +70,12 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 
 			commandeer.createFunctionInvocationOptions.Name = args[0]
 			commandeer.createFunctionInvocationOptions.Namespace = rootCommandeer.namespace
-			commandeer.createFunctionInvocationOptions.Body = []byte(commandeer.body)
+
+			// try parse body input from flag
+			commandeer.createFunctionInvocationOptions.Body, err = commandeer.resolveBody()
+			if err != nil {
+				return errors.Wrap(err, "Failed to resolve body")
+			}
 			commandeer.createFunctionInvocationOptions.Headers = http.Header{}
 
 			// set external IP, if given
@@ -154,6 +161,17 @@ func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *p
 	}
 
 	return nil
+}
+
+func (i *invokeCommandeer) resolveBody() ([]byte, error) {
+
+	// try resolve body from flag
+	if i.body != "" {
+		i.cmd.SetIn(bytes.NewBufferString(i.body))
+	}
+
+	// fallback to stdin
+	return nuctlcommon.ReadFromInOrStdin(i.cmd.InOrStdin())
 }
 
 func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) error {
