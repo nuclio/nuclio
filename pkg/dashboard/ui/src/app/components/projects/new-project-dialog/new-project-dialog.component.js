@@ -10,9 +10,8 @@
             controller: IgzNewProjectDialogController
         });
 
-    function IgzNewProjectDialogController($scope, $i18next, i18next, lodash, moment, ConfigService, DialogsService,
-                                           EventHelperService, FormValidationService, NuclioProjectsDataService,
-                                           ValidationService) {
+    function IgzNewProjectDialogController($i18next, $scope, i18next, lodash, moment, ConfigService, EventHelperService,
+                                           FormValidationService, NuclioProjectsDataService, ValidationService) {
         var ctrl = this;
         var lng = i18next.language;
 
