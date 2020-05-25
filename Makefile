@@ -379,7 +379,7 @@ lint: modules
 
 .PHONY: test-undockerized
 test-undockerized: ensure-gopath
-	go test -v --parallel 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./cmd/... ./pkg/...
+	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./cmd/... ./pkg/...
 
 .PHONY: test
 test: ensure-gopath build-base
