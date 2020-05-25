@@ -360,21 +360,21 @@ func (i *importProjectCommandeer) resolveProjectImportConfigs(projectBody []byte
 	projectImportConfigs := map[string]*ProjectImportConfig{}
 
 	// try single
-	projectImportConfig := &ProjectImportConfig{}
+	projectImportConfig := ProjectImportConfig{}
 	if err := unmarshalFunc(projectBody, &projectImportConfig); err != nil {
-		return nil, errors.Wrap(err, "Failed to parse single project config")
+		return nil, errors.Wrap(err, "Failed to parse project config (is project body malformed?)")
 	}
 
 	// no match, try multi
 	if projectImportConfig.Project == nil {
 		if err := unmarshalFunc(projectBody, &projectImportConfigs); err != nil {
-			return nil, errors.Wrap(err, "Failed to parse multi projects data")
+			return nil, errors.Wrap(err, "Failed to parse project configs (is project body malformed?)")
 		}
 
 	} else {
 
 		// successfully parsed a single-project
-		projectImportConfigs[projectImportConfig.Project.Meta.Name] = projectImportConfig
+		projectImportConfigs[projectImportConfig.Project.Meta.Name] = &projectImportConfig
 	}
 
 	return projectImportConfigs, nil
