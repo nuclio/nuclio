@@ -546,6 +546,141 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
+func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
+	randomString := xid.New().String()
+	uniqueSuffix := "-" + xid.New().String()
+	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
+	functionConfig := functionconfig.Config{}
+	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	suite.Require().NoError(err)
+	err = yaml.Unmarshal(functionBody, &functionConfig)
+	suite.Require().NoError(err)
+	functionName := functionConfig.Meta.Name + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName + uniqueSuffix
+
+	err = suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"path":  path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
+			"image": imageName,
+		})
+
+	suite.Require().NoError(err)
+
+	//  make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use deploy with the image we just created
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
+		map[string]string{
+			"run-image": imageName,
+			"file":      path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python", "function-different-spec.yaml"),
+		})
+
+	suite.Require().NoError(err)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
+
+	// export the function
+	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
+	suite.Require().NoError(err)
+
+	deployedFunctionConfig := functionconfig.Config{}
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &deployedFunctionConfig)
+	suite.Require().NoError(err)
+
+	// assert data from different spec and not original spec
+	suite.Assert().Equal(2, *deployedFunctionConfig.Spec.MinReplicas)
+	suite.Assert().Equal(6, *deployedFunctionConfig.Spec.MaxReplicas)
+	suite.Assert().Equal(0, len(deployedFunctionConfig.Spec.Triggers))
+
+	// try a few times to invoke, until it succeeds
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
+			"via":    "external-ip",
+		},
+		false)
+	suite.Require().NoError(err)
+
+	// check that invoke printed the value
+	suite.Require().Contains(suite.outputBuffer.String(), randomString)
+}
+
+func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenArgs() {
+	randomString := xid.New().String()
+	uniqueSuffix := "-" + xid.New().String()
+	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
+	functionConfig := functionconfig.Config{}
+	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	suite.Require().NoError(err)
+	err = yaml.Unmarshal(functionBody, &functionConfig)
+	suite.Require().NoError(err)
+	functionName := functionConfig.Meta.Name + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName + uniqueSuffix
+
+	minReplicas := 3
+
+	err = suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"path":  path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
+			"image": imageName,
+		})
+
+	suite.Require().NoError(err)
+
+	//  make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use deploy with the image we just created
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
+		map[string]string{
+			"run-image": imageName,
+			"file":      path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python", "function-different-spec.yaml"),
+			"min-replicas": fmt.Sprintf("%d", minReplicas),
+		})
+
+	suite.Require().NoError(err)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
+
+	// export the function
+	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
+	suite.Require().NoError(err)
+
+	deployedFunctionConfig := functionconfig.Config{}
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &deployedFunctionConfig)
+	suite.Require().NoError(err)
+
+	// assert data from different spec and not original spec
+	suite.Assert().Equal(6, *deployedFunctionConfig.Spec.MaxReplicas)
+	suite.Assert().Equal(0, len(deployedFunctionConfig.Spec.Triggers))
+
+	// assert from args and not from either spec
+	suite.Assert().Equal(minReplicas, *deployedFunctionConfig.Spec.MinReplicas)
+
+	// try a few times to invoke, until it succeeds
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
+			"via":    "external-ip",
+		},
+		false)
+	suite.Require().NoError(err)
+
+	// check that invoke printed the value
+	suite.Require().Contains(suite.outputBuffer.String(), randomString)
+}
+
 // Expecting the Code Entry Type to be modified to image
 func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	uniqueSuffix := "-" + xid.New().String()

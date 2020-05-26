@@ -19,11 +19,13 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	nuctl_common "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 
@@ -37,6 +39,18 @@ type deployCommandeer struct {
 	cmd                             *cobra.Command
 	rootCommandeer                  *RootCommandeer
 	functionConfig                  functionconfig.Config
+	functionBuild                   functionconfig.Build
+	functionName                    string
+	functionConfigPath              string
+	description                     string
+	disable                         bool
+	publish                         bool
+	handler                         string
+	runtime                         string
+	image                           string
+	targetCPU                       int
+	runRegistry                     string
+	readinessTimeoutSeconds         int
 	volumes                         stringSliceFlag
 	commands                        stringSliceFlag
 	encodedDataBindings             string
@@ -74,11 +88,13 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
+			var importedFunction platform.Function
+
 			// update build stuff
 			if len(args) == 1 {
-				commandeer.functionConfig.Meta.Name = args[0]
+				commandeer.functionName = args[0]
 
-				importedFunction, err := commandeer.getImportedFunction(args[0])
+				importedFunction, err = commandeer.getImportedFunction(args[0])
 				if err != nil {
 					return errors.Wrap(err, "Failed getting the imported function's data")
 				}
@@ -86,6 +102,75 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 					commandeer.rootCommandeer.loggerInstance.Debug("Function was already imported, deploying it")
 					commandeer.functionConfig = commandeer.prepareFunctionConfigForRedeploy(importedFunction)
 				}
+			}
+
+			// If config file is provided
+			if importedFunction == nil && commandeer.functionConfigPath != "" {
+				commandeer.rootCommandeer.loggerInstance.DebugWith("Loading function config from file", "file", commandeer.functionConfigPath)
+				functionConfigFile, err := nuctl_common.OpenFile(commandeer.functionConfigPath)
+				if err != nil {
+					return errors.Wrap(err, "Failed opening function config file")
+				}
+
+				functionBody, err := ioutil.ReadAll(functionConfigFile)
+				if err != nil {
+					return errors.Wrap(err, "Failed reading function config file")
+				}
+
+				unmarshalFunc, err := nuctl_common.GetUnmarshalFunc(functionBody)
+				if err != nil {
+					return errors.Wrap(err, "Failed identifying function config file format")
+				}
+
+				err = unmarshalFunc(functionBody, &commandeer.functionConfig)
+				if err != nil {
+					return errors.Wrap(err, "Failed parsing function config file")
+				}
+
+				commandeer.rootCommandeer.loggerInstance.DebugWith("Successfully loaded function config", "functionConfig", commandeer.functionConfig)
+			}
+
+			// Populate initial defaults in the function spec, but consider existing values
+			// if the spec was brought from a file or from an already imported function.
+			commandeer.populateDeploymentDefaults()
+
+			// Override basic fields from the spec
+			commandeer.functionConfig.Meta.Name = commandeer.functionName
+			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
+
+			//if commandeer.functionConfig.Spec.Build == nil {
+			//
+			//}
+			commandeer.functionConfig.Spec.Build = commandeer.functionBuild
+			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
+			commandeer.functionConfig.Spec.Build.FunctionConfigPath = commandeer.functionConfigPath
+
+			if commandeer.description != "" {
+				commandeer.functionConfig.Spec.Description = commandeer.description
+			}
+
+			if commandeer.disable {
+				commandeer.functionConfig.Spec.Disable = commandeer.disable
+			}
+
+			if commandeer.publish {
+				commandeer.functionConfig.Spec.Publish = commandeer.publish
+			}
+
+			if commandeer.image != "" {
+				commandeer.functionConfig.Spec.Image = commandeer.image
+			}
+
+			if commandeer.runRegistry != "" {
+				commandeer.functionConfig.Spec.RunRegistry = commandeer.runRegistry
+			}
+
+			if commandeer.runtime != "" {
+				commandeer.functionConfig.Spec.Runtime = commandeer.runtime
+			}
+
+			if commandeer.handler != "" {
+				commandeer.functionConfig.Spec.Handler = commandeer.handler
 			}
 
 			// parse volumes
@@ -108,43 +193,60 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			// decode the JSON data bindings
-			if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
-				&commandeer.functionConfig.Spec.DataBindings); err != nil {
-				return errors.Wrap(err, "Failed to decode data bindings")
+			if commandeer.encodedDataBindings != "" {
+				if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
+					&commandeer.functionConfig.Spec.DataBindings); err != nil {
+					return errors.Wrap(err, "Failed to decode data bindings")
+				}
 			}
 
 			// decode the JSON triggers
-			if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
-				&commandeer.functionConfig.Spec.Triggers); err != nil {
-				return errors.Wrap(err, "Failed to decode triggers")
+			if commandeer.encodedTriggers != "" {
+				if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
+					&commandeer.functionConfig.Spec.Triggers); err != nil {
+					return errors.Wrap(err, "Failed to decode triggers")
+				}
 			}
 
 			// decode the JSON function platform configuration
-			if err := json.Unmarshal([]byte(commandeer.encodedFunctionPlatformConfig),
-				&commandeer.functionConfig.Spec.Platform); err != nil {
-				return errors.Wrap(err, "Failed to decode function platform configuration")
+			if commandeer.encodedFunctionPlatformConfig != "" {
+				if err := json.Unmarshal([]byte(commandeer.encodedFunctionPlatformConfig),
+					&commandeer.functionConfig.Spec.Platform); err != nil {
+					return errors.Wrap(err, "Failed to decode function platform configuration")
+				}
 			}
 
 			// decode the JSON runtime attributes
-			if err := json.Unmarshal([]byte(commandeer.encodedRuntimeAttributes),
-				&commandeer.functionConfig.Spec.RuntimeAttributes); err != nil {
-				return errors.Wrap(err, "Failed to decode runtime attributes")
+			if commandeer.encodedRuntimeAttributes != "" {
+				if err := json.Unmarshal([]byte(commandeer.encodedRuntimeAttributes),
+					&commandeer.functionConfig.Spec.RuntimeAttributes); err != nil {
+					return errors.Wrap(err, "Failed to decode runtime attributes")
+				}
 			}
 
 			// decode the JSON build runtime attributes
-			if err := json.Unmarshal([]byte(commandeer.encodedBuildRuntimeAttributes),
-				&commandeer.functionConfig.Spec.Build.RuntimeAttributes); err != nil {
-				return errors.Wrap(err, "Failed to decode build runtime attributes")
+			if commandeer.encodedBuildRuntimeAttributes != "" {
+				if err := json.Unmarshal([]byte(commandeer.encodedBuildRuntimeAttributes),
+					&commandeer.functionConfig.Spec.Build.RuntimeAttributes); err != nil {
+					return errors.Wrap(err, "Failed to decode build runtime attributes")
+				}
 			}
 
 			// decode the JSON build code entry attributes
-			if err := json.Unmarshal([]byte(commandeer.encodedBuildCodeEntryAttributes),
-				&commandeer.functionConfig.Spec.Build.CodeEntryAttributes); err != nil {
-				return errors.Wrap(err, "Failed to decode code entry attributes")
+			if commandeer.encodedBuildCodeEntryAttributes != "" {
+				if err := json.Unmarshal([]byte(commandeer.encodedBuildCodeEntryAttributes),
+					&commandeer.functionConfig.Spec.Build.CodeEntryAttributes); err != nil {
+					return errors.Wrap(err, "Failed to decode code entry attributes")
+				}
 			}
 
 			// decode labels
-			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels, "=")
+			if commandeer.functionConfig.Meta.Labels == nil {
+				commandeer.functionConfig.Meta.Labels = map[string]string{}
+			}
+			for label, labelValue := range common.StringToStringMap(commandeer.encodedLabels, "=") {
+				commandeer.functionConfig.Meta.Labels[label] = labelValue
+			}
 
 			// if the project name was set, add it as a label
 			if commandeer.projectName != "" {
@@ -187,14 +289,21 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				commandeer.functionConfig.Spec.MaxReplicas = &commandeer.maxReplicas
 			}
 
+			// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.TargetCPU as default)
+			if commandeer.targetCPU >= 0 {
+				commandeer.functionConfig.Spec.TargetCPU = commandeer.targetCPU
+			}
+
+			// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.ReadinessTimeoutSeconds as default)
+			if commandeer.readinessTimeoutSeconds >= 0 {
+				commandeer.functionConfig.Spec.ReadinessTimeoutSeconds = commandeer.readinessTimeoutSeconds
+			}
+
 			// Ensure the skip-annotations never exist on deploy
 			commandeer.functionConfig.Meta.RemoveSkipBuildAnnotation()
 			commandeer.functionConfig.Meta.RemoveSkipDeployAnnotation()
 
-			// update function
-			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
-			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
-
+			commandeer.rootCommandeer.loggerInstance.DebugWith("Deploying function with the following config", "functionConfig", commandeer.functionConfig)
 			_, err = rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
@@ -205,7 +314,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 		},
 	}
 
-	addDeployFlags(cmd, &commandeer.functionConfig, commandeer)
+	addDeployFlags(cmd, commandeer)
 	cmd.Flags().StringVarP(&commandeer.inputImageFile, "input-image-file", "", "", "Path to input of docker archive")
 
 	commandeer.cmd = cmd
@@ -214,26 +323,25 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 }
 
 func addDeployFlags(cmd *cobra.Command,
-	functionConfig *functionconfig.Config,
 	commandeer *deployCommandeer) {
-	addBuildFlags(cmd, functionConfig, &commandeer.commands, &commandeer.encodedBuildRuntimeAttributes, &commandeer.encodedBuildCodeEntryAttributes)
+	addBuildFlags(cmd, &commandeer.functionBuild, &commandeer.functionConfigPath, &commandeer.runtime, &commandeer.handler, &commandeer.commands, &commandeer.encodedBuildRuntimeAttributes, &commandeer.encodedBuildCodeEntryAttributes)
 
-	cmd.Flags().StringVar(&functionConfig.Spec.Description, "desc", "", "Function description")
+	cmd.Flags().StringVar(&commandeer.description, "desc", "", "Function description")
 	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.Flags().VarP(&commandeer.encodedEnv, "env", "e", "Environment variables env1=val1")
-	cmd.Flags().BoolVarP(&functionConfig.Spec.Disable, "disable", "d", false, "Start the function as disabled (don't run yet)")
+	cmd.Flags().BoolVarP(&commandeer.disable, "disable", "d", false, "Start the function as disabled (don't run yet)")
 	cmd.Flags().IntVarP(&commandeer.replicas, "replicas", "", -1, "Set to any non-negative integer to use a static number of replicas")
 	cmd.Flags().IntVar(&commandeer.minReplicas, "min-replicas", -1, "Minimal number of function replicas")
 	cmd.Flags().IntVar(&commandeer.maxReplicas, "max-replicas", -1, "Maximal number of function replicas")
-	cmd.Flags().IntVar(&functionConfig.Spec.TargetCPU, "target-cpu", abstract.DefaultTargetCPU, "Target CPU when auto-scaling, in percentage")
-	cmd.Flags().BoolVar(&functionConfig.Spec.Publish, "publish", false, "Publish the function")
-	cmd.Flags().StringVar(&commandeer.encodedDataBindings, "data-bindings", "{}", "JSON-encoded data bindings for the function")
-	cmd.Flags().StringVar(&commandeer.encodedTriggers, "triggers", "{}", "JSON-encoded triggers for the function")
-	cmd.Flags().StringVar(&commandeer.encodedFunctionPlatformConfig, "platform-config", "{}", "JSON-encoded platform specific configuration")
-	cmd.Flags().StringVar(&functionConfig.Spec.Image, "run-image", "", "Name of an existing image to deploy (default - build a new image to deploy)")
-	cmd.Flags().StringVar(&functionConfig.Spec.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "URL of a registry for pulling the image, if differs from -r/--registry (env: NUCTL_RUN_REGISTRY)")
-	cmd.Flags().StringVar(&commandeer.encodedRuntimeAttributes, "runtime-attrs", "{}", "JSON-encoded runtime attributes for the function")
-	cmd.Flags().IntVar(&functionConfig.Spec.ReadinessTimeoutSeconds, "readiness-timeout", abstract.DefaultReadinessTimeoutSeconds, "maximum wait time for the function to be ready")
+	cmd.Flags().IntVar(&commandeer.targetCPU, "target-cpu", -1, "Target CPU when auto-scaling, in percentage")
+	cmd.Flags().BoolVar(&commandeer.publish, "publish", false, "Publish the function")
+	cmd.Flags().StringVar(&commandeer.encodedDataBindings, "data-bindings", "", "JSON-encoded data bindings for the function")
+	cmd.Flags().StringVar(&commandeer.encodedTriggers, "triggers", "", "JSON-encoded triggers for the function")
+	cmd.Flags().StringVar(&commandeer.encodedFunctionPlatformConfig, "platform-config", "", "JSON-encoded platform specific configuration")
+	cmd.Flags().StringVar(&commandeer.image, "run-image", "", "Name of an existing image to deploy (default - build a new image to deploy)")
+	cmd.Flags().StringVar(&commandeer.runRegistry, "run-registry", "", "URL of a registry for pulling the image, if differs from -r/--registry (env: NUCTL_RUN_REGISTRY)")
+	cmd.Flags().StringVar(&commandeer.encodedRuntimeAttributes, "runtime-attrs", "", "JSON-encoded runtime attributes for the function")
+	cmd.Flags().IntVar(&commandeer.readinessTimeoutSeconds, "readiness-timeout", -1, "maximum wait time for the function to be ready")
 	cmd.Flags().StringVar(&commandeer.projectName, "project-name", "", "name of project to which this function belongs to")
 	cmd.Flags().Var(&commandeer.volumes, "volume", "Volumes for the deployment function (src1=dest1[,src2=dest2,...])")
 	cmd.Flags().Var(&commandeer.resourceLimits, "resource-limit", "Limits resources in the format of resource-name=quantity (e.g. cpu=3)")
@@ -345,4 +453,25 @@ func (d *deployCommandeer) prepareFunctionConfigForRedeploy(importedFunction pla
 	functionConfig.Spec.RunRegistry = d.functionConfig.Spec.RunRegistry
 
 	return *functionConfig
+}
+
+func (d *deployCommandeer) populateDeploymentDefaults() {
+	if d.functionConfig.Spec.TargetCPU == 0 {
+		d.functionConfig.Spec.TargetCPU = abstract.DefaultTargetCPU
+	}
+	if d.functionConfig.Spec.RunRegistry == "" {
+		d.functionConfig.Spec.RunRegistry = os.Getenv("NUCTL_RUN_REGISTRY")
+	}
+	if d.functionConfig.Spec.ReadinessTimeoutSeconds == 0 {
+		d.functionConfig.Spec.ReadinessTimeoutSeconds = abstract.DefaultReadinessTimeoutSeconds
+	}
+	if d.functionConfig.Spec.DataBindings == nil {
+		d.functionConfig.Spec.DataBindings = map[string]functionconfig.DataBinding{}
+	}
+	if d.functionConfig.Spec.Triggers == nil {
+		d.functionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
+	}
+	if d.functionConfig.Spec.RuntimeAttributes == nil {
+		d.functionConfig.Spec.RuntimeAttributes = map[string]interface{}{}
+	}
 }
