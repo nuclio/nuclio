@@ -134,13 +134,10 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			// if the spec was brought from a file or from an already imported function.
 			commandeer.populateDeploymentDefaults()
 
-			// Override basic fields from the spec
+			// Override basic fields from the config
 			commandeer.functionConfig.Meta.Name = commandeer.functionName
 			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
 
-			//if commandeer.functionConfig.Spec.Build == nil {
-			//
-			//}
 			commandeer.functionConfig.Spec.Build = commandeer.functionBuild
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
 			commandeer.functionConfig.Spec.Build.FunctionConfigPath = commandeer.functionConfigPath
