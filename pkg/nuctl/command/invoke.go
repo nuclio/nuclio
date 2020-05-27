@@ -78,6 +78,9 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			}
 			commandeer.createFunctionInvocationOptions.Headers = http.Header{}
 
+			// resolve invocation method
+			commandeer.createFunctionInvocationOptions.Method = commandeer.resolveMethod()
+
 			// set external IP, if given
 			if commandeer.externalIPAddresses != "" {
 				if err := rootCommandeer.platform.SetExternalIPAddresses(strings.Split(commandeer.externalIPAddresses, ",")); err != nil {
@@ -127,7 +130,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 
 	cmd.Flags().StringVarP(&commandeer.contentType, "content-type", "c", "application/json", "HTTP Content-Type")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Path, "path", "p", "", "Path to the function to invoke")
-	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Method, "method", "m", "GET", "HTTP method for invoking the function")
+	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Method, "method", "m", "", "HTTP method for invoking the function")
 	cmd.Flags().StringVarP(&commandeer.body, "body", "b", "", "HTTP message body")
 	cmd.Flags().StringVarP(&commandeer.headers, "headers", "d", "", "HTTP headers (name=val1[,name=val2,...])")
 	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "Invoke the function via - \"any\": a load balancer or an external IP; \"loadbalancer\": a load balancer; \"external-ip\": an external IP")
@@ -172,6 +175,23 @@ func (i *invokeCommandeer) resolveBody() ([]byte, error) {
 
 	// fallback to stdin
 	return nuctlcommon.ReadFromInOrStdin(i.cmd.InOrStdin())
+}
+
+func (i *invokeCommandeer) resolveMethod() string {
+
+	// if user did not specified method
+	if i.createFunctionInvocationOptions.Method == "" {
+
+		// user provided request body, default to POST
+		if len(i.createFunctionInvocationOptions.Body) > 0 {
+			return http.MethodPost
+		}
+
+		// In case of no body, default to GET
+		return http.MethodGet
+
+	}
+	return i.createFunctionInvocationOptions.Method
 }
 
 func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) error {
