@@ -476,7 +476,6 @@ func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
 		d.functionConfig.Meta.Labels[label] = labelValue
 	}
 
-
 	// decode env
 	for _, encodedEnvNameAndValue := range d.encodedEnv {
 		envNameAndValue := strings.SplitN(encodedEnvNameAndValue, "=", 2)
