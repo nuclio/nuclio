@@ -349,11 +349,6 @@ func (d *deployCommandeer) enrichConfigWithStringArgs() {
 		d.functionConfig.Spec.Handler = d.handler
 	}
 
-	// if the project name was set, add it as a label
-	if d.projectName != "" {
-		d.functionConfig.Meta.Labels["nuclio.io/project-name"] = d.projectName
-	}
-
 	// check if logger level is set
 	if d.loggerLevel != "" {
 		d.functionConfig.Spec.LoggerSinks = []functionconfig.LoggerSink{
@@ -474,6 +469,11 @@ func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
 	}
 	for label, labelValue := range common.StringToStringMap(d.encodedLabels, "=") {
 		d.functionConfig.Meta.Labels[label] = labelValue
+	}
+
+	// if the project name was set, add it as a label (not in string enrichment, because it's part of the labels)
+	if d.projectName != "" {
+		d.functionConfig.Meta.Labels["nuclio.io/project-name"] = d.projectName
 	}
 
 	// decode env
