@@ -36,7 +36,7 @@ RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflag
 
 FROM alpine:3.11
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates apache2-utils
 
 # copy controller binary from build stage
 COPY --from=build /controller/controller /usr/local/bin
