@@ -142,165 +142,20 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
 			commandeer.functionConfig.Spec.Build.FunctionConfigPath = commandeer.functionConfigPath
 
-			if commandeer.description != "" {
-				commandeer.functionConfig.Spec.Description = commandeer.description
-			}
-
-			if commandeer.disable {
-				commandeer.functionConfig.Spec.Disable = commandeer.disable
-			}
-
-			if commandeer.publish {
-				commandeer.functionConfig.Spec.Publish = commandeer.publish
-			}
-
-			if commandeer.image != "" {
-				commandeer.functionConfig.Spec.Image = commandeer.image
-			}
-
-			if commandeer.runRegistry != "" {
-				commandeer.functionConfig.Spec.RunRegistry = commandeer.runRegistry
-			}
-
-			if commandeer.runtime != "" {
-				commandeer.functionConfig.Spec.Runtime = commandeer.runtime
-			}
-
-			if commandeer.handler != "" {
-				commandeer.functionConfig.Spec.Handler = commandeer.handler
-			}
-
-			// parse volumes
-			volumes, err := parseVolumes(commandeer.volumes)
+			// Enrich function config with args
+			commandeer.enrichConfigWithStringArgs()
+			commandeer.enrichConfigWithIntArgs()
+			commandeer.enrichConfigWithBoolArgs()
+			err = commandeer.enrichConfigWithComplexArgs()
 			if err != nil {
-				return errors.Wrap(err, "Failed to parse volumes")
-			}
-			commandeer.functionConfig.Spec.Volumes = append(commandeer.functionConfig.Spec.Volumes, volumes...)
-
-			// parse resource limits
-			if err := parseResourceAllocations(commandeer.resourceLimits,
-				&commandeer.functionConfig.Spec.Resources.Limits); err != nil {
-				return errors.Wrap(err, "Failed to parse resource limits")
-			}
-
-			// parse resource requests
-			if err := parseResourceAllocations(commandeer.resourceRequests,
-				&commandeer.functionConfig.Spec.Resources.Requests); err != nil {
-				return errors.Wrap(err, "Failed to parse resource requests")
-			}
-
-			// decode the JSON data bindings
-			if commandeer.encodedDataBindings != "" {
-				if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
-					&commandeer.functionConfig.Spec.DataBindings); err != nil {
-					return errors.Wrap(err, "Failed to decode data bindings")
-				}
-			}
-
-			// decode the JSON triggers
-			if commandeer.encodedTriggers != "" {
-				if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
-					&commandeer.functionConfig.Spec.Triggers); err != nil {
-					return errors.Wrap(err, "Failed to decode triggers")
-				}
-			}
-
-			// decode the JSON function platform configuration
-			if commandeer.encodedFunctionPlatformConfig != "" {
-				if err := json.Unmarshal([]byte(commandeer.encodedFunctionPlatformConfig),
-					&commandeer.functionConfig.Spec.Platform); err != nil {
-					return errors.Wrap(err, "Failed to decode function platform configuration")
-				}
-			}
-
-			// decode the JSON runtime attributes
-			if commandeer.encodedRuntimeAttributes != "" {
-				if err := json.Unmarshal([]byte(commandeer.encodedRuntimeAttributes),
-					&commandeer.functionConfig.Spec.RuntimeAttributes); err != nil {
-					return errors.Wrap(err, "Failed to decode runtime attributes")
-				}
-			}
-
-			// decode the JSON build runtime attributes
-			if commandeer.encodedBuildRuntimeAttributes != "" {
-				if err := json.Unmarshal([]byte(commandeer.encodedBuildRuntimeAttributes),
-					&commandeer.functionConfig.Spec.Build.RuntimeAttributes); err != nil {
-					return errors.Wrap(err, "Failed to decode build runtime attributes")
-				}
-			}
-
-			// decode the JSON build code entry attributes
-			if commandeer.encodedBuildCodeEntryAttributes != "" {
-				if err := json.Unmarshal([]byte(commandeer.encodedBuildCodeEntryAttributes),
-					&commandeer.functionConfig.Spec.Build.CodeEntryAttributes); err != nil {
-					return errors.Wrap(err, "Failed to decode code entry attributes")
-				}
-			}
-
-			// decode labels
-			if commandeer.functionConfig.Meta.Labels == nil {
-				commandeer.functionConfig.Meta.Labels = map[string]string{}
-			}
-			for label, labelValue := range common.StringToStringMap(commandeer.encodedLabels, "=") {
-				commandeer.functionConfig.Meta.Labels[label] = labelValue
-			}
-
-			// if the project name was set, add it as a label
-			if commandeer.projectName != "" {
-				commandeer.functionConfig.Meta.Labels["nuclio.io/project-name"] = commandeer.projectName
-			}
-
-			// decode env
-			for _, encodedEnvNameAndValue := range commandeer.encodedEnv {
-				envNameAndValue := strings.SplitN(encodedEnvNameAndValue, "=", 2)
-				if len(envNameAndValue) != 2 {
-					return errors.Errorf("Environment variable must be in the form of name=value: %s",
-						encodedEnvNameAndValue)
-				}
-
-				commandeer.functionConfig.Spec.Env = append(commandeer.functionConfig.Spec.Env, v1.EnvVar{
-					Name:  envNameAndValue[0],
-					Value: envNameAndValue[1],
-				})
-			}
-
-			// check if logger level is set
-			if commandeer.loggerLevel != "" {
-				commandeer.functionConfig.Spec.LoggerSinks = []functionconfig.LoggerSink{
-					{Level: commandeer.loggerLevel},
-				}
-			}
-
-			// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.Replicas as nil)
-			if commandeer.replicas >= 0 {
-				commandeer.functionConfig.Spec.Replicas = &commandeer.replicas
-			}
-
-			// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.MinReplicas as nil)
-			if commandeer.minReplicas >= 0 {
-				commandeer.functionConfig.Spec.MinReplicas = &commandeer.minReplicas
-			}
-
-			// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.MaxReplicas as nil)
-			if commandeer.maxReplicas >= 0 {
-				commandeer.functionConfig.Spec.MaxReplicas = &commandeer.maxReplicas
-			}
-
-			// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.TargetCPU as default)
-			if commandeer.targetCPU >= 0 {
-				commandeer.functionConfig.Spec.TargetCPU = commandeer.targetCPU
-			}
-
-			// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.ReadinessTimeoutSeconds as default)
-			if commandeer.readinessTimeoutSeconds >= 0 {
-				commandeer.functionConfig.Spec.ReadinessTimeoutSeconds = commandeer.readinessTimeoutSeconds
+				return errors.Wrap(err, "Failed config with complex args")
 			}
 
 			// Ensure the skip-annotations never exist on deploy
 			commandeer.functionConfig.Meta.RemoveSkipBuildAnnotation()
 			commandeer.functionConfig.Meta.RemoveSkipDeployAnnotation()
 
-			commandeer.rootCommandeer.loggerInstance.DebugWith("Deploying function with the following config", "functionConfig", commandeer.functionConfig)
+			commandeer.rootCommandeer.loggerInstance.DebugWith("Deploying function", "functionConfig", commandeer.functionConfig)
 			_, err = rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
@@ -471,4 +326,170 @@ func (d *deployCommandeer) populateDeploymentDefaults() {
 	if d.functionConfig.Spec.RuntimeAttributes == nil {
 		d.functionConfig.Spec.RuntimeAttributes = map[string]interface{}{}
 	}
+}
+
+func (d *deployCommandeer) enrichConfigWithStringArgs() {
+	if d.description != "" {
+		d.functionConfig.Spec.Description = d.description
+	}
+
+	if d.image != "" {
+		d.functionConfig.Spec.Image = d.image
+	}
+
+	if d.runRegistry != "" {
+		d.functionConfig.Spec.RunRegistry = d.runRegistry
+	}
+
+	if d.runtime != "" {
+		d.functionConfig.Spec.Runtime = d.runtime
+	}
+
+	if d.handler != "" {
+		d.functionConfig.Spec.Handler = d.handler
+	}
+
+	// if the project name was set, add it as a label
+	if d.projectName != "" {
+		d.functionConfig.Meta.Labels["nuclio.io/project-name"] = d.projectName
+	}
+
+	// check if logger level is set
+	if d.loggerLevel != "" {
+		d.functionConfig.Spec.LoggerSinks = []functionconfig.LoggerSink{
+			{Level: d.loggerLevel},
+		}
+	}
+}
+
+func (d *deployCommandeer) enrichConfigWithBoolArgs() {
+	if d.disable {
+		d.functionConfig.Spec.Disable = d.disable
+	}
+
+	if d.publish {
+		d.functionConfig.Spec.Publish = d.publish
+	}
+}
+
+func (d *deployCommandeer) enrichConfigWithIntArgs() {
+
+	// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.Replicas as nil)
+	if d.replicas >= 0 {
+		d.functionConfig.Spec.Replicas = &d.replicas
+	}
+
+	// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.MinReplicas as nil)
+	if d.minReplicas >= 0 {
+		d.functionConfig.Spec.MinReplicas = &d.minReplicas
+	}
+
+	// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.MaxReplicas as nil)
+	if d.maxReplicas >= 0 {
+		d.functionConfig.Spec.MaxReplicas = &d.maxReplicas
+	}
+
+	// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.TargetCPU as default)
+	if d.targetCPU >= 0 {
+		d.functionConfig.Spec.TargetCPU = d.targetCPU
+	}
+
+	// any negative value counted as not set (meaning leaving commandeer.functionConfig.Spec.ReadinessTimeoutSeconds as default)
+	if d.readinessTimeoutSeconds >= 0 {
+		d.functionConfig.Spec.ReadinessTimeoutSeconds = d.readinessTimeoutSeconds
+	}
+}
+
+func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
+	// parse volumes
+	volumes, err := parseVolumes(d.volumes)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse volumes")
+	}
+	d.functionConfig.Spec.Volumes = append(d.functionConfig.Spec.Volumes, volumes...)
+
+	// parse resource limits
+	if err := parseResourceAllocations(d.resourceLimits,
+		&d.functionConfig.Spec.Resources.Limits); err != nil {
+		return errors.Wrap(err, "Failed to parse resource limits")
+	}
+
+	// parse resource requests
+	if err := parseResourceAllocations(d.resourceRequests,
+		&d.functionConfig.Spec.Resources.Requests); err != nil {
+		return errors.Wrap(err, "Failed to parse resource requests")
+	}
+
+	// decode the JSON data bindings
+	if d.encodedDataBindings != "" {
+		if err := json.Unmarshal([]byte(d.encodedDataBindings),
+			&d.functionConfig.Spec.DataBindings); err != nil {
+			return errors.Wrap(err, "Failed to decode data bindings")
+		}
+	}
+
+	// decode the JSON triggers
+	if d.encodedTriggers != "" {
+		if err := json.Unmarshal([]byte(d.encodedTriggers),
+			&d.functionConfig.Spec.Triggers); err != nil {
+			return errors.Wrap(err, "Failed to decode triggers")
+		}
+	}
+
+	// decode the JSON function platform configuration
+	if d.encodedFunctionPlatformConfig != "" {
+		if err := json.Unmarshal([]byte(d.encodedFunctionPlatformConfig),
+			&d.functionConfig.Spec.Platform); err != nil {
+			return errors.Wrap(err, "Failed to decode function platform configuration")
+		}
+	}
+
+	// decode the JSON runtime attributes
+	if d.encodedRuntimeAttributes != "" {
+		if err := json.Unmarshal([]byte(d.encodedRuntimeAttributes),
+			&d.functionConfig.Spec.RuntimeAttributes); err != nil {
+			return errors.Wrap(err, "Failed to decode runtime attributes")
+		}
+	}
+
+	// decode the JSON build runtime attributes
+	if d.encodedBuildRuntimeAttributes != "" {
+		if err := json.Unmarshal([]byte(d.encodedBuildRuntimeAttributes),
+			&d.functionConfig.Spec.Build.RuntimeAttributes); err != nil {
+			return errors.Wrap(err, "Failed to decode build runtime attributes")
+		}
+	}
+
+	// decode the JSON build code entry attributes
+	if d.encodedBuildCodeEntryAttributes != "" {
+		if err := json.Unmarshal([]byte(d.encodedBuildCodeEntryAttributes),
+			&d.functionConfig.Spec.Build.CodeEntryAttributes); err != nil {
+			return errors.Wrap(err, "Failed to decode code entry attributes")
+		}
+	}
+
+	// decode labels
+	if d.functionConfig.Meta.Labels == nil {
+		d.functionConfig.Meta.Labels = map[string]string{}
+	}
+	for label, labelValue := range common.StringToStringMap(d.encodedLabels, "=") {
+		d.functionConfig.Meta.Labels[label] = labelValue
+	}
+
+
+	// decode env
+	for _, encodedEnvNameAndValue := range d.encodedEnv {
+		envNameAndValue := strings.SplitN(encodedEnvNameAndValue, "=", 2)
+		if len(envNameAndValue) != 2 {
+			return errors.Errorf("Environment variable must be in the form of name=value: %s",
+				encodedEnvNameAndValue)
+		}
+
+		d.functionConfig.Spec.Env = append(d.functionConfig.Spec.Env, v1.EnvVar{
+			Name:  envNameAndValue[0],
+			Value: envNameAndValue[1],
+		})
+	}
+
+	return nil
 }
