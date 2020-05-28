@@ -181,7 +181,6 @@ func getSessionVerificationAnnotations(sessionVerificationEndpoint string) (map[
 
 func getBasicAuthIngressAnnotationsAndSecret(ctx context.Context,
 	spec Spec) (map[string]string, *v1.Secret, error) {
-	var encodedHtpasswdContents []byte
 
 	if spec.Authentication == nil || spec.Authentication.BasicAuth == nil {
 		return nil, nil, errors.New("Basic auth spec is missing")
@@ -202,9 +201,7 @@ func getBasicAuthIngressAnnotationsAndSecret(ctx context.Context,
 		"nginx.ingress.kubernetes.io/auth-realm":  "Authentication Required",
 	}
 
-	// encode secret auth
-	base64.StdEncoding.Encode(encodedHtpasswdContents, []byte(htpasswdContents))
-
+	encodedHtpasswdContents := []byte(base64.StdEncoding.EncodeToString(htpasswdContents))
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: authSecretName,
@@ -224,8 +221,9 @@ func GenerateHtpasswdContents(ctx context.Context,
 	password string) ([]byte, error) {
 
 	cmd := exec.CommandContext(ctx,
-		"htpasswdGeneration",
-		fmt.Sprintf("echo %s | htpasswd -n -i %s", common.Quote(password), username))
+		"/bin/sh",
+		"-c",
+		fmt.Sprintf("echo %s | htpasswd -n -i %s", common.Quote(password), common.Quote(username)))
 
 	return cmd.Output()
 }
