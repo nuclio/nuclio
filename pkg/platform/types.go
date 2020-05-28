@@ -180,6 +180,48 @@ func (s *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
 }
 
 //
+// APIGateway
+//
+
+const DefaultAPIGatewayName string = "default"
+
+type APIGatewayMeta struct {
+	// TODO: copy from provazio
+}
+
+type APIGatewaySpec struct {
+	// TODO: copy from provazio
+}
+
+type APIGatewayConfig struct {
+	Meta APIGatewayMeta
+	Spec APIGatewaySpec
+}
+
+type CreateAPIGatewayOptions struct {
+	APIGatewayConfig APIGatewayConfig
+}
+
+type UpdateAPIGatewayOptions struct {
+	APIGatewayConfig APIGatewayConfig
+}
+
+type DeleteAPIGatewayOptions struct {
+	Meta APIGatewayMeta
+}
+
+type GetAPIGatewaysOptions struct {
+	Meta APIGatewayMeta
+}
+
+// to appease k8s
+func (s *APIGatewaySpec) DeepCopyInto(out *APIGatewaySpec) {
+
+	// TODO: proper deep copy
+	*out = *s
+}
+
+//
 // FunctionEvent
 //
 
