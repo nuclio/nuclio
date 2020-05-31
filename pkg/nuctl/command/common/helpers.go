@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/platform"
 
+	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 )
 
@@ -70,4 +72,19 @@ func OpenFile(filepath string) (*os.File, error) {
 		return nil, errors.Wrapf(err, "Failed to open file `%s`", filepath)
 	}
 	return file, err
+}
+
+func GetUnmarshalFunc(bytes []byte) (func(data []byte, v interface{}) error, error) {
+	var err error
+	var obj map[string]interface{}
+
+	if err = json.Unmarshal(bytes, &obj); err == nil {
+		return json.Unmarshal, nil
+	}
+
+	if err = yaml.Unmarshal(bytes, &obj); err == nil {
+		return yaml.Unmarshal, nil
+	}
+
+	return nil, errors.New("Input is neither json nor yaml")
 }

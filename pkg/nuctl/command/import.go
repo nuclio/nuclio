@@ -1,13 +1,10 @@
 package command
 
 import (
-	"encoding/json"
-
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/cobra"
@@ -58,21 +55,6 @@ func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 
 	// read from file if given, fallback to stdin
 	return common.ReadFromInOrStdin(i.cmd.InOrStdin())
-}
-
-func (i *importCommandeer) getUnmarshalFunc(bytes []byte) (func(data []byte, v interface{}) error, error) {
-	var err error
-	var obj map[string]interface{}
-
-	if err = json.Unmarshal(bytes, &obj); err == nil {
-		return json.Unmarshal, nil
-	}
-
-	if err = yaml.Unmarshal(bytes, &obj); err == nil {
-		return yaml.Unmarshal, nil
-	}
-
-	return nil, errors.New("Input is neither json nor yaml")
 }
 
 func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config, project string) error {
@@ -149,7 +131,7 @@ Make sure to provide its content via STDIN / file path.
 Use --help for more information`)
 			}
 
-			unmarshalFunc, err := commandeer.getUnmarshalFunc(functionBody)
+			unmarshalFunc, err := common.GetUnmarshalFunc(functionBody)
 			if err != nil {
 				return errors.Wrap(err, "Failed identifying input format")
 			}
@@ -232,7 +214,7 @@ Make sure to provide its content via STDIN / file path.
 Use --help for more information`)
 			}
 
-			unmarshalFunc, err := commandeer.getUnmarshalFunc(projectBody)
+			unmarshalFunc, err := common.GetUnmarshalFunc(projectBody)
 			if err != nil {
 				return errors.Wrap(err, "Failed identifying input format")
 			}
