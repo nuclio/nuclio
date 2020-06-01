@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/registry"
 
@@ -92,6 +93,11 @@ const (
 	ResourceMethodCreate
 	ResourceMethodUpdate
 	ResourceMethodDelete
+)
+
+const (
+	ParamImport = "import"
+	ParamExport = "export"
 )
 
 // AbstractResource is base for resources
@@ -181,6 +187,98 @@ func (ar *AbstractResource) GetCustomRoutes() ([]CustomRoute, error) {
 // GetRouter returns raw routes, those that don't return an attribute
 func (ar *AbstractResource) GetRouter() chi.Router {
 	return ar.router
+}
+
+func (ar *AbstractResource) parseURLParamValue(paramValue string) interface{} {
+	parsedBool, err := strconv.ParseBool(paramValue)
+	if err == nil {
+		return parsedBool
+	}
+
+	parsedInt, err := strconv.ParseInt(paramValue, 10, 64)
+	if err == nil {
+		return parsedInt
+	}
+
+	parsedUint, err := strconv.ParseUint(paramValue, 10, 64)
+	if err == nil {
+		return parsedUint
+	}
+
+	parsedFloat, err := strconv.ParseFloat(paramValue, 10)
+	if err == nil {
+		return parsedFloat
+	}
+
+	return paramValue
+}
+
+func (ar *AbstractResource) GetURLParamValues(paramKey string, request *http.Request) []interface{} {
+	paramValues, ok := request.URL.Query()[paramKey]
+	if !ok || len(paramValues) == 0 {
+		return nil
+	}
+
+	var values []interface{}
+	for _, value := range paramValues {
+		values = append(values, ar.parseURLParamValue(value))
+	}
+
+	return values
+}
+
+func (ar *AbstractResource) GetURLParamValue(paramKey string, request *http.Request) interface{} {
+	paramValues, ok := request.URL.Query()[paramKey]
+	if !ok || len(paramValues) == 0 {
+		return nil
+	}
+
+	return ar.parseURLParamValue(paramValues[0])
+}
+
+func (ar *AbstractResource) GetURLParamBoolOrDefault(request *http.Request, paramKey string, defaultValue bool) bool {
+	booleanParam, ok := ar.GetURLParamValue(paramKey, request).(bool)
+	if !ok {
+		return defaultValue
+	}
+
+	return booleanParam
+}
+
+func (ar *AbstractResource) GetURLParamInt64OrDefault(request *http.Request, paramKey string, defaultValue int64) int64 {
+	int64Param, ok := ar.GetURLParamValue(paramKey, request).(int64)
+	if !ok {
+		return defaultValue
+	}
+
+	return int64Param
+}
+
+func (ar *AbstractResource) GetURLParamUint64OrDefault(request *http.Request, paramKey string, defaultValue uint64) uint64 {
+	uint64Param, ok := ar.GetURLParamValue(paramKey, request).(uint64)
+	if !ok {
+		return defaultValue
+	}
+
+	return uint64Param
+}
+
+func (ar *AbstractResource) GetURLParamFloatOrDefault(request *http.Request, paramKey string, defaultValue float64) float64 {
+	float64Param, ok := ar.GetURLParamValue(paramKey, request).(float64)
+	if !ok {
+		return defaultValue
+	}
+
+	return float64Param
+}
+
+func (ar *AbstractResource) GetURLParamStringOrDefault(request *http.Request, paramKey string, defaultValue string) string {
+	stringParam, ok := ar.GetURLParamValue(paramKey, request).(string)
+	if !ok {
+		return defaultValue
+	}
+
+	return stringParam
 }
 
 func (ar *AbstractResource) registerRoutes() error {

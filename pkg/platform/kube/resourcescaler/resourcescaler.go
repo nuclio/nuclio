@@ -23,17 +23,21 @@ import (
 
 // A plugin for github.com/v3io/scaler, allowing to extend it to scale to zero and from zero function resources in k8s
 type NuclioResourceScaler struct {
-	logger          logger.Logger
-	nuclioClientSet nuclioio_client.Interface
-	kubeconfigPath  string
-	namespace       string
+	logger                logger.Logger
+	nuclioClientSet       nuclioio_client.Interface
+	kubeconfigPath        string
+	namespace             string
+	platformConfiguration *platformconfig.Config
 }
 
 // New is called when plugin loaded on scaler, so it's considered "dead code" for the linter
 func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, error) { // nolint: deadcode
-	platformConfiguration, err := readPlatformConfiguration()
+
+	// get platform configuration
+	platformConfigurationPath := "/etc/nuclio/config/platform/platform.yaml"
+	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read platform configuration")
+		return nil, errors.Wrap(err, "Failed to get platform configuration")
 	}
 
 	resourceScalerLogger, err := nucliozap.NewNuclioZap("resource-scaler",
@@ -62,10 +66,11 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 		"kubeconfigPath", kubeconfigPath)
 
 	return &NuclioResourceScaler{
-		logger:          resourceScalerLogger,
-		nuclioClientSet: nuclioClientSet,
-		kubeconfigPath:  kubeconfigPath,
-		namespace:       namespace,
+		logger:                resourceScalerLogger,
+		nuclioClientSet:       nuclioClientSet,
+		kubeconfigPath:        kubeconfigPath,
+		namespace:             namespace,
+		platformConfiguration: platformConfiguration,
 	}, nil
 }
 
@@ -121,17 +126,22 @@ func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
 }
 
 func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, error) {
-	platformConfiguration, err := readPlatformConfiguration()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read platform configuration")
+
+	// enrich
+	if n.platformConfiguration.ScaleToZero.ResourceReadinessTimeout == "" {
+		n.platformConfiguration.ScaleToZero.ResourceReadinessTimeout = "2m"
 	}
 
-	scaleInterval, err := time.ParseDuration(platformConfiguration.ScaleToZero.ScalerInterval)
+	if n.platformConfiguration.ScaleToZero.ScalerInterval == "" {
+		n.platformConfiguration.ScaleToZero.ScalerInterval = "1m"
+	}
+
+	scaleInterval, err := time.ParseDuration(n.platformConfiguration.ScaleToZero.ScalerInterval)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse scaler interval duration")
 	}
 
-	resourceReadinessTimeout, err := time.ParseDuration(platformConfiguration.ScaleToZero.ResourceReadinessTimeout)
+	resourceReadinessTimeout, err := time.ParseDuration(n.platformConfiguration.ScaleToZero.ResourceReadinessTimeout)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse resource readiness timeout")
 	}
@@ -275,16 +285,6 @@ func (n *NuclioResourceScaler) waitFunctionReadiness(namespace string, functionN
 
 		time.Sleep(3 * time.Second)
 	}
-}
-
-func readPlatformConfiguration() (*platformconfig.Config, error) {
-	configurationPath := "/etc/nuclio/config/platform/platform.yaml"
-	platformConfigurationReader, err := platformconfig.NewReader()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
-	}
-
-	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
 }
 
 func getClientConfig(kubeconfigPath string) (*rest.Config, error) {

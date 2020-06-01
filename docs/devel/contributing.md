@@ -45,10 +45,28 @@ make build
 You should now have quite a few `nuclio/<something>` images tagged as `latest-amd64`, along with `nuctl-latest-<os>-amd64` with a `nuctl` symbolic link under `$GOPATH/bin`. Now, run a few tests:
 
 ```sh
-make lint test
+make lint test-short
 ```
 
-This may take a while (about 10 minutes) and requires only Docker. End to end testing on Kubernetes is still done manually.
+This is a short test suite, and requires only Docker.
+
+To run integration tests (currently support docker platform, and may take a while ~60 minutes), run:
+
+```sh
+make test
+```
+
+On Nuclio CI, we run nuctl test suites against both Docker and Kubernetes platforms
+
+To run kubernetes nuctl suite locally:
+
+`NUCTL_REGISTRY=<registry> make test-k8s-nuctl`
+
+To run docker nuctl suite locally:
+
+`make test-docker-nuctl`
+
+Running more comprehensive end-to-end tests on kubernetes is currently done manually.
 
 When you're done, create a feature branch from the `development` branch; (Nuclio follows the GitFlow branching model):
 

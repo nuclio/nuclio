@@ -32,6 +32,9 @@ type buildCommandeer struct {
 	rootCommandeer             *RootCommandeer
 	commands                   stringSliceFlag
 	functionConfig             functionconfig.Config
+	functionConfigPath         string
+	runtime                    string
+	handler                    string
 	encodedRuntimeAttributes   string
 	encodedCodeEntryAttributes string
 	outputImageFile            string
@@ -61,6 +64,9 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 
 			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
+			commandeer.functionConfig.Spec.Build.FunctionConfigPath = commandeer.functionConfigPath
+			commandeer.functionConfig.Spec.Runtime = commandeer.runtime
+			commandeer.functionConfig.Spec.Handler = commandeer.handler
 
 			// decode the JSON build runtime attributes
 			if err := json.Unmarshal([]byte(commandeer.encodedRuntimeAttributes),
@@ -89,7 +95,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 		},
 	}
 
-	addBuildFlags(cmd, &commandeer.functionConfig, &commandeer.commands, &commandeer.encodedRuntimeAttributes, &commandeer.encodedCodeEntryAttributes)
+	addBuildFlags(cmd, &commandeer.functionConfig.Spec.Build, &commandeer.functionConfigPath, &commandeer.runtime, &commandeer.handler, &commandeer.commands, &commandeer.encodedRuntimeAttributes, &commandeer.encodedCodeEntryAttributes)
 	cmd.Flags().StringVarP(&commandeer.outputImageFile, "output-image-file", "", "", "Path to output container image of the build")
 
 	commandeer.cmd = cmd
@@ -97,21 +103,21 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 	return commandeer
 }
 
-func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *stringSliceFlag, encodedRuntimeAttributes *string, encodedCodeEntryAttributes *string) { // nolint
-	cmd.Flags().StringVarP(&config.Spec.Build.Path, "path", "p", "", "Path to the function's source code")
-	cmd.Flags().StringVarP(&config.Spec.Build.FunctionSourceCode, "source", "", "", "The function's source code (overrides \"path\")")
-	cmd.Flags().StringVarP(&config.Spec.Build.FunctionConfigPath, "file", "f", "", "Path to a function-configuration file")
-	cmd.Flags().StringVarP(&config.Spec.Build.Image, "image", "i", "", "Name of a container image (default - the function name)")
-	cmd.Flags().StringVarP(&config.Spec.Build.Registry, "registry", "r", os.Getenv("NUCTL_REGISTRY"), "URL of a container registry (env: NUCTL_REGISTRY)")
-	cmd.Flags().StringVarP(&config.Spec.Runtime, "runtime", "", "", "Runtime (for example, \"golang\", \"golang:1.14\", \"python:3.6\")")
-	cmd.Flags().StringVarP(&config.Spec.Handler, "handler", "", "", "Name of a function handler")
-	cmd.Flags().BoolVarP(&config.Spec.Build.NoBaseImagesPull, "no-pull", "", false, "Don't pull base images - use local versions")
-	cmd.Flags().BoolVarP(&config.Spec.Build.NoCleanup, "no-cleanup", "", false, "Don't clean up temporary directories")
-	cmd.Flags().StringVarP(&config.Spec.Build.BaseImage, "base-image", "", "", "Name of the base image (default - per-runtime default)")
+func addBuildFlags(cmd *cobra.Command, functionBuild *functionconfig.Build, functionConfigPath *string, runtime *string, handler *string, commands *stringSliceFlag, encodedRuntimeAttributes *string, encodedCodeEntryAttributes *string) { // nolint
+	cmd.Flags().StringVarP(&functionBuild.Path, "path", "p", "", "Path to the function's source code")
+	cmd.Flags().StringVarP(&functionBuild.FunctionSourceCode, "source", "", "", "The function's source code (overrides \"path\")")
+	cmd.Flags().StringVarP(functionConfigPath, "file", "f", "", "Path to a function-configuration file")
+	cmd.Flags().StringVarP(&functionBuild.Image, "image", "i", "", "Name of a container image (default - the function name)")
+	cmd.Flags().StringVarP(&functionBuild.Registry, "registry", "r", os.Getenv("NUCTL_REGISTRY"), "URL of a container registry (env: NUCTL_REGISTRY)")
+	cmd.Flags().StringVarP(runtime, "runtime", "", "", "Runtime (for example, \"golang\", \"python:3.6\")")
+	cmd.Flags().StringVarP(handler, "handler", "", "", "Name of a function handler")
+	cmd.Flags().BoolVarP(&functionBuild.NoBaseImagesPull, "no-pull", "", false, "Don't pull base images - use local versions")
+	cmd.Flags().BoolVarP(&functionBuild.NoCleanup, "no-cleanup", "", false, "Don't clean up temporary directories")
+	cmd.Flags().StringVarP(&functionBuild.BaseImage, "base-image", "", "", "Name of the base image (default - per-runtime default)")
 	cmd.Flags().Var(commands, "build-command", "Commands to run when building the processor image")
-	cmd.Flags().StringVarP(&config.Spec.Build.OnbuildImage, "onbuild-image", "", "", "The runtime onbuild image used to build the processor image")
-	cmd.Flags().BoolVarP(&config.Spec.Build.Offline, "offline", "", false, "Don't assume internet connectivity exists")
+	cmd.Flags().StringVarP(&functionBuild.OnbuildImage, "onbuild-image", "", "", "The runtime onbuild image used to build the processor image")
+	cmd.Flags().BoolVarP(&functionBuild.Offline, "offline", "", false, "Don't assume internet connectivity exists")
 	cmd.Flags().StringVar(encodedRuntimeAttributes, "build-runtime-attrs", "{}", "JSON-encoded build runtime attributes for the function")
 	cmd.Flags().StringVar(encodedCodeEntryAttributes, "build-code-entry-attrs", "{}", "JSON-encoded build code entry attributes for the function")
-	cmd.Flags().StringVar(&config.Spec.Build.CodeEntryType, "code-entry-type", "", "Type of code entry (for example, \"url\", \"github\", \"image\")")
+	cmd.Flags().StringVar(&functionBuild.CodeEntryType, "code-entry-type", "", "Type of code entry (for example, \"url\", \"github\", \"image\")")
 }

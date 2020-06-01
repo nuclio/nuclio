@@ -60,7 +60,10 @@ func (suite *TestSuite) TestPostEventPythonInterval() {
 			"test", test,
 			"expectedOccurredEvents", expectedOccurredEvents,
 			"interval", test.interval.String())
-		suite.invokeEventRecorder(createFunctionOptions, test.duration, expectedOccurredEvents, expectedOccurredEvents)
+		suite.invokeEventRecorder(createFunctionOptions,
+			test.duration,
+			expectedOccurredEvents-1,
+			expectedOccurredEvents+1)
 	}
 }
 
@@ -98,7 +101,8 @@ func (suite *TestSuite) getCronDeployOptions() *platform.CreateFunctionOptions {
 
 func (suite *TestSuite) invokeEventRecorder(createFunctionOptions *platform.CreateFunctionOptions,
 	testDurationLength time.Duration,
-	minimumOccurredEvents, maximumOccurredEvents int) {
+	minimumOccurredEvents int,
+	maximumOccurredEvents int) {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// give time for the container to trigger its events

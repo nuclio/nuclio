@@ -61,13 +61,8 @@ type TestAbstractSuite struct {
 }
 
 func (suite *TestAbstractSuite) SetupSuite() {
-	err := version.Set(&version.Info{
-		GitCommit: "c",
-		Label:     "latest",
-		Arch:      "amd64",
-		OS:        "linux",
-	})
-	suite.Require().NoError(err, "Failed to set version info")
+	var err error
+	version.SetFromEnv()
 
 	suite.DefaultNamespace = "nuclio"
 
@@ -82,7 +77,7 @@ func (suite *TestAbstractSuite) SetupSuite() {
 		suiteAssertion: suite.Assert(),
 	}
 	suite.Platform, err = NewPlatform(suite.Logger, testPlatform, nil)
-	suite.NoError(err, "Could not create platform")
+	suite.Require().NoError(err, "Could not create platform")
 }
 
 func (suite *TestAbstractSuite) SetupTest() {
@@ -140,7 +135,7 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
 		err := suite.Platform.EnrichCreateFunctionOptions(createFunctionOptions)
-		suite.NoError(err, "Failed to enrich function")
+		suite.Require().NoError(err, "Failed to enrich function")
 
 		err = suite.Platform.ValidateCreateFunctionOptions(createFunctionOptions)
 		if MinMaxReplicas.shouldFailValidation {
@@ -148,7 +143,7 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 			suite.Logger.DebugWith("Validation failed as expected ", "functionName", functionName)
 			continue
 		}
-		suite.NoError(err, "Failed to validate function")
+		suite.Require().NoError(err, "Failed to validate function")
 		functionConfigSpec := createFunctionOptions.FunctionConfig.Spec
 
 		if MinMaxReplicas.ExpectedMinReplicas != nil {
@@ -167,23 +162,23 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 }
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsOnMultiWorker() {
-	suite.testGetProcessorLogs(MultiWorkerFunctionLogsFilePath)
+	suite.testGetProcessorLogsTestFromFile(MultiWorkerFunctionLogsFilePath)
 }
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsOnPanic() {
-	suite.testGetProcessorLogs(PanicFunctionLogsFilePath)
+	suite.testGetProcessorLogsTestFromFile(PanicFunctionLogsFilePath)
 }
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsOnGoWithCallStack() {
-	suite.testGetProcessorLogs(GoWithCallStackFunctionLogsFilePath)
+	suite.testGetProcessorLogsTestFromFile(GoWithCallStackFunctionLogsFilePath)
 }
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsWithSpecialSubstrings() {
-	suite.testGetProcessorLogs(SpecialSubstringsFunctionLogsFilePath)
+	suite.testGetProcessorLogsTestFromFile(SpecialSubstringsFunctionLogsFilePath)
 }
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsWithConsecutiveDuplicateMessages() {
-	suite.testGetProcessorLogs(ConsecutiveDuplicateFunctionLogsFilePath)
+	suite.testGetProcessorLogsTestFromFile(ConsecutiveDuplicateFunctionLogsFilePath)
 }
 
 // Test that GetProcessorLogs() generates the expected formattedPodLogs and briefErrorsMessage
@@ -191,20 +186,20 @@ func (suite *TestAbstractSuite) TestGetProcessorLogsWithConsecutiveDuplicateMess
 // - FunctionLogsFile
 // - FormattedFunctionLogsFile
 // - BriefErrorsMessageFile
-func (suite *TestAbstractSuite) testGetProcessorLogs(functionLogsFilePath string) {
+func (suite *TestAbstractSuite) testGetProcessorLogsTestFromFile(functionLogsFilePath string) {
 	functionLogsFile, err := os.Open(path.Join(functionLogsFilePath, FunctionLogsFile))
-	suite.NoError(err, "Failed to read function logs file")
+	suite.Require().NoError(err, "Failed to read function logs file")
 
 	functionLogsScanner := bufio.NewScanner(functionLogsFile)
 
 	formattedPodLogs, briefErrorsMessage := suite.Platform.GetProcessorLogsAndBriefError(functionLogsScanner)
 
 	expectedFormattedFunctionLogsFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, FormattedFunctionLogsFile))
-	suite.NoError(err, "Failed to read formatted function logs file")
+	suite.Require().NoError(err, "Failed to read formatted function logs file")
 	suite.Assert().Equal(string(expectedFormattedFunctionLogsFileBytes), formattedPodLogs)
 
 	expectedBriefErrorsMessageFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, BriefErrorsMessageFile))
-	suite.NoError(err, "Failed to read brief errors message file")
+	suite.Require().NoError(err, "Failed to read brief errors message file")
 	suite.Assert().Equal(string(expectedBriefErrorsMessageFileBytes), briefErrorsMessage)
 }
 

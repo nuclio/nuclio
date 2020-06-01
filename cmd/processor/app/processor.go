@@ -89,19 +89,16 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		stop:                  make(chan bool, 1),
 	}
 
-	// read platform configuration
-	platformConfiguration, err := newProcessor.readPlatformConfiguration(platformConfigurationPath)
+	// get platform configuration
+	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read platform configuration")
+		return nil, errors.Wrap(err, "Failed to get platform configuration")
 	}
 
 	processorConfiguration, err := newProcessor.readConfiguration(configurationPath)
 	if err != nil {
 		return nil, err
 	}
-
-	// use basic heuristics to differentiate between platforms
-	platformConfiguration.Kind, _ = newProcessor.detectPlatformKind() // nolint: errcheck
 
 	// create the function logger
 	newProcessor.logger, err = loggersink.CreateFunctionLogger("processor",
@@ -273,23 +270,24 @@ func (p *Processor) readConfiguration(configurationPath string) (*processor.Conf
 	return &processorConfiguration, nil
 }
 
-func (p *Processor) readPlatformConfiguration(configurationPath string) (*platformconfig.Config, error) {
-	platformConfigurationReader, err := platformconfig.NewReader()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
-	}
-
-	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
-}
-
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
 	var triggers []trigger.Trigger
 
 	// create error group
 	errGroup := errgroup.Group{}
+	platformKind := processorConfiguration.PlatformConfig.Kind
 
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
 		triggerName, triggerConfiguration := triggerName, triggerConfiguration
+
+		// skipping cron triggers when platform kind is "kube" - k8s cron jobs will be created instead
+		if triggerConfiguration.Kind == "cron" && platformKind == "kube" {
+			p.logger.DebugWith("Skipping cron trigger creation inside the processor",
+				"triggerName", triggerName,
+				"platformKind", platformKind)
+
+			continue
+		}
 
 		errGroup.Go(func() error {
 
@@ -453,14 +451,6 @@ func (p *Processor) createMetricSinks(processorConfiguration *processor.Configur
 	}
 
 	return metricSinks, nil
-}
-
-func (p *Processor) detectPlatformKind() (string, error) {
-	if len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0 {
-		return "kube", nil
-	}
-
-	return "local", nil
 }
 
 func (p *Processor) startTimeoutWatcher(eventTimeout time.Duration) error {

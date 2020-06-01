@@ -20,6 +20,15 @@ import (
 	"encoding/json"
 )
 
+type RestartPolicyName string
+
+const (
+	RestartPolicyNameUnlessStopped RestartPolicyName = "unless-stopped"
+	RestartPolicyNameAlways        RestartPolicyName = "always"
+	RestartPolicyNameNo            RestartPolicyName = "no"
+	RestartPolicyNameOnFailure     RestartPolicyName = "on-failure"
+)
+
 // LogInOptions are options for logging in
 type LogInOptions struct {
 	Username string
@@ -50,6 +59,7 @@ type RunOptions struct {
 	Attach           bool
 	ImageMayNotExist bool
 	Network          string
+	RestartPolicy    *RestartPolicy
 }
 
 // ExecOptions are options for executing a command in a container
@@ -175,7 +185,7 @@ type LogConfig struct {
 
 // RestartPolicy represents the restart policies of the container.
 type RestartPolicy struct {
-	Name              string
+	Name              RestartPolicyName
 	MaximumRetryCount int
 }
 

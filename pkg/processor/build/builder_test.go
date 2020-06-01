@@ -638,12 +638,12 @@ func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension stri
 
 	// the code file will be "downloaded" here
 	err := suite.builder.createTempDir()
-	suite.NoError(err)
+	suite.Require().NoError(err)
 
 	defer suite.builder.cleanupTempDir() // nolint: errcheck
 
 	path, _, err := suite.builder.resolveFunctionPath(codeFileURL)
-	suite.NoError(err)
+	suite.Require().NoError(err)
 
 	expectedFilePath := filepath.Join(suite.builder.tempDir, "/download/my-func."+fileExtension)
 	suite.Equal(expectedFilePath, path)
@@ -679,7 +679,7 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 	suite.mockArchiveFileURLEndpoint(buildConfiguration, archiveFileURL)
 
 	err := suite.builder.createTempDir()
-	suite.NoError(err)
+	suite.Require().NoError(err)
 
 	suite.builder.options.FunctionConfig.Spec.Build = buildConfiguration
 
@@ -711,7 +711,7 @@ func (suite *testSuite) testResolveFunctionPathArchiveBadWorkDir(buildConfigurat
 	suite.mockArchiveFileURLEndpoint(buildConfiguration, archiveFileURL)
 
 	err := suite.builder.createTempDir()
-	suite.NoError(err)
+	suite.Require().NoError(err)
 
 	suite.builder.options.FunctionConfig.Spec.Build = buildConfiguration
 

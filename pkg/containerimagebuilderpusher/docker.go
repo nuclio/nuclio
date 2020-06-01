@@ -62,7 +62,8 @@ func (d *Docker) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 		return errors.Wrap(err, "Failed to save docker image")
 	}
 
-	d.logger.DebugWith("Docker image was successfully built and pushed into docker registry", "image", buildOptions.Image)
+	d.logger.InfoWith("Docker image was successfully built and pushed into docker registry",
+		"image", buildOptions.Image)
 
 	return nil
 }
@@ -101,7 +102,7 @@ func (d *Docker) GetOnbuildImageRegistry(registry string) string {
 
 func (d *Docker) buildContainerImage(buildOptions *BuildOptions) error {
 
-	d.logger.DebugWith("Building docker image", "image", buildOptions.Image)
+	d.logger.InfoWith("Building docker image", "image", buildOptions.Image)
 
 	return d.dockerClient.Build(&dockerclient.BuildOptions{
 		ContextDir:     buildOptions.ContextDir,
@@ -114,7 +115,7 @@ func (d *Docker) buildContainerImage(buildOptions *BuildOptions) error {
 }
 
 func (d *Docker) pushContainerImage(image string, registryURL string) error {
-	d.logger.DebugWith("Pushing docker image into registry",
+	d.logger.InfoWith("Pushing docker image into registry",
 		"image", image,
 		"registry", registryURL)
 
@@ -126,19 +127,16 @@ func (d *Docker) pushContainerImage(image string, registryURL string) error {
 }
 
 func (d *Docker) saveContainerImage(buildOptions *BuildOptions) error {
-	var err error
-
 	if buildOptions.OutputImageFile != "" {
-		d.logger.InfoWith("Saving built docker image as archive", "outputFile", buildOptions.OutputImageFile)
-		err = d.dockerClient.Save(buildOptions.Image, buildOptions.OutputImageFile)
+		d.logger.InfoWith("Archiving built docker image", "OutputImageFile", buildOptions.OutputImageFile)
+		return d.dockerClient.Save(buildOptions.Image, buildOptions.OutputImageFile)
 	}
-
-	return err
+	return nil
 }
 
 func (d *Docker) ensureImagesExist(buildOptions *BuildOptions, images []string) error {
 	if buildOptions.NoBaseImagePull {
-		d.logger.Debug("Skipping base images pull")
+		d.logger.DebugWith("Skipping base images pull", "images", images)
 		return nil
 	}
 

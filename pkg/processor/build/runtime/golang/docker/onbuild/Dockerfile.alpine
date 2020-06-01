@@ -13,37 +13,26 @@
 # limitations under the License.
 
 # Build the processor
-FROM golang:1.14-alpine3.11 as processor
+ARG NUCLIO_LABEL
 
-# Download required packages for processor compilation
-RUN apk --update --no-cache add git gcc musl-dev file
-
-# Set processor work dir
-WORKDIR /nuclio
-
-ADD go.mod go.sum ./
-
-# Download modules
-RUN go mod download
-
-# Copy source tree
-COPY . .
+# Build the processor
+FROM nuclio-base-alpine:$NUCLIO_LABEL as build-processor
 
 # Build the processor
 RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
 
 # Build the plugin
-FROM golang:1.14-alpine3.11
+FROM golang:1.14.3-alpine3.11
 
 # Download required packages for plugin compilation
 RUN apk --update --no-cache add git gcc musl-dev file
 
 # Store processor binary
-COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
+COPY --from=build-processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
 # Store processor go build artifacts
-COPY --from=processor /nuclio/go.mod /processor_go.mod
-COPY --from=processor /nuclio/go.sum /processor_go.sum
+COPY --from=build-processor /nuclio/go.mod /processor_go.mod
+COPY --from=build-processor /nuclio/go.sum /processor_go.sum
 
 # Copy the script that builds the plugin
 COPY pkg/processor/build/runtime/golang/docker/onbuild/moduler.sh /

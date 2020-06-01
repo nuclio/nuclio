@@ -65,6 +65,8 @@ The `spec` section contains the requirements and attributes and has the followin
 | volumes | map | A map in an architecture similar to Kubernetes volumes, for Docker deployment |
 | replicas | int | The number of desired instances; 0 for auto-scaling. |
 | minReplicas | int | The minimum number of replicas |
+| platform.attributes.restartPolicy.name | string | function image container restart policy name (applied for docker platform only) |
+| platform.attributes.restartPolicy.maximumRetryCount | int | restart maximum counter before exhausted |
 | maxReplicas | int | The maximum number of replicas |
 | targetCPU | int | Target CPU when auto scaling, as a percentage (default: 75%) |
 | dataBindings | See reference | A map of data sources used by the function ("data bindings") |
@@ -101,6 +103,14 @@ spec:
   handler: main:Handler
   runtime: golang
   image: myfunctionimage:latest
+  platform:
+    attributes:
+
+      # docker will retry 3 times to start function image container
+      # more info @ https://docs.docker.com/config/containers/start-containers-automatically
+      restartPolicy:
+        name: on-failure
+        maximumRetryCount: 3
   env:
   - name: SOME_ENV
     value: abc
