@@ -55,6 +55,8 @@ spec:
           value: {{ .Values.controller.operator.functionEvent.numWorkers | quote }}
         - name: NUCLIO_CONTROLLER_PROJECT_OPERATOR_NUM_WORKERS
           value: {{ .Values.controller.operator.project.numWorkers | quote }}
+        - name: NUCLIO_CONTROLLER_API_GATEWAY_OPERATOR_NUM_WORKERS
+          value: {{ .Values.controller.operator.apiGateway.numWorkers | quote }}
         {{- if .Values.platform }}
         volumeMounts:
         - name: platform-config

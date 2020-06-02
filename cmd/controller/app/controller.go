@@ -20,10 +20,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+	"github.com/nuclio/nuclio/pkg/platform/kube/provisioner/apigateway"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
@@ -41,7 +44,8 @@ func Run(kubeconfigPath string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
-	projectOperatorNumWorkersStr string) error {
+	projectOperatorNumWorkersStr string,
+	apiGatewayOperatorNumWorkersStr string) error {
 
 	newController, err := createController(kubeconfigPath,
 		namespace,
@@ -50,7 +54,8 @@ func Run(kubeconfigPath string,
 		functionOperatorNumWorkersStr,
 		functionOperatorResyncIntervalStr,
 		functionEventOperatorNumWorkersStr,
-		projectOperatorNumWorkersStr)
+		projectOperatorNumWorkersStr,
+		apiGatewayOperatorNumWorkersStr)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create controller")
 	}
@@ -71,7 +76,8 @@ func createController(kubeconfigPath string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
-	projectOperatorNumWorkersStr string) (*controller.Controller, error) {
+	projectOperatorNumWorkersStr string,
+	apiGatewayOperatorNumWorkersStr string) (*controller.Controller, error) {
 
 	functionOperatorNumWorkers, err := strconv.Atoi(functionOperatorNumWorkersStr)
 	if err != nil {
@@ -91,6 +97,11 @@ func createController(kubeconfigPath string,
 	projectOperatorNumWorkers, err := strconv.Atoi(projectOperatorNumWorkersStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve number of workers for project operator")
+	}
+
+	apiGatewayOperatorNumWorkers, err := strconv.Atoi(apiGatewayOperatorNumWorkersStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve number of workers for api-gateway operator")
 	}
 
 	// read platform configuration
@@ -126,17 +137,39 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create function deployment client")
 	}
 
+	// create cmd runner
+	cmdRunner, err := cmdrunner.NewShellRunner(rootLogger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create cmd runner")
+	}
+
+	// create ingress manager
+	ingressManager, err := ingress.NewIngressManager(rootLogger, kubeClientSet, cmdRunner)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create ingress manager")
+	}
+
+	// create api-gateway provisioner
+	apiGatewayProvisioner, err := apigateway.NewProvisioner(rootLogger, kubeClientSet, nuclioClientSet, ingressManager)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create api-gateway provisioner")
+	}
+
 	newController, err := controller.NewController(rootLogger,
 		namespace,
 		imagePullSecrets,
 		kubeClientSet,
 		nuclioClientSet,
 		functionresClient,
+		cmdRunner,
+		ingressManager,
+		apiGatewayProvisioner,
 		functionOperatorResyncInterval,
 		platformConfiguration,
 		functionOperatorNumWorkers,
 		functionEventOperatorNumWorkers,
-		projectOperatorNumWorkers)
+		projectOperatorNumWorkers,
+		apiGatewayOperatorNumWorkers)
 
 	if err != nil {
 		return nil, err

@@ -20,6 +20,8 @@ controller:
       numWorkers: 2
     project:
       numWorkers: 2
+    apiGateway:
+      numWorkers: 2
 
 # Dashboard settings
 dashboard:

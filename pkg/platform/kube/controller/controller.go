@@ -19,8 +19,11 @@ package controller
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+	"github.com/nuclio/nuclio/pkg/platform/kube/provisioner/apigateway"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/version"
 
@@ -37,10 +40,14 @@ type Controller struct {
 	kubeClientSet         kubernetes.Interface
 	nuclioClientSet       nuclioio_client.Interface
 	functionresClient     functionres.Client
+	cmdRunner             cmdrunner.CmdRunner
+	ingressManager        *ingress.IngressManager
+	apiGatewayProvisioner *apigateway.Provisioner
 	imagePullSecrets      string
 	functionOperator      *functionOperator
 	projectOperator       *projectOperator
 	functionEventOperator *functionEventOperator
+	apiGatewayOperator    *apiGatewayOperator
 	platformConfiguration *platformconfig.Config
 }
 
@@ -50,11 +57,15 @@ func NewController(parentLogger logger.Logger,
 	kubeClientSet kubernetes.Interface,
 	nuclioClientSet nuclioio_client.Interface,
 	functionresClient functionres.Client,
+	cmdRunner cmdrunner.CmdRunner,
+	ingressManager *ingress.IngressManager,
+	apiGatewayProvisioner *apigateway.Provisioner,
 	resyncInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
 	functionOperatorNumWorkers int,
 	functionEventOperatorNumWorkers int,
-	projectOperatorNumWorkers int) (*Controller, error) {
+	projectOperatorNumWorkers int,
+	apiGatewayOperatorNumWorkers int) (*Controller, error) {
 	var err error
 
 	// replace "*" with "", which is actually "all" in kube-speak
@@ -69,6 +80,9 @@ func NewController(parentLogger logger.Logger,
 		kubeClientSet:         kubeClientSet,
 		nuclioClientSet:       nuclioClientSet,
 		functionresClient:     functionresClient,
+		ingressManager:        ingressManager,
+		cmdRunner:             cmdRunner,
+		apiGatewayProvisioner: apiGatewayProvisioner,
 		platformConfiguration: platformConfiguration,
 	}
 
@@ -113,6 +127,15 @@ func NewController(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create project operator")
 	}
 
+	// create an api-gateway operator
+	newController.apiGatewayOperator, err = newAPIGatewayOperator(parentLogger,
+		newController,
+		&resyncInterval,
+		apiGatewayOperatorNumWorkers)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create api-gateway operator")
+	}
+
 	return newController, nil
 }
 
@@ -132,6 +155,11 @@ func (c *Controller) Start() error {
 	// start the function event operator
 	if err := c.functionEventOperator.start(); err != nil {
 		return errors.Wrap(err, "Failed to start function event operator")
+	}
+
+	// start the api-gateway operator
+	if err := c.apiGatewayOperator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start api-gateway operator")
 	}
 
 	return nil
