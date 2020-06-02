@@ -65,7 +65,8 @@ func NewController(parentLogger logger.Logger,
 	functionOperatorNumWorkers int,
 	functionEventOperatorNumWorkers int,
 	projectOperatorNumWorkers int,
-	apiGatewayOperatorNumWorkers int) (*Controller, error) {
+	apiGatewayOperatorNumWorkers int,
+	apiGatewayOperatorEnabled bool) (*Controller, error) {
 	var err error
 
 	// replace "*" with "", which is actually "all" in kube-speak
@@ -90,7 +91,8 @@ func NewController(parentLogger logger.Logger,
 	version.Log(newController.logger)
 
 	newController.logger.DebugWith("Read configuration",
-		"platformConfig", newController.platformConfiguration)
+		"platformConfig", newController.platformConfiguration,
+		"apiGatewayOperatorNumWorkersEnabled", apiGatewayOperatorEnabled)
 
 	// set ourselves as the platform configuration provider of the function resource client (it needs it to do
 	// stuff when creating stuff)
@@ -127,13 +129,17 @@ func NewController(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create project operator")
 	}
 
-	// create an api-gateway operator
-	newController.apiGatewayOperator, err = newAPIGatewayOperator(parentLogger,
-		newController,
-		&resyncInterval,
-		apiGatewayOperatorNumWorkers)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create api-gateway operator")
+	if apiGatewayOperatorEnabled {
+
+		// create an api-gateway operator
+		newController.apiGatewayOperator, err = newAPIGatewayOperator(parentLogger,
+			newController,
+			&resyncInterval,
+			apiGatewayOperatorNumWorkers)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create api-gateway operator")
+		}
+
 	}
 
 	return newController, nil
@@ -157,9 +163,13 @@ func (c *Controller) Start() error {
 		return errors.Wrap(err, "Failed to start function event operator")
 	}
 
-	// start the api-gateway operator
-	if err := c.apiGatewayOperator.start(); err != nil {
-		return errors.Wrap(err, "Failed to start api-gateway operator")
+	// will be nil when it's disabled
+	if c.apiGatewayOperator != nil {
+
+		// start the api-gateway operator
+		if err := c.apiGatewayOperator.start(); err != nil {
+			return errors.Wrap(err, "Failed to start api-gateway operator")
+		}
 	}
 
 	return nil

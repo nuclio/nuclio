@@ -45,7 +45,8 @@ func Run(kubeconfigPath string,
 	functionOperatorResyncIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
-	apiGatewayOperatorNumWorkersStr string) error {
+	apiGatewayOperatorNumWorkersStr string,
+	apiGatewayOperatorEnabled bool) error {
 
 	newController, err := createController(kubeconfigPath,
 		namespace,
@@ -55,7 +56,8 @@ func Run(kubeconfigPath string,
 		functionOperatorResyncIntervalStr,
 		functionEventOperatorNumWorkersStr,
 		projectOperatorNumWorkersStr,
-		apiGatewayOperatorNumWorkersStr)
+		apiGatewayOperatorNumWorkersStr,
+		apiGatewayOperatorEnabled)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create controller")
 	}
@@ -77,7 +79,8 @@ func createController(kubeconfigPath string,
 	functionOperatorResyncIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
-	apiGatewayOperatorNumWorkersStr string) (*controller.Controller, error) {
+	apiGatewayOperatorNumWorkersStr string,
+	apiGatewayOperatorEnabled bool) (*controller.Controller, error) {
 
 	functionOperatorNumWorkers, err := strconv.Atoi(functionOperatorNumWorkersStr)
 	if err != nil {
@@ -169,7 +172,8 @@ func createController(kubeconfigPath string,
 		functionOperatorNumWorkers,
 		functionEventOperatorNumWorkers,
 		projectOperatorNumWorkers,
-		apiGatewayOperatorNumWorkers)
+		apiGatewayOperatorNumWorkers,
+		apiGatewayOperatorEnabled)
 
 	if err != nil {
 		return nil, err

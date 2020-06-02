@@ -22,6 +22,7 @@ controller:
       numWorkers: 2
     apiGateway:
       numWorkers: 2
+      enabled: false
 
 # Dashboard settings
 dashboard:
