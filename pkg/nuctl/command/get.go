@@ -68,7 +68,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
-		Aliases: []string{"fu"},
+		Aliases: []string{"fu", "fn"},
 		Short:   "Display function information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
@@ -139,7 +139,7 @@ func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer
 
 	cmd := &cobra.Command{
 		Use:     "project name",
-		Aliases: []string{"proj"},
+		Aliases: []string{"proj", "prj"},
 		Short:   "Display project information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 

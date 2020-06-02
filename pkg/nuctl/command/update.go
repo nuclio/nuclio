@@ -71,7 +71,7 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
-		Aliases: []string{"fu"},
+		Aliases: []string{"fu", "fn"},
 		Short:   "Update functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 

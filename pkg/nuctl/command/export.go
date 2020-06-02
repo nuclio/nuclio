@@ -53,9 +53,9 @@ func newExportFunctionCommandeer(exportCommandeer *exportCommandeer) *exportFunc
 	}
 
 	cmd := &cobra.Command{
-		Use:     "function [name[:version]]",
-		Aliases: []string{"fu"},
-		Short:   "Export function to yaml format",
+		Use:     "functions [name[:version]]",
+		Aliases: []string{"fu", "fn", "function"},
+		Short:   "(or function) Export function to yaml format",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -135,9 +135,9 @@ func newExportProjectCommandeer(exportCommandeer *exportCommandeer) *exportProje
 	}
 
 	cmd := &cobra.Command{
-		Use:     "project name",
-		Aliases: []string{"proj"},
-		Short:   "Export project with all it's functions and function events",
+		Use:     "projects [name]",
+		Aliases: []string{"proj", "prj", "project"},
+		Short:   "(or project) Export project with all it's functions and function events",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments

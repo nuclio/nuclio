@@ -68,7 +68,7 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
-		Aliases: []string{"fu"},
+		Aliases: []string{"fu", "fn"},
 		Short:   "Delete functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
@@ -108,7 +108,7 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 
 	cmd := &cobra.Command{
 		Use:     "project name",
-		Aliases: []string{"proj"},
+		Aliases: []string{"proj", "prj"},
 		Short:   "Delete projects",
 		RunE: func(cmd *cobra.Command, args []string) error {
 

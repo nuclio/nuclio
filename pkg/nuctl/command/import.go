@@ -128,9 +128,9 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 	}
 
 	cmd := &cobra.Command{
-		Use:     "function [path-to-exported-function-file]",
-		Aliases: []string{"fu"},
-		Short:   "Import function, and by default don't deploy it",
+		Use:     "functions [path-to-exported-function-file]",
+		Aliases: []string{"fu", "fn", "function"},
+		Short:   "(or function) Import function, and by default don't deploy it",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// initialize root
@@ -211,9 +211,9 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 	}
 
 	cmd := &cobra.Command{
-		Use:     "project [path-to-exported-project-file]",
-		Aliases: []string{"proj"},
-		Short:   "Import project and all its functions and functionEvents",
+		Use:     "projects [path-to-exported-project-file]",
+		Aliases: []string{"proj", "prj", "project"},
+		Short:   "(or project) Import project and all its functions and functionEvents",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// initialize root
