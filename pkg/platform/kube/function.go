@@ -192,7 +192,7 @@ func (f *function) Initialize([]string) error {
 		f.configuredReplicas = int(*deployment.Spec.Replicas)
 	}
 
-	if ingressErr != nil && ingress != nil && len(ingress.Status.LoadBalancer.Ingress) > 0 {
+	if ingressErr == nil && ingress != nil && len(ingress.Status.LoadBalancer.Ingress) > 0 {
 		f.ingressAddress = ingress.Status.LoadBalancer.Ingress[0].IP
 	}
 
