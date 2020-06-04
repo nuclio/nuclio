@@ -214,6 +214,17 @@ func (im *IngressManager) getBasicAuthIngressAnnotationsAndSecret(ctx context.Co
 		return nil, nil, errors.New("Basic auth spec is missing")
 	}
 
+	// validate mandatory fields existence
+	for fieldName, field := range map[string]string{
+		"name":     spec.Authentication.BasicAuth.Name,
+		"username": spec.Authentication.BasicAuth.Username,
+		"password": spec.Authentication.BasicAuth.Password,
+	} {
+		if field == "" {
+			return nil, nil, errors.Errorf("Missing mandatory field in spec: %s", fieldName)
+		}
+	}
+
 	authSecretName := fmt.Sprintf("%s-basic-auth", spec.Authentication.BasicAuth.Name)
 
 	htpasswdContents, err := im.GenerateHtpasswdContents(ctx,

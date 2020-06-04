@@ -266,7 +266,7 @@ func (p *Provisioner) generateNginxIngress(ctx context.Context,
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeBasicAuth
 		commonIngressSpec.Authentication = &ingress.Authentication{
 			BasicAuth: &ingress.BasicAuth{
-				Name:     apiGateway.Name,
+				Name:     fmt.Sprintf("apigateway-%s", apiGateway.Name),
 				Username: apiGateway.Spec.Authentication.BasicAuth.Username,
 				Password: apiGateway.Spec.Authentication.BasicAuth.Password,
 			},
