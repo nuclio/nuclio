@@ -373,7 +373,7 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 
 				// container exited, bail out
 				if container.State.Status == "exited" {
-					containerHealthy <- errors.Errorf("Container exited with status: %s", container.State.ExitCode)
+					containerHealthy <- errors.Errorf("Container exited with status: %d", container.State.ExitCode)
 					return
 				}
 
