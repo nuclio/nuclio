@@ -101,13 +101,15 @@ func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 	h.Logger.InfoWith("Starting",
 		"listenAddress", h.configuration.URL,
 		"readBufferSize", h.configuration.ReadBufferSize,
+		"maxRequestBodySize", h.configuration.MaxRequestBodySize,
 		"cors", h.configuration.CORS)
 
 	h.server = &fasthttp.Server{
-		Handler:        h.onRequestFromFastHTTP(),
-		Name:           "nuclio",
-		ReadBufferSize: h.configuration.ReadBufferSize,
-		Logger:         NewFastHTTPLogger(h.Logger),
+		Handler:            h.onRequestFromFastHTTP(),
+		Name:               "nuclio",
+		ReadBufferSize:     h.configuration.ReadBufferSize,
+		Logger:             NewFastHTTPLogger(h.Logger),
+		MaxRequestBodySize: h.configuration.MaxRequestBodySize,
 	}
 
 	// start listening
@@ -231,7 +233,7 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 
 	// default to bad preflight request unless all specifications are valid
-	ctx.SetStatusCode(fasthttp.StatusBadRequest)
+	ctx.SetStatusCode(net_http.StatusBadRequest)
 
 	origin := common.ByteSliceToString(ctx.Request.Header.Peek("Origin"))
 	if !h.preflightRequestValidation(ctx, origin) {
@@ -261,7 +263,7 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 		h.configuration.CORS.EncodeAllowHeaders())
 
 	// specifications met, set preflight request as OK
-	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetStatusCode(net_http.StatusOK)
 	h.UpdateStatistics(true)
 }
 
