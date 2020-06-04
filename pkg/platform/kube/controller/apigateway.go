@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/platform/kube"
+	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
 
@@ -99,7 +99,7 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 
 	if err := ago.controller.apiGatewayProvisioner.CreateOrUpdateAPIGateway(ctx, apiGateway); err != nil {
 		ago.logger.WarnWith("Failed to create/update api-gateway. Updating state accordingly")
-		if err := ago.setAPIGatewayState(apiGateway, kube.APIGatewayStateError, err); err != nil {
+		if err := ago.setAPIGatewayState(apiGateway, platform.APIGatewayStateError, err); err != nil {
 			ago.logger.WarnWith("Failed to set api-gateway state as error",
 				"err", err)
 		}
@@ -108,7 +108,7 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 	}
 
 	// set state to
-	if err := ago.setAPIGatewayState(apiGateway, kube.APIGatewayStateReady, nil); err != nil {
+	if err := ago.setAPIGatewayState(apiGateway, platform.APIGatewayStateReady, nil); err != nil {
 		return errors.Wrap(err, "Failed to set api-gateway state after it was successfully created")
 	}
 
@@ -117,10 +117,10 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 	return nil
 }
 
-func (ago *apiGatewayOperator) shouldRespondToState(state kube.APIGatewayState) bool {
+func (ago *apiGatewayOperator) shouldRespondToState(state platform.APIGatewayState) bool {
 	statesToRespond := []string{
-		string(kube.APIGatewayStateWaitingForProvisioning),
-		string(kube.APIGatewayStateNone),
+		string(platform.APIGatewayStateWaitingForProvisioning),
+		string(platform.APIGatewayStateNone),
 	}
 	if common.StringSliceContainsString(statesToRespond, string(state)) {
 		return true
@@ -148,7 +148,7 @@ func (ago *apiGatewayOperator) getListWatcher(namespace string) cache.ListerWatc
 }
 
 func (ago *apiGatewayOperator) setAPIGatewayState(apiGateway *nuclioio.NuclioAPIGateway,
-	state kube.APIGatewayState,
+	state platform.APIGatewayState,
 	lastError error) error {
 	ago.logger.DebugWith("Setting api-gateway state", "name", apiGateway.Name, "state", state)
 

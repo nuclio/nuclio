@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/platform/kube"
+	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
@@ -70,8 +70,8 @@ func (p *Provisioner) CreateOrUpdateAPIGateway(ctx context.Context, apiGateway *
 		ingresses[ingressResources.Ingress.Name] = ingressResources
 
 	} else if len(upstreams) == 2 {
-		var canaryUpstream kube.APIGatewayUpstreamSpec
-		var baseUpstream kube.APIGatewayUpstreamSpec
+		var canaryUpstream platform.APIGatewayUpstreamSpec
+		var baseUpstream platform.APIGatewayUpstreamSpec
 
 		// Determine which upstream is the canary one
 		if upstreams[0].Percentage != 0 {
@@ -179,7 +179,7 @@ func (p *Provisioner) validateSpec(apiGateway *nuclioio.NuclioAPIGateway) error 
 
 	// TODO: update this when adding more upstream kinds. for now allow only `nucliofunction` upstreams
 	kind := upstreams[0].Kind
-	if kind != kube.APIGatewayUpstreamKindNuclioFunction {
+	if kind != platform.APIGatewayUpstreamKindNuclioFunction {
 		return fmt.Errorf("unsupported upstream kind: %s. (Currently supporting only nucliofunction)", upstreams[0].Kind)
 	}
 
@@ -235,7 +235,7 @@ func (p *Provisioner) getAllExistingUpstreamFunctionNames(namespace, apiGatewayN
 // Return values: (ingress: <string>, ingressName: <string>, error: <error>)
 func (p *Provisioner) generateNginxIngress(ctx context.Context,
 	apiGateway *nuclioio.NuclioAPIGateway,
-	upstream kube.APIGatewayUpstreamSpec) (*ingress.IngressResources,  error) {
+	upstream platform.APIGatewayUpstreamSpec) (*ingress.IngressResources,  error) {
 
 	serviceName, err := p.getServiceName(upstream, apiGateway.Namespace)
 	if err != nil {
@@ -257,9 +257,9 @@ func (p *Provisioner) generateNginxIngress(ctx context.Context,
 	}
 
 	switch apiGateway.Spec.AuthenticationMode {
-	case kube.APIGatewayAuthenticationModeNone:
+	case platform.APIGatewayAuthenticationModeNone:
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeNone
-	case kube.APIGatewayAuthenticationModeBasicAuth:
+	case platform.APIGatewayAuthenticationModeBasicAuth:
 		if apiGateway.Spec.Authentication == nil || apiGateway.Spec.Authentication.BasicAuth == nil {
 			return nil, errors.New("Basic auth specified but missing basic auth spec")
 		}
@@ -271,7 +271,7 @@ func (p *Provisioner) generateNginxIngress(ctx context.Context,
 				Password: apiGateway.Spec.Authentication.BasicAuth.Password,
 			},
 		}
-	case kube.APIGatewayAuthenticationModeDex:
+	case platform.APIGatewayAuthenticationModeDex:
 		if apiGateway.Spec.Authentication == nil || apiGateway.Spec.Authentication.DexAuth == nil {
 			return nil, errors.New("Dex auth specified but missing dex auth spec")
 		}
@@ -281,7 +281,7 @@ func (p *Provisioner) generateNginxIngress(ctx context.Context,
 				Oauth2ProxyURL: apiGateway.Spec.Authentication.DexAuth.Oauth2ProxyURL,
 			},
 		}
-	case kube.APIGatewayAuthenticationAccessKey:
+	case platform.APIGatewayAuthenticationAccessKey:
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeAccessKey
 	default:
 		return nil, errors.New("Unsupported ApiGateway authentication mode provided")
@@ -311,17 +311,17 @@ func (p *Provisioner) generateNginxIngress(ctx context.Context,
 	return p.ingressManager.GenerateIngressResources(ctx, commonIngressSpec)
 }
 
-func (p *Provisioner) getServiceName(upstream kube.APIGatewayUpstreamSpec,
+func (p *Provisioner) getServiceName(upstream platform.APIGatewayUpstreamSpec,
 	namespace string) (string, error) {
 	switch upstream.Kind {
-	case kube.APIGatewayUpstreamKindNuclioFunction:
+	case platform.APIGatewayUpstreamKindNuclioFunction:
 		return p.getNuclioFunctionServiceName(upstream, namespace)
 	default:
 		return "", fmt.Errorf("unsupported api gateway upstream kind: %s", upstream.Kind)
 	}
 }
 
-func (p *Provisioner) getNuclioFunctionServiceName(upstream kube.APIGatewayUpstreamSpec,
+func (p *Provisioner) getNuclioFunctionServiceName(upstream platform.APIGatewayUpstreamSpec,
 	namespace string) (string, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", upstream.Nucliofunction.Name),

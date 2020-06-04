@@ -349,7 +349,7 @@ func (im *IngressManager) DeleteIngressByName(ingressName string, namespace stri
 		// get the ingress object so we can find the secret name
 		if ingress, err = im.kubeClientSet.
 			ExtensionsV1beta1().
-			Ingresses(ingress.Namespace).
+			Ingresses(namespace).
 			Get(ingressName, metav1.GetOptions{}); err != nil {
 
 			if !apierrors.IsNotFound(err) {
@@ -371,7 +371,7 @@ func (im *IngressManager) DeleteIngressByName(ingressName string, namespace stri
 
 			if err = im.kubeClientSet.
 				CoreV1().
-				Secrets(ingress.Namespace).
+				Secrets(namespace).
 				Delete(secretName, &metav1.DeleteOptions{}); err != nil {
 
 				if !apierrors.IsNotFound(err) {

@@ -3,8 +3,6 @@ package v1beta1
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/kube"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -160,8 +158,8 @@ type NuclioAPIGateway struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   kube.APIGatewaySpec   `json:"spec"`
-	Status kube.APIGatewayStatus `json:"status"`
+	Spec   platform.APIGatewaySpec   `json:"spec"`
+	Status platform.APIGatewayStatus `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

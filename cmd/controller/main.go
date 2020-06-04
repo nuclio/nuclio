@@ -55,7 +55,7 @@ func main() {
 	functionEventOperatorNumWorkersStr := flag.String("function-event-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_EVENT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function event operator (optional)")
 	projectOperatorNumWorkersStr := flag.String("project-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PROJECT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the project operator (optional)")
 	apiGatewayOperatorNumWorkersStr := flag.String("api-gateway-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_API_GATEWAY_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the api-gateway operator (optional)")
-	apiGatewayOperatorEnabled := flag.Bool("api-gateway-operator-num-workers", apiGatewayOperatorEnabledFromEnv, "Determines whether to enable the api-gateway operator or not (optional)")
+	apiGatewayOperatorEnabled := flag.Bool("api-gateway-operator-enabled", apiGatewayOperatorEnabledFromEnv, "Determines whether to enable the api-gateway operator or not (optional)")
 
 	flag.Parse()
 
