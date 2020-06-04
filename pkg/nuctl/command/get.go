@@ -67,9 +67,9 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 	}
 
 	cmd := &cobra.Command{
-		Use:     "function [name[:version]]",
-		Aliases: []string{"fu", "fn"},
-		Short:   "Display function information",
+		Use:     "functions [name[:version]]",
+		Aliases: []string{"fu", "fn", "function"},
+		Short:   "(or function) Display function information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -138,9 +138,9 @@ func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer
 	}
 
 	cmd := &cobra.Command{
-		Use:     "project name",
-		Aliases: []string{"proj", "prj"},
-		Short:   "Display project information",
+		Use:     "projects name",
+		Aliases: []string{"proj", "prj", "project"},
+		Short:   "(or project) Display project information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -206,9 +206,9 @@ func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEve
 	}
 
 	cmd := &cobra.Command{
-		Use:     "functionevent name",
-		Aliases: []string{"fe"},
-		Short:   "Display function event information",
+		Use:     "functionevents name",
+		Aliases: []string{"fe", "functionevent"},
+		Short:   "(or functionevent) Display function event information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments

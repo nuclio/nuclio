@@ -67,9 +67,9 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 	}
 
 	cmd := &cobra.Command{
-		Use:     "function [name[:version]]",
-		Aliases: []string{"fu", "fn"},
-		Short:   "Delete functions",
+		Use:     "functions [name[:version]]",
+		Aliases: []string{"fu", "fn", "function"},
+		Short:   "(or function) Delete functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -107,9 +107,9 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 	}
 
 	cmd := &cobra.Command{
-		Use:     "project name",
-		Aliases: []string{"proj", "prj"},
-		Short:   "Delete projects",
+		Use:     "projects name",
+		Aliases: []string{"proj", "prj", "project"},
+		Short:   "(or project) Delete projects",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -147,9 +147,9 @@ func newDeleteFunctionEventCommandeer(deleteCommandeer *deleteCommandeer) *delet
 	}
 
 	cmd := &cobra.Command{
-		Use:     "functionevent name",
-		Aliases: []string{"fe"},
-		Short:   "Delete function event",
+		Use:     "functionevents name",
+		Aliases: []string{"fe", "functionevent"},
+		Short:   "(or functionevent) Delete function event",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
