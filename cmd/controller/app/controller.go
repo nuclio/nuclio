@@ -117,7 +117,6 @@ func createController(kubeconfigPath string,
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get platform configuration")
 	}

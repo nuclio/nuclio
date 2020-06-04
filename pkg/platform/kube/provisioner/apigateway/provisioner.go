@@ -47,10 +47,10 @@ func (p *Provisioner) CreateOrUpdateAPIGateway(ctx context.Context, apiGateway *
 	apiGateway.Status.Name = apiGateway.Spec.Name
 
 	if err := p.validateSpec(apiGateway); err != nil {
-		return errors.Wrap(err, "api gateway spec validation failed")
+		return errors.Wrap(err, "Api gateway spec validation failed")
 	}
 
-	// Generate an ingress for each upstream
+	// generate an ingress for each upstream
 	upstreams := apiGateway.Spec.Upstreams
 	ingresses := map[string]*ingress.IngressResources{}
 
@@ -61,10 +61,10 @@ func (p *Provisioner) CreateOrUpdateAPIGateway(ctx context.Context, apiGateway *
 
 	if len(upstreams) == 1 {
 
-		// Create just a single ingress
+		// create just a single ingress
 		ingressResources, err := p.generateNginxIngress(ctx, apiGateway, upstreams[0])
 		if err != nil {
-			return errors.Wrap(err, "failed to generate nginx ingress")
+			return errors.Wrap(err, "Failed to generate nginx ingress")
 		}
 
 		ingresses[ingressResources.Ingress.Name] = ingressResources
@@ -73,7 +73,7 @@ func (p *Provisioner) CreateOrUpdateAPIGateway(ctx context.Context, apiGateway *
 		var canaryUpstream platform.APIGatewayUpstreamSpec
 		var baseUpstream platform.APIGatewayUpstreamSpec
 
-		// Determine which upstream is the canary one
+		// determine which upstream is the canary one
 		if upstreams[0].Percentage != 0 {
 			baseUpstream = upstreams[1]
 			canaryUpstream = upstreams[0]
@@ -81,30 +81,30 @@ func (p *Provisioner) CreateOrUpdateAPIGateway(ctx context.Context, apiGateway *
 			baseUpstream = upstreams[0]
 			canaryUpstream = upstreams[1]
 		} else {
-			return errors.New("percentage must be set on one of the upstreams (canary)")
+			return errors.New("Percentage must be set on one of the upstreams (canary)")
 		}
 
-		// Validity check
+		// validity check
 		if canaryUpstream.Percentage > 100 || canaryUpstream.Percentage < 1 {
-			return errors.New("the canary upstream percentage must be between 1 and 100")
+			return errors.New("The canary upstream percentage must be between 1 and 100")
 		}
 
-		// Add the base ingress
+		// add the base ingress
 		baseIngressResources, err := p.generateNginxIngress(ctx, apiGateway, baseUpstream)
 		if err != nil {
-			return errors.Wrap(err, "failed to generate the base nginx ingress")
+			return errors.Wrap(err, "Failed to generate the base nginx ingress")
 		}
 		ingresses[baseIngressResources.Ingress.Name] = baseIngressResources
 
-		// Add the canary ingress
+		// add the canary ingress
 		canaryIngressResources, err := p.generateNginxIngress(ctx, apiGateway, canaryUpstream)
 		if err != nil {
-			return errors.Wrap(err, "failed to generate the canary nginx ingress")
+			return errors.Wrap(err, "Failed to generate the canary nginx ingress")
 		}
 		ingresses[canaryIngressResources.Ingress.Name] = canaryIngressResources
 	}
 
-	//Create ingresses
+	// create ingresses
 	for ingressName, ingressResources := range ingresses {
 		if _, _, err := p.ingressManager.CreateOrUpdateIngressResources(ingressResources); err != nil {
 			p.Logger.WarnWithCtx(ctx, "Failed to create/update api-gateway ingress resources",
@@ -170,21 +170,21 @@ func (p *Provisioner) validateSpec(apiGateway *nuclioio.NuclioAPIGateway) error 
 	upstreams := apiGateway.Spec.Upstreams
 
 	if len(upstreams) > 2 {
-		return errors.New("received more than 2 upstreams. Currently not supported")
+		return errors.New("Received more than 2 upstreams. Currently not supported")
 	} else if len(upstreams) == 0 {
-		return errors.New("one or more upstreams must be provided in spec")
+		return errors.New("One or more upstreams must be provided in spec")
 	} else if apiGateway.Spec.Host == "" {
-		return errors.New("host must be provided in spec")
+		return errors.New("Host must be provided in spec")
 	}
 
 	// TODO: update this when adding more upstream kinds. for now allow only `nucliofunction` upstreams
 	kind := upstreams[0].Kind
 	if kind != platform.APIGatewayUpstreamKindNuclioFunction {
-		return fmt.Errorf("unsupported upstream kind: %s. (Currently supporting only nucliofunction)", upstreams[0].Kind)
+		return fmt.Errorf("Unsupported upstream kind: %s. (Currently supporting only nucliofunction)", upstreams[0].Kind)
 	}
 
 	if apiGateway.Name == "" {
-		return errors.New("api gateway name must be provided in spec")
+		return errors.New("Api gateway name must be provided in spec")
 	}
 
 	// Validity checks per upstream
@@ -194,14 +194,14 @@ func (p *Provisioner) validateSpec(apiGateway *nuclioio.NuclioAPIGateway) error 
 	//    (this is done because creating multiple ingresses with the same service name breaks nginx ingress controller)
 	existingUpstreamFunctionNames, err := p.getAllExistingUpstreamFunctionNames(apiGateway.Namespace, apiGateway.Name)
 	if err != nil {
-		return errors.Wrap(err, "failed while getting all existing upstreams")
+		return errors.Wrap(err, "Failed while getting all existing upstreams")
 	}
 	for _, upstream := range upstreams {
 		if upstream.Kind != kind {
-			return errors.New("all upstreams must be of the same kind")
+			return errors.New("All upstreams must be of the same kind")
 		}
 		if common.StringSliceContainsString(existingUpstreamFunctionNames, upstream.Nucliofunction.Name) {
-			return fmt.Errorf("nuclio function '%s' is already being used in another api-gateway",
+			return fmt.Errorf("Nuclio function '%s' is already being used in another api-gateway",
 				upstream.Nucliofunction.Name)
 		}
 	}
@@ -216,7 +216,7 @@ func (p *Provisioner) getAllExistingUpstreamFunctionNames(namespace, apiGatewayN
 		NuclioAPIGateways(namespace).
 		List(metav1.ListOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list existing api gateways")
+		return nil, errors.Wrap(err, "Failed to list existing api gateways")
 	}
 
 	for _, apiGateway := range existingAPIGateways.Items {
@@ -232,12 +232,11 @@ func (p *Provisioner) getAllExistingUpstreamFunctionNames(namespace, apiGatewayN
 	return existingUpstreamNames, nil
 }
 
-// Return values: (ingress: <string>, ingressName: <string>, error: <error>)
 func (p *Provisioner) generateNginxIngress(ctx context.Context,
 	apiGateway *nuclioio.NuclioAPIGateway,
 	upstream platform.APIGatewayUpstreamSpec) (*ingress.IngressResources,  error) {
 
-	serviceName, err := p.getServiceName(upstream, apiGateway.Namespace)
+	serviceName, servicePort, err := p.getServiceNameAndPort(upstream, apiGateway.Namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get service name")
 	}
@@ -252,14 +251,14 @@ func (p *Provisioner) generateNginxIngress(ctx context.Context,
 		Host:          apiGateway.Spec.Host,
 		Path:          apiGateway.Spec.Path,
 		ServiceName:   serviceName,
-		ServicePort:   8080, // TODO: update this! assuming services run on port 8080
+		ServicePort:   servicePort,
 		RewriteTarget: upstream.RewriteTarget,
 	}
 
 	switch apiGateway.Spec.AuthenticationMode {
-	case platform.APIGatewayAuthenticationModeNone:
+	case ingress.AuthenticationModeNone:
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeNone
-	case platform.APIGatewayAuthenticationModeBasicAuth:
+	case ingress.AuthenticationModeBasicAuth:
 		if apiGateway.Spec.Authentication == nil || apiGateway.Spec.Authentication.BasicAuth == nil {
 			return nil, errors.New("Basic auth specified but missing basic auth spec")
 		}
@@ -271,7 +270,7 @@ func (p *Provisioner) generateNginxIngress(ctx context.Context,
 				Password: apiGateway.Spec.Authentication.BasicAuth.Password,
 			},
 		}
-	case platform.APIGatewayAuthenticationModeDex:
+	case ingress.AuthenticationModeDex:
 		if apiGateway.Spec.Authentication == nil || apiGateway.Spec.Authentication.DexAuth == nil {
 			return nil, errors.New("Dex auth specified but missing dex auth spec")
 		}
@@ -281,7 +280,7 @@ func (p *Provisioner) generateNginxIngress(ctx context.Context,
 				Oauth2ProxyURL: apiGateway.Spec.Authentication.DexAuth.Oauth2ProxyURL,
 			},
 		}
-	case platform.APIGatewayAuthenticationAccessKey:
+	case ingress.AuthenticationModeAccessKey:
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeAccessKey
 	default:
 		return nil, errors.New("Unsupported ApiGateway authentication mode provided")
@@ -311,36 +310,48 @@ func (p *Provisioner) generateNginxIngress(ctx context.Context,
 	return p.ingressManager.GenerateIngressResources(ctx, commonIngressSpec)
 }
 
-func (p *Provisioner) getServiceName(upstream platform.APIGatewayUpstreamSpec,
-	namespace string) (string, error) {
+func (p *Provisioner) getServiceNameAndPort(upstream platform.APIGatewayUpstreamSpec,
+	namespace string) (string, int, error) {
 	switch upstream.Kind {
 	case platform.APIGatewayUpstreamKindNuclioFunction:
-		return p.getNuclioFunctionServiceName(upstream, namespace)
+		return p.getNuclioFunctionServiceNameAndPort(upstream, namespace)
 	default:
-		return "", fmt.Errorf("unsupported api gateway upstream kind: %s", upstream.Kind)
+		return "", 0, fmt.Errorf("Unsupported api gateway upstream kind: %s", upstream.Kind)
 	}
 }
 
-func (p *Provisioner) getNuclioFunctionServiceName(upstream platform.APIGatewayUpstreamSpec,
-	namespace string) (string, error) {
+func (p *Provisioner) getNuclioFunctionServiceNameAndPort(upstream platform.APIGatewayUpstreamSpec,
+	namespace string) (string, int, error) {
+
+	// get the function's service name
 	listOptions := metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", upstream.Nucliofunction.Name),
 	}
 
 	serviceList, err := p.kubeClientSet.CoreV1().Services(namespace).List(listOptions)
-
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
-	// there should be only one
+	// there should be only one service for that label selector
 	if len(serviceList.Items) != 1 {
-		return "", fmt.Errorf("found unexpected number of services for function %s: %d",
+		return "", 0, fmt.Errorf("Found unexpected number of services for function %s: %d",
 			upstream.Nucliofunction.Name,
 			len(serviceList.Items))
 	}
+	serviceName := serviceList.Items[0].Name
 
-	return serviceList.Items[0].Name, nil
+	// get the function's port
+	function, err := p.nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(namespace).
+		Get(upstream.Nucliofunction.Name, metav1.GetOptions{})
+	if err != nil {
+		return "", 0, errors.Wrapf(err, "Failed to get the nuclio function - %s", upstream.Nucliofunction.Name)
+	}
+	servicePort := function.Spec.GetHTTPPort()
+
+	return serviceName, servicePort, nil
 }
 
 func (p *Provisioner) generateIngressName(apiGatewayName string, canary bool) string {

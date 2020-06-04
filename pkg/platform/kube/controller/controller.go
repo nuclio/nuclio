@@ -93,8 +93,7 @@ func NewController(parentLogger logger.Logger,
 	version.Log(newController.logger)
 
 	newController.logger.DebugWith("Read configuration",
-		"platformConfig", newController.platformConfiguration,
-		"apiGatewayOperatorNumWorkersEnabled", apiGatewayOperatorEnabled)
+		"platformConfig", newController.platformConfiguration)
 
 	// set ourselves as the platform configuration provider of the function resource client (it needs it to do
 	// stuff when creating stuff)

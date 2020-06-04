@@ -242,15 +242,6 @@ type APIGatewayMeta struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
-type APIGatewayAuthenticationMode string
-
-const (
-	APIGatewayAuthenticationModeNone      APIGatewayAuthenticationMode = "none"
-	APIGatewayAuthenticationModeBasicAuth APIGatewayAuthenticationMode = "basicAuth"
-	APIGatewayAuthenticationModeDex       APIGatewayAuthenticationMode = "dex"
-	APIGatewayAuthenticationAccessKey     APIGatewayAuthenticationMode = "accessKey"
-)
-
 type APIGatewayAuthenticationSpec struct {
 	BasicAuth *ingress.BasicAuth `json:"basic_auth,omitempty"`
 	DexAuth   *ingress.DexAuth   `json:"dex_auth,omitempty"`
@@ -279,7 +270,7 @@ type APIGatewaySpec struct {
 	Name               string                        `json:"name,omitempty"`
 	Description        string                        `json:"description,omitempty"`
 	Path               string                        `json:"path,omitempty"`
-	AuthenticationMode APIGatewayAuthenticationMode  `json:"authentication_mode,omitempty"`
+	AuthenticationMode ingress.AuthenticationMode    `json:"authentication_mode,omitempty"`
 	Authentication     *APIGatewayAuthenticationSpec `json:"authentication,omitempty"`
 	Upstreams          []APIGatewayUpstreamSpec      `json:"upstreams,omitempty"`
 }

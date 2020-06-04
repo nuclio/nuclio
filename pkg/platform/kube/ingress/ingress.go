@@ -18,12 +18,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type SystemSpec struct {
-	IngressTLSSecret string
-	IguazioSigninURL string
-	IguazioAuthURL string
-}
-
+// keeps resources needed for ingress creation
+// (secret is used when it is an ingress with basic-auth authentication)
 type IngressResources struct {
 	Ingress *v1beta1.Ingress
 	Secret *v1.Secret
@@ -81,6 +77,8 @@ func (im *IngressManager) GenerateIngressResources(ctx context.Context,
 				return nil, errors.Wrap(err, "Failed to get basic auth annotations")
 			}
 		case AuthenticationModeAccessKey:
+
+			// relevant when running on iguazio platform
 			authIngressAnnotations, err = im.getSessionVerificationAnnotations("/api/data_sessions/verifications")
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to get access key auth mode annotations")
@@ -123,12 +121,6 @@ func (im *IngressManager) GenerateIngressResources(ctx context.Context,
 		}
 	}
 
-	// if no specific TLS secret was given - set it to be system's TLS secret
-	tlsSecret := spec.TLSSecret
-	if tlsSecret == "" {
-		tlsSecret = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_INGRESS_TLS_SECRET", "")
-	}
-
 	ingressResource := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: spec.Name,
@@ -136,12 +128,6 @@ func (im *IngressManager) GenerateIngressResources(ctx context.Context,
 			Annotations: ingressAnnotations,
 		},
 		Spec: v1beta1.IngressSpec{
-			TLS: []v1beta1.IngressTLS{
-				{
-					Hosts: []string{spec.Host},
-					SecretName: tlsSecret,
-				},
-			},
 			Rules: []v1beta1.IngressRule{
 				{
 					Host: spec.Host,
@@ -161,6 +147,22 @@ func (im *IngressManager) GenerateIngressResources(ctx context.Context,
 				},
 			},
 		},
+	}
+
+	// if no specific TLS secret was given - set it to be system's TLS secret
+	tlsSecret := spec.TLSSecret
+	if tlsSecret == "" {
+		tlsSecret = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_INGRESS_TLS_SECRET", "")
+	}
+
+	// if there's a TLS secret - populate the TLS spec
+	if tlsSecret != "" {
+		ingressResource.Spec.TLS = []v1beta1.IngressTLS{
+			{
+				Hosts: []string{spec.Host},
+				SecretName: tlsSecret,
+			},
+		}
 	}
 
 	return &IngressResources{
