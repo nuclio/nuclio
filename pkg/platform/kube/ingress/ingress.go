@@ -259,14 +259,14 @@ func (im *IngressManager) GenerateHtpasswdContents(ctx context.Context,
 }
 
 func (im *IngressManager) CreateOrUpdateIngressResources(ingressResources *IngressResources) (*v1beta1.Ingress, *v1.Secret, error) {
-	var ingress *v1beta1.Ingress
-	var secret *v1.Secret
+	var appliedIngress *v1beta1.Ingress
+	var appliedSecret *v1.Secret
 	var err error
 
 	im.logger.InfoWith("Creating/Updating ingress resources",
 		"ingressName", ingressResources.Ingress.Name)
 
-	if ingress, err = im.kubeClientSet.
+	if appliedIngress, err = im.kubeClientSet.
 		ExtensionsV1beta1().
 		Ingresses(ingressResources.Ingress.Namespace).
 		Create(ingressResources.Ingress); err != nil {
@@ -276,10 +276,10 @@ func (im *IngressManager) CreateOrUpdateIngressResources(ingressResources *Ingre
 
 			im.logger.InfoWith("Ingress already exists. Updating it",
 				"ingressName", ingressResources.Ingress.Name)
-			if ingress, err = im.kubeClientSet.
+			if appliedIngress, err = im.kubeClientSet.
 				ExtensionsV1beta1().
-				Ingresses(ingress.Namespace).
-				Update(ingress); err != nil {
+				Ingresses(ingressResources.Ingress.Namespace).
+				Update(ingressResources.Ingress); err != nil {
 
 				return nil, nil, errors.Wrap(err, "Failed to update ingress")
 			}
@@ -301,7 +301,7 @@ func (im *IngressManager) CreateOrUpdateIngressResources(ingressResources *Ingre
 		im.logger.InfoWith("Creating/Updating ingress's secret",
 			"ingressName", ingressResources.Ingress.Name,
 			"secretName", ingressResources.Secret.Name)
-		if secret, err = im.kubeClientSet.
+		if appliedSecret, err = im.kubeClientSet.
 			CoreV1().
 			Secrets(ingressResources.Secret.Namespace).
 			Create(ingressResources.Secret); err != nil {
@@ -311,7 +311,7 @@ func (im *IngressManager) CreateOrUpdateIngressResources(ingressResources *Ingre
 
 				im.logger.InfoWith("Secret already exists. Updating it",
 					"secretName", ingressResources.Secret.Name)
-				if secret, err = im.kubeClientSet.
+				if appliedSecret, err = im.kubeClientSet.
 					CoreV1().
 					Secrets(ingressResources.Secret.Namespace).
 					Update(ingressResources.Secret); err != nil {
@@ -330,7 +330,7 @@ func (im *IngressManager) CreateOrUpdateIngressResources(ingressResources *Ingre
 		}
 	}
 
-	return ingress, secret, nil
+	return appliedIngress, appliedSecret, nil
 }
 
 // deletes ingress resource

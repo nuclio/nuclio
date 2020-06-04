@@ -28,7 +28,7 @@ rules:
 
 {{- if eq .Values.rbac.crdAccessMode "cluster" }}
   - apiGroups: ["nuclio.io"]
-    resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents"]
+    resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents", "nuclioapigateways"]
     verbs: ["*"]
 
 {{- else if eq .Values.rbac.crdAccessMode "namespaced" }}
@@ -43,7 +43,7 @@ metadata:
     release: {{ .Release.Name }}
 rules:
   - apiGroups: ["nuclio.io"]
-    resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents"]
+    resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents", "nuclioapigateways"]
     verbs: ["*"]
 {{- end }}
 {{- end }}
