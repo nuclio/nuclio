@@ -381,6 +381,11 @@ lint: modules
 test-undockerized: ensure-gopath
 	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./cmd/... ./pkg/...
 
+
+.PHONY: fmt
+fmt:
+	gofmt -s -w .
+
 .PHONY: test
 test: ensure-gopath build-base
 	docker build \

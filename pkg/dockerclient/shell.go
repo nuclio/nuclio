@@ -396,9 +396,9 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 
 	// wait for either the container to be healthy or the timeout
 	select {
-	case err := <- containerHealthy:
+	case err := <-containerHealthy:
 		if err != nil {
-			return errors.Wrapf(err,"Container %s is not healthy", containerID)
+			return errors.Wrapf(err, "Container %s is not healthy", containerID)
 		}
 		c.logger.DebugWith("Container is healthy", "containerID", containerID)
 	case <-timeoutChan:
