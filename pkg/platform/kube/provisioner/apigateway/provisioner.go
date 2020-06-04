@@ -15,6 +15,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -323,7 +324,7 @@ func (p *Provisioner) getServiceNameAndPort(upstream platform.APIGatewayUpstream
 func (p *Provisioner) getNuclioFunctionServiceNameAndPort(upstream platform.APIGatewayUpstreamSpec,
 	namespace string) (string, int, error) {
 
-	// get the function's service name
+	// get the function's service
 	listOptions := metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", upstream.Nucliofunction.Name),
 	}
@@ -339,19 +340,24 @@ func (p *Provisioner) getNuclioFunctionServiceNameAndPort(upstream platform.APIG
 			upstream.Nucliofunction.Name,
 			len(serviceList.Items))
 	}
-	serviceName := serviceList.Items[0].Name
+	service := serviceList.Items[0]
 
-	// get the function's port
-	function, err := p.nuclioClientSet.
-		NuclioV1beta1().
-		NuclioFunctions(namespace).
-		Get(upstream.Nucliofunction.Name, metav1.GetOptions{})
+	port, err := p.getServiceHTTPPort(service)
 	if err != nil {
-		return "", 0, errors.Wrapf(err, "Failed to get the nuclio function - %s", upstream.Nucliofunction.Name)
+		return "", 0, errors.Wrap(err, "Failed to get service's http port")
 	}
-	servicePort := function.Spec.GetHTTPPort()
 
-	return serviceName, servicePort, nil
+	return service.Name, port, nil
+}
+
+func (p *Provisioner) getServiceHTTPPort(service v1.Service) (int, error) {
+	for _, portSpec := range service.Spec.Ports {
+		if portSpec.Name == "http" {
+			return int(portSpec.Port), nil
+		}
+	}
+
+	return 0, errors.New("Service has no http port")
 }
 
 func (p *Provisioner) generateIngressName(apiGatewayName string, canary bool) string {
