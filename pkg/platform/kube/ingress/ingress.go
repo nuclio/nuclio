@@ -2,7 +2,6 @@ package ingress
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -230,7 +229,6 @@ func (im *IngressManager) getBasicAuthIngressAnnotationsAndSecret(ctx context.Co
 		"nginx.ingress.kubernetes.io/auth-realm":  "Authentication Required",
 	}
 
-	encodedHtpasswdContents := []byte(base64.StdEncoding.EncodeToString(htpasswdContents))
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: authSecretName,
@@ -238,7 +236,7 @@ func (im *IngressManager) getBasicAuthIngressAnnotationsAndSecret(ctx context.Co
 		},
 		Type: v1.SecretType("Opaque"),
 		Data: map[string][]byte {
-			"auth": encodedHtpasswdContents,
+			"auth": htpasswdContents,
 		},
 	}
 
