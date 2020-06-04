@@ -377,6 +377,13 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 					return
 				}
 
+				// container is dead, bail out
+				// https://docs.docker.com/engine/reference/commandline/ps/#filtering
+				if container.State.Status == "dead" {
+					containerHealthy <- errors.New("Container seems to be dead")
+					return
+				}
+
 				// wait a bit before retrying
 				c.logger.DebugWith("Container not healthy yet, retrying soon",
 					"timeout", timeout,
