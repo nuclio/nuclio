@@ -38,18 +38,18 @@ func (suite *readinessTimeoutTestSuite) TestPythonNoReadinessTimeout() {
 	beforeTime := time.Now()
 	suite.deployFailingPythonFunction(0)
 
-	// the default timeout is 30 seconds - it must have timed out after that
-	suite.Require().True(time.Since(beforeTime) >= 30*time.Second)
+	// fail faster than the default 30 second timeout
+	suite.Require().LessOrEqual(time.Since(beforeTime), 30*time.Second)
 }
 
 // Deploys a failing Python function. Expect the function to fail after 10 seconds
 func (suite *readinessTimeoutTestSuite) TestPythonSpecifiedReadinessTimeout() {
-
+	readinessTimeoutSeconds := 20
 	beforeTime := time.Now()
-	suite.deployFailingPythonFunction(10)
+	suite.deployFailingPythonFunction(readinessTimeoutSeconds)
 
-	// the default timeout is 30 seconds - it must have timed out after that
-	suite.Require().True(time.Since(beforeTime) <= 29*time.Second)
+	// fail faster than the specified 20 second timeout
+	suite.Require().LessOrEqual(time.Since(beforeTime), time.Duration(readinessTimeoutSeconds)*time.Second)
 }
 
 func (suite *readinessTimeoutTestSuite) deployFailingPythonFunction(readinessTimeoutSeconds int) {

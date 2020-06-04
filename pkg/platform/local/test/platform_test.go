@@ -118,7 +118,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 
 			// Function is healthy again
 			function = suite.getFunction(functionName)
-			suite.Require().Equal(function.GetStatus().State, functionconfig.FunctionStateReady)
+			suite.Require().Equal(functionconfig.FunctionStateReady, function.GetStatus().State)
 
 			return true
 		})
