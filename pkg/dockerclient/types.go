@@ -75,6 +75,7 @@ type GetContainerOptions struct {
 	Name    string
 	Labels  map[string]string
 	Stopped bool
+	ID      string
 }
 
 // ContainerJSONBase contains response of Engine API:
@@ -118,6 +119,22 @@ type ContainerState struct {
 	Error      string
 	StartedAt  string
 	FinishedAt string
+	Health     *Health
+}
+
+// Health stores container health state
+type Health struct {
+	Status        string
+	FailingStreak int
+	Log           []HealthLog
+}
+
+// HealthLog stores container health logs
+type HealthLog struct {
+	Start    string
+	End      string
+	ExitCode int
+	Output   string
 }
 
 // MountPoint represents a mount point configuration inside the container.
