@@ -174,7 +174,7 @@ func (suite *ReaderTestSuite) TestToDeployOptions() {
 	//
 	//name: function-name
 	//namespace: function-namespace
-	//runtime: golang:1.14
+	//runtime: golang
 	//handler: some.module:handler
 	//triggers:
 	//

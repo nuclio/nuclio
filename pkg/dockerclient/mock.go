@@ -75,6 +75,16 @@ func (mdc *MockDockerClient) RemoveContainer(containerID string) error {
 	return nil
 }
 
+// StopContainer stops a container given a container ID
+func (mdc *MockDockerClient) StopContainer(containerID string) error {
+	return nil
+}
+
+// StartContainer stops a container given a container ID
+func (mdc *MockDockerClient) StartContainer(containerID string) error {
+	return nil
+}
+
 // GetContainerLogs returns raw logs from a given container ID
 func (mdc *MockDockerClient) GetContainerLogs(containerID string) (string, error) {
 	return "", nil
@@ -82,6 +92,11 @@ func (mdc *MockDockerClient) GetContainerLogs(containerID string) (string, error
 
 // GetContainers returns a list of container IDs which match a certain criteria
 func (mdc *MockDockerClient) GetContainers(options *GetContainerOptions) ([]Container, error) {
+	return nil, nil
+}
+
+// GetContainerEvents returns a list of container events which occurred within a time range
+func (mdc *MockDockerClient) GetContainerEvents(containerName string, since string, until string) ([]string, error) {
 	return nil, nil
 }
 

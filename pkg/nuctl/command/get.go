@@ -17,23 +17,12 @@ limitations under the License.
 package command
 
 import (
-	"fmt"
-	"io"
-	"strconv"
-
-	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/renderer"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/spf13/cobra"
-)
-
-const (
-	outputFormatText = "text"
-	outputFormatWide = "wide"
-	outputFormatJSON = "json"
-	outputFormatYAML = "yaml"
 )
 
 type getCommandeer struct {
@@ -78,9 +67,9 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 	}
 
 	cmd := &cobra.Command{
-		Use:     "function [name[:version]]",
-		Aliases: []string{"fu"},
-		Short:   "Display function information",
+		Use:     "functions [name[:version]]",
+		Aliases: []string{"fu", "fn", "function"},
+		Short:   "(or function) Display function information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -103,105 +92,28 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			if len(functions) == 0 {
+				if commandeer.getFunctionsOptions.Name != "" {
+					return nuclio.NewErrNotFound("No functions found")
+				}
 				cmd.OutOrStdout().Write([]byte("No functions found")) // nolint: errcheck
 				return nil
 			}
 
 			// render the functions
-			return commandeer.renderFunctions(functions, commandeer.output, cmd.OutOrStdout())
+			return common.RenderFunctions(commandeer.rootCommandeer.loggerInstance,
+				functions,
+				commandeer.output,
+				cmd.OutOrStdout(),
+				commandeer.renderFunctionConfig)
 		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
 
 	return commandeer
-}
-
-func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, format string, writer io.Writer) error {
-
-	// iterate over each function and make sure it's initialized
-	// TODO: parallelize
-	for _, function := range functions {
-		if err := function.Initialize(nil); err != nil {
-			return err
-		}
-	}
-
-	rendererInstance := renderer.NewRenderer(writer)
-
-	switch format {
-	case outputFormatText, outputFormatWide:
-		header := []string{"Namespace", "Name", "Project", "State", "Node Port", "Replicas"}
-		if format == outputFormatWide {
-			header = append(header, []string{
-				"Labels",
-				"Ingresses",
-			}...)
-		}
-
-		var functionRecords [][]string
-
-		// for each field
-		for _, function := range functions {
-			availableReplicas, specifiedReplicas := function.GetReplicas()
-
-			// get its fields
-			functionFields := []string{
-				function.GetConfig().Meta.Namespace,
-				function.GetConfig().Meta.Name,
-				function.GetConfig().Meta.Labels["nuclio.io/project-name"],
-				string(function.GetStatus().State),
-				strconv.Itoa(function.GetStatus().HTTPPort),
-				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),
-			}
-
-			// add fields for wide view
-			if format == outputFormatWide {
-				functionFields = append(functionFields, []string{
-					common.StringMapToString(function.GetConfig().Meta.Labels),
-					g.formatFunctionIngresses(function),
-				}...)
-			}
-
-			// add to records
-			functionRecords = append(functionRecords, functionFields)
-		}
-
-		rendererInstance.RenderTable(header, functionRecords)
-	case outputFormatYAML:
-		return g.renderFunctionConfig(functions, rendererInstance.RenderYAML)
-	case outputFormatJSON:
-		return g.renderFunctionConfig(functions, rendererInstance.RenderJSON)
-	}
-
-	return nil
-}
-
-func (g *getFunctionCommandeer) formatFunctionIngresses(function platform.Function) string {
-	var formattedIngresses string
-
-	ingresses := function.GetIngresses()
-
-	for _, ingress := range ingresses {
-		host := ingress.Host
-		if host != "" {
-			host += ":<port>"
-		}
-
-		for _, path := range ingress.Paths {
-			formattedIngresses += fmt.Sprintf("%s%s, ", host, path)
-		}
-	}
-
-	// add default ingress
-	formattedIngresses += fmt.Sprintf("/%s/%s",
-		function.GetConfig().Meta.Name,
-		function.GetVersion())
-
-	return formattedIngresses
 }
 
 func (g *getFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error) error {
@@ -209,7 +121,6 @@ func (g *getFunctionCommandeer) renderFunctionConfig(functions []platform.Functi
 		if err := renderer(function.GetConfig()); err != nil {
 			return errors.Wrap(err, "Failed to render function config")
 		}
-
 	}
 
 	return nil
@@ -227,9 +138,9 @@ func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer
 	}
 
 	cmd := &cobra.Command{
-		Use:     "project name",
-		Aliases: []string{"proj"},
-		Short:   "Display project information",
+		Use:     "projects name",
+		Aliases: []string{"proj", "prj", "project"},
+		Short:   "(or project) Display project information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -253,66 +164,23 @@ func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer
 			}
 
 			if len(projects) == 0 {
+				if commandeer.getProjectsOptions.Meta.Name != "" {
+					return nuclio.NewErrNotFound("No projects found")
+				}
 				cmd.OutOrStdout().Write([]byte("No projects found")) // nolint: errcheck
 				return nil
 			}
 
 			// render the projects
-			return commandeer.renderProjects(projects, commandeer.output, cmd.OutOrStdout())
+			return common.RenderProjects(projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig)
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
 
 	return commandeer
-}
-
-func (g *getProjectCommandeer) renderProjects(projects []platform.Project, format string, writer io.Writer) error {
-
-	rendererInstance := renderer.NewRenderer(writer)
-
-	switch format {
-	case outputFormatText, outputFormatWide:
-		header := []string{"Namespace", "Name", "Display Name"}
-		if format == outputFormatWide {
-			header = append(header, []string{
-				"Description",
-			}...)
-		}
-
-		var projectRecords [][]string
-
-		// for each field
-		for _, project := range projects {
-
-			// get its fields
-			projectFields := []string{
-				project.GetConfig().Meta.Namespace,
-				project.GetConfig().Meta.Name,
-				project.GetConfig().Spec.DisplayName,
-			}
-
-			// add fields for wide view
-			if format == outputFormatWide {
-				projectFields = append(projectFields, []string{
-					project.GetConfig().Spec.Description,
-				}...)
-			}
-
-			// add to records
-			projectRecords = append(projectRecords, projectFields)
-		}
-
-		rendererInstance.RenderTable(header, projectRecords)
-	case outputFormatYAML:
-		return g.renderProjectConfig(projects, rendererInstance.RenderYAML)
-	case outputFormatJSON:
-		return g.renderProjectConfig(projects, rendererInstance.RenderJSON)
-	}
-
-	return nil
 }
 
 func (g *getProjectCommandeer) renderProjectConfig(projects []platform.Project, renderer func(interface{}) error) error {
@@ -338,9 +206,9 @@ func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEve
 	}
 
 	cmd := &cobra.Command{
-		Use:     "functionevent name",
-		Aliases: []string{"fe"},
-		Short:   "Display function event information",
+		Use:     "functionevents name",
+		Aliases: []string{"fe", "functionevent"},
+		Short:   "(or functionevent) Display function event information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -369,70 +237,24 @@ func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEve
 			}
 
 			if len(functionEvents) == 0 {
+				if commandeer.getFunctionEventsOptions.Meta.Name != "" {
+					return nuclio.NewErrNotFound("No function events found")
+				}
 				cmd.OutOrStdout().Write([]byte("No function events found")) // nolint: errcheck
 				return nil
 			}
 
 			// render the function events
-			return commandeer.renderFunctionEvents(functionEvents, commandeer.output, cmd.OutOrStdout())
+			return common.RenderFunctionEvents(functionEvents, commandeer.output, cmd.OutOrStdout(), commandeer.renderFunctionEventConfig)
 		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.functionName, "function", "f", "", "Filter by owning function (optional)")
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
 
 	return commandeer
-}
-
-func (g *getFunctionEventCommandeer) renderFunctionEvents(functionEvents []platform.FunctionEvent, format string, writer io.Writer) error {
-
-	rendererInstance := renderer.NewRenderer(writer)
-
-	switch format {
-	case outputFormatText, outputFormatWide:
-		header := []string{"Namespace", "Name", "Display Name", "Function", "Trigger Name", "Trigger Kind"}
-		if format == outputFormatWide {
-			header = append(header, []string{
-				"Body",
-			}...)
-		}
-
-		var functionEventRecords [][]string
-
-		// for each field
-		for _, functionEvent := range functionEvents {
-
-			// get its fields
-			functionEventFields := []string{
-				functionEvent.GetConfig().Meta.Namespace,
-				functionEvent.GetConfig().Meta.Name,
-				functionEvent.GetConfig().Spec.DisplayName,
-				functionEvent.GetConfig().Meta.Labels["nuclio.io/function-name"],
-				functionEvent.GetConfig().Spec.TriggerName,
-				functionEvent.GetConfig().Spec.TriggerKind,
-			}
-
-			// add fields for wide view
-			if format == outputFormatWide {
-				functionEventFields = append(functionEventFields, []string{
-					functionEvent.GetConfig().Spec.Body,
-				}...)
-			}
-
-			// add to records
-			functionEventRecords = append(functionEventRecords, functionEventFields)
-		}
-
-		rendererInstance.RenderTable(header, functionEventRecords)
-	case outputFormatYAML:
-		return g.renderFunctionEventConfig(functionEvents, rendererInstance.RenderYAML)
-	case outputFormatJSON:
-		return g.renderFunctionEventConfig(functionEvents, rendererInstance.RenderJSON)
-	}
-
-	return nil
 }
 
 func (g *getFunctionEventCommandeer) renderFunctionEventConfig(functionEvents []platform.FunctionEvent, renderer func(interface{}) error) error {

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -62,11 +61,31 @@ type Request struct {
 	RequestPath     string
 	RequestPort     int
 
-	ExpectedLogMessages        []string
-	ExpectedLogRecords         []map[string]interface{}
-	ExpectedResponseBody       interface{}
-	ExpectedResponseHeaders    map[string]string
-	ExpectedResponseStatusCode *int
+	ExpectedLogMessages           []string
+	ExpectedLogRecords            []map[string]interface{}
+	ExpectedResponseBody          interface{}
+	ExpectedResponseHeaders       map[string]string
+	ExpectedResponseHeadersValues map[string][]string
+	ExpectedResponseStatusCode    *int
+}
+
+func (r *Request) Enrich(deployResult *platform.CreateFunctionResult) {
+	defaultStatusCode := http.StatusOK
+	if r.ExpectedResponseStatusCode == nil {
+		r.ExpectedResponseStatusCode = &defaultStatusCode
+	}
+
+	if r.RequestPort == 0 {
+		r.RequestPort = deployResult.Port
+	}
+
+	if r.RequestPath == "" {
+		r.RequestPath = "/"
+	}
+
+	if r.RequestMethod == "" {
+		r.RequestMethod = "POST"
+	}
 }
 
 // TestSuite is an HTTP test suite
@@ -97,31 +116,23 @@ func (suite *TestSuite) DeployFunctionAndExpectError(createFunctionOptions *plat
 // DeployFunctionAndRequest deploys a function and call it with request
 func (suite *TestSuite) DeployFunctionAndRequest(createFunctionOptions *platform.CreateFunctionOptions,
 	request *Request) *platform.CreateFunctionResult {
+	return suite.DeployFunctionAndRequests(createFunctionOptions, []*Request{request})
+}
 
-	defaultStatusCode := http.StatusOK
-	if request.ExpectedResponseStatusCode == nil {
-		request.ExpectedResponseStatusCode = &defaultStatusCode
-	}
-
-	// by default BuildAndRunFunction will map 8080
-	if request.RequestPort == 0 {
-		request.RequestPort = 8080
-	}
-
-	if request.RequestPath == "" {
-		request.RequestPath = "/"
-	}
-
-	if request.RequestMethod == "" {
-		request.RequestMethod = "POST"
-	}
+// DeployFunctionAndRequests deploys a function and call it with multiple requests
+func (suite *TestSuite) DeployFunctionAndRequests(createFunctionOptions *platform.CreateFunctionOptions,
+	requests []*Request) *platform.CreateFunctionResult {
 
 	return suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		for _, request := range requests {
+			request.Enrich(deployResult)
+			if !suite.SendRequestVerifyResponse(request) {
 
-		// modify request port to that of the deployed
-		request.RequestPort = deployResult.Port
-
-		return suite.SendRequestVerifyResponse(request)
+				// fail fast
+				return false
+			}
+		}
+		return true
 	})
 }
 
@@ -135,15 +146,8 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		"requestBody", request.RequestBody,
 		"requestLogLevel", request.RequestLogLevel)
 
-	baseURL := "localhost"
-
-	// change verify-url if needed to ask from docker ip
-	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		baseURL = os.Getenv("NUCLIO_TEST_HOST")
-	}
-
 	// Send request to proper url
-	url := fmt.Sprintf("http://%s:%d%s", baseURL, request.RequestPort, request.RequestPath)
+	url := fmt.Sprintf("http://%s:%d%s", suite.GetTestHost(), request.RequestPort, request.RequestPath)
 
 	// create a request
 	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))
@@ -186,11 +190,21 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	suite.Require().NoError(err)
 
 	// verify header correctness
+	// the httpResponse may contain more headers. just check that all the expected
+
 	if request.ExpectedResponseHeaders != nil {
-		// the httpResponse may contain more headers. just check that all the expected
+
 		// headers contain the proper values
 		for expectedHeaderName, expectedHeaderValue := range request.ExpectedResponseHeaders {
 			suite.Require().Equal(expectedHeaderValue, httpResponse.Header.Get(expectedHeaderName))
+		}
+	}
+
+	if request.ExpectedResponseHeadersValues != nil {
+
+		// header may contain list of values
+		for expectedHeaderName, expectedHeaderValues := range request.ExpectedResponseHeadersValues {
+			suite.Require().Equal(expectedHeaderValues, httpResponse.Header.Values(expectedHeaderName))
 		}
 	}
 

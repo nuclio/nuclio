@@ -21,8 +21,8 @@
                                             data-form-object="newProjectForm"
                                             data-validation-is-required="true"
                                             data-update-data-callback="$ctrl.inputValueCallback(newData, field)"
-                                            data-validation-max-length="{{$ctrl.nameMaxLength}}"
-                                            data-validation-rules="$ctrl.nameValidationRules"
+                                            data-validation-max-length="{{$ctrl.maxLengths.projectName}}"
+                                            data-validation-rules="$ctrl.validationRules.projectName"
                                             data-placeholder-text="{{ 'functions:PLACEHOLDER.ENTER_PROJECT_NAME' | i18next }}">
                 </igz-validating-input-field>
             </div>

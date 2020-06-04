@@ -13,15 +13,24 @@
 # limitations under the License.
 #
 
-FROM golang:1.14
+ARG NUCLIO_LABEL
+
+FROM nuclio-builder:$NUCLIO_LABEL as builder
+
+FROM golang:1.14.3-alpine3.11
 
 ENV GOOS=linux
+
 ENV GOARCH=amd64
 
+COPY --from=builder $GOPATH/pkg/mod $GOPATH/pkg/mod
+
+RUN apk --update --no-cache add \
+    git \
+    gcc \
+    musl-dev \
+    file
+
 WORKDIR /nuclio
-
-COPY go.mod go.sum ./
-
-RUN go mod download
 
 COPY . .

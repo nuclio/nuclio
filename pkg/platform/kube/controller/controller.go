@@ -48,6 +48,7 @@ type Controller struct {
 	projectOperator       *projectOperator
 	functionEventOperator *functionEventOperator
 	apiGatewayOperator    *apiGatewayOperator
+	cronJobMonitoring     *CronJobMonitoring
 	platformConfiguration *platformconfig.Config
 }
 
@@ -61,6 +62,7 @@ func NewController(parentLogger logger.Logger,
 	ingressManager *ingress.IngressManager,
 	apiGatewayProvisioner *apigateway.Provisioner,
 	resyncInterval time.Duration,
+	cronJobStalePodsDeletionInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
 	functionOperatorNumWorkers int,
 	functionEventOperatorNumWorkers int,
@@ -142,6 +144,11 @@ func NewController(parentLogger logger.Logger,
 
 	}
 
+	// create cron job monitoring
+	newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
+		newController,
+		&cronJobStalePodsDeletionInterval)
+
 	return newController, nil
 }
 
@@ -171,6 +178,9 @@ func (c *Controller) Start() error {
 			return errors.Wrap(err, "Failed to start api-gateway operator")
 		}
 	}
+
+	// start cron job monitoring
+	c.cronJobMonitoring.start()
 
 	return nil
 }

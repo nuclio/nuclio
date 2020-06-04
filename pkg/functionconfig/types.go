@@ -18,6 +18,7 @@ package functionconfig
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -315,6 +316,11 @@ func (s *Spec) GetEventTimeout() (time.Duration, error) {
 	return timeout, err
 }
 
+const (
+	FunctionAnnotationSkipBuild  = "skip-build"
+	FunctionAnnotationSkipDeploy = "skip-deploy"
+)
+
 // Meta identifies a function
 type Meta struct {
 	Name        string            `json:"name,omitempty"`
@@ -326,6 +332,38 @@ type Meta struct {
 // GetUniqueID return unique id
 func (m *Meta) GetUniqueID() string {
 	return m.Namespace + ":" + m.Name
+}
+
+func (m *Meta) AddSkipDeployAnnotation() {
+	m.Annotations[FunctionAnnotationSkipDeploy] = strconv.FormatBool(true)
+}
+
+func (m *Meta) AddSkipBuildAnnotation() {
+	m.Annotations[FunctionAnnotationSkipBuild] = strconv.FormatBool(true)
+}
+
+func (m *Meta) RemoveSkipDeployAnnotation() {
+	delete(m.Annotations, FunctionAnnotationSkipDeploy)
+}
+
+func (m *Meta) RemoveSkipBuildAnnotation() {
+	delete(m.Annotations, FunctionAnnotationSkipBuild)
+}
+
+func ShouldSkipDeploy(annotations map[string]string) bool {
+	var skipFunctionDeploy bool
+	if skipFunctionBuildDeploy, ok := annotations[FunctionAnnotationSkipDeploy]; ok {
+		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildDeploy)
+	}
+	return skipFunctionDeploy
+}
+
+func ShouldSkipBuild(annotations map[string]string) bool {
+	var skipFunctionBuild bool
+	if skipFunctionBuildStr, ok := annotations[FunctionAnnotationSkipBuild]; ok {
+		skipFunctionBuild, _ = strconv.ParseBool(skipFunctionBuildStr)
+	}
+	return skipFunctionBuild
 }
 
 // Config holds the configuration of a function - meta and spec
@@ -343,6 +381,50 @@ func NewConfig() *Config {
 	}
 }
 
+func (c *Config) CleanFunctionSpec() {
+
+	// artifacts are created unique to the cluster not needed to be returned to any client of nuclio REST API
+	c.Spec.RunRegistry = ""
+	c.Spec.Build.Registry = ""
+	if c.Spec.Build.FunctionSourceCode != "" {
+		c.Spec.Image = ""
+	}
+}
+
+func (c *Config) PrepareFunctionForExport(noScrub bool) {
+	if !noScrub {
+		c.scrubFunctionData()
+	}
+	c.AddSkipAnnotations()
+}
+
+func (c *Config) AddSkipAnnotations() {
+
+	if c.Meta.Annotations == nil {
+		c.Meta.Annotations = map[string]string{}
+	}
+
+	// add annotations for not deploying or building on import
+	c.Meta.AddSkipBuildAnnotation()
+	c.Meta.AddSkipDeployAnnotation()
+}
+
+func (c *Config) scrubFunctionData() {
+	c.CleanFunctionSpec()
+
+	// scrub namespace from function meta
+	c.Meta.Namespace = ""
+
+	// remove secrets and passwords from triggers
+	newTriggers := c.Spec.Triggers
+	for triggerName, trigger := range newTriggers {
+		trigger.Password = ""
+		trigger.Secret = ""
+		newTriggers[triggerName] = trigger
+	}
+	c.Spec.Triggers = newTriggers
+}
+
 // FunctionState is state of function
 type FunctionState string
 
@@ -357,6 +439,7 @@ const (
 	FunctionStateReady                            FunctionState = "ready"
 	FunctionStateError                            FunctionState = "error"
 	FunctionStateScaledToZero                     FunctionState = "scaledToZero"
+	FunctionStateImported                         FunctionState = "imported"
 )
 
 func FunctionStateInSlice(a FunctionState, list []FunctionState) bool {

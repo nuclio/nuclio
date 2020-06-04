@@ -82,6 +82,8 @@ func NewRootCommandeer() *RootCommandeer {
 		newUpdateCommandeer(commandeer).cmd,
 		newVersionCommandeer(commandeer).cmd,
 		newCreateCommandeer(commandeer).cmd,
+		newExportCommandeer(commandeer).cmd,
+		newImportCommandeer(commandeer).cmd,
 	)
 
 	commandeer.cmd = cmd
@@ -114,7 +116,7 @@ func (rc *RootCommandeer) initialize() error {
 
 	rc.platform, err = rc.createPlatform(rc.loggerInstance)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create logger")
+		return errors.Wrap(err, "Failed to create platform")
 	}
 
 	// use default namespace by platform if specified
@@ -123,7 +125,6 @@ func (rc *RootCommandeer) initialize() error {
 	}
 
 	rc.loggerInstance.DebugWith("Created platform", "name", rc.platform.GetName())
-
 	return nil
 }
 

@@ -43,6 +43,7 @@ func Run(kubeconfigPath string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
+	cronJobStalePodsDeletionIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
 	apiGatewayOperatorNumWorkersStr string,
@@ -54,6 +55,7 @@ func Run(kubeconfigPath string,
 		platformConfigurationPath,
 		functionOperatorNumWorkersStr,
 		functionOperatorResyncIntervalStr,
+		cronJobStalePodsDeletionIntervalStr,
 		functionEventOperatorNumWorkersStr,
 		projectOperatorNumWorkersStr,
 		apiGatewayOperatorNumWorkersStr,
@@ -77,6 +79,7 @@ func createController(kubeconfigPath string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
+	cronJobStalePodsDeletionIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
 	apiGatewayOperatorNumWorkersStr string,
@@ -97,6 +100,11 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to parse resync interval for function operator")
 	}
 
+	cronJobStalePodsDeletionInterval, err := time.ParseDuration(cronJobStalePodsDeletionIntervalStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse cron job stale pods deletion interval")
+	}
+
 	projectOperatorNumWorkers, err := strconv.Atoi(projectOperatorNumWorkersStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve number of workers for project operator")
@@ -107,10 +115,11 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to resolve number of workers for api-gateway operator")
 	}
 
-	// read platform configuration
-	platformConfiguration, err := readPlatformConfiguration(platformConfigurationPath)
+	// get platform configuration
+	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
+
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read platform configuration")
+		return nil, errors.Wrap(err, "Failed to get platform configuration")
 	}
 
 	// create a root logger
@@ -168,6 +177,7 @@ func createController(kubeconfigPath string,
 		ingressManager,
 		apiGatewayProvisioner,
 		functionOperatorResyncInterval,
+		cronJobStalePodsDeletionInterval,
 		platformConfiguration,
 		functionOperatorNumWorkers,
 		functionEventOperatorNumWorkers,
@@ -188,13 +198,4 @@ func getClientConfig(kubeconfigPath string) (*rest.Config, error) {
 	}
 
 	return rest.InClusterConfig()
-}
-
-func readPlatformConfiguration(configurationPath string) (*platformconfig.Config, error) {
-	platformConfigurationReader, err := platformconfig.NewReader()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
-	}
-
-	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
 }

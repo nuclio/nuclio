@@ -58,14 +58,15 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 
 	var err error
 
-	// boolean which indicates whether the function existed or not
-	functionExisted := functionInstance != nil
+	// boolean which indicates whether the function exists or not
+	// the function will be created if it doesn't exit, otherwise will updated
+	functionExists := functionInstance != nil
 
 	createFunctionOptions.Logger.DebugWith("Creating/updating function",
-		"existed", functionExisted,
+		"functionExists", functionExists,
 		"functionInstance", functionInstance)
 
-	if !functionExisted {
+	if !functionExists {
 		functionInstance = &nuclioio.NuclioFunction{}
 		functionInstance.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 	} else {
@@ -73,7 +74,7 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	}
 
 	// convert config, status -> function
-	d.populateFunction(&createFunctionOptions.FunctionConfig, functionStatus, functionInstance, functionExisted)
+	d.populateFunction(&createFunctionOptions.FunctionConfig, functionStatus, functionInstance, functionExists)
 
 	createFunctionOptions.Logger.DebugWith("Populated function with configuration and status",
 		"function", functionInstance)
@@ -85,10 +86,14 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	}
 
 	// if function didn't exist, create. otherwise update
-	if !functionExisted {
-		functionInstance, err = nuclioClientSet.NuclioV1beta1().NuclioFunctions(functionInstance.Namespace).Create(functionInstance)
+	if !functionExists {
+		functionInstance, err = nuclioClientSet.NuclioV1beta1().
+			NuclioFunctions(functionInstance.Namespace).
+			Create(functionInstance)
 	} else {
-		functionInstance, err = nuclioClientSet.NuclioV1beta1().NuclioFunctions(functionInstance.Namespace).Update(functionInstance)
+		functionInstance, err = nuclioClientSet.NuclioV1beta1().
+			NuclioFunctions(functionInstance.Namespace).
+			Update(functionInstance)
 	}
 
 	if err != nil {
@@ -142,7 +147,7 @@ func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 }
 
 func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
-	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, string, error) {
+	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, *nuclioio.NuclioFunction, string, error) {
 
 	// get the logger with which we need to deploy
 	deployLogger := createFunctionOptions.Logger
@@ -157,22 +162,22 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
 		})
 	if err != nil {
-		return nil, err.Error(), errors.Wrap(err, "Failed to create function")
+		return nil, nil, err.Error(), errors.Wrap(err, "Failed to create function")
 	}
 
 	// wait for the function to be ready
-	_, err = waitForFunctionReadiness(deployLogger,
+	updatedFunctionInstance, err := waitForFunctionReadiness(deployLogger,
 		d.consumer,
 		functionInstance.Namespace,
 		functionInstance.Name)
 	if err != nil {
 		podLogs, briefErrorsMessage := d.getFunctionPodLogsAndEvents(functionInstance.Namespace, functionInstance.Name)
-		return nil, briefErrorsMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
+		return nil, updatedFunctionInstance, briefErrorsMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
 	}
 
 	return &platform.CreateFunctionResult{
 		Port: functionInstance.Status.HTTPPort,
-	}, "", nil
+	}, updatedFunctionInstance, "", nil
 }
 
 func waitForFunctionReadiness(loggerInstance logger.Logger,

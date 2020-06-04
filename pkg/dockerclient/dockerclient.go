@@ -47,11 +47,20 @@ type Client interface {
 	// RemoveContainer removes a container given a container ID
 	RemoveContainer(containerID string) error
 
+	// StopContainer removes a container given a container ID
+	StopContainer(containerID string) error
+
+	// StartContainer starts a container given a container ID
+	StartContainer(containerID string) error
+
 	// GetContainerLogs returns raw logs from a given container ID
 	GetContainerLogs(containerID string) (string, error)
 
 	// GetContainers returns a list of container IDs which match a certain criteria
 	GetContainers(*GetContainerOptions) ([]Container, error)
+
+	// GetContainerEvents returns a list of container events which occurred within a time range
+	GetContainerEvents(containerName string, since string, until string) ([]string, error)
 
 	// AwaitContainerHealth blocks until the given container is healthy or the timeout passes
 	AwaitContainerHealth(containerID string, timeout *time.Duration) error

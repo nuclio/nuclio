@@ -66,7 +66,7 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 
 	cmd := &cobra.Command{
 		Use:     "project name",
-		Aliases: []string{"proj"},
+		Aliases: []string{"proj", "prj"},
 		Short:   "Create projects",
 		RunE: func(cmd *cobra.Command, args []string) error {
 

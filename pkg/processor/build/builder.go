@@ -57,7 +57,7 @@ import (
 )
 
 const (
-	functionConfigFileName = "function.yaml"
+	FunctionConfigFileName = "function.yaml"
 	uhttpcImage            = "quay.io/nuclio/uhttpc:0.0.1-amd64"
 	GithubEntryType        = "github"
 	ArchiveEntryType       = "archive"
@@ -168,7 +168,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	b.originalFunctionConfig.Spec.Build.Path = b.options.FunctionConfig.Spec.Build.Path
 
 	// resolve the function path - download in case its a URL
-	b.options.FunctionConfig.Spec.Build.Path, inferredCodeEntryType, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
+	b.options.FunctionConfig.Spec.Build.Path,
+		inferredCodeEntryType,
+		err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -431,13 +433,13 @@ func (b *Builder) providedFunctionConfigFilePath() string {
 	// if the user only provided a function file, check if it had a function configuration file
 	// in an inline configuration block (@nuclio.configure)
 	if common.IsFile(b.options.FunctionConfig.Spec.Build.Path) {
-		inlineFunctionConfig, found := b.inlineConfigurationBlock.Contents[functionConfigFileName]
+		inlineFunctionConfig, found := b.inlineConfigurationBlock.Contents[FunctionConfigFileName]
 		if !found {
 			return ""
 		}
 
 		// create a temporary file containing the contents and return that
-		functionConfigPath, err := b.createTempFileFromYAML(functionConfigFileName, inlineFunctionConfig)
+		functionConfigPath, err := b.createTempFileFromYAML(FunctionConfigFileName, inlineFunctionConfig)
 
 		b.logger.DebugWith("Function configuration generated from inline", "path", functionConfigPath)
 
@@ -448,7 +450,7 @@ func (b *Builder) providedFunctionConfigFilePath() string {
 		b.logger.WarnWith("Failed to unmarshal inline configuration - ignoring", "err", err)
 	}
 
-	functionConfigPath := filepath.Join(b.options.FunctionConfig.Spec.Build.Path, functionConfigFileName)
+	functionConfigPath := filepath.Join(b.options.FunctionConfig.Spec.Build.Path, FunctionConfigFileName)
 
 	if !common.FileExists(functionConfigPath) {
 		return ""
@@ -471,7 +473,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 	if b.options.FunctionConfig.Spec.Handler == "" {
 		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.GetFunctionPath())
 		if err != nil {
-			return errors.Wrap(err, "Failed to detect ")
+			return errors.Wrap(err, "Failed to detect function handler")
 		}
 
 		if len(functionHandlers) == 0 {
@@ -491,6 +493,11 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.processorImage.imageName = processorImageName
 	}
 
+	splitProcessorImageName := strings.Split(b.processorImage.imageName, ":")
+	if len(splitProcessorImageName) == 2 {
+		b.processorImage.imageTag = splitProcessorImageName[1]
+	}
+
 	// if tag isn't set - set latest
 	if b.processorImage.imageTag == "" {
 		b.processorImage.imageTag = "latest"
@@ -501,7 +508,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		"platform", b.options.PlatformName,
 		"dependantImagesRegistryURL", b.options.DependantImagesRegistryURL,
 		"outputImageFile", b.options.OutputImageFile,
-		"pi", b.processorImage)
+		"processorImage", b.processorImage)
 
 	return nil
 }
@@ -639,7 +646,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, string, erro
 	// Assume it's a local path
 	resolvedPath, err := filepath.Abs(filepath.Clean(functionPath))
 	if err != nil {
-		return "", "", errors.Wrap(err, "Failed to resolve non-url path")
+		return "", "", errors.Wrap(err, "Failed to resolve function path")
 	}
 
 	if !common.FileExists(resolvedPath) {
@@ -779,7 +786,7 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 
 	functionConfigFile, err := os.Open(functionConfigPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to open function configuraition file: %q", functionConfigFile.Name())
+		return errors.Wrapf(err, "Failed to open function configuration file: %s", functionConfigPath)
 	}
 
 	defer functionConfigFile.Close() // nolint: errcheck
@@ -834,7 +841,7 @@ func (b *Builder) getRuntimeName() (string, error) {
 
 		// if the function path is a directory, runtime must be specified in the command-line arguments or configuration
 		if common.IsDir(b.options.FunctionConfig.Spec.Build.Path) {
-			if common.FileExists(path.Join(b.options.FunctionConfig.Spec.Build.Path, functionConfigFileName)) {
+			if common.FileExists(path.Join(b.options.FunctionConfig.Spec.Build.Path, FunctionConfigFileName)) {
 				return "", errors.New("Build path is directory - function.yaml must specify runtime")
 			}
 

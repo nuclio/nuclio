@@ -22,9 +22,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/mgutz/ansi"
@@ -54,6 +56,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 		Use:   "invoke function-name",
 		Short: "Invoke a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var err error
 
 			// if we got positional arguments
 			if len(args) != 1 {
@@ -67,8 +70,16 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 
 			commandeer.createFunctionInvocationOptions.Name = args[0]
 			commandeer.createFunctionInvocationOptions.Namespace = rootCommandeer.namespace
-			commandeer.createFunctionInvocationOptions.Body = []byte(commandeer.body)
+
+			// try parse body input from flag
+			commandeer.createFunctionInvocationOptions.Body, err = commandeer.resolveBody()
+			if err != nil {
+				return errors.Wrap(err, "Failed to resolve body")
+			}
 			commandeer.createFunctionInvocationOptions.Headers = http.Header{}
+
+			// resolve invocation method
+			commandeer.createFunctionInvocationOptions.Method = commandeer.resolveMethod()
 
 			// set external IP, if given
 			if commandeer.externalIPAddresses != "" {
@@ -119,12 +130,12 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 
 	cmd.Flags().StringVarP(&commandeer.contentType, "content-type", "c", "application/json", "HTTP Content-Type")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Path, "path", "p", "", "Path to the function to invoke")
-	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Method, "method", "m", "GET", "HTTP method for invoking the function")
+	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Method, "method", "m", "", "HTTP method for invoking the function")
 	cmd.Flags().StringVarP(&commandeer.body, "body", "b", "", "HTTP message body")
 	cmd.Flags().StringVarP(&commandeer.headers, "headers", "d", "", "HTTP headers (name=val1[,name=val2,...])")
 	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "Invoke the function via - \"any\": a load balancer or an external IP; \"loadbalancer\": a load balancer; \"external-ip\": an external IP")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.LogLevelName, "log-level", "l", "info", "Log level - \"none\", \"debug\", \"info\", \"warn\", or \"error\"")
-	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", "", "External IP addresses (comma-delimited) with which to invoke the function")
+	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", os.Getenv("NUCTL_EXTERNAL_IP_ADDRESSES"), "External IP addresses (comma-delimited) with which to invoke the function")
 
 	commandeer.cmd = cmd
 
@@ -153,6 +164,34 @@ func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *p
 	}
 
 	return nil
+}
+
+func (i *invokeCommandeer) resolveBody() ([]byte, error) {
+
+	// try resolve body from flag
+	if i.body != "" {
+		i.cmd.SetIn(bytes.NewBufferString(i.body))
+	}
+
+	// fallback to stdin
+	return nuctlcommon.ReadFromInOrStdin(i.cmd.InOrStdin())
+}
+
+func (i *invokeCommandeer) resolveMethod() string {
+
+	// if user did not specified method
+	if i.createFunctionInvocationOptions.Method == "" {
+
+		// user provided request body, default to POST
+		if len(i.createFunctionInvocationOptions.Body) > 0 {
+			return http.MethodPost
+		}
+
+		// In case of no body, default to GET
+		return http.MethodGet
+
+	}
+	return i.createFunctionInvocationOptions.Method
 }
 
 func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) error {

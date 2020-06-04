@@ -30,4 +30,6 @@ type cloudEvent struct {
 	ContentType        string                 `json:"contentType,omitempty"`
 	Extensions         map[string]interface{} `json:"extensions,omitempty"`
 	Data               interface{}            `json:"data,omitempty"`
+	LastInBatch        bool                   `json:"last_in_batch,omitempty"`
+	Offset             int                    `json:"offset,omitempty"`
 }
