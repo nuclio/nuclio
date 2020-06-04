@@ -39,7 +39,7 @@ func (suite *readinessTimeoutTestSuite) TestPythonNoReadinessTimeout() {
 	suite.deployFailingPythonFunction(0)
 
 	// fail faster than the default 30 second timeout
-	suite.Require().LessOrEqual(time.Since(beforeTime), 30*time.Second)
+	suite.Require().LessOrEqual(time.Since(beforeTime).Seconds(), float64(30))
 }
 
 // Deploys a failing Python function. Expect the function to fail after 10 seconds
@@ -49,7 +49,7 @@ func (suite *readinessTimeoutTestSuite) TestPythonSpecifiedReadinessTimeout() {
 	suite.deployFailingPythonFunction(readinessTimeoutSeconds)
 
 	// fail faster than the specified 20 second timeout
-	suite.Require().LessOrEqual(time.Since(beforeTime), time.Duration(readinessTimeoutSeconds)*time.Second)
+	suite.Require().LessOrEqual(time.Since(beforeTime).Seconds(), float64(readinessTimeoutSeconds))
 }
 
 func (suite *readinessTimeoutTestSuite) deployFailingPythonFunction(readinessTimeoutSeconds int) {
