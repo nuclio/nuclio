@@ -794,8 +794,7 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 
 			// get function container by name
 			containers, err := p.dockerClient.GetContainers(&dockerclient.GetContainerOptions{
-				Name:    containerName,
-				Stopped: true,
+				Name: containerName,
 			})
 			if err != nil {
 				p.Logger.WarnWith("Failed to get containers by name",
@@ -806,8 +805,9 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 
 			// if function container does not exists, mark as unhealthy
 			if len(containers) == 0 {
-				p.Logger.WarnWith("No containers were found",
-					"functionName", functionName)
+				p.Logger.WarnWith("No containers were found", "functionName", functionName)
+
+				// no running containers were found for function, set function unhealthy
 				if err := p.setFunctionUnhealthy(function); err != nil {
 					p.Logger.ErrorWith("Failed to set function unhealthy",
 						"err", err,

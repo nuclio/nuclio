@@ -65,7 +65,7 @@ func (suite *TestSuite) TestRunFunctionContainerWithCustomRestartPolicy() {
 	suite.DeployFunctionExpectError(createFunctionOptions,
 		func(deployResult *platform.CreateFunctionResult) bool {
 
-			// give some time to docker to log its events
+			// give some time to docker to flush its events
 			time.Sleep(5 * time.Second)
 
 			// sample container events
