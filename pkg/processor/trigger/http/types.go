@@ -26,13 +26,19 @@ import (
 	"github.com/nuclio/errors"
 )
 
+const DefaultReadBufferSize = 16 * 1024
+const DefaultMaxRequestBodySize = 4 * 1024 * 1024
+
 type Configuration struct {
 	trigger.Configuration
 	ReadBufferSize int
-	CORS           *cors.CORS
-}
 
-const DefaultReadBufferSize = 16 * 1024
+	// NOTE: Modifying the max request body size affect with gradually memory consumption increasing
+	// as the entire request being read into the memory
+	// https://github.com/valyala/fasthttp/issues/667#issuecomment-540965683
+	MaxRequestBodySize int
+	CORS               *cors.CORS
+}
 
 func NewConfiguration(ID string,
 	triggerConfiguration *functionconfig.Trigger,
@@ -53,6 +59,10 @@ func NewConfiguration(ID string,
 
 	if newConfiguration.ReadBufferSize == 0 {
 		newConfiguration.ReadBufferSize = DefaultReadBufferSize
+	}
+
+	if newConfiguration.MaxRequestBodySize == 0 {
+		newConfiguration.MaxRequestBodySize = DefaultMaxRequestBodySize
 	}
 
 	if newConfiguration.CORS != nil && newConfiguration.CORS.Enabled {

@@ -82,6 +82,37 @@ func (suite *HTTPTestSuite) TestCORS() {
 		})
 }
 
+func (suite *HTTPTestSuite) TestMaxRequestBodySize() {
+	createFunctionOptions := suite.getHTTPDeployOptions()
+	maxRequestBodySize := 64
+	trigger := createFunctionOptions.FunctionConfig.Spec.Triggers[suite.triggerName]
+	trigger.Kind = "http"
+	trigger.Attributes["maxRequestBodySize"] = maxRequestBodySize
+	statusOK := fasthttp.StatusOK
+	statusBadRequest := fasthttp.StatusBadRequest
+	suite.DeployFunctionAndRequests(createFunctionOptions,
+		[]*Request{
+			// Happy flows
+			{
+				RequestMethod:              "POST",
+				RequestBody:                string(make([]byte, maxRequestBodySize-1)),
+				ExpectedResponseStatusCode: &statusOK,
+			},
+			{
+				RequestMethod:              "POST",
+				RequestBody:                string(make([]byte, maxRequestBodySize)),
+				ExpectedResponseStatusCode: &statusOK,
+			},
+
+			// Bad flow
+			{
+				RequestMethod:              "POST",
+				RequestBody:                string(make([]byte, maxRequestBodySize+1)),
+				ExpectedResponseStatusCode: &statusBadRequest,
+			},
+		})
+}
+
 func (suite *HTTPTestSuite) getHTTPDeployOptions() *platform.CreateFunctionOptions {
 	createFunctionOptions := suite.GetDeployOptions("event_recorder",
 		suite.GetFunctionPath(path.Join("event_recorder_python")))
