@@ -32,8 +32,8 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
+
 	Brokers       []string
-	brokers       []string
 	Topics        []string
 	ConsumerGroup string
 	InitialOffset string
@@ -58,6 +58,9 @@ type Configuration struct {
 	FetchMax                      int
 	ChannelBufferSize             int
 
+	// resolved fields
+	brokers                       []string
+	initialOffset                 int64
 	sessionTimeout                time.Duration
 	heartbeatInterval             time.Duration
 	maxProcessingTime             time.Duration
@@ -66,7 +69,6 @@ type Configuration struct {
 	retryBackoff                  time.Duration
 	maxWaitTime                   time.Duration
 	maxWaitHandlerDuringRebalance time.Duration
-	initialOffset                 int64
 }
 
 func NewConfiguration(ID string,
