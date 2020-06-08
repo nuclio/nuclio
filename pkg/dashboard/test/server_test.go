@@ -576,7 +576,7 @@ func (suite *functionTestSuite) TestInvokeSuccessful() {
 		suite.Require().Equal(requestPath[1:], createFunctionInvocationOptions.Path)
 
 		// expect only to receive the function headers (those that don't start with x-nuclio
-		for headerKey, _ := range createFunctionInvocationOptions.Headers {
+		for headerKey := range createFunctionInvocationOptions.Headers {
 			suite.Require().False(strings.HasPrefix(headerKey, "x-nuclio"))
 		}
 

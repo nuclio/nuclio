@@ -65,6 +65,9 @@ func (suite *TestSuite) TestRunFunctionContainerWithCustomRestartPolicy() {
 	suite.DeployFunctionExpectError(createFunctionOptions,
 		func(deployResult *platform.CreateFunctionResult) bool {
 
+			// give some time to docker to flush its events
+			time.Sleep(5 * time.Second)
+
 			// sample container events
 			restartEventsUntil := time.Now()
 			containerEvents, err := suite.DockerClient.GetContainerEvents(containerName,
@@ -118,7 +121,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 
 			// Function is healthy again
 			function = suite.getFunction(functionName)
-			suite.Require().Equal(function.GetStatus().State, functionconfig.FunctionStateReady)
+			suite.Require().Equal(functionconfig.FunctionStateReady, function.GetStatus().State)
 
 			return true
 		})

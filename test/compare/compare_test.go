@@ -52,8 +52,8 @@ var (
 		{map[int]int{1: 1}, map[int]int{1: 1}, true},
 		{map[int]int{1: 2}, map[int]int{1: 1}, false},
 		{map[int]float32{1: 1}, map[int]int{1: 1}, false}, // different type
-		{map[int][]int{1: []int{1, 2, 3}}, map[int][]int{1: []int{2, 3, 1}}, true},
-		{map[int][]int{1: []int{1, 2}}, map[int][]int{1: []int{2, 3}}, false},
+		{map[int][]int{1: {1, 2, 3}}, map[int][]int{1: {2, 3, 1}}, true},
+		{map[int][]int{1: {1, 2}}, map[int][]int{1: {2, 3}}, false},
 	}
 )
 

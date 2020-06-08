@@ -639,8 +639,8 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 	// use deploy with the image we just created
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
 		map[string]string{
-			"run-image": imageName,
-			"file":      path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python", "function-different-spec.yaml"),
+			"run-image":    imageName,
+			"file":         path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python", "function-different-spec.yaml"),
 			"min-replicas": fmt.Sprintf("%d", minReplicas),
 		})
 

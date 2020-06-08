@@ -358,25 +358,39 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 		inspectInterval := 100 * time.Millisecond
 
 		for !timedOut {
+			containers, err := c.GetContainers(&GetContainerOptions{
+				ID:      containerID,
+				Stopped: true,
+			})
+			if err == nil && len(containers) > 0 {
+				container := containers[0]
 
-			// inspect the container's health, return if it's healthy
-			runResult, err := c.runCommand(nil, "docker inspect --format '{{json .State.Health.Status}}' %s", containerID)
-			if err == nil {
-				stdoutLines := strings.Split(runResult.Output, "\n")
-				lastStdoutLine := c.getLastNonEmptyLine(stdoutLines, 0)
-
-				if lastStdoutLine == `"healthy"` {
+				// container is healthy
+				if container.State.Health.Status == "healthy" {
 					containerHealthy <- nil
 					return
 				}
-			}
 
-			// wait a bit before retrying
-			c.logger.DebugWith("Container not healthy yet, retrying soon",
-				"timeout", timeout,
-				"containerID", containerID,
-				"inspectOutput", runResult.Output,
-				"nextCheckIn", inspectInterval)
+				// container exited, bail out
+				if container.State.Status == "exited" {
+					containerHealthy <- errors.Errorf("Container exited with status: %d", container.State.ExitCode)
+					return
+				}
+
+				// container is dead, bail out
+				// https://docs.docker.com/engine/reference/commandline/ps/#filtering
+				if container.State.Status == "dead" {
+					containerHealthy <- errors.New("Container seems to be dead")
+					return
+				}
+
+				// wait a bit before retrying
+				c.logger.DebugWith("Container not healthy yet, retrying soon",
+					"timeout", timeout,
+					"containerID", containerID,
+					"containerState", container.State,
+					"nextCheckIn", inspectInterval)
+			}
 
 			time.Sleep(inspectInterval)
 
@@ -389,7 +403,10 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 
 	// wait for either the container to be healthy or the timeout
 	select {
-	case <-containerHealthy:
+	case err := <-containerHealthy:
+		if err != nil {
+			return errors.Wrapf(err, "Container %s is not healthy", containerID)
+		}
 		c.logger.DebugWith("Container is healthy", "containerID", containerID)
 	case <-timeoutChan:
 		timedOut = true
@@ -427,6 +444,11 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 		nameFilterArgument = fmt.Sprintf(`--filter "name=^/%s$" `, options.Name)
 	}
 
+	idFilterArgument := ""
+	if options.ID != "" {
+		idFilterArgument = fmt.Sprintf(`--filter "id=%s"`, options.ID)
+	}
+
 	labelFilterArgument := ""
 	for labelName, labelValue := range options.Labels {
 		labelFilterArgument += fmt.Sprintf(`--filter "label=%s=%s" `,
@@ -435,8 +457,9 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 	}
 
 	runResult, err := c.runCommand(nil,
-		"docker ps --quiet %s %s %s",
+		"docker ps --quiet %s %s %s %s",
 		stoppedContainersArgument,
+		idFilterArgument,
 		nameFilterArgument,
 		labelFilterArgument)
 
