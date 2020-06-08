@@ -134,10 +134,12 @@
                     function: [
                         'FunctionsService', 'NuclioFunctionsDataService', 'NuclioProjectsDataService', '$state', '$stateParams',
                         function (FunctionsService, NuclioFunctionsDataService, NuclioProjectsDataService, $state, $stateParams) {
-                            return NuclioProjectsDataService.getProject($stateParams.projectId).then(function (project) {
-                                if ($stateParams.isNewFunction) {
-                                    return angular.copy($stateParams.functionData);
-                                } else {
+                            return NuclioProjectsDataService.getProject($stateParams.projectId)
+                                .then(function (project) {
+                                    if ($stateParams.isNewFunction) {
+                                        return angular.copy($stateParams.functionData);
+                                    }
+
                                     var functionMetadata = {
                                         name: $stateParams.functionId,
                                         namespace: project.metadata.namespace,
@@ -148,8 +150,7 @@
                                         .catch(function () {
                                             $state.go('app.project.functions', {projectId: $stateParams.projectId});
                                         });
-                                }
-                            })
+                                })
                                 .catch(function () {
                                     $state.go('app.projects');
                                 });
