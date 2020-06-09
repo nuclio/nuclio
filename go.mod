@@ -29,7 +29,6 @@ require (
 	github.com/icza/dyno v0.0.0-20180601094105-0c96289f9585
 	github.com/imdario/mergo v0.3.7
 	github.com/jarcoal/httpmock v1.0.4
-	github.com/klauspost/compress v1.10.3 // indirect
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b
@@ -40,7 +39,7 @@ require (
 	github.com/nats-io/go-nats v1.7.2
 	github.com/nats-io/nkeys v0.1.0 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
-	github.com/nuclio/errors v0.0.2
+	github.com/nuclio/errors v0.0.3
 	github.com/nuclio/logger v0.0.1
 	github.com/nuclio/logger-appinsights v0.0.1
 	github.com/nuclio/nuclio-sdk-go v0.1.0
@@ -64,12 +63,11 @@ require (
 	github.com/tsenart/vegeta v6.3.0+incompatible
 	github.com/ulikunitz/xz v0.5.7 // indirect
 	github.com/v3io/scaler-types v1.6.0
-	github.com/v3io/v3io-go v0.1.4
+	github.com/v3io/v3io-go v0.1.6
 	github.com/v3io/v3io-go-http v0.0.1
-	github.com/valyala/fasthttp v1.9.0
+	github.com/valyala/fasthttp v1.14.0
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	go.uber.org/atomic v1.4.0 // indirect
-	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e // indirect
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 	golang.org/x/tools v0.0.0-20200331025713-a30bf2db82d4 // indirect
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
