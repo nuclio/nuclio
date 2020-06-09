@@ -123,11 +123,8 @@ func (ago *apiGatewayOperator) shouldRespondToState(state platform.APIGatewaySta
 		string(platform.APIGatewayStateWaitingForProvisioning),
 		string(platform.APIGatewayStateNone),
 	}
-	if common.StringSliceContainsString(statesToRespond, string(state)) {
-		return true
-	}
 
-	return false
+	return common.StringSliceContainsString(statesToRespond, string(state))
 }
 
 // Delete handles delete of an object

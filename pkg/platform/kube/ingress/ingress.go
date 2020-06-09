@@ -20,30 +20,30 @@ import (
 
 // keeps resources needed for ingress creation
 // (secret is used when it is an ingress with basic-auth authentication)
-type IngressResources struct {
+type Resources struct {
 	Ingress *v1beta1.Ingress
 	Secret *v1.Secret
 }
 
-type IngressManager struct {
+type Manager struct {
 	logger        logger.Logger
 	cmdRunner     cmdrunner.CmdRunner
 	kubeClientSet kubernetes.Interface
 }
 
-func NewIngressManager (parentLogger logger.Logger,
+func NewManager (parentLogger logger.Logger,
 	kubecClientSet kubernetes.Interface,
-	cmdRunner cmdrunner.CmdRunner) (*IngressManager, error) {
+	cmdRunner cmdrunner.CmdRunner) (*Manager, error) {
 
-	return &IngressManager{
+	return &Manager{
 		logger:        parentLogger.GetChild("runner"),
 		cmdRunner:     cmdRunner,
 		kubeClientSet: kubecClientSet,
 	}, nil
 }
 
-func (im *IngressManager) GenerateIngressResources(ctx context.Context,
-	spec Spec) (*IngressResources,  error) {
+func (im *Manager) GenerateIngressResources(ctx context.Context,
+	spec Spec) (*Resources,  error) {
 
 	var err error
 	var secretResource *v1.Secret
@@ -165,13 +165,13 @@ func (im *IngressManager) GenerateIngressResources(ctx context.Context,
 		}
 	}
 
-	return &IngressResources{
+	return &Resources{
 		Ingress: ingressResource,
 		Secret: secretResource,
 	}, nil
 }
 
-func (im *IngressManager) getDexAuthIngressAnnotations(spec Spec) (map[string]string, error) {
+func (im *Manager) getDexAuthIngressAnnotations(spec Spec) (map[string]string, error) {
 
 	if spec.Authentication == nil || spec.Authentication.DexAuth == nil {
 		return nil, errors.New("Dex auth spec is missing")
@@ -194,7 +194,7 @@ func (im *IngressManager) getDexAuthIngressAnnotations(spec Spec) (map[string]st
 	}, nil
 }
 
-func (im *IngressManager) getSessionVerificationAnnotations(sessionVerificationEndpoint string) (map[string]string, error) {
+func (im *Manager) getSessionVerificationAnnotations(sessionVerificationEndpoint string) (map[string]string, error) {
 
 	return map[string]string{
 		"nginx.ingress.kubernetes.io/auth-method": "POST",
@@ -209,7 +209,7 @@ func (im *IngressManager) getSessionVerificationAnnotations(sessionVerificationE
 	}, nil
 }
 
-func (im *IngressManager) getBasicAuthIngressAnnotationsAndSecret(ctx context.Context,
+func (im *Manager) getBasicAuthIngressAnnotationsAndSecret(ctx context.Context,
 	spec Spec) (map[string]string, *v1.Secret, error) {
 
 	if spec.Authentication == nil || spec.Authentication.BasicAuth == nil {
@@ -256,7 +256,7 @@ func (im *IngressManager) getBasicAuthIngressAnnotationsAndSecret(ctx context.Co
 	return ingressAnnotations, secret, nil
 }
 
-func (im *IngressManager) GenerateHtpasswdContents(ctx context.Context,
+func (im *Manager) GenerateHtpasswdContents(ctx context.Context,
 	username string,
 	password string) ([]byte, error) {
 
@@ -269,7 +269,7 @@ func (im *IngressManager) GenerateHtpasswdContents(ctx context.Context,
 	return []byte(runResult.Output), nil
 }
 
-func (im *IngressManager) CreateOrUpdateIngressResources(ingressResources *IngressResources) (*v1beta1.Ingress, *v1.Secret, error) {
+func (im *Manager) CreateOrUpdateIngressResources(ingressResources *Resources) (*v1beta1.Ingress, *v1.Secret, error) {
 	var appliedIngress *v1beta1.Ingress
 	var appliedSecret *v1.Secret
 	var err error
@@ -346,7 +346,7 @@ func (im *IngressManager) CreateOrUpdateIngressResources(ingressResources *Ingre
 
 // deletes ingress resource
 // when deleteAuthSecret == true, delete related secret resource too
-func (im *IngressManager) DeleteIngressByName(ingressName string, namespace string,  deleteAuthSecret bool) error {
+func (im *Manager) DeleteIngressByName(ingressName string, namespace string,  deleteAuthSecret bool) error {
 	var ingress *v1beta1.Ingress
 	var err error
 

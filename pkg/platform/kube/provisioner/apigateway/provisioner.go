@@ -24,13 +24,13 @@ type Provisioner struct {
 	Logger          logger.Logger
 	kubeClientSet   kubernetes.Interface
 	nuclioClientSet nuclioio_client.Interface
-	ingressManager  *ingress.IngressManager
+	ingressManager  *ingress.Manager
 }
 
 func NewProvisioner(loggerInstance logger.Logger,
 	kubeClientSet kubernetes.Interface,
 	nuclioClientSet nuclioio_client.Interface,
-	ingressManager *ingress.IngressManager) (*Provisioner, error) {
+	ingressManager *ingress.Manager) (*Provisioner, error) {
 
 	newProvisioner := &Provisioner{
 		Logger:          loggerInstance.GetChild("apigateway"),
@@ -53,7 +53,7 @@ func (p *Provisioner) CreateOrUpdateAPIGateway(ctx context.Context, apiGateway *
 
 	// generate an ingress for each upstream
 	upstreams := apiGateway.Spec.Upstreams
-	ingresses := map[string]*ingress.IngressResources{}
+	ingresses := map[string]*ingress.Resources{}
 
 	// always try to remove previous canary ingress first, because
 	// nginx returns 503 on all requests if primary service == secondary service. (happens on every promotion)
@@ -235,7 +235,7 @@ func (p *Provisioner) getAllExistingUpstreamFunctionNames(namespace, apiGatewayN
 
 func (p *Provisioner) generateNginxIngress(ctx context.Context,
 	apiGateway *nuclioio.NuclioAPIGateway,
-	upstream platform.APIGatewayUpstreamSpec) (*ingress.IngressResources,  error) {
+	upstream platform.APIGatewayUpstreamSpec) (*ingress.Resources,  error) {
 
 	serviceName, servicePort, err := p.getServiceNameAndPort(upstream, apiGateway.Namespace)
 	if err != nil {

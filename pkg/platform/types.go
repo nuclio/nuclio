@@ -227,8 +227,6 @@ func (s *FunctionEventSpec) DeepCopyInto(out *FunctionEventSpec) {
 	*out = *s
 }
 
-
-
 //
 // APIGateway
 //

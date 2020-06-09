@@ -41,7 +41,7 @@ type Controller struct {
 	nuclioClientSet       nuclioio_client.Interface
 	functionresClient     functionres.Client
 	cmdRunner             cmdrunner.CmdRunner
-	ingressManager        *ingress.IngressManager
+	ingressManager        *ingress.Manager
 	apiGatewayProvisioner *apigateway.Provisioner
 	imagePullSecrets      string
 	functionOperator      *functionOperator
@@ -59,7 +59,7 @@ func NewController(parentLogger logger.Logger,
 	nuclioClientSet nuclioio_client.Interface,
 	functionresClient functionres.Client,
 	cmdRunner cmdrunner.CmdRunner,
-	ingressManager *ingress.IngressManager,
+	ingressManager *ingress.Manager,
 	apiGatewayProvisioner *apigateway.Provisioner,
 	resyncInterval time.Duration,
 	cronJobStalePodsDeletionInterval time.Duration,
