@@ -773,7 +773,9 @@ func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction
 		"name", name)
 
 	// get specific function CR
-	function, err := p.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(name, meta_v1.GetOptions{})
+	function, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioFunctions(namespace).
+		Get(name, meta_v1.GetOptions{})
 	if err != nil {
 
 		// if we didn't find the function, return nothing
@@ -785,6 +787,8 @@ func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction
 	}
 
 	p.Logger.DebugWith("Completed getting function",
+		"name", name,
+		"namespace", namespace,
 		"function", function)
 
 	return function, nil

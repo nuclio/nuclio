@@ -327,6 +327,10 @@ type Meta struct {
 	Namespace   string            `json:"namespace,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// determines whether the object has changed
+	// more details @ https://kubernetes.io/docs/reference/using-api/api-concepts/#resource-versions
+	ResourceVersion string `json:"resourceVersion,omitempty"`
 }
 
 // GetUniqueID return unique id
