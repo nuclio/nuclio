@@ -197,7 +197,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 	}
 
 	// set a default
-	if function.Spec.ServiceType == v1.ServiceType("") {
+	if function.Spec.ServiceType == "" {
 		function.Spec.ServiceType = v1.ServiceTypeNodePort
 	}
 
