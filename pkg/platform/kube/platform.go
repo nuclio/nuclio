@@ -154,6 +154,12 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 	}
 
+	// if function exists, perform some validation with new function create options
+	if err := p.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(existingFunctionConfig,
+		createFunctionOptions); err != nil {
+		return nil, errors.Wrap(err, "Validate against existing function config failed")
+	}
+
 	// called when function creation failed, update function status with failure
 	reportCreationError := func(creationError error, briefErrorsMessage string, clearCallStack bool) error {
 		errorStack := bytes.Buffer{}
@@ -797,19 +803,20 @@ func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction
 }
 
 func (p *Platform) getFunctionConfig(namespace, name string) (*functionconfig.ConfigWithStatus, error) {
-	if functionInstance, err := p.getFunction(namespace, name); err != nil {
+	functionInstance, err := p.getFunction(namespace, name)
+	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function")
-	} else if functionInstance != nil {
-
-		// found function instance, return as function config
-		functionConfig := &functionconfig.ConfigWithStatus{
-			Config: functionconfig.Config{Spec: functionInstance.Spec},
-			Status: functionInstance.Status,
-		}
-		return functionConfig, nil
-	} else {
-		return nil, nil
 	}
+
+	// found function instance, return as function config
+	if functionInstance != nil {
+		functionInstance, err := newFunction(p.Logger, p, functionInstance, p.consumer)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create new function instance")
+		}
+		return functionInstance.GetConfigWithStatus(), nil
+	}
+	return nil, nil
 }
 
 func (p *Platform) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.NuclioProject) {

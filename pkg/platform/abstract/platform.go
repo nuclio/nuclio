@@ -117,17 +117,6 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		return nil, errors.Wrap(err, "Failed determining whether function should build")
 	}
 
-	// special case when we are asked to build the function and it wasn't been created yet
-	if existingFunctionConfig == nil &&
-		createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
-		return nil, errors.New("Non existing function cannot be created with neverBuild mode")
-	}
-
-	if createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets == "" {
-		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets =
-			ap.platform.GetDefaultRegistryCredentialsSecretName()
-	}
-
 	// clear build mode
 	createFunctionOptions.FunctionConfig.Spec.Build.Mode = ""
 
@@ -215,6 +204,50 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 
 	ap.enrichMinMaxReplicas(createFunctionOptions)
 
+	// enrich with registry credential secret name
+	if createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets == "" {
+		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets =
+			ap.platform.GetDefaultRegistryCredentialsSecretName()
+	}
+
+	return nil
+}
+
+// Validate create function options against existing function
+func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(existingFunctionConfig *functionconfig.ConfigWithStatus,
+	createFunctionOptions *platform.CreateFunctionOptions) error {
+
+	// special case when we are asked to build the function and it wasn't been created yet
+	if existingFunctionConfig == nil &&
+		createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
+		return errors.New("Non existing function cannot be created with neverBuild mode")
+	}
+
+	// validate resource version
+	if err := ap.ValidateResourceVersion(existingFunctionConfig, createFunctionOptions); err != nil {
+		return errors.Wrap(err, "Resource version validation failed")
+	}
+	return nil
+}
+
+// Validate existing and new create function options resource version
+func (ap *Platform) ValidateResourceVersion(existingFunctionConfig *functionconfig.ConfigWithStatus,
+	createFunctionOptions *platform.CreateFunctionOptions) error {
+
+	// existing function should always be latest
+	if existingFunctionConfig != nil {
+		existingResourceVersion := existingFunctionConfig.Meta.ResourceVersion
+		requestResourceVersion := createFunctionOptions.FunctionConfig.Meta.ResourceVersion
+
+		// when requestResourceVersion is empty, the existing one will be overridden
+		if requestResourceVersion != "" &&
+			requestResourceVersion != existingResourceVersion {
+			ap.Logger.WarnWith("Create function resource version is outdated",
+				"requestResourceVersion", requestResourceVersion,
+				"existingResourceVersion", existingResourceVersion)
+			return errors.New("Function resource version is outdated")
+		}
+	}
 	return nil
 }
 
