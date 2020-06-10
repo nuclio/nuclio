@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -29,13 +30,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	nuctl_common "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -627,7 +630,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 
 	err = suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":  path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
+			"path":  functionPath,
 			"image": imageName,
 		})
 
@@ -681,6 +684,122 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 	suite.Require().Contains(suite.outputBuffer.String(), randomString)
 }
 
+func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
+
+	// TODO: when enable some sort of resource validation on other platforms, remove platform ensuring
+	suite.ensureRunningOnPlatform("kube")
+
+	// read and parse the function we're gonna test
+	functionConfig := functionconfig.Config{}
+	uniqueSuffix := "-" + xid.New().String()
+	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
+	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	suite.Require().NoError(err)
+	err = yaml.Unmarshal(functionBody, &functionConfig)
+	suite.Require().NoError(err)
+
+	// name uniqueness
+	functionConfig.Meta.Name = functionConfig.Meta.Name + uniqueSuffix
+
+	// ensure no resource version
+	functionConfig.Meta.ResourceVersion = ""
+
+	// --- step 1 ---
+	// deploy first time, should successfully create the function
+
+	// write function config to file
+	functionConfigPath, err := suite.writeFunctionConfigToTemp(&functionConfig,
+		"resource-version-*.yaml")
+	suite.Require().NoError(err)
+
+	// remove when done
+	defer os.RemoveAll(functionConfigPath)
+
+	// deploy with temp, expect to pass
+	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose", "--no-pull"},
+		map[string]string{
+			"path": functionPath,
+			"file": functionConfigPath,
+		})
+
+	// delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionConfig.Meta.Name}, nil)
+	suite.Require().NoError(err, "Function creation expected to pass")
+
+	// try a few times to invoke, until it succeeds
+	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionConfig.Meta.Name},
+		map[string]string{
+			"method": "POST",
+			"body":   `{"return_this": "abc"}`,
+			"via":    "external-ip",
+		}, false)
+	suite.Require().NoError(err)
+
+	// get the deployed function, we're gonna inspect its resource version
+	deployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctl_common.OutputFormatYAML)
+	suite.Require().NoError(err)
+
+	functionResourceVersion := deployedFunction.Meta.ResourceVersion
+
+	// ensure retrieved resource version from deployed function is not wmptty
+	suite.Require().NotEmpty(functionResourceVersion)
+
+	// --- step 2 ---
+	// at this step, we're gonna change the resource version in a way it will fail duee to a conflict
+
+	// change it to anything but empty/equal to the current resource version
+	deployedFunction.Meta.ResourceVersion = functionResourceVersion[:len(functionResourceVersion)/2]
+
+	// write function config to file
+	functionConfigPath, err = suite.writeFunctionConfigToTemp(deployedFunction,
+		"outdated-resource-version-*.yaml")
+	suite.Require().NoError(err)
+
+	// remove when done
+	defer os.RemoveAll(functionConfigPath)
+
+	// deployment should fail, resource schema conflict
+	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose"},
+		map[string]string{
+			"file": functionConfigPath,
+		})
+	suite.Require().Error(err)
+	suite.Require().Equal(http.StatusConflict, errors.Cause(err).(*nuclio.ErrorWithStatusCode).StatusCode())
+
+	// --- step 3 ----
+	// at this step, we expect deployment to pass again, as we removed the resource version
+	// to allow overridden of the current function regardless of its resource version
+
+	// empty resource version
+	deployedFunction.Meta.ResourceVersion = ""
+
+	// write function config to file
+	functionConfigPath, err = suite.writeFunctionConfigToTemp(deployedFunction,
+		"overridden-resource-version-*.yaml")
+	suite.Require().NoError(err)
+
+	// remove when done
+	defer os.RemoveAll(functionConfigPath)
+
+	// deployment should pass, resource version should be overridden
+	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose"},
+		map[string]string{
+			"file": functionConfigPath,
+		})
+	suite.Require().NoError(err)
+
+	// retry get function until its resource version changes
+	err = common.RetryUntilSuccessful(1*time.Minute, 3*time.Second, func() bool {
+
+		// get the deployed function, we're gonna inspect its resource version
+		deployedFunction, err = suite.getFunctionInFormat(functionConfig.Meta.Name, nuctl_common.OutputFormatYAML)
+		return err == nil && deployedFunction.Meta.ResourceVersion != functionResourceVersion
+	})
+	suite.Require().NoErrorf(err, "Resource version should have been changed (%s != %s)",
+		deployedFunction.Meta.ResourceVersion,
+		functionResourceVersion)
+}
+
 // Expecting the Code Entry Type to be modified to image
 func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	uniqueSuffix := "-" + xid.New().String()
@@ -704,7 +823,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	// check that the function's CET was modified to 'image'
 	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName},
 		map[string]string{
-			"output": common.OutputFormatYAML,
+			"output": nuctl_common.OutputFormatYAML,
 		},
 		false)
 	suite.Require().NoError(err)
@@ -724,11 +843,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 }
 
 func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
-
-	// relevant only for kube platform
-	if suite.origPlatformType != "kube" {
-		suite.T().Skipf("Not on kube platform")
-	}
+	suite.ensureRunningOnPlatform("kube")
 
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "event-recorder" + uniqueSuffix
@@ -897,32 +1012,17 @@ func (suite *functionGetTestSuite) TestGet() {
 	}{
 		{
 			FunctionName: functionNames[0],
-			OutputFormat: common.OutputFormatJSON,
+			OutputFormat: nuctl_common.OutputFormatJSON,
 		},
 		{
 			FunctionName: functionNames[0],
-			OutputFormat: common.OutputFormatYAML,
+			OutputFormat: nuctl_common.OutputFormatYAML,
 		},
 	} {
 		// reset buffer
 		suite.outputBuffer.Reset()
 
-		parsedFunction := functionconfig.Config{}
-
-		// get function in format
-		err = suite.ExecuteNuctl([]string{"get", "function", testCase.FunctionName},
-			map[string]string{
-				"output": testCase.OutputFormat,
-			})
-		suite.Require().NoError(err)
-
-		// unmarshal response correspondingly to output format
-		switch testCase.OutputFormat {
-		case common.OutputFormatJSON:
-			err = json.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
-		case common.OutputFormatYAML:
-			err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
-		}
+		parsedFunction, err := suite.getFunctionInFormat(testCase.FunctionName, testCase.OutputFormat)
 
 		// ensure parsing went well, and response is valid (json/yaml)
 		suite.Require().NoError(err, "Failed to unmarshal function")
