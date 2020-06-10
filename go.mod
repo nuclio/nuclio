@@ -43,7 +43,7 @@ require (
 	github.com/nuclio/logger v0.0.1
 	github.com/nuclio/logger-appinsights v0.0.1
 	github.com/nuclio/nuclio-sdk-go v0.1.0
-	github.com/nuclio/zap v0.0.2
+	github.com/nuclio/zap v0.0.3
 	github.com/nwaples/rardecode v1.1.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/onsi/ginkgo v1.10.0 // indirect

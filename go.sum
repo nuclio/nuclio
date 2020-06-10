@@ -291,6 +291,8 @@ github.com/nuclio/nuclio-sdk-go v0.1.0 h1:Nf1Zuo8xZbhzNAaFJsnoRP7XJH1Va7xseRODhe
 github.com/nuclio/nuclio-sdk-go v0.1.0/go.mod h1:NqMgotiF6Y0Ho4+i5AvJhH3FRKAyL4IMaMv/eoUOkKQ=
 github.com/nuclio/zap v0.0.2 h1:rY5PkMOl8CTkqRqIPuxziBiKK6Mq/8oEurfgRnNtqf0=
 github.com/nuclio/zap v0.0.2/go.mod h1:SUxPsgePvlyjx6c5MtGdB50pf0IQThtlyLwISLboeuc=
+github.com/nuclio/zap v0.0.3 h1:sQ8D7w4CcVUSFDlHK+8AZz/5Kfsv4p+waJ0aw9DnW80=
+github.com/nuclio/zap v0.0.3/go.mod h1:SUxPsgePvlyjx6c5MtGdB50pf0IQThtlyLwISLboeuc=
 github.com/nwaples/rardecode v1.0.0/go.mod h1:5DzqNKiOdpKKBH87u8VlvAnPZMXcGRhxWkRpHbbfGS0=
 github.com/nwaples/rardecode v1.1.0 h1:vSxaY8vQhOcVr4mm5e8XllHWTiM4JF507A0Katqw7MQ=
 github.com/nwaples/rardecode v1.1.0/go.mod h1:5DzqNKiOdpKKBH87u8VlvAnPZMXcGRhxWkRpHbbfGS0=
