@@ -155,7 +155,9 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 		deployLogger = d.logger
 	}
 
+
 	// do the create / update
+	functionCreateOrUpdateTimestamp := time.Now()
 	_, err := d.createOrUpdateFunction(functionInstance,
 		createFunctionOptions,
 		&functionconfig.Status{
@@ -169,7 +171,8 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 	updatedFunctionInstance, err := waitForFunctionReadiness(deployLogger,
 		d.consumer,
 		functionInstance.Namespace,
-		functionInstance.Name)
+		functionInstance.Name,
+		functionCreateOrUpdateTimestamp)
 	if err != nil {
 		podLogs, briefErrorsMessage := d.getFunctionPodLogsAndEvents(functionInstance.Namespace, functionInstance.Name)
 		return nil, updatedFunctionInstance, briefErrorsMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
@@ -180,10 +183,71 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 	}, updatedFunctionInstance, "", nil
 }
 
+func isFunctionDeploymentFailed(consumer *consumer,
+	namespace string,
+	name string,
+	functionCreateOrUpdateTimestamp time.Time) (bool, error) {
+
+	// list function pods
+	pods, err := consumer.kubeClientSet.CoreV1().
+		Pods(namespace).
+		List(meta_v1.ListOptions{
+			LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", name),
+		})
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to get pods")
+	}
+
+	// infer from the pod statuses if the function deployment had failed
+	// failure of one pod is enough to tell that the deployment had failed
+	for _, pod := range pods.Items {
+
+		// skip irrelevant pods (leftovers of previous function deployments)
+		// (subtract 2 seconds from create/update timestamp because of ms accuracy loss of pod.creationTimestamp)
+		if !pod.GetCreationTimestamp().After(functionCreateOrUpdateTimestamp.Add(-2 * time.Second)) {
+			continue
+		}
+
+		for _, containerStatus := range pod.Status.ContainerStatuses {
+
+			// check if the pod has terminated with an error
+			if containerStatus.State.Terminated != nil &&
+				containerStatus.State.Terminated.Reason == "Error" {
+
+				return true, errors.New("NuclioFunction pod container exited with an error")
+			}
+
+			if pod.Status.ContainerStatuses[0].State.Waiting != nil {
+
+				// check if the pod is on a crashLoopBackoff
+				if containerStatus.State.Waiting.Reason == "CrashLoopBackOff" {
+
+					return true, errors.New("NuclioFunction pod is in a crash loop")
+				}
+			}
+		}
+
+		for _, condition := range pod.Status.Conditions {
+
+			// check if the pod is in pending state, and the reason is that it is unschedulable
+			// (meaning no k8s node can currently run it, because of insufficient resources etc..)
+			if pod.Status.Phase == v1.PodPending &&
+				condition.Reason == "Unschedulable" {
+
+				return true, errors.New("NuclioFunction pod is unschedulable")
+			}
+		}
+	}
+
+
+	return false, nil
+}
+
 func waitForFunctionReadiness(loggerInstance logger.Logger,
 	consumer *consumer,
 	namespace string,
-	name string) (*nuclioio.NuclioFunction, error) {
+	name string,
+	functionCreateOrUpdateTimestamp time.Time) (*nuclioio.NuclioFunction, error) {
 	var err error
 	var function *nuclioio.NuclioFunction
 
@@ -204,6 +268,19 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 		case functionconfig.FunctionStateError:
 			return false, errors.Errorf("NuclioFunction in error state:\n%s", function.Status.Message)
 		default:
+			if !function.Spec.WaitReadinessTimeoutBeforeFail {
+
+				// check if function deployment had failed
+				// (ignore the error if there's no concrete indication of failure, because it might still stabilize)
+				if functionDeploymentFailed, err := isFunctionDeploymentFailed(consumer,
+					namespace,
+					name,
+					functionCreateOrUpdateTimestamp) ; functionDeploymentFailed {
+
+					return false, errors.Wrapf(err, "NuclioFunction deployment failed")
+				}
+			}
+
 			return false, nil
 		}
 	}

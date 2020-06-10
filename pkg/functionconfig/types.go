@@ -245,6 +245,13 @@ type Spec struct {
 	ServiceAccount          string                  `json:"serviceAccount,omitempty"`
 	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
 
+	// Currently relevant only for k8s platform
+	// if true - wait the whole ReadinessTimeoutSeconds before marking this function as unhealthy
+	// otherwise, fail the function instantly when there is indication of deployment failure (e.g. pod stuck on crash
+	// loop, pod container exited with an error, pod is unschedulable).
+	// Default: false
+	WaitReadinessTimeoutBeforeFail bool `json:"waitReadinessTimeoutBeforeFail,omitempty"`
+
 	// We're letting users write "20s" and not the default marshalled time.Duration
 	// (Which is in nanoseconds)
 	EventTimeout string `json:"eventTimeout"`
