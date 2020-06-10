@@ -11,10 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-FROM python:2.7-slim-stretch
 
-RUN pip install mock pytest
+ARG PYTHON_IMAGE_TAG=3.6-slim-stretch
+
+FROM python:$PYTHON_IMAGE_TAG
+
 WORKDIR /nuclio
+
 COPY pkg/processor/runtime/python .
-RUN find . -depth -name *.pyc -exec rm -rf {} \;
-RUN python -m pytest -v .
+
+RUN ./test/test.sh

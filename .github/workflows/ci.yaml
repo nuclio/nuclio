@@ -53,7 +53,17 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Run short test suites
-        run: make test-short
+        run: |
+          set -o pipefail
+          make test-short 2>&1 | tee test-short-${NUCLIO_LABEL}.log
+
+      - name: Upload short test results
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: test-results
+          path: test-short-${{ env.NUCLIO_LABEL }}.log
+
 
   build_nuctl:
     name: Build nuctl
@@ -213,3 +223,21 @@ jobs:
         with:
           name: test-results
           path: test-docker-nuctl-${{ env.NUCLIO_LABEL }}.log
+
+  test_python:
+    name: Test python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run short test suites
+        run: |
+          set -o pipefail
+          make test-python 2>&1 | tee test-python-${NUCLIO_LABEL}.log
+
+      - name: Upload test python results
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: test-results
+          path: test-python-${{ env.NUCLIO_LABEL }}.log

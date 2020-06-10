@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright 2017 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,10 +13,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-FROM python:3.6-slim-stretch
 
-RUN pip install pytest
-WORKDIR /nuclio
-COPY pkg/processor/runtime/python .
-RUN find . -depth -name __pycache__ -exec rm -rf {} \;
-RUN python -m pytest -v .
+# exit on failure
+set -o errexit
+
+# show command before execute
+set -o xtrace
+
+# shared
+python -m pip install -r py/requirements/common.txt
+
+# dev
+python -m pip install -r py/requirements/dev.txt
+
+# determine runtime version and install its packages
+if [[ $(python -V 2>&1) =~ 2\.7 ]]; then
+    python -m pip install -r py/requirements/python2.txt
+else
+    python -m pip install -r py/requirements/python3_6.txt
+fi
+
+# remove python cached
+find . -depth -name __pycache__ -exec rm -rf {} \;
+
+# run tests
+python -m pytest -v .
