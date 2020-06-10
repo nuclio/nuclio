@@ -52,7 +52,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Run short test suites
+      - name: Run short test
         run: |
           set -o pipefail
           make test-short 2>&1 | tee test-short-${NUCLIO_LABEL}.log
@@ -230,7 +230,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Run short test suites
+      - name: Run python test
         run: |
           set -o pipefail
           make test-python 2>&1 | tee test-python-${NUCLIO_LABEL}.log
