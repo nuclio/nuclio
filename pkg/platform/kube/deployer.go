@@ -238,7 +238,6 @@ func isFunctionDeploymentFailed(consumer *consumer,
 		}
 	}
 
-
 	return false, nil
 }
 
@@ -274,7 +273,7 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 				if functionDeploymentFailed, err := isFunctionDeploymentFailed(consumer,
 					namespace,
 					name,
-					functionCreateOrUpdateTimestamp) ; functionDeploymentFailed {
+					functionCreateOrUpdateTimestamp); functionDeploymentFailed {
 
 					return false, errors.Wrapf(err, "NuclioFunction deployment failed")
 				}
