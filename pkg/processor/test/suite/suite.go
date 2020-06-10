@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
@@ -54,16 +55,20 @@ type OnAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool
 // function container (through an trigger of some sort)
 type TestSuite struct {
 	suite.Suite
-	Logger       logger.Logger
-	DockerClient dockerclient.Client
-	Platform     platform.Platform
-	TestID       string
-	Runtime      string
-	RuntimeDir   string
-	FunctionDir  string
-	containerID  string
-	TempDir      string
-	CleanupTemp  bool
+	Logger                logger.Logger
+	DockerClient          dockerclient.Client
+	Platform              platform.Platform
+	TestID                string
+	Runtime               string
+	RuntimeDir            string
+	FunctionDir           string
+	containerID           string
+	TempDir               string
+	CleanupTemp           bool
+	PlatformType          string
+	Namespace             string
+	PlatformConfiguration *platformconfig.Config
+	FunctionNameUniquify  bool
 }
 
 // BlastRequest holds information for BlastHTTP function
@@ -82,9 +87,21 @@ type BlastConfiguration struct {
 // SetupSuite is called for suite setup
 func (suite *TestSuite) SetupSuite() {
 	var err error
+
 	if suite.RuntimeDir == "" {
 		suite.RuntimeDir = suite.Runtime
 	}
+
+	if suite.PlatformType == "" {
+		suite.PlatformType = "local"
+	}
+
+	if suite.Namespace == "" {
+		suite.Namespace = "default"
+	}
+
+	// this will preserve the current behavior where function names are renamed to be unique upon deployment
+	suite.FunctionNameUniquify = true
 
 	// update version so that linker doesn't need to inject it
 	version.SetFromEnv()
@@ -95,7 +112,10 @@ func (suite *TestSuite) SetupSuite() {
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
 	suite.Require().NoError(err)
 
-	suite.Platform, err = factory.CreatePlatform(suite.Logger, "local", nil, "default")
+	suite.Platform, err = factory.CreatePlatform(suite.Logger,
+		suite.PlatformType,
+		suite.PlatformConfiguration,
+		suite.Namespace)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(suite.Platform)
 }
@@ -269,7 +289,7 @@ func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.Cr
 
 	// give the name a unique prefix, except if name isn't set
 	// TODO: will affect concurrent runs
-	if createFunctionOptions.FunctionConfig.Meta.Name != "" {
+	if suite.FunctionNameUniquify && createFunctionOptions.FunctionConfig.Meta.Name != "" {
 		createFunctionOptions.FunctionConfig.Meta.Name = suite.GetUniqueFunctionName(createFunctionOptions.FunctionConfig.Meta.Name)
 	}
 
@@ -281,7 +301,18 @@ func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.Cr
 }
 
 func (suite *TestSuite) GetUniqueFunctionName(name string) string {
-	return fmt.Sprintf("%s-%s", name, suite.TestID)
+	nameLength := len(name) + len(suite.TestID)
+
+	// k8s maximum name limit
+	k8sMaxNameLength := 63
+	if nameLength > k8sMaxNameLength {
+
+		// trims
+		name = name[:k8sMaxNameLength-nameLength]
+	}
+
+	// to not reach
+	return fmt.Sprintf("%s-%s", name, suite.TestID)[:62]
 }
 
 func (suite *TestSuite) GetRuntimeDir() string {
