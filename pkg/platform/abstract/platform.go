@@ -36,6 +36,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 //
@@ -225,7 +226,7 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(e
 
 	// validate resource version
 	if err := ap.ValidateResourceVersion(existingFunctionConfig, createFunctionOptions); err != nil {
-		return errors.Wrap(err, "Resource version validation failed")
+		return nuclio.WrapErrConflict(err)
 	}
 	return nil
 }
