@@ -29,7 +29,8 @@ import nuclio_sdk.logger
 
 class Wrapper(object):
 
-    _max_message_size = 4 * 1024 * 1024
+    # hard limit of 50mb
+    _max_message_size = 50 * 1024 * 1024
 
     def __init__(self,
                  logger,
@@ -55,7 +56,10 @@ class Wrapper(object):
 
         # make a writeable file from processor
         self._processor_sock_wfile = self._processor_sock.makefile('w')
-        self._unpacker = msgpack.Unpacker(raw=False, max_buffer_size=10 * 1024 * 1024)
+
+        # since this wrapper is behind a processor that pre-handle the traffic & request, it is not mandatory
+        # to provide security over max buffer size. The request limit should be handled on the processor level.
+        self._unpacker = msgpack.Unpacker(raw=False)
 
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
@@ -182,7 +186,7 @@ class Wrapper(object):
         Load handler function from handler.
         handler is in the format 'module.sub:handler_name'
         """
-        match = re.match('^([\w|-]+(\.[\w|-]+)*):(\w+)$', handler)
+        match = re.match(r'^([\w|-]+(\.[\w|-]+)*):(\w+)$', handler)
         if not match:
             raise ValueError('Malformed handler - {!r}'.format(handler))
 
