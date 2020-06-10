@@ -155,7 +155,6 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 		deployLogger = d.logger
 	}
 
-
 	// do the create / update
 	functionCreateOrUpdateTimestamp := time.Now()
 	_, err := d.createOrUpdateFunction(functionInstance,
