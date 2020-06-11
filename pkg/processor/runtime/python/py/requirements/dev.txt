@@ -1,2 +1,3 @@
 pytest
-futures
+matplotlib
+memory_profiler

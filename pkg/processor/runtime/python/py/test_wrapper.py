@@ -1,24 +1,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import base64
 import functools
 import json
 import logging
+import operator
 import os
-import tempfile
-import threading
-import unittest
 import socket
 import struct
-import base64
-
-import msgpack
-import nuclio_sdk
-import operator
 import sys
+import tempfile
+import threading
 import time
+import unittest
 
 import _nuclio_wrapper as wrapper
+import memory_profiler
+import msgpack
+import nuclio_sdk
 
 # python2/3 differences
 if sys.version_info[:2] >= (3, 0):
@@ -64,7 +64,8 @@ class TestSubmitEvents(unittest.TestCase):
         self._wrapper._max_message_size = 1024
         dummy_text = self._wrapper._max_message_size * 'a'
 
-        self._send_event(nuclio_sdk.Event(body=dummy_text))
+        self._wait_for_socket_creation()
+        threading.Thread(target=self._send_event, args=(nuclio_sdk.Event(body=dummy_text),)).start()
 
         self._wrapper._entrypoint = mock.MagicMock()
         self._wrapper._entrypoint.assert_not_called()
@@ -82,19 +83,18 @@ class TestSubmitEvents(unittest.TestCase):
             event.body += 'a' * times_to_add
 
         # send the event
-        t = threading.Thread(target=self._send_event, args=(event,))
-        t.start()
+        self._wait_for_socket_creation()
+        threading.Thread(target=self._send_event, args=(event,)).start()
 
         # handle one request
         self._wrapper.serve_requests(num_requests=1)
-        t.join()
-
         self._wait_until_received_messages(4)
 
     def test_single_event(self):
         reverse_text = 'reverse this'
 
         # send the event
+        self._wait_for_socket_creation()
         threading.Thread(target=self._send_event, args=(nuclio_sdk.Event(_id=1, body=reverse_text),)).start()
 
         self._wrapper.serve_requests(num_requests=1)
@@ -108,9 +108,8 @@ class TestSubmitEvents(unittest.TestCase):
                         if message['type'] == 'r')
         response_body = response['body'][::-1]
 
+        # blame is on nuclio_sdk/event.py:80
         if sys.version_info[:2] < (3, 0):
-
-            # blame is on nuclio_sdk/event.py:80
             response_body = base64.b64decode(response_body)
 
         self.assertEqual(reverse_text, response_body)
@@ -153,14 +152,34 @@ class TestSubmitEvents(unittest.TestCase):
             response_body = recorded_event.body
 
             if sys.version_info[:2] < (3, 0):
-
                 # blame is on nuclio_sdk/event.py:80
                 response_body = base64.b64decode(response_body)
 
             self.assertEqual('e{}'.format(recorded_event_index), response_body)
 
+    def test_memory_profiling_1(self):
+        self._run_memory_profiling(100)
+
+    def test_memory_profiling_1k(self):
+        self._run_memory_profiling(1000)
+
+    def test_memory_profiling_10k(self):
+        self._run_memory_profiling(10000)
+
+    def test_memory_profiling_100k(self):
+        self._run_memory_profiling(100000)
+
+    def _run_memory_profiling(self, num_of_events):
+        self._wrapper._entrypoint = mock.MagicMock()
+        self._wrapper._entrypoint.return_value = {}
+        threading.Thread(target=self._send_events, args=(num_of_events,)).start()
+        with open('test_memory_profiling_{0}'.format(num_of_events), 'w') as f:
+            memory_profiler.profile(self._wrapper.serve_requests,
+                                    precision=4,
+                                    stream=f)(num_requests=num_of_events)
+        self.assertEqual(num_of_events, self._wrapper._entrypoint.call_count, 'Received unexpected number of events')
+
     def _send_event(self, event):
-        self._wait_for_socket_creation()
 
         # pack exactly as processor or wrapper explodes
         body = msgpack.Packer().pack(self._event_to_dict(event))
@@ -179,12 +198,9 @@ class TestSubmitEvents(unittest.TestCase):
         return json.loads(event.to_json())
 
     def _send_events(self, num_of_events):
-        events = [
-            nuclio_sdk.Event(_id=i, body='e{}'.format(i))
-            for i in range(num_of_events)
-        ]
-        for event in events:
-            self._send_event(event)
+        self._wait_for_socket_creation()
+        for i in range(num_of_events):
+            self._send_event(nuclio_sdk.Event(_id=i, body='e{}'.format(i)))
 
     def _wait_for_socket_creation(self, timeout=10, interval=0.1):
 
