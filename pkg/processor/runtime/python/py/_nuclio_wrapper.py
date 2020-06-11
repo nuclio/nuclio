@@ -88,7 +88,6 @@ class Wrapper(object):
         """Read event from socket, send out reply"""
 
         int_buf = bytearray(4)
-        buf = memoryview(bytearray(self._max_message_size))
         minimum_float_duration = sys.float_info.min
 
         while True:
@@ -116,19 +115,18 @@ class Wrapper(object):
 
                 cumulative_bytes_read = 0
                 while cumulative_bytes_read < bytes_to_read:
-                    view = buf[cumulative_bytes_read:bytes_to_read]
                     bytes_to_read_now = bytes_to_read - cumulative_bytes_read
-                    bytes_read = self._processor_sock.recv_into(view, bytes_to_read_now)
+                    bytes_read = self._processor_sock.recv(bytes_to_read_now)
 
                     # client disconnect
                     if not bytes_read:
+
                         # If socket is done, we can't log
                         print('Client disconnect')
                         return
 
-                    cumulative_bytes_read += bytes_read
-
-                self._unpacker.feed(buf[:cumulative_bytes_read])
+                    self._unpacker.feed(bytes_read)
+                    cumulative_bytes_read += len(bytes_read)
 
                 msg = next(self._unpacker)
 

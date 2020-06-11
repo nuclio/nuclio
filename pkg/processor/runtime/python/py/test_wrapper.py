@@ -11,7 +11,6 @@ import unittest
 import socket
 import struct
 import base64
-import concurrent.futures.thread
 
 import msgpack
 import nuclio_sdk
