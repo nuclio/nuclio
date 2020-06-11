@@ -65,11 +65,13 @@ class TestSubmitEvents(unittest.TestCase):
         dummy_text = self._wrapper._max_message_size * 'a'
 
         self._wait_for_socket_creation()
-        threading.Thread(target=self._send_event, args=(nuclio_sdk.Event(body=dummy_text),)).start()
+        t = threading.Thread(target=self._send_event, args=(nuclio_sdk.Event(body=dummy_text),))
+        t.start()
 
         self._wrapper._entrypoint = mock.MagicMock()
         self._wrapper._entrypoint.assert_not_called()
         self._wrapper.serve_requests(num_requests=1)
+        t.join()
 
     def test_large_event(self):
         self._wrapper._max_message_size = 1 * 1024 * 1024  # 10mb
@@ -84,10 +86,13 @@ class TestSubmitEvents(unittest.TestCase):
 
         # send the event
         self._wait_for_socket_creation()
-        threading.Thread(target=self._send_event, args=(event,)).start()
+        t = threading.Thread(target=self._send_event, args=(event,))
+        t.start()
 
         # handle one request
         self._wrapper.serve_requests(num_requests=1)
+        t.join()
+
         self._wait_until_received_messages(4)
 
     def test_single_event(self):
@@ -95,9 +100,11 @@ class TestSubmitEvents(unittest.TestCase):
 
         # send the event
         self._wait_for_socket_creation()
-        threading.Thread(target=self._send_event, args=(nuclio_sdk.Event(_id=1, body=reverse_text),)).start()
+        t = threading.Thread(target=self._send_event, args=(nuclio_sdk.Event(_id=1, body=reverse_text),))
+        t.start()
 
         self._wrapper.serve_requests(num_requests=1)
+        t.join()
 
         # processor start, function log line, response body, duration messages
         self._wait_until_received_messages(4)
