@@ -164,27 +164,33 @@ class TestSubmitEvents(unittest.TestCase):
 
             self.assertEqual('e{}'.format(recorded_event_index), response_body)
 
-    def test_memory_profiling_1(self):
-        self._run_memory_profiling(100)
-
-    def test_memory_profiling_1k(self):
-        self._run_memory_profiling(1000)
-
-    def test_memory_profiling_10k(self):
-        self._run_memory_profiling(10000)
-
-    def test_memory_profiling_100k(self):
-        self._run_memory_profiling(100000)
-
-    def _run_memory_profiling(self, num_of_events):
-        self._wrapper._entrypoint = mock.MagicMock()
-        self._wrapper._entrypoint.return_value = {}
-        threading.Thread(target=self._send_events, args=(num_of_events,)).start()
-        with open('test_memory_profiling_{0}'.format(num_of_events), 'w') as f:
-            memory_profiler.profile(self._wrapper.serve_requests,
-                                    precision=4,
-                                    stream=f)(num_requests=num_of_events)
-        self.assertEqual(num_of_events, self._wrapper._entrypoint.call_count, 'Received unexpected number of events')
+    # # to run memory profiling test, uncomment the test below
+    # # and from terminal run with
+    # # > mprof run python -m py.test test_wrapper.py::TestSubmitEvents::test_memory_profiling_100_<num>
+    # # and to get its plot use:
+    # # > mprof plot --backend agg --output <filename>.png
+    # def test_memory_profiling_100(self):
+    #     self._run_memory_profiling(100)
+    #
+    # def test_memory_profiling_1k(self):
+    #     self._run_memory_profiling(1000)
+    #
+    # def test_memory_profiling_10k(self):
+    #     self._run_memory_profiling(10000)
+    #
+    # def test_memory_profiling_100k(self):
+    #     self._run_memory_profiling(100000)
+    #
+    # def _run_memory_profiling(self, num_of_events):
+    #     self._wrapper._entrypoint = mock.MagicMock()
+    #     self._wrapper._entrypoint.return_value = {}
+    #     threading.Thread(target=self._send_events, args=(num_of_events,)).start()
+    #     with open('test_memory_profiling_{0}.txt'.format(num_of_events), 'w') as f:
+    #         profiled_serve_requests_func = memory_profiler.profile(self._wrapper.serve_requests,
+    #                                                                precision=4,
+    #                                                                stream=f)
+    #         profiled_serve_requests_func(num_requests=num_of_events)
+    #     self.assertEqual(num_of_events, self._wrapper._entrypoint.call_count, 'Received unexpected number of events')
 
     def _send_event(self, event):
 

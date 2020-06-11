@@ -18,6 +18,8 @@ FROM python:$PYTHON_IMAGE_TAG
 
 WORKDIR /nuclio
 
+RUN apt-get update && apt-get install gcc -y
+
 COPY pkg/processor/runtime/python .
 
 RUN ./test/test.sh
