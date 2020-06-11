@@ -22,4 +22,5 @@ RUN apt-get update && apt-get install gcc -y
 
 COPY pkg/processor/runtime/python .
 
+ARG CACHEBUST=1
 RUN ./test/test.sh

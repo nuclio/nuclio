@@ -34,7 +34,11 @@ else
 fi
 
 # remove python cached
-find . -depth -name __pycache__ -exec rm -rf {} \;
+find ./py \
+    -name ".pytest_cache" -type d \
+    -o -name "*.pyc" \
+    -o -name "__pycache__" -type d \
+    | xargs rm -rf
 
 # run tests
 python -m pytest -v .

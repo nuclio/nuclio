@@ -412,8 +412,14 @@ test: ensure-gopath build-base
 
 .PHONY: test-python
 test-python:
-	docker build --no-cache --build-arg PYTHON_IMAGE_TAG=3.6-slim-stretch -f pkg/processor/runtime/python/test/Dockerfile .
-	docker build --no-cache --build-arg PYTHON_IMAGE_TAG=2.7-slim-stretch -f pkg/processor/runtime/python/test/Dockerfile .
+	docker build \
+		--build-arg CACHEBUST=$(shell date +%s) \
+		--build-arg PYTHON_IMAGE_TAG=3.6-slim-stretch \
+		-f pkg/processor/runtime/python/test/Dockerfile .
+	docker build \
+		--build-arg CACHEBUST=$(shell date +%s) \
+		--build-arg PYTHON_IMAGE_TAG=2.7-slim-stretch \
+		-f pkg/processor/runtime/python/test/Dockerfile .
 
 .PHONY: test-short
 test-short: modules ensure-gopath
