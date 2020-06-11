@@ -183,6 +183,8 @@ class TestSubmitEvents(unittest.TestCase):
 
         # pack exactly as processor or wrapper explodes
         body = msgpack.Packer().pack(self._event_to_dict(event))
+
+        # big endian body len
         body_len = struct.pack(">I", len(body))
 
         # first write body length
