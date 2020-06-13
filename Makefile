@@ -56,11 +56,12 @@ NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_LABEL)-$(NUCLIO_ARCH)
 
 # Link flags
 GO_LINK_FLAGS ?= -s -w
-GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) -X github.com/nuclio/nuclio/pkg/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
+GO_LINK_VERSION := -X github.com/nuclio/nuclio/pkg/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
 	-X github.com/nuclio/nuclio/pkg/version.label=$(NUCLIO_LABEL) \
 	-X github.com/nuclio/nuclio/pkg/version.os=$(NUCLIO_OS) \
 	-X github.com/nuclio/nuclio/pkg/version.arch=$(NUCLIO_ARCH) \
 	-X github.com/nuclio/nuclio/pkg/version.goVersion=$(GO_VERSION)
+GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS)  $(GO_LINK_VERSION)
 
 # inject version info as file
 NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTENTS="$(NUCLIO_VERSION_INFO)"
@@ -163,6 +164,7 @@ endif
 
 processor: ensure-gopath build-base
 	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION=$(GO_LINK_FLAGS_INJECT_VERSION) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/processor/Dockerfile \
 		--tag $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG) .
@@ -254,6 +256,7 @@ NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME=\
 
 handler-builder-golang-onbuild-alpine: build-base
 	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION=$(GO_LINK_FLAGS_INJECT_VERSION) \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
@@ -261,6 +264,7 @@ handler-builder-golang-onbuild-alpine: build-base
 
 handler-builder-golang-onbuild: build-base handler-builder-golang-onbuild-alpine
 	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION=$(GO_LINK_FLAGS_INJECT_VERSION) \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \

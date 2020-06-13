@@ -16,8 +16,14 @@ ARG NUCLIO_LABEL
 
 FROM nuclio-base:$NUCLIO_LABEL as build-processor
 
+ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
+
 # build the processor
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o processor cmd/processor/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+    -a \
+    -installsuffix cgo \
+    -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
+    -o processor cmd/processor/main.go
 
 FROM scratch
 
