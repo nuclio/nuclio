@@ -90,11 +90,8 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		stop:                  make(chan bool, 1),
 	}
 
-	processorVersion, err := version.Get()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to resolve processor version")
-	}
-	newProcessor.logger.InfoWith("Creating processor", "processorVersion", processorVersion)
+	// log version
+	version.Log(newProcessor.logger)
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
