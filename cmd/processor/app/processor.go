@@ -90,9 +90,6 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		stop:                  make(chan bool, 1),
 	}
 
-	// log version
-	version.Log(newProcessor.logger)
-
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
 	if err != nil {
@@ -117,6 +114,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 	indentedProcessorConfiguration, _ := json.MarshalIndent(processorConfiguration, "", "    ")
 	indentedPlatformConfiguration, _ := json.MarshalIndent(platformConfiguration, "", "    ")
+
+	// log version
+	version.Log(newProcessor.logger)
 
 	newProcessor.logger.DebugWith("Read configuration",
 		"config", string(indentedProcessorConfiguration),
