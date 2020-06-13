@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/version"
 	// load all runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
@@ -88,6 +89,12 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		namedWorkerAllocators: map[string]worker.Allocator{},
 		stop:                  make(chan bool, 1),
 	}
+
+	processorVersion, err := version.Get()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve processor version")
+	}
+	newProcessor.logger.InfoWith("Creating processor", "processorVersion", processorVersion)
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
