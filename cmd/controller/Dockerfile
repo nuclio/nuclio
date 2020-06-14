@@ -26,7 +26,7 @@ ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
     -a \
     -installsuffix cgo \
-    -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}"
+    -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
     -o controller cmd/controller/main.go
 
 #
