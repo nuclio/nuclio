@@ -10,3 +10,5 @@ pkg/dashboard/ui/dist
 
 **/Dockerfile
 **/Dockerfile.alpine
+
+pkg/processor/runtime/python/**/venv

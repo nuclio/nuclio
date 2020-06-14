@@ -134,12 +134,12 @@ func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client
 func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	var err error
 	var inferredCodeEntryType string
+	var configurationRead bool
 
 	b.options = options
 
 	b.logger.InfoWith("Building", "name", b.options.FunctionConfig.Meta.Name)
 
-	configurationRead := false
 	configFilePath := b.providedFunctionConfigFilePath()
 	b.logger.DebugWith("Function configuration found in directory", "configFilePath", configFilePath)
 	if common.IsFile(configFilePath) {
@@ -192,13 +192,11 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 		// populate function source code
 		b.populateFunctionSourceCodeFromFilePath()
-
 	}
 
 	// prepare configuration from both configuration files and things builder infers
 	if !configurationRead {
-		_, err = b.readConfiguration()
-		if err != nil {
+		if _, err = b.readConfiguration(); err != nil {
 			return nil, errors.Wrap(err, "Failed to read configuration")
 		}
 	}
