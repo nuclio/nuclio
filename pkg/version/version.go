@@ -37,7 +37,7 @@ type Info struct {
 }
 
 // these global variables are initialized by the build process if the build target
-// is a standalone binary (e.g. nuctl)
+// is a standalone binary (e.g. nuctl, processor)
 var (
 	label     = ""
 	gitCommit = ""

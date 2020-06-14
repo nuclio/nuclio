@@ -60,6 +60,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
+	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -116,6 +117,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 	indentedProcessorConfiguration, _ := json.MarshalIndent(processorConfiguration, "", "    ")
 	indentedPlatformConfiguration, _ := json.MarshalIndent(platformConfiguration, "", "    ")
+
+	// log version
+	version.Log(newProcessor.logger)
 
 	newProcessor.logger.DebugWith("Read configuration",
 		"config", string(indentedProcessorConfiguration),

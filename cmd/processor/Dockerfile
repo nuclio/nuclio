@@ -18,6 +18,8 @@ FROM golang:1.10
 WORKDIR /go/src/github.com/nuclio/nuclio
 COPY . .
 
+ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
+
 # build the processor
 RUN go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/logger \
@@ -28,4 +30,4 @@ RUN go get github.com/v3io/v3io-go-http \
     && cd $GOPATH/src/github.com/nuclio/nuclio-sdk-go && git checkout v0.0.1 \
     && cd $GOPATH/src/github.com/v3io/scaler-types && git checkout v1.6.0 \
     && cd /go/src/github.com/nuclio/nuclio \
-    && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
+    && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" -o /home/nuclio/bin/processor cmd/processor/main.go
