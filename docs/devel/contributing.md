@@ -91,7 +91,7 @@ These variables are being set by the linker during link time using `-X`.
 
 Since there is an auto-fallback to "latest", if you want to use versioned binaries, make sure to pass the following as part of the `Go tool arguments` in the Run/Debug configuration:
 ```
--i -ldflags="-X github.com/v3io/version-go/version.label=1.4.5 -X github.com/v3io/version-go/version.arch=amd64"
+-i -ldflags="-X github.com/v3io/version-go.label=1.4.5"
 ``` 
 
 <a id="goland-run-go-processor"></a>
