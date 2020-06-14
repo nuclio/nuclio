@@ -208,7 +208,7 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 	// enrich with registry credential secret name
 	if createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets == "" {
 		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets =
-			ap.platform.GetDefaultRegistryCredentialsSecretName()
+			ap.GetDefaultRegistryCredentialsSecretName()
 	}
 
 	return nil
@@ -430,7 +430,7 @@ func (ap *Platform) GetOnbuildImageRegistry(registry string) string {
 	return ap.ContainerBuilder.GetOnbuildImageRegistry(registry)
 }
 
-// // GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
+// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
 func (ap *Platform) GetDefaultRegistryCredentialsSecretName() string {
 	return ap.ContainerBuilder.GetDefaultRegistryCredentialsSecretName()
 }
