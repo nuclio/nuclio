@@ -44,6 +44,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
 	"golang.org/x/sync/errgroup"
 	apps_v1 "k8s.io/api/apps/v1"
 	autos_v2 "k8s.io/api/autoscaling/v2beta1"
@@ -57,7 +58,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	"github.com/v3io/version-go"
 )
 
 const (

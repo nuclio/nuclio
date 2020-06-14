@@ -1231,9 +1231,8 @@ func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
 
 	// set the onbuild images
 	for idx, onbuildArtifact := range processorDockerfileInfo.OnbuildArtifacts {
-		onbuildArtifact.Image, err = b.getProcessorDockerfileOnbuildImage(versionInfo,
+		onbuildArtifact.Image, err = b.getProcessorDockerfileOnbuildImage(
 			runtimeProcessorDockerfileInfo.OnbuildArtifacts[idx].Image)
-
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get onbuild image")
 		}
@@ -1287,8 +1286,7 @@ func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string
 	}
 }
 
-func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
-	runtimeDefaultOnbuildImage string) (string, error) {
+func (b *Builder) getProcessorDockerfileOnbuildImage(runtimeDefaultOnbuildImage string) (string, error) {
 
 	// if the user supplied an onbuild image, format it with the appropriate tag,
 	if b.options.FunctionConfig.Spec.Build.OnbuildImage != "" {
@@ -1299,8 +1297,8 @@ func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
 
 		var onbuildImageTemplateBuffer bytes.Buffer
 		err = onbuildImageTemplate.Execute(&onbuildImageTemplateBuffer, &map[string]interface{}{
-			"Label": versionInfo.Label,
-			"Arch":  versionInfo.Arch,
+			"Label": b.versionInfo.Label,
+			"Arch":  b.versionInfo.Arch,
 		})
 
 		if err != nil {

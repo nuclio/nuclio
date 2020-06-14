@@ -21,8 +21,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-
-	"github.com/v3io/version-go"
 )
 
 type nodejs struct {
