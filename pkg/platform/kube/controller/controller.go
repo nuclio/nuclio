@@ -76,7 +76,7 @@ func NewController(parentLogger logger.Logger,
 
 	newController.logger.DebugWith("Read configuration",
 		"platformConfig", newController.platformConfiguration,
-		"version", version.Get().String())
+		"version", version.Get())
 
 	// set ourselves as the platform configuration provider of the function resource client (it needs it to do
 	// stuff when creating stuff)

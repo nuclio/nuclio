@@ -52,7 +52,7 @@ func Run(listenAddress string,
 	logger.InfoWith("Starting",
 		"name", platformInstance.GetName(),
 		"noPull", noPullBaseImages,
-		"version", version.Get().String(),
+		"version", version.Get(),
 		"defaultCredRefreshInterval", defaultCredRefreshIntervalString)
 
 	// create a web server configuration

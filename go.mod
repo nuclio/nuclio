@@ -65,7 +65,7 @@ require (
 	github.com/v3io/scaler-types v1.6.0
 	github.com/v3io/v3io-go v0.1.6
 	github.com/v3io/v3io-go-http v0.0.1
-	github.com/v3io/version-go v0.0.1
+	github.com/v3io/version-go v0.0.2
 	github.com/valyala/fasthttp v1.14.0
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	go.uber.org/atomic v1.4.0 // indirect

@@ -163,7 +163,7 @@ func Run(listenAddress string,
 		"offline", offline,
 		"defaultCredRefreshInterval", defaultCredRefreshIntervalString,
 		"defaultNamespace", defaultNamespace,
-		"version", version.Get().String(),
+		"version", version.Get(),
 		"platformConfiguration", platformConfiguration)
 
 	// see if the platform has anything to say about the namespace
