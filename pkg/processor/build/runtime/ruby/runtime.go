@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type ruby struct {
@@ -33,8 +32,7 @@ func (r *ruby) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (r *ruby) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (r *ruby) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
@@ -49,8 +47,8 @@ func (r *ruby) GetProcessorDockerfileInfo(versionInfo *version.Info,
 		Name: "ruby-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-ruby-onbuild:%s-%s",
 			onbuildImageRegistry,
-			versionInfo.Label,
-			versionInfo.Arch),
+			r.VersionInfo.Label,
+			r.VersionInfo.Arch),
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
 			"/home/nuclio/bin/wrapper.rb": "/opt/nuclio/wrapper.rb",

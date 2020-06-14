@@ -40,10 +40,7 @@ NUCLIO_LABEL := $(if $(NUCLIO_LABEL),$(NUCLIO_LABEL),latest)
 NUCLIO_TEST_HOST := $(if $(NUCLIO_TEST_HOST),$(NUCLIO_TEST_HOST),$(NUCLIO_DEFAULT_TEST_HOST))
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
 
-NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
- \"label\": \"$(NUCLIO_LABEL)\",  \
- \"os\": \"$(NUCLIO_OS)\",  \
- \"arch\": \"$(NUCLIO_ARCH)\"}
+NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\", \"label\": \"$(NUCLIO_LABEL)\"}
 
 # Dockerized tests variables - not available for changes
 NUCLIO_DOCKER_TEST_DOCKERFILE_PATH := test/docker/Dockerfile
@@ -57,20 +54,14 @@ NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_LABEL)-$(NUCLIO_ARCH)
 # Link flags
 GO_LINK_FLAGS ?= -s -w
 GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) \
-	-X github.com/nuclio/nuclio/pkg/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
-	-X github.com/nuclio/nuclio/pkg/version.label=$(NUCLIO_LABEL) \
-	-X github.com/nuclio/nuclio/pkg/version.os=$(NUCLIO_OS) \
-	-X github.com/nuclio/nuclio/pkg/version.arch=$(NUCLIO_ARCH) \
-	-X github.com/nuclio/nuclio/pkg/version.goVersion=$(GO_VERSION)
-
-# inject version info as file
-NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTENTS="$(NUCLIO_VERSION_INFO)"
+	-X github.com/v3io/version-go/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
+	-X github.com/v3io/version-go/version.label=$(NUCLIO_LABEL)
 
 # Docker client version to be used
 DOCKER_CLI_VERSION := 18.09.6
 
 # Nuclio test timeout
-NUCLIO_GO_TEST_TIMEOUT ?= "20m"
+NUCLIO_GO_TEST_TIMEOUT ?= "30m"
 
 #
 #  Must be first target
@@ -180,7 +171,7 @@ NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/controller:$(NUCLIO_DO
 
 controller: ensure-gopath build-base
 	docker build \
-		$(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/controller/Dockerfile \
 		--tag $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) \
@@ -193,7 +184,7 @@ NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCK
 
 dashboard: ensure-gopath build-base
 	docker build \
-		$(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/dashboard/docker/Dockerfile \
@@ -207,7 +198,7 @@ NUCLIO_DOCKER_SCALER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/autoscaler:$(NUCLIO_DOCKER
 
 autoscaler: ensure-gopath build-base
 	docker build \
-		$(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/autoscaler/Dockerfile \
 		--tag $(NUCLIO_DOCKER_SCALER_IMAGE_NAME) \
@@ -220,7 +211,7 @@ NUCLIO_DOCKER_DLX_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_TAG
 
 dlx: ensure-gopath build-base
 	docker build \
-		$(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/dlx/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DLX_IMAGE_NAME) \

@@ -30,13 +30,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	"github.com/tsenart/vegeta/lib"
+	"github.com/v3io/version-go"
 )
 
 const (
@@ -87,7 +87,13 @@ func (suite *TestSuite) SetupSuite() {
 	}
 
 	// update version so that linker doesn't need to inject it
-	version.SetFromEnv()
+	version.Set(&version.Info{
+		Label:     common.GetEnvOrDefaultString("NUCLIO_LABEL", version.Get().Label),
+		GitCommit: "c",
+		OS:        common.GetEnvOrDefaultString("NUCLIO_OS", "linux"),
+		Arch:      common.GetEnvOrDefaultString("NUCLIO_ARCH", "amd64"),
+		GoVersion: version.Get().GoVersion,
+	})
 
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)

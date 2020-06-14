@@ -21,32 +21,25 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/restful"
-	"github.com/nuclio/nuclio/pkg/version"
 
-	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/v3io/version-go"
 )
 
 type versionResource struct {
 	*resource
+	versionInfo *version.Info
 }
 
 // GetAll returns all versions
 func (vr *versionResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
-	versionInfo, err := version.Get()
-	if err != nil {
-		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get version"))
-	}
-
 	response := map[string]restful.Attributes{
 		"dashboard": {
-			"label":     versionInfo.Label,
-			"gitCommit": versionInfo.GitCommit,
-			"os":        versionInfo.OS,
-			"arch":      versionInfo.Arch,
+			"label":     vr.versionInfo.Label,
+			"gitCommit": vr.versionInfo.GitCommit,
+			"os":        vr.versionInfo.OS,
+			"arch":      vr.versionInfo.Arch,
 		},
 	}
-
 	return response, nil
 }
 
@@ -55,6 +48,7 @@ var versionResourceInstance = &versionResource{
 	resource: newResource("api/versions", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
 	}),
+	versionInfo: version.Get(),
 }
 
 func init() {

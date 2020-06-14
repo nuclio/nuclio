@@ -20,8 +20,10 @@ ARG NUCLIO_LABEL
 
 FROM nuclio-base:$NUCLIO_LABEL as build-binary
 
+ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
+
 # build the playground
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o playground cmd/playground/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" -o playground cmd/playground/main.go
 
 #
 # Output stage: Creates version file, copies binary to an alpine based image
@@ -45,9 +47,5 @@ COPY --from=build-playground /nuclio/playground /usr/local/bin
 COPY cmd/playground/static /etc/nuclio/playground/assets
 
 RUN mkdir -p /etc/nuclio/playground/sources
-
-# generate a version file
-ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
-RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
 
 CMD ["playground", "--assets-dir", "/etc/nuclio/playground/assets", "--sources-dir", "/etc/nuclio/playground/sources", "--docker-key-dir", "/etc/nuclio/playground/registry-credentials", "--listen-addr", ":8070"]

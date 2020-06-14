@@ -21,7 +21,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
+
+	"github.com/v3io/version-go"
 )
 
 type nodejs struct {
@@ -34,8 +35,7 @@ func (n *nodejs) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (n *nodejs) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
@@ -51,8 +51,8 @@ func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info,
 		Name: "nodejs-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-nodejs-onbuild:%s-%s",
 			onbuildImageRegistry,
-			versionInfo.Label,
-			versionInfo.Arch),
+			n.VersionInfo.Label,
+			n.VersionInfo.Arch),
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
 			"/home/nuclio/bin/wrapper.js": "/opt/nuclio/wrapper.js",

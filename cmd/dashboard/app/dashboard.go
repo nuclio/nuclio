@@ -27,10 +27,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
 )
 
 func Run(listenAddress string,
@@ -163,16 +163,14 @@ func Run(listenAddress string,
 		"offline", offline,
 		"defaultCredRefreshInterval", defaultCredRefreshIntervalString,
 		"defaultNamespace", defaultNamespace,
+		"version", version.Get().String(),
 		"platformConfiguration", platformConfiguration)
 
 	// see if the platform has anything to say about the namespace
 	defaultNamespace = platformInstance.ResolveDefaultNamespace(defaultNamespace)
 
-	version.Log(rootLogger)
-
-	trueValue := true
-
 	// create a web server configuration
+	trueValue := true
 	webServerConfiguration := &platformconfig.WebServer{
 		Enabled:       &trueValue,
 		ListenAddress: listenAddress,

@@ -20,8 +20,14 @@ ARG NUCLIO_LABEL
 
 FROM nuclio-base:$NUCLIO_LABEL as build-controller
 
+ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
+
 # build the controller
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o controller cmd/controller/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+    -a \
+    -installsuffix cgo \
+    -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}"
+    -o controller cmd/controller/main.go
 
 #
 # Output stage: Creates version file, copies binary to an alpine based image
@@ -33,9 +39,5 @@ RUN apk add --no-cache ca-certificates
 
 # copy controller binary from build stage
 COPY --from=build-controller /nuclio/controller /usr/local/bin
-
-# generate a version file
-ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
-RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
 
 CMD [ "controller" ]

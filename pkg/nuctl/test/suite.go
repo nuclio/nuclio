@@ -31,12 +31,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	"github.com/v3io/version-go"
 )
 
 const (
@@ -60,7 +60,13 @@ func (suite *Suite) SetupSuite() {
 	var err error
 
 	// update version so that linker doesn't need to inject it
-	version.SetFromEnv()
+	version.Set(&version.Info{
+		Label:     common.GetEnvOrDefaultString("NUCLIO_LABEL", version.Get().Label),
+		GitCommit: "c",
+		OS:        common.GetEnvOrDefaultString("NUCLIO_OS", "linux"),
+		Arch:      common.GetEnvOrDefaultString("NUCLIO_ARCH", "amd64"),
+		GoVersion: version.Get().GoVersion,
+	})
 
 	// create logger
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")

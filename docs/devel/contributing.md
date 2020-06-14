@@ -85,14 +85,13 @@ The Nuclio team is a fan of GoLand and uses it heavily for Go projects. It was d
 <a id="goland-versioning-note"></a>
 ### Versioning note
 
-All Nuclio artifacts are versioned. They take their versions from one of two sources, in the following order:
+All Nuclio artifacts are versioned. They take their versions from variables in **v3io/version-go/version.go**.
 
-1. Variables in **pkg/version/version.go**, set by the linker during link time using `-X`
-2. An **/etc/nuclio/version_info.json** version file
+These variables are being set by the linker during link time using `-X`.
 
-Currently, there's no auto-fallback to "latest" to prevent creation of unversioned binaries. Therefore, make sure to pass the following as part of the `Go tool arguments` in the Run/Debug configuration:
+Since there is an auto-fallback to "latest", if you want to use versioned binaries, make sure to pass the following as part of the `Go tool arguments` in the Run/Debug configuration:
 ```
--i -ldflags="-X github.com/nuclio/nuclio/pkg/version.label=latest -X github.com/nuclio/nuclio/pkg/version.arch=amd64"
+-i -ldflags="-X github.com/v3io/version-go/version.label=1.4.5 -X github.com/v3io/version-go/version.arch=amd64"
 ``` 
 
 <a id="goland-run-go-processor"></a>

@@ -22,10 +22,10 @@ import (
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -74,11 +74,9 @@ func NewController(parentLogger logger.Logger,
 		platformConfiguration: platformConfiguration,
 	}
 
-	// log version info
-	version.Log(newController.logger)
-
 	newController.logger.DebugWith("Read configuration",
-		"platformConfig", newController.platformConfiguration)
+		"platformConfig", newController.platformConfiguration,
+		"version", version.Get().String())
 
 	// set ourselves as the platform configuration provider of the function resource client (it needs it to do
 	// stuff when creating stuff)

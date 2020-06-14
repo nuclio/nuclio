@@ -35,8 +35,14 @@ RUN npm install -g gulp \
 #
 FROM nuclio-base:$NUCLIO_LABEL as build-binary
 
+ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
+
 # build the dashboard
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o dashboard cmd/dashboard/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+    -a \
+    -installsuffix cgo \
+    -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
+    -o dashboard cmd/dashboard/main.go
 
 #
 # Output stage: Creates version file, copies binary and assets to an alpine image
@@ -70,9 +76,5 @@ COPY --from=build-static /home/nuclio/dashboard/src/dist /etc/nginx/static/
 
 # copy dashboard binary from build binary stage
 COPY --from=build-binary /nuclio/dashboard /usr/local/bin
-
-# generate a version file
-ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
-RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
 
 CMD ["sh",  "-c", "./runner.sh"]
