@@ -142,7 +142,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 	b.options = options
 
-	b.logger.InfoWith("Building", "name", b.options.FunctionConfig.Meta.Name)
+	b.logger.InfoWith("Building",
+		"versionInfo", b.versionInfo,
+		"name", b.options.FunctionConfig.Meta.Name)
 
 	configFilePath := b.providedFunctionConfigFilePath()
 	b.logger.DebugWith("Function configuration found in directory", "configFilePath", configFilePath)
