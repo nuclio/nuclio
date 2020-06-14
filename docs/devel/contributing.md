@@ -87,7 +87,7 @@ The Nuclio team is a fan of GoLand and uses it heavily for Go projects. It was d
 
 All Nuclio artifacts are versioned. They take their versions from variables in **v3io/version-go/version.go**.
 
-These variables are being set by the linker during link time using `-X`.
+During link time, the linker set the version variables using the `-X` flag.
 
 Since there is an auto-fallback to "latest", if you want to use versioned binaries, make sure to pass the following as part of the `Go tool arguments` in the Run/Debug configuration:
 ```

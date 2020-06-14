@@ -36,7 +36,6 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
-	"github.com/v3io/version-go"
 )
 
 const (
@@ -59,14 +58,7 @@ type Suite struct {
 func (suite *Suite) SetupSuite() {
 	var err error
 
-	// update version so that linker doesn't need to inject it
-	version.Set(&version.Info{
-		Label:     common.GetEnvOrDefaultString("NUCLIO_LABEL", version.Get().Label),
-		GitCommit: "c",
-		OS:        common.GetEnvOrDefaultString("NUCLIO_OS", "linux"),
-		Arch:      common.GetEnvOrDefaultString("NUCLIO_ARCH", "amd64"),
-		GoVersion: version.Get().GoVersion,
-	})
+	common.SetVersionFromEnv()
 
 	// create logger
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")

@@ -7,6 +7,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -16,7 +17,6 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"github.com/v3io/version-go"
 )
 
 type TestPlatform struct {
@@ -62,7 +62,8 @@ type TestAbstractSuite struct {
 
 func (suite *TestAbstractSuite) SetupSuite() {
 	var err error
-	version.SetFromEnv()
+
+	common.SetVersionFromEnv()
 
 	suite.DefaultNamespace = "nuclio"
 

@@ -36,7 +36,6 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	"github.com/tsenart/vegeta/lib"
-	"github.com/v3io/version-go"
 )
 
 const (
@@ -86,14 +85,7 @@ func (suite *TestSuite) SetupSuite() {
 		suite.RuntimeDir = suite.Runtime
 	}
 
-	// update version so that linker doesn't need to inject it
-	version.Set(&version.Info{
-		Label:     common.GetEnvOrDefaultString("NUCLIO_LABEL", version.Get().Label),
-		GitCommit: "c",
-		OS:        common.GetEnvOrDefaultString("NUCLIO_OS", "linux"),
-		Arch:      common.GetEnvOrDefaultString("NUCLIO_ARCH", "amd64"),
-		GoVersion: version.Get().GoVersion,
-	})
+	common.SetVersionFromEnv()
 
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
