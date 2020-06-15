@@ -20,9 +20,9 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/registry"
 
@@ -163,10 +163,12 @@ func (s *AbstractServer) requestResponseLogger() func(next http.Handler) http.Ha
 
 			// when request processing is done, log the request / response
 			defer func() {
-				if request.Method == "GET" && strings.HasPrefix(request.URL.Path, "/api/functions/") {
+				if common.StringSliceContainsStringPrefix([]string{
+					"/api/functions/",
+					"/api/function_templates",
+				}, request.URL.Path) {
 					return
 				}
-
 				s.Logger.DebugWith("Handled request",
 					"requestMethod", request.Method,
 					"requestPath", request.URL,

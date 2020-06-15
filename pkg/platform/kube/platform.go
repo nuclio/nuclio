@@ -37,7 +37,7 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Platform struct {
@@ -145,6 +145,25 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
 
+	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
+	// TODO: is it really possible? should be remove from here, and ensure its callee enrich its createFunctionOptions
+	// with appropriate namespace and name
+	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" &&
+		createFunctionOptions.FunctionConfig.Meta.Name != "" {
+		existingFunctionConfig, err = p.getFunctionConfig(createFunctionOptions.FunctionConfig.Meta.Namespace,
+			createFunctionOptions.FunctionConfig.Meta.Name)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get existing function config")
+		}
+	}
+
+	// if function exists, perform some validation with new function create options
+	if err := p.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(existingFunctionConfig,
+		createFunctionOptions); err != nil {
+		return nil, errors.Wrap(err, "Validation against existing function config failed")
+	}
+
+	// called when function creation failed, update function status with failure
 	reportCreationError := func(creationError error, briefErrorsMessage string, clearCallStack bool) error {
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
@@ -197,15 +216,6 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return err
 	}
 
-	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
-	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" && createFunctionOptions.FunctionConfig.Meta.Name != "" {
-		existingFunctionConfig, err = p.getFunctionConfig(createFunctionOptions.FunctionConfig.Meta.Namespace,
-			createFunctionOptions.FunctionConfig.Meta.Name)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get existing function config")
-		}
-	}
-
 	// the builder may update the configuration, so we have to create the function in the platform only after
 	// the builder does that
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
@@ -244,6 +254,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil
 	}
 
+	// called after function was built
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
 
 		skipDeploy := functionconfig.ShouldSkipDeploy(createFunctionOptions.FunctionConfig.Meta.Annotations)
@@ -351,7 +362,7 @@ func (p *Platform) GetName() string {
 func (p *Platform) GetNodes() ([]platform.Node, error) {
 	var platformNodes []platform.Node
 
-	kubeNodes, err := p.consumer.kubeClientSet.CoreV1().Nodes().List(meta_v1.ListOptions{})
+	kubeNodes, err := p.consumer.kubeClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get nodes")
 	}
@@ -386,7 +397,7 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
 	project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
-		Get(updateProjectOptions.ProjectConfig.Meta.Name, meta_v1.GetOptions{})
+		Get(updateProjectOptions.ProjectConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get projects")
 	}
@@ -414,7 +425,7 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 
 	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(deleteProjectOptions.Meta.Namespace).
-		Delete(deleteProjectOptions.Meta.Name, &meta_v1.DeleteOptions{}); err != nil {
+		Delete(deleteProjectOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
 		return errors.Wrapf(err,
 			"Failed to delete project %s from namespace %s",
 			deleteProjectOptions.Meta.Name,
@@ -435,7 +446,7 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 		// get specific NuclioProject CR
 		Project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 			NuclioProjects(getProjectsOptions.Meta.Namespace).
-			Get(getProjectsOptions.Meta.Name, meta_v1.GetOptions{})
+			Get(getProjectsOptions.Meta.Name, metav1.GetOptions{})
 
 		if err != nil {
 
@@ -453,7 +464,7 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 
 		projectInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 			NuclioProjects(getProjectsOptions.Meta.Namespace).
-			List(meta_v1.ListOptions{LabelSelector: ""})
+			List(metav1.ListOptions{LabelSelector: ""})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list projects")
@@ -514,7 +525,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 
 	functionEvent, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
-		Get(updateFunctionEventOptions.FunctionEventConfig.Meta.Name, meta_v1.GetOptions{})
+		Get(updateFunctionEventOptions.FunctionEventConfig.Meta.Name, metav1.GetOptions{})
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function event")
@@ -537,7 +548,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
 	err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
-		Delete(deleteFunctionEventOptions.Meta.Name, &meta_v1.DeleteOptions{})
+		Delete(deleteFunctionEventOptions.Meta.Name, &metav1.DeleteOptions{})
 
 	if err != nil {
 		return errors.Wrapf(err,
@@ -560,7 +571,7 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 		// get specific function event CR
 		functionEvent, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 			NuclioFunctionEvents(getFunctionEventsOptions.Meta.Namespace).
-			Get(getFunctionEventsOptions.Meta.Name, meta_v1.GetOptions{})
+			Get(getFunctionEventsOptions.Meta.Name, metav1.GetOptions{})
 
 		if err != nil {
 
@@ -585,7 +596,7 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 
 		functionEventInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 			NuclioFunctionEvents(getFunctionEventsOptions.Meta.Namespace).
-			List(meta_v1.ListOptions{LabelSelector: labelSelector})
+			List(metav1.ListOptions{LabelSelector: labelSelector})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list function events")
@@ -696,7 +707,7 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 
 // GetNamespaces returns all the namespaces in the platform
 func (p *Platform) GetNamespaces() ([]string, error) {
-	namespaces, err := p.consumer.kubeClientSet.CoreV1().Namespaces().List(meta_v1.ListOptions{})
+	namespaces, err := p.consumer.kubeClientSet.CoreV1().Namespaces().List(metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 			return nil, nuclio.WrapErrForbidden(err)
@@ -773,7 +784,9 @@ func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction
 		"name", name)
 
 	// get specific function CR
-	function, err := p.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(name, meta_v1.GetOptions{})
+	function, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioFunctions(namespace).
+		Get(name, metav1.GetOptions{})
 	if err != nil {
 
 		// if we didn't find the function, return nothing
@@ -785,25 +798,28 @@ func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction
 	}
 
 	p.Logger.DebugWith("Completed getting function",
+		"name", name,
+		"namespace", namespace,
 		"function", function)
 
 	return function, nil
 }
 
 func (p *Platform) getFunctionConfig(namespace, name string) (*functionconfig.ConfigWithStatus, error) {
-	if functionInstance, err := p.getFunction(namespace, name); err != nil {
+	functionInstance, err := p.getFunction(namespace, name)
+	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function")
-	} else if functionInstance != nil {
-
-		// found function instance, return as function config
-		functionConfig := &functionconfig.ConfigWithStatus{
-			Config: functionconfig.Config{Spec: functionInstance.Spec},
-			Status: functionInstance.Status,
-		}
-		return functionConfig, nil
-	} else {
-		return nil, nil
 	}
+
+	// found function instance, return as function config
+	if functionInstance != nil {
+		functionInstance, err := newFunction(p.Logger, p, functionInstance, p.consumer)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create new function instance")
+		}
+		return functionInstance.GetConfigWithStatus(), nil
+	}
+	return nil, nil
 }
 
 func (p *Platform) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.NuclioProject) {

@@ -164,6 +164,12 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 	}
 
+	// if function exists, perform some validation with new function create options
+	if err := p.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(existingFunctionConfig,
+		createFunctionOptions); err != nil {
+		return nil, errors.Wrap(err, "Validation against existing function config failed")
+	}
+
 	reportCreationError := func(creationError error) error {
 		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
 			"err", creationError)

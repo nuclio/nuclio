@@ -23,7 +23,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type getter struct {
@@ -48,7 +48,7 @@ func (g *getter) get(consumer *consumer, getFunctionsOptions *platform.GetFuncti
 	if getFunctionsOptions.Name != "" {
 
 		// get specific function CR
-		function, err := consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(getFunctionsOptions.Namespace).Get(getFunctionsOptions.Name, meta_v1.GetOptions{})
+		function, err := consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(getFunctionsOptions.Namespace).Get(getFunctionsOptions.Name, metav1.GetOptions{})
 		if err != nil {
 
 			// if we didn't find the function, return an empty slice
@@ -63,7 +63,7 @@ func (g *getter) get(consumer *consumer, getFunctionsOptions *platform.GetFuncti
 
 	} else {
 
-		functionInstanceList, err := consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(getFunctionsOptions.Namespace).List(meta_v1.ListOptions{LabelSelector: getFunctionsOptions.Labels})
+		functionInstanceList, err := consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(getFunctionsOptions.Namespace).List(metav1.ListOptions{LabelSelector: getFunctionsOptions.Labels})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list functions")

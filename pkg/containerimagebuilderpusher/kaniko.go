@@ -16,9 +16,9 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	batch_v1 "k8s.io/api/batch/v1"
-	v1 "k8s.io/api/core/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -175,8 +175,8 @@ func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tem
 	return tarFilename, assetPath, nil
 }
 
-func (k *Kaniko) compileKanikoJobSpec(namespace string, buildOptions *BuildOptions, bundleFilename string) *batch_v1.Job {
-
+func (k *Kaniko) compileKanikoJobSpec(namespace string,
+	buildOptions *BuildOptions, bundleFilename string) *batchv1.Job {
 	completions := int32(1)
 	backoffLimit := int32(0)
 	buildArgs := []string{
@@ -212,17 +212,17 @@ func (k *Kaniko) compileKanikoJobSpec(namespace string, buildOptions *BuildOptio
 
 	jobName := k.compileJobName(buildOptions.Image)
 
-	kanikoJobSpec := &batch_v1.Job{
-		ObjectMeta: meta_v1.ObjectMeta{
+	kanikoJobSpec := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
 			Namespace: namespace,
 		},
-		Spec: batch_v1.JobSpec{
+		Spec: batchv1.JobSpec{
 			Completions:           &completions,
 			ActiveDeadlineSeconds: &buildOptions.BuildTimeoutSeconds,
 			BackoffLimit:          &backoffLimit,
 			Template: v1.PodTemplateSpec{
-				ObjectMeta: meta_v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      jobName,
 					Namespace: namespace,
 				},
@@ -333,7 +333,7 @@ func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, bu
 	timeout := time.Now().Add(time.Duration(buildTimeoutSeconds) * time.Second)
 	for time.Now().Before(timeout) {
 		runningJob, err := k.kubeClientSet.BatchV1().Jobs(namespace).
-			Get(jobName, meta_v1.GetOptions{IncludeUninitialized: true})
+			Get(jobName, metav1.GetOptions{IncludeUninitialized: true})
 
 		if err != nil {
 			return errors.Wrap(err, "Failed to poll kaniko job status")
@@ -370,7 +370,7 @@ func (k *Kaniko) getJobLogs(namespace string, jobName string) (string, error) {
 	k.logger.DebugWith("Fetching kaniko job logs", "namespace", namespace, "job", jobName)
 
 	// list pods
-	jobPods, err := k.kubeClientSet.CoreV1().Pods(namespace).List(meta_v1.ListOptions{
+	jobPods, err := k.kubeClientSet.CoreV1().Pods(namespace).List(metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
 	})
 
@@ -434,8 +434,8 @@ func (k *Kaniko) prettifyLogLine(logLine string) string {
 func (k *Kaniko) deleteJob(namespace string, jobName string) error {
 	k.logger.DebugWith("Deleting kaniko job", "namespace", namespace, "job", jobName)
 
-	propagationPolicy := meta_v1.DeletePropagationBackground
-	if err := k.kubeClientSet.BatchV1().Jobs(namespace).Delete(jobName, &meta_v1.DeleteOptions{
+	propagationPolicy := metav1.DeletePropagationBackground
+	if err := k.kubeClientSet.BatchV1().Jobs(namespace).Delete(jobName, &metav1.DeleteOptions{
 		PropagationPolicy: &propagationPolicy,
 	}); err != nil {
 		return errors.Wrap(err, "Failed to delete kaniko job")

@@ -7,6 +7,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -78,6 +79,9 @@ func (suite *TestAbstractSuite) SetupSuite() {
 	}
 	suite.Platform, err = NewPlatform(suite.Logger, testPlatform, nil)
 	suite.Require().NoError(err, "Could not create platform")
+
+	suite.Platform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(suite.Logger,
+		&containerimagebuilderpusher.ContainerBuilderConfiguration{})
 }
 
 func (suite *TestAbstractSuite) SetupTest() {
