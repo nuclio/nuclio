@@ -144,6 +144,10 @@ type ProjectMeta struct {
 	Namespace   string            `json:"namespace,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// Can be used to determine whether the object is stale (not used today)
+	// more details @ https://kubernetes.io/docs/reference/using-api/api-concepts/#resource-versions
+	ResourceVersion string `json:"resourceVersion,omitempty"`
 }
 
 type ProjectSpec struct {

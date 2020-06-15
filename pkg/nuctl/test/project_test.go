@@ -176,7 +176,7 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 	suite.outputBuffer.Reset()
 
 	// export the project
-	err := suite.ExecuteNuctlAndWait([]string{"export", "proj", projectName, "--verbose"}, nil, false)
+	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "proj", projectName, "--verbose"}, nil, false)
 	suite.Require().NoError(err)
 
 	exportedProjectConfig := &command.ProjectImportConfig{}
@@ -375,7 +375,7 @@ func (suite *projectExportImportTestSuite) createProject(projectName string) {
 	suite.Require().NoError(err)
 
 	// wait until able to get the project
-	err = suite.ExecuteNuctlAndWait([]string{"get", "project", projectName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "project", projectName}, nil, false)
 	suite.Require().NoError(err)
 }
 
@@ -391,7 +391,7 @@ func (suite *projectExportImportTestSuite) createFunction(functionName, projectN
 	suite.Require().NoError(err)
 
 	// wait until able to get the function
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
 }
 
@@ -417,7 +417,7 @@ func (suite *projectExportImportTestSuite) assertProjectImported(projectName str
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
-	err := suite.ExecuteNuctlAndWait([]string{"get", "project", projectName}, map[string]string{
+	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "project", projectName}, map[string]string{
 		"output": "yaml",
 	}, false)
 	suite.Require().NoError(err)
@@ -434,7 +434,7 @@ func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunctio
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
-	err := suite.ExecuteNuctlAndWait([]string{"get", "functionevent"}, map[string]string{
+	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "functionevent"}, map[string]string{
 		"output":   "yaml",
 		"function": functionName,
 	}, false)

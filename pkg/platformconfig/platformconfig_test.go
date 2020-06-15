@@ -27,7 +27,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
-	apps_v1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -479,8 +479,8 @@ functionAugmentedConfigs:
 			},
 			functionconfig.Config{},
 			Kubernetes{
-				Deployment: &apps_v1.Deployment{
-					Spec: apps_v1.DeploymentSpec{
+				Deployment: &appsv1.Deployment{
+					Spec: appsv1.DeploymentSpec{
 						MinReadySeconds: 90,
 					},
 				},

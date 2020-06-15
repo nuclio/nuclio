@@ -19,7 +19,7 @@ package controller
 import (
 	"time"
 
-	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -35,7 +35,7 @@ type Controller struct {
 	namespace             string
 	restConfig            *rest.Config
 	kubeClientSet         kubernetes.Interface
-	nuclioClientSet       nuclioio_client.Interface
+	nuclioClientSet       nuclioioclient.Interface
 	functionresClient     functionres.Client
 	imagePullSecrets      string
 	functionOperator      *functionOperator
@@ -49,7 +49,7 @@ func NewController(parentLogger logger.Logger,
 	namespace string,
 	imagePullSecrets string,
 	kubeClientSet kubernetes.Interface,
-	nuclioClientSet nuclioio_client.Interface,
+	nuclioClientSet nuclioioclient.Interface,
 	functionresClient functionres.Client,
 	resyncInterval time.Duration,
 	cronJobStalePodsDeletionInterval time.Duration,

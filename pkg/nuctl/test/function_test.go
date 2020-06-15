@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -29,13 +30,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -74,7 +77,7 @@ func (suite *functionBuildTestSuite) TestBuild() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -113,7 +116,7 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -150,7 +153,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
 	suite.inputBuffer.WriteString("-reverse this string+")
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"via":    "external-ip",
@@ -185,7 +188,7 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -226,7 +229,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
@@ -342,7 +345,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 		suite.outputBuffer.Reset()
 
 		// invoke the function
-		err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+		err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 			map[string]string{
 				"method":    "POST",
 				"log-level": testCase.logLevel,
@@ -426,7 +429,7 @@ func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -455,7 +458,7 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 	suite.Require().NoError(err)
 
 	// ensure function created
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
@@ -469,7 +472,7 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 	suite.Require().NoError(err)
 
 	// check to see we have created the function event
-	err = suite.ExecuteNuctlAndWait([]string{"get", "functionevent", functionEventName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "functionevent", functionEventName}, nil, false)
 	suite.Require().NoError(err)
 
 	// delete the function
@@ -477,11 +480,11 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 	suite.Require().NoError(err)
 
 	// ensure function created
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, true)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, true)
 	suite.Require().NoError(err)
 
 	// check to see the function event was deleted as well
-	err = suite.ExecuteNuctlAndWait([]string{"get", "functionevent", functionEventName}, nil, true)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "functionevent", functionEventName}, nil, true)
 	suite.Require().NoError(err)
 
 	// reset buffer
@@ -533,7 +536,7 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -585,7 +588,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	suite.outputBuffer.Reset()
 
 	// export the function
-	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	deployedFunctionConfig := functionconfig.Config{}
@@ -598,7 +601,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	suite.Assert().Equal(0, len(deployedFunctionConfig.Spec.Triggers))
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
@@ -627,7 +630,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 
 	err = suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":  path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
+			"path":  functionPath,
 			"image": imageName,
 		})
 
@@ -653,7 +656,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 	suite.outputBuffer.Reset()
 
 	// export the function
-	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	deployedFunctionConfig := functionconfig.Config{}
@@ -668,7 +671,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 	suite.Assert().Equal(minReplicas, *deployedFunctionConfig.Spec.MinReplicas)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
@@ -679,6 +682,152 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 
 	// check that invoke printed the value
 	suite.Require().Contains(suite.outputBuffer.String(), randomString)
+}
+
+func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
+
+	// TODO: when we enable some sort of resource validation on other platforms, allow this to run on those as well
+	suite.ensureRunningOnPlatform("kube")
+
+	// read and parse the function we're gonna test
+	functionConfig := functionconfig.Config{}
+	uniqueSuffix := "-" + xid.New().String()
+	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
+	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	suite.Require().NoError(err)
+	err = yaml.Unmarshal(functionBody, &functionConfig)
+	suite.Require().NoError(err)
+
+	// name uniqueness
+	functionConfig.Meta.Name = functionConfig.Meta.Name + uniqueSuffix
+
+	// ensure no resource version
+	functionConfig.Meta.ResourceVersion = ""
+
+	// --- step 1 ---
+	// deploy first time, should successfully create the function
+
+	// write function config to file
+	functionConfigPath, err := suite.writeFunctionConfigToTempFile(&functionConfig,
+		"resource-version-*.yaml")
+	suite.Require().NoError(err)
+
+	// remove when done
+	defer os.RemoveAll(functionConfigPath)
+
+	// deploy with temp, expect to pass
+	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose", "--no-pull"},
+		map[string]string{
+			"path": functionPath,
+			"file": functionConfigPath,
+		})
+
+	// delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "function", functionConfig.Meta.Name}, nil)
+	suite.Require().NoError(err, "Function creation expected to pass")
+
+	// try a few times to invoke, until it succeeds
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionConfig.Meta.Name},
+		map[string]string{
+			"method": "POST",
+			"body":   `{"return_this": "abc"}`,
+			"via":    "external-ip",
+		}, false)
+	suite.Require().NoError(err)
+
+	// --- step 2 ---
+	// redeploy the function with a small change, to ensure the resource version is changed
+
+	// get the current deployed function, save its resource version
+	deployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML)
+	suite.Require().NoError(err)
+
+	// save it for next step, to be used as a "stale" resource vresion
+	functionResourceVersion := deployedFunction.Meta.ResourceVersion
+
+	// sanity, ensure it is not an empty string
+	suite.Require().NotEmpty(functionResourceVersion)
+
+	// redeploy the function, let it change its resource vresion
+	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose", "--no-pull"},
+		map[string]string{
+			"path":       functionPath,
+			"file":       functionConfigPath,
+			"target-cpu": "80", // some change
+		})
+	suite.Require().NoError(err)
+
+	// wait for function to be deployed
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionConfig.Meta.Name},
+		map[string]string{
+			"method": "POST",
+			"body":   `{"return_this": "abc"}`,
+			"via":    "external-ip",
+		}, false)
+	suite.Require().NoError(err)
+
+	// get the redeployed function, extract its latest resource version
+	redeployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML)
+	suite.Require().NoError(err)
+
+	// sanity, ensure retrieved redeployed function resource version is not empty
+	suite.Require().NotEmpty(redeployedFunction.Meta.ResourceVersion)
+
+	// --- step 3 ---
+	// at this stage, deployFunction instance is considered stale, while redeployedFunction instance is the latest copy.
+	// at this step, we are going to deploy with the stale resource version and expect a conflict failure
+
+	// change it to anything but empty/equal to the current resource version
+	deployedFunction.Meta.ResourceVersion = functionResourceVersion
+
+	// write function config to file
+	staleFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(deployedFunction,
+		"stale-resource-version-*.yaml")
+	suite.Require().NoError(err)
+
+	// remove when done
+	defer os.RemoveAll(staleFunctionConfigPath)
+
+	// deployment should fail, resource schema conflict
+	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose"},
+		map[string]string{
+			"file": staleFunctionConfigPath,
+		})
+	suite.Require().Error(err)
+	suite.Require().Equal(http.StatusConflict, errors.Cause(err).(*nuclio.ErrorWithStatusCode).StatusCode())
+
+	// --- step 4 ----
+	// at this step, we expect deployment to pass again, as we removed the resource version
+	// to allow overriding of the current function regardless of its resource version
+
+	// empty resource version
+	deployedFunction.Meta.ResourceVersion = ""
+
+	// write function config to file
+	overriddenFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(deployedFunction,
+		"overridden-resource-version-*.yaml")
+	suite.Require().NoError(err)
+
+	// remove when done
+	defer os.RemoveAll(overriddenFunctionConfigPath)
+
+	// deployment should pass, resource version should be overridden
+	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose"},
+		map[string]string{
+			"file": overriddenFunctionConfigPath,
+		})
+	suite.Require().NoError(err)
+
+	// retry get function until its resource version changes
+	err = common.RetryUntilSuccessful(1*time.Minute, 3*time.Second, func() bool {
+
+		// get the deployed function, we're gonna inspect its resource version
+		deployedFunction, err = suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML)
+		return err == nil && deployedFunction.Meta.ResourceVersion != functionResourceVersion
+	})
+	suite.Require().NoErrorf(err, "Resource version should have been changed (real: %s, expected: %s)",
+		deployedFunction.Meta.ResourceVersion,
+		functionResourceVersion)
 }
 
 // Expecting the Code Entry Type to be modified to image
@@ -702,16 +851,16 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// check that the function's CET was modified to 'image'
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName},
 		map[string]string{
-			"output": common.OutputFormatYAML,
+			"output": nuctlcommon.OutputFormatYAML,
 		},
 		false)
 	suite.Require().NoError(err)
 	suite.Require().Contains(suite.outputBuffer.String(), "codeEntryType: image")
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -724,11 +873,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 }
 
 func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
-
-	// relevant only for kube platform
-	if suite.origPlatformType != "kube" {
-		suite.T().Skipf("Not on kube platform")
-	}
+	suite.ensureRunningOnPlatform("kube")
 
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "event-recorder" + uniqueSuffix
@@ -765,7 +910,7 @@ func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// try a few times to invoke, until it succeeds (validate function deployment finished)
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"via":    "external-ip",
@@ -782,7 +927,7 @@ func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
 
 	// try a few times to invoke, until it succeeds
 	// the output buffer should contain a response body with the function's called events from the cron trigger
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"via":    "external-ip",
@@ -880,7 +1025,7 @@ func (suite *functionGetTestSuite) TestGet() {
 		suite.Require().NoError(err)
 
 		// wait for function to ensure deployed successfully
-		err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+		err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
 		suite.Require().NoError(err)
 	}
 
@@ -897,32 +1042,17 @@ func (suite *functionGetTestSuite) TestGet() {
 	}{
 		{
 			FunctionName: functionNames[0],
-			OutputFormat: common.OutputFormatJSON,
+			OutputFormat: nuctlcommon.OutputFormatJSON,
 		},
 		{
 			FunctionName: functionNames[0],
-			OutputFormat: common.OutputFormatYAML,
+			OutputFormat: nuctlcommon.OutputFormatYAML,
 		},
 	} {
 		// reset buffer
 		suite.outputBuffer.Reset()
 
-		parsedFunction := functionconfig.Config{}
-
-		// get function in format
-		err = suite.ExecuteNuctl([]string{"get", "function", testCase.FunctionName},
-			map[string]string{
-				"output": testCase.OutputFormat,
-			})
-		suite.Require().NoError(err)
-
-		// unmarshal response correspondingly to output format
-		switch testCase.OutputFormat {
-		case common.OutputFormatJSON:
-			err = json.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
-		case common.OutputFormatYAML:
-			err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
-		}
+		parsedFunction, err := suite.getFunctionInFormat(testCase.FunctionName, testCase.OutputFormat)
 
 		// ensure parsing went well, and response is valid (json/yaml)
 		suite.Require().NoError(err, "Failed to unmarshal function")
@@ -961,7 +1091,7 @@ func (suite *functionGetTestSuite) TestDelete() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -979,7 +1109,7 @@ func (suite *functionGetTestSuite) TestDelete() {
 	suite.Require().NoError(err)
 
 	// try invoke, it should failed
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -1058,7 +1188,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.inputBuffer.Reset()
 
 	// export the function
-	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	exportedFunctionBody := suite.outputBuffer.Bytes()
@@ -1068,7 +1198,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// wait until function is deleted
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, true)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, true)
 	suite.Require().NoError(err)
 
 	// import the function from stdin
@@ -1077,7 +1207,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// wait until able to get the function
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
 	suite.Require().Contains(suite.outputBuffer.String(), "imported")
 
@@ -1095,7 +1225,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -1129,7 +1259,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.outputBuffer.Reset()
 
 	// export the function
-	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	exportedFunctionConfig := functionconfig.Config{}
@@ -1156,7 +1286,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// wait until function is deleted
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, true)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, true)
 	suite.Require().NoError(err)
 
 	// import the function
@@ -1167,11 +1297,11 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// wait until able to get the function
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	// try to invoke, and ensure it fails - because it is imported and not deployed
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -1185,7 +1315,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -1219,7 +1349,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.outputBuffer.Reset()
 
 	// export the function
-	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	exportedFunctionConfig := functionconfig.Config{}
@@ -1246,7 +1376,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Require().NoError(err)
 
 	// wait until function is deleted
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, true)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, true)
 	suite.Require().NoError(err)
 
 	// import the function
@@ -1257,11 +1387,11 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 
 	// wait until able to get the function
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	// try to invoke, and ensure it fails - because it is imported and not deployed
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",

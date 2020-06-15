@@ -36,6 +36,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 //
@@ -115,17 +116,6 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	functionBuildRequired, err := ap.functionBuildRequired(createFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed determining whether function should build")
-	}
-
-	// special case when we are asked to build the function and it wasn't been created yet
-	if existingFunctionConfig == nil &&
-		createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
-		return nil, errors.New("Non existing function cannot be created with neverBuild mode")
-	}
-
-	if createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets == "" {
-		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets =
-			ap.platform.GetDefaultRegistryCredentialsSecretName()
 	}
 
 	// clear build mode
@@ -215,6 +205,55 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 
 	ap.enrichMinMaxReplicas(createFunctionOptions)
 
+	// enrich with registry credential secret name
+	if createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets == "" {
+		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets =
+			ap.GetDefaultRegistryCredentialsSecretName()
+	}
+
+	return nil
+}
+
+// Validate a function against its existing instance
+func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
+	existingFunctionConfig *functionconfig.ConfigWithStatus,
+	createFunctionOptions *platform.CreateFunctionOptions) error {
+
+	// special case when we are asked to build the function and it wasn't been created yet
+	if existingFunctionConfig == nil &&
+		createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
+		return errors.New("Non existing function cannot be created with neverBuild mode")
+	}
+
+	// validate resource version
+	if err := ap.ValidateResourceVersion(existingFunctionConfig, createFunctionOptions); err != nil {
+		return nuclio.WrapErrConflict(err)
+	}
+	return nil
+}
+
+// Validate existing and new create function options resource version
+func (ap *Platform) ValidateResourceVersion(existingFunctionConfig *functionconfig.ConfigWithStatus,
+	createFunctionOptions *platform.CreateFunctionOptions) error {
+
+	// if function has no existing instance, resource version validation is irrelevant.
+	if existingFunctionConfig == nil {
+		return nil
+	}
+
+	// existing function should always be the latest
+	// reason: the way we `GET` nuclio function ensures we retrieve the latest copy.
+	existingResourceVersion := existingFunctionConfig.Meta.ResourceVersion
+	requestResourceVersion := createFunctionOptions.FunctionConfig.Meta.ResourceVersion
+
+	// when requestResourceVersion is empty, the existing one will be overridden
+	if requestResourceVersion != "" &&
+		requestResourceVersion != existingResourceVersion {
+		ap.Logger.WarnWith("Create function resource version is stale",
+			"requestResourceVersion", requestResourceVersion,
+			"existingResourceVersion", existingResourceVersion)
+		return errors.New("Function resource version is stale")
+	}
 	return nil
 }
 
@@ -396,7 +435,7 @@ func (ap *Platform) GetOnbuildImageRegistry(registry string) string {
 	return ap.ContainerBuilder.GetOnbuildImageRegistry(registry)
 }
 
-// // GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
+// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
 func (ap *Platform) GetDefaultRegistryCredentialsSecretName() string {
 	return ap.ContainerBuilder.GetDefaultRegistryCredentialsSecretName()
 }
