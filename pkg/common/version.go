@@ -18,7 +18,7 @@ package common
 
 import "github.com/v3io/version-go"
 
-// SetVersionFromEnv is being used in tests to override linker
+// SetVersionFromEnv is being used by tests to override linker injected values
 func SetVersionFromEnv() {
 	version.Set(&version.Info{
 		Label:     GetEnvOrDefaultString("NUCLIO_LABEL", version.Get().Label),

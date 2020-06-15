@@ -111,12 +111,10 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 	// for now, use the same logger for both the processor and user handler
 	newProcessor.functionLogger = newProcessor.logger
+	newProcessor.logger.InfoWith("Starting processor", "version", version.Get())
 
 	indentedProcessorConfiguration, _ := json.MarshalIndent(processorConfiguration, "", "    ")
 	indentedPlatformConfiguration, _ := json.MarshalIndent(platformConfiguration, "", "    ")
-
-	newProcessor.logger.InfoWith("Starting processor",
-		"version", version.Get())
 
 	newProcessor.logger.DebugWith("Read configuration",
 		"config", string(indentedProcessorConfiguration),
