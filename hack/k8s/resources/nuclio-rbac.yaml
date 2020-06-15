@@ -22,7 +22,7 @@ metadata:
   namespace: nuclio
 rules:
 - apiGroups: [""]
-  resources: ["services", "configmaps", "pods", "pods/log"]
+  resources: ["services", "configmaps", "pods", "pods/log", "events"]
   verbs: ["*"]
 - apiGroups: ["apps", "extensions"]
   resources: ["deployments"]
@@ -33,7 +33,12 @@ rules:
 - apiGroups: ["autoscaling"]
   resources: ["horizontalpodautoscalers"]
   verbs: ["*"]
-
+- apiGroups: ["metrics.k8s.io", "custom.metrics.k8s.io"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["*"]
 ---
 
 # Bind the "nuclio" service account (used by controller / playground) to the nuclio-function-deployer role,
