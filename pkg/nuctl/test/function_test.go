@@ -735,20 +735,49 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 		}, false)
 	suite.Require().NoError(err)
 
-	// get the deployed function, we're gonna inspect its resource version
+	// --- step 2 ---
+	// redeploy the function with a small change, to ensure the resource version is changed
+
+	// get the current deployed function, save its resource version
 	deployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctl_common.OutputFormatYAML)
 	suite.Require().NoError(err)
 
+	// save it for next step, to be used as a "stale" resource vresion
 	functionResourceVersion := deployedFunction.Meta.ResourceVersion
 
-	// ensure retrieved resource version from deployed function is not empty
+	// sanity, ensure it is not an empty string
 	suite.Require().NotEmpty(functionResourceVersion)
 
-	// --- step 2 ---
-	// at this step, we're gonna change the resource version in a way it will fail due to a conflict
+	// redeploy the function, let it change its resource vresion
+	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose", "--no-pull"},
+		map[string]string{
+			"path": functionPath,
+			"file": functionConfigPath,
+			"targetCPU": "80",  // some change
+		})
+
+	// wait for function to be deployed
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionConfig.Meta.Name},
+		map[string]string{
+			"method": "POST",
+			"body":   `{"return_this": "abc"}`,
+			"via":    "external-ip",
+		}, false)
+	suite.Require().NoError(err)
+
+	// get the redeployed function, extract its latest resource version
+	redeployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctl_common.OutputFormatYAML)
+	suite.Require().NoError(err)
+
+	// sanity, ensure retrieved redeployed function resource version is not empty
+	suite.Require().NotEmpty(redeployedFunction.Meta.ResourceVersion)
+
+	// --- step 3 ---
+	// at this stage, deployFunction instance is considered stale, while redeployedFunction instance is the latest copy.
+	// at this step, we are going to deploy with the stale resource version and expect a conflict failure
 
 	// change it to anything but empty/equal to the current resource version
-	deployedFunction.Meta.ResourceVersion = functionResourceVersion[:len(functionResourceVersion)/2]
+	deployedFunction.Meta.ResourceVersion = functionResourceVersion
 
 	// write function config to file
 	staleFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(deployedFunction,
@@ -766,7 +795,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	suite.Require().Error(err)
 	suite.Require().Equal(http.StatusConflict, errors.Cause(err).(*nuclio.ErrorWithStatusCode).StatusCode())
 
-	// --- step 3 ----
+	// --- step 4 ----
 	// at this step, we expect deployment to pass again, as we removed the resource version
 	// to allow overriding of the current function regardless of its resource version
 
