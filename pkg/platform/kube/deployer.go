@@ -214,7 +214,7 @@ func isFunctionDeploymentFailed(consumer *consumer,
 			if containerStatus.State.Terminated != nil &&
 				containerStatus.State.Terminated.Reason == "Error" {
 
-				return true, errors.Errorf("NuclioFunction pod: %s container exited with an error", pod.Name)
+				return true, errors.Errorf("NuclioFunction pod (%s) container exited with an error", pod.Name)
 			}
 
 			if pod.Status.ContainerStatuses[0].State.Waiting != nil {
@@ -222,7 +222,7 @@ func isFunctionDeploymentFailed(consumer *consumer,
 				// check if the pod is on a crashLoopBackoff
 				if containerStatus.State.Waiting.Reason == "CrashLoopBackOff" {
 
-					return true, errors.Errorf("NuclioFunction pod: %s is in a crash loop", pod.Name)
+					return true, errors.Errorf("NuclioFunction pod (%s) is in a crash loop", pod.Name)
 				}
 			}
 		}
@@ -234,7 +234,7 @@ func isFunctionDeploymentFailed(consumer *consumer,
 			if pod.Status.Phase == v1.PodPending &&
 				condition.Reason == "Unschedulable" {
 
-				return true, errors.Errorf("NuclioFunction pod: %s is unschedulable", pod.Name)
+				return true, errors.Errorf("NuclioFunction pod (%s) is unschedulable", pod.Name)
 			}
 		}
 	}
