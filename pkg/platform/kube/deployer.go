@@ -191,7 +191,7 @@ func isFunctionDeploymentFailed(consumer *consumer,
 	// list function pods
 	pods, err := consumer.kubeClientSet.CoreV1().
 		Pods(namespace).
-		List(meta_v1.ListOptions{
+		List(metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", name),
 		})
 	if err != nil {
