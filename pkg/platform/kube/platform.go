@@ -146,7 +146,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
-	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" && createFunctionOptions.FunctionConfig.Meta.Name != "" {
+	// TODO: is it really possible? should be remove from here, and ensure its callee enrich its createFunctionOptions
+	// with appropriate namespace and name
+	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" &&
+		createFunctionOptions.FunctionConfig.Meta.Name != "" {
 		existingFunctionConfig, err = p.getFunctionConfig(createFunctionOptions.FunctionConfig.Meta.Namespace,
 			createFunctionOptions.FunctionConfig.Meta.Name)
 		if err != nil {
