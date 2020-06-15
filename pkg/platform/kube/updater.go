@@ -24,7 +24,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type updater struct {
@@ -49,7 +49,7 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	// get specific function CR
 	function, err := u.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
-		Get(updateFunctionOptions.FunctionMeta.Name, meta_v1.GetOptions{})
+		Get(updateFunctionOptions.FunctionMeta.Name, metav1.GetOptions{})
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")

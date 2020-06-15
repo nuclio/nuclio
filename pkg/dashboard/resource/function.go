@@ -241,12 +241,9 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, a
 		defer func() {
 			if err := recover(); err != nil {
 				callStack := debug.Stack()
-
 				fr.Logger.ErrorWith("Panic caught while creating function",
-					"err",
-					err,
-					"stack",
-					string(callStack))
+					"err", err,
+					"stack", string(callStack))
 			}
 		}()
 

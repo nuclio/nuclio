@@ -19,8 +19,10 @@ package test
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -31,9 +33,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/ghodss/yaml"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -45,7 +49,7 @@ const (
 
 type Suite struct {
 	suite.Suite
-	origPlatformType    string
+	origPlatformKind    string
 	logger              logger.Logger
 	rootCommandeer      *command.RootCommandeer
 	dockerClient        dockerclient.Client
@@ -74,8 +78,8 @@ func (suite *Suite) SetupSuite() {
 	suite.dockerClient, err = dockerclient.NewShellClient(suite.logger, suite.shellClient)
 	suite.Require().NoError(err)
 
-	// save platform type before the test
-	suite.origPlatformType = os.Getenv(nuctlPlatformEnvVarName)
+	// save platform kind before the test
+	suite.origPlatformKind = os.Getenv(nuctlPlatformEnvVarName)
 
 	// init default wait values to be used during tests for retries
 	suite.defaultWaitDuration = 1 * time.Minute
@@ -95,8 +99,8 @@ func (suite *Suite) SetupTest() {
 
 func (suite *Suite) TearDownSuite() {
 
-	// restore platform type
-	err := os.Setenv(nuctlPlatformEnvVarName, suite.origPlatformType)
+	// restore platform kind
+	err := os.Setenv(nuctlPlatformEnvVarName, suite.origPlatformKind)
 	suite.Require().NoError(err)
 }
 
@@ -133,8 +137,8 @@ func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 	return suite.rootCommandeer.Execute()
 }
 
-// ExecuteNuctl populates os.Args and executes nuctl as if it were executed from shell
-func (suite *Suite) ExecuteNuctlAndWait(positionalArgs []string,
+// RetryExecuteNuctlUntilSuccessful executes nuctl until expectFailure is met
+func (suite *Suite) RetryExecuteNuctlUntilSuccessful(positionalArgs []string,
 	namedArgs map[string]string,
 	expectFailure bool) error {
 
@@ -207,7 +211,7 @@ func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
-	err := suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{
+	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, map[string]string{
 		"output": "yaml",
 	}, false)
 	suite.Require().NoError(err)
@@ -226,5 +230,74 @@ func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
 
 		// ensure function state is imported
 		suite.findPatternsInOutput([]string{"imported"}, nil)
+	}
+}
+
+func (suite *Suite) getFunctionInFormat(functionName string, outputFormat string) (*functionconfig.Config, error) {
+	suite.outputBuffer.Reset()
+	var err error
+
+	suite.Require().NotEmpty(outputFormat, "Output format must not be empty")
+	suite.Require().NotEmpty(functionName, "Function name must not be empty")
+
+	// get function in format
+	if err = suite.ExecuteNuctl([]string{"get", "function", functionName},
+		map[string]string{
+			"output": outputFormat,
+		}); err != nil {
+		return nil, errors.Wrapf(err, "Failed to get function %s", functionName)
+	}
+
+	parsedFunction := functionconfig.Config{}
+
+	// unmarshal response correspondingly to output format
+	switch outputFormat {
+	case nuctlcommon.OutputFormatJSON:
+		err = json.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
+	case nuctlcommon.OutputFormatYAML:
+		err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
+	default:
+		return nil, errors.Errorf("Invalid output format %s", outputFormat)
+	}
+
+	return &parsedFunction, err
+}
+
+func (suite *Suite) writeFunctionConfigToTempFile(functionConfig *functionconfig.Config,
+	tempFilePattern string) (string, error) {
+
+	// create a temp function yaml to be used with test modified values
+	functionConfigPath, err := ioutil.TempFile("", tempFilePattern)
+	if err != nil {
+		return "", err
+	}
+
+	// close when done writing
+	defer functionConfigPath.Close()
+
+	// dump modified function config to temp function configuration file
+	marshaledFunctionConfig, err := yaml.Marshal(functionConfig)
+	if err != nil {
+		return "", err
+	}
+	_, err = functionConfigPath.Write(marshaledFunctionConfig)
+	if err != nil {
+		return "", err
+	}
+
+	// ensure file is written to disk
+	err = functionConfigPath.Sync()
+	if err != nil {
+		return "", err
+	}
+
+	return functionConfigPath.Name(), nil
+}
+
+func (suite *Suite) ensureRunningOnPlatform(expectedPlatformKind string) {
+	if suite.origPlatformKind != expectedPlatformKind {
+		suite.T().Skipf("Skipping test, unmatched platform kind (%s != %s)",
+			expectedPlatformKind,
+			suite.origPlatformKind)
 	}
 }

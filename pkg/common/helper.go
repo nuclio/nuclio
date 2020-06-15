@@ -89,6 +89,16 @@ func StringSliceContainsString(slice []string, str string) bool {
 	return false
 }
 
+// returns whether the input str has prefix
+func StringSliceContainsStringPrefix(prefixes []string, str string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(str, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // returns whether the input str is in the slice case-insensitive
 func StringSliceContainsStringCaseInsensitive(slice []string, str string) bool {
 	for _, stringInSlice := range slice {

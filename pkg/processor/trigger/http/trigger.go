@@ -19,7 +19,7 @@ package http
 import (
 	"bufio"
 	"encoding/json"
-	net_http "net/http"
+	nethttp "net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -158,7 +158,7 @@ func (h *http) TimeoutWorker(worker *worker.Worker) error {
 
 	h.activeContexts[workerIndex] = nil
 
-	ctx.SetStatusCode(net_http.StatusRequestTimeout)
+	ctx.SetStatusCode(nethttp.StatusRequestTimeout)
 	bodyWrite := func(w *bufio.Writer) {
 		w.Write(timeoutResponse) // nolint: errcheck
 		w.Flush()                // nolint: errcheck
@@ -233,7 +233,7 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 
 	// default to bad preflight request unless all specifications are valid
-	ctx.SetStatusCode(net_http.StatusBadRequest)
+	ctx.SetStatusCode(nethttp.StatusBadRequest)
 
 	origin := common.ByteSliceToString(ctx.Request.Header.Peek("Origin"))
 	if !h.preflightRequestValidation(ctx, origin) {
@@ -263,14 +263,14 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 		h.configuration.CORS.EncodeAllowHeaders())
 
 	// specifications met, set preflight request as OK
-	ctx.SetStatusCode(net_http.StatusOK)
+	ctx.SetStatusCode(nethttp.StatusOK)
 	h.UpdateStatistics(true)
 }
 
 func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	if h.status != status.Ready {
 		h.UpdateStatistics(false)
-		ctx.Response.SetStatusCode(net_http.StatusServiceUnavailable)
+		ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
 		msg := map[string]interface{}{
 			"error":  "Server not ready",
 			"status": h.status.String(),
@@ -353,12 +353,12 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 		// no available workers
 		case worker.ErrNoAvailableWorkers:
-			ctx.Response.SetStatusCode(net_http.StatusServiceUnavailable)
+			ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
 
 			// something else - most likely a bug
 		default:
 			h.Logger.WarnWith("Failed to submit event", "err", submitError)
-			ctx.Response.SetStatusCode(net_http.StatusInternalServerError)
+			ctx.Response.SetStatusCode(nethttp.StatusInternalServerError)
 		}
 
 		return
@@ -376,7 +376,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		default:
 
 			// if the user didn't use one of the errors with status code, return internal error
-			statusCode = net_http.StatusInternalServerError
+			statusCode = nethttp.StatusInternalServerError
 		}
 
 		ctx.Response.SetStatusCode(statusCode)
