@@ -751,9 +751,9 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	// redeploy the function, let it change its resource vresion
 	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose", "--no-pull"},
 		map[string]string{
-			"path": functionPath,
-			"file": functionConfigPath,
-			"targetCPU": "80",  // some change
+			"path":      functionPath,
+			"file":      functionConfigPath,
+			"targetCPU": "80", // some change
 		})
 
 	// wait for function to be deployed
