@@ -33,7 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
-	nuctl_common "github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/ghodss/yaml"
@@ -252,9 +252,9 @@ func (suite *Suite) getFunctionInFormat(functionName string, outputFormat string
 
 	// unmarshal response correspondingly to output format
 	switch outputFormat {
-	case nuctl_common.OutputFormatJSON:
+	case nuctlcommon.OutputFormatJSON:
 		err = json.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
-	case nuctl_common.OutputFormatYAML:
+	case nuctlcommon.OutputFormatYAML:
 		err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
 	default:
 		return nil, errors.Errorf("Invalid output format %s", outputFormat)

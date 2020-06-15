@@ -7,7 +7,7 @@ import (
 
 	"github.com/nuclio/logger"
 	"k8s.io/api/core/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type CronJobMonitoring struct {
@@ -56,8 +56,8 @@ func (cjpd *CronJobMonitoring) startStaleCronJobPodsDeletionLoop() error {
 		err := cjpd.controller.kubeClientSet.
 			CoreV1().
 			Pods(cjpd.controller.namespace).
-			DeleteCollection(&meta_v1.DeleteOptions{},
-				meta_v1.ListOptions{
+			DeleteCollection(&metav1.DeleteOptions{},
+				metav1.ListOptions{
 					LabelSelector: "nuclio.io/function-cron-job-pod=true",
 					FieldSelector: stalePodsFieldSelector,
 				})

@@ -26,10 +26,10 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	apps_v1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
-	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/api/core/v1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type function struct {
@@ -81,12 +81,12 @@ func newFunction(parentLogger logger.Logger,
 
 // Initialize loads sub-resources so we can populate our configuration
 func (f *function) Initialize([]string) error {
-	var deploymentList *apps_v1.DeploymentList
-	var ingressList *ext_v1beta1.IngressList
+	var deploymentList *appsv1.DeploymentList
+	var ingressList *extv1beta1.IngressList
 	var serviceList *v1.ServiceList
 
-	var deployment *apps_v1.Deployment
-	var ingress *ext_v1beta1.Ingress
+	var deployment *appsv1.Deployment
+	var ingress *extv1beta1.Ingress
 	var service *v1.Service
 	var deploymentErr, ingressErr, serviceErr error
 
@@ -95,7 +95,7 @@ func (f *function) Initialize([]string) error {
 	// wait for service, ingress and deployment
 	waitGroup.Add(3)
 
-	listOptions := meta_v1.ListOptions{
+	listOptions := metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", f.Config.Meta.Name),
 	}
 

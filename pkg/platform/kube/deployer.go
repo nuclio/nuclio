@@ -30,7 +30,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/api/core/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -193,7 +193,7 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 		// get the appropriate function CR
 		function, err = consumer.nuclioClientSet.NuclioV1beta1().
 			NuclioFunctions(namespace).
-			Get(name, meta_v1.GetOptions{})
+			Get(name, metav1.GetOptions{})
 		if err != nil {
 			return true, err
 		}
@@ -219,7 +219,7 @@ func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 	// list pods
 	functionPods, listPodErr := d.consumer.kubeClientSet.CoreV1().
 		Pods(namespace).
-		List(meta_v1.ListOptions{
+		List(metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", name),
 		})
 
@@ -279,7 +279,7 @@ func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 }
 
 func (d *deployer) getFunctionPodWarningEvents(namespace string, podName string) (string, error) {
-	eventList, err := d.consumer.kubeClientSet.CoreV1().Events(namespace).List(meta_v1.ListOptions{})
+	eventList, err := d.consumer.kubeClientSet.CoreV1().Events(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return "", err
 	}

@@ -32,7 +32,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	nuctl_common "github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
@@ -739,7 +739,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	// redeploy the function with a small change, to ensure the resource version is changed
 
 	// get the current deployed function, save its resource version
-	deployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctl_common.OutputFormatYAML)
+	deployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML)
 	suite.Require().NoError(err)
 
 	// save it for next step, to be used as a "stale" resource vresion
@@ -766,7 +766,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	suite.Require().NoError(err)
 
 	// get the redeployed function, extract its latest resource version
-	redeployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctl_common.OutputFormatYAML)
+	redeployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML)
 	suite.Require().NoError(err)
 
 	// sanity, ensure retrieved redeployed function resource version is not empty
@@ -821,7 +821,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	err = common.RetryUntilSuccessful(1*time.Minute, 3*time.Second, func() bool {
 
 		// get the deployed function, we're gonna inspect its resource version
-		deployedFunction, err = suite.getFunctionInFormat(functionConfig.Meta.Name, nuctl_common.OutputFormatYAML)
+		deployedFunction, err = suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML)
 		return err == nil && deployedFunction.Meta.ResourceVersion != functionResourceVersion
 	})
 	suite.Require().NoErrorf(err, "Resource version should have been changed (real: %s, expected: %s)",
@@ -852,7 +852,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	// check that the function's CET was modified to 'image'
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName},
 		map[string]string{
-			"output": nuctl_common.OutputFormatYAML,
+			"output": nuctlcommon.OutputFormatYAML,
 		},
 		false)
 	suite.Require().NoError(err)
@@ -1041,11 +1041,11 @@ func (suite *functionGetTestSuite) TestGet() {
 	}{
 		{
 			FunctionName: functionNames[0],
-			OutputFormat: nuctl_common.OutputFormatJSON,
+			OutputFormat: nuctlcommon.OutputFormatJSON,
 		},
 		{
 			FunctionName: functionNames[0],
-			OutputFormat: nuctl_common.OutputFormatYAML,
+			OutputFormat: nuctlcommon.OutputFormatYAML,
 		},
 	} {
 		// reset buffer

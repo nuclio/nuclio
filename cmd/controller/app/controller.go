@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/loggersink"
-	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -123,7 +123,7 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create k8s client set")
 	}
 
-	nuclioClientSet, err := nuclioio_client.NewForConfig(restConfig)
+	nuclioClientSet, err := nuclioioclient.NewForConfig(restConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create nuclio client set")
 	}
