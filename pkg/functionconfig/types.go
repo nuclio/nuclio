@@ -250,7 +250,7 @@ type Spec struct {
 	// otherwise, fail the function instantly when there is indication of deployment failure (e.g. pod stuck on crash
 	// loop, pod container exited with an error, pod is unschedulable).
 	// Default: false
-	WaitReadinessTimeoutBeforeFail bool `json:"waitReadinessTimeoutBeforeFail,omitempty"`
+	WaitReadinessTimeoutBeforeFailure bool `json:"waitReadinessTimeoutBeforeFailure,omitempty"`
 
 	// We're letting users write "20s" and not the default marshalled time.Duration
 	// (Which is in nanoseconds)

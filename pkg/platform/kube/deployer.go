@@ -156,6 +156,7 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 	}
 
 	// do the create / update
+	// TODO: Infer timestamp from function config (consider create/update scenarios)
 	functionCreateOrUpdateTimestamp := time.Now()
 	_, err := d.createOrUpdateFunction(functionInstance,
 		createFunctionOptions,
@@ -213,7 +214,7 @@ func isFunctionDeploymentFailed(consumer *consumer,
 			if containerStatus.State.Terminated != nil &&
 				containerStatus.State.Terminated.Reason == "Error" {
 
-				return true, errors.New("NuclioFunction pod container exited with an error")
+				return true, errors.Errorf("NuclioFunction pod: %s container exited with an error", pod.Name)
 			}
 
 			if pod.Status.ContainerStatuses[0].State.Waiting != nil {
@@ -221,7 +222,7 @@ func isFunctionDeploymentFailed(consumer *consumer,
 				// check if the pod is on a crashLoopBackoff
 				if containerStatus.State.Waiting.Reason == "CrashLoopBackOff" {
 
-					return true, errors.New("NuclioFunction pod is in a crash loop")
+					return true, errors.Errorf("NuclioFunction pod: %s is in a crash loop", pod.Name)
 				}
 			}
 		}
@@ -233,7 +234,7 @@ func isFunctionDeploymentFailed(consumer *consumer,
 			if pod.Status.Phase == v1.PodPending &&
 				condition.Reason == "Unschedulable" {
 
-				return true, errors.New("NuclioFunction pod is unschedulable")
+				return true, errors.Errorf("NuclioFunction pod: %s is unschedulable", pod.Name)
 			}
 		}
 	}
@@ -266,7 +267,7 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 		case functionconfig.FunctionStateError:
 			return false, errors.Errorf("NuclioFunction in error state:\n%s", function.Status.Message)
 		default:
-			if !function.Spec.WaitReadinessTimeoutBeforeFail {
+			if !function.Spec.WaitReadinessTimeoutBeforeFailure {
 
 				// check if function deployment had failed
 				// (ignore the error if there's no concrete indication of failure, because it might still stabilize)

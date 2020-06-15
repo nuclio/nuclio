@@ -723,6 +723,36 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
+// Expect the deployment to fail fast (instead of waiting for readiness timeout to pass)
+func (suite *functionDeployTestSuite) TestDeployWaitReadinessTimeoutBeforeFailureDisabled() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "reverser" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+
+	// set a bad handler name - so that the deployment will fail
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"runtime": "python",
+		"handler": "reverser:bad-handler-name",
+		"readiness-timeout": "60",
+	}
+
+	deployingTimestamp := time.Now()
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	suite.Require().Error(err)
+
+	// validate the deployment "failed fast" - it didn't wait for the whole readiness timeout to pass
+	failedFast := time.Now().Before(deployingTimestamp.Add(60 * time.Second))
+	suite.Require().True(failedFast)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+}
+
 func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
 
 	// relevant only for kube platform
