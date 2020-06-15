@@ -137,8 +137,8 @@ func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 	return suite.rootCommandeer.Execute()
 }
 
-// ExecuteNuctl populates os.Args and executes nuctl as if it were executed from shell
-func (suite *Suite) ExecuteNuctlAndWait(positionalArgs []string,
+// RetryExecuteNuctlUntilSuccessful executes nuctl until expectFailure is met
+func (suite *Suite) RetryExecuteNuctlUntilSuccessful(positionalArgs []string,
 	namedArgs map[string]string,
 	expectFailure bool) error {
 
@@ -211,7 +211,7 @@ func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
-	err := suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, map[string]string{
+	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, map[string]string{
 		"output": "yaml",
 	}, false)
 	suite.Require().NoError(err)
@@ -263,7 +263,7 @@ func (suite *Suite) getFunctionInFormat(functionName string, outputFormat string
 	return &parsedFunction, err
 }
 
-func (suite *Suite) writeFunctionConfigToTemp(functionConfig *functionconfig.Config,
+func (suite *Suite) writeFunctionConfigToTempFile(functionConfig *functionconfig.Config,
 	tempFilePattern string) (string, error) {
 
 	// create a temp function yaml to be used with test modified values

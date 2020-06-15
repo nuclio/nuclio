@@ -214,8 +214,9 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 	return nil
 }
 
-// Validate create function options against existing function
-func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(existingFunctionConfig *functionconfig.ConfigWithStatus,
+// Validate a function against its existing instance
+func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
+	existingFunctionConfig *functionconfig.ConfigWithStatus,
 	createFunctionOptions *platform.CreateFunctionOptions) error {
 
 	// special case when we are asked to build the function and it wasn't been created yet
@@ -235,19 +236,23 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(e
 func (ap *Platform) ValidateResourceVersion(existingFunctionConfig *functionconfig.ConfigWithStatus,
 	createFunctionOptions *platform.CreateFunctionOptions) error {
 
-	// existing function should always be latest
-	if existingFunctionConfig != nil {
-		existingResourceVersion := existingFunctionConfig.Meta.ResourceVersion
-		requestResourceVersion := createFunctionOptions.FunctionConfig.Meta.ResourceVersion
+	// if function has no existing instance, resource version validation is irrelevant.
+	if existingFunctionConfig == nil {
+		return nil
+	}
 
-		// when requestResourceVersion is empty, the existing one will be overridden
-		if requestResourceVersion != "" &&
-			requestResourceVersion != existingResourceVersion {
-			ap.Logger.WarnWith("Create function resource version is outdated",
-				"requestResourceVersion", requestResourceVersion,
-				"existingResourceVersion", existingResourceVersion)
-			return errors.New("Function resource version is outdated")
-		}
+	// existing function should always be the latest
+	// reason: the way we `GET` nuclio function ensures we retrieve the latest copy.
+	existingResourceVersion := existingFunctionConfig.Meta.ResourceVersion
+	requestResourceVersion := createFunctionOptions.FunctionConfig.Meta.ResourceVersion
+
+	// when requestResourceVersion is empty, the existing one will be overridden
+	if requestResourceVersion != "" &&
+		requestResourceVersion != existingResourceVersion {
+		ap.Logger.WarnWith("Create function resource version is stale",
+			"requestResourceVersion", requestResourceVersion,
+			"existingResourceVersion", existingResourceVersion)
+		return errors.New("Function resource version is stale")
 	}
 	return nil
 }

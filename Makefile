@@ -363,7 +363,7 @@ lint: modules
 			| tr -d \" \
 			| wget -O $(GOPATH)/bin/impi -qi -
 	@test -e $(GOPATH)/bin/golangci-lint || \
-	  	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.24.0
+	  	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.27.0
 
 	@echo Verifying imports...
 	chmod +x $(GOPATH)/bin/impi && $(GOPATH)/bin/impi \

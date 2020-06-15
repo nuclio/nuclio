@@ -328,7 +328,7 @@ type Meta struct {
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
 
-	// determines whether the object has changed
+	// Used to determine whether the object is stale
 	// more details @ https://kubernetes.io/docs/reference/using-api/api-concepts/#resource-versions
 	ResourceVersion string `json:"resourceVersion,omitempty"`
 }
