@@ -63,9 +63,9 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 	defer os.Remove(assetPath) // nolint: errcheck
 
 	// Generate kaniko job spec
-	kanikoJobSpec := k.getKanikoJobSpec(namespace, buildOptions, bundleFilename)
+	kanikoJobSpec := k.compileKanikoJobSpec(namespace, buildOptions, bundleFilename)
 
-	k.logger.DebugWith("About to publish kaniko job", "namespace", namespace, "jobSpec", kanikoJobSpec)
+	k.logger.DebugWith("Create kaniko job", "namespace", namespace, "jobSpec", kanikoJobSpec)
 	kanikoJob, err := k.kubeClientSet.BatchV1().Jobs(namespace).Create(kanikoJobSpec)
 	if err != nil {
 		return errors.Wrap(err, "Failed to publish kaniko job")
@@ -175,8 +175,8 @@ func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tem
 	return tarFilename, assetPath, nil
 }
 
-func (k *Kaniko) getKanikoJobSpec(namespace string, buildOptions *BuildOptions, bundleFilename string) *batchv1.Job {
-
+func (k *Kaniko) compileKanikoJobSpec(namespace string,
+	buildOptions *BuildOptions, bundleFilename string) *batchv1.Job {
 	completions := int32(1)
 	backoffLimit := int32(0)
 	buildArgs := []string{

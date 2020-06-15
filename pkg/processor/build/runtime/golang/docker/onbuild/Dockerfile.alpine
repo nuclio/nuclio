@@ -18,8 +18,14 @@ ARG NUCLIO_LABEL
 # Build the processor
 FROM nuclio-base-alpine:$NUCLIO_LABEL as build-processor
 
+ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
+
 # Build the processor
-RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
+RUN GOOS=linux GOARCH=amd64 go build \
+    -a \
+    -installsuffix cgo \
+    -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
+    -o /home/nuclio/bin/processor cmd/processor/main.go
 
 # Build the plugin
 FROM golang:1.14.3-alpine3.11
