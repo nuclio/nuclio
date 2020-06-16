@@ -70,40 +70,18 @@ class TestSubmitEvents(unittest.TestCase):
         self._unix_stream_server.shutdown()
         self._unix_stream_server_thread.join()
 
-    def test_event_bigger_than_message_size(self):
-        self._wrapper._max_message_size = 1024
-        dummy_text = self._wrapper._max_message_size * 'a'
+    def test_event_illegal_message_size(self):
+        def _send_illegal_message_size():
+            self._unix_stream_server._connection_socket.sendall(struct.pack(">I", 0))
 
         self._wait_for_socket_creation()
-        t = threading.Thread(target=self._send_event, args=(nuclio_sdk.Event(body=dummy_text),))
+        t = threading.Thread(target=_send_illegal_message_size)
         t.start()
 
         self._wrapper._entrypoint = mock.MagicMock()
         self._wrapper._entrypoint.assert_not_called()
         self._wrapper.serve_requests(num_requests=1)
         t.join()
-
-    def test_large_event(self):
-        self._wrapper._max_message_size = 1 * 1024 * 1024  # 10mb
-        event = nuclio_sdk.Event(body='')
-
-        # fill event body as much as possible
-        while self._get_packed_event_body_len(event) < self._wrapper._max_message_size:
-            times_to_add = int((self._wrapper._max_message_size - self._get_packed_event_body_len(event)) / 2)
-            if times_to_add == 0:
-                break
-            event.body += 'a' * times_to_add
-
-        # send the event
-        self._wait_for_socket_creation()
-        t = threading.Thread(target=self._send_event, args=(event,))
-        t.start()
-
-        # handle one request
-        self._wrapper.serve_requests(num_requests=1)
-        t.join()
-
-        self._wait_until_received_messages(4)
 
     def test_single_event(self):
         reverse_text = 'reverse this'

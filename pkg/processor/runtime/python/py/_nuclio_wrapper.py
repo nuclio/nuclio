@@ -28,10 +28,6 @@ import nuclio_sdk.logger
 
 
 class Wrapper(object):
-
-    # hard limit of 50mb
-    _max_message_size = 50 * 1024 * 1024
-
     def __init__(self,
                  logger,
                  handler,
@@ -108,7 +104,7 @@ class Wrapper(object):
                 bytes_to_read += int_buf[2] << 8
                 bytes_to_read += int_buf[1] << 16
                 bytes_to_read += int_buf[0] << 24
-                if bytes_to_read > self._max_message_size or bytes_to_read <= 0:
+                if bytes_to_read <= 0:
                     # If socket is done, we can't log
                     print('Illegal message size: ' + str(bytes_to_read))
                     return
