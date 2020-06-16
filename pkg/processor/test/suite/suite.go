@@ -30,7 +30,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -86,8 +85,7 @@ func (suite *TestSuite) SetupSuite() {
 		suite.RuntimeDir = suite.Runtime
 	}
 
-	// update version so that linker doesn't need to inject it
-	version.SetFromEnv()
+	common.SetVersionFromEnv()
 
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)

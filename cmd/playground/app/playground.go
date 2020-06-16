@@ -22,10 +22,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/playground"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/zap"
+	"github.com/v3io/version-go"
 )
 
 func Run(listenAddress string,
@@ -52,13 +52,11 @@ func Run(listenAddress string,
 	logger.InfoWith("Starting",
 		"name", platformInstance.GetName(),
 		"noPull", noPullBaseImages,
+		"version", version.Get(),
 		"defaultCredRefreshInterval", defaultCredRefreshIntervalString)
 
-	version.Log(logger)
-
-	trueValue := true
-
 	// create a web server configuration
+	trueValue := true
 	webServerConfiguration := &platformconfig.WebServer{
 		Enabled:       &trueValue,
 		ListenAddress: listenAddress,

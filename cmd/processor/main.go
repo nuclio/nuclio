@@ -25,9 +25,9 @@ import (
 	"github.com/nuclio/nuclio/cmd/processor/app"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	_ "github.com/nuclio/nuclio/pkg/processor/webadmin/resource"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/errors"
+	"github.com/v3io/version-go"
 )
 
 func run() error {
@@ -47,13 +47,7 @@ func run() error {
 	}
 
 	if *showVersion {
-
-		// get the version
-		currentVersion, err := version.Get()
-		if err != nil {
-			return err
-		}
-		fmt.Printf("Processor version:\n%#v", currentVersion)
+		fmt.Printf("Processor version:\n%#v", version.Get())
 		return nil
 	}
 

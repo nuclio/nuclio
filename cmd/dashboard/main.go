@@ -61,7 +61,7 @@ func main() {
 	templatesGithubAccessToken := flag.String("templates-github-access-token", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_ACCESS_TOKEN", ""), "Github templates repo's access token")
 	templatesArchiveAddress := flag.String("templates-archive-address", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_ARCHIVE_ADDRESS", ""), "Function Templates zip file address")
 
-	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the playground listens")
+	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the dashboard listens")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
 	platformType := flag.String("platform", "auto", "One of kube/local/auto")
 	defaultRegistryURL := flag.String("registry", os.Getenv("NUCLIO_DASHBOARD_REGISTRY_URL"), "Default registry URL")

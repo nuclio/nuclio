@@ -47,12 +47,12 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/ruby"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/mholt/archiver/v3"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/v3io/version-go"
 	"gopkg.in/yaml.v2"
 )
 
@@ -117,14 +117,17 @@ type Builder struct {
 	originalFunctionConfig functionconfig.Config
 
 	s3Client common.S3Client
+
+	versionInfo *version.Info
 }
 
 // NewBuilder returns a new builder
 func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client common.S3Client) (*Builder, error) {
 	newBuilder := &Builder{
-		logger:   parentLogger,
-		platform: platform,
-		s3Client: s3Client,
+		logger:      parentLogger,
+		platform:    platform,
+		s3Client:    s3Client,
+		versionInfo: version.Get(),
 	}
 
 	newBuilder.initializeSupportedRuntimes()
@@ -139,7 +142,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 	b.options = options
 
-	b.logger.InfoWith("Building", "name", b.options.FunctionConfig.Meta.Name)
+	b.logger.InfoWith("Building",
+		"versionInfo", b.versionInfo,
+		"name", b.options.FunctionConfig.Meta.Name)
 
 	configFilePath := b.providedFunctionConfigFilePath()
 	b.logger.DebugWith("Function configuration found in directory", "configFilePath", configFilePath)
@@ -987,10 +992,7 @@ func (b *Builder) cleanupTempDir() error {
 }
 
 func (b *Builder) buildProcessorImage() (string, error) {
-	buildArgs, err := b.getBuildArgs()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get build args")
-	}
+	buildArgs := b.getBuildArgs()
 
 	// Use dedicated base and onbuild image registries (pull registry) if defined
 	// - An empty baseImageRegistry will result in base images being pulled from the web, each base image according
@@ -1207,14 +1209,9 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, on
 
 func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
 	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
-	versionInfo, err := version.Get()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get version info")
-	}
 
 	// get defaults from the runtime
-	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(versionInfo,
-		onbuildImageRegistry)
+	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(onbuildImageRegistry)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
@@ -1236,9 +1233,8 @@ func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
 
 	// set the onbuild images
 	for idx, onbuildArtifact := range processorDockerfileInfo.OnbuildArtifacts {
-		onbuildArtifact.Image, err = b.getProcessorDockerfileOnbuildImage(versionInfo,
+		onbuildArtifact.Image, err = b.getProcessorDockerfileOnbuildImage(
 			runtimeProcessorDockerfileInfo.OnbuildArtifacts[idx].Image)
-
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get onbuild image")
 		}
@@ -1292,8 +1288,7 @@ func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string
 	}
 }
 
-func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
-	runtimeDefaultOnbuildImage string) (string, error) {
+func (b *Builder) getProcessorDockerfileOnbuildImage(runtimeDefaultOnbuildImage string) (string, error) {
 
 	// if the user supplied an onbuild image, format it with the appropriate tag,
 	if b.options.FunctionConfig.Spec.Build.OnbuildImage != "" {
@@ -1304,8 +1299,8 @@ func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
 
 		var onbuildImageTemplateBuffer bytes.Buffer
 		err = onbuildImageTemplate.Execute(&onbuildImageTemplateBuffer, &map[string]interface{}{
-			"Label": versionInfo.Label,
-			"Arch":  versionInfo.Arch,
+			"Label": b.versionInfo.Label,
+			"Arch":  b.versionInfo.Arch,
 		})
 
 		if err != nil {
@@ -1324,12 +1319,7 @@ func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
 	return runtimeDefaultOnbuildImage, nil
 }
 
-func (b *Builder) getBuildArgs() (map[string]string, error) {
-	versionInfo, err := version.Get()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get version info")
-	}
-
+func (b *Builder) getBuildArgs() map[string]string {
 	buildArgs := map[string]string{}
 
 	if b.options.FunctionConfig.Spec.Build.Offline {
@@ -1337,13 +1327,13 @@ func (b *Builder) getBuildArgs() (map[string]string, error) {
 	}
 
 	// set tag / arch
-	buildArgs["NUCLIO_LABEL"] = versionInfo.Label
-	buildArgs["NUCLIO_ARCH"] = versionInfo.Arch
+	buildArgs["NUCLIO_LABEL"] = b.versionInfo.Label
+	buildArgs["NUCLIO_ARCH"] = b.versionInfo.Arch
 
 	// set handler dir
 	buildArgs["NUCLIO_BUILD_LOCAL_HANDLER_DIR"] = "handler"
 
-	return buildArgs, nil
+	return buildArgs
 }
 
 func (b *Builder) commandsToDirectives(commands []string) (map[string][]functionconfig.Directive, error) {

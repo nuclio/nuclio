@@ -37,7 +37,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/aws/aws-sdk-go/private/util"
 	"github.com/ghodss/yaml"
@@ -45,6 +44,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2beta1"
@@ -1295,12 +1295,10 @@ func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.NuclioFunction
 	var nuclioVersion string
 
 	// get version
-	if info, err := version.Get(); err == nil {
-		nuclioVersion = info.Label
-	} else {
+	nuclioVersion = version.Get().Label
+	if nuclioVersion == "" {
 		nuclioVersion = "unknown"
 	}
-
 	annotations["nuclio.io/function-config"] = serializedFunctionConfigJSON
 	annotations["nuclio.io/controller-version"] = nuclioVersion
 

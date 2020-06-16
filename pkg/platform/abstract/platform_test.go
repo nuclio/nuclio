@@ -7,11 +7,11 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -63,7 +63,8 @@ type TestAbstractSuite struct {
 
 func (suite *TestAbstractSuite) SetupSuite() {
 	var err error
-	version.SetFromEnv()
+
+	common.SetVersionFromEnv()
 
 	suite.DefaultNamespace = "nuclio"
 

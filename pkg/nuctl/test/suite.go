@@ -34,7 +34,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
@@ -63,8 +62,7 @@ type Suite struct {
 func (suite *Suite) SetupSuite() {
 	var err error
 
-	// update version so that linker doesn't need to inject it
-	version.SetFromEnv()
+	common.SetVersionFromEnv()
 
 	// create logger
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
@@ -273,7 +271,7 @@ func (suite *Suite) writeFunctionConfigToTempFile(functionConfig *functionconfig
 	}
 
 	// close when done writing
-	defer functionConfigPath.Close()
+	defer functionConfigPath.Close() // nolint: errcheck
 
 	// dump modified function config to temp function configuration file
 	marshaledFunctionConfig, err := yaml.Marshal(functionConfig)

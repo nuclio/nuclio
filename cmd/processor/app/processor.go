@@ -60,10 +60,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -111,12 +111,10 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 	// for now, use the same logger for both the processor and user handler
 	newProcessor.functionLogger = newProcessor.logger
+	newProcessor.logger.InfoWith("Starting processor", "version", version.Get())
 
 	indentedProcessorConfiguration, _ := json.MarshalIndent(processorConfiguration, "", "    ")
 	indentedPlatformConfiguration, _ := json.MarshalIndent(platformConfiguration, "", "    ")
-
-	// log version
-	version.Log(newProcessor.logger)
 
 	newProcessor.logger.DebugWith("Read configuration",
 		"config", string(indentedProcessorConfiguration),
