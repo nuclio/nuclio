@@ -41,7 +41,7 @@ rules:
   verbs: ["*"]
 ---
 
-# Bind the "nuclio" service account (used by controller / playground) to the nuclio-function-deployer role,
+# Bind the "nuclio" service account (used by controller / dashboard) to the nuclio-function-deployer role,
 # allowing them to create deployments, services, etc
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
@@ -71,7 +71,7 @@ rules:
 
 ---
 
-# Bind the "nuclio" service account (used by controller / playground) to the nuclio-functioncr-admin role,
+# Bind the "nuclio" service account (used by controller / dashboard) to the nuclio-functioncr-admin role,
 # allowing them to create / delete function custom resource definitions in the "nuclio" namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
