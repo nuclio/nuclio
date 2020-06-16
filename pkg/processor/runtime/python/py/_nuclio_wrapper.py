@@ -28,9 +28,6 @@ import nuclio_sdk.logger
 
 
 class Wrapper(object):
-
-    _max_message_size = 4 * 1024 * 1024
-
     def __init__(self,
                  logger,
                  handler,
@@ -55,7 +52,10 @@ class Wrapper(object):
 
         # make a writeable file from processor
         self._processor_sock_wfile = self._processor_sock.makefile('w')
-        self._unpacker = msgpack.Unpacker(raw=False, max_buffer_size=10 * 1024 * 1024)
+
+        # since this wrapper is behind a processor that pre-handle the traffic & request, it is not mandatory
+        # to provide security over max buffer size. The request limit should be handled on the processor level.
+        self._unpacker = msgpack.Unpacker(raw=False)
 
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
@@ -84,7 +84,6 @@ class Wrapper(object):
         """Read event from socket, send out reply"""
 
         int_buf = bytearray(4)
-        buf = memoryview(bytearray(self._max_message_size))
         minimum_float_duration = sys.float_info.min
 
         while True:
@@ -105,26 +104,25 @@ class Wrapper(object):
                 bytes_to_read += int_buf[2] << 8
                 bytes_to_read += int_buf[1] << 16
                 bytes_to_read += int_buf[0] << 24
-                if bytes_to_read > self._max_message_size or bytes_to_read <= 0:
+                if bytes_to_read <= 0:
                     # If socket is done, we can't log
                     print('Illegal message size: ' + str(bytes_to_read))
                     return
 
                 cumulative_bytes_read = 0
                 while cumulative_bytes_read < bytes_to_read:
-                    view = buf[cumulative_bytes_read:bytes_to_read]
                     bytes_to_read_now = bytes_to_read - cumulative_bytes_read
-                    bytes_read = self._processor_sock.recv_into(view, bytes_to_read_now)
+                    bytes_read = self._processor_sock.recv(bytes_to_read_now)
 
                     # client disconnect
                     if not bytes_read:
+
                         # If socket is done, we can't log
                         print('Client disconnect')
                         return
 
-                    cumulative_bytes_read += bytes_read
-
-                self._unpacker.feed(buf[:cumulative_bytes_read])
+                    self._unpacker.feed(bytes_read)
+                    cumulative_bytes_read += len(bytes_read)
 
                 msg = next(self._unpacker)
 
@@ -182,7 +180,7 @@ class Wrapper(object):
         Load handler function from handler.
         handler is in the format 'module.sub:handler_name'
         """
-        match = re.match('^([\w|-]+(\.[\w|-]+)*):(\w+)$', handler)
+        match = re.match(r'^([\w|-]+(\.[\w|-]+)*):(\w+)$', handler)
         if not match:
             raise ValueError('Malformed handler - {!r}'.format(handler))
 
