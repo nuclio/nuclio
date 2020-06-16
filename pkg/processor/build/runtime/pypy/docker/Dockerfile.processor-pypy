@@ -46,4 +46,11 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -tags pypy -a -ldflags="-s -w" -o /processor cmd/processor/main.go
+ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
+
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+    -tags pypy \
+    -a \
+    -installsuffix cgo \
+    -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
+    -o /processor cmd/processor/main.go
