@@ -97,14 +97,14 @@ func (c *CORS) EncodedAllowMethods() string {
 	if c.allowMethodsStr == "" {
 		c.allowMethodsStr = strings.Join(c.AllowMethods, ", ")
 	}
-	return strings.ToUpper(c.allowMethodsStr)
+	return c.allowMethodsStr
 }
 
 func (c *CORS) EncodeAllowHeaders() string {
 	if c.allowHeadersStr == "" {
 		c.allowHeadersStr = strings.Join(c.AllowHeaders, ", ")
 	}
-	return strings.ToUpper(c.allowHeadersStr)
+	return c.allowHeadersStr
 }
 
 func (c *CORS) EncodeAllowCredentialsHeader() string {
