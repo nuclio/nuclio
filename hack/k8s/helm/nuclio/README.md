@@ -6,7 +6,7 @@
 
 ## Introduction
 
-This chart bootstraps a Nuclio deployment (controller and playground) and service on a Kubernetes cluster using the Helm Package manager. Before you get started you will need:
+This chart bootstraps a Nuclio deployment (controller and dashboard) and service on a Kubernetes cluster using the Helm Package manager. Before you get started you will need:
 
 - A Kubernetes 1.7+ cluster with tiller installed
 - helm 
