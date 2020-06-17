@@ -36,7 +36,7 @@ type CORS struct {
 
 	// preflight
 	PreflightRequestMethod string
-	PreflightMaxAgeSeconds int64
+	PreflightMaxAgeSeconds int
 
 	// computed
 	allowMethodsStr           string
@@ -97,14 +97,14 @@ func (c *CORS) EncodedAllowMethods() string {
 	if c.allowMethodsStr == "" {
 		c.allowMethodsStr = strings.Join(c.AllowMethods, ", ")
 	}
-	return c.allowMethodsStr
+	return strings.ToUpper(c.allowMethodsStr)
 }
 
 func (c *CORS) EncodeAllowHeaders() string {
 	if c.allowHeadersStr == "" {
 		c.allowHeadersStr = strings.Join(c.AllowHeaders, ", ")
 	}
-	return c.allowHeadersStr
+	return strings.ToUpper(c.allowHeadersStr)
 }
 
 func (c *CORS) EncodeAllowCredentialsHeader() string {
@@ -116,7 +116,7 @@ func (c *CORS) EncodeAllowCredentialsHeader() string {
 
 func (c *CORS) EncodePreflightMaxAgeSeconds() string {
 	if c.preflightMaxAgeSecondsStr == "" {
-		c.preflightMaxAgeSecondsStr = strconv.FormatInt(c.PreflightMaxAgeSeconds, 10)
+		c.preflightMaxAgeSecondsStr = strconv.Itoa(c.PreflightMaxAgeSeconds)
 	}
 	return c.preflightMaxAgeSecondsStr
 }

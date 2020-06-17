@@ -98,3 +98,7 @@ func createCORSConfiguration(CORSConfiguration *cors.CORS) *cors.CORS {
 	return corsInstance
 
 }
+
+func (c *Configuration) corsEnabled() bool {
+	return c.CORS != nil && c.CORS.Enabled
+}
