@@ -173,6 +173,7 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
     - Kubernetes
         - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
 - References
+    - [Nuctl](/docs/reference/nuctl/nuctl.md)
     - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
     - [Triggers](/docs/reference/triggers)
     - [Runtime - .NET Core 3.1](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
