@@ -36,7 +36,7 @@ type CORS struct {
 
 	// preflight
 	PreflightRequestMethod string
-	PreflightMaxAgeSeconds int64
+	PreflightMaxAgeSeconds int
 
 	// computed
 	allowMethodsStr           string
@@ -116,7 +116,7 @@ func (c *CORS) EncodeAllowCredentialsHeader() string {
 
 func (c *CORS) EncodePreflightMaxAgeSeconds() string {
 	if c.preflightMaxAgeSecondsStr == "" {
-		c.preflightMaxAgeSecondsStr = strconv.FormatInt(c.PreflightMaxAgeSeconds, 10)
+		c.preflightMaxAgeSecondsStr = strconv.Itoa(c.PreflightMaxAgeSeconds)
 	}
 	return c.preflightMaxAgeSecondsStr
 }

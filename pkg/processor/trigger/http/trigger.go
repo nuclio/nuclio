@@ -216,13 +216,13 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 }
 
 func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
-	return func(ctx *fasthttp.RequestCtx) {
-		if h.configuration.CORS != nil &&
-			h.configuration.CORS.Enabled &&
-			common.ByteSliceToString(ctx.Method()) == h.configuration.CORS.PreflightRequestMethod {
 
-			// when CORS is enabled, processor HTTP server is responding to "PreflightRequestMethod" (e.g.: OPTIONS)
-			// That means => function will not be able to answer on the method configured by PreflightRequestMethod
+	// when CORS is enabled, processor HTTP server is responding to "PreflightRequestMethod" (e.g.: OPTIONS)
+	// That means => function will not be able to answer on the method configured by PreflightRequestMethod
+	return func(ctx *fasthttp.RequestCtx) {
+
+		// ensure request is part of CORS pre-flight
+		if h.ensureRequestIsCORSPreflightRequest(ctx) {
 			h.handlePreflightRequest(ctx)
 		} else {
 			h.handleRequest(ctx)
@@ -230,46 +230,97 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 	}
 }
 
+func (h *http) ensureRequestIsCORSPreflightRequest(ctx *fasthttp.RequestCtx) bool {
+	if !h.configuration.corsEnabled() {
+
+		// no cors is enabled, irrelevant
+		return false
+	}
+
+	requestMethod := common.ByteSliceToString(ctx.Method())
+	if requestMethod != h.configuration.CORS.PreflightRequestMethod {
+
+		// request method is not preflight method
+		return false
+	}
+
+	// access control request method must not be empty
+	// access control describe the actual request method to be made (on the post pre-preflight request)
+	accessControlRequestMethod := common.ByteSliceToString(ctx.Request.Header.Peek("Access-Control-Request-Method"))
+	return len(accessControlRequestMethod) != 0
+}
+
+func (h *http) preflightRequestValidation(ctx *fasthttp.RequestCtx) bool {
+	requestHeaders := &ctx.Request.Header
+	accessControlRequestMethod := common.ByteSliceToString(requestHeaders.Peek("Access-Control-Request-Method"))
+	accessControlRequestHeaders := common.ByteSliceToString(requestHeaders.Peek("Access-Control-Request-Headers"))
+
+	// ensure origin is allowed
+	origin := common.ByteSliceToString(requestHeaders.Peek("Origin"))
+	corsConfiguration := h.configuration.CORS
+	if !corsConfiguration.OriginAllowed(origin) {
+		return false
+	}
+
+	// request is outside the scope of CORS specifications
+	if !corsConfiguration.MethodAllowed(accessControlRequestMethod) {
+		return false
+	}
+
+	// ensure request headers allowed, it is possible (and valid) to be empty
+	if accessControlRequestHeaders != "" {
+		if !corsConfiguration.HeadersAllowed(strings.Split(accessControlRequestHeaders, ", ")) {
+			return false
+		}
+	}
+	return true
+}
+
 func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
+	responseHeaders := &ctx.Response.Header
+	corsConfiguration := h.configuration.CORS
 
 	// default to bad preflight request unless all specifications are valid
 	ctx.SetStatusCode(nethttp.StatusBadRequest)
 
-	origin := common.ByteSliceToString(ctx.Request.Header.Peek("Origin"))
-	if !h.preflightRequestValidation(ctx, origin) {
+	// always return vary <- https://stackoverflow.com/a/25329887
+	responseHeaders.Add("Vary", "Origin")
+	responseHeaders.Add("Vary", "Access-Control-Request-Method")
+	responseHeaders.Add("Vary", "Access-Control-Request-Headers")
+
+	// ensure preflight request headers are valid
+	if !h.preflightRequestValidation(ctx) {
 		h.UpdateStatistics(false)
 		return
 	}
 
 	// indicate whether resource can be shared
-	ctx.Response.Header.Set("Access-Control-Allow-Origin", origin)
+	origin := common.ByteSliceToString(ctx.Request.Header.Peek("Origin"))
+	responseHeaders.Set("Access-Control-Allow-Origin", origin)
 
 	// indicate resource support credentials
-	if h.configuration.CORS.AllowCredentials {
-		ctx.Response.Header.Set("Access-Control-Allow-Credentials",
-			h.configuration.CORS.EncodeAllowCredentialsHeader())
+	if corsConfiguration.AllowCredentials {
+		responseHeaders.Set("Access-Control-Allow-Credentials", corsConfiguration.EncodeAllowCredentialsHeader())
 	}
 
 	// set preflight results max age
-	ctx.Response.Header.Set("Access-Control-Max-Age",
-		h.configuration.CORS.EncodePreflightMaxAgeSeconds())
+	responseHeaders.Set("Access-Control-Max-Age", corsConfiguration.EncodePreflightMaxAgeSeconds())
 
 	// indicate what methods can be used
-	ctx.Response.Header.Set("Access-Control-Allow-Methods",
-		h.configuration.CORS.EncodedAllowMethods())
+	responseHeaders.Set("Access-Control-Allow-Methods", corsConfiguration.EncodedAllowMethods())
 
 	// indicate what headers can be used
-	ctx.Response.Header.Set("Access-Control-Allow-Headers",
-		h.configuration.CORS.EncodeAllowHeaders())
+	responseHeaders.Set("Access-Control-Allow-Headers", corsConfiguration.EncodeAllowHeaders())
 
 	// specifications met, set preflight request as OK
 	ctx.SetStatusCode(nethttp.StatusOK)
 	h.UpdateStatistics(true)
 }
 
-func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
+func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
+
+	// ensure server is running
 	if h.status != status.Ready {
-		h.UpdateStatistics(false)
 		ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
 		msg := map[string]interface{}{
 			"error":  "Server not ready",
@@ -279,10 +330,44 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		if err := json.NewEncoder(ctx).Encode(msg); err != nil {
 			h.Logger.WarnWith("Can't encode error message", "error", err)
 		}
+		return false
 	}
 
+	// if cors is enabled, ensure request is valid
+	if h.configuration.corsEnabled() {
+
+		// always return vary <- https://stackoverflow.com/a/25329887
+		ctx.Response.Header.Add("Vary", "Origin")
+
+		// ensure origin is allowed
+		origin := common.ByteSliceToString(ctx.Request.Header.Peek("Origin"))
+		if !h.configuration.CORS.OriginAllowed(origin) {
+			return false
+		}
+
+		// indicate whether resource can be shared
+		ctx.Response.Header.Set("Access-Control-Allow-Origin", origin)
+
+		// indicate resource support credentials
+		if h.configuration.CORS.AllowCredentials {
+			ctx.Response.Header.Set("Access-Control-Allow-Credentials",
+				h.configuration.CORS.EncodeAllowCredentialsHeader())
+		}
+	}
+	return true
+}
+
+func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	var functionLogger logger.Logger
 	var bufferLogger *nucliozap.BufferLogger
+
+	// perform pre request handling validation
+	if !h.preHandleRequestValidation(ctx) {
+
+		// in case validation failed, stop here
+		h.UpdateStatistics(false)
+		return
+	}
 
 	// attach the context to the event
 	// get the log level required
@@ -417,31 +502,6 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	case string:
 		ctx.WriteString(typedResponse) // nolint: errcheck
 	}
-}
-
-func (h *http) preflightRequestValidation(ctx *fasthttp.RequestCtx, origin string) bool {
-
-	// ensure origin is given, otherwise the request is outside the scope of CORS specifications
-	if !h.configuration.CORS.OriginAllowed(origin) {
-		return false
-	}
-
-	method := common.ByteSliceToString(ctx.Request.Header.Peek("Access-Control-Request-Method"))
-
-	// ensure method is given, otherwise the request is outside the scope of CORS specifications
-	if !h.configuration.CORS.MethodAllowed(method) {
-		return false
-	}
-
-	headers := common.ByteSliceToString(ctx.Request.Header.Peek("Access-Control-Request-Headers"))
-	if headers != "" {
-
-		// ensure request headers allowed (it can also be empty)
-		if !h.configuration.CORS.HeadersAllowed(strings.Split(headers, ", ")) {
-			return false
-		}
-	}
-	return true
 }
 
 func (h *http) allocateEvents(size int) {
