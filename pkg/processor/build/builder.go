@@ -472,12 +472,6 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Runtime = b.runtime.GetName()
 	}
 
-	if b.options.FunctionConfig.Spec.Runtime == "python" {
-
-		// python is just a reference
-		b.options.FunctionConfig.Spec.Runtime = "python:3.6"
-	}
-
 	// if the function handler isn't set, ask runtime
 	if b.options.FunctionConfig.Spec.Handler == "" {
 		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.GetFunctionPath())
