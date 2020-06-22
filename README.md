@@ -157,6 +157,7 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
 ## Further reading
 
 - Setup
+    - [Getting Started with Nuclio on Docker](/docs/setup/docker/getting-started-docker.md)
     - [Getting Started with Nuclio on Minikube](/docs/setup/minikube/getting-started-minikube.md)
     - [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md)
     - [Getting Started with Nuclio on Azure Kubernetes Service (AKS)](/docs/setup/aks/getting-started-aks.md)
