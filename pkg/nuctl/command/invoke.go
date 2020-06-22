@@ -185,7 +185,6 @@ func (i *invokeCommandeer) populateContentType() {
 	}
 }
 
-
 func (i *invokeCommandeer) resolveBody() ([]byte, error) {
 
 	// try resolve body from flag
@@ -336,4 +335,3 @@ func (i *invokeCommandeer) outputResponseBody(invokeResult *platform.CreateFunct
 
 	return nil
 }
-
