@@ -93,7 +93,8 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				commandeer.createFunctionInvocationOptions.Headers.Set(headerName, headerValue)
 			}
 
-			commandeer.createFunctionInvocationOptions.Headers.Set("Content-Type", commandeer.contentType)
+			// resolve and set content type
+			commandeer.populateContentType()
 
 			// verify correctness of logger level
 			switch commandeer.createFunctionInvocationOptions.LogLevelName {
@@ -128,7 +129,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 		},
 	}
 
-	cmd.Flags().StringVarP(&commandeer.contentType, "content-type", "c", "application/json", "HTTP Content-Type")
+	cmd.Flags().StringVarP(&commandeer.contentType, "content-type", "c", "", "HTTP Content-Type")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Path, "path", "p", "", "Path to the function to invoke")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Method, "method", "m", "", "HTTP method for invoking the function")
 	cmd.Flags().StringVarP(&commandeer.body, "body", "b", "", "HTTP message body")
@@ -165,6 +166,25 @@ func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *p
 
 	return nil
 }
+
+func (i *invokeCommandeer) populateContentType() {
+	headers := i.createFunctionInvocationOptions.Headers
+
+	// given as flag
+	if i.contentType != "" {
+
+		// add because it might not be empty (could be added via `--headers content-type=<x>`
+		headers.Add("Content-Type", i.contentType)
+	}
+
+	// not given at all
+	if headers.Get("Content-Type") == "" {
+
+		// default to `text/plain`
+		headers.Set("Content-Type", "text/plain")
+	}
+}
+
 
 func (i *invokeCommandeer) resolveBody() ([]byte, error) {
 
@@ -316,3 +336,4 @@ func (i *invokeCommandeer) outputResponseBody(invokeResult *platform.CreateFunct
 
 	return nil
 }
+
