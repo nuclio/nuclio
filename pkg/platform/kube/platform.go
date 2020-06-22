@@ -145,11 +145,19 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
 
-	existingFunctionInstance, existingFunctionConfig, err =
-		p.getFunctionInstanceAndConfig(createFunctionOptions.FunctionConfig.Meta.Namespace,
-			createFunctionOptions.FunctionConfig.Meta.Name)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get existing function config")
+	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
+	// with appropriate namespace and name
+	// e.g. ./nuctl deploy --path /path/to/function-with-function.yaml (function.yaml specifying the name and namespace)
+	// TODO: We should enrich the createFunctionOptions.FunctionConfig meta & spec before reaching here
+	// And delete this check
+	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" &&
+		createFunctionOptions.FunctionConfig.Meta.Name != "" {
+		existingFunctionInstance, existingFunctionConfig, err =
+			p.getFunctionInstanceAndConfig(createFunctionOptions.FunctionConfig.Meta.Namespace,
+				createFunctionOptions.FunctionConfig.Meta.Name)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get existing function config")
+		}
 	}
 
 	// if function exists, perform some validation with new function create options
