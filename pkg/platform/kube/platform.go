@@ -147,7 +147,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	existingFunctionInstance, existingFunctionConfig, err =
 		p.getFunctionInstanceAndConfig(createFunctionOptions.FunctionConfig.Meta.Namespace,
-		createFunctionOptions.FunctionConfig.Meta.Name)
+			createFunctionOptions.FunctionConfig.Meta.Name)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get existing function config")
 	}
