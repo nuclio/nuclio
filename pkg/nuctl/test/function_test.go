@@ -880,9 +880,9 @@ func (suite *functionDeployTestSuite) TestDeployWaitReadinessTimeoutBeforeFailur
 
 	// set a bad handler name - so that the deployment will fail
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-		"runtime": "python",
-		"handler": "reverser:bad-handler-name",
+		"path":              path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"runtime":           "python",
+		"handler":           "reverser:bad-handler-name",
 		"readiness-timeout": "60",
 	}
 
