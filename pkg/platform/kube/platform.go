@@ -145,16 +145,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
 
-	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
-	// TODO: is it really possible? should be remove from here, and ensure its callee enrich its createFunctionOptions
-	// with appropriate namespace and name
-	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" &&
-		createFunctionOptions.FunctionConfig.Meta.Name != "" {
-		existingFunctionConfig, err = p.getFunctionConfig(createFunctionOptions.FunctionConfig.Meta.Namespace,
-			createFunctionOptions.FunctionConfig.Meta.Name)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get existing function config")
-		}
+	existingFunctionInstance, existingFunctionConfig, err =
+		p.getFunctionInstanceAndConfig(createFunctionOptions.FunctionConfig.Meta.Namespace,
+		createFunctionOptions.FunctionConfig.Meta.Name)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get existing function config")
 	}
 
 	// if function exists, perform some validation with new function create options
@@ -805,21 +800,22 @@ func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction
 	return function, nil
 }
 
-func (p *Platform) getFunctionConfig(namespace, name string) (*functionconfig.ConfigWithStatus, error) {
+func (p *Platform) getFunctionInstanceAndConfig(namespace, name string) (*nuclioio.NuclioFunction,
+	*functionconfig.ConfigWithStatus, error) {
 	functionInstance, err := p.getFunction(namespace, name)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function")
+		return nil, nil, errors.Wrap(err, "Failed to get function")
 	}
 
 	// found function instance, return as function config
 	if functionInstance != nil {
-		functionInstance, err := newFunction(p.Logger, p, functionInstance, p.consumer)
+		initializedFunctionInstance, err := newFunction(p.Logger, p, functionInstance, p.consumer)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create new function instance")
+			return nil, nil, errors.Wrap(err, "Failed to create new function instance")
 		}
-		return functionInstance.GetConfigWithStatus(), nil
+		return functionInstance, initializedFunctionInstance.GetConfigWithStatus(), nil
 	}
-	return nil, nil
+	return nil, nil, nil
 }
 
 func (p *Platform) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.NuclioProject) {

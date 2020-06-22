@@ -58,7 +58,10 @@ func (r *Registry) Get(kind string) (interface{}, error) {
 	if !found {
 
 		// registries register things on package initialization; no place for error handling
-		return nil, errors.Errorf("Registry for %s failed to find: %s", r.className, kind)
+		return nil, errors.Errorf("Registry for %s failed to find: %s (Available registries: %v)",
+			r.className,
+			kind,
+			r.GetKinds())
 	}
 
 	return registree, nil

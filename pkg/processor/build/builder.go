@@ -812,7 +812,6 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 
 func (b *Builder) createRuntime() (runtime.Runtime, error) {
 	runtimeName, err := b.getRuntimeName()
-
 	if err != nil {
 		return nil, err
 	}
