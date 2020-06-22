@@ -211,6 +211,11 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 			ap.GetDefaultRegistryCredentialsSecretName()
 	}
 
+	// `python` is just a reference
+	if createFunctionOptions.FunctionConfig.Spec.Runtime == "python" {
+		createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
+	}
+
 	return nil
 }
 
