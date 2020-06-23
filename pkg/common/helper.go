@@ -19,6 +19,7 @@ package common
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"math"
 	"os"
 	"path"
@@ -398,4 +399,12 @@ func MatchStringPatterns(patterns []string, s string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func CompileInLabel(label string, inSlice []string) string {
+	return fmt.Sprintf("%s in (%s)", label, strings.Join(inSlice, ", "))
+}
+
+func CompileNotInLabel(label string, notInSlice []string) string {
+	return fmt.Sprintf("%s notin (%s)", label, strings.Join(notInSlice, ", "))
 }
