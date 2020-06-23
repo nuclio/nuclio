@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -20,11 +19,9 @@ const (
 )
 
 type Docker struct {
-	dockerClient                 dockerclient.Client
-	logger                       logger.Logger
-	builderConfiguration         *ContainerBuilderConfiguration
-	copyObjectsFromImageTimeout  time.Duration
-	copyObjectsFromImageInterval time.Duration
+	dockerClient         dockerclient.Client
+	logger               logger.Logger
+	builderConfiguration *ContainerBuilderConfiguration
 }
 
 func NewDocker(logger logger.Logger, builderConfiguration *ContainerBuilderConfiguration) (*Docker, error) {
@@ -35,11 +32,9 @@ func NewDocker(logger logger.Logger, builderConfiguration *ContainerBuilderConfi
 	}
 
 	dockerBuilder := &Docker{
-		dockerClient:                 dockerClient,
-		logger:                       logger,
-		builderConfiguration:         builderConfiguration,
-		copyObjectsFromImageInterval: 1 * time.Second,
-		copyObjectsFromImageTimeout:  3 * time.Minute,
+		dockerClient:         dockerClient,
+		logger:               logger,
+		builderConfiguration: builderConfiguration,
 	}
 
 	return dockerBuilder, nil
@@ -234,6 +229,6 @@ ARG NUCLIO_ARCH
 		return errors.Wrap(err, "Failed to build onbuild image")
 	}
 
-	// copy objects to built image
+	// now that we have an image, we can copy the artifacts from it
 	return d.dockerClient.CopyObjectsFromImage(onbuildImageName, artifactPaths, false)
 }
