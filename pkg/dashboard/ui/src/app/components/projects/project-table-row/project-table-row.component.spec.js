@@ -7,7 +7,6 @@ describe('nclProjectTableRow component:', function () {
     var ExportService;
     var ctrl;
     var project;
-    var projectsList;
 
     beforeEach(function () {
         module('nuclio.app');
@@ -34,35 +33,8 @@ describe('nclProjectTableRow component:', function () {
                 checked: false
             }
         };
-        projectsList = [
-            {
-                metadata: {
-                    name: 'my-project-1',
-                    namespace: 'nuclio'
-                },
-                spec: {
-                    description: 'Some description'
-                },
-                ui: {
-                    checked: false
-                }
-            },
-            {
-                metadata: {
-                    name: 'my-project-2',
-                    namespace: 'nuclio'
-                },
-                spec: {
-                    description: 'Some description'
-                },
-                ui: {
-                    checked: false
-                }
-            }
-        ];
         var bindings = {
             project: project,
-            projectsList: angular.copy(projectsList),
             deleteProject: $q.when.bind($q),
             getFunctions: angular.noop,
             projectActionHandlerCallback: angular.noop

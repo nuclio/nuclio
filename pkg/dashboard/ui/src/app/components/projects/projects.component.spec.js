@@ -210,15 +210,40 @@ describe('nclProjects component: ', function () {
     });
 
     describe('onSortOptionsChange(): ', function () {
-        it('should call `sortTableByColumn` function', function () {
-            spyOn(ctrl, 'sortTableByColumn');
+        it('should set `sortedColumnName` and `isReverseSorting` according to selected option, and sort projects', function () {
+            var option = {
+                value: 'metadata.name',
+                desc: true
+            };
+            ctrl.projects = ctrl.sortedProjects = [
+                {
+                    metadata: {
+                        name: 'name1'
+                    }
+                },
+                {
+                    metadata: {
+                        name: 'name2'
+                    }
+                }
+            ];
 
-            ctrl.sortOptions = sortOptions;
-
-            ctrl.onSortOptionsChange(ctrl.sortOptions[0]);
+            ctrl.onSortOptionsChange(option);
 
             expect(ctrl.sortedColumnName).toEqual('metadata.name');
-            expect(ctrl.sortTableByColumn).toHaveBeenCalledWith('metadata.name', true);
+            expect(ctrl.isReverseSorting).toEqual(true);
+            expect(ctrl.sortedProjects).toEqual([
+                {
+                    metadata: {
+                        name: 'name2'
+                    }
+                },
+                {
+                    metadata: {
+                        name: 'name1'
+                    }
+                }
+            ]);
         });
     });
 
