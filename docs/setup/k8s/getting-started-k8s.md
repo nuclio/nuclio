@@ -70,8 +70,7 @@ Browse to `http://localhost:8070` (after having forwarded this port as part of t
 
 ## Deploy a function with the Nuclio CLI (nuctl)
 
-Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest version of the Nuclio CLI (`nuctl`) for your platform, and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
-> **Note:** If you are using Docker Hub, the URL here includes your username - `docker.io/<username>`.
+Start by [downloading](/docs/reference/nuctl/nuctl.md#download) the latest version of the Nuclio CLI (`nuctl`) for your platform, and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
 
 ```sh
 nuctl deploy helloworld -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry <URL>
@@ -90,5 +89,4 @@ See the following resources to make the best of your new Nuclio environment:
 - [Invoking functions by name with an ingress](/docs/concepts/k8s/function-ingress.md)
 - [More function examples](/hack/examples/README.md)
 - [Running Nuclio in a production environment over Kubernetes](/docs/setup/k8s/running-in-production-k8s.md)
-- [References](/docs/reference/)
-
+- [References](/docs/reference)
