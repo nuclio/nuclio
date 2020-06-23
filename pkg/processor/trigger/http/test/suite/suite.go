@@ -138,12 +138,11 @@ func (suite *TestSuite) DeployFunctionAndRequests(createFunctionOptions *platfor
 
 // SendRequestVerifyResponse sends a request and verifies we got expected response
 func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
-
 	suite.Logger.DebugWith("Sending request",
 		"requestPort", request.RequestPort,
 		"requestPath", request.RequestPath,
 		"requestHeaders", request.RequestHeaders,
-		"requestBody", request.RequestBody,
+		"requestBodyLength", len(request.RequestBody),
 		"requestLogLevel", request.RequestLogLevel)
 
 	// Send request to proper url
