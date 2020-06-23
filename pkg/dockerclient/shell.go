@@ -97,18 +97,20 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 
 // CopyObjectsFromImage copies objects (files, directories) from a given image to local storage. it does
 // this through an intermediate container which is deleted afterwards
-func (c *ShellClient) CopyObjectsFromImage(imageName string, objectsToCopy map[string]string, allowCopyErrors bool) error {
-	runResult, err := c.runCommand(nil, "docker create %s /bin/sh", imageName)
+func (c *ShellClient) CopyObjectsFromImage(imageName string,
+	objectsToCopy map[string]string,
+	allowCopyErrors bool) error {
+
+	// create container from image
+	containerID, err := c.createContainer(imageName)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create container from %s", imageName)
+		return errors.Wrap(err, "Failed to create image")
 	}
 
-	containerID := runResult.Output
-	containerID = strings.TrimSpace(containerID)
-	defer func() {
-		c.runCommand(nil, "docker rm -f %s", containerID) // nolint: errcheck
-	}()
+	// delete once done copying objects
+	defer c.runCommand(nil, "docker rm -f %s", containerID) // nolint: errcheck
 
+	// copy objects
 	for objectImagePath, objectLocalPath := range objectsToCopy {
 		_, err = c.runCommand(nil, "docker cp %s:%s %s", containerID, objectImagePath, objectLocalPath)
 		if err != nil && !allowCopyErrors {
@@ -647,4 +649,38 @@ func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string, cacheO
 			return ""
 		})
 	return lastBuildErr
+}
+
+func (c *ShellClient) createContainer(imageName string) (string, error) {
+	var lastCreateContainerError error
+	var containerID string
+	retryOnErrorMessages := []string{
+
+		// sometime create container failed on not finding the image because
+		// docker was on high load and did not get to update its cache
+		fmt.Sprintf("^Unable to find image '%s.*' locally", imageName),
+	}
+
+	// retry in case docker daemon is under high load
+	// e.g.: between build and create, docker would need to update its cached manifest of built images
+	common.RetryUntilSuccessfulOnErrorPatterns(10*time.Second, // nolint: errcheck
+		2*time.Second,
+		retryOnErrorMessages,
+		func() string {
+
+			// create container from image
+			runResults, err := c.runCommand(nil, "docker create %s /bin/sh", imageName)
+
+			// preserve error
+			lastCreateContainerError = err
+
+			if err != nil {
+				return runResults.Stderr
+			}
+			containerID := runResults.Output
+			containerID = strings.TrimSpace(containerID)
+			return ""
+		})
+
+	return containerID, lastCreateContainerError
 }

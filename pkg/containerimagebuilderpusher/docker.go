@@ -2,7 +2,6 @@ package containerimagebuilderpusher
 
 import (
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/common"
 	"io/ioutil"
 	"os"
 	"path"
@@ -235,38 +234,6 @@ ARG NUCLIO_ARCH
 		return errors.Wrap(err, "Failed to build onbuild image")
 	}
 
-
-	// TODO: take the "create image" phase from CopyObjectsFromImage
-	// and retry on that only (!!)
-	// ensure to preserve the stderr error and retry on that
-
-
-	var lastCopyObjectsFromImageError error
-	retryOnErrorMessages := []string{
-		"^Unable to find image",
-	}
-
-	// delete the created onbuildImageName once done
-	defer d.dockerClient.RemoveImage(onbuildImageName) // nolint: errcheck
-
-	// retry in case docker daemon is under high load
-	// between build and create, docker would need to update its cached manifest of built images
-	common.RetryUntilSuccessfulOnErrorPatterns(d.copyObjectsFromImageTimeout, // nolint: errcheck
-		d.copyObjectsFromImageInterval,
-		retryOnErrorMessages,
-		func() string {
-
-			// now that we have an image, we can copy the artifacts from it
-			err := d.dockerClient.CopyObjectsFromImage(onbuildImageName, artifactPaths, false)
-
-			// preserve error
-			lastCopyObjectsFromImageError = err
-
-			if err != nil {
-				return err.Error()
-			}
-			return ""
-		})
-
-	return lastCopyObjectsFromImageError
+	// copy objects to built image
+	return d.dockerClient.CopyObjectsFromImage(onbuildImageName, artifactPaths, false)
 }
