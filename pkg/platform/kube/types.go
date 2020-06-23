@@ -44,7 +44,3 @@ func IngressNameFromFunctionName(functionName string) string {
 func ServiceNameFromFunctionName(functionName string) string {
 	return fmt.Sprintf("nuclio-%s", functionName)
 }
-
-func CronJobNameFromFunctionName(functionName, triggerName string) string {
-	return fmt.Sprintf("nuclio-%s-%s", functionName, triggerName)
-}
