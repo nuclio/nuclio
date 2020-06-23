@@ -675,10 +675,10 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
-			"method": "POST",
-			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
+			"method":       "POST",
+			"body":         fmt.Sprintf(`{"return_this": "%s"}`, randomString),
 			"content-type": "application/json",
-			"via":    "external-ip",
+			"via":          "external-ip",
 		},
 		false)
 	suite.Require().NoError(err)
@@ -732,10 +732,10 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionConfig.Meta.Name},
 		map[string]string{
-			"method": "POST",
-			"body":   `{"return_this": "abc"}`,
+			"method":       "POST",
+			"body":         `{"return_this": "abc"}`,
 			"content-type": "application/json",
-			"via":    "external-ip",
+			"via":          "external-ip",
 		}, false)
 	suite.Require().NoError(err)
 
@@ -764,10 +764,10 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	// wait for function to be deployed
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionConfig.Meta.Name},
 		map[string]string{
-			"method": "POST",
-			"body":   `{"return_this": "abc"}`,
+			"method":       "POST",
+			"body":         `{"return_this": "abc"}`,
 			"content-type": "application/json",
-			"via":    "external-ip",
+			"via":          "external-ip",
 		}, false)
 	suite.Require().NoError(err)
 
