@@ -53,9 +53,10 @@ class Wrapper(object):
         # make a writeable file from processor
         self._processor_sock_wfile = self._processor_sock.makefile('w')
 
-        # since this wrapper is behind a processor that pre-handle the traffic & request, it is not mandatory
-        # to provide security over max buffer size. The request limit should be handled on the processor level.
-        self._unpacker = msgpack.Unpacker(raw=False)
+        # since this wrapper is behind the nuclio processor, in which pre-handle the traffic & request
+        # it is not mandatory to provide security over max buffer size.
+        # the request limit should be handled on the processor level.
+        self._unpacker = msgpack.Unpacker(raw=False, max_buffer_size=2**32-1)
 
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
