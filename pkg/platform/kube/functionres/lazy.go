@@ -31,7 +31,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
-	"github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -1149,7 +1148,7 @@ func (lc *lazyClient) deleteCronJobs(functionName, functionNamespace string) err
 func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	extraMetaLabels labels.Set,
 	function *nuclioio.NuclioFunction,
-	jobName string,
+	triggerName string,
 	cronJobSpec *batchv1beta1.CronJobSpec,
 	suspendCronJob bool) (*batchv1beta1.CronJob, error) {
 
@@ -1161,16 +1160,15 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 			CronJobs(function.Namespace).
 			List(metav1.ListOptions{
 				LabelSelector: lc.compileCronJobLabelSelector(function.Name,
-					fmt.Sprintf("nuclio.io/function-cron-trigger-name=%s", jobName)),
+					fmt.Sprintf("nuclio.io/function-cron-trigger-name=%s", triggerName)),
 			})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "Failed getting cron jobs")
 		}
 		if len(cronJobs.Items) == 0 {
 
 			// purposefully return a k8s NotFound because the `createOrUpdateResource` checks the err type
-			return nil, apierrors.NewNotFound(v1beta1.Resource("cronjob"),
-				fmt.Sprintf("cron-job-%s-%s", function.Name, jobName))
+			return nil, apierrors.NewNotFound(nuclioio.Resource("cronjob"), triggerName)
 		}
 		return &cronJobs.Items[0], nil
 	}
