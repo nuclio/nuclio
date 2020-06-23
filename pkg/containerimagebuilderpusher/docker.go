@@ -2,9 +2,11 @@ package containerimagebuilderpusher
 
 import (
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/common"
 	"io/ioutil"
 	"os"
 	"path"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -19,9 +21,11 @@ const (
 )
 
 type Docker struct {
-	dockerClient         dockerclient.Client
-	logger               logger.Logger
-	builderConfiguration *ContainerBuilderConfiguration
+	dockerClient                 dockerclient.Client
+	logger                       logger.Logger
+	builderConfiguration         *ContainerBuilderConfiguration
+	copyObjectsFromImageTimeout  time.Duration
+	copyObjectsFromImageInterval time.Duration
 }
 
 func NewDocker(logger logger.Logger, builderConfiguration *ContainerBuilderConfiguration) (*Docker, error) {
@@ -32,9 +36,11 @@ func NewDocker(logger logger.Logger, builderConfiguration *ContainerBuilderConfi
 	}
 
 	dockerBuilder := &Docker{
-		dockerClient:         dockerClient,
-		logger:               logger,
-		builderConfiguration: builderConfiguration,
+		dockerClient:                 dockerClient,
+		logger:                       logger,
+		builderConfiguration:         builderConfiguration,
+		copyObjectsFromImageInterval: 1 * time.Second,
+		copyObjectsFromImageTimeout:  3 * time.Minute,
 	}
 
 	return dockerBuilder, nil
@@ -229,8 +235,38 @@ ARG NUCLIO_ARCH
 		return errors.Wrap(err, "Failed to build onbuild image")
 	}
 
+
+	// TODO: take the "create image" phase from CopyObjectsFromImage
+	// and retry on that only (!!)
+	// ensure to preserve the stderr error and retry on that
+
+
+	var lastCopyObjectsFromImageError error
+	retryOnErrorMessages := []string{
+		"^Unable to find image",
+	}
+
+	// delete the created onbuildImageName once done
 	defer d.dockerClient.RemoveImage(onbuildImageName) // nolint: errcheck
 
-	// now that we have an image, we can copy the artifacts from it
-	return d.dockerClient.CopyObjectsFromImage(onbuildImageName, artifactPaths, false)
+	// retry in case docker daemon is under high load
+	// between build and create, docker would need to update its cached manifest of built images
+	common.RetryUntilSuccessfulOnErrorPatterns(d.copyObjectsFromImageTimeout, // nolint: errcheck
+		d.copyObjectsFromImageInterval,
+		retryOnErrorMessages,
+		func() string {
+
+			// now that we have an image, we can copy the artifacts from it
+			err := d.dockerClient.CopyObjectsFromImage(onbuildImageName, artifactPaths, false)
+
+			// preserve error
+			lastCopyObjectsFromImageError = err
+
+			if err != nil {
+				return err.Error()
+			}
+			return ""
+		})
+
+	return lastCopyObjectsFromImageError
 }
