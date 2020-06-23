@@ -44,6 +44,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/rs/xid"
 	"github.com/v3io/version-go"
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
@@ -56,6 +57,7 @@ import (
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 )
@@ -428,6 +430,7 @@ func (lc *lazyClient) createOrUpdateCronTriggerCronJobs(functionLabels labels.Se
 
 		extraMetaLabels := labels.Set{
 			"nuclio.io/function-cron-trigger-cron-job": "true",
+			"nuclio.io/function-cron-trigger-name": triggerName,
 		}
 		cronJob, err := lc.createOrUpdateCronJob(functionLabels,
 			extraMetaLabels,
@@ -458,34 +461,26 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set
 	function *nuclioio.NuclioFunction,
 	newCronTriggers map[string]functionconfig.Trigger) error {
 
-	// list existing cron trigger cron jobs
-	existingCronJobs, err := lc.kubeClientSet.BatchV1beta1().CronJobs(function.Namespace).List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s,nuclio.io/function-cron-trigger-cron-job=true", function.Name),
+	// make a list of all the new cron trigger cron job names
+	var newCronTriggerNames []string
+	for newCronTriggerName := range newCronTriggers {
+		newCronTriggerNames = append(newCronTriggerNames, newCronTriggerName)
+	}
+
+	// retrieve all the cron jobs that aren't inside the new cron triggers, so they can be deleted
+	cronJobsToDelete, err := lc.kubeClientSet.BatchV1beta1().CronJobs(function.Namespace).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("nuclio.io/function-cron-trigger-cron-job=true," +
+			"nuclio.io/function-name=%s," +
+			"nuclio.io/function-cron-trigger-name notin (%s)",
+			function.Name,
+			strings.Join(newCronTriggerNames, ", ")),
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to list cron jobs")
 	}
 
-	// make a list of all the new cron trigger cron job names
-	newCronJobNames := []string{}
-	for newCronTriggerName := range newCronTriggers {
-		newCronJobNames = append(newCronJobNames, kube.CronJobNameFromFunctionName(function.Name, newCronTriggerName))
-	}
-
-	// get each cron job that is not inside the new cron triggers and should be deleted
-	cronJobsToDelete := []string{}
-	for _, existingCronJob := range existingCronJobs.Items {
-		if common.StringSliceContainsString(newCronJobNames, existingCronJob.Name) {
-
-			// means that this existing cron job is still inside the function's cron triggers (shall not be deleted)
-			continue
-		}
-
-		cronJobsToDelete = append(cronJobsToDelete, existingCronJob.Name)
-	}
-
 	// if there's none to delete return
-	if len(cronJobsToDelete) == 0 {
+	if len(cronJobsToDelete.Items) == 0 {
 		return nil
 	}
 
@@ -493,12 +488,12 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set
 		"cronJobsToDelete", cronJobsToDelete)
 
 	errGroup := errgroup.Group{}
-	for _, cronJobToDelete := range cronJobsToDelete {
+	for _, cronJobToDelete := range cronJobsToDelete.Items {
 		errGroup.Go(func() error {
 			// delete this removed cron trigger cron job
 			err := lc.kubeClientSet.BatchV1beta1().
 				CronJobs(function.Namespace).
-				Delete(cronJobToDelete, &metav1.DeleteOptions{})
+				Delete(cronJobToDelete.Name, &metav1.DeleteOptions{})
 
 			if err != nil {
 				return errors.Wrapf(err, "Failed to delete removed cron trigger cron job: %s", cronJobToDelete)
@@ -1163,9 +1158,23 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	cronJobSpec.Suspend = &suspendCronJob
 
 	getCronJob := func() (interface{}, error) {
-		return lc.kubeClientSet.BatchV1beta1().
+		cronJobs, err := lc.kubeClientSet.BatchV1beta1().
 			CronJobs(function.Namespace).
-			Get(kube.CronJobNameFromFunctionName(function.Name, jobName), metav1.GetOptions{})
+			List(metav1.ListOptions{
+				LabelSelector: fmt.Sprintf("nuclio.io/function-cron-trigger-cron-job=true," +
+					"nuclio.io/function-name=%s," +
+					"nuclio.io/function-cron-trigger-name=%s",
+					function.Name,
+					jobName),
+			})
+		if err != nil {
+			return nil, err
+		}
+		if len(cronJobs.Items) == 0 {
+			return nil, apierrors.NewNotFound(schema.GroupResource{},
+				fmt.Sprintf("cron-job-%s-%s", function.Name, jobName))
+		}
+		return &cronJobs.Items[0], nil
 	}
 
 	cronJobIsDeleting := func(resource interface{}) bool {
@@ -1177,7 +1186,7 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	// prepare cron job meta
 	cronJobMetaLabels := labels.Merge(functionLabels, extraMetaLabels)
 	cronJobMeta := metav1.ObjectMeta{
-		Name:      kube.CronJobNameFromFunctionName(function.Name, jobName),
+		Name:      fmt.Sprintf("nuclio-cron-job-%s", xid.New().String()),
 		Namespace: function.Namespace,
 		Labels:    cronJobMetaLabels,
 	}
@@ -1205,6 +1214,9 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 
 	updateCronJob := func(resource interface{}) (interface{}, error) {
 		cronJob := resource.(*batchv1beta1.CronJob)
+
+		// Use the original name of the CronJob
+		newCronJob.Name = cronJob.Name
 
 		// set the contents of the cron job pointer to be the updated cron job
 		*cronJob = newCronJob
