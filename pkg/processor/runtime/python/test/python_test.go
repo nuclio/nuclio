@@ -18,15 +18,18 @@ package test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"path"
 	"regexp"
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/python"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
+	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/nuclio/nuclio-sdk-go"
@@ -328,6 +331,33 @@ func (suite *testSuite) TestContextInitError() {
 	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		return true
 	})
+}
+
+func (suite *testSuite) TestModifiedRequestBodySize() {
+
+	// TODO: make test more generic and run cross runtimes
+	maxRequestBodySizes := []int{
+		httptrigger.DefaultMaxRequestBodySize / 2,
+		httptrigger.DefaultMaxRequestBodySize,
+		2 * httptrigger.DefaultMaxRequestBodySize,
+		10 * httptrigger.DefaultMaxRequestBodySize,
+	}
+	for index, maxRequestBodySize := range maxRequestBodySizes {
+		createFunctionOptions := suite.GetDeployOptions(fmt.Sprintf("custom-allowed-body-size-%d", index),
+			path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
+		createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
+		createFunctionOptions.FunctionConfig.Spec.Triggers["http"] = functionconfig.Trigger{
+			Kind:       "http",
+			Name:       "myHTTPTrigger",
+			MaxWorkers: 1,
+			Attributes: map[string]interface{}{
+				"maxRequestBodySize": maxRequestBodySize,
+			},
+		}
+		suite.DeployFunctionAndRequest(createFunctionOptions, &httpsuite.Request{
+			RequestBody: string(make([]byte, maxRequestBodySize)),
+		})
+	}
 }
 
 func TestIntegrationSuite(t *testing.T) {
