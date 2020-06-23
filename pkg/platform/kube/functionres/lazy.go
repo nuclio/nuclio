@@ -428,8 +428,8 @@ func (lc *lazyClient) createOrUpdateCronTriggerCronJobs(functionLabels labels.Se
 		}
 
 		extraMetaLabels := labels.Set{
-			"nuclio.io/function-cron-trigger-cron-job": "true",
-			"nuclio.io/function-cron-trigger-name":     triggerName,
+			"nuclio.io/component":                  "cronTrigger",
+			"nuclio.io/function-cron-trigger-name": triggerName,
 		}
 		cronJob, err := lc.createOrUpdateCronJob(functionLabels,
 			extraMetaLabels,
@@ -1243,7 +1243,7 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 }
 
 func (lc *lazyClient) compileCronJobLabelSelector(functionName, additionalLabels string) string {
-	labelSelector := fmt.Sprintf("nuclio.io/function-cron-trigger-cron-job=true,"+
+	labelSelector := fmt.Sprintf("nuclio.io/component=cronTrigger,"+
 		"nuclio.io/function-name=%s", functionName)
 	if additionalLabels != "" {
 		labelSelector += fmt.Sprintf(",%s", additionalLabels)
