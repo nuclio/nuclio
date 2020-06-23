@@ -229,6 +229,8 @@ ARG NUCLIO_ARCH
 		return errors.Wrap(err, "Failed to build onbuild image")
 	}
 
+	defer d.dockerClient.RemoveImage(onbuildImageName) // nolint: errcheck
+
 	// now that we have an image, we can copy the artifacts from it
 	return d.dockerClient.CopyObjectsFromImage(onbuildImageName, artifactPaths, false)
 }
