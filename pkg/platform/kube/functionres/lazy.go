@@ -430,7 +430,7 @@ func (lc *lazyClient) createOrUpdateCronTriggerCronJobs(functionLabels labels.Se
 
 		extraMetaLabels := labels.Set{
 			"nuclio.io/function-cron-trigger-cron-job": "true",
-			"nuclio.io/function-cron-trigger-name": triggerName,
+			"nuclio.io/function-cron-trigger-name":     triggerName,
 		}
 		cronJob, err := lc.createOrUpdateCronJob(functionLabels,
 			extraMetaLabels,
@@ -469,8 +469,8 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set
 
 	// retrieve all the cron jobs that aren't inside the new cron triggers, so they can be deleted
 	cronJobsToDelete, err := lc.kubeClientSet.BatchV1beta1().CronJobs(function.Namespace).List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("nuclio.io/function-cron-trigger-cron-job=true," +
-			"nuclio.io/function-name=%s," +
+		LabelSelector: fmt.Sprintf("nuclio.io/function-cron-trigger-cron-job=true,"+
+			"nuclio.io/function-name=%s,"+
 			"nuclio.io/function-cron-trigger-name notin (%s)",
 			function.Name,
 			strings.Join(newCronTriggerNames, ", ")),
@@ -496,7 +496,7 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set
 				Delete(cronJobToDelete.Name, &metav1.DeleteOptions{})
 
 			if err != nil {
-				return errors.Wrapf(err, "Failed to delete removed cron trigger cron job: %s", cronJobToDelete)
+				return errors.Wrapf(err, "Failed to delete removed cron trigger cron job: %s", cronJobToDelete.Name)
 			}
 
 			return nil
@@ -1161,8 +1161,8 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 		cronJobs, err := lc.kubeClientSet.BatchV1beta1().
 			CronJobs(function.Namespace).
 			List(metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("nuclio.io/function-cron-trigger-cron-job=true," +
-					"nuclio.io/function-name=%s," +
+				LabelSelector: fmt.Sprintf("nuclio.io/function-cron-trigger-cron-job=true,"+
+					"nuclio.io/function-name=%s,"+
 					"nuclio.io/function-cron-trigger-name=%s",
 					function.Name,
 					jobName),
