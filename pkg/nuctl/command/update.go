@@ -31,6 +31,7 @@ import (
 type updateCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
+	commands       stringSliceFlag
 }
 
 func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
@@ -109,7 +110,7 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 
 			// update stuff
 			commandeer.functionConfig.Meta.Namespace = updateCommandeer.rootCommandeer.namespace
-			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
+			commandeer.functionConfig.Spec.Build.Commands = updateCommandeer.commands
 
 			return updateCommandeer.rootCommandeer.platform.UpdateFunction(&platform.UpdateFunctionOptions{
 				FunctionMeta: &commandeer.functionConfig.Meta,

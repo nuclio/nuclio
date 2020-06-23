@@ -27,13 +27,11 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/v3io/version-go"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 type Controller struct {
 	logger                logger.Logger
 	namespace             string
-	restConfig            *rest.Config
 	kubeClientSet         kubernetes.Interface
 	nuclioClientSet       nuclioioclient.Interface
 	functionresClient     functionres.Client

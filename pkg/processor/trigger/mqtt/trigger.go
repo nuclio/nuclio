@@ -31,7 +31,6 @@ import (
 
 type AbstractTrigger struct {
 	trigger.AbstractTrigger
-	event         Event
 	configuration *Configuration
 	MQTTClient    mqttclient.Client
 

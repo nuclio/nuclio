@@ -55,7 +55,6 @@ type TestAbstractSuite struct {
 	Runtime          string
 	RuntimeDir       string
 	FunctionDir      string
-	containerID      string
 	TempDir          string
 	CleanupTemp      bool
 	DefaultNamespace string
