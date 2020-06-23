@@ -247,22 +247,22 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 		platformConfiguration: &platformconfig.Config{
 			FunctionAugmentedConfigs: []platformconfig.LabelSelectorAndConfig{
 				{
-					metav1.LabelSelector{
+					LabelSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"nuclio.io/class": "apply-me",
 						},
 					},
-					functionconfig.Config{},
-					platformconfig.Kubernetes{},
+					FunctionConfig: functionconfig.Config{},
+					Kubernetes:     platformconfig.Kubernetes{},
 				},
 				{
-					metav1.LabelSelector{
+					LabelSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"nuclio.io/class": "apply-me",
 						},
 					},
-					functionconfig.Config{},
-					platformconfig.Kubernetes{
+					FunctionConfig: functionconfig.Config{},
+					Kubernetes: platformconfig.Kubernetes{
 						Deployment: &appsv1.Deployment{
 							Spec: appsv1.DeploymentSpec{
 								Paused: true,
@@ -271,13 +271,13 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 					},
 				},
 				{
-					metav1.LabelSelector{
+					LabelSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"nuclio.io/class": "dont-apply-me",
 						},
 					},
-					functionconfig.Config{},
-					platformconfig.Kubernetes{
+					FunctionConfig: functionconfig.Config{},
+					Kubernetes: platformconfig.Kubernetes{
 						Deployment: &appsv1.Deployment{
 							Spec: appsv1.DeploymentSpec{
 								Template: v1.PodTemplateSpec{
@@ -290,9 +290,9 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 					},
 				},
 				{
-					metav1.LabelSelector{},
-					functionconfig.Config{},
-					platformconfig.Kubernetes{
+					LabelSelector:  metav1.LabelSelector{},
+					FunctionConfig: functionconfig.Config{},
+					Kubernetes: platformconfig.Kubernetes{
 						Deployment: &appsv1.Deployment{
 							Spec: appsv1.DeploymentSpec{
 								Strategy: appsv1.DeploymentStrategy{

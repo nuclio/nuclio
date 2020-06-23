@@ -63,119 +63,95 @@ func (suite *TestSuite) TestOutputs() {
 	createFunctionOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("_outputter"))
 
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		testRequests := []httpsuite.Request{
-			{
-				Name:                       "error-check",
-				RequestBody:                "return_body_error",
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
-				ExpectedResponseBody:       "error string body",
-				ExpectedResponseStatusCode: &badRequest,
+	testRequests := []*httpsuite.Request{
+		{
+			Name:                       "error-check",
+			RequestBody:                "return_body_error",
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       "error string body",
+			ExpectedResponseStatusCode: &badRequest,
+		},
+		{
+			Name:                       "string",
+			RequestBody:                "return_string",
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       "a string",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                       "bytes",
+			RequestBody:                "return_bytes",
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       "bytes",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                       "panic",
+			RequestBody:                "panic",
+			ExpectedResponseStatusCode: &statusInternalError,
+		},
+		{
+			Name:           "response object",
+			RequestHeaders: map[string]interface{}{"a": "1", "b": "2"},
+			RequestBody:    "return_response",
+			ExpectedResponseHeaders: map[string]string{
+				"a":            "1",
+				"b":            "2",
+				"h1":           "v1",
+				"h2":           "v2",
+				"Content-Type": "text/plain; charset=utf-8",
 			},
-			{
-				Name:                       "string",
-				RequestBody:                "return_string",
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
-				ExpectedResponseBody:       "a string",
-				ExpectedResponseStatusCode: &statusOK,
+			ExpectedResponseBody:       "response body",
+			ExpectedResponseStatusCode: &statusCreated,
+		},
+		{
+			Name:                       "logs - debug",
+			RequestBody:                "log",
+			RequestLogLevel:            &logLevelDebug,
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       "returned logs",
+			ExpectedResponseStatusCode: &statusOK,
+			ExpectedLogMessages: []string{
+				"Debug message",
+				"Info message",
+				"Warn message",
+				"Error message",
 			},
-			{
-				Name:                       "bytes",
-				RequestBody:                "return_bytes",
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
-				ExpectedResponseBody:       "bytes",
-				ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                       "logs - warn",
+			RequestBody:                "log",
+			RequestLogLevel:            &logLevelWarn,
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       "returned logs",
+			ExpectedResponseStatusCode: &statusOK,
+			ExpectedLogMessages: []string{
+				"Warn message",
+				"Error message",
 			},
-			{
-				Name:                       "panic",
-				RequestBody:                "panic",
-				ExpectedResponseStatusCode: &statusInternalError,
-			},
-			{
-				Name:           "response object",
-				RequestHeaders: map[string]interface{}{"a": "1", "b": "2"},
-				RequestBody:    "return_response",
-				ExpectedResponseHeaders: map[string]string{
-					"a":            "1",
-					"b":            "2",
-					"h1":           "v1",
-					"h2":           "v2",
-					"Content-Type": "text/plain; charset=utf-8",
-				},
-				ExpectedResponseBody:       "response body",
-				ExpectedResponseStatusCode: &statusCreated,
-			},
-			{
-				Name:                       "logs - debug",
-				RequestBody:                "log",
-				RequestLogLevel:            &logLevelDebug,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
-				ExpectedResponseBody:       "returned logs",
-				ExpectedResponseStatusCode: &statusOK,
-				ExpectedLogMessages: []string{
-					"Debug message",
-					"Info message",
-					"Warn message",
-					"Error message",
-				},
-			},
-			{
-				Name:                       "logs - warn",
-				RequestBody:                "log",
-				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
-				ExpectedResponseBody:       "returned logs",
-				ExpectedResponseStatusCode: &statusOK,
-				ExpectedLogMessages: []string{
-					"Warn message",
-					"Error message",
-				},
-			},
-			{
-				Name:                 "GET",
-				RequestMethod:        "GET",
-				ExpectedResponseBody: "GET",
-			},
-			{
-				Name:                       "fields",
-				RequestPath:                "/?x=1&y=2",
-				RequestBody:                "return_fields",
-				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
-				ExpectedResponseBody:       "x=1,y=2",
-				ExpectedResponseStatusCode: &statusOK,
-			},
-			{
-				Name:                 "path",
-				RequestBody:          "return_path",
-				RequestPath:          testPath,
-				ExpectedResponseBody: testPath,
-			},
-		}
-
-		for _, testRequest := range testRequests {
-			suite.Logger.DebugWith("Running sub test", "name", testRequest.Name)
-
-			// set defaults
-			if testRequest.RequestPort == 0 {
-				testRequest.RequestPort = deployResult.Port
-			}
-
-			if testRequest.RequestMethod == "" {
-				testRequest.RequestMethod = "POST"
-			}
-
-			if testRequest.RequestPath == "" {
-				testRequest.RequestPath = "/"
-			}
-
-			if !suite.SendRequestVerifyResponse(&testRequest) {
-				return false
-			}
-		}
-
-		return true
-	})
+		},
+		{
+			Name:                 "GET",
+			RequestMethod:        "GET",
+			ExpectedResponseBody: "GET",
+		},
+		{
+			Name:                       "fields",
+			RequestPath:                "/?x=1&y=2",
+			RequestBody:                "return_fields",
+			RequestLogLevel:            &logLevelWarn,
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       "x=1,y=2",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                 "path",
+			RequestBody:          "return_path",
+			RequestPath:          testPath,
+			ExpectedResponseBody: testPath,
+		},
+	}
+	suite.DeployFunctionAndRequests(createFunctionOptions, testRequests)
 }
 
 func (suite *TestSuite) TestCustomEvent() {
@@ -223,12 +199,7 @@ func (suite *TestSuite) TestCustomEvent() {
 			RequestPath:          requestPath,
 			ExpectedResponseBody: bodyVerifier,
 		}
-
-		if !suite.SendRequestVerifyResponse(&testRequest) {
-			return false
-		}
-
-		return true
+		return suite.SendRequestVerifyResponse(&testRequest)
 	})
 }
 

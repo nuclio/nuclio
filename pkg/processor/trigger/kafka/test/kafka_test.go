@@ -110,7 +110,7 @@ func (suite *testSuite) TestReceiveRecords() {
 	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
 		suite.BrokerHost,
 		createFunctionOptions,
-		map[string]triggertest.TopicMessages{suite.topic: {int(suite.NumPartitions)}},
+		map[string]triggertest.TopicMessages{suite.topic: {NumMessages: int(suite.NumPartitions)}},
 		nil,
 		suite.publishMessageToTopic)
 }

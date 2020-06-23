@@ -61,7 +61,7 @@ func (suite *RPCSuite) TestLogBeforeEvent() {
 	suite.True(strings.Contains(sink.String(), message), "Didn't get log")
 }
 
-func (suite *RPCSuite) emitLog(message string, conn net.Conn) {
+func (suite *RPCSuite) emitLog(message string, conn io.Writer) {
 	log := &rpcLogRecord{
 		DateTime: time.Now().String(),
 		Level:    "info",
@@ -74,7 +74,8 @@ func (suite *RPCSuite) emitLog(message string, conn net.Conn) {
 	enc := json.NewEncoder(&buf)
 	err := enc.Encode(log)
 	suite.Require().NoError(err, "Can't encode log record")
-	io.Copy(conn, &buf)
+	_, err = io.Copy(conn, &buf)
+	suite.Require().NoError(err)
 }
 
 func (suite *RPCSuite) dummyProcess() *os.Process {

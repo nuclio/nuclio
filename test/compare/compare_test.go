@@ -64,7 +64,7 @@ type CompareTestSuite struct {
 func (suite *CompareTestSuite) TestCases() {
 	// TODO: Find out how to make testify work with t.Run (currently panics on error)
 	for _, testCase := range testCases {
-		result := CompareNoOrder(testCase.left, testCase.right)
+		result := NoOrder(testCase.left, testCase.right)
 		suite.Require().Equalf(testCase.result, result, "%v <-> %v", testCase.right, testCase.left)
 	}
 }

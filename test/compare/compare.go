@@ -21,6 +21,33 @@ import (
 	"reflect"
 )
 
+// NoOrder compares two values regardless of order
+func NoOrder(v1, v2 interface{}) bool {
+	if v1 == nil || v2 == nil {
+		return v1 == v2
+	}
+
+	type1 := reflect.TypeOf(v1)
+	type2 := reflect.TypeOf(v2)
+
+	if type1 != type2 {
+		return false
+	}
+
+	if isSimple(type1.Kind()) {
+		return reflect.DeepEqual(v1, v2)
+	}
+
+	switch type1.Kind() {
+	case reflect.Array, reflect.Slice:
+		return compareArrays(v1, v2)
+	case reflect.Map:
+		return compareMaps(v1, v2)
+	}
+
+	panic(fmt.Sprintf("NoOrder: unknown type - %T", v1))
+}
+
 // isSimple return true if kind is simple (not a map, slice or array)
 func isSimple(kind reflect.Kind) bool {
 	switch kind {
@@ -53,7 +80,7 @@ func compareArrays(v1, v2 interface{}) bool {
 				continue
 			}
 			item2 := slice2.Index(j).Interface()
-			if CompareNoOrder(item1, item2) {
+			if NoOrder(item1, item2) {
 				matched[j] = true
 				found = true
 				break
@@ -86,45 +113,18 @@ func compareMaps(v1, v2 interface{}) bool {
 	}
 
 	keys1 := map1.MapKeys()
-	if !CompareNoOrder(toInterfaces(keys1), toInterfaces(map2.MapKeys())) {
+	if !NoOrder(toInterfaces(keys1), toInterfaces(map2.MapKeys())) {
 		return false
 	}
 
 	for _, key := range map1.MapKeys() {
 		val1 := map1.MapIndex(key)
 		val2 := map2.MapIndex(key)
-		if !CompareNoOrder(val1.Interface(), val2.Interface()) {
+		if !NoOrder(val1.Interface(), val2.Interface()) {
 			return false
 		}
 
 	}
 
 	return true
-}
-
-// CompareNoOrder compares two values regardless of order
-func CompareNoOrder(v1, v2 interface{}) bool {
-	if v1 == nil || v2 == nil {
-		return v1 == v2
-	}
-
-	type1 := reflect.TypeOf(v1)
-	type2 := reflect.TypeOf(v2)
-
-	if type1 != type2 {
-		return false
-	}
-
-	if isSimple(type1.Kind()) {
-		return reflect.DeepEqual(v1, v2)
-	}
-
-	switch type1.Kind() {
-	case reflect.Array, reflect.Slice:
-		return compareArrays(v1, v2)
-	case reflect.Map:
-		return compareMaps(v1, v2)
-	}
-
-	panic(fmt.Sprintf("NoOrderCompare: unknown type - %T", v1))
 }

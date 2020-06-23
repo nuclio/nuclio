@@ -55,12 +55,7 @@ func (suite *offlineTestSuite) TestGolang() {
 			RequestPort:          deployResult.Port,
 			ExpectedResponseBody: "from_go_modules",
 		}
-
-		if !suite.SendRequestVerifyResponse(&testRequest) {
-			return false
-		}
-
-		return true
+		return suite.SendRequestVerifyResponse(&testRequest)
 	})
 }
 
@@ -80,12 +75,7 @@ func (suite *offlineTestSuite) TestJava() {
 			RequestPort:          deployResult.Port,
 			ExpectedResponseBody: "dcba",
 		}
-
-		if !suite.SendRequestVerifyResponse(&testRequest) {
-			return false
-		}
-
-		return true
+		return suite.SendRequestVerifyResponse(&testRequest)
 	})
 }
 

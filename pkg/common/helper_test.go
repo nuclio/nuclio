@@ -240,7 +240,7 @@ func (suite *RetryUntilSuccessfulOnErrorPatternsTestSuite) TestSucceedIfErrorMes
 			func() string {
 				errorMessage := testCase.callbackErrors[calls]
 				if !testCase.shouldTimeout {
-					calls += 1
+					calls++
 				}
 				return errorMessage
 			})

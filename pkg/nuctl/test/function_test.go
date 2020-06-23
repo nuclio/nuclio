@@ -61,7 +61,7 @@ func (suite *functionBuildTestSuite) TestBuild() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use deploy with the image we just created
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
@@ -74,7 +74,7 @@ func (suite *functionBuildTestSuite) TestBuild() {
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -110,10 +110,10 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -144,10 +144,10 @@ func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	suite.inputBuffer = bytes.Buffer{}
 	suite.inputBuffer.WriteString("-reverse this string+")
@@ -182,10 +182,10 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -223,10 +223,10 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -248,10 +248,10 @@ func (suite *functionDeployTestSuite) TestDeployFromCodeEntryTypeS3InvalidValues
 	imageName := "nuclio/processor-" + functionName
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// deploy function with invalid s3 values
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
@@ -279,10 +279,10 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	for _, testCase := range []struct {
 		logLevel           string
@@ -371,10 +371,10 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnMissingPath() {
 	imageName := "nuclio/processor-" + functionName
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
@@ -395,10 +395,10 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnShellMissingPathAndHandle
 	imageName := "nuclio/processor-" + functionName
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
@@ -423,10 +423,10 @@ func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -462,7 +462,7 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// create a function event using nuctl
 	err = suite.ExecuteNuctl([]string{"create", "functionevent", functionEventName},
@@ -515,11 +515,12 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 	suite.Require().NoError(err)
 
 	// delete the current image to see that load works
-	suite.dockerClient.RemoveImage(imageName)
+	err = suite.dockerClient.RemoveImage(imageName)
+	suite.Require().NoError(err)
 
 	//  make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
-	defer suite.shellClient.Run(nil, "rm %s", tarName)
+	defer suite.dockerClient.RemoveImage(imageName)    // nolint: errcheck
+	defer suite.shellClient.Run(nil, "rm %s", tarName) // nolint: errcheck
 
 	// use deploy with the image we just created
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
@@ -533,7 +534,7 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -570,7 +571,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	suite.Require().NoError(err)
 
 	//  make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use deploy with the image we just created
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
@@ -582,7 +583,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
@@ -637,7 +638,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 	suite.Require().NoError(err)
 
 	//  make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use deploy with the image we just created
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
@@ -650,7 +651,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
@@ -713,7 +714,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	suite.Require().NoError(err)
 
 	// remove when done
-	defer os.RemoveAll(functionConfigPath)
+	defer os.RemoveAll(functionConfigPath) // nolint: errcheck
 
 	// deploy with temp, expect to pass
 	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose", "--no-pull"},
@@ -723,7 +724,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 		})
 
 	// delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "function", functionConfig.Meta.Name}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "function", functionConfig.Meta.Name}, nil) // nolint: errcheck
 	suite.Require().NoError(err, "Function creation expected to pass")
 
 	// try a few times to invoke, until it succeeds
@@ -786,7 +787,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	suite.Require().NoError(err)
 
 	// remove when done
-	defer os.RemoveAll(staleFunctionConfigPath)
+	defer os.RemoveAll(staleFunctionConfigPath) // nolint: errcheck
 
 	// deployment should fail, resource schema conflict
 	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose"},
@@ -809,7 +810,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	suite.Require().NoError(err)
 
 	// remove when done
-	defer os.RemoveAll(overriddenFunctionConfigPath)
+	defer os.RemoveAll(overriddenFunctionConfigPath) // nolint: errcheck
 
 	// deployment should pass, resource version should be overridden
 	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose"},
@@ -845,10 +846,10 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// check that the function's CET was modified to 'image'
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName},
@@ -896,10 +897,10 @@ func (suite *functionDeployTestSuite) TestDeployWaitReadinessTimeoutBeforeFailur
 	suite.Require().True(failedFast)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 }
 
 func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
@@ -934,10 +935,10 @@ func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds (validate function deployment finished)
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -1039,10 +1040,10 @@ func (suite *functionGetTestSuite) TestGet() {
 		defer func(imageName string, functionName string) {
 
 			// make sure to clean up after the test
-			suite.dockerClient.RemoveImage(imageName)
+			suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 			// use nutctl to delete the function when we're done
-			suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+			suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 		}(imageName, functionName)
 
 		err := suite.ExecuteNuctl([]string{
@@ -1118,7 +1119,7 @@ func (suite *functionGetTestSuite) TestDelete() {
 	suite.Require().NoError(err)
 
 	// cleanup
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -1168,8 +1169,8 @@ func (suite *functionExportImportTestSuite) TestImportMultiFunctions() {
 	function1Name := "test-function-1"
 	function2Name := "test-function-2"
 
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil) // nolint: errcheck
 
 	// import the project
 	err := suite.ExecuteNuctl([]string{"import", "fu", functionsConfigPath, "--verbose"}, nil)
@@ -1185,10 +1186,10 @@ func (suite *functionExportImportTestSuite) TestImportFunction() {
 	// this name is defined within function.yaml
 	functionName := "test-function"
 
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil)
+	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil) // nolint: errcheck
 	suite.Require().NoError(err)
 
 	suite.assertFunctionImported(functionName, true)
@@ -1208,10 +1209,10 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// reset output buffer for reading the next output cleanly
 	suite.outputBuffer.Reset()
@@ -1283,7 +1284,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
@@ -1300,15 +1301,15 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Assert().True(functionconfig.ShouldSkipBuild(exportedFunctionConfig.Meta.Annotations))
 	suite.Assert().True(functionconfig.ShouldSkipDeploy(exportedFunctionConfig.Meta.Annotations))
 
-	exportedFunctionConfigJson, err := json.Marshal(exportedFunctionConfig)
+	exportedFunctionConfigJSON, err := json.Marshal(exportedFunctionConfig)
 	suite.Require().NoError(err)
 
 	// write exported function config to temp file
 	exportTempFile, err := ioutil.TempFile("", "reverser.*.json")
 	suite.Require().NoError(err)
-	defer os.Remove(exportTempFile.Name())
+	defer os.Remove(exportTempFile.Name()) // nolint: errcheck
 
-	_, err = exportTempFile.Write(exportedFunctionConfigJson)
+	_, err = exportTempFile.Write(exportedFunctionConfigJSON)
 	suite.Require().NoError(err)
 
 	// delete original function in order to resolve conflict while importing the function
@@ -1324,7 +1325,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// wait until able to get the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
@@ -1364,7 +1365,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	imageName := "nuclio/processor-" + functionName
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
@@ -1390,15 +1391,15 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Assert().True(functionconfig.ShouldSkipBuild(exportedFunctionConfig.Meta.Annotations))
 	suite.Assert().True(functionconfig.ShouldSkipDeploy(exportedFunctionConfig.Meta.Annotations))
 
-	exportedFunctionConfigJson, err := json.Marshal(exportedFunctionConfig)
+	exportedFunctionConfigJSON, err := json.Marshal(exportedFunctionConfig)
 	suite.Require().NoError(err)
 
 	// write exported function config to temp file
 	exportTempFile, err := ioutil.TempFile("", "reverser.*.json")
 	suite.Require().NoError(err)
-	defer os.Remove(exportTempFile.Name())
+	defer os.Remove(exportTempFile.Name()) // nolint: errcheck
 
-	_, err = exportTempFile.Write(exportedFunctionConfigJson)
+	_, err = exportTempFile.Write(exportedFunctionConfigJSON)
 	suite.Require().NoError(err)
 
 	// delete original function in order to resolve conflict while importing the function
@@ -1414,7 +1415,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// wait until able to get the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)

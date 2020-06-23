@@ -34,7 +34,6 @@ var (
 
 type timeoutSuite struct {
 	httpsuite.TestSuite
-	requestBody string
 }
 
 type timeoutResponse struct {
@@ -117,11 +116,7 @@ func (suite *timeoutSuite) TestTimeout() {
 			ExpectedResponseStatusCode: &expectedResponseCode,
 		}
 
-		if !suite.SendRequestVerifyResponse(&testRequest) {
-			return false
-		}
-
-		return true
+		return suite.SendRequestVerifyResponse(&testRequest)
 	})
 }
 

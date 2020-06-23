@@ -115,9 +115,9 @@ func (suite *testSuite) TestPreexistingResources() {
 		suite.BrokerHost,
 		suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig),
 		map[string]triggertest.TopicMessages{
-			"t1": {3},
-			"t2": {3},
-			"t3": {3},
+			"t1": {NumMessages: 3},
+			"t2": {NumMessages: 3},
+			"t3": {NumMessages: 3},
 		},
 		nil,
 		suite.publishMessageToTopic)
@@ -141,13 +141,13 @@ func (suite *testSuite) TestResourcesCreatedByFunction() {
 		suite.BrokerHost,
 		suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig),
 		map[string]triggertest.TopicMessages{
-			"t1": {3},
-			"t2": {3},
-			"t3": {3},
+			"t1": {NumMessages: 3},
+			"t2": {NumMessages: 3},
+			"t3": {NumMessages: 3},
 		},
 		map[string]triggertest.TopicMessages{
-			"t4": {3},
-			"t5": {3},
+			"t4": {NumMessages: 3},
+			"t5": {NumMessages: 3},
 		},
 		suite.publishMessageToTopic)
 }
@@ -181,13 +181,14 @@ func (suite *testSuite) createBrokerResources(brokerURL string,
 	suite.deleteBrokerResources(suite.brokerURL, suite.brokerExchangeName, suite.brokerQueueName)
 
 	// create the exchange
-	suite.brokerChannel.ExchangeDeclare(brokerExchangeName,
+	err = suite.brokerChannel.ExchangeDeclare(brokerExchangeName,
 		"topic",
 		false,
 		false,
 		false,
 		false,
 		nil)
+	suite.Require().NoError(err)
 
 	// declare a queue and bind it, if a queue set
 	if queueName != "" {
@@ -218,10 +219,10 @@ func (suite *testSuite) createBrokerResources(brokerURL string,
 func (suite *testSuite) deleteBrokerResources(brokerURL string, brokerExchangeName string, queueName string) {
 
 	// delete the queue in case it exists
-	suite.brokerChannel.QueueDelete(queueName, false, false, false)
+	suite.brokerChannel.QueueDelete(queueName, false, false, false) // nolint: errcheck
 
 	// delete the exchange
-	suite.brokerChannel.ExchangeDelete(brokerExchangeName, false, false)
+	suite.brokerChannel.ExchangeDelete(brokerExchangeName, false, false) // nolint: errcheck
 }
 
 func (suite *testSuite) publishMessageToTopic(topic string, body string) error {

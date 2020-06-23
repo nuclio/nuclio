@@ -21,7 +21,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -60,70 +59,45 @@ func (suite *TestSuite) TestOutputs() {
 		"arguments":       "first second",
 		"responseHeaders": map[string]interface{}{"header1": "value1"},
 	}
-
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		testRequests := []httpsuite.Request{
-			{
-				Name:                       "return body",
-				RequestBody:                "return_body",
-				ExpectedResponseHeaders:    expectedResponseHeaders,
-				ExpectedResponseBody:       "return_body\n",
-				ExpectedResponseStatusCode: &statusOK,
+	testRequests := []*httpsuite.Request{
+		{
+			Name:                       "return body",
+			RequestBody:                "return_body",
+			ExpectedResponseHeaders:    expectedResponseHeaders,
+			ExpectedResponseBody:       "return_body\n",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                       "return environment variables",
+			RequestBody:                "return_env",
+			ExpectedResponseHeaders:    expectedResponseHeaders,
+			ExpectedResponseBody:       "value1-value2\n",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                       "return error",
+			RequestBody:                "return_error",
+			ExpectedResponseStatusCode: &statusInternalError,
+		},
+		{
+			Name:                       "return arguments",
+			RequestBody:                "return_arguments",
+			ExpectedResponseHeaders:    expectedResponseHeaders,
+			ExpectedResponseBody:       "first-second\n",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name: "return overridden arguments",
+			RequestHeaders: map[string]interface{}{
+				"x-nuclio-arguments": "overridefirst overridesecond",
 			},
-			{
-				Name:                       "return environment variables",
-				RequestBody:                "return_env",
-				ExpectedResponseHeaders:    expectedResponseHeaders,
-				ExpectedResponseBody:       "value1-value2\n",
-				ExpectedResponseStatusCode: &statusOK,
-			},
-			{
-				Name:                       "return error",
-				RequestBody:                "return_error",
-				ExpectedResponseStatusCode: &statusInternalError,
-			},
-			{
-				Name:                       "return arguments",
-				RequestBody:                "return_arguments",
-				ExpectedResponseHeaders:    expectedResponseHeaders,
-				ExpectedResponseBody:       "first-second\n",
-				ExpectedResponseStatusCode: &statusOK,
-			},
-			{
-				Name: "return overridden arguments",
-				RequestHeaders: map[string]interface{}{
-					"x-nuclio-arguments": "overridefirst overridesecond",
-				},
-				RequestBody:                "return_arguments",
-				ExpectedResponseHeaders:    expectedResponseHeaders,
-				ExpectedResponseBody:       "overridefirst-overridesecond\n",
-				ExpectedResponseStatusCode: &statusOK,
-			},
-		}
-
-		for _, testRequest := range testRequests {
-			suite.Logger.DebugWith("Running sub test", "name", testRequest.Name)
-
-			// set defaults
-			if testRequest.RequestPort == 0 {
-				testRequest.RequestPort = deployResult.Port
-			}
-
-			if testRequest.RequestMethod == "" {
-				testRequest.RequestMethod = "POST"
-			}
-
-			if testRequest.RequestPath == "" {
-				testRequest.RequestPath = "/"
-			}
-
-			if !suite.SendRequestVerifyResponse(&testRequest) {
-				return false
-			}
-		}
-
-		return true
-	})
+			RequestBody:                "return_arguments",
+			ExpectedResponseHeaders:    expectedResponseHeaders,
+			ExpectedResponseBody:       "overridefirst-overridesecond\n",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+	}
+	suite.DeployFunctionAndRequests(createFunctionOptions, testRequests)
 }
 
 func (suite *TestSuite) TestStress() {

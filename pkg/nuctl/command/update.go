@@ -31,7 +31,6 @@ import (
 type updateCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	commands       stringSliceFlag
 }
 
 func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
@@ -118,13 +117,6 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 			})
 		},
 	}
-
-	// add run flags
-	//addDeployFlags(cmd,
-	//	&commandeer.updateOptions.Deploy,
-	//	&commandeer.commands,
-	//	&commandeer.encodedDataBindings,
-	//	&commandeer.encodedTriggers)
 
 	commandeer.cmd = cmd
 

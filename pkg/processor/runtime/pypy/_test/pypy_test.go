@@ -22,7 +22,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -60,139 +59,115 @@ func (suite *TestSuite) TestOutputs() {
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter:handler"
 
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		testRequests := []httpsuite.Request{
-			{
-				Name:                       "return string",
-				RequestBody:                "return_string",
-				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
-				ExpectedResponseBody:       "a string",
-				ExpectedResponseStatusCode: &statusOK,
+	testRequests := []*httpsuite.Request{
+		{
+			Name:                       "return string",
+			RequestBody:                "return_string",
+			ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
+			ExpectedResponseBody:       "a string",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                       "return string & status",
+			RequestBody:                "return_status_and_string",
+			ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
+			ExpectedResponseBody:       "a string after status",
+			ExpectedResponseStatusCode: &statusCreated,
+		},
+		{
+			Name:                       "return dict",
+			RequestBody:                "return_dict",
+			ExpectedResponseHeaders:    headersContentTypeApplicationJSON,
+			ExpectedResponseBody:       map[string]interface{}{"a": "dict", "b": "foo"},
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                       "return dict & status",
+			RequestBody:                "return_status_and_dict",
+			ExpectedResponseHeaders:    headersContentTypeApplicationJSON,
+			ExpectedResponseBody:       map[string]interface{}{"a": "dict after status", "b": "foo"},
+			ExpectedResponseStatusCode: &statusCreated,
+		},
+		{
+			Name:                       "return response",
+			RequestHeaders:             map[string]interface{}{"a": "1", "b": "2"},
+			RequestBody:                "return_response",
+			ExpectedResponseHeaders:    headersFromResponse,
+			ExpectedResponseBody:       "response body",
+			ExpectedResponseStatusCode: &statusCreated,
+		},
+		{
+			// function raises an exception. we want to make sure it
+			// continues functioning afterwards
+			Name:                       "raise exception",
+			RequestBody:                "something invalid",
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseStatusCode: &statusInternalError,
+		},
+		{
+			Name:                       "logs - debug",
+			RequestBody:                "log",
+			RequestLogLevel:            &logLevelDebug,
+			ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
+			ExpectedResponseBody:       "returned logs",
+			ExpectedResponseStatusCode: &statusCreated,
+			ExpectedLogMessages: []string{
+				"Debug message",
+				"Info message",
+				"Warn message",
+				"Error message",
 			},
-			{
-				Name:                       "return string & status",
-				RequestBody:                "return_status_and_string",
-				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
-				ExpectedResponseBody:       "a string after status",
-				ExpectedResponseStatusCode: &statusCreated,
+		},
+		{
+			Name:                       "logs - warn",
+			RequestBody:                "log",
+			RequestLogLevel:            &logLevelWarn,
+			ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
+			ExpectedResponseBody:       "returned logs",
+			ExpectedResponseStatusCode: &statusCreated,
+			ExpectedLogMessages: []string{
+				"Warn message",
+				"Error message",
 			},
-			{
-				Name:                       "return dict",
-				RequestBody:                "return_dict",
-				ExpectedResponseHeaders:    headersContentTypeApplicationJSON,
-				ExpectedResponseBody:       map[string]interface{}{"a": "dict", "b": "foo"},
-				ExpectedResponseStatusCode: &statusOK,
-			},
-			{
-				Name:                       "return dict & status",
-				RequestBody:                "return_status_and_dict",
-				ExpectedResponseHeaders:    headersContentTypeApplicationJSON,
-				ExpectedResponseBody:       map[string]interface{}{"a": "dict after status", "b": "foo"},
-				ExpectedResponseStatusCode: &statusCreated,
-			},
-			{
-				Name:                       "return response",
-				RequestHeaders:             map[string]interface{}{"a": "1", "b": "2"},
-				RequestBody:                "return_response",
-				ExpectedResponseHeaders:    headersFromResponse,
-				ExpectedResponseBody:       "response body",
-				ExpectedResponseStatusCode: &statusCreated,
-			},
-			{
-				// function raises an exception. we want to make sure it
-				// continues functioning afterwards
-				Name:                       "raise exception",
-				RequestBody:                "something invalid",
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
-				ExpectedResponseStatusCode: &statusInternalError,
-			},
-			{
-				Name:                       "logs - debug",
-				RequestBody:                "log",
-				RequestLogLevel:            &logLevelDebug,
-				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
-				ExpectedResponseBody:       "returned logs",
-				ExpectedResponseStatusCode: &statusCreated,
-				ExpectedLogMessages: []string{
-					"Debug message",
-					"Info message",
-					"Warn message",
-					"Error message",
-				},
-			},
-			{
-				Name:                       "logs - warn",
-				RequestBody:                "log",
-				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
-				ExpectedResponseBody:       "returned logs",
-				ExpectedResponseStatusCode: &statusCreated,
-				ExpectedLogMessages: []string{
-					"Warn message",
-					"Error message",
-				},
-			},
-			{
-				Name:                       "get",
-				RequestMethod:              "GET",
-				RequestBody:                "",
-				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
-				ExpectedResponseBody:       "GET",
-				ExpectedResponseStatusCode: &statusOK,
-			},
-			{
-				Name:                       "fields",
-				RequestMethod:              "POST",
-				RequestPath:                "/?x=1&y=2",
-				RequestBody:                "return_fields",
-				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
-				ExpectedResponseBody:       "x=1,y=2",
-				ExpectedResponseStatusCode: &statusOK,
-			},
-			{
-				Name:                       "path",
-				RequestMethod:              "POST",
-				RequestPath:                testPath,
-				RequestBody:                "return_path",
-				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
-				ExpectedResponseBody:       testPath,
-				ExpectedResponseStatusCode: &statusOK,
-			},
-			{
-				// function should error
-				RequestBody:                "return_error",
-				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseStatusCode: &statusInternalError,
-				ExpectedResponseBody:       regexp.MustCompile("some error"),
-			},
-		}
-
-		for _, testRequest := range testRequests {
-			suite.Logger.DebugWith("Running sub test", "name", testRequest.Name)
-
-			// set defaults
-			if testRequest.RequestPort == 0 {
-				testRequest.RequestPort = deployResult.Port
-			}
-
-			if testRequest.RequestMethod == "" {
-				testRequest.RequestMethod = "POST"
-			}
-
-			if testRequest.RequestPath == "" {
-				testRequest.RequestPath = "/"
-			}
-
-			if !suite.SendRequestVerifyResponse(&testRequest) {
-				return false
-			}
-		}
-
-		return true
-	})
+		},
+		{
+			Name:                       "get",
+			RequestMethod:              "GET",
+			RequestBody:                "",
+			RequestLogLevel:            &logLevelWarn,
+			ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
+			ExpectedResponseBody:       "GET",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                       "fields",
+			RequestMethod:              "POST",
+			RequestPath:                "/?x=1&y=2",
+			RequestBody:                "return_fields",
+			RequestLogLevel:            &logLevelWarn,
+			ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
+			ExpectedResponseBody:       "x=1,y=2",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                       "path",
+			RequestMethod:              "POST",
+			RequestPath:                testPath,
+			RequestBody:                "return_path",
+			RequestLogLevel:            &logLevelWarn,
+			ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
+			ExpectedResponseBody:       testPath,
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			// function should error
+			RequestBody:                "return_error",
+			RequestLogLevel:            &logLevelWarn,
+			ExpectedResponseStatusCode: &statusInternalError,
+			ExpectedResponseBody:       regexp.MustCompile("some error"),
+		},
+	}
+	suite.DeployFunctionAndRequests(createFunctionOptions, testRequests)
 }
 
 func (suite *TestSuite) TestStress() {
