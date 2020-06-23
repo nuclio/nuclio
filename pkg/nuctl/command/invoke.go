@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"strings"
@@ -93,8 +94,11 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				commandeer.createFunctionInvocationOptions.Headers.Set(headerName, headerValue)
 			}
 
-			// resolve and set content type
-			commandeer.populateContentType()
+			// populate content type
+			err = commandeer.populateContentType()
+			if err != nil {
+				return errors.Wrap(err, "Failed to populate content-type")
+			}
 
 			// verify correctness of logger level
 			switch commandeer.createFunctionInvocationOptions.LogLevelName {
@@ -167,22 +171,43 @@ func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *p
 	return nil
 }
 
-func (i *invokeCommandeer) populateContentType() {
+// populateContentType populate from flag if given, header if given or default to resolve from body
+func (i *invokeCommandeer) populateContentType() error {
+	var contentTypes []string
+	contentTypeHeaderName := "Content-Type"
 	headers := i.createFunctionInvocationOptions.Headers
 
 	// given as flag
 	if i.contentType != "" {
+		contentTypes = append(contentTypes, i.contentType)
+	}
 
-		// add because it might not be empty (could be added via `--headers content-type=<x>`
-		headers.Add("Content-Type", i.contentType)
+	// given as header
+	if headers.Get(contentTypeHeaderName) != "" {
+
+		// we want all values given
+		contentTypes = append(contentTypes, headers.Values(contentTypeHeaderName)...)
 	}
 
 	// not given at all
-	if headers.Get("Content-Type") == "" {
+	if len(contentTypes) == 0 {
 
-		// default to `text/plain`
-		headers.Set("Content-Type", "text/plain")
+		// try guess from body
+		contentTypes = append(contentTypes, http.DetectContentType([]byte(i.body)))
 	}
+
+	// reset
+	headers.Del(contentTypeHeaderName)
+
+	// iterate over all content types and add
+	for _, contentType := range contentTypes {
+		parsedContentType, _, err := mime.ParseMediaType(contentType)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to parse media type %s", contentType)
+		}
+		headers.Add(contentTypeHeaderName, parsedContentType)
+	}
+	return nil
 }
 
 func (i *invokeCommandeer) resolveBody() ([]byte, error) {
