@@ -428,8 +428,7 @@ func (lc *lazyClient) createOrUpdateCronTriggerCronJobs(functionLabels labels.Se
 		}
 
 		extraMetaLabels := labels.Set{
-			"nuclio.io/function-cron-trigger-cron-job": "true",
-			"nuclio.io/function-cron-trigger-name":     triggerName,
+			"nuclio.io/function-cron-trigger-name": triggerName,
 		}
 		cronJob, err := lc.createOrUpdateCronJob(functionLabels,
 			extraMetaLabels,
@@ -468,9 +467,9 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set
 
 	// retrieve all the cron jobs that aren't inside the new cron triggers, so they can be deleted
 	cronJobsToDelete, err := lc.kubeClientSet.BatchV1beta1().CronJobs(function.Namespace).List(metav1.ListOptions{
-		LabelSelector: lc.compileCronJobLabelSelector(function.Name,
-			fmt.Sprintf("nuclio.io/function-cron-trigger-name notin (%s)",
-				strings.Join(newCronTriggerNames, ", "))),
+		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s,nuclio.io/function-cron-trigger-name notin (%s)",
+			function.Name,
+			strings.Join(newCronTriggerNames, ", ")),
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to list cron jobs")
@@ -1159,8 +1158,9 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 		cronJobs, err := lc.kubeClientSet.BatchV1beta1().
 			CronJobs(function.Namespace).
 			List(metav1.ListOptions{
-				LabelSelector: lc.compileCronJobLabelSelector(function.Name,
-					fmt.Sprintf("nuclio.io/function-cron-trigger-name=%s", triggerName)),
+				LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s,nuclio.io/function-cron-trigger-name=%s",
+					function.Name,
+					triggerName),
 			})
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed getting cron jobs")
@@ -1240,15 +1240,6 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	}
 
 	return resource.(*batchv1beta1.CronJob), err
-}
-
-func (lc *lazyClient) compileCronJobLabelSelector(functionName, additionalLabels string) string {
-	labelSelector := fmt.Sprintf("nuclio.io/function-cron-trigger-cron-job=true,"+
-		"nuclio.io/function-name=%s", functionName)
-	if additionalLabels != "" {
-		labelSelector += fmt.Sprintf(",%s", additionalLabels)
-	}
-	return labelSelector
 }
 
 // nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
