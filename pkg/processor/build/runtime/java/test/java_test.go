@@ -33,6 +33,7 @@ type TestSuite struct {
 
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
+	suite.TestSuite.Runtime = "java"
 
 	suite.TestSuite.RuntimeSuite = suite
 	suite.TestSuite.ArchivePattern = "java"
@@ -107,17 +108,6 @@ func (suite *TestSuite) TestBuildWithJar() {
 			RequestBody:          "abcd",
 			ExpectedResponseBody: "dcba",
 		})
-}
-
-func (suite *TestSuite) TestBuildWithJarFromURL() {
-	createFunctionOptions := suite.GetDeployOptions("reverser",
-		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "java", "reverser-jar", "reverser.jar"))
-
-	createFunctionOptions.FunctionConfig.Spec.Handler = "Reverser"
-	suite.DeployFunctionFromURL(createFunctionOptions, &httpsuite.Request{
-		RequestBody:          "abcd",
-		ExpectedResponseBody: "dcba",
-	})
 }
 
 func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFunctionOptions {
