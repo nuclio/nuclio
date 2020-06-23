@@ -56,6 +56,7 @@ import (
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 )
@@ -465,10 +466,16 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set
 		newCronTriggerNames = append(newCronTriggerNames, newCronTriggerName)
 	}
 
+	cronTriggerInNewCronTriggers, err := labels.NewRequirement("nuclio.io/function-cron-trigger-name",
+		selection.NotIn,
+		newCronTriggerNames)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create cron trigger list requirement label")
+	}
+
 	// retrieve all the cron jobs that aren't inside the new cron triggers, so they can be deleted
 	cronJobsToDelete, err := lc.kubeClientSet.BatchV1beta1().CronJobs(function.Namespace).List(metav1.ListOptions{
-		LabelSelector: lc.compileCronJobLabelSelector(function.Name,
-			common.CompileNotInLabel("nuclio.io/function-cron-trigger-name", newCronTriggerNames)),
+		LabelSelector: lc.compileCronTriggerLabelSelector(function.Name, cronTriggerInNewCronTriggers.String()),
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to list cron jobs")
@@ -1153,12 +1160,14 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	// should cron job be suspended or not (true when function is paused)
 	cronJobSpec.Suspend = &suspendCronJob
 
+	// prepare cron job meta labels
+	cronJobMetaLabels := labels.Merge(functionLabels, extraMetaLabels)
+
 	getCronJob := func() (interface{}, error) {
 		cronJobs, err := lc.kubeClientSet.BatchV1beta1().
 			CronJobs(function.Namespace).
 			List(metav1.ListOptions{
-				LabelSelector: lc.compileCronJobLabelSelector(function.Name,
-					fmt.Sprintf("nuclio.io/function-cron-trigger-name=%s", triggerName)),
+				LabelSelector: cronJobMetaLabels.String(),
 			})
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed getting cron jobs for function %s", function.Name)
@@ -1178,7 +1187,6 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	// Prepare the new cron job object
 
 	// prepare cron job meta
-	cronJobMetaLabels := labels.Merge(functionLabels, extraMetaLabels)
 	cronJobMeta := metav1.ObjectMeta{
 		Name:      kube.CronJobName(),
 		Namespace: function.Namespace,
@@ -1240,9 +1248,12 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	return resource.(*batchv1beta1.CronJob), err
 }
 
-func (lc *lazyClient) compileCronJobLabelSelector(functionName, additionalLabels string) string {
-	labelSelector := fmt.Sprintf("nuclio.io/component=cron-trigger,"+
-		"nuclio.io/function-name=%s", functionName)
+func (lc *lazyClient) compileCronTriggerLabelSelector(functionName, additionalLabels string) string {
+	labelSelector := labels.Set{
+		"nuclio.io/component":     "cron-trigger",
+		"nuclio.io/function-name": functionName,
+	}.String()
+
 	if additionalLabels != "" {
 		labelSelector += fmt.Sprintf(",%s", additionalLabels)
 	}
