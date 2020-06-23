@@ -231,9 +231,10 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
-			"method": "POST",
-			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
-			"via":    "external-ip",
+			"method":       "POST",
+			"body":         fmt.Sprintf(`{"return_this": "%s"}`, randomString),
+			"content-type": "application/json",
+			"via":          "external-ip",
 		},
 		false)
 	suite.Require().NoError(err)
@@ -603,9 +604,10 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
-			"method": "POST",
-			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
-			"via":    "external-ip",
+			"method":       "POST",
+			"body":         fmt.Sprintf(`{"return_this": "%s"}`, randomString),
+			"content-type": "application/json",
+			"via":          "external-ip",
 		},
 		false)
 	suite.Require().NoError(err)
@@ -675,6 +677,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 		map[string]string{
 			"method": "POST",
 			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
+			"content-type": "application/json",
 			"via":    "external-ip",
 		},
 		false)
@@ -731,6 +734,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 		map[string]string{
 			"method": "POST",
 			"body":   `{"return_this": "abc"}`,
+			"content-type": "application/json",
 			"via":    "external-ip",
 		}, false)
 	suite.Require().NoError(err)
@@ -762,6 +766,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 		map[string]string{
 			"method": "POST",
 			"body":   `{"return_this": "abc"}`,
+			"content-type": "application/json",
 			"via":    "external-ip",
 		}, false)
 	suite.Require().NoError(err)
