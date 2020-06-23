@@ -44,6 +44,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/rs/xid"
 	"github.com/v3io/version-go"
 	"golang.org/x/sync/errgroup"
@@ -57,7 +58,6 @@ import (
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 )
@@ -469,11 +469,9 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set
 
 	// retrieve all the cron jobs that aren't inside the new cron triggers, so they can be deleted
 	cronJobsToDelete, err := lc.kubeClientSet.BatchV1beta1().CronJobs(function.Namespace).List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("nuclio.io/function-cron-trigger-cron-job=true,"+
-			"nuclio.io/function-name=%s,"+
-			"nuclio.io/function-cron-trigger-name notin (%s)",
-			function.Name,
-			strings.Join(newCronTriggerNames, ", ")),
+		LabelSelector: lc.compileCronJobLabelSelector(function.Name,
+			fmt.Sprintf("nuclio.io/function-cron-trigger-name notin (%s)",
+				strings.Join(newCronTriggerNames, ", "))),
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to list cron jobs")
@@ -489,6 +487,7 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set
 
 	errGroup := errgroup.Group{}
 	for _, cronJobToDelete := range cronJobsToDelete.Items {
+		cronJobToDelete := cronJobToDelete
 		errGroup.Go(func() error {
 			// delete this removed cron trigger cron job
 			err := lc.kubeClientSet.BatchV1beta1().
@@ -1161,17 +1160,16 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 		cronJobs, err := lc.kubeClientSet.BatchV1beta1().
 			CronJobs(function.Namespace).
 			List(metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("nuclio.io/function-cron-trigger-cron-job=true,"+
-					"nuclio.io/function-name=%s,"+
-					"nuclio.io/function-cron-trigger-name=%s",
-					function.Name,
-					jobName),
+				LabelSelector: lc.compileCronJobLabelSelector(function.Name,
+					fmt.Sprintf("nuclio.io/function-cron-trigger-name=%s", jobName)),
 			})
 		if err != nil {
 			return nil, err
 		}
 		if len(cronJobs.Items) == 0 {
-			return nil, apierrors.NewNotFound(schema.GroupResource{},
+
+			// purposefully return a k8s NotFound because the `createOrUpdateResource` checks the err type
+			return nil, apierrors.NewNotFound(v1beta1.Resource("cronjob"),
 				fmt.Sprintf("cron-job-%s-%s", function.Name, jobName))
 		}
 		return &cronJobs.Items[0], nil
@@ -1244,6 +1242,15 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	}
 
 	return resource.(*batchv1beta1.CronJob), err
+}
+
+func (lc *lazyClient) compileCronJobLabelSelector(functionName, additionalLabels string) string {
+	labelSelector := fmt.Sprintf("nuclio.io/function-cron-trigger-cron-job=true,"+
+		"nuclio.io/function-name=%s", functionName)
+	if additionalLabels != "" {
+		labelSelector += fmt.Sprintf(",%s", additionalLabels)
+	}
+	return labelSelector
 }
 
 // nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
