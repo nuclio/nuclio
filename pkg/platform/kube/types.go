@@ -16,7 +16,11 @@ limitations under the License.
 
 package kube
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/rs/xid"
+)
 
 type DeployOptions struct {
 }
@@ -43,4 +47,8 @@ func IngressNameFromFunctionName(functionName string) string {
 
 func ServiceNameFromFunctionName(functionName string) string {
 	return fmt.Sprintf("nuclio-%s", functionName)
+}
+
+func CronJobName() string {
+	return fmt.Sprintf("nuclio-cron-job-%s", xid.New().String())
 }
