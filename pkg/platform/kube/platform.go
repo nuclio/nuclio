@@ -747,6 +747,26 @@ func (p *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, e
 	}
 }
 
+func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
+	functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
+		Name:      functionName,
+		Namespace: namespace,
+	})
+	if err != nil || len(functions) == 0 {
+		return errors.Wrap(err, "Failed to get existing functions")
+	}
+
+	// enrich with build logs
+	p.EnrichFunctionsWithDeployLogStream(functions)
+
+	function := functions[0]
+
+	return p.updater.update(&platform.UpdateFunctionOptions{
+		FunctionMeta:   &function.GetConfig().Meta,
+		FunctionStatus: function.GetStatus(),
+	})
+}
+
 func (p *Platform) clearCallStack(message string) string {
 	if message == "" {
 		return ""

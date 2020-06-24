@@ -496,6 +496,26 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{"172.17.0.1"}, nil
 }
 
+func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
+	functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
+		Name:      functionName,
+		Namespace: namespace,
+	})
+	if err != nil || len(functions) == 0 {
+		return errors.Wrap(err, "Failed to get existing functions")
+	}
+
+	// enrich with build logs
+	p.EnrichFunctionsWithDeployLogStream(functions)
+
+	function := functions[0]
+
+	return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+		Config: *function.GetConfig(),
+		Status: *function.GetStatus(),
+	})
+}
+
 func (p *Platform) getFreeLocalPort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {

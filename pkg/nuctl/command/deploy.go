@@ -156,13 +156,22 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			commandeer.functionConfig.Meta.RemoveSkipDeployAnnotation()
 
 			commandeer.rootCommandeer.loggerInstance.DebugWith("Deploying function", "functionConfig", commandeer.functionConfig)
-			_, err = rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
+			_, deployErr := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
 				InputImageFile: commandeer.inputImageFile,
 			})
 
-			return err
+			// don't check deploy error yet, first try to save the logs either way, and then return the error if necessary
+			commandeer.rootCommandeer.loggerInstance.Debug("Saving deployment logs")
+			logSaveErr := rootCommandeer.platform.SaveFunctionDeployLogs(commandeer.functionName, rootCommandeer.namespace)
+
+			if deployErr != nil {
+
+				// preserve the error and let the root commandeer handle unwrapping it
+				return deployErr
+			}
+			return logSaveErr
 		},
 	}
 
