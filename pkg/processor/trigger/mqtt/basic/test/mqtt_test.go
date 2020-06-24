@@ -54,7 +54,7 @@ func (suite *testSuite) TearDownTest() {
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
-	return "eclipse-mosquito", &dockerclient.RunOptions{
+	return "eclipse-mosquitto:latest", &dockerclient.RunOptions{ // nolint: misspell
 		Ports: map[int]int{
 			suite.brokerPort: suite.brokerPort,
 			9001:             9001,
