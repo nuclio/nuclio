@@ -496,7 +496,6 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{"172.17.0.1"}, nil
 }
 
-
 func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
 	functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
 		Name:      functionName,

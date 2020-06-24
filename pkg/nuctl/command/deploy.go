@@ -161,6 +161,9 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				FunctionConfig: commandeer.functionConfig,
 				InputImageFile: commandeer.inputImageFile,
 			})
+			if err != nil {
+				return errors.Wrap(err, "Failed to deploy function")
+			}
 
 			commandeer.rootCommandeer.loggerInstance.Info("Saving deployment logs")
 			return rootCommandeer.platform.SaveFunctionDeployLogs(commandeer.functionName, rootCommandeer.namespace)
