@@ -104,7 +104,7 @@ func (c *ShellClient) CopyObjectsFromImage(imageName string,
 	// create container from image
 	containerID, err := c.createContainer(imageName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create image")
+		return errors.Wrapf(err, "Failed to create container from %s", imageName)
 	}
 
 	// delete once done copying objects
