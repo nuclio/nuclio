@@ -656,7 +656,7 @@ func (c *ShellClient) createContainer(imageName string) (string, error) {
 	var containerID string
 	retryOnErrorMessages := []string{
 
-		// sometime create container failed on not finding the image because
+		// sometimes, creating the container fails on not finding the image because
 		// docker was on high load and did not get to update its cache
 		fmt.Sprintf("^Unable to find image '%s.*' locally", imageName),
 	}
