@@ -466,17 +466,9 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set
 		newCronTriggerNames = append(newCronTriggerNames, newCronTriggerName)
 	}
 
-	var cronTriggerInNewCronTriggers string
-	if len(newCronTriggerNames) == 0 {
-		cronTriggerInNewCronTriggers = ""
-	} else {
-		labelSet, err := labels.NewRequirement("nuclio.io/function-cron-trigger-name",
-			selection.NotIn,
-			newCronTriggerNames)
-		if err != nil {
-			return errors.Wrap(err, "Failed to create cron trigger list requirement label")
-		}
-		cronTriggerInNewCronTriggers = labelSet.String()
+	cronTriggerInNewCronTriggers, err := lc.compileCronTriggerNotInSliceLabels(newCronTriggerNames)
+	if err != nil {
+		return errors.Wrap(err, "Failed to compile cron trigger not in slice labels")
 	}
 
 	// retrieve all the cron jobs that aren't inside the new cron triggers, so they can be deleted
@@ -1264,6 +1256,20 @@ func (lc *lazyClient) compileCronTriggerLabelSelector(functionName, additionalLa
 		labelSelector += fmt.Sprintf(",%s", additionalLabels)
 	}
 	return labelSelector
+}
+
+func (lc *lazyClient) compileCronTriggerNotInSliceLabels(slice []string) (string, error) {
+	if len(slice) == 0 {
+		return "", nil
+	}
+
+	labelSet, err := labels.NewRequirement("nuclio.io/function-cron-trigger-name",
+		selection.NotIn,
+		slice)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create cron trigger list requirement label")
+	}
+	return labelSet.String(), nil
 }
 
 // nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
