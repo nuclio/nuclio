@@ -162,7 +162,8 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				InputImageFile: commandeer.inputImageFile,
 			})
 
-			return err
+			commandeer.rootCommandeer.loggerInstance.Info("Saving deployment logs")
+			return rootCommandeer.platform.SaveFunctionDeployLogs(commandeer.functionName, rootCommandeer.namespace)
 		},
 	}
 
