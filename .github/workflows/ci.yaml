@@ -12,7 +12,7 @@ env:
   REPO_NAME: nuclio
   NUCLIO_LABEL: ${{ github.run_number }}
   NAMESPACE: nuclio
-  NUCLIO_GO_TEST_TIMEOUT: "20m"
+  NUCLIO_GO_TEST_TIMEOUT: "30m"
 
 jobs:
   lint:
