@@ -6,8 +6,7 @@
             bindings: {
                 isSplashShowed: '&',
                 project: '<',
-                projectActionHandlerCallback: '&',
-                projectsList: '<',
+                projectActionHandlerCallback: '&'
             },
             templateUrl: 'projects/project-table-row/project-table-row.tpl.html',
             transclude: true,
