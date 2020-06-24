@@ -54,7 +54,7 @@ func (suite *testSuite) TearDownTest() {
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
-	return "eclipse-mosquitto", &dockerclient.RunOptions{
+	return "eclipse-mosquitto:latest", &dockerclient.RunOptions{ // nolint: misspell
 		Ports: map[int]int{
 			suite.brokerPort: suite.brokerPort,
 			9001:             9001,
@@ -95,9 +95,9 @@ func (suite *testSuite) TestMulitpleTopics() {
 		suite.BrokerHost,
 		suite.getCreateFunctionOptionsWithMQTTTrigger(triggerConfiguration),
 		map[string]triggertest.TopicMessages{
-			"a1/b1/c1":    {3},
-			"a1/b1":       {3},
-			"a2/b2/c3/c4": {3},
+			"a1/b1/c1":    {NumMessages: 3},
+			"a1/b1":       {NumMessages: 3},
+			"a2/b2/c3/c4": {NumMessages: 3},
 		},
 		nil,
 		suite.publishMessageToTopic)

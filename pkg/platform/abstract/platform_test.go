@@ -55,7 +55,6 @@ type TestAbstractSuite struct {
 	Runtime          string
 	RuntimeDir       string
 	FunctionDir      string
-	containerID      string
 	TempDir          string
 	CleanupTemp      bool
 	DefaultNamespace string
@@ -83,6 +82,7 @@ func (suite *TestAbstractSuite) SetupSuite() {
 
 	suite.Platform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(suite.Logger,
 		&containerimagebuilderpusher.ContainerBuilderConfiguration{})
+	suite.Require().NoError(err)
 }
 
 func (suite *TestAbstractSuite) SetupTest() {

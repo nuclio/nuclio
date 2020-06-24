@@ -1,0 +1,20 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="(kube) nuctl test" type="GoTestRunConfiguration" factoryName="Go Test">
+    <module name="nuclio" />
+    <working_directory value="$PROJECT_DIR$/pkg/nuctl/test" />
+    <parameters value=" -testify.m ^TestDeployFromFunctionConfig$" />
+    <envs>
+      <env name="NUCTL_NAMESPACE" value="default" />
+      <env name="NUCTL_RUN_REGISTRY" value="localhost:5000" />
+      <env name="NUCTL_REGISTRY" value="localhost:5000" />
+      <env name="NUCTL_PLATFORM" value="kube" />
+      <env name="NUCTL_EXTERNAL_IP_ADDRESSES" value="localhost" />
+    </envs>
+    <framework value="gotest" />
+    <kind value="PACKAGE" />
+    <package value="github.com/nuclio/nuclio/pkg/nuctl/test" />
+    <directory value="$PROJECT_DIR$/" />
+    <filePath value="$PROJECT_DIR$/" />
+    <method v="2" />
+  </configuration>
+</component>

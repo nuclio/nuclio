@@ -2012,7 +2012,6 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 //
 
 type lazyResources struct {
-	logger                  logger.Logger
 	deployment              *appsv1.Deployment
 	configMap               *v1.ConfigMap
 	service                 *v1.Service

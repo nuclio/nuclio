@@ -96,9 +96,11 @@ func (suite *resourceTestSuite) TearDownTest() {
 }
 
 func (suite *resourceTestSuite) registerResource(name string, resource *AbstractResource) {
+	var err error
 
 	// initialize the resource
-	resource.Initialize(suite.logger, nil)
+	_, err = resource.Initialize(suite.logger, nil)
+	suite.Require().NoError(err)
 
 	// mount it
 	suite.router.Mount("/"+name, resource.router)
@@ -134,10 +136,8 @@ func (suite *resourceTestSuite) sendRequest(method string,
 		suite.Require().Equal(*expectedStatusCode, response.StatusCode)
 	}
 
-	if expectedResponseHeaders != nil {
-		for headerName, headerValues := range expectedResponseHeaders {
-			suite.Require().Equal(response.Header[headerName], headerValues, "header is missing from response")
-		}
+	for headerName, headerValues := range expectedResponseHeaders {
+		suite.Require().Equal(response.Header[headerName], headerValues, "header is missing from response")
 	}
 
 	// if there's an expected status code, Verify it

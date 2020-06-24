@@ -43,7 +43,6 @@ type CORS struct {
 	allowHeadersStr           string
 	preflightMaxAgeSecondsStr string
 	allowCredentialsStr       string
-	simpleMethods             []string
 }
 
 func NewCORS() *CORS {

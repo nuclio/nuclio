@@ -225,7 +225,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		err := json.Unmarshal(body, &unmarshalledBody)
 		suite.Require().NoError(err)
 
-		suite.Require().True(compare.CompareNoOrder(typedExpectedResponseBody, unmarshalledBody))
+		suite.Require().True(compare.NoOrder(typedExpectedResponseBody, unmarshalledBody))
 	case *regexp.Regexp:
 		suite.Require().Regexp(typedExpectedResponseBody, string(body))
 	case func([]byte):

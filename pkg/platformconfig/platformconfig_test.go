@@ -142,7 +142,7 @@ metrics:
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
 	suite.Require().NoError(err)
 
-	suite.Require().True(compare.CompareNoOrder(expectedConfiguration, readConfiguration))
+	suite.Require().True(compare.NoOrder(expectedConfiguration, readConfiguration))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetSystemLoggerSinks() {
@@ -189,7 +189,7 @@ logger:
 		},
 	}
 
-	suite.Require().True(compare.CompareNoOrder(expectedSystemLoggerSinks, systemLoggerSinks))
+	suite.Require().True(compare.NoOrder(expectedSystemLoggerSinks, systemLoggerSinks))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetSystemLoggerSinksInvalidSink() {
@@ -256,7 +256,7 @@ logger:
 		},
 	}
 
-	suite.Require().True(compare.CompareNoOrder(expectedFunctionLoggerSinks, functionLoggerSinks))
+	suite.Require().True(compare.NoOrder(expectedFunctionLoggerSinks, functionLoggerSinks))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetFunctionLoggerSinksWithFunctionConfig() {
@@ -313,7 +313,7 @@ logger:
 		},
 	}
 
-	suite.Require().True(compare.CompareNoOrder(expectedFunctionLoggerSinks, functionLoggerSinks))
+	suite.Require().True(compare.NoOrder(expectedFunctionLoggerSinks, functionLoggerSinks))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetFunctionLoggerSinksInvalidSink() {
@@ -379,7 +379,7 @@ metrics:
 		},
 	}
 
-	suite.Require().True(compare.CompareNoOrder(expectedSystemMetricSinks, systemMetricSinks))
+	suite.Require().True(compare.NoOrder(expectedSystemMetricSinks, systemMetricSinks))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetSystemMetricSinksInvalidSink() {
@@ -441,7 +441,7 @@ metrics:
 		},
 	}
 
-	suite.Require().True(compare.CompareNoOrder(expectedFunctionMetricSinks, functionMetricSinks))
+	suite.Require().True(compare.NoOrder(expectedFunctionMetricSinks, functionMetricSinks))
 }
 
 func (suite *PlatformConfigTestSuite) TestFunctionAugmentedConfigs() {
@@ -497,7 +497,7 @@ functionAugmentedConfigs:
 		},
 	}
 
-	suite.Require().True(compare.CompareNoOrder(expectedFunctionAugumentedConfigs,
+	suite.Require().True(compare.NoOrder(expectedFunctionAugumentedConfigs,
 		readConfiguration.FunctionAugmentedConfigs))
 }
 

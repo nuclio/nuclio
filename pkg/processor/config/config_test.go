@@ -23,13 +23,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 
-	"github.com/nuclio/logger"
 	"github.com/stretchr/testify/suite"
 )
 
 type WriterTestSuite struct {
 	suite.Suite
-	logger logger.Logger
 	writer *Writer
 	reader *Reader
 }
@@ -55,12 +53,12 @@ func (suite *WriterTestSuite) TestWrite() {
 		},
 	}
 
-	suite.writer.Write(&output, &writeConfiguration)
+	suite.writer.Write(&output, &writeConfiguration) // nolint: errcheck
 
 	readConfiguration := processor.Configuration{}
 
 	input := bytes.NewBuffer(output.Bytes())
-	suite.reader.Read(input, &readConfiguration)
+	suite.reader.Read(input, &readConfiguration) // nolint: errcheck
 
 	suite.Require().Equal(writeConfiguration, readConfiguration)
 }

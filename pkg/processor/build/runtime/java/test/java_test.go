@@ -33,6 +33,7 @@ type TestSuite struct {
 
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
+	suite.TestSuite.Runtime = "java"
 
 	suite.TestSuite.RuntimeSuite = suite
 	suite.TestSuite.ArchivePattern = "java"
@@ -73,9 +74,7 @@ func (suite *TestSuite) TestBuildWithCustomGradleScript() {
 	createFunctionOptions := suite.GetDeployOptions("custom-gradle-script",
 		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "java", "custom-gradle-script"))
 
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "java"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "JsonParser"
-
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
@@ -87,7 +86,6 @@ func (suite *TestSuite) TestBuildWithCustomRepositories() {
 	createFunctionOptions := suite.GetDeployOptions("reverser",
 		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "reverser", "java", "Reverser.java"))
 
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "java"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "Reverser"
 	createFunctionOptions.FunctionConfig.Spec.Build.RuntimeAttributes = map[string]interface{}{
 		"repositories": []string{"mavenCentral()", "jcenter()"},
@@ -104,9 +102,7 @@ func (suite *TestSuite) TestBuildWithJar() {
 	createFunctionOptions := suite.GetDeployOptions("reverser",
 		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "java", "reverser-jar", "reverser.jar"))
 
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "java"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "Reverser"
-
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestBody:          "abcd",
@@ -118,9 +114,7 @@ func (suite *TestSuite) TestBuildWithJarFromURL() {
 	createFunctionOptions := suite.GetDeployOptions("reverser",
 		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "java", "reverser-jar", "reverser.jar"))
 
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "java"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "Reverser"
-
 	suite.DeployFunctionFromURL(createFunctionOptions, &httpsuite.Request{
 		RequestBody:          "abcd",
 		ExpectedResponseBody: "dcba",

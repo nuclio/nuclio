@@ -90,11 +90,12 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
 	// should remain untouched
 	tempFile, err := ioutil.TempFile(os.TempDir(), "prefix")
 	suite.Require().NoError(err)
-	defer os.Remove(tempFile.Name())
+	defer os.Remove(tempFile.Name()) // nolint: errcheck
 
 	// we *don't* want the contents of the temp file to appear in the function source code, because
 	// the function source code is already populated
-	tempFile.WriteString("Contents of temp file")
+	_, err = tempFile.WriteString("Contents of temp file")
+	suite.Require().NoError(err)
 
 	createFunctionOptions.FunctionConfig.Meta.Name = "funcsource-test"
 	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
@@ -374,7 +375,7 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 		})
 
 	// stop serving
-	httpServer.Stop()
+	httpServer.Stop() // nolint: errcheck
 
 	//
 	// Second build: Don't change source code. Expect everything to come from the cache
@@ -408,7 +409,7 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 		})
 
 	// stop serving
-	httpServer.Stop()
+	httpServer.Stop() // nolint: errcheck
 
 	//
 	// Third build: Change the source code. Expect only the second file contents to change, because the
@@ -453,7 +454,7 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 		})
 
 	// stop serving
-	httpServer.Stop()
+	httpServer.Stop() // nolint: errcheck
 }
 
 func (suite *testSuite) TestBuildFuncFromImageAndRedeploy() {

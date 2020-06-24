@@ -80,7 +80,7 @@ func NewServer(addr string,
 		servedObjectCopy := servedObject
 
 		newServeMux.HandleFunc(servedObjectCopy.Pattern, func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte(servedObjectCopy.Contents))
+			w.Write([]byte(servedObjectCopy.Contents)) // nolint: errcheck
 		})
 	}
 
