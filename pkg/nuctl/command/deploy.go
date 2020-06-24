@@ -163,7 +163,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			})
 
 			// don't check deploy error yet, first try to save the logs either way, and then return the error if necessary
-			commandeer.rootCommandeer.loggerInstance.Info("Saving deployment logs")
+			commandeer.rootCommandeer.loggerInstance.Debug("Saving deployment logs")
 			logSaveErr := rootCommandeer.platform.SaveFunctionDeployLogs(commandeer.functionName, rootCommandeer.namespace)
 
 			if deployErr != nil {

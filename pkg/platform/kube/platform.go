@@ -763,7 +763,6 @@ func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error 
 
 	return p.updater.update(&platform.UpdateFunctionOptions{
 		FunctionMeta:   &function.GetConfig().Meta,
-		FunctionSpec:   &function.GetConfig().Spec,
 		FunctionStatus: function.GetStatus(),
 	})
 }
