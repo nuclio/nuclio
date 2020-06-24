@@ -466,16 +466,22 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set
 		newCronTriggerNames = append(newCronTriggerNames, newCronTriggerName)
 	}
 
-	cronTriggerInNewCronTriggers, err := labels.NewRequirement("nuclio.io/function-cron-trigger-name",
-		selection.NotIn,
-		newCronTriggerNames)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create cron trigger list requirement label")
+	var cronTriggerInNewCronTriggers string
+	if len(newCronTriggerNames) == 0 {
+		cronTriggerInNewCronTriggers = ""
+	} else {
+		labelSet, err := labels.NewRequirement("nuclio.io/function-cron-trigger-name",
+			selection.NotIn,
+			newCronTriggerNames)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create cron trigger list requirement label")
+		}
+		cronTriggerInNewCronTriggers = labelSet.String()
 	}
 
 	// retrieve all the cron jobs that aren't inside the new cron triggers, so they can be deleted
 	cronJobsToDelete, err := lc.kubeClientSet.BatchV1beta1().CronJobs(function.Namespace).List(metav1.ListOptions{
-		LabelSelector: lc.compileCronTriggerLabelSelector(function.Name, cronTriggerInNewCronTriggers.String()),
+		LabelSelector: lc.compileCronTriggerLabelSelector(function.Name, cronTriggerInNewCronTriggers),
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to list cron jobs")
@@ -1153,7 +1159,7 @@ func (lc *lazyClient) deleteCronJobs(functionName, functionNamespace string) err
 func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 	extraMetaLabels labels.Set,
 	function *nuclioio.NuclioFunction,
-	triggerName string,
+	jobName string,
 	cronJobSpec *batchv1beta1.CronJobSpec,
 	suspendCronJob bool) (*batchv1beta1.CronJob, error) {
 
@@ -1175,7 +1181,7 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 		if len(cronJobs.Items) == 0 {
 
 			// purposefully return a k8s NotFound because the `createOrUpdateResource` checks the err type
-			return nil, apierrors.NewNotFound(nuclioio.Resource("cronjob"), triggerName)
+			return nil, apierrors.NewNotFound(nuclioio.Resource("cronjob"), jobName)
 		}
 		return &cronJobs.Items[0], nil
 	}
