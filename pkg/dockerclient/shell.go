@@ -677,7 +677,7 @@ func (c *ShellClient) createContainer(imageName string) (string, error) {
 			if err != nil {
 				return runResults.Stderr
 			}
-			containerID := runResults.Output
+			containerID = runResults.Output
 			containerID = strings.TrimSpace(containerID)
 			return ""
 		})
