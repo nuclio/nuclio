@@ -226,3 +226,7 @@ func (mp *Platform) GetOnbuildImageRegistry(registry string) string {
 func (mp *Platform) GetDefaultRegistryCredentialsSecretName() string {
 	return "nuclio-registry-credentials"
 }
+
+func (mp *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
+	return nil
+}
