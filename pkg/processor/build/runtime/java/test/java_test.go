@@ -110,6 +110,17 @@ func (suite *TestSuite) TestBuildWithJar() {
 		})
 }
 
+func (suite *TestSuite) TestBuildWithJarFromURL() {
+	createFunctionOptions := suite.GetDeployOptions("reverser",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "java", "reverser-jar", "reverser.jar"))
+
+	createFunctionOptions.FunctionConfig.Spec.Handler = "Reverser"
+	suite.DeployFunctionFromURL(createFunctionOptions, &httpsuite.Request{
+		RequestBody:          "abcd",
+		ExpectedResponseBody: "dcba",
+	})
+}
+
 func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFunctionOptions {
 	functionInfo := suite.RuntimeSuite.GetFunctionInfo(functionName)
 
