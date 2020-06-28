@@ -11,7 +11,8 @@ jobs:
     - name: hostname dis
       run: hostname
     - name: curl ifconfig.me
-      uses: actions/checkout@v2
+      run: curl ifconfig.me
+    - uses: actions/checkout@v2
       with:
         ref: development
 
