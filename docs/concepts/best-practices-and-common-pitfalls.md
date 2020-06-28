@@ -4,8 +4,7 @@ This guide aims to provide you with best practices for working with Nuclio and h
 
 #### In this document
 
-- [Use `init_context` instead of global variable declarations or function calls
-](#init_context-instead-of-global-context)
+- [Use `init_context` instead of global variable declarations or function calls](#init_context-instead-of-global-context)
 - [Use HTTP clients over browsers for HTTP(s) tests](#http-clients-for-testing)
 - [Tweak worker configurations to resolve unavailable-server errors](#tweak-worker-cfg-to-resolve-http-503-errors)
 - [Install CA certificates for alpine with HTTPS](#ca-certificates-for-alpine-w-https)

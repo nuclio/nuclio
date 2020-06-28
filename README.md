@@ -183,8 +183,6 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
 - Contributing
     - [Code conventions](/docs/devel/coding-conventions.md)
     - [Contributing to Nuclio](/docs/devel/contributing.md)
-- Reference
-    - [nuctl Reference](/docs/reference/nuctl/nuctl.md)
 - Media
     - [Running High-Speed Serverless with nuclio (slides)](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio)
     - [CNCF Webinar – Serverless and AI (video)](https://www.youtube.com/watch?v=pTCx569Kd4A)
