@@ -26,3 +26,5 @@ jobs:
     - name: Test full
 #      run: make test
       run: make test-kafka
+      env:
+        NUCLIO_TEST_HOST: 172.17.0.1
