@@ -8,7 +8,11 @@ jobs:
     name: Periodic Regression
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
+    - name: hostname dis
+      run: hostname
+    - name: Build
+      run: make build
+    - name: curl ifconfig.me
       uses: actions/checkout@v2
       with:
         ref: development
@@ -25,6 +29,4 @@ jobs:
 
     - name: Test full
 #      run: make test
-      run: make test-kafka
-      env:
-        NUCLIO_TEST_HOST: 172.17.0.1
+      run: NUCLIO_TEST_HOST=$(hostname) make test-kafka
