@@ -20,8 +20,8 @@ jobs:
 
     - name: Build
       run: make build
+      env:
+        NUCLIO_NUCTL_CREATE_SYMLINK: false
 
     - name: Test full
       run: make build test
-      env:
-        NUCLIO_NUCTL_CREATE_SYMLINK: false
