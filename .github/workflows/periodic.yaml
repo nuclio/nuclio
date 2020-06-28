@@ -10,8 +10,6 @@ jobs:
     steps:
     - name: hostname dis
       run: hostname
-    - name: Build
-      run: make build
     - name: curl ifconfig.me
       uses: actions/checkout@v2
       with:
