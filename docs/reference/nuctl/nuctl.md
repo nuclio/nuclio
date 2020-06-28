@@ -1,4 +1,4 @@
-# Nuctl
+# nuctl &mdash; The Nuclio CLI
 
 #### In this document
 
@@ -11,14 +11,14 @@
 
 ## About
 
-Nuctl is Nuclio's command-line interface that provides you with all the nuclio features, accessible from your terminal
+`nuctl` is Nuclio's command-line interface that provides you with all the nuclio features, accessible from your terminal
 
 ## Download
 
-To install Nuctl all you need to do, is simply visit Nuclio [releases page](https://github.com/nuclio/nuclio/releases)
+To install `nuctl` all you need to do, is simply visit Nuclio [releases page](https://github.com/nuclio/nuclio/releases)
 and download the binary appropriate to your platform (e.g.: `darwin` if you have `macOS`)
 
-You can use the following bash snippet to download the latest nuctl release
+You can use the following bash snippet to download the latest `nuctl` release
 ```bash
 curl -s https://api.github.com/repos/nuclio/nuclio/releases/latest \
 			| grep -i "browser_download_url.*nuctl.*$(uname)" \
@@ -33,16 +33,16 @@ Once downloaded, an informative help section is available using `nuctl --help`
 
 ## Running platform
 
-Nuctl will automatically identify its running platform, whether it is Docker or Kubernetes.
+`nuctl` will automatically identify its running platform, whether it is Docker or Kubernetes.
 
-To ensure you run Nuctl against a specific platform, use `--platform kube` for Kubernetes or `--platform local` for docker
+To ensure you run `nuctl` against a specific platform, use `--platform kube` for Kubernetes or `--platform local` for docker
 
 ### Docker
 
-An example of function deployment using Nuctl against Docker can be found [here](/docs/setup/docker/getting-started-docker.md)
+An example of function deployment using `nuctl` against Docker can be found [here](/docs/setup/docker/getting-started-docker.md)
 
 ### Kubernetes
 
-When running in Kubernetes, Nuctl would require you running a registry on your Kubernetes cluster and access to a `kubeconfig`
+When running in Kubernetes, `nuctl` would require you running a registry on your Kubernetes cluster and access to a `kubeconfig`
 
-An example of function deployment using Nuctl against a Kubernetes cluster can be found [here](/docs/setup/k8s/getting-started-k8s.md#deploy-a-function-with-the-nuclio-cli-nuctl)
+An example of function deployment using `nuctl` against a Kubernetes cluster can be found [here](/docs/setup/k8s/getting-started-k8s.md#deploy-a-function-with-the-nuclio-cli-nuctl)

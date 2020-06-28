@@ -14,7 +14,7 @@ Follow this step-by-step guide to set up a Nuclio development environment that u
 
 Before beginning with the installation, ensure that you have a [Docker](https://docker.com) daemon running.
 
-To ensure your Docker daemon is running properly, run  `docker version` with the same user that will execute Nuctl commands
+To ensure your Docker daemon is running properly, run  `docker version` with the same user that will execute `nuctl` commands.
 
 ## Run Nuclio
 
