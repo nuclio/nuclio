@@ -2,24 +2,25 @@
 
 #### In this document
 
-- [About](#about)
-- [Download](#download)
+- [Overview](#overview)
+- [Download and Installation](#download-n-install)
 - [Usage](#usage)
-- [Running platform](#running-platform)
-- [Docker](#docker)
-- [Kubernetes](#kubernetes)
+- [The running platform](#running-platform)
+  - [Docker](#docker)
+  - [Kubernetes](#kubernetes)
 
-## About
+<a id="overview"></a>
+## Overview
 
-`nuctl` is Nuclio's command-line interface that provides you with all the nuclio features, accessible from your terminal
+`nuctl` is Nuclio's command-line interface (CLI), which provides command-line access to all Nuclio features.
 
-## Download
+<a id="download-n-install"></a>
+## Download and Installation
 
-To install `nuctl` all you need to do, is simply visit Nuclio [releases page](https://github.com/nuclio/nuclio/releases)
-and download the binary appropriate to your platform (e.g.: `darwin` if you have `macOS`)
+To install `nuctl`, simply visit the Nuclio [releases page](https://github.com/nuclio/nuclio/releases) and download the appropriate CLI binary for your environment (for example, **nuctl-&lt;version&gt;-darwin-amd64** for a machine running macOS).
 
-You can use the following bash snippet to download the latest `nuctl` release
-```bash
+You can use the following command to download the latest `nuctl` release:
+```sh
 curl -s https://api.github.com/repos/nuclio/nuclio/releases/latest \
 			| grep -i "browser_download_url.*nuctl.*$(uname)" \
 			| cut -d : -f 2,3 \
@@ -27,22 +28,36 @@ curl -s https://api.github.com/repos/nuclio/nuclio/releases/latest \
 			| wget -O nuctl -qi - && chmod +x nuctl
 ```
 
+<a id="usage"></a>
 ## Usage
 
-Once downloaded, an informative help section is available using `nuctl --help`
+After you download `nuctl`, use the `--help` option to see full usage instructions:
+```sh
+nuctl --help
+```
 
-## Running platform
+<a id="running-platform"></a>
+## The running platform
 
-`nuctl` will automatically identify its running platform, whether it is Docker or Kubernetes.
+`nuctl` automatically identifies the platform from which it's being run.
+You can also use the `--platform` CLI flag to ensure that you're running against a specific platform, as explained in this reference:
 
-To ensure you run `nuctl` against a specific platform, use `--platform kube` for Kubernetes or `--platform local` for docker
+- [Docker](#docker)
+- [Kubernetes](#kubernetes)
 
+<a id="docker"></a>
 ### Docker
 
-An example of function deployment using `nuctl` against Docker can be found [here](/docs/setup/docker/getting-started-docker.md)
+To ensure that you're running `nuctl` on Docker, add `--platform local` to the CLI command.
 
+For an example of function deployment using `nuctl` against Docker, see the Nuclio [Docker getting-started guide](/docs/setup/docker/getting-started-docker.md).
+
+<a id="kubernetes"></a>
 ### Kubernetes
 
-When running in Kubernetes, `nuctl` would require you running a registry on your Kubernetes cluster and access to a `kubeconfig`
+To ensure that you're running `nuctl` on Kubernetes, add `--platform kube` to the CLI command.
 
-An example of function deployment using `nuctl` against a Kubernetes cluster can be found [here](/docs/setup/k8s/getting-started-k8s.md#deploy-a-function-with-the-nuclio-cli-nuctl)
+When running on Kubernetes, `nuctl` requires a running registry on your Kubernetes cluster and access to a kubeconfig file.
+
+For an example of function deployment using `nuctl` against a Kubernetes cluster, see the Nuclio [Kubernetes getting-started guide](/docs/setup/k8s/getting-started-k8s.md#deploy-a-function-with-the-nuclio-cli-nuctl).
+
