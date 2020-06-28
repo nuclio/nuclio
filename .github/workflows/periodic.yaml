@@ -1,0 +1,22 @@
+name: Periodic
+on:
+  schedule:
+#  - cron:  '0 0 1/1 * *'
+  - cron:  '*/10 * 1/1 * *'
+jobs:
+  build:
+    name: Nuclio Periodic Regression
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        ref: development
+
+    # since github-actions gives us 14G only, and fills it up with some garbage
+    # we will free up some space for us (~2GB)
+    - name: Freeing up disk space
+      run: docker system prune --all --force
+
+    - name: Build & Test
+      run: make build test
