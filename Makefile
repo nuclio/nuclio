@@ -409,7 +409,7 @@ test: ensure-gopath build-base
 		/bin/bash -c "make test-undockerized"
 
 .PHONY: test-kafka
-test: ensure-gopath build-base
+test-kafka: ensure-gopath build-base
 	docker build \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
