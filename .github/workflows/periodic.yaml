@@ -24,4 +24,4 @@ jobs:
         NUCLIO_NUCTL_CREATE_SYMLINK: false
 
     - name: Test full
-      run: make build test
+      run: make test
