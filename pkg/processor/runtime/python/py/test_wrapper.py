@@ -101,7 +101,8 @@ class TestSubmitEvents(unittest.TestCase):
 
         self._wrapper._entrypoint = mock.MagicMock()
         self._wrapper._entrypoint.assert_not_called()
-        self._wrapper.serve_requests(num_requests=1)
+        with self.assertRaises(SystemExit):
+            self._wrapper.serve_requests(num_requests=1)
         t.join()
 
     def test_single_event(self):
