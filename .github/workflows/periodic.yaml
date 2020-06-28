@@ -20,3 +20,5 @@ jobs:
 
     - name: Build & Test
       run: make build test
+      env:
+        NUCLIO_NUCTL_CREATE_SYMLINK: false
