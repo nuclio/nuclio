@@ -1,8 +1,8 @@
 name: Periodic
 on:
   schedule:
-  - cron:  '0 0 1/1 * *'
-
+#  - cron:  '0 0 1/1 * *'
+  - cron:  '*/10 * 1/1 * *'
 jobs:
   build:
     name: Periodic Regression
@@ -18,7 +18,10 @@ jobs:
     - name: Freeing up disk space
       run: docker system prune --all --force
 
-    - name: Build & Test
+    - name: Build
+      run: make build
+
+    - name: Test full
       run: make build test
       env:
         NUCLIO_NUCTL_CREATE_SYMLINK: false
