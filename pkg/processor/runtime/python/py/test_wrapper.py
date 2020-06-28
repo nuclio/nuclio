@@ -70,6 +70,27 @@ class TestSubmitEvents(unittest.TestCase):
         self._unix_stream_server.shutdown()
         self._unix_stream_server_thread.join()
 
+    def test_bad_function_code(self):
+        def raise_exception(ctx, event):
+            raise RuntimeError(error_message)
+
+        error_message = 'Im a bad entrypoint'
+        self._wait_for_socket_creation()
+        self._send_event(nuclio_sdk.Event(_id='1'))
+
+        self._wrapper._entrypoint = raise_exception
+        self._wrapper.serve_requests(num_requests=1)
+
+        # processor start, function log line, response body
+        self._wait_until_received_messages(3)
+
+        # extract the response
+        response = next(message['body']
+                        for message in self._unix_stream_server._messages
+                        if message['type'] == 'r')
+        response_body = response['body']
+        self.assertIn(error_message, response_body)
+
     def test_event_illegal_message_size(self):
         def _send_illegal_message_size():
             self._unix_stream_server._connection_socket.sendall(struct.pack(">I", 0))
