@@ -211,7 +211,7 @@ The HTTP method you apply to this endpoint is the one with which dashboard will 
   * `Content-Type`: Must be set to `application/json`
 * Body:
 ```json
- {
+{
     "metadata": {
         "name": "hello-world",
         "namespace": "nuclio"
@@ -227,7 +227,7 @@ The HTTP method you apply to this endpoint is the one with which dashboard will 
 #### Request
 * URL: `GET /api/projects`
 * Headers:
-  * `x-nuclio-project-namespace`: Namespace (required)
+  * `x-nuclio-project-namespace`: Namespace (optional)
 
 #### Response
 * Status code: 200
@@ -240,7 +240,6 @@ The HTTP method you apply to this endpoint is the one with which dashboard will 
             "namespace": "nuclio"
         },
         "spec": {
-            "displayName": "My project #1",
             "description": "Some description"
         }
     },
@@ -250,7 +249,6 @@ The HTTP method you apply to this endpoint is the one with which dashboard will 
             "namespace": "nuclio"
         },
         "spec": {
-            "displayName": "My project #2",
             "description": "Some description"
         }
     }
@@ -261,7 +259,7 @@ The HTTP method you apply to this endpoint is the one with which dashboard will 
 #### Request
 * URL: `GET /api/projects/<project name>`
 * Headers:
-  * `x-nuclio-project-namespace`: Namespace (required)
+  * `x-nuclio-project-namespace`: Namespace (optional)
 
 #### Response
 * Status code: 200
@@ -273,7 +271,6 @@ The HTTP method you apply to this endpoint is the one with which dashboard will 
         "namespace": "nuclio"
     },
     "spec": {
-        "displayName": "My project #1",
         "description": "Some description"
     }
 }
@@ -294,7 +291,6 @@ Creating a project is synchronous. By the time the response returns, the project
         "namespace": "nuclio"
     },
     "spec": {
-        "displayName": "My project #1",
         "description": "Some description"
     }
 }
@@ -317,7 +313,6 @@ Creating a project is synchronous. By the time the response returns, the project
         "namespace": "nuclio"
     },
     "spec": {
-        "displayName": "My project #1",
         "description": "Some description"
     }
 }
