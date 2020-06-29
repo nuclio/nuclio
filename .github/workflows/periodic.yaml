@@ -13,8 +13,6 @@ jobs:
     - name: curl ifconfig.me
       run: curl ifconfig.me
     - uses: actions/checkout@v2
-      with:
-        ref: development
 
     # since github-actions gives us 14G only, and fills it up with some garbage
     # we will free up some space for us (~2GB)
