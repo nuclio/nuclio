@@ -12,7 +12,7 @@
 <a id="overview"></a>
 ## Overview
 
-`nuctl` is Nuclio's command-line interface (CLI), which provides command-line access to all Nuclio features.
+`nuctl` is Nuclio's command-line interface (CLI), which provides command-line access to Nuclio features.
 
 <a id="download-n-install"></a>
 ## Download and Installation
