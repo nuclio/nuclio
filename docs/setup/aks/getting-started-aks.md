@@ -16,10 +16,11 @@ Follow this step-by-step guide to set up a Nuclio development environment that u
 
 ## Prerequisites
 
-Before setting up a Nuclio ACR environment, ensure that the following prerequisites are met:
+Before starting the set-up procedure, ensure that the following prerequisites are met:
 
 - You have an Azure account. If you don't have an account, you can [create one for free](https://azure.microsoft.com/free/).
-- The Azure CLI, [`az`](https://docs.microsoft.com/cli/azure/), is installed. See the [Azure CLI installation guide](https://docs.microsoft.com/cli/azure/install-azure-cli).
+- The [Azure CLI](https://docs.microsoft.com/cli/azure/) (`az`) is installed on your installation machine.
+    See the [Azure CLI installation guide](https://docs.microsoft.com/cli/azure/install-azure-cli).
 
 ## Set up your AKS cluster
 
@@ -47,7 +48,9 @@ az aks create --resource-group my-nuclio-k8s-rg --name myNuclioCluster --node-co
 
 After several minutes, the deployment completes and returns information about the AKS deployment, in JSON format.
 
-**Install the kubectl CLI**, unless you already have it installed (in which case you can skip to the next step). The [`kubectl`](https://kubernetes.io/docs/user-guide/kubectl-overview/) Kubernetes command-line application enables you to connect to the Kubernetes cluster from your client computer. To install `kubectl` locally, run the following `az` command (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/aks#az_aks_install_cli)):
+**Install the kubectl CLI**, if it's not already installed (in which case you can skip to the next step).
+The [`kubectl`](https://kubernetes.io/docs/user-guide/kubectl-overview/) Kubernetes command-line application enables you to connect to the Kubernetes cluster from your client computer.
+To install `kubectl` locally, run the following `az` command (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/aks#az_aks_install_cli)):
 
 ```sh
 az aks install-cli
@@ -174,16 +177,22 @@ kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=das
 kubectl port-forward -n kube-system $(kubectl get pod -n kube-system -l k8s-app=traefik-ingress-lb -o jsonpath='{.items[0].metadata.name}') 8080:80
 ```
 
+<a id="deploy-a-function-with-the-nuclio-dashboard"></a>
 ## Deploy a function with the Nuclio dashboard
 
-Browse to `http://localhost:8070` (after having forwarded this port as part of the Nuclio installation). You should see the [Nuclio dashboard](/README.md#dashboard) UI. Choose one of the built-in examples and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
+Browse to `http://localhost:8070` (after having forwarded this port as part of the Nuclio installation) to see the [Nuclio dashboard](/README.md#dashboard).
+Select the "default" project and then select **New Function** from the action toolbar to display the **Create function** page (http://localhost:8070/projects/default/create-function).
+Choose one of the predefined template functions, and select **Deploy**. 
+The first build populates the local Docker cache with base images and other files, so it might take a while to complete, depending on your network.
+When the function deployment completes, you can select **Invoke** to invoke the function with a body.
 
 ## What's next?
 
 See the following resources to make the best of your new Nuclio environment:
 
-- [Deploying functions](/docs/tasks/deploying-functions.md)
-- [Invoking functions by name with an ingress](/docs/concepts/k8s/function-ingress.md)
+- [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
+- [Deploying Functions](/docs/tasks/deploying-functions.md)
+- [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
 - [More function examples](/hack/examples/README.md)
 - [References](/docs/reference/)
 
