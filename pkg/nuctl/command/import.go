@@ -185,6 +185,7 @@ type ProjectImportConfig struct {
 
 type importProjectCommandeer struct {
 	*importCommandeer
+	skipProjects []string
 }
 
 func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProjectCommandeer {
@@ -227,6 +228,8 @@ Use --help for more information`)
 			return commandeer.importProjects(projectImportConfigs)
 		},
 	}
+
+	cmd.Flags().StringSliceVar(&commandeer.skipProjects, "skip", []string{}, "Project names to skip during import (comma separated)")
 
 	commandeer.cmd = cmd
 
@@ -276,6 +279,16 @@ func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string
 }
 
 func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConfig) error {
+	for _, skipProjectName := range i.skipProjects {
+		if skipProjectName == projectConfig.Project.Meta.Name {
+			i.rootCommandeer.loggerInstance.DebugWith("Skipping import for project",
+				"projectName", projectConfig.Project.Meta.Name)
+			return nil
+		}
+	}
+
+	i.rootCommandeer.loggerInstance.DebugWith("Importing project",
+		"projectName", projectConfig.Project.Meta.Name)
 	var err error
 	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
 		Meta: projectConfig.Project.Meta,
@@ -322,12 +335,10 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 }
 
 func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string]*ProjectImportConfig) error {
-	i.rootCommandeer.loggerInstance.DebugWith("Importing projects", "projects", projectImportConfigs)
+	i.rootCommandeer.loggerInstance.DebugWith("Importing projects", "projects", projectImportConfigs, "skipProjects", i.skipProjects)
 
 	// TODO: parallel this with errorGroup, mutex is required due to multi map writers
 	for _, projectConfig := range projectImportConfigs {
-		i.rootCommandeer.loggerInstance.DebugWith("Importing project",
-			"projectName", projectConfig.Project.Meta.Name)
 		if err := i.importProject(projectConfig); err != nil {
 			return errors.Wrap(err, "Failed to import project")
 		}
