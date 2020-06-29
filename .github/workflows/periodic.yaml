@@ -1,17 +1,13 @@
 name: Periodic
 on:
   schedule:
-#  - cron:  '0 0 1/1 * *'
+  #  - cron:  '0 0 1/1 * *'
   - cron:  '*/5 * 1/1 * *'
 jobs:
   build:
     name: Periodic Regression
     runs-on: ubuntu-latest
     steps:
-    - name: hostname dis
-      run: hostname
-    - name: curl ifconfig.me
-      run: curl ifconfig.me
     - uses: actions/checkout@v2
 
     # since github-actions gives us 14G only, and fills it up with some garbage
@@ -24,9 +20,5 @@ jobs:
       env:
         NUCLIO_NUCTL_CREATE_SYMLINK: false
 
-    - name: Test full
-#      run: make test
-      run: make test-kafka
-      env:
-        NUCLIO_TEST_HOST: 172.17.0.1
-
+    - name: Test periodic
+      run: make test-periodic
