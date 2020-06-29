@@ -230,7 +230,9 @@ func (suite *TestSuite) GetTestHost() string {
 
 	// If an env var is set, use that. otherwise localhost
 	resolvedTestHost := common.GetEnvOrDefaultString("NUCLIO_TEST_HOST", "localhost")
-	suite.Logger.InfoWith("Resolved Test hostname", "resolvedTestHost", resolvedTestHost)
+	if suite.Logger != nil {
+		suite.Logger.InfoWith("Resolved Test hostname", "resolvedTestHost", resolvedTestHost)
+	}
 	return resolvedTestHost
 }
 
