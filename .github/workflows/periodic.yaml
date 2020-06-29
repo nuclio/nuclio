@@ -26,4 +26,4 @@ jobs:
 
     - name: Test full
 #      run: make test
-      run: NUCLIO_TEST_HOST=$(curl ifconfig.me) make test-kafka
+      run: make test-kafka

@@ -430,7 +430,7 @@ test-kafka: ensure-gopath build-base
 		--env NUCLIO_OS=$(NUCLIO_OS) \
 		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
 		$(NUCLIO_DOCKER_TEST_TAG) \
-		/bin/bash -c "make test-kafka-undockerized"
+		/bin/bash -c "NUCLIO_TEST_HOST=$$(hostname) make test-kafka-undockerized"
 
 .PHONY: test-python
 test-python:
