@@ -26,4 +26,7 @@ jobs:
 
     - name: Test full
 #      run: make test
-      run: NUCLIO_TEST_HOST=$(hostname) make test-kafka
+      run: make test-kafka
+      env:
+        NUCLIO_TEST_HOST: 172.17.0.1
+
