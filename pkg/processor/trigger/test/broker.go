@@ -69,7 +69,7 @@ func (suite *AbstractBrokerSuite) SetupSuite() {
 	// get container information
 	imageName, runOptions := suite.brokerSuite.GetContainerRunInfo()
 
-	suite.Logger.InfoWith("Starting broker", "imageName", imageName)
+	suite.Logger.InfoWith("Starting broker", "imageName", imageName, "BrokerHost", suite.BrokerHost)
 
 	// start the broker
 	if imageName != "" {

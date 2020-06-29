@@ -229,11 +229,7 @@ func (suite *TestSuite) GetTestFunctionsDir() string {
 func (suite *TestSuite) GetTestHost() string {
 
 	// If an env var is set, use that. otherwise localhost
-	resolvedTestHost := common.GetEnvOrDefaultString("NUCLIO_TEST_HOST", "localhost")
-	if suite.Logger != nil {
-		suite.Logger.InfoWith("Resolved Test hostname", "resolvedTestHost", resolvedTestHost)
-	}
-	return resolvedTestHost
+	return common.GetEnvOrDefaultString("NUCLIO_TEST_HOST", "localhost")
 }
 
 // GetDeployOptions populates a platform.CreateFunctionOptions structure from function name and path
