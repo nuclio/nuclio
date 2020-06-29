@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/renderer"
 
@@ -63,7 +64,7 @@ func RenderFunctions(logger logger.Logger,
 				function.GetConfig().Meta.Namespace,
 				function.GetConfig().Meta.Name,
 				function.GetConfig().Meta.Labels["nuclio.io/project-name"],
-				string(function.GetStatus().State),
+				encodeFunctionState(function),
 				strconv.Itoa(function.GetStatus().HTTPPort),
 				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),
 			}
@@ -189,4 +190,15 @@ func RenderProjects(projects []platform.Project,
 	}
 
 	return nil
+}
+
+func encodeFunctionState(function platform.Function) string {
+	functionStatus := function.GetStatus()
+	functionSpec := function.GetConfig().Spec
+	if functionStatus.State == functionconfig.FunctionStateReady && functionSpec.Disable {
+
+		// same state as UI
+		return "standby"
+	}
+	return string(functionStatus.State)
 }
