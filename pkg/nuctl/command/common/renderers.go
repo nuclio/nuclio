@@ -198,7 +198,7 @@ func encodeFunctionState(function platform.Function) string {
 	if functionStatus.State == functionconfig.FunctionStateReady && functionSpec.Disable {
 
 		// same state as UI
-		return "Standby"
+		return "standby"
 	}
 	return string(functionStatus.State)
 }
