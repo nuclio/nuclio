@@ -56,7 +56,7 @@ func (suite *testSuite) SetupSuite() {
 	suite.AbstractBrokerSuite.SetupSuite()
 
 	suite.brokerURL = fmt.Sprintf("%s:9092", suite.BrokerHost)
-	suite.Logger.Info("Creating broker resources", "brokerURL", suite.brokerURL)
+	suite.Logger.InfoWith("Creating broker resources", "brokerURL", suite.brokerURL)
 
 	// create broker
 	suite.broker = sarama.NewBroker(suite.brokerURL)
