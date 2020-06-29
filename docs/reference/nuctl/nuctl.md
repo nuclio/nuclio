@@ -1,4 +1,4 @@
-# nuctl &mdash; The Nuclio CLI
+# The Nuclio CLI (nuctl)
 
 #### In this document
 
@@ -59,5 +59,5 @@ To ensure that you're running `nuctl` on Kubernetes, add `--platform kube` to th
 
 When running on Kubernetes, `nuctl` requires a running registry on your Kubernetes cluster and access to a kubeconfig file.
 
-For an example of function deployment using `nuctl` against a Kubernetes cluster, see the Nuclio [Kubernetes getting-started guide](/docs/setup/k8s/getting-started-k8s.md#deploy-a-function-with-the-nuclio-cli-nuctl).
+For an example of function deployment using `nuctl` against a Kubernetes cluster, see the Nuclio [Kubernetes getting-started guide](/docs/setup/k8s/getting-started-k8s.md#deploy-a-function-with-the-nuclio-cli).
 
