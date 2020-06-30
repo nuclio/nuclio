@@ -32,6 +32,7 @@ type testSuite struct {
 	*triggertest.AbstractBrokerSuite
 	broker        *sarama.Broker
 	producer      sarama.SyncProducer
+	brokerURL     string
 	topic         string
 	consumerGroup string
 	initialOffset string
@@ -54,10 +55,11 @@ func newTestSuite() *testSuite {
 func (suite *testSuite) SetupSuite() {
 	suite.AbstractBrokerSuite.SetupSuite()
 
-	suite.Logger.Info("Creating broker resources")
+	suite.brokerURL = fmt.Sprintf("%s:9092", suite.BrokerHost)
+	suite.Logger.InfoWith("Creating broker resources", "brokerURL", suite.brokerURL)
 
 	// create broker
-	suite.broker = sarama.NewBroker(fmt.Sprintf("%s:9092", suite.BrokerHost))
+	suite.broker = sarama.NewBroker(suite.brokerURL)
 
 	brokerConfig := sarama.NewConfig()
 	brokerConfig.Version = sarama.V0_10_1_0
@@ -76,13 +78,13 @@ func (suite *testSuite) SetupSuite() {
 	}
 
 	// create topic
-	resp, err := suite.broker.CreateTopics(&createTopicsRequest)
+	response, err := suite.broker.CreateTopics(&createTopicsRequest)
 	suite.Require().NoError(err, "Failed to create topic")
 
-	suite.Logger.InfoWith("Created topic", "topic", suite.topic, "response", resp)
+	suite.Logger.InfoWith("Created topic", "topic", suite.topic, "response", response)
 
 	// create a sync producer
-	suite.producer, err = sarama.NewSyncProducer([]string{fmt.Sprintf("%s:9092", suite.BrokerHost)}, nil)
+	suite.producer, err = sarama.NewSyncProducer([]string{suite.brokerURL}, nil)
 	suite.Require().NoError(err, "Failed to create sync producer")
 }
 
@@ -99,7 +101,7 @@ func (suite *testSuite) TestReceiveRecords() {
 	}
 	createFunctionOptions.FunctionConfig.Spec.Triggers["my-kafka"] = functionconfig.Trigger{
 		Kind: "kafka-cluster",
-		URL:  fmt.Sprintf("%s:9092", suite.BrokerHost),
+		URL:  suite.brokerURL,
 		Attributes: map[string]interface{}{
 			"topics":        []string{suite.topic},
 			"consumerGroup": suite.consumerGroup,
