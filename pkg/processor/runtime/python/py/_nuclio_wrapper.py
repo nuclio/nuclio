@@ -27,9 +27,11 @@ import nuclio_sdk.json_encoder
 import nuclio_sdk.logger
 
 
-# Wrapper fatal is an exception the wrapper can not (perhaps should not) recover from
-# and will lead to wrapper termination
 class WrapperFatalException(Exception):
+    """
+    Wrapper fatal is an exception the wrapper can not (perhaps should not) recover from
+    and will lead to wrapper termination
+    """
     pass
 
 
@@ -188,7 +190,7 @@ class Wrapper(object):
         should_be_four = self._processor_sock.recv_into(int_buf, 4)
 
         # client disconnect
-        if should_be_four < 4:
+        if should_be_four != 4:
             raise WrapperFatalException('Client disconnected')
 
         # big-endian, compute event bytes length to read
@@ -223,7 +225,8 @@ class Wrapper(object):
             # try write the formatted exception back to processor
             self._write_packet_to_processor('r' + encoded_response)
         except Exception as exc:
-            print('Failed to write message to processor, is socket open?\nException: {0}'.format(str(exc)))
+            print('Failed to write message to processor after serving error detected, is socket open?\n'
+                  'Exception: {0}'.format(str(exc)))
 
     def _handle_event(self, event):
 
