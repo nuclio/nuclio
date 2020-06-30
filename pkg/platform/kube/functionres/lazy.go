@@ -1997,13 +1997,15 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	case "memory":
 		return v1.ResourceMemory
 	case "alpha.kubernetes.io/nvidia-gpu":
-		return v1.ResourceNvidiaGPU
+		return v1.ResourceName(resourceName)
+	case "nvidia.com/gpu":
+		return v1.ResourceName(resourceName)
 	case "ephemeral-storage":
 		return v1.ResourceEphemeralStorage
 	case "storage":
 		return v1.ResourceStorage
 	default:
-		return v1.ResourceName("")
+		return ""
 	}
 }
 
