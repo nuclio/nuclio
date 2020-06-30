@@ -332,12 +332,13 @@ func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string
 		if i.shouldSkipProject(projectConfig) {
 			i.rootCommandeer.loggerInstance.DebugWith("Skipping import for project",
 				"projectName", projectConfig.Project.Meta.Name)
-		} else {
-			i.rootCommandeer.loggerInstance.DebugWith("Importing project",
-				"projectName", projectConfig.Project.Meta.Name)
-			if err := i.importProject(projectConfig); err != nil {
-				return errors.Wrap(err, "Failed to import project")
-			}
+			continue
+		}
+
+		i.rootCommandeer.loggerInstance.DebugWith("Importing project",
+			"projectName", projectConfig.Project.Meta.Name)
+		if err := i.importProject(projectConfig); err != nil {
+			return errors.Wrap(err, "Failed to import project")
 		}
 	}
 	return nil
