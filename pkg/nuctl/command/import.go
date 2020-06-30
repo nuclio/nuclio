@@ -185,7 +185,7 @@ type ProjectImportConfig struct {
 
 type importProjectCommandeer struct {
 	*importCommandeer
-	skipProjects []string
+	skipProjectNames []string
 }
 
 func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProjectCommandeer {
@@ -229,7 +229,7 @@ Use --help for more information`)
 		},
 	}
 
-	cmd.Flags().StringSliceVar(&commandeer.skipProjects, "skip", []string{}, "Project names to skip during import (comma separated)")
+	cmd.Flags().StringSliceVar(&commandeer.skipProjectNames, "skip", []string{}, "Project names to skip (comma separated)")
 
 	commandeer.cmd = cmd
 
@@ -279,16 +279,6 @@ func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string
 }
 
 func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConfig) error {
-	for _, skipProjectName := range i.skipProjects {
-		if skipProjectName == projectConfig.Project.Meta.Name {
-			i.rootCommandeer.loggerInstance.DebugWith("Skipping import for project",
-				"projectName", projectConfig.Project.Meta.Name)
-			return nil
-		}
-	}
-
-	i.rootCommandeer.loggerInstance.DebugWith("Importing project",
-		"projectName", projectConfig.Project.Meta.Name)
 	var err error
 	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
 		Meta: projectConfig.Project.Meta,
@@ -335,12 +325,19 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 }
 
 func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string]*ProjectImportConfig) error {
-	i.rootCommandeer.loggerInstance.DebugWith("Importing projects", "projects", projectImportConfigs, "skipProjects", i.skipProjects)
+	i.rootCommandeer.loggerInstance.DebugWith("Importing projects", "projects", projectImportConfigs, "skipProjectNames", i.skipProjectNames)
 
 	// TODO: parallel this with errorGroup, mutex is required due to multi map writers
 	for _, projectConfig := range projectImportConfigs {
-		if err := i.importProject(projectConfig); err != nil {
-			return errors.Wrap(err, "Failed to import project")
+		if i.shouldSkipProject(projectConfig) {
+			i.rootCommandeer.loggerInstance.DebugWith("Skipping import for project",
+				"projectName", projectConfig.Project.Meta.Name)
+		} else {
+			i.rootCommandeer.loggerInstance.DebugWith("Importing project",
+				"projectName", projectConfig.Project.Meta.Name)
+			if err := i.importProject(projectConfig); err != nil {
+				return errors.Wrap(err, "Failed to import project")
+			}
 		}
 	}
 	return nil
@@ -371,4 +368,13 @@ func (i *importProjectCommandeer) resolveProjectImportConfigs(projectBody []byte
 	}
 
 	return projectImportConfigs, nil
+}
+
+func (i *importProjectCommandeer) shouldSkipProject(projectConfig *ProjectImportConfig) bool {
+	for _, skipProjectName := range i.skipProjectNames {
+		if skipProjectName == projectConfig.Project.Meta.Name {
+			return true
+		}
+	}
+	return false
 }
