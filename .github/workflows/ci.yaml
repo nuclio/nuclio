@@ -64,7 +64,6 @@ jobs:
           name: test-results
           path: test-short-${{ env.NUCLIO_LABEL }}.log
 
-
   build_nuctl:
     name: Build nuctl
     runs-on: ubuntu-latest
@@ -78,16 +77,8 @@ jobs:
       - name: Build
         run: |
           make nuctl
-          sudo mv $(go env GOPATH)/bin/nuctl-${NUCLIO_LABEL}-linux-amd64 nuctl
-          sudo chmod +x nuctl
-          ./nuctl version
         env:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: nuctl-bin
-          path: nuctl
 
   build_docker_images:
     name: Build docker images
@@ -138,7 +129,7 @@ jobs:
 
       - uses: azure/setup-helm@v1
         with:
-          version: "v3.1.2"
+          version: "v3.2.4"
 
       - uses: actions/cache@v1
         with:
@@ -147,10 +138,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - uses: manusa/actions-setup-minikube@v1.0.2
+      - uses: manusa/actions-setup-minikube@v1.1.0
         with:
-          minikube version: "v1.9.2"
-          kubernetes version: "v1.17.3"
+          minikube version: "v1.11.0"
+          kubernetes version: "v1.17.8"
           github token: ${{ github.token }}
 
       - name: Fetch nuclio docker images

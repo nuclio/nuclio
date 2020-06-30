@@ -2,7 +2,8 @@
   <configuration default="false" name="(kube) nuctl test" type="GoTestRunConfiguration" factoryName="Go Test">
     <module name="nuclio" />
     <working_directory value="$PROJECT_DIR$/pkg/nuctl/test" />
-    <parameters value=" -testify.m ^TestDeployFromFunctionConfig$" />
+    <go_parameters value="-ldflags=&quot;-X github.com/v3io/version-go.label=246&quot;" />
+    <parameters value=" -testify.m ^TestBuild$" />
     <envs>
       <env name="NUCTL_NAMESPACE" value="default" />
       <env name="NUCTL_RUN_REGISTRY" value="localhost:5000" />
@@ -11,10 +12,10 @@
       <env name="NUCTL_EXTERNAL_IP_ADDRESSES" value="localhost" />
     </envs>
     <framework value="gotest" />
-    <kind value="PACKAGE" />
+    <kind value="FILE" />
     <package value="github.com/nuclio/nuclio/pkg/nuctl/test" />
-    <directory value="$PROJECT_DIR$/" />
-    <filePath value="$PROJECT_DIR$/" />
+    <directory value="$PROJECT_DIR$/pkg/nuctl/test" />
+    <filePath value="$PROJECT_DIR$/pkg/nuctl/test/function_test.go" />
     <method v="2" />
   </configuration>
 </component>
