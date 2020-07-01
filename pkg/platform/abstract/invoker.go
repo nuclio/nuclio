@@ -21,6 +21,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -85,7 +86,11 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 		fullpath += "/" + createFunctionInvocationOptions.Path
 	}
 
-	client := &http.Client{}
+	client := &http.Client{
+
+		// default timeout, to avoid malfunctioning invocation
+		Timeout: 60 * time.Second,
+	}
 	var req *http.Request
 	var body io.Reader = http.NoBody
 
