@@ -192,7 +192,7 @@ func isFunctionDeploymentFailed(consumer *consumer,
 	pods, err := consumer.kubeClientSet.CoreV1().
 		Pods(namespace).
 		List(metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", name),
+			LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s,nuclio.io/class=function", name),
 		})
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to get pods")
