@@ -1553,8 +1553,18 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 			eventBodyCurlArg)
 	}
 
+
+	// get cron job retries until failing a job
+	parsedCronJobJobRetries, err := strconv.Atoi(common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_JOB_RETRIES",
+		"2"))
+	if err == nil {
+		parsedCronJobJobRetries = 2
+	}
+
+	cronJobJobRetries := int32(parsedCronJobJobRetries)
 	spec.JobTemplate = batchv1beta1.JobTemplateSpec{
 		Spec: batchv1.JobSpec{
+			BackoffLimit: &cronJobJobRetries,
 			Template: v1.PodTemplateSpec{
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
