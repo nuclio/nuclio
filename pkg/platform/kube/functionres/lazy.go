@@ -1486,7 +1486,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	resources Resources,
 	cronTrigger functionconfig.Trigger) (*batchv1beta1.CronJobSpec, error) {
 	var err error
-
+	one := int32(1)
 	spec := batchv1beta1.CronJobSpec{}
 
 	type cronAttributes struct {
@@ -1559,8 +1559,8 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	if err == nil {
 		parsedCronJobJobRetries = 2
 	}
-
 	cronJobJobRetries := int32(parsedCronJobJobRetries)
+
 	spec.JobTemplate = batchv1beta1.JobTemplateSpec{
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &cronJobJobRetries,
@@ -1584,6 +1584,10 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	if attributes.ConcurrencyPolicy != "" {
 		spec.ConcurrencyPolicy = batchv1beta1.ConcurrencyPolicy(util.Capitalize(attributes.ConcurrencyPolicy))
 	}
+
+	// set default history limit (no need for more than one - makes kube jobs api clearer)
+	spec.SuccessfulJobsHistoryLimit = &one
+	spec.FailedJobsHistoryLimit = &one
 
 	return &spec, nil
 }

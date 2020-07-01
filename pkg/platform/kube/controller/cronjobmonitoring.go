@@ -53,6 +53,8 @@ func (cjpd *CronJobMonitoring) startStaleCronJobPodsDeletionLoop() error {
 		// sleep until next deletion time staleCronJobPodsDeletionInterval
 		time.Sleep(*cjpd.staleCronJobPodsDeletionInterval)
 
+		cjpd.logger.Debug("Deleting stale cron job pods")
+
 		err := cjpd.controller.kubeClientSet.
 			CoreV1().
 			Pods(cjpd.controller.namespace).
