@@ -1553,7 +1553,6 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 			eventBodyCurlArg)
 	}
 
-
 	// get cron job retries until failing a job
 	parsedCronJobJobRetries, err := strconv.Atoi(common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_JOB_RETRIES", "2"))
 	if err == nil {
