@@ -149,6 +149,7 @@
 
                             // remove from list
                             lodash.pull(ctrl.projects, project);
+                            sortTable();
                         }
                     })
                     .catch(function (errorMessage) {
@@ -316,6 +317,8 @@
                     if (lodash.isEmpty(ctrl.projects)) {
                         $state.go('app.nuclio-welcome');
                     }
+
+                    sortTable();
                 })
                 .catch(function (error) {
                     var defaultMsg = $i18next.t('functions:ERROR_MSG.GET_PROJECTS', { lng: lng });
