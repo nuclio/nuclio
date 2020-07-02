@@ -371,8 +371,8 @@ github.com/tsenart/vegeta v6.3.0+incompatible/go.mod h1:Smz/ZWfhKRcyDDChZkG3CyTH
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
 github.com/ulikunitz/xz v0.5.6 h1:jGHAfXawEGZQ3blwU5wnWKQJvAraT7Ftq9EXjnXYgt8=
 github.com/ulikunitz/xz v0.5.6/go.mod h1:2bypXElzHzzJZwzH67Y6wb67pO62Rzfn7BSiF4ABRW8=
-github.com/v3io/scaler-types v1.6.0 h1:QgffuiQayMV8r1lznMsrCGU+4iXfFfBe0Ydr4wgiX1g=
-github.com/v3io/scaler-types v1.6.0/go.mod h1:Q2xufg8/9sLUOHh8/ckhHaAzZy2M8AgEknMTJ5HxvFI=
+github.com/v3io/scaler-types v1.7.0 h1:ZTbJaYUxZgnPjiOWU64l74jCk5iRmEoA2ZxyzUQbtn0=
+github.com/v3io/scaler-types v1.7.0/go.mod h1:fnjcQnuYD8wTmkmsv7QLnXShuk5HNRRwfFHfR+khYRs=
 github.com/v3io/v3io-go v0.1.6 h1:sYyrcwAHhcUIUDoR8U+TxWYavhEweQryD8AqW5PjymM=
 github.com/v3io/v3io-go v0.1.6/go.mod h1:5poBlcjZG5TiexRTYI44PE6tHzZz5Z60w+iS899pWtc=
 github.com/v3io/v3io-go-http v0.0.1 h1:uE+PmPkVfGi6vIMpoFgrSot4yIow5Id48Gj9ZPt02pU=
