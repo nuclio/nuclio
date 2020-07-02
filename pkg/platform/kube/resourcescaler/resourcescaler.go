@@ -1,22 +1,22 @@
 package main
 
 import (
+	"os"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
-	"github.com/nuclio/nuclio/pkg/platformconfig"
 	// load all sinks
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/v3io/scaler-types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -40,9 +40,14 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 		return nil, errors.Wrap(err, "Failed to get platform configuration")
 	}
 
-	rootLogger, err := loggersink.CreateSystemLogger("resource-scaler", platformConfiguration)
+	resourceScalerLogger, err := nucliozap.NewNuclioZap("resource-scaler",
+		"console",
+		nil,
+		os.Stdout,
+		os.Stderr,
+		nucliozap.DebugLevel)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create logger")
+		return nil, errors.Wrap(err, "Failed creating a new logger")
 	}
 
 	restConfig, err := getClientConfig(kubeconfigPath)
@@ -55,13 +60,13 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 		return nil, errors.Wrap(err, "Failed to create nuclio client set")
 	}
 
-	rootLogger.DebugWith("Initialized resource scaler",
+	resourceScalerLogger.DebugWith("Initialized resource scaler",
 		"platformconfig", platformConfiguration,
 		"namespace", namespace,
 		"kubeconfigPath", kubeconfigPath)
 
 	return &NuclioResourceScaler{
-		logger:                rootLogger,
+		logger:                resourceScalerLogger,
 		nuclioClientSet:       nuclioClientSet,
 		kubeconfigPath:        kubeconfigPath,
 		namespace:             namespace,
