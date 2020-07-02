@@ -210,13 +210,6 @@ func isFunctionDeploymentFailed(consumer *consumer,
 
 		for _, containerStatus := range pod.Status.ContainerStatuses {
 
-			// check if the pod has terminated with an error
-			if containerStatus.State.Terminated != nil &&
-				containerStatus.State.Terminated.Reason == "Error" {
-
-				return true, errors.Errorf("NuclioFunction pod (%s) container exited with an error", pod.Name)
-			}
-
 			if pod.Status.ContainerStatuses[0].State.Waiting != nil {
 
 				// check if the pod is on a crashLoopBackoff
