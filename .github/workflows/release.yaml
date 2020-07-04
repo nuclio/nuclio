@@ -33,11 +33,11 @@ jobs:
     - name: Extract Release Info
       id: release_info
       run: |
-        echo ::set-output name=REF_BRANCH::${{GITHUB_REF#refs/heads/}}
-        echo ::set-output name=REF_TAG::${{GITHUB_REF#refs/tags/}}
+        echo ::set-output name=REF_BRANCH::${GITHUB_REF#refs/heads/}
+        echo ::set-output name=REF_TAG::${GITHUB_REF#refs/tags/}
 
     - name: set NUCLIO_LABEL to unstable
-      if: github.event_name == 'push' && steps.release_info.REF_BRANCH == 'development'
+      if: github.event_name == 'push' && steps.release_info.outputs.REF_BRANCH == 'development'
       run: |
         echo "::set-env name=NUCLIO_LABEL::unstable"
 
