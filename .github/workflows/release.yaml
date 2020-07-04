@@ -33,8 +33,8 @@ jobs:
     - name: Extract Release Info
       id: release_info
       run: |
-        echo ::set-output name=REF_BRANCH::${GITHUB_REF#refs/heads/}
-        echo ::set-output name=REF_TAG::${GITHUB_REF#refs/tags/}
+        echo ::set-output name=REF_BRANCH::${{GITHUB_REF#refs/heads/}}
+        echo ::set-output name=REF_TAG::${{GITHUB_REF#refs/tags/}}
 
     - name: set NUCLIO_LABEL to unstable
       if: github.event_name == 'push' && steps.release_info.REF_BRANCH == 'development'
@@ -57,9 +57,11 @@ jobs:
     - name: Freeing some disk space
       run: docker system prune --all --force
 
-    - name: Login to registry
-      run: |
-        echo "$QUAYIO_DOCKER_PASSWORD" | docker login -u="$QUAYIO_DOCKER_USERNAME" --password-stdin quay.io
+    - uses: azure/docker-login@v1
+      with:
+        login-server: ${{ env.REPO }}
+        username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
+        password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
 
     - name: Build
       run: make docker-images
