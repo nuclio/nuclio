@@ -38,7 +38,6 @@ read -s mypassword
 <enter your password>
 
 kubectl create secret docker-registry nuclio-registry-credentials \
-    --namespace nuclio \
     --docker-username <username> \
     --docker-password $mypassword \
     --docker-server <registry name> \
@@ -51,7 +50,7 @@ unset mypassword
 There are no special flags required when installing in AKS or vanilla Kubernetes:
 
 ``` sh
-helm install nuclio --namespace nuclio nuclio/nuclio
+helm install nuclio nuclio/nuclio
 ```
 
 ### Install on GKE (or when using GCR)
@@ -59,7 +58,6 @@ If you're using GCR as your image registry, there is a small quirk where the log
 
 ``` sh
 helm install nuclio \
-    --namespace nuclio \
 	--set registry.pushPullUrl gcr.io/<your project name> \
 	nuclio/nuclio
 ```
@@ -75,7 +73,6 @@ By not providing a registry secret name (`registry.secretName`) nor credentials 
 
 ``` sh
 helm install nuclio \
-    --namespace nuclio \
     --set registry.pushPullUrl=localhost:5000 \
 	nuclio/nuclio
 ```
