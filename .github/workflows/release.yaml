@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  release:
+    types:
+    - created
+
+  # Run Release on push to development for unstable
+  push:
+    branches:
+    - development
+
+env:
+  REPO: quay.io
+  REPO_NAME: nuclio
+  NUCLIO_LABEL: ${{ github.run_number }}
+
+jobs:
+  release:
+    name: Build docker images
+    runs-on: ubuntu-latest
+    steps:
+    - name: Dump GitHub context
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+      run: echo "$GITHUB_CONTEXT"
+
+    - name: Dump runner context
+      env:
+        RUNNER_CONTEXT: ${{ toJson(runner) }}
+      run: echo "$RUNNER_CONTEXT"
+
+    - name: Extract Release Info
+        id: release_info
+        run: |
+          echo ::set-output name=REF_BRANCH::${GITHUB_REF#refs/heads/}
+          echo ::set-output name=REF_TAG::${GITHUB_REF#refs/tags/}
+
+    - name: set NUCLIO_LABEL to unstable
+      if: github.event_name == 'push' && steps.release_info.REF_BRANCH == 'development'
+      run: |
+        echo "::set-env name=NUCLIO_LABEL::unstable"
+
+    - name: set NUCLIO_LABEL to release tag
+      if: github.event_name == 'release'
+      run: |
+        echo "::set-env name=NUCLIO_LABEL::${{steps.release_info.REF_TAG}}"
+
+    - uses: actions/checkout@v2
+
+    - uses: actions/setup-go@v2
+      with:
+        go-version: "^1.14.0"
+
+    # since github-actions gives us 14G only, and fill it up with some garbage
+    # we will free up some space for us (~2GB)
+    - name: Freeing some disk space
+      run: docker system prune --all --force
+
+    - name: Login to registry
+      run: |
+        echo "$QUAYIO_DOCKER_PASSWORD" | docker login -u="$QUAYIO_DOCKER_USERNAME" --password-stdin quay.io
+
+    - name: Build
+      run: make docker-images
+      env:
+        NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
+
+    - name: Push images
+      run: |
+        make push-docker-images
+      env:
+        NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
+
+    # TODO: Just dashboard today, is this still needed?
+    - name: Tag and push stable images
+      run: |
+        if [ "$NUCLIO_LABEL" != "unstable" ]; then
+          docker tag "$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-amd64" "$NUCLIO_DOCKER_REPO/dashboard:stable-amd64" &&
+          docker push "$NUCLIO_DOCKER_REPO/dashboard:stable-amd64";
+        fi
+      env:
+        NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
+
+    - name: Build binaries
+      run: |
+        NUCLIO_OS=linux NUCLIO_ARCH=amd64 make tools
+        NUCLIO_OS=darwin NUCLIO_ARCH=amd64 make tools
+        NUCLIO_OS=windows NUCLIO_ARCH=amd64 make tools
+
+    - name: Upload binaries
+      uses: skx/github-action-publish-binaries@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        args: '$GOPATH/bin/nuctl-*'
