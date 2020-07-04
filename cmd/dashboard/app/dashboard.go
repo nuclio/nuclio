@@ -157,14 +157,15 @@ func Run(listenAddress string,
 		platformInstance.SetImageNamePrefixTemplate(imageNamePrefixTemplate)
 	}
 
-	rootLogger.InfoWith("Starting",
+	rootLogger.InfoWith("Starting dashboard",
 		"name", platformInstance.GetName(),
 		"noPull", noPullBaseImages,
 		"offline", offline,
 		"defaultCredRefreshInterval", defaultCredRefreshIntervalString,
 		"defaultNamespace", defaultNamespace,
 		"version", version.Get(),
-		"platformConfiguration", platformConfiguration)
+		"platformConfiguration", platformConfiguration,
+		"containerBuilderKind", platformInstance.GetContainerBuilderKind())
 
 	// see if the platform has anything to say about the namespace
 	defaultNamespace = platformInstance.ResolveDefaultNamespace(defaultNamespace)
@@ -177,6 +178,7 @@ func Run(listenAddress string,
 	}
 
 	server, err := dashboard.NewServer(rootLogger,
+		platformInstance.GetContainerBuilderKind(),
 		dockerKeyDir,
 		defaultRegistryURL,
 		defaultRunRegistryURL,

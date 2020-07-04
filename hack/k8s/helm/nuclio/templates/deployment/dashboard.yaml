@@ -48,8 +48,10 @@ spec:
         ports:
         - containerPort: 8070
         volumeMounts:
+        {{- if eq .Values.dashboard.containerBuilderKind "docker" }}
         - mountPath: /var/run/docker.sock
           name: docker-sock
+        {{- end }}
         {{- if or .Values.registry.secretName .Values.registry.credentials }}
         - name: registry-credentials
           mountPath: "/etc/nuclio/dashboard/registry-credentials"
@@ -125,9 +127,11 @@ spec:
         - name: NUCLIO_DASHBOARD_IMAGE_NAME_PREFIX_TEMPLATE
           value: {{ .Values.dashboard.imageNamePrefixTemplate | quote }}
       volumes:
+      {{- if eq .Values.dashboard.containerBuilderKind "docker" }}
       - name: docker-sock
         hostPath:
           path: /var/run/docker.sock
+      {{- end }}
       {{- if or .Values.registry.secretName .Values.registry.credentials }}
       - name: registry-credentials
         secret:

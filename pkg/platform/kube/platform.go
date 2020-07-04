@@ -100,7 +100,8 @@ func NewPlatform(parentLogger logger.Logger,
 	}
 
 	// create container builder
-	if containerBuilderConfiguration != nil && containerBuilderConfiguration.Kind == "kaniko" {
+	if containerBuilderConfiguration != nil &&
+		containerBuilderConfiguration.Kind == "kaniko" {
 		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewKaniko(newPlatform.Logger,
 			newPlatform.consumer.kubeClientSet, containerBuilderConfiguration)
 		if err != nil {

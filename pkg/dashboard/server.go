@@ -48,7 +48,6 @@ type Server struct {
 	dockerKeyDir                   string
 	defaultRegistryURL             string
 	defaultRunRegistryURL          string
-	dockerClient                   dockerclient.Client
 	dockerCreds                    *dockercreds.DockerCreds
 	Platform                       platform.Platform
 	NoPullBaseImages               bool
@@ -64,6 +63,7 @@ type Server struct {
 }
 
 func NewServer(parentLogger logger.Logger,
+	containerBuilderKind string,
 	dockerKeyDir string,
 	defaultRegistryURL string,
 	defaultRunRegistryURL string,
@@ -82,12 +82,15 @@ func NewServer(parentLogger logger.Logger,
 	dependantImageRegistryURL string) (*Server, error) {
 
 	var err error
-
-	newDockerClient, err := dockerclient.NewShellClient(parentLogger, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create docker client")
+	var newDockerClient *dockerclient.ShellClient
+	if containerBuilderKind == "docker" {
+		newDockerClient, err = dockerclient.NewShellClient(parentLogger, nil)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create docker client")
+		}
 	}
 
+	// newDockerClient may be nil
 	newDockerCreds, err := dockercreds.NewDockerCreds(parentLogger, newDockerClient, defaultCredRefreshInterval)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker loginner")
@@ -102,7 +105,6 @@ func NewServer(parentLogger logger.Logger,
 		dockerKeyDir:                   dockerKeyDir,
 		defaultRegistryURL:             defaultRegistryURL,
 		defaultRunRegistryURL:          defaultRunRegistryURL,
-		dockerClient:                   newDockerClient,
 		dockerCreds:                    newDockerCreds,
 		Platform:                       platform,
 		NoPullBaseImages:               noPullBaseImages,
@@ -128,8 +130,10 @@ func NewServer(parentLogger logger.Logger,
 	}
 
 	// try to load docker keys, ignoring errors
-	if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
-		newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
+	if containerBuilderKind == "docker" {
+		if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
+			newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
+		}
 	}
 
 	// if the docker registry was not specified, try to take from credentials. this way the user only needs
@@ -248,6 +252,7 @@ func (s *Server) getRegistryURL() string {
 	if len(credentials) >= 1 {
 		registryURL = credentials[0].URL
 
+		// TODO: This auto-expansion does not support with kaniko today, must provide full URL. Remove this?
 		// if the user specified the docker hub, we can't use this as-is. add the user name to the URL
 		// to generate a valid URL
 		for _, dockerPattern := range []string{
@@ -268,11 +273,6 @@ func (s *Server) getRegistryURL() string {
 			})
 
 		s.Logger.InfoWith("Using registry from credentials", "url", registryURL)
-	}
-
-	// if we're still without a valid registry, use a hardcoded one (TODO: remove this)
-	if registryURL == "" {
-		registryURL = "localhost:5000"
 	}
 
 	return registryURL

@@ -23,6 +23,10 @@ type Platform struct {
 // Function
 //
 
+func (mp *Platform) GetContainerBuilderKind() string {
+	return "docker"
+}
+
 // Build will locally build a processor image and return its name (or the error)
 func (mp *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	args := mp.Called(createFunctionBuildOptions)
