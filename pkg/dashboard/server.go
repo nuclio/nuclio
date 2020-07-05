@@ -81,16 +81,12 @@ func NewServer(parentLogger logger.Logger,
 	platformAuthorizationMode string,
 	dependantImageRegistryURL string) (*Server, error) {
 
-	var err error
-	var newDockerClient *dockerclient.ShellClient
-	if containerBuilderKind == "docker" {
-		newDockerClient, err = dockerclient.NewShellClient(parentLogger, nil)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create docker client")
-		}
+	// newDockerClient may be nil
+	newDockerClient, err := createDockerClient(parentLogger, containerBuilderKind)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
 
-	// newDockerClient may be nil
 	newDockerCreds, err := dockercreds.NewDockerCreds(parentLogger, newDockerClient, defaultCredRefreshInterval)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker loginner")
@@ -284,4 +280,14 @@ func (s *Server) loadDockerKeys(dockerKeyDir string) error {
 	}
 
 	return s.dockerCreds.LoadFromDir(dockerKeyDir)
+}
+
+func createDockerClient(parentLogger logger.Logger, containerBuilderKind string) (
+	dockerclient.Client, error) {
+	if containerBuilderKind == "docker" {
+		return dockerclient.NewShellClient(parentLogger, nil)
+	}
+
+	// if docker won't be use, return nil as a client
+	return nil, nil
 }
