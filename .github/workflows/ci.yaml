@@ -10,7 +10,6 @@ on:
   push:
     branches:
     - master
-    - gh_release # TODO: REMOVEME
 
 env:
   REPO: quay.io
