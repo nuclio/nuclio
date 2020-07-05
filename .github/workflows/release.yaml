@@ -13,7 +13,6 @@ on:
 env:
   REPO: quay.io
   REPO_NAME: nuclio
-  NUCLIO_LABEL: ${{ github.run_number }}
 
 jobs:
   release:
