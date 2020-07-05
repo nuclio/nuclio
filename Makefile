@@ -93,7 +93,7 @@ helm-publish:
 # tools get built with the specified OS/arch and inject version
 GO_BUILD_TOOL_WORKDIR = /nuclio
 GO_BUILD_NUCTL = docker run \
-	--volume $(q)/bin:/go/bin \
+	--volume $(GOPATH)/bin:/go/bin \
 	--env GOOS=$(NUCLIO_OS) \
 	--env GOARCH=$(NUCLIO_ARCH) \
 	nuclio-base:$(NUCLIO_LABEL) \
