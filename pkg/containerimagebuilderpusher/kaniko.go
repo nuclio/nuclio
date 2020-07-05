@@ -53,6 +53,10 @@ func NewKaniko(logger logger.Logger, kubeClientSet kubernetes.Interface,
 	return kanikoBuilder, nil
 }
 
+func (k *Kaniko) GetKind() string {
+	return "kaniko"
+}
+
 func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error {
 	bundleFilename, assetPath, err := k.createContainerBuildBundle(buildOptions.Image, buildOptions.ContextDir, buildOptions.TempDir)
 	if err != nil {
@@ -332,8 +336,7 @@ func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, bu
 	k.logger.DebugWith("Waiting for kaniko to finish", "buildTimeoutSeconds", buildTimeoutSeconds)
 	timeout := time.Now().Add(time.Duration(buildTimeoutSeconds) * time.Second)
 	for time.Now().Before(timeout) {
-		runningJob, err := k.kubeClientSet.BatchV1().Jobs(namespace).
-			Get(jobName, metav1.GetOptions{IncludeUninitialized: true})
+		runningJob, err := k.kubeClientSet.BatchV1().Jobs(namespace).Get(jobName, metav1.GetOptions{})
 
 		if err != nil {
 			return errors.Wrap(err, "Failed to poll kaniko job status")

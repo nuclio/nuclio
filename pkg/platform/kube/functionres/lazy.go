@@ -1486,13 +1486,14 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	resources Resources,
 	cronTrigger functionconfig.Trigger) (*batchv1beta1.CronJobSpec, error) {
 	var err error
-
+	one := int32(1)
 	spec := batchv1beta1.CronJobSpec{}
 
 	type cronAttributes struct {
 		Schedule          string
 		Interval          string
 		ConcurrencyPolicy string
+		JobBackoffLimit   int32
 		Event             cron.Event
 	}
 
@@ -1553,8 +1554,15 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 			eventBodyCurlArg)
 	}
 
+	// get cron job retries until failing a job (default=2)
+	jobBackoffLimit := attributes.JobBackoffLimit
+	if jobBackoffLimit == 0 {
+		jobBackoffLimit = 2
+	}
+
 	spec.JobTemplate = batchv1beta1.JobTemplateSpec{
 		Spec: batchv1.JobSpec{
+			BackoffLimit: &jobBackoffLimit,
 			Template: v1.PodTemplateSpec{
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
@@ -1575,6 +1583,10 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	if attributes.ConcurrencyPolicy != "" {
 		spec.ConcurrencyPolicy = batchv1beta1.ConcurrencyPolicy(util.Capitalize(attributes.ConcurrencyPolicy))
 	}
+
+	// set default history limit (no need for more than one - makes kube jobs api clearer)
+	spec.SuccessfulJobsHistoryLimit = &one
+	spec.FailedJobsHistoryLimit = &one
 
 	return &spec, nil
 }
@@ -1997,13 +2009,15 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	case "memory":
 		return v1.ResourceMemory
 	case "alpha.kubernetes.io/nvidia-gpu":
-		return v1.ResourceNvidiaGPU
+		return v1.ResourceName(resourceName)
+	case "nvidia.com/gpu":
+		return v1.ResourceName(resourceName)
 	case "ephemeral-storage":
 		return v1.ResourceEphemeralStorage
 	case "storage":
 		return v1.ResourceStorage
 	default:
-		return v1.ResourceName("")
+		return ""
 	}
 }
 

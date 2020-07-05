@@ -61,7 +61,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      request.Header.Get("x-nuclio-project-name"),
-			Namespace: pr.getNamespaceFromRequest(request),
+			Namespace: namespace,
 		},
 	})
 
@@ -95,7 +95,7 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      id,
-			Namespace: pr.getNamespaceFromRequest(request),
+			Namespace: namespace,
 		},
 	})
 
@@ -229,6 +229,7 @@ func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id s
 	}
 
 	// just deploy. the status is async through polling
+	pr.Logger.DebugWith("Creating project", "newProject", newProject)
 	err = pr.getPlatform().CreateProject(&platform.CreateProjectOptions{
 		ProjectConfig: *newProject.GetConfig(),
 	})
@@ -243,21 +244,28 @@ func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id s
 
 	// set attributes
 	attributes = pr.projectToAttributes(newProject)
-
+	pr.Logger.DebugWith("Successfully created project",
+		"id", id,
+		"attributes", attributes)
 	return
 }
 
 func (pr *projectResource) importProject(projectImportInfoInstance *projectImportInfo, authConfig *platform.AuthConfig) (id string,
 	attributes restful.Attributes, responseErr error) {
 
-	pr.Logger.InfoWith("Importing project", "projectName", projectImportInfoInstance.Project.Meta.Name)
-	pr.Logger.DebugWith("Checking if project exists", "projectName", projectImportInfoInstance.Project.Meta.Name)
-
+	pr.Logger.InfoWith("Importing project",
+		"projectName", projectImportInfoInstance.Project.Meta.Name)
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: *projectImportInfoInstance.Project.Meta,
 	})
 	if err != nil || len(projects) == 0 {
-		pr.Logger.InfoWith("Project doesn't exist, creating it", "project", projectImportInfoInstance.Project.Meta.Name)
+		pr.Logger.DebugWith("Project doesn't exist, creating it",
+			"project", projectImportInfoInstance.Project.Meta.Name)
+
+		// process (enrich/validate) projectInfo instance
+		if err := pr.processProjectInfo(projectImportInfoInstance.Project, true); err != nil {
+			return "", nil, errors.Wrap(err, "Failed to process project info")
+		}
 
 		// create a project config
 		projectConfig := platform.ProjectConfig{
@@ -555,6 +563,11 @@ func (pr *projectResource) processProjectInfo(projectInfoInstance *projectInfo, 
 		err := errors.New("Project name must be provided in metadata")
 
 		return nuclio.WrapErrBadRequest(err)
+	}
+
+	// spec is optional, ensure it exists
+	if projectInfoInstance.Spec == nil {
+		projectInfoInstance.Spec = &platform.ProjectSpec{}
 	}
 
 	return nil

@@ -5,6 +5,9 @@ import "github.com/nuclio/nuclio/pkg/processor/build/runtime"
 // BuilderPusher is a builder of container images
 type BuilderPusher interface {
 
+	// GetKind returns the kind (docker/kaniko)
+	GetKind() string
+
 	// BuildAndPushContainerImage builds container image and pushes it into container registry
 	BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error
 

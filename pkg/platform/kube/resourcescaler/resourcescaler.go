@@ -17,6 +17,7 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/v3io/scaler-types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -151,7 +152,10 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 		AutoScalerOptions: scaler_types.AutoScalerOptions{
 			Namespace:     n.namespace,
 			ScaleInterval: scaler_types.Duration{Duration: scaleInterval},
-			GroupKind:     "NuclioFunction",
+			GroupKind: schema.GroupKind{
+				Group: "nuclio.io",
+				Kind:  "NuclioFunction",
+			},
 		},
 		DLXOptions: scaler_types.DLXOptions{
 			Namespace:                n.namespace,

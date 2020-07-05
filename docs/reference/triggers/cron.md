@@ -9,6 +9,7 @@ Triggers the function according to a schedule or interval, with an optional body
 | schedule | string | A cron-like schedule (for example, `*/5 * * * *`) |
 | interval | string | An interval (for example, `1s`, `30m`) |
 | concurrencyPolicy | string | Concurrency policy [Allow, Forbid, Replace]. (optional, defaults to "Allow". Relevant only for k8s platform)
+| jobBackoffLimit | int32 | The number of retries before failing a job. (optional, defaults to 2. Relevant only for k8s platform)
 | event.body | string | The body passed in the event |
 | event.headers | map of string/int | The headers passed in the event |
 
@@ -38,4 +39,5 @@ triggers:
     attributes:
       interval: 10s
       concurrencyPolicy: "Allow"
+      jobBackoffLimit: 2
 ```

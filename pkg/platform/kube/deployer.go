@@ -179,7 +179,7 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 	}
 
 	return &platform.CreateFunctionResult{
-		Port: functionInstance.Status.HTTPPort,
+		Port: updatedFunctionInstance.Status.HTTPPort,
 	}, updatedFunctionInstance, "", nil
 }
 
@@ -192,7 +192,7 @@ func isFunctionDeploymentFailed(consumer *consumer,
 	pods, err := consumer.kubeClientSet.CoreV1().
 		Pods(namespace).
 		List(metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", name),
+			LabelSelector: compileListFunctionPodsLabelSelector(name),
 		})
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to get pods")
@@ -209,13 +209,6 @@ func isFunctionDeploymentFailed(consumer *consumer,
 		}
 
 		for _, containerStatus := range pod.Status.ContainerStatuses {
-
-			// check if the pod has terminated with an error
-			if containerStatus.State.Terminated != nil &&
-				containerStatus.State.Terminated.Reason == "Error" {
-
-				return true, errors.Errorf("NuclioFunction pod (%s) container exited with an error", pod.Name)
-			}
 
 			if pod.Status.ContainerStatuses[0].State.Waiting != nil {
 
@@ -240,6 +233,10 @@ func isFunctionDeploymentFailed(consumer *consumer,
 	}
 
 	return false, nil
+}
+
+func compileListFunctionPodsLabelSelector(functionName string) string {
+	return fmt.Sprintf("nuclio.io/function-name=%s,nuclio.io/function-cron-job-pod!=true", functionName)
 }
 
 func waitForFunctionReadiness(loggerInstance logger.Logger,
@@ -296,7 +293,7 @@ func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 	functionPods, listPodErr := d.consumer.kubeClientSet.CoreV1().
 		Pods(namespace).
 		List(metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", name),
+			LabelSelector: compileListFunctionPodsLabelSelector(name),
 		})
 
 	if listPodErr != nil {

@@ -146,6 +146,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		"versionInfo", b.versionInfo,
 		"name", b.options.FunctionConfig.Meta.Name)
 
+	// TODO: delete b.providedFunctionConfigFilePath call from here, as it is called again from b.readConfiguration
 	configFilePath := b.providedFunctionConfigFilePath()
 	b.logger.DebugWith("Function configuration found in directory", "configFilePath", configFilePath)
 	if common.IsFile(configFilePath) {
@@ -470,6 +471,11 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 	// if runtime wasn't passed, use the default from the created runtime
 	if b.options.FunctionConfig.Spec.Runtime == "" {
 		b.options.FunctionConfig.Spec.Runtime = b.runtime.GetName()
+	}
+
+	// python is just a reference to python:3.6
+	if b.options.FunctionConfig.Spec.Runtime == "python" {
+		b.options.FunctionConfig.Spec.Runtime = "python:3.6"
 	}
 
 	// if the function handler isn't set, ask runtime
@@ -824,6 +830,7 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 
 	// create a runtime instance
 	runtimeInstance, err := runtimeFactory.(runtime.Factory).Create(b.logger,
+		b.platform.GetContainerBuilderKind(),
 		b.stagingDir,
 		&b.options.FunctionConfig)
 

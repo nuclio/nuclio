@@ -445,6 +445,11 @@ func (ap *Platform) GetDefaultRegistryCredentialsSecretName() string {
 	return ap.ContainerBuilder.GetDefaultRegistryCredentialsSecretName()
 }
 
+// GetContainerBuilderKind returns the container-builder kind
+func (ap *Platform) GetContainerBuilderKind() string {
+	return ap.ContainerBuilder.GetKind()
+}
+
 func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
 
 	// if neverBuild was passed explicitly don't build

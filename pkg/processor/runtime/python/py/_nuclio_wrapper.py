@@ -27,6 +27,14 @@ import nuclio_sdk.json_encoder
 import nuclio_sdk.logger
 
 
+class WrapperFatalException(Exception):
+    """
+    Wrapper fatal is an exception the wrapper can not (perhaps should not) recover from
+    and will lead to wrapper termination
+    """
+    pass
+
+
 class Wrapper(object):
     def __init__(self,
                  logger,
@@ -56,7 +64,7 @@ class Wrapper(object):
         # since this wrapper is behind the nuclio processor, in which pre-handle the traffic & request
         # it is not mandatory to provide security over max buffer size.
         # the request limit should be handled on the processor level.
-        self._unpacker = msgpack.Unpacker(raw=False, max_buffer_size=2**32-1)
+        self._unpacker = msgpack.Unpacker(raw=False, max_buffer_size=2 ** 32 - 1)
 
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
@@ -84,90 +92,35 @@ class Wrapper(object):
     def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
 
-        int_buf = bytearray(4)
-        minimum_float_duration = sys.float_info.min
-
         while True:
 
-            formatted_exception = None
-            encoded_response = '{}'
-
             try:
+                # resolve event message length
+                event_message_length = self._resolve_event_message_length()
 
-                should_be_four = self._processor_sock.recv_into(int_buf, 4)
-                # client disconnect
-                if should_be_four < 4:
-                    # If socket is done, we can't log
-                    print('Client disconnect')
-                    return
+                # resolve event message
+                event_message = self._resolve_event(event_message_length)
 
-                bytes_to_read = int(int_buf[3])
-                bytes_to_read += int_buf[2] << 8
-                bytes_to_read += int_buf[1] << 16
-                bytes_to_read += int_buf[0] << 24
-                if bytes_to_read <= 0:
-                    # If socket is done, we can't log
-                    print('Illegal message size: ' + str(bytes_to_read))
-                    return
-
-                cumulative_bytes_read = 0
-                while cumulative_bytes_read < bytes_to_read:
-                    bytes_to_read_now = bytes_to_read - cumulative_bytes_read
-                    bytes_read = self._processor_sock.recv(bytes_to_read_now)
-
-                    # client disconnect
-                    if not bytes_read:
-
-                        # If socket is done, we can't log
-                        print('Client disconnect')
-                        return
-
-                    self._unpacker.feed(bytes_read)
-                    cumulative_bytes_read += len(bytes_read)
-
-                msg = next(self._unpacker)
-
-                # decode the event
-                event = nuclio_sdk.Event.from_msgpack(msg)
+                # instantiate event message
+                event = nuclio_sdk.Event.from_msgpack(event_message)
 
                 try:
-
-                    # take call time
-                    start_time = time.time()
-
-                    # call the entrypoint
-                    entrypoint_output = self._entrypoint(self._context, event)
-
-                    # measure duration, set to minimum float in case execution was too fast
-                    duration = time.time() - start_time or minimum_float_duration
-
-                    self._write_packet_to_processor('m' + json.dumps({'duration': duration}))
-
-                    response = nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode,
-                                                                          entrypoint_output)
-
-                    # try to json encode the response
-                    encoded_response = self._json_encoder.encode(response)
+                    self._handle_event(event)
 
                 except BaseException as exc:
-                    formatted_exception = 'Exception caught in handler "{0}": {1}'.format(exc, traceback.format_exc())
+                    self._handle_serving_error('Exception caught in handler "{0}": {1}'.format(exc,
+                                                                                               traceback.format_exc()))
+
+            except WrapperFatalException as exc:
+                self._handle_serving_error('Fatal error: "{0}": {1}'.format(exc,
+                                                                            traceback.format_exc()))
+
+                # explode
+                self._shutdown(error_code=1)
 
             except Exception as exc:
-                formatted_exception = 'Exception caught while serving "{0}": {1}'.format(exc, traceback.format_exc())
-
-            # if we have a formatted exception, return it as 500
-            if formatted_exception is not None:
-                self._logger.warn(formatted_exception)
-
-                encoded_response = self._json_encoder.encode({
-                    'body': formatted_exception,
-                    'body_encoding': 'text',
-                    'content_type': 'text/plain',
-                    'status_code': 500,
-                })
-
-            # write to the socket
-            self._write_packet_to_processor('r' + encoded_response)
+                self._handle_serving_error('Exception caught while serving "{0}": {1}'.format(exc,
+                                                                                              traceback.format_exc()))
 
             # for testing, we can ask wrapper to only read a set number of requests
             if num_requests is not None and num_requests != 0:
@@ -219,6 +172,89 @@ class Wrapper(object):
     def _write_packet_to_processor(self, body):
         self._processor_sock_wfile.write(body + '\n')
         self._processor_sock_wfile.flush()
+
+    def _log_and_encode_exception(self, formatted_exception, log_level='warn'):
+        getattr(self._logger, log_level)(formatted_exception)
+        return self._json_encoder.encode({
+            'body': formatted_exception,
+            'body_encoding': 'text',
+            'content_type': 'text/plain',
+            'status_code': 500,
+        })
+
+    def _resolve_event_message_length(self):
+
+        # used for the first message, to determine the body size
+        int_buf = bytearray(4)
+
+        should_be_four = self._processor_sock.recv_into(int_buf, 4)
+
+        # client disconnect
+        if should_be_four != 4:
+            raise WrapperFatalException('Client disconnected')
+
+        # big-endian, compute event bytes length to read
+        bytes_to_read = int(int_buf[3])
+        bytes_to_read += int_buf[2] << 8
+        bytes_to_read += int_buf[1] << 16
+        bytes_to_read += int_buf[0] << 24
+        if bytes_to_read <= 0:
+            raise WrapperFatalException('Illegal message size: {0}'.format(bytes_to_read))
+
+        return bytes_to_read
+
+    def _resolve_event(self, event_bytes_length):
+
+        cumulative_bytes_read = 0
+        while cumulative_bytes_read < event_bytes_length:
+            bytes_to_read_now = event_bytes_length - cumulative_bytes_read
+            bytes_read = self._processor_sock.recv(bytes_to_read_now)
+
+            if not bytes_read:
+                raise WrapperFatalException('Client disconnected')
+
+            self._unpacker.feed(bytes_read)
+            cumulative_bytes_read += len(bytes_read)
+
+        return next(self._unpacker)
+
+    def _handle_serving_error(self, formatted_exception):
+        try:
+            encoded_response = self._log_and_encode_exception(formatted_exception)
+
+            # try write the formatted exception back to processor
+            self._write_packet_to_processor('r' + encoded_response)
+        except Exception as exc:
+            print('Failed to write message to processor after serving error detected, is socket open?\n'
+                  'Exception: {0}'.format(str(exc)))
+
+    def _handle_event(self, event):
+
+        # take call time
+        start_time = time.time()
+
+        # call the entrypoint
+        entrypoint_output = self._entrypoint(self._context, event)
+
+        # measure duration, set to minimum float in case execution was too fast
+        duration = time.time() - start_time or sys.float_info.min
+
+        self._write_packet_to_processor('m' + json.dumps({'duration': duration}))
+
+        response = nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode,
+                                                              entrypoint_output)
+
+        # try to json encode the response
+        encoded_response = self._json_encoder.encode(response)
+
+        # write response to the socket
+        self._write_packet_to_processor('r' + encoded_response)
+
+    def _shutdown(self, error_code=0):
+        print('Shutting down')
+        self._processor_sock.close()
+        sys.exit(error_code)
+
 
 #
 # init
