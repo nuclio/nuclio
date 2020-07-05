@@ -37,7 +37,7 @@ Create the secret:
 read -s mypassword
 <enter your password>
 
-kubectl create secret docker-registry nuclio-registry-credentials --namespace nuclio \
+kubectl create secret docker-registry nuclio-registry-credentials \
     --docker-username <username> \
     --docker-password $mypassword \
     --docker-server <registry name> \
@@ -50,14 +50,14 @@ unset mypassword
 There are no special flags required when installing in AKS or vanilla Kubernetes:
 
 ``` sh
-helm install --namespace nuclio --name nuclio nuclio/nuclio
+helm install nuclio nuclio/nuclio
 ```
 
 ### Install on GKE (or when using GCR)
 If you're using GCR as your image registry, there is a small quirk where the login URL is different from the push/pull URL. By default, Nuclio will take the push/pull URL from the secret, but in this case we need to let Nuclio know what the push/pull URL is:
 
 ``` sh
-helm install \
+helm install nuclio \
 	--set registry.pushPullUrl gcr.io/<your project name> \
 	nuclio/nuclio
 ```
@@ -72,7 +72,7 @@ docker run -d -p 5000:5000 registry:2
 By not providing a registry secret name (`registry.secretName`) nor credentials (`registry.credentials.username` / `registry.credentials.password`), Nuclio will understand credentials are not needed, and not try to load Docker secrets.
 
 ``` sh
-helm install \
+helm install nuclio \
     --set registry.pushPullUrl=localhost:5000 \
 	nuclio/nuclio
 ```
@@ -83,6 +83,7 @@ kubectl port-forward $(kubectl get pod -l nuclio.io/app=dashboard -o jsonpath='{
 ```
 
 ### Advanced: Run on Docker for Mac as a core Nuclio developer, with an insecure registry
+In this example we will install and run nuclio in the default namespace, for simplicity
 
 Build the images locally (with your modified code) by running this on the repo root directory:
 ```sh
@@ -96,7 +97,7 @@ docker run -d -p 5000:5000 registry:2
 
 Make sure your images are up to date and install the helm chart using the latest tag:
 ```sh
-helm install \
+helm install nuclio \
     --set registry.pushPullUrl=localhost:5000 \
 	--set controller.image.tag=latest-amd64 \
 	--set dashboard.image.tag=latest-amd64 \

@@ -27,10 +27,11 @@ import (
 type factory struct{}
 
 func (f *factory) Create(logger logger.Logger,
+	containerBuilderKind string,
 	stagingDir string,
 	functionConfig *functionconfig.Config) (runtime.Runtime, error) {
 
-	abstractRuntime, err := runtime.NewAbstractRuntime(logger, stagingDir, functionConfig)
+	abstractRuntime, err := runtime.NewAbstractRuntime(logger, containerBuilderKind, stagingDir, functionConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract runtime")
 	}

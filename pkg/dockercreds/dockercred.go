@@ -89,7 +89,7 @@ func (dc *dockerCred) initialize() error {
 		dc.credentials.RefreshInterval = dc.defaultRefreshInterval
 	}
 
-	// if user didn't specify "https://" in the url, add it. otherwise don't
+	// if user didn't specify "https://" in the url, add it
 	if !strings.HasPrefix(dc.credentials.URL, "https://") {
 		dc.credentials.URL = "https://" + dc.credentials.URL
 	}

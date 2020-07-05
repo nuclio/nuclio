@@ -67,6 +67,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 
 	// create a mock platform
 	suite.dashboardServer, err = dashboard.NewServer(suite.logger,
+		suite.mockPlatform.GetContainerBuilderKind(),
 		"",
 		"",
 		"",

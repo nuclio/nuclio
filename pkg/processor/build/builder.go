@@ -830,6 +830,7 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 
 	// create a runtime instance
 	runtimeInstance, err := runtimeFactory.(runtime.Factory).Create(b.logger,
+		b.platform.GetContainerBuilderKind(),
 		b.stagingDir,
 		&b.options.FunctionConfig)
 

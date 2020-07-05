@@ -40,6 +40,10 @@ func NewDocker(logger logger.Logger, builderConfiguration *ContainerBuilderConfi
 	return dockerBuilder, nil
 }
 
+func (d *Docker) GetKind() string {
+	return "docker"
+}
+
 func (d *Docker) BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error {
 
 	err := d.gatherArtifactsForSingleStageDockerfile(buildOptions)

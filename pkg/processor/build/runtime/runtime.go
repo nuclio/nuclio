@@ -68,7 +68,7 @@ type Runtime interface {
 }
 
 type Factory interface {
-	Create(logger.Logger, string, *functionconfig.Config) (Runtime, error)
+	Create(logger.Logger, string, string, *functionconfig.Config) (Runtime, error)
 }
 
 type AbstractRuntime struct {
@@ -81,6 +81,7 @@ type AbstractRuntime struct {
 }
 
 func NewAbstractRuntime(logger logger.Logger,
+	containerBuilderKind string,
 	stagingDir string,
 	functionConfig *functionconfig.Config) (*AbstractRuntime, error) {
 	var err error
@@ -98,9 +99,11 @@ func NewAbstractRuntime(logger logger.Logger,
 	}
 
 	// create a docker client
-	newRuntime.DockerClient, err = dockerclient.NewShellClient(newRuntime.Logger, newRuntime.CmdRunner)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create docker client")
+	if containerBuilderKind == "docker" {
+		newRuntime.DockerClient, err = dockerclient.NewShellClient(newRuntime.Logger, newRuntime.CmdRunner)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create docker client")
+		}
 	}
 
 	return newRuntime, nil

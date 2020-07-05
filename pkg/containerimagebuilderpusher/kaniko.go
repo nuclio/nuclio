@@ -53,6 +53,10 @@ func NewKaniko(logger logger.Logger, kubeClientSet kubernetes.Interface,
 	return kanikoBuilder, nil
 }
 
+func (k *Kaniko) GetKind() string {
+	return "kaniko"
+}
+
 func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error {
 	bundleFilename, assetPath, err := k.createContainerBuildBundle(buildOptions.Image, buildOptions.ContextDir, buildOptions.TempDir)
 	if err != nil {
