@@ -33,7 +33,7 @@ jobs:
     - name: Dump github ref
       run: echo "$GITHUB_REF"
 
-    - name: Extract Release Info
+    - name: Extract ref info
       id: release_info
       run: |
         echo ::set-output name=REF_BRANCH::${GITHUB_REF#refs/heads/}
@@ -47,7 +47,7 @@ jobs:
     - name: set NUCLIO_LABEL to release tag
       if: github.event_name == 'release'
       run: |
-        echo "::set-env name=NUCLIO_LABEL::${{steps.release_info.outputs.REF_TAG}}"
+        echo "::set-env name=NUCLIO_LABEL::${{ steps.release_info.outputs.REF_TAG }}"
 
     - uses: actions/checkout@v2
 
@@ -94,14 +94,10 @@ jobs:
         NUCLIO_OS=windows NUCLIO_ARCH=amd64 make tools
       env:
         NUCLIO_NUCTL_CREATE_SYMLINK: false
-        GOPATH: ~/go
+        GOPATH: /home/runner/go
 
     - name: Upload binaries
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: AButler/upload-release-assets@v2.0
       with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ~/go/bin/
-        asset_name: 'nuctl-*'
-        asset_content_type: binary/octet-stream
+        files: '/home/runner/go/bin/nuctl-*'
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
