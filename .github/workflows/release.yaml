@@ -30,6 +30,9 @@ jobs:
       env:
         RUNNER_CONTEXT: ${{ toJson(runner) }}
 
+    - name: Dump github ref
+      run: echo "$GITHUB_REF"
+
     - name: Extract Release Info
       id: release_info
       run: |
@@ -44,7 +47,7 @@ jobs:
     - name: set NUCLIO_LABEL to release tag
       if: github.event_name == 'release'
       run: |
-        echo "::set-env name=NUCLIO_LABEL::${{steps.release_info.REF_TAG}}"
+        echo "::set-env name=NUCLIO_LABEL::${{steps.release_info.outputs.REF_TAG}}"
 
     - uses: actions/checkout@v2
 
@@ -91,8 +94,11 @@ jobs:
         NUCLIO_OS=windows NUCLIO_ARCH=amd64 make tools
 
     - name: Upload binaries
-      uses: skx/github-action-publish-binaries@master
+      uses: actions/upload-release-asset@v1.0.1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        args: '$GOPATH/bin/nuctl-*'
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: $GOPATH/bin/
+        asset_name: 'nuctl-*'
+        asset_content_type: binary/octet-stream
