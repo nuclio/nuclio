@@ -19,13 +19,13 @@ package httpsuite
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/common"
 	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/test/compare"
