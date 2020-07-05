@@ -143,13 +143,9 @@ func RetryUntilSuccessfulOnErrorPatterns(duration time.Duration,
 		}
 
 		// find a matching error pattern
-		errorPatternFound, matchingErr := MatchStringPatterns(errorRegexPatterns, callbackErrorStr)
-		if matchingErr != nil {
-			return false, errors.Wrap(matchingErr, "Failed to match string patterns")
-		}
+		if !MatchStringPatterns(errorRegexPatterns, callbackErrorStr) {
 
-		// no error pattern found, dont retry, bail
-		if !errorPatternFound {
+			// no error pattern found, dont retry, bail
 			return false, errors.Errorf("Failed matching an error pattern for callback: %s", callbackErrorStr)
 		}
 
@@ -385,17 +381,13 @@ func ByteSliceToString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
-func MatchStringPatterns(patterns []string, s string) (bool, error) {
+func MatchStringPatterns(patterns []string, s string) bool {
 	for _, pattern := range patterns {
-		matched, err := regexp.MatchString(pattern, s)
-		if err != nil {
-			return false, errors.Wrapf(err, "Failed to match string pattern: %s", pattern)
-		}
-		if matched {
+		if regexp.MustCompile(pattern).MatchString(s) {
 
 			// one matching pattern is enough
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }

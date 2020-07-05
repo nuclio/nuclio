@@ -171,7 +171,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	httpResponse, err := suite.httpClient.Do(httpRequest)
 
 	// if we fail to connect, fail, so callee might retry
-	if err != nil && common.StringSliceContainsString([]string{
+	if err != nil && common.MatchStringPatterns([]string{
 
 		// function is not up yet
 		"EOF",
