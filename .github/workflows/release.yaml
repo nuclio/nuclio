@@ -78,7 +78,7 @@ jobs:
         NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
 
     - name: Tag and push stable images
-      if: env.NUCLIO_LABEL != "unstable"
+      if: env.NUCLIO_LABEL != 'unstable'
       run: |
         docker tag "$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-amd64" "$NUCLIO_DOCKER_REPO/dashboard:stable-amd64"
         docker push "$NUCLIO_DOCKER_REPO/dashboard:stable-amd64"
