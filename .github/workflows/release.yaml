@@ -94,13 +94,14 @@ jobs:
         NUCLIO_OS=windows NUCLIO_ARCH=amd64 make tools
       env:
         NUCLIO_NUCTL_CREATE_SYMLINK: false
+        GOPATH: ~/go
 
     - name: Upload binaries
-      uses: actions/upload-release-asset@v1.0.1
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: /home/runner/go/bin/
+        asset_path: ~/go/bin/
         asset_name: 'nuctl-*'
         asset_content_type: binary/octet-stream
