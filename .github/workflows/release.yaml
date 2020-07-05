@@ -17,7 +17,7 @@ env:
 
 jobs:
   release:
-    name: Build docker images
+    name: Release Nuclio
     runs-on: ubuntu-latest
     steps:
     - name: Dump GitHub context
@@ -92,6 +92,8 @@ jobs:
         NUCLIO_OS=linux NUCLIO_ARCH=amd64 make tools
         NUCLIO_OS=darwin NUCLIO_ARCH=amd64 make tools
         NUCLIO_OS=windows NUCLIO_ARCH=amd64 make tools
+      env:
+        NUCLIO_NUCTL_CREATE_SYMLINK: false
 
     - name: Upload binaries
       uses: actions/upload-release-asset@v1.0.1
@@ -99,6 +101,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: $GOPATH/bin/
+        asset_path: /go/bin/
         asset_name: 'nuctl-*'
         asset_content_type: binary/octet-stream
