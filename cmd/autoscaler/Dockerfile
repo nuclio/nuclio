@@ -34,6 +34,6 @@ FROM alpine:3.11
 WORKDIR /home/nuclio
 
 COPY --from=build-plugin /nuclio/plugin.so ./plugins/plugin.so
-COPY --from=quay.io/v3io/autoscaler:v0.3.3 /home/v3io/bin/autoscaler ./autoscaler
+COPY --from=quay.io/v3io/autoscaler:v0.4.0 /home/v3io/bin/autoscaler ./autoscaler
 
 CMD [ "/home/nuclio/autoscaler" ]
