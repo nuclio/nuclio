@@ -10,8 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     # let's not run this on every fork
-    # ugh: https://github.community/t/passing-an-array-literal-to-contains-function-causes-syntax-error/17213
-    if: github.repository.owner.name == 'nuclio' || github.repository.owner.name == 'omesser'
+    if: github.repository.fork == false || github.repository.owner.name == 'omesser'
 
     steps:
     - name: Dump GitHub context
