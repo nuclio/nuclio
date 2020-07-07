@@ -1075,7 +1075,7 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 				ObjectMeta: ingressMeta,
 				Spec:       ingressSpec,
 			})
-		if err != nil {
+		if err == nil {
 			lc.waitForNginxIngressToStabilize()
 		}
 
@@ -1113,7 +1113,7 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 		}
 
 		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
-		if err != nil {
+		if err == nil {
 			lc.waitForNginxIngressToStabilize()
 		}
 
