@@ -1,12 +1,29 @@
 name: Periodic
+
 on:
   schedule:
   - cron:  '0 */12 * * *'
+
 jobs:
   build:
     name: Periodic Regression
     runs-on: ubuntu-latest
+
+    # let's not run this on every fork
+    # ugh: https://github.community/t/passing-an-array-literal-to-contains-function-causes-syntax-error/17213
+    if: github.repository.owner.name == 'nuclio' || github.repository.owner.name == 'omesser'
+
     steps:
+    - name: Dump GitHub context
+      run: echo "$GITHUB_CONTEXT"
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+
+    - name: Dump runner context
+      run: echo "$RUNNER_CONTEXT"
+      env:
+        RUNNER_CONTEXT: ${{ toJson(runner) }}
+
     - uses: actions/checkout@v2
 
     # since github-actions gives us 14G only, and fills it up with some garbage
