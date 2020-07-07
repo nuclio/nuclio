@@ -13,7 +13,7 @@ jobs:
     if: github.repository.fork == false || github.repository.owner.name == 'omesser'
 
     steps:
-    - name: Dump GitHub context
+    - name: Dump github context
       run: echo "$GITHUB_CONTEXT"
       env:
         GITHUB_CONTEXT: ${{ toJson(github) }}
