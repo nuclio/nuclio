@@ -9,8 +9,8 @@ jobs:
     name: Periodic Regression
     runs-on: ubuntu-latest
 
-    # let's not run this on every fork
-    if: github.repository.fork == false || github.repository.owner.name == 'omesser'
+    # let's not run this on every fork, comment this out when developing periodic on your fork
+    if: github.repository.fork == false
 
     steps:
     - name: Dump github context
