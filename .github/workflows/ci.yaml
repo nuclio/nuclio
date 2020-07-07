@@ -23,6 +23,16 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
+    - name: Dump github context
+      run: echo "$GITHUB_CONTEXT"
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+
+    - name: Dump runner context
+      run: echo "$RUNNER_CONTEXT"
+      env:
+        RUNNER_CONTEXT: ${{ toJson(runner) }}
+
     - uses: actions/checkout@v2
 
     - uses: actions/setup-go@v2

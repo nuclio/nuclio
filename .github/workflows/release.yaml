@@ -16,10 +16,10 @@ env:
 
 jobs:
   release:
-    name: Release Nuclio
+    name: Release
     runs-on: ubuntu-latest
     steps:
-    - name: Dump GitHub context
+    - name: Dump github context
       run: echo "$GITHUB_CONTEXT"
       env:
         GITHUB_CONTEXT: ${{ toJson(github) }}
