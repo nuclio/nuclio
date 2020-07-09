@@ -643,18 +643,24 @@ gulp.task('clean_shared', function () {
 });
 
 /**
- * Build app.css (include all project less files)
+ * Build shared less file (include all shared less files)
  */
 gulp.task('app.less_shared', function () {
     var distFolder = config.shared_files.dist + '/less';
 
-    var task = gulp
+    var less = gulp
         .src(config.shared_files.less)
         .pipe(errorHandler(handleError))
         .pipe(concat(config.shared_output_files.app.less))
         .pipe(gulp.dest(distFolder));
 
-    return task;
+    var vendorLess = gulp
+        .src(config.shared_files.vendor.less)
+        .pipe(errorHandler(handleError))
+        .pipe(concat(config.shared_output_files.vendor.less))
+        .pipe(gulp.dest(distFolder));
+
+    return merge2(less, vendorLess);
 });
 
 /**
@@ -672,6 +678,11 @@ gulp.task('app.js_shared', function () {
             ]
         }));
 
+    var vendorJs = gulp.src(config.shared_files.vendor.js)
+        .pipe(errorHandler(handleError))
+        .pipe(concat(config.shared_output_files.vendor.js))
+        .pipe(gulp.dest(distFolder));
+
     var templates = gulp.src(config.shared_files.templates)
         .pipe(errorHandler(handleError))
         .pipe(minifyHtml({
@@ -688,7 +699,7 @@ gulp.task('app.js_shared', function () {
         .pipe(concat(config.shared_output_files.app.js))
         .pipe(gulp.dest(distFolder));
 
-    return task;
+    return merge2(task, vendorJs);
 });
 
 /**
