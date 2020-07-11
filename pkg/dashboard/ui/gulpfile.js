@@ -106,7 +106,7 @@ gulp.task('vendor.css', function () {
         .pipe(errorHandler(handleError))
         .pipe(concat(config.output_files.vendor.css))
         .pipe(gulpIf(!state.isDevMode, minifyCss({
-            reduceIdents: false
+            reduceIndents: false
         })))
         .pipe(gulpIf(!state.isDevMode, rev()))
         .pipe(gulp.dest(distFolder))
@@ -648,7 +648,7 @@ gulp.task('clean_shared', function () {
 gulp.task('app.less_shared', function () {
     var distFolder = config.shared_files.dist + '/less';
 
-    var less = gulp
+    var appLess = gulp
         .src(config.shared_files.less)
         .pipe(errorHandler(handleError))
         .pipe(concat(config.shared_output_files.app.less))
@@ -660,7 +660,7 @@ gulp.task('app.less_shared', function () {
         .pipe(concat(config.shared_output_files.vendor.less))
         .pipe(gulp.dest(distFolder));
 
-    return merge2(less, vendorLess);
+    return merge2(appLess, vendorLess);
 });
 
 /**
