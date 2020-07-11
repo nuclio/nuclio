@@ -1532,7 +1532,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	functionAddress := fmt.Sprintf("%s:%d", host, port)
 
 	// generate the curl command to be run by the CronJob to invoke the function
-	// retry to invoke the function for 5 seconds (in case of connection-refused error etc..)
+	// invoke the function (retry for 10 seconds)
 	curlCommand := fmt.Sprintf("curl --silent %s %s --retry 10 --retry-delay 1 --retry-max-time 10 --retry-connrefused",
 		headersAsCurlArg,
 		functionAddress)
