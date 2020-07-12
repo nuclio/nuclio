@@ -56,7 +56,7 @@ func main() {
 	flag.Parse()
 
 	// get namespace the controller pod runs in
-	podNamespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace");
+	podNamespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		panic("Failed to extract own pod namespace")
 	}
@@ -71,7 +71,7 @@ func main() {
 
 	if err := app.Run(*kubeconfigPath,
 		crdNamespace,
-		podNamespace,
+		string(podNamespace),
 		*imagePullSecrets,
 		*platformConfigurationPath,
 		*functionOperatorNumWorkersStr,

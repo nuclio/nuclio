@@ -78,7 +78,7 @@ func (feo *functionEventOperator) CreateOrUpdate(ctx context.Context, object run
 
 // Delete handles delete of an object
 func (feo *functionEventOperator) Delete(ctx context.Context, namespace string, name string) error {
-	feo.logger.DebugWith("Deleted", "crdNamespace", namespace, "name", name)
+	feo.logger.DebugWith("Deleted", "namespace", namespace, "name", name)
 
 	return nil
 }

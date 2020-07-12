@@ -123,7 +123,7 @@ func NewController(parentLogger logger.Logger,
 }
 
 func (c *Controller) Start() error {
-	c.logger.InfoWith("Starting", "crdNamespace", c.crdNamespace)
+	c.logger.InfoWith("Starting", "crdNamespace", c.crdNamespace, "podNamespace", c.podNamespace)
 
 	// start the function operator
 	if err := c.functionOperator.start(); err != nil {

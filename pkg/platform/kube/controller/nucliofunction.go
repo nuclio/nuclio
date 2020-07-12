@@ -106,19 +106,21 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		functionconfig.FunctionStateScaledToZero,
 	}
 	if !functionconfig.FunctionStateInSlice(function.Status.State, statesToRespond) {
-		fo.logger.DebugWith("NuclioFunction is not waiting for resource creation or ready, skipping create/update",
+		fo.logger.DebugWithCtx(ctx,
+			"NuclioFunction is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
 			"state", function.Status.State,
-			"crdNamespace", function.Namespace)
+			"namespace", function.Namespace)
 
 		return nil
 	}
 
 	if functionconfig.ShouldSkipDeploy(function.Annotations) {
-		fo.logger.InfoWith("Skipping function deploy",
+		fo.logger.InfoWithCtx(ctx,
+			"Skipping function deploy",
 			"name", function.Name,
 			"state", function.Status.State,
-			"crdNamespace", function.Namespace)
+			"namespace", function.Namespace)
 		return fo.setFunctionStatus(function, &functionconfig.Status{
 			State: functionconfig.FunctionStateImported,
 		})
@@ -200,9 +202,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 // Delete handles delete of an object
 func (fo *functionOperator) Delete(ctx context.Context, namespace string, name string) error {
-	fo.logger.DebugWith("Deleting function",
-		"name", name,
-		"crdNamespace", namespace)
+	fo.logger.DebugWith("Deleting function", "name", name, "namespace", namespace)
 
 	return fo.functionresClient.Delete(ctx, namespace, name)
 }
