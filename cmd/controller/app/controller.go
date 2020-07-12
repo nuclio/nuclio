@@ -35,7 +35,8 @@ import (
 )
 
 func Run(kubeconfigPath string,
-	namespace string,
+	crdNamespace string,
+	podNamespace string,
 	imagePullSecrets string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
@@ -45,7 +46,8 @@ func Run(kubeconfigPath string,
 	projectOperatorNumWorkersStr string) error {
 
 	newController, err := createController(kubeconfigPath,
-		namespace,
+		crdNamespace,
+		podNamespace,
 		imagePullSecrets,
 		platformConfigurationPath,
 		functionOperatorNumWorkersStr,
@@ -67,7 +69,8 @@ func Run(kubeconfigPath string,
 }
 
 func createController(kubeconfigPath string,
-	namespace string,
+	crdNamespace string,
+	podNamespace string,
 	imagePullSecrets string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
@@ -135,7 +138,8 @@ func createController(kubeconfigPath string,
 	}
 
 	newController, err := controller.NewController(rootLogger,
-		namespace,
+		crdNamespace,
+		podNamespace,
 		imagePullSecrets,
 		kubeClientSet,
 		nuclioClientSet,

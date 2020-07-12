@@ -53,7 +53,7 @@ func newFunctionEventOperator(parentLogger logger.Logger,
 	// create a function event operator
 	newFunctionEventOperator.operator, err = operator.NewMultiWorker(loggerInstance,
 		numWorkers,
-		newFunctionEventOperator.getListWatcher(controller.namespace),
+		newFunctionEventOperator.getListWatcher(controller.crdNamespace),
 		&nuclioio.NuclioFunctionEvent{},
 		resyncInterval,
 		newFunctionEventOperator)
@@ -78,7 +78,7 @@ func (feo *functionEventOperator) CreateOrUpdate(ctx context.Context, object run
 
 // Delete handles delete of an object
 func (feo *functionEventOperator) Delete(ctx context.Context, namespace string, name string) error {
-	feo.logger.DebugWith("Deleted", "namespace", namespace, "name", name)
+	feo.logger.DebugWith("Deleted", "crdNamespace", namespace, "name", name)
 
 	return nil
 }

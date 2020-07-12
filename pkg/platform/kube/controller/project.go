@@ -53,7 +53,7 @@ func newProjectOperator(parentLogger logger.Logger,
 	// create a project operator
 	newProjectOperator.operator, err = operator.NewMultiWorker(loggerInstance,
 		numWorkers,
-		newProjectOperator.getListWatcher(controller.namespace),
+		newProjectOperator.getListWatcher(controller.crdNamespace),
 		&nuclioio.NuclioProject{},
 		resyncInterval,
 		newProjectOperator)
@@ -78,7 +78,7 @@ func (po *projectOperator) CreateOrUpdate(ctx context.Context, object runtime.Ob
 
 // Delete handles delete of an object
 func (po *projectOperator) Delete(ctx context.Context, namespace string, name string) error {
-	po.logger.DebugWith("Deleted", "namespace", namespace, "name", name)
+	po.logger.DebugWith("Deleted", "crdNamespace", namespace, "name", name)
 
 	return nil
 }

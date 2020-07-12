@@ -65,7 +65,7 @@ func newFunctionOperator(parentLogger logger.Logger,
 	// create a function operator
 	newFunctionOperator.operator, err = operator.NewMultiWorker(loggerInstance,
 		numWorkers,
-		newFunctionOperator.getListWatcher(controller.namespace),
+		newFunctionOperator.getListWatcher(controller.crdNamespace),
 		&nuclioio.NuclioFunction{},
 		resyncInterval,
 		newFunctionOperator)
@@ -109,7 +109,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		fo.logger.DebugWith("NuclioFunction is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
 			"state", function.Status.State,
-			"namespace", function.Namespace)
+			"crdNamespace", function.Namespace)
 
 		return nil
 	}
@@ -118,7 +118,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		fo.logger.InfoWith("Skipping function deploy",
 			"name", function.Name,
 			"state", function.Status.State,
-			"namespace", function.Namespace)
+			"crdNamespace", function.Namespace)
 		return fo.setFunctionStatus(function, &functionconfig.Status{
 			State: functionconfig.FunctionStateImported,
 		})
@@ -202,7 +202,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 func (fo *functionOperator) Delete(ctx context.Context, namespace string, name string) error {
 	fo.logger.DebugWith("Deleting function",
 		"name", name,
-		"namespace", namespace)
+		"crdNamespace", namespace)
 
 	return fo.functionresClient.Delete(ctx, namespace, name)
 }

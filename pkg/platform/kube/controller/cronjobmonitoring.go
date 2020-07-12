@@ -34,41 +34,41 @@ func NewCronJobMonitoring(parentLogger logger.Logger,
 	return newCronJobMonitoring
 }
 
-func (cjpd *CronJobMonitoring) start() {
+func (cjm *CronJobMonitoring) start() {
 
-	go cjpd.startStaleCronJobPodsDeletionLoop() // nolint: errcheck
+	go cjm.startStaleCronJobPodsDeletionLoop() // nolint: errcheck
 
 }
 
 // delete all stale cron job pods (as k8s lacks this logic, and CronJob pods are never deleted)
-func (cjpd *CronJobMonitoring) startStaleCronJobPodsDeletionLoop() error {
-	stalePodsFieldSelector := cjpd.compileStalePodsFieldSelector()
+func (cjm *CronJobMonitoring) startStaleCronJobPodsDeletionLoop() error {
+	stalePodsFieldSelector := cjm.compileStalePodsFieldSelector()
 
-	cjpd.logger.InfoWith("Starting stale cron job pods deletion loop",
-		"staleCronJobPodsDeletionInterval", cjpd.staleCronJobPodsDeletionInterval,
+	cjm.logger.InfoWith("Starting stale cron job pods deletion loop",
+		"staleCronJobPodsDeletionInterval", cjm.staleCronJobPodsDeletionInterval,
 		"fieldSelectors", stalePodsFieldSelector)
 
 	for {
 
 		// sleep until next deletion time staleCronJobPodsDeletionInterval
-		time.Sleep(*cjpd.staleCronJobPodsDeletionInterval)
+		time.Sleep(*cjm.staleCronJobPodsDeletionInterval)
 
-		err := cjpd.controller.kubeClientSet.
+		err := cjm.controller.kubeClientSet.
 			CoreV1().
-			Pods(cjpd.controller.namespace).
+			Pods(cjm.controller.podNamespace).
 			DeleteCollection(&metav1.DeleteOptions{},
 				metav1.ListOptions{
 					LabelSelector: "nuclio.io/function-cron-job-pod=true",
 					FieldSelector: stalePodsFieldSelector,
 				})
 		if err != nil {
-			cjpd.logger.WarnWith("Failed to delete stale cron job pods", "err", err)
+			cjm.logger.WarnWith("Failed to delete stale cron job pods", "err", err)
 		}
 	}
 }
 
 // create a field selector(string) for stale pods
-func (cjpd *CronJobMonitoring) compileStalePodsFieldSelector() string {
+func (cjm *CronJobMonitoring) compileStalePodsFieldSelector() string {
 	var fieldSelectors []string
 
 	// filter out non stale pods by their phase

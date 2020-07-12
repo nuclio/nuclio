@@ -31,7 +31,8 @@ import (
 
 type Controller struct {
 	logger                logger.Logger
-	namespace             string
+	crdNamespace          string
+	podNamespace          string
 	kubeClientSet         kubernetes.Interface
 	nuclioClientSet       nuclioioclient.Interface
 	functionresClient     functionres.Client
@@ -44,7 +45,8 @@ type Controller struct {
 }
 
 func NewController(parentLogger logger.Logger,
-	namespace string,
+	crdNamespace string,
+	podNamespace string,
 	imagePullSecrets string,
 	kubeClientSet kubernetes.Interface,
 	nuclioClientSet nuclioioclient.Interface,
@@ -58,13 +60,14 @@ func NewController(parentLogger logger.Logger,
 	var err error
 
 	// replace "*" with "", which is actually "all" in kube-speak
-	if namespace == "*" {
-		namespace = ""
+	if crdNamespace == "*" {
+		crdNamespace = ""
 	}
 
 	newController := &Controller{
 		logger:                parentLogger,
-		namespace:             namespace,
+		crdNamespace:          crdNamespace,
+		podNamespace:          podNamespace,
 		imagePullSecrets:      imagePullSecrets,
 		kubeClientSet:         kubeClientSet,
 		nuclioClientSet:       nuclioClientSet,
@@ -120,7 +123,7 @@ func NewController(parentLogger logger.Logger,
 }
 
 func (c *Controller) Start() error {
-	c.logger.InfoWith("Starting", "namespace", c.namespace)
+	c.logger.InfoWith("Starting", "crdNamespace", c.crdNamespace)
 
 	// start the function operator
 	if err := c.functionOperator.start(); err != nil {

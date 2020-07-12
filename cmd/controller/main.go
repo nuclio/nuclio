@@ -55,20 +55,23 @@ func main() {
 	projectOperatorNumWorkersStr := flag.String("project-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PROJECT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function operator (optional)")
 	flag.Parse()
 
-	// get the namespace from args -> env -> default (*)
-	resolvedNamespace := getNamespace(*namespace)
+	// get namespace the controller pod runs in
+	podNamespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace");
+	if err != nil {
+		panic("Failed to extract own pod for controller")
+	}
+
+	// get the namespace to listen on from args -> env -> default (*)
+	crdNamespace := getNamespace(*namespace)
 
 	// if the namespace is set to @nuclio.selfNamespace, use the namespace we're in right now
-	if resolvedNamespace == "@nuclio.selfNamespace" {
-
-		// get namespace from within the pod. if found, return that
-		if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
-			resolvedNamespace = string(namespacePod)
-		}
+	if crdNamespace == "@nuclio.selfNamespace" {
+		crdNamespace = string(podNamespace)
 	}
 
 	if err := app.Run(*kubeconfigPath,
-		resolvedNamespace,
+		crdNamespace,
+		podNamespace,
 		*imagePullSecrets,
 		*platformConfigurationPath,
 		*functionOperatorNumWorkersStr,
