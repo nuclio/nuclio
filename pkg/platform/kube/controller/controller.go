@@ -50,7 +50,7 @@ func NewController(parentLogger logger.Logger,
 	nuclioClientSet nuclioioclient.Interface,
 	functionresClient functionres.Client,
 	resyncInterval time.Duration,
-	cronJobStalePodsDeletionInterval time.Duration,
+	cronJobStaleResourcesCleanupInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
 	functionOperatorNumWorkers int,
 	functionEventOperatorNumWorkers int,
@@ -114,7 +114,7 @@ func NewController(parentLogger logger.Logger,
 	// create cron job monitoring
 	newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
 		newController,
-		&cronJobStalePodsDeletionInterval)
+		&cronJobStaleResourcesCleanupInterval)
 
 	return newController, nil
 }
