@@ -1583,10 +1583,11 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	}
 
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
-	attributes.ConcurrencyPolicy = string(batchv1beta1.ForbidConcurrent)
+	concurrencyPolicy := batchv1beta1.ForbidConcurrent
 	if attributes.ConcurrencyPolicy != "" {
-		spec.ConcurrencyPolicy = batchv1beta1.ConcurrencyPolicy(util.Capitalize(attributes.ConcurrencyPolicy))
+		concurrencyPolicy = batchv1beta1.ConcurrencyPolicy(util.Capitalize(attributes.ConcurrencyPolicy))
 	}
+	spec.ConcurrencyPolicy = concurrencyPolicy
 
 	// set default history limit (no need for more than one - makes kube jobs api clearer)
 	spec.SuccessfulJobsHistoryLimit = &one
