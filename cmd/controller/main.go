@@ -58,7 +58,7 @@ func main() {
 	// get namespace the controller pod runs in
 	podNamespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace");
 	if err != nil {
-		panic("Failed to extract own pod for controller")
+		panic("Failed to extract own pod namespace")
 	}
 
 	// get the namespace to listen on from args -> env -> default (*)
