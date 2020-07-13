@@ -30,6 +30,9 @@ rules:
   - apiGroups: ["nuclio.io"]
     resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents"]
     verbs: ["*"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["list"]
 
 {{- else if eq .Values.rbac.crdAccessMode "namespaced" }}
 

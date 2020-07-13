@@ -68,7 +68,9 @@ rules:
 - apiGroups: ["nuclio.io"]
   resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents"]
   verbs: ["*"]
-
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["list"]
 ---
 
 # Bind the "nuclio" service account (used by controller / dashboard) to the nuclio-functioncr-admin role,
