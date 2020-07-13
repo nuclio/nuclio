@@ -54,8 +54,8 @@ func (cjm *CronJobMonitoring) startCronJobStaleResourcesCleanupLoop() error {
 		// sleep until next deletion time cronJobStaleResourcesCleanupInterval
 		time.Sleep(*cjm.cronJobStaleResourcesCleanupInterval)
 
-		cjm.deleteStalePods(stalePodsFieldSelector)
 		cjm.deleteStaleJobs()
+		cjm.deleteStalePods(stalePodsFieldSelector)
 	}
 }
 
