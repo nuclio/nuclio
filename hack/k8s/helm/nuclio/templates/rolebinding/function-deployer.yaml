@@ -15,6 +15,26 @@
 {{- if .Values.rbac.create }}
 # Bind the service account (used by controller / dashboard) to the function-deployer role,
 # allowing them to create deployments, services, etc
+
+{{- if eq .Values.rbac.crdAccessMode "cluster" }}
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ template "nuclio.functionDeployerName" . }}-clusterrolebinding
+  labels:
+    app: {{ template "nuclio.nuclioName" . }}
+    release: {{ .Release.Name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ template "nuclio.functionDeployerName" . }}-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: {{ template "nuclio.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+
+{{- else }}
+
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:
@@ -30,4 +50,7 @@ subjects:
 - kind: ServiceAccount
   name: {{ template "nuclio.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
+
+{{- end }}
+
 {{- end }}
