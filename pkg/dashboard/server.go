@@ -19,7 +19,6 @@ package dashboard
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -251,14 +250,16 @@ func (s *Server) getRegistryURL() string {
 		// TODO: This auto-expansion does not support with kaniko today, must provide full URL. Remove this?
 		// if the user specified the docker hub, we can't use this as-is. add the user name to the URL
 		// to generate a valid URL
-		for _, dockerPattern := range []string{
+		dockerPatterns := []string{
 			".docker.com",
 			".docker.io",
-		} {
-			if strings.HasSuffix(registryURL, dockerPattern) {
-				registryURL = fmt.Sprintf("%s/%s", registryURL, credentials[0].Username)
-				break
-			}
+		}
+		if common.MatchStringPatterns(dockerPatterns, registryURL) {
+			registryURL = common.StripSuffixes(registryURL, []string{
+				"/v1",
+				"/v1/",
+			})
+			registryURL = fmt.Sprintf("%s/%s", registryURL, credentials[0].Username)
 		}
 
 		// trim prefixes
