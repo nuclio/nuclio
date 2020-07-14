@@ -26,8 +26,9 @@ At this stage you should have a functioning Kubernetes cluster, a Docker registr
 kubectl create namespace nuclio
 ```
 
-**Create a registry secret:** because Nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials. Replace the `<...>` placeholders in the following commands with your username, password, and URL:
-> **Note:** If you want to use Docker Hub, the URL is `docker.io/<username>`.
+**Create a registry secret:** because Nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials.
+Replace the `<...>` placeholders in the following commands with your username, password, and URL:
+> **Note:** If you want to use Docker Hub, the URL is `https://index.docker.io/v1/`.
 
 ```sh
 read -s mypassword
