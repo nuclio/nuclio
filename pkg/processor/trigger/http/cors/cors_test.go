@@ -1,6 +1,7 @@
 package cors
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -60,16 +61,19 @@ func (suite *TestSuite) TestMethodsAllowed() {
 	for _, method := range suite.cors.AllowMethods {
 		suite.Require().True(suite.cors.MethodAllowed(method))
 	}
+
+	// not enabled by default
+	suite.Require().False(suite.cors.MethodAllowed(http.MethodTrace))
 }
 
 func (suite *TestSuite) TestHeadersAllowed() {
 	dummyHeader := "Dummy-Header"
 
-	// dummyHeader should be denied at this point
-	suite.Require().False(suite.cors.HeadersAllowed([]string{dummyHeader}))
-
 	// allow default headers
 	suite.Require().True(suite.cors.HeadersAllowed(suite.cors.AllowHeaders))
+
+	// dummyHeader should be denied at this point
+	suite.Require().False(suite.cors.HeadersAllowed([]string{dummyHeader}))
 
 	// add dummyHeader to allowed headers
 	suite.cors.AllowHeaders = append(suite.cors.AllowHeaders, dummyHeader)
