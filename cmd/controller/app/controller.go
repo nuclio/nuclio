@@ -40,7 +40,7 @@ func Run(kubeconfigPath string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
-	cronJobStalePodsDeletionIntervalStr string,
+	cronJobStaleResourcesCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string) error {
 
@@ -50,7 +50,7 @@ func Run(kubeconfigPath string,
 		platformConfigurationPath,
 		functionOperatorNumWorkersStr,
 		functionOperatorResyncIntervalStr,
-		cronJobStalePodsDeletionIntervalStr,
+		cronJobStaleResourcesCleanupIntervalStr,
 		functionEventOperatorNumWorkersStr,
 		projectOperatorNumWorkersStr)
 	if err != nil {
@@ -72,7 +72,7 @@ func createController(kubeconfigPath string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
-	cronJobStalePodsDeletionIntervalStr string,
+	cronJobStaleResourcesCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string) (*controller.Controller, error) {
 
@@ -91,7 +91,7 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to parse resync interval for function operator")
 	}
 
-	cronJobStalePodsDeletionInterval, err := time.ParseDuration(cronJobStalePodsDeletionIntervalStr)
+	cronJobStaleResourcesCleanupInterval, err := time.ParseDuration(cronJobStaleResourcesCleanupIntervalStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse cron job stale pods deletion interval")
 	}
@@ -141,7 +141,7 @@ func createController(kubeconfigPath string,
 		nuclioClientSet,
 		functionresClient,
 		functionOperatorResyncInterval,
-		cronJobStalePodsDeletionInterval,
+		cronJobStaleResourcesCleanupInterval,
 		platformConfiguration,
 		functionOperatorNumWorkers,
 		functionEventOperatorNumWorkers,
