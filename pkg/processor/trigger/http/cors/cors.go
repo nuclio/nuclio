@@ -80,7 +80,7 @@ func (c *CORS) OriginAllowed(origin string) bool {
 
 func (c *CORS) MethodAllowed(method string) bool {
 	return method != "" &&
-		(method == c.PreflightRequestMethod || common.StringSliceContainsString(c.AllowMethods, method))
+		(method == c.PreflightRequestMethod || common.StringSliceContainsStringCaseInsensitive(c.AllowMethods, method))
 }
 
 func (c *CORS) HeadersAllowed(headers []string) bool {
@@ -110,7 +110,7 @@ func (c *CORS) EncodeAllowCredentialsHeader() string {
 	if c.allowCredentialsStr == "" {
 		c.allowCredentialsStr = strconv.FormatBool(c.AllowCredentials)
 	}
-	return c.allowHeadersStr
+	return c.allowCredentialsStr
 }
 
 func (c *CORS) EncodePreflightMaxAgeSeconds() string {
