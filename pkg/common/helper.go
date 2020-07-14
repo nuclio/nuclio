@@ -391,3 +391,7 @@ func MatchStringPatterns(patterns []string, s string) bool {
 	}
 	return false
 }
+
+func CompileImageName(registryURL string, imageName string) string {
+	return strings.TrimSuffix(registryURL, "/") + "/" + imageName
+}
