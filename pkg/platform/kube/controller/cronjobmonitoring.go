@@ -92,8 +92,12 @@ func (cjm *CronJobMonitoring) deleteStaleJobs() {
 
 		// check if the job is stale - a k8s bug that happens when a job fails more times than its backoff limit
 		// whenever this happens, the job will not be automatically deleted
-		if job.Spec.BackoffLimit != nil &&
-			*job.Spec.BackoffLimit <= job.Status.Failed {
+		isJobBackOffLimitExceeded := job.Spec.BackoffLimit != nil &&
+			*job.Spec.BackoffLimit <= job.Status.Failed
+
+		isJobCompleted := job.Status.Succeeded > 0
+
+		if isJobBackOffLimitExceeded || isJobCompleted {
 			err := cjm.controller.kubeClientSet.
 				BatchV1().
 				Jobs(cjm.controller.namespace).
