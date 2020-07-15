@@ -31,7 +31,7 @@ triggers:
       interval: 3s
 ```
 
-On K8s platform:
+On K8s platform (it also requires setting cronTriggerCreationMode=="kube" on platform config, Reference: [Platform Config](/docs/tasks/configuring-a-platform.md)):
 ```yaml
 triggers:
   myCronTrigger:

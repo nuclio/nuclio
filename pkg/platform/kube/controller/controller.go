@@ -112,7 +112,7 @@ func NewController(parentLogger logger.Logger,
 	}
 
 	// create cron job monitoring
-	if platformConfiguration.KubeCronJobsEnabled {
+	if platformConfiguration.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
 		newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
 			newController,
 			&cronJobStaleResourcesCleanupInterval)

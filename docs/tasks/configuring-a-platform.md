@@ -163,16 +163,16 @@ healthCheck:
   enabled: false
 ```
 
-### Kube cron jobs enabled (`kubeCronJobsEnabled`)
+### Cron trigger creation mode (`cronTriggerCreationMode`)
 
-A function can run cron-triggers as k8s cron jobs instead of creating the cron logic inside the processor.
+A function can run cron triggers as k8s CronJobs or creating the cron logic inside the processor.
 
 For more information - [Cron Trigger](/docs/reference/triggers/cron.md)
 
-- `kubeCronJobsEnabled`: Whether or not to create cron triggers as k8s CronJobs. (default: false)
+- `cronTriggerCreationMode`: Which way to implement cron triggers. ["kube", "processor" (default)]
 
-For example, the following configuration enables k8s CronJobs:
+For example, the following will configure the system to implement cron triggers as k8s CronJobs:
 
 ```yaml
-kubeCronJobsEnabled: true
+cronTriggerCreationMode: "kube"
 ```
