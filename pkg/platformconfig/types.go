@@ -101,6 +101,6 @@ type Kubernetes struct {
 type CronTriggerCreationMode string
 
 const (
-	ProcessorCronTriggerCreationMode  CronTriggerCreationMode = "processor"
-	KubeCronTriggerCreationMode       CronTriggerCreationMode = "kube"
+	ProcessorCronTriggerCreationMode CronTriggerCreationMode = "processor"
+	KubeCronTriggerCreationMode      CronTriggerCreationMode = "kube"
 )
