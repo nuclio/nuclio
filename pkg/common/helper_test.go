@@ -353,6 +353,31 @@ func (suite *StripPrefixesTestSuite) TestPositive() {
 	suite.Require().Equal("prefix_something_1", stripped)
 }
 
+type MatchStringPatternsTestSuite struct {
+	suite.Suite
+}
+
+func (suite *MatchStringPatternsTestSuite) TestMatch() {
+	for _, testCase := range []struct {
+		Patterns []string
+		input    string
+		Match    bool
+	}{
+		{Patterns: []string{`\.docker\.io`}, input: "index.docker.io/v1/", Match: true},
+		{Patterns: []string{`\.docker\.io`}, input: "https://index.docker.io/v1/", Match: true},
+		{Patterns: []string{`\.docker\.io`}, input: "https://index.docker.io", Match: true},
+		{Patterns: []string{`\.docker\.io`}, input: "index.docker.io", Match: true},
+		{Patterns: []string{`\.docker\.io`}, input: "docker.io", Match: false},
+		{Patterns: []string{`\.docker\.io`}, input: ".dockerbio", Match: false},
+		{Patterns: []string{`\.docker\.io`}, input: ".dockerr.io", Match: false},
+		{Patterns: []string{`\.docker\.io`}, input: ".docker.iio", Match: false},
+		{Patterns: []string{`\.docker\.io`}, input: ".ddocker.io", Match: false},
+	} {
+
+		suite.Require().Equal(testCase.Match, MatchStringPatterns(testCase.Patterns, testCase.input))
+	}
+}
+
 func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
 	suite.Run(t, new(RetryUntilSuccessfulOnErrorPatternsTestSuite))
@@ -361,4 +386,5 @@ func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(IsDirTestSuite))
 	suite.Run(t, new(IsFileTestSuite))
 	suite.Run(t, new(StripPrefixesTestSuite))
+	suite.Run(t, new(MatchStringPatternsTestSuite))
 }

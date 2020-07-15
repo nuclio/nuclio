@@ -250,11 +250,10 @@ func (s *Server) getRegistryURL() string {
 		// TODO: This auto-expansion does not support with kaniko today, must provide full URL. Remove this?
 		// if the user specified the docker hub, we can't use this as-is. add the user name to the URL
 		// to generate a valid URL
-		dockerPatterns := []string{
-			".docker.com",
-			".docker.io",
-		}
-		if common.MatchStringPatterns(dockerPatterns, registryURL) {
+		if common.MatchStringPatterns([]string{
+			`\.docker\.com`,
+			`\.docker\.io`,
+		}, registryURL) {
 			registryURL = common.StripSuffixes(registryURL, []string{
 				"/v1",
 				"/v1/",
