@@ -32,6 +32,7 @@ type Config struct {
 	Metrics                  Metrics                  `json:"metrics,omitempty"`
 	ScaleToZero              ScaleToZero              `json:"scaleToZero,omitempty"`
 	AutoScale                AutoScale                `json:"autoScale,omitempty"`
+	KubeCronJobsEnabled      bool                     `json:"kubeCronJobsEnabled,omitempty"`
 	FunctionAugmentedConfigs []LabelSelectorAndConfig `json:"functionAugmentedConfigs,omitempty"`
 }
 
