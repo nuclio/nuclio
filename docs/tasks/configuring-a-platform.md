@@ -163,3 +163,16 @@ healthCheck:
   enabled: false
 ```
 
+### Kube cron jobs enabled (`kubeCronJobsEnabled`)
+
+A function can run cron-triggers as k8s cron jobs instead of creating the cron logic inside the processor.
+
+For more information - [Cron Trigger](/docs/reference/triggers/cron.md)
+
+- `kubeCronJobsEnabled`: Whether or not to create cron triggers as k8s CronJobs. (default: false)
+
+For example, the following configuration enables k8s CronJobs:
+
+```yaml
+kubeCronJobsEnabled: true
+```
