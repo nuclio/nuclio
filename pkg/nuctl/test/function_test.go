@@ -908,82 +908,84 @@ func (suite *functionDeployTestSuite) TestDeployWaitReadinessTimeoutBeforeFailur
 	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 }
 
-func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
-	suite.ensureRunningOnPlatform("kube")
-
-	uniqueSuffix := "-" + xid.New().String()
-	functionName := "event-recorder" + uniqueSuffix
-	imageName := "nuclio/processor-" + functionName
-
-	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
-		"runtime": "python",
-		"handler": "event_recorder:handler",
-		"triggers": `{
-    "crontrig": {
-        "kind": "cron",
-        "attributes": {
-            "interval": "3s",
-            "event": {
-                "body": "somebody",
-                "headers": {
-                    "Extra-Header-1": "value1",
-                    "Extra-Header-2": "value2"
-                }
-            }
-        }
-    }
-}`,
-	}
-
-	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
-	suite.Require().NoError(err)
-
-	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
-
-	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
-
-	// try a few times to invoke, until it succeeds (validate function deployment finished)
-	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
-		map[string]string{
-			"method": "POST",
-			"via":    "external-ip",
-		},
-		false)
-	suite.Require().NoError(err)
-
-	// wait 15 seconds so at least 1 interval will pass
-	suite.logger.InfoWith("Sleeping for 15 sec (so at least 1 interval will pass)")
-	time.Sleep(15 * time.Second)
-	suite.logger.InfoWith("Done sleeping")
-
-	suite.outputBuffer.Reset()
-
-	// try a few times to invoke, until it succeeds
-	// the output buffer should contain a response body with the function's called events from the cron trigger
-	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
-		map[string]string{
-			"method": "POST",
-			"via":    "external-ip",
-		},
-		false)
-	suite.Require().NoError(err)
-
-	events := suite.parseEventsRecorderOutput(suite.outputBuffer.String())
-
-	// validate at least 1 cron job ran
-	suite.Require().GreaterOrEqual(len(events), 1)
-
-	// validate the body was sent
-	suite.Require().Equal(events[0].Body, "somebody")
-
-	// validate headers were attached properly
-	suite.Require().Contains(events[0].Headers, "X-Nuclio-Invoke-Trigger")
-	suite.Require().Contains(events[0].Headers, "Extra-Header-1")
-	suite.Require().Contains(events[0].Headers, "Extra-Header-2")
-}
+// TODO: un-comment when cron triggers are implemented by default as k8s cron jobs or there's k8s testing infra
+//func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
+//
+//	suite.ensureRunningOnPlatform("kube")
+//
+//	uniqueSuffix := "-" + xid.New().String()
+//	functionName := "event-recorder" + uniqueSuffix
+//	imageName := "nuclio/processor-" + functionName
+//
+//	namedArgs := map[string]string{
+//		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+//		"runtime": "python",
+//		"handler": "event_recorder:handler",
+//		"triggers": `{
+//    "crontrig": {
+//        "kind": "cron",
+//        "attributes": {
+//            "interval": "3s",
+//            "event": {
+//                "body": "somebody",
+//                "headers": {
+//                    "Extra-Header-1": "value1",
+//                    "Extra-Header-2": "value2"
+//                }
+//            }
+//        }
+//    }
+//}`,
+//	}
+//
+//	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+//	suite.Require().NoError(err)
+//
+//	// use nutctl to delete the function when we're done
+//	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+//
+//	// make sure to clean up after the test
+//	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+//
+//	// try a few times to invoke, until it succeeds (validate function deployment finished)
+//	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
+//		map[string]string{
+//			"method": "POST",
+//			"via":    "external-ip",
+//		},
+//		false)
+//	suite.Require().NoError(err)
+//
+//	// wait 15 seconds so at least 1 interval will pass
+//	suite.logger.InfoWith("Sleeping for 15 sec (so at least 1 interval will pass)")
+//	time.Sleep(15 * time.Second)
+//	suite.logger.InfoWith("Done sleeping")
+//
+//	suite.outputBuffer.Reset()
+//
+//	// try a few times to invoke, until it succeeds
+//	// the output buffer should contain a response body with the function's called events from the cron trigger
+//	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
+//		map[string]string{
+//			"method": "POST",
+//			"via":    "external-ip",
+//		},
+//		false)
+//	suite.Require().NoError(err)
+//
+//	events := suite.parseEventsRecorderOutput(suite.outputBuffer.String())
+//
+//	// validate at least 1 cron job ran
+//	suite.Require().GreaterOrEqual(len(events), 1)
+//
+//	// validate the body was sent
+//	suite.Require().Equal(events[0].Body, "somebody")
+//
+//	// validate headers were attached properly
+//	suite.Require().Contains(events[0].Headers, "X-Nuclio-Invoke-Trigger")
+//	suite.Require().Contains(events[0].Headers, "Extra-Header-1")
+//	suite.Require().Contains(events[0].Headers, "Extra-Header-2")
+//}
 
 func (suite *functionDeployTestSuite) parseEventsRecorderOutput(outputBufferString string) []triggertest.Event {
 	var foundResponseBody bool
