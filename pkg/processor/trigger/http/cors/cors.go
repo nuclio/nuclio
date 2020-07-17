@@ -17,8 +17,6 @@ limitations under the License.
 package cors
 
 import (
-	"github.com/nuclio/errors"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -31,7 +29,7 @@ type CORS struct {
 	Enabled bool
 
 	// allow configuration
-	AllowOrigin      string
+	AllowOrigins     []string
 	AllowMethods     []string
 	AllowHeaders     []string
 	AllowCredentials bool
@@ -46,13 +44,16 @@ type CORS struct {
 	preflightMaxAgeSecondsStr string
 	allowCredentialsStr       string
 
-	allowOriginURL *url.URL
+	// true when once of `AllowOrigins` equals to "*"
+	allowAllOrigins *bool
 }
 
 func NewCORS() *CORS {
 	return &CORS{
-		Enabled:     true,
-		AllowOrigin: "*",
+		Enabled: true,
+		AllowOrigins: []string{
+			"*",
+		},
 		AllowMethods: []string{
 			fasthttp.MethodHead,
 			fasthttp.MethodGet,
@@ -80,25 +81,13 @@ func (c *CORS) OriginAllowed(origin string) bool {
 		return false
 	}
 
-	// allow all
-	if c.AllowOrigin == "*" {
+	// when all origins are allowed
+	if c.resolveAllowAllOrigins() {
 		return true
 	}
 
-	// exact match
-	if c.AllowOrigin == origin {
-		return true
-	}
-
-	// at last, ensure host, port & schemes
-	urlInstance, err := url.Parse(origin)
-	if err != nil {
-		return false
-	}
-	return urlInstance.Host == c.allowOriginURL.Host &&
-		urlInstance.Port() == c.allowOriginURL.Port() &&
-		urlInstance.Scheme == c.allowOriginURL.Scheme
-
+	// check one-by-one
+	return common.StringSliceContainsStringCaseInsensitive(c.AllowOrigins, origin)
 }
 
 func (c *CORS) MethodAllowed(method string) bool {
@@ -143,18 +132,17 @@ func (c *CORS) EncodePreflightMaxAgeSeconds() string {
 	return c.preflightMaxAgeSecondsStr
 }
 
-func (c *CORS) SetAllowOriginURL(rawURL string) error {
-	c.AllowOrigin = rawURL
-
-	// skip parsing url when allow origin is broad
-	if rawURL == "*" {
-		return nil
+func (c *CORS) resolveAllowAllOrigins() bool {
+	if c.allowAllOrigins == nil {
+		false := false
+		c.allowAllOrigins = &false
+		for _, allowOrigin := range c.AllowOrigins {
+			if allowOrigin == "*" {
+				true := true
+				c.allowAllOrigins = &true
+				break
+			}
+		}
 	}
-
-	urlInstance, err := url.Parse(rawURL)
-	if err != nil {
-		return errors.Wrap(err, "Failed to parse request URI")
-	}
-	c.allowOriginURL = urlInstance
-	return nil
+	return *c.allowAllOrigins
 }

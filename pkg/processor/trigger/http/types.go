@@ -89,10 +89,8 @@ func createCORSConfiguration(CORSConfiguration *cors.CORS) (*cors.CORS, error) {
 		corsInstance.AllowMethods = CORSConfiguration.AllowMethods
 	}
 
-	if CORSConfiguration.AllowOrigin != "" {
-		if err := corsInstance.SetAllowOriginURL(corsInstance.AllowOrigin); err != nil {
-			return nil, err
-		}
+	if len(CORSConfiguration.AllowOrigins) > 0 {
+		corsInstance.AllowOrigins = CORSConfiguration.AllowOrigins
 	}
 
 	if CORSConfiguration.AllowCredentials {

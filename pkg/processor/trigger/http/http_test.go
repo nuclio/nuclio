@@ -59,7 +59,7 @@ func (suite *TestSuite) TearDownSuite() {
 func (suite *TestSuite) TestCORS() {
 	client := suite.getClient()
 	for _, testCase := range []struct {
-		CORSAllowOrigin                   string
+		CORSAllowOrigins                  []string
 		RequestOrigin                     string
 		RequestMethod                     string
 		RequestHeaders                    []string
@@ -71,9 +71,9 @@ func (suite *TestSuite) TestCORS() {
 
 		// happy flow
 		{
-			CORSAllowOrigin: "foo.bar",
-			RequestOrigin:   "foo.bar",
-			RequestMethod:   "GET",
+			CORSAllowOrigins: []string{"foo.bar"},
+			RequestOrigin:    "foo.bar",
+			RequestMethod:    "GET",
 			RequestHeaders: []string{
 				"X-Nuclio-log-level",
 			},
@@ -90,7 +90,7 @@ func (suite *TestSuite) TestCORS() {
 
 		// invalid origin
 		{
-			CORSAllowOrigin:                   "foo.bar",
+			CORSAllowOrigins:                  []string{"foo.bar"},
 			RequestOrigin:                     "baz.bar",
 			RequestMethod:                     "GET",
 			ExpectedResponseStatusCode:        fasthttp.StatusBadRequest,
@@ -123,8 +123,8 @@ func (suite *TestSuite) TestCORS() {
 
 		// set cors configuration
 		corsInstance := cors.NewCORS()
-		if testCase.CORSAllowOrigin != "" {
-			corsInstance.AllowOrigin = testCase.CORSAllowOrigin
+		if len(testCase.CORSAllowOrigins) > 0 {
+			corsInstance.AllowOrigins = testCase.CORSAllowOrigins
 		}
 		suite.trigger.configuration.CORS = corsInstance
 
