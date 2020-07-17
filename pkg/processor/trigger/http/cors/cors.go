@@ -17,6 +17,8 @@ limitations under the License.
 package cors
 
 import (
+	"github.com/nuclio/errors"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -38,11 +40,13 @@ type CORS struct {
 	PreflightRequestMethod string
 	PreflightMaxAgeSeconds int
 
-	// computed
+	// encoded
 	allowMethodsStr           string
 	allowHeadersStr           string
 	preflightMaxAgeSecondsStr string
 	allowCredentialsStr       string
+
+	allowOriginURL *url.URL
 }
 
 func NewCORS() *CORS {
@@ -75,7 +79,26 @@ func (c *CORS) OriginAllowed(origin string) bool {
 	if origin == "" {
 		return false
 	}
-	return c.AllowOrigin == "*" || origin == c.AllowOrigin
+
+	// allow all
+	if c.AllowOrigin == "*" {
+		return true
+	}
+
+	// exact match
+	if c.AllowOrigin == origin {
+		return true
+	}
+
+	// at last, ensure host, port & schemes
+	urlInstance, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	return urlInstance.Host == c.allowOriginURL.Host &&
+		urlInstance.Port() == c.allowOriginURL.Port() &&
+		urlInstance.Scheme == c.allowOriginURL.Scheme
+
 }
 
 func (c *CORS) MethodAllowed(method string) bool {
@@ -118,4 +141,20 @@ func (c *CORS) EncodePreflightMaxAgeSeconds() string {
 		c.preflightMaxAgeSecondsStr = strconv.Itoa(c.PreflightMaxAgeSeconds)
 	}
 	return c.preflightMaxAgeSecondsStr
+}
+
+func (c *CORS) SetAllowOriginURL(rawURL string) error {
+	c.AllowOrigin = rawURL
+
+	// skip parsing url when allow origin is broad
+	if rawURL == "*" {
+		return nil
+	}
+
+	urlInstance, err := url.Parse(rawURL)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse request URI")
+	}
+	c.allowOriginURL = urlInstance
+	return nil
 }

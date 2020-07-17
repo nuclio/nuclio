@@ -45,9 +45,19 @@ func (suite *TestSuite) TestOriginAllowed() {
 	}
 
 	// allow for a specific host only
-	suite.cors.AllowOrigin = dummyHostA
+	err := suite.cors.SetAllowOriginURL(dummyHostA)
+	suite.Require().NoError(err)
 	suite.Require().False(suite.cors.OriginAllowed(dummyHostB))
 	suite.Require().True(suite.cors.OriginAllowed(dummyHostA))
+
+	testBaseHost := "mynaipi.com:80"
+	err = suite.cors.SetAllowOriginURL(dummyHostA)
+	suite.Require().NoError(err)
+	suite.Require().True(suite.cors.OriginAllowed(testBaseHost))
+	suite.Require().True(suite.cors.OriginAllowed("http://mynaipi.com:80"))
+	suite.Require().True(suite.cors.OriginAllowed("http://mynaipi.com"))
+	suite.Require().True(suite.cors.OriginAllowed("mynaipi.com"))
+	suite.Require().False(suite.cors.OriginAllowed(dummyHostB))
 }
 
 func (suite *TestSuite) TestMethodsAllowed() {

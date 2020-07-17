@@ -66,12 +66,16 @@ func NewConfiguration(ID string,
 	}
 
 	if newConfiguration.CORS != nil && newConfiguration.CORS.Enabled {
-		newConfiguration.CORS = createCORSConfiguration(newConfiguration.CORS)
+		corsConfiguration, err := createCORSConfiguration(newConfiguration.CORS)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create CORS configuration")
+		}
+		newConfiguration.CORS = corsConfiguration
 	}
 	return &newConfiguration, nil
 }
 
-func createCORSConfiguration(CORSConfiguration *cors.CORS) *cors.CORS {
+func createCORSConfiguration(CORSConfiguration *cors.CORS) (*cors.CORS, error) {
 
 	// take defaults
 	corsInstance := cors.NewCORS()
@@ -86,7 +90,9 @@ func createCORSConfiguration(CORSConfiguration *cors.CORS) *cors.CORS {
 	}
 
 	if CORSConfiguration.AllowOrigin != "" {
-		corsInstance.AllowOrigin = CORSConfiguration.AllowOrigin
+		if err := corsInstance.SetAllowOriginURL(corsInstance.AllowOrigin); err != nil {
+			return nil, err
+		}
 	}
 
 	if CORSConfiguration.AllowCredentials {
@@ -95,7 +101,7 @@ func createCORSConfiguration(CORSConfiguration *cors.CORS) *cors.CORS {
 
 	corsInstance.PreflightMaxAgeSeconds = CORSConfiguration.PreflightMaxAgeSeconds
 
-	return corsInstance
+	return corsInstance, nil
 
 }
 
