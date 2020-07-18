@@ -149,7 +149,7 @@ func NewConfiguration(ID string,
 			Name:    "max processing timeout",
 			Value:   newConfiguration.MaxProcessingTime,
 			Field:   &newConfiguration.maxProcessingTime,
-			Default: 5 * time.Minute,
+			Default: 24 * time.Hour,
 		},
 		{
 			Name:    "rebalance timeout",
