@@ -232,9 +232,11 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 		return nil, errors.Wrap(err, "Failed to create/update ingress")
 	}
 
-	resources.cronJobs, err = lc.createOrUpdateCronJobs(functionLabels, function, &resources)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create cron jobs from cron triggers")
+	if lc.platformConfigurationProvider.GetPlatformConfiguration().CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		resources.cronJobs, err = lc.createOrUpdateCronJobs(functionLabels, function, &resources)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create cron jobs from cron triggers")
+		}
 	}
 
 	lc.logger.Debug("Successfully created/updated resources")
@@ -370,9 +372,11 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		return errors.Wrap(err, "Failed to delete function events")
 	}
 
-	err = lc.deleteCronJobs(name, namespace)
-	if err != nil {
-		return errors.Wrap(err, "Failed to delete function cron jobs")
+	if lc.platformConfigurationProvider.GetPlatformConfiguration().CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		err = lc.deleteCronJobs(name, namespace)
+		if err != nil {
+			return errors.Wrap(err, "Failed to delete function cron jobs")
+		}
 	}
 
 	lc.logger.DebugWith("Deleted deployed function", "namespace", namespace, "name", name)

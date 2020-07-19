@@ -32,6 +32,7 @@ type Config struct {
 	Metrics                  Metrics                  `json:"metrics,omitempty"`
 	ScaleToZero              ScaleToZero              `json:"scaleToZero,omitempty"`
 	AutoScale                AutoScale                `json:"autoScale,omitempty"`
+	CronTriggerCreationMode  CronTriggerCreationMode  `json:"cronTriggerCreationMode,omitempty"`
 	FunctionAugmentedConfigs []LabelSelectorAndConfig `json:"functionAugmentedConfigs,omitempty"`
 }
 
@@ -53,6 +54,11 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.Kind = "kube"
 	} else {
 		config.Kind = "local"
+	}
+
+	// default cron trigger creation mode to processor
+	if config.CronTriggerCreationMode == "" {
+		config.CronTriggerCreationMode = ProcessorCronTriggerCreationMode
 	}
 
 	return config, nil

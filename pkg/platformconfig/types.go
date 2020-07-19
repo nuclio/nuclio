@@ -97,3 +97,10 @@ type LabelSelectorAndConfig struct {
 type Kubernetes struct {
 	Deployment *appsv1.Deployment `json:"deployment,omitempty"`
 }
+
+type CronTriggerCreationMode string
+
+const (
+	ProcessorCronTriggerCreationMode CronTriggerCreationMode = "processor"
+	KubeCronTriggerCreationMode      CronTriggerCreationMode = "kube"
+)

@@ -112,9 +112,11 @@ func NewController(parentLogger logger.Logger,
 	}
 
 	// create cron job monitoring
-	newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
-		newController,
-		&cronJobStaleResourcesCleanupInterval)
+	if platformConfiguration.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
+			newController,
+			&cronJobStaleResourcesCleanupInterval)
+	}
 
 	return newController, nil
 }
@@ -137,8 +139,11 @@ func (c *Controller) Start() error {
 		return errors.Wrap(err, "Failed to start function event operator")
 	}
 
-	// start cron job monitoring
-	c.cronJobMonitoring.start()
+	if c.cronJobMonitoring != nil {
+
+		// start cron job monitoring
+		c.cronJobMonitoring.start()
+	}
 
 	return nil
 }
