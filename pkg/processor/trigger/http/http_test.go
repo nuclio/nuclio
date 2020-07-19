@@ -82,7 +82,7 @@ func (suite *TestSuite) TestCORS() {
 				"Access-Control-Allow-Origin":  "foo.bar",
 				"Access-Control-Allow-Methods": "HEAD, GET, POST, PUT, DELETE, OPTIONS",
 				"Access-Control-Max-Age":       "-1",
-				"Access-Control-Allow-Headers": "Accept, Content-Length, Content-Type, X-nuclio-log-level",
+				"Access-Control-Allow-Headers": "Accept, Content-Length, Content-Type, Authorization, X-nuclio-log-level",
 			},
 			ExpectedEventsHandledSuccessTotal: 1,
 			ExpectedEventsHandledFailureTotal: 0,
