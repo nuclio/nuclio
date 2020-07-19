@@ -50,11 +50,15 @@ func (suite *TestSuite) TestOriginAllowed() {
 
 		// allow both "a" & "b", deny for "c"
 		{allowOrigins: []string{"a", "b"}, origin: "a", valid: true},
-		{allowOrigins: []string{"a", "b"}, origin: "A", valid: true},
 		{allowOrigins: []string{"a", "b"}, origin: "b", valid: true},
-		{allowOrigins: []string{"a", "b"}, origin: "B", valid: true},
 		{allowOrigins: []string{"a", "b"}, origin: "c", valid: false},
-		{allowOrigins: []string{"a", "b"}, origin: "C", valid: false},
+
+		// allow case insensitive
+		{allowOrigins: []string{"a"}, origin: "A", valid: true},
+
+		// exact match (not contains in)
+		{allowOrigins: []string{"aa"}, origin: "a", valid: false},
+		{allowOrigins: []string{"a"}, origin: "aa", valid: false},
 
 		// real life, allow origin for "http" based origin / no scheme
 		{

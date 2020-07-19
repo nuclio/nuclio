@@ -82,7 +82,8 @@ func (c *CORS) OriginAllowed(origin string) bool {
 	}
 
 	// when all origins are allowed
-	if c.resolveAllowAllOrigins() {
+	c.populateAllowAllOrigins()
+	if *c.allowAllOrigins {
 		return true
 	}
 
@@ -132,7 +133,7 @@ func (c *CORS) EncodePreflightMaxAgeSeconds() string {
 	return c.preflightMaxAgeSecondsStr
 }
 
-func (c *CORS) resolveAllowAllOrigins() bool {
+func (c *CORS) populateAllowAllOrigins() {
 	if c.allowAllOrigins == nil {
 		false := false
 		c.allowAllOrigins = &false
@@ -144,5 +145,4 @@ func (c *CORS) resolveAllowAllOrigins() bool {
 			}
 		}
 	}
-	return *c.allowAllOrigins
 }
