@@ -259,17 +259,26 @@ func (h *http) preflightRequestValidation(ctx *fasthttp.RequestCtx) bool {
 	origin := common.ByteSliceToString(requestHeaders.Peek("Origin"))
 	corsConfiguration := h.configuration.CORS
 	if !corsConfiguration.OriginAllowed(origin) {
+		h.Logger.DebugWith("Origin is not allowed",
+			"origin", origin,
+			"allowOrigins", h.configuration.CORS.AllowOrigins)
 		return false
 	}
 
 	// request is outside the scope of CORS specifications
 	if !corsConfiguration.MethodAllowed(accessControlRequestMethod) {
+		h.Logger.DebugWith("Request method is not allowed",
+			"accessControlRequestMethod", accessControlRequestMethod,
+			"allowMethods", h.configuration.CORS.AllowMethods)
 		return false
 	}
 
 	// ensure request headers allowed, it is possible (and valid) to be empty
 	if accessControlRequestHeaders != "" {
 		if !corsConfiguration.HeadersAllowed(strings.Split(accessControlRequestHeaders, ", ")) {
+			h.Logger.DebugWith("Request headers are not allowed",
+				"accessControlRequestHeaders", accessControlRequestHeaders,
+				"allowHeaders", h.configuration.CORS.AllowHeaders)
 			return false
 		}
 	}
@@ -342,6 +351,9 @@ func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
 		// ensure origin is allowed
 		origin := common.ByteSliceToString(ctx.Request.Header.Peek("Origin"))
 		if !h.configuration.CORS.OriginAllowed(origin) {
+			h.Logger.DebugWith("Origin is not allowed",
+				"origin", origin,
+				"allowOrigins", h.configuration.CORS.AllowOrigins)
 			return false
 		}
 

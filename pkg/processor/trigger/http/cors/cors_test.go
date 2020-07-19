@@ -29,25 +29,66 @@ func (suite *TestSuite) TestEncodeAllowCredentialsHeader() {
 }
 
 func (suite *TestSuite) TestOriginAllowed() {
-	dummyHostA := "a.host"
-	dummyHostB := "b.host"
+	for _, testCase := range []struct {
+		allowOrigins []string
+		origin       string
+		valid        bool
+	}{
 
-	// regardless to allow origin, empty host is against CORS RFC and should not be treated
-	suite.Require().False(suite.cors.OriginAllowed(""))
+		// happy flow, allow all
+		{allowOrigins: []string{"*"}, origin: "a", valid: true},
+		{allowOrigins: []string{"*"}, origin: "b", valid: true},
+		{allowOrigins: []string{"*"}, origin: "c", valid: true},
 
-	// allow all by default
-	originHosts := []string{
-		dummyHostA,
-		dummyHostB,
+		// allow specific only
+		{allowOrigins: []string{"a"}, origin: "a", valid: true},
+		{allowOrigins: []string{"a"}, origin: "A", valid: true},
+		{allowOrigins: []string{"a"}, origin: "b", valid: false},
+		{allowOrigins: []string{"a"}, origin: "B", valid: false},
+		{allowOrigins: []string{"a"}, origin: "c", valid: false},
+		{allowOrigins: []string{"a"}, origin: "C", valid: false},
+
+		// allow both "a" & "b", deny for "c"
+		{allowOrigins: []string{"a", "b"}, origin: "a", valid: true},
+		{allowOrigins: []string{"a", "b"}, origin: "b", valid: true},
+		{allowOrigins: []string{"a", "b"}, origin: "c", valid: false},
+
+		// allow case insensitive
+		{allowOrigins: []string{"a"}, origin: "A", valid: true},
+
+		// exact match (not contains in)
+		{allowOrigins: []string{"aa"}, origin: "a", valid: false},
+		{allowOrigins: []string{"a"}, origin: "aa", valid: false},
+
+		// real life, allow origin for "http" based origin / no scheme
+		{
+			allowOrigins: []string{
+				"nuclio.io",
+				"http://nuclio.io",
+				"http://nuclio.io:80",
+			},
+			origin: "http://nuclio.io:80",
+			valid:  true,
+		},
+		{
+			allowOrigins: []string{
+				"nuclio.io",
+				"http://nuclio.io",
+				"http://nuclio.io:80",
+			},
+			origin: "https://Nuclio.io",
+			valid:  false,
+		},
+
+		// regardless to allow origin, empty host is against CORS RFC and should not be treated
+		{allowOrigins: []string{"*"}, origin: "", valid: false},
+	} {
+		cors := NewCORS()
+		if len(testCase.allowOrigins) > 0 {
+			cors.AllowOrigins = testCase.allowOrigins
+		}
+		suite.Require().Equal(testCase.valid, cors.OriginAllowed(testCase.origin))
 	}
-	for _, originHost := range originHosts {
-		suite.Require().True(suite.cors.OriginAllowed(originHost))
-	}
-
-	// allow for a specific host only
-	suite.cors.AllowOrigin = dummyHostA
-	suite.Require().False(suite.cors.OriginAllowed(dummyHostB))
-	suite.Require().True(suite.cors.OriginAllowed(dummyHostA))
 }
 
 func (suite *TestSuite) TestMethodsAllowed() {
