@@ -43,9 +43,6 @@ type CORS struct {
 	allowHeadersStr           string
 	preflightMaxAgeSecondsStr string
 	allowCredentialsStr       string
-
-	// true when once of `AllowOrigins` equals to "*"
-	allowAllOrigins *bool
 }
 
 func NewCORS() *CORS {
@@ -83,8 +80,7 @@ func (c *CORS) OriginAllowed(origin string) bool {
 	}
 
 	// when all origins are allowed
-	c.populateAllowAllOrigins()
-	if *c.allowAllOrigins {
+	if c.isAllowAllOrigins() {
 		return true
 	}
 
@@ -134,16 +130,11 @@ func (c *CORS) EncodePreflightMaxAgeSeconds() string {
 	return c.preflightMaxAgeSecondsStr
 }
 
-func (c *CORS) populateAllowAllOrigins() {
-	if c.allowAllOrigins == nil {
-		false := false
-		c.allowAllOrigins = &false
-		for _, allowOrigin := range c.AllowOrigins {
-			if allowOrigin == "*" {
-				true := true
-				c.allowAllOrigins = &true
-				break
-			}
+func (c *CORS) isAllowAllOrigins() bool {
+	for _, allowOrigin := range c.AllowOrigins {
+		if allowOrigin == "*" {
+			return true
 		}
 	}
+	return false
 }
