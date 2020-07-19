@@ -66,6 +66,7 @@ func NewCORS() *CORS {
 			fasthttp.HeaderAccept,
 			fasthttp.HeaderContentLength,
 			fasthttp.HeaderContentType,
+			fasthttp.HeaderAuthorization,
 
 			// nuclio custom
 			"X-nuclio-log-level",
