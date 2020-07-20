@@ -182,7 +182,9 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	}
 
 	// indicate that we're done
-	createFunctionOptions.Logger.InfoWith("Function deploy complete", "httpPort", deployResult.Port)
+	createFunctionOptions.Logger.InfoWith("Function deploy complete",
+		"functionName", deployResult.UpdatedFunctionConfig.Meta.Name,
+		"httpPort", deployResult.Port)
 
 	return deployResult, nil
 }

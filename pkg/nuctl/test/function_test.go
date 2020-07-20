@@ -787,7 +787,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	deployedFunction.Meta.ResourceVersion = functionResourceVersion
 
 	// write function config to file
-	staleFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(deployedFunction,
+	staleFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(&deployedFunction.Config,
 		"stale-resource-version-*.yaml")
 	suite.Require().NoError(err)
 
@@ -810,7 +810,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	deployedFunction.Meta.ResourceVersion = ""
 
 	// write function config to file
-	overriddenFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(deployedFunction,
+	overriddenFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(&deployedFunction.Config,
 		"overridden-resource-version-*.yaml")
 	suite.Require().NoError(err)
 
@@ -834,6 +834,65 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	suite.Require().NoErrorf(err, "Resource version should have been changed (real: %s, expected: %s)",
 		deployedFunction.Meta.ResourceVersion,
 		functionResourceVersion)
+}
+
+func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "port-change" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+		"runtime": "python",
+		"handler": "event_recorder:handler",
+	}
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	suite.Require().NoError(err)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	// wait for function to become ready
+	suite.waitForFunctionState(functionName, functionconfig.FunctionStateReady)
+
+	deployedFunctionConfig, err := suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
+	suite.Require().NoError(err)
+
+	// ensure allocated http port is returned
+	suite.Require().NotZero(deployedFunctionConfig.Status.HTTPPort)
+
+	desiredHTTPPort := 30555
+	namedArgs = map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+		"runtime": "python",
+		"handler": "event_recorder:handler",
+		"triggers": fmt.Sprintf(`{
+	   "http": {
+	       "kind": "http",
+	       "attributes": {
+	           "port": %d
+	       }
+	   }
+	}`, desiredHTTPPort),
+	}
+
+	// redeploy function with a specific port
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	suite.Require().NoError(err)
+
+	// wait for function to become ready again
+	suite.waitForFunctionState(functionName, functionconfig.FunctionStateReady)
+
+	suite.outputBuffer.Reset()
+
+	deployedFunctionConfig, err = suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
+	suite.Require().NoError(err)
+
+	suite.Require().Equal(desiredHTTPPort, deployedFunctionConfig.Status.HTTPPort)
 }
 
 // Expecting the Code Entry Type to be modified to image

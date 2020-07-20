@@ -231,7 +231,8 @@ func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
 	}
 }
 
-func (suite *Suite) getFunctionInFormat(functionName string, outputFormat string) (*functionconfig.Config, error) {
+func (suite *Suite) getFunctionInFormat(functionName string,
+	outputFormat string) (*functionconfig.ConfigWithStatus, error) {
 	suite.outputBuffer.Reset()
 	var err error
 
@@ -246,7 +247,7 @@ func (suite *Suite) getFunctionInFormat(functionName string, outputFormat string
 		return nil, errors.Wrapf(err, "Failed to get function %s", functionName)
 	}
 
-	parsedFunction := functionconfig.Config{}
+	parsedFunction := functionconfig.ConfigWithStatus{}
 
 	// unmarshal response correspondingly to output format
 	switch outputFormat {
@@ -259,6 +260,27 @@ func (suite *Suite) getFunctionInFormat(functionName string, outputFormat string
 	}
 
 	return &parsedFunction, err
+}
+
+func (suite *Suite) waitForFunctionState(functionName string, expectedState functionconfig.FunctionState) {
+	err := common.RetryUntilSuccessful(1*time.Minute, 5*time.Second, func() bool {
+		functionConfigWithStatus, err := suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
+		if err != nil {
+			suite.logger.ErrorWith("Waiting for function readiness failed", "err", err)
+			return false
+		}
+		if functionConfigWithStatus.Status.State != expectedState {
+			suite.logger.DebugWith("Function state is not ready yet",
+				"expectedState", expectedState,
+				"currentState", functionConfigWithStatus.Status.State)
+			return false
+		}
+		return true
+	})
+	suite.Require().NoErrorf(err,
+		"Failed to wait for function '%s' with expected state '%s'",
+		functionName,
+		expectedState)
 }
 
 func (suite *Suite) writeFunctionConfigToTempFile(functionConfig *functionconfig.Config,

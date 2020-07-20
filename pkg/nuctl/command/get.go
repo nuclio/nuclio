@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -104,25 +105,28 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				functions,
 				commandeer.output,
 				cmd.OutOrStdout(),
-				commandeer.renderFunctionConfig)
+				commandeer.renderFunctionConfigWithStatus)
 		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
-
 	commandeer.cmd = cmd
 
 	return commandeer
 }
 
-func (g *getFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error) error {
+func (g *getFunctionCommandeer) renderFunctionConfigWithStatus(functions []platform.Function,
+	renderer func(interface{}) error) error {
 	for _, function := range functions {
-		if err := renderer(function.GetConfig()); err != nil {
-			return errors.Wrap(err, "Failed to render function config")
+		functionConfigWithStatus := functionconfig.ConfigWithStatus{
+			Config: *function.GetConfig(),
+			Status: *function.GetStatus(),
+		}
+		if err := renderer(functionConfigWithStatus); err != nil {
+			return errors.Wrap(err, "Failed to render function config with status")
 		}
 	}
-
 	return nil
 }
 

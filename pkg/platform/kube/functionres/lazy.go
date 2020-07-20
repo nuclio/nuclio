@@ -1400,6 +1400,7 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 
 	spec.Type = function.Spec.ServiceType
 	serviceTypeIsNodePort := spec.Type == v1.ServiceTypeNodePort
+	functionHTTPPort := function.Spec.GetHTTPPort()
 
 	// update the service's node port on the following conditions:
 	// 1. this is a new service (spec.Ports is an empty list)
@@ -1414,10 +1415,13 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 			},
 		}
 		if serviceTypeIsNodePort {
-			spec.Ports[0].NodePort = int32(function.Spec.GetHTTPPort())
+			spec.Ports[0].NodePort = int32(functionHTTPPort)
 		} else {
 			spec.Ports[0].NodePort = 0
 		}
+		lc.logger.DebugWith("Updating service node port",
+			"functionName", function.Name,
+			"ports", spec.Ports)
 	}
 
 	// check if platform requires additional ports

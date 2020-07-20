@@ -299,7 +299,25 @@ func (s *Spec) GetHTTPPort() int {
 			httpPort, httpPortValid := trigger.Attributes["port"]
 			if httpPortValid {
 				switch typedHTTPPort := httpPort.(type) {
+				case int8:
+					return int(typedHTTPPort)
+				case int16:
+					return int(typedHTTPPort)
+				case int32:
+					return int(typedHTTPPort)
+				case int64:
+					return int(typedHTTPPort)
+				case uint:
+					return int(typedHTTPPort)
+				case uint8:
+					return int(typedHTTPPort)
+				case uint16:
+					return int(typedHTTPPort)
+				case uint32:
+					return int(typedHTTPPort)
 				case uint64:
+					return int(typedHTTPPort)
+				case float32:
 					return int(typedHTTPPort)
 				case float64:
 					return int(typedHTTPPort)

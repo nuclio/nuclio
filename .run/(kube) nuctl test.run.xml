@@ -2,7 +2,7 @@
   <configuration default="false" name="(kube) nuctl test" type="GoTestRunConfiguration" factoryName="Go Test">
     <module name="nuclio" />
     <working_directory value="$PROJECT_DIR$/pkg/nuctl/test" />
-    <go_parameters value="-ldflags=&quot;-X github.com/v3io/version-go.label=246&quot;" />
+    <go_parameters value="-ldflags=&quot;-X github.com/v3io/version-go.label=latest&quot;" />
     <parameters value=" -testify.m ^TestBuild$" />
     <envs>
       <env name="NUCTL_NAMESPACE" value="default" />
