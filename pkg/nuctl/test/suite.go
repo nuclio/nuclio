@@ -232,8 +232,7 @@ func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
 }
 
 func (suite *Suite) getFunctionInFormat(functionName string,
-	outputFormat string,
-	withStatus bool) (*functionconfig.ConfigWithStatus, error) {
+	outputFormat string) (*functionconfig.ConfigWithStatus, error) {
 	suite.outputBuffer.Reset()
 	var err error
 
@@ -241,14 +240,10 @@ func (suite *Suite) getFunctionInFormat(functionName string,
 	suite.Require().NotEmpty(functionName, "Function name must not be empty")
 
 	// get function in format
-	namedArgs := map[string]string{
-		"output": outputFormat,
-	}
-	args := []string{"get", "function", functionName}
-	if withStatus {
-		args = append(args, "--with-status")
-	}
-	if err = suite.ExecuteNuctl(args, namedArgs); err != nil {
+	if err = suite.ExecuteNuctl([]string{"get", "function", functionName},
+		map[string]string{
+			"output": outputFormat,
+		}); err != nil {
 		return nil, errors.Wrapf(err, "Failed to get function %s", functionName)
 	}
 
@@ -269,9 +264,7 @@ func (suite *Suite) getFunctionInFormat(functionName string,
 
 func (suite *Suite) waitForFunctionState(functionName string, expectedState functionconfig.FunctionState) {
 	err := common.RetryUntilSuccessful(1*time.Minute, 5*time.Second, func() bool {
-		functionConfigWithStatus, err := suite.getFunctionInFormat(functionName,
-			nuctlcommon.OutputFormatYAML,
-			true)
+		functionConfigWithStatus, err := suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
 		if err != nil {
 			suite.logger.ErrorWith("Waiting for function readiness failed", "err", err)
 			return false

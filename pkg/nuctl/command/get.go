@@ -60,7 +60,6 @@ type getFunctionCommandeer struct {
 	*getCommandeer
 	getFunctionsOptions platform.GetFunctionsOptions
 	output              string
-	withStatus          bool
 }
 
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
@@ -101,36 +100,20 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				return nil
 			}
 
-			rendererFunc := commandeer.renderFunctionConfig
-			if commandeer.withStatus {
-				rendererFunc = commandeer.renderFunctionConfigWithStatus
-			}
-
 			// render the functions
 			return common.RenderFunctions(commandeer.rootCommandeer.loggerInstance,
 				functions,
 				commandeer.output,
 				cmd.OutOrStdout(),
-				rendererFunc)
+				commandeer.renderFunctionConfigWithStatus)
 		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
-	cmd.PersistentFlags().BoolVarP(&commandeer.withStatus, "with-status", "s", false, "Whether to return function status along its config")
 	commandeer.cmd = cmd
 
 	return commandeer
-}
-
-func (g *getFunctionCommandeer) renderFunctionConfig(functions []platform.Function,
-	renderer func(interface{}) error) error {
-	for _, function := range functions {
-		if err := renderer(function.GetConfig()); err != nil {
-			return errors.Wrap(err, "Failed to render function config")
-		}
-	}
-	return nil
 }
 
 func (g *getFunctionCommandeer) renderFunctionConfigWithStatus(functions []platform.Function,

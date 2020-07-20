@@ -744,7 +744,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	// redeploy the function with a small change, to ensure the resource version is changed
 
 	// get the current deployed function, save its resource version
-	deployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML, true)
+	deployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML)
 	suite.Require().NoError(err)
 
 	// save it for next step, to be used as a "stale" resource vresion
@@ -773,7 +773,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	suite.Require().NoError(err)
 
 	// get the redeployed function, extract its latest resource version
-	redeployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML, true)
+	redeployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML)
 	suite.Require().NoError(err)
 
 	// sanity, ensure retrieved redeployed function resource version is not empty
@@ -828,7 +828,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	err = common.RetryUntilSuccessful(1*time.Minute, 3*time.Second, func() bool {
 
 		// get the deployed function, we're gonna inspect its resource version
-		deployedFunction, err = suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML, true)
+		deployedFunction, err = suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML)
 		return err == nil && deployedFunction.Meta.ResourceVersion != functionResourceVersion
 	})
 	suite.Require().NoErrorf(err, "Resource version should have been changed (real: %s, expected: %s)",
@@ -859,7 +859,7 @@ func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange
 	// wait for function to become ready
 	suite.waitForFunctionState(functionName, functionconfig.FunctionStateReady)
 
-	deployedFunctionConfig, err := suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML, true)
+	deployedFunctionConfig, err := suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
 	suite.Require().NoError(err)
 
 	// ensure allocated http port is returned
@@ -889,7 +889,7 @@ func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange
 
 	suite.outputBuffer.Reset()
 
-	deployedFunctionConfig, err = suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML, true)
+	deployedFunctionConfig, err = suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
 	suite.Require().NoError(err)
 
 	suite.Require().Equal(desiredHTTPPort, deployedFunctionConfig.Status.HTTPPort)
@@ -1149,7 +1149,7 @@ func (suite *functionGetTestSuite) TestGet() {
 		// reset buffer
 		suite.outputBuffer.Reset()
 
-		parsedFunction, err := suite.getFunctionInFormat(testCase.FunctionName, testCase.OutputFormat, true)
+		parsedFunction, err := suite.getFunctionInFormat(testCase.FunctionName, testCase.OutputFormat)
 
 		// ensure parsing went well, and response is valid (json/yaml)
 		suite.Require().NoError(err, "Failed to unmarshal function")

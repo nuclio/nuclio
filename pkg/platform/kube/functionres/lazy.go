@@ -1421,7 +1421,7 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 		}
 		lc.logger.DebugWith("Updating service node port",
 			"functionName", function.Name,
-			"port", spec.Ports)
+			"ports", spec.Ports)
 	}
 
 	// check if platform requires additional ports
