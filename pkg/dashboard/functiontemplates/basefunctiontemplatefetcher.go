@@ -10,12 +10,10 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/icza/dyno"
 	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
 	"github.com/rs/xid"
 )
 
 type BaseFunctionTemplateFetcher struct {
-	logger logger.Logger
 }
 
 func (bftf *BaseFunctionTemplateFetcher) createFunctionTemplate(ftfc FunctionTemplateFileContents,

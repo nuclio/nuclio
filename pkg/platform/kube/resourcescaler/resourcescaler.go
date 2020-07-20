@@ -7,7 +7,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	// load all sinks
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	_ "github.com/nuclio/nuclio/pkg/sinks"
@@ -17,6 +17,7 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/v3io/scaler-types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -24,7 +25,7 @@ import (
 // A plugin for github.com/v3io/scaler, allowing to extend it to scale to zero and from zero function resources in k8s
 type NuclioResourceScaler struct {
 	logger                logger.Logger
-	nuclioClientSet       nuclioio_client.Interface
+	nuclioClientSet       nuclioioclient.Interface
 	kubeconfigPath        string
 	namespace             string
 	platformConfiguration *platformconfig.Config
@@ -55,7 +56,7 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 		return nil, errors.Wrap(err, "Failed to get client configuration")
 	}
 
-	nuclioClientSet, err := nuclioio_client.NewForConfig(restConfig)
+	nuclioClientSet, err := nuclioioclient.NewForConfig(restConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create nuclio client set")
 	}
@@ -151,7 +152,10 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 		AutoScalerOptions: scaler_types.AutoScalerOptions{
 			Namespace:     n.namespace,
 			ScaleInterval: scaler_types.Duration{Duration: scaleInterval},
-			GroupKind:     "NuclioFunction",
+			GroupKind: schema.GroupKind{
+				Group: "nuclio.io",
+				Kind:  "NuclioFunction",
+			},
 		},
 		DLXOptions: scaler_types.DLXOptions{
 			Namespace:                n.namespace,

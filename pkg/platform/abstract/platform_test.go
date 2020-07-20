@@ -7,10 +7,11 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -54,7 +55,6 @@ type TestAbstractSuite struct {
 	Runtime          string
 	RuntimeDir       string
 	FunctionDir      string
-	containerID      string
 	TempDir          string
 	CleanupTemp      bool
 	DefaultNamespace string
@@ -62,7 +62,8 @@ type TestAbstractSuite struct {
 
 func (suite *TestAbstractSuite) SetupSuite() {
 	var err error
-	version.SetFromEnv()
+
+	common.SetVersionFromEnv()
 
 	suite.DefaultNamespace = "nuclio"
 
@@ -78,6 +79,10 @@ func (suite *TestAbstractSuite) SetupSuite() {
 	}
 	suite.Platform, err = NewPlatform(suite.Logger, testPlatform, nil)
 	suite.Require().NoError(err, "Could not create platform")
+
+	suite.Platform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(suite.Logger,
+		&containerimagebuilderpusher.ContainerBuilderConfiguration{})
+	suite.Require().NoError(err)
 }
 
 func (suite *TestAbstractSuite) SetupTest() {

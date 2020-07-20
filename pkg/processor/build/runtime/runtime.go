@@ -25,10 +25,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
 )
 
 type ProcessorDockerfileInfo struct {
@@ -57,8 +57,7 @@ type Runtime interface {
 	OnAfterStagingDirCreated(stagingDir string) error
 
 	// GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-	GetProcessorDockerfileInfo(versionInfo *version.Info, onbuildImageRegistry string) (
-		*ProcessorDockerfileInfo, error)
+	GetProcessorDockerfileInfo(onbuildImageRegistry string) (*ProcessorDockerfileInfo, error)
 
 	// GetName returns the name of the runtime, including version if applicable
 	GetName() string
@@ -69,7 +68,7 @@ type Runtime interface {
 }
 
 type Factory interface {
-	Create(logger.Logger, string, *functionconfig.Config) (Runtime, error)
+	Create(logger.Logger, string, string, *functionconfig.Config) (Runtime, error)
 }
 
 type AbstractRuntime struct {
@@ -78,9 +77,11 @@ type AbstractRuntime struct {
 	FunctionConfig *functionconfig.Config
 	DockerClient   dockerclient.Client
 	CmdRunner      cmdrunner.CmdRunner
+	VersionInfo    *version.Info
 }
 
 func NewAbstractRuntime(logger logger.Logger,
+	containerBuilderKind string,
 	stagingDir string,
 	functionConfig *functionconfig.Config) (*AbstractRuntime, error) {
 	var err error
@@ -89,6 +90,7 @@ func NewAbstractRuntime(logger logger.Logger,
 		Logger:         logger,
 		StagingDir:     stagingDir,
 		FunctionConfig: functionConfig,
+		VersionInfo:    version.Get(),
 	}
 
 	newRuntime.CmdRunner, err = cmdrunner.NewShellRunner(newRuntime.Logger)
@@ -97,9 +99,11 @@ func NewAbstractRuntime(logger logger.Logger,
 	}
 
 	// create a docker client
-	newRuntime.DockerClient, err = dockerclient.NewShellClient(newRuntime.Logger, newRuntime.CmdRunner)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create docker client")
+	if containerBuilderKind == "docker" {
+		newRuntime.DockerClient, err = dockerclient.NewShellClient(newRuntime.Logger, newRuntime.CmdRunner)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create docker client")
+		}
 	}
 
 	return newRuntime, nil

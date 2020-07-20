@@ -61,7 +61,7 @@ func (suite *functionEventGetTestSuite) TestGet() {
 		defer func(functionEventName string) {
 
 			// use nutctl to delete the function event when we're done
-			suite.ExecuteNuctl([]string{"delete", "fe", functionEventName}, nil)
+			suite.ExecuteNuctl([]string{"delete", "fe", functionEventName}, nil) // nolint: errcheck
 
 		}(functionEventName)
 	}

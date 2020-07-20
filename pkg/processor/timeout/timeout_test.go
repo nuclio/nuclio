@@ -83,7 +83,7 @@ func (suite *eventTimeoutSuite) TestWatcher() {
 	suite.Require().NoError(err, "Can't create logger")
 
 	mockTrigger := &mockTestTrigger{
-		workers: []*worker.Worker{&worker.Worker{}},
+		workers: []*worker.Worker{{}},
 	}
 
 	mockTrigger.On("GetWorkers").Return(mockTrigger.GetWorkers())
@@ -97,7 +97,8 @@ func (suite *eventTimeoutSuite) TestWatcher() {
 	mockProcessor.On("GetTriggers").Return(nil)
 
 	timeout := time.Millisecond
-	NewEventTimeoutWatcher(logger, timeout, mockProcessor)
+	_, err = NewEventTimeoutWatcher(logger, timeout, mockProcessor)
+	suite.Require().NoError(err)
 	time.Sleep(10 * timeout) // Give watcher time to work
 
 	mockTrigger.AssertExpectations(suite.T())

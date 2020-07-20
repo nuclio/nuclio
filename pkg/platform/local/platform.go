@@ -164,6 +164,12 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 	}
 
+	// if function exists, perform some validation with new function create options
+	if err := p.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(existingFunctionConfig,
+		createFunctionOptions); err != nil {
+		return nil, errors.Wrap(err, "Validation against existing function config failed")
+	}
+
 	reportCreationError := func(creationError error) error {
 		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
 			"err", creationError)
@@ -490,6 +496,26 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{"172.17.0.1"}, nil
 }
 
+func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
+	functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
+		Name:      functionName,
+		Namespace: namespace,
+	})
+	if err != nil || len(functions) == 0 {
+		return errors.Wrap(err, "Failed to get existing functions")
+	}
+
+	// enrich with build logs
+	p.EnrichFunctionsWithDeployLogStream(functions)
+
+	function := functions[0]
+
+	return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+		Config: *function.GetConfig(),
+		Status: *function.GetStatus(),
+	})
+}
+
 func (p *Platform) getFreeLocalPort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -782,8 +808,8 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 				continue
 			}
 
-			// get function container id
-			containerID := p.GetContainerNameByCreateFunctionOptions(&platform.CreateFunctionOptions{
+			// get function container name
+			containerName := p.GetContainerNameByCreateFunctionOptions(&platform.CreateFunctionOptions{
 				FunctionConfig: functionconfig.Config{
 					Meta: functionconfig.Meta{
 						Name:      functionName,
@@ -792,9 +818,36 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 				},
 			})
 
+			// get function container by name
+			containers, err := p.dockerClient.GetContainers(&dockerclient.GetContainerOptions{
+				Name: containerName,
+			})
+			if err != nil {
+				p.Logger.WarnWith("Failed to get containers by name",
+					"err", err,
+					"containerName", containerName)
+				continue
+			}
+
+			// if function container does not exists, mark as unhealthy
+			if len(containers) == 0 {
+				p.Logger.WarnWith("No containers were found", "functionName", functionName)
+
+				// no running containers were found for function, set function unhealthy
+				if err := p.setFunctionUnhealthy(function); err != nil {
+					p.Logger.ErrorWith("Failed to set function unhealthy",
+						"err", err,
+						"functionName", functionName,
+						"namespace", namespace)
+				}
+				continue
+			}
+
+			container := containers[0]
+
 			// check ready function to ensure its container is healthy
 			if functionIsReady {
-				if err := p.checkAndSetFunctionUnhealthy(containerID, function); err != nil {
+				if err := p.checkAndSetFunctionUnhealthy(container.ID, function); err != nil {
 					p.Logger.ErrorWith("Failed to check and set function unhealthy",
 						"err", err,
 						"functionName", functionName,
@@ -804,7 +857,7 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 
 			// check unhealthy function to see if its container id is healthy again
 			if functionWasSetAsUnhealthy {
-				if err := p.checkAndSetFunctionHealthy(containerID, function); err != nil {
+				if err := p.checkAndSetFunctionHealthy(container.ID, function); err != nil {
 					p.Logger.ErrorWith("Failed to check and set function healthy",
 						"err", err,
 						"functionName", functionName,
@@ -818,25 +871,29 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 func (p *Platform) checkAndSetFunctionUnhealthy(containerID string, function platform.Function) error {
 	if err := p.dockerClient.AwaitContainerHealth(containerID,
 		&p.functionContainersHealthinessTimeout); err != nil {
-		functionStatus := function.GetStatus()
-
-		// set function state to error
-		functionStatus.State = functionconfig.FunctionStateError
-
-		// set unhealthy error message
-		functionStatus.Message = UnhealthyContainerErrorMessage
-
-		p.Logger.WarnWith("Setting function state as unhealthy",
-			"functionName", function.GetConfig().Meta.Name,
-			"functionStatus", functionStatus)
-
-		// function container is not healthy or missing, set function state as error
-		return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
-			Config: *function.GetConfig(),
-			Status: *functionStatus,
-		})
+		return p.setFunctionUnhealthy(function)
 	}
 	return nil
+}
+
+func (p *Platform) setFunctionUnhealthy(function platform.Function) error {
+	functionStatus := function.GetStatus()
+
+	// set function state to error
+	functionStatus.State = functionconfig.FunctionStateError
+
+	// set unhealthy error message
+	functionStatus.Message = UnhealthyContainerErrorMessage
+
+	p.Logger.WarnWith("Setting function state as unhealthy",
+		"functionName", function.GetConfig().Meta.Name,
+		"functionStatus", functionStatus)
+
+	// function container is not healthy or missing, set function state as error
+	return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+		Config: *function.GetConfig(),
+		Status: *functionStatus,
+	})
 }
 
 func (p *Platform) checkAndSetFunctionHealthy(containerID string, function platform.Function) error {

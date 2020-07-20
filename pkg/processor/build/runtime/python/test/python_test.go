@@ -41,9 +41,14 @@ func (suite *testSuite) SetupSuite() {
 
 	suite.TestSuite.RuntimeSuite = suite
 	suite.TestSuite.ArchivePattern = "python"
+	suite.Runtime = suite.runtime
 }
 
 func (suite *testSuite) TestBuildPy2() {
+	if suite.Runtime != "python:2.7" {
+		suite.T().Skip("This should only run when runtime is python 2.7")
+	}
+
 	createFunctionOptions := suite.GetDeployOptions("printer",
 		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "python", "py2-printer"))
 

@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -29,13 +30,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -58,7 +61,7 @@ func (suite *functionBuildTestSuite) TestBuild() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use deploy with the image we just created
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
@@ -71,10 +74,10 @@ func (suite *functionBuildTestSuite) TestBuild() {
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -107,13 +110,13 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -141,16 +144,16 @@ func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	suite.inputBuffer = bytes.Buffer{}
 	suite.inputBuffer.WriteString("-reverse this string+")
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"via":    "external-ip",
@@ -179,13 +182,13 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -220,17 +223,18 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
-			"method": "POST",
-			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
-			"via":    "external-ip",
+			"method":       "POST",
+			"body":         fmt.Sprintf(`{"return_this": "%s"}`, randomString),
+			"content-type": "application/json",
+			"via":          "external-ip",
 		},
 		false)
 	suite.Require().NoError(err)
@@ -245,10 +249,10 @@ func (suite *functionDeployTestSuite) TestDeployFromCodeEntryTypeS3InvalidValues
 	imageName := "nuclio/processor-" + functionName
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// deploy function with invalid s3 values
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
@@ -276,10 +280,10 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	for _, testCase := range []struct {
 		logLevel           string
@@ -342,7 +346,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 		suite.outputBuffer.Reset()
 
 		// invoke the function
-		err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+		err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 			map[string]string{
 				"method":    "POST",
 				"log-level": testCase.logLevel,
@@ -368,10 +372,10 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnMissingPath() {
 	imageName := "nuclio/processor-" + functionName
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
@@ -392,10 +396,10 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnShellMissingPathAndHandle
 	imageName := "nuclio/processor-" + functionName
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
@@ -420,13 +424,13 @@ func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -455,11 +459,11 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 	suite.Require().NoError(err)
 
 	// ensure function created
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// create a function event using nuctl
 	err = suite.ExecuteNuctl([]string{"create", "functionevent", functionEventName},
@@ -469,7 +473,7 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 	suite.Require().NoError(err)
 
 	// check to see we have created the function event
-	err = suite.ExecuteNuctlAndWait([]string{"get", "functionevent", functionEventName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "functionevent", functionEventName}, nil, false)
 	suite.Require().NoError(err)
 
 	// delete the function
@@ -477,11 +481,11 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 	suite.Require().NoError(err)
 
 	// ensure function created
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, true)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, true)
 	suite.Require().NoError(err)
 
 	// check to see the function event was deleted as well
-	err = suite.ExecuteNuctlAndWait([]string{"get", "functionevent", functionEventName}, nil, true)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "functionevent", functionEventName}, nil, true)
 	suite.Require().NoError(err)
 
 	// reset buffer
@@ -512,11 +516,12 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 	suite.Require().NoError(err)
 
 	// delete the current image to see that load works
-	suite.dockerClient.RemoveImage(imageName)
+	err = suite.dockerClient.RemoveImage(imageName)
+	suite.Require().NoError(err)
 
 	//  make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
-	defer suite.shellClient.Run(nil, "rm %s", tarName)
+	defer suite.dockerClient.RemoveImage(imageName)    // nolint: errcheck
+	defer suite.shellClient.Run(nil, "rm %s", tarName) // nolint: errcheck
 
 	// use deploy with the image we just created
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
@@ -530,10 +535,10 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -567,7 +572,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	suite.Require().NoError(err)
 
 	//  make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use deploy with the image we just created
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
@@ -579,13 +584,13 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 
 	// export the function
-	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	deployedFunctionConfig := functionconfig.Config{}
@@ -598,11 +603,12 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	suite.Assert().Equal(0, len(deployedFunctionConfig.Spec.Triggers))
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
-			"method": "POST",
-			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
-			"via":    "external-ip",
+			"method":       "POST",
+			"body":         fmt.Sprintf(`{"return_this": "%s"}`, randomString),
+			"content-type": "application/json",
+			"via":          "external-ip",
 		},
 		false)
 	suite.Require().NoError(err)
@@ -627,33 +633,33 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 
 	err = suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":  path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
+			"path":  functionPath,
 			"image": imageName,
 		})
 
 	suite.Require().NoError(err)
 
 	//  make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use deploy with the image we just created
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
 		map[string]string{
-			"run-image": imageName,
-			"file":      path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python", "function-different-spec.yaml"),
+			"run-image":    imageName,
+			"file":         path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python", "function-different-spec.yaml"),
 			"min-replicas": fmt.Sprintf("%d", minReplicas),
 		})
 
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 
 	// export the function
-	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	deployedFunctionConfig := functionconfig.Config{}
@@ -668,17 +674,225 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 	suite.Assert().Equal(minReplicas, *deployedFunctionConfig.Spec.MinReplicas)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
-			"method": "POST",
-			"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
-			"via":    "external-ip",
+			"method":       "POST",
+			"body":         fmt.Sprintf(`{"return_this": "%s"}`, randomString),
+			"content-type": "application/json",
+			"via":          "external-ip",
 		},
 		false)
 	suite.Require().NoError(err)
 
 	// check that invoke printed the value
 	suite.Require().Contains(suite.outputBuffer.String(), randomString)
+}
+
+func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
+
+	// TODO: when we enable some sort of resource validation on other platforms, allow this to run on those as well
+	suite.ensureRunningOnPlatform("kube")
+
+	// read and parse the function we're gonna test
+	functionConfig := functionconfig.Config{}
+	uniqueSuffix := "-" + xid.New().String()
+	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
+	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	suite.Require().NoError(err)
+	err = yaml.Unmarshal(functionBody, &functionConfig)
+	suite.Require().NoError(err)
+
+	// name uniqueness
+	functionConfig.Meta.Name = functionConfig.Meta.Name + uniqueSuffix
+
+	// ensure no resource version
+	functionConfig.Meta.ResourceVersion = ""
+
+	// --- step 1 ---
+	// deploy first time, should successfully create the function
+
+	// write function config to file
+	functionConfigPath, err := suite.writeFunctionConfigToTempFile(&functionConfig,
+		"resource-version-*.yaml")
+	suite.Require().NoError(err)
+
+	// remove when done
+	defer os.RemoveAll(functionConfigPath) // nolint: errcheck
+
+	// deploy with temp, expect to pass
+	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose", "--no-pull"},
+		map[string]string{
+			"path": functionPath,
+			"file": functionConfigPath,
+		})
+
+	// delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "function", functionConfig.Meta.Name}, nil) // nolint: errcheck
+	suite.Require().NoError(err, "Function creation expected to pass")
+
+	// try a few times to invoke, until it succeeds
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionConfig.Meta.Name},
+		map[string]string{
+			"method":       "POST",
+			"body":         `{"return_this": "abc"}`,
+			"content-type": "application/json",
+			"via":          "external-ip",
+		}, false)
+	suite.Require().NoError(err)
+
+	// --- step 2 ---
+	// redeploy the function with a small change, to ensure the resource version is changed
+
+	// get the current deployed function, save its resource version
+	deployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML)
+	suite.Require().NoError(err)
+
+	// save it for next step, to be used as a "stale" resource vresion
+	functionResourceVersion := deployedFunction.Meta.ResourceVersion
+
+	// sanity, ensure it is not an empty string
+	suite.Require().NotEmpty(functionResourceVersion)
+
+	// redeploy the function, let it change its resource vresion
+	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose", "--no-pull"},
+		map[string]string{
+			"path":       functionPath,
+			"file":       functionConfigPath,
+			"target-cpu": "80", // some change
+		})
+	suite.Require().NoError(err)
+
+	// wait for function to be deployed
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionConfig.Meta.Name},
+		map[string]string{
+			"method":       "POST",
+			"body":         `{"return_this": "abc"}`,
+			"content-type": "application/json",
+			"via":          "external-ip",
+		}, false)
+	suite.Require().NoError(err)
+
+	// get the redeployed function, extract its latest resource version
+	redeployedFunction, err := suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML)
+	suite.Require().NoError(err)
+
+	// sanity, ensure retrieved redeployed function resource version is not empty
+	suite.Require().NotEmpty(redeployedFunction.Meta.ResourceVersion)
+
+	// --- step 3 ---
+	// at this stage, deployFunction instance is considered stale, while redeployedFunction instance is the latest copy.
+	// at this step, we are going to deploy with the stale resource version and expect a conflict failure
+
+	// change it to anything but empty/equal to the current resource version
+	deployedFunction.Meta.ResourceVersion = functionResourceVersion
+
+	// write function config to file
+	staleFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(&deployedFunction.Config,
+		"stale-resource-version-*.yaml")
+	suite.Require().NoError(err)
+
+	// remove when done
+	defer os.RemoveAll(staleFunctionConfigPath) // nolint: errcheck
+
+	// deployment should fail, resource schema conflict
+	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose"},
+		map[string]string{
+			"file": staleFunctionConfigPath,
+		})
+	suite.Require().Error(err)
+	suite.Require().Equal(http.StatusConflict, errors.Cause(err).(*nuclio.ErrorWithStatusCode).StatusCode())
+
+	// --- step 4 ----
+	// at this step, we expect deployment to pass again, as we removed the resource version
+	// to allow overriding of the current function regardless of its resource version
+
+	// empty resource version
+	deployedFunction.Meta.ResourceVersion = ""
+
+	// write function config to file
+	overriddenFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(&deployedFunction.Config,
+		"overridden-resource-version-*.yaml")
+	suite.Require().NoError(err)
+
+	// remove when done
+	defer os.RemoveAll(overriddenFunctionConfigPath) // nolint: errcheck
+
+	// deployment should pass, resource version should be overridden
+	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose"},
+		map[string]string{
+			"file": overriddenFunctionConfigPath,
+		})
+	suite.Require().NoError(err)
+
+	// retry get function until its resource version changes
+	err = common.RetryUntilSuccessful(1*time.Minute, 3*time.Second, func() bool {
+
+		// get the deployed function, we're gonna inspect its resource version
+		deployedFunction, err = suite.getFunctionInFormat(functionConfig.Meta.Name, nuctlcommon.OutputFormatYAML)
+		return err == nil && deployedFunction.Meta.ResourceVersion != functionResourceVersion
+	})
+	suite.Require().NoErrorf(err, "Resource version should have been changed (real: %s, expected: %s)",
+		deployedFunction.Meta.ResourceVersion,
+		functionResourceVersion)
+}
+
+func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "port-change" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+		"runtime": "python",
+		"handler": "event_recorder:handler",
+	}
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	suite.Require().NoError(err)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	// wait for function to become ready
+	suite.waitForFunctionState(functionName, functionconfig.FunctionStateReady)
+
+	deployedFunctionConfig, err := suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
+	suite.Require().NoError(err)
+
+	// ensure allocated http port is returned
+	suite.Require().NotZero(deployedFunctionConfig.Status.HTTPPort)
+
+	desiredHTTPPort := 30555
+	namedArgs = map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+		"runtime": "python",
+		"handler": "event_recorder:handler",
+		"triggers": fmt.Sprintf(`{
+	   "http": {
+	       "kind": "http",
+	       "attributes": {
+	           "port": %d
+	       }
+	   }
+	}`, desiredHTTPPort),
+	}
+
+	// redeploy function with a specific port
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	suite.Require().NoError(err)
+
+	// wait for function to become ready again
+	suite.waitForFunctionState(functionName, functionconfig.FunctionStateReady)
+
+	suite.outputBuffer.Reset()
+
+	deployedFunctionConfig, err = suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
+	suite.Require().NoError(err)
+
+	suite.Require().Equal(desiredHTTPPort, deployedFunctionConfig.Status.HTTPPort)
 }
 
 // Expecting the Code Entry Type to be modified to image
@@ -696,22 +910,22 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// check that the function's CET was modified to 'image'
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName},
 		map[string]string{
-			"output": common.OutputFormatYAML,
+			"output": nuctlcommon.OutputFormatYAML,
 		},
 		false)
 	suite.Require().NoError(err)
 	suite.Require().Contains(suite.outputBuffer.String(), "codeEntryType: image")
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -723,86 +937,114 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
-func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
-
-	// relevant only for kube platform
-	if suite.origPlatformType != "kube" {
-		suite.T().Skipf("Not on kube platform")
-	}
-
+// Expect the deployment to fail fast (instead of waiting for readiness timeout to pass)
+func (suite *functionDeployTestSuite) TestDeployWaitReadinessTimeoutBeforeFailureDisabled() {
 	uniqueSuffix := "-" + xid.New().String()
-	functionName := "event-recorder" + uniqueSuffix
+	functionName := "reverser" + uniqueSuffix
 	imageName := "nuclio/processor-" + functionName
 
+	// set a bad handler name - so that the deployment will fail
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
-		"runtime": "python",
-		"handler": "event_recorder:handler",
-		"triggers": `{
-    "crontrig": {
-        "kind": "cron",
-        "attributes": {
-            "interval": "3s",
-            "event": {
-                "body": "somebody",
-                "headers": {
-                    "Extra-Header-1": "value1",
-                    "Extra-Header-2": "value2"
-                }
-            }
-        }
-    }
-}`,
+		"path":              path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"runtime":           "python",
+		"handler":           "reverser:bad-handler-name",
+		"readiness-timeout": "60",
 	}
 
+	deployingTimestamp := time.Now()
+
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
-	suite.Require().NoError(err)
+	suite.Require().Error(err)
+
+	// validate the deployment "failed fast" - it didn't wait for the whole readiness timeout to pass
+	failedFast := time.Now().Before(deployingTimestamp.Add(60 * time.Second))
+	suite.Require().True(failedFast)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
-
-	// try a few times to invoke, until it succeeds (validate function deployment finished)
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
-		map[string]string{
-			"method": "POST",
-			"via":    "external-ip",
-		},
-		false)
-	suite.Require().NoError(err)
-
-	// wait 15 seconds so at least 1 interval will pass
-	suite.logger.InfoWith("Sleeping for 15 sec (so at least 1 interval will pass)")
-	time.Sleep(15 * time.Second)
-	suite.logger.InfoWith("Done sleeping")
-
-	suite.outputBuffer.Reset()
-
-	// try a few times to invoke, until it succeeds
-	// the output buffer should contain a response body with the function's called events from the cron trigger
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
-		map[string]string{
-			"method": "POST",
-			"via":    "external-ip",
-		},
-		false)
-	suite.Require().NoError(err)
-
-	events := suite.parseEventsRecorderOutput(suite.outputBuffer.String())
-
-	// validate at least 1 cron job ran
-	suite.Require().GreaterOrEqual(len(events), 1)
-
-	// validate the body was sent
-	suite.Require().Equal(events[0].Body, "somebody")
-
-	// validate headers were attached properly
-	suite.Require().Contains(events[0].Headers, "X-Nuclio-Invoke-Trigger")
-	suite.Require().Contains(events[0].Headers, "Extra-Header-1")
-	suite.Require().Contains(events[0].Headers, "Extra-Header-2")
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 }
+
+// TODO: un-comment when cron triggers are implemented by default as k8s cron jobs or there's k8s testing infra
+//func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
+//
+//	suite.ensureRunningOnPlatform("kube")
+//
+//	uniqueSuffix := "-" + xid.New().String()
+//	functionName := "event-recorder" + uniqueSuffix
+//	imageName := "nuclio/processor-" + functionName
+//
+//	namedArgs := map[string]string{
+//		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+//		"runtime": "python",
+//		"handler": "event_recorder:handler",
+//		"triggers": `{
+//    "crontrig": {
+//        "kind": "cron",
+//        "attributes": {
+//            "interval": "3s",
+//            "event": {
+//                "body": "somebody",
+//                "headers": {
+//                    "Extra-Header-1": "value1",
+//                    "Extra-Header-2": "value2"
+//                }
+//            }
+//        }
+//    }
+//}`,
+//	}
+//
+//	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+//	suite.Require().NoError(err)
+//
+//	// use nutctl to delete the function when we're done
+//	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+//
+//	// make sure to clean up after the test
+//	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+//
+//	// try a few times to invoke, until it succeeds (validate function deployment finished)
+//	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
+//		map[string]string{
+//			"method": "POST",
+//			"via":    "external-ip",
+//		},
+//		false)
+//	suite.Require().NoError(err)
+//
+//	// wait 15 seconds so at least 1 interval will pass
+//	suite.logger.InfoWith("Sleeping for 15 sec (so at least 1 interval will pass)")
+//	time.Sleep(15 * time.Second)
+//	suite.logger.InfoWith("Done sleeping")
+//
+//	suite.outputBuffer.Reset()
+//
+//	// try a few times to invoke, until it succeeds
+//	// the output buffer should contain a response body with the function's called events from the cron trigger
+//	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
+//		map[string]string{
+//			"method": "POST",
+//			"via":    "external-ip",
+//		},
+//		false)
+//	suite.Require().NoError(err)
+//
+//	events := suite.parseEventsRecorderOutput(suite.outputBuffer.String())
+//
+//	// validate at least 1 cron job ran
+//	suite.Require().GreaterOrEqual(len(events), 1)
+//
+//	// validate the body was sent
+//	suite.Require().Equal(events[0].Body, "somebody")
+//
+//	// validate headers were attached properly
+//	suite.Require().Contains(events[0].Headers, "X-Nuclio-Invoke-Trigger")
+//	suite.Require().Contains(events[0].Headers, "Extra-Header-1")
+//	suite.Require().Contains(events[0].Headers, "Extra-Header-2")
+//}
 
 func (suite *functionDeployTestSuite) parseEventsRecorderOutput(outputBufferString string) []triggertest.Event {
 	var foundResponseBody bool
@@ -864,10 +1106,10 @@ func (suite *functionGetTestSuite) TestGet() {
 		defer func(imageName string, functionName string) {
 
 			// make sure to clean up after the test
-			suite.dockerClient.RemoveImage(imageName)
+			suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 			// use nutctl to delete the function when we're done
-			suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+			suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 		}(imageName, functionName)
 
 		err := suite.ExecuteNuctl([]string{
@@ -880,7 +1122,7 @@ func (suite *functionGetTestSuite) TestGet() {
 		suite.Require().NoError(err)
 
 		// wait for function to ensure deployed successfully
-		err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+		err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
 		suite.Require().NoError(err)
 	}
 
@@ -897,32 +1139,17 @@ func (suite *functionGetTestSuite) TestGet() {
 	}{
 		{
 			FunctionName: functionNames[0],
-			OutputFormat: common.OutputFormatJSON,
+			OutputFormat: nuctlcommon.OutputFormatJSON,
 		},
 		{
 			FunctionName: functionNames[0],
-			OutputFormat: common.OutputFormatYAML,
+			OutputFormat: nuctlcommon.OutputFormatYAML,
 		},
 	} {
 		// reset buffer
 		suite.outputBuffer.Reset()
 
-		parsedFunction := functionconfig.Config{}
-
-		// get function in format
-		err = suite.ExecuteNuctl([]string{"get", "function", testCase.FunctionName},
-			map[string]string{
-				"output": testCase.OutputFormat,
-			})
-		suite.Require().NoError(err)
-
-		// unmarshal response correspondingly to output format
-		switch testCase.OutputFormat {
-		case common.OutputFormatJSON:
-			err = json.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
-		case common.OutputFormatYAML:
-			err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
-		}
+		parsedFunction, err := suite.getFunctionInFormat(testCase.FunctionName, testCase.OutputFormat)
 
 		// ensure parsing went well, and response is valid (json/yaml)
 		suite.Require().NoError(err, "Failed to unmarshal function")
@@ -958,10 +1185,10 @@ func (suite *functionGetTestSuite) TestDelete() {
 	suite.Require().NoError(err)
 
 	// cleanup
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -979,7 +1206,7 @@ func (suite *functionGetTestSuite) TestDelete() {
 	suite.Require().NoError(err)
 
 	// try invoke, it should failed
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -1008,8 +1235,8 @@ func (suite *functionExportImportTestSuite) TestImportMultiFunctions() {
 	function1Name := "test-function-1"
 	function2Name := "test-function-2"
 
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil) // nolint: errcheck
 
 	// import the project
 	err := suite.ExecuteNuctl([]string{"import", "fu", functionsConfigPath, "--verbose"}, nil)
@@ -1025,10 +1252,10 @@ func (suite *functionExportImportTestSuite) TestImportFunction() {
 	// this name is defined within function.yaml
 	functionName := "test-function"
 
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil)
+	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil) // nolint: errcheck
 	suite.Require().NoError(err)
 
 	suite.assertFunctionImported(functionName, true)
@@ -1048,17 +1275,17 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// reset output buffer for reading the next output cleanly
 	suite.outputBuffer.Reset()
 	suite.inputBuffer.Reset()
 
 	// export the function
-	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	exportedFunctionBody := suite.outputBuffer.Bytes()
@@ -1068,7 +1295,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// wait until function is deleted
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, true)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, true)
 	suite.Require().NoError(err)
 
 	// import the function from stdin
@@ -1077,7 +1304,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// wait until able to get the function
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
 	suite.Require().Contains(suite.outputBuffer.String(), "imported")
 
@@ -1095,7 +1322,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -1123,13 +1350,13 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 
 	// export the function
-	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	exportedFunctionConfig := functionconfig.Config{}
@@ -1140,15 +1367,15 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Assert().True(functionconfig.ShouldSkipBuild(exportedFunctionConfig.Meta.Annotations))
 	suite.Assert().True(functionconfig.ShouldSkipDeploy(exportedFunctionConfig.Meta.Annotations))
 
-	exportedFunctionConfigJson, err := json.Marshal(exportedFunctionConfig)
+	exportedFunctionConfigJSON, err := json.Marshal(exportedFunctionConfig)
 	suite.Require().NoError(err)
 
 	// write exported function config to temp file
 	exportTempFile, err := ioutil.TempFile("", "reverser.*.json")
 	suite.Require().NoError(err)
-	defer os.Remove(exportTempFile.Name())
+	defer os.Remove(exportTempFile.Name()) // nolint: errcheck
 
-	_, err = exportTempFile.Write(exportedFunctionConfigJson)
+	_, err = exportTempFile.Write(exportedFunctionConfigJSON)
 	suite.Require().NoError(err)
 
 	// delete original function in order to resolve conflict while importing the function
@@ -1156,7 +1383,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// wait until function is deleted
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, true)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, true)
 	suite.Require().NoError(err)
 
 	// import the function
@@ -1164,14 +1391,14 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// wait until able to get the function
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	// try to invoke, and ensure it fails - because it is imported and not deployed
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -1185,7 +1412,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// try a few times to invoke, until it succeeds
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",
@@ -1204,7 +1431,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	imageName := "nuclio/processor-" + functionName
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
@@ -1219,7 +1446,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.outputBuffer.Reset()
 
 	// export the function
-	err = suite.ExecuteNuctlAndWait([]string{"export", "fu", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	exportedFunctionConfig := functionconfig.Config{}
@@ -1230,15 +1457,15 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Assert().True(functionconfig.ShouldSkipBuild(exportedFunctionConfig.Meta.Annotations))
 	suite.Assert().True(functionconfig.ShouldSkipDeploy(exportedFunctionConfig.Meta.Annotations))
 
-	exportedFunctionConfigJson, err := json.Marshal(exportedFunctionConfig)
+	exportedFunctionConfigJSON, err := json.Marshal(exportedFunctionConfig)
 	suite.Require().NoError(err)
 
 	// write exported function config to temp file
 	exportTempFile, err := ioutil.TempFile("", "reverser.*.json")
 	suite.Require().NoError(err)
-	defer os.Remove(exportTempFile.Name())
+	defer os.Remove(exportTempFile.Name()) // nolint: errcheck
 
-	_, err = exportTempFile.Write(exportedFunctionConfigJson)
+	_, err = exportTempFile.Write(exportedFunctionConfigJSON)
 	suite.Require().NoError(err)
 
 	// delete original function in order to resolve conflict while importing the function
@@ -1246,7 +1473,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Require().NoError(err)
 
 	// wait until function is deleted
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, true)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, true)
 	suite.Require().NoError(err)
 
 	// import the function
@@ -1254,14 +1481,14 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// wait until able to get the function
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	// try to invoke, and ensure it fails - because it is imported and not deployed
-	err = suite.ExecuteNuctlAndWait([]string{"invoke", functionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",
 			"body":   "-reverse this string+",

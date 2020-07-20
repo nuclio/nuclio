@@ -29,7 +29,7 @@ func (suite *ClockSuite) TestClock() {
 	c := New(resolution)
 	maxDiff := 2 * resolution
 	for i := 0; i < 10; i++ {
-		diff := time.Now().Sub(*c.Now())
+		diff := time.Since(*c.Now())
 		if diff < 0 {
 			diff = -diff
 		}

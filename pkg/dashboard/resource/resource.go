@@ -30,7 +30,6 @@ import (
 
 type resource struct {
 	*restful.AbstractResource
-	defaultNamespace string
 }
 
 func newResource(name string, resourceMethods []restful.ResourceMethod) *resource {

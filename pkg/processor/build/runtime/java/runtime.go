@@ -26,7 +26,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/errors"
 )
@@ -48,8 +47,7 @@ func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (j *java) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (j *java) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 	processorDockerfileInfo.BaseImage = "openjdk:9-jre-slim"
@@ -59,8 +57,8 @@ func (j *java) GetProcessorDockerfileInfo(versionInfo *version.Info,
 		Name: "java-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-java-onbuild:%s-%s",
 			onbuildImageRegistry,
-			versionInfo.Label,
-			versionInfo.Arch),
+			j.VersionInfo.Label,
+			j.VersionInfo.Arch),
 		Paths: map[string]string{
 			"/home/gradle/bin/processor":                                  "/usr/local/bin/processor",
 			"/home/gradle/src/wrapper/build/libs/nuclio-java-wrapper.jar": "/opt/nuclio/nuclio-java-wrapper.jar",

@@ -37,7 +37,6 @@ type pubsub struct {
 	trigger.AbstractTrigger
 	configuration *Configuration
 	stop          chan bool
-	subscriptions []*pubsubClient.Subscription
 	client        *pubsubClient.Client
 }
 

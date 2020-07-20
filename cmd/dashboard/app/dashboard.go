@@ -27,10 +27,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
 )
 
 func Run(listenAddress string,
@@ -157,28 +157,28 @@ func Run(listenAddress string,
 		platformInstance.SetImageNamePrefixTemplate(imageNamePrefixTemplate)
 	}
 
-	rootLogger.InfoWith("Starting",
+	rootLogger.InfoWith("Starting dashboard",
 		"name", platformInstance.GetName(),
 		"noPull", noPullBaseImages,
 		"offline", offline,
 		"defaultCredRefreshInterval", defaultCredRefreshIntervalString,
 		"defaultNamespace", defaultNamespace,
-		"platformConfiguration", platformConfiguration)
+		"version", version.Get(),
+		"platformConfiguration", platformConfiguration,
+		"containerBuilderKind", platformInstance.GetContainerBuilderKind())
 
 	// see if the platform has anything to say about the namespace
 	defaultNamespace = platformInstance.ResolveDefaultNamespace(defaultNamespace)
 
-	version.Log(rootLogger)
-
-	trueValue := true
-
 	// create a web server configuration
+	trueValue := true
 	webServerConfiguration := &platformconfig.WebServer{
 		Enabled:       &trueValue,
 		ListenAddress: listenAddress,
 	}
 
 	server, err := dashboard.NewServer(rootLogger,
+		platformInstance.GetContainerBuilderKind(),
 		dockerKeyDir,
 		defaultRegistryURL,
 		defaultRunRegistryURL,

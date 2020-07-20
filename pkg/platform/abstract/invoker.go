@@ -94,12 +94,6 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 		body = bytes.NewBuffer(createFunctionInvocationOptions.Body)
 	}
 
-	i.logger.InfoWith("Executing function",
-		"method", createFunctionInvocationOptions.Method,
-		"url", fullpath,
-		"body", body,
-	)
-
 	// issue the request
 	req, err = http.NewRequest(createFunctionInvocationOptions.Method, fullpath, body)
 	if err != nil {
@@ -114,6 +108,11 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 	if createFunctionInvocationOptions.LogLevelName != "none" && req.Header.Get("x-nuclio-log-level") == "" {
 		req.Header.Set("x-nuclio-log-level", createFunctionInvocationOptions.LogLevelName)
 	}
+
+	i.logger.InfoWith("Executing function",
+		"method", createFunctionInvocationOptions.Method,
+		"url", fullpath,
+		"headers", req.Header)
 
 	response, err := client.Do(req)
 	if err != nil {

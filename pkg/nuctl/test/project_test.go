@@ -69,7 +69,7 @@ func (suite *projectGetTestSuite) TestGet() {
 		defer func(projectName string) {
 
 			// use nutctl to delete the project when we're done
-			suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
+			suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil) // nolint: errcheck
 
 		}(projectName)
 	}
@@ -118,7 +118,7 @@ func (suite *projectGetTestSuite) TestDeleteWithFunctions() {
 	defer func(projectName string) {
 
 		// use nutctl to delete the project when we're done
-		suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
+		suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil) // nolint: errcheck
 
 	}(projectName)
 
@@ -136,10 +136,10 @@ func (suite *projectGetTestSuite) TestDeleteWithFunctions() {
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// make sure the function is deleted
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// try to delete the project - should fail
 	err = suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
@@ -168,15 +168,15 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 	suite.createFunction(functionName, projectName)
 	suite.createFunctionEvent(functionEventName, functionName)
 
-	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fe", functionEventName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)     // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)      // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fe", functionEventName}, nil) // nolint: errcheck
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 
 	// export the project
-	err := suite.ExecuteNuctlAndWait([]string{"export", "proj", projectName, "--verbose"}, nil, false)
+	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "proj", projectName, "--verbose"}, nil, false)
 	suite.Require().NoError(err)
 
 	exportedProjectConfig := &command.ProjectImportConfig{}
@@ -201,16 +201,16 @@ func (suite *projectExportImportTestSuite) TestImportProject() {
 		uniqueSuffix,
 		[]string{function1Name, function2Name},
 		[]string{function1EventDisplayName, function2EventDisplayName})
-	defer os.Remove(uniqueProjectConfigPath)
+	defer os.Remove(uniqueProjectConfigPath) // nolint: errcheck
 
 	function1Name = function1Name + uniqueSuffix
 	function2Name = function2Name + uniqueSuffix
 	function1EventDisplayName = function1EventDisplayName + uniqueSuffix
 	function2EventDisplayName = function2EventDisplayName + uniqueSuffix
 
-	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil) // nolint: errcheck
 
 	// import the project
 	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, nil)
@@ -222,8 +222,8 @@ func (suite *projectExportImportTestSuite) TestImportProject() {
 	function1EventName := suite.assertFunctionEventExistenceByFunction(function1EventDisplayName, function1Name)
 	function2EventName := suite.assertFunctionEventExistenceByFunction(function2EventDisplayName, function2Name)
 
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil) // nolint: errcheck
 }
 
 func (suite *projectExportImportTestSuite) TestImportProjects() {
@@ -241,12 +241,12 @@ func (suite *projectExportImportTestSuite) TestImportProjects() {
 	function3EventDisplayName := "test-function-event-3"
 	function4EventDisplayName := "test-function-event-4"
 
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function3Name}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function4Name}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "proj", projectAName}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "proj", projectBName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)  // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)  // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function3Name}, nil)  // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function4Name}, nil)  // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectAName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectBName}, nil) // nolint: errcheck
 
 	// import the project
 	err := suite.ExecuteNuctl([]string{"import", "proj", projectConfigPath, "--verbose"}, nil)
@@ -263,10 +263,10 @@ func (suite *projectExportImportTestSuite) TestImportProjects() {
 	function3EventName := suite.assertFunctionEventExistenceByFunction(function3EventDisplayName, function3Name)
 	function4EventName := suite.assertFunctionEventExistenceByFunction(function4EventDisplayName, function4Name)
 
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function3EventName}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function4EventName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function3EventName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function4EventName}, nil) // nolint: errcheck
 }
 
 func (suite *projectExportImportTestSuite) TestFailToImportProjectNoInput() {
@@ -290,7 +290,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction
 		uniqueSuffix,
 		[]string{function1Name, function2Name},
 		[]string{function1EventDisplayName, function2EventDisplayName})
-	defer os.Remove(uniqueProjectConfigPath)
+	defer os.Remove(uniqueProjectConfigPath) // nolint: errcheck
 
 	function1Name = function1Name + uniqueSuffix
 	function2Name = function2Name + uniqueSuffix
@@ -300,9 +300,9 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction
 	suite.createProject(projectName)
 	suite.createFunction(function1Name, projectName)
 
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil) // nolint: errcheck
 
 	// import the project
 	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, nil)
@@ -316,8 +316,8 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction
 	function1EventName := suite.assertFunctionEventExistenceByFunction(function1EventDisplayName, function1Name)
 	function2EventName := suite.assertFunctionEventExistenceByFunction(function2EventDisplayName, function2Name)
 
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil)
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil) // nolint: errcheck
 }
 
 func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configPath, uniqueSuffix string,
@@ -375,7 +375,7 @@ func (suite *projectExportImportTestSuite) createProject(projectName string) {
 	suite.Require().NoError(err)
 
 	// wait until able to get the project
-	err = suite.ExecuteNuctlAndWait([]string{"get", "project", projectName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "project", projectName}, nil, false)
 	suite.Require().NoError(err)
 }
 
@@ -391,7 +391,7 @@ func (suite *projectExportImportTestSuite) createFunction(functionName, projectN
 	suite.Require().NoError(err)
 
 	// wait until able to get the function
-	err = suite.ExecuteNuctlAndWait([]string{"get", "function", functionName}, nil, false)
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
 }
 
@@ -417,7 +417,7 @@ func (suite *projectExportImportTestSuite) assertProjectImported(projectName str
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
-	err := suite.ExecuteNuctlAndWait([]string{"get", "project", projectName}, map[string]string{
+	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "project", projectName}, map[string]string{
 		"output": "yaml",
 	}, false)
 	suite.Require().NoError(err)
@@ -434,7 +434,7 @@ func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunctio
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
-	err := suite.ExecuteNuctlAndWait([]string{"get", "functionevent"}, map[string]string{
+	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "functionevent"}, map[string]string{
 		"output":   "yaml",
 		"function": functionName,
 	}, false)

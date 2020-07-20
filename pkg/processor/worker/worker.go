@@ -33,7 +33,6 @@ import (
 // Worker holds all the required state and context to handle a single request
 type Worker struct {
 	logger               logger.Logger
-	context              nuclio.Context
 	index                int
 	runtime              runtime.Runtime
 	statistics           Statistics

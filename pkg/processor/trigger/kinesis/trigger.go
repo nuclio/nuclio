@@ -29,7 +29,6 @@ import (
 
 type kinesis struct {
 	trigger.AbstractTrigger
-	event         Event
 	configuration *Configuration
 	kinesisAuth   kinesisclient.Auth
 	kinesisClient kinesisclient.KinesisClient

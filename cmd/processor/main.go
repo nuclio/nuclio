@@ -27,12 +27,14 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/webadmin/resource"
 
 	"github.com/nuclio/errors"
+	"github.com/v3io/version-go"
 )
 
 func run() error {
 	configPath := flag.String("config", "/etc/nuclio/config/processor/processor.yaml", "Path of configuration file")
 	platformConfigPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
 	listRuntimes := flag.Bool("list-runtimes", false, "Show runtimes and exit")
+	showVersion := flag.Bool("version", false, "Show version and exit")
 	flag.Parse()
 
 	if *listRuntimes {
@@ -41,6 +43,11 @@ func run() error {
 		for _, name := range runtimeNames {
 			fmt.Println(name)
 		}
+		return nil
+	}
+
+	if *showVersion {
+		fmt.Printf("Processor version:\n%#v", version.Get())
 		return nil
 	}
 

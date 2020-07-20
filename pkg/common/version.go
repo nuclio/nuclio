@@ -14,24 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package common
 
-import (
-	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/playground"
-	"github.com/nuclio/nuclio/pkg/restful"
-)
+import "github.com/v3io/version-go"
 
-type resource struct {
-	*restful.AbstractResource
-}
-
-func newResource(name string, resourceMethods []restful.ResourceMethod) *resource {
-	return &resource{
-		AbstractResource: restful.NewAbstractResource(name, resourceMethods),
-	}
-}
-
-func (r *resource) getPlatform() platform.Platform {
-	return r.GetServer().(*playground.Server).Platform
+// SetVersionFromEnv is being used by tests to override linker injected values
+func SetVersionFromEnv() {
+	version.Set(&version.Info{
+		Label:     GetEnvOrDefaultString("NUCLIO_LABEL", version.Get().Label),
+		GitCommit: "c",
+		OS:        GetEnvOrDefaultString("NUCLIO_OS", "linux"),
+		Arch:      GetEnvOrDefaultString("NUCLIO_ARCH", "amd64"),
+		GoVersion: version.Get().GoVersion,
+	})
 }

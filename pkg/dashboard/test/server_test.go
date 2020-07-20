@@ -67,6 +67,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 
 	// create a mock platform
 	suite.dashboardServer, err = dashboard.NewServer(suite.logger,
+		suite.mockPlatform.GetContainerBuilderKind(),
 		"",
 		"",
 		"",
@@ -144,7 +145,7 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 			err = json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
 			suite.Require().NoError(err)
 
-			suite.Require().True(compare.CompareNoOrder(decodedExpectedResponseBody, decodedResponseBody))
+			suite.Require().True(compare.NoOrder(decodedExpectedResponseBody, decodedResponseBody))
 
 		case func(response map[string]interface{}) bool:
 			suite.Require().True(typedEncodedExpectedResponse(decodedResponseBody))
@@ -576,7 +577,7 @@ func (suite *functionTestSuite) TestInvokeSuccessful() {
 		suite.Require().Equal(requestPath[1:], createFunctionInvocationOptions.Path)
 
 		// expect only to receive the function headers (those that don't start with x-nuclio
-		for headerKey, _ := range createFunctionInvocationOptions.Headers {
+		for headerKey := range createFunctionInvocationOptions.Headers {
 			suite.Require().False(strings.HasPrefix(headerKey, "x-nuclio"))
 		}
 
@@ -889,7 +890,6 @@ func (suite *projectTestSuite) TestGetDetailSuccessful() {
 	returnedProject := platform.AbstractProject{}
 	returnedProject.ProjectConfig.Meta.Name = "p1"
 	returnedProject.ProjectConfig.Meta.Namespace = "p1Namespace"
-	returnedProject.ProjectConfig.Spec.DisplayName = "p1DisplayName"
 	returnedProject.ProjectConfig.Spec.Description = "p1Desc"
 
 	// verify
@@ -916,7 +916,6 @@ func (suite *projectTestSuite) TestGetDetailSuccessful() {
 		"namespace": "p1Namespace"
 	},
 	"spec": {
-		"displayName": "p1DisplayName",
 		"description": "p1Desc"
 	}
 }`

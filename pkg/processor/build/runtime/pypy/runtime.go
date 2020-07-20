@@ -22,9 +22,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/errors"
+	"github.com/v3io/version-go"
 )
 
 const (
@@ -49,16 +49,10 @@ type pypy struct {
 // GetProcessorBaseImage returns the image name of the default processor base image
 func (p *pypy) GetProcessorBaseImage() (string, error) {
 
-	// get the version we're running so we can pull the compatible image
-	versionInfo, err := version.Get()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get version")
-	}
-
 	_, runtimeVersion := p.GetRuntimeNameAndVersion()
 
 	// try to get base image name
-	baseImage, err := getBaseImage(versionInfo,
+	baseImage, err := getBaseImage(p.VersionInfo,
 		runtimeVersion,
 		p.FunctionConfig.Spec.Build.BaseImage)
 
@@ -67,7 +61,7 @@ func (p *pypy) GetProcessorBaseImage() (string, error) {
 	}
 
 	// make sure the image exists. don't pull if instructed not to
-	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull {
+	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull && p.DockerClient != nil {
 		if err := p.DockerClient.PullImage(baseImage); err != nil {
 			return "", errors.Wrapf(err, "Can't pull %q", baseImage)
 		}
@@ -110,8 +104,7 @@ func (p *pypy) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (p *pypy) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (p *pypy) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 	return nil, nil
 }
 

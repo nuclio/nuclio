@@ -55,11 +55,9 @@
                         </igz-action-item-refresh>
                         <igz-sort-dropdown class="igz-component pull-left"
                                            data-sort-options="$ctrl.sortOptions"
+                                           data-selected-option="$ctrl.sortedColumnName"
                                            data-reverse-sorting="$ctrl.isReverseSorting"
-                                           data-update-data-callback="$ctrl.onSortOptionsChange"
-                                           data-uib-tooltip="{{ 'common:TOOLTIP.SORT' | i18next }}"
-                                           data-tooltip-append-to-body="true"
-                                           data-tooltip-placement="top">
+                                           data-on-sort-change="$ctrl.onSortOptionsChange(option)">
                         </igz-sort-dropdown>
                     </div>
                 </div>
@@ -108,9 +106,8 @@
                 <div class="igz-scrollable-container"
                      data-ng-scrollbars>
                     <div class="sortable-wrapper"
-                         data-ng-hide="$ctrl.searchStates.searchNotFound && $ctrl.searchStates.searchInProgress"
-                         data-ng-model="$ctrl.data.working.ui.children">
-                        <div data-ng-repeat="project in $ctrl.projects track by project.metadata.name">
+                         data-ng-hide="$ctrl.searchStates.searchNotFound && $ctrl.searchStates.searchInProgress">
+                        <div data-ng-repeat="project in $ctrl.sortedProjects track by project.metadata.name">
                             <div data-igz-show-hide-search-item="project">
                                 <ncl-project-table-row
                                         data-is-splash-showed="$ctrl.isSplashShowed"

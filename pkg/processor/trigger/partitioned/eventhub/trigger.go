@@ -31,7 +31,6 @@ type eventhub struct {
 	*partitioned.AbstractStream
 	configuration   *Configuration
 	eventhubSession *eventhubclient.Session
-	partitions      []*partition
 }
 
 func newTrigger(parentLogger logger.Logger,

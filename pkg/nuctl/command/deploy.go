@@ -25,7 +25,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	nuctl_common "github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 
@@ -107,7 +107,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			// If config file is provided
 			if importedFunction == nil && commandeer.functionConfigPath != "" {
 				commandeer.rootCommandeer.loggerInstance.DebugWith("Loading function config from file", "file", commandeer.functionConfigPath)
-				functionConfigFile, err := nuctl_common.OpenFile(commandeer.functionConfigPath)
+				functionConfigFile, err := nuctlcommon.OpenFile(commandeer.functionConfigPath)
 				if err != nil {
 					return errors.Wrap(err, "Failed opening function config file")
 				}
@@ -117,7 +117,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 					return errors.Wrap(err, "Failed reading function config file")
 				}
 
-				unmarshalFunc, err := nuctl_common.GetUnmarshalFunc(functionBody)
+				unmarshalFunc, err := nuctlcommon.GetUnmarshalFunc(functionBody)
 				if err != nil {
 					return errors.Wrap(err, "Failed identifying function config file format")
 				}
@@ -156,13 +156,22 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			commandeer.functionConfig.Meta.RemoveSkipDeployAnnotation()
 
 			commandeer.rootCommandeer.loggerInstance.DebugWith("Deploying function", "functionConfig", commandeer.functionConfig)
-			_, err = rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
+			_, deployErr := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
 				InputImageFile: commandeer.inputImageFile,
 			})
 
-			return err
+			// don't check deploy error yet, first try to save the logs either way, and then return the error if necessary
+			commandeer.rootCommandeer.loggerInstance.Debug("Saving deployment logs")
+			logSaveErr := rootCommandeer.platform.SaveFunctionDeployLogs(commandeer.functionName, rootCommandeer.namespace)
+
+			if deployErr != nil {
+
+				// preserve the error and let the root commandeer handle unwrapping it
+				return deployErr
+			}
+			return logSaveErr
 		},
 	}
 

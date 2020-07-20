@@ -92,6 +92,7 @@ func NewAbstractRuntime(logger logger.Logger,
 		configuration:   configuration,
 		runtime:         runtimeInstance,
 		startChan:       make(chan struct{}, 1),
+		socketType:      UnixSocket,
 	}
 
 	return newRuntime, nil
@@ -188,7 +189,7 @@ func (r *AbstractRuntime) Restart() error {
 
 // GetSocketType returns the type of socket the runtime works with (unix/tcp)
 func (r *AbstractRuntime) GetSocketType() SocketType {
-	return UnixSocket
+	return r.socketType
 }
 
 // WaitForStart returns whether the runtime supports sending an indication that it started

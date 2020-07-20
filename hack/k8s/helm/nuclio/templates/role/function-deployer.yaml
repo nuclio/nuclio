@@ -13,11 +13,18 @@
 # limitations under the License.
 
 {{- if .Values.rbac.create }}
-# All access to services, configmaps, deployments, ingresses and HPAs limited to the nuclio namespace
+# All access to services, configmaps, deployments, ingresses, HPAs, cronJobs
+# are conditionally limited to the nuclio namespace or cluster-wide
 apiVersion: rbac.authorization.k8s.io/v1beta1
+{{- if eq .Values.rbac.crdAccessMode "cluster" }}
+kind: ClusterRole
+metadata:
+  name: {{ template "nuclio.functionDeployerName" . }}-clusterrole
+{{- else }}
 kind: Role
 metadata:
   name: {{ template "nuclio.functionDeployerName" . }}-role
+{{- end }}
   labels:
     app: {{ template "nuclio.nuclioName" . }}
     release: {{ .Release.Name }}

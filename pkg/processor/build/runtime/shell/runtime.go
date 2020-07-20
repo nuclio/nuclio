@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type shell struct {
@@ -33,8 +32,7 @@ func (s *shell) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (s *shell) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (s *shell) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
@@ -46,8 +44,8 @@ func (s *shell) GetProcessorDockerfileInfo(versionInfo *version.Info,
 		Name: "nuclio-processor",
 		Image: fmt.Sprintf("%s/nuclio/processor:%s-%s",
 			onbuildImageRegistry,
-			versionInfo.Label,
-			versionInfo.Arch),
+			s.VersionInfo.Label,
+			s.VersionInfo.Arch),
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor": "/usr/local/bin/processor",
 		},

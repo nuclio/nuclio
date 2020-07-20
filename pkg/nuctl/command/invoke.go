@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"strings"
@@ -93,7 +94,11 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				commandeer.createFunctionInvocationOptions.Headers.Set(headerName, headerValue)
 			}
 
-			commandeer.createFunctionInvocationOptions.Headers.Set("Content-Type", commandeer.contentType)
+			// populate content type
+			err = commandeer.populateContentType()
+			if err != nil {
+				return errors.Wrap(err, "Failed to populate content-type")
+			}
 
 			// verify correctness of logger level
 			switch commandeer.createFunctionInvocationOptions.LogLevelName {
@@ -128,7 +133,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 		},
 	}
 
-	cmd.Flags().StringVarP(&commandeer.contentType, "content-type", "c", "application/json", "HTTP Content-Type")
+	cmd.Flags().StringVarP(&commandeer.contentType, "content-type", "c", "", "HTTP Content-Type")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Path, "path", "p", "", "Path to the function to invoke")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Method, "method", "m", "", "HTTP method for invoking the function")
 	cmd.Flags().StringVarP(&commandeer.body, "body", "b", "", "HTTP message body")
@@ -163,6 +168,45 @@ func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *p
 		return errors.Wrap(err, "Failed to output body")
 	}
 
+	return nil
+}
+
+// populateContentType populate from flag if given, header if given or default to resolve from body
+func (i *invokeCommandeer) populateContentType() error {
+	var contentTypes []string
+	contentTypeHeaderName := "Content-Type"
+	headers := i.createFunctionInvocationOptions.Headers
+
+	// given as flag
+	if i.contentType != "" {
+		contentTypes = append(contentTypes, i.contentType)
+	}
+
+	// given as header
+	if headers.Get(contentTypeHeaderName) != "" {
+
+		// we want all values given
+		contentTypes = append(contentTypes, headers.Values(contentTypeHeaderName)...)
+	}
+
+	// not given at all
+	if len(contentTypes) == 0 {
+
+		// try guess from body
+		contentTypes = append(contentTypes, http.DetectContentType([]byte(i.body)))
+	}
+
+	// reset
+	headers.Del(contentTypeHeaderName)
+
+	// iterate over all content types and add
+	for _, contentType := range contentTypes {
+		parsedContentType, _, err := mime.ParseMediaType(contentType)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to parse media type %s", contentType)
+		}
+		headers.Add(contentTypeHeaderName, parsedContentType)
+	}
 	return nil
 }
 

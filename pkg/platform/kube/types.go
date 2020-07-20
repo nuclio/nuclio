@@ -18,6 +18,8 @@ package kube
 
 import (
 	"fmt"
+
+	"github.com/rs/xid"
 )
 
 type DeployOptions struct {
@@ -47,6 +49,6 @@ func ServiceNameFromFunctionName(functionName string) string {
 	return fmt.Sprintf("nuclio-%s", functionName)
 }
 
-func CronJobNameFromFunctionName(functionName, triggerName string) string {
-	return fmt.Sprintf("nuclio-%s-%s", functionName, triggerName)
+func CronJobName() string {
+	return fmt.Sprintf("nuclio-cron-job-%s", xid.New().String())
 }

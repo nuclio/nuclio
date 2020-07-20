@@ -55,7 +55,7 @@ type TestEvent struct {
 }
 
 func (te *TestEvent) GetID() nuclio.ID {
-	return nuclio.ID(testID)
+	return testID
 }
 
 func (te *TestEvent) GetContentType() string {

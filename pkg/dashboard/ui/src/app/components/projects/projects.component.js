@@ -9,8 +9,8 @@
             controller: ProjectsController
         });
 
-    function ProjectsController($element, $filter, $q, $rootScope, $scope, $state, $timeout, $transitions, $i18next,
-                                i18next, lodash, ngDialog, ActionCheckboxAllService, CommonTableService, ConfigService,
+    function ProjectsController($element, $q, $rootScope, $scope, $state, $timeout, $transitions, $i18next, i18next,
+                                lodash, ngDialog, ActionCheckboxAllService, CommonTableService, ConfigService,
                                 DialogsService, ExportService, ImportService, NuclioFunctionsDataService,
                                 NuclioProjectsDataService, ProjectsService) {
         var ctrl = this;
@@ -20,11 +20,11 @@
         ctrl.dropdownActions = [
             {
                 id: 'exportProjects',
-                name: $i18next.t('functions:EXPORT_ALL_PROJECTS', {lng: lng})
+                name: $i18next.t('functions:EXPORT_ALL_PROJECTS', { lng: lng })
             },
             {
                 id: 'importProject',
-                name: $i18next.t('functions:IMPORT_PROJECTS', {lng: lng})
+                name: $i18next.t('functions:IMPORT_PROJECTS', { lng: lng })
             }
         ];
         ctrl.filtersCounter = 0;
@@ -49,17 +49,19 @@
         ctrl.selectedProject = {};
         ctrl.sortOptions = [
             {
-                label: $i18next.t('common:NAME', {lng: lng}),
+                label: $i18next.t('common:NAME', { lng: lng }),
                 value: 'metadata.name',
-                active: true
+                active: true,
+                desc: false
             },
             {
-                label: $i18next.t('common:DESCRIPTION', {lng: lng}),
+                label: $i18next.t('common:DESCRIPTION', { lng: lng }),
                 value: 'spec.description',
-                active: false,
-            },
+                active: false
+            }
         ];
         ctrl.sortedColumnName = 'metadata.name';
+        ctrl.sortedProjects = [];
         ctrl.versionActions = [];
 
         ctrl.$onInit = onInit;
@@ -101,7 +103,7 @@
                     ctrl.isSplashShowed.value = false;
 
                     updatePanelActions();
-                    sortTableByColumn(ctrl.sortedColumnName, true);
+                    sortTable();
                 })
                 .finally(function () {
                     $timeout(function () {
@@ -147,6 +149,7 @@
 
                             // remove from list
                             lodash.pull(ctrl.projects, project);
+                            sortTable();
                         }
                     })
                     .catch(function (errorMessage) {
@@ -208,26 +211,14 @@
         }
 
         /**
-         * Sorts the table by column name depends on selected value in sort dropdown
-         * @param {Object} option
+         * Sorts the table by column name depends on selected value in sort dropdown.
+         * @param {Object} option - Selected option.
          */
         function onSortOptionsChange(option) {
-            var previousElement = lodash.find(ctrl.sortOptions, ['active', true]);
-            var newElement = lodash.find(ctrl.sortOptions, ['label', option.label]);
+            ctrl.isReverseSorting = option.desc;
+            ctrl.sortedColumnName = option.value;
 
-            // change state of selected element, and of previous element
-            previousElement.active = false;
-            newElement.active = true;
-
-            // if previous value is equal to new value, then change sorting predicate
-            if (previousElement.label === newElement.label) {
-                newElement.desc = !option.desc;
-            }
-
-            ctrl.isReverseSorting = newElement.desc;
-            ctrl.sortedColumnName = newElement.value;
-
-            ctrl.sortTableByColumn(ctrl.sortedColumnName, true);
+            sortTable();
         }
 
         /**
@@ -274,23 +265,17 @@
         }
 
         /**
-         * Sorts the table by column name
-         * @param {string} columnName - name of column
-         * @param {boolean} isJustSorting - if it is needed just to sort data without changing reverse
+         * Sorts the table by column.
+         * @param {string} columnName - The name of the column to sort by.
          */
-        function sortTableByColumn(columnName, isJustSorting) {
-            var expression = columnName === 'spec.displayName' ? getName : columnName;
+        function sortTableByColumn(columnName) {
+            // set the sorting order (ascending if selected a different column, or toggle if selected the same column)
+            ctrl.isReverseSorting = columnName === ctrl.sortedColumnName ? !ctrl.isReverseSorting : false;
 
-            if (!isJustSorting) {
-
-                // changes the order of sorting the column
-                ctrl.isReverseSorting = (columnName === ctrl.sortedColumnName) ? !ctrl.isReverseSorting : false;
-            }
-
-            // saves the name of sorted column
+            // save the name of the column to sort by
             ctrl.sortedColumnName = columnName;
 
-            ctrl.projects = $filter('orderBy')(ctrl.projects, expression, ctrl.isReverseSorting);
+            sortTable();
         }
 
         /**
@@ -321,7 +306,8 @@
             return NuclioProjectsDataService.getProjects()
                 .then(function (projectsFromResponse) {
                     ctrl.projects = lodash.map(projectsFromResponse, function (projectFromResponse) {
-                        var foundProject = lodash.find(ctrl.projects, ['metadata.name', projectFromResponse.metadata.name]);
+                        var foundProject =
+                            lodash.find(ctrl.projects, ['metadata.name', projectFromResponse.metadata.name]);
                         var ui = lodash.get(foundProject, 'ui');
                         projectFromResponse.ui = lodash.defaultTo(ui, projectFromResponse.ui);
 
@@ -331,9 +317,11 @@
                     if (lodash.isEmpty(ctrl.projects)) {
                         $state.go('app.nuclio-welcome');
                     }
+
+                    sortTable();
                 })
                 .catch(function (error) {
-                    var defaultMsg = $i18next.t('functions:ERROR_MSG.GET_PROJECTS', {lng: i18next.language});
+                    var defaultMsg = $i18next.t('functions:ERROR_MSG.GET_PROJECTS', { lng: lng });
 
                     DialogsService.alert(lodash.get(error, 'data.error', defaultMsg));
                 });
@@ -347,6 +335,14 @@
         function onFireAction(event, data) {
             ctrl.handleProjectAction(data.action, lodash.filter(ctrl.projects, 'ui.checked'));
 
+        }
+
+        /**
+         * Sorts table according to the current sort-by column and sorting order (ascending/descending).
+         */
+        function sortTable() {
+            ctrl.sortedProjects =
+                lodash.orderBy(ctrl.projects, [ctrl.sortedColumnName], ctrl.isReverseSorting ? ['desc'] : ['asc']);
         }
 
         /**
@@ -369,26 +365,26 @@
 
                 // sets visibility status of `edit action`
                 // visible if only one project is checked
-                var editAction = lodash.find(ctrl.projectActions, {'id': 'edit'});
+                var editAction = lodash.find(ctrl.projectActions, { id: 'edit' });
 
                 if (!lodash.isNil(editAction)) {
                     editAction.visible = checkedRowsCount === 1;
                 }
 
                 // sets confirm message for `delete action` depending on count of checked rows
-                var deleteAction = lodash.find(ctrl.projectActions, {'id': 'delete'});
+                var deleteAction = lodash.find(ctrl.projectActions, { id: 'delete' });
 
                 if (!lodash.isNil(deleteAction)) {
                     deleteAction.confirm.message = checkedRowsCount === 1 ?
-                        $i18next.t('functions:DELETE_PROJECT', {lng: lng}) + ' “' + getName(checkedRows[0]) + '”?' :
-                        $i18next.t('functions:DELETE_PROJECTS_CONFIRM', {lng: lng});
+                        $i18next.t('functions:DELETE_PROJECT', { lng: lng }) + ' “' + getName(checkedRows[0]) + '”?' :
+                        $i18next.t('functions:DELETE_PROJECTS_CONFIRM', { lng: lng });
                 }
             }
         }
 
         /**
          * Updates current projects
-         * @param {boolean} hideSplashScreen
+         * @param {boolean} [hideSplashScreen=false]
          * @returns {Promise}
          */
         function updateProjects(hideSplashScreen) {

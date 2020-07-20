@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/nuclio/nuclio.svg?branch=master)](https://travis-ci.org/nuclio/nuclio)
+![Periodic](https://github.com/nuclio/nuclio/workflows/Periodic/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nuclio/nuclio)](https://goreportcard.com/report/github.com/nuclio/nuclio)
 [![Slack](https://img.shields.io/badge/slack-join%20chat%20%E2%86%92-e01563.svg)](https://lit-oasis-83353.herokuapp.com/)
 
@@ -157,6 +157,7 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
 ## Further reading
 
 - Setup
+    - [Getting Started with Nuclio on Docker](/docs/setup/docker/getting-started-docker.md)
     - [Getting Started with Nuclio on Minikube](/docs/setup/minikube/getting-started-minikube.md)
     - [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md)
     - [Getting Started with Nuclio on Azure Kubernetes Service (AKS)](/docs/setup/aks/getting-started-aks.md)
@@ -173,6 +174,7 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
     - Kubernetes
         - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
 - References
+    - [Nuctl](/docs/reference/nuctl/nuctl.md)
     - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
     - [Triggers](/docs/reference/triggers)
     - [Runtime - .NET Core 3.1](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)

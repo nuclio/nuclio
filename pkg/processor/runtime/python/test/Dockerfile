@@ -11,10 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-FROM python:3.6-slim-stretch
 
-RUN pip install pytest
+ARG PYTHON_IMAGE_TAG=3.6-slim-stretch
+
+FROM python:$PYTHON_IMAGE_TAG
+
 WORKDIR /nuclio
+
+RUN apt-get update && apt-get install gcc -y
+
 COPY pkg/processor/runtime/python .
-RUN find . -depth -name __pycache__ -exec rm -rf {} \;
-RUN python -m pytest -v .
+
+ARG CACHEBUST=1
+RUN ./test/test.sh

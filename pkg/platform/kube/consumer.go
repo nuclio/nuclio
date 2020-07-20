@@ -20,7 +20,7 @@ import (
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/platform"
-	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -32,7 +32,7 @@ import (
 
 type consumer struct {
 	kubeClientSet   kubernetes.Interface
-	nuclioClientSet nuclioio_client.Interface
+	nuclioClientSet nuclioioclient.Interface
 	kubeHost        string
 	kubeconfigPath  string
 }
@@ -66,7 +66,7 @@ func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error)
 	}
 
 	// create a client for function custom resources
-	newConsumer.nuclioClientSet, err = nuclioio_client.NewForConfig(restConfig)
+	newConsumer.nuclioClientSet, err = nuclioioclient.NewForConfig(restConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function custom resource client")
 	}
@@ -74,7 +74,7 @@ func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error)
 	return &newConsumer, nil
 }
 
-func (c *consumer) getNuclioClientSet(authConfig *platform.AuthConfig) (nuclioio_client.Interface, error) {
+func (c *consumer) getNuclioClientSet(authConfig *platform.AuthConfig) (nuclioioclient.Interface, error) {
 
 	// if no authentication was passed, can use the generic client. otherwise must create
 	if authConfig == nil {
@@ -90,5 +90,5 @@ func (c *consumer) getNuclioClientSet(authConfig *platform.AuthConfig) (nuclioio
 	// set the auth provider config
 	restConfig.BearerToken = authConfig.Token
 
-	return nuclioio_client.NewForConfig(restConfig)
+	return nuclioioclient.NewForConfig(restConfig)
 }

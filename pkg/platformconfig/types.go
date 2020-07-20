@@ -19,7 +19,7 @@ package platformconfig
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
-	apps_v1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -95,5 +95,12 @@ type LabelSelectorAndConfig struct {
 }
 
 type Kubernetes struct {
-	Deployment *apps_v1.Deployment `json:"deployment,omitempty"`
+	Deployment *appsv1.Deployment `json:"deployment,omitempty"`
 }
+
+type CronTriggerCreationMode string
+
+const (
+	ProcessorCronTriggerCreationMode CronTriggerCreationMode = "processor"
+	KubeCronTriggerCreationMode      CronTriggerCreationMode = "kube"
+)

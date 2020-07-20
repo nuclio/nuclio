@@ -20,13 +20,20 @@ ARG NUCLIO_LABEL
 
 FROM nuclio-base-alpine:$NUCLIO_LABEL as build-plugin
 
-RUN GOOS=linux GOARCH=amd64 go build -buildmode=plugin -a -installsuffix cgo -ldflags="-s -w" -o plugin.so pkg/platform/kube/resourcescaler/resourcescaler.go
+ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
+
+RUN GOOS=linux GOARCH=amd64 go build \
+    -buildmode=plugin \
+    -a \
+    -installsuffix cgo \
+    -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
+    -o plugin.so pkg/platform/kube/resourcescaler/resourcescaler.go
 
 FROM alpine:3.11
 
 WORKDIR /home/nuclio
 
 COPY --from=build-plugin /nuclio/plugin.so ./plugins/plugin.so
-COPY --from=quay.io/v3io/autoscaler:v0.3.2 /home/v3io/bin/autoscaler ./autoscaler
+COPY --from=quay.io/v3io/autoscaler:v0.4.0 /home/v3io/bin/autoscaler ./autoscaler
 
 CMD [ "/home/nuclio/autoscaler" ]

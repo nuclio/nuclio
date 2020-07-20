@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/nuclio/logger"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -28,7 +27,6 @@ const DefaultPort = 12345
 
 type v3ioUtilTestSuite struct {
 	suite.Suite
-	logger logger.Logger
 }
 
 func (suite *v3ioUtilTestSuite) TestParseURLNoContainerAlias() {

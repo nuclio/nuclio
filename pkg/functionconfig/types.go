@@ -245,6 +245,13 @@ type Spec struct {
 	ServiceAccount          string                  `json:"serviceAccount,omitempty"`
 	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
 
+	// Currently relevant only for k8s platform
+	// if true - wait the whole ReadinessTimeoutSeconds before marking this function as unhealthy
+	// otherwise, fail the function instantly when there is indication of deployment failure (e.g. pod stuck on crash
+	// loop, pod container exited with an error, pod is unschedulable).
+	// Default: false
+	WaitReadinessTimeoutBeforeFailure bool `json:"waitReadinessTimeoutBeforeFailure,omitempty"`
+
 	// We're letting users write "20s" and not the default marshalled time.Duration
 	// (Which is in nanoseconds)
 	EventTimeout string `json:"eventTimeout"`
@@ -292,7 +299,25 @@ func (s *Spec) GetHTTPPort() int {
 			httpPort, httpPortValid := trigger.Attributes["port"]
 			if httpPortValid {
 				switch typedHTTPPort := httpPort.(type) {
+				case int8:
+					return int(typedHTTPPort)
+				case int16:
+					return int(typedHTTPPort)
+				case int32:
+					return int(typedHTTPPort)
+				case int64:
+					return int(typedHTTPPort)
+				case uint:
+					return int(typedHTTPPort)
+				case uint8:
+					return int(typedHTTPPort)
+				case uint16:
+					return int(typedHTTPPort)
+				case uint32:
+					return int(typedHTTPPort)
 				case uint64:
+					return int(typedHTTPPort)
+				case float32:
 					return int(typedHTTPPort)
 				case float64:
 					return int(typedHTTPPort)
@@ -327,6 +352,10 @@ type Meta struct {
 	Namespace   string            `json:"namespace,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// Used to determine whether the object is stale
+	// more details @ https://kubernetes.io/docs/reference/using-api/api-concepts/#resource-versions
+	ResourceVersion string `json:"resourceVersion,omitempty"`
 }
 
 // GetUniqueID return unique id

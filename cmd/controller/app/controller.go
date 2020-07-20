@@ -22,7 +22,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/loggersink"
-	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
@@ -43,7 +43,7 @@ func Run(kubeconfigPath string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
-	cronJobStalePodsDeletionIntervalStr string,
+	cronJobStaleResourcesCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
 	apiGatewayOperatorNumWorkersStr string,
@@ -55,7 +55,7 @@ func Run(kubeconfigPath string,
 		platformConfigurationPath,
 		functionOperatorNumWorkersStr,
 		functionOperatorResyncIntervalStr,
-		cronJobStalePodsDeletionIntervalStr,
+		cronJobStaleResourcesCleanupIntervalStr,
 		functionEventOperatorNumWorkersStr,
 		projectOperatorNumWorkersStr,
 		apiGatewayOperatorNumWorkersStr,
@@ -79,7 +79,7 @@ func createController(kubeconfigPath string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
-	cronJobStalePodsDeletionIntervalStr string,
+	cronJobStaleResourcesCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
 	apiGatewayOperatorNumWorkersStr string,
@@ -100,7 +100,7 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to parse resync interval for function operator")
 	}
 
-	cronJobStalePodsDeletionInterval, err := time.ParseDuration(cronJobStalePodsDeletionIntervalStr)
+	cronJobStaleResourcesCleanupInterval, err := time.ParseDuration(cronJobStaleResourcesCleanupIntervalStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse cron job stale pods deletion interval")
 	}
@@ -137,7 +137,7 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create k8s client set")
 	}
 
-	nuclioClientSet, err := nuclioio_client.NewForConfig(restConfig)
+	nuclioClientSet, err := nuclioioclient.NewForConfig(restConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create nuclio client set")
 	}
@@ -176,7 +176,7 @@ func createController(kubeconfigPath string,
 		ingressManager,
 		apiGatewayProvisioner,
 		functionOperatorResyncInterval,
-		cronJobStalePodsDeletionInterval,
+		cronJobStaleResourcesCleanupInterval,
 		platformConfiguration,
 		functionOperatorNumWorkers,
 		functionEventOperatorNumWorkers,

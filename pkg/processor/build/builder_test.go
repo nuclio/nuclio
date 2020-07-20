@@ -60,7 +60,7 @@ type mockS3Client struct {
 }
 
 // mock function
-func (msc mockS3Client) Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error {
+func (msc *mockS3Client) Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error {
 	functionArchiveFileBytes, _ := ioutil.ReadFile(FunctionsArchiveFilePath)
 
 	_ = ioutil.WriteFile(file.Name(), functionArchiveFileBytes, os.FileMode(os.O_RDWR))
@@ -190,7 +190,7 @@ func (suite *testSuite) TestWriteFunctionSourceCodeToTempFileFailsOnUnknownExten
 
 	err := suite.builder.createTempDir()
 	suite.Assert().NoError(err)
-	defer suite.builder.cleanupTempDir()
+	defer suite.builder.cleanupTempDir() // nolint: errcheck
 
 	_, err = suite.builder.writeFunctionSourceCodeToTempFile(suite.builder.options.FunctionConfig.Spec.Build.FunctionSourceCode)
 	suite.Assert().Error(err)
@@ -699,6 +699,7 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 	suite.Equal(`def handler(context, event):
 	return "hello world"
 `, string(decompressedPythonFileContent))
+	suite.Require().NoError(err)
 
 	suite.builder.cleanupTempDir() // nolint: errcheck
 	httpmock.DeactivateAndReset()

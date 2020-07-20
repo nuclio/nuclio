@@ -150,4 +150,10 @@ type Platform interface {
 
 	// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
 	GetDefaultRegistryCredentialsSecretName() string
+
+	// Save build logs from platform logger to function store or k8s
+	SaveFunctionDeployLogs(functionName, namespace string) error
+
+	// GetContainerBuilderKind returns the container-builder kind
+	GetContainerBuilderKind() string
 }

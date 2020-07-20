@@ -185,6 +185,7 @@ type ProjectImportConfig struct {
 
 type importProjectCommandeer struct {
 	*importCommandeer
+	skipProjectNames []string
 }
 
 func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProjectCommandeer {
@@ -227,6 +228,8 @@ Use --help for more information`)
 			return commandeer.importProjects(projectImportConfigs)
 		},
 	}
+
+	cmd.Flags().StringSliceVar(&commandeer.skipProjectNames, "skip", []string{}, "Project names to skip (comma separated)")
 
 	commandeer.cmd = cmd
 
@@ -322,10 +325,16 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 }
 
 func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string]*ProjectImportConfig) error {
-	i.rootCommandeer.loggerInstance.DebugWith("Importing projects", "projects", projectImportConfigs)
+	i.rootCommandeer.loggerInstance.DebugWith("Importing projects", "projects", projectImportConfigs, "skipProjectNames", i.skipProjectNames)
 
 	// TODO: parallel this with errorGroup, mutex is required due to multi map writers
 	for _, projectConfig := range projectImportConfigs {
+		if i.shouldSkipProject(projectConfig) {
+			i.rootCommandeer.loggerInstance.DebugWith("Skipping import for project",
+				"projectName", projectConfig.Project.Meta.Name)
+			continue
+		}
+
 		i.rootCommandeer.loggerInstance.DebugWith("Importing project",
 			"projectName", projectConfig.Project.Meta.Name)
 		if err := i.importProject(projectConfig); err != nil {
@@ -360,4 +369,13 @@ func (i *importProjectCommandeer) resolveProjectImportConfigs(projectBody []byte
 	}
 
 	return projectImportConfigs, nil
+}
+
+func (i *importProjectCommandeer) shouldSkipProject(projectConfig *ProjectImportConfig) bool {
+	for _, skipProjectName := range i.skipProjectNames {
+		if skipProjectName == projectConfig.Project.Meta.Name {
+			return true
+		}
+	}
+	return false
 }

@@ -26,13 +26,19 @@ import (
 	"github.com/nuclio/errors"
 )
 
+const DefaultReadBufferSize = 16 * 1024
+const DefaultMaxRequestBodySize = 4 * 1024 * 1024
+
 type Configuration struct {
 	trigger.Configuration
 	ReadBufferSize int
-	CORS           *cors.CORS
-}
 
-const DefaultReadBufferSize = 16 * 1024
+	// NOTE: Modifying the max request body size affect with gradually memory consumption increasing
+	// as the entire request being read into the memory
+	// https://github.com/valyala/fasthttp/issues/667#issuecomment-540965683
+	MaxRequestBodySize int
+	CORS               *cors.CORS
+}
 
 func NewConfiguration(ID string,
 	triggerConfiguration *functionconfig.Trigger,
@@ -55,6 +61,10 @@ func NewConfiguration(ID string,
 		newConfiguration.ReadBufferSize = DefaultReadBufferSize
 	}
 
+	if newConfiguration.MaxRequestBodySize == 0 {
+		newConfiguration.MaxRequestBodySize = DefaultMaxRequestBodySize
+	}
+
 	if newConfiguration.CORS != nil && newConfiguration.CORS.Enabled {
 		newConfiguration.CORS = createCORSConfiguration(newConfiguration.CORS)
 	}
@@ -75,8 +85,8 @@ func createCORSConfiguration(CORSConfiguration *cors.CORS) *cors.CORS {
 		corsInstance.AllowMethods = CORSConfiguration.AllowMethods
 	}
 
-	if CORSConfiguration.AllowOrigin != "" {
-		corsInstance.AllowOrigin = CORSConfiguration.AllowOrigin
+	if len(CORSConfiguration.AllowOrigins) > 0 {
+		corsInstance.AllowOrigins = CORSConfiguration.AllowOrigins
 	}
 
 	if CORSConfiguration.AllowCredentials {
@@ -87,4 +97,8 @@ func createCORSConfiguration(CORSConfiguration *cors.CORS) *cors.CORS {
 
 	return corsInstance
 
+}
+
+func (c *Configuration) corsEnabled() bool {
+	return c.CORS != nil && c.CORS.Enabled
 }

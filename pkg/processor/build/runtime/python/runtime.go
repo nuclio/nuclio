@@ -22,7 +22,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type python struct {
@@ -35,8 +34,7 @@ func (p *python) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
-	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 	pythonCommonModules := []string{
@@ -59,8 +57,8 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info,
 		Name: "python-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-python-onbuild:%s-%s",
 			onbuildImageRegistry,
-			versionInfo.Label,
-			versionInfo.Arch),
+			p.VersionInfo.Label,
+			p.VersionInfo.Arch),
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor": "/usr/local/bin/processor",
 			"/home/nuclio/bin/py":        "/opt/nuclio/",

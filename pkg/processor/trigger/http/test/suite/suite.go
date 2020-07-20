@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/test/compare"
@@ -138,12 +139,11 @@ func (suite *TestSuite) DeployFunctionAndRequests(createFunctionOptions *platfor
 
 // SendRequestVerifyResponse sends a request and verifies we got expected response
 func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
-
 	suite.Logger.DebugWith("Sending request",
 		"requestPort", request.RequestPort,
 		"requestPath", request.RequestPath,
 		"requestHeaders", request.RequestHeaders,
-		"requestBody", request.RequestBody,
+		"requestBodyLength", len(request.RequestBody),
 		"requestLogLevel", request.RequestLogLevel)
 
 	// Send request to proper url
@@ -170,9 +170,17 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	// invoke the function
 	httpResponse, err := suite.httpClient.Do(httpRequest)
 
-	// if we fail to connect, fail
-	if err != nil && (strings.Contains(err.Error(), "EOF") ||
-		strings.Contains(err.Error(), "connection reset by peer")) {
+	// if we fail to connect, fail, so callee might retry
+	if err != nil && common.MatchStringPatterns([]string{
+
+		// function is not up yet
+		"EOF",
+		"connection reset by peer",
+
+		// https://github.com/golang/go/issues/19943#issuecomment-355607646
+		// tl;dr: we should actively retry on such errors, because Go won't as request might not be idempotent
+		"server closed idle connection",
+	}, err.Error()) {
 		time.Sleep(500 * time.Millisecond)
 		return false
 	}
@@ -226,7 +234,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		err := json.Unmarshal(body, &unmarshalledBody)
 		suite.Require().NoError(err)
 
-		suite.Require().True(compare.CompareNoOrder(typedExpectedResponseBody, unmarshalledBody))
+		suite.Require().True(compare.NoOrder(typedExpectedResponseBody, unmarshalledBody))
 	case *regexp.Regexp:
 		suite.Require().Regexp(typedExpectedResponseBody, string(body))
 	case func([]byte):

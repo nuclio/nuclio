@@ -20,25 +20,23 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
-	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platform/kube/provisioner/apigateway"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 type Controller struct {
 	logger                logger.Logger
 	namespace             string
-	restConfig            *rest.Config
 	kubeClientSet         kubernetes.Interface
-	nuclioClientSet       nuclioio_client.Interface
+	nuclioClientSet       nuclioioclient.Interface
 	functionresClient     functionres.Client
 	cmdRunner             cmdrunner.CmdRunner
 	ingressManager        *ingress.Manager
@@ -56,13 +54,13 @@ func NewController(parentLogger logger.Logger,
 	namespace string,
 	imagePullSecrets string,
 	kubeClientSet kubernetes.Interface,
-	nuclioClientSet nuclioio_client.Interface,
+	nuclioClientSet nuclioioclient.Interface,
 	functionresClient functionres.Client,
 	cmdRunner cmdrunner.CmdRunner,
 	ingressManager *ingress.Manager,
 	apiGatewayProvisioner *apigateway.Provisioner,
 	resyncInterval time.Duration,
-	cronJobStalePodsDeletionInterval time.Duration,
+	cronJobStaleResourcesCleanupInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
 	functionOperatorNumWorkers int,
 	functionEventOperatorNumWorkers int,
@@ -89,11 +87,9 @@ func NewController(parentLogger logger.Logger,
 		platformConfiguration: platformConfiguration,
 	}
 
-	// log version info
-	version.Log(newController.logger)
-
 	newController.logger.DebugWith("Read configuration",
-		"platformConfig", newController.platformConfiguration)
+		"platformConfig", newController.platformConfiguration,
+		"version", version.Get())
 
 	// set ourselves as the platform configuration provider of the function resource client (it needs it to do
 	// stuff when creating stuff)
@@ -144,9 +140,11 @@ func NewController(parentLogger logger.Logger,
 	}
 
 	// create cron job monitoring
-	newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
-		newController,
-		&cronJobStalePodsDeletionInterval)
+	if platformConfiguration.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
+			newController,
+			&cronJobStaleResourcesCleanupInterval)
+	}
 
 	return newController, nil
 }
@@ -178,8 +176,11 @@ func (c *Controller) Start() error {
 		}
 	}
 
-	// start cron job monitoring
-	c.cronJobMonitoring.start()
+	if c.cronJobMonitoring != nil {
+
+		// start cron job monitoring
+		c.cronJobMonitoring.start()
+	}
 
 	return nil
 }

@@ -19,9 +19,8 @@ package command
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio/pkg/version"
-
 	"github.com/spf13/cobra"
+	"github.com/v3io/version-go"
 )
 
 type versionCommandeer struct {
@@ -39,15 +38,7 @@ func newVersionCommandeer(rootCommandeer *RootCommandeer) *versionCommandeer {
 		Aliases: []string{"ver"},
 		Short:   "Display the version number of the nuctl CLI",
 		RunE: func(cmd *cobra.Command, args []string) error {
-
-			// get the version
-			currentVersion, err := version.Get()
-			if err != nil {
-				return err
-			}
-
-			fmt.Printf("Client version:\n%#v", currentVersion)
-
+			fmt.Printf("Client version:\n%#v", version.Get().String())
 			return nil
 		},
 	}

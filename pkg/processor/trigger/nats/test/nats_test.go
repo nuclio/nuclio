@@ -65,7 +65,7 @@ func (suite *testSuite) TestPostEvent() {
 		suite.BrokerHost,
 		suite.getDeployOptions(),
 		map[string]triggertest.TopicMessages{
-			suite.topicName: {3},
+			suite.topicName: {NumMessages: 3},
 		},
 		nil,
 		suite.publishMessageToTopic)
@@ -100,11 +100,7 @@ func (suite *testSuite) createNatsConnection() error {
 		suite.natsConn, _ = nats.Connect(fmt.Sprintf("nats://%s:%d", suite.GetTestHost(), suite.natsPort))
 
 		// If we're connected to the Nats get up from the function
-		if suite.natsConn.IsConnected() {
-			return true
-		} else {
-			return false
-		}
+		return suite.natsConn.IsConnected()
 	})
 }
 

@@ -47,12 +47,12 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/ruby"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/mholt/archiver/v3"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/v3io/version-go"
 	"gopkg.in/yaml.v2"
 )
 
@@ -117,14 +117,17 @@ type Builder struct {
 	originalFunctionConfig functionconfig.Config
 
 	s3Client common.S3Client
+
+	versionInfo *version.Info
 }
 
 // NewBuilder returns a new builder
 func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client common.S3Client) (*Builder, error) {
 	newBuilder := &Builder{
-		logger:   parentLogger,
-		platform: platform,
-		s3Client: s3Client,
+		logger:      parentLogger,
+		platform:    platform,
+		s3Client:    s3Client,
+		versionInfo: version.Get(),
 	}
 
 	newBuilder.initializeSupportedRuntimes()
@@ -135,12 +138,15 @@ func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client
 func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	var err error
 	var inferredCodeEntryType string
+	var configurationRead bool
 
 	b.options = options
 
-	b.logger.InfoWith("Building", "name", b.options.FunctionConfig.Meta.Name)
+	b.logger.InfoWith("Building",
+		"versionInfo", b.versionInfo,
+		"name", b.options.FunctionConfig.Meta.Name)
 
-	configurationRead := false
+	// TODO: delete b.providedFunctionConfigFilePath call from here, as it is called again from b.readConfiguration
 	configFilePath := b.providedFunctionConfigFilePath()
 	b.logger.DebugWith("Function configuration found in directory", "configFilePath", configFilePath)
 	if common.IsFile(configFilePath) {
@@ -195,13 +201,11 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 		// populate function source code
 		b.populateFunctionSourceCodeFromFilePath()
-
 	}
 
 	// prepare configuration from both configuration files and things builder infers
 	if !configurationRead {
-		_, err = b.readConfiguration()
-		if err != nil {
+		if _, err = b.readConfiguration(); err != nil {
 			return nil, errors.Wrap(err, "Failed to read configuration")
 		}
 	}
@@ -467,6 +471,11 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 	// if runtime wasn't passed, use the default from the created runtime
 	if b.options.FunctionConfig.Spec.Runtime == "" {
 		b.options.FunctionConfig.Spec.Runtime = b.runtime.GetName()
+	}
+
+	// python is just a reference to python:3.6
+	if b.options.FunctionConfig.Spec.Runtime == "python" {
+		b.options.FunctionConfig.Spec.Runtime = "python:3.6"
 	}
 
 	// if the function handler isn't set, ask runtime
@@ -809,7 +818,6 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 
 func (b *Builder) createRuntime() (runtime.Runtime, error) {
 	runtimeName, err := b.getRuntimeName()
-
 	if err != nil {
 		return nil, err
 	}
@@ -822,6 +830,7 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 
 	// create a runtime instance
 	runtimeInstance, err := runtimeFactory.(runtime.Factory).Create(b.logger,
+		b.platform.GetContainerBuilderKind(),
 		b.stagingDir,
 		&b.options.FunctionConfig)
 
@@ -989,10 +998,7 @@ func (b *Builder) cleanupTempDir() error {
 }
 
 func (b *Builder) buildProcessorImage() (string, error) {
-	buildArgs, err := b.getBuildArgs()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get build args")
-	}
+	buildArgs := b.getBuildArgs()
 
 	// Use dedicated base and onbuild image registries (pull registry) if defined
 	// - An empty baseImageRegistry will result in base images being pulled from the web, each base image according
@@ -1209,14 +1215,9 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, on
 
 func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
 	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
-	versionInfo, err := version.Get()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get version info")
-	}
 
 	// get defaults from the runtime
-	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(versionInfo,
-		onbuildImageRegistry)
+	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(onbuildImageRegistry)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
@@ -1238,9 +1239,8 @@ func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
 
 	// set the onbuild images
 	for idx, onbuildArtifact := range processorDockerfileInfo.OnbuildArtifacts {
-		onbuildArtifact.Image, err = b.getProcessorDockerfileOnbuildImage(versionInfo,
+		onbuildArtifact.Image, err = b.getProcessorDockerfileOnbuildImage(
 			runtimeProcessorDockerfileInfo.OnbuildArtifacts[idx].Image)
-
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get onbuild image")
 		}
@@ -1294,8 +1294,7 @@ func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string
 	}
 }
 
-func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
-	runtimeDefaultOnbuildImage string) (string, error) {
+func (b *Builder) getProcessorDockerfileOnbuildImage(runtimeDefaultOnbuildImage string) (string, error) {
 
 	// if the user supplied an onbuild image, format it with the appropriate tag,
 	if b.options.FunctionConfig.Spec.Build.OnbuildImage != "" {
@@ -1306,8 +1305,8 @@ func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
 
 		var onbuildImageTemplateBuffer bytes.Buffer
 		err = onbuildImageTemplate.Execute(&onbuildImageTemplateBuffer, &map[string]interface{}{
-			"Label": versionInfo.Label,
-			"Arch":  versionInfo.Arch,
+			"Label": b.versionInfo.Label,
+			"Arch":  b.versionInfo.Arch,
 		})
 
 		if err != nil {
@@ -1326,12 +1325,7 @@ func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
 	return runtimeDefaultOnbuildImage, nil
 }
 
-func (b *Builder) getBuildArgs() (map[string]string, error) {
-	versionInfo, err := version.Get()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get version info")
-	}
-
+func (b *Builder) getBuildArgs() map[string]string {
 	buildArgs := map[string]string{}
 
 	if b.options.FunctionConfig.Spec.Build.Offline {
@@ -1339,13 +1333,13 @@ func (b *Builder) getBuildArgs() (map[string]string, error) {
 	}
 
 	// set tag / arch
-	buildArgs["NUCLIO_LABEL"] = versionInfo.Label
-	buildArgs["NUCLIO_ARCH"] = versionInfo.Arch
+	buildArgs["NUCLIO_LABEL"] = b.versionInfo.Label
+	buildArgs["NUCLIO_ARCH"] = b.versionInfo.Arch
 
 	// set handler dir
 	buildArgs["NUCLIO_BUILD_LOCAL_HANDLER_DIR"] = "handler"
 
-	return buildArgs, nil
+	return buildArgs
 }
 
 func (b *Builder) commandsToDirectives(commands []string) (map[string][]functionconfig.Directive, error) {

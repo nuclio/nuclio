@@ -148,7 +148,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorAllocations()
 					suite.Require().NotNil(cookie)
 					suite.Require().Equal(testCase.expectedWorkerID[topic][partitionIndex], workerInstance.GetIndex())
 
-					partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance)
+					partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance) // nolint: errcheck
 				}
 			}
 		}

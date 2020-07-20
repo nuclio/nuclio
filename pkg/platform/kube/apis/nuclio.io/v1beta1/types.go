@@ -33,10 +33,9 @@ func (nf *NuclioFunction) GetComputedReplicas() *int32 {
 		// Negative values -> 0
 		if *nf.Spec.Replicas < 0 {
 			return &zero
-		} else {
-			replicas := int32(*nf.Spec.Replicas)
-			return &replicas
 		}
+		replicas := int32(*nf.Spec.Replicas)
+		return &replicas
 	} else {
 
 		// The user hasn't specified desired replicas
@@ -47,15 +46,13 @@ func (nf *NuclioFunction) GetComputedReplicas() *int32 {
 
 			if minReplicas > 0 {
 				return &minReplicas
-			} else {
-				return &one
 			}
-		} else {
-
-			// Should get here only in case of update of an existing deployment,
-			// sending nil meaning leave the existing replicas as is
-			return nil
+			return &one
 		}
+
+		// Should get here only in case of update of an existing deployment,
+		// sending nil meaning leave the existing replicas as is
+		return nil
 	}
 }
 
@@ -67,24 +64,20 @@ func (nf *NuclioFunction) GetComputedMinReplicas() int32 {
 		// Negative values -> 0
 		if *nf.Spec.Replicas < 0 {
 			return 0
-		} else {
-			return int32(*nf.Spec.Replicas)
 		}
-	} else {
-		if nf.Spec.MinReplicas != nil {
-
-			// Negative values -> 0
-			if *nf.Spec.MinReplicas < 0 {
-				return 0
-			} else {
-				return int32(*nf.Spec.MinReplicas)
-			}
-		} else {
-
-			// If neither Replicas nor MinReplicas is given, default to 1
-			return 1
-		}
+		return int32(*nf.Spec.Replicas)
 	}
+	if nf.Spec.MinReplicas != nil {
+
+		// Negative values -> 0
+		if *nf.Spec.MinReplicas < 0 {
+			return 0
+		}
+		return int32(*nf.Spec.MinReplicas)
+	}
+
+	// If neither Replicas nor MinReplicas is given, default to 1
+	return 1
 }
 
 func (nf *NuclioFunction) GetComputedMaxReplicas() int32 {
@@ -95,28 +88,24 @@ func (nf *NuclioFunction) GetComputedMaxReplicas() int32 {
 		// Negative values -> 0
 		if *nf.Spec.Replicas < 0 {
 			return 0
-		} else {
-			return int32(*nf.Spec.Replicas)
 		}
-	} else {
-		if nf.Spec.MaxReplicas != nil {
-
-			// Negative values -> 0
-			if *nf.Spec.MaxReplicas < 0 {
-				return 0
-			} else {
-				return int32(*nf.Spec.MaxReplicas)
-			}
-		} else if nf.Spec.MinReplicas != nil {
-
-			// If neither Replicas nor MaxReplicas is given, but MinReplicas is given, default to it (default to no HPA)
-			return int32(*nf.Spec.MinReplicas)
-		} else {
-
-			// If neither Replicas nor MaxReplicas nor MinReplicas is given, default to 1
-			return 1
-		}
+		return int32(*nf.Spec.Replicas)
 	}
+	if nf.Spec.MaxReplicas != nil {
+
+		// Negative values -> 0
+		if *nf.Spec.MaxReplicas < 0 {
+			return 0
+		}
+		return int32(*nf.Spec.MaxReplicas)
+	} else if nf.Spec.MinReplicas != nil {
+
+		// If neither Replicas nor MaxReplicas is given, but MinReplicas is given, default to it (default to no HPA)
+		return int32(*nf.Spec.MinReplicas)
+	}
+
+	// If neither Replicas nor MaxReplicas nor MinReplicas is given, default to 1
+	return 1
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

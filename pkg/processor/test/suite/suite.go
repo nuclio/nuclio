@@ -30,7 +30,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -86,8 +85,7 @@ func (suite *TestSuite) SetupSuite() {
 		suite.RuntimeDir = suite.Runtime
 	}
 
-	// update version so that linker doesn't need to inject it
-	version.SetFromEnv()
+	common.SetVersionFromEnv()
 
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
@@ -247,6 +245,7 @@ func (suite *TestSuite) GetDeployOptions(functionName string, functionPath strin
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
 	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = functionPath
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
 
 	suite.TempDir = suite.CreateTempDir()
 	createFunctionOptions.FunctionConfig.Spec.Build.TempDir = suite.TempDir

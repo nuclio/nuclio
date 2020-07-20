@@ -40,10 +40,7 @@ NUCLIO_LABEL := $(if $(NUCLIO_LABEL),$(NUCLIO_LABEL),latest)
 NUCLIO_TEST_HOST := $(if $(NUCLIO_TEST_HOST),$(NUCLIO_TEST_HOST),$(NUCLIO_DEFAULT_TEST_HOST))
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
 
-NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
- \"label\": \"$(NUCLIO_LABEL)\",  \
- \"os\": \"$(NUCLIO_OS)\",  \
- \"arch\": \"$(NUCLIO_ARCH)\"}
+NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\", \"label\": \"$(NUCLIO_LABEL)\"}
 
 # Dockerized tests variables - not available for changes
 NUCLIO_DOCKER_TEST_DOCKERFILE_PATH := test/docker/Dockerfile
@@ -56,20 +53,15 @@ NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_LABEL)-$(NUCLIO_ARCH)
 
 # Link flags
 GO_LINK_FLAGS ?= -s -w
-GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) -X github.com/nuclio/nuclio/pkg/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
-	-X github.com/nuclio/nuclio/pkg/version.label=$(NUCLIO_LABEL) \
-	-X github.com/nuclio/nuclio/pkg/version.os=$(NUCLIO_OS) \
-	-X github.com/nuclio/nuclio/pkg/version.arch=$(NUCLIO_ARCH) \
-	-X github.com/nuclio/nuclio/pkg/version.goVersion=$(GO_VERSION)
-
-# inject version info as file
-NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTENTS="$(NUCLIO_VERSION_INFO)"
+GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) \
+	-X github.com/v3io/version-go.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
+	-X github.com/v3io/version-go.label=$(NUCLIO_LABEL)
 
 # Docker client version to be used
 DOCKER_CLI_VERSION := 18.09.6
 
 # Nuclio test timeout
-NUCLIO_GO_TEST_TIMEOUT ?= "20m"
+NUCLIO_GO_TEST_TIMEOUT ?= "30m"
 
 #
 #  Must be first target
@@ -163,6 +155,7 @@ endif
 
 processor: ensure-gopath build-base
 	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/processor/Dockerfile \
 		--tag $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG) .
@@ -178,7 +171,7 @@ NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/controller:$(NUCLIO_DO
 
 controller: ensure-gopath build-base
 	docker build \
-		$(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/controller/Dockerfile \
 		--tag $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) \
@@ -191,7 +184,7 @@ NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCK
 
 dashboard: ensure-gopath build-base
 	docker build \
-		$(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/dashboard/docker/Dockerfile \
@@ -205,7 +198,7 @@ NUCLIO_DOCKER_SCALER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/autoscaler:$(NUCLIO_DOCKER
 
 autoscaler: ensure-gopath build-base
 	docker build \
-		$(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/autoscaler/Dockerfile \
 		--tag $(NUCLIO_DOCKER_SCALER_IMAGE_NAME) \
@@ -218,7 +211,7 @@ NUCLIO_DOCKER_DLX_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_TAG
 
 dlx: ensure-gopath build-base
 	docker build \
-		$(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/dlx/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DLX_IMAGE_NAME) \
@@ -254,6 +247,7 @@ NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME=\
 
 handler-builder-golang-onbuild-alpine: build-base
 	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
@@ -261,6 +255,7 @@ handler-builder-golang-onbuild-alpine: build-base
 
 handler-builder-golang-onbuild: build-base handler-builder-golang-onbuild-alpine
 	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
@@ -274,7 +269,7 @@ NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/processor-p
 
 processor-pypy:
 	docker build \
-		$(NUCLIO_BUILD_ARGS) \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--file pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy \
 		--build-arg NUCLIO_PYPY_VERSION=2-5.9 \
 		--build-arg NUCLIO_PYPY_OS=jessie \
@@ -363,7 +358,7 @@ lint: modules
 			| tr -d \" \
 			| wget -O $(GOPATH)/bin/impi -qi -
 	@test -e $(GOPATH)/bin/golangci-lint || \
-	  	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.24.0
+	  	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.27.0
 
 	@echo Verifying imports...
 	chmod +x $(GOPATH)/bin/impi && $(GOPATH)/bin/impi \
@@ -381,14 +376,29 @@ lint: modules
 test-undockerized: ensure-gopath
 	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./cmd/... ./pkg/...
 
-.PHONY: test
-test: ensure-gopath build-base
+.PHONY: test-kafka-undockerized
+test-kafka-undockerized: ensure-gopath
+	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./pkg/processor/trigger/kafka/...
+
+# This is to work around hostname resolution issues for saram and kafka in CI
+.PHONY: test-periodic-undockerized
+test-periodic-undockerized: ensure-gopath
+	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) $(shell go list ./cmd/... ./pkg/... | grep -v trigger/kafka)
+
+.PHONY: fmt
+fmt:
+	gofmt -s -w .
+
+.PHONY: build-test
+build-test: ensure-gopath build-base
 	docker build \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
 		--file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
 		--tag $(NUCLIO_DOCKER_TEST_TAG) .
 
+.PHONY: test
+test: build-test
 	docker run \
 		--rm \
 		--volume /var/run/docker.sock:/var/run/docker.sock \
@@ -405,10 +415,52 @@ test: ensure-gopath build-base
 		$(NUCLIO_DOCKER_TEST_TAG) \
 		/bin/bash -c "make test-undockerized"
 
+.PHONY: test-periodic
+test-periodic: build-test
+	docker run \
+		--rm \
+		--volume /var/run/docker.sock:/var/run/docker.sock \
+		--volume $(GOPATH)/bin:/go/bin \
+		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
+		--volume /tmp:/tmp \
+		--workdir $(GO_BUILD_TOOL_WORKDIR) \
+		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
+		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
+		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--env NUCLIO_OS=$(NUCLIO_OS) \
+		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
+		$(NUCLIO_DOCKER_TEST_TAG) \
+		/bin/bash -c "make test-periodic-undockerized"
+
+.PHONY: test-kafka
+test-kafka: build-test
+	docker run \
+		--rm \
+		--volume /var/run/docker.sock:/var/run/docker.sock \
+		--volume $(GOPATH)/bin:/go/bin \
+		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
+		--volume /tmp:/tmp \
+		--workdir $(GO_BUILD_TOOL_WORKDIR) \
+		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
+		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
+		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--env NUCLIO_OS=$(NUCLIO_OS) \
+		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
+		$(NUCLIO_DOCKER_TEST_TAG) \
+		/bin/bash -c "make test-kafka-undockerized"
+
 .PHONY: test-python
 test-python:
-	docker build -f pkg/processor/runtime/python/test/Dockerfile.py3-test .
-	docker build -f pkg/processor/runtime/python/test/Dockerfile.py2-test .
+	docker build \
+		--build-arg CACHEBUST=$(shell date +%s) \
+		--build-arg PYTHON_IMAGE_TAG=3.6-slim-stretch \
+		-f pkg/processor/runtime/python/test/Dockerfile .
+	docker build \
+		--build-arg CACHEBUST=$(shell date +%s) \
+		--build-arg PYTHON_IMAGE_TAG=2.7-slim-stretch \
+		-f pkg/processor/runtime/python/test/Dockerfile .
 
 .PHONY: test-short
 test-short: modules ensure-gopath
