@@ -376,7 +376,7 @@ func GetSourceDir() string {
 // Quote returns a shell-escaped version of the string s. The returned value
 // is a string that can safely be used as one token in a shell command line.
 func Quote(s string) string {
-	var specialCharPattern= regexp.MustCompile(`[^\w@%+=:,./-]`)
+	var specialCharPattern = regexp.MustCompile(`[^\w@%+=:,./-]`)
 
 	if len(s) == 0 {
 		return "''"

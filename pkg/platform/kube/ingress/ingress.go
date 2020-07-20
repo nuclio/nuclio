@@ -22,7 +22,7 @@ import (
 // (secret is used when it is an ingress with basic-auth authentication)
 type Resources struct {
 	Ingress *v1beta1.Ingress
-	Secret *v1.Secret
+	Secret  *v1.Secret
 }
 
 type Manager struct {
@@ -31,7 +31,7 @@ type Manager struct {
 	kubeClientSet kubernetes.Interface
 }
 
-func NewManager (parentLogger logger.Logger,
+func NewManager(parentLogger logger.Logger,
 	kubecClientSet kubernetes.Interface) (*Manager, error) {
 
 	managerLogger := parentLogger.GetChild("manager")
@@ -50,7 +50,7 @@ func NewManager (parentLogger logger.Logger,
 }
 
 func (m *Manager) GenerateResources(ctx context.Context,
-	spec Spec) (*Resources,  error) {
+	spec Spec) (*Resources, error) {
 
 	var err error
 	var secretResource *v1.Secret
@@ -111,8 +111,8 @@ func (m *Manager) GenerateResources(ctx context.Context,
 
 	ingressResource := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: spec.Name,
-			Namespace: spec.Namespace,
+			Name:        spec.Name,
+			Namespace:   spec.Namespace,
 			Annotations: ingressAnnotations,
 		},
 		Spec: v1beta1.IngressSpec{
@@ -147,7 +147,7 @@ func (m *Manager) GenerateResources(ctx context.Context,
 	if tlsSecret != "" {
 		ingressResource.Spec.TLS = []v1beta1.IngressTLS{
 			{
-				Hosts: []string{spec.Host},
+				Hosts:      []string{spec.Host},
 				SecretName: tlsSecret,
 			},
 		}
@@ -155,7 +155,7 @@ func (m *Manager) GenerateResources(ctx context.Context,
 
 	return &Resources{
 		Ingress: ingressResource,
-		Secret: secretResource,
+		Secret:  secretResource,
 	}, nil
 }
 
@@ -217,7 +217,7 @@ func (m *Manager) compileDexAuthAnnotations(spec Spec) (map[string]string, error
 func (m *Manager) compileSessionVerificationAnnotations(sessionVerificationEndpoint string) (map[string]string, error) {
 
 	return map[string]string{
-		"nginx.ingress.kubernetes.io/auth-method": "POST",
+		"nginx.ingress.kubernetes.io/auth-method":           "POST",
 		"nginx.ingress.kubernetes.io/auth-response-headers": "X-Remote-User,X-V3io-Session-Key",
 		"nginx.ingress.kubernetes.io/auth-url": fmt.Sprintf(
 			"https://%s%s",
@@ -263,11 +263,11 @@ func (m *Manager) compileBasicAuthAnnotationsAndSecret(ctx context.Context, spec
 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: authSecretName,
+			Name:      authSecretName,
 			Namespace: spec.Namespace,
 		},
 		Type: v1.SecretType("Opaque"),
-		Data: map[string][]byte {
+		Data: map[string][]byte{
 			"auth": htpasswdContents,
 		},
 	}
@@ -365,13 +365,13 @@ func (m *Manager) CreateOrUpdateResources(resources *Resources) (*v1beta1.Ingres
 
 // deletes ingress resource
 // when deleteAuthSecret == true, delete related secret resource too
-func (m *Manager) DeleteByName(ingressName string, namespace string,  deleteAuthSecret bool) error {
+func (m *Manager) DeleteByName(ingressName string, namespace string, deleteAuthSecret bool) error {
 	var ingress *v1beta1.Ingress
 	var err error
 
 	m.logger.InfoWith("Deleting ingress by name",
 		"ingressName", ingressName,
-	"deleteAuthSecret", deleteAuthSecret)
+		"deleteAuthSecret", deleteAuthSecret)
 
 	// if deleteAuthSecret == true, fetch the secret name used by the ingress and delete it
 	if deleteAuthSecret {
