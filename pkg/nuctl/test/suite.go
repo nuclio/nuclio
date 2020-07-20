@@ -231,7 +231,9 @@ func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
 	}
 }
 
-func (suite *Suite) getFunctionInFormat(functionName string, outputFormat string) (*functionconfig.Config, error) {
+func (suite *Suite) getFunctionInFormat(functionName string,
+	outputFormat string,
+	withStatus bool) (*functionconfig.ConfigWithStatus, error) {
 	suite.outputBuffer.Reset()
 	var err error
 
@@ -239,14 +241,18 @@ func (suite *Suite) getFunctionInFormat(functionName string, outputFormat string
 	suite.Require().NotEmpty(functionName, "Function name must not be empty")
 
 	// get function in format
-	if err = suite.ExecuteNuctl([]string{"get", "function", functionName},
-		map[string]string{
-			"output": outputFormat,
-		}); err != nil {
+	namedArgs := map[string]string{
+		"output": outputFormat,
+	}
+	args := []string{"get", "function", functionName}
+	if withStatus {
+		args = append(args, "--with-status")
+	}
+	if err = suite.ExecuteNuctl(args, namedArgs); err != nil {
 		return nil, errors.Wrapf(err, "Failed to get function %s", functionName)
 	}
 
-	parsedFunction := functionconfig.Config{}
+	parsedFunction := functionconfig.ConfigWithStatus{}
 
 	// unmarshal response correspondingly to output format
 	switch outputFormat {
@@ -259,6 +265,26 @@ func (suite *Suite) getFunctionInFormat(functionName string, outputFormat string
 	}
 
 	return &parsedFunction, err
+}
+
+func (suite *Suite) waitForFunctionState(functionName string, state functionconfig.FunctionState) {
+	err := common.RetryUntilSuccessful(1*time.Minute, 5*time.Second, func() bool {
+		functionConfigWithStatus, err := suite.getFunctionInFormat(functionName,
+			nuctlcommon.OutputFormatYAML,
+			true)
+		if err != nil {
+			suite.logger.ErrorWith("Waiting for function readiness failed", "err", err)
+			return false
+		}
+		if functionConfigWithStatus.Status.State != state {
+			suite.logger.DebugWith("Function state is not ready yet",
+				"expectedState", state,
+				"currentState", functionConfigWithStatus.Status.State)
+			return false
+		}
+		return true
+	})
+	suite.Require().NoError(err)
 }
 
 func (suite *Suite) writeFunctionConfigToTempFile(functionConfig *functionconfig.Config,
