@@ -267,7 +267,7 @@ func (suite *Suite) getFunctionInFormat(functionName string,
 	return &parsedFunction, err
 }
 
-func (suite *Suite) waitForFunctionState(functionName string, state functionconfig.FunctionState) {
+func (suite *Suite) waitForFunctionState(functionName string, expectedState functionconfig.FunctionState) {
 	err := common.RetryUntilSuccessful(1*time.Minute, 5*time.Second, func() bool {
 		functionConfigWithStatus, err := suite.getFunctionInFormat(functionName,
 			nuctlcommon.OutputFormatYAML,
@@ -276,15 +276,18 @@ func (suite *Suite) waitForFunctionState(functionName string, state functionconf
 			suite.logger.ErrorWith("Waiting for function readiness failed", "err", err)
 			return false
 		}
-		if functionConfigWithStatus.Status.State != state {
+		if functionConfigWithStatus.Status.State != expectedState {
 			suite.logger.DebugWith("Function state is not ready yet",
-				"expectedState", state,
+				"expectedState", expectedState,
 				"currentState", functionConfigWithStatus.Status.State)
 			return false
 		}
 		return true
 	})
-	suite.Require().NoError(err)
+	suite.Require().NoErrorf(err,
+		"Failed to wait for function '%s' with expected state '%s'",
+		functionName,
+		expectedState)
 }
 
 func (suite *Suite) writeFunctionConfigToTempFile(functionConfig *functionconfig.Config,
