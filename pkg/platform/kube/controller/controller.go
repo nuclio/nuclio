@@ -19,10 +19,8 @@ package controller
 import (
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
-	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platform/kube/provisioner/apigateway"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -38,8 +36,6 @@ type Controller struct {
 	kubeClientSet         kubernetes.Interface
 	nuclioClientSet       nuclioioclient.Interface
 	functionresClient     functionres.Client
-	cmdRunner             cmdrunner.CmdRunner
-	ingressManager        *ingress.Manager
 	apiGatewayProvisioner *apigateway.Provisioner
 	imagePullSecrets      string
 	functionOperator      *functionOperator
@@ -56,8 +52,6 @@ func NewController(parentLogger logger.Logger,
 	kubeClientSet kubernetes.Interface,
 	nuclioClientSet nuclioioclient.Interface,
 	functionresClient functionres.Client,
-	cmdRunner cmdrunner.CmdRunner,
-	ingressManager *ingress.Manager,
 	apiGatewayProvisioner *apigateway.Provisioner,
 	resyncInterval time.Duration,
 	cronJobStaleResourcesCleanupInterval time.Duration,
@@ -81,8 +75,6 @@ func NewController(parentLogger logger.Logger,
 		kubeClientSet:         kubeClientSet,
 		nuclioClientSet:       nuclioClientSet,
 		functionresClient:     functionresClient,
-		ingressManager:        ingressManager,
-		cmdRunner:             cmdRunner,
 		apiGatewayProvisioner: apiGatewayProvisioner,
 		platformConfiguration: platformConfiguration,
 	}

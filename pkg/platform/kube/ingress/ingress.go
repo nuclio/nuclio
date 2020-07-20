@@ -32,17 +32,24 @@ type Manager struct {
 }
 
 func NewManager (parentLogger logger.Logger,
-	kubecClientSet kubernetes.Interface,
-	cmdRunner cmdrunner.CmdRunner) (*Manager, error) {
+	kubecClientSet kubernetes.Interface) (*Manager, error) {
+
+	managerLogger := parentLogger.GetChild("manager")
+
+	// create cmd runner
+	cmdRunner, err := cmdrunner.NewShellRunner(managerLogger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create cmd runner")
+	}
 
 	return &Manager{
-		logger:        parentLogger.GetChild("runner"),
+		logger:        parentLogger.GetChild("manager"),
 		cmdRunner:     cmdRunner,
 		kubeClientSet: kubecClientSet,
 	}, nil
 }
 
-func (im *Manager) GenerateIngressResources(ctx context.Context,
+func (m *Manager) GenerateResources(ctx context.Context,
 	spec Spec) (*Resources,  error) {
 
 	var err error
@@ -68,28 +75,9 @@ func (im *Manager) GenerateIngressResources(ctx context.Context,
 	} else {
 		var authIngressAnnotations map[string]string
 
-		switch spec.AuthenticationMode {
-		case AuthenticationModeNone:
-			//do nothing
-		case AuthenticationModeBasicAuth:
-			authIngressAnnotations, secretResource, err = im.getBasicAuthIngressAnnotationsAndSecret(ctx, spec)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to get basic auth annotations")
-			}
-		case AuthenticationModeAccessKey:
-
-			// relevant when running on iguazio platform
-			authIngressAnnotations, err = im.getSessionVerificationAnnotations("/api/data_sessions/verifications")
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to get access key auth mode annotations")
-			}
-		case AuthenticationModeDex:
-			authIngressAnnotations, err = im.getDexAuthIngressAnnotations(spec)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to get dex auth annotations")
-			}
-		default:
-			return nil, errors.Errorf("Unknown ingress authentication mode: %s", spec.AuthenticationMode)
+		authIngressAnnotations, secretResource, err = m.compileAuthAnnotations(ctx, spec)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to compile auth annotations")
 		}
 
 		// merge with existing annotation map
@@ -171,7 +159,39 @@ func (im *Manager) GenerateIngressResources(ctx context.Context,
 	}, nil
 }
 
-func (im *Manager) getDexAuthIngressAnnotations(spec Spec) (map[string]string, error) {
+func (m *Manager) compileAuthAnnotations(ctx context.Context, spec Spec) (map[string]string, *v1.Secret, error) {
+	var authIngressAnnotations map[string]string
+	var secretResource *v1.Secret
+	var err error
+
+	switch spec.AuthenticationMode {
+	case AuthenticationModeNone:
+		//do nothing
+	case AuthenticationModeBasicAuth:
+		authIngressAnnotations, secretResource, err = m.compileBasicAuthAnnotationsAndSecret(ctx, spec)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Failed to get basic auth annotations")
+		}
+	case AuthenticationModeAccessKey:
+
+		// relevant when running on iguazio platform
+		authIngressAnnotations, err = m.compileSessionVerificationAnnotations("/api/data_sessions/verifications")
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Failed to get access key auth mode annotations")
+		}
+	case AuthenticationModeDex:
+		authIngressAnnotations, err = m.compileDexAuthAnnotations(spec)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Failed to get dex auth annotations")
+		}
+	default:
+		return nil, nil, errors.Errorf("Unknown ingress authentication mode: %s", spec.AuthenticationMode)
+	}
+
+	return authIngressAnnotations, secretResource, nil
+}
+
+func (m *Manager) compileDexAuthAnnotations(spec Spec) (map[string]string, error) {
 
 	if spec.Authentication == nil || spec.Authentication.DexAuth == nil {
 		return nil, errors.New("Dex auth spec is missing")
@@ -194,7 +214,7 @@ func (im *Manager) getDexAuthIngressAnnotations(spec Spec) (map[string]string, e
 	}, nil
 }
 
-func (im *Manager) getSessionVerificationAnnotations(sessionVerificationEndpoint string) (map[string]string, error) {
+func (m *Manager) compileSessionVerificationAnnotations(sessionVerificationEndpoint string) (map[string]string, error) {
 
 	return map[string]string{
 		"nginx.ingress.kubernetes.io/auth-method": "POST",
@@ -209,8 +229,7 @@ func (im *Manager) getSessionVerificationAnnotations(sessionVerificationEndpoint
 	}, nil
 }
 
-func (im *Manager) getBasicAuthIngressAnnotationsAndSecret(ctx context.Context,
-	spec Spec) (map[string]string, *v1.Secret, error) {
+func (m *Manager) compileBasicAuthAnnotationsAndSecret(ctx context.Context, spec Spec) (map[string]string, *v1.Secret, error) {
 
 	if spec.Authentication == nil || spec.Authentication.BasicAuth == nil {
 		return nil, nil, errors.New("Basic auth spec is missing")
@@ -229,7 +248,7 @@ func (im *Manager) getBasicAuthIngressAnnotationsAndSecret(ctx context.Context,
 
 	authSecretName := fmt.Sprintf("%s-basic-auth", spec.Authentication.BasicAuth.Name)
 
-	htpasswdContents, err := im.GenerateHtpasswdContents(ctx,
+	htpasswdContents, err := m.GenerateHtpasswdContents(ctx,
 		spec.Authentication.BasicAuth.Username,
 		spec.Authentication.BasicAuth.Password)
 	if err != nil {
@@ -256,11 +275,11 @@ func (im *Manager) getBasicAuthIngressAnnotationsAndSecret(ctx context.Context,
 	return ingressAnnotations, secret, nil
 }
 
-func (im *Manager) GenerateHtpasswdContents(ctx context.Context,
+func (m *Manager) GenerateHtpasswdContents(ctx context.Context,
 	username string,
 	password string) ([]byte, error) {
 
-	runResult, err := im.cmdRunner.Run(nil,
+	runResult, err := m.cmdRunner.Run(nil,
 		fmt.Sprintf("echo %s | htpasswd -n -i %s", common.Quote(password), common.Quote(username)))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to run htpasswd command")
@@ -269,75 +288,75 @@ func (im *Manager) GenerateHtpasswdContents(ctx context.Context,
 	return []byte(runResult.Output), nil
 }
 
-func (im *Manager) CreateOrUpdateIngressResources(ingressResources *Resources) (*v1beta1.Ingress, *v1.Secret, error) {
+func (m *Manager) CreateOrUpdateResources(resources *Resources) (*v1beta1.Ingress, *v1.Secret, error) {
 	var appliedIngress *v1beta1.Ingress
 	var appliedSecret *v1.Secret
 	var err error
 
-	im.logger.InfoWith("Creating/Updating ingress resources",
-		"ingressName", ingressResources.Ingress.Name)
+	m.logger.InfoWith("Creating/Updating ingress resources",
+		"ingressName", resources.Ingress.Name)
 
-	if appliedIngress, err = im.kubeClientSet.
+	if appliedIngress, err = m.kubeClientSet.
 		ExtensionsV1beta1().
-		Ingresses(ingressResources.Ingress.Namespace).
-		Create(ingressResources.Ingress); err != nil {
+		Ingresses(resources.Ingress.Namespace).
+		Create(resources.Ingress); err != nil {
 
 		// if the ingress already exists - update it
 		if apierrors.IsAlreadyExists(err) {
 
-			im.logger.InfoWith("Ingress already exists. Updating it",
-				"ingressName", ingressResources.Ingress.Name)
-			if appliedIngress, err = im.kubeClientSet.
+			m.logger.InfoWith("Ingress already exists. Updating it",
+				"ingressName", resources.Ingress.Name)
+			if appliedIngress, err = m.kubeClientSet.
 				ExtensionsV1beta1().
-				Ingresses(ingressResources.Ingress.Namespace).
-				Update(ingressResources.Ingress); err != nil {
+				Ingresses(resources.Ingress.Namespace).
+				Update(resources.Ingress); err != nil {
 
 				return nil, nil, errors.Wrap(err, "Failed to update ingress")
 			}
-			im.logger.InfoWith("Successfully updated ingress",
-				"ingressName", ingressResources.Ingress.Name)
+			m.logger.InfoWith("Successfully updated ingress",
+				"ingressName", resources.Ingress.Name)
 
 		} else {
 
 			return nil, nil, errors.Wrap(err, "Failed to create ingress")
 		}
 	} else {
-		im.logger.InfoWith("Successfully created ingress",
-			"ingressName", ingressResources.Ingress.Name)
+		m.logger.InfoWith("Successfully created ingress",
+			"ingressName", resources.Ingress.Name)
 	}
 
 	// if there's a secret among the ingress resources - create/update it
-	if ingressResources.Secret != nil {
+	if resources.Secret != nil {
 
-		im.logger.InfoWith("Creating/Updating ingress's secret",
-			"ingressName", ingressResources.Ingress.Name,
-			"secretName", ingressResources.Secret.Name)
-		if appliedSecret, err = im.kubeClientSet.
+		m.logger.InfoWith("Creating/Updating ingress's secret",
+			"ingressName", resources.Ingress.Name,
+			"secretName", resources.Secret.Name)
+		if appliedSecret, err = m.kubeClientSet.
 			CoreV1().
-			Secrets(ingressResources.Secret.Namespace).
-			Create(ingressResources.Secret); err != nil {
+			Secrets(resources.Secret.Namespace).
+			Create(resources.Secret); err != nil {
 
 			// if the secret already exists - update it
 			if apierrors.IsAlreadyExists(err) {
 
-				im.logger.InfoWith("Secret already exists. Updating it",
-					"secretName", ingressResources.Secret.Name)
-				if appliedSecret, err = im.kubeClientSet.
+				m.logger.InfoWith("Secret already exists. Updating it",
+					"secretName", resources.Secret.Name)
+				if appliedSecret, err = m.kubeClientSet.
 					CoreV1().
-					Secrets(ingressResources.Secret.Namespace).
-					Update(ingressResources.Secret); err != nil {
+					Secrets(resources.Secret.Namespace).
+					Update(resources.Secret); err != nil {
 
 					return nil, nil, errors.Wrap(err, "Failed to update secret")
 				}
-				im.logger.InfoWith("Successfully updated secret",
-					"secretName", ingressResources.Secret.Name)
+				m.logger.InfoWith("Successfully updated secret",
+					"secretName", resources.Secret.Name)
 
 			} else {
 				return nil, nil, errors.Wrap(err, "Failed to create secret")
 			}
 		} else {
-			im.logger.InfoWith("Successfully created secret",
-				"secretName", ingressResources.Secret.Name)
+			m.logger.InfoWith("Successfully created secret",
+				"secretName", resources.Secret.Name)
 		}
 	}
 
@@ -346,11 +365,11 @@ func (im *Manager) CreateOrUpdateIngressResources(ingressResources *Resources) (
 
 // deletes ingress resource
 // when deleteAuthSecret == true, delete related secret resource too
-func (im *Manager) DeleteIngressByName(ingressName string, namespace string,  deleteAuthSecret bool) error {
+func (m *Manager) DeleteByName(ingressName string, namespace string,  deleteAuthSecret bool) error {
 	var ingress *v1beta1.Ingress
 	var err error
 
-	im.logger.InfoWith("Deleting ingress by name",
+	m.logger.InfoWith("Deleting ingress by name",
 		"ingressName", ingressName,
 	"deleteAuthSecret", deleteAuthSecret)
 
@@ -358,7 +377,7 @@ func (im *Manager) DeleteIngressByName(ingressName string, namespace string,  de
 	if deleteAuthSecret {
 
 		// get the ingress object so we can find the secret name
-		if ingress, err = im.kubeClientSet.
+		if ingress, err = m.kubeClientSet.
 			ExtensionsV1beta1().
 			Ingresses(namespace).
 			Get(ingressName, metav1.GetOptions{}); err != nil {
@@ -367,7 +386,7 @@ func (im *Manager) DeleteIngressByName(ingressName string, namespace string,  de
 				return errors.Wrap(err, "Failed to get ingress resource on ingress deletion by name")
 			}
 
-			im.logger.DebugWith("Ingress resource not found. Aborting deletion",
+			m.logger.DebugWith("Ingress resource not found. Aborting deletion",
 				"ingressName", ingressName)
 			return nil
 		}
@@ -376,11 +395,11 @@ func (im *Manager) DeleteIngressByName(ingressName string, namespace string,  de
 		secretName := ingress.Annotations["nginx.ingress.kubernetes.io/auth-secret"]
 		if secretName != "" {
 
-			im.logger.InfoWith("Deleting ingress's auth secret",
+			m.logger.InfoWith("Deleting ingress's auth secret",
 				"ingressName", ingressName,
 				"secretName", secretName)
 
-			if err = im.kubeClientSet.
+			if err = m.kubeClientSet.
 				CoreV1().
 				Secrets(namespace).
 				Delete(secretName, &metav1.DeleteOptions{}); err != nil {
@@ -389,12 +408,12 @@ func (im *Manager) DeleteIngressByName(ingressName string, namespace string,  de
 					return errors.Wrap(err, "Failed to delete auth secret resource on ingress deletion")
 				}
 
-				im.logger.DebugWith("Ingress's secret not found. Continuing with ingress deletion",
+				m.logger.DebugWith("Ingress's secret not found. Continuing with ingress deletion",
 					"ingressName", ingressName,
 					"secretName", secretName)
 
 			} else {
-				im.logger.DebugWith("Successfully deleted ingress's secret",
+				m.logger.DebugWith("Successfully deleted ingress's secret",
 					"ingressName", ingressName,
 					"secretName", secretName)
 			}
@@ -402,7 +421,7 @@ func (im *Manager) DeleteIngressByName(ingressName string, namespace string,  de
 	}
 
 	// delete the ingress resource
-	if err = im.kubeClientSet.
+	if err = m.kubeClientSet.
 		ExtensionsV1beta1().
 		Ingresses(ingress.Namespace).
 		Delete(ingressName, &metav1.DeleteOptions{}); err != nil {
@@ -411,13 +430,14 @@ func (im *Manager) DeleteIngressByName(ingressName string, namespace string,  de
 			return errors.Wrap(err, "Failed to delete ingress")
 		}
 
-		im.logger.DebugWith("Ingress resource was not found. Nothing to delete",
+		m.logger.DebugWith("Ingress resource was not found. Nothing to delete",
 			"ingressName", ingressName)
 
-	} else {
-		im.logger.DebugWith("Successfully deleted ingress",
-			"ingressName", ingressName)
+		return nil
 	}
+
+	m.logger.DebugWith("Successfully deleted ingress",
+		"ingressName", ingressName)
 
 	return nil
 }

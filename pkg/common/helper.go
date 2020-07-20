@@ -382,7 +382,7 @@ func Quote(s string) string {
 		return "''"
 	}
 	if specialCharPattern.MatchString(s) {
-		return "'" + strings.Replace(s, "'", "'\"'\"'", -1) + "'"
+		return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
 	}
 
 	return s

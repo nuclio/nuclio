@@ -94,15 +94,14 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 	errorMessages := validation.IsQualifiedName(apiGateway.Name)
 	if len(errorMessages) != 0 {
 		joinedErrorMessage := strings.Join(errorMessages, ", ")
-		return errors.New("Api-gateway name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
+		return errors.Errorf("Api-gateway name doesn't conform to k8s naming convention. Errors: %s", joinedErrorMessage)
 	}
 
 	// create/update the api-gateway
-	if err := ago.controller.apiGatewayProvisioner.CreateOrUpdateAPIGateway(ctx, apiGateway); err != nil {
+	if err := ago.controller.apiGatewayProvisioner.CreateOrUpdate(ctx, apiGateway); err != nil {
 		ago.logger.WarnWith("Failed to create/update api-gateway. Updating state accordingly")
 		if err := ago.setAPIGatewayState(apiGateway, platform.APIGatewayStateError, err); err != nil {
-			ago.logger.WarnWith("Failed to set api-gateway state as error",
-				"err", err)
+			ago.logger.WarnWith("Failed to set api-gateway state as error", "err", err)
 		}
 
 		return errors.Wrap(err, "Failed to create/update api-gateway")
@@ -116,15 +115,6 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 	ago.logger.DebugWith("Successfully created/updated api-gateway", "apiGateway", apiGateway)
 
 	return nil
-}
-
-func (ago *apiGatewayOperator) shouldRespondToState(state platform.APIGatewayState) bool {
-	statesToRespond := []string{
-		string(platform.APIGatewayStateWaitingForProvisioning),
-		string(platform.APIGatewayStateNone),
-	}
-
-	return common.StringSliceContainsString(statesToRespond, string(state))
 }
 
 // Delete handles delete of an object
@@ -143,6 +133,15 @@ func (ago *apiGatewayOperator) getListWatcher(namespace string) cache.ListerWatc
 			return ago.controller.nuclioClientSet.NuclioV1beta1().NuclioAPIGateways(namespace).Watch(options)
 		},
 	}
+}
+
+func (ago *apiGatewayOperator) shouldRespondToState(state platform.APIGatewayState) bool {
+	statesToRespond := []string{
+		string(platform.APIGatewayStateWaitingForProvisioning),
+		string(platform.APIGatewayStateNone),
+	}
+
+	return common.StringSliceContainsString(statesToRespond, string(state))
 }
 
 func (ago *apiGatewayOperator) setAPIGatewayState(apiGateway *nuclioio.NuclioAPIGateway,

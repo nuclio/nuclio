@@ -20,7 +20,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
@@ -148,14 +147,8 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create function deployment client")
 	}
 
-	// create cmd runner
-	cmdRunner, err := cmdrunner.NewShellRunner(rootLogger)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create cmd runner")
-	}
-
 	// create ingress manager
-	ingressManager, err := ingress.NewManager(rootLogger, kubeClientSet, cmdRunner)
+	ingressManager, err := ingress.NewManager(rootLogger, kubeClientSet)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create ingress manager")
 	}
@@ -172,8 +165,6 @@ func createController(kubeconfigPath string,
 		kubeClientSet,
 		nuclioClientSet,
 		functionresClient,
-		cmdRunner,
-		ingressManager,
 		apiGatewayProvisioner,
 		functionOperatorResyncInterval,
 		cronJobStaleResourcesCleanupInterval,

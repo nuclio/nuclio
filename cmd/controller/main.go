@@ -44,7 +44,7 @@ func getNamespace(namespaceArgument string) string {
 }
 
 func main() {
-	apiGatewayOperatorEnabledFromEnv := os.Getenv("NUCLIO_CONTROLLER_API_GATEWAY_OPERATOR_ENABLED") == "true"
+	apiGatewayOperatorEnabledFromEnv := common.GetEnvOrDefaultBool("NUCLIO_CONTROLLER_API_GATEWAY_OPERATOR_ENABLED", false)
 
 	kubeconfigPath := flag.String("kubeconfig-path", os.Getenv("KUBECONFIG"), "Path of kubeconfig file")
 	namespace := flag.String("namespace", "", "Namespace to listen on, or * for all")

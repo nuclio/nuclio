@@ -42,7 +42,7 @@ func NewProvisioner(loggerInstance logger.Logger,
 	return newProvisioner, nil
 }
 
-func (p *Provisioner) CreateOrUpdateAPIGateway(ctx context.Context, apiGateway *nuclioio.NuclioAPIGateway) error {
+func (p *Provisioner) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.NuclioAPIGateway) error {
 	var appliedIngressNames []string
 
 	apiGateway.Status.Name = apiGateway.Spec.Name
@@ -107,7 +107,7 @@ func (p *Provisioner) CreateOrUpdateAPIGateway(ctx context.Context, apiGateway *
 
 	// create ingresses
 	for ingressName, ingressResources := range ingresses {
-		if _, _, err := p.ingressManager.CreateOrUpdateIngressResources(ingressResources); err != nil {
+		if _, _, err := p.ingressManager.CreateOrUpdateResources(ingressResources); err != nil {
 			p.Logger.WarnWithCtx(ctx, "Failed to create/update api-gateway ingress resources",
 				"err", errors.Cause(err),
 				"ingressName", ingressName,
@@ -129,21 +129,17 @@ func (p *Provisioner) CreateOrUpdateAPIGateway(ctx context.Context, apiGateway *
 
 func (p *Provisioner) DeleteAPIGateway(ctx context.Context, namespace, name string) {
 
-	p.Logger.DebugWithCtx(ctx,
-		"Deleting api-gateway base ingress",
-		"name", name)
+	p.Logger.DebugWithCtx(ctx, "Deleting api-gateway base ingress", "name", name)
 
-	err := p.ingressManager.DeleteIngressByName(p.generateIngressName(name, false), namespace, true)
+	err := p.ingressManager.DeleteByName(p.generateIngressName(name, false), namespace, true)
 	if err != nil {
 		p.Logger.WarnWithCtx(ctx, "Failed to delete base ingress. Continuing with deletion",
 			"err", errors.Cause(err))
 	}
 
-	p.Logger.DebugWithCtx(ctx,
-		"Deleting api-gateway canary ingress",
-		"name", name)
+	p.Logger.DebugWithCtx(ctx, "Deleting api-gateway canary ingress", "name", name)
 
-	err = p.ingressManager.DeleteIngressByName(p.generateIngressName(name, true), namespace, true)
+	err = p.ingressManager.DeleteByName(p.generateIngressName(name, true), namespace, true)
 	if err != nil {
 		p.Logger.WarnWithCtx(ctx, "Failed to delete canary ingress. Continuing with deletion",
 			"err", errors.Cause(err))
@@ -151,14 +147,13 @@ func (p *Provisioner) DeleteAPIGateway(ctx context.Context, namespace, name stri
 }
 
 func (p *Provisioner) tryRemovePreviousCanaryIngress(ctx context.Context, apiGateway *nuclioio.NuclioAPIGateway) {
-	p.Logger.DebugWithCtx(ctx,
-		"Trying to remove previous canary ingress",
+	p.Logger.DebugWithCtx(ctx, "Trying to remove previous canary ingress",
 		"apiGatewayName", apiGateway.Name)
 
 	// remove old canary ingress if it exists
 	// this works thanks to an assumption that ingress names == api gateway name
 	previousCanaryIngressName := p.generateIngressName(apiGateway.Name, true)
-	err := p.ingressManager.DeleteIngressByName(previousCanaryIngressName, apiGateway.Namespace, true)
+	err := p.ingressManager.DeleteByName(previousCanaryIngressName, apiGateway.Namespace, true)
 	if err != nil {
 		p.Logger.WarnWithCtx(ctx,
 			"Failed to delete previous canary ingress on api gateway update",
@@ -308,7 +303,7 @@ func (p *Provisioner) generateNginxIngress(ctx context.Context,
 		commonIngressSpec.Annotations[annotationKey] = annotationValue
 	}
 
-	return p.ingressManager.GenerateIngressResources(ctx, commonIngressSpec)
+	return p.ingressManager.GenerateResources(ctx, commonIngressSpec)
 }
 
 func (p *Provisioner) getServiceNameAndPort(upstream platform.APIGatewayUpstreamSpec,

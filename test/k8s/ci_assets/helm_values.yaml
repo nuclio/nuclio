@@ -28,7 +28,7 @@ controller:
     pullPolicy: Never
   operator:
     apiGateway:
-      enabled: false
+      enabled: true
 dashboard:
   image:
     tag: ${NUCLIO_LABEL}-amd64
