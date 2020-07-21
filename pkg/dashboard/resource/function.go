@@ -128,7 +128,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	// validate there are no 2 functions with the same name
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Name:      functionInfo.Meta.Name,
-		Namespace: fr.getNamespaceFromRequest(request),
+		Namespace: fr.resolveNamespace(request, functionInfo),
 	})
 	if err != nil {
 		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
@@ -167,7 +167,7 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 	// validate the function exists
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Name:      functionInfo.Meta.Name,
-		Namespace: fr.getNamespaceFromRequest(request),
+		Namespace: fr.resolveNamespace(request, functionInfo),
 	})
 	if err != nil {
 		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
@@ -391,6 +391,14 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	}
 
 	return fr.processFunctionInfo(&functionInfoInstance, request.Header.Get("x-nuclio-project-name"))
+}
+
+func (fr *functionResource) resolveNamespace(request *http.Request, function *functionInfo) string {
+	namespace := fr.getNamespaceFromRequest(request)
+	if namespace != "" {
+		return namespace
+	}
+	return function.Meta.Namespace
 }
 
 func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, function platform.Function) error {
