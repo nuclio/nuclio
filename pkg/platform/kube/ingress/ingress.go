@@ -77,7 +77,7 @@ func (m *Manager) GenerateResources(ctx context.Context,
 
 		authIngressAnnotations, secretResource, err = m.compileAuthAnnotations(ctx, spec)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to compile auth annotations")
+			return nil, errors.Wrap(err, "Failed to compile auth annotations")
 		}
 
 		// merge with existing annotation map
@@ -382,13 +382,14 @@ func (m *Manager) DeleteByName(ingressName string, namespace string, deleteAuthS
 			Ingresses(namespace).
 			Get(ingressName, metav1.GetOptions{}); err != nil {
 
-			if !apierrors.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
+				m.logger.DebugWith("Ingress resource not found. Aborting deletion",
+					"ingressName", ingressName)
+				return nil
+
+			} else {
 				return errors.Wrap(err, "Failed to get ingress resource on ingress deletion by name")
 			}
-
-			m.logger.DebugWith("Ingress resource not found. Aborting deletion",
-				"ingressName", ingressName)
-			return nil
 		}
 
 		// if it has an auth secret - delete it
@@ -404,13 +405,14 @@ func (m *Manager) DeleteByName(ingressName string, namespace string, deleteAuthS
 				Secrets(namespace).
 				Delete(secretName, &metav1.DeleteOptions{}); err != nil {
 
-				if !apierrors.IsNotFound(err) {
+				if apierrors.IsNotFound(err) {
+					m.logger.DebugWith("Ingress's secret not found. Continuing with ingress deletion",
+						"ingressName", ingressName,
+						"secretName", secretName)
+
+				} else {
 					return errors.Wrap(err, "Failed to delete auth secret resource on ingress deletion")
 				}
-
-				m.logger.DebugWith("Ingress's secret not found. Continuing with ingress deletion",
-					"ingressName", ingressName,
-					"secretName", secretName)
 
 			} else {
 				m.logger.DebugWith("Successfully deleted ingress's secret",

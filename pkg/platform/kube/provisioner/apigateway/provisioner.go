@@ -106,6 +106,8 @@ func (p *Provisioner) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.N
 	}
 
 	// create ingresses
+	// must be done synchronously, first primary and then canary
+	// otherwise, when there is only canary ingress, the endpoint will not work (nginx behavior)
 	for ingressName, ingressResources := range ingresses {
 		if _, _, err := p.ingressManager.CreateOrUpdateResources(ingressResources); err != nil {
 			p.Logger.WarnWithCtx(ctx, "Failed to create/update api-gateway ingress resources",
@@ -230,7 +232,7 @@ func (p *Provisioner) getAllExistingUpstreamFunctionNames(namespace, apiGatewayN
 
 func (p *Provisioner) generateNginxIngress(ctx context.Context,
 	apiGateway *nuclioio.NuclioAPIGateway,
-	upstream platform.APIGatewayUpstreamSpec) (*ingress.Resources,  error) {
+	upstream platform.APIGatewayUpstreamSpec) (*ingress.Resources, error) {
 
 	serviceName, servicePort, err := p.getServiceNameAndPort(upstream, apiGateway.Namespace)
 	if err != nil {

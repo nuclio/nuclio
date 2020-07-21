@@ -42,7 +42,6 @@ type NuclioProjectListerExpansion interface{}
 // NuclioProjectNamespaceLister.
 type NuclioProjectNamespaceListerExpansion interface{}
 
-
 // NuclioAPIGatewayListerExpansion allows custom methods to be added to
 // NuclioAPIGatewayLister.
 type NuclioAPIGatewayListerExpansion interface{}
