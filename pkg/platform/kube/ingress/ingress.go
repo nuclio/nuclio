@@ -386,10 +386,9 @@ func (m *Manager) DeleteByName(ingressName string, namespace string, deleteAuthS
 				m.logger.DebugWith("Ingress resource not found. Aborting deletion",
 					"ingressName", ingressName)
 				return nil
-
-			} else {
-				return errors.Wrap(err, "Failed to get ingress resource on ingress deletion by name")
 			}
+
+			return errors.Wrap(err, "Failed to get ingress resource on ingress deletion by name")
 		}
 
 		// if it has an auth secret - delete it
