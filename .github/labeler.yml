@@ -1,0 +1,14 @@
+area/ui:
+  - pkg/dashboard/ui/**/*
+
+platform/kubernetes:
+  - pkg/platform/kube/**/*
+
+platform/docker:
+  - pkg/platform/local/**/*
+
+processor/trigger:
+  - pkg/processsor/trigger/**/*
+
+nuctl:
+  - pkg/nuctl/command/**/*
