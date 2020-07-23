@@ -34,6 +34,7 @@ type updater struct {
 }
 
 func newUpdater(parentLogger logger.Logger, consumer *consumer, platform platform.Platform) (*updater, error) {
+
 	newupdater := &updater{
 		logger:   parentLogger.GetChild("updater"),
 		platform: platform,
