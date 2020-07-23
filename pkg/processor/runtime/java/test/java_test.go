@@ -23,7 +23,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -178,21 +177,15 @@ func (suite *TestSuite) TestCustomOptions() {
 		path.Join(suite.GetTestFunctionsDir(), "java", "memory"))
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "nuclio-test-memory-handler.jar:MemoryHandler"
+	bodyVerifier := func(body []byte) {
+		maxMemory := "Max: 536870912"
 
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		bodyVerifier := func(body []byte) {
-			maxMemory := "Max: 536870912"
-
-			bodyStr := string(body)
-			suite.Require().Truef(strings.Contains(bodyStr, maxMemory), "bad response:\n%s", bodyStr)
-		}
-
-		testRequest := httpsuite.Request{
-			RequestPort:          deployResult.Port,
-			RequestMethod:        "GET",
-			ExpectedResponseBody: bodyVerifier,
-		}
-		return suite.SendRequestVerifyResponse(&testRequest)
+		bodyStr := string(body)
+		suite.Require().Truef(strings.Contains(bodyStr, maxMemory), "bad response:\n%s", bodyStr)
+	}
+	suite.DeployFunctionAndRequest(createFunctionOptions, &httpsuite.Request{
+		RequestMethod:        "GET",
+		ExpectedResponseBody: bodyVerifier,
 	})
 }
 
