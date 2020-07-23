@@ -29,6 +29,8 @@ const (
 	RestartPolicyNameOnFailure     RestartPolicyName = "on-failure"
 )
 
+const RunOptionsNoPort int = -1
+
 // LogInOptions are options for logging in
 type LogInOptions struct {
 	Username string

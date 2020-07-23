@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"path"
 	"strconv"
@@ -516,21 +515,6 @@ func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error 
 	})
 }
 
-func (p *Platform) getFreeLocalPort() (int, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
-	if err != nil {
-		return 0, err
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return 0, err
-	}
-
-	defer l.Close() // nolint: errcheck
-	return l.Addr().(*net.TCPAddr).Port, nil
-}
-
 func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
 
@@ -540,92 +524,48 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Failed to create function platform configuration")
 	}
 
-	// get function port - either from configuration, from the previous deployment or from a free port
-	functionHTTPPort, err := p.getFunctionHTTPPort(createFunctionOptions, previousHTTPPort)
+	volumesMap, err := p.compileDeployFunctionVolumesMap(createFunctionOptions)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function HTTP port")
+		return nil, errors.Wrap(err, "Failed to compile volumes map")
 	}
-
-	createFunctionOptions.Logger.DebugWith("Function port allocated",
-		"port", functionHTTPPort,
-		"previousHTTPPort", previousHTTPPort)
-
-	labels := map[string]string{
-		"nuclio.io/platform":      "local",
-		"nuclio.io/namespace":     createFunctionOptions.FunctionConfig.Meta.Namespace,
-		"nuclio.io/function-name": createFunctionOptions.FunctionConfig.Meta.Name,
-		"nuclio.io/function-spec": p.encodeFunctionSpec(&createFunctionOptions.FunctionConfig.Spec),
-	}
-
-	for labelName, labelValue := range createFunctionOptions.FunctionConfig.Meta.Labels {
-		labels[labelName] = labelValue
-	}
-
-	marshalledAnnotations := p.marshallAnnotations(createFunctionOptions.FunctionConfig.Meta.Annotations)
-	if marshalledAnnotations != nil {
-		labels["nuclio.io/annotations"] = string(marshalledAnnotations)
-	}
-
-	// create processor configuration at a temporary location unless user specified a configuration
-	localProcessorConfigPath, err := p.createProcessorConfig(createFunctionOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create processor configuration")
-	}
-
-	// create volumes string[string] map for volumes
-	volumesMap := map[string]string{
-		localProcessorConfigPath: path.Join("/", "etc", "nuclio", "config", "processor", "processor.yaml"),
-	}
-
-	for _, volume := range createFunctionOptions.FunctionConfig.Spec.Volumes {
-
-		// only add hostpath volumes
-		if volume.Volume.HostPath != nil {
-			volumesMap[volume.Volume.HostPath.Path] = volume.VolumeMount.MountPath
-		}
-	}
-
-	envMap := map[string]string{}
-	for _, env := range createFunctionOptions.FunctionConfig.Spec.Env {
-		envMap[env.Name] = env.Value
-	}
+	labels := p.compileDeployFunctionLabels(createFunctionOptions)
+	envMap := p.compileDeployFunctionEnvMap(createFunctionOptions)
 
 	// run the docker image
-	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image, &dockerclient.RunOptions{
+	runContainerOptions := &dockerclient.RunOptions{
 		ContainerName: p.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
-		Ports:         map[int]int{functionHTTPPort: 8080},
+		Ports:         map[int]int{dockerclient.RunOptionsNoPort: abstract.FunctionContainerHTTPPort},
 		Env:           envMap,
 		Labels:        labels,
 		Volumes:       volumesMap,
 		Network:       functionPlatformConfiguration.Network,
 		RestartPolicy: functionPlatformConfiguration.RestartPolicy,
-	})
+	}
 
+	// get function port - either from configuration, from the previous deployment or from a free port
+	functionHTTPPort, err := p.getFunctionHTTPPort(createFunctionOptions, previousHTTPPort)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function HTTP port")
+	}
+	if functionHTTPPort != 0 {
+		p.Logger.DebugWith("Running container with a specific port",
+			"functionHTTPPort", functionHTTPPort)
+		runContainerOptions.Ports = map[int]int{functionHTTPPort: abstract.FunctionContainerHTTPPort}
+	}
+	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image,
+		runContainerOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to run docker container")
 	}
 
-	p.Logger.InfoWith("Waiting for function to be ready", "timeout", createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds)
-
-	var readinessTimeout time.Duration
-	if createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds != 0 {
-		readinessTimeout = time.Duration(createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds) * time.Second
-	} else {
-		readinessTimeout = abstract.DefaultReadinessTimeoutSeconds * time.Second
+	timeout := createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds
+	if err := p.waitForContainer(containerID, timeout); err != nil {
+		return nil, err
 	}
 
-	if err = p.dockerClient.AwaitContainerHealth(containerID, &readinessTimeout); err != nil {
-		var errMessage string
-
-		// try to get error logs
-		containerLogs, getContainerLogsErr := p.dockerClient.GetContainerLogs(containerID)
-		if getContainerLogsErr == nil {
-			errMessage = fmt.Sprintf("Function wasn't ready in time. Logs:\n%s", containerLogs)
-		} else {
-			errMessage = fmt.Sprintf("Function wasn't ready in time (couldn't fetch logs: %s)", getContainerLogsErr.Error())
-		}
-
-		return nil, errors.Wrap(err, errMessage)
+	functionHTTPPort, err = p.resolveDeployedFunctionHTTPPort(containerID)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve deployed function HTTP port")
 	}
 
 	return &platform.CreateFunctionResult{
@@ -698,18 +638,12 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 
 	// if there was a previous deployment and no configuration - use that
 	if previousHTTPPort != 0 {
+		createFunctionOptions.Logger.DebugWith("Using previous deployment HTTP port ",
+			"previousHTTPPort", previousHTTPPort)
 		return previousHTTPPort, nil
 	}
 
-	// get a free local port
-	freeLocalPort, err := p.getFreeLocalPort()
-	if err != nil {
-		return -1, errors.Wrap(err, "Failed to get free local port")
-	}
-
-	p.Logger.DebugWith("Found free local port", "port", freeLocalPort)
-
-	return freeLocalPort, nil
+	return 0, nil
 }
 
 func (p *Platform) GetContainerNameByCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) string {
@@ -719,13 +653,26 @@ func (p *Platform) GetContainerNameByCreateFunctionOptions(createFunctionOptions
 }
 
 func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container) int {
-	ports := container.HostConfig.PortBindings["8080/tcp"]
-	if len(ports) == 0 {
+	functionHostPort := dockerclient.Port(fmt.Sprintf("%d/tcp", abstract.FunctionContainerHTTPPort))
+
+	portBindings := container.HostConfig.PortBindings[functionHostPort]
+	ports := container.NetworkSettings.Ports[functionHostPort]
+	if len(portBindings) == 0 && len(ports) == 0 {
 		return 0
 	}
 
-	httpPort, _ := strconv.Atoi(ports[0].HostPort)
+	port := ""
+	if portBindings[0].HostPort != "" {
 
+		// if user specified a port, it will get here
+		port = portBindings[0].HostPort
+	} else {
+
+		// if no port was specified
+		port = ports[0].HostPort
+	}
+
+	httpPort, _ := strconv.Atoi(port)
 	return httpPort
 }
 
@@ -923,4 +870,92 @@ func (p *Platform) checkAndSetFunctionHealthy(containerID string, function platf
 		Config: *function.GetConfig(),
 		Status: *functionStatus,
 	})
+}
+
+func (p *Platform) waitForContainer(containerID string, timeout int) error {
+	p.Logger.InfoWith("Waiting for function to be ready",
+		"timeout", timeout)
+
+	var readinessTimeout time.Duration
+	if timeout != 0 {
+		readinessTimeout = time.Duration(timeout) * time.Second
+	} else {
+		readinessTimeout = abstract.DefaultReadinessTimeoutSeconds * time.Second
+	}
+
+	if err := p.dockerClient.AwaitContainerHealth(containerID, &readinessTimeout); err != nil {
+		var errMessage string
+
+		// try to get error logs
+		containerLogs, getContainerLogsErr := p.dockerClient.GetContainerLogs(containerID)
+		if getContainerLogsErr == nil {
+			errMessage = fmt.Sprintf("Function wasn't ready in time. Logs:\n%s", containerLogs)
+		} else {
+			errMessage = fmt.Sprintf("Function wasn't ready in time (couldn't fetch logs: %s)", getContainerLogsErr.Error())
+		}
+
+		return errors.Wrap(err, errMessage)
+	}
+	return nil
+}
+
+func (p *Platform) compileDeployFunctionVolumesMap(createFunctionOptions *platform.CreateFunctionOptions) (map[string]string, error) {
+
+	// create processor configuration at a temporary location unless user specified a configuration
+	localProcessorConfigPath, err := p.createProcessorConfig(createFunctionOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create processor configuration")
+	}
+
+	// create volumes string[string] map for volumes
+	volumesMap := map[string]string{
+		localProcessorConfigPath: path.Join("/", "etc", "nuclio", "config", "processor", "processor.yaml"),
+	}
+
+	for _, volume := range createFunctionOptions.FunctionConfig.Spec.Volumes {
+
+		// only add hostpath volumes
+		if volume.Volume.HostPath != nil {
+			volumesMap[volume.Volume.HostPath.Path] = volume.VolumeMount.MountPath
+		}
+	}
+	return volumesMap, nil
+}
+
+func (p *Platform) compileDeployFunctionEnvMap(createFunctionOptions *platform.CreateFunctionOptions) map[string]string {
+	envMap := map[string]string{}
+	for _, env := range createFunctionOptions.FunctionConfig.Spec.Env {
+		envMap[env.Name] = env.Value
+	}
+	return envMap
+}
+
+func (p *Platform) compileDeployFunctionLabels(createFunctionOptions *platform.CreateFunctionOptions) map[string]string {
+	labels := map[string]string{
+		"nuclio.io/platform":      "local",
+		"nuclio.io/namespace":     createFunctionOptions.FunctionConfig.Meta.Namespace,
+		"nuclio.io/function-name": createFunctionOptions.FunctionConfig.Meta.Name,
+		"nuclio.io/function-spec": p.encodeFunctionSpec(&createFunctionOptions.FunctionConfig.Spec),
+	}
+
+	for labelName, labelValue := range createFunctionOptions.FunctionConfig.Meta.Labels {
+		labels[labelName] = labelValue
+	}
+
+	marshalledAnnotations := p.marshallAnnotations(createFunctionOptions.FunctionConfig.Meta.Annotations)
+	if marshalledAnnotations != nil {
+		labels["nuclio.io/annotations"] = string(marshalledAnnotations)
+	}
+	return labels
+}
+
+func (p *Platform) resolveDeployedFunctionHTTPPort(containerID string) (int, error) {
+	container, err := p.dockerClient.GetContainer(&dockerclient.GetContainerOptions{
+		ID: containerID,
+	})
+	if err != nil {
+		return 0, errors.Wrap(err, "Failed to get container")
+	}
+
+	return p.getContainerHTTPTriggerPort(container), nil
 }

@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -212,7 +213,7 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 	toServicePorts := suite.client.ensureServicePortsExist([]v1.ServicePort{
 		{
 			Name:     containerHTTPPortName,
-			Port:     int32(containerHTTPPort),
+			Port:     int32(abstract.FunctionContainerHTTPPort),
 			NodePort: 12345,
 		},
 	}, []v1.ServicePort{
@@ -228,7 +229,7 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 	toServicePorts = suite.client.ensureServicePortsExist([]v1.ServicePort{
 		{
 			Name:     containerHTTPPortName,
-			Port:     int32(containerHTTPPort),
+			Port:     int32(abstract.FunctionContainerHTTPPort),
 			NodePort: 12345,
 		},
 	}, []v1.ServicePort{

@@ -159,7 +159,11 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	portsArgument := ""
 
 	for localPort, dockerPort := range runOptions.Ports {
-		portsArgument += fmt.Sprintf("-p %d:%d ", localPort, dockerPort)
+		if localPort == RunOptionsNoPort {
+			portsArgument += fmt.Sprintf("-p %d ", dockerPort)
+		} else {
+			portsArgument += fmt.Sprintf("-p %d:%d ", localPort, dockerPort)
+		}
 	}
 
 	restartPolicy := ""
@@ -491,6 +495,18 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 	}
 
 	return containersInfo, nil
+}
+
+// GetContainer returns the first matching container which match a certain criteria
+func (c *ShellClient) GetContainer(options *GetContainerOptions) (*Container, error) {
+	containers, err := c.GetContainers(options)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get container")
+	}
+	if len(containers) == 0 {
+		return nil, errors.New("No container were matching criteria")
+	}
+	return &containers[0], nil
 }
 
 // GetContainerEvents returns a list of container events which occurred within a time range

@@ -44,6 +44,7 @@ import (
 //
 
 const (
+	FunctionContainerHTTPPort      = 8080
 	DefaultReadinessTimeoutSeconds = 60
 	DefaultTargetCPU               = 75
 )
