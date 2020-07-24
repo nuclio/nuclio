@@ -19,6 +19,15 @@ env:
   NUCLIO_GO_TEST_TIMEOUT: "30m"
 
 jobs:
+  label:
+    name: Label
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@v2
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
