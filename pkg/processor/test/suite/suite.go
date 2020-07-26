@@ -302,18 +302,18 @@ func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.Cr
 }
 
 func (suite *TestSuite) GetUniqueFunctionName(name string) string {
-	nameLength := len(name) + len(suite.TestID)
+	uniqueFunctionName := fmt.Sprintf("%s-%s", name, suite.TestID)
 
 	// k8s maximum name limit
 	k8sMaxNameLength := 63
-	if nameLength > k8sMaxNameLength {
+	if len(uniqueFunctionName) > k8sMaxNameLength {
 
 		// trims
-		name = name[:k8sMaxNameLength-nameLength]
+		name = name[:k8sMaxNameLength-len(uniqueFunctionName)]
 	}
 
 	// to not reach
-	return fmt.Sprintf("%s-%s", name, suite.TestID)[:62]
+	return uniqueFunctionName
 }
 
 func (suite *TestSuite) GetRuntimeDir() string {
