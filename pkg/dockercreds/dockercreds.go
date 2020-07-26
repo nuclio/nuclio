@@ -17,6 +17,7 @@ limitations under the License.
 package dockercreds
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -100,4 +101,33 @@ func (dc *DockerCreds) GetCredentials() []Credentials {
 	}
 
 	return credentials
+}
+
+func (dc *DockerCreds) ResolveRegistryURL(credentials Credentials) string {
+	registryURL := credentials.URL
+
+	// TODO: This auto-expansion does not support with kaniko today, must provide full URL. Remove this?
+	// if the user specified the docker hub, we can't use this as-is. add the user name to the URL
+	// to generate a valid URL
+	if common.MatchStringPatterns([]string{
+		`\.docker\.com`,
+		`\.docker\.io`,
+	}, registryURL) {
+		registryURL = common.StripSuffixes(registryURL, []string{
+
+			// when using docker.io as login address, the resolved address in the docker credentials file
+			// might contain the registry version, strip it if so
+			"/v1",
+			"/v1/",
+		})
+		registryURL = fmt.Sprintf("%s/%s", registryURL, credentials.Username)
+	}
+
+	// trim prefixes
+	registryURL = common.StripPrefixes(registryURL,
+		[]string{
+			"https://",
+			"http://",
+		})
+	return registryURL
 }

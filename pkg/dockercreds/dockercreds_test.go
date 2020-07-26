@@ -56,6 +56,35 @@ type GetUserAndURLTestSuite struct {
 	DockerCredsTestSuite
 }
 
+func (suite *GetUserAndURLTestSuite) TestResolveRegistryURL() {
+	dummyUsername := "dummy-user"
+	for _, testCase := range []struct {
+		credentials             Credentials
+		expectedRegistryURLHost string
+		Match                   bool
+	}{
+		{
+			credentials:             Credentials{URL: "https://index.docker.io/v1/", Username: dummyUsername},
+			expectedRegistryURLHost: "index.docker.io",
+		},
+		{
+			credentials:             Credentials{URL: "index.docker.io/v1/", Username: dummyUsername},
+			expectedRegistryURLHost: "index.docker.io",
+		},
+		{
+			credentials:             Credentials{URL: "https://index.docker.io", Username: dummyUsername},
+			expectedRegistryURLHost: "index.docker.io",
+		},
+		{
+			credentials:             Credentials{URL: "index.docker.io", Username: dummyUsername},
+			expectedRegistryURLHost: "index.docker.io",
+		},
+	} {
+		expectedRegistryURL := testCase.expectedRegistryURLHost + "/" + dummyUsername
+		suite.Require().Equal(expectedRegistryURL, suite.dockerCreds.ResolveRegistryURL(testCase.credentials))
+	}
+}
+
 func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathSuccessful() {
 	user, url, refreshInterval, err := extractMetaFromKeyPath("some-user---some-url.json")
 	suite.Require().NoError(err)

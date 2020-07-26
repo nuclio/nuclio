@@ -17,11 +17,9 @@ limitations under the License.
 package dashboard
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
@@ -245,29 +243,7 @@ func (s *Server) getRegistryURL() string {
 	credentials := s.dockerCreds.GetCredentials()
 
 	if len(credentials) >= 1 {
-		registryURL = credentials[0].URL
-
-		// TODO: This auto-expansion does not support with kaniko today, must provide full URL. Remove this?
-		// if the user specified the docker hub, we can't use this as-is. add the user name to the URL
-		// to generate a valid URL
-		if common.MatchStringPatterns([]string{
-			`\.docker\.com`,
-			`\.docker\.io`,
-		}, registryURL) {
-			registryURL = common.StripSuffixes(registryURL, []string{
-				"/v1",
-				"/v1/",
-			})
-			registryURL = fmt.Sprintf("%s/%s", registryURL, credentials[0].Username)
-		}
-
-		// trim prefixes
-		registryURL = common.StripPrefixes(registryURL,
-			[]string{
-				"https://",
-				"http://",
-			})
-
+		registryURL = s.dockerCreds.ResolveRegistryURL(credentials[0])
 		s.Logger.InfoWith("Using registry from credentials", "url", registryURL)
 	}
 
