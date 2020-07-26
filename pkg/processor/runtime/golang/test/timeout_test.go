@@ -48,7 +48,8 @@ func (suite *TimeoutTestSuite) SetupTest() {
 
 func (suite *TimeoutTestSuite) TestTimeout() {
 	eventTimeout := 300 * time.Millisecond
-	createFunctionOptions := suite.GetDeployOptions("timeout", suite.GetFunctionPath("timeout"))
+	createFunctionOptions := suite.GetDeployOptions("timeout",
+		suite.GetFunctionPath("timeout"))
 	createFunctionOptions.FunctionConfig.Spec.EventTimeout = eventTimeout.String()
 	okStatusCode := http.StatusOK
 	timeoutStatusCode := http.StatusRequestTimeout
@@ -58,13 +59,13 @@ func (suite *TimeoutTestSuite) TestTimeout() {
 			RequestBody:    suite.genTimeoutRequest(time.Millisecond),
 			RequestHeaders: requestHeaders,
 
-			ExpectedResponseStatusCode: &timeoutStatusCode,
+			ExpectedResponseStatusCode: &okStatusCode,
 		},
 		{
 			RequestBody:    suite.genTimeoutRequest(time.Second),
 			RequestHeaders: requestHeaders,
 
-			ExpectedResponseStatusCode: &okStatusCode,
+			ExpectedResponseStatusCode: &timeoutStatusCode,
 		},
 	})
 }

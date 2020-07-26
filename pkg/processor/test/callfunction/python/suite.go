@@ -19,6 +19,7 @@ package callfunction
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -56,6 +57,7 @@ func (suite *CallFunctionTestSuite) TestCallFunction() {
 	calleeDeployOptions.FunctionConfig.Spec.Platform.Attributes = map[string]interface{}{"network": networkName}
 	callerDeployOptions.FunctionConfig.Spec.Platform.Attributes = map[string]interface{}{"network": networkName}
 
+	createdHTTPStatusCode := http.StatusCreated
 	callerRequestBodyVerifier := func(body []byte) {
 		parsedBody := map[string]string{}
 
@@ -79,7 +81,8 @@ func (suite *CallFunctionTestSuite) TestCallFunction() {
 			ExpectedResponseHeaders: map[string]string{
 				"X-Callee-Received-Header": "caller_header",
 			},
-			ExpectedResponseBody: callerRequestBodyVerifier,
+			ExpectedResponseBody:       callerRequestBodyVerifier,
+			ExpectedResponseStatusCode: &createdHTTPStatusCode,
 		})
 
 		return true

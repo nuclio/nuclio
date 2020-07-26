@@ -179,15 +179,16 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 
 	suite.Require().NoError(err, "Failed to send request")
 
+	body, err := ioutil.ReadAll(httpResponse.Body)
+	suite.Require().NoError(err)
+
 	if request.ExpectedResponseStatusCode != nil {
 		suite.Require().Equal(*request.ExpectedResponseStatusCode,
 			httpResponse.StatusCode,
-			"Got unexpected status code with request body (%s)",
-			request.RequestBody)
+			"Got unexpected status code with request body (%s) and response body (%s)",
+			request.RequestBody,
+			body)
 	}
-
-	body, err := ioutil.ReadAll(httpResponse.Body)
-	suite.Require().NoError(err)
 
 	// verify header correctness
 	// the httpResponse may contain more headers. just check that all the expected
