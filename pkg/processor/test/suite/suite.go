@@ -53,16 +53,17 @@ type OnAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool
 // function container (through an trigger of some sort)
 type TestSuite struct {
 	suite.Suite
-	Logger       logger.Logger
-	DockerClient dockerclient.Client
-	Platform     platform.Platform
-	TestID       string
-	Runtime      string
-	RuntimeDir   string
-	FunctionDir  string
-	containerID  string
-	TempDir      string
-	CleanupTemp  bool
+	Logger                 logger.Logger
+	DockerClient           dockerclient.Client
+	Platform               platform.Platform
+	TestID                 string
+	Runtime                string
+	RuntimeDir             string
+	FunctionDir            string
+
+	containerID            string
+	createdTempDirs        []string
+	cleanupCreatedTempDirs bool
 }
 
 // BlastRequest holds information for BlastHTTP function
@@ -179,8 +180,12 @@ func (suite *TestSuite) TearDownTest() {
 		}
 	}
 
-	if !suite.T().Skipped() && suite.CleanupTemp && common.FileExists(suite.TempDir) {
-		suite.Failf("", "Temporary dir %s was not cleaned", suite.TempDir)
+	if !suite.T().Skipped() && suite.cleanupCreatedTempDirs {
+		for _, tempDir := range suite.createdTempDirs {
+			if common.FileExists(tempDir) {
+				suite.Failf("", "Temporary dir %s was not cleaned", tempDir)
+			}
+		}
 	}
 }
 
@@ -247,8 +252,7 @@ func (suite *TestSuite) GetDeployOptions(functionName string, functionPath strin
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = functionPath
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
 
-	suite.TempDir = suite.CreateTempDir()
-	createFunctionOptions.FunctionConfig.Spec.Build.TempDir = suite.TempDir
+	createFunctionOptions.FunctionConfig.Spec.Build.TempDir = suite.CreateTempDir()
 
 	return createFunctionOptions
 }
@@ -276,7 +280,7 @@ func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.Cr
 	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 
 	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
-	suite.CleanupTemp = !createFunctionOptions.FunctionConfig.Spec.Build.NoCleanup
+	suite.cleanupCreatedTempDirs = !createFunctionOptions.FunctionConfig.Spec.Build.NoCleanup
 }
 
 func (suite *TestSuite) GetUniqueFunctionName(name string) string {
@@ -292,11 +296,9 @@ func (suite *TestSuite) GetRuntimeDir() string {
 }
 
 func (suite *TestSuite) CreateTempDir() string {
-	tempDir, err := ioutil.TempDir("", "build-test-"+suite.TestID)
-	if err != nil {
-		suite.FailNowf("Failed to create temporary dir %s for test %s", suite.TempDir, suite.TestID)
-	}
-
+	tempDir, err := ioutil.TempDir("", "build-test-*")
+	suite.Require().NoError(err, "Failed to create temporary dir")
+	suite.createdTempDirs = append(suite.createdTempDirs, tempDir)
 	return tempDir
 }
 
