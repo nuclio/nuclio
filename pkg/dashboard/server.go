@@ -281,7 +281,6 @@ func (s *Server) resolveDockerCredentialsRegistryURL(credentials dockercreds.Cre
 	return registryURL
 }
 
-
 func (s *Server) loadDockerKeys(dockerKeyDir string) error {
 	if dockerKeyDir == "" {
 		return nil
