@@ -168,7 +168,7 @@ func (suite *TestSuite) TearDownTest() {
 			time.Sleep(2 * time.Second)
 
 			if logs, err := suite.DockerClient.GetContainerLogs(suite.containerID); err == nil {
-				suite.Logger.WarnWith("Test failed, retreived logs", "logs", logs)
+				suite.Logger.WarnWith("Test failed, retrieved logs", "logs", logs)
 			} else {
 				suite.Logger.WarnWith("Failed to get docker logs on failure", "err", err)
 			}

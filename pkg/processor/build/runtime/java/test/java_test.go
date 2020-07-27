@@ -41,7 +41,7 @@ func (suite *TestSuite) SetupSuite() {
 
 func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
 	functionInfo := buildsuite.FunctionInfo{
-		Runtime: "java",
+		Runtime: suite.TestSuite.Runtime,
 	}
 
 	switch functionName {
