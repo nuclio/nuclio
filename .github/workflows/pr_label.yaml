@@ -1,7 +1,7 @@
 name: "Label PRs"
 on:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "*/30 * * * *"
 
 jobs:
   execute:
