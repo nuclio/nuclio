@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -64,8 +65,8 @@ func (r *Release) Run() error {
 		return errors.Wrap(err, "Failed to ensure repository")
 	}
 
-	if err := r.syncDevelopmentReleaseBranches(); err != nil {
-		return errors.Wrap(err, "Failed to sync development and release branches")
+	if err := r.mergeAndPush(r.releaseBranch, r.developmentBranch); err != nil {
+		return errors.Wrap(err, "Failed to sync release and development branches")
 	}
 
 	if err := r.populateCurrentAndTargetVersions(); err != nil {
@@ -150,16 +151,20 @@ func (r *Release) prepareRepository() error {
 }
 
 func (r *Release) populateCurrentAndTargetVersions() error {
+	var err error
 	runOptions := &cmdrunner.RunOptions{
 		WorkingDir: &r.repositoryDirPath,
 	}
 
-	// nuclio binaries & images version
-	results, err := r.shellRunner.Run(runOptions, `git describe --abbrev=0 --tags`)
-	if err != nil {
-		return errors.Wrap(err, "Failed to describe tags")
+	if r.currentVersion == "" {
+
+		// nuclio binaries & images version
+		results, err := r.shellRunner.Run(runOptions, `git describe --abbrev=0 --tags`)
+		if err != nil {
+			return errors.Wrap(err, "Failed to describe tags")
+		}
+		r.currentVersion = strings.TrimSpace(results.Output)
 	}
-	r.currentVersion = strings.TrimSpace(results.Output)
 
 	if r.targetVersion == "" {
 		reader := bufio.NewReader(os.Stdin)
@@ -225,26 +230,24 @@ func (r *Release) compileReleaseNotes() (string, error) {
 	return releaseNotes, nil
 }
 
-func (r *Release) syncDevelopmentReleaseBranches() error {
-	if r.releaseBranch == r.developmentBranch {
-		r.logger.InfoWith("Release and development branches are the same, there's nothing to sync",
-			"releaseBranch", r.releaseBranch,
-			"developmentBranch", r.developmentBranch)
+func (r *Release) mergeAndPush(branch string, branchToMerge string) error {
+	if branch == branchToMerge {
+		r.logger.InfoWith("Nothing to merge and push when branches are equal",
+			"branchToMerge", branchToMerge,
+			"branch", branch)
 		return nil
 	}
-
 	runOptions := &cmdrunner.RunOptions{
 		WorkingDir: &r.repositoryDirPath,
 	}
-
-	_, err := r.shellRunner.Run(runOptions, `git checkout %s`, r.releaseBranch)
+	_, err := r.shellRunner.Run(runOptions, `git checkout %s`, branch)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to checkout to release branch %s", r.releaseBranch)
+		return errors.Wrapf(err, "Failed to checkout to branch %s", branch)
 	}
 
-	_, err = r.shellRunner.Run(runOptions, `git merge %s`, r.developmentBranch)
+	_, err = r.shellRunner.Run(runOptions, `git merge %s`, branchToMerge)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to merge development branch %s", r.developmentBranch)
+		return errors.Wrapf(err, "Failed to merge branch %s", branchToMerge)
 	}
 
 	_, err = r.shellRunner.Run(runOptions, `git push`)
@@ -349,7 +352,7 @@ func (r *Release) populateReleaseWorkflowID() error {
 
 	workflowsResponse := struct {
 		Workflows []struct {
-			ID   string `json:"id,omitempty"`
+			ID   int    `json:"id,omitempty"`
 			Name string `json:"name,omitempty"`
 		} `json:"workflows,omitempty"`
 	}{}
@@ -358,7 +361,8 @@ func (r *Release) populateReleaseWorkflowID() error {
 	}
 	for _, workflow := range workflowsResponse.Workflows {
 		if workflow.Name == workflowName {
-			workflowID = workflow.ID
+			workflowID = strconv.Itoa(workflow.ID)
+			break
 		}
 	}
 	if workflowID == "" {
@@ -448,7 +452,7 @@ func (r *Release) bumpHelmChartVersion() error {
 	for _, chartDir := range ChartDirs {
 		if _, err := r.shellRunner.Run(runOptions,
 			`git grep -lF "%s" %s | grep yaml | xargs sed -i '' -e "s/%s/%s/g"`,
-			r.targetVersion,
+			r.currentVersion,
 			path.Join("hack", chartDir),
 			r.currentVersion,
 			r.targetVersion); err != nil {
@@ -457,7 +461,7 @@ func (r *Release) bumpHelmChartVersion() error {
 	}
 
 	if _, err := r.shellRunner.Run(runOptions,
-		`sed -i '' -e "s/^\(version: \).*$/\1$s/g" %s`,
+		`sed -i '' -e "s/^\(version: \).*$/\1%s/g" %s`,
 		r.helmChartsTargetVersion,
 		helmChartFilePath); err != nil {
 		return errors.Wrap(err, "Failed to write helm chart target version")
@@ -474,7 +478,7 @@ func (r *Release) bumpHelmChartVersion() error {
 	}
 
 	if r.releaseBranch != r.developmentBranch {
-		if err := r.syncDevelopmentReleaseBranches(); err != nil {
+		if err := r.mergeAndPush(r.developmentBranch, r.releaseBranch); err != nil {
 			return errors.Wrap(err, "Failed to sync development and release branches")
 		}
 	}
@@ -500,13 +504,14 @@ func run() error {
 		return errors.Wrap(err, "Failed to create new release")
 	}
 
-	flag.StringVar(&release.targetVersion, "release-version", "", "Release target version")
+	flag.StringVar(&release.targetVersion, "target-version", "", "Release target version")
 	flag.StringVar(&release.repositoryOwnerName, "repository-owner-name", "nuclio", "Repository owner name to clone nuclio from (Default: nuclio)")
 	flag.StringVar(&release.repositoryScheme, "repository-scheme", "https", "Scheme to use when cloning nuclio repository")
 	flag.StringVar(&release.developmentBranch, "development-branch", "development", "Development branch (e.g.: development, 1.3.x")
 	flag.StringVar(&release.releaseBranch, "release-branch", "master", "Release branch (e.g.: master, 1.3.x, ...)")
 	flag.StringVar(&release.helmChartsTargetVersion, "helm-charts-release-version", "", "Helm charts release target version")
 	flag.BoolVar(&release.publishHelmCharts, "publish-helm-charts", true, "Whether to publish helm charts")
+	flag.Parse()
 	return release.Run()
 }
 
