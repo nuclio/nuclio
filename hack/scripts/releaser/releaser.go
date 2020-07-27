@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -22,6 +21,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
+	"gopkg.in/yaml.v2"
 )
 
 const helmChartFilePath = "hack/k8s/helm/nuclio/Chart.yaml"
@@ -168,8 +168,8 @@ func (r *Release) populateCurrentAndTargetVersions() error {
 
 	if r.targetVersion == "" {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Print(fmt.Sprintf("Target version (Current version: %s, Press enter to continue): ",
-			r.currentVersion))
+		fmt.Printf("Target version (Current version: %s, Press enter to continue): ",
+			r.currentVersion)
 		r.targetVersion, err = reader.ReadString('\n')
 		if err != nil {
 			return errors.Wrap(err, "Failed to read target version from stdin")
@@ -193,8 +193,8 @@ func (r *Release) populateCurrentAndTargetVersions() error {
 
 	if r.helmChartsTargetVersion == "" {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Print(fmt.Sprintf("Helm chart target version (Current version: %s, Press enter to continue): ",
-			r.helmChartsCurrentVersion))
+		fmt.Printf("Helm chart target version (Current version: %s, Press enter to continue): ",
+			r.helmChartsCurrentVersion)
 		r.helmChartsTargetVersion, err = reader.ReadString('\n')
 		if err != nil {
 			return errors.Wrap(err, "Failed to read helm chart target version from stdin")
