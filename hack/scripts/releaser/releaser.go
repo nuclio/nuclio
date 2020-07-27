@@ -60,15 +60,13 @@ func NewRelease() (*Release, error) {
 }
 
 func (r *Release) Run() error {
-	//if err := r.prepareRepository(); err != nil {
-	//	return errors.Wrap(err, "Failed to ensure repository")
-	//}
+	if err := r.prepareRepository(); err != nil {
+		return errors.Wrap(err, "Failed to ensure repository")
+	}
 
-	r.repositoryDirPath = "/var/folders/1l/9hc_pvy15917v28m72fvgmyr0000gn/T/nuclio514093077"
-
-	//if err := r.syncDevelopmentReleaseBranches(); err != nil {
-	//	return errors.Wrap(err, "Failed to sync development and release branches")
-	//}
+	if err := r.syncDevelopmentReleaseBranches(); err != nil {
+		return errors.Wrap(err, "Failed to sync development and release branches")
+	}
 
 	if err := r.populateCurrentAndTargetVersions(); err != nil {
 		return errors.Wrap(err, "Failed to populate current and target versions")
@@ -98,7 +96,7 @@ func (r *Release) prepareRepository() error {
 		r.logger.Debug("Creating a temp dir")
 
 		// create a temp dir & clone to it
-		workDir, err := ioutil.TempDir("", "nuclio")
+		workDir, err := ioutil.TempDir("", "nuclio-releaser-*")
 		if err != nil {
 			return errors.Wrap(err, "Failed to create work dir")
 		}
@@ -192,7 +190,6 @@ func (r *Release) populateCurrentAndTargetVersions() error {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print(fmt.Sprintf("Helm chart target version (Current version: %s, Press enter to continue): ",
 			r.helmChartsCurrentVersion))
-		fmt.Print("")
 		r.helmChartsTargetVersion, err = reader.ReadString('\n')
 		if err != nil {
 			return errors.Wrap(err, "Failed to read helm chart target version from stdin")
@@ -482,19 +479,18 @@ func (r *Release) bumpHelmChartVersion() error {
 		}
 	}
 
-	// TODO: uncomment
-	//if r.publishHelmCharts {
-	//	if _, err := r.shellRunner.Run(runOptions,
-	//		`git checkout %s`,
-	//		r.releaseBranch); err != nil {
-	//		return errors.Wrap(err, "Failed to checkout to release branch")
-	//	}
-	//	if _, err := r.shellRunner.Run(&cmdrunner.RunOptions{
-	//		WorkingDir: &r.repositoryDirPath,
-	//	}, `make helm-publish`); err != nil {
-	//		return errors.Wrap(err, "Failed to publish helm charts")
-	//	}
-	//}
+	if r.publishHelmCharts {
+		if _, err := r.shellRunner.Run(runOptions,
+			`git checkout %s`,
+			r.releaseBranch); err != nil {
+			return errors.Wrap(err, "Failed to checkout to release branch")
+		}
+		if _, err := r.shellRunner.Run(&cmdrunner.RunOptions{
+			WorkingDir: &r.repositoryDirPath,
+		}, `make helm-publish`); err != nil {
+			return errors.Wrap(err, "Failed to publish helm charts")
+		}
+	}
 	return nil
 }
 
@@ -503,10 +499,9 @@ func run() error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to create new release")
 	}
-	flag.StringVar(&release.targetVersion, "release-version", "", "Release target version")
 
-	// TODO: change to nuclio
-	flag.StringVar(&release.repositoryOwnerName, "repository-owner-name", "liranbg", "Repository owner name to clone nuclio from (Default: nuclio)")
+	flag.StringVar(&release.targetVersion, "release-version", "", "Release target version")
+	flag.StringVar(&release.repositoryOwnerName, "repository-owner-name", "nuclio", "Repository owner name to clone nuclio from (Default: nuclio)")
 	flag.StringVar(&release.repositoryScheme, "repository-scheme", "https", "Scheme to use when cloning nuclio repository")
 	flag.StringVar(&release.developmentBranch, "development-branch", "development", "Development branch (e.g.: development, 1.3.x")
 	flag.StringVar(&release.releaseBranch, "release-branch", "master", "Release branch (e.g.: master, 1.3.x, ...)")
