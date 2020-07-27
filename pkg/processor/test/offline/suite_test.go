@@ -21,7 +21,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -48,14 +47,9 @@ func (suite *offlineTestSuite) TestGolang() {
 	createFunctionOptions.FunctionConfig.Spec.Build.NoCache = true
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "golang"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "WithModules"
-
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		testRequest := httpsuite.Request{
-			RequestMethod:        "GET",
-			RequestPort:          deployResult.Port,
-			ExpectedResponseBody: "from_go_modules",
-		}
-		return suite.SendRequestVerifyResponse(&testRequest)
+	suite.DeployFunctionAndRequest(createFunctionOptions, &httpsuite.Request{
+		RequestMethod:        "GET",
+		ExpectedResponseBody: "from_go_modules",
 	})
 }
 
@@ -68,14 +62,10 @@ func (suite *offlineTestSuite) TestJava() {
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "java"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "Reverser"
 
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		testRequest := httpsuite.Request{
-			RequestBody:          "abcd",
-			RequestMethod:        "POST",
-			RequestPort:          deployResult.Port,
-			ExpectedResponseBody: "dcba",
-		}
-		return suite.SendRequestVerifyResponse(&testRequest)
+	suite.DeployFunctionAndRequest(createFunctionOptions, &httpsuite.Request{
+		RequestBody:          "abcd",
+		RequestMethod:        "POST",
+		ExpectedResponseBody: "dcba",
 	})
 }
 

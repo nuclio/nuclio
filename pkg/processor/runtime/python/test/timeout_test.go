@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -56,67 +55,51 @@ func (suite *timeoutSuite) TestTimeout() {
 	createFunctionOptions.FunctionConfig.Spec.EventTimeout = timeout.String()
 	createFunctionOptions.FunctionConfig.Spec.Handler = "timeout:handler"
 	var oldPID int
+	okStatusCode := http.StatusOK
+	timeoutStatusCode := http.StatusRequestTimeout
+	sleepTime := 1 * time.Second
 
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		bodyVerifier := func(body []byte) {
-			response := &timeoutResponse{}
-			err := json.Unmarshal(body, response)
-			suite.Require().NoErrorf(err, "Can't parse response - %q", string(body))
-			oldPID = response.PID
-		}
-
-		expectedResponseCode := http.StatusOK
-		testRequest := httpsuite.Request{
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+		{
 			RequestBody:    suite.genTimeoutRequest(time.Millisecond),
 			RequestHeaders: requestHeaders,
-			RequestPort:    deployResult.Port,
-			RequestMethod:  "POST",
 
-			ExpectedResponseBody:       bodyVerifier,
-			ExpectedResponseStatusCode: &expectedResponseCode,
-		}
-
-		if !suite.SendRequestVerifyResponse(&testRequest) {
-			return false
-		}
-
-		expectedResponseCode = http.StatusRequestTimeout
-		testRequest = httpsuite.Request{
-			RequestBody:    suite.genTimeoutRequest(time.Second),
+			ExpectedResponseBody: func(body []byte) {
+				response := &timeoutResponse{}
+				err := json.Unmarshal(body, response)
+				suite.Require().NoErrorf(err, "Can't parse response - %q", string(body))
+				oldPID = response.PID
+			},
+			ExpectedResponseStatusCode: &okStatusCode,
+		},
+		{
+			RequestBody:    suite.genTimeoutRequest(sleepTime),
 			RequestHeaders: requestHeaders,
-			RequestPort:    deployResult.Port,
-			RequestMethod:  "POST",
 
-			ExpectedResponseStatusCode: &expectedResponseCode,
-		}
+			ExpectedResponseStatusCode: &timeoutStatusCode,
+		},
 
-		if !suite.SendRequestVerifyResponse(&testRequest) {
-			return false
-		}
+		// retry until runtime is back
+		{
+			RequestBody:    suite.genTimeoutRequest(0),
+			RequestHeaders: requestHeaders,
 
-		// TODO: Poll processor for trigger status?
-		time.Sleep(2 * time.Second) // Give runtime time to restart
-
-		bodyVerifier = func(body []byte) {
-			response := &timeoutResponse{}
-			err := json.Unmarshal(body, response)
-			suite.Require().NoErrorf(err, "Can't parse response - %q", string(body))
-			suite.Require().NotEqual(oldPID, response.PID, "Wrapper PID didn't change")
-		}
-
-		expectedResponseCode = http.StatusOK
-		// Check that runtime works after restart and we have another process
-		testRequest = httpsuite.Request{
+			RetryUntilSuccessfulStatusCode: &okStatusCode,
+			RetryUntilSuccessfulInterval:   1,
+			RetryUntilSuccessfulDuration:   2 * sleepTime,
+		},
+		{
 			RequestBody:    suite.genTimeoutRequest(time.Millisecond),
 			RequestHeaders: requestHeaders,
-			RequestPort:    deployResult.Port,
-			RequestMethod:  "POST",
 
-			ExpectedResponseBody:       bodyVerifier,
-			ExpectedResponseStatusCode: &expectedResponseCode,
-		}
-
-		return suite.SendRequestVerifyResponse(&testRequest)
+			ExpectedResponseBody: func(body []byte) {
+				response := &timeoutResponse{}
+				err := json.Unmarshal(body, response)
+				suite.Require().NoErrorf(err, "Can't parse response - %q", string(body))
+				suite.Require().NotEqual(oldPID, response.PID, "Wrapper PID didn't change")
+			},
+			ExpectedResponseStatusCode: &okStatusCode,
+		},
 	})
 }
 

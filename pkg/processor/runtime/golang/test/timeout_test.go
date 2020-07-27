@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -49,35 +48,25 @@ func (suite *TimeoutTestSuite) SetupTest() {
 
 func (suite *TimeoutTestSuite) TestTimeout() {
 	eventTimeout := 300 * time.Millisecond
-	createFunctionOptions := suite.GetDeployOptions("timeout", suite.GetFunctionPath("timeout"))
+	createFunctionOptions := suite.GetDeployOptions("timeout",
+		suite.GetFunctionPath("timeout"))
 	createFunctionOptions.FunctionConfig.Spec.EventTimeout = eventTimeout.String()
+	okStatusCode := http.StatusOK
+	timeoutStatusCode := http.StatusRequestTimeout
 
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-
-		expectedResponseCode := http.StatusOK
-		testRequest := httpsuite.Request{
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+		{
 			RequestBody:    suite.genTimeoutRequest(time.Millisecond),
 			RequestHeaders: requestHeaders,
-			RequestPort:    deployResult.Port,
-			RequestMethod:  "POST",
 
-			ExpectedResponseStatusCode: &expectedResponseCode,
-		}
-
-		if !suite.SendRequestVerifyResponse(&testRequest) {
-			return false
-		}
-
-		expectedResponseCode = http.StatusRequestTimeout
-		testRequest = httpsuite.Request{
+			ExpectedResponseStatusCode: &okStatusCode,
+		},
+		{
 			RequestBody:    suite.genTimeoutRequest(time.Second),
 			RequestHeaders: requestHeaders,
-			RequestPort:    deployResult.Port,
-			RequestMethod:  "POST",
 
-			ExpectedResponseStatusCode: &expectedResponseCode,
-		}
-		return suite.SendRequestVerifyResponse(&testRequest)
+			ExpectedResponseStatusCode: &timeoutStatusCode,
+		},
 	})
 }
 
