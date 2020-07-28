@@ -18,9 +18,12 @@ package test
 
 import (
 	"encoding/base64"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -45,6 +48,28 @@ func (suite *DeployFunctionTestSuite) SetupSuite() {
 
 	// start controller in background
 	go suite.Controller.Start() // nolint: errcheck
+}
+
+func (suite *DeployFunctionTestSuite) TearDownSuite() {
+
+	// remove nuclio function leftovers
+	_, err := suite.executeKubectl([]string{"delete", "nucliofunctions", "--all"}, nil)
+	suite.Require().NoError(err)
+
+	// wait until controller remove it all
+	err = common.RetryUntilSuccessful(2*time.Minute,
+		5*time.Second,
+		func() bool {
+			results, err := suite.executeKubectl([]string{"get", "all"},
+				map[string]string{
+					"selector": "nuclio.io/app",
+				})
+			if err != nil {
+				return false
+			}
+			return strings.Contains(results.Output, "No resources found in")
+		})
+	suite.Require().NoError(err)
 }
 
 func (suite *DeployFunctionTestSuite) TestStaleResourceVersion() {
@@ -181,7 +206,6 @@ func (suite *DeployFunctionTestSuite) TestMinMaxReplicas() {
 func (suite *DeployFunctionTestSuite) compileCreateFunctionOptions(
 	functionName string) *platform.CreateFunctionOptions {
 
-
 	createFunctionOptions := suite.TestSuite.compileCreateFunctionOptions(functionName)
 
 	functionSourceCodeFirst := base64.StdEncoding.EncodeToString([]byte(`
@@ -199,8 +223,8 @@ func TestPlatformTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	//if !common.GetEnvOrDefaultBool("NUCLIO_K8S_TESTS_ENABLED", false) {
-	//	t.Skip("Test can only run when `NUCLIO_K8S_TESTS_ENABLED` environ is enabled")
-	//}
+	if !common.GetEnvOrDefaultBool("NUCLIO_K8S_TESTS_ENABLED", false) {
+		t.Skip("Test can only run when `NUCLIO_K8S_TESTS_ENABLED` environ is enabled")
+	}
 	suite.Run(t, new(DeployFunctionTestSuite))
 }
