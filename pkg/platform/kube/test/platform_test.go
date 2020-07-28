@@ -19,76 +19,38 @@ package test
 import (
 	"encoding/base64"
 	"testing"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
-	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
-	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
+	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"github.com/stretchr/testify/suite"
-	"k8s.io/client-go/kubernetes"
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type TestSuite struct {
-	processorsuite.TestSuite
+type DeployFunctionTestSuite struct {
+	TestSuite
 	cmdRunner   cmdrunner.CmdRunner
 	registryURL string
 }
 
-func (suite *TestSuite) SetupSuite() {
-	var err error
-	suite.Namespace = common.GetEnvOrDefaultString("NUCLIO_TEST_NAMESPACE", "default")
-	suite.PlatformType = "kube"
-	suite.PlatformConfiguration = &platformconfig.Config{
-		Kind: suite.PlatformType,
-	}
+func (suite *DeployFunctionTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 
-	// TODO: ensure crd are installed
-	// helm install
-	//	--set controller.enabled=false
-	//	--set dashboard.enabled=false
-	//	--set autoscaler.enabled=false
-	//	--set dlx.enabled=false
-	//	--set rbac.create=false
-	//	--set crd.create=true
-	//	--debug
-	//	--wait
-	//	--namespace nuclio nuclio hack/k8s/helm/nuclio/
-	//suite.cmdRunner.Run(nil, "docker run --name nuclio-kube-test-registry --detach --publish 5000:5000 registry:2")
-
-	// TODO: run registry
-	suite.cmdRunner, err = cmdrunner.NewShellRunner(suite.Logger)
-	suite.Require().NoError(err, "Failed to create shell runner")
-
-	suite.registryURL = common.GetEnvOrDefaultString("NUCLIO_TEST_REGISTRY_URL", "localhost:5000")
-
-	// do not rename function name
-	suite.FunctionNameUniquify = false
-
 	// start controller in background
-	suite.createAndStartController()
+	go suite.Controller.Start() // nolint: errcheck
 }
 
-func (suite *TestSuite) TestDeployWithStaleResourceVersion() {
+func (suite *DeployFunctionTestSuite) TestStaleResourceVersion() {
 	var resourceVersion string
 
-	functionSourceCodeFirst := base64.StdEncoding.EncodeToString([]byte(`
-def handler(context, event): return "first"`))
-	functionSourceCodeSecond := base64.StdEncoding.EncodeToString([]byte(`
-def handler(context, event): return "second"`))
-
 	createFunctionOptions := suite.compileCreateFunctionOptions("resource-schema")
-
-	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
-	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCodeFirst
 
 	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
 
@@ -108,7 +70,10 @@ def handler(context, event): return "second"`))
 		createFunctionOptions.FunctionConfig.Meta.ResourceVersion = resourceVersion
 
 		// change source code
-		createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCodeSecond
+		createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
+def handler(context, event):
+  return "darn it!"
+`))
 		return true
 	}
 
@@ -138,55 +103,96 @@ def handler(context, event): return "second"`))
 	suite.DeployFunctionAndRedeploy(createFunctionOptions, afterFirstDeploy, afterSecondDeploy)
 }
 
-func (suite *TestSuite) compileCreateFunctionOptions(functionName string) *platform.CreateFunctionOptions {
-	createFunctionOptions := &platform.CreateFunctionOptions{
-		Logger: suite.Logger,
-		FunctionConfig: functionconfig.Config{
-			Meta: functionconfig.Meta{
-				Name:      functionName,
-				Namespace: suite.Namespace,
+func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
+	runAsUserID := int64(1000)
+	runAsGroupID := int64(2000)
+	functionAvatar := "demo-avatar"
+	functionLabels := map[string]string{
+		"my-function": "is-labeled",
+	}
+	suite.PlatformConfiguration.FunctionAugmentedConfigs = []platformconfig.LabelSelectorAndConfig{
+		{
+			LabelSelector: metav1.LabelSelector{
+				MatchLabels: functionLabels,
 			},
-			Spec: functionconfig.Spec{
-				Build: functionconfig.Build{
-					Registry: suite.registryURL,
+			FunctionConfig: functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Avatar: functionAvatar,
+				},
+			},
+			Kubernetes: platformconfig.Kubernetes{
+				Deployment: &appsv1.Deployment{
+					Spec: appsv1.DeploymentSpec{
+						Template: v1.PodTemplateSpec{
+							Spec: v1.PodSpec{
+								SecurityContext: &v1.PodSecurityContext{
+									RunAsUser:  &runAsUserID,
+									RunAsGroup: &runAsGroupID,
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 	}
-	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
-	createFunctionOptions.FunctionConfig.Spec.Build.Registry = "localhost:5000"
-	return createFunctionOptions
+	functionName := "augmented-config"
+	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Meta.Labels = functionLabels
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		deploymentInstance := &appsv1.Deployment{}
+		functionInstance := &nuclioio.NuclioFunction{}
+		suite.populateResource("nucliofunction",
+			functionName,
+			functionInstance)
+		suite.populateResource("deployment",
+			kube.DeploymentNameFromFunctionName(functionName),
+			deploymentInstance)
+
+		// ensure function spec was enriched
+		suite.Require().Equal(functionAvatar, functionInstance.Spec.Avatar)
+
+		// ensure function deployment was enriched
+		suite.Require().NotNil(deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsUser)
+		suite.Require().NotNil(deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsGroup)
+		suite.Require().Equal(runAsUserID, *deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsUser)
+		suite.Require().Equal(runAsGroupID, *deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsGroup)
+		return true
+	})
+
 }
 
-func (suite *TestSuite) createAndStartController() {
-	testKubeconfigPath := common.GetEnvOrDefaultString("NUCLIO_TEST_KUBECONFIG", "")
-	restConfig, err := common.GetClientConfig(common.GetKubeconfigPath(testKubeconfigPath))
-	suite.Require().NoError(err)
+func (suite *DeployFunctionTestSuite) TestMinMaxReplicas() {
+	functionName := "min-max-replicas"
+	two := 2
+	three := 3
+	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &two
+	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &three
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		hpaInstance := &autoscalingv1.HorizontalPodAutoscaler{}
+		suite.populateResource("hpa", kube.HPANameFromFunctionName(functionName), hpaInstance)
+		suite.Require().Equal(two, int(*hpaInstance.Spec.MinReplicas))
+		suite.Require().Equal(three, int(hpaInstance.Spec.MaxReplicas))
+		return true
+	})
+}
 
-	kubeClientSet, err := kubernetes.NewForConfig(restConfig)
-	suite.Require().NoError(err)
+func (suite *DeployFunctionTestSuite) compileCreateFunctionOptions(
+	functionName string) *platform.CreateFunctionOptions {
 
-	nuclioClientSet, err := nuclioioclient.NewForConfig(restConfig)
-	suite.Require().NoError(err)
 
-	// create a client for function deployments
-	functionresClient, err := functionres.NewLazyClient(suite.Logger, kubeClientSet, nuclioClientSet)
-	suite.Require().NoError(err)
+	createFunctionOptions := suite.TestSuite.compileCreateFunctionOptions(functionName)
 
-	controllerInstance, err := controller.NewController(suite.Logger,
-		suite.Namespace,
-		"",
-		kubeClientSet,
-		nuclioClientSet,
-		functionresClient,
-		time.Second*5,
-		time.Second*30,
-		suite.PlatformConfiguration,
-		4,
-		4,
-		4)
-	suite.Require().NoError(err)
-	go controllerInstance.Start() // nolint: errcheck
+	functionSourceCodeFirst := base64.StdEncoding.EncodeToString([]byte(`
+def handler(context, event):
+  return "hello world"
+`))
+
+	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCodeFirst
+	return createFunctionOptions
 }
 
 func TestPlatformTestSuite(t *testing.T) {
@@ -196,5 +202,5 @@ func TestPlatformTestSuite(t *testing.T) {
 	//if !common.GetEnvOrDefaultBool("NUCLIO_K8S_TESTS_ENABLED", false) {
 	//	t.Skip("Test can only run when `NUCLIO_K8S_TESTS_ENABLED` environ is enabled")
 	//}
-	suite.Run(t, new(TestSuite))
+	suite.Run(t, new(DeployFunctionTestSuite))
 }
