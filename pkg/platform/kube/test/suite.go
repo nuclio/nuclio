@@ -17,11 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"github.com/ghodss/yaml"
-	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
-)
-
-import (
 	"fmt"
 	"strings"
 	"time"
@@ -34,18 +29,23 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
+	"github.com/ghodss/yaml"
 	"k8s.io/client-go/kubernetes"
 )
 
-type TestSuite struct {
+type KubeTestSuite struct {
 	processorsuite.TestSuite
 	CmdRunner   cmdrunner.CmdRunner
 	RegistryURL string
 	Controller  *controller.Controller
 }
 
-func (suite *TestSuite) SetupSuite() {
+func (suite *KubeTestSuite) SetupSuite() {
+	if !common.GetEnvOrDefaultBool("NUCLIO_K8S_TESTS_ENABLED", false) {
+		suite.T().Skip("Test can only run when `NUCLIO_K8S_TESTS_ENABLED` environ is enabled")
+	}
 	var err error
 	suite.Namespace = common.GetEnvOrDefaultString("NUCLIO_TEST_NAMESPACE", "default")
 	suite.PlatformType = "kube"
@@ -55,26 +55,13 @@ func (suite *TestSuite) SetupSuite() {
 	}
 
 	suite.PlatformConfiguration.Kind = suite.PlatformType
+
 	suite.TestSuite.SetupSuite()
 
-	// TODO: ensure crd are installed
-	// helm install
-	//	--set Controller.enabled=false
-	//	--set dashboard.enabled=false
-	//	--set autoscaler.enabled=false
-	//	--set dlx.enabled=false
-	//	--set rbac.create=false
-	//	--set crd.create=true
-	//	--debug
-	//	--wait
-	//	--namespace nuclio nuclio hack/k8s/helm/nuclio/
-	//suite.CmdRunner.Run(nil, "docker run --name nuclio-kube-test-registry --detach --publish 5000:5000 registry:2")
+	suite.RegistryURL = common.GetEnvOrDefaultString("NUCLIO_TEST_REGISTRY_URL", "localhost:5000")
 
-	// TODO: run registry
 	suite.CmdRunner, err = cmdrunner.NewShellRunner(suite.Logger)
 	suite.Require().NoError(err, "Failed to create shell runner")
-
-	suite.RegistryURL = common.GetEnvOrDefaultString("NUCLIO_TEST_REGISTRY_URL", "localhost:5000")
 
 	// do not rename function name
 	suite.FunctionNameUniquify = false
@@ -83,12 +70,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.Controller = suite.createController()
 }
 
-func (suite *TestSuite) TearDownSuite() {
-	suite.TestSuite.TearDownTest()
-
-}
-
-func (suite *TestSuite) executeKubectl(positionalArgs []string,
+func (suite *KubeTestSuite) executeKubectl(positionalArgs []string,
 	namedArgs map[string]string) (cmdrunner.RunResult, error) {
 
 	argsStringSlice := []string{
@@ -109,7 +91,7 @@ func (suite *TestSuite) executeKubectl(positionalArgs []string,
 
 }
 
-func (suite *TestSuite) getResource(resourceKind, resourceName string) string {
+func (suite *KubeTestSuite) getResource(resourceKind, resourceName string) string {
 	results, err := suite.executeKubectl([]string{
 		"get", resourceKind, resourceName},
 		map[string]string{
@@ -120,13 +102,13 @@ func (suite *TestSuite) getResource(resourceKind, resourceName string) string {
 	return results.Output
 }
 
-func (suite *TestSuite) populateResource(resourceKind, resourceName string, resource interface{}) {
+func (suite *KubeTestSuite) populateResource(resourceKind, resourceName string, resource interface{}) {
 	resourceContent := suite.getResource(resourceKind, resourceName)
 	err := yaml.Unmarshal([]byte(resourceContent), resource)
 	suite.Require().NoError(err)
 }
 
-func (suite *TestSuite) compileCreateFunctionOptions(functionName string) *platform.CreateFunctionOptions {
+func (suite *KubeTestSuite) compileCreateFunctionOptions(functionName string) *platform.CreateFunctionOptions {
 	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger: suite.Logger,
 		FunctionConfig: functionconfig.Config{
@@ -146,9 +128,8 @@ func (suite *TestSuite) compileCreateFunctionOptions(functionName string) *platf
 	return createFunctionOptions
 }
 
-func (suite *TestSuite) createController() *controller.Controller {
-	testKubeconfigPath := common.GetEnvOrDefaultString("NUCLIO_TEST_KUBECONFIG", "")
-	restConfig, err := common.GetClientConfig(common.GetKubeconfigPath(testKubeconfigPath))
+func (suite *KubeTestSuite) createController() *controller.Controller {
+	restConfig, err := common.GetClientConfig(common.GetKubeconfigPath(""))
 	suite.Require().NoError(err)
 
 	kubeClientSet, err := kubernetes.NewForConfig(restConfig)

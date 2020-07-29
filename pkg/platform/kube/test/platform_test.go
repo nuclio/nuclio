@@ -38,13 +38,13 @@ import (
 )
 
 type DeployFunctionTestSuite struct {
-	TestSuite
+	KubeTestSuite
 	cmdRunner   cmdrunner.CmdRunner
 	registryURL string
 }
 
 func (suite *DeployFunctionTestSuite) SetupSuite() {
-	suite.TestSuite.SetupSuite()
+	suite.KubeTestSuite.SetupSuite()
 
 	// start controller in background
 	go suite.Controller.Start() // nolint: errcheck
@@ -206,25 +206,19 @@ func (suite *DeployFunctionTestSuite) TestMinMaxReplicas() {
 func (suite *DeployFunctionTestSuite) compileCreateFunctionOptions(
 	functionName string) *platform.CreateFunctionOptions {
 
-	createFunctionOptions := suite.TestSuite.compileCreateFunctionOptions(functionName)
-
-	functionSourceCodeFirst := base64.StdEncoding.EncodeToString([]byte(`
+	createFunctionOptions := suite.KubeTestSuite.compileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
 def handler(context, event):
   return "hello world"
 `))
-
-	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
-	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCodeFirst
 	return createFunctionOptions
 }
 
 func TestPlatformTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
-	}
-	if !common.GetEnvOrDefaultBool("NUCLIO_K8S_TESTS_ENABLED", false) {
-		t.Skip("Test can only run when `NUCLIO_K8S_TESTS_ENABLED` environ is enabled")
 	}
 	suite.Run(t, new(DeployFunctionTestSuite))
 }

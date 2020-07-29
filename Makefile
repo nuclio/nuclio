@@ -15,6 +15,7 @@
 GO_VERSION := $(shell go version | cut -d " " -f 3)
 GOPATH ?= $(shell go env GOPATH)
 OS_NAME = $(shell uname)
+KUBECONFIG := $(if $(KUBECONFIG),$(KUBECONFIG),$(HOME)/.kube/config)
 
 # upstream repo
 NUCLIO_DOCKER_REPO ?= quay.io/nuclio
@@ -380,10 +381,14 @@ test-undockerized: ensure-gopath
 test-kafka-undockerized: ensure-gopath
 	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./pkg/processor/trigger/kafka/...
 
-# This is to work around hostname resolution issues for saram and kafka in CI
+# This is to work around hostname resolution issues for sarama and kafka in CI
 .PHONY: test-periodic-undockerized
 test-periodic-undockerized: ensure-gopath
 	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) $(shell go list ./cmd/... ./pkg/... | grep -v trigger/kafka)
+
+.PHONY: test-k8s-undockerized
+test-k8s-undockerized: ensure-gopath
+	NUCLIO_K8S_TESTS_ENABLED=true go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./pkg/platform/kube/...
 
 .PHONY: fmt
 fmt:
@@ -414,6 +419,27 @@ test: build-test
 		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
 		$(NUCLIO_DOCKER_TEST_TAG) \
 		/bin/bash -c "make test-undockerized"
+
+.PHONY: test-k8s
+test-k8s: build-test
+	docker run \
+		-it \
+		--rm \
+		--volume /var/run/docker.sock:/var/run/docker.sock \
+		--volume $(GOPATH)/bin:/go/bin \
+		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
+		--volume /tmp:/tmp \
+		--volume $(KUBECONFIG)/:/kubeconfig \
+		--workdir $(GO_BUILD_TOOL_WORKDIR) \
+		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
+		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
+		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--env NUCLIO_OS=$(NUCLIO_OS) \
+		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
+		--env KUBECONFIG=/kubeconfig \
+		$(NUCLIO_DOCKER_TEST_TAG) \
+		/bin/bash -c "make test-k8s-undockerized"
 
 .PHONY: test-periodic
 test-periodic: build-test

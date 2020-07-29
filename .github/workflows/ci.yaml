@@ -168,7 +168,7 @@ jobs:
     - uses: manusa/actions-setup-minikube@v1.1.0
       with:
         minikube version: "v1.11.0"
-        kubernetes version: "v1.17.8"
+        kubernetes version: "v1.17.9"
         github token: ${{ github.token }}
 
     - name: Fetch nuclio docker images
