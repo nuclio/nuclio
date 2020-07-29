@@ -57,6 +57,7 @@ type Suite struct {
 	inputBuffer         bytes.Buffer
 	defaultWaitDuration time.Duration
 	defaultWaitInterval time.Duration
+	namespace           string
 }
 
 func (suite *Suite) SetupSuite() {
@@ -82,6 +83,8 @@ func (suite *Suite) SetupSuite() {
 	// init default wait values to be used during tests for retries
 	suite.defaultWaitDuration = 1 * time.Minute
 	suite.defaultWaitInterval = 5 * time.Second
+
+	suite.namespace = common.GetEnvOrDefaultString("NUCTL_NAMESPACE", "nuclio")
 
 	// default to local platform if platform isn't set
 	if os.Getenv(nuctlPlatformEnvVarName) == "" {
