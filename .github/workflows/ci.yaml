@@ -68,15 +68,7 @@ jobs:
 
     - name: Run short test
       run: |
-        set -o pipefail
-        make test-short 2>&1 | tee test-short-${NUCLIO_LABEL}.log
-
-    - name: Upload short test results
-      uses: actions/upload-artifact@v2
-      if: always()
-      with:
-        name: test-results
-        path: test-short-${{ env.NUCLIO_LABEL }}.log
+        make test-short
 
   build_nuctl:
     name: Build nuctl
@@ -98,7 +90,6 @@ jobs:
     name: Build docker images
     runs-on: ubuntu-latest
     steps:
-
     - name: Dump GitHub context
       run: echo "$GITHUB_CONTEXT"
       env:
@@ -167,47 +158,38 @@ jobs:
 
     - uses: manusa/actions-setup-minikube@v1.1.0
       with:
-        minikube version: "v1.11.0"
+        minikube version: "v1.12.1"
         kubernetes version: "v1.17.9"
         github token: ${{ github.token }}
+        start args: '--addons=registry'
 
     - name: Fetch nuclio docker images
       uses: actions/download-artifact@v2
       with:
         name: nuclio-docker-images
 
-    - name: Prepare k8s cluster
+    - name: Load nuclio docker images
       run: |
-        kubectl create namespace ${NAMESPACE}
-        docker run -d -p 5000:5000 registry:2
         docker load -i nuclio_docker_images.tar.gz
         rm nuclio_docker_images.tar.gz
 
-        # setting nuctl external ip address to minikube ip
+    - name: Export env
+      run: |
         echo ::set-env name=NUCTL_EXTERNAL_IP_ADDRESSES::$(minikube ip)
+        echo ::set-env name=NUCTL_REGISTRY::$(minikube ip):5000
+        echo ::set-env name=NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL::$(REPO)
+        echo ::set-env name=NUCTL_NAMESPACE::$(NAMESPACE)
 
     - name: Install nuclio helm chart
       run: |
+        kubectl create namespace ${NAMESPACE}
         cat test/k8s/ci_assets/helm_values.yaml \
           | envsubst \
           | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
 
     - name: Run nuctl tests
       run: |
-        set -o pipefail
-        make test-k8s-nuctl 2>&1 | tee test-k8s-nuctl-${NUCLIO_LABEL}.log
-      env:
-        NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL: ${{ env.REPO }}
-        NUCTL_REGISTRY: "localhost:5000"
-        NUCTL_NAMESPACE: ${{ env.NAMESPACE }}
-        NUCTL_EXTERNAL_IP_ADDRESSES: ${{ env.NUCTL_EXTERNAL_IP_ADDRESSES }}
-
-    - name: Upload test results
-      uses: actions/upload-artifact@v2
-      if: always()
-      with:
-        name: k8s-test-results
-        path: test-k8s-nuctl-${{ env.NUCLIO_LABEL }}.log
+        make test-k8s-nuctl
 
   test_docker_nuctl:
     name: Test Docker nuctl
@@ -229,22 +211,67 @@ jobs:
       with:
         name: nuclio-docker-images
 
-    - name: Prepare
+    - name: Load nuclio docker images
       run: |
         docker load -i nuclio_docker_images.tar.gz
         rm nuclio_docker_images.tar.gz
 
     - name: Run nuctl tests
       run: |
-        set -o pipefail
-        make test-docker-nuctl 2>&1 | tee test-docker-nuctl-${NUCLIO_LABEL}.log
+        make test-docker-nuctl
 
-    - name: Upload test results
-      uses: actions/upload-artifact@v2
-      if: always()
-      with:
-        name: docker-test-results
-        path: test-docker-nuctl-${{ env.NUCLIO_LABEL }}.log
+  test_k8s:
+    name: Test Kubernetes
+    runs-on: ubuntu-latest
+    needs:
+      - build_docker_images
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: azure/setup-helm@v1
+        with:
+          version: "v3.2.4"
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - uses: manusa/actions-setup-minikube@v1.1.0
+        with:
+          minikube version: "v1.12.1"
+          kubernetes version: "v1.17.9"
+          github token: ${{ github.token }}
+          start args: '--addons=registry'
+
+      - name: Fetch nuclio docker images
+        uses: actions/download-artifact@v2
+        with:
+          name: nuclio-docker-images
+
+      - name: Load nuclio docker images
+        run: |
+          docker load -i nuclio_docker_images.tar.gz
+          rm nuclio_docker_images.tar.gz
+
+      - name: Export env
+        run: |
+          echo ::set-env name=NUCTL_EXTERNAL_IP_ADDRESSES::$(minikube ip)
+          echo ::set-env name=NUCLIO_TEST_REGISTRY_URL::$(minikube ip):5000
+
+      - name: Install nuclio helm chart
+        run: |
+          # create namespace
+          kubectl create namespace ${NAMESPACE}
+
+          # install helm chart
+          ./test/k8s/ci_assets/install_nuclio_crds.sh
+
+      - name: Run nuctl tests
+        run: |
+          make test-k8s-nuctl
 
   test_python:
     name: Test python
@@ -254,12 +281,4 @@ jobs:
 
     - name: Run python test
       run: |
-        set -o pipefail
-        make test-python 2>&1 | tee test-python-${NUCLIO_LABEL}.log
-
-    - name: Upload test python results
-      uses: actions/upload-artifact@v2
-      if: always()
-      with:
-        name: test-results
-        path: test-python-${{ env.NUCLIO_LABEL }}.log
+        make test-python
