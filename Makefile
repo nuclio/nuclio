@@ -423,7 +423,6 @@ test: build-test
 .PHONY: test-k8s
 test-k8s: build-test
 	docker run \
-		-it \
 		--rm \
 		--volume /var/run/docker.sock:/var/run/docker.sock \
 		--volume $(GOPATH)/bin:/go/bin \
