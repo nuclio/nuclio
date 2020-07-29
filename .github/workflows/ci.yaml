@@ -168,6 +168,7 @@ jobs:
 
         # redirect $(minikube ip):5000 -> localhost:5000
         docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
+        kubectl config view --flatten >> kubeconfig
 
     - name: Fetch nuclio docker images
       uses: actions/download-artifact@v2
@@ -185,6 +186,7 @@ jobs:
         echo ::set-env name=NUCTL_REGISTRY::localhost:5000
         echo ::set-env name=NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL::$(REPO)
         echo ::set-env name=NUCTL_NAMESPACE::$(NAMESPACE)
+        echo ::set-env name=KUBECONFIG::$(pwd)/kubeconfig
 
     - name: Install nuclio helm chart
       run: |
@@ -257,6 +259,7 @@ jobs:
 
           # redirect $(minikube ip):5000 -> localhost:5000
           docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
+          kubectl config view --flatten >> kubeconfig
 
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v2
@@ -272,6 +275,7 @@ jobs:
         run: |
           echo ::set-env name=NUCTL_EXTERNAL_IP_ADDRESSES::$(minikube ip)
           echo ::set-env name=NUCLIO_TEST_REGISTRY_URL::localhost:5000
+          echo ::set-env name=KUBECONFIG::$(pwd)/kubeconfig
 
       - name: Install nuclio helm chart
         run: |
