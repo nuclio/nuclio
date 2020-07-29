@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -39,8 +38,6 @@ import (
 
 type DeployFunctionTestSuite struct {
 	KubeTestSuite
-	cmdRunner   cmdrunner.CmdRunner
-	registryURL string
 }
 
 func (suite *DeployFunctionTestSuite) SetupSuite() {

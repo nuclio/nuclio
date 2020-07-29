@@ -309,7 +309,7 @@ func (suite *TestSuite) GetUniqueFunctionName(name string) string {
 	if len(uniqueFunctionName) > k8sMaxNameLength {
 
 		// trims
-		name = name[:k8sMaxNameLength-len(uniqueFunctionName)]
+		uniqueFunctionName = uniqueFunctionName[:k8sMaxNameLength-len(uniqueFunctionName)]
 	}
 
 	// to not reach
