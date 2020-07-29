@@ -161,7 +161,7 @@ jobs:
         minikube version: "v1.12.1"
         kubernetes version: "v1.17.9"
         github token: ${{ github.token }}
-        start args: '--addons=registry --insecure-registry "10.1.0.0/24"'
+        start args: '--addons=registry --insecure-registry="10.1.0.0/24"'
 
     - name: Fetch nuclio docker images
       uses: actions/download-artifact@v2
@@ -186,6 +186,8 @@ jobs:
         cat test/k8s/ci_assets/helm_values.yaml \
           | envsubst \
           | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
+
+        echo '{"insecure-registries": ["$(minikube ip):5000"]}'> /etc/docker/daemon.json
 
     - name: Run nuctl k8s tests
       run: |
@@ -244,7 +246,7 @@ jobs:
           minikube version: "v1.12.1"
           kubernetes version: "v1.17.9"
           github token: ${{ github.token }}
-          start args: '--addons=registry --insecure-registry "10.1.0.0/24"'
+          start args: '--addons=registry --insecure-registry="10.1.0.0/24"'
 
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v2
@@ -265,6 +267,11 @@ jobs:
         run: |
           # create namespace
           kubectl create namespace ${NAMESPACE}
+
+          # ensure docker
+          echo '{"insecure-registries": ["$(minikube ip):5000"]}'> /etc/docker/daemon.json
+
+          systemctl restart docker
 
           # install helm chart
           ./test/k8s/ci_assets/install_nuclio_crds.sh
