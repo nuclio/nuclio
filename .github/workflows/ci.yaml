@@ -187,7 +187,7 @@ jobs:
           | envsubst \
           | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
 
-    - name: Run nuctl tests
+    - name: Run nuctl k8s tests
       run: |
         make test-k8s-nuctl
 
@@ -216,7 +216,7 @@ jobs:
         docker load -i nuclio_docker_images.tar.gz
         rm nuclio_docker_images.tar.gz
 
-    - name: Run nuctl tests
+    - name: Run nuctl docker tests
       run: |
         make test-docker-nuctl
 
@@ -269,9 +269,9 @@ jobs:
           # install helm chart
           ./test/k8s/ci_assets/install_nuclio_crds.sh
 
-      - name: Run nuctl tests
+      - name: Run k8s tests
         run: |
-          make test-k8s-nuctl
+          make test-k8s
 
   test_python:
     name: Test python
