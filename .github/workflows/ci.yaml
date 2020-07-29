@@ -189,6 +189,8 @@ jobs:
 
         echo '{"insecure-registries": ["$(minikube ip):5000"]}'> /etc/docker/daemon.json
 
+        systemctl restart docker
+
     - name: Run nuctl k8s tests
       run: |
         make test-k8s-nuctl
