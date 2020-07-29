@@ -184,7 +184,7 @@ jobs:
       run: |
         echo ::set-env name=NUCTL_EXTERNAL_IP_ADDRESSES::$(minikube ip)
         echo ::set-env name=NUCTL_REGISTRY::localhost:5000
-        echo ::set-env name=NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL::$(REPO)
+        echo ::set-env name=NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL::$REPO
         echo ::set-env name=NUCTL_NAMESPACE::$NAMESPACE
         echo ::set-env name=KUBECONFIG::$(pwd)/kubeconfig
 
