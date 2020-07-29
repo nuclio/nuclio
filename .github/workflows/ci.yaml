@@ -163,6 +163,12 @@ jobs:
         github token: ${{ github.token }}
         start args: '--addons=registry --insecure-registry="10.1.0.0/24"'
 
+    - name: Post minikube setup
+      run: |
+
+        # redirect $(minikube ip):5000 -> localhost:5000
+        docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
+
     - name: Fetch nuclio docker images
       uses: actions/download-artifact@v2
       with:
@@ -176,7 +182,7 @@ jobs:
     - name: Export env
       run: |
         echo ::set-env name=NUCTL_EXTERNAL_IP_ADDRESSES::$(minikube ip)
-        echo ::set-env name=NUCTL_REGISTRY::$(minikube ip):5000
+        echo ::set-env name=NUCTL_REGISTRY::localhost:5000
         echo ::set-env name=NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL::$(REPO)
         echo ::set-env name=NUCTL_NAMESPACE::$(NAMESPACE)
 
@@ -186,10 +192,6 @@ jobs:
         cat test/k8s/ci_assets/helm_values.yaml \
           | envsubst \
           | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
-
-        echo '{"insecure-registries": ["$(minikube ip):5000"]}'> /etc/docker/daemon.json
-
-        systemctl restart docker
 
     - name: Run nuctl k8s tests
       run: |
@@ -250,6 +252,12 @@ jobs:
           github token: ${{ github.token }}
           start args: '--addons=registry --insecure-registry="10.1.0.0/24"'
 
+      - name: Post minikube setup
+        run: |
+
+          # redirect $(minikube ip):5000 -> localhost:5000
+          docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
+
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v2
         with:
@@ -263,17 +271,12 @@ jobs:
       - name: Export env
         run: |
           echo ::set-env name=NUCTL_EXTERNAL_IP_ADDRESSES::$(minikube ip)
-          echo ::set-env name=NUCLIO_TEST_REGISTRY_URL::$(minikube ip):5000
+          echo ::set-env name=NUCLIO_TEST_REGISTRY_URL::localhost:5000
 
       - name: Install nuclio helm chart
         run: |
           # create namespace
           kubectl create namespace ${NAMESPACE}
-
-          # ensure docker
-          echo '{"insecure-registries": ["$(minikube ip):5000"]}'> /etc/docker/daemon.json
-
-          systemctl restart docker
 
           # install helm chart
           ./test/k8s/ci_assets/install_nuclio_crds.sh
