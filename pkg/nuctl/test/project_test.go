@@ -333,7 +333,7 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 	projectConfig.Project.Meta.Namespace = suite.namespace
 	functions := map[string]*functionconfig.Config{}
 	for _, functionName := range functionNames {
-		functionUniqueName := functionName+uniqueSuffix
+		functionUniqueName := functionName + uniqueSuffix
 		functions[functionUniqueName] = projectConfig.Functions[functionName]
 		functions[functionUniqueName].Meta.Name = functionName + uniqueSuffix
 		functions[functionUniqueName].Meta.Namespace = suite.namespace
@@ -344,7 +344,7 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 
 	functionEvents := map[string]*platform.FunctionEventConfig{}
 	for _, functionEventName := range functionEventNames {
-		functionEventUniqueName := functionEventName+uniqueSuffix
+		functionEventUniqueName := functionEventName + uniqueSuffix
 		functionEvents[functionEventUniqueName] = projectConfig.FunctionEvents[functionEventName]
 		functionEvents[functionEventUniqueName].Spec.DisplayName = functionEventName + uniqueSuffix
 		functionEvents[functionEventUniqueName].Meta.Namespace = suite.namespace
