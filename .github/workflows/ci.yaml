@@ -161,7 +161,7 @@ jobs:
         minikube version: "v1.12.1"
         kubernetes version: "v1.17.9"
         github token: ${{ github.token }}
-        start args: '--addons=registry'
+        start args: '--addons=registry --insecure-registry "10.0.0.0/24"'
 
     - name: Fetch nuclio docker images
       uses: actions/download-artifact@v2
@@ -244,7 +244,7 @@ jobs:
           minikube version: "v1.12.1"
           kubernetes version: "v1.17.9"
           github token: ${{ github.token }}
-          start args: '--addons=registry'
+          start args: '--addons=registry --insecure-registry "10.0.0.0/24"'
 
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v2
