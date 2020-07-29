@@ -54,13 +54,13 @@ type OnAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool
 // function container (through an trigger of some sort)
 type TestSuite struct {
 	suite.Suite
-	Logger       logger.Logger
-	DockerClient dockerclient.Client
-	Platform     platform.Platform
-	TestID       string
-	Runtime      string
-	RuntimeDir   string
-	FunctionDir  string
+	Logger                logger.Logger
+	DockerClient          dockerclient.Client
+	Platform              platform.Platform
+	TestID                string
+	Runtime               string
+	RuntimeDir            string
+	FunctionDir           string
 	PlatformType          string
 	Namespace             string
 	PlatformConfiguration *platformconfig.Config
