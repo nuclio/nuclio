@@ -18,6 +18,7 @@ package httpsuite
 
 import (
 	"path"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -41,13 +42,15 @@ func (suite *HTTPTestSuite) SetupTest() {
 func (suite *HTTPTestSuite) TestCORS() {
 	allowHeaders := "Accept, Content-Length, Content-Type, X-nuclio-log-level"
 	allowMethods := "OPTIONS, GET, POST, HEAD, PUT"
-	allowOrigin := "foo.bar"
+	preflightMaxAgeSeconds := 10
+	origin := "foo.bar"
 	createFunctionOptions := suite.getHTTPDeployOptions()
 	createFunctionOptions.FunctionConfig.Spec.Triggers[suite.triggerName].Attributes["cors"] = map[string]interface{}{
-		"enabled":      true,
-		"allowOrigin":  allowOrigin,
-		"allowHeaders": strings.Split(allowHeaders, ", "),
-		"allowMethods": strings.Split(allowMethods, ", "),
+		"enabled":                true,
+		"allowOrigins":           []string{origin},
+		"allowHeaders":           strings.Split(allowHeaders, ", "),
+		"allowMethods":           strings.Split(allowMethods, ", "),
+		"preflightMaxAgeSeconds": preflightMaxAgeSeconds,
 	}
 	validPreflightResponseStatusCode := fasthttp.StatusOK
 	invalidPreflightResponseStatusCode := fasthttp.StatusBadRequest
@@ -58,7 +61,7 @@ func (suite *HTTPTestSuite) TestCORS() {
 			{
 				RequestMethod: "OPTIONS",
 				RequestHeaders: map[string]interface{}{
-					"Origin":                         allowOrigin,
+					"Origin":                         origin,
 					"Access-Control-Request-Method":  "POST",
 					"Access-Control-Request-Headers": "X-nuclio-log-level",
 				},
@@ -66,7 +69,8 @@ func (suite *HTTPTestSuite) TestCORS() {
 				ExpectedResponseHeadersValues: map[string][]string{
 					"Access-Control-Allow-Methods": {allowMethods},
 					"Access-Control-Allow-Headers": {allowHeaders},
-					"Access-Control-Allow-Origin":  {allowOrigin},
+					"Access-Control-Allow-Origin":  {origin},
+					"Access-Control-Max-Age":       {strconv.Itoa(preflightMaxAgeSeconds)},
 				},
 			},
 
@@ -74,8 +78,18 @@ func (suite *HTTPTestSuite) TestCORS() {
 			{
 				RequestMethod: "OPTIONS",
 				RequestHeaders: map[string]interface{}{
-					"Origin":                        allowOrigin,
+					"Origin":                        origin,
 					"Access-Control-Request-Method": "ABC",
+				},
+				ExpectedResponseStatusCode: &invalidPreflightResponseStatusCode,
+			},
+
+			// Disallowed origin
+			{
+				RequestMethod: "OPTIONS",
+				RequestHeaders: map[string]interface{}{
+					"Origin":                        "dummy-origin",
+					"Access-Control-Request-Method": "POST",
 				},
 				ExpectedResponseStatusCode: &invalidPreflightResponseStatusCode,
 			},
