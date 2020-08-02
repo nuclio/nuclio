@@ -35,10 +35,13 @@ RUN npm install -g gulp \
 #
 FROM nuclio-base:$NUCLIO_LABEL as build-binary
 
+ARG NUCLIO_ARCH
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
+RUN echo "222-${NUCLIO_ARCH}"
+
 # build the dashboard
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+RUN GOOS=linux GOARCH=${NUCLIO_ARCH} CGO_ENABLED=0 go build \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
@@ -48,11 +51,11 @@ RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
 # Output stage: Creates version file, copies binary and assets to an alpine image
 #
 
-FROM nginx:stable-alpine
+FROM arm32v7/nginx:stable-alpine
 
 ARG DOCKER_CLI_VERSION="18.09.6"
 
-ENV DOWNLOAD_URL="https://download.docker.com/linux/static/stable/x86_64/docker-$DOCKER_CLI_VERSION.tgz"
+ENV DOWNLOAD_URL="https://download.docker.com/linux/static/stable/armhf/docker-$DOCKER_CLI_VERSION.tgz"
 
 RUN apk --update --no-cache add ca-certificates git curl parallel \
     && mkdir -p /tmp/download \

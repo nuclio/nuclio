@@ -16,10 +16,13 @@ ARG NUCLIO_LABEL
 
 FROM nuclio-base:$NUCLIO_LABEL as build-processor
 
+ARG NUCLIO_ARCH
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
+RUN echo "333-${NUCLIO_ARCH}"
+
 # build the processor
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+RUN GOOS=linux GOARCH=${NUCLIO_ARCH} CGO_ENABLED=0 go build \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \

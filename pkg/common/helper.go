@@ -336,7 +336,7 @@ func renderTemplate(templateToRender *template.Template, data map[string]interfa
 }
 
 func MaxIntInSlice(values []int) int {
-	maxValue := math.MinInt64
+	maxValue := math.MinInt32
 
 	for _, value := range values {
 		if value > maxValue {
