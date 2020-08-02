@@ -4,6 +4,7 @@
     angular.module('nuclio.app')
         .component('versionDataWrapper', {
             bindings: {
+                containers: '<',
                 version: '<'
             },
             templateUrl: 'data-wrappers/version-data-wrapper/version-data-wrapper.tpl.html',
