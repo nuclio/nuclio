@@ -68,6 +68,10 @@ type Request struct {
 	ExpectedResponseHeaders       map[string]string
 	ExpectedResponseHeadersValues map[string][]string
 	ExpectedResponseStatusCode    *int
+
+	RetryUntilSuccessfulStatusCode *int
+	RetryUntilSuccessfulDuration   time.Duration
+	RetryUntilSuccessfulInterval   time.Duration
 }
 
 func (r *Request) Enrich(deployResult *platform.CreateFunctionResult) {
@@ -139,36 +143,24 @@ func (suite *TestSuite) DeployFunctionAndRequests(createFunctionOptions *platfor
 
 // SendRequestVerifyResponse sends a request and verifies we got expected response
 func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
-	suite.Logger.DebugWith("Sending request",
-		"requestPort", request.RequestPort,
-		"requestPath", request.RequestPath,
-		"requestHeaders", request.RequestHeaders,
-		"requestBodyLength", len(request.RequestBody),
-		"requestLogLevel", request.RequestLogLevel)
+	var httpResponse *http.Response
+	var err error
 
-	// Send request to proper url
-	url := fmt.Sprintf("http://%s:%d%s", suite.GetTestHost(), request.RequestPort, request.RequestPath)
+	// retry
+	if request.RetryUntilSuccessfulStatusCode != nil {
+		err = common.RetryUntilSuccessful(request.RetryUntilSuccessfulDuration,
+			request.RetryUntilSuccessfulInterval,
+			func() bool {
+				httpResponse, err = suite.sendRequest(request)
+				if err != nil {
+					return false
+				}
+				return httpResponse.StatusCode == *request.RetryUntilSuccessfulStatusCode
+			})
 
-	// create a request
-	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))
-	suite.Require().NoError(err)
-
-	// if there are request headers, add them
-	if request.RequestHeaders != nil {
-		for requestHeaderName, requestHeaderValue := range request.RequestHeaders {
-			httpRequest.Header.Add(requestHeaderName, fmt.Sprintf("%v", requestHeaderValue))
-		}
 	} else {
-		httpRequest.Header.Add("Content-Type", "text/plain")
+		httpResponse, err = suite.sendRequest(request)
 	}
-
-	// if there is a log level, add the header
-	if request.RequestLogLevel != nil {
-		httpRequest.Header.Add("X-nuclio-log-level", *request.RequestLogLevel)
-	}
-
-	// invoke the function
-	httpResponse, err := suite.httpClient.Do(httpRequest)
 
 	// if we fail to connect, fail, so callee might retry
 	if err != nil && common.MatchStringPatterns([]string{
@@ -187,15 +179,16 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 
 	suite.Require().NoError(err, "Failed to send request")
 
+	body, err := ioutil.ReadAll(httpResponse.Body)
+	suite.Require().NoError(err)
+
 	if request.ExpectedResponseStatusCode != nil {
 		suite.Require().Equal(*request.ExpectedResponseStatusCode,
 			httpResponse.StatusCode,
-			"Got unexpected status code with request body (%s)",
-			request.RequestBody)
+			"Got unexpected status code with request body (%s) and response body (%s)",
+			request.RequestBody,
+			body)
 	}
-
-	body, err := ioutil.ReadAll(httpResponse.Body)
-	suite.Require().NoError(err)
 
 	// verify header correctness
 	// the httpResponse may contain more headers. just check that all the expected
@@ -282,6 +275,39 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	}
 
 	return true
+}
+
+func (suite *TestSuite) sendRequest(request *Request) (*http.Response, error) {
+	suite.Logger.DebugWith("Sending request",
+		"requestPort", request.RequestPort,
+		"requestPath", request.RequestPath,
+		"requestHeaders", request.RequestHeaders,
+		"requestBodyLength", len(request.RequestBody),
+		"requestLogLevel", request.RequestLogLevel)
+
+	// Send request to proper url
+	url := fmt.Sprintf("http://%s:%d%s", suite.GetTestHost(), request.RequestPort, request.RequestPath)
+
+	// create a request
+	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))
+	suite.Require().NoError(err)
+
+	// if there are request headers, add them
+	if request.RequestHeaders != nil {
+		for requestHeaderName, requestHeaderValue := range request.RequestHeaders {
+			httpRequest.Header.Add(requestHeaderName, fmt.Sprintf("%v", requestHeaderValue))
+		}
+	} else {
+		httpRequest.Header.Add("Content-Type", "text/plain")
+	}
+
+	// if there is a log level, add the header
+	if request.RequestLogLevel != nil {
+		httpRequest.Header.Add("X-nuclio-log-level", *request.RequestLogLevel)
+	}
+
+	// invoke the function
+	return suite.httpClient.Do(httpRequest)
 }
 
 // subMap returns a subset of source with only the keys in keys

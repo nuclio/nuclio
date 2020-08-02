@@ -43,7 +43,7 @@
     "gulp-rename": "~1.2.2",
     "gulp-rev": "^6.0.1",
     "gulp-rev-collector": "^1.0.2",
-    "gulp-uglify": "^1.4.1",
+    "gulp-uglify": "^3.0.2",
     "i18next": "^15.1.0",
     "i18next-browser-languagedetector": "^3.0.1",
     "i18next-chained-backend": "^1.0.1",

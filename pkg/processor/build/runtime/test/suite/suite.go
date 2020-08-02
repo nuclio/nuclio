@@ -20,6 +20,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -172,15 +173,15 @@ func (suite *TestSuite) TestBuildArchiveFromGithub() {
 }
 
 func (suite *TestSuite) TestBuildFuncFromFunctionSourceCode() {
-	createFunctionOptions := suite.getDeployOptions("reverser")
 
 	// Java "source" is a jar file, and it it'll be a .java file it must be named in the same name as the class
 	// Skip for now
-	if createFunctionOptions.FunctionConfig.Spec.Runtime == "java" {
+	if suite.Runtime == "java" {
 		suite.T().Skip("Java runtime not supported")
 		return
 	}
 
+	createFunctionOptions := suite.getDeployOptions("reverser")
 	functionSourceCode, err := ioutil.ReadFile(createFunctionOptions.FunctionConfig.Spec.Build.Path)
 	suite.Assert().NoError(err)
 
@@ -326,6 +327,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 		archiveExtension,
 		".*",
 		compressor)
+	defer os.Remove(archivePath) // nolint: errcheck
 
 	suite.compressAndDeployFunctionWithCodeEntryOptions(archivePath, createFunctionOptions)
 }
@@ -343,6 +345,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromURLWithCustomDir(archiveExt
 		archiveExtension,
 		suite.ArchivePattern,
 		compressor)
+	defer os.Remove(archivePath) // nolint: errcheck
 
 	suite.compressAndDeployFunctionWithCodeEntryOptions(archivePath, createFunctionOptions)
 }
@@ -359,6 +362,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromGithub(archiveExtension str
 		archiveExtension,
 		suite.ArchivePattern,
 		compressor)
+	defer os.Remove(archivePath) // nolint: errcheck
 
 	// create a path like it would have been created by github
 	pathToFunction := "/some/repo"
@@ -433,6 +437,7 @@ func (suite *TestSuite) compressAndDeployFunction(archiveExtension string, compr
 		archiveExtension,
 		".*",
 		compressor)
+	defer os.Remove(archivePath) // nolint: errcheck
 
 	// set the path to the zip
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = archivePath
@@ -451,7 +456,7 @@ func (suite *TestSuite) createFunctionArchive(functionDir string,
 	compressor func([]string, string) error) string {
 
 	// create a temp directory that will hold the archive
-	archiveDir, err := ioutil.TempDir("", "build-zip-"+suite.TestID)
+	archiveDir, err := ioutil.TempDir("", "build-zip-*")
 	suite.Require().NoError(err)
 
 	// use the reverse function

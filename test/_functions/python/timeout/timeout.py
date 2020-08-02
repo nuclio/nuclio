@@ -20,8 +20,9 @@ import re
 
 def parse_duration(duration):
     """Parse duration in '2.3s' format to float (seconds)"""
+
     # '10ms', '2.3s', ...
-    match = re.match('(\d+(\.\d+)?)([a-z]+)', duration)
+    match = re.match(r'(\d+(\.\d+)?)([a-z]+)', duration)
     if not match:
         return None
 

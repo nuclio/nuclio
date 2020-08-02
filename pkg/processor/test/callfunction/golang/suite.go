@@ -19,6 +19,7 @@ package callfunction
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -55,36 +56,31 @@ func (suite *CallFunctionTestSuite) TestCallFunction() {
 	calleeDeployOptions.FunctionConfig.Spec.Platform.Attributes = map[string]interface{}{"network": networkName}
 	callerDeployOptions.FunctionConfig.Spec.Platform.Attributes = map[string]interface{}{"network": networkName}
 
+	createdHTTPStatusCode := http.StatusCreated
+	callerRequestBodyVerifier := func(body []byte) {
+		var parsedResponseBody map[string]string
+		err := json.Unmarshal(body, &parsedResponseBody)
+		suite.HTTPSuite.Require().NoError(err)
+
+		suite.HTTPSuite.Require().Equal(1, len(parsedResponseBody))
+		value, found := parsedResponseBody["from_callee"]
+		suite.HTTPSuite.Require().True(found)
+		suite.HTTPSuite.Require().Equal("returned_value", value)
+	}
+
 	// deploy the callee function
 	suite.HTTPSuite.DeployFunction(calleeDeployOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// now deploy the caller function
-		suite.HTTPSuite.DeployFunction(callerDeployOptions, func(deployResult *platform.CreateFunctionResult) bool {
-
-			requestBody := fmt.Sprintf(`{"callee_name": "%s"}`, calleeDeployOptions.FunctionConfig.Meta.Name)
-			bodyVerifier := func(body []byte) {
-				var parsedResponseBody map[string]string
-				err := json.Unmarshal(body, &parsedResponseBody)
-				suite.HTTPSuite.Require().Nil(err)
-
-				suite.HTTPSuite.Require().Equal(1, len(parsedResponseBody))
-				value, found := parsedResponseBody["from_callee"]
-				suite.HTTPSuite.Require().True(found)
-				suite.HTTPSuite.Require().Equal("returned_value", value)
-			}
-
-			testRequest := httpsuite.Request{
-				RequestBody:    requestBody,
-				RequestHeaders: map[string]interface{}{"Content-Type": "application/json"},
-				RequestMethod:  "POST",
-				RequestPort:    deployResult.Port,
-				ExpectedResponseHeaders: map[string]string{
-					"X-Callee-Received-Header": "caller_header",
-				},
-				ExpectedResponseBody: bodyVerifier,
-			}
-
-			return suite.HTTPSuite.SendRequestVerifyResponse(&testRequest)
+		suite.HTTPSuite.DeployFunctionAndRequest(callerDeployOptions, &httpsuite.Request{
+			RequestBody:    fmt.Sprintf(`{"callee_name": "%s"}`, calleeDeployOptions.FunctionConfig.Meta.Name),
+			RequestHeaders: map[string]interface{}{"Content-Type": "application/json"},
+			RequestMethod:  "POST",
+			ExpectedResponseHeaders: map[string]string{
+				"X-Callee-Received-Header": "caller_header",
+			},
+			ExpectedResponseBody:       callerRequestBodyVerifier,
+			ExpectedResponseStatusCode: &createdHTTPStatusCode,
 		})
 
 		return true

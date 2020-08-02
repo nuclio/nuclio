@@ -123,7 +123,7 @@ func (c *ShellClient) CopyObjectsFromImage(imageName string,
 
 // PushImage pushes a local image to a remote docker repository
 func (c *ShellClient) PushImage(imageName string, registryURL string) error {
-	taggedImage := registryURL + "/" + imageName
+	taggedImage := common.CompileImageName(registryURL, imageName)
 
 	c.logger.InfoWith("Pushing image", "from", imageName, "to", taggedImage)
 

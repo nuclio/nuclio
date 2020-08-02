@@ -19,7 +19,6 @@ package dashboard
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -246,31 +245,39 @@ func (s *Server) getRegistryURL() string {
 	credentials := s.dockerCreds.GetCredentials()
 
 	if len(credentials) >= 1 {
-		registryURL = credentials[0].URL
-
-		// TODO: This auto-expansion does not support with kaniko today, must provide full URL. Remove this?
-		// if the user specified the docker hub, we can't use this as-is. add the user name to the URL
-		// to generate a valid URL
-		for _, dockerPattern := range []string{
-			".docker.com",
-			".docker.io",
-		} {
-			if strings.HasSuffix(registryURL, dockerPattern) {
-				registryURL = fmt.Sprintf("%s/%s", registryURL, credentials[0].Username)
-				break
-			}
-		}
-
-		// trim prefixes
-		registryURL = common.StripPrefixes(registryURL,
-			[]string{
-				"https://",
-				"http://",
-			})
-
+		registryURL = s.resolveDockerCredentialsRegistryURL(credentials[0])
 		s.Logger.InfoWith("Using registry from credentials", "url", registryURL)
 	}
 
+	return registryURL
+}
+
+func (s *Server) resolveDockerCredentialsRegistryURL(credentials dockercreds.Credentials) string {
+	registryURL := credentials.URL
+
+	// TODO: This auto-expansion does not support with kaniko today, must provide full URL. Remove this?
+	// if the user specified the docker hub, we can't use this as-is. add the user name to the URL
+	// to generate a valid URL
+	if common.MatchStringPatterns([]string{
+		`\.docker\.com`,
+		`\.docker\.io`,
+	}, registryURL) {
+		registryURL = common.StripSuffixes(registryURL, []string{
+
+			// when using docker.io as login address, the resolved address in the docker credentials file
+			// might contain the registry version, strip it if so
+			"/v1",
+			"/v1/",
+		})
+		registryURL = fmt.Sprintf("%s/%s", registryURL, credentials.Username)
+	}
+
+	// trim prefixes
+	registryURL = common.StripPrefixes(registryURL,
+		[]string{
+			"https://",
+			"http://",
+		})
 	return registryURL
 }
 

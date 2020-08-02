@@ -55,35 +55,29 @@ func (suite *CloudEventsTestSuite) TestStructuredCloudEvent() {
     "data": "valid xml"
 }`, now)
 
-	suite.HTTPSuite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		bodyVerifier := func(body []byte) {
-			unmarshalledBody := suite.decodeResponse(body)
+	bodyVerifier := func(body []byte) {
+		unmarshalledBody := suite.decodeResponse(body)
 
-			require := suite.HTTPSuite.Require()
+		require := suite.HTTPSuite.Require()
 
-			require.Equal("valid xml", unmarshalledBody.Body)
-			require.Equal(requestPath, unmarshalledBody.Path)
-			require.Equal(requestMethod, unmarshalledBody.Method)
-			require.Equal("/mycontext", unmarshalledBody.TriggerKind)
-			require.Equal("0.1", unmarshalledBody.Version)
-			require.Equal("com.example.someevent", unmarshalledBody.Type)
-			require.Equal("1.0", unmarshalledBody.TypeVersion)
-			require.Equal("A234-1234-1234", string(unmarshalledBody.ID))
-			require.Equal(now, unmarshalledBody.Timestamp.Format(time.RFC3339))
-			require.Equal(map[string]interface{}{"comExampleExtension": "value"}, unmarshalledBody.Headers)
-			require.Equal("text/xml", unmarshalledBody.ContentType)
-		}
-
-		testRequest := httpsuite.Request{
-			RequestBody:          requestBody,
-			RequestHeaders:       map[string]interface{}{"Content-Type": "application/cloudevents+json"},
-			RequestPort:          deployResult.Port,
-			RequestMethod:        requestMethod,
-			RequestPath:          requestPath,
-			ExpectedResponseBody: bodyVerifier,
-		}
-
-		return suite.HTTPSuite.SendRequestVerifyResponse(&testRequest)
+		require.Equal("valid xml", unmarshalledBody.Body)
+		require.Equal(requestPath, unmarshalledBody.Path)
+		require.Equal(requestMethod, unmarshalledBody.Method)
+		require.Equal("/mycontext", unmarshalledBody.TriggerKind)
+		require.Equal("0.1", unmarshalledBody.Version)
+		require.Equal("com.example.someevent", unmarshalledBody.Type)
+		require.Equal("1.0", unmarshalledBody.TypeVersion)
+		require.Equal("A234-1234-1234", string(unmarshalledBody.ID))
+		require.Equal(now, unmarshalledBody.Timestamp.Format(time.RFC3339))
+		require.Equal(map[string]interface{}{"comExampleExtension": "value"}, unmarshalledBody.Headers)
+		require.Equal("text/xml", unmarshalledBody.ContentType)
+	}
+	suite.HTTPSuite.DeployFunctionAndRequest(createFunctionOptions, &httpsuite.Request{
+		RequestBody:          requestBody,
+		RequestHeaders:       map[string]interface{}{"Content-Type": "application/cloudevents+json"},
+		RequestMethod:        requestMethod,
+		RequestPath:          requestPath,
+		ExpectedResponseBody: bodyVerifier,
 	})
 }
 
@@ -105,35 +99,29 @@ func (suite *CloudEventsTestSuite) TestBinaryCloudEvent() {
 	requestMethod := "POST"
 	requestPath := "/testPath"
 	requestBody := "valid xml"
+	bodyVerifier := func(body []byte) {
+		unmarshalledBody := suite.decodeResponse(body)
 
-	suite.HTTPSuite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		bodyVerifier := func(body []byte) {
-			unmarshalledBody := suite.decodeResponse(body)
+		var require = suite.HTTPSuite.Require()
 
-			var require = suite.HTTPSuite.Require()
+		require.Equal(requestBody, unmarshalledBody.Body)
+		require.Equal(requestPath, unmarshalledBody.Path)
+		require.Equal(requestMethod, unmarshalledBody.Method)
+		require.Equal("/mycontext", unmarshalledBody.TriggerKind)
+		require.Equal("0.1", unmarshalledBody.Version)
+		require.Equal("com.example.someevent", unmarshalledBody.Type)
+		require.Equal("1.0", unmarshalledBody.TypeVersion)
+		require.Equal("A234-1234-1234", string(unmarshalledBody.ID))
+		require.Equal(now, unmarshalledBody.Timestamp.Format(time.RFC3339))
+		require.Equal("text/xml", unmarshalledBody.ContentType)
+	}
 
-			require.Equal(requestBody, unmarshalledBody.Body)
-			require.Equal(requestPath, unmarshalledBody.Path)
-			require.Equal(requestMethod, unmarshalledBody.Method)
-			require.Equal("/mycontext", unmarshalledBody.TriggerKind)
-			require.Equal("0.1", unmarshalledBody.Version)
-			require.Equal("com.example.someevent", unmarshalledBody.Type)
-			require.Equal("1.0", unmarshalledBody.TypeVersion)
-			require.Equal("A234-1234-1234", string(unmarshalledBody.ID))
-			require.Equal(now, unmarshalledBody.Timestamp.Format(time.RFC3339))
-			require.Equal("text/xml", unmarshalledBody.ContentType)
-		}
-
-		testRequest := httpsuite.Request{
-			RequestBody:          requestBody,
-			RequestHeaders:       headers,
-			RequestPort:          deployResult.Port,
-			RequestMethod:        requestMethod,
-			RequestPath:          requestPath,
-			ExpectedResponseBody: bodyVerifier,
-		}
-
-		return suite.HTTPSuite.SendRequestVerifyResponse(&testRequest)
+	suite.HTTPSuite.DeployFunctionAndRequest(createFunctionOptions, &httpsuite.Request{
+		RequestBody:          requestBody,
+		RequestHeaders:       headers,
+		RequestMethod:        requestMethod,
+		RequestPath:          requestPath,
+		ExpectedResponseBody: bodyVerifier,
 	})
 }
 

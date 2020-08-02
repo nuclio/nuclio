@@ -209,7 +209,15 @@ func StripPrefixes(input string, prefixes []string) string {
 			return strings.TrimPrefix(input, prefix)
 		}
 	}
+	return input
+}
 
+func StripSuffixes(input string, suffixes []string) string {
+	for _, suffix := range suffixes {
+		if strings.HasSuffix(input, suffix) {
+			return strings.TrimSuffix(input, suffix)
+		}
+	}
 	return input
 }
 
@@ -390,4 +398,8 @@ func MatchStringPatterns(patterns []string, s string) bool {
 		}
 	}
 	return false
+}
+
+func CompileImageName(registryURL string, imageName string) string {
+	return strings.TrimSuffix(registryURL, "/") + "/" + imageName
 }
