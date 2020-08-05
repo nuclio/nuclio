@@ -43,7 +43,8 @@ func (suite *GitFetcherTestSuite) SetupSuite() {
 func (suite *GitFetcherTestSuite) TestFetch() {
 	templateFetcher, err := functiontemplates.NewGitFunctionTemplateFetcher(suite.logger,
 		"https://github.com/nuclio/nuclio-templates.git",
-		"refs/heads/master")
+		"refs/heads/master",
+		"")
 	suite.Require().NoError(err)
 
 	templates, err := templateFetcher.Fetch()

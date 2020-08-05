@@ -79,6 +79,7 @@ func main() {
 	monitorDockerDeamon := flag.Bool("monitor-docker-deamon", common.GetEnvOrDefaultBool("NUCLIO_MONITOR_DOCKER_DAEMON", true), "Monitor connectivity to docker deamon (in conjunction to 'docker' as container builder kind")
 	monitorDockerDeamonIntervalStr := flag.String("monitor-docker-deamon-interval", common.GetEnvOrDefaultString("NUCLIO_MONITOR_DOCKER_DAEMON_INTERVAL", "5s"), "Docker deamon connectivity monitor interval (used in conjunction with 'monitor-docker-deamon')")
 	monitorDockerDeamonMaxConsecutiveErrorsStr := flag.String("monitor-docker-deamon-max-consecutive-errors", common.GetEnvOrDefaultString("NUCLIO_MONITOR_DOCKER_DAEMON_MAX_CONSECUTIVE_ERRORS", "5"), "Docker deamon connectivity monitor max consecutive errors before declaring docker connection is unhealthy (used in conjunction with 'monitor-docker-deamon')")
+	caCertContent := flag.String("ca-cert-content", "", "Adds ca certificate to git requests")
 
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)
@@ -108,7 +109,8 @@ func main() {
 		*dependantImageRegistryURL,
 		*monitorDockerDeamon,
 		*monitorDockerDeamonIntervalStr,
-		*monitorDockerDeamonMaxConsecutiveErrorsStr); err != nil {
+		*monitorDockerDeamonMaxConsecutiveErrorsStr,
+		*caCertContent); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
