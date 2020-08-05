@@ -76,6 +76,7 @@ func main() {
 	imageNamePrefixTemplate := flag.String("image-name-prefix-template", os.Getenv("NUCLIO_DASHBOARD_IMAGE_NAME_PREFIX_TEMPLATE"), "Go template for the image names prefix")
 	platformAuthorizationMode := flag.String("platform-authorization-mode", defaultPlatformAuthorizationMode, "One of service-account (default) / authorization-header-oidc")
 	dependantImageRegistryURL := flag.String("dependant-image-registry", os.Getenv("NUCLIO_DASHBOARD_DEPENDANT_IMAGE_REGISTRY_URL"), "If passed, replaces base/on-build registry URLs with this value")
+	caCertContent := flag.String("ca-cert-content", "", "Adds ca certificate to git requests")
 
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)
@@ -102,7 +103,8 @@ func main() {
 		*defaultHTTPIngressHostTemplate,
 		*imageNamePrefixTemplate,
 		*platformAuthorizationMode,
-		*dependantImageRegistryURL); err != nil {
+		*dependantImageRegistryURL,
+		*caCertContent); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 

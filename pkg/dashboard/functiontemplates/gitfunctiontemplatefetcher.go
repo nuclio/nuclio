@@ -17,16 +17,21 @@ limitations under the License.
 package functiontemplates
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"io"
+	"net/http"
 	"strings"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/transport/client"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/filemode"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
 type GitFunctionTemplateFetcher struct {
@@ -35,16 +40,19 @@ type GitFunctionTemplateFetcher struct {
 	ref        string
 	repository string
 	logger     logger.Logger
+	caCert     string
 }
 
 func NewGitFunctionTemplateFetcher(parentLogger logger.Logger,
 	repository string,
-	ref string) (*GitFunctionTemplateFetcher, error) {
+	ref string,
+	caCert string) (*GitFunctionTemplateFetcher, error) {
 
 	return &GitFunctionTemplateFetcher{
 		repository: repository,
 		ref:        ref,
 		logger:     parentLogger.GetChild("GitFunctionTemplateFetcher"),
+		caCert:     caCert,
 	}, nil
 }
 
@@ -70,6 +78,21 @@ func (gftf *GitFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 }
 
 func (gftf *GitFunctionTemplateFetcher) getRootTree() (*object.Tree, error) {
+	if gftf.caCert != "" {
+		certPool := x509.NewCertPool()
+		ok := certPool.AppendCertsFromPEM([]byte(gftf.caCert))
+		if !ok {
+			panic("Failed to parse ca certificate")
+		}
+
+		newClient := &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{RootCAs: certPool},
+			},
+		}
+		client.InstallProtocol("https", githttp.NewClient(newClient))
+	}
+
 	referenceName := plumbing.ReferenceName(gftf.ref)
 	gitRepo, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
 		URL:           gftf.repository,
