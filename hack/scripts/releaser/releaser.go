@@ -166,6 +166,10 @@ func (r *Release) prepareRepository() error {
 	return nil
 }
 
+func (r *Release) resolveHelmChartFullPath() string {
+	return r.repositoryDirPath + "/" + helmChartFilePath
+}
+
 func (r *Release) populateCurrentAndTargetVersions() error {
 	var err error
 	runOptions := &cmdrunner.RunOptions{
@@ -194,7 +198,7 @@ func (r *Release) populateCurrentAndTargetVersions() error {
 	r.targetVersion = strings.TrimSpace(r.targetVersion)
 
 	// helm chart version
-	yamlFile, err := ioutil.ReadFile(helmChartFilePath)
+	yamlFile, err := ioutil.ReadFile(r.resolveHelmChartFullPath())
 	if err != nil {
 		return errors.Wrap(err, "Failed to read chart file")
 	}
@@ -479,7 +483,7 @@ func (r *Release) bumpHelmChartVersion() error {
 	if _, err := r.shellRunner.Run(runOptions,
 		`sed -i '' -e "s/^\(version: \).*$/\1%s/g" %s`,
 		r.helmChartsTargetVersion,
-		helmChartFilePath); err != nil {
+		r.resolveHelmChartFullPath()); err != nil {
 		return errors.Wrap(err, "Failed to write helm chart target version")
 	}
 
