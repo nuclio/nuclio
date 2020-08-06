@@ -659,6 +659,10 @@ func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateF
 		return "", errors.Wrap(err, "Failed to write processor config")
 	}
 
+	if _, err = p.cmdRunner.Run(nil, `chmod 644 %s`, processorConfigFile.Name()); err != nil {
+		return "", errors.Wrap(err, "Failed to change processor config file permission")
+	}
+
 	p.Logger.DebugWith("Wrote processor configuration", "path", processorConfigFile.Name())
 
 	// read the file once for logging
