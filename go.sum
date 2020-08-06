@@ -375,6 +375,8 @@ github.com/v3io/scaler-types v1.7.0 h1:ZTbJaYUxZgnPjiOWU64l74jCk5iRmEoA2ZxyzUQbt
 github.com/v3io/scaler-types v1.7.0/go.mod h1:fnjcQnuYD8wTmkmsv7QLnXShuk5HNRRwfFHfR+khYRs=
 github.com/v3io/v3io-go v0.1.6 h1:sYyrcwAHhcUIUDoR8U+TxWYavhEweQryD8AqW5PjymM=
 github.com/v3io/v3io-go v0.1.6/go.mod h1:5poBlcjZG5TiexRTYI44PE6tHzZz5Z60w+iS899pWtc=
+github.com/v3io/v3io-go v0.1.7 h1:RHcY8h26U54xkXH6TP/urYmf1ifhDd/jIJhgYWZfJyM=
+github.com/v3io/v3io-go v0.1.7/go.mod h1:WGxAG5MfZ5FeeZa7yGzocW+iLxTlrpkOWdnCIty4QDc=
 github.com/v3io/v3io-go-http v0.0.1 h1:uE+PmPkVfGi6vIMpoFgrSot4yIow5Id48Gj9ZPt02pU=
 github.com/v3io/v3io-go-http v0.0.1/go.mod h1:GXYcR9MxgfbE3BJdkXki5EclvtS8Nxu2RQNLA8hMMog=
 github.com/v3io/version-go v0.0.2 h1:Ay2erlJmm9HUGc6IqOSaCIikbaZDQSXSCbuLSzg3l/Y=
