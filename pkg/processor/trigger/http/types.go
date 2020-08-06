@@ -93,7 +93,9 @@ func createCORSConfiguration(CORSConfiguration *cors.CORS) *cors.CORS {
 		corsInstance.AllowCredentials = CORSConfiguration.AllowCredentials
 	}
 
-	corsInstance.PreflightMaxAgeSeconds = CORSConfiguration.PreflightMaxAgeSeconds
+	if CORSConfiguration.PreflightMaxAgeSeconds != nil {
+		corsInstance.PreflightMaxAgeSeconds = CORSConfiguration.PreflightMaxAgeSeconds
+	}
 
 	return corsInstance
 
