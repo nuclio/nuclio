@@ -28,6 +28,18 @@ func (suite *TestSuite) TestEncodeAllowCredentialsHeader() {
 	suite.Require().Equal(suite.cors.EncodeAllowCredentialsHeader(), "true")
 }
 
+func (suite *TestSuite) TestEncodePreflightMaxAgeSeconds() {
+
+	// 5 seconds by default
+	suite.Require().Equal(suite.cors.EncodePreflightMaxAgeSeconds(), "5")
+
+	// empty lazy-load encoded string
+	zero := 0
+	suite.cors.preflightMaxAgeSecondsStr = ""
+	suite.cors.PreflightMaxAgeSeconds = &zero
+	suite.Require().Equal(suite.cors.EncodePreflightMaxAgeSeconds(), "0")
+}
+
 func (suite *TestSuite) TestOriginAllowed() {
 	for _, testCase := range []struct {
 		allowOrigins []string

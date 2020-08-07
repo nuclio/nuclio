@@ -36,7 +36,7 @@ type CORS struct {
 
 	// preflight
 	PreflightRequestMethod string
-	PreflightMaxAgeSeconds int
+	PreflightMaxAgeSeconds *int
 
 	// encoded
 	allowMethodsStr           string
@@ -46,7 +46,7 @@ type CORS struct {
 }
 
 func NewCORS() *CORS {
-	return &CORS{
+	cors := &CORS{
 		Enabled: true,
 		AllowOrigins: []string{
 			"*",
@@ -70,8 +70,9 @@ func NewCORS() *CORS {
 		},
 		AllowCredentials:       false,
 		PreflightRequestMethod: fasthttp.MethodOptions,
-		PreflightMaxAgeSeconds: -1, // disable cache by default
 	}
+	cors.populatePreflightMaxAgeSeconds()
+	return cors
 }
 
 func (c *CORS) OriginAllowed(origin string) bool {
@@ -124,8 +125,12 @@ func (c *CORS) EncodeAllowCredentialsHeader() string {
 }
 
 func (c *CORS) EncodePreflightMaxAgeSeconds() string {
+
+	// defensive programing
+	c.populatePreflightMaxAgeSeconds()
+
 	if c.preflightMaxAgeSecondsStr == "" {
-		c.preflightMaxAgeSecondsStr = strconv.Itoa(c.PreflightMaxAgeSeconds)
+		c.preflightMaxAgeSecondsStr = strconv.Itoa(*c.PreflightMaxAgeSeconds)
 	}
 	return c.preflightMaxAgeSecondsStr
 }
@@ -137,4 +142,11 @@ func (c *CORS) isAllowAllOrigins() bool {
 		}
 	}
 	return false
+}
+
+func (c *CORS) populatePreflightMaxAgeSeconds() {
+	if c.PreflightMaxAgeSeconds == nil {
+		five := 5
+		c.PreflightMaxAgeSeconds = &five
+	}
 }
