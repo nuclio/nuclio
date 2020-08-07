@@ -58,9 +58,8 @@ type singleton struct {
 	// accessed atomically, keep as first field for alignment
 	statistics AllocatorStatistics
 
-
-	logger     logger.Logger
-	worker     *Worker
+	logger logger.Logger
+	worker *Worker
 }
 
 func NewSingletonWorkerAllocator(parentLogger logger.Logger, worker *Worker) (Allocator, error) {

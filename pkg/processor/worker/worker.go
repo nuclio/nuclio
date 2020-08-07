@@ -34,7 +34,7 @@ import (
 type Worker struct {
 
 	// accessed atomically, keep as first field for alignment
-	statistics           Statistics
+	statistics Statistics
 
 	logger               logger.Logger
 	index                int

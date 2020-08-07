@@ -81,7 +81,7 @@ type Trigger interface {
 type AbstractTrigger struct {
 
 	// accessed atomically, keep as first field for alignment
-	Statistics      Statistics
+	Statistics Statistics
 
 	ID              string
 	Logger          logger.Logger
