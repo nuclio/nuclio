@@ -19,7 +19,6 @@ package common
 import (
 	"bufio"
 	"bytes"
-	"math"
 	"os"
 	"path"
 	"path/filepath"

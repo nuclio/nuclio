@@ -16,6 +16,7 @@
 # Build assets stage: builds the dashboard assets (js, html, css, etc)
 #
 ARG NUCLIO_LABEL
+ARG NGINX_BASE_IMAGE
 
 FROM node:8 as build-static
 
@@ -35,11 +36,11 @@ RUN npm install -g gulp \
 #
 FROM nuclio-base:$NUCLIO_LABEL as build-binary
 
-ARG NUCLIO_ARCH
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
+ARG GOARCH_VALUE
 
 # build the dashboard
-RUN GOOS=linux GOARCH=${NUCLIO_ARCH} CGO_ENABLED=0 go build \
+RUN GOOS=linux GOARCH=$GOARCH_VALUE CGO_ENABLED=0 go build \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
@@ -49,15 +50,13 @@ RUN GOOS=linux GOARCH=${NUCLIO_ARCH} CGO_ENABLED=0 go build \
 # Output stage: Creates version file, copies binary and assets to an alpine image
 #
 
-FROM arm32v7/nginx:stable-alpine
+FROM $NGINX_BASE_IMAGE
 
-ARG DOCKER_CLI_VERSION="18.09.6"
-
-ENV DOWNLOAD_URL="https://download.docker.com/linux/static/stable/armhf/docker-$DOCKER_CLI_VERSION.tgz"
+ARG DOCKER_CLIENT_URL
 
 RUN apk --update --no-cache add ca-certificates git curl parallel \
     && mkdir -p /tmp/download \
-    && curl -L $DOWNLOAD_URL | tar -xz -C /tmp/download \
+    && curl -L $DOCKER_CLIENT_URL | tar -xz -C /tmp/download \
     && mv /tmp/download/docker/docker /usr/local/bin/ \
     && rm -rf /tmp/download \
     && apk del curl

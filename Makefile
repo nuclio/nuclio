@@ -21,7 +21,12 @@ NUCLIO_DOCKER_REPO ?= quay.io/nuclio
 
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
-NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
+
+ifeq ($(GOARCH), arm)
+	NUCLIO_DEFAULT_ARCH := armhf
+else
+	NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
+endif
 
 ifeq ($(OS_NAME), Linux)
 	NUCLIO_DEFAULT_TEST_HOST := $(shell docker network inspect bridge | grep "Gateway" | grep -o '"[^"]*"$$')
@@ -157,7 +162,7 @@ processor: ensure-gopath build-base
 	echo ${NUCLIO_ARCH}
 	docker build \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
-		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--build-arg GOARCH_VALUE=$(GOARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/processor/Dockerfile \
 		--tag $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG) .
@@ -185,11 +190,22 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
 # Dashboard
 NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
 
+# Docker client URLs
+ifeq ($(NUCLIO_ARCH), armhf)
+	NUCLIO_DOCKER_DASHBOARD_DOCKER_CLIENT_URL=https://download.docker.com/linux/static/stable/armhf/docker-18.09.6.tgz
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE=arm32v7/nginx:stable-alpine
+else
+	NUCLIO_DOCKER_DASHBOARD_DOCKER_CLIENT_URL=https://download.docker.com/linux/static/stable/x86_64/docker-18.09.6.tgz
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE=nginx:stable-alpine
+endif
+
 dashboard: ensure-gopath build-base
 	docker build \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
-		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--build-arg GOARCH_VALUE=$(GOARCH) \
+		--build-arg NGINX_BASE_IMAGE=$(NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE) \
+		--build-arg DOCKER_CLIENT_URL=$(NUCLIO_DOCKER_DASHBOARD_DOCKER_CLIENT_URL) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/dashboard/docker/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
