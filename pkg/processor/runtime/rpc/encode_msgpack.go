@@ -30,8 +30,6 @@ func NewEventMsgPackEncoder(logger logger.Logger, writer io.Writer) *EventMsgPac
 func (e *EventMsgPackEncoder) Encode(event nuclio.Event) error {
 	eventToEncode := eventAsMap(event)
 
-	e.logger.WarnWith("ENCODING", "ts", eventToEncode["timestamp"])
-
 	// if the body is map[string]interface{} we probably got a cloud event with a structured data member
 	if bodyObject, isMapStringInterface := event.GetBodyObject().(map[string]interface{}); isMapStringInterface {
 		eventToEncode["body"] = bodyObject

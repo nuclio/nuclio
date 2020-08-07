@@ -18,6 +18,7 @@ package worker
 
 import (
 	"errors"
+	"sync/atomic"
 	"time"
 
 	"github.com/nuclio/logger"
@@ -124,42 +125,42 @@ func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) 
 func (fp *fixedPool) Allocate(timeout time.Duration) (*Worker, error) {
 
 	// we don't want to completely lock here, but we'll use atomic to inc counters where possible
-	// atomic.AddUint64(&fp.statistics.WorkerAllocationCount, 1)
+	atomic.AddUint64(&fp.statistics.WorkerAllocationCount, 1)
 
 	// get total number of workers
-	//totalNumberWorkers := len(fp.workers)
-	//currentNumberOfAvailableWorkers := len(fp.workerChan)
-	// percentageOfAvailableWorkers := float64(currentNumberOfAvailableWorkers*100.0) / float64(totalNumberWorkers)
+	totalNumberWorkers := len(fp.workers)
+	currentNumberOfAvailableWorkers := len(fp.workerChan)
+	percentageOfAvailableWorkers := float64(currentNumberOfAvailableWorkers*100.0) / float64(totalNumberWorkers)
 
 	// measure how many workers are available in the queue while we're allocating
-	// atomic.AddUint64(&fp.statistics.WorkerAllocationWorkersAvailablePercentage, uint64(percentageOfAvailableWorkers))
+	atomic.AddUint64(&fp.statistics.WorkerAllocationWorkersAvailablePercentage, uint64(percentageOfAvailableWorkers))
 
 	// try to allocate a worker and fall back to default immediately if there's none available
 	select {
 	case workerInstance := <-fp.workerChan:
-		// atomic.AddUint64(&fp.statistics.WorkerAllocationSuccessImmediateTotal, 1)
+		atomic.AddUint64(&fp.statistics.WorkerAllocationSuccessImmediateTotal, 1)
 
 		return workerInstance, nil
 	default:
 
 		// if there's no timeout, return now
 		if timeout == 0 {
-			// atomic.AddUint64(&fp.statistics.WorkerAllocationTimeoutTotal, 1)
+			atomic.AddUint64(&fp.statistics.WorkerAllocationTimeoutTotal, 1)
 			return nil, ErrNoAvailableWorkers
 		}
 
-		// waitStartAt := time.Now()
+		waitStartAt := time.Now()
 
 		// if there is a timeout, try to allocate while waiting for the time
 		// to pass
 		select {
 		case workerInstance := <-fp.workerChan:
-			// atomic.AddUint64(&fp.statistics.WorkerAllocationSuccessAfterWaitTotal, 1)
-			//atomic.AddUint64(&fp.statistics.WorkerAllocationWaitDurationMilliSecondsSum,
-			//	uint64(time.Since(waitStartAt).Nanoseconds()/1e6))
+			atomic.AddUint64(&fp.statistics.WorkerAllocationSuccessAfterWaitTotal, 1)
+			atomic.AddUint64(&fp.statistics.WorkerAllocationWaitDurationMilliSecondsSum,
+				uint64(time.Since(waitStartAt).Nanoseconds()/1e6))
 			return workerInstance, nil
 		case <-time.After(timeout):
-			//atomic.AddUint64(&fp.statistics.WorkerAllocationTimeoutTotal, 1)
+			atomic.AddUint64(&fp.statistics.WorkerAllocationTimeoutTotal, 1)
 			return nil, ErrNoAvailableWorkers
 		}
 	}

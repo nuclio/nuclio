@@ -64,7 +64,7 @@ class Wrapper(object):
         # since this wrapper is behind the nuclio processor, in which pre-handle the traffic & request
         # it is not mandatory to provide security over max buffer size.
         # the request limit should be handled on the processor level.
-        self._unpacker = msgpack.Unpacker(raw=False, max_buffer_size=256 * 1024 * 1024)
+        self._unpacker = msgpack.Unpacker(raw=False, max_buffer_size=4294967295)
 
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]

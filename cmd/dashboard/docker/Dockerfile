@@ -38,8 +38,6 @@ FROM nuclio-base:$NUCLIO_LABEL as build-binary
 ARG NUCLIO_ARCH
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
-RUN echo "222-${NUCLIO_ARCH}"
-
 # build the dashboard
 RUN GOOS=linux GOARCH=${NUCLIO_ARCH} CGO_ENABLED=0 go build \
     -a \

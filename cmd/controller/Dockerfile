@@ -23,8 +23,6 @@ FROM nuclio-base:$NUCLIO_LABEL as build-controller
 ARG NUCLIO_ARCH
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
-RUN echo "111-${NUCLIO_ARCH}"
-
 # build the controller
 RUN GOOS=linux GOARCH=${NUCLIO_ARCH} CGO_ENABLED=0 go build \
     -a \
