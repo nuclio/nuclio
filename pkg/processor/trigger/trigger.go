@@ -79,13 +79,16 @@ type Trigger interface {
 
 // AbstractTrigger implements common trigger operations
 type AbstractTrigger struct {
+
+	// accessed atomically, keep as first field for alignment
+	Statistics      Statistics
+
 	ID              string
 	Logger          logger.Logger
 	WorkerAllocator worker.Allocator
 	Class           string
 	Kind            string
 	Name            string
-	Statistics      Statistics
 	Namespace       string
 	FunctionName    string
 }

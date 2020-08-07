@@ -54,9 +54,13 @@ type Allocator interface {
 //
 
 type singleton struct {
+
+	// accessed atomically, keep as first field for alignment
+	statistics AllocatorStatistics
+
+
 	logger     logger.Logger
 	worker     *Worker
-	statistics AllocatorStatistics
 }
 
 func NewSingletonWorkerAllocator(parentLogger logger.Logger, worker *Worker) (Allocator, error) {
@@ -99,10 +103,13 @@ func (s *singleton) GetStatistics() *AllocatorStatistics {
 //
 
 type fixedPool struct {
+
+	// accessed atomically, keep as first field for alignment
+	statistics AllocatorStatistics
+
 	logger     logger.Logger
 	workerChan chan *Worker
 	workers    []*Worker
-	statistics AllocatorStatistics
 }
 
 func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) (Allocator, error) {

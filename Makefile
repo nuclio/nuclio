@@ -60,7 +60,8 @@ NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_LABEL)-$(NUCLIO_ARCH)
 GO_LINK_FLAGS ?= -s -w
 GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) \
 	-X github.com/v3io/version-go.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
-	-X github.com/v3io/version-go.label=$(NUCLIO_LABEL)
+	-X github.com/v3io/version-go.label=$(NUCLIO_LABEL) \
+	-X github.com/v3io/version-go.arch=$(NUCLIO_ARCH)
 
 # Docker client version to be used
 DOCKER_CLI_VERSION := 18.09.6
