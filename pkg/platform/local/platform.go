@@ -659,7 +659,7 @@ func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateF
 		return "", errors.Wrap(err, "Failed to write processor config")
 	}
 
-	// make it readable by other users, in case user use different USER on function
+	// make it readable by other users, in case user use different USER directive on function image
 	if err := os.Chmod(processorConfigFile.Name(), 0644); err != nil {
 		return "", errors.Wrap(err, "Failed to change processor config file permission")
 	}
