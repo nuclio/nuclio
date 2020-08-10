@@ -207,7 +207,7 @@
                 url: '/triggers',
                 views: {
                     version: {
-                        template: '<ncl-version-triggers data-version="ctrl.version"' +
+                        template: '<ncl-version-triggers data-version="$ctrl.version"' +
                             'data-containers="$ctrl.containers"></ncl-version-triggers>'
                     }
                 },
