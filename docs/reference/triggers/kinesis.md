@@ -18,9 +18,10 @@ Reads records from [Amazon Kinesis](https://aws.amazon.com/kinesis/) streams.
 triggers:
   myKinesisStream:
     kind: kinesis
-    accessKeyID: "my-key"
-    secretAccessKey: "my-secret"
-    regionName: "eu-west-1"
-    streamName: "my-stream"
-    shards: [shard-0, shard-1, shard-2]
+    attributes:
+      accessKeyID: "my-key"
+      secretAccessKey: "my-secret"
+      regionName: "eu-west-1"
+      streamName: "my-stream"
+      shards: [shard-0, shard-1, shard-2]
 ```
