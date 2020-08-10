@@ -17,6 +17,7 @@ Reads records from [Amazon Kinesis](https://aws.amazon.com/kinesis/) streams.
 ```yaml
 triggers:
   myKinesisStream:
+    kind: kinesis
     accessKeyID: "my-key"
     secretAccessKey: "my-secret"
     regionName: "eu-west-1"
