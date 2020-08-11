@@ -59,7 +59,7 @@ GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) \
 	-X github.com/v3io/version-go.label=$(NUCLIO_LABEL)
 
 # Docker client version to be used
-DOCKER_CLI_VERSION := 18.09.6
+DOCKER_CLI_VERSION := 19.03.12
 
 # Nuclio test timeout
 NUCLIO_GO_TEST_TIMEOUT ?= "30m"
