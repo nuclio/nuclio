@@ -31,12 +31,11 @@ import (
 
 type testSuite struct {
 	*triggertest.AbstractBrokerSuite
-	kinesisClient      kinesisclient.KinesisClient
-	kinesisEndpointURL string
-	streamName         string
-	shardCount         int
-	shards             []string
-	useDummyKinesis    bool
+	kinesisClient   kinesisclient.KinesisClient
+	streamName      string
+	shardCount      int
+	shards          []string
+	useDummyKinesis bool
 
 	brokerContainerNetwork string
 	brokerContainerPort    int
