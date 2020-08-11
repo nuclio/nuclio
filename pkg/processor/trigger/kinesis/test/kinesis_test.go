@@ -22,6 +22,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	kinesisclient "github.com/sendgridlabs/go-kinesis"
@@ -35,10 +36,14 @@ type testSuite struct {
 	streamName         string
 	shardCount         int
 	shards             []string
+	useDummyKinesis    bool
 
 	brokerContainerNetwork string
 	brokerContainerPort    int
 	brokerContainerName    string
+	brokerSecretAccessKey  string
+	brokerAccessKeyID      string
+	brokerRegionName       string
 }
 
 func newTestSuite() *testSuite {
@@ -49,47 +54,39 @@ func newTestSuite() *testSuite {
 
 func (suite *testSuite) SetupSuite() {
 
+	// NOTE: use  dummy for testing purposes, change if you want to test against a production-like stream
+	suite.useDummyKinesis = true
+	suite.brokerSecretAccessKey = "a"
+	suite.brokerAccessKeyID = "b"
+	suite.brokerRegionName = "c"
+	suite.streamName = "nuclio-test"
+	suite.shards = []string{"shard-0", "shard-1", "shard-2"}
+	suite.shardCount = len(suite.shards)
+
 	// kineses test & function clients configuration
 	suite.brokerContainerPort = 4567
 	suite.brokerContainerName = "nuclio-kinesis"
 	suite.brokerContainerNetwork = "nuclio-kinesis-network"
-	suite.kinesisEndpointURL = fmt.Sprintf("http://localhost:%d/", suite.brokerContainerPort)
-	suite.streamName = "test"
-	suite.shards = []string{"shard-0", "shard-1", "shard-2"}
-	suite.shardCount = len(suite.shards)
 
+	// setup parent
 	suite.AbstractBrokerSuite.SetupSuite()
 
-	// create test client
-	kinesisAuth := kinesisclient.NewAuth("x", "y", "")
-	suite.kinesisClient = kinesisclient.NewWithEndpoint(kinesisAuth, "z", suite.kinesisEndpointURL)
+	kinesisAuth := kinesisclient.NewAuth(suite.brokerAccessKeyID, suite.brokerSecretAccessKey, "")
+	if suite.useDummyKinesis {
+		suite.kinesisClient = kinesisclient.NewWithEndpoint(kinesisAuth,
+			suite.brokerRegionName,
+			fmt.Sprintf("http://localhost:%d/", suite.brokerContainerPort))
+	} else {
+		suite.kinesisClient = kinesisclient.New(kinesisAuth, suite.brokerRegionName)
+	}
+
+	// create the stream
 	err := suite.kinesisClient.CreateStream(suite.streamName, suite.shardCount)
 	suite.Require().NoError(err)
 }
 
 func (suite *testSuite) TestReceiveRecords() {
-	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
-
-	// function must be within the same network of broker to allow communication
-	createFunctionOptions.FunctionConfig.Spec.Platform.Attributes = map[string]interface{}{
-		"network": suite.brokerContainerNetwork,
-	}
-
-	// create function kinesis trigger
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		"kinesisTrigger": {
-			Kind: "kinesis",
-			URL:  fmt.Sprintf("http://%s:%d", suite.brokerContainerName, suite.brokerContainerPort),
-			Attributes: map[string]interface{}{
-				"accessKeyID":     "x",
-				"secretAccessKey": "y",
-				"regionName":      "z",
-				"streamName":      suite.streamName,
-				"shards":          suite.shards,
-			},
-		},
-	}
-
+	createFunctionOptions := suite.getDeployOptions("kinesis-event-recorder")
 	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
 		suite.BrokerHost,
 		createFunctionOptions,
@@ -100,10 +97,49 @@ func (suite *testSuite) TestReceiveRecords() {
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
+	if !suite.useDummyKinesis {
+		return "", nil
+	}
 	return "instructure/kinesalite", &dockerclient.RunOptions{
 		ContainerName: suite.brokerContainerName,
 		Ports:         map[int]int{suite.brokerContainerPort: suite.brokerContainerPort},
 		Network:       suite.brokerContainerNetwork,
+	}
+}
+
+func (suite *testSuite) getDeployOptions(functionName string) *platform.CreateFunctionOptions {
+	createFunctionOptions := suite.GetDeployOptions(functionName, suite.FunctionPaths["python"])
+
+	if suite.useDummyKinesis {
+		// function must be within the same network of broker to allow communication
+		createFunctionOptions.FunctionConfig.Spec.Platform.Attributes = map[string]interface{}{
+			"network": suite.brokerContainerNetwork,
+		}
+	}
+
+	// create function kinesis trigger
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"kinesisTrigger": suite.resolveKinesisFunctionTrigger(),
+	}
+
+	return createFunctionOptions
+}
+
+func (suite *testSuite) resolveKinesisFunctionTrigger() functionconfig.Trigger {
+	kinesisEndpointURL := ""
+	if suite.useDummyKinesis {
+		kinesisEndpointURL = fmt.Sprintf("http://%s:%d", suite.brokerContainerName, suite.brokerContainerPort)
+	}
+	return functionconfig.Trigger{
+		Kind: "kinesis",
+		URL:  kinesisEndpointURL,
+		Attributes: map[string]interface{}{
+			"accessKeyID":     suite.brokerAccessKeyID,
+			"secretAccessKey": suite.brokerSecretAccessKey,
+			"regionName":      suite.brokerRegionName,
+			"streamName":      suite.streamName,
+			"shards":          suite.shards,
+		},
 	}
 }
 
