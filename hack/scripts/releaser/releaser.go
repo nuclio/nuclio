@@ -313,6 +313,9 @@ func (r *Release) getGithubWorkflowsReleaseStatus() (string, error) {
 	if err := json.Unmarshal(responseBody, &workflowRunsResponse); err != nil {
 		return "", errors.Wrap(err, "Failed to unmarshal workflow runs response")
 	}
+	if len(workflowRunsResponse.WorkflowRuns) == 0 {
+		return "", nil
+	}
 	return workflowRunsResponse.WorkflowRuns[0].Status, nil
 }
 
