@@ -432,6 +432,7 @@ func (r *Release) createRelease() error {
 				r.logger.DebugWith("Get release status returned with an error", "err", err)
 				return false
 			}
+			r.logger.DebugWith("Received status", "status", status)
 			return status != ""
 		})
 }
@@ -446,6 +447,7 @@ func (r *Release) waitForReleaseCompleteness() error {
 				return false
 			}
 
+			r.logger.DebugWith("Waiting for release completeness", "status", status)
 			switch r.releaseBranch {
 			case "1.1.x", "1.3.x":
 				return status == "finished"
