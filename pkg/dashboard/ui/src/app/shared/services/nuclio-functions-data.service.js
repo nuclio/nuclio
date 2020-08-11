@@ -31,6 +31,8 @@
                 'x-nuclio-project-name': projectName
             };
 
+            lodash.assign(headers, NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-function-namespace'));
+
             var namespace = NuclioNamespacesDataService.getNamespace();
             if (!lodash.isNil(namespace)) {
                 lodash.set(functionDetails, 'metadata.namespace', namespace);
@@ -131,6 +133,8 @@
                 'Content-Type': 'application/json',
                 'x-nuclio-project-name': projectName
             };
+
+            lodash.assign(headers, NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-function-namespace'));
 
             var namespace = NuclioNamespacesDataService.getNamespace();
             if (!lodash.isNil(namespace)) {
