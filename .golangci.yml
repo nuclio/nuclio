@@ -25,7 +25,6 @@ run:
   timeout: 5m
 
   skip-dirs:
-    - hack
     - docs
 
 issues:
