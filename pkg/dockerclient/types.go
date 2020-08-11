@@ -63,6 +63,7 @@ type RunOptions struct {
 	ImageMayNotExist bool
 	Network          string
 	RestartPolicy    *RestartPolicy
+	GPUs             string
 }
 
 // ExecOptions are options for executing a command in a container
