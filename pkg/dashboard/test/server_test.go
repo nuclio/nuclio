@@ -79,7 +79,9 @@ func (suite *dashboardTestSuite) SetupTest() {
 		"",
 		true,
 		templateRepository,
-		nil,
+		&platformconfig.Config{
+			KubeFunctionExposureMode: platformconfig.KubeFunctionExposureModeNodePort,
+		},
 		"",
 		"",
 		"",
@@ -2375,6 +2377,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
                 "build": {},
                 "platform": {},
                 "readinessTimeoutSeconds": 60,
+                "serviceType": "NodePort",
                 "eventTimeout": ""
             }
         }
