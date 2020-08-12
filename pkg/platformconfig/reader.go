@@ -83,5 +83,6 @@ func (r *Reader) GetDefaultConfiguration() *Config {
 				{Level: "debug", Sink: "stdout"},
 			},
 		},
+		KubeFunctionExposureMode: KubeFunctionExposureModeNodePort,
 	}
 }

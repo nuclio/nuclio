@@ -22,6 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/errors"
+	"k8s.io/api/core/v1"
 )
 
 type Config struct {
@@ -34,6 +35,7 @@ type Config struct {
 	AutoScale                AutoScale                `json:"autoScale,omitempty"`
 	CronTriggerCreationMode  CronTriggerCreationMode  `json:"cronTriggerCreationMode,omitempty"`
 	FunctionAugmentedConfigs []LabelSelectorAndConfig `json:"functionAugmentedConfigs,omitempty"`
+	KubeFunctionExposureMode KubeFunctionExposureMode `json:"kubeFunctionExposureMode,omitempty"`
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {
@@ -102,6 +104,21 @@ func (config *Config) GetSystemMetricSinks() (map[string]MetricSink, error) {
 
 func (config *Config) GetFunctionMetricSinks() (map[string]MetricSink, error) {
 	return config.getMetricSinks(config.Metrics.Functions)
+}
+
+func (config *Config) GetDefaultServiceType() v1.ServiceType {
+
+	// if not k8s, this field should be empty
+	if config.Kind == "local" {
+		return ""
+	}
+
+	switch config.KubeFunctionExposureMode {
+	case KubeFunctionExposureModeNil:
+		return v1.ServiceTypeClusterIP
+	default:
+		return v1.ServiceTypeNodePort
+	}
 }
 
 func (config *Config) getMetricSinks(metricSinkNames []string) (map[string]MetricSink, error) {

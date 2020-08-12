@@ -104,3 +104,10 @@ const (
 	ProcessorCronTriggerCreationMode CronTriggerCreationMode = "processor"
 	KubeCronTriggerCreationMode      CronTriggerCreationMode = "kube"
 )
+
+type KubeFunctionExposureMode string
+
+const (
+	KubeFunctionExposureModeNodePort KubeFunctionExposureMode = "nodePort"
+	KubeFunctionExposureModeNil      KubeFunctionExposureMode = "nil"
+)

@@ -199,7 +199,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 
 	// set a default
 	if function.Spec.ServiceType == "" {
-		function.Spec.ServiceType = v1.ServiceTypeNodePort
+		function.Spec.ServiceType = platformConfig.GetDefaultServiceType()
 	}
 
 	// create or update the applicable configMap
@@ -1416,8 +1416,6 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 		}
 		if serviceTypeIsNodePort {
 			spec.Ports[0].NodePort = int32(functionHTTPPort)
-		} else {
-			spec.Ports[0].NodePort = 0
 		}
 		lc.logger.DebugWith("Updating service node port",
 			"functionName", function.Name,

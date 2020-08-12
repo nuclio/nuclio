@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
+	v1 "k8s.io/api/core/v1"
 )
 
 type frontendSpecResource struct {
@@ -94,6 +95,12 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface{} {
 	one := 1
 	defaultWorkerAvailabilityTimeoutMilliseconds := trigger.DefaultWorkerAvailabilityTimeoutMilliseconds
+
+	var defaultServiceType v1.ServiceType = ""
+	if dashboardServer, ok := fesr.resource.GetServer().(*dashboard.Server); ok {
+		defaultServiceType = dashboardServer.GetPlatformConfiguration().GetDefaultServiceType()
+	}
+
 	defaultFunctionSpec := functionconfig.Spec{
 		MinReplicas:             &one,
 		MaxReplicas:             &one,
@@ -109,6 +116,7 @@ func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interfac
 				WorkerAvailabilityTimeoutMilliseconds: &defaultWorkerAvailabilityTimeoutMilliseconds,
 			},
 		},
+		ServiceType: defaultServiceType,
 	}
 
 	return map[string]interface{}{"attributes": functionconfig.Config{Spec: defaultFunctionSpec}}
