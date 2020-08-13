@@ -91,6 +91,7 @@ func (gftf *GitFunctionTemplateFetcher) getRootTree() (*object.Tree, error) {
 			},
 		}
 		client.InstallProtocol("https", githttp.NewClient(newClient))
+		client.InstallProtocol("ssh", githttp.NewClient(newClient))
 	}
 
 	referenceName := plumbing.ReferenceName(gftf.ref)
