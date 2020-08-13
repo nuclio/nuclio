@@ -37,22 +37,22 @@ import (
 type GitFunctionTemplateFetcher struct {
 	BaseFunctionTemplateFetcher
 
-	ref        string
-	repository string
-	logger     logger.Logger
-	caCert     string
+	ref               string
+	repository        string
+	logger            logger.Logger
+	gitCaCertContents string
 }
 
 func NewGitFunctionTemplateFetcher(parentLogger logger.Logger,
 	repository string,
 	ref string,
-	caCert string) (*GitFunctionTemplateFetcher, error) {
+	gitCaCertContents string) (*GitFunctionTemplateFetcher, error) {
 
 	return &GitFunctionTemplateFetcher{
-		repository: repository,
-		ref:        ref,
-		logger:     parentLogger.GetChild("GitFunctionTemplateFetcher"),
-		caCert:     caCert,
+		repository:        repository,
+		ref:               ref,
+		logger:            parentLogger.GetChild("GitFunctionTemplateFetcher"),
+		gitCaCertContents: gitCaCertContents,
 	}, nil
 }
 
@@ -78,9 +78,9 @@ func (gftf *GitFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 }
 
 func (gftf *GitFunctionTemplateFetcher) getRootTree() (*object.Tree, error) {
-	if gftf.caCert != "" {
+	if gftf.gitCaCertContents != "" {
 		certPool := x509.NewCertPool()
-		ok := certPool.AppendCertsFromPEM([]byte(gftf.caCert))
+		ok := certPool.AppendCertsFromPEM([]byte(gftf.gitCaCertContents))
 		if !ok {
 			return nil, errors.New("Failed to parse certificate authority")
 		}

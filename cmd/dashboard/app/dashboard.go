@@ -126,7 +126,7 @@ func Run(listenAddress string,
 	monitorDockerDeamon bool,
 	monitorDockerDeamonIntervalStr string,
 	monitorDockerDeamonMaxConsecutiveErrorsStr string,
-	caCert string) error {
+	gitCaCertContents string) error {
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
@@ -255,7 +255,7 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 		functionGitTemplateFetcher, err = functiontemplates.NewGitFunctionTemplateFetcher(rootLogger,
 			templatesGitRepository,
 			createDashboardServerOptions.templatesGitRef,
-			caCert)
+			gitCaCertContents)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create git fetcher")
 		}
