@@ -669,14 +669,12 @@ func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container
 		return 0
 	}
 
-	port := ""
-	if portBindings[0].HostPort != "" {
+	// by default take the port binding, as if the user requested
+	port := portBindings[0].HostPort
 
-		// if user specified a port, it will get here
-		port = portBindings[0].HostPort
-	} else {
+	if port == "" {
 
-		// if no port was specified
+		// in case the user did not set an explicit port, take the random port assigned by docker
 		port = ports[0].HostPort
 	}
 
