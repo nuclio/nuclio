@@ -82,7 +82,7 @@ func (gftf *GitFunctionTemplateFetcher) getRootTree() (*object.Tree, error) {
 		certPool := x509.NewCertPool()
 		ok := certPool.AppendCertsFromPEM([]byte(gftf.caCert))
 		if !ok {
-			panic("Failed to parse ca certificate")
+			return nil, errors.New("Failed to parse certificate authority")
 		}
 
 		newClient := &http.Client{
