@@ -531,10 +531,18 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	labels := p.compileDeployFunctionLabels(createFunctionOptions)
 	envMap := p.compileDeployFunctionEnvMap(createFunctionOptions)
 
+	// get function port - either from configuration, from the previous deployment or from a free port
+	functionExternalHTTPPort, err := p.getFunctionHTTPPort(createFunctionOptions, previousHTTPPort)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function HTTP port")
+	}
+
 	// run the docker image
 	runContainerOptions := &dockerclient.RunOptions{
 		ContainerName: p.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
-		Ports:         map[int]int{dockerclient.RunOptionsNoPort: abstract.FunctionContainerHTTPPort},
+		Ports: map[int]int{
+			functionExternalHTTPPort: abstract.FunctionContainerHTTPPort,
+		},
 		Env:           envMap,
 		Labels:        labels,
 		Volumes:       volumesMap,
@@ -542,16 +550,6 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		RestartPolicy: functionPlatformConfiguration.RestartPolicy,
 	}
 
-	// get function port - either from configuration, from the previous deployment or from a free port
-	functionHTTPPort, err := p.getFunctionHTTPPort(createFunctionOptions, previousHTTPPort)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function HTTP port")
-	}
-	if functionHTTPPort != 0 {
-		p.Logger.DebugWith("Running container with a specific port",
-			"functionHTTPPort", functionHTTPPort)
-		runContainerOptions.Ports = map[int]int{functionHTTPPort: abstract.FunctionContainerHTTPPort}
-	}
 	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image,
 		runContainerOptions)
 	if err != nil {
@@ -563,7 +561,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		return nil, err
 	}
 
-	functionHTTPPort, err = p.resolveDeployedFunctionHTTPPort(containerID)
+	functionExternalHTTPPort, err = p.resolveDeployedFunctionHTTPPort(containerID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve deployed function HTTP port")
 	}
@@ -573,7 +571,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 			Image:                 createFunctionOptions.FunctionConfig.Spec.Image,
 			UpdatedFunctionConfig: createFunctionOptions.FunctionConfig,
 		},
-		Port:        functionHTTPPort,
+		Port:        functionExternalHTTPPort,
 		ContainerID: containerID,
 	}, nil
 }
@@ -643,13 +641,23 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 		return previousHTTPPort, nil
 	}
 
-	return 0, nil
+	return dockerclient.RunOptionsNoPort, nil
 }
 
 func (p *Platform) GetContainerNameByCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) string {
 	return fmt.Sprintf("nuclio-%s-%s",
 		createFunctionOptions.FunctionConfig.Meta.Namespace,
 		createFunctionOptions.FunctionConfig.Meta.Name)
+}
+
+func (p *Platform) resolveDeployedFunctionHTTPPort(containerID string) (int, error) {
+	containers, err := p.dockerClient.GetContainers(&dockerclient.GetContainerOptions{
+		ID: containerID,
+	})
+	if err != nil || len(containers) == 0 {
+		return 0, errors.Wrap(err, "Failed to get container")
+	}
+	return p.getContainerHTTPTriggerPort(&containers[0]), nil
 }
 
 func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container) int {
@@ -947,15 +955,4 @@ func (p *Platform) compileDeployFunctionLabels(createFunctionOptions *platform.C
 		labels["nuclio.io/annotations"] = string(marshalledAnnotations)
 	}
 	return labels
-}
-
-func (p *Platform) resolveDeployedFunctionHTTPPort(containerID string) (int, error) {
-	container, err := p.dockerClient.GetContainer(&dockerclient.GetContainerOptions{
-		ID: containerID,
-	})
-	if err != nil {
-		return 0, errors.Wrap(err, "Failed to get container")
-	}
-
-	return p.getContainerHTTPTriggerPort(container), nil
 }

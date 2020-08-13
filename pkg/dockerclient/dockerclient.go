@@ -59,9 +59,6 @@ type Client interface {
 	// GetContainers returns a list of containers which match a certain criteria
 	GetContainers(*GetContainerOptions) ([]Container, error)
 
-	// GetContainer returns the first matching container which match a certain criteria
-	GetContainer(*GetContainerOptions) (*Container, error)
-
 	// GetContainerEvents returns a list of container events which occurred within a time range
 	GetContainerEvents(containerName string, since string, until string) ([]string, error)
 

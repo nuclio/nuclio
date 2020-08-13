@@ -497,18 +497,6 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 	return containersInfo, nil
 }
 
-// GetContainer returns the first matching container which match a certain criteria
-func (c *ShellClient) GetContainer(options *GetContainerOptions) (*Container, error) {
-	containers, err := c.GetContainers(options)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get container")
-	}
-	if len(containers) == 0 {
-		return nil, errors.New("No container were matching criteria")
-	}
-	return &containers[0], nil
-}
-
 // GetContainerEvents returns a list of container events which occurred within a time range
 func (c *ShellClient) GetContainerEvents(containerName string, since string, until string) ([]string, error) {
 	runResults, err := c.runCommand(nil, "docker events --filter container=%s --since %s --until %s",

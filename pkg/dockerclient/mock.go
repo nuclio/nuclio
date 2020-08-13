@@ -95,11 +95,6 @@ func (mdc *MockDockerClient) GetContainers(options *GetContainerOptions) ([]Cont
 	return nil, nil
 }
 
-// GetContainer returns the first matching container which match a certain criteria
-func (mdc *MockDockerClient) GetContainer(options *GetContainerOptions) (*Container, error) {
-	return nil, nil
-}
-
 // GetContainerEvents returns a list of container events which occurred within a time range
 func (mdc *MockDockerClient) GetContainerEvents(containerName string, since string, until string) ([]string, error) {
 	return nil, nil
