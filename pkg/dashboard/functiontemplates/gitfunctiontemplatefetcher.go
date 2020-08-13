@@ -19,6 +19,7 @@ package functiontemplates
 import (
 	"crypto/tls"
 	"crypto/x509"
+	b64 "encoding/base64"
 	"io"
 	"net/http"
 	"strings"
@@ -80,7 +81,11 @@ func (gftf *GitFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 func (gftf *GitFunctionTemplateFetcher) getRootTree() (*object.Tree, error) {
 	if gftf.gitCaCertContents != "" {
 		certPool := x509.NewCertPool()
-		ok := certPool.AppendCertsFromPEM([]byte(gftf.gitCaCertContents))
+		cert, err := b64.URLEncoding.DecodeString(gftf.gitCaCertContents)
+		if err != nil {
+			return nil, errors.New("Failed to decode certificate authority")
+		}
+		ok := certPool.AppendCertsFromPEM(cert)
 		if !ok {
 			return nil, errors.New("Failed to parse certificate authority")
 		}
