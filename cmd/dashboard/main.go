@@ -60,6 +60,7 @@ func main() {
 	templatesGitPassword := flag.String("templates-git-password", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_PASSWORD", ""), "Git repo's user password")
 	templatesGithubAccessToken := flag.String("templates-github-access-token", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_ACCESS_TOKEN", ""), "Github templates repo's access token")
 	templatesArchiveAddress := flag.String("templates-archive-address", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_ARCHIVE_ADDRESS", ""), "Function Templates zip file address")
+	gitCaCertContents := flag.String("git-ca-cert-contents", common.GetEnvOrDefaultString("NUCLIO_GIT_CA_CERT_CONTENTS", ""), "Base64 encoded ca certificate contents used in git requests")
 
 	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the dashboard listens")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
@@ -76,7 +77,6 @@ func main() {
 	imageNamePrefixTemplate := flag.String("image-name-prefix-template", os.Getenv("NUCLIO_DASHBOARD_IMAGE_NAME_PREFIX_TEMPLATE"), "Go template for the image names prefix")
 	platformAuthorizationMode := flag.String("platform-authorization-mode", defaultPlatformAuthorizationMode, "One of service-account (default) / authorization-header-oidc")
 	dependantImageRegistryURL := flag.String("dependant-image-registry", os.Getenv("NUCLIO_DASHBOARD_DEPENDANT_IMAGE_REGISTRY_URL"), "If passed, replaces base/on-build registry URLs with this value")
-	caCertContent := flag.String("ca-cert-content", "", "Adds ca certificate to git requests")
 
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)
@@ -104,7 +104,7 @@ func main() {
 		*imageNamePrefixTemplate,
 		*platformAuthorizationMode,
 		*dependantImageRegistryURL,
-		*caCertContent); err != nil {
+		*gitCaCertContents); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 

@@ -54,7 +54,7 @@ func Run(listenAddress string,
 	imageNamePrefixTemplate string,
 	platformAuthorizationMode string,
 	dependantImageRegistryURL string,
-	caCert string) error {
+	gitCaCertContents string) error {
 	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
 	var functionZipTemplateFetcher *functiontemplates.ZipFunctionTemplateFetcher
 
@@ -92,7 +92,7 @@ func Run(listenAddress string,
 		functionGitTemplateFetcher, err = functiontemplates.NewGitFunctionTemplateFetcher(rootLogger,
 			templatesGitRepository,
 			templatesGitRef,
-			caCert)
+			gitCaCertContents)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create git fetcher")
 		}
