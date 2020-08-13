@@ -18,11 +18,8 @@ package test
 
 import (
 	"encoding/base64"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -45,28 +42,6 @@ func (suite *DeployFunctionTestSuite) SetupSuite() {
 
 	// start controller in background
 	go suite.Controller.Start() // nolint: errcheck
-}
-
-func (suite *DeployFunctionTestSuite) TearDownSuite() {
-
-	// remove nuclio function leftovers
-	_, err := suite.executeKubectl([]string{"delete", "nucliofunctions", "--all"}, nil)
-	suite.Require().NoError(err)
-
-	// wait until controller remove it all
-	err = common.RetryUntilSuccessful(2*time.Minute,
-		5*time.Second,
-		func() bool {
-			results, err := suite.executeKubectl([]string{"get", "all"},
-				map[string]string{
-					"selector": "nuclio.io/app",
-				})
-			if err != nil {
-				return false
-			}
-			return strings.Contains(results.Output, "No resources found in")
-		})
-	suite.Require().NoError(err)
 }
 
 func (suite *DeployFunctionTestSuite) TestStaleResourceVersion() {
@@ -164,10 +139,10 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		deploymentInstance := &appsv1.Deployment{}
 		functionInstance := &nuclioio.NuclioFunction{}
-		suite.populateResource("nucliofunction",
+		suite.getResourceAndUnmarshal("nucliofunction",
 			functionName,
 			functionInstance)
-		suite.populateResource("deployment",
+		suite.getResourceAndUnmarshal("deployment",
 			kube.DeploymentNameFromFunctionName(functionName),
 			deploymentInstance)
 
@@ -193,7 +168,7 @@ func (suite *DeployFunctionTestSuite) TestMinMaxReplicas() {
 	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &three
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		hpaInstance := &autoscalingv1.HorizontalPodAutoscaler{}
-		suite.populateResource("hpa", kube.HPANameFromFunctionName(functionName), hpaInstance)
+		suite.getResourceAndUnmarshal("hpa", kube.HPANameFromFunctionName(functionName), hpaInstance)
 		suite.Require().Equal(two, int(*hpaInstance.Spec.MinReplicas))
 		suite.Require().Equal(three, int(hpaInstance.Spec.MaxReplicas))
 		return true

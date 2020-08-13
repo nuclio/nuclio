@@ -56,6 +56,7 @@ func (suite *KubeTestSuite) SetupSuite() {
 
 	suite.PlatformConfiguration.Kind = suite.PlatformType
 
+	// only set up parent AFTER we set platform's type
 	suite.TestSuite.SetupSuite()
 
 	suite.RegistryURL = common.GetEnvOrDefaultString("NUCLIO_TEST_REGISTRY_URL", "localhost:5000")
@@ -68,6 +69,29 @@ func (suite *KubeTestSuite) SetupSuite() {
 
 	// create controller instance
 	suite.Controller = suite.createController()
+}
+
+func (suite *KubeTestSuite) TearDownTest() {
+	suite.TestSuite.TearDownTest()
+
+	// remove nuclio function leftovers
+	_, err := suite.executeKubectl([]string{"delete", "nucliofunctions", "--all"}, nil)
+	suite.Require().NoError(err)
+
+	// wait until controller remove it all
+	err = common.RetryUntilSuccessful(2*time.Minute,
+		5*time.Second,
+		func() bool {
+			results, err := suite.executeKubectl([]string{"get", "all"},
+				map[string]string{
+					"selector": "nuclio.io/app",
+				})
+			if err != nil {
+				return false
+			}
+			return strings.Contains(results.Output, "No resources found in")
+		})
+	suite.Require().NoError(err)
 }
 
 func (suite *KubeTestSuite) executeKubectl(positionalArgs []string,
@@ -88,7 +112,6 @@ func (suite *KubeTestSuite) executeKubectl(positionalArgs []string,
 
 	suite.Logger.DebugWith("Running kubectl", "encodedCommand", encodedCommand)
 	return suite.CmdRunner.Run(nil, encodedCommand)
-
 }
 
 func (suite *KubeTestSuite) getResource(resourceKind, resourceName string) string {
@@ -102,7 +125,7 @@ func (suite *KubeTestSuite) getResource(resourceKind, resourceName string) strin
 	return results.Output
 }
 
-func (suite *KubeTestSuite) populateResource(resourceKind, resourceName string, resource interface{}) {
+func (suite *KubeTestSuite) getResourceAndUnmarshal(resourceKind, resourceName string, resource interface{}) {
 	resourceContent := suite.getResource(resourceKind, resourceName)
 	err := yaml.Unmarshal([]byte(resourceContent), resource)
 	suite.Require().NoError(err)

@@ -21,7 +21,7 @@ func GetKubeconfigPath(kubeconfigPath string) string {
 
 	// do we still not have a kubeconfig path?
 	if kubeconfigPath == "" {
-		kubeconfigPath = GetEnvOrDefaultString("KUBECONFIG", getKubeconfigFromHomeDir())
+		return GetEnvOrDefaultString("KUBECONFIG", getKubeconfigFromHomeDir())
 	}
 	return kubeconfigPath
 }
