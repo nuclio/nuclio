@@ -156,7 +156,6 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 		suite.Require().Equal(runAsGroupID, *deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsGroup)
 		return true
 	})
-
 }
 
 func (suite *DeployFunctionTestSuite) TestMinMaxReplicas() {
