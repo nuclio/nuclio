@@ -657,29 +657,31 @@ func (p *Platform) resolveDeployedFunctionHTTPPort(containerID string) (int, err
 	if err != nil || len(containers) == 0 {
 		return 0, errors.Wrap(err, "Failed to get container")
 	}
-	return p.getContainerHTTPTriggerPort(&containers[0]), nil
+	return p.getContainerHTTPTriggerPort(&containers[0])
 }
 
-func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container) int {
+func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container) (int, error) {
 	functionHostPort := dockerclient.Port(fmt.Sprintf("%d/tcp", abstract.FunctionContainerHTTPPort))
 
 	portBindings := container.HostConfig.PortBindings[functionHostPort]
 	ports := container.NetworkSettings.Ports[functionHostPort]
 	if len(portBindings) == 0 && len(ports) == 0 {
-		return 0
+		return 0, nil
 	}
 
-	// by default take the port binding, as if the user requested
-	port := portBindings[0].HostPort
+	if len(portBindings) != 0 && portBindings[0].HostPort != "" {
 
-	if port == "" {
+		// by default take the port binding, as if the user requested
+		return strconv.Atoi(portBindings[0].HostPort)
+	} else if len(ports) != 0 && ports[0].HostPort != "" {
 
 		// in case the user did not set an explicit port, take the random port assigned by docker
-		port = ports[0].HostPort
-	}
+		return strconv.Atoi(ports[0].HostPort)
+	} else {
 
-	httpPort, _ := strconv.Atoi(port)
-	return httpPort
+		// something bad happened if we got here
+		return 0, errors.New("No port was assigned")
+	}
 }
 
 func (p *Platform) marshallAnnotations(annotations map[string]string) []byte {
@@ -718,7 +720,10 @@ func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.Crea
 
 		// iterate over containers and delete
 		for _, container := range containers {
-			previousHTTPPort = p.getContainerHTTPTriggerPort(&container)
+			previousHTTPPort, err = p.getContainerHTTPTriggerPort(&container)
+			if err != nil {
+				return 0, errors.Wrap(err, "Failed to get container http trigger port")
+			}
 
 			err = p.dockerClient.RemoveContainer(container.Name)
 			if err != nil {
