@@ -74,7 +74,7 @@ func (suite *testSuite) SetupSuite() {
 	if suite.useDummyKinesis {
 		suite.kinesisClient = kinesisclient.NewWithEndpoint(kinesisAuth,
 			suite.brokerRegionName,
-			fmt.Sprintf("http://localhost:%d/", suite.brokerContainerPort))
+			fmt.Sprintf("http://%s:%d/", suite.BrokerHost, suite.brokerContainerPort))
 	} else {
 		suite.kinesisClient = kinesisclient.New(kinesisAuth, suite.brokerRegionName)
 	}
