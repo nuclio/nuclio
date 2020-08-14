@@ -159,7 +159,11 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	portsArgument := ""
 
 	for localPort, dockerPort := range runOptions.Ports {
-		portsArgument += fmt.Sprintf("-p %d:%d ", localPort, dockerPort)
+		if localPort == RunOptionsNoPort {
+			portsArgument += fmt.Sprintf("-p %d ", dockerPort)
+		} else {
+			portsArgument += fmt.Sprintf("-p %d:%d ", localPort, dockerPort)
+		}
 	}
 
 	restartPolicy := ""

@@ -62,7 +62,6 @@ import (
 )
 
 const (
-	containerHTTPPort             = 8080
 	containerHTTPPortName         = "http"
 	containerMetricPort           = 8090
 	containerMetricPortName       = "metrics"
@@ -1411,7 +1410,7 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 		spec.Ports = []v1.ServicePort{
 			{
 				Name: containerHTTPPortName,
-				Port: int32(containerHTTPPort),
+				Port: int32(abstract.FunctionContainerHTTPPort),
 			},
 		}
 		if serviceTypeIsNodePort {
@@ -1766,7 +1765,7 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 	container.Ports = []v1.ContainerPort{
 		{
 			Name:          containerHTTPPortName,
-			ContainerPort: containerHTTPPort,
+			ContainerPort: abstract.FunctionContainerHTTPPort,
 			Protocol:      "TCP",
 		},
 	}
