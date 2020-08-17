@@ -21,11 +21,11 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/loggersink"
+	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
-	"github.com/nuclio/nuclio/pkg/platform/kube/provisioner/apigateway"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
@@ -151,7 +151,7 @@ func createController(kubeconfigPath string,
 	}
 
 	// create api-gateway provisioner
-	apiGatewayProvisioner, err := apigateway.NewProvisioner(rootLogger, kubeClientSet, nuclioClientSet, ingressManager)
+	apigatewayresClient, err := apigatewayres.NewLazyClient(rootLogger, kubeClientSet, nuclioClientSet, ingressManager)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create api-gateway provisioner")
 	}
@@ -162,7 +162,7 @@ func createController(kubeconfigPath string,
 		kubeClientSet,
 		nuclioClientSet,
 		functionresClient,
-		apiGatewayProvisioner,
+		apigatewayresClient,
 		functionOperatorResyncInterval,
 		cronJobStaleResourcesCleanupInterval,
 		platformConfiguration,

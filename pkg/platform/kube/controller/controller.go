@@ -19,9 +19,9 @@ package controller
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
-	"github.com/nuclio/nuclio/pkg/platform/kube/provisioner/apigateway"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -36,7 +36,7 @@ type Controller struct {
 	kubeClientSet         kubernetes.Interface
 	nuclioClientSet       nuclioioclient.Interface
 	functionresClient     functionres.Client
-	apiGatewayProvisioner *apigateway.Provisioner
+	apigatewayresClient   apigatewayres.Client
 	imagePullSecrets      string
 	functionOperator      *functionOperator
 	projectOperator       *projectOperator
@@ -52,7 +52,7 @@ func NewController(parentLogger logger.Logger,
 	kubeClientSet kubernetes.Interface,
 	nuclioClientSet nuclioioclient.Interface,
 	functionresClient functionres.Client,
-	apiGatewayProvisioner *apigateway.Provisioner,
+	apigatewayresClient apigatewayres.Client,
 	resyncInterval time.Duration,
 	cronJobStaleResourcesCleanupInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
@@ -74,7 +74,7 @@ func NewController(parentLogger logger.Logger,
 		kubeClientSet:         kubeClientSet,
 		nuclioClientSet:       nuclioClientSet,
 		functionresClient:     functionresClient,
-		apiGatewayProvisioner: apiGatewayProvisioner,
+		apigatewayresClient:   apigatewayresClient,
 		platformConfiguration: platformConfiguration,
 	}
 

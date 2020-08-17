@@ -75,6 +75,8 @@ func newAPIGatewayOperator(parentLogger logger.Logger,
 
 // CreateOrUpdate handles creation/update of an object
 func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtime.Object) error {
+	var err error
+
 	apiGateway, objectIsAPIGateway := object.(*nuclioio.NuclioAPIGateway)
 	if !objectIsAPIGateway {
 		return errors.New("Received unexpected object, expected api-gateway")
@@ -98,7 +100,7 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 	}
 
 	// create/update the api-gateway
-	if err := ago.controller.apiGatewayProvisioner.CreateOrUpdate(ctx, apiGateway); err != nil {
+	if _, err = ago.controller.apigatewayresClient.CreateOrUpdate(ctx, apiGateway); err != nil {
 		ago.logger.WarnWith("Failed to create/update api-gateway. Updating state accordingly")
 		if err := ago.setAPIGatewayState(apiGateway, platform.APIGatewayStateError, err); err != nil {
 			ago.logger.WarnWith("Failed to set api-gateway state as error", "err", err)
@@ -106,6 +108,9 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 
 		return errors.Wrap(err, "Failed to create/update api-gateway")
 	}
+
+	// wait for api-gateway to become available
+	ago.controller.apigatewayresClient.WaitAvailable(ctx, apiGateway.Namespace, apiGateway.Name)
 
 	// set state to ready
 	if err := ago.setAPIGatewayState(apiGateway, platform.APIGatewayStateReady, nil); err != nil {
@@ -119,7 +124,7 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 
 // Delete handles delete of an object
 func (ago *apiGatewayOperator) Delete(ctx context.Context, namespace string, name string) error {
-	ago.controller.apiGatewayProvisioner.DeleteAPIGateway(ctx, namespace, name)
+	ago.controller.apigatewayresClient.Delete(ctx, namespace, name)
 
 	return nil
 }
