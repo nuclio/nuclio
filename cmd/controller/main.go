@@ -44,8 +44,6 @@ func getNamespace(namespaceArgument string) string {
 }
 
 func main() {
-	apiGatewayOperatorEnabledFromEnv := common.GetEnvOrDefaultBool("NUCLIO_CONTROLLER_API_GATEWAY_OPERATOR_ENABLED", false)
-
 	kubeconfigPath := flag.String("kubeconfig-path", os.Getenv("KUBECONFIG"), "Path of kubeconfig file")
 	namespace := flag.String("namespace", "", "Namespace to listen on, or * for all")
 	imagePullSecrets := flag.String("image-pull-secrets", os.Getenv("NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS"), "Optional secret name to use for pull")
@@ -56,7 +54,6 @@ func main() {
 	functionEventOperatorNumWorkersStr := flag.String("function-event-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_EVENT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function event operator (optional)")
 	projectOperatorNumWorkersStr := flag.String("project-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PROJECT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the project operator (optional)")
 	apiGatewayOperatorNumWorkersStr := flag.String("api-gateway-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_API_GATEWAY_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the api-gateway operator (optional)")
-	apiGatewayOperatorEnabled := flag.Bool("api-gateway-operator-enabled", apiGatewayOperatorEnabledFromEnv, "Determines whether to enable the api-gateway operator or not (optional)")
 
 	flag.Parse()
 
@@ -81,8 +78,7 @@ func main() {
 		*cronJobStaleResourcesCleanupIntervalStr,
 		*functionEventOperatorNumWorkersStr,
 		*projectOperatorNumWorkersStr,
-		*apiGatewayOperatorNumWorkersStr,
-		*apiGatewayOperatorEnabled); err != nil {
+		*apiGatewayOperatorNumWorkersStr); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)

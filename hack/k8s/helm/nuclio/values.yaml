@@ -22,7 +22,6 @@ controller:
       numWorkers: 2
     apiGateway:
       numWorkers: 2
-      enabled: false
 
   # the image of the created k8s cron job for function cron triggers
   cronTriggerCronJobImage:

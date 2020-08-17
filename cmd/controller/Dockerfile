@@ -35,6 +35,7 @@ RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
 
 FROM alpine:3.11
 
+# install apache2-utils for htpasswd
 RUN apk add --no-cache ca-certificates apache2-utils
 
 # copy controller binary from build stage

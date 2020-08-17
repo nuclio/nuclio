@@ -45,8 +45,7 @@ func Run(kubeconfigPath string,
 	cronJobStaleResourcesCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
-	apiGatewayOperatorNumWorkersStr string,
-	apiGatewayOperatorEnabled bool) error {
+	apiGatewayOperatorNumWorkersStr string) error {
 
 	newController, err := createController(kubeconfigPath,
 		namespace,
@@ -57,8 +56,7 @@ func Run(kubeconfigPath string,
 		cronJobStaleResourcesCleanupIntervalStr,
 		functionEventOperatorNumWorkersStr,
 		projectOperatorNumWorkersStr,
-		apiGatewayOperatorNumWorkersStr,
-		apiGatewayOperatorEnabled)
+		apiGatewayOperatorNumWorkersStr)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create controller")
 	}
@@ -81,8 +79,7 @@ func createController(kubeconfigPath string,
 	cronJobStaleResourcesCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
-	apiGatewayOperatorNumWorkersStr string,
-	apiGatewayOperatorEnabled bool) (*controller.Controller, error) {
+	apiGatewayOperatorNumWorkersStr string) (*controller.Controller, error) {
 
 	functionOperatorNumWorkers, err := strconv.Atoi(functionOperatorNumWorkersStr)
 	if err != nil {
@@ -172,8 +169,7 @@ func createController(kubeconfigPath string,
 		functionOperatorNumWorkers,
 		functionEventOperatorNumWorkers,
 		projectOperatorNumWorkers,
-		apiGatewayOperatorNumWorkers,
-		apiGatewayOperatorEnabled)
+		apiGatewayOperatorNumWorkers)
 
 	if err != nil {
 		return nil, err

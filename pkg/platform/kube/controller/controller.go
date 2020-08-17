@@ -59,8 +59,7 @@ func NewController(parentLogger logger.Logger,
 	functionOperatorNumWorkers int,
 	functionEventOperatorNumWorkers int,
 	projectOperatorNumWorkers int,
-	apiGatewayOperatorNumWorkers int,
-	apiGatewayOperatorEnabled bool) (*Controller, error) {
+	apiGatewayOperatorNumWorkers int) (*Controller, error) {
 	var err error
 
 	// replace "*" with "", which is actually "all" in kube-speak
@@ -118,17 +117,13 @@ func NewController(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create project operator")
 	}
 
-	if apiGatewayOperatorEnabled {
-
-		// create an api-gateway operator
-		newController.apiGatewayOperator, err = newAPIGatewayOperator(parentLogger,
-			newController,
-			&resyncInterval,
-			apiGatewayOperatorNumWorkers)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create api-gateway operator")
-		}
-
+	// create an api-gateway operator
+	newController.apiGatewayOperator, err = newAPIGatewayOperator(parentLogger,
+		newController,
+		&resyncInterval,
+		apiGatewayOperatorNumWorkers)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create api-gateway operator")
 	}
 
 	// create cron job monitoring
@@ -159,13 +154,9 @@ func (c *Controller) Start() error {
 		return errors.Wrap(err, "Failed to start function event operator")
 	}
 
-	// will be nil when it's disabled
-	if c.apiGatewayOperator != nil {
-
-		// start the api-gateway operator
-		if err := c.apiGatewayOperator.start(); err != nil {
-			return errors.Wrap(err, "Failed to start api-gateway operator")
-		}
+	// start the api-gateway operator
+	if err := c.apiGatewayOperator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start api-gateway operator")
 	}
 
 	if c.cronJobMonitoring != nil {

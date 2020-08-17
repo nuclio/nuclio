@@ -26,9 +26,6 @@ controller:
     tag: ${NUCLIO_LABEL}-amd64
     repository: ${REPO}/${REPO_NAME}/controller
     pullPolicy: Never
-  operator:
-    apiGateway:
-      enabled: true
 dashboard:
   image:
     tag: ${NUCLIO_LABEL}-amd64
