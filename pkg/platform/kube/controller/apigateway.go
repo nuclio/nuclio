@@ -92,6 +92,11 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 
 	apiGateway.Status.Description = apiGateway.Spec.Description
 
+	// set default project-name if none given
+	if apiGateway.Labels["nuclio.io/project-name"] == "" {
+		apiGateway.Labels["nuclio.io/project-name"] = "default"
+	}
+
 	// validate api-gateway name is according to k8s convention
 	errorMessages := validation.IsQualifiedName(apiGateway.Name)
 	if len(errorMessages) != 0 {

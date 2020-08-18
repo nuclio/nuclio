@@ -302,8 +302,18 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 		return errors.New("Cannot delete the default project")
 	}
 
+	if err := ap.validateProjectIsEmpty(deleteProjectOptions.Meta.Namespace, projectName); err != nil {
+		return errors.Wrap(err, "Cannot delete non-empty project")
+	}
+
+	return nil
+}
+
+func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error {
+
+	// validate the project has no functions
 	getFunctionsOptions := &platform.GetFunctionsOptions{
-		Namespace: deleteProjectOptions.Meta.Namespace,
+		Namespace: namespace,
 		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
 	}
 
@@ -314,6 +324,21 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 
 	if len(functions) != 0 {
 		return platform.ErrProjectContainsFunctions
+	}
+
+	// validate the project has no api-gateways
+	getAPIGatewaysOptions := &platform.GetAPIGatewaysOptions{
+		Namespace: namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
+	}
+
+	apiGateways, err := ap.platform.GetAPIGateways(getAPIGatewaysOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get functions")
+	}
+
+	if len(apiGateways) != 0 {
+		return platform.ErrProjectContainsAPIGateways
 	}
 
 	return nil
@@ -348,6 +373,26 @@ func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOp
 
 // GetProjects will list existing projects
 func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	return nil, errors.New("Unsupported")
+}
+
+// CreateAPIGateway will probably create a new api-gateway
+func (ap *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
+	return errors.New("Unsupported")
+}
+
+// UpdateAPIGateway will update a previously existing api-gateway
+func (ap *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
+	return errors.New("Unsupported")
+}
+
+// DeleteAPIGateway will delete a previously existing api-gateway
+func (ap *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
+	return errors.New("Unsupported")
+}
+
+// GetAPIGateways will list existing api-gateways
+func (ap *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
 	return nil, errors.New("Unsupported")
 }
 

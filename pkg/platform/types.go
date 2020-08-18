@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
 	"github.com/nuclio/logger"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 //
@@ -238,15 +239,21 @@ func (s *FunctionEventSpec) DeepCopyInto(out *FunctionEventSpec) {
 const DefaultAPIGatewayName string = "default"
 
 type APIGatewayMeta struct {
-	Name        string            `json:"name,omitempty"`
-	Namespace   string            `json:"namespace,omitempty"`
-	Labels      map[string]string `json:"labels,omitempty"`
-	Annotations map[string]string `json:"annotations,omitempty"`
+	Name              string            `json:"name,omitempty"`
+	Namespace         string            `json:"namespace,omitempty"`
+	Labels            map[string]string `json:"labels,omitempty"`
+	Annotations       map[string]string `json:"annotations,omitempty"`
+	CreationTimestamp metav1.Time       `json:"creationTimestamp,omitempty"`
 }
 
 type APIGatewayAuthenticationSpec struct {
-	BasicAuth *ingress.BasicAuth `json:"basic_auth,omitempty"`
-	DexAuth   *ingress.DexAuth   `json:"dex_auth,omitempty"`
+	BasicAuth *BasicAuth       `json:"basicAuth,omitempty"`
+	DexAuth   *ingress.DexAuth `json:"dexAuth,omitempty"`
+}
+
+type BasicAuth struct {
+	Username string `json:"username"`
+	Password string `json:"password,omitempty"`
 }
 
 type APIGatewayUpstreamKind string
@@ -263,8 +270,8 @@ type APIGatewayUpstreamSpec struct {
 	Kind             APIGatewayUpstreamKind        `json:"kind,omitempty"`
 	Nucliofunction   *NuclioFunctionAPIGatewaySpec `json:"nucliofunction,omitempty"`
 	Percentage       int                           `json:"percentage,omitempty"`
-	RewriteTarget    string                        `json:"rewrite_target,omitempty"`
-	ExtraAnnotations map[string]string             `json:"extra_annotations,omitempty"`
+	RewriteTarget    string                        `json:"rewriteTarget,omitempty"`
+	ExtraAnnotations map[string]string             `json:"extraAnnotations,omitempty"`
 }
 
 type APIGatewaySpec struct {
@@ -272,7 +279,7 @@ type APIGatewaySpec struct {
 	Name               string                        `json:"name,omitempty"`
 	Description        string                        `json:"description,omitempty"`
 	Path               string                        `json:"path,omitempty"`
-	AuthenticationMode ingress.AuthenticationMode    `json:"authentication_mode,omitempty"`
+	AuthenticationMode ingress.AuthenticationMode    `json:"authenticationMode,omitempty"`
 	Authentication     *APIGatewayAuthenticationSpec `json:"authentication,omitempty"`
 	Upstreams          []APIGatewayUpstreamSpec      `json:"upstreams,omitempty"`
 }
@@ -314,7 +321,9 @@ type DeleteAPIGatewayOptions struct {
 }
 
 type GetAPIGatewaysOptions struct {
-	Meta APIGatewayMeta
+	Name       string
+	Namespace  string
+	Labels     string
 }
 
 // to appease k8s

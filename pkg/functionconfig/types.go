@@ -487,6 +487,7 @@ type Status struct {
 	Logs        []map[string]interface{} `json:"logs,omitempty"`
 	HTTPPort    int                      `json:"httpPort,omitempty"`
 	ScaleToZero *ScaleToZeroStatus       `json:"scaleToZero,omitempty"`
+	APIGateways []string                 `json:"apiGateways,omitempty"`
 }
 
 type ScaleToZeroStatus struct {
