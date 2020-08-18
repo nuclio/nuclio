@@ -12,11 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM alpine:3.11
-
-# install apache2-utils for htpasswd
-RUN apk add --no-cache ca-certificates apache2-utils
-
-ADD _output/bin/controller /usr/local/bin
-
-CMD [ "controller" ]
+{{- if and .Values.crd.create }}
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: nuclioapigateways.nuclio.io
+  labels:
+    app: {{ template "nuclio.nuclioName" . }}
+    release: {{ .Release.Name }}
+spec:
+  group: nuclio.io
+  names:
+    kind: NuclioAPIGateway
+    plural: nuclioapigateways
+    singular: nuclioapigateway
+  scope: Namespaced
+  version: v1beta1
+{{- end }}

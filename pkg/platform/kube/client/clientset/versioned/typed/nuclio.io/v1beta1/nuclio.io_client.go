@@ -30,6 +30,7 @@ type NuclioV1beta1Interface interface {
 	NuclioFunctionsGetter
 	NuclioFunctionEventsGetter
 	NuclioProjectsGetter
+	NuclioAPIGatewaysGetter
 }
 
 // NuclioV1beta1Client is used to interact with features provided by the nuclio.io group.
@@ -47,6 +48,10 @@ func (c *NuclioV1beta1Client) NuclioFunctionEvents(namespace string) NuclioFunct
 
 func (c *NuclioV1beta1Client) NuclioProjects(namespace string) NuclioProjectInterface {
 	return newNuclioProjects(c, namespace)
+}
+
+func (c *NuclioV1beta1Client) NuclioAPIGateways(namespace string) NuclioAPIGatewayInterface {
+	return newNuclioAPIGateways(c, namespace)
 }
 
 // NewForConfig creates a new NuclioV1beta1Client for the given config.

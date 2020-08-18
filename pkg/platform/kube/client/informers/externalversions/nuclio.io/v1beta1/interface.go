@@ -30,6 +30,8 @@ type Interface interface {
 	NuclioFunctionEvents() NuclioFunctionEventInformer
 	// NuclioProjects returns a NuclioProjectInformer.
 	NuclioProjects() NuclioProjectInformer
+	// NuclioProjects returns a NuclioAPIGatewayInformer.
+	NuclioAPIGateways() NuclioAPIGatewayInformer
 }
 
 type version struct {
@@ -56,4 +58,9 @@ func (v *version) NuclioFunctionEvents() NuclioFunctionEventInformer {
 // NuclioProjects returns a NuclioProjectInformer.
 func (v *version) NuclioProjects() NuclioProjectInformer {
 	return &nuclioProjectInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// NuclioAPIGateways returns a NuclioAPIGatewayInformer.
+func (v *version) NuclioAPIGateways() NuclioAPIGatewayInformer {
+	return &nuclioAPIGatewayInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

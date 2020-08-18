@@ -381,6 +381,21 @@ func GetSourceDir() string {
 	}
 }
 
+// Quote returns a shell-escaped version of the string s. The returned value
+// is a string that can safely be used as one token in a shell command line.
+func Quote(s string) string {
+	var specialCharPattern = regexp.MustCompile(`[^\w@%+=:,./-]`)
+
+	if len(s) == 0 {
+		return "''"
+	}
+	if specialCharPattern.MatchString(s) {
+		return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
+	}
+
+	return s
+}
+
 func ByteSliceToString(b []byte) string {
 
 	// https://golang.org/src/strings/builder.go#L45
