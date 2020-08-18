@@ -298,8 +298,6 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 		return nil, errors.New("Unsupported ApiGateway authentication mode provided")
 	}
 
-	commonIngressSpec.AllowedProtocols = []string{"https", "http"}
-
 	// add nginx specific annotations
 	annotations := map[string]string{}
 	annotations["kubernetes.io/ingress.class"] = "nginx"

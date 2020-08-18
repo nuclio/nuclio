@@ -98,6 +98,14 @@ type Kubernetes struct {
 	Deployment *appsv1.Deployment `json:"deployment,omitempty"`
 }
 
+// default values for created ingresses
+type IngressConfig struct {
+	EnableSSLRedirect bool   `json:"enableSSLRedirect,omitempty"`
+	TLSSecret         string `json:"tlsSecret,omitempty"`
+	IguazioAuthURL    string `json:"iguazioAuthURL,omitempty"`
+	IguazioSignInURL  string `json:"iguazioSignInURL,omitempty"`
+}
+
 type CronTriggerCreationMode string
 
 const (

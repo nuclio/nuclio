@@ -10,9 +10,8 @@ type Spec struct {
 	AuthenticationMode   AuthenticationMode
 	Authentication       *Authentication
 	WhitelistIPAddresses []string
-	AllowedProtocols     []string
 	SSLPassthrough       bool
-	AllowSSLRedirect     bool
+	EnableSSLRedirect    *bool
 	BackendProtocol      string
 	TLSSecret            string
 	RewriteTarget        string

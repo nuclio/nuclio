@@ -7,6 +7,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -26,13 +27,15 @@ type Resources struct {
 }
 
 type Manager struct {
-	logger        logger.Logger
-	cmdRunner     cmdrunner.CmdRunner
-	kubeClientSet kubernetes.Interface
+	logger                logger.Logger
+	cmdRunner             cmdrunner.CmdRunner
+	kubeClientSet         kubernetes.Interface
+	platformConfiguration *platformconfig.Config
 }
 
 func NewManager(parentLogger logger.Logger,
-	kubecClientSet kubernetes.Interface) (*Manager, error) {
+	kubecClientSet kubernetes.Interface,
+	platformConfiguration *platformconfig.Config) (*Manager, error) {
 
 	managerLogger := parentLogger.GetChild("manager")
 
@@ -43,9 +46,10 @@ func NewManager(parentLogger logger.Logger,
 	}
 
 	return &Manager{
-		logger:        parentLogger.GetChild("manager"),
-		cmdRunner:     cmdRunner,
-		kubeClientSet: kubecClientSet,
+		logger:                parentLogger.GetChild("manager"),
+		cmdRunner:             cmdRunner,
+		kubeClientSet:         kubecClientSet,
+		platformConfiguration: platformConfiguration,
 	}, nil
 }
 
@@ -90,7 +94,7 @@ func (m *Manager) GenerateResources(ctx context.Context,
 	// if no specific TLS secret was given - set it to be system's TLS secret
 	tlsSecret := spec.TLSSecret
 	if tlsSecret == "" {
-		tlsSecret = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_INGRESS_TLS_SECRET", "")
+		tlsSecret = m.platformConfiguration.IngressConfig.TLSSecret
 	}
 
 	// if there's a TLS secret - populate the TLS spec
@@ -308,8 +312,13 @@ func (m *Manager) compileAnnotations(ctx context.Context,
 
 		ingressAnnotations["nginx.ingress.kubernetes.io/proxy-body-size"] = "0"
 
-		// redirect to SSL if spec allows it
-		if spec.AllowSSLRedirect {
+		// redirect to SSL if spec specifically required it, otherwise default to platformConfig's default value
+		enableSSLRedirect := m.platformConfiguration.IngressConfig.EnableSSLRedirect
+		if spec.EnableSSLRedirect != nil {
+			enableSSLRedirect = *spec.EnableSSLRedirect
+		}
+
+		if enableSSLRedirect {
 			ingressAnnotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "true"
 		} else {
 			ingressAnnotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "false"
@@ -395,10 +404,10 @@ func (m *Manager) compileIguazioSessionVerificationAnnotations(sessionVerificati
 		"nginx.ingress.kubernetes.io/auth-response-headers": "X-Remote-User,X-V3io-Session-Key",
 		"nginx.ingress.kubernetes.io/auth-url": fmt.Sprintf(
 			"https://%s%s",
-			common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_IGUAZIO_AUTH_URL", ""),
+			m.platformConfiguration.IngressConfig.IguazioAuthURL,
 			sessionVerificationEndpoint),
 		"nginx.ingress.kubernetes.io/auth-signin": fmt.Sprintf("https://%s/login",
-			common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_IGUAZIO_SIGNIN_URL", "")),
+			m.platformConfiguration.IngressConfig.IguazioSignInURL),
 		"nginx.ingress.kubernetes.io/configuration-snippet": "proxy_set_header authorization \"\";",
 	}, nil
 }

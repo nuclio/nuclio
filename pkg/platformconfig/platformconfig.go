@@ -34,6 +34,7 @@ type Config struct {
 	AutoScale                AutoScale                `json:"autoScale,omitempty"`
 	CronTriggerCreationMode  CronTriggerCreationMode  `json:"cronTriggerCreationMode,omitempty"`
 	FunctionAugmentedConfigs []LabelSelectorAndConfig `json:"functionAugmentedConfigs,omitempty"`
+	IngressConfig            IngressConfig            `json:"ingressConfig,omitempty"`
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {

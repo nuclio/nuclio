@@ -145,7 +145,7 @@ func createController(kubeconfigPath string,
 	}
 
 	// create ingress manager
-	ingressManager, err := ingress.NewManager(rootLogger, kubeClientSet)
+	ingressManager, err := ingress.NewManager(rootLogger, kubeClientSet, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create ingress manager")
 	}
