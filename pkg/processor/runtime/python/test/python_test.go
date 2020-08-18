@@ -257,39 +257,33 @@ func (suite *testSuite) TestCustomEvent() {
 		"Testheaderkey2": "testHeaderValue2",
 	}
 
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		bodyVerifier := func(body []byte) {
-			unmarshalledBody := eventFields{}
+	bodyVerifier := func(body []byte) {
+		unmarshalledBody := eventFields{}
 
-			// read the body JSON
-			err := json.Unmarshal(body, &unmarshalledBody)
-			suite.Require().NoError(err)
+		// read the body JSON
+		err := json.Unmarshal(body, &unmarshalledBody)
+		suite.Require().NoError(err)
 
-			suite.Require().Equal("testBody", unmarshalledBody.Body)
-			suite.Require().Equal(requestPath, unmarshalledBody.Path)
-			suite.Require().Equal(requestMethod, unmarshalledBody.Method)
-			suite.Require().Equal("http", unmarshalledBody.TriggerKind)
+		suite.Require().Equal("testBody", unmarshalledBody.Body)
+		suite.Require().Equal(requestPath, unmarshalledBody.Path)
+		suite.Require().Equal(requestMethod, unmarshalledBody.Method)
+		suite.Require().Equal("http", unmarshalledBody.TriggerKind)
 
-			// compare known headers
-			for requestHeaderKey, requestHeaderValue := range requestHeaders {
-				suite.Require().Equal(requestHeaderValue, unmarshalledBody.Headers[requestHeaderKey])
-			}
-
-			// ID must be a UUID
-			_, err = uuid.FromString(string(unmarshalledBody.ID))
-			suite.Require().NoError(err)
+		// compare known headers
+		for requestHeaderKey, requestHeaderValue := range requestHeaders {
+			suite.Require().Equal(requestHeaderValue, unmarshalledBody.Headers[requestHeaderKey])
 		}
 
-		testRequest := httpsuite.Request{
-			RequestBody:          "testBody",
-			RequestHeaders:       requestHeaders,
-			RequestPort:          deployResult.Port,
-			RequestMethod:        requestMethod,
-			RequestPath:          requestPath,
-			ExpectedResponseBody: bodyVerifier,
-		}
-
-		return suite.SendRequestVerifyResponse(&testRequest)
+		// ID must be a UUID
+		_, err = uuid.FromString(string(unmarshalledBody.ID))
+		suite.Require().NoError(err)
+	}
+	suite.DeployFunctionAndRequest(createFunctionOptions, &httpsuite.Request{
+		RequestBody:          "testBody",
+		RequestHeaders:       requestHeaders,
+		RequestMethod:        requestMethod,
+		RequestPath:          requestPath,
+		ExpectedResponseBody: bodyVerifier,
 	})
 }
 

@@ -58,7 +58,14 @@ func newTrigger(parentLogger logger.Logger,
 		configuration.SecretAccessKey,
 		"")
 
-	newTrigger.kinesisClient = kinesisclient.New(newTrigger.kinesisAuth, configuration.RegionName)
+	switch endpoint := configuration.URL; {
+	case endpoint != "":
+		newTrigger.kinesisClient = kinesisclient.NewWithEndpoint(newTrigger.kinesisAuth,
+			configuration.RegionName,
+			endpoint)
+	default:
+		newTrigger.kinesisClient = kinesisclient.New(newTrigger.kinesisAuth, configuration.RegionName)
+	}
 
 	// iterate over shards and create
 	for _, shardID := range configuration.Shards {

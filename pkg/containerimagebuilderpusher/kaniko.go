@@ -186,7 +186,7 @@ func (k *Kaniko) compileKanikoJobSpec(namespace string,
 	buildArgs := []string{
 		fmt.Sprintf("--dockerfile=%s", buildOptions.DockerfileInfo.DockerfilePath),
 		fmt.Sprintf("--context=%s", buildOptions.ContextDir),
-		fmt.Sprintf("--destination=%s/%s", buildOptions.RegistryURL, buildOptions.Image),
+		fmt.Sprintf("--destination=%s", common.CompileImageName(buildOptions.RegistryURL, buildOptions.Image)),
 	}
 
 	if !buildOptions.NoCache {

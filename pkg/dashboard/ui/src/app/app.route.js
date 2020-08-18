@@ -163,7 +163,8 @@
                 url: '',
                 views: {
                     'function': {
-                        template: '<version-data-wrapper data-version="$resolve.function"></version-data-wrapper>'
+                        template: '<version-data-wrapper data-version="$resolve.function"' +
+                            'data-containers="$resolve.containers"></version-data-wrapper>'
                     }
                 },
                 params: {
@@ -178,7 +179,7 @@
                 url: '/code',
                 views: {
                     version: {
-                        template: '<ncl-version-code data-version="$resolve.function"></ncl-version-code>'
+                        template: '<ncl-version-code data-version="$ctrl.version"></ncl-version-code>'
                     }
                 },
                 params: {
@@ -192,7 +193,7 @@
                 url: '/configuration',
                 views: {
                     version: {
-                        template: '<ncl-version-configuration data-version="$resolve.function"></ncl-version-configuration>'
+                        template: '<ncl-version-configuration data-version="$ctrl.version"></ncl-version-configuration>'
                     }
                 },
                 params: {
@@ -206,7 +207,8 @@
                 url: '/triggers',
                 views: {
                     version: {
-                        template: '<ncl-version-triggers data-version="$resolve.function"></ncl-version-triggers>'
+                        template: '<ncl-version-triggers data-version="$ctrl.version"' +
+                            'data-containers="$ctrl.containers"></ncl-version-triggers>'
                     }
                 },
                 params: {
@@ -220,7 +222,7 @@
                 url: '/monitoring',
                 views: {
                     version: {
-                        template: '<ncl-version-monitoring data-version="$resolve.function"></ncl-version-monitoring>'
+                        template: '<ncl-version-monitoring data-version="$ctrl.version"></ncl-version-monitoring>'
                     }
                 },
                 params: {

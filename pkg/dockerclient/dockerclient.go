@@ -56,7 +56,7 @@ type Client interface {
 	// GetContainerLogs returns raw logs from a given container ID
 	GetContainerLogs(containerID string) (string, error)
 
-	// GetContainers returns a list of container IDs which match a certain criteria
+	// GetContainers returns a list of containers which match a certain criteria
 	GetContainers(*GetContainerOptions) ([]Container, error)
 
 	// GetContainerEvents returns a list of container events which occurred within a time range

@@ -23,7 +23,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/golang"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
@@ -164,42 +163,36 @@ func (suite *TestSuite) TestCustomEvent() {
 		"Testheaderkey1": "testHeaderValue1",
 		"Testheaderkey2": "testHeaderValue2",
 	}
+	bodyVerifier := func(body []byte) {
+		unmarshalledBody := httpsuite.EventFields{}
 
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		bodyVerifier := func(body []byte) {
-			unmarshalledBody := httpsuite.EventFields{}
+		// read the body JSON
+		err := json.Unmarshal(body, &unmarshalledBody)
+		suite.Require().NoError(err, "Can't decode JSON response")
 
-			// read the body JSON
-			err := json.Unmarshal(body, &unmarshalledBody)
-			suite.Require().NoError(err, "Can't decode JSON response")
+		decodedBody, err := base64.StdEncoding.DecodeString(unmarshalledBody.Body)
+		suite.Require().NoError(err, "Can't decode body as base64")
 
-			decodedBody, err := base64.StdEncoding.DecodeString(unmarshalledBody.Body)
-			suite.Require().NoError(err, "Can't decode body as base64")
+		suite.Require().Equal("testBody", string(decodedBody))
+		suite.Require().Equal(requestPath, unmarshalledBody.Path)
+		suite.Require().Equal(requestMethod, unmarshalledBody.Method)
+		suite.Require().Equal("http", unmarshalledBody.TriggerKind)
 
-			suite.Require().Equal("testBody", string(decodedBody))
-			suite.Require().Equal(requestPath, unmarshalledBody.Path)
-			suite.Require().Equal(requestMethod, unmarshalledBody.Method)
-			suite.Require().Equal("http", unmarshalledBody.TriggerKind)
-
-			// compare known headers
-			for requestHeaderKey, requestHeaderValue := range requestHeaders {
-				suite.Require().Equal(requestHeaderValue, unmarshalledBody.Headers[requestHeaderKey])
-			}
-
-			// ID must be a UUID
-			_, err = uuid.FromString(string(unmarshalledBody.ID))
-			suite.Require().NoError(err)
+		// compare known headers
+		for requestHeaderKey, requestHeaderValue := range requestHeaders {
+			suite.Require().Equal(requestHeaderValue, unmarshalledBody.Headers[requestHeaderKey])
 		}
 
-		testRequest := httpsuite.Request{
-			RequestBody:          "testBody",
-			RequestHeaders:       requestHeaders,
-			RequestPort:          deployResult.Port,
-			RequestMethod:        requestMethod,
-			RequestPath:          requestPath,
-			ExpectedResponseBody: bodyVerifier,
-		}
-		return suite.SendRequestVerifyResponse(&testRequest)
+		// ID must be a UUID
+		_, err = uuid.FromString(string(unmarshalledBody.ID))
+		suite.Require().NoError(err)
+	}
+	suite.DeployFunctionAndRequest(createFunctionOptions, &httpsuite.Request{
+		RequestBody:          "testBody",
+		RequestHeaders:       requestHeaders,
+		RequestMethod:        requestMethod,
+		RequestPath:          requestPath,
+		ExpectedResponseBody: bodyVerifier,
 	})
 }
 
