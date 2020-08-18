@@ -113,7 +113,6 @@ func (m *Manager) GenerateResources(ctx context.Context,
 	}, nil
 }
 
-
 func (m *Manager) GenerateHtpasswdContents(ctx context.Context,
 	username string,
 	password string) ([]byte, error) {
