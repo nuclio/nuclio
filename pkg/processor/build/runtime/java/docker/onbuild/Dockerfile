@@ -45,8 +45,8 @@ RUN mkdir -p /home/gradle/src/userHandler
 COPY pkg/processor/build/runtime/java/docker/onbuild/build-user-handler.sh /home/gradle/src/userHandler/build-user-handler.sh
 RUN chmod +x /home/gradle/src/userHandler/build-user-handler.sh
 
-# Copy the SDK Jar to /home/gradle/src/userHandler
-COPY pkg/processor/runtime/java/nuclio-sdk-1.0-SNAPSHOT.jar /home/gradle/src/userHandler
+# Download the SDK Jar to /home/gradle/src/userHandler
+RUN curl -L -o /home/gradle/src/userHandler/nuclio-sdk-java-1.0.0.jar https://repo1.maven.org/fromsearch?filepath=io/nuclio/nuclio-sdk-java/1.0.0/nuclio-sdk-java-1.0.0.jar
 
 # Copy the gradle build script and user sources to /home/gradle/src/userHandler
 ONBUILD COPY handler/build.gradle /home/gradle/src/userHandler
