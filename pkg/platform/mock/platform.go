@@ -96,6 +96,7 @@ func (mp *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 	args := mp.Called(getProjectsOptions)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
+
 //
 // API Gateway
 //

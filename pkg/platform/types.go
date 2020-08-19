@@ -321,9 +321,9 @@ type DeleteAPIGatewayOptions struct {
 }
 
 type GetAPIGatewaysOptions struct {
-	Name       string
-	Namespace  string
-	Labels     string
+	Name      string
+	Namespace string
+	Labels    string
 }
 
 // to appease k8s

@@ -334,7 +334,7 @@ func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error 
 
 	apiGateways, err := ap.platform.GetAPIGateways(getAPIGatewaysOptions)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get functions")
+		return errors.Wrap(err, "Failed to get api-gateways")
 	}
 
 	if len(apiGateways) != 0 {
