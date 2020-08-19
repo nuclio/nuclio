@@ -74,7 +74,7 @@ ONBUILD RUN mv /home/gradle/src/userHandler/build/libs/user-handler.jar /home/gr
 
 # The directory will hold wrapper source, SDK jar, user-handler.jar and wrapper gradle build script
 COPY pkg/processor/runtime/java/build.gradle \
-    pkg/processor/runtime/java/nuclio-sdk-1.0-SNAPSHOT.jar \
+    /home/gradle/src/userHandler/nuclio-sdk-java-1.0.0.jar \
     pkg/processor/runtime/java/docker \
     pkg/processor/build/runtime/java/docker/onbuild/build-wrapped-handler.sh \
     /home/gradle/src/wrapper/
