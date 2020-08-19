@@ -196,8 +196,6 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 		}
 	}
 
-	lc.createDefaultHTTPTrigger(function)
-
 	// set a default
 	if function.Spec.ServiceType == "" {
 		function.Spec.ServiceType = v1.ServiceTypeNodePort
@@ -598,23 +596,6 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 
 		lc.logger.DebugWith("Resource updated", "name", resourceName)
 		return resource, nil
-	}
-}
-
-func (lc *lazyClient) createDefaultHTTPTrigger(function *nuclioio.NuclioFunction) {
-	if len(functionconfig.GetTriggersByKind(function.Spec.Triggers, "http")) > 0 {
-		return
-	}
-
-	if function.Spec.Triggers == nil {
-		function.Spec.Triggers = map[string]functionconfig.Trigger{}
-	}
-
-	defaultHTTPTriggerName := "default-http-trigger"
-	function.Spec.Triggers[defaultHTTPTriggerName] = functionconfig.Trigger{
-		Kind:       "http",
-		Name:       defaultHTTPTriggerName,
-		MaxWorkers: 1,
 	}
 }
 

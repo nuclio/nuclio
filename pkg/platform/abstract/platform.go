@@ -219,7 +219,22 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 		createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
 	}
 
+	ap.enrichDefaultHTTPTrigger(createFunctionOptions)
+
 	return nil
+}
+
+func (ap *Platform) enrichDefaultHTTPTrigger(createFunctionOptions *platform.CreateFunctionOptions) {
+	if len(functionconfig.GetTriggersByKind(createFunctionOptions.FunctionConfig.Spec.Triggers, "http")) > 0 {
+		return
+	}
+
+	if createFunctionOptions.FunctionConfig.Spec.Triggers == nil {
+		createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
+	}
+
+	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+	createFunctionOptions.FunctionConfig.Spec.Triggers[defaultHTTPTrigger.Name] = defaultHTTPTrigger
 }
 
 // Validate a function against its existing instance
