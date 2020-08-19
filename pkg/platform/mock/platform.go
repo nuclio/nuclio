@@ -96,6 +96,33 @@ func (mp *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 	args := mp.Called(getProjectsOptions)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
+//
+// API Gateway
+//
+
+// Create APIGateway will probably create a new api-gateway
+func (mp *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
+	args := mp.Called(createAPIGatewayOptions)
+	return args.Error(0)
+}
+
+// UpdateAPIGateway will update a previously deployed api-gateway
+func (mp *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
+	args := mp.Called(updateAPIGatewayOptions)
+	return args.Error(0)
+}
+
+// DeleteAPIGateway will delete a previously deployed api-gateway
+func (mp *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
+	args := mp.Called(deleteAPIGatewayOptions)
+	return args.Error(0)
+}
+
+// GetAPIGateways will list existing api-gateways
+func (mp *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
+	args := mp.Called(getAPIGatewaysOptions)
+	return args.Get(0).([]platform.APIGateway), args.Error(1)
+}
 
 //
 // Function event
