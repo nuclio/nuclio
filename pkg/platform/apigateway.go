@@ -24,8 +24,8 @@ type APIGateway interface {
 }
 
 type AbstractAPIGateway struct {
-	Logger        logger.Logger
-	Platform      Platform
+	Logger           logger.Logger
+	Platform         Platform
 	APIGatewayConfig APIGatewayConfig
 }
 

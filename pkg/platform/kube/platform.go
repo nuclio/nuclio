@@ -1023,7 +1023,6 @@ func (p *Platform) platformProjectToProject(platformProject *platform.ProjectCon
 	project.Spec = platformProject.Spec
 }
 
-
 func (p *Platform) platformAPIGatewayToAPIGateway(platformAPIGateway *platform.APIGatewayConfig, apiGateway *nuclioio.NuclioAPIGateway) {
 	apiGateway.Name = platformAPIGateway.Meta.Name
 	apiGateway.Namespace = platformAPIGateway.Meta.Namespace
