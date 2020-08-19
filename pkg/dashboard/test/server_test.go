@@ -2365,11 +2365,11 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
                         "name": "",
                         "workerAvailabilityTimeoutMilliseconds": 10000
                     },
-					"default-http": {
+                    "default-http": {
                         "class": "",
                         "kind": "http",
                         "name": "default-http",
-						"maxWorkers": 1,
+                        "maxWorkers": 1,
                         "workerAvailabilityTimeoutMilliseconds": 10000
                     },
                     "http": {
