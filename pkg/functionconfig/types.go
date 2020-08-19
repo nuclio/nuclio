@@ -141,9 +141,9 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 
 func GetDefaultHTTPTrigger() Trigger {
 	return Trigger{
-		Kind:                                  "http",
-		Name:                                  "default-http",
-		MaxWorkers:                            1,
+		Kind:       "http",
+		Name:       "default-http",
+		MaxWorkers: 1,
 	}
 }
 
