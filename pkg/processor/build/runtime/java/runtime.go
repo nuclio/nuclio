@@ -148,7 +148,7 @@ dependencies {
 	compile group: '{{.Group}}', name: '{{.Name}}', version: '{{.Version}}'
 	{{ end }}
 
-    compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
+    compile files('./nuclio-sdk-java-1.0.0.jar')
 }
 
 shadowJar {
