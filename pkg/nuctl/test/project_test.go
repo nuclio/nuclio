@@ -330,21 +330,27 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 	suite.Require().NoError(err)
 
 	projectConfig.Project.Meta.Name = projectConfig.Project.Meta.Name + uniqueSuffix
+	projectConfig.Project.Meta.Namespace = suite.namespace
 	functions := map[string]*functionconfig.Config{}
 	for _, functionName := range functionNames {
-		functions[functionName+uniqueSuffix] = projectConfig.Functions[functionName]
-		functions[functionName+uniqueSuffix].Meta.Name = functionName + uniqueSuffix
-		functions[functionName+uniqueSuffix].Meta.Labels["nuclio.io/project-name"] =
-			functions[functionName+uniqueSuffix].Meta.Labels["nuclio.io/project-name"] + uniqueSuffix
+		functionUniqueName := functionName + uniqueSuffix
+		functions[functionUniqueName] = projectConfig.Functions[functionName]
+		functions[functionUniqueName].Meta.Name = functionName + uniqueSuffix
+		functions[functionUniqueName].Meta.Namespace = suite.namespace
+		functions[functionUniqueName].Meta.Labels["nuclio.io/project-name"] =
+			functions[functionUniqueName].Meta.Labels["nuclio.io/project-name"] + uniqueSuffix
 	}
 	projectConfig.Functions = functions
 
 	functionEvents := map[string]*platform.FunctionEventConfig{}
 	for _, functionEventName := range functionEventNames {
-		functionEvents[functionEventName+uniqueSuffix] = projectConfig.FunctionEvents[functionEventName]
-		functionEvents[functionEventName+uniqueSuffix].Spec.DisplayName = functionEventName + uniqueSuffix
-		functionEvents[functionEventName+uniqueSuffix].Meta.Labels["nuclio.io/function-name"] =
-			functionEvents[functionEventName+uniqueSuffix].Meta.Labels["nuclio.io/function-name"] + uniqueSuffix
+		functionEventUniqueName := functionEventName + uniqueSuffix
+		functionEvents[functionEventUniqueName] = projectConfig.FunctionEvents[functionEventName]
+		functionEvents[functionEventUniqueName].Spec.DisplayName = functionEventName + uniqueSuffix
+		functionEvents[functionEventUniqueName].Meta.Namespace = suite.namespace
+
+		functionEvents[functionEventUniqueName].Meta.Labels["nuclio.io/function-name"] =
+			functionEvents[functionEventUniqueName].Meta.Labels["nuclio.io/function-name"] + uniqueSuffix
 	}
 	projectConfig.FunctionEvents = functionEvents
 

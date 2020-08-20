@@ -12,7 +12,7 @@
       <env name="NUCTL_EXTERNAL_IP_ADDRESSES" value="localhost" />
     </envs>
     <framework value="gotest" />
-    <kind value="FILE" />
+    <kind value="PACKAGE" />
     <package value="github.com/nuclio/nuclio/pkg/nuctl/test" />
     <directory value="$PROJECT_DIR$/pkg/nuctl/test" />
     <filePath value="$PROJECT_DIR$/pkg/nuctl/test/function_test.go" />

@@ -85,6 +85,5 @@ functions:
 project:
   meta:
     name: test-project
-    namespace: nuclio
   spec:
     description: test-project

@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
@@ -32,8 +33,6 @@ import (
 
 	"github.com/nuclio/errors"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 func Run(kubeconfigPath string,
@@ -123,7 +122,7 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}
 
-	restConfig, err := getClientConfig(kubeconfigPath)
+	restConfig, err := common.GetClientConfig(kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get client configuration")
 	}
@@ -176,12 +175,4 @@ func createController(kubeconfigPath string,
 	}
 
 	return newController, nil
-}
-
-func getClientConfig(kubeconfigPath string) (*rest.Config, error) {
-	if kubeconfigPath != "" {
-		return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-	}
-
-	return rest.InClusterConfig()
 }
