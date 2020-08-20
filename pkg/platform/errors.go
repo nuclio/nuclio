@@ -23,3 +23,5 @@ import (
 // A project contains resources(functions/api-gateways), cannot be deleted
 var ErrProjectContainsFunctions = nuclio.NewErrConflict("Project contains functions")
 var ErrProjectContainsAPIGateways = nuclio.NewErrConflict("Project contains api-gateways")
+
+var ErrUnsupportedMethod = nuclio.NewErrNotImplemented("Unsupported method")
