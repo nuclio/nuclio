@@ -57,13 +57,13 @@ func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 	return common.ReadFromInOrStdin(i.cmd.InOrStdin())
 }
 
-func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config, project string) error {
+func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config, project *platform.ProjectConfig) error {
 
 	// populate namespace
-	functionConfig.Meta.Namespace = i.rootCommandeer.namespace
+	functionConfig.Meta.Namespace = project.Meta.Namespace
 
-	if project != "" {
-		functionConfig.Meta.Labels["nuclio.io/project-name"] = project
+	if project.Meta.Name != "" {
+		functionConfig.Meta.Labels["nuclio.io/project-name"] = project.Meta.Name
 	}
 
 	functions, err := i.rootCommandeer.platform.GetFunctions(&platform.GetFunctionsOptions{
@@ -86,7 +86,7 @@ func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config,
 	return err
 }
 
-func (i *importCommandeer) importFunctions(functionConfigs map[string]*functionconfig.Config, project string) error {
+func (i *importCommandeer) importFunctions(functionConfigs map[string]*functionconfig.Config, project *platform.ProjectConfig) error {
 	var errGroup errgroup.Group
 
 	i.rootCommandeer.loggerInstance.DebugWith("Importing functions", "functions", functionConfigs)
@@ -141,7 +141,14 @@ Use --help for more information`)
 				return errors.Wrap(err, "Failed to resolve function import configs")
 			}
 
-			return commandeer.importFunctions(functionConfigs, "")
+			// create a platform config without name, allowing them to be imported directly to the default project
+			platformConfig := &platform.ProjectConfig{
+				Meta: platform.ProjectMeta{
+					Namespace: commandeer.rootCommandeer.namespace,
+				},
+			}
+
+			return commandeer.importFunctions(functionConfigs, platformConfig)
 		},
 	}
 
@@ -301,7 +308,7 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 		}
 	}
 
-	functionImportErr := i.importFunctions(projectConfig.Functions, projectConfig.Project.Meta.Name)
+	functionImportErr := i.importFunctions(projectConfig.Functions, projectConfig.Project)
 	if functionImportErr != nil {
 		i.rootCommandeer.loggerInstance.WarnWith("Unable to import all functions",
 			"functionImportErr", functionImportErr)
@@ -325,7 +332,9 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 }
 
 func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string]*ProjectImportConfig) error {
-	i.rootCommandeer.loggerInstance.DebugWith("Importing projects", "projects", projectImportConfigs, "skipProjectNames", i.skipProjectNames)
+	i.rootCommandeer.loggerInstance.DebugWith("Importing projects",
+		"projects", projectImportConfigs,
+		"skipProjectNames", i.skipProjectNames)
 
 	// TODO: parallel this with errorGroup, mutex is required due to multi map writers
 	for _, projectConfig := range projectImportConfigs {
@@ -336,7 +345,11 @@ func (i *importProjectCommandeer) importProjects(projectImportConfigs map[string
 		}
 
 		i.rootCommandeer.loggerInstance.DebugWith("Importing project",
-			"projectName", projectConfig.Project.Meta.Name)
+			"projectMeta", projectConfig.Project.Meta)
+
+		if projectConfig.Project.Meta.Namespace == "" {
+			projectConfig.Project.Meta.Namespace = i.rootCommandeer.namespace
+		}
 		if err := i.importProject(projectConfig); err != nil {
 			return errors.Wrap(err, "Failed to import project")
 		}

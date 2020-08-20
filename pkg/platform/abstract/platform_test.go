@@ -123,7 +123,7 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 	} {
 
 		// name it with index and shift with 65 to get A as first letter
-		functionName := string(idx + 65)
+		functionName := string(rune(idx + 65))
 		functionConfig := *functionconfig.NewConfig()
 
 		createFunctionOptions := &platform.CreateFunctionOptions{

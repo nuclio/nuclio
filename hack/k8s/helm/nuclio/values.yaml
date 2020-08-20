@@ -20,6 +20,8 @@ controller:
       numWorkers: 2
     project:
       numWorkers: 2
+    apiGateway:
+      numWorkers: 2
 
   # the image of the created k8s cron job for function cron triggers
   cronTriggerCronJobImage:

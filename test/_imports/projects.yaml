@@ -62,7 +62,6 @@ project-a:
   project:
     meta:
       name: project-a
-      namespace: nuclio
     spec:
       description: test-project-a
 
@@ -130,6 +129,5 @@ project-b:
   project:
     meta:
       name: project-b
-      namespace: nuclio
     spec:
       description: test-project-b

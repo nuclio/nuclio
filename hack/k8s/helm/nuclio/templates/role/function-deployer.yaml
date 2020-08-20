@@ -30,7 +30,7 @@ metadata:
     release: {{ .Release.Name }}
 rules:
 - apiGroups: [""]
-  resources: ["services", "configmaps", "pods", "pods/log", "events"]
+  resources: ["services", "configmaps", "pods", "pods/log", "events", "secrets"]
   verbs: ["*"]
 - apiGroups: ["apps", "extensions"]
   resources: ["deployments"]
