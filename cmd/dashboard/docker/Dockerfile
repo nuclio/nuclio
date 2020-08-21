@@ -50,7 +50,7 @@ RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
 
 FROM nginx:stable-alpine
 
-ARG DOCKER_CLI_VERSION="18.09.6"
+ARG DOCKER_CLI_VERSION="19.03.12"
 
 ENV DOWNLOAD_URL="https://download.docker.com/linux/static/stable/x86_64/docker-$DOCKER_CLI_VERSION.tgz"
 

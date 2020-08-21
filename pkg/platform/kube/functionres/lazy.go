@@ -65,7 +65,6 @@ const (
 	containerHTTPPortName         = "http"
 	containerMetricPort           = 8090
 	containerMetricPortName       = "metrics"
-	nvidiaGpuResourceName         = "nvidia.com/gpu"
 	nginxIngressUpdateGracePeriod = 5 * time.Second
 )
 
@@ -846,14 +845,11 @@ func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunctio
 	// redeploying a Nuclio function will get stuck if no GPU is available
 	// to overcome it, we simply change the update strategy to recreate
 	// so k8s will kill the existing pod\function and create the new one
-	if gpuResource, ok := function.Spec.Resources.Limits[nvidiaGpuResourceName]; ok {
+	if function.Spec.PositiveGPUResourceLimit() {
 
 		// requested a gpu resource, change to recreate
-		if !gpuResource.IsZero() {
-			return appsv1.RecreateDeploymentStrategyType
-		}
+		return appsv1.RecreateDeploymentStrategyType
 	}
-
 	// no gpu resources requested, set to rollingUpdate (default)
 	return appsv1.RollingUpdateDeploymentStrategyType
 }
@@ -2022,7 +2018,7 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 		return v1.ResourceMemory
 	case "alpha.kubernetes.io/nvidia-gpu":
 		return v1.ResourceName(resourceName)
-	case "nvidia.com/gpu":
+	case functionconfig.NvidiaGPUResourceName:
 		return v1.ResourceName(resourceName)
 	case "ephemeral-storage":
 		return v1.ResourceEphemeralStorage

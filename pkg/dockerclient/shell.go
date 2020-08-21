@@ -187,6 +187,11 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		detach = ""
 	}
 
+	gpus := ""
+	if runOptions.GPUs != "" {
+		gpus = fmt.Sprintf("--gpus %s", runOptions.GPUs)
+	}
+
 	removeContainer := ""
 	if runOptions.Remove {
 		removeContainer = "--rm"
@@ -225,7 +230,8 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 
 	runResult, err := c.cmdRunner.Run(
 		&cmdrunner.RunOptions{LogRedactions: c.redactedValues},
-		"docker run %s %s %s %s %s %s %s %s %s %s %s",
+		"docker run %s %s %s %s %s %s %s %s %s %s %s %s",
+		gpus,
 		restartPolicy,
 		detach,
 		removeContainer,

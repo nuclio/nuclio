@@ -537,6 +537,14 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Failed to get function HTTP port")
 	}
 
+	gpus := ""
+	if createFunctionOptions.FunctionConfig.Spec.PositiveGPUResourceLimit() {
+
+		// TODO: allow user specify the exact gpu index/uuid & capabilities
+		// https://docs.docker.com/config/containers/resource_constraints/#access-an-nvidia-gpu
+		gpus = "all"
+	}
+
 	// run the docker image
 	runContainerOptions := &dockerclient.RunOptions{
 		ContainerName: p.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
@@ -548,6 +556,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		Volumes:       volumesMap,
 		Network:       functionPlatformConfiguration.Network,
 		RestartPolicy: functionPlatformConfiguration.RestartPolicy,
+		GPUs:          gpus,
 	}
 
 	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image,
