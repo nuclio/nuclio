@@ -117,13 +117,13 @@ func NewController(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create project operator")
 	}
 
-	// create an api-gateway operator
+	// create an api gateway operator
 	newController.apiGatewayOperator, err = newAPIGatewayOperator(parentLogger,
 		newController,
 		&resyncInterval,
 		apiGatewayOperatorNumWorkers)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create api-gateway operator")
+		return nil, errors.Wrap(err, "Failed to create api gateway operator")
 	}
 
 	// create cron job monitoring
@@ -154,9 +154,9 @@ func (c *Controller) Start() error {
 		return errors.Wrap(err, "Failed to start function event operator")
 	}
 
-	// start the api-gateway operator
+	// start the api gateway operator
 	if err := c.apiGatewayOperator.start(); err != nil {
-		return errors.Wrap(err, "Failed to start api-gateway operator")
+		return errors.Wrap(err, "Failed to start api gateway operator")
 	}
 
 	if c.cronJobMonitoring != nil {

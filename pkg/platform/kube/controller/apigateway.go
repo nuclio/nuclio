@@ -54,7 +54,7 @@ func newAPIGatewayOperator(parentLogger logger.Logger,
 		controller: controller,
 	}
 
-	// create an api-gateway operator
+	// create an api gateway operator
 	newAPIGatewayOperator.operator, err = operator.NewMultiWorker(loggerInstance,
 		numWorkers,
 		newAPIGatewayOperator.getListWatcher(controller.namespace),
@@ -63,10 +63,10 @@ func newAPIGatewayOperator(parentLogger logger.Logger,
 		newAPIGatewayOperator)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create api-gateway operator")
+		return nil, errors.Wrap(err, "Failed to create api gateway operator")
 	}
 
-	parentLogger.DebugWith("Created api-gateway operator",
+	parentLogger.DebugWith("Created api gateway operator",
 		"numWorkers", numWorkers,
 		"resyncInterval", resyncInterval)
 
@@ -79,12 +79,12 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 
 	apiGateway, objectIsAPIGateway := object.(*nuclioio.NuclioAPIGateway)
 	if !objectIsAPIGateway {
-		return errors.New("Received unexpected object, expected api-gateway")
+		return errors.New("Received unexpected object, expected api gateway")
 	}
 
 	// validate the state is inside states to respond to
 	if !ago.shouldRespondToState(apiGateway.Status.State) {
-		ago.logger.DebugWith("Api-gateway state is not waiting for creation/update, skipping create/update",
+		ago.logger.DebugWith("Api gateway state is not waiting for creation/update, skipping create/update",
 			"name", apiGateway.Spec.Name,
 			"state", apiGateway.Status.State)
 		return nil
@@ -97,32 +97,32 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 		apiGateway.Labels["nuclio.io/project-name"] = "default"
 	}
 
-	// validate api-gateway name is according to k8s convention
+	// validate api gateway name is according to k8s convention
 	errorMessages := validation.IsQualifiedName(apiGateway.Name)
 	if len(errorMessages) != 0 {
 		joinedErrorMessage := strings.Join(errorMessages, ", ")
-		return errors.Errorf("Api-gateway name doesn't conform to k8s naming convention. Errors: %s", joinedErrorMessage)
+		return errors.Errorf("Api gateway name doesn't conform to k8s naming convention. Errors: %s", joinedErrorMessage)
 	}
 
-	// create/update the api-gateway
+	// create/update the api gateway
 	if _, err = ago.controller.apigatewayresClient.CreateOrUpdate(ctx, apiGateway); err != nil {
-		ago.logger.WarnWith("Failed to create/update api-gateway. Updating state accordingly")
+		ago.logger.WarnWith("Failed to create/update api gateway. Updating state accordingly")
 		if err := ago.setAPIGatewayState(apiGateway, platform.APIGatewayStateError, err); err != nil {
-			ago.logger.WarnWith("Failed to set api-gateway state as error", "err", err)
+			ago.logger.WarnWith("Failed to set api gateway state as error", "err", err)
 		}
 
-		return errors.Wrap(err, "Failed to create/update api-gateway")
+		return errors.Wrap(err, "Failed to create/update api gateway")
 	}
 
-	// wait for api-gateway to become available
+	// wait for api gateway to become available
 	ago.controller.apigatewayresClient.WaitAvailable(ctx, apiGateway.Namespace, apiGateway.Name)
 
 	// set state to ready
 	if err := ago.setAPIGatewayState(apiGateway, platform.APIGatewayStateReady, nil); err != nil {
-		return errors.Wrap(err, "Failed to set api-gateway state after it was successfully created")
+		return errors.Wrap(err, "Failed to set api gateway state after it was successfully created")
 	}
 
-	ago.logger.DebugWith("Successfully created/updated api-gateway", "apiGateway", apiGateway)
+	ago.logger.DebugWith("Successfully created/updated api gateway", "apiGateway", apiGateway)
 
 	return nil
 }
@@ -157,7 +157,7 @@ func (ago *apiGatewayOperator) shouldRespondToState(state platform.APIGatewaySta
 func (ago *apiGatewayOperator) setAPIGatewayState(apiGateway *nuclioio.NuclioAPIGateway,
 	state platform.APIGatewayState,
 	lastError error) error {
-	ago.logger.DebugWith("Setting api-gateway state", "name", apiGateway.Name, "state", state)
+	ago.logger.DebugWith("Setting api gateway state", "name", apiGateway.Name, "state", state)
 
 	apiGateway.Status.State = state
 
@@ -166,7 +166,7 @@ func (ago *apiGatewayOperator) setAPIGatewayState(apiGateway *nuclioio.NuclioAPI
 		apiGateway.Status.LastError = lastError.Error()
 	}
 
-	// try to update the api-gateway with the new state
+	// try to update the api gateway with the new state
 	_, err := ago.controller.nuclioClientSet.NuclioV1beta1().NuclioAPIGateways(apiGateway.Namespace).Update(apiGateway)
 	return err
 }

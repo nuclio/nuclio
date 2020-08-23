@@ -9,7 +9,7 @@ import (
 
 type Client interface {
 
-	// List returns the current existing api-gateway resources
+	// List returns the current existing api gateway resources
 	List(context.Context, string) ([]Resources, error)
 
 	// Get returns the resources named by name

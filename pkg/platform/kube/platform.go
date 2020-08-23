@@ -340,7 +340,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 	p.EnrichFunctionsWithDeployLogStream(functions)
 
 	if err = p.enrichFunctionsWithAPIGateways(functions, getFunctionsOptions.Namespace); err != nil {
-		return nil, errors.Wrap(err, "Failed to enrich functions with api-gateways")
+		return nil, errors.Wrap(err, "Failed to enrich functions with api gateways")
 	}
 
 	return functions, nil
@@ -508,7 +508,7 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 	return platformProjects, nil
 }
 
-// CreateAPIGateway will probably create a new api-gateway
+// CreateAPIGateway creates and deploys a new api gateway
 func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
 	newAPIGateway := nuclioio.NuclioAPIGateway{}
 	p.platformAPIGatewayToAPIGateway(&createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
@@ -517,39 +517,39 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 		NuclioAPIGateways(createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Create(&newAPIGateway)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create api-gateway")
+		return errors.Wrap(err, "Failed to create api gateway")
 	}
 
 	return nil
 }
 
-// UpdateAPIGateway will update a previously existing api-gateway
+// UpdateAPIGateway will update a previously existing api gateway
 func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
 	apiGateway, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Get(updateAPIGatewayOptions.APIGatewayConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
-		return errors.Wrap(err, "Failed to get api-gateway to update")
+		return errors.Wrap(err, "Failed to get api gateway to update")
 	}
 
 	updatedAPIGateway := nuclioio.NuclioAPIGateway{}
 	p.platformAPIGatewayToAPIGateway(&updateAPIGatewayOptions.APIGatewayConfig, &updatedAPIGateway)
 	apiGateway.Spec = updatedAPIGateway.Spec
 
-	// set api-gateway state to "waitingForProvisioning", so the controller will know to update this resource
+	// set api gateway state to "waitingForProvisioning", so the controller will know to update this resource
 	apiGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Update(apiGateway)
 	if err != nil {
-		return errors.Wrap(err, "Failed to update api-gateway")
+		return errors.Wrap(err, "Failed to update api gateway")
 	}
 
 	return nil
 }
 
-// DeleteAPIGateway will delete a previously existing api-gateway
+// DeleteAPIGateway will delete a previously existing api gateway
 func (p *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
 
 	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
@@ -557,7 +557,7 @@ func (p *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIG
 		Delete(deleteAPIGatewayOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
 
 		return errors.Wrapf(err,
-			"Failed to delete api-gateway %s from namespace %s",
+			"Failed to delete api gateway %s from namespace %s",
 			deleteAPIGatewayOptions.Meta.Name,
 			deleteAPIGatewayOptions.Meta.Namespace)
 	}
@@ -565,7 +565,7 @@ func (p *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIG
 	return nil
 }
 
-// GetAPIGateways will list existing api-gateways
+// GetAPIGateways will list existing api gateways
 func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
 	var platformAPIGateways []platform.APIGateway
 	var apiGateways []nuclioio.NuclioAPIGateway
@@ -584,7 +584,7 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 				return platformAPIGateways, nil
 			}
 
-			return nil, errors.Wrap(err, "Failed to get api-gateway")
+			return nil, errors.Wrap(err, "Failed to get api gateway")
 		}
 
 		apiGateways = append(apiGateways, *apiGateway)
@@ -595,10 +595,9 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 			NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
 			List(metav1.ListOptions{LabelSelector: getAPIGatewaysOptions.Labels})
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to list api-gateways")
+			return nil, errors.Wrap(err, "Failed to list api gateways")
 		}
 
-		// convert []NuclioAPIGateway to []*NuclioAPIGateway
 		apiGateways = apiGatewayInstanceList.Items
 	}
 
@@ -896,21 +895,21 @@ func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error 
 func (p *Platform) generateFunctionToAPIGatewaysMapping(namespace string) (map[string][]string, error) {
 	functionToAPIGateways := map[string][]string{}
 
-	// get all api-gateways in the namespace
+	// get all api gateways in the namespace
 	apiGateways, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(namespace).
 		List(metav1.ListOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to list api-gateways")
+		return nil, errors.Wrap(err, "Failed to list api gateways")
 	}
 
-	// iterate over all api-gateways
+	// iterate over all api gateways
 	for _, apiGateway := range apiGateways.Items {
 
-		// iterate over all upstreams(functions) of the api-gateway
+		// iterate over all upstreams(functions) of the api gateway
 		for _, upstream := range apiGateway.Spec.Upstreams {
 
-			// append the current api-gateway to the function's api-gateways list
+			// append the current api gateway to the function's api gateways list
 			functionToAPIGateways[upstream.Nucliofunction.Name] =
 				append(functionToAPIGateways[upstream.Nucliofunction.Name], apiGateway.Name)
 		}
@@ -923,12 +922,12 @@ func (p *Platform) enrichFunctionsWithAPIGateways(functions []platform.Function,
 	var err error
 	var functionToAPIGateways map[string][]string
 
-	// generate function to api-gateways mapping
+	// generate function to api gateways mapping
 	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(namespace); err != nil {
-		return errors.Wrap(err, "Failed to get function to api-gateways mapping")
+		return errors.Wrap(err, "Failed to get function to api gateways mapping")
 	}
 
-	// set the api-gateways list for every function according to the mapping above
+	// set the api gateways list for every function according to the mapping above
 	for _, function := range functions {
 		function.GetStatus().APIGateways = functionToAPIGateways[function.GetConfig().Meta.Name]
 	}

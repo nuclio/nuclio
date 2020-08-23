@@ -97,16 +97,16 @@ type Platform interface {
 	// API Gateway
 	//
 
-	// Create APIGateway will probably create a new api-gateway
+	// Create APIGateway creates and deploys a new api gateway
 	CreateAPIGateway(createAPIGatewayOptions *CreateAPIGatewayOptions) error
 
-	// UpdateAPIGateway will update a previously deployed api-gateway
+	// UpdateAPIGateway will update a previously deployed api gateway
 	UpdateAPIGateway(updateAPIGatewayOptions *UpdateAPIGatewayOptions) error
 
-	// DeleteAPIGateway will delete a previously deployed api-gateway
+	// DeleteAPIGateway will delete a previously deployed api gateway
 	DeleteAPIGateway(deleteAPIGatewayOptions *DeleteAPIGatewayOptions) error
 
-	// GetAPIGateways will list existing api-gateways
+	// GetAPIGateways will list existing api gateways
 	GetAPIGateways(getAPIGatewaysOptions *GetAPIGatewaysOptions) ([]APIGateway, error)
 
 	//

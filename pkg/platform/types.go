@@ -290,10 +290,10 @@ type APIGatewayConfig struct {
 	Status APIGatewayStatus
 }
 
-// APIGatewayState is state of api-gateway
+// APIGatewayState is state of api gateway
 type APIGatewayState string
 
-// Possible api-gateway states
+// Possible api gateway states
 const (
 	APIGatewayStateNone                   APIGatewayState = ""
 	APIGatewayStateReady                  APIGatewayState = "ready"

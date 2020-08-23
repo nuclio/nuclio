@@ -326,7 +326,7 @@ func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error 
 		return platform.ErrProjectContainsFunctions
 	}
 
-	// validate the project has no api-gateways
+	// validate the project has no api gateways
 	getAPIGatewaysOptions := &platform.GetAPIGatewaysOptions{
 		Namespace: namespace,
 		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
@@ -335,12 +335,12 @@ func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error 
 	apiGateways, err := ap.platform.GetAPIGateways(getAPIGatewaysOptions)
 	if err != nil {
 
-		// if api-gateways are not supported on this platform, just ignore this validation
+		// if api gateways are not supported on this platform, just ignore this validation
 		if err == platform.ErrUnsupportedMethod {
 			return nil
 		}
 
-		return errors.Wrap(err, "Failed to get api-gateways")
+		return errors.Wrap(err, "Failed to get api gateways")
 	}
 
 	if len(apiGateways) != 0 {
@@ -382,22 +382,22 @@ func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 	return nil, platform.ErrUnsupportedMethod
 }
 
-// CreateAPIGateway will probably create a new api-gateway
+// CreateAPIGateway creates and deploys a new api gateway
 func (ap *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
 	return platform.ErrUnsupportedMethod
 }
 
-// UpdateAPIGateway will update a previously existing api-gateway
+// UpdateAPIGateway will update a previously existing api gateway
 func (ap *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
 	return platform.ErrUnsupportedMethod
 }
 
-// DeleteAPIGateway will delete a previously existing api-gateway
+// DeleteAPIGateway will delete a previously existing api gateway
 func (ap *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
 	return platform.ErrUnsupportedMethod
 }
 
-// GetAPIGateways will list existing api-gateways
+// GetAPIGateways will list existing api gateways
 func (ap *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
 	return nil, platform.ErrUnsupportedMethod
 }

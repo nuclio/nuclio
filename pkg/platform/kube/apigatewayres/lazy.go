@@ -122,11 +122,11 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.N
 	// otherwise, when there is only canary ingress, the endpoint will not work (nginx behavior)
 	for ingressName, ingressResources := range ingresses {
 		if _, _, err := lc.ingressManager.CreateOrUpdateResources(ingressResources); err != nil {
-			lc.Logger.WarnWithCtx(ctx, "Failed to create/update api-gateway ingress resources",
+			lc.Logger.WarnWithCtx(ctx, "Failed to create/update api gateway ingress resources",
 				"err", errors.Cause(err),
 				"ingressName", ingressName,
 				"appliedIngressNames", appliedIngressNames)
-			return nil, errors.New("Failed to create/update api-gateway ingress resources")
+			return nil, errors.New("Failed to create/update api gateway ingress resources")
 		}
 
 		appliedIngressNames = append(appliedIngressNames, ingressName)
@@ -145,7 +145,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 }
 
 func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string) {
-	lc.Logger.DebugWithCtx(ctx, "Deleting api-gateway base ingress", "name", name)
+	lc.Logger.DebugWithCtx(ctx, "Deleting api gateway base ingress", "name", name)
 
 	err := lc.ingressManager.DeleteByName(lc.generateIngressName(name, false), namespace, true)
 	if err != nil {
@@ -153,7 +153,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 			"err", errors.Cause(err))
 	}
 
-	lc.Logger.DebugWithCtx(ctx, "Deleting api-gateway canary ingress", "name", name)
+	lc.Logger.DebugWithCtx(ctx, "Deleting api gateway canary ingress", "name", name)
 
 	err = lc.ingressManager.DeleteByName(lc.generateIngressName(name, true), namespace, true)
 	if err != nil {
@@ -201,7 +201,7 @@ func (lc *lazyClient) validateSpec(apiGateway *nuclioio.NuclioAPIGateway) error 
 
 	// Validity checks per upstream
 	// 1. make sure all upstreams have the same kind
-	// 2. make sure each upstream is unique - meaning, there's no other api-gateway with an upstream with the
+	// 2. make sure each upstream is unique - meaning, there's no other api gateway with an upstream with the
 	//    same service (currently only nuclio function) name
 	//    (this is done because creating multiple ingresses with the same service name breaks nginx ingress controller)
 	existingUpstreamFunctionNames, err := lc.getAllExistingUpstreamFunctionNames(apiGateway.Namespace, apiGateway.Name)
@@ -213,7 +213,7 @@ func (lc *lazyClient) validateSpec(apiGateway *nuclioio.NuclioAPIGateway) error 
 			return errors.New("All upstreams must be of the same kind")
 		}
 		if common.StringSliceContainsString(existingUpstreamFunctionNames, upstream.Nucliofunction.Name) {
-			return errors.Errorf("Nuclio function '%s' is already being used in another api-gateway",
+			return errors.Errorf("Nuclio function '%s' is already being used in another api gateway",
 				upstream.Nucliofunction.Name)
 		}
 	}

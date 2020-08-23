@@ -19,7 +19,7 @@ import (
 
 type APIGateway interface {
 
-	// GetConfig returns the api-gateway config
+	// GetConfig returns the api gateway config
 	GetConfig() *APIGatewayConfig
 }
 
@@ -34,13 +34,13 @@ func NewAbstractAPIGateway(parentLogger logger.Logger,
 	APIGatewayConfig APIGatewayConfig) (*AbstractAPIGateway, error) {
 
 	return &AbstractAPIGateway{
-		Logger:           parentLogger.GetChild("api-gateway"),
+		Logger:           parentLogger.GetChild("api gateway"),
 		Platform:         parentPlatform,
 		APIGatewayConfig: APIGatewayConfig,
 	}, nil
 }
 
-// GetConfig returns the api-gateway config
+// GetConfig returns the api gateway config
 func (ap *AbstractAPIGateway) GetConfig() *APIGatewayConfig {
 	return &ap.APIGatewayConfig
 }
