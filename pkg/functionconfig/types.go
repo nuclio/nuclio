@@ -143,6 +143,14 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 	return ingresses
 }
 
+func GetDefaultHTTPTrigger() Trigger {
+	return Trigger{
+		Kind:       "http",
+		Name:       "default-http",
+		MaxWorkers: 1,
+	}
+}
+
 // Ingress holds configuration for an ingress - an entity that can route HTTP requests
 // to the function
 type Ingress struct {

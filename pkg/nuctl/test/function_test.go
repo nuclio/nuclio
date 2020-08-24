@@ -600,7 +600,10 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	// assert data from different spec and not original spec
 	suite.Assert().Equal(2, *deployedFunctionConfig.Spec.MinReplicas)
 	suite.Assert().Equal(6, *deployedFunctionConfig.Spec.MaxReplicas)
-	suite.Assert().Equal(0, len(deployedFunctionConfig.Spec.Triggers))
+
+	// check that created trigger is default trigger and not the original one
+	suite.Assert().Equal(1, len(deployedFunctionConfig.Spec.Triggers))
+	suite.Assert().Contains(deployedFunctionConfig.Spec.Triggers, "default-http")
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -668,7 +671,10 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 
 	// assert data from different spec and not original spec
 	suite.Assert().Equal(6, *deployedFunctionConfig.Spec.MaxReplicas)
-	suite.Assert().Equal(0, len(deployedFunctionConfig.Spec.Triggers))
+
+	// check that created trigger is default trigger and not the original one
+	suite.Assert().Equal(1, len(deployedFunctionConfig.Spec.Triggers))
+	suite.Assert().Contains(deployedFunctionConfig.Spec.Triggers, "default-http")
 
 	// assert from args and not from either spec
 	suite.Assert().Equal(minReplicas, *deployedFunctionConfig.Spec.MinReplicas)

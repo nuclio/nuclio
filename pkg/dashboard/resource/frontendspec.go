@@ -94,12 +94,19 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface{} {
 	one := 1
 	defaultWorkerAvailabilityTimeoutMilliseconds := trigger.DefaultWorkerAvailabilityTimeoutMilliseconds
+	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+	defaultHTTPTrigger.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
+
 	defaultFunctionSpec := functionconfig.Spec{
 		MinReplicas:             &one,
 		MaxReplicas:             &one,
 		ReadinessTimeoutSeconds: abstract.DefaultReadinessTimeoutSeconds,
 		TargetCPU:               abstract.DefaultTargetCPU,
 		Triggers: map[string]functionconfig.Trigger{
+
+			// this trigger name starts with the prefix "default" and should be used as a default http trigger
+			// as opposed to the other defaults which only hold configurations for the creation of every other trigger.
+			defaultHTTPTrigger.Name: defaultHTTPTrigger,
 
 			// notice that this is a mapping between trigger kind and its default values
 			"http": {
