@@ -139,6 +139,17 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 				return errors.New("Api gateway create requires an identifier")
 			}
 
+			// initialize root
+			if err := createCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
+			// decode the JSON attributes
+			if err := json.Unmarshal([]byte(commandeer.encodedAttributes),
+				&commandeer.apiGatewayConfig); err != nil {
+				return errors.Wrap(err, "Failed to decode function event attributes")
+			}
+
 			commandeer.apiGatewayConfig.Meta.Name = args[0]
 			commandeer.apiGatewayConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
 
@@ -148,74 +159,58 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 				}
 			}
 
-			// initialize root
-			if err := createCommandeer.rootCommandeer.initialize(); err != nil {
-				return errors.Wrap(err, "Failed to initialize root")
+			// enrich api gateway spec with commandeer input
+			commandeer.apiGatewayConfig.Spec.Host = commandeer.host
+			commandeer.apiGatewayConfig.Spec.Description = commandeer.description
+			commandeer.apiGatewayConfig.Spec.Path = commandeer.path
+
+			// enrich authentication mode
+			if commandeer.authenticationMode != "" {
+				commandeer.apiGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationMode(commandeer.authenticationMode)
+			} else {
+				commandeer.apiGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
 			}
 
-			// enrich api gateway spec with commandeer input
-
-			// if encoded attributes were given ignore all the rest of the attributes
-			if commandeer.encodedAttributes == "" {
-				commandeer.apiGatewayConfig.Spec.Host = commandeer.host
-				commandeer.apiGatewayConfig.Spec.Description = commandeer.description
-				commandeer.apiGatewayConfig.Spec.Path = commandeer.path
-
-				// enrich authentication mode
-				if commandeer.authenticationMode != "" {
-					commandeer.apiGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationMode(commandeer.authenticationMode)
-				} else {
-					commandeer.apiGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+			// enrich basic-auth spec if it was specified
+			if commandeer.apiGatewayConfig.Spec.AuthenticationMode == ingress.AuthenticationModeBasicAuth {
+				if commandeer.basicAuthUsername == "" || commandeer.basicAuthPassword == "" {
+					return errors.New("Basic auth username and password must be specified")
 				}
 
-				// enrich basic-auth spec if it was specified
-				if commandeer.apiGatewayConfig.Spec.AuthenticationMode == ingress.AuthenticationModeBasicAuth {
-					if commandeer.basicAuthUsername == "" || commandeer.basicAuthPassword == "" {
-						return errors.New("Basic auth username and password must be specified")
-					}
-
-					commandeer.apiGatewayConfig.Spec.Authentication.BasicAuth = &platform.BasicAuth{
-						Username: commandeer.basicAuthUsername,
-						Password: commandeer.basicAuthPassword,
-					}
+				commandeer.apiGatewayConfig.Spec.Authentication.BasicAuth = &platform.BasicAuth{
+					Username: commandeer.basicAuthUsername,
+					Password: commandeer.basicAuthPassword,
 				}
+			}
 
-				// validate a primary function was specified
-				if commandeer.function == "" {
-					return errors.New("A primary function must be specified")
-				}
+			// validate a primary function was specified
+			if commandeer.function == "" {
+				return errors.New("A primary function must be specified")
+			}
 
-				commandeer.apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
-					{
-						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
-							Name: commandeer.function,
-						},
+			commandeer.apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
+				{
+					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+					Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+						Name: commandeer.function,
 					},
+				},
+			}
+
+			if commandeer.canaryFunction != "" {
+				if commandeer.canaryPercentage == 0 {
+					return errors.New("Canary function percentage must be specified")
 				}
 
-				if commandeer.canaryFunction != "" {
-					if commandeer.canaryPercentage == 0 {
-						return errors.New("Canary function percentage must be specified")
-					}
-
-					canaryUpstream := platform.APIGatewayUpstreamSpec{
-						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
-							Name: commandeer.canaryFunction,
-						},
-						Percentage: commandeer.canaryPercentage,
-					}
-
-					commandeer.apiGatewayConfig.Spec.Upstreams = append(commandeer.apiGatewayConfig.Spec.Upstreams, canaryUpstream)
+				canaryUpstream := platform.APIGatewayUpstreamSpec{
+					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+					Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+						Name: commandeer.canaryFunction,
+					},
+					Percentage: commandeer.canaryPercentage,
 				}
 
-			} else {
-				// decode the JSON attributes
-				if err := json.Unmarshal([]byte(commandeer.encodedAttributes),
-					&commandeer.apiGatewayConfig); err != nil {
-					return errors.Wrap(err, "Failed to decode function event attributes")
-				}
+				commandeer.apiGatewayConfig.Spec.Upstreams = append(commandeer.apiGatewayConfig.Spec.Upstreams, canaryUpstream)
 			}
 
 			commandeer.apiGatewayConfig.Status.State = platform.APIGatewayStateWaitingForProvisioning
