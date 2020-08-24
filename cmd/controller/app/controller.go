@@ -107,7 +107,7 @@ func createController(kubeconfigPath string,
 
 	apiGatewayOperatorNumWorkers, err := strconv.Atoi(apiGatewayOperatorNumWorkersStr)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to resolve number of workers for api-gateway operator")
+		return nil, errors.Wrap(err, "Failed to resolve number of workers for api gateway operator")
 	}
 
 	// get platform configuration
@@ -149,10 +149,10 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create ingress manager")
 	}
 
-	// create api-gateway provisioner
+	// create api gateway provisioner
 	apigatewayresClient, err := apigatewayres.NewLazyClient(rootLogger, kubeClientSet, nuclioClientSet, ingressManager)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create api-gateway provisioner")
+		return nil, errors.Wrap(err, "Failed to create api gateway provisioner")
 	}
 
 	newController, err := controller.NewController(rootLogger,

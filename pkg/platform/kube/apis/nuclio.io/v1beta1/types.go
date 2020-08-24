@@ -144,7 +144,7 @@ type NuclioProjectList struct {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// NuclioAPIGateway describes an api-gateway.
+// NuclioAPIGateway describes an api gateway.
 type NuclioAPIGateway struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -155,7 +155,7 @@ type NuclioAPIGateway struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// NuclioAPIGatewayList is a list of api-gateway resources
+// NuclioAPIGatewayList is a list of api gateway resources
 type NuclioAPIGatewayList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`

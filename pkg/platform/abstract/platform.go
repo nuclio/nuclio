@@ -302,8 +302,18 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 		return errors.New("Cannot delete the default project")
 	}
 
+	if err := ap.validateProjectIsEmpty(deleteProjectOptions.Meta.Namespace, projectName); err != nil {
+		return errors.Wrap(err, "Cannot delete non-empty project")
+	}
+
+	return nil
+}
+
+func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error {
+
+	// validate the project has no functions
 	getFunctionsOptions := &platform.GetFunctionsOptions{
-		Namespace: deleteProjectOptions.Meta.Namespace,
+		Namespace: namespace,
 		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
 	}
 
@@ -314,6 +324,27 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 
 	if len(functions) != 0 {
 		return platform.ErrProjectContainsFunctions
+	}
+
+	// validate the project has no api gateways
+	getAPIGatewaysOptions := &platform.GetAPIGatewaysOptions{
+		Namespace: namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
+	}
+
+	apiGateways, err := ap.platform.GetAPIGateways(getAPIGatewaysOptions)
+	if err != nil {
+
+		// if api gateways are not supported on this platform, just ignore this validation
+		if err == platform.ErrUnsupportedMethod {
+			return nil
+		}
+
+		return errors.Wrap(err, "Failed to get api gateways")
+	}
+
+	if len(apiGateways) != 0 {
+		return platform.ErrProjectContainsAPIGateways
 	}
 
 	return nil
@@ -333,43 +364,63 @@ func (ap *Platform) GetHealthCheckMode() platform.HealthCheckMode {
 
 // CreateProject will probably create a new project
 func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
-	return errors.New("Unsupported")
+	return platform.ErrUnsupportedMethod
 }
 
 // UpdateProject will update a previously existing project
 func (ap *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
-	return errors.New("Unsupported")
+	return platform.ErrUnsupportedMethod
 }
 
 // DeleteProject will delete a previously existing project
 func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
-	return errors.New("Unsupported")
+	return platform.ErrUnsupportedMethod
 }
 
 // GetProjects will list existing projects
 func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	return nil, errors.New("Unsupported")
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// CreateAPIGateway creates and deploys a new api gateway
+func (ap *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
+	return platform.ErrUnsupportedMethod
+}
+
+// UpdateAPIGateway will update a previously existing api gateway
+func (ap *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
+	return platform.ErrUnsupportedMethod
+}
+
+// DeleteAPIGateway will delete a previously existing api gateway
+func (ap *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
+	return platform.ErrUnsupportedMethod
+}
+
+// GetAPIGateways will list existing api gateways
+func (ap *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
+	return nil, platform.ErrUnsupportedMethod
 }
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
 func (ap *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
-	return errors.New("Unsupported")
+	return platform.ErrUnsupportedMethod
 }
 
 // UpdateFunctionEvent will update a previously existing function event
 func (ap *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
-	return errors.New("Unsupported")
+	return platform.ErrUnsupportedMethod
 }
 
 // DeleteFunctionEvent will delete a previously existing function event
 func (ap *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
-	return errors.New("Unsupported")
+	return platform.ErrUnsupportedMethod
 }
 
 // GetFunctionEvents will list existing function events
 func (ap *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
-	return nil, errors.New("Unsupported")
+	return nil, platform.ErrUnsupportedMethod
 }
 
 // SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
