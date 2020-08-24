@@ -26,6 +26,10 @@ import (
 	"k8s.io/api/core/v1"
 )
 
+const (
+	NvidiaGPUResourceName = "nvidia.com/gpu"
+)
+
 // DataBinding holds configuration for a databinding
 type DataBinding struct {
 	Name       string                 `json:"name,omitempty"`
@@ -347,6 +351,14 @@ func (s *Spec) GetEventTimeout() (time.Duration, error) {
 	}
 
 	return timeout, err
+}
+
+//PositiveGPUResourceLimit returns whether gpu is assigned
+func (s *Spec) PositiveGPUResourceLimit() bool {
+	if gpuResourceLimit, found := s.Resources.Limits[NvidiaGPUResourceName]; found {
+		return !gpuResourceLimit.IsZero()
+	}
+	return false
 }
 
 const (

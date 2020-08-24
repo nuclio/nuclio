@@ -25,9 +25,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
@@ -165,15 +167,25 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	functionresClient, err := functionres.NewLazyClient(suite.Logger, kubeClientSet, nuclioClientSet)
 	suite.Require().NoError(err)
 
+	// create ingress manager
+	ingressManager, err := ingress.NewManager(suite.Logger, kubeClientSet, suite.PlatformConfiguration)
+	suite.Require().NoError(err)
+
+	// create api-gateway provisioner
+	apigatewayresClient, err := apigatewayres.NewLazyClient(suite.Logger, kubeClientSet, nuclioClientSet, ingressManager)
+	suite.Require().NoError(err)
+
 	controllerInstance, err := controller.NewController(suite.Logger,
 		suite.Namespace,
 		"",
 		kubeClientSet,
 		nuclioClientSet,
 		functionresClient,
+		apigatewayresClient,
 		time.Second*5,
 		time.Second*30,
 		suite.PlatformConfiguration,
+		4,
 		4,
 		4,
 		4)
