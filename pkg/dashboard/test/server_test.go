@@ -41,6 +41,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	v1 "k8s.io/api/core/v1"
 )
 
 //
@@ -79,7 +80,9 @@ func (suite *dashboardTestSuite) SetupTest() {
 		"",
 		true,
 		templateRepository,
-		nil,
+		&platformconfig.Config{
+			KubeDefaultServiceType: v1.ServiceTypeNodePort,
+		},
 		"",
 		"",
 		"",
@@ -2370,13 +2373,15 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
                         "kind": "http",
                         "name": "default-http",
                         "maxWorkers": 1,
-                        "workerAvailabilityTimeoutMilliseconds": 10000
+                        "workerAvailabilityTimeoutMilliseconds": 10000,
+                        "serviceType": "NodePort"
                     },
                     "http": {
                         "class": "",
                         "kind": "",
                         "name": "",
-                        "workerAvailabilityTimeoutMilliseconds": 10000
+                        "workerAvailabilityTimeoutMilliseconds": 10000,
+                        "serviceType": "NodePort"
                     }
                 },
                 "build": {},

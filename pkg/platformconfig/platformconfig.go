@@ -22,6 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/errors"
+	"k8s.io/api/core/v1"
 )
 
 type Config struct {
@@ -35,6 +36,7 @@ type Config struct {
 	CronTriggerCreationMode  CronTriggerCreationMode  `json:"cronTriggerCreationMode,omitempty"`
 	FunctionAugmentedConfigs []LabelSelectorAndConfig `json:"functionAugmentedConfigs,omitempty"`
 	IngressConfig            IngressConfig            `json:"ingressConfig,omitempty"`
+	KubeDefaultServiceType   v1.ServiceType           `json:"kubeDefaultServiceType,omitempty"`
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {

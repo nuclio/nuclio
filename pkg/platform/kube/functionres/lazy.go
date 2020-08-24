@@ -196,8 +196,9 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 	}
 
 	// set a default
-	if function.Spec.ServiceType == "" {
-		function.Spec.ServiceType = v1.ServiceTypeNodePort
+	function.Spec.ServiceType, err = lc.getFunctionServiceType(function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function Service Type")
 	}
 
 	// create or update the applicable configMap
@@ -2027,6 +2028,28 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	default:
 		return ""
 	}
+}
+
+func (lc *lazyClient) getFunctionServiceType(function *nuclioio.NuclioFunction) (v1.ServiceType, error) {
+	functionHTTPTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "http")
+	if len(functionHTTPTriggers) != 1 {
+		return "", errors.Errorf("Unsupported amount of HTTP triggers: %s", len(functionHTTPTriggers))
+	}
+
+	// if the http trigger has a configured service type, return that.
+	for _, trigger := range functionHTTPTriggers {
+		if trigger.ServiceType != "" {
+			return trigger.ServiceType, nil
+		}
+	}
+
+	// if the function spec has a service type, return that (for backwards compatibility)
+	if function.Spec.ServiceType != "" {
+		return function.Spec.ServiceType, nil
+	}
+
+	// otherwise return platform default
+	return lc.platformConfigurationProvider.GetPlatformConfiguration().KubeDefaultServiceType, nil
 }
 
 //

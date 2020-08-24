@@ -197,3 +197,4 @@ platform: {}
 #     functions:
 #     - myPrometheusPull
 #   cronTriggerCreationMode: "kube"
+#   kubeDefaultServiceType: nodePort

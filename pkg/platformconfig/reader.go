@@ -23,6 +23,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
+	v1 "k8s.io/api/core/v1"
 )
 
 type Reader struct{}
@@ -83,5 +84,6 @@ func (r *Reader) GetDefaultConfiguration() *Config {
 				{Level: "debug", Sink: "stdout"},
 			},
 		},
+		KubeDefaultServiceType: v1.ServiceTypeNodePort,
 	}
 }
