@@ -178,6 +178,9 @@ func (suite *DeployFunctionTestSuite) TestDefaultHTTPTrigger() {
 	defaultTriggerFunctionName := "with-default-http-trigger"
 	createDefaultTriggerFunctionOptions := suite.compileCreateFunctionOptions(defaultTriggerFunctionName)
 	suite.DeployFunction(createDefaultTriggerFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		// ensure only 1 http trigger exists, always.
+		suite.ensureTriggerAmount(defaultTriggerFunctionName, "http", 1)
 		defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
 		return suite.verifyCreatedTrigger(defaultTriggerFunctionName, defaultHTTPTrigger)
 	})
@@ -193,6 +196,9 @@ func (suite *DeployFunctionTestSuite) TestDefaultHTTPTrigger() {
 		customTrigger.Name: customTrigger,
 	}
 	suite.DeployFunction(createCustomTriggerFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		// ensure only 1 http trigger exists, always.
+		suite.ensureTriggerAmount(customTriggerFunctionName, "http", 1)
 		return suite.verifyCreatedTrigger(customTriggerFunctionName, customTrigger)
 	})
 }
@@ -203,15 +209,21 @@ func (suite *DeployFunctionTestSuite) verifyCreatedTrigger(functionName string, 
 		functionName,
 		functionInstance)
 
-	functionHTTPTriggers := functionconfig.GetTriggersByKind(functionInstance.Spec.Triggers, "http")
-
-	// ensure only 1 http trigger exists, always.
-	suite.Require().Equal(1, len(functionHTTPTriggers))
-
-	suite.Require().Equal(trigger.Name, functionHTTPTriggers[trigger.Name].Name)
-	suite.Require().Equal(trigger.Kind, functionHTTPTriggers[trigger.Name].Kind)
-	suite.Require().Equal(trigger.MaxWorkers, functionHTTPTriggers[trigger.Name].MaxWorkers)
+	// TODO: verify other parts of the trigger spec
+	suite.Require().Equal(trigger.Name, functionInstance.Spec.Triggers[trigger.Name].Name)
+	suite.Require().Equal(trigger.Kind, functionInstance.Spec.Triggers[trigger.Name].Kind)
+	suite.Require().Equal(trigger.MaxWorkers, functionInstance.Spec.Triggers[trigger.Name].MaxWorkers)
 	return true
+}
+
+func (suite *DeployFunctionTestSuite) ensureTriggerAmount(functionName, triggerKind string, amount int) {
+	functionInstance := &nuclioio.NuclioFunction{}
+	suite.getResourceAndUnmarshal("nucliofunction",
+		functionName,
+		functionInstance)
+
+	functionHTTPTriggers := functionconfig.GetTriggersByKind(functionInstance.Spec.Triggers, triggerKind)
+	suite.Require().Equal(amount, len(functionHTTPTriggers))
 }
 
 func (suite *DeployFunctionTestSuite) compileCreateFunctionOptions(
