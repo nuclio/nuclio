@@ -613,7 +613,7 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 					Namespace:         apiGatewayInstance.Namespace,
 					Labels:            apiGatewayInstance.Labels,
 					Annotations:       apiGatewayInstance.Annotations,
-					CreationTimestamp: apiGatewayInstance.CreationTimestamp,
+					CreationTimestamp: &apiGatewayInstance.CreationTimestamp,
 				},
 				Spec:   apiGatewayInstance.Spec,
 				Status: apiGatewayInstance.Status,

@@ -243,7 +243,22 @@ type APIGatewayMeta struct {
 	Namespace         string            `json:"namespace,omitempty"`
 	Labels            map[string]string `json:"labels,omitempty"`
 	Annotations       map[string]string `json:"annotations,omitempty"`
-	CreationTimestamp metav1.Time       `json:"creationTimestamp,omitempty"`
+	CreationTimestamp *metav1.Time      `json:"creationTimestamp,omitempty"`
+}
+
+func (agc *APIGatewayConfig) PrepareAPIGatewayForExport(noScrub bool) {
+	if !noScrub {
+		agc.scrubAPIGatewayData()
+	}
+}
+
+func (agc *APIGatewayConfig) scrubAPIGatewayData() {
+
+	// scrub namespace from api-gateway meta
+	agc.Meta.Namespace = ""
+
+	// creation time stamp won't be relevant on export
+	agc.Meta.CreationTimestamp = nil
 }
 
 type APIGatewayAuthenticationSpec struct {
