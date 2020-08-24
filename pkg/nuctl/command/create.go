@@ -18,8 +18,8 @@ package command
 
 import (
 	"encoding/json"
-
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
 	"github.com/nuclio/errors"
 	"github.com/spf13/cobra"
@@ -43,10 +43,12 @@ func newCreateCommandeer(rootCommandeer *RootCommandeer) *createCommandeer {
 
 	createProjectCommand := newCreateProjectCommandeer(commandeer).cmd
 	createFunctionEventCommand := newCreateFunctionEventCommandeer(commandeer).cmd
+	createAPIGatewayCommand := newCreateAPIGatewayCommandeer(commandeer).cmd
 
 	cmd.AddCommand(
 		createProjectCommand,
 		createFunctionEventCommand,
+		createAPIGatewayCommand,
 	)
 
 	commandeer.cmd = cmd
@@ -103,6 +105,142 @@ type createFunctionEventCommandeer struct {
 	functionEventConfig platform.FunctionEventConfig
 	encodedAttributes   string
 	functionName        string
+}
+
+type createAPIGatewayCommandeer struct {
+	*createCommandeer
+	apiGatewayConfig   platform.APIGatewayConfig
+	project            string
+	host               string
+	description        string
+	path               string
+	authenticationMode string
+	basicAuthUsername  string
+	basicAuthPassword  string
+	function           string
+	canaryFunction     string
+	canaryPercentage   int
+	encodedAttributes  string
+}
+
+func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAPIGatewayCommandeer {
+	commandeer := &createAPIGatewayCommandeer{
+		createCommandeer: createCommandeer,
+	}
+
+	cmd := &cobra.Command{
+		Use:     "apigateway name",
+		Aliases: []string{"agw"},
+		Short:   "Create api gateways",
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			// if we got positional arguments
+			if len(args) != 1 {
+				return errors.New("Api gateway create requires an identifier")
+			}
+
+			commandeer.apiGatewayConfig.Meta.Name = args[0]
+			commandeer.apiGatewayConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
+
+			if commandeer.project != "" {
+				commandeer.apiGatewayConfig.Meta.Labels = map[string]string{
+					"nuclio.io/project-name": commandeer.project,
+				}
+			}
+
+			// initialize root
+			if err := createCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
+			// enrich api gateway spec with commandeer input
+
+			// if encoded attributes were given ignore all the rest of the attributes
+			if commandeer.encodedAttributes == "" {
+				commandeer.apiGatewayConfig.Spec.Host = commandeer.host
+				commandeer.apiGatewayConfig.Spec.Description = commandeer.description
+				commandeer.apiGatewayConfig.Spec.Path = commandeer.path
+
+				// enrich authentication mode
+				if commandeer.authenticationMode != "" {
+					commandeer.apiGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationMode(commandeer.authenticationMode)
+				} else {
+					commandeer.apiGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+				}
+
+				// enrich basic-auth spec if it was specified
+				if commandeer.apiGatewayConfig.Spec.AuthenticationMode == ingress.AuthenticationModeBasicAuth {
+					if commandeer.basicAuthUsername == "" || commandeer.basicAuthPassword == "" {
+						return errors.New("Basic auth username and password must be specified")
+					}
+
+					commandeer.apiGatewayConfig.Spec.Authentication.BasicAuth = &platform.BasicAuth{
+						Username: commandeer.basicAuthUsername,
+						Password: commandeer.basicAuthPassword,
+					}
+				}
+
+				// validate a primary function was specified
+				if commandeer.function == "" {
+					return errors.New("A primary function must be specified")
+				}
+
+				commandeer.apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
+					{
+						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+							Name: commandeer.function,
+						},
+					},
+				}
+
+				if commandeer.canaryFunction != "" {
+					if commandeer.canaryPercentage == 0 {
+						return errors.New("Canary function percentage must be specified")
+					}
+
+					canaryUpstream := platform.APIGatewayUpstreamSpec{
+						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+							Name: commandeer.canaryFunction,
+						},
+						Percentage: commandeer.canaryPercentage,
+					}
+
+					commandeer.apiGatewayConfig.Spec.Upstreams = append(commandeer.apiGatewayConfig.Spec.Upstreams, canaryUpstream)
+				}
+
+			} else {
+				// decode the JSON attributes
+				if err := json.Unmarshal([]byte(commandeer.encodedAttributes),
+					&commandeer.apiGatewayConfig); err != nil {
+					return errors.Wrap(err, "Failed to decode function event attributes")
+				}
+			}
+
+			commandeer.apiGatewayConfig.Status.State = platform.APIGatewayStateWaitingForProvisioning
+
+			return createCommandeer.rootCommandeer.platform.CreateAPIGateway(&platform.CreateAPIGatewayOptions{
+				APIGatewayConfig: commandeer.apiGatewayConfig,
+			})
+		},
+	}
+
+	cmd.Flags().StringVar(&commandeer.project, "project", "project", "The project the api gateway should be created in")
+	cmd.Flags().StringVar(&commandeer.host, "host", "", "Api gateway host address")
+	cmd.Flags().StringVar(&commandeer.description, "description", "", "Api gateway description")
+	cmd.Flags().StringVar(&commandeer.path, "path", "", "Api gateway path (the URI that'll be concatenated to the host as an endpoint)")
+	cmd.Flags().StringVar(&commandeer.authenticationMode, "authentication-mode", "", "Api gateway authentication mode. ['none', 'basicAuth', 'accessKey']")
+	cmd.Flags().StringVar(&commandeer.basicAuthUsername, "basic-auth-username", "", "The basic-auth username")
+	cmd.Flags().StringVar(&commandeer.basicAuthPassword, "basic-auth-password", "", "The basic-auth password")
+	cmd.Flags().StringVar(&commandeer.function, "function", "", "The api gateway primary function")
+	cmd.Flags().StringVar(&commandeer.canaryFunction, "canary-function", "", "The api gateway canary function")
+	cmd.Flags().IntVar(&commandeer.canaryPercentage, "canary-percentage", 0, "The canary function percentage")
+	cmd.Flags().StringVar(&commandeer.encodedAttributes, "attrs", "{}", "JSON-encoded attributes for the api gateway (overrides all the rest)")
+
+	commandeer.cmd = cmd
+
+	return commandeer
 }
 
 func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *createFunctionEventCommandeer {
