@@ -118,7 +118,7 @@ func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interfac
 			// notice that this is a mapping between trigger kind and its default values
 			"http": {
 				WorkerAvailabilityTimeoutMilliseconds: &defaultWorkerAvailabilityTimeoutMilliseconds,
-				ServiceType: defaultServiceType,
+				ServiceType:                           defaultServiceType,
 			},
 			"cron": {
 				WorkerAvailabilityTimeoutMilliseconds: &defaultWorkerAvailabilityTimeoutMilliseconds,

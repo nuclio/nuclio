@@ -2033,7 +2033,7 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 func (lc *lazyClient) getFunctionServiceType(function *nuclioio.NuclioFunction) (v1.ServiceType, error) {
 	functionHTTPTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "http")
 	if len(functionHTTPTriggers) != 1 {
-		return "", errors.Errorf("Unsupported amount of HTTP triggers: %s", len(functionHTTPTriggers))
+		return "", errors.Errorf("Unsupported amount of HTTP triggers: %d", len(functionHTTPTriggers))
 	}
 
 	// if the http trigger has a configured service type, return that.
