@@ -66,6 +66,12 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 		}
 	}
 
+	// if there is an http trigger in the codeEntry config remove default from config
+	if len(GetTriggersByKind(codeEntryConfig.Spec.Triggers, "http")) > 0 {
+		defaultHTTPTrigger := GetDefaultHTTPTrigger()
+		delete(config.Spec.Triggers, defaultHTTPTrigger.Name)
+	}
+
 	// normalizing the received config to the JSON values of the function config Go struct
 	codeEntryConfigAsJSON, err := json.Marshal(codeEntryConfig)
 	if err != nil {

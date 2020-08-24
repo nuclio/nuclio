@@ -225,6 +225,22 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
+	// clear output buffer from last invocation
+	suite.outputBuffer.Reset()
+
+	// export the function
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "fu", functionName}, map[string]string{
+		"output": "yaml",
+	}, false)
+	suite.Require().NoError(err)
+
+	deployedFunctionConfig := functionconfig.Config{}
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &deployedFunctionConfig)
+	suite.Require().NoError(err)
+
+	suite.Require().Equal(1, len(functionconfig.GetTriggersByKind(deployedFunctionConfig.Spec.Triggers, "http")))
+	suite.Require().Equal("http", deployedFunctionConfig.Spec.Triggers["api"].Kind)
+
 	// use nutctl to delete the function when we're done
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
