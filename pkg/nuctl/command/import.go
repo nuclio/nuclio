@@ -188,6 +188,7 @@ type ProjectImportConfig struct {
 	Project        *platform.ProjectConfig
 	Functions      map[string]*functionconfig.Config
 	FunctionEvents map[string]*platform.FunctionEventConfig
+	APIGateways    map[string]*platform.APIGatewayConfig
 }
 
 type importProjectCommandeer struct {
@@ -270,6 +271,20 @@ func (i *importProjectCommandeer) importFunctionEvent(functionEvent *platform.Fu
 	})
 }
 
+func (i *importProjectCommandeer) importAPIGateway(apiGateway *platform.APIGatewayConfig) error {
+
+	// populate namespace
+	apiGateway.Meta.Namespace = i.rootCommandeer.namespace
+
+	// just create. the status is async through polling
+	return i.rootCommandeer.platform.CreateAPIGateway(&platform.CreateAPIGatewayOptions{
+		APIGatewayConfig: platform.APIGatewayConfig{
+			Meta: apiGateway.Meta,
+			Spec: apiGateway.Spec,
+		},
+	})
+}
+
 func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string]*platform.FunctionEventConfig) error {
 	var errGroup errgroup.Group
 
@@ -279,6 +294,19 @@ func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string
 		functionEventConfig := functionEventConfig // https://golang.org/doc/faq#closures_and_goroutines
 		errGroup.Go(func() error {
 			return i.importFunctionEvent(functionEventConfig)
+		})
+	}
+
+	return errGroup.Wait()
+}
+
+func (i *importProjectCommandeer) importAPIGateways(apiGateways map[string]*platform.APIGatewayConfig) error {
+	var errGroup errgroup.Group
+
+	i.rootCommandeer.loggerInstance.DebugWith("Importing api gateways", "apiGateways", apiGateways)
+	for _, apiGatewayConfig := range apiGateways {
+		errGroup.Go(func() error {
+			return i.importAPIGateway(apiGatewayConfig)
 		})
 	}
 
@@ -325,6 +353,17 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 		// return this err only if not previously set
 		if err == nil {
 			err = functionEventImportErr
+		}
+	}
+
+	apiGatewaysImportErr := i.importAPIGateways(projectConfig.APIGateways)
+	if apiGatewaysImportErr != nil {
+		i.rootCommandeer.loggerInstance.WarnWith("Unable to import all api gateways",
+			"apiGatewaysImportErr", apiGatewaysImportErr)
+
+		// return this err only if not previously set
+		if err == nil {
+			err = apiGatewaysImportErr
 		}
 	}
 
