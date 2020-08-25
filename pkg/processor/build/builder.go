@@ -494,7 +494,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 	}
 
 	if len(functionconfig.GetTriggersByKind(b.options.FunctionConfig.Spec.Triggers, "http")) > 1 {
-		return errors.New("Function cannot have more than one http trigger.")
+		return errors.New("Function cannot have more than one http trigger")
 	}
 
 	// if output image name isn't set, set it to a derivative of the name
