@@ -493,6 +493,10 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Handler = functionHandlers[0]
 	}
 
+	if len(functionconfig.GetTriggersByKind(b.options.FunctionConfig.Spec.Triggers, "http")) > 1 {
+		return errors.New("Function cannot have more than one http trigger")
+	}
+
 	// if output image name isn't set, set it to a derivative of the name
 	if b.processorImage.imageName == "" {
 		processorImageName, err := b.getImage()
