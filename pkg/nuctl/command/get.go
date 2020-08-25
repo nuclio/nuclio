@@ -50,6 +50,7 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 		getFunctionCommand,
 		getProjectCommand,
 		getFunctionEventCommand,
+		getAPIGatewayCommand,
 	)
 
 	commandeer.cmd = cmd
