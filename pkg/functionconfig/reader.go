@@ -71,7 +71,9 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 		}
 	}
 
-	// if there is an http trigger in the codeEntry config remove default from config
+	// If there is an http trigger in the codeEntry config remove default from config
+	// The 2 configs pre merge are valid but while merging them we need to ensure they stay valid,
+	// by ensuring the right amount of http triggers here for example.
 	if len(GetTriggersByKind(codeEntryConfig.Spec.Triggers, "http")) > 0 {
 		defaultHTTPTrigger := GetDefaultHTTPTrigger()
 		delete(config.Spec.Triggers, defaultHTTPTrigger.Name)
