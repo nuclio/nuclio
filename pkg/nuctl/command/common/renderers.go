@@ -201,7 +201,7 @@ func RenderAPIGateways(apiGateways []platform.APIGateway,
 
 	switch format {
 	case OutputFormatText, OutputFormatWide:
-		header := []string{"Namespace", "Name", "Host", "Primary Function", "Canary Function", "Canary Percentage"}
+		header := []string{"Namespace", "Name", "Host", "Primary", "Canary", "Percentage"}
 		if format == OutputFormatWide {
 			header = append(header, []string{
 				"Body",
