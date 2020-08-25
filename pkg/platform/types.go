@@ -257,8 +257,11 @@ func (agc *APIGatewayConfig) scrubAPIGatewayData() {
 	// scrub namespace from api-gateway meta
 	agc.Meta.Namespace = ""
 
-	// creation time stamp won't be relevant on export
+	// creation timestamp won't be relevant on export
 	agc.Meta.CreationTimestamp = nil
+
+	// empty status
+	agc.Status = APIGatewayStatus{}
 }
 
 type APIGatewayAuthenticationSpec struct {
@@ -300,9 +303,9 @@ type APIGatewaySpec struct {
 }
 
 type APIGatewayConfig struct {
-	Meta   APIGatewayMeta
-	Spec   APIGatewaySpec
-	Status APIGatewayStatus
+	Meta   APIGatewayMeta   `json:"metadata,omitempty"`
+	Spec   APIGatewaySpec   `json:"spec,omitempty"`
+	Status APIGatewayStatus `json:"status,omitempty"`
 }
 
 // APIGatewayState is state of api gateway

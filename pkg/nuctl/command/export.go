@@ -216,6 +216,7 @@ func (e *exportProjectCommandeer) exportAPIGateways(projectConfig *platform.Proj
 	// create a mapping of an api gateway name to its config [ string -> *platform.APIGatewayConfig ]
 	for _, apiGateway := range apiGateways {
 		apiGatewayConfig := apiGateway.GetConfig()
+		apiGatewayConfig.PrepareAPIGatewayForExport(false)
 		apiGatewaysMap[apiGatewayConfig.Meta.Name] = apiGatewayConfig
 	}
 
