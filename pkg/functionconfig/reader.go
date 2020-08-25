@@ -62,23 +62,6 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 		return errors.Wrap(err, "configuration file invalid")
 	}
 
-	// enrich config with env vars existing only in codeEntry config
-	if codeEntryConfig.Spec.Env != nil && config.Spec.Env != nil {
-		for _, codeEntryEnvVar := range codeEntryConfig.Spec.Env {
-			if !common.EnvInSlice(codeEntryEnvVar, config.Spec.Env) {
-				config.Spec.Env = append(config.Spec.Env, codeEntryEnvVar)
-			}
-		}
-	}
-
-	// If there is an http trigger in the codeEntry config remove default from config
-	// The 2 configs pre merge are valid but while merging them we need to ensure they stay valid,
-	// by ensuring the right amount of http triggers here for example.
-	if len(GetTriggersByKind(codeEntryConfig.Spec.Triggers, "http")) > 0 {
-		defaultHTTPTrigger := GetDefaultHTTPTrigger()
-		delete(config.Spec.Triggers, defaultHTTPTrigger.Name)
-	}
-
 	// normalizing the received config to the JSON values of the function config Go struct
 	codeEntryConfigAsJSON, err := json.Marshal(codeEntryConfig)
 	if err != nil {
@@ -116,7 +99,29 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 		return errors.Wrap(err, "Failed to parse new config from JSON to *Config struct")
 	}
 
+	r.enrichPostMergeConfig(config, &codeEntryConfig)
+
 	return nil
+}
+
+func (r *Reader) enrichPostMergeConfig(config, codeEntryConfig *Config) {
+
+	// enrich config with env vars existing only in codeEntry config
+	if codeEntryConfig.Spec.Env != nil && config.Spec.Env != nil {
+		for _, codeEntryEnvVar := range codeEntryConfig.Spec.Env {
+			if !common.EnvInSlice(codeEntryEnvVar, config.Spec.Env) {
+				config.Spec.Env = append(config.Spec.Env, codeEntryEnvVar)
+			}
+		}
+	}
+
+	// If one of the configs had the default http trigger and the other had a regular trigger
+	// then there would be 2 triggers which isn't valid, in this case we can delete the default trigger.
+	// If both configs had regular triggers and not the default, the validation later will fail as expected.
+	if len(GetTriggersByKind(config.Spec.Triggers, "http")) > 1 {
+		defaultHTTPTrigger := GetDefaultHTTPTrigger()
+		delete(config.Spec.Triggers, defaultHTTPTrigger.Name)
+	}
 }
 
 // There is already validation of the function config pre merge, and validation post merge.
