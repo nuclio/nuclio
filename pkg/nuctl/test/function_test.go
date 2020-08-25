@@ -228,7 +228,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	// clear output buffer from last invocation
 	suite.outputBuffer.Reset()
 
-	// export the function
+	// get the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "fu", functionName}, map[string]string{
 		"output": "yaml",
 	}, false)
@@ -238,6 +238,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &deployedFunctionConfig)
 	suite.Require().NoError(err)
 
+	// the function has 1 http trigger - api. here we are verifying the default HTTP trigger wasn't added
 	suite.Require().Equal(1, len(functionconfig.GetTriggersByKind(deployedFunctionConfig.Spec.Triggers, "http")))
 	suite.Require().Equal("http", deployedFunctionConfig.Spec.Triggers["api"].Kind)
 

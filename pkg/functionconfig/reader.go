@@ -57,6 +57,11 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 		return errors.Wrap(err, "Failed to write configuration")
 	}
 
+	err = r.validateConfigurationFileFunctionConfig(&codeEntryConfig)
+	if err != nil {
+		return errors.Wrap(err, "configuration file invalid")
+	}
+
 	// enrich config with env vars existing only in codeEntry config
 	if codeEntryConfig.Spec.Env != nil && config.Spec.Env != nil {
 		for _, codeEntryEnvVar := range codeEntryConfig.Spec.Env {
@@ -109,5 +114,17 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 		return errors.Wrap(err, "Failed to parse new config from JSON to *Config struct")
 	}
 
+	return nil
+}
+
+// There is already validation of the function config pre merge, and validation post merge.
+// This validation function is for validation during the merge itself which is mainly to convey to the user
+// about validity of the configuration file itself, and therefore help the user understand where his problem lies.
+func (r *Reader) validateConfigurationFileFunctionConfig(codeEntryConfig *Config) error {
+	if len(GetTriggersByKind(codeEntryConfig.Spec.Triggers, "http")) > 1 {
+		return errors.New("FunctionConfig from configuration file cannot have more than 1 http trigger")
+	}
+
+	// TODO: decide if we want to add more "mid merge" validations.
 	return nil
 }
