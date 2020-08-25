@@ -61,9 +61,10 @@ require (
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v2 v2.2.8
-	k8s.io/api v0.15.12
-	k8s.io/apimachinery v0.15.12
-	k8s.io/client-go v0.15.12
+	k8s.io/api v0.16.9
+	k8s.io/apimachinery v0.16.9
+	k8s.io/client-go v0.16.9
+	k8s.io/code-generator v0.16.9
 	pack.ag/amqp v0.12.5
 )
 

@@ -83,7 +83,7 @@ func (in *NuclioFunctionEvent) DeepCopyObject() runtime.Object {
 func (in *NuclioFunctionEventList) DeepCopyInto(out *NuclioFunctionEventList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]NuclioFunctionEvent, len(*in))
@@ -116,7 +116,7 @@ func (in *NuclioFunctionEventList) DeepCopyObject() runtime.Object {
 func (in *NuclioFunctionList) DeepCopyInto(out *NuclioFunctionList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]NuclioFunction, len(*in))
@@ -176,7 +176,7 @@ func (in *NuclioProject) DeepCopyObject() runtime.Object {
 func (in *NuclioProjectList) DeepCopyInto(out *NuclioProjectList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]NuclioProject, len(*in))
