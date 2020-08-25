@@ -192,6 +192,69 @@ func RenderProjects(projects []platform.Project,
 	return nil
 }
 
+func RenderAPIGateways(apiGateways []platform.APIGateway,
+	format string,
+	writer io.Writer,
+	renderCallback func(functions []platform.APIGateway, renderer func(interface{}) error) error) error {
+
+	rendererInstance := renderer.NewRenderer(writer)
+
+	switch format {
+	case OutputFormatText, OutputFormatWide:
+		header := []string{"Namespace", "Name", "Host", "Primary Function", "Canary Function", "Canary Percentage"}
+		if format == OutputFormatWide {
+			header = append(header, []string{
+				"Body",
+			}...)
+		}
+
+		var apiGatewayRecords [][]string
+
+		// for each field
+		for _, apiGateway := range apiGateways {
+
+			// primary function
+			primaryFunction := apiGateway.GetConfig().Spec.Upstreams[0].Nucliofunction.Name
+
+			// get canaryFunction if it exists
+			canaryFunction := ""
+			canaryPercentage := 0
+			if len(apiGateway.GetConfig().Spec.Upstreams) == 2 {
+				canaryFunction = apiGateway.GetConfig().Spec.Upstreams[1].Nucliofunction.Name
+				canaryPercentage = apiGateway.GetConfig().Spec.Upstreams[1].Percentage
+			}
+
+			// get its fields
+			apiGatewayFields := []string{
+				apiGateway.GetConfig().Meta.Namespace,
+				apiGateway.GetConfig().Meta.Name,
+				apiGateway.GetConfig().Spec.Host,
+				primaryFunction,
+				canaryFunction,
+				fmt.Sprint(canaryPercentage),
+			}
+
+			// add fields for wide view
+			if format == OutputFormatWide {
+				apiGatewayFields = append(apiGatewayFields, []string{
+					apiGateway.GetConfig().Spec.Description,
+				}...)
+			}
+
+			// add to records
+			apiGatewayRecords = append(apiGatewayRecords, apiGatewayFields)
+		}
+
+		rendererInstance.RenderTable(header, apiGatewayRecords)
+	case OutputFormatYAML:
+		return renderCallback(apiGateways, rendererInstance.RenderYAML)
+	case OutputFormatJSON:
+		return renderCallback(apiGateways, rendererInstance.RenderJSON)
+	}
+
+	return nil
+}
+
 func encodeFunctionState(function platform.Function) string {
 	functionStatus := function.GetStatus()
 	functionSpec := function.GetConfig().Spec
