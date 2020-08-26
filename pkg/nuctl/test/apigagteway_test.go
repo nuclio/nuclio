@@ -32,26 +32,22 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 	suite.ensureRunningOnPlatform("kube")
 
 	numOfAPIGateways := 3
-	var apiGatewayNames []string
 
 	for apiGatewayIdx := 0; apiGatewayIdx < numOfAPIGateways; apiGatewayIdx++ {
 		uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), apiGatewayIdx)
 
 		apiGatewayName := "get-test-apigateway" + uniqueSuffix
 
-		// add api gateway name to list
-		apiGatewayNames = append(apiGatewayNames, apiGatewayName)
-
 		namedArgs := map[string]string{
-			"host":     fmt.Sprintf("some-host-%d", apiGatewayIdx),
-			"description":     fmt.Sprintf("some-description-%d", apiGatewayIdx),
-			"path":     fmt.Sprintf("some-path-%d", apiGatewayIdx),
+			"host":                fmt.Sprintf("some-host-%d", apiGatewayIdx),
+			"description":         fmt.Sprintf("some-description-%d", apiGatewayIdx),
+			"path":                fmt.Sprintf("some-path-%d", apiGatewayIdx),
 			"authentication-mode": "basicAuth",
 			"basic-auth-username": "basic-username",
 			"basic-auth-password": "basic-password",
-			"function": fmt.Sprintf("function-%d", apiGatewayIdx),
-			"canary-function": fmt.Sprintf("canary-function-%d", apiGatewayIdx),
-			"canary-percentage": "25",
+			"function":            fmt.Sprintf("function-%d", apiGatewayIdx),
+			"canary-function":     fmt.Sprintf("canary-function-%d", apiGatewayIdx),
+			"canary-percentage":   "25",
 		}
 
 		err := suite.ExecuteNuctl([]string{

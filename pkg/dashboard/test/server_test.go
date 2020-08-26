@@ -2407,7 +2407,6 @@ func (suite *functionEventTestSuite) sendRequestWithInvalidBody(method string, b
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-
 //
 // Api Gateway
 //
@@ -2450,7 +2449,6 @@ func (suite *apiGatewayTestSuite) TestGetDetailSuccessful() {
 			Password: "pass1",
 		},
 	}
-
 
 	// verify
 	verifyGetAPIGateways := func(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) bool {
@@ -2707,7 +2705,7 @@ func (suite *apiGatewayTestSuite) TestCreateSuccessful() {
 		suite.Require().Equal("f4", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Nucliofunction.Name)
 		suite.Require().Equal(50, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Percentage)
 
-	return true
+		return true
 	}
 
 	suite.mockPlatform.

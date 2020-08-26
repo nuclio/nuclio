@@ -427,7 +427,7 @@ func (suite *projectExportImportTestSuite) testExportProject(apiGatewaysEnabled 
 
 	if apiGatewaysEnabled {
 		suite.createAPIGateway(apiGatewayName, functionName, projectName)
-		defer suite.ExecuteNuctl([]string{"delete", "agw", apiGatewayName}, nil)     // nolint: errcheck
+		defer suite.ExecuteNuctl([]string{"delete", "agw", apiGatewayName}, nil) // nolint: errcheck
 	}
 
 	// reset output buffer for reading the nex output cleanly
