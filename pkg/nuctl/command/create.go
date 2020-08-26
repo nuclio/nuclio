@@ -177,9 +177,11 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 					return errors.New("Basic auth username and password must be specified")
 				}
 
-				commandeer.apiGatewayConfig.Spec.Authentication.BasicAuth = &platform.BasicAuth{
-					Username: commandeer.basicAuthUsername,
-					Password: commandeer.basicAuthPassword,
+				commandeer.apiGatewayConfig.Spec.Authentication = &platform.APIGatewayAuthenticationSpec{
+					BasicAuth: &platform.BasicAuth{
+						Username: commandeer.basicAuthUsername,
+						Password: commandeer.basicAuthPassword,
+					},
 				}
 			}
 

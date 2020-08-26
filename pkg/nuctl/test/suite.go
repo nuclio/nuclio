@@ -186,8 +186,10 @@ func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMus
 		for patternIdx, patternName := range patternsMustExist {
 			if strings.Contains(scanner.Text(), patternName) {
 				foundPatternsMustExist[patternIdx] = true
-				break
 			}
+
+			// commented out break here, because in one line may match more than one pattern
+			// break
 		}
 
 		for patternIdx, patternName := range patternsMustNotExist {
