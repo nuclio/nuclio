@@ -29,6 +29,8 @@ type apiGatewayCreateGetAndDeleteTestSuite struct {
 }
 
 func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
+	suite.ensureRunningOnPlatform("kube")
+
 	numOfAPIGateways := 3
 	var apiGatewayNames []string
 

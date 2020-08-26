@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/platform"
 	"io"
 	"io/ioutil"
 	"os"
@@ -35,6 +34,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"

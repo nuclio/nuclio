@@ -18,6 +18,7 @@ package command
 
 import (
 	"encoding/json"
+
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
