@@ -327,10 +327,10 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 			"failedAmount":          len(failedFunctionEvents),
 			"failedFunctionEvents":  failedFunctionEvents,
 		},
-		"apiGatewaysImportResult":  restful.Attributes{
-			"createdAmount":        len(projectImportInfoInstance.APIGateways) - len(failedAPIGateways),
-			"failedAmount":         len(failedAPIGateways),
-			"failedFunctionEvents": failedAPIGateways,
+		"apiGatewayImportResult": restful.Attributes{
+			"createdAmount":      len(projectImportInfoInstance.APIGateways) - len(failedAPIGateways),
+			"failedAmount":       len(failedAPIGateways),
+			"failedAPIGateways":  failedAPIGateways,
 		},
 	}
 
@@ -455,8 +455,8 @@ func (pr *projectResource) importProjectAPIGateways(projectImportInfoInstance *p
 			functionName := upstream.Nucliofunction.Name
 			if creationErrorContainsFunction(functionName) {
 				failedAPIGateways = append(failedAPIGateways, restful.Attributes{
-					"functionEvent": apiGateway.Spec.Name,
-					"error":         fmt.Sprintf("Api gateway belongs to function that failed import: %s", functionName),
+					"apiGateway": apiGateway.Spec.Name,
+					"error":      fmt.Sprintf("Api gateway belongs to function that failed import: %s", functionName),
 				})
 
 				isValidAPIGateway = false
@@ -466,6 +466,10 @@ func (pr *projectResource) importProjectAPIGateways(projectImportInfoInstance *p
 
 		// if it is a valid api gateway - create it
 		if isValidAPIGateway {
+			apiGateway.Status = &platform.APIGatewayStatus{
+				State: platform.APIGatewayStateWaitingForProvisioning,
+			}
+
 			_, _, err := apiGatewayResourceInstance.createAPIGateway(apiGateway)
 			if err != nil {
 				failedAPIGateways = append(failedAPIGateways, restful.Attributes{

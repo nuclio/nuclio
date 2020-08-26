@@ -334,6 +334,10 @@ func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *api
 	specRequired bool) error {
 	var err error
 
+	if apiGatewayInfoInstance.Meta == nil {
+		return nuclio.NewErrBadRequest("Api gateway must be provided with metadata")
+	}
+
 	// enrich meta name from spec if needed
 	if apiGatewayInfoInstance.Meta.Name == "" {
 		apiGatewayInfoInstance.Meta.Name = apiGatewayInfoInstance.Spec.Name

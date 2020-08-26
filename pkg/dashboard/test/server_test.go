@@ -31,6 +31,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -1040,6 +1041,17 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 	returnedProject1.ProjectConfig.Meta.Name = "p1"
 	returnedProject1.ProjectConfig.Meta.Namespace = "fNamespace"
 
+	returnedAPIGateway1 := platform.AbstractAPIGateway{}
+	returnedAPIGateway1.APIGatewayConfig.Meta.Name = "agw1"
+	returnedAPIGateway1.APIGatewayConfig.Meta.Namespace = "fNamespace"
+
+	verifyGetAPIGateways := func(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) bool {
+		suite.Require().Equal("", getAPIGatewaysOptions.Name)
+		suite.Require().Equal("fNamespace", getAPIGatewaysOptions.Namespace)
+
+		return true
+	}
+
 	// verify
 	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
 		suite.Require().Equal("p1", getProjectsOptions.Meta.Name)
@@ -1084,6 +1096,11 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunction2Events)).
 		Return([]platform.FunctionEvent{}, nil).Once()
 
+	suite.mockPlatform.
+		On("GetAPIGateways", mock.MatchedBy(verifyGetAPIGateways)).
+		Return([]platform.APIGateway{&returnedAPIGateway1}, nil).
+		Once()
+
 	headers := map[string]string{
 		"x-nuclio-project-namespace":  "fNamespace",
 		"x-nuclio-function-namespace": "fNamespace",
@@ -1091,63 +1108,71 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 
 	expectedStatusCode := http.StatusOK
 	expectedResponseBody := `{
-	"project": {
-		"metadata": {
-			"name": "p1"
-		},
-		"spec": {}
-	},
-	"functions": {
-		"f1": {
-			"metadata": {
-				"name": "f1",
-				"annotations": {
-					"skip-build": "true",
-					"skip-deploy": "true"
-				}
-			},
-			"spec": {
-				"resources": {},
-				"build": {},
-				"platform": {},
-				"runtime": "r1",
-				"eventTimeout": ""
-			}
-		},
-		"f2": {
-			"metadata": {
-				"name": "f2",
-				"annotations": {
-					"skip-build": "true",
-					"skip-deploy": "true"
-				}
-			},
-			"spec": {
-				"resources": {},
-				"build": {},
-				"platform": {},
-				"runtime": "r2",
-				"eventTimeout": ""
-			}
-		}
-	},
-	"functionEvents": {
-		"fe1": {
-			"metadata": {
-				"name": "fe1",
-				"namespace": "fNamespace",
-				"labels": {
-					"nuclio.io/function-name": "f1"
-				}
-			},
-			"spec": {
-				"displayName": "fe1DisplayName",
-				"triggerName": "fe1TriggerName",
-				"triggerKind": "fe1TriggerKind",
-				"body": "fe1Body"
-			}
-		}
-	}
+  "apiGateways": {
+    "agw1": {
+      "metadata": {
+        "name": "agw1"
+      },
+      "spec": {}
+    }
+  },
+  "functionEvents": {
+    "fe1": {
+      "metadata": {
+        "name": "fe1",
+        "namespace": "fNamespace",
+        "labels": {
+          "nuclio.io/function-name": "f1"
+        }
+      },
+      "spec": {
+        "displayName": "fe1DisplayName",
+        "triggerName": "fe1TriggerName",
+        "triggerKind": "fe1TriggerKind",
+        "body": "fe1Body"
+      }
+    }
+  },
+  "functions": {
+    "f1": {
+      "metadata": {
+        "name": "f1",
+        "annotations": {
+          "skip-build": "true",
+          "skip-deploy": "true"
+        }
+      },
+      "spec": {
+        "runtime": "r1",
+        "resources": {},
+        "build": {},
+        "platform": {},
+        "eventTimeout": ""
+      }
+    },
+    "f2": {
+      "metadata": {
+        "name": "f2",
+        "annotations": {
+          "skip-build": "true",
+          "skip-deploy": "true"
+        }
+      },
+      "spec": {
+        "runtime": "r2",
+        "resources": {},
+        "build": {},
+        "platform": {},
+        "eventTimeout": ""
+      }
+    }
+  },
+  "project": {
+    "metadata": {
+      "name": "p1"
+    },
+    "spec": {}
+  }
 }`
 
 	suite.sendRequest("GET",
@@ -1179,6 +1204,14 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 	returnedProject2.ProjectConfig.Meta.Name = "p2"
 	returnedProject2.ProjectConfig.Meta.Namespace = "fNamespace"
 
+	returnedAPIGateway1 := platform.AbstractAPIGateway{}
+	returnedAPIGateway1.APIGatewayConfig.Meta.Name = "agw1"
+	returnedAPIGateway1.APIGatewayConfig.Meta.Namespace = "fNamespace"
+
+	returnedAPIGateway2 := platform.AbstractAPIGateway{}
+	returnedAPIGateway2.APIGatewayConfig.Meta.Name = "agw2"
+	returnedAPIGateway2.APIGatewayConfig.Meta.Namespace = "fNamespace"
+
 	// verify
 	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
 		suite.Require().Equal("", getProjectsOptions.Meta.Name)
@@ -1189,6 +1222,12 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
 		suite.Require().Equal("", getFunctionsOptions.Name)
 		suite.Require().Equal("fNamespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+	verifyGetAPIGateways := func(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) bool {
+		suite.Require().Equal("", getAPIGatewaysOptions.Name)
+		suite.Require().Equal("fNamespace", getAPIGatewaysOptions.Namespace)
 
 		return true
 	}
@@ -1214,6 +1253,16 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 		Once()
 
 	suite.mockPlatform.
+		On("GetAPIGateways", mock.MatchedBy(verifyGetAPIGateways)).
+		Return([]platform.APIGateway{&returnedAPIGateway1}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetAPIGateways", mock.MatchedBy(verifyGetAPIGateways)).
+		Return([]platform.APIGateway{&returnedAPIGateway2}, nil).
+		Once()
+
+	suite.mockPlatform.
 		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunctionEvents)).
 		Return([]platform.FunctionEvent{}, nil).Twice()
 
@@ -1224,60 +1273,76 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 
 	expectedStatusCode := http.StatusOK
 	expectedResponseBody := `{
-	"p1": {
-		"project": {
-			"metadata": {
-				"name": "p1"
-			},
-			"spec": {}
-		},
-		"functions": {
-			"f1": {
-				"metadata": {
-					"name": "f1",
-					"annotations": {
-						"skip-build": "true",
-						"skip-deploy": "true"
-					}
-				},
-				"spec": {
-					"resources": {},
-					"build": {},
-					"platform": {},
-					"runtime": "r1",
-					"eventTimeout": ""
-				}
-			}
-		},
-		"functionEvents": {}
-	},
-	"p2": {
-		"project": {
-			"metadata": {
-				"name": "p2"
-			},
-			"spec": {}
-		},
-		"functions": {
-			"f2": {
-				"metadata": {
-					"name": "f2",
-					"annotations": {
-						"skip-build": "true",
-						"skip-deploy": "true"
-					}
-				},
-				"spec": {
-					"resources": {},
-					"build": {},
-					"platform": {},
-					"runtime": "r2",
-					"eventTimeout": ""
-				}
-			}
-		},
-		"functionEvents": {}
-	}
+  "p1": {
+    "apiGateways": {
+      "agw1": {
+        "metadata": {
+          "name": "agw1"
+        },
+        "spec": {}
+      }
+    },
+    "functionEvents": {},
+    "functions": {
+      "f1": {
+        "metadata": {
+          "name": "f1",
+          "annotations": {
+            "skip-build": "true",
+            "skip-deploy": "true"
+          }
+        },
+        "spec": {
+          "runtime": "r1",
+          "resources": {},
+          "build": {},
+          "platform": {},
+          "eventTimeout": ""
+        }
+      }
+    },
+    "project": {
+      "metadata": {
+        "name": "p1"
+      },
+      "spec": {}
+    }
+  },
+  "p2": {
+    "apiGateways": {
+      "agw2": {
+        "metadata": {
+          "name": "agw2"
+        },
+        "spec": {}
+      }
+    },
+    "functionEvents": {},
+    "functions": {
+      "f2": {
+        "metadata": {
+          "name": "f2",
+          "annotations": {
+            "skip-build": "true",
+            "skip-deploy": "true"
+          }
+        },
+        "spec": {
+          "runtime": "r2",
+          "resources": {},
+          "build": {},
+          "platform": {},
+          "eventTimeout": ""
+        }
+      }
+    },
+    "project": {
+      "metadata": {
+        "name": "p2"
+      },
+      "spec": {}
+    }
+  }
 }`
 
 	suite.sendRequest("GET",
@@ -1532,6 +1597,16 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 		return true
 	}
 
+	verifyCreateAPIGateway := func(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) bool {
+		suite.Require().Equal("agw1", createAPIGatewayOptions.APIGatewayConfig.Meta.Name)
+		suite.Require().Equal("p1Namespace", createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace)
+		suite.Require().Equal("some-host", createAPIGatewayOptions.APIGatewayConfig.Spec.Host)
+		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Kind)
+		suite.Require().Equal("f1", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name)
+
+		return true
+	}
+
 	suite.mockPlatform.
 		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
 		Return([]platform.Project{}, nil).
@@ -1562,65 +1637,94 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 		Return(nil).
 		Once()
 
+	suite.mockPlatform.
+		On("CreateAPIGateway", mock.MatchedBy(verifyCreateAPIGateway)).
+		Return(nil).
+		Once()
+
 	headers := map[string]string{
 		"x-nuclio-wait-function-action": "true",
 	}
 
 	expectedStatusCode := http.StatusCreated
 	requestBody := `{
-	"project": {
-		"metadata": {
-			"name": "p1",
-			"namespace": "p1Namespace"
-		},
-		"spec": {
-			"description": "p1Description"
-		}
-	},
-	"functions": {
-		"f1": {
-			"metadata": {
-				"name": "f1",
-				"namespace": "p1Namespace"
-			},
-			"spec": {
-				"resources": {},
-				"build": {},
-				"platform": {},
-				"runtime": "r1"
-			}
-		}
-	},
-	"functionEvents": {
-		"fe1": {
-			"metadata": {
-				"name": "fe1",
-				"namespace": "p1Namespace",
-				"labels": {
-					"nuclio.io/function-name": "f1"
-				}
-			},
-			"spec": {
-				"displayName": "fe1DisplayName",
-				"triggerName": "fe1TriggerName",
-				"triggerKind": "fe1TriggerKind",
-				"body": "fe1Body"
-			}
-		}
-	}
+  "project": {
+    "metadata": {
+      "name": "p1",
+      "namespace": "p1Namespace"
+    },
+    "spec": {
+      "description": "p1Description"
+    }
+  },
+  "functions": {
+    "f1": {
+      "metadata": {
+        "name": "f1",
+        "namespace": "p1Namespace"
+      },
+      "spec": {
+        "resources": {},
+        "build": {},
+        "platform": {},
+        "runtime": "r1"
+      }
+    }
+  },
+  "functionEvents": {
+    "fe1": {
+      "metadata": {
+        "name": "fe1",
+        "namespace": "p1Namespace",
+        "labels": {
+          "nuclio.io/function-name": "f1"
+        }
+      },
+      "spec": {
+        "displayName": "fe1DisplayName",
+        "triggerName": "fe1TriggerName",
+        "triggerKind": "fe1TriggerKind",
+        "body": "fe1Body"
+      }
+    }
+  },
+  "apiGateways": {
+    "agw1": {
+      "metadata": {
+        "name": "agw1",
+        "namespace": "p1Namespace"
+      },
+      "spec": {
+        "host": "some-host",
+        "upstreams": [
+          {
+            "kind": "nucliofunction",
+            "nucliofunction": {
+              "name": "f1"
+            }
+          }
+        ]
+      }
+    }
+  }
 }`
 
 	expectedResponseBody := `{
-	"functionImportResult": {
-		"createdAmount": 1,
-		"failedFunctions": null,
-		"failedAmount": 0
-	},
-	"functionEventImportResult": {
-		"createdAmount": 1,
-		"failedFunctionEvents": null,
-		"failedAmount": 0
-	}
+  "apiGatewayImportResult": {
+    "createdAmount": 1,
+    "failedAPIGateways": null,
+    "failedAmount": 0
+  },
+  "functionEventImportResult": {
+    "createdAmount": 1,
+    "failedAmount": 0,
+    "failedFunctionEvents": null
+  },
+  "functionImportResult": {
+    "createdAmount": 1,
+    "failedAmount": 0,
+    "failedFunctions": null
+  }
 }`
 
 	suite.sendRequest("POST",
@@ -1686,69 +1790,99 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 
 	expectedStatusCode := http.StatusCreated
 	requestBody := `{
-	"project": {
-		"metadata": {
-			"name": "p1",
-			"namespace": "p1Namespace"
-		},
-		"spec": {
-			"description": "p1Description"
-		}
-	},
-	"functions": {
-		"f1": {
-			"metadata": {
-				"name": "f1",
-				"namespace": "p1Namespace"
-			},
-			"spec": {
-				"resources": {},
-				"build": {},
-				"platform": {},
-				"runtime": "r1"
-			}
-		}
-	},
-	"functionEvents": {
-		"fe1": {
-			"metadata": {
-				"name": "fe1",
-				"namespace": "fNamespace",
-				"labels": {
-					"nuclio.io/function-name": "f1"
-				}
-			},
-			"spec": {
-				"displayName": "fe1DisplayName",
-				"triggerName": "fe1TriggerName",
-				"triggerKind": "fe1TriggerKind",
-				"body": "fe1Body"
-			}
-		}
-	}
+  "project": {
+    "metadata": {
+      "name": "p1",
+      "namespace": "p1Namespace"
+    },
+    "spec": {
+      "description": "p1Description"
+    }
+  },
+  "functions": {
+    "f1": {
+      "metadata": {
+        "name": "f1",
+        "namespace": "p1Namespace"
+      },
+      "spec": {
+        "resources": {},
+        "build": {},
+        "platform": {},
+        "runtime": "r1"
+      }
+    }
+  },
+  "functionEvents": {
+    "fe1": {
+      "metadata": {
+        "name": "fe1",
+        "namespace": "fNamespace",
+        "labels": {
+          "nuclio.io/function-name": "f1"
+        }
+      },
+      "spec": {
+        "displayName": "fe1DisplayName",
+        "triggerName": "fe1TriggerName",
+        "triggerKind": "fe1TriggerKind",
+        "body": "fe1Body"
+      }
+    }
+  },
+  "apiGateways": {
+    "agw1": {
+      "metadata": {
+        "name": "agw1",
+        "namespace": "fNamespace"
+      },
+      "spec": {
+		"name": "agw1",
+        "host": "host-name1",
+        "upstreams": [
+          {
+            "kind": "nucliofunction",
+            "nucliofunction": {
+              "name": "f1"
+            }
+          }
+        ]
+      }
+    }
+  }
 }`
 
 	expectedResponseBody := `{
-	"functionImportResult": {
-		"createdAmount": 0,
-		"failedFunctions": [
-			{
-				"error": "Function name already exists",
-				"function": "f1"
-			}
-		],
-		"failedAmount": 1
-	},
-	"functionEventImportResult": {
-		"createdAmount": 0,
-		"failedFunctionEvents": [
-			{
-				"error": "Event belongs to function that failed import: f1",
-				"functionEvent": "fe1DisplayName"
-			}
-		],
-		"failedAmount": 1
-	}
+  "apiGatewayImportResult": {
+    "createdAmount": 0,
+    "failedAmount": 1,
+    "failedAPIGateways": [
+      {
+        "error": "Api gateway belongs to function that failed import: f1",
+        "apiGateway": "agw1"
+      }
+    ]
+  },
+  "functionEventImportResult": {
+    "createdAmount": 0,
+    "failedAmount": 1,
+    "failedFunctionEvents": [
+      {
+        "error": "Event belongs to function that failed import: f1",
+        "functionEvent": "fe1DisplayName"
+      }
+    ]
+  },
+  "functionImportResult": {
+    "createdAmount": 0,
+    "failedAmount": 1,
+    "failedFunctions": [
+      {
+        "error": "Function name already exists",
+        "function": "f1"
+      }
+    ]
+  }
 }`
 
 	suite.sendRequest("POST",
@@ -2273,6 +2407,533 @@ func (suite *functionEventTestSuite) sendRequestWithInvalidBody(method string, b
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+
+//
+// Api Gateway
+//
+
+type apiGatewayTestSuite struct {
+	dashboardTestSuite
+}
+
+func (suite *apiGatewayTestSuite) TestGetDetailSuccessful() {
+	returnedAPIGateway := platform.AbstractAPIGateway{}
+
+	name := "agw1"
+	namespace := "some-namespace"
+
+	returnedAPIGateway.APIGatewayConfig.Meta.Name = name
+	returnedAPIGateway.APIGatewayConfig.Meta.Namespace = namespace
+
+	returnedAPIGateway.APIGatewayConfig.Spec.Name = name
+	returnedAPIGateway.APIGatewayConfig.Spec.Host = "some-host"
+	returnedAPIGateway.APIGatewayConfig.Spec.Description = "some-desc"
+	returnedAPIGateway.APIGatewayConfig.Spec.Path = "some-path"
+	returnedAPIGateway.APIGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
+		{
+			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+				Name: "f1",
+			},
+		}, {
+			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+				Name: "f2",
+			},
+			Percentage: 20,
+		},
+	}
+	returnedAPIGateway.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeBasicAuth
+	returnedAPIGateway.APIGatewayConfig.Spec.Authentication = &platform.APIGatewayAuthenticationSpec{
+		BasicAuth: &platform.BasicAuth{
+			Username: "user1",
+			Password: "pass1",
+		},
+	}
+
+
+	// verify
+	verifyGetAPIGateways := func(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) bool {
+		suite.Require().Equal(name, getAPIGatewaysOptions.Name)
+		suite.Require().Equal(namespace, getAPIGatewaysOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetAPIGateways", mock.MatchedBy(verifyGetAPIGateways)).
+		Return([]platform.APIGateway{&returnedAPIGateway}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-api-gateway-namespace": namespace,
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+  "metadata": {
+    "name": "agw1",
+    "namespace": "some-namespace"
+  },
+  "spec": {
+    "host": "some-host",
+    "name": "agw1",
+    "description": "some-desc",
+    "path": "some-path",
+    "authenticationMode": "basicAuth",
+    "authentication": {
+      "basicAuth": {
+        "username": "user1",
+        "password": "pass1"
+      }
+    },
+    "upstreams": [
+      {
+        "kind": "nucliofunction",
+        "nucliofunction": {
+          "name": "f1"
+        }
+      },
+      {
+        "kind": "nucliofunction",
+        "nucliofunction": {
+          "name": "f2"
+        },
+        "percentage": 20
+      }
+    ]
+  },
+  "status": {}
+}`
+
+	suite.sendRequest("GET",
+		"/api/api_gateways/agw1",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *apiGatewayTestSuite) TestGetDetailNoNamespace() {
+	expectedStatusCode := http.StatusBadRequest
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Namespace must exist"})
+	suite.sendRequest("GET",
+		"/api/api_gateways/agw1",
+		nil,
+		nil,
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *apiGatewayTestSuite) TestGetListSuccessful() {
+	namespace := "some-namespace"
+	returnedAPIGateway1 := platform.AbstractAPIGateway{}
+	returnedAPIGateway1.APIGatewayConfig.Meta.Name = "agw1"
+	returnedAPIGateway1.APIGatewayConfig.Meta.Namespace = namespace
+
+	returnedAPIGateway1.APIGatewayConfig.Spec.Name = "agw1"
+	returnedAPIGateway1.APIGatewayConfig.Spec.Host = "some-host"
+	returnedAPIGateway1.APIGatewayConfig.Spec.Description = "some-desc"
+	returnedAPIGateway1.APIGatewayConfig.Spec.Path = "some-path"
+	returnedAPIGateway1.APIGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
+		{
+			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+				Name: "f1",
+			},
+		}, {
+			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+				Name: "f2",
+			},
+			Percentage: 20,
+		},
+	}
+	returnedAPIGateway1.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeBasicAuth
+	returnedAPIGateway1.APIGatewayConfig.Spec.Authentication = &platform.APIGatewayAuthenticationSpec{
+		BasicAuth: &platform.BasicAuth{
+			Username: "user1",
+			Password: "pass1",
+		},
+	}
+
+	returnedAPIGateway2 := platform.AbstractAPIGateway{}
+	returnedAPIGateway2.APIGatewayConfig.Meta.Name = "agw2"
+	returnedAPIGateway2.APIGatewayConfig.Meta.Namespace = namespace
+
+	returnedAPIGateway2.APIGatewayConfig.Spec.Name = "agw2"
+	returnedAPIGateway2.APIGatewayConfig.Spec.Host = "some-host2"
+	returnedAPIGateway2.APIGatewayConfig.Spec.Description = "some-desc2"
+	returnedAPIGateway2.APIGatewayConfig.Spec.Path = "some-path2"
+	returnedAPIGateway2.APIGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
+		{
+			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+				Name: "f3",
+			},
+		}, {
+			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+				Name: "f4",
+			},
+			Percentage: 50,
+		},
+	}
+	// verify
+	verifyGetAPIGateways := func(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) bool {
+		suite.Require().Equal("", getAPIGatewaysOptions.Name)
+		suite.Require().Equal(namespace, getAPIGatewaysOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetAPIGateways", mock.MatchedBy(verifyGetAPIGateways)).
+		Return([]platform.APIGateway{&returnedAPIGateway1, &returnedAPIGateway2}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-api-gateway-namespace": namespace,
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+  "agw1": {
+    "metadata": {
+      "name": "agw1",
+      "namespace": "some-namespace"
+    },
+    "spec": {
+      "host": "some-host",
+      "name": "agw1",
+      "description": "some-desc",
+      "path": "some-path",
+      "authenticationMode": "basicAuth",
+      "authentication": {
+        "basicAuth": {
+          "username": "user1",
+          "password": "pass1"
+        }
+      },
+      "upstreams": [
+        {
+          "kind": "nucliofunction",
+          "nucliofunction": {
+            "name": "f1"
+          }
+        },
+        {
+          "kind": "nucliofunction",
+          "nucliofunction": {
+            "name": "f2"
+          },
+          "percentage": 20
+        }
+      ]
+    },
+    "status": {}
+  },
+  "agw2": {
+    "metadata": {
+      "name": "agw2",
+      "namespace": "some-namespace"
+    },
+    "spec": {
+      "host": "some-host2",
+      "name": "agw2",
+      "description": "some-desc2",
+      "path": "some-path2",
+      "upstreams": [
+        {
+          "kind": "nucliofunction",
+          "nucliofunction": {
+            "name": "f3"
+          }
+        },
+        {
+          "kind": "nucliofunction",
+          "nucliofunction": {
+            "name": "f4"
+          },
+          "percentage": 50
+        }
+      ]
+    },
+    "status": {}
+  }
+}`
+
+	suite.sendRequest("GET",
+		"/api/api_gateways",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *apiGatewayTestSuite) TestGetListNoNamespace() {
+	expectedStatusCode := http.StatusBadRequest
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Namespace must exist"})
+	suite.sendRequest("GET",
+		"/api/api_gateways",
+		nil,
+		nil,
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *apiGatewayTestSuite) TestCreateSuccessful() {
+
+	// verify
+	verifyCreateAPIGateway := func(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) bool {
+		suite.Require().Equal("agw2", createAPIGatewayOptions.APIGatewayConfig.Meta.Name)
+		suite.Require().Equal("some-namespace", createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace)
+
+		suite.Require().Equal("agw2", createAPIGatewayOptions.APIGatewayConfig.Spec.Name)
+		suite.Require().Equal("some-host2", createAPIGatewayOptions.APIGatewayConfig.Spec.Host)
+		suite.Require().Equal("some-desc2", createAPIGatewayOptions.APIGatewayConfig.Spec.Description)
+		suite.Require().Equal("some-path2", createAPIGatewayOptions.APIGatewayConfig.Spec.Path)
+		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Kind)
+		suite.Require().Equal("f3", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name)
+		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Kind)
+		suite.Require().Equal("f4", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Nucliofunction.Name)
+		suite.Require().Equal(50, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Percentage)
+
+	return true
+	}
+
+	suite.mockPlatform.
+		On("CreateAPIGateway", mock.MatchedBy(verifyCreateAPIGateway)).
+		Return(nil).
+		Once()
+
+	expectedStatusCode := http.StatusCreated
+	requestBody := `{
+    "metadata": {
+      "name": "agw2",
+      "namespace": "some-namespace"
+    },
+    "spec": {
+      "host": "some-host2",
+      "name": "agw2",
+      "description": "some-desc2",
+      "path": "some-path2",
+      "upstreams": [
+        {
+          "kind": "nucliofunction",
+          "nucliofunction": {
+            "name": "f3"
+          }
+        },
+        {
+          "kind": "nucliofunction",
+          "nucliofunction": {
+            "name": "f4"
+          },
+          "percentage": 50
+        }
+      ]
+    },
+    "status": {}
+  }`
+
+	suite.sendRequest("POST",
+		"/api/api_gateways",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		requestBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *apiGatewayTestSuite) TestCreateNoMetadata() {
+	suite.sendRequestNoMetadata("POST")
+}
+
+func (suite *apiGatewayTestSuite) TestCreateNoNameInMetadata() {
+	suite.sendRequestNoNameInMetadata("POST")
+}
+
+func (suite *apiGatewayTestSuite) TestCreateNoNamespace() {
+	suite.sendRequestNoNamespace("POST")
+}
+
+func (suite *apiGatewayTestSuite) TestUpdateSuccessful() {
+
+	// verify
+	verifyUpdateAPIGateway := func(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) bool {
+		suite.Require().Equal("agw2", updateAPIGatewayOptions.APIGatewayConfig.Meta.Name)
+		suite.Require().Equal("some-namespace", updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace)
+
+		suite.Require().Equal("agw2", updateAPIGatewayOptions.APIGatewayConfig.Spec.Name)
+		suite.Require().Equal("some-host2", updateAPIGatewayOptions.APIGatewayConfig.Spec.Host)
+		suite.Require().Equal("some-desc2", updateAPIGatewayOptions.APIGatewayConfig.Spec.Description)
+		suite.Require().Equal("some-path2", updateAPIGatewayOptions.APIGatewayConfig.Spec.Path)
+		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Kind)
+		suite.Require().Equal("f3", updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name)
+		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Kind)
+		suite.Require().Equal("f4", updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Nucliofunction.Name)
+		suite.Require().Equal(50, updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Percentage)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("UpdateAPIGateway", mock.MatchedBy(verifyUpdateAPIGateway)).
+		Return(nil).
+		Once()
+
+	expectedStatusCode := http.StatusNoContent
+	requestBody := `{
+    "metadata": {
+      "name": "agw2",
+      "namespace": "some-namespace"
+    },
+    "spec": {
+      "host": "some-host2",
+      "name": "agw2",
+      "description": "some-desc2",
+      "path": "some-path2",
+      "upstreams": [
+        {
+          "kind": "nucliofunction",
+          "nucliofunction": {
+            "name": "f3"
+          }
+        },
+        {
+          "kind": "nucliofunction",
+          "nucliofunction": {
+            "name": "f4"
+          },
+          "percentage": 50
+        }
+      ]
+    },
+    "status": {}
+  }`
+
+	suite.sendRequest("PUT",
+		"/api/api_gateways",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *apiGatewayTestSuite) TestUpdateNoMetadata() {
+	suite.sendRequestNoMetadata("PUT")
+}
+
+func (suite *apiGatewayTestSuite) TestUpdateNoNameInMetadata() {
+	suite.sendRequestNoNameInMetadata("PUT")
+}
+
+func (suite *apiGatewayTestSuite) TestUpdateNoNamespace() {
+	suite.sendRequestNoNamespace("PUT")
+}
+
+func (suite *apiGatewayTestSuite) TestDeleteSuccessful() {
+
+	// verify
+	verifyDeleteAPIGateway := func(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) bool {
+		suite.Require().Equal("agw1", deleteAPIGatewayOptions.Meta.Name)
+		suite.Require().Equal("some-namespace", deleteAPIGatewayOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("DeleteAPIGateway", mock.MatchedBy(verifyDeleteAPIGateway)).
+		Return(nil).
+		Once()
+
+	expectedStatusCode := http.StatusNoContent
+	requestBody := `{
+	"metadata": {
+		"name": "agw1",
+		"namespace": "some-namespace"
+	}
+}`
+
+	suite.sendRequest("DELETE",
+		"/api/api_gateways",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *apiGatewayTestSuite) TestDeleteNoMetadata() {
+	suite.sendRequestNoMetadata("DELETE")
+}
+
+func (suite *apiGatewayTestSuite) TestDeleteNoName() {
+	suite.sendRequestNoNameInMetadata("DELETE")
+}
+
+func (suite *apiGatewayTestSuite) TestDeleteNoNamespace() {
+	suite.sendRequestNoNamespace("DELETE")
+}
+
+func (suite *apiGatewayTestSuite) sendRequestNoMetadata(method string) {
+	suite.sendRequestWithInvalidBody(method, `{
+	"spec": {
+		"host": "some-host"
+	}
+}`, "Api gateway must be provided with metadata")
+}
+
+func (suite *apiGatewayTestSuite) sendRequestNoNameInMetadata(method string) {
+	suite.sendRequestWithInvalidBody(method, `{
+	"metadata": {
+		"namespace": "some-namespace"
+	},
+	"spec": {
+		"host": "some-host"
+	}
+}`, "Api gateway name and namespace must be provided in metadata")
+}
+
+func (suite *apiGatewayTestSuite) sendRequestNoNamespace(method string) {
+	suite.sendRequestWithInvalidBody(method, `{
+	"metadata": {
+		"name": "agw1"
+	},
+	"spec": {
+		"host": "some-host"
+	}
+}`, "Api gateway name and namespace must be provided in metadata")
+}
+
+func (suite *apiGatewayTestSuite) sendRequestWithInvalidBody(method string, body string, expectedError string) {
+	expectedStatusCode := http.StatusBadRequest
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{expectedError})
+	requestBody := body
+
+	suite.sendRequest(method,
+		"/api/api_gateways",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
 //
 // Misc
 //
@@ -2425,5 +3086,6 @@ func TestDashboardTestSuite(t *testing.T) {
 	suite.Run(t, new(functionTestSuite))
 	suite.Run(t, new(projectTestSuite))
 	suite.Run(t, new(functionEventTestSuite))
+	suite.Run(t, new(apiGatewayTestSuite))
 	suite.Run(t, new(miscTestSuite))
 }
