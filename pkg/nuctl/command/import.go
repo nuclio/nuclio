@@ -305,6 +305,7 @@ func (i *importProjectCommandeer) importAPIGateways(apiGateways map[string]*plat
 
 	i.rootCommandeer.loggerInstance.DebugWith("Importing api gateways", "apiGateways", apiGateways)
 	for _, apiGatewayConfig := range apiGateways {
+		apiGatewayConfig := apiGatewayConfig // https://golang.org/doc/faq#closures_and_goroutines
 		errGroup.Go(func() error {
 			return i.importAPIGateway(apiGatewayConfig)
 		})

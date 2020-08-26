@@ -194,9 +194,7 @@ func (pr *projectResource) export(project platform.Project) restful.Attributes {
 	return attributes
 }
 
-func (pr *projectResource) getAPIGatewaysMap(project platform.Project) (map[string]restful.Attributes) {
-	apiGatewaysMap := map[string]restful.Attributes{}
-
+func (pr *projectResource) getAPIGatewaysMap(project platform.Project) map[string]restful.Attributes {
 	apiGatewaysMap, err := apiGatewayResourceInstance.GetAllByNamespace(project.GetConfig().Meta.Namespace, true)
 	if err != nil {
 		pr.Logger.WarnWith("Failed to get all api-gateways in the namespace",
@@ -208,7 +206,7 @@ func (pr *projectResource) getAPIGatewaysMap(project platform.Project) (map[stri
 }
 
 func (pr *projectResource) getFunctionsAndFunctionEventsMap(project platform.Project) (map[string]restful.Attributes,
-	map[string]restful.Attributes){
+	map[string]restful.Attributes) {
 
 	functionsMap := map[string]restful.Attributes{}
 	functionEventsMap := map[string]restful.Attributes{}
@@ -318,19 +316,19 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 
 	attributes = restful.Attributes{
 		"functionImportResult": restful.Attributes{
-			"createdAmount":    len(projectImportInfoInstance.Functions) - len(failedFunctions),
-			"failedAmount":     len(failedFunctions),
-			"failedFunctions":  failedFunctions,
+			"createdAmount":   len(projectImportInfoInstance.Functions) - len(failedFunctions),
+			"failedAmount":    len(failedFunctions),
+			"failedFunctions": failedFunctions,
 		},
 		"functionEventImportResult": restful.Attributes{
-			"createdAmount":         len(projectImportInfoInstance.FunctionEvents) - len(failedFunctionEvents),
-			"failedAmount":          len(failedFunctionEvents),
-			"failedFunctionEvents":  failedFunctionEvents,
+			"createdAmount":        len(projectImportInfoInstance.FunctionEvents) - len(failedFunctionEvents),
+			"failedAmount":         len(failedFunctionEvents),
+			"failedFunctionEvents": failedFunctionEvents,
 		},
 		"apiGatewayImportResult": restful.Attributes{
-			"createdAmount":      len(projectImportInfoInstance.APIGateways) - len(failedAPIGateways),
-			"failedAmount":       len(failedAPIGateways),
-			"failedAPIGateways":  failedAPIGateways,
+			"createdAmount":     len(projectImportInfoInstance.APIGateways) - len(failedAPIGateways),
+			"failedAmount":      len(failedAPIGateways),
+			"failedAPIGateways": failedAPIGateways,
 		},
 	}
 

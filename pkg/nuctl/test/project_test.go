@@ -158,115 +158,34 @@ type projectExportImportTestSuite struct {
 	Suite
 }
 
-func (suite *projectExportImportTestSuite) TestExportProject() {
-	uniqueSuffix := "-" + xid.New().String()
-	projectName := "test-project" + uniqueSuffix
-	functionName := "test-function" + uniqueSuffix
-	functionEventName := "test-function-event" + uniqueSuffix
-
-	suite.createProject(projectName)
-	suite.createFunction(functionName, projectName)
-	suite.createFunctionEvent(functionEventName, functionName)
-
-	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)     // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)      // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "fe", functionEventName}, nil) // nolint: errcheck
-
-	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
-
-	// export the project
-	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "proj", projectName, "--verbose"}, nil, false)
-	suite.Require().NoError(err)
-
-	exportedProjectConfig := &command.ProjectImportConfig{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &exportedProjectConfig)
-	suite.Require().NoError(err)
-
-	suite.Assert().Equal(exportedProjectConfig.Project.Meta.Name, projectName)
-	suite.Assert().Equal(exportedProjectConfig.Functions[functionName].Meta.Name, functionName)
-	suite.Assert().Equal(exportedProjectConfig.FunctionEvents[functionEventName].Meta.Name, functionEventName)
+func (suite *projectExportImportTestSuite) TestExportProjectLocal() {
+	suite.ensureRunningOnPlatform("local")
+	suite.testExportProject(false)
 }
 
-func (suite *projectExportImportTestSuite) TestImportProject() {
-	uniqueSuffix := "-" + xid.New().String()
-	projectConfigPath := path.Join(suite.GetImportsDir(), "project.yaml")
-	projectName := "test-project" + uniqueSuffix
-	function1Name := "test-function-1"
-	function2Name := "test-function-2"
-	function1EventDisplayName := "test-function-event-1"
-	function2EventDisplayName := "test-function-event-2"
-
-	uniqueProjectConfigPath := suite.addUniqueSuffixToImportConfig(projectConfigPath,
-		uniqueSuffix,
-		[]string{function1Name, function2Name},
-		[]string{function1EventDisplayName, function2EventDisplayName})
-	defer os.Remove(uniqueProjectConfigPath) // nolint: errcheck
-
-	function1Name = function1Name + uniqueSuffix
-	function2Name = function2Name + uniqueSuffix
-	function1EventDisplayName = function1EventDisplayName + uniqueSuffix
-	function2EventDisplayName = function2EventDisplayName + uniqueSuffix
-
-	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil) // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil) // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil) // nolint: errcheck
-
-	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, nil)
-	suite.Require().NoError(err)
-
-	suite.assertProjectImported(projectName)
-	suite.assertFunctionImported(function1Name, true)
-	suite.assertFunctionImported(function2Name, true)
-	function1EventName := suite.assertFunctionEventExistenceByFunction(function1EventDisplayName, function1Name)
-	function2EventName := suite.assertFunctionEventExistenceByFunction(function2EventDisplayName, function2Name)
-
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil) // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil) // nolint: errcheck
+func (suite *projectExportImportTestSuite) TestExportProjectK8s() {
+	suite.ensureRunningOnPlatform("kube")
+	suite.testExportProject(true)
 }
 
-func (suite *projectExportImportTestSuite) TestImportProjects() {
-	projectConfigPath := path.Join(suite.GetImportsDir(), "projects.yaml")
+func (suite *projectExportImportTestSuite) TestImportProjectLocal() {
+	suite.ensureRunningOnPlatform("local")
+	suite.testImportProject(false)
+}
 
-	// these names explicitly defined within projects.yaml
-	projectAName := "project-a"
-	projectBName := "project-b"
-	function1Name := "test-function-1"
-	function2Name := "test-function-2"
-	function3Name := "test-function-3"
-	function4Name := "test-function-4"
-	function1EventDisplayName := "test-function-event-1"
-	function2EventDisplayName := "test-function-event-2"
-	function3EventDisplayName := "test-function-event-3"
-	function4EventDisplayName := "test-function-event-4"
+func (suite *projectExportImportTestSuite) TestImportProjectK8s() {
+	suite.ensureRunningOnPlatform("kube")
+	suite.testImportProject(true)
+}
 
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)  // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)  // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function3Name}, nil)  // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "fu", function4Name}, nil)  // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "proj", projectAName}, nil) // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "proj", projectBName}, nil) // nolint: errcheck
+func (suite *projectExportImportTestSuite) TestImportProjectsLocal() {
+	suite.ensureRunningOnPlatform("local")
+	suite.testImportProjects(false)
+}
 
-	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "proj", projectConfigPath, "--verbose"}, nil)
-	suite.Require().NoError(err)
-
-	suite.assertProjectImported(projectAName)
-	suite.assertProjectImported(projectBName)
-	suite.assertFunctionImported(function1Name, true)
-	suite.assertFunctionImported(function2Name, true)
-	suite.assertFunctionImported(function3Name, true)
-	suite.assertFunctionImported(function4Name, true)
-	function1EventName := suite.assertFunctionEventExistenceByFunction(function1EventDisplayName, function1Name)
-	function2EventName := suite.assertFunctionEventExistenceByFunction(function2EventDisplayName, function2Name)
-	function3EventName := suite.assertFunctionEventExistenceByFunction(function3EventDisplayName, function3Name)
-	function4EventName := suite.assertFunctionEventExistenceByFunction(function4EventDisplayName, function4Name)
-
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil) // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil) // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function3EventName}, nil) // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function4EventName}, nil) // nolint: errcheck
+func (suite *projectExportImportTestSuite) TestImportProjectsK8s() {
+	suite.ensureRunningOnPlatform("kube")
+	suite.testImportProjects(true)
 }
 
 func (suite *projectExportImportTestSuite) TestFailToImportProjectNoInput() {
@@ -274,7 +193,6 @@ func (suite *projectExportImportTestSuite) TestFailToImportProjectNoInput() {
 	// import function without input
 	err := suite.ExecuteNuctl([]string{"import", "project", "--verbose"}, nil)
 	suite.Require().Error(err)
-
 }
 
 func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction() {
@@ -289,7 +207,8 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction
 	uniqueProjectConfigPath := suite.addUniqueSuffixToImportConfig(projectConfigPath,
 		uniqueSuffix,
 		[]string{function1Name, function2Name},
-		[]string{function1EventDisplayName, function2EventDisplayName})
+		[]string{function1EventDisplayName, function2EventDisplayName},
+		nil)
 	defer os.Remove(uniqueProjectConfigPath) // nolint: errcheck
 
 	function1Name = function1Name + uniqueSuffix
@@ -321,7 +240,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction
 }
 
 func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configPath, uniqueSuffix string,
-	functionNames, functionEventNames []string) string {
+	functionNames, functionEventNames []string, apiGatewayNames []string) string {
 	file, err := ioutil.ReadFile(configPath)
 	suite.Require().NoError(err)
 
@@ -354,6 +273,23 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 	}
 	projectConfig.FunctionEvents = functionEvents
 
+	apiGateways := map[string]*platform.APIGatewayConfig{}
+	for index, apiGatwayName := range apiGatewayNames {
+		apiGatewayUniqueName := apiGatwayName + uniqueSuffix
+		apiGateways[apiGatewayUniqueName] = projectConfig.APIGateways[apiGatwayName]
+		apiGateways[apiGatewayUniqueName].Meta.Name = apiGatewayUniqueName
+		apiGateways[apiGatewayUniqueName].Meta.Namespace = suite.namespace
+		apiGateways[apiGatewayUniqueName].Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
+			{
+				Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+				Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+					Name: functionNames[index] + uniqueSuffix,
+				},
+			},
+		}
+	}
+	projectConfig.APIGateways = apiGateways
+
 	projectConfigYaml, err := yaml.Marshal(projectConfig)
 	suite.Require().NoError(err)
 
@@ -365,6 +301,156 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 	suite.Require().NoError(err)
 
 	return tempFile.Name()
+}
+
+func (suite *projectExportImportTestSuite) testImportProjects(apiGatewaysEnabled bool) {
+	projectConfigPath := path.Join(suite.GetImportsDir(), "projects.yaml")
+
+	// these names explicitly defined within projects.yaml
+	projectAName := "project-a"
+	projectBName := "project-b"
+	function1Name := "test-function-1"
+	function2Name := "test-function-2"
+	function3Name := "test-function-3"
+	function4Name := "test-function-4"
+	function1EventDisplayName := "test-function-event-1"
+	function2EventDisplayName := "test-function-event-2"
+	function3EventDisplayName := "test-function-event-3"
+	function4EventDisplayName := "test-function-event-4"
+
+	apiGateway1Name := "test-api-gateway-1"
+	apiGateway2Name := "test-api-gateway-2"
+
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil)  // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil)  // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function3Name}, nil)  // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function4Name}, nil)  // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectAName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectBName}, nil) // nolint: errcheck
+
+	if apiGatewaysEnabled {
+		defer suite.ExecuteNuctl([]string{"delete", "agw", apiGateway1Name}, nil) // nolint: errcheck
+		defer suite.ExecuteNuctl([]string{"delete", "agw", apiGateway2Name}, nil) // nolint: errcheck
+	}
+
+	// import the project
+	err := suite.ExecuteNuctl([]string{"import", "proj", projectConfigPath, "--verbose"}, nil)
+	suite.Require().NoError(err)
+
+	suite.assertProjectImported(projectAName)
+	suite.assertProjectImported(projectBName)
+	suite.assertFunctionImported(function1Name, true)
+	suite.assertFunctionImported(function2Name, true)
+	suite.assertFunctionImported(function3Name, true)
+	suite.assertFunctionImported(function4Name, true)
+	function1EventName := suite.assertFunctionEventExistenceByFunction(function1EventDisplayName, function1Name)
+	function2EventName := suite.assertFunctionEventExistenceByFunction(function2EventDisplayName, function2Name)
+	function3EventName := suite.assertFunctionEventExistenceByFunction(function3EventDisplayName, function3Name)
+	function4EventName := suite.assertFunctionEventExistenceByFunction(function4EventDisplayName, function4Name)
+	if apiGatewaysEnabled {
+		suite.assertAPIGatewayImported(apiGateway1Name, function1Name)
+		suite.assertAPIGatewayImported(apiGateway2Name, function3Name)
+	}
+
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function3EventName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function4EventName}, nil) // nolint: errcheck
+}
+
+func (suite *projectExportImportTestSuite) testImportProject(apiGatewaysEnabled bool) {
+	uniqueSuffix := "-" + xid.New().String()
+	projectConfigPath := path.Join(suite.GetImportsDir(), "project.yaml")
+	projectName := "test-project" + uniqueSuffix
+	function1Name := "test-function-1"
+	function2Name := "test-function-2"
+	function1EventDisplayName := "test-function-event-1"
+	function2EventDisplayName := "test-function-event-2"
+	apiGateway1Name := "test-api-gateway-1"
+	apiGateway2Name := "test-api-gateway-2"
+
+	uniqueProjectConfigPath := suite.addUniqueSuffixToImportConfig(projectConfigPath,
+		uniqueSuffix,
+		[]string{function1Name, function2Name},
+		[]string{function1EventDisplayName, function2EventDisplayName},
+		//[]string{apiGateway1Name})
+		[]string{apiGateway1Name, apiGateway2Name})
+	defer os.Remove(uniqueProjectConfigPath) // nolint: errcheck
+
+	function1Name = function1Name + uniqueSuffix
+	function2Name = function2Name + uniqueSuffix
+	function1EventDisplayName = function1EventDisplayName + uniqueSuffix
+	function2EventDisplayName = function2EventDisplayName + uniqueSuffix
+	apiGateway1Name = apiGateway1Name + uniqueSuffix
+	apiGateway2Name = apiGateway2Name + uniqueSuffix
+
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil) // nolint: errcheck
+
+	if apiGatewaysEnabled {
+		defer suite.ExecuteNuctl([]string{"delete", "agw", apiGateway1Name}, nil) // nolint: errcheck
+		defer suite.ExecuteNuctl([]string{"delete", "agw", apiGateway2Name}, nil) // nolint: errcheck
+	}
+
+	// import the project
+	err := suite.ExecuteNuctl([]string{"import", "proj", uniqueProjectConfigPath, "--verbose"}, nil)
+	suite.Require().NoError(err)
+
+	suite.assertProjectImported(projectName)
+	suite.assertFunctionImported(function1Name, true)
+	suite.assertFunctionImported(function2Name, true)
+	function1EventName := suite.assertFunctionEventExistenceByFunction(function1EventDisplayName, function1Name)
+	function2EventName := suite.assertFunctionEventExistenceByFunction(function2EventDisplayName, function2Name)
+
+	suite.assertAPIGatewayImported(apiGateway1Name, function1Name)
+	suite.assertAPIGatewayImported(apiGateway2Name, function2Name)
+
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil) // nolint: errcheck
+}
+
+func (suite *projectExportImportTestSuite) testExportProject(apiGatewaysEnabled bool) {
+	uniqueSuffix := "-" + xid.New().String()
+	projectName := "test-project" + uniqueSuffix
+	functionName := "test-function" + uniqueSuffix
+	functionEventName := "test-function-event" + uniqueSuffix
+	apiGatewayName := "test-api-gateway" + uniqueSuffix
+
+	suite.createProject(projectName)
+	suite.createFunction(functionName, projectName)
+	suite.createFunctionEvent(functionEventName, functionName)
+
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)     // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)      // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fe", functionEventName}, nil) // nolint: errcheck
+
+	if apiGatewaysEnabled {
+		suite.createAPIGateway(apiGatewayName, functionName, projectName)
+		defer suite.ExecuteNuctl([]string{"delete", "agw", apiGatewayName}, nil)     // nolint: errcheck
+	}
+
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
+
+	// export the project
+	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "proj", projectName, "--verbose"}, nil, false)
+	suite.Require().NoError(err)
+
+	exportedProjectConfig := &command.ProjectImportConfig{}
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &exportedProjectConfig)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal(exportedProjectConfig.Project.Meta.Name, projectName)
+	suite.Assert().Equal(exportedProjectConfig.Functions[functionName].Meta.Name, functionName)
+	suite.Assert().Equal(exportedProjectConfig.FunctionEvents[functionEventName].Meta.Name, functionEventName)
+
+	if apiGatewaysEnabled {
+		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Meta.Name, apiGatewayName)
+		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Host, fmt.Sprintf("host-%s", apiGatewayName))
+		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Upstreams[0].Kind, platform.APIGatewayUpstreamKindNuclioFunction)
+		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Upstreams[0].Nucliofunction.Name, functionName)
+	}
 }
 
 func (suite *projectExportImportTestSuite) createProject(projectName string) {
@@ -414,6 +500,22 @@ func (suite *projectExportImportTestSuite) createFunctionEvent(functionEventName
 		"create",
 		"functionevent",
 		functionEventName,
+	}, namedArgs)
+
+	suite.Require().NoError(err)
+}
+
+func (suite *projectExportImportTestSuite) createAPIGateway(apiGatewayName, functionName, projectName string) {
+	namedArgs := map[string]string{
+		"function": functionName,
+		"project":  projectName,
+		"host":     fmt.Sprintf("host-%s", apiGatewayName),
+	}
+
+	err := suite.ExecuteNuctl([]string{
+		"create",
+		"apigateway",
+		apiGatewayName,
 	}, namedArgs)
 
 	suite.Require().NoError(err)

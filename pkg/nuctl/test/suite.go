@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"io"
 	"io/ioutil"
 	"os"
@@ -206,6 +207,24 @@ func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMus
 	for _, foundPattern := range foundPatternsMustNotExist {
 		suite.Require().False(foundPattern)
 	}
+}
+
+func (suite *Suite) assertAPIGatewayImported(apiGatewayName, primaryFunctionName string) {
+
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
+	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "agw", apiGatewayName}, map[string]string{
+		"output": "yaml",
+	}, false)
+	suite.Require().NoError(err)
+
+	apiGateway := platform.APIGatewayConfig{}
+	apiGatewayBodyBytes := suite.outputBuffer.Bytes()
+	err = yaml.Unmarshal(apiGatewayBodyBytes, &apiGateway)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal(apiGatewayName, apiGateway.Meta.Name)
+	suite.Assert().Equal(primaryFunctionName, apiGateway.Spec.Upstreams[0].Nucliofunction.Name)
 }
 
 func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
