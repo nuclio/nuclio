@@ -27,7 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 )
 
 type frontendSpecResource struct {
@@ -96,10 +96,7 @@ func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interfac
 	one := 1
 	defaultWorkerAvailabilityTimeoutMilliseconds := trigger.DefaultWorkerAvailabilityTimeoutMilliseconds
 
-	var defaultServiceType v1.ServiceType = ""
-	if dashboardServer, ok := fesr.resource.GetServer().(*dashboard.Server); ok {
-		defaultServiceType = dashboardServer.GetPlatformConfiguration().KubeDefaultServiceType
-	}
+	defaultServiceType := fesr.resolveDefaultServiceType()
 	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
 	defaultHTTPTrigger.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
 	defaultHTTPTrigger.ServiceType = defaultServiceType
@@ -140,6 +137,14 @@ func (fesr *frontendSpecResource) GetCustomRoutes() ([]restful.CustomRoute, erro
 			RouteFunc: fesr.getFrontendSpec,
 		},
 	}, nil
+}
+
+func (fesr *frontendSpecResource) resolveDefaultServiceType() v1.ServiceType {
+	var defaultServiceType v1.ServiceType = ""
+	if dashboardServer, ok := fesr.resource.GetServer().(*dashboard.Server); ok {
+		defaultServiceType = dashboardServer.GetPlatformConfiguration().KubeDefaultServiceType
+	}
+	return defaultServiceType
 }
 
 // register the resource
