@@ -84,6 +84,8 @@ func (r *Reader) GetDefaultConfiguration() *Config {
 				{Level: "debug", Sink: "stdout"},
 			},
 		},
-		KubeDefaultServiceType: v1.ServiceTypeNodePort,
+		KubeConfig: PlatformKubeConfig{
+			DefaultServiceType: v1.ServiceTypeNodePort,
+		},
 	}
 }

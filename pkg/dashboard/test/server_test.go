@@ -81,7 +81,9 @@ func (suite *dashboardTestSuite) SetupTest() {
 		true,
 		templateRepository,
 		&platformconfig.Config{
-			KubeDefaultServiceType: v1.ServiceTypeNodePort,
+			KubeConfig: platformconfig.PlatformKubeConfig{
+				DefaultServiceType: v1.ServiceTypeNodePort,
+			},
 		},
 		"",
 		"",

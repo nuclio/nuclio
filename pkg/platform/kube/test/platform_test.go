@@ -206,7 +206,7 @@ func (suite *DeployFunctionTestSuite) TestDefaultHTTPTrigger() {
 func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 
 	// set platform default service type to nodePort
-	suite.PlatformConfiguration.KubeDefaultServiceType = v1.ServiceTypeNodePort
+	suite.PlatformConfiguration.KubeConfig.DefaultServiceType = v1.ServiceTypeNodePort
 
 	// create function with service of type nodePort from platform default
 	defaultNodePortFunctionName := "with-default-http-trigger-node-port"
@@ -219,7 +219,7 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 	})
 
 	// set platform default service type to clusterIP - the rest of the test will use this default
-	suite.PlatformConfiguration.KubeDefaultServiceType = v1.ServiceTypeClusterIP
+	suite.PlatformConfiguration.KubeConfig.DefaultServiceType = v1.ServiceTypeClusterIP
 
 	// create function with service of type clusterIP from platform default
 	defaultClusterIPFunctionName := "with-default-http-trigger-cluster-ip"

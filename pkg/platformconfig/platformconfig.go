@@ -25,6 +25,12 @@ import (
 	"k8s.io/api/core/v1"
 )
 
+type PlatformKubeConfig struct {
+
+	// TODO: Move IngressConfig here
+	DefaultServiceType v1.ServiceType `json:"defaultServiceType,omitempty"`
+}
+
 type Config struct {
 	Kind                     string                   `json:"kind,omitempty"`
 	WebAdmin                 WebServer                `json:"webAdmin,omitempty"`
@@ -36,7 +42,7 @@ type Config struct {
 	CronTriggerCreationMode  CronTriggerCreationMode  `json:"cronTriggerCreationMode,omitempty"`
 	FunctionAugmentedConfigs []LabelSelectorAndConfig `json:"functionAugmentedConfigs,omitempty"`
 	IngressConfig            IngressConfig            `json:"ingressConfig,omitempty"`
-	KubeDefaultServiceType   v1.ServiceType           `json:"kubeDefaultServiceType,omitempty"`
+	KubeConfig               PlatformKubeConfig       `json:"kube,omitempty"`
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {
