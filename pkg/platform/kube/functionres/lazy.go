@@ -195,9 +195,6 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 		}
 	}
 
-	// set function's service type
-	function.Spec.ServiceType = lc.resolveFunctionServiceType(function)
-
 	// create or update the applicable configMap
 	resources.configMap, err = lc.createOrUpdateConfigMap(function)
 	if err != nil {
@@ -1391,7 +1388,7 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 		spec.Selector = functionLabels
 	}
 
-	spec.Type = function.Spec.ServiceType
+	spec.Type = lc.resolveFunctionServiceType(function)
 	serviceTypeIsNodePort := spec.Type == v1.ServiceTypeNodePort
 	functionHTTPPort := function.Spec.GetHTTPPort()
 
@@ -2045,7 +2042,7 @@ func (lc *lazyClient) resolveFunctionServiceType(function *nuclioio.NuclioFuncti
 	}
 
 	// otherwise return platform default
-	return lc.platformConfigurationProvider.GetPlatformConfiguration().KubeConfig.DefaultServiceType
+	return lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultServiceType
 }
 
 //
