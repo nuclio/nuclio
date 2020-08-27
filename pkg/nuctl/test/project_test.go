@@ -163,9 +163,9 @@ func (suite *projectExportImportTestSuite) TestExportProjectLocal() {
 	suite.testExportProject(false)
 }
 
-func (suite *projectExportImportTestSuite) TestExportProjectK8s() {
-	suite.ensureRunningOnPlatform("kube")
-	suite.testExportProject(true)
+func (suite *projectExportImportTestSuite) TestImportProjectsLocal() {
+	suite.ensureRunningOnPlatform("local")
+	suite.testImportProjects(false)
 }
 
 func (suite *projectExportImportTestSuite) TestImportProjectLocal() {
@@ -173,14 +173,14 @@ func (suite *projectExportImportTestSuite) TestImportProjectLocal() {
 	suite.testImportProject(false)
 }
 
+func (suite *projectExportImportTestSuite) TestExportProjectK8s() {
+	suite.ensureRunningOnPlatform("kube")
+	suite.testExportProject(true)
+}
+
 func (suite *projectExportImportTestSuite) TestImportProjectK8s() {
 	suite.ensureRunningOnPlatform("kube")
 	suite.testImportProject(true)
-}
-
-func (suite *projectExportImportTestSuite) TestImportProjectsLocal() {
-	suite.ensureRunningOnPlatform("local")
-	suite.testImportProjects(false)
 }
 
 func (suite *projectExportImportTestSuite) TestImportProjectsK8s() {
@@ -403,8 +403,10 @@ func (suite *projectExportImportTestSuite) testImportProject(apiGatewaysEnabled 
 	function1EventName := suite.assertFunctionEventExistenceByFunction(function1EventDisplayName, function1Name)
 	function2EventName := suite.assertFunctionEventExistenceByFunction(function2EventDisplayName, function2Name)
 
-	suite.assertAPIGatewayImported(apiGateway1Name, function1Name)
-	suite.assertAPIGatewayImported(apiGateway2Name, function2Name)
+	if apiGatewaysEnabled {
+		suite.assertAPIGatewayImported(apiGateway1Name, function1Name)
+		suite.assertAPIGatewayImported(apiGateway2Name, function2Name)
+	}
 
 	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil) // nolint: errcheck
 	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil) // nolint: errcheck

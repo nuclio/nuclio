@@ -265,17 +265,23 @@ func (e *exportProjectCommandeer) exportProject(projectConfig *platform.ProjectC
 		return nil, err
 	}
 
-	apiGateways, err := e.exportAPIGateways(projectConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return map[string]interface{}{
+	exportedProject := map[string]interface{}{
 		"project":        projectConfig,
 		"functions":      functions,
 		"functionEvents": functionEvents,
-		"apiGateways":    apiGateways,
-	}, nil
+	}
+
+	// api gateways are supported only on k8s platform
+	if e.rootCommandeer.platform.GetName() == "kube" {
+		apiGateways, err := e.exportAPIGateways(projectConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		exportedProject["apiGateways"] = apiGateways
+	}
+
+	return exportedProject, nil
 }
 
 func (e *exportProjectCommandeer) renderProjectConfig(projects []platform.Project, renderer func(interface{}) error) error {

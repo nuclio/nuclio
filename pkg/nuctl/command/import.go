@@ -357,14 +357,17 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 		}
 	}
 
-	apiGatewaysImportErr := i.importAPIGateways(projectConfig.APIGateways)
-	if apiGatewaysImportErr != nil {
-		i.rootCommandeer.loggerInstance.WarnWith("Unable to import all api gateways",
-			"apiGatewaysImportErr", apiGatewaysImportErr)
+	// api gateways are supported only on k8s platform
+	if i.rootCommandeer.platform.GetName() == "kube" {
+		apiGatewaysImportErr := i.importAPIGateways(projectConfig.APIGateways)
+		if apiGatewaysImportErr != nil {
+			i.rootCommandeer.loggerInstance.WarnWith("Unable to import all api gateways",
+				"apiGatewaysImportErr", apiGatewaysImportErr)
 
-		// return this err only if not previously set
-		if err == nil {
-			err = apiGatewaysImportErr
+			// return this err only if not previously set
+			if err == nil {
+				err = apiGatewaysImportErr
+			}
 		}
 	}
 
