@@ -2374,14 +2374,18 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
                         "name": "default-http",
                         "maxWorkers": 1,
                         "workerAvailabilityTimeoutMilliseconds": 10000,
-                        "serviceType": "NodePort"
+                        "attributes": {
+                            "serviceType": "NodePort"
+                        }
                     },
                     "http": {
                         "class": "",
                         "kind": "",
                         "name": "",
                         "workerAvailabilityTimeoutMilliseconds": 10000,
-                        "serviceType": "NodePort"
+                        "attributes": {
+                            "serviceType": "NodePort"
+                        }
                     }
                 },
                 "build": {},

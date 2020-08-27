@@ -2032,8 +2032,10 @@ func (lc *lazyClient) getFunctionServiceType(function *nuclioio.NuclioFunction) 
 
 	// if the http trigger has a configured service type, return that.
 	for _, trigger := range functionHTTPTriggers {
-		if trigger.ServiceType != "" {
-			return trigger.ServiceType
+		if serviceTypeInterface, serviceTypeExists := trigger.Attributes["serviceType"]; serviceTypeExists {
+			if serviceType, serviceTypeIsString := serviceTypeInterface.(string); serviceTypeIsString {
+				return v1.ServiceType(serviceType)
+			}
 		}
 	}
 

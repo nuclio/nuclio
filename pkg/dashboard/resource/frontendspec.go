@@ -99,7 +99,9 @@ func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interfac
 	defaultServiceType := fesr.resolveDefaultServiceType()
 	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
 	defaultHTTPTrigger.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
-	defaultHTTPTrigger.ServiceType = defaultServiceType
+	defaultHTTPTrigger.Attributes = map[string]interface{}{
+		"serviceType": defaultServiceType,
+	}
 
 	defaultFunctionSpec := functionconfig.Spec{
 		MinReplicas:             &one,
@@ -115,7 +117,9 @@ func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interfac
 			// notice that this is a mapping between trigger kind and its default values
 			"http": {
 				WorkerAvailabilityTimeoutMilliseconds: &defaultWorkerAvailabilityTimeoutMilliseconds,
-				ServiceType:                           defaultServiceType,
+				Attributes: map[string]interface{}{
+					"serviceType": defaultServiceType,
+				},
 			},
 			"cron": {
 				WorkerAvailabilityTimeoutMilliseconds: &defaultWorkerAvailabilityTimeoutMilliseconds,

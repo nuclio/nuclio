@@ -73,7 +73,6 @@ type Trigger struct {
 	Annotations                           map[string]string `json:"annotations,omitempty"`
 	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
 	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
-	ServiceType                           v1.ServiceType    `json:"serviceType,omitempty"`
 
 	// Dealer Information
 	TotalTasks        int `json:"total_tasks,omitempty"`

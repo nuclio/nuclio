@@ -246,10 +246,12 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 	customTriggerFunctionName := "with-default-http-trigger-cluster-ip"
 	customTriggerFunctionOptions := suite.compileCreateFunctionOptions(customTriggerFunctionName)
 	customTrigger := functionconfig.Trigger{
-		Kind:        "http",
-		Name:        "custom-trigger",
-		MaxWorkers:  1,
-		ServiceType: v1.ServiceTypeNodePort,
+		Kind:       "http",
+		Name:       "custom-trigger",
+		MaxWorkers: 1,
+		Attributes: map[string]interface{}{
+			"serviceType": v1.ServiceTypeNodePort,
+		},
 	}
 	customTriggerFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		customTrigger.Name: customTrigger,
