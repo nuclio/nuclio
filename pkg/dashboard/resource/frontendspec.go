@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
+	"k8s.io/api/core/v1"
 )
 
 type frontendSpecResource struct {
@@ -94,8 +95,13 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface{} {
 	one := 1
 	defaultWorkerAvailabilityTimeoutMilliseconds := trigger.DefaultWorkerAvailabilityTimeoutMilliseconds
+
+	defaultServiceType := fesr.resolveDefaultServiceType()
 	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
 	defaultHTTPTrigger.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
+	defaultHTTPTrigger.Attributes = map[string]interface{}{
+		"serviceType": defaultServiceType,
+	}
 
 	defaultFunctionSpec := functionconfig.Spec{
 		MinReplicas:             &one,
@@ -111,6 +117,9 @@ func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interfac
 			// notice that this is a mapping between trigger kind and its default values
 			"http": {
 				WorkerAvailabilityTimeoutMilliseconds: &defaultWorkerAvailabilityTimeoutMilliseconds,
+				Attributes: map[string]interface{}{
+					"serviceType": defaultServiceType,
+				},
 			},
 			"cron": {
 				WorkerAvailabilityTimeoutMilliseconds: &defaultWorkerAvailabilityTimeoutMilliseconds,
@@ -132,6 +141,14 @@ func (fesr *frontendSpecResource) GetCustomRoutes() ([]restful.CustomRoute, erro
 			RouteFunc: fesr.getFrontendSpec,
 		},
 	}, nil
+}
+
+func (fesr *frontendSpecResource) resolveDefaultServiceType() v1.ServiceType {
+	var defaultServiceType v1.ServiceType = ""
+	if dashboardServer, ok := fesr.resource.GetServer().(*dashboard.Server); ok {
+		defaultServiceType = dashboardServer.GetPlatformConfiguration().Kube.DefaultServiceType
+	}
+	return defaultServiceType
 }
 
 // register the resource

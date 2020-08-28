@@ -203,6 +203,67 @@ func (suite *DeployFunctionTestSuite) TestDefaultHTTPTrigger() {
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
+
+	// set platform default service type to nodePort
+	suite.PlatformConfiguration.Kube.DefaultServiceType = v1.ServiceTypeNodePort
+
+	// create function with service of type nodePort from platform default
+	defaultNodePortFunctionName := "with-default-http-trigger-node-port"
+	createNodePortTriggerFunctionOptions := suite.compileCreateFunctionOptions(defaultNodePortFunctionName)
+	suite.DeployFunction(createNodePortTriggerFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		serviceInstance := &v1.Service{}
+		suite.getResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(defaultNodePortFunctionName), serviceInstance)
+		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
+		return true
+	})
+
+	// set platform default service type to clusterIP - the rest of the test will use this default
+	suite.PlatformConfiguration.Kube.DefaultServiceType = v1.ServiceTypeClusterIP
+
+	// create function with service of type clusterIP from platform default
+	defaultClusterIPFunctionName := "with-default-http-trigger-cluster-ip"
+	createClusterIPTriggerFunctionOptions := suite.compileCreateFunctionOptions(defaultClusterIPFunctionName)
+	suite.DeployFunction(createClusterIPTriggerFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		serviceInstance := &v1.Service{}
+		suite.getResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(defaultClusterIPFunctionName), serviceInstance)
+		suite.Require().Equal(v1.ServiceTypeClusterIP, serviceInstance.Spec.Type)
+		return true
+	})
+
+	// override default service type in function spec (backwards compatibility)
+	customFunctionName := "custom-function"
+	customFunctionOptions := suite.compileCreateFunctionOptions(customFunctionName)
+	customFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeNodePort
+	suite.DeployFunction(customFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		serviceInstance := &v1.Service{}
+		suite.getResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(customFunctionName), serviceInstance)
+		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
+		return true
+	})
+
+	// override default service type in trigger spec
+	customTriggerFunctionName := "with-default-http-trigger-cluster-ip"
+	customTriggerFunctionOptions := suite.compileCreateFunctionOptions(customTriggerFunctionName)
+	customTrigger := functionconfig.Trigger{
+		Kind:       "http",
+		Name:       "custom-trigger",
+		MaxWorkers: 1,
+		Attributes: map[string]interface{}{
+			"serviceType": v1.ServiceTypeNodePort,
+		},
+	}
+	customTriggerFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		customTrigger.Name: customTrigger,
+	}
+	suite.DeployFunction(customTriggerFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		serviceInstance := &v1.Service{}
+		suite.getResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(customTriggerFunctionName), serviceInstance)
+		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
+		return true
+	})
+}
+
 func (suite *DeployFunctionTestSuite) verifyCreatedTrigger(functionName string, trigger functionconfig.Trigger) bool {
 	functionInstance := &nuclioio.NuclioFunction{}
 	suite.getResourceAndUnmarshal("nucliofunction",
