@@ -184,12 +184,11 @@ func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMus
 	for scanner.Scan() {
 
 		for patternIdx, patternName := range patternsMustExist {
+
+			// one line may match more than one pattern
 			if strings.Contains(scanner.Text(), patternName) {
 				foundPatternsMustExist[patternIdx] = true
 			}
-
-			// commented out break here, because in one line may match more than one pattern
-			// break
 		}
 
 		for patternIdx, patternName := range patternsMustNotExist {
@@ -211,7 +210,7 @@ func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMus
 	}
 }
 
-func (suite *Suite) assertAPIGatewayImported(apiGatewayName, primaryFunctionName string) {
+func (suite *Suite) verifyAPIGatewayExists(apiGatewayName, primaryFunctionName string) {
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()

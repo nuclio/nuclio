@@ -155,8 +155,8 @@ func newDeleteAPIGatewayCommandeer(deleteCommandeer *deleteCommandeer) *deleteAP
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
-			if len(args) != 1 {
-				return errors.New("Api gateway delete requires an identifier")
+			if len(args) == 0 {
+				return errors.New("Api gateway delete requires a single identifier")
 			}
 
 			// initialize root

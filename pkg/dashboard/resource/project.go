@@ -26,11 +26,12 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 type projectResource struct {
@@ -312,7 +313,7 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 
 	failedFunctions := pr.importProjectFunctions(projectImportInfoInstance, authConfig)
 	failedFunctionEvents := pr.importProjectFunctionEvents(projectImportInfoInstance, failedFunctions)
-	failedAPIGateways := pr.importProjectAPIGateways(projectImportInfoInstance, failedFunctions)
+	failedAPIGateways := pr.importProjectAPIGateways(projectImportInfoInstance)
 
 	attributes = restful.Attributes{
 		"functionImportResult": restful.Attributes{
@@ -404,77 +405,29 @@ func (pr *projectResource) importFunction(function *functionInfo, authConfig *pl
 	return nil
 }
 
-func (pr *projectResource) importProjectAPIGateways(projectImportInfoInstance *projectImportInfo,
-	failedFunctions []restful.Attributes) []restful.Attributes {
-
+func (pr *projectResource) importProjectAPIGateways(projectImportInfoInstance *projectImportInfo) []restful.Attributes {
 	var failedAPIGateways []restful.Attributes
-
-	creationErrorContainsFunction := func(functionName string) bool {
-		for _, functionCreationError := range failedFunctions {
-			if functionCreationError["function"] == functionName {
-				return true
-			}
-		}
-		return false
-	}
 
 	// iterate over all api gateways and try to create each
 	for _, apiGateway := range projectImportInfoInstance.APIGateways {
 
-		// innocent until proven guilty
-		isValidAPIGateway := true
+		if err := kube.ValidateUpstreamSpec(apiGateway.Spec); err != nil {
+			failedAPIGateways = append(failedAPIGateways, restful.Attributes{
+				"apiGateway": apiGateway.Spec.Name,
+				"error":      err.Error(),
+			})
 
-		// validate upstreams
-		for _, upstream := range apiGateway.Spec.Upstreams {
-
-			// validate upstream kind
-			if upstream.Kind != platform.APIGatewayUpstreamKindNuclioFunction {
-				failedAPIGateways = append(failedAPIGateways, restful.Attributes{
-					"apiGateway": apiGateway.Spec.Name,
-					"error":      fmt.Sprintf("Unsupported api gateway upstream kind: %s", upstream.Kind),
-				})
-
-				isValidAPIGateway = false
-				break
-			}
-
-			// validate nucliofunciton spec is present
-			if upstream.Nucliofunction == nil {
-				failedAPIGateways = append(failedAPIGateways, restful.Attributes{
-					"apiGateway": apiGateway.Spec.Name,
-					"error":      "Upstream must contain nuclio function",
-				})
-
-				isValidAPIGateway = false
-				break
-			}
-
-			// validate upstream function is not one the functions that failed import
-			functionName := upstream.Nucliofunction.Name
-			if creationErrorContainsFunction(functionName) {
-				failedAPIGateways = append(failedAPIGateways, restful.Attributes{
-					"apiGateway": apiGateway.Spec.Name,
-					"error":      fmt.Sprintf("Api gateway belongs to function that failed import: %s", functionName),
-				})
-
-				isValidAPIGateway = false
-				break
-			}
+			// when it is invalid continue to the next api gateway
+			continue
 		}
 
-		// if it is a valid api gateway - create it
-		if isValidAPIGateway {
-			apiGateway.Status = &platform.APIGatewayStatus{
-				State: platform.APIGatewayStateWaitingForProvisioning,
-			}
-
-			_, _, err := apiGatewayResourceInstance.createAPIGateway(apiGateway)
-			if err != nil {
-				failedAPIGateways = append(failedAPIGateways, restful.Attributes{
-					"apiGateway": apiGateway.Spec.Name,
-					"error":      err.Error(),
-				})
-			}
+		// create the api gateway
+		_, _, err := apiGatewayResourceInstance.createAPIGateway(apiGateway)
+		if err != nil {
+			failedAPIGateways = append(failedAPIGateways, restful.Attributes{
+				"apiGateway": apiGateway.Spec.Name,
+				"error":      err.Error(),
+			})
 		}
 	}
 

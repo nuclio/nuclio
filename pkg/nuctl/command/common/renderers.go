@@ -195,13 +195,13 @@ func RenderProjects(projects []platform.Project,
 func RenderAPIGateways(apiGateways []platform.APIGateway,
 	format string,
 	writer io.Writer,
-	renderCallback func(functions []platform.APIGateway, renderer func(interface{}) error) error) error {
+	renderCallback func(apiGateways []platform.APIGateway, renderer func(interface{}) error) error) error {
 
 	rendererInstance := renderer.NewRenderer(writer)
 
 	switch format {
 	case OutputFormatText, OutputFormatWide:
-		header := []string{"Namespace", "Name", "Host", "Primary", "Canary", "Percentage"}
+		header := []string{"Namespace", "Name", "Host", "Path", "Primary", "Canary", "Percentage"}
 		if format == OutputFormatWide {
 			header = append(header, []string{
 				"Body",
@@ -229,6 +229,7 @@ func RenderAPIGateways(apiGateways []platform.APIGateway,
 				apiGateway.GetConfig().Meta.Namespace,
 				apiGateway.GetConfig().Meta.Name,
 				apiGateway.GetConfig().Spec.Host,
+				apiGateway.GetConfig().Spec.Path,
 				primaryFunction,
 				canaryFunction,
 				fmt.Sprint(canaryPercentage),

@@ -91,9 +91,6 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 	}
 
 	apiGateway.Status.Description = apiGateway.Spec.Description
-	if apiGateway.Spec.Name == "" {
-		apiGateway.Spec.Name = apiGateway.Name
-	}
 
 	// set default project-name if none given
 	if apiGateway.Labels["nuclio.io/project-name"] == "" {

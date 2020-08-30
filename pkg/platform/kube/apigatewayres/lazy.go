@@ -9,6 +9,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
@@ -182,37 +183,18 @@ func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGat
 func (lc *lazyClient) validateSpec(apiGateway *nuclioio.NuclioAPIGateway) error {
 	upstreams := apiGateway.Spec.Upstreams
 
-	if len(upstreams) > 2 {
-		return errors.New("Received more than 2 upstreams. Currently not supported")
-	} else if len(upstreams) == 0 {
-		return errors.New("One or more upstreams must be provided in spec")
-	} else if apiGateway.Spec.Host == "" {
-		return errors.New("Host must be provided in spec")
+	if err := kube.ValidateUpstreamSpec(&apiGateway.Spec); err != nil {
+		return err
 	}
 
-	// TODO: update this when adding more upstream kinds. for now allow only `nucliofunction` upstreams
-	kind := upstreams[0].Kind
-	if kind != platform.APIGatewayUpstreamKindNuclioFunction {
-		return errors.Errorf("Unsupported upstream kind: %s. (Currently supporting only nucliofunction)", kind)
-	}
-
-	if apiGateway.Name == "" {
-		return errors.New("Api gateway name must be provided in spec")
-	}
-
-	// Validity checks per upstream
-	// 1. make sure all upstreams have the same kind
-	// 2. make sure each upstream is unique - meaning, there's no other api gateway with an upstream with the
-	//    same service (currently only nuclio function) name
-	//    (this is done because creating multiple ingresses with the same service name breaks nginx ingress controller)
+	// make sure each upstream is unique - meaning, there's no other api gateway with an upstream with the
+	// same service (currently only nuclio function) name
+	// (this is done because creating multiple ingresses with the same service name breaks nginx ingress controller)
 	existingUpstreamFunctionNames, err := lc.getAllExistingUpstreamFunctionNames(apiGateway.Namespace, apiGateway.Name)
 	if err != nil {
 		return errors.Wrap(err, "Failed while getting all existing upstreams")
 	}
 	for _, upstream := range upstreams {
-		if upstream.Kind != kind {
-			return errors.New("All upstreams must be of the same kind")
-		}
 		if common.StringSliceContainsString(existingUpstreamFunctionNames, upstream.Nucliofunction.Name) {
 			return errors.Errorf("Nuclio function '%s' is already being used in another api gateway",
 				upstream.Nucliofunction.Name)
@@ -338,10 +320,10 @@ func (lc *lazyClient) getNuclioFunctionServiceNameAndPort(upstream platform.APIG
 	// it was "stupified" to this logic, in order to prevent api-gateway failing when a function has no service
 	// (which may happen when a function is imported, but not yet deployed, and in that point we import an api-gateway
 	// that has this function as an upstream)
-	// use default port 8080
 	serviceName := kube.ServiceNameFromFunctionName(upstream.Nucliofunction.Name)
 
-	return serviceName, 8080, nil
+	// use default port
+	return serviceName, abstract.FunctionContainerHTTPPort, nil
 }
 
 func (lc *lazyClient) getServiceHTTPPort(service v1.Service) (int, error) {
