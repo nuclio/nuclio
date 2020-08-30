@@ -138,7 +138,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 	defer suite.ExecuteNuctl([]string{"delete", "apigateway", apiGatewayName}, nil) // nolint: errcheck
 
 	// invoke the api-gateway URL to make sure it works (we get the expected function response)
-	err = common.RetryUntilSuccessful(20 * time.Second, 1 * time.Second, func() bool {
+	err = common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
 		apiGatewayURL := fmt.Sprintf("http://%s%s", apiGatewayHost, apiGatewayPath)
 
 		req, err := http.NewRequest("POST", apiGatewayURL, bytes.NewBuffer([]byte("-reverse this string+")))
