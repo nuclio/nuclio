@@ -1695,6 +1695,7 @@ func (suite *projectTestSuite) TestImportSuccessful() {
         "namespace": "p1Namespace"
       },
       "spec": {
+        "name": "agw1",
         "host": "some-host",
         "upstreams": [
           {
@@ -1748,6 +1749,19 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 	createdProject.ProjectConfig.Meta.Namespace = "p1Namespace"
 	createdProject.ProjectConfig.Spec.Description = "p1Description"
 
+	apiGateway := platform.AbstractAPIGateway{}
+	apiGateway.APIGatewayConfig.Meta.Name = "agw1"
+	apiGateway.APIGatewayConfig.Meta.Namespace = "p1Namespace"
+	apiGateway.APIGatewayConfig.Spec.Host = "host-name1"
+	apiGateway.APIGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
+		{
+			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+				Name: "f1",
+			},
+		},
+	}
+
 	// verify
 	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
 		suite.Require().Equal("p1", getProjectsOptions.Meta.Name)
@@ -1765,6 +1779,16 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
 		suite.Require().Equal("f1", getFunctionsOptions.Name)
 		suite.Require().Equal("p1Namespace", getFunctionsOptions.Namespace)
+		return true
+	}
+
+	verifyCreateAPIGateway := func(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) bool {
+		suite.Require().Equal("agw1", createAPIGatewayOptions.APIGatewayConfig.Meta.Name)
+		suite.Require().Equal("p1Namespace", createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace)
+		suite.Require().Equal("host-name1", createAPIGatewayOptions.APIGatewayConfig.Spec.Host)
+		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Kind)
+		suite.Require().Equal("f1", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name)
+
 		return true
 	}
 
@@ -1786,6 +1810,11 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 	suite.mockPlatform.
 		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
 		Return([]platform.Function{&existingFunction1}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("CreateAPIGateway", mock.MatchedBy(verifyCreateAPIGateway)).
+		Return(nil).
 		Once()
 
 	expectedStatusCode := http.StatusCreated
@@ -1817,7 +1846,7 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
     "fe1": {
       "metadata": {
         "name": "fe1",
-        "namespace": "fNamespace",
+        "namespace": "p1Namespace",
         "labels": {
           "nuclio.io/function-name": "f1"
         }
@@ -1834,7 +1863,7 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
     "agw1": {
       "metadata": {
         "name": "agw1",
-        "namespace": "fNamespace"
+        "namespace": "p1Namespace"
       },
       "spec": {
 		"name": "agw1",
@@ -1854,14 +1883,9 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 
 	expectedResponseBody := `{
   "apiGatewayImportResult": {
-    "createdAmount": 0,
-    "failedAmount": 1,
-    "failedAPIGateways": [
-      {
-        "error": "Api gateway belongs to function that failed import: f1",
-        "apiGateway": "agw1"
-      }
-    ]
+    "createdAmount": 1,
+    "failedAPIGateways": null,
+    "failedAmount": 0
   },
   "functionEventImportResult": {
     "createdAmount": 0,

@@ -168,7 +168,7 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 	apiGatewayName := "test-api-gateway" + uniqueSuffix
 
 	suite.createProject(projectName)
-	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)     // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil) // nolint: errcheck
 
 	suite.createFunction(functionName, projectName)
 	suite.createFunctionEvent(functionEventName, functionName)

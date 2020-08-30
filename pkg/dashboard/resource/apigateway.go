@@ -227,7 +227,7 @@ func (agr *apiGatewayResource) createAPIGateway(apiGatewayInfoInstance *apiGatew
 	apiGatewayConfig := platform.APIGatewayConfig{
 		Meta:   *apiGatewayInfoInstance.Meta,
 		Spec:   *apiGatewayInfoInstance.Spec,
-		Status: *apiGatewayInfoInstance.Status,
+		Status: platform.APIGatewayStatus{},
 	}
 
 	// create an api gateway
