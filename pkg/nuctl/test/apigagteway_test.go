@@ -110,7 +110,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 
 	apiGatewayName := "get-test-apigateway" + uniqueSuffix
 
-	apiGatewayHost := "kubernetes.docker.internal"
+	apiGatewayHost := suite.getAPIGatewayDefaultHost()
 	apiGatewayPath := "/some-path"
 	basicAuthUsername := "basic-username"
 	basicAuthPassword := "basic-password"
@@ -179,6 +179,16 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 		return true
 	})
 	suite.Require().NoError(err)
+}
+
+func (suite *apiGatewayInvokeTestSuite) getAPIGatewayDefaultHost() string {
+
+	// select host address according to system's kubernetes runner (minikube / docker-for-mac)
+	if common.GetEnvOrDefaultString("MINIKUBE_HOME", "") != "" {
+		return "host.minikube.internal"
+	}
+
+	return "kubernetes.docker.internal"
 }
 
 func (suite *apiGatewayInvokeTestSuite) deployFunction() string {
