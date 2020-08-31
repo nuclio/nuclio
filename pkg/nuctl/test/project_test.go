@@ -307,13 +307,14 @@ func (suite *projectExportImportTestSuite) TestImportProject() {
 	function1EventName := suite.assertFunctionEventExistenceByFunction(function1EventDisplayName, function1Name)
 	function2EventName := suite.assertFunctionEventExistenceByFunction(function2EventDisplayName, function2Name)
 
+	// these function events were created as part of the project import performed above
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil) // nolint: errcheck
+
 	if apiGatewaysEnabled {
 		suite.verifyAPIGatewayExists(apiGateway1Name, function1Name)
 		suite.verifyAPIGatewayExists(apiGateway2Name, function2Name)
 	}
-
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function1EventName}, nil) // nolint: errcheck
-	defer suite.ExecuteNuctl([]string{"delete", "fe", function2EventName}, nil) // nolint: errcheck
 }
 
 func (suite *projectExportImportTestSuite) TestFailToImportProjectNoInput() {

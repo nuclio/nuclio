@@ -183,7 +183,7 @@ func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGat
 func (lc *lazyClient) validateSpec(apiGateway *nuclioio.NuclioAPIGateway) error {
 	upstreams := apiGateway.Spec.Upstreams
 
-	if err := kube.ValidateUpstreamSpec(&apiGateway.Spec); err != nil {
+	if err := kube.ValidateAPIGatewaySpec(&apiGateway.Spec); err != nil {
 		return err
 	}
 

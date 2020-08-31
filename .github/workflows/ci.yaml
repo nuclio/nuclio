@@ -197,7 +197,7 @@ jobs:
 
     - name: Install nginx ingress controller
       run: |
-        - ./test/k8s/ci_assets/install_nginx_ingress_controller.sh
+        ./test/k8s/ci_assets/install_nginx_ingress_controller.sh
 
     - name: Run nuctl k8s tests
       run: |

@@ -411,7 +411,7 @@ func (pr *projectResource) importProjectAPIGateways(projectImportInfoInstance *p
 	// iterate over all api gateways and try to create each
 	for _, apiGateway := range projectImportInfoInstance.APIGateways {
 
-		if err := kube.ValidateUpstreamSpec(apiGateway.Spec); err != nil {
+		if err := kube.ValidateAPIGatewaySpec(apiGateway.Spec); err != nil {
 			failedAPIGateways = append(failedAPIGateways, restful.Attributes{
 				"apiGateway": apiGateway.Spec.Name,
 				"error":      err.Error(),

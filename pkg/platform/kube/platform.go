@@ -513,7 +513,7 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 	newAPIGateway := nuclioio.NuclioAPIGateway{}
 	p.platformAPIGatewayToAPIGateway(&createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
 
-	if err := p.validateAndEnrichAPIGatewayName(&newAPIGateway); err != nil {
+	if err := p.enrichAndValidateAPIGatewayName(&newAPIGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
 	}
 
@@ -545,7 +545,7 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	p.platformAPIGatewayToAPIGateway(&updateAPIGatewayOptions.APIGatewayConfig, &updatedAPIGateway)
 	apiGateway.Spec = updatedAPIGateway.Spec
 
-	if err := p.validateAndEnrichAPIGatewayName(&updatedAPIGateway); err != nil {
+	if err := p.enrichAndValidateAPIGatewayName(&updatedAPIGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
 	}
 
@@ -1052,7 +1052,7 @@ func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *p
 	functionEvent.Spec = platformFunctionEvent.Spec // deep copy instead?
 }
 
-func (p *Platform) validateAndEnrichAPIGatewayName(apiGateway *nuclioio.NuclioAPIGateway) error {
+func (p *Platform) enrichAndValidateAPIGatewayName(apiGateway *nuclioio.NuclioAPIGateway) error {
 	if apiGateway.Spec.Name == "" {
 		apiGateway.Spec.Name = apiGateway.Name
 	}

@@ -6,7 +6,7 @@ import (
 	"github.com/nuclio/errors"
 )
 
-func ValidateUpstreamSpec(apiGatewaySpec *platform.APIGatewaySpec) error {
+func ValidateAPIGatewaySpec(apiGatewaySpec *platform.APIGatewaySpec) error {
 	upstreams := apiGatewaySpec.Upstreams
 
 	if len(upstreams) > 2 {
@@ -19,12 +19,8 @@ func ValidateUpstreamSpec(apiGatewaySpec *platform.APIGatewaySpec) error {
 
 	// TODO: update this when adding more upstream kinds. for now allow only `nucliofunction` upstreams
 	kind := upstreams[0].Kind
-	if kind != platform.APIGatewayUpstreamKindNuclioFunction {
+	if !isSupportedAPIGatewayUpstreamKind(kind) {
 		return errors.Errorf("Unsupported upstream kind: %s. (Currently supporting only nucliofunction)", kind)
-	}
-
-	if apiGatewaySpec.Name == "" {
-		return errors.New("Api gateway name must be provided in spec")
 	}
 
 	// make sure all upstreams have the same kind
@@ -35,4 +31,20 @@ func ValidateUpstreamSpec(apiGatewaySpec *platform.APIGatewaySpec) error {
 	}
 
 	return nil
+}
+
+func getAPIGatewayUpstreamKinds() []platform.APIGatewayUpstreamKind {
+	return []platform.APIGatewayUpstreamKind{
+		platform.APIGatewayUpstreamKindNuclioFunction,
+	}
+}
+
+func isSupportedAPIGatewayUpstreamKind(upstreamKind platform.APIGatewayUpstreamKind) bool {
+	for _, supportedUpstreamKind := range getAPIGatewayUpstreamKinds() {
+		if upstreamKind == supportedUpstreamKind {
+			return true
+		}
+	}
+
+	return false
 }
