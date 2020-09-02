@@ -65,8 +65,16 @@ func NewConfiguration(ID string,
 	// create base
 	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 
+	err := newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
+		{Key: "nuclio.io/v3io-stream-dataplane-timeout", ValueString: &newConfiguration.DataplaneTimeout},
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to populate configuration from annotations")
+	}
+
 	// parse attributes
-	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
+	if err = mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
@@ -106,7 +114,7 @@ func NewConfiguration(ID string,
 	}
 
 	// if the password is a uuid - assume it is an access key and clear out the username/pass
-	_, err := uuid.ParseUUID(newConfiguration.Password)
+	_, err = uuid.ParseUUID(newConfiguration.Password)
 	if err == nil {
 		newConfiguration.Secret = newConfiguration.Password
 		newConfiguration.Username = ""

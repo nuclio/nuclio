@@ -17,8 +17,6 @@ limitations under the License.
 package v3iostream
 
 import (
-	"time"
-	
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
