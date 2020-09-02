@@ -129,12 +129,15 @@ func (suite *streamConsumerGroupTestSuite) createStreamConsumerGroup(maxReplicas
 	streamConsumerGroupConfig.Claim.RecordBatchFetch.NumRecordsInBatch = 10
 	streamConsumerGroupConfig.Claim.RecordBatchFetch.Interval = 50 * time.Millisecond
 
+	timeout := 2000 * time.Millisecond
+
 	streamConsumerGroup, err := streamconsumergroup.NewStreamConsumerGroup(suite.logger,
 		consumerGroupName,
 		streamConsumerGroupConfig,
 		suite.container,
 		suite.streamPath,
-		maxReplicas)
+		maxReplicas,
+		&timeout)
 	suite.Require().NoError(err, "Failed creating stream consumer group")
 
 	return streamConsumerGroup

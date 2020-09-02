@@ -17,6 +17,8 @@ limitations under the License.
 package v3iostream
 
 import (
+	"time"
+	
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
@@ -268,7 +270,8 @@ func (vs *v3iostream) newConsumerGroupMember() (streamconsumergroup.Member, erro
 		vs.v3iostreamConfig,
 		v3ioContainer,
 		vs.configuration.StreamPath,
-		maxReplicas)
+		maxReplicas,
+		&vs.configuration.dataplaneTimeout)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create consumer group")

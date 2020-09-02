@@ -47,9 +47,11 @@ type Configuration struct {
 	HearbeatInterval                string
 	SequenceNumberCommitInterval    string
 	SequenceNumberShardWaitInterval string
+	DataplaneTimeout                string
 	RecordBatchSizeChan             int
 
-	seekTo v3io.SeekShardInputType
+	seekTo           v3io.SeekShardInputType
+	dataplaneTimeout time.Duration
 
 	// backwards compatibility
 	PollingIntervalMs int
@@ -164,6 +166,7 @@ func (c *Configuration) getStreamConsumerGroupConfig() (*streamconsumergroup.Con
 		{"heartbeat interval", c.HearbeatInterval, &streamConsumerGroupConfig.Session.HeartbeatInterval, 3 * time.Second},
 		{"sequence number commit interval", c.SequenceNumberCommitInterval, &streamConsumerGroupConfig.SequenceNumber.CommitInterval, 1 * time.Second},
 		{"sequence number shard wait interval", c.SequenceNumberShardWaitInterval, &streamConsumerGroupConfig.SequenceNumber.ShardWaitInterval, 1 * time.Second},
+		{"dataplane timeout", c.DataplaneTimeout, &c.dataplaneTimeout, 90 * time.Second},
 	} {
 		if err := c.ParseDurationOrDefault(&durationConfigField); err != nil {
 			return nil, err
