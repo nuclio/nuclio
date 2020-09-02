@@ -485,6 +485,14 @@ func (r *Release) bumpHelmChartVersion() error {
 		}
 	}
 
+	// explicitly bump the app version
+	if _, err := r.shellRunner.Run(runOptions,
+		`sed -i '' -e "s/^\(appVersion: \).*$/\1%s/g" %s`,
+		r.targetVersion,
+		r.resolveHelmChartFullPath()); err != nil {
+		return errors.Wrap(err, "Failed to write helm chart target version")
+	}
+
 	if _, err := r.shellRunner.Run(runOptions,
 		`sed -i '' -e "s/^\(version: \).*$/\1%s/g" %s`,
 		r.helmChartsTargetVersion,
