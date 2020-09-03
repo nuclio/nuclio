@@ -231,5 +231,8 @@ func TestAPIGatewayTestSuite(t *testing.T) {
 	}
 
 	suite.Run(t, new(apiGatewayCreateGetAndDeleteTestSuite))
-	suite.Run(t, new(apiGatewayInvokeTestSuite))
+
+	// TODO: enable this when we find a way to add support ingresses on minikube
+	// currently works only on docker-for-mac
+	//suite.Run(t, new(apiGatewayInvokeTestSuite))
 }
