@@ -268,7 +268,8 @@ func (vs *v3iostream) newConsumerGroupMember() (streamconsumergroup.Member, erro
 		vs.v3iostreamConfig,
 		v3ioContainer,
 		vs.configuration.StreamPath,
-		maxReplicas)
+		maxReplicas,
+		&vs.configuration.dataplaneTimeout)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create consumer group")

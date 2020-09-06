@@ -142,9 +142,10 @@ func (c *claim) fetchRecordBatches(stopChannel chan struct{}, fetchInterval time
 
 func (c *claim) fetchRecordBatch(location string) (string, error) {
 	getRecordsInput := v3io.GetRecordsInput{
-		Path:     path.Join(c.member.streamConsumerGroup.streamPath, strconv.Itoa(c.shardID)),
-		Location: location,
-		Limit:    c.member.streamConsumerGroup.config.Claim.RecordBatchFetch.NumRecordsInBatch,
+		DataPlaneInput: *c.member.streamConsumerGroup.GetDataplaneInput(),
+		Path:           path.Join(c.member.streamConsumerGroup.streamPath, strconv.Itoa(c.shardID)),
+		Location:       location,
+		Limit:          c.member.streamConsumerGroup.config.Claim.RecordBatchFetch.NumRecordsInBatch,
 	}
 
 	response, err := c.member.streamConsumerGroup.container.GetRecordsSync(&getRecordsInput)
@@ -254,8 +255,9 @@ func (c *claim) recoverLocationAfterIllegalLocationErr() (string, error) {
 	}
 
 	location, err := c.member.streamConsumerGroup.getShardLocationWithSeek(&v3io.SeekShardInput{
-		Path: streamPath,
-		Type: v3io.SeekShardInputTypeEarliest,
+		DataPlaneInput: *c.member.streamConsumerGroup.GetDataplaneInput(),
+		Path:           streamPath,
+		Type:           v3io.SeekShardInputTypeEarliest,
 	})
 
 	if err != nil {
