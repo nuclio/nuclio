@@ -513,6 +513,15 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 	newAPIGateway := nuclioio.NuclioAPIGateway{}
 	p.platformAPIGatewayToAPIGateway(&createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
 
+	if err := p.enrichAndValidateAPIGatewayName(&newAPIGateway); err != nil {
+		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
+	}
+
+	// set state to waiting for provisioning
+	createAPIGatewayOptions.APIGatewayConfig.Status = platform.APIGatewayStatus{
+		State: platform.APIGatewayStateWaitingForProvisioning,
+	}
+
 	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Create(&newAPIGateway)
@@ -535,6 +544,10 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	updatedAPIGateway := nuclioio.NuclioAPIGateway{}
 	p.platformAPIGatewayToAPIGateway(&updateAPIGatewayOptions.APIGatewayConfig, &updatedAPIGateway)
 	apiGateway.Spec = updatedAPIGateway.Spec
+
+	if err := p.enrichAndValidateAPIGatewayName(&updatedAPIGateway); err != nil {
+		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
+	}
 
 	// set api gateway state to "waitingForProvisioning", so the controller will know to update this resource
 	apiGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
@@ -613,7 +626,7 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 					Namespace:         apiGatewayInstance.Namespace,
 					Labels:            apiGatewayInstance.Labels,
 					Annotations:       apiGatewayInstance.Annotations,
-					CreationTimestamp: apiGatewayInstance.CreationTimestamp,
+					CreationTimestamp: &apiGatewayInstance.CreationTimestamp,
 				},
 				Spec:   apiGatewayInstance.Spec,
 				Status: apiGatewayInstance.Status,
@@ -1037,4 +1050,15 @@ func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *p
 	functionEvent.Labels = platformFunctionEvent.Meta.Labels
 	functionEvent.Annotations = platformFunctionEvent.Meta.Annotations
 	functionEvent.Spec = platformFunctionEvent.Spec // deep copy instead?
+}
+
+func (p *Platform) enrichAndValidateAPIGatewayName(apiGateway *nuclioio.NuclioAPIGateway) error {
+	if apiGateway.Spec.Name == "" {
+		apiGateway.Spec.Name = apiGateway.Name
+	}
+	if apiGateway.Spec.Name != apiGateway.Name {
+		return nuclio.NewErrBadRequest("Api gateway metadata.name must match api gateway spec.name")
+	}
+
+	return nil
 }

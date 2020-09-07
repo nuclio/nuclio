@@ -195,6 +195,10 @@ jobs:
           | envsubst \
           | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
 
+    - name: Install nginx ingress controller
+      run: |
+        ./test/k8s/ci_assets/install_nginx_ingress_controller.sh
+
     - name: Run nuctl k8s tests
       run: |
         make test-k8s-nuctl

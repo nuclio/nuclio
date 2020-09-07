@@ -82,6 +82,35 @@ functions:
       runtime: shell
       serviceType: NodePort
       version: -1
+apiGateways:
+  test-api-gateway-1:
+    metadata:
+      labels:
+        nuclio.io/project-name: test-project
+      name: test-api-gateway-1
+    spec:
+      authenticationMode: none
+      description: some desc
+      host: some-host-1.com
+      path: /
+      upstreams:
+        - kind: nucliofunction
+          nucliofunction:
+            name: test-function-1
+  test-api-gateway-2:
+    metadata:
+      labels:
+        nuclio.io/project-name: test-project
+      name: test-api-gateway-2
+    spec:
+      authenticationMode: none
+      description: some desc 2
+      host: some-host-2.com
+      path: /
+      upstreams:
+        - kind: nucliofunction
+          nucliofunction:
+            name: test-function-2
 project:
   meta:
     name: test-project

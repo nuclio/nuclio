@@ -199,6 +199,30 @@ func (e *exportProjectCommandeer) getFunctionEvents(functionConfig *functionconf
 	return functionEvents, nil
 }
 
+func (e *exportProjectCommandeer) exportAPIGateways(projectConfig *platform.ProjectConfig) (map[string]*platform.APIGatewayConfig, error) {
+	getAPIGatewaysOptions := &platform.GetAPIGatewaysOptions{
+		Namespace: projectConfig.Meta.Namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectConfig.Meta.Name),
+	}
+
+	// get all api gateways in the project
+	apiGateways, err := e.rootCommandeer.platform.GetAPIGateways(getAPIGatewaysOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get api gateways")
+	}
+
+	apiGatewaysMap := map[string]*platform.APIGatewayConfig{}
+
+	// create a mapping of an api gateway name to its config [ string -> *platform.APIGatewayConfig ]
+	for _, apiGateway := range apiGateways {
+		apiGatewayConfig := apiGateway.GetConfig()
+		apiGatewayConfig.PrepareAPIGatewayForExport(false)
+		apiGatewaysMap[apiGatewayConfig.Meta.Name] = apiGatewayConfig
+	}
+
+	return apiGatewaysMap, nil
+}
+
 func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(projectConfig *platform.ProjectConfig) (
 	map[string]*functionconfig.Config, map[string]*platform.FunctionEventConfig, error) {
 	getFunctionOptions := &platform.GetFunctionsOptions{
@@ -241,11 +265,23 @@ func (e *exportProjectCommandeer) exportProject(projectConfig *platform.ProjectC
 		return nil, err
 	}
 
-	return map[string]interface{}{
+	exportedProject := map[string]interface{}{
 		"project":        projectConfig,
 		"functions":      functions,
 		"functionEvents": functionEvents,
-	}, nil
+	}
+
+	// api gateways are supported only on k8s platform
+	if e.rootCommandeer.platform.GetName() == "kube" {
+		apiGateways, err := e.exportAPIGateways(projectConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		exportedProject["apiGateways"] = apiGateways
+	}
+
+	return exportedProject, nil
 }
 
 func (e *exportProjectCommandeer) renderProjectConfig(projects []platform.Project, renderer func(interface{}) error) error {

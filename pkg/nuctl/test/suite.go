@@ -34,6 +34,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
@@ -183,9 +184,10 @@ func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMus
 	for scanner.Scan() {
 
 		for patternIdx, patternName := range patternsMustExist {
+
+			// one line may match more than one pattern
 			if strings.Contains(scanner.Text(), patternName) {
 				foundPatternsMustExist[patternIdx] = true
-				break
 			}
 		}
 
@@ -206,6 +208,24 @@ func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMus
 	for _, foundPattern := range foundPatternsMustNotExist {
 		suite.Require().False(foundPattern)
 	}
+}
+
+func (suite *Suite) verifyAPIGatewayExists(apiGatewayName, primaryFunctionName string) {
+
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
+	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "agw", apiGatewayName}, map[string]string{
+		"output": "yaml",
+	}, false)
+	suite.Require().NoError(err)
+
+	apiGateway := platform.APIGatewayConfig{}
+	apiGatewayBodyBytes := suite.outputBuffer.Bytes()
+	err = yaml.Unmarshal(apiGatewayBodyBytes, &apiGateway)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal(apiGatewayName, apiGateway.Meta.Name)
+	suite.Assert().Equal(primaryFunctionName, apiGateway.Spec.Upstreams[0].Nucliofunction.Name)
 }
 
 func (suite *Suite) assertFunctionImported(functionName string, imported bool) {

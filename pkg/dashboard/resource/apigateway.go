@@ -39,7 +39,6 @@ type apiGatewayInfo struct {
 
 // GetAll returns all api gateways
 func (agr *apiGatewayResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
-	response := map[string]restful.Attributes{}
 
 	// get namespace
 	namespace := agr.getNamespaceFromRequest(request)
@@ -47,14 +46,28 @@ func (agr *apiGatewayResource) GetAll(request *http.Request) (map[string]restful
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
+	exportFunction := agr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
+
+	return agr.GetAllByNamespace(namespace, exportFunction)
+}
+
+// GetAll returns all api-gateways
+func (agr *apiGatewayResource) GetAllByNamespace(namespace string, exportFunction bool) (map[string]restful.Attributes, error) {
+	response := map[string]restful.Attributes{}
+
 	apiGateways, err := agr.getPlatform().GetAPIGateways(&platform.GetAPIGatewaysOptions{Namespace: namespace})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get api gateways")
 	}
 
-	// create a map of attributes keyed by the api gateway id (name)
 	for _, apiGateway := range apiGateways {
-		response[apiGateway.GetConfig().Meta.Name] = agr.apiGatewayToAttributes(apiGateway)
+		if exportFunction {
+			response[apiGateway.GetConfig().Meta.Name] = agr.export(apiGateway)
+		} else {
+
+			// create a map of attributes keyed by the api-gateway id (name)
+			response[apiGateway.GetConfig().Meta.Name] = agr.apiGatewayToAttributes(apiGateway)
+		}
 	}
 
 	return response, nil
@@ -82,6 +95,11 @@ func (agr *apiGatewayResource) GetByID(request *http.Request, id string) (restfu
 		return nil, nuclio.NewErrNotFound("Api-Gateway not found")
 	}
 	apiGateway := apiGateways[0]
+
+	exportFunction := agr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
+	if exportFunction {
+		return agr.export(apiGateway), nil
+	}
 
 	return agr.apiGatewayToAttributes(apiGateway), nil
 }
@@ -186,6 +204,22 @@ func (agr *apiGatewayResource) GetCustomRoutes() ([]restful.CustomRoute, error) 
 	}, nil
 }
 
+func (agr *apiGatewayResource) export(apiGateway platform.APIGateway) restful.Attributes {
+	apiGatewayConfig := apiGateway.GetConfig()
+
+	agr.Logger.DebugWith("Preparing api-gateway for export", "apiGatewayName", apiGatewayConfig.Meta.Name)
+	apiGatewayConfig.PrepareAPIGatewayForExport(false)
+
+	agr.Logger.DebugWith("Exporting api-gateway", "functionName", apiGatewayConfig.Meta.Name)
+
+	attributes := restful.Attributes{
+		"metadata": apiGatewayConfig.Meta,
+		"spec":     apiGatewayConfig.Spec,
+	}
+
+	return attributes
+}
+
 func (agr *apiGatewayResource) createAPIGateway(apiGatewayInfoInstance *apiGatewayInfo) (id string,
 	attributes restful.Attributes, responseErr error) {
 
@@ -193,7 +227,7 @@ func (agr *apiGatewayResource) createAPIGateway(apiGatewayInfoInstance *apiGatew
 	apiGatewayConfig := platform.APIGatewayConfig{
 		Meta:   *apiGatewayInfoInstance.Meta,
 		Spec:   *apiGatewayInfoInstance.Spec,
-		Status: *apiGatewayInfoInstance.Status,
+		Status: platform.APIGatewayStatus{},
 	}
 
 	// create an api gateway
@@ -299,6 +333,10 @@ func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *api
 	nameRequired bool,
 	specRequired bool) error {
 	var err error
+
+	if apiGatewayInfoInstance.Meta == nil {
+		return nuclio.NewErrBadRequest("Api gateway must be provided with metadata")
+	}
 
 	// enrich meta name from spec if needed
 	if apiGatewayInfoInstance.Meta.Name == "" {
