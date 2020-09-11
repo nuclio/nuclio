@@ -409,9 +409,9 @@ func (d *deployCommandeer) enrichConfigWithIntArgs() {
 		d.functionConfig.Spec.ReadinessTimeoutSeconds = d.readinessTimeoutSeconds
 	}
 
-    // fill security context
+	// fill security context
 
-    // initialize struct if at least one flag is provided
+	// initialize struct if at least one flag is provided
 	if common.AnyPositiveInSliceInt64([]int64{d.runAsUser, d.runAsGroup, d.fsGroup}) {
 		d.functionConfig.Spec.SecurityContext = &v1.PodSecurityContext{}
 	}
@@ -421,7 +421,7 @@ func (d *deployCommandeer) enrichConfigWithIntArgs() {
 		d.functionConfig.Spec.SecurityContext.RunAsUser = &d.runAsUser
 	}
 
-    // group id
+	// group id
 	if d.runAsGroup >= 0 {
 		d.functionConfig.Spec.SecurityContext.RunAsGroup = &d.runAsGroup
 	}
