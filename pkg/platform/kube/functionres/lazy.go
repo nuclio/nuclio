@@ -753,6 +753,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 					},
 					Volumes:            volumes,
 					ServiceAccountName: function.Spec.ServiceAccount,
+					SecurityContext:    function.Spec.SecurityContext,
 				},
 			},
 		}

@@ -69,6 +69,9 @@ type deployCommandeer struct {
 	replicas                        int
 	minReplicas                     int
 	maxReplicas                     int
+	runAsUser                       int64
+	runAsGroup                      int64
+	fsGroup                         int64
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -194,6 +197,9 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().IntVarP(&commandeer.replicas, "replicas", "", -1, "Set to any non-negative integer to use a static number of replicas")
 	cmd.Flags().IntVar(&commandeer.minReplicas, "min-replicas", -1, "Minimal number of function replicas")
 	cmd.Flags().IntVar(&commandeer.maxReplicas, "max-replicas", -1, "Maximal number of function replicas")
+	cmd.Flags().Int64Var(&commandeer.runAsUser, "run-as-user", -1, "Run function process with user ID")
+	cmd.Flags().Int64Var(&commandeer.runAsGroup, "run-as-group", -1, "Run function process with group ID")
+	cmd.Flags().Int64Var(&commandeer.fsGroup, "fsgroup", -1, "Run function process with supplementary groups")
 	cmd.Flags().IntVar(&commandeer.targetCPU, "target-cpu", -1, "Target CPU when auto-scaling, in percentage")
 	cmd.Flags().BoolVar(&commandeer.publish, "publish", false, "Publish the function")
 	cmd.Flags().StringVar(&commandeer.encodedDataBindings, "data-bindings", "", "JSON-encoded data bindings for the function")
@@ -402,6 +408,30 @@ func (d *deployCommandeer) enrichConfigWithIntArgs() {
 	if d.readinessTimeoutSeconds >= 0 {
 		d.functionConfig.Spec.ReadinessTimeoutSeconds = d.readinessTimeoutSeconds
 	}
+
+    // fill security context
+
+    // initialize struct if at least one flag is provided
+	if common.AnyPositiveInSliceInt64([]int64{d.runAsUser, d.runAsGroup, d.fsGroup}) {
+		d.functionConfig.Spec.SecurityContext = &v1.PodSecurityContext{}
+	}
+
+	// user id
+	if d.runAsUser >= 0 {
+		d.functionConfig.Spec.SecurityContext.RunAsUser = &d.runAsUser
+	}
+
+    // group id
+	if d.runAsGroup >= 0 {
+		d.functionConfig.Spec.SecurityContext.RunAsGroup = &d.runAsGroup
+	}
+
+	// groups
+	if d.fsGroup >= 0 {
+		d.functionConfig.Spec.SecurityContext.FSGroup = &d.fsGroup
+	}
+
+	// eof security context
 }
 
 func (d *deployCommandeer) enrichConfigWithComplexArgs() error {

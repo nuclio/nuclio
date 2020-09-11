@@ -100,6 +100,36 @@ def handler(context, event):
 	suite.DeployFunctionAndRedeploy(createFunctionOptions, afterFirstDeploy, afterSecondDeploy)
 }
 
+func (suite *DeployFunctionTestSuite) TestSecurityContext() {
+	runAsUserID := int64(1000)
+	runAsGroupID := int64(2000)
+	fsGroup := int64(3000)
+	functionName := "security-context-config"
+	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.SecurityContext = &v1.PodSecurityContext{
+		RunAsUser:  &runAsUserID,
+		RunAsGroup: &runAsGroupID,
+		FSGroup:    &fsGroup,
+	}
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		deploymentInstance := &appsv1.Deployment{}
+		suite.getResourceAndUnmarshal("deployment",
+			kube.DeploymentNameFromFunctionName(functionName),
+			deploymentInstance)
+
+		// ensure function deployment was enriched
+		suite.Require().NotNil(deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsUser)
+		suite.Require().NotNil(deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsGroup)
+		suite.Require().NotNil(deploymentInstance.Spec.Template.Spec.SecurityContext.FSGroup)
+
+		// verify security context values
+		suite.Require().Equal(runAsUserID, *deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsUser)
+		suite.Require().Equal(runAsGroupID, *deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsGroup)
+		suite.Require().Equal(fsGroup, *deploymentInstance.Spec.Template.Spec.SecurityContext.FSGroup)
+		return true
+	})
+}
+
 func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 	runAsUserID := int64(1000)
 	runAsGroupID := int64(2000)
