@@ -18,6 +18,8 @@ package test
 
 import (
 	"encoding/base64"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -104,7 +106,7 @@ func (suite *DeployFunctionTestSuite) TestSecurityContext() {
 	runAsUserID := int64(1000)
 	runAsGroupID := int64(2000)
 	fsGroup := int64(3000)
-	functionName := "security-context-config"
+	functionName := "security-context"
 	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Spec.SecurityContext = &v1.PodSecurityContext{
 		RunAsUser:  &runAsUserID,
@@ -122,10 +124,21 @@ func (suite *DeployFunctionTestSuite) TestSecurityContext() {
 		suite.Require().NotNil(deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsGroup)
 		suite.Require().NotNil(deploymentInstance.Spec.Template.Spec.SecurityContext.FSGroup)
 
-		// verify security context values
+		// verify deployment spec security context values
 		suite.Require().Equal(runAsUserID, *deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsUser)
 		suite.Require().Equal(runAsGroupID, *deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsGroup)
 		suite.Require().Equal(fsGroup, *deploymentInstance.Spec.Template.Spec.SecurityContext.FSGroup)
+
+		// verify running function indeed using the right uid / gid / groups
+		podName := fmt.Sprintf("deployment/%s", kube.DeploymentNameFromFunctionName(functionName))
+		results, err := suite.executeKubectl([]string{"exec", podName, "--", "id"}, nil)
+		suite.Require().NoError(err, "Failed to execute `id` command on function pod")
+		suite.Require().Equal(fmt.Sprintf(`uid=%d gid=%d groups=%d,%d`,
+			runAsUserID,
+			runAsGroupID,
+			runAsGroupID,
+			fsGroup),
+			strings.TrimSpace(results.Output))
 		return true
 	})
 }
