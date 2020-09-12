@@ -55,7 +55,6 @@ type Platform struct {
 	checkFunctionContainersHealthiness    bool
 	functionContainersHealthinessTimeout  time.Duration
 	functionContainersHealthinessInterval time.Duration
-	functionProcessorMountMode            functionProcessorMountMode
 }
 
 const Mib = 1048576
@@ -384,9 +383,15 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 		}
 	}
 
-	// delete function volumes after containers are deleted
-	switch p.functionProcessorMountMode {
-	case FunctionProcessorMountModeVolume:
+	// get function platform specific configuration
+	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&deleteFunctionOptions.FunctionConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create function platform configuration")
+	}
+
+	if functionPlatformConfiguration.ProcessorMountMode == ProcessorMountModeVolume {
+
+		// delete function volumes after containers are deleted
 		if err := p.dockerClient.DeleteVolume(p.GetProcessorMountVolumeName(&deleteFunctionOptions.FunctionConfig)); err != nil {
 			return errors.Wrapf(err, "Failed to delete function volume")
 		}
@@ -622,10 +627,6 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 	}
 }
 
-func (p *Platform) SetFunctionProcessorMountMode(mountMode functionProcessorMountMode) {
-	p.functionProcessorMountMode = mountMode
-}
-
 func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
 
@@ -635,10 +636,12 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Failed to create function platform configuration")
 	}
 
-	volumesMap, err := p.compileDeployFunctionVolumesMap(createFunctionOptions)
+	mountPoints, volumesMap, err := p.resolveAndCreateFunctionMounts(createFunctionOptions,
+		functionPlatformConfiguration.ProcessorMountMode)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to compile volumes map")
+		return nil, errors.Wrap(err, "Failed to resolve and create function mounts")
 	}
+
 	labels := p.compileDeployFunctionLabels(createFunctionOptions)
 	envMap := p.compileDeployFunctionEnvMap(createFunctionOptions)
 
@@ -668,7 +671,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		Network:       functionPlatformConfiguration.Network,
 		RestartPolicy: functionPlatformConfiguration.RestartPolicy,
 		GPUs:          gpus,
-		MountPoints:   p.getFunctionMountPoints(createFunctionOptions),
+		MountPoints:   mountPoints,
 	}
 
 	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image,
@@ -695,6 +698,39 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		Port:        functionExternalHTTPPort,
 		ContainerID: containerID,
 	}, nil
+}
+
+func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platform.CreateFunctionOptions,
+	processorMountMode ProcessorMountMode) ([]dockerclient.MountPoint, map[string]string, error) {
+
+	var mountPoints []dockerclient.MountPoint
+	volumesMap := p.compileDeployFunctionVolumesMap(createFunctionOptions)
+
+	switch processorMountMode {
+	case ProcessorMountModeVolume:
+		if err := p.prepareFunctionVolumeMount(createFunctionOptions); err != nil {
+			return nil, nil, errors.Wrap(err, "Failed to prepare function volume mount")
+		}
+		mountPoints = append(mountPoints, dockerclient.MountPoint{
+			Source:      p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
+			Destination: FunctionProcessorContainerDirPath,
+
+			// read only mode
+			RW: false,
+		})
+	default:
+
+		// create processor configuration at a temporary location unless user specified a configuration
+		localProcessorConfigPath, err := p.createProcessorConfig(createFunctionOptions)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Failed to create processor configuration")
+		}
+
+		// volumize it
+		volumesMap[localProcessorConfigPath] = path.Join(FunctionProcessorContainerDirPath, "processor.yaml")
+	}
+
+	return mountPoints, volumesMap, nil
 }
 
 func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateFunctionOptions) (string, error) {
@@ -941,57 +977,8 @@ func (p *Platform) waitForContainer(containerID string, timeout int) error {
 	return nil
 }
 
-func (p *Platform) compileDeployFunctionVolumesMap(createFunctionOptions *platform.CreateFunctionOptions) (map[string]string, error) {
-
+func (p *Platform) compileDeployFunctionVolumesMap(createFunctionOptions *platform.CreateFunctionOptions) map[string]string {
 	volumesMap := map[string]string{}
-	switch p.functionProcessorMountMode {
-	case FunctionProcessorMountModeVolume:
-
-		// create docker volume
-		if err := p.dockerClient.CreateVolume(&dockerclient.CreateVolumeOptions{
-			Name: p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
-		}); err != nil {
-			return nil, errors.Wrapf(err, "Failed to create volume for function %s",
-				createFunctionOptions.FunctionConfig.Meta.Name)
-		}
-
-		processorConfigBody, err := yaml.Marshal(&processor.Configuration{
-			Config: createFunctionOptions.FunctionConfig,
-		})
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to marshal processor configuration")
-		}
-
-		if _, err := p.dockerClient.RunContainer("alpine:3.11", &dockerclient.RunOptions{
-			Remove: true,
-			MountPoints: []dockerclient.MountPoint{
-				{
-					Source:      p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
-					Destination: FunctionProcessorContainerDirPath,
-					RW:          true,
-				},
-			},
-			Command: fmt.Sprintf(`sh -c 'echo "%s" | base64 -d > %s'`,
-				base64.StdEncoding.EncodeToString(processorConfigBody),
-				path.Join(FunctionProcessorContainerDirPath, "processor.yaml")),
-		}); err != nil {
-			return nil, errors.Wrap(err, "Failed to write processor config to volume")
-		}
-
-	case FunctionProcessorMountModeBidMount:
-
-		// bind mount is default
-		fallthrough
-	default:
-
-		// create processor configuration at a temporary location unless user specified a configuration
-		localProcessorConfigPath, err := p.createProcessorConfig(createFunctionOptions)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create processor configuration")
-		}
-		volumesMap[localProcessorConfigPath] = path.Join(FunctionProcessorContainerDirPath, "processor.yaml")
-	}
-
 	for _, volume := range createFunctionOptions.FunctionConfig.Spec.Volumes {
 
 		// only add hostpath volumes
@@ -999,7 +986,44 @@ func (p *Platform) compileDeployFunctionVolumesMap(createFunctionOptions *platfo
 			volumesMap[volume.Volume.HostPath.Path] = volume.VolumeMount.MountPath
 		}
 	}
-	return volumesMap, nil
+	return volumesMap
+}
+
+func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.CreateFunctionOptions) error {
+
+	// create docker volume
+	if err := p.dockerClient.CreateVolume(&dockerclient.CreateVolumeOptions{
+		Name: p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
+	}); err != nil {
+		return errors.Wrapf(err, "Failed to create volume for function %s",
+			createFunctionOptions.FunctionConfig.Meta.Name)
+	}
+
+	// marshaling processor config
+	processorConfigBody, err := yaml.Marshal(&processor.Configuration{
+		Config: createFunctionOptions.FunctionConfig,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to marshal processor configuration")
+	}
+
+	// dumping contents to volume's processor path
+	if _, err := p.dockerClient.RunContainer("alpine:3.11", &dockerclient.RunOptions{
+		Remove: true,
+		MountPoints: []dockerclient.MountPoint{
+			{
+				Source:      p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
+				Destination: FunctionProcessorContainerDirPath,
+				RW:          true,
+			},
+		},
+		Command: fmt.Sprintf(`sh -c 'echo "%s" | base64 -d > %s'`,
+			base64.StdEncoding.EncodeToString(processorConfigBody),
+			path.Join(FunctionProcessorContainerDirPath, "processor.yaml")),
+	}); err != nil {
+		return errors.Wrap(err, "Failed to write processor config to volume")
+	}
+	return nil
 }
 
 func (p *Platform) compileDeployFunctionEnvMap(createFunctionOptions *platform.CreateFunctionOptions) map[string]string {
@@ -1027,20 +1051,4 @@ func (p *Platform) compileDeployFunctionLabels(createFunctionOptions *platform.C
 		labels["nuclio.io/annotations"] = string(marshalledAnnotations)
 	}
 	return labels
-}
-
-func (p *Platform) getFunctionMountPoints(createFunctionOptions *platform.CreateFunctionOptions) []dockerclient.MountPoint {
-	var mountPoints []dockerclient.MountPoint
-	switch p.functionProcessorMountMode {
-	case FunctionProcessorMountModeVolume:
-		mountPoints = append(mountPoints, dockerclient.MountPoint{
-			Source:      p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
-			Destination: FunctionProcessorContainerDirPath,
-
-			// read only mode
-			RW: false,
-		})
-	}
-
-	return mountPoints
 }

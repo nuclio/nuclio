@@ -149,6 +149,9 @@ type MountPoint struct {
 	Destination string
 	Mode        string
 	RW          bool
+	Type        string
+	Driver      string
+	Name        string
 }
 
 // HostConfig the non-portable Config structure of a container.
