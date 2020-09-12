@@ -169,6 +169,21 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 		})
 }
 
+func (suite *TestSuite) TestDeployFunctionVolumeMount() {
+	createFunctionOptions := suite.getDeployOptions("volume-mount")
+	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
+	suite.Platform.(*local.Platform).SetFunctionProcessorMountMode(local.FunctionProcessorMountModeVolume)
+	suite.DeployFunctionAndRedeploy(createFunctionOptions,
+
+		// sanity
+		func(deployResult *platform.CreateFunctionResult) bool {
+			return true
+		},
+		func(deployResult *platform.CreateFunctionResult) bool {
+			return true
+		})
+}
+
 func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFunctionOptions {
 	functionPath := []string{suite.GetTestFunctionsDir(), "common", "reverser", "python", "reverser.py"}
 	createFunctionOptions := suite.TestSuite.GetDeployOptions(functionName, filepath.Join(functionPath...))

@@ -64,6 +64,7 @@ type RunOptions struct {
 	Network          string
 	RestartPolicy    *RestartPolicy
 	GPUs             string
+	MountPoints      []MountPoint
 }
 
 // ExecOptions are options for executing a command in a container
@@ -340,5 +341,10 @@ type Address struct {
 
 // CreateNetworkOptions are options for creating a network
 type CreateNetworkOptions struct {
+	Name string
+}
+
+// CreateVolumeOptions are options for creating a volume
+type CreateVolumeOptions struct {
 	Name string
 }

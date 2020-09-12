@@ -39,3 +39,10 @@ func newFunctionPlatformConfiguration(functionConfig *functionconfig.Config) (*f
 
 	return &newConfiguration, nil
 }
+
+type functionProcessorMountMode string
+
+const (
+	FunctionProcessorMountModeBidMount functionProcessorMountMode = "BindMount"
+	FunctionProcessorMountModeVolume   functionProcessorMountMode = "Volume"
+)
