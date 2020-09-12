@@ -181,7 +181,7 @@ func (suite *TestSuite) TestDeployFunctionVolumeMount() {
 		// sanity
 		func(deployResult *platform.CreateFunctionResult) bool {
 			containers, err := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
-				Name:    localPlatform.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
+				Name: localPlatform.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
 			})
 			suite.Require().NoError(err, "Failed to get containers")
 
