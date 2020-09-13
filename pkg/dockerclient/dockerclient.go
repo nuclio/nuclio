@@ -74,6 +74,12 @@ type Client interface {
 	// DeleteNetwork deletes a docker network
 	DeleteNetwork(networkName string) error
 
+	// CreateVolume create a docker volume
+	CreateVolume(*CreateVolumeOptions) error
+
+	// DeleteVolume delete a docker volume
+	DeleteVolume(volumeName string) error
+
 	// Save saves a docker image as tar in specified path
 	Save(imageName string, outPath string) error
 

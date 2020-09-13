@@ -65,8 +65,9 @@ The `spec` section contains the requirements and attributes and has the followin
 | volumes | map | A map in an architecture similar to Kubernetes volumes, for Docker deployment |
 | replicas | int | The number of desired instances; 0 for auto-scaling. |
 | minReplicas | int | The minimum number of replicas |
-| platform.attributes.restartPolicy.name | string | function image container restart policy name (applied for docker platform only) |
-| platform.attributes.restartPolicy.maximumRetryCount | int | restart maximum counter before exhausted |
+| platform.attributes.restartPolicy.name | string | Function image container restart policy name (applied for docker platform only) |
+| platform.attributes.restartPolicy.maximumRetryCount | int | Restart maximum counter before exhausted |
+| platform.attributes.processorMountMode | string | The way docker would mount the processor config (options: bind, volume; default: bind) |
 | maxReplicas | int | The maximum number of replicas |
 | targetCPU | int | Target CPU when auto scaling, as a percentage (default: 75%) |
 | dataBindings | See reference | A map of data sources used by the function ("data bindings") |
@@ -111,6 +112,10 @@ spec:
       restartPolicy:
         name: on-failure
         maximumRetryCount: 3
+
+      # will use `volume` to mount the processor into function
+      # more info @ https://docs.docker.com/storage/volumes
+      processorMountMode: volume
   env:
   - name: SOME_ENV
     value: abc

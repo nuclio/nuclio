@@ -228,9 +228,23 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		}
 	}
 
+	mountPointArguments := ""
+	if len(runOptions.MountPoints) > 0 {
+		for _, mountPoint := range runOptions.MountPoints {
+			mountPointArguments += fmt.Sprintf("--mount source=%s,destination=%s",
+				mountPoint.Source,
+				mountPoint.Destination)
+			if !mountPoint.RW {
+				mountPointArguments += ",readonly"
+			}
+			mountPointArguments += " "
+		}
+	}
+
 	runResult, err := c.cmdRunner.Run(
 		&cmdrunner.RunOptions{LogRedactions: c.redactedValues},
-		"docker run %s %s %s %s %s %s %s %s %s %s %s %s",
+		"docker run %s %s %s %s %s %s %s %s %s %s %s %s %s",
+		mountPointArguments,
 		gpus,
 		restartPolicy,
 		detach,
@@ -537,6 +551,20 @@ func (c *ShellClient) CreateNetwork(options *CreateNetworkOptions) error {
 // DeleteNetwork deletes a docker network
 func (c *ShellClient) DeleteNetwork(networkName string) error {
 	_, err := c.runCommand(nil, `docker network rm %s`, networkName)
+
+	return err
+}
+
+// CreateVolume creates a docker volume
+func (c *ShellClient) CreateVolume(options *CreateVolumeOptions) error {
+	_, err := c.runCommand(nil, `docker volume create %s`, options.Name)
+
+	return err
+}
+
+// DeleteVolume deletes a docker volume
+func (c *ShellClient) DeleteVolume(volumeName string) error {
+	_, err := c.runCommand(nil, `docker volume rm %s`, volumeName)
 
 	return err
 }

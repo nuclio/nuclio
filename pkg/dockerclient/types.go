@@ -64,6 +64,7 @@ type RunOptions struct {
 	Network          string
 	RestartPolicy    *RestartPolicy
 	GPUs             string
+	MountPoints      []MountPoint
 }
 
 // ExecOptions are options for executing a command in a container
@@ -148,6 +149,9 @@ type MountPoint struct {
 	Destination string
 	Mode        string
 	RW          bool
+	Type        string
+	Driver      string
+	Name        string
 }
 
 // HostConfig the non-portable Config structure of a container.
@@ -340,5 +344,10 @@ type Address struct {
 
 // CreateNetworkOptions are options for creating a network
 type CreateNetworkOptions struct {
+	Name string
+}
+
+// CreateVolumeOptions are options for creating a volume
+type CreateVolumeOptions struct {
 	Name string
 }

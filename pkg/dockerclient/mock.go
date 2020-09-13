@@ -123,6 +123,18 @@ func (mdc *MockDockerClient) DeleteNetwork(networkName string) error {
 	return args.Error(0)
 }
 
+// CreateVolume creates a docker volume
+func (mdc *MockDockerClient) CreateVolume(options *CreateVolumeOptions) error {
+	args := mdc.Called(options)
+	return args.Error(0)
+}
+
+// DeleteVolume deletes a docker volume
+func (mdc *MockDockerClient) DeleteVolume(volumeName string) error {
+	args := mdc.Called(volumeName)
+	return args.Error(0)
+}
+
 // Save saves a docker image in path
 func (mdc *MockDockerClient) Save(imageName string, outPath string) error {
 	args := mdc.Called(imageName, outPath)
