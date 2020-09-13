@@ -1017,7 +1017,7 @@ func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.Cr
 				RW:          true,
 			},
 		},
-		Command: fmt.Sprintf(`sh -c 'echo "%s" | base64 -d > %s'`,
+		Command: fmt.Sprintf(`sh -c 'echo "%s" | base64 -d | install -m 777 /dev/stdin %s'`,
 			base64.StdEncoding.EncodeToString(processorConfigBody),
 			path.Join(FunctionProcessorContainerDirPath, "processor.yaml")),
 	}); err != nil {
