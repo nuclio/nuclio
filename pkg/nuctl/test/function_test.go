@@ -1130,13 +1130,11 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
-		map[string]string{
-			"method": "POST",
-		},
+		map[string]string{"method": "POST"},
 		false)
 	suite.Require().NoError(err)
 
-	// make sure reverser worked
+	// make sure the id command from the handler, returns the correct uid and gids
 	suite.Require().Contains(suite.outputBuffer.String(), fmt.Sprintf(`uid=%s gid=%s groups=%s`,
 		runAsUserID,
 		runAsGroupID,
