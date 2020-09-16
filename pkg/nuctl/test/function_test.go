@@ -1102,6 +1102,47 @@ func (suite *functionDeployTestSuite) parseEventsRecorderOutput(outputBufferStri
 	return events
 }
 
+func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
+	runAsUserID := "1000"
+	runAsGroupID := "2000"
+	fsGroup := "3000"
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "security-context" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"image":        imageName,
+			"runtime":      "shell",
+			"handler":      "id",
+			"run-as-user":  runAsUserID,
+			"run-as-group": runAsGroupID,
+			"fsgroup":      fsGroup,
+		})
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	// use nuctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	// try a few times to invoke, until it succeeds
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+		},
+		false)
+	suite.Require().NoError(err)
+
+	// make sure reverser worked
+	suite.Require().Contains(suite.outputBuffer.String(), fmt.Sprintf(`uid=%s gid=%s groups=%s`,
+		runAsUserID,
+		runAsGroupID,
+		fsGroup))
+}
+
 type functionGetTestSuite struct {
 	Suite
 }
