@@ -94,6 +94,9 @@ The `spec` section contains the requirements and attributes and has the followin
 | readinessTimeoutSeconds | int | Number of seconds that the controller will wait for the function to become ready before declaring failure (default: 60) |
 | avatar | string | Base64 representation of an icon to be shown in UI for the function |
 | eventTimeout | string | Global event timeout, in the format supported for the `Duration` parameter of the [`time.ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function |
+| securityContext.runAsUser | int | The UID to run the entrypoint of the container process. (k8s only) |
+| securityContext.runAsGroup | int | The GID to run the entrypoint of the container process. (k8s only) |
+| securityContext.fsGroup | int | A supplemental group added to the groups to run the entrypoint of the container process. (k8s only) |
 
 <a id="spec-example"></a>
 ### Example
@@ -146,7 +149,11 @@ spec:
       memory: 128M
     limits:
       cpu: 2
-      memory: 256M  
+      memory: 256M
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 2000
+    fsGroup: 3000
 ```
 
 ## See also
