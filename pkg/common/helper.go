@@ -418,3 +418,12 @@ func MatchStringPatterns(patterns []string, s string) bool {
 func CompileImageName(registryURL string, imageName string) string {
 	return strings.TrimSuffix(registryURL, "/") + "/" + imageName
 }
+
+func AnyPositiveInSliceInt64(numbers []int64) bool {
+	for _, number := range numbers {
+		if number >= 0 {
+			return true
+		}
+	}
+	return false
+}
