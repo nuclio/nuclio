@@ -57,10 +57,19 @@ func (f *factory) Create(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
+	var triggerInstance trigger.Trigger
+
 	// finally, create the trigger (only 8080 for now)
-	triggerInstance, err := newTrigger(triggerLogger,
-		workerAllocator,
-		configuration)
+	triggerKind, triggerKindFound := runtimeConfiguration.Config.Meta.Annotations["nuclio.io/http-kind"]
+	if triggerKindFound && triggerKind == "nethttp" {
+		triggerInstance, err = newNetTrigger(triggerLogger,
+			workerAllocator,
+			configuration)
+	} else {
+		triggerInstance, err = newTrigger(triggerLogger,
+			workerAllocator,
+			configuration)
+	}
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create trigger")
