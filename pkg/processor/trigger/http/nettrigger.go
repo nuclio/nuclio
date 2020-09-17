@@ -23,6 +23,7 @@ import (
 	net_http "net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -323,18 +324,17 @@ func (h *nethttp) ServeHTTP(responseWriter net_http.ResponseWriter, request *net
 	// format the response into the context, based on its type
 	switch typedResponse := response.(type) {
 	case nuclio.Response:
-		returnedFilePathHeaderKey := "X-nuclio-filestream-path"
-		returnedFilePath, returnedFilePathExists := typedResponse.Headers[returnedFilePathHeaderKey]
-
-		if returnedFilePathExists {
-			delete(typedResponse.Headers, returnedFilePathHeaderKey)
-		}
+		returnedFilePath := ""
 
 		// set headers
 		for headerKey, headerValue := range typedResponse.Headers {
 			switch typedHeaderValue := headerValue.(type) {
 			case string:
-				responseWriter.Header().Set(headerKey, typedHeaderValue)
+				if strings.EqualFold(headerKey, "X-nuclio-filestream-path") {
+					returnedFilePath = headerValue.(string)
+				} else {
+					responseWriter.Header().Set(headerKey, typedHeaderValue)
+				}
 			case int:
 				responseWriter.Header().Set(headerKey, strconv.Itoa(typedHeaderValue))
 			}
@@ -346,8 +346,8 @@ func (h *nethttp) ServeHTTP(responseWriter net_http.ResponseWriter, request *net
 		}
 
 		// set body
-		if returnedFilePathExists {
-			returnedFilePathString := returnedFilePath.(string)
+		if returnedFilePath != "" {
+			returnedFilePathString := returnedFilePath
 
 			// serve the file
 			net_http.ServeFile(responseWriter, request, returnedFilePathString)
