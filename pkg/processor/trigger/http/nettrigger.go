@@ -324,19 +324,26 @@ func (h *nethttp) ServeHTTP(responseWriter net_http.ResponseWriter, request *net
 	// format the response into the context, based on its type
 	switch typedResponse := response.(type) {
 	case nuclio.Response:
-		returnedFilePath := ""
+		fileStreamPath := ""
+		fileStreamDeleteAfterSend := false
 
 		// set headers
 		for headerKey, headerValue := range typedResponse.Headers {
-			switch typedHeaderValue := headerValue.(type) {
-			case string:
-				if strings.EqualFold(headerKey, "X-nuclio-filestream-path") {
-					returnedFilePath = headerValue.(string)
-				} else {
-					responseWriter.Header().Set(headerKey, typedHeaderValue)
+
+			// check if it's a special header
+			if strings.EqualFold(headerKey, "X-nuclio-filestream-delete-after-send") {
+				fileStreamDeleteAfterSend = true
+			} else {
+				switch typedHeaderValue := headerValue.(type) {
+				case string:
+					if strings.EqualFold(headerKey, "X-nuclio-filestream-path") {
+						fileStreamPath = headerValue.(string)
+					} else {
+						responseWriter.Header().Set(headerKey, typedHeaderValue)
+					}
+				case int:
+					responseWriter.Header().Set(headerKey, strconv.Itoa(typedHeaderValue))
 				}
-			case int:
-				responseWriter.Header().Set(headerKey, strconv.Itoa(typedHeaderValue))
 			}
 		}
 
@@ -346,19 +353,18 @@ func (h *nethttp) ServeHTTP(responseWriter net_http.ResponseWriter, request *net
 		}
 
 		// set body
-		if returnedFilePath != "" {
-			returnedFilePathString := returnedFilePath
+		if fileStreamPath != "" {
+			fileStreamPathString := fileStreamPath
 
 			// serve the file
-			net_http.ServeFile(responseWriter, request, returnedFilePathString)
+			net_http.ServeFile(responseWriter, request, fileStreamPathString)
 
 			// delete, if required
-			_, removeFileExists := typedResponse.Headers["X-nuclio-filestream-delete-after-send"]
-			if removeFileExists {
-				if err := os.Remove(returnedFilePathString); err != nil {
+			if fileStreamDeleteAfterSend {
+				if err := os.Remove(fileStreamPathString); err != nil {
 					h.Logger.WarnWith("Failed to remove file after sending",
 						"err", err.Error(),
-						"path", returnedFilePathString)
+						"path", fileStreamPathString)
 				}
 			}
 		} else {
