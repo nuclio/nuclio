@@ -23,6 +23,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/golang"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
@@ -62,95 +63,119 @@ func (suite *TestSuite) TestOutputs() {
 	createFunctionOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("_outputter"))
 
-	testRequests := []*httpsuite.Request{
-		{
-			Name:                       "error-check",
-			RequestBody:                "return_body_error",
-			ExpectedResponseHeaders:    headersContentTypeTextPlain,
-			ExpectedResponseBody:       "error string body",
-			ExpectedResponseStatusCode: &badRequest,
-		},
-		{
-			Name:                       "string",
-			RequestBody:                "return_string",
-			ExpectedResponseHeaders:    headersContentTypeTextPlain,
-			ExpectedResponseBody:       "a string",
-			ExpectedResponseStatusCode: &statusOK,
-		},
-		{
-			Name:                       "bytes",
-			RequestBody:                "return_bytes",
-			ExpectedResponseHeaders:    headersContentTypeTextPlain,
-			ExpectedResponseBody:       "bytes",
-			ExpectedResponseStatusCode: &statusOK,
-		},
-		{
-			Name:                       "panic",
-			RequestBody:                "panic",
-			ExpectedResponseStatusCode: &statusInternalError,
-		},
-		{
-			Name:           "response object",
-			RequestHeaders: map[string]interface{}{"a": "1", "b": "2"},
-			RequestBody:    "return_response",
-			ExpectedResponseHeaders: map[string]string{
-				"a":            "1",
-				"b":            "2",
-				"h1":           "v1",
-				"h2":           "v2",
-				"Content-Type": "text/plain; charset=utf-8",
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		testRequests := []httpsuite.Request{
+			{
+				Name:                       "error-check",
+				RequestBody:                "return_body_error",
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "error string body",
+				ExpectedResponseStatusCode: &badRequest,
 			},
-			ExpectedResponseBody:       "response body",
-			ExpectedResponseStatusCode: &statusCreated,
-		},
-		{
-			Name:                       "logs - debug",
-			RequestBody:                "log",
-			RequestLogLevel:            &logLevelDebug,
-			ExpectedResponseHeaders:    headersContentTypeTextPlain,
-			ExpectedResponseBody:       "returned logs",
-			ExpectedResponseStatusCode: &statusOK,
-			ExpectedLogMessages: []string{
-				"Debug message",
-				"Info message",
-				"Warn message",
-				"Error message",
+			{
+				Name:                       "string",
+				RequestBody:                "return_string",
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "a string",
+				ExpectedResponseStatusCode: &statusOK,
 			},
-		},
-		{
-			Name:                       "logs - warn",
-			RequestBody:                "log",
-			RequestLogLevel:            &logLevelWarn,
-			ExpectedResponseHeaders:    headersContentTypeTextPlain,
-			ExpectedResponseBody:       "returned logs",
-			ExpectedResponseStatusCode: &statusOK,
-			ExpectedLogMessages: []string{
-				"Warn message",
-				"Error message",
+			{
+				Name:                       "bytes",
+				RequestBody:                "return_bytes",
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "bytes",
+				ExpectedResponseStatusCode: &statusOK,
 			},
-		},
-		{
-			Name:                 "GET",
-			RequestMethod:        "GET",
-			ExpectedResponseBody: "GET",
-		},
-		{
-			Name:                       "fields",
-			RequestPath:                "/?x=1&y=2",
-			RequestBody:                "return_fields",
-			RequestLogLevel:            &logLevelWarn,
-			ExpectedResponseHeaders:    headersContentTypeTextPlain,
-			ExpectedResponseBody:       "x=1,y=2",
-			ExpectedResponseStatusCode: &statusOK,
-		},
-		{
-			Name:                 "path",
-			RequestBody:          "return_path",
-			RequestPath:          testPath,
-			ExpectedResponseBody: testPath,
-		},
-	}
-	suite.DeployFunctionAndRequests(createFunctionOptions, testRequests)
+			{
+				Name:                       "panic",
+				RequestBody:                "panic",
+				ExpectedResponseStatusCode: &statusInternalError,
+			},
+			{
+				Name:           "response object",
+				RequestHeaders: map[string]interface{}{"a": "1", "b": "2"},
+				RequestBody:    "return_response",
+				ExpectedResponseHeaders: map[string]string{
+					"a":            "1",
+					"b":            "2",
+					"h1":           "v1",
+					"h2":           "v2",
+					"Content-Type": "text/plain; charset=utf-8",
+				},
+				ExpectedResponseBody:       "response body",
+				ExpectedResponseStatusCode: &statusCreated,
+			},
+			{
+				Name:                       "logs - debug",
+				RequestBody:                "log",
+				RequestLogLevel:            &logLevelDebug,
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "returned logs",
+				ExpectedResponseStatusCode: &statusOK,
+				ExpectedLogMessages: []string{
+					"Debug message",
+					"Info message",
+					"Warn message",
+					"Error message",
+				},
+			},
+			{
+				Name:                       "logs - warn",
+				RequestBody:                "log",
+				RequestLogLevel:            &logLevelWarn,
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "returned logs",
+				ExpectedResponseStatusCode: &statusOK,
+				ExpectedLogMessages: []string{
+					"Warn message",
+					"Error message",
+				},
+			},
+			{
+				Name:                 "GET",
+				RequestMethod:        "GET",
+				ExpectedResponseBody: "GET",
+			},
+			{
+				Name:                       "fields",
+				RequestPath:                "/?x=1&y=2",
+				RequestBody:                "return_fields",
+				RequestLogLevel:            &logLevelWarn,
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "x=1,y=2",
+				ExpectedResponseStatusCode: &statusOK,
+			},
+			{
+				Name:                 "path",
+				RequestBody:          "return_path",
+				RequestPath:          testPath,
+				ExpectedResponseBody: testPath,
+			},
+		}
+
+		for _, testRequest := range testRequests {
+			suite.Logger.DebugWith("Running sub test", "name", testRequest.Name)
+
+			// set defaults
+			if testRequest.RequestPort == 0 {
+				testRequest.RequestPort = deployResult.Port
+			}
+
+			if testRequest.RequestMethod == "" {
+				testRequest.RequestMethod = "POST"
+			}
+
+			if testRequest.RequestPath == "" {
+				testRequest.RequestPath = "/"
+			}
+
+			if !suite.SendRequestVerifyResponse(&testRequest) {
+				return false
+			}
+		}
+
+		return true
+	})
 }
 
 func (suite *TestSuite) TestCustomEvent() {
@@ -163,36 +188,47 @@ func (suite *TestSuite) TestCustomEvent() {
 		"Testheaderkey1": "testHeaderValue1",
 		"Testheaderkey2": "testHeaderValue2",
 	}
-	bodyVerifier := func(body []byte) {
-		unmarshalledBody := httpsuite.EventFields{}
 
-		// read the body JSON
-		err := json.Unmarshal(body, &unmarshalledBody)
-		suite.Require().NoError(err, "Can't decode JSON response")
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		bodyVerifier := func(body []byte) {
+			unmarshalledBody := httpsuite.EventFields{}
 
-		decodedBody, err := base64.StdEncoding.DecodeString(unmarshalledBody.Body)
-		suite.Require().NoError(err, "Can't decode body as base64")
+			// read the body JSON
+			err := json.Unmarshal(body, &unmarshalledBody)
+			suite.Require().NoError(err, "Can't decode JSON response")
 
-		suite.Require().Equal("testBody", string(decodedBody))
-		suite.Require().Equal(requestPath, unmarshalledBody.Path)
-		suite.Require().Equal(requestMethod, unmarshalledBody.Method)
-		suite.Require().Equal("http", unmarshalledBody.TriggerKind)
+			decodedBody, err := base64.StdEncoding.DecodeString(unmarshalledBody.Body)
+			suite.Require().NoError(err, "Can't decode body as base64")
 
-		// compare known headers
-		for requestHeaderKey, requestHeaderValue := range requestHeaders {
-			suite.Require().Equal(requestHeaderValue, unmarshalledBody.Headers[requestHeaderKey])
+			suite.Require().Equal("testBody", string(decodedBody))
+			suite.Require().Equal(requestPath, unmarshalledBody.Path)
+			suite.Require().Equal(requestMethod, unmarshalledBody.Method)
+			suite.Require().Equal("http", unmarshalledBody.TriggerKind)
+
+			// compare known headers
+			for requestHeaderKey, requestHeaderValue := range requestHeaders {
+				suite.Require().Equal(requestHeaderValue, unmarshalledBody.Headers[requestHeaderKey])
+			}
+
+			// ID must be a UUID
+			_, err = uuid.FromString(string(unmarshalledBody.ID))
+			suite.Require().NoError(err)
 		}
 
-		// ID must be a UUID
-		_, err = uuid.FromString(string(unmarshalledBody.ID))
-		suite.Require().NoError(err)
-	}
-	suite.DeployFunctionAndRequest(createFunctionOptions, &httpsuite.Request{
-		RequestBody:          "testBody",
-		RequestHeaders:       requestHeaders,
-		RequestMethod:        requestMethod,
-		RequestPath:          requestPath,
-		ExpectedResponseBody: bodyVerifier,
+		testRequest := httpsuite.Request{
+			RequestBody:          "testBody",
+			RequestHeaders:       requestHeaders,
+			RequestPort:          deployResult.Port,
+			RequestMethod:        requestMethod,
+			RequestPath:          requestPath,
+			ExpectedResponseBody: bodyVerifier,
+		}
+
+		if !suite.SendRequestVerifyResponse(&testRequest) {
+			return false
+		}
+
+		return true
 	})
 }
 
