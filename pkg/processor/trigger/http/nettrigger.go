@@ -19,8 +19,9 @@ package http
 import (
 	"context"
 	"encoding/json"
-	"github.com/nuclio/nuclio-sdk-go"
+	"io"
 	net_http "net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 )
 
@@ -92,12 +94,12 @@ func newNetTrigger(logger logger.Logger,
 }
 
 func (h *nethttp) Start(checkpoint functionconfig.Checkpoint) error {
-	h.Logger.InfoWith("Starting",
+	h.Logger.InfoWith("Starting net/http server",
 		"listenAddress", h.configuration.URL,
 		"readBufferSize", h.configuration.ReadBufferSize)
 
 	h.server = &net_http.Server{
-		Addr: h.configuration.URL,
+		Addr:    h.configuration.URL,
 		Handler: h,
 	}
 
@@ -148,7 +150,7 @@ func (h *nethttp) TimeoutWorker(worker *worker.Worker) error {
 	h.activeContexts[workerIndex] = nil
 
 	ctx.WriteHeader(net_http.StatusRequestTimeout)
-	ctx.Write(timeoutResponse)
+	ctx.Write(timeoutResponse) // nolint: errcheck
 	return nil
 }
 
@@ -227,7 +229,7 @@ func (h *nethttp) ServeHTTP(responseWriter net_http.ResponseWriter, request *net
 		bufferLogger, _ = h.bufferLoggerPool.Allocate(nil)
 
 		// set the logger level
-		bufferLogger.Logger.SetLevel(nucliozap.GetLevelByName(string(responseLogLevel)))
+		bufferLogger.Logger.SetLevel(nucliozap.GetLevelByName(responseLogLevel))
 
 		// write open bracket for JSON
 		bufferLogger.Buffer.Write([]byte("["))
@@ -313,16 +315,20 @@ func (h *nethttp) ServeHTTP(responseWriter net_http.ResponseWriter, request *net
 		}
 
 		responseWriter.WriteHeader(statusCode)
-		responseWriter.Write([]byte(processError.Error()))
+		h.writeBody(responseWriter, []byte(processError.Error()), "process error")
+
 		return
 	}
 
 	// format the response into the context, based on its type
 	switch typedResponse := response.(type) {
 	case nuclio.Response:
+		returnedFilePathHeaderKey := "X-nuclio-filestream-path"
+		returnedFilePath, returnedFilePathExists := typedResponse.Headers[returnedFilePathHeaderKey]
 
-		// set body
-		responseWriter.Write(typedResponse.Body)
+		if returnedFilePathExists {
+			delete(typedResponse.Headers, returnedFilePathHeaderKey)
+		}
 
 		// set headers
 		for headerKey, headerValue := range typedResponse.Headers {
@@ -339,16 +345,36 @@ func (h *nethttp) ServeHTTP(responseWriter net_http.ResponseWriter, request *net
 			responseWriter.Header().Set("Content-Type", typedResponse.ContentType)
 		}
 
-		// set status code if set
-		if typedResponse.StatusCode != 0 {
-			responseWriter.WriteHeader(typedResponse.StatusCode)
+		// set body
+		if returnedFilePathExists {
+			returnedFilePathString := returnedFilePath.(string)
+
+			// serve the file
+			net_http.ServeFile(responseWriter, request, returnedFilePathString)
+
+			// delete, if required
+			_, removeFileExists := typedResponse.Headers["X-nuclio-filestream-delete-after-send"]
+			if removeFileExists {
+				if err := os.Remove(returnedFilePathString); err != nil {
+					h.Logger.WarnWith("Failed to remove file after sending",
+						"err", err.Error(),
+						"path", returnedFilePathString)
+				}
+			}
+		} else {
+			// set status code if set
+			if typedResponse.StatusCode != 0 {
+				responseWriter.WriteHeader(typedResponse.StatusCode)
+			}
+
+			h.writeBody(responseWriter, typedResponse.Body, "response return")
 		}
 
 	case []byte:
-		responseWriter.Write(typedResponse) // nolint: errcheck
+		h.writeBody(responseWriter, typedResponse, "bytes return")
 
 	case string:
-		responseWriter.Write([]byte(typedResponse)) // nolint: errcheck
+		h.writeBody(responseWriter, []byte(typedResponse), "string return")
 	}
 }
 
@@ -356,5 +382,11 @@ func (h *nethttp) allocateEvents(size int) {
 	h.events = make([]NetEvent, size)
 	for i := 0; i < size; i++ {
 		h.events[i] = NetEvent{}
+	}
+}
+
+func (h *nethttp) writeBody(responseWriter io.Writer, body []byte, action string) {
+	if _, err := responseWriter.Write(body); err != nil {
+		h.Logger.WarnWith("Failed to write body", "action", action, "err", err.Error())
 	}
 }

@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/golang"
+	callfunction "github.com/nuclio/nuclio/pkg/processor/test/callfunction/golang"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -44,8 +44,8 @@ func (suite *TestSuite) SetupTest() {
 	suite.Runtime = "golang"
 	suite.RuntimeDir = "golang"
 	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "golang", "test")
-	suite.CloudEventsTestSuite.HTTPSuite = &suite.TestSuite
-	suite.CallFunctionTestSuite.HTTPSuite = &suite.TestSuite
+	//suite.CloudEventsTestSuite.HTTPSuite = &suite.TestSuite
+	//suite.CallFunctionTestSuite.HTTPSuite = &suite.TestSuite
 }
 
 func (suite *TestSuite) TestOutputs() {

@@ -27,7 +27,7 @@ import (
 
 type NetEvent struct {
 	nuclio.AbstractEvent
-	request *net_http.Request
+	request        *net_http.Request
 	responseWriter net_http.ResponseWriter
 }
 

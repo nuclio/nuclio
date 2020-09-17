@@ -36,5 +36,19 @@ func builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, e
 		"ShardID", event.GetShardID(),
 		"Body", string(event.GetBody()))
 
-	return "Built in handler called", nil
+	return nuclio.Response{
+		StatusCode:  201,
+		ContentType: "application/json",
+		Headers: map[string]interface{}{
+			"str": "s",
+			"int": 30,
+			// "X-nuclio-file-path": "/Users/erand/Development/nuclio-configs/processor/golang.yaml",
+			"X-nuclio-filestream-path":              "/Users/erand/Downloads/hgzoswubqrou-provisioning.log",
+			"X-nuclio-filestream-delete-after-send": true,
+		},
+		Body: []byte("adsasdasdas"),
+	}, nil
+
+	//context.Logger.Warn("SOME WARNING")
+	//return nil, nuclio.NewErrConflict("Bah")
 }
