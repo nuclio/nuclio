@@ -25,7 +25,7 @@ The HTTP trigger normally uses [fasthttp](https://github.com/valyala/fasthttp) f
 Once the HTTP trigger is configured, should a function handler wish to stream back a file - it simply needs to set the following headers in its response (case insensitive):
 
 - **X-nuclio-filestream-path**: The path of the file to be streamed back as a response. This must point to a file that is readable by the function container (e.g. in a volume or the local filesystem)
-- **X-nuclio-filestream-delete-after-send**: Delete the local file after sending it back
+- **X-nuclio-filestream-delete-after-send**: Delete the local file after sending it back. This can be set to any string value
 
 These headers will not be sent back to the client, but any other headers attached to the response will be returned normally. When providing these headers, the body of the response is ignored and should be empty. Any and all other HTTP trigger functionality continues to be supported when enabling file streaming.
 
