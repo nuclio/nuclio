@@ -27,7 +27,9 @@ Once the HTTP trigger is configured, should a function handler wish to stream ba
 - **X-nuclio-filestream-path**: The path of the file to be streamed back as a response. This must point to a file that is readable by the function container (e.g. in a volume or the local filesystem)
 - **X-nuclio-filestream-delete-after-send**: Delete the local file after sending it back
 
-These headers will not be sent back to the client, but any other headers attached to the response will be returned normally. When providing these headers, the body of the response is ignored and should be empty. Below are a few examples of handlers returning specifying file streaming:
+These headers will not be sent back to the client, but any other headers attached to the response will be returned normally. When providing these headers, the body of the response is ignored and should be empty. Any and all other HTTP trigger functionality continues to be supported when enabling file streaming.
+
+Below are a few examples of handlers returning specifying file streaming:
 
 Golang:
 ```golang
