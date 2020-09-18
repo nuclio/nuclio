@@ -63,7 +63,7 @@ NodeJS:
 exports.handler = function(context, event) {
     context.callback(new context.Response("some body", 
                                           {
-                                          	"some-additional-header": "some-value",
+                                            "some-additional-header": "some-value",
                                             "X-nuclio-filestream-path": "/etc/nuclio/config/processor/processor.yaml"  
                                           },
                                           "text/x-yaml",
