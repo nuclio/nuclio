@@ -18,7 +18,6 @@ package platform
 
 import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )
@@ -136,7 +135,7 @@ type Platform interface {
 	GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error)
 
 	// Get allowed authentication modes
-	GetAllowedAuthenticationModes() ([]ingress.AuthenticationMode, error)
+	GetAllowedAuthenticationModes() ([]string, error)
 
 	// GetNamespaces returns all the namespaces in the platform
 	GetNamespaces() ([]string, error)

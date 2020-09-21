@@ -19,6 +19,7 @@ package kube
 import (
 	"bytes"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/common"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -894,10 +895,10 @@ func (p *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, e
 	}
 }
 
-func (p *Platform) GetAllowedAuthenticationModes() ([]ingress.AuthenticationMode, error) {
+func (p *Platform) GetAllowedAuthenticationModes() ([]string, error) {
 	switch configType := p.Config.(type) {
 	case *platformconfig.Config:
-		allowedAuthenticationModes := []ingress.AuthenticationMode{ingress.AuthenticationModeNone, ingress.AuthenticationModeBasicAuth}
+		allowedAuthenticationModes := []string{string(ingress.AuthenticationModeNone), string(ingress.AuthenticationModeBasicAuth)}
 		if len(configType.IngressConfig.AllowedAuthenticationModes) > 0 {
 			allowedAuthenticationModes = configType.IngressConfig.AllowedAuthenticationModes
 		}
@@ -1094,7 +1095,7 @@ func (p *Platform) validateAPIGatewayAuthMode(apiGateway *nuclioio.NuclioAPIGate
 	if err != nil {
 		return errors.Wrap(err, "Failed getting allowed authentication modes")
 	}
-	if ingress.AuthenticationModeInSlice(apiGateway.Spec.AuthenticationMode, allowedAuthenticationModes) {
+	if common.StringInSlice(string(apiGateway.Spec.AuthenticationMode), allowedAuthenticationModes) {
 		return nuclio.NewErrBadRequest("Api gateway authnetication mode not allowed")
 	}
 

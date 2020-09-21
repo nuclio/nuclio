@@ -45,13 +45,3 @@ const (
 	AuthenticationModeAccessKey AuthenticationMode = "accessKey"
 	AuthenticationModeDex       AuthenticationMode = "dex"
 )
-
-func AuthenticationModeInSlice(authenticationMode AuthenticationMode, authenticationModeSlice []AuthenticationMode) bool {
-	for _, authenticationModeInSlice := range authenticationModeSlice {
-		if authenticationMode == authenticationModeInSlice {
-			return true
-		}
-	}
-
-	return false
-}

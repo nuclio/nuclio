@@ -3018,7 +3018,8 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		},
 		InactivityWindowPresets: []string{"1m", "2m"},
 	}
-	allowedAuthenticationModes := []ingress.AuthenticationMode{ingress.AuthenticationModeNone, ingress.AuthenticationModeBasicAuth}
+	allowedAuthenticationModes := []string{string(ingress.AuthenticationModeNone),
+		string(ingress.AuthenticationModeBasicAuth)}
 
 	suite.mockPlatform.
 		On("GetExternalIPAddresses").

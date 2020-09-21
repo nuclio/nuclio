@@ -18,8 +18,6 @@ package platformconfig
 
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
-
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -101,12 +99,12 @@ type Kubernetes struct {
 
 // default values for created ingresses
 type IngressConfig struct {
-	EnableSSLRedirect          bool                         `json:"enableSSLRedirect,omitempty"`
-	TLSSecret                  string                       `json:"tlsSecret,omitempty"`
-	IguazioAuthURL             string                       `json:"iguazioAuthURL,omitempty"`
-	IguazioSignInURL           string                       `json:"iguazioSignInURL,omitempty"`
-	AllowedAuthenticationModes []ingress.AuthenticationMode `json:"allowedAuthenticationModes,omitempty"`
-	Oauth2ProxyURL             string                       `json:"oauth2ProxyURL,omitempty"`
+	EnableSSLRedirect          bool     `json:"enableSSLRedirect,omitempty"`
+	TLSSecret                  string   `json:"tlsSecret,omitempty"`
+	IguazioAuthURL             string   `json:"iguazioAuthURL,omitempty"`
+	IguazioSignInURL           string   `json:"iguazioSignInURL,omitempty"`
+	AllowedAuthenticationModes []string `json:"allowedAuthenticationModes,omitempty"`
+	Oauth2ProxyURL             string   `json:"oauth2ProxyURL,omitempty"`
 }
 
 type CronTriggerCreationMode string
