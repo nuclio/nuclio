@@ -3043,7 +3043,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 
 	suite.mockPlatform.
 		On("GetAllowedAuthenticationModes").
-		Return(&allowedAuthenticationModes, nil).
+		Return(allowedAuthenticationModes, nil).
 		Once()
 
 	expectedStatusCode := http.StatusOK
