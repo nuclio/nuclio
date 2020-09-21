@@ -3018,6 +3018,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		},
 		InactivityWindowPresets: []string{"1m", "2m"},
 	}
+	allowedAuthenticationModes := []ingress.AuthenticationMode{ingress.AuthenticationModeNone, ingress.AuthenticationModeBasicAuth}
 
 	suite.mockPlatform.
 		On("GetExternalIPAddresses").
@@ -3037,6 +3038,11 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 	suite.mockPlatform.
 		On("GetScaleToZeroConfiguration").
 		Return(&scaleToZeroConfiguration, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetAllowedAuthenticationModes").
+		Return(&allowedAuthenticationModes, nil).
 		Once()
 
 	expectedStatusCode := http.StatusOK
@@ -3105,7 +3111,11 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
             }
         ]
     },
-	"platformKind": ""
+	"platformKind": "",
+	"allowedAuthenticationModes": [
+		"none",
+		"basicAuth"
+	]
 }`
 
 	suite.sendRequest("GET",
