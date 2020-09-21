@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 )
 
 // StringMapToString converts a map of a: x, b: y to a string in the form of "a=x,b=y"
@@ -101,6 +103,16 @@ func StringInSlice(a string, list []string) bool {
 			return true
 		}
 	}
+	return false
+}
+
+func IngressAuthenticationModeInSlice(ingressAuthenticationMode ingress.AuthenticationMode, ingressAuthenticationModeSlice []ingress.AuthenticationMode) bool {
+	for _, ingressAuthenticationModeInSlice := range ingressAuthenticationModeSlice {
+		if ingressAuthenticationMode == ingressAuthenticationModeInSlice {
+			return true
+		}
+	}
+
 	return false
 }
 
