@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -317,18 +318,9 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 	// get the authentication configuration for the request
 	authConfig, err := fr.getRequestAuthConfig(request)
 	if err != nil {
-
-		// get error
-		if errWithStatus, ok := err.(*nuclio.ErrorWithStatusCode); ok {
-			return &restful.CustomRouteFuncResponse{
-				Single:     true,
-				StatusCode: errWithStatus.StatusCode(),
-			}, err
-		}
-
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
-			StatusCode: http.StatusInternalServerError,
+			StatusCode: common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError),
 		}, err
 	}
 

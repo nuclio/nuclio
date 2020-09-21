@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -495,14 +496,9 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 
 	err = pr.getPlatform().DeleteProject(&deleteProjectOptions)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		if errWithStatus, ok := err.(*nuclio.ErrorWithStatusCode); ok {
-			statusCode = errWithStatus.StatusCode()
-		}
-
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
-			StatusCode: statusCode,
+			StatusCode: common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError),
 		}, err
 	}
 
@@ -533,19 +529,11 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 		Spec: *projectInfo.Spec,
 	}
 
-	err = pr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
+	if err = pr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
 		ProjectConfig: projectConfig,
-	})
-
-	if err != nil {
+	}); err != nil {
 		pr.Logger.WarnWith("Failed to update project", "err", err)
-	}
-
-	// if there was an error, try to get the status code
-	if err != nil {
-		if errWithStatusCode, ok := err.(nuclio.ErrorWithStatusCode); ok {
-			statusCode = errWithStatusCode.StatusCode()
-		}
+		statusCode = common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError)
 	}
 
 	// return the stuff
