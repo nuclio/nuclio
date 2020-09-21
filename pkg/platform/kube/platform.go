@@ -24,7 +24,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -1095,7 +1094,7 @@ func (p *Platform) validateAPIGatewayAuthMode(apiGateway *nuclioio.NuclioAPIGate
 	if err != nil {
 		return errors.Wrap(err, "Failed getting allowed authentication modes")
 	}
-	if common.IngressAuthenticationModeInSlice(apiGateway.Spec.AuthenticationMode, allowedAuthenticationModes) {
+	if ingress.AuthenticationModeInSlice(apiGateway.Spec.AuthenticationMode, allowedAuthenticationModes) {
 		return nuclio.NewErrBadRequest("Api gateway authnetication mode not allowed")
 	}
 
