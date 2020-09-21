@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     # let's not run this on every fork, comment this out when developing periodic on your fork
-    if: github.repository.fork == false
+    if: github.repository == 'nuclio/nuclio'
 
     steps:
     - name: Dump github context
