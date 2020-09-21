@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/go-chi/chi"
@@ -521,24 +522,6 @@ func (ar *AbstractResource) writeErrorReason(responseWriter io.Writer, err error
 	responseWriter.Write(serializedError) // nolint: errcheck
 }
 
-func (ar *AbstractResource) getStatusCodeFromError(err error, defaultStatusCode int) int {
-	if err == nil {
-		return defaultStatusCode
-	}
-
-	// see if the user returned an error with status code
-	switch typedError := err.(type) {
-	case nuclio.ErrorWithStatusCode:
-		return typedError.StatusCode()
-	case *nuclio.ErrorWithStatusCode:
-		return typedError.StatusCode()
-	case *errors.Error:
-		return http.StatusInternalServerError
-	default:
-		return defaultStatusCode
-	}
-}
-
 func (ar *AbstractResource) statusCodeIsError(statusCode int) bool {
 	return statusCode >= 400
 }
@@ -549,7 +532,7 @@ func (ar *AbstractResource) writeStatusCodeAndErrorReason(responseWriter http.Re
 	defaultStatusCode int) bool {
 
 	// get the status code from the error
-	statusCode := ar.getStatusCodeFromError(err, defaultStatusCode)
+	statusCode := common.ResolveErrorStatusCodeOrDefault(err, defaultStatusCode)
 
 	// if the status code is an actual error, write the error reason and return
 	if ar.statusCodeIsError(statusCode) {
