@@ -314,7 +314,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 	projectName := deleteProjectOptions.Meta.Name
 
 	if projectName == platform.DefaultProjectName {
-		return errors.New("Cannot delete the default project")
+		return nuclio.NewErrConflict("Cannot delete the default project")
 	}
 
 	if err := ap.validateProjectIsEmpty(deleteProjectOptions.Meta.Namespace, projectName); err != nil {

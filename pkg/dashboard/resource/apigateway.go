@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -147,8 +148,6 @@ func (agr *apiGatewayResource) Create(request *http.Request) (id string, attribu
 
 func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
-	statusCode := http.StatusNoContent
-
 	// get api gateway config and status from body
 	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request, true, false)
 	if err != nil {
@@ -170,18 +169,13 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 		APIGatewayConfig: apiGatewayConfig,
 	}); err != nil {
 		agr.Logger.WarnWith("Failed to update api gateway", "err", err)
-
-		// try to get the status code
-		if errWithStatusCode, ok := err.(nuclio.ErrorWithStatusCode); ok {
-			statusCode = errWithStatusCode.StatusCode()
-		}
 	}
 
 	// return the stuff
 	return &restful.CustomRouteFuncResponse{
 		ResourceType: "apiGateway",
 		Single:       true,
-		StatusCode:   statusCode,
+		StatusCode:   common.ResolveErrorStatusCodeOrDefault(err, http.StatusNoContent),
 	}, err
 }
 
@@ -273,16 +267,9 @@ func (agr *apiGatewayResource) deleteAPIGateway(request *http.Request) (*restful
 	deleteAPIGatewayOptions.Meta = *apiGatewayInfo.Meta
 
 	if err = agr.getPlatform().DeleteAPIGateway(&deleteAPIGatewayOptions); err != nil {
-		statusCode := http.StatusInternalServerError
-
-		// set specific error status code if exists
-		if errWithStatus, ok := err.(*nuclio.ErrorWithStatusCode); ok {
-			statusCode = errWithStatus.StatusCode()
-		}
-
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
-			StatusCode: statusCode,
+			StatusCode: common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError),
 		}, err
 	}
 
