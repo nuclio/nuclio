@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/config"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -878,6 +879,23 @@ func (p *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, e
 	// will be of type *config.Configuration which has no scale to zero configuration
 	// we need to fix the platform config (p.Config) to always be of the same type (*platformconfig.Config) and not
 	// passing interface{} everywhere
+	case *config.Configuration:
+		return nil, nil
+	default:
+		return nil, errors.New("Not a valid configuration instance")
+	}
+}
+
+func (p *Platform) GetAllowedAuthenticationModes() ([]ingress.AuthenticationMode, error) {
+	switch configType := p.Config.(type) {
+	case *platformconfig.Config:
+		allowedAuthenticationModes := []ingress.AuthenticationMode{ingress.AuthenticationModeNone, ingress.AuthenticationModeBasicAuth}
+		if len(configType.IngressConfig.AllowedAuthenticationModes) > 0 {
+			allowedAuthenticationModes = configType.IngressConfig.AllowedAuthenticationModes
+		}
+		return allowedAuthenticationModes, nil
+
+	// FIXME: see comment in GetScaleToZeroConfiguration
 	case *config.Configuration:
 		return nil, nil
 	default:

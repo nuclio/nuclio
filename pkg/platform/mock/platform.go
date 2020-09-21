@@ -3,6 +3,7 @@ package mock
 import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
@@ -198,6 +199,11 @@ func (mp *Platform) GetExternalIPAddresses() ([]string, error) {
 func (mp *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error) {
 	args := mp.Called()
 	return args.Get(0).(*platformconfig.ScaleToZero), args.Error(1)
+}
+
+func (mp *Platform) GetAllowedAuthenticationModes() ([]ingress.AuthenticationMode, error) {
+	args := mp.Called()
+	return args.Get(0).([]ingress.AuthenticationMode), args.Error(1)
 }
 
 // GetHealthCheckMode returns the healthcheck mode the platform requires

@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -476,6 +477,10 @@ func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
 }
 
 func (ap *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error) {
+	return nil, nil
+}
+
+func (ap *Platform) GetAllowedAuthenticationModes() ([]ingress.AuthenticationMode, error) {
 	return nil, nil
 }
 
