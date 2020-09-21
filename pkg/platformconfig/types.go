@@ -100,10 +100,12 @@ type Kubernetes struct {
 
 // default values for created ingresses
 type IngressConfig struct {
-	EnableSSLRedirect bool   `json:"enableSSLRedirect,omitempty"`
-	TLSSecret         string `json:"tlsSecret,omitempty"`
-	IguazioAuthURL    string `json:"iguazioAuthURL,omitempty"`
-	IguazioSignInURL  string `json:"iguazioSignInURL,omitempty"`
+	EnableSSLRedirect          bool     `json:"enableSSLRedirect,omitempty"`
+	TLSSecret                  string   `json:"tlsSecret,omitempty"`
+	IguazioAuthURL             string   `json:"iguazioAuthURL,omitempty"`
+	IguazioSignInURL           string   `json:"iguazioSignInURL,omitempty"`
+	AllowedAuthenticationModes []string `json:"allowedAuthenticationModes,omitempty"`
+	Oauth2ProxyURL             string   `json:"oauth2ProxyURL,omitempty"`
 }
 
 type CronTriggerCreationMode string

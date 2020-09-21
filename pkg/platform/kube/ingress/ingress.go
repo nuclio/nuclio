@@ -375,12 +375,17 @@ func (m *Manager) compileAuthAnnotations(ctx context.Context, spec Spec) (map[st
 
 func (m *Manager) compileDexAuthAnnotations(spec Spec) (map[string]string, error) {
 
-	if spec.Authentication == nil || spec.Authentication.DexAuth == nil {
-		return nil, errors.New("Dex auth spec is missing")
+	oauth2ProxyURL := m.platformConfiguration.IngressConfig.Oauth2ProxyURL
+	if spec.Authentication != nil && spec.Authentication.DexAuth != nil && spec.Authentication.DexAuth.Oauth2ProxyURL != "" {
+		oauth2ProxyURL = spec.Authentication.DexAuth.Oauth2ProxyURL
 	}
 
-	authURL := fmt.Sprintf("%s/oauth2/auth", spec.Authentication.DexAuth.Oauth2ProxyURL)
-	signinURL := fmt.Sprintf("%s/oauth2/start?rd=https://$host$escaped_request_uri", spec.Authentication.DexAuth.Oauth2ProxyURL)
+	if oauth2ProxyURL == "" {
+		return nil, errors.New("Oauth2 proxy URL is missing")
+	}
+
+	authURL := fmt.Sprintf("%s/oauth2/auth", oauth2ProxyURL)
+	signinURL := fmt.Sprintf("%s/oauth2/start?rd=https://$host$escaped_request_uri", oauth2ProxyURL)
 
 	return map[string]string{
 		"nginx.ingress.kubernetes.io/auth-response-headers": "Authorization",

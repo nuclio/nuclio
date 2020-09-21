@@ -479,6 +479,10 @@ func (ap *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, 
 	return nil, nil
 }
 
+func (ap *Platform) GetAllowedAuthenticationModes() ([]string, error) {
+	return nil, nil
+}
+
 // ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
 func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	return ""

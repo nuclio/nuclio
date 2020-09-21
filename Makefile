@@ -353,6 +353,7 @@ modules: ensure-gopath
 lint: modules
 	@echo Installing linters...
 	@test -e $(GOPATH)/bin/impi || \
+		mkdir -p $(GOPATH)/bin && \
 		curl -s https://api.github.com/repos/pavius/impi/releases/latest \
 			| grep -i "browser_download_url.*impi.*$(OS_NAME)" \
 			| cut -d : -f 2,3 \

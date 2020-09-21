@@ -200,6 +200,11 @@ func (mp *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, 
 	return args.Get(0).(*platformconfig.ScaleToZero), args.Error(1)
 }
 
+func (mp *Platform) GetAllowedAuthenticationModes() ([]string, error) {
+	args := mp.Called()
+	return args.Get(0).([]string), args.Error(1)
+}
+
 // GetHealthCheckMode returns the healthcheck mode the platform requires
 func (mp *Platform) GetHealthCheckMode() platform.HealthCheckMode {
 	args := mp.Called()

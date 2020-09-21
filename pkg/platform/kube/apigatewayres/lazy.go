@@ -266,15 +266,7 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 			},
 		}
 	case ingress.AuthenticationModeDex:
-		if apiGateway.Spec.Authentication == nil || apiGateway.Spec.Authentication.DexAuth == nil {
-			return nil, errors.New("Dex auth specified but missing dex auth spec")
-		}
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeDex
-		commonIngressSpec.Authentication = &ingress.Authentication{
-			DexAuth: &ingress.DexAuth{
-				Oauth2ProxyURL: apiGateway.Spec.Authentication.DexAuth.Oauth2ProxyURL,
-			},
-		}
 	case ingress.AuthenticationModeAccessKey:
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeAccessKey
 	default:

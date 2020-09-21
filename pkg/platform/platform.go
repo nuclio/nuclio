@@ -134,6 +134,9 @@ type Platform interface {
 	// Get scale to zero configuration
 	GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error)
 
+	// Get allowed authentication modes
+	GetAllowedAuthenticationModes() ([]string, error)
+
 	// GetNamespaces returns all the namespaces in the platform
 	GetNamespaces() ([]string, error)
 
