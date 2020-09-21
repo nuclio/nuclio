@@ -19,12 +19,12 @@ package kube
 import (
 	"bytes"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/common"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
