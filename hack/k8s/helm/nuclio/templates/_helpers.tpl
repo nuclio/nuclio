@@ -53,9 +53,19 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "nuclio.registryCredentialsName" -}}
+
+{{/*
+Resolve the effective docker registry url and secret Name allowing for global values
+*/}}
+{{- define "nuclio.registry.url" -}}
+{{ default .Values.registry.pushPullUrl .Values.global.registry.url }}
+{{- end -}}
+
+{{- define "nuclio.registry.credentialsSecretName" -}}
 {{- if .Values.registry.secretName -}}
 {{- .Values.registry.secretName -}}
+{{- else if .Values.global.registry.secretName -}}
+{{- .Values.global.registry.secretName -}}
 {{- else if .Values.registry.credentials -}}
 {{- printf "%s-registry-credentials" (include "nuclio.fullName" .) | trunc 63 -}}
 {{- else -}}
@@ -63,7 +73,7 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "nuclio.registryPushPullUrlName" -}}
+{{- define "nuclio.registry.pushPullUrlName" -}}
 {{- printf "%s-registry-url" (include "nuclio.fullName" .) | trunc 63 -}}
 {{- end -}}
 

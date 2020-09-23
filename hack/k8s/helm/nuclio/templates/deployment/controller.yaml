@@ -45,7 +45,7 @@ spec:
         imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
         env:
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
-          value: {{ template "nuclio.registryCredentialsName" . }}
+          value: {{ template "nuclio.registry.credentialsSecretName" . }}
         - name: NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME
           value: {{ .Values.controller.cronTriggerCronJobImage.repository }}:{{ .Values.controller.cronTriggerCronJobImage.tag }}
         - name: NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_PULL_POLICY
