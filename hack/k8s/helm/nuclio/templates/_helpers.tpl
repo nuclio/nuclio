@@ -62,6 +62,6 @@
 {{- printf "%s-crd-admin" (include "nuclio.nuclioName" .) | trunc 63 -}}
 {{- end -}}
 
-{{- define "nuclio.platformName" -}}
+{{- define "nuclio.platformConfigName" -}}
 {{- printf "%s-platform-config" (include "nuclio.nuclioName" .) | trunc 63 -}}
 {{- end -}}

@@ -16,7 +16,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ template "nuclio.platformName" . }}
+  name: {{ template "nuclio.platformConfigName" . }}
   labels:
     app: {{ template "nuclio.nuclioName" . }}
     release: {{ .Release.Name }}
