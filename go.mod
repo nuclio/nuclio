@@ -51,6 +51,7 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/tedsuo/ifrit v0.0.0-20191009134036-9a97d0632f00 // indirect
 	github.com/tsenart/vegeta v6.3.0+incompatible
+	github.com/v3io/scaler v0.4.0
 	github.com/v3io/scaler-types v1.7.0
 	github.com/v3io/v3io-go v0.1.9
 	github.com/v3io/v3io-go-http v0.0.1
@@ -64,6 +65,7 @@ require (
 	k8s.io/api v0.15.12
 	k8s.io/apimachinery v0.15.12
 	k8s.io/client-go v0.15.12
+	k8s.io/metrics v0.15.12
 	pack.ag/amqp v0.12.5
 )
 
