@@ -1,6 +1,6 @@
 # possible release name overrides
 # nameOverride:
-# fullNameOverride:
+# fullnameOverride:
 
 # if true, all components assume no internet connectivity
 offline: false

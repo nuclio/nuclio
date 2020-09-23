@@ -17,12 +17,12 @@
 {{- end -}}
 
 {{- define "nuclio.fullName" -}}
-{{- if .Values.fullNameOverride -}}
-{{- .Values.fullNameOverride | trunc 63 | trimSuffix "-" -}}
+{{- if .Values.fullnameOverride -}}
+{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
 {{- $name := (include "nuclio.name" .) -}}
 {{- if contains $name .Release.Name -}}
-{{- $name -}}
+{{- .Release.Name -}}
 {{- else -}}
 {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
