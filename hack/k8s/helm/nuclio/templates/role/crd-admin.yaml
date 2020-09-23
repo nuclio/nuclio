@@ -19,7 +19,7 @@ kind: ClusterRole
 metadata:
   name: {{ template "nuclio.crdAdminName" . }}-clusterrole
   labels:
-    app: {{ template "nuclio.nuclioName" . }}
+    app: {{ template "nuclio.name" . }}
     release: {{ .Release.Name }}
 rules:
   - apiGroups: [""]
@@ -42,7 +42,7 @@ kind: Role
 metadata:
   name: {{ template "nuclio.crdAdminName" . }}-role
   labels:
-    app: {{ template "nuclio.nuclioName" . }}
+    app: {{ template "nuclio.name" . }}
     release: {{ .Release.Name }}
 rules:
   - apiGroups: ["nuclio.io"]

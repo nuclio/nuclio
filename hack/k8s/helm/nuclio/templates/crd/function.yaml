@@ -18,7 +18,7 @@ kind: CustomResourceDefinition
 metadata:
   name: nucliofunctions.nuclio.io
   labels:
-    app: {{ template "nuclio.nuclioName" . }}
+    app: {{ template "nuclio.name" . }}
     release: {{ .Release.Name }}
 spec:
   group: nuclio.io

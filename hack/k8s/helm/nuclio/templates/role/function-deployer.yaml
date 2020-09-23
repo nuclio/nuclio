@@ -26,7 +26,7 @@ metadata:
   name: {{ template "nuclio.functionDeployerName" . }}-role
 {{- end }}
   labels:
-    app: {{ template "nuclio.nuclioName" . }}
+    app: {{ template "nuclio.name" . }}
     release: {{ .Release.Name }}
 rules:
 - apiGroups: [""]

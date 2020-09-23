@@ -20,7 +20,7 @@ kind: ClusterRoleBinding
 metadata:
   name: {{ template "nuclio.crdAdminName" . }}-clusterrolebinding
   labels:
-    app: {{ template "nuclio.nuclioName" . }}
+    app: {{ template "nuclio.name" . }}
     release: {{ .Release.Name }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -39,7 +39,7 @@ kind: RoleBinding
 metadata:
   name: {{ template "nuclio.crdAdminName" . }}-rolebinding
   labels:
-    app: {{ template "nuclio.nuclioName" . }}
+    app: {{ template "nuclio.name" . }}
     release: {{ .Release.Name }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io

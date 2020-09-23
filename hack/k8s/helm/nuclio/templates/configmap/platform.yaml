@@ -18,7 +18,7 @@ kind: ConfigMap
 metadata:
   name: {{ template "nuclio.platformConfigName" . }}
   labels:
-    app: {{ template "nuclio.nuclioName" . }}
+    app: {{ template "nuclio.name" . }}
     release: {{ .Release.Name }}
 data:
   platform.yaml: |
