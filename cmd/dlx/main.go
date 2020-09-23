@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
 	"os"
 
 	"github.com/nuclio/nuclio/cmd/dlx/app"
@@ -51,6 +52,9 @@ func getNamespace(namespaceArgument string) string {
 		return namespaceEnv
 	}
 
-	// if nothing was passed, assume "this" namespace
-	return "@nuclio.selfNamespace"
+	if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+		return string(namespacePod)
+	}
+
+	return "default"
 }
