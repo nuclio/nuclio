@@ -17,26 +17,26 @@
 {{- end -}}
 
 {{- define "nuclio.controllerName" -}}
-{{- printf "%s-controller" .Release.Name | trunc 63 -}}
+{{- printf "%s-controller" (include "nuclio.nuclioName" .) | trunc 63 -}}
 {{- end -}}
 
 {{- define "nuclio.scalerName" -}}
-{{- printf "%s-scaler" .Release.Name | trunc 63 -}}
+{{- printf "%s-scaler" (include "nuclio.nuclioName" .) | trunc 63 -}}
 {{- end -}}
 
 {{- define "nuclio.dlxName" -}}
-{{- printf "%s-dlx" .Release.Name | trunc 63 -}}
+{{- printf "%s-dlx" (include "nuclio.nuclioName" .) | trunc 63 -}}
 {{- end -}}
 
 {{- define "nuclio.dashboardName" -}}
-{{- printf "%s-dashboard" .Release.Name | trunc 63 -}}
+{{- printf "%s-dashboard" (include "nuclio.nuclioName" .) | trunc 63 -}}
 {{- end -}}
 
 {{- define "nuclio.serviceAccountName" -}}
 {{- if .Values.rbac.serviceAccountName -}}
 {{- .Values.rbac.serviceAccountName -}}
 {{- else -}}
-{{- .Release.Name -}}
+{{- template "nuclio.nuclioName" . -}}
 {{- end -}}
 {{- end -}}
 
@@ -44,24 +44,24 @@
 {{- if .Values.registry.secretName -}}
 {{- .Values.registry.secretName -}}
 {{- else if .Values.registry.credentials -}}
-{{- printf "%s-registry-credentials" .Release.Name -}}
+{{- printf "%s-registry-credentials" (include "nuclio.nuclioName" .) | trunc 63 -}}
 {{- else -}}
 {{- printf "" -}}
 {{- end -}}
 {{- end -}}
 
 {{- define "nuclio.registryPushPullUrlName" -}}
-{{- printf "%s-registry-url" .Release.Name -}}
+{{- printf "%s-registry-url" (include "nuclio.nuclioName" .) | trunc 63 -}}
 {{- end -}}
 
 {{- define "nuclio.functionDeployerName" -}}
-{{- printf "%s-function-deployer" .Release.Name -}}
+{{- printf "%s-function-deployer" (include "nuclio.nuclioName" .) | trunc 63 -}}
 {{- end -}}
 
 {{- define "nuclio.crdAdminName" -}}
-{{- printf "%s-crd-admin" .Release.Name -}}
+{{- printf "%s-crd-admin" (include "nuclio.nuclioName" .) | trunc 63 -}}
 {{- end -}}
 
 {{- define "nuclio.platformName" -}}
-{{- printf "platform-config" -}}
+{{- printf "%a-platform-config" (include "nuclio.nuclioName" .) | trunc 63 -}}
 {{- end -}}
