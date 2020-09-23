@@ -21,5 +21,5 @@ metadata:
     app: {{ template "nuclio.name" . }}
     release: {{ .Release.Name }}
 data:
-  registry_url: {{ template  "nuclio.registry.url" .}}
+  registry_url: {{ template  "nuclio.registry.url" . }}
 {{- end }}
