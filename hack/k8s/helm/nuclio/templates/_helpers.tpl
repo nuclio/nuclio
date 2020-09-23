@@ -63,5 +63,5 @@
 {{- end -}}
 
 {{- define "nuclio.platformName" -}}
-{{- printf "%a-platform-config" (include "nuclio.nuclioName" .) | trunc 63 -}}
+{{- printf "%s-platform-config" (include "nuclio.nuclioName" .) | trunc 63 -}}
 {{- end -}}
