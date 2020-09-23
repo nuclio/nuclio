@@ -21,7 +21,7 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ template "nuclio.nuclioName" . }}
+      app: {{ template "nuclio.name" . }}
       release: {{ .Release.Name }}
       nuclio.io/app: controller
       nuclio.io/class: service
@@ -29,7 +29,7 @@ spec:
   template:
     metadata:
       labels:
-        app: {{ template "nuclio.nuclioName" . }}
+        app: {{ template "nuclio.name" . }}
         release: {{ .Release.Name }}
         nuclio.io/app: controller
         nuclio.io/class: service
@@ -71,6 +71,6 @@ spec:
       volumes:
       - name: platform-config
         configMap:
-          name: {{ template "nuclio.platformName" . }}
+          name: {{ template "nuclio.platformConfigName" . }}
       {{- end }}
 {{- end }}
