@@ -52,7 +52,7 @@ spec:
         - mountPath: /var/run/docker.sock
           name: docker-sock
         {{- end }}
-        {{- if or .Values.registry.secretName .Values.registry.credentials }}
+        {{- if (include "nuclio.registry.credentialsSecretName" .) }}
         - name: registry-credentials
           mountPath: "/etc/nuclio/dashboard/registry-credentials"
           readOnly: true
@@ -132,7 +132,7 @@ spec:
         hostPath:
           path: /var/run/docker.sock
       {{- end }}
-      {{- if or .Values.registry.secretName .Values.registry.credentials }}
+      {{- if (include "nuclio.registry.credentialsSecretName" .) }}
       - name: registry-credentials
         secret:
           secretName: {{ template "nuclio.registry.credentialsSecretName" . }}
