@@ -90,7 +90,7 @@ func (r *Release) Run() error {
 		return errors.Wrap(err, "Failed to populate current and target versions")
 	}
 
-	if  !r.skipCreateRelease {
+	if !r.skipCreateRelease {
 		if err := r.createRelease(); err != nil {
 			return errors.Wrap(err, "Failed to create release")
 		}
