@@ -1,6 +1,7 @@
 package common
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -24,6 +25,23 @@ func GetKubeconfigPath(kubeconfigPath string) string {
 		return GetEnvOrDefaultString("KUBECONFIG", getKubeconfigFromHomeDir())
 	}
 	return kubeconfigPath
+}
+
+// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
+func ResolveDefaultNamespace(defaultNamespace string) string {
+	if defaultNamespace == "@nuclio.selfNamespace" {
+
+		// get namespace from within the pod. if found, return that
+		if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+			return string(namespacePod)
+		}
+	}
+
+	if defaultNamespace == "" {
+		return "default"
+	}
+
+	return defaultNamespace
 }
 
 func getKubeconfigFromHomeDir() string {

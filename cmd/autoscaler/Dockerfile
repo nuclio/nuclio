@@ -18,22 +18,22 @@
 
 ARG NUCLIO_LABEL
 
-FROM nuclio-base-alpine:$NUCLIO_LABEL as build-plugin
+FROM nuclio-base:$NUCLIO_LABEL as build-autoscaler
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
-RUN GOOS=linux GOARCH=amd64 go build \
-    -buildmode=plugin \
+# build autoscaler
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
-    -o plugin.so pkg/platform/kube/resourcescaler/resourcescaler.go
+    -o autoscaler cmd/autoscaler/main.go
 
 FROM alpine:3.11
 
-WORKDIR /home/nuclio
+RUN apk add --no-cache ca-certificates
 
-COPY --from=build-plugin /nuclio/plugin.so ./plugins/plugin.so
-COPY --from=quay.io/v3io/autoscaler:v0.4.0 /home/v3io/bin/autoscaler ./autoscaler
+# copy autoscaler binary from build stage
+COPY --from=build-autoscaler /nuclio/autoscaler /usr/local/bin
 
-CMD [ "/home/nuclio/autoscaler" ]
+CMD [ "autoscaler" ]
