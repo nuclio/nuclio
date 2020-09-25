@@ -18,6 +18,8 @@ package kafka
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -309,9 +311,6 @@ func (k *kafka) cancelEventHandling(workerInstance *worker.Worker, claim sarama.
 func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config := sarama.NewConfig()
 
-	config.Net.SASL.Enable = k.configuration.SASL.Enable
-	config.Net.SASL.User = k.configuration.SASL.User
-	config.Net.SASL.Password = k.configuration.SASL.Password
 	config.ClientID = k.ID
 	config.Consumer.Offsets.Initial = k.configuration.initialOffset
 	config.Consumer.Offsets.AutoCommit.Enable = true
@@ -327,6 +326,43 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Consumer.MaxWaitTime = k.configuration.maxWaitTime
 	config.Consumer.MaxProcessingTime = k.configuration.maxProcessingTime
 	config.ChannelBufferSize = k.configuration.ChannelBufferSize
+
+	// configure TLS if applicable
+	if k.configuration.CACert != "" {
+		k.Logger.DebugWith("Enabling TLS",
+			"calen", len(k.configuration.CACert))
+
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM([]byte(k.configuration.CACert))
+
+		tlsConfig := &tls.Config{
+			RootCAs: caCertPool,
+		}
+
+		if k.configuration.AccessKey != "" && k.configuration.AccessCertificate != "" {
+			k.Logger.DebugWith("Configuring cert authentication",
+				"keylen", len(k.configuration.AccessKey),
+				"certlen", len(k.configuration.AccessCertificate))
+
+			keypair, err := tls.X509KeyPair([]byte(k.configuration.AccessCertificate), []byte(k.configuration.AccessKey))
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to create X.509 key pair")
+			}
+
+			tlsConfig.Certificates = []tls.Certificate{keypair}
+		}
+
+		config.Net.TLS.Enable = true
+		config.Net.TLS.Config = tlsConfig
+	}
+
+	// configure SASL if applicable
+	if k.configuration.SASL.Enable {
+		k.Logger.DebugWith("Configuring SASL authentication", "username", k.configuration.SASL.User)
+		config.Net.SASL.Enable = true
+		config.Net.SASL.User = k.configuration.SASL.User
+		config.Net.SASL.Password = k.configuration.SASL.Password
+	}
 
 	if err := config.Validate(); err != nil {
 		return nil, errors.Wrap(err, "Kafka config is invalid")
