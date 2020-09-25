@@ -55,6 +55,7 @@ type Release struct {
 	developmentBranch        string
 	releaseBranch            string
 	publishHelmCharts        bool
+	skipCreateRelease        bool
 
 	logger      logger.Logger
 	shellRunner *cmdrunner.ShellRunner
@@ -89,12 +90,16 @@ func (r *Release) Run() error {
 		return errors.Wrap(err, "Failed to populate current and target versions")
 	}
 
-	if err := r.createRelease(); err != nil {
-		return errors.Wrap(err, "Failed to create release")
-	}
+	if !r.skipCreateRelease {
+		if err := r.createRelease(); err != nil {
+			return errors.Wrap(err, "Failed to create release")
+		}
 
-	if err := r.waitForReleaseCompleteness(); err != nil {
-		return errors.Wrap(err, "Failed to wait for release")
+		if err := r.waitForReleaseCompleteness(); err != nil {
+			return errors.Wrap(err, "Failed to wait for release")
+		}
+	} else {
+		r.logger.Info("Skipping release creation")
 	}
 
 	if err := r.bumpHelmChartVersion(); err != nil {
@@ -485,6 +490,14 @@ func (r *Release) bumpHelmChartVersion() error {
 		}
 	}
 
+	// explicitly bump the app version
+	if _, err := r.shellRunner.Run(runOptions,
+		`sed -i '' -e "s/^\(appVersion: \).*$/\1%s/g" %s`,
+		r.targetVersion,
+		r.resolveHelmChartFullPath()); err != nil {
+		return errors.Wrap(err, "Failed to write helm chart target version")
+	}
+
 	if _, err := r.shellRunner.Run(runOptions,
 		`sed -i '' -e "s/^\(version: \).*$/\1%s/g" %s`,
 		r.helmChartsTargetVersion,
@@ -530,22 +543,26 @@ func run() error {
 	}
 
 	flag.StringVar(&release.targetVersion, "target-version", "", "Release target version")
+	flag.StringVar(&release.currentVersion, "current-version", "", "Current version")
 	flag.StringVar(&release.repositoryOwnerName, "repository-owner-name", "nuclio", "Repository owner name to clone nuclio from (Default: nuclio)")
 	flag.StringVar(&release.repositoryScheme, "repository-scheme", "https", "Scheme to use when cloning nuclio repository")
 	flag.StringVar(&release.developmentBranch, "development-branch", "development", "Development branch (e.g.: development, 1.3.x")
 	flag.StringVar(&release.releaseBranch, "release-branch", "master", "Release branch (e.g.: master, 1.3.x, ...)")
+	flag.BoolVar(&release.skipCreateRelease, "skip-create-release", false, "Skip build & release flow (useful when publishing helm charts only)")
 	flag.StringVar(&release.helmChartsTargetVersion, "helm-charts-release-version", "", "Helm charts release target version")
 	flag.BoolVar(&release.publishHelmCharts, "publish-helm-charts", true, "Whether to publish helm charts")
 	flag.Parse()
 
 	release.logger.InfoWith("Running release",
 		"targetVersion", release.targetVersion,
+		"currentVersion", release.currentVersion,
 		"repositoryOwnerName", release.repositoryOwnerName,
 		"repositoryScheme", release.repositoryScheme,
 		"developmentBranch", release.developmentBranch,
 		"releaseBranch", release.releaseBranch,
 		"helmChartsTargetVersion", release.helmChartsTargetVersion,
-		"publishHelmCharts", release.publishHelmCharts)
+		"publishHelmCharts", release.publishHelmCharts,
+		"skipCreateRelease", release.skipCreateRelease)
 	return release.Run()
 }
 
