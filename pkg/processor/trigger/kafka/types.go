@@ -57,6 +57,9 @@ type Configuration struct {
 	FetchDefault                  int
 	FetchMax                      int
 	ChannelBufferSize             int
+	CACert                        string
+	AccessKey                     string
+	AccessCertificate             string
 
 	// resolved fields
 	brokers                       []string
@@ -96,6 +99,9 @@ func NewConfiguration(ID string,
 		{Key: "nuclio.io/kafka-fetch-default", ValueInt: &newConfiguration.FetchDefault},
 		{Key: "nuclio.io/kafka-fetch-max", ValueInt: &newConfiguration.FetchMax},
 		{Key: "nuclio.io/kafka-channel-buffer-size", ValueInt: &newConfiguration.ChannelBufferSize},
+		{Key: "nuclio.io/kafka-access-key", ValueString: &newConfiguration.AccessKey},
+		{Key: "nuclio.io/kafka-access-cert", ValueString: &newConfiguration.AccessCertificate},
+		{Key: "nuclio.io/kafka-ca-cert", ValueString: &newConfiguration.CACert},
 	})
 
 	if err != nil {
@@ -207,6 +213,15 @@ func NewConfiguration(ID string,
 		newConfiguration.ChannelBufferSize = 256
 	}
 
+	// for certificates, replace spaces with newlines to allow passing in places like annotations
+	for _, cert := range []*string{
+		&newConfiguration.CACert,
+		&newConfiguration.AccessKey,
+		&newConfiguration.AccessCertificate,
+	} {
+		*cert = newConfiguration.unflattenCertificate(*cert)
+	}
+
 	return &newConfiguration, nil
 }
 
@@ -233,4 +248,49 @@ func (c *Configuration) resolveBrokers(brokers []string) ([]string, error) {
 	}
 
 	return nil, errors.New("Brokers must be passed either in url or attributes.brokers")
+}
+
+func (c *Configuration) unflattenCertificate(certificate string) string {
+
+	// if there are newlines in the certificate, it's not flat. return as is
+	if strings.Contains(certificate, "\n") {
+		return certificate
+	}
+
+	// in this mode, the user replaces newlines with "@"
+	if strings.Contains(certificate, "@") {
+		return strings.Replace(certificate, "@", "\n", -1)
+	}
+
+	//
+	// try to be fancy and try to auto-unflatten the certificate
+	//
+
+	headers := []string{
+		"BEGIN CERTIFICATE",
+		"END CERTIFICATE",
+		"BEGIN PRIVATE KEY",
+		"END PRIVATE KEY",
+	}
+
+	// headers have spaces... remove them temporarily
+	for _, spacedHeader := range headers {
+		certificate = strings.Replace(certificate,
+			spacedHeader,
+			strings.Replace(spacedHeader, " ", "-", -1),
+			-1)
+	}
+
+	// now replace all spaces with newline
+	certificate = strings.Replace(certificate, " ", "\n", -1)
+
+	// and revert header
+	for _, spacedHeader := range headers {
+		certificate = strings.Replace(certificate,
+			strings.Replace(spacedHeader, " ", "-", -1),
+			spacedHeader,
+			-1)
+	}
+
+	return certificate
 }
