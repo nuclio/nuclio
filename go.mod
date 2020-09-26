@@ -37,7 +37,7 @@ require (
 	github.com/nuclio/logger v0.0.1
 	github.com/nuclio/logger-appinsights v0.0.1
 	github.com/nuclio/nuclio-sdk-go v0.2.0
-	github.com/nuclio/zap v0.0.4-0.20200922071635-6134d7b2a4aa
+	github.com/nuclio/zap v0.0.4
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/prometheus/client_golang v1.1.0
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
