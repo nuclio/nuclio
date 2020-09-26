@@ -18,6 +18,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    if: github.repository == 'nuclio/nuclio'
     steps:
     - name: Dump github context
       run: echo "$GITHUB_CONTEXT"
