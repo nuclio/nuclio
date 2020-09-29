@@ -89,3 +89,14 @@ NOTE: make sure to not quote here, because an empty string is false, but a quote
 {{- define "nuclio.platformConfigName" -}}
 {{- printf "%s-platform-config" (include "nuclio.fullName" .) | trunc 63 -}}
 {{- end -}}
+
+{{/*
+Return the appropriate apiVersion for CRD APIs.
+*/}}
+{{- define "crd.apiVersion" -}}
+{{- if semverCompare ">=1.16-0" .Capabilities.KubeVersion.GitVersion -}}
+{{- print "apiextensions.k8s.io/v1" }}
+{{- else -}}
+{{- print "apiextensions.k8s.io/v1beta1" }}
+{{- end -}}
+{{- end -}}
