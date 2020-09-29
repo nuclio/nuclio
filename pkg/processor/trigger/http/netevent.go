@@ -29,6 +29,7 @@ type NetEvent struct {
 	nuclio.AbstractEvent
 	request        *net_http.Request
 	responseWriter net_http.ResponseWriter
+	body           *[]byte
 }
 
 // GetContentType returns the content type of the body
@@ -38,7 +39,14 @@ func (e *NetEvent) GetContentType() string {
 
 // GetBody returns the body of the event
 func (e *NetEvent) GetBody() []byte {
+	if e.body != nil {
+		return *e.body
+	}
+
 	body, _ := ioutil.ReadAll(e.request.Body)
+
+	// the body can only be read once. so read it once and store it in the event
+	e.body = &body
 
 	return body
 }
