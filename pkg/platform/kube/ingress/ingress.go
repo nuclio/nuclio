@@ -361,7 +361,7 @@ func (m *Manager) compileAuthAnnotations(ctx context.Context, spec Spec) (map[st
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to get access key auth mode annotations")
 		}
-	case AuthenticationModeDex:
+	case AuthenticationModeOauth2:
 		authIngressAnnotations, err = m.compileDexAuthAnnotations(spec)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to get dex auth annotations")
