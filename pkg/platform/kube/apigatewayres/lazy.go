@@ -265,8 +265,8 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 				Password: apiGateway.Spec.Authentication.BasicAuth.Password,
 			},
 		}
-	case ingress.AuthenticationModeDex:
-		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeDex
+	case ingress.AuthenticationModeOauth2:
+		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeOauth2
 	case ingress.AuthenticationModeAccessKey:
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeAccessKey
 	default:

@@ -43,5 +43,5 @@ const (
 	AuthenticationModeNone      AuthenticationMode = "none"
 	AuthenticationModeBasicAuth AuthenticationMode = "basicAuth"
 	AuthenticationModeAccessKey AuthenticationMode = "accessKey"
-	AuthenticationModeDex       AuthenticationMode = "dex"
+	AuthenticationModeOauth2    AuthenticationMode = "oauth2"
 )
