@@ -156,7 +156,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
-    - uses: manusa/actions-setup-minikube@v1.1.0
+    - uses: manusa/actions-setup-minikube@v2.0.1
       with:
         minikube version: "v1.12.1"
         kubernetes version: "v1.17.9"
@@ -251,7 +251,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - uses: manusa/actions-setup-minikube@v1.1.0
+      - uses: manusa/actions-setup-minikube@v2.0.1
         with:
           minikube version: "v1.12.1"
           kubernetes version: "v1.17.9"
