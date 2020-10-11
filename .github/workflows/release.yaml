@@ -42,12 +42,12 @@ jobs:
     - name: Set NUCLIO_LABEL to unstable
       if: github.event_name == 'push' && steps.release_info.outputs.REF_BRANCH == 'development'
       run: |
-        echo "::set-env name=NUCLIO_LABEL::unstable"
+        echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
 
     - name: Set NUCLIO_LABEL to release tag
       if: github.event_name == 'release'
       run: |
-        echo "::set-env name=NUCLIO_LABEL::${{ steps.release_info.outputs.REF_TAG }}"
+        echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
 
     - uses: actions/checkout@v2
 
