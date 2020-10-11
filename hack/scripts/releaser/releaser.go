@@ -44,23 +44,28 @@ const helmChartFilePath = "hack/k8s/helm/nuclio/Chart.yaml"
 const githubAPIURL = "https://api.github.com"
 const travisAPIURL = "https://api.travis-ci.org"
 
+type helmChart struct {
+	Version    string `yaml:"version,omitempty"`
+	AppVersion string `yaml:"appVersion,omitempty"`
+}
+
 type Release struct {
-	currentVersion           string
-	targetVersion            string
-	helmChartsCurrentVersion string
-	helmChartsTargetVersion  string
-	repositoryDirPath        string
-	repositoryOwnerName      string
-	repositoryScheme         string
-	developmentBranch        string
-	releaseBranch            string
-	publishHelmCharts        bool
-	skipCreateRelease        bool
+	currentVersion          string
+	targetVersion           string
+	helmChartsTargetVersion string
+	repositoryDirPath       string
+	repositoryOwnerName     string
+	repositoryScheme        string
+	developmentBranch       string
+	releaseBranch           string
+	publishHelmCharts       bool
+	skipCreateRelease       bool
 
 	logger      logger.Logger
 	shellRunner *cmdrunner.ShellRunner
 
 	githubWorkflowID string
+	helmChartConfig  helmChart
 }
 
 func NewRelease() (*Release, error) {
@@ -156,6 +161,8 @@ func (r *Release) prepareRepository() error {
 	// ensure both development and release branches exists
 	for _, branchName := range []string{
 		r.developmentBranch,
+
+		// should be last, we release the version from it
 		r.releaseBranch,
 	} {
 		if _, err := r.shellRunner.Run(runOptions, `git checkout %s`, branchName); err != nil {
@@ -168,6 +175,21 @@ func (r *Release) prepareRepository() error {
 		return errors.Wrap(err, "Failed to fetch tags")
 	}
 
+	return r.populateHelmChartConfig()
+}
+
+func (r *Release) populateHelmChartConfig() error {
+
+	// read
+	yamlFile, err := ioutil.ReadFile(r.resolveHelmChartFullPath())
+	if err != nil {
+		return errors.Wrap(err, "Failed to read chart file")
+	}
+
+	// populate
+	if err := yaml.Unmarshal(yamlFile, &r.helmChartConfig); err != nil {
+		return errors.Wrap(err, "Failed to unmarshal chart config")
+	}
 	return nil
 }
 
@@ -202,24 +224,10 @@ func (r *Release) populateCurrentAndTargetVersions() error {
 	}
 	r.targetVersion = strings.TrimSpace(r.targetVersion)
 
-	// helm chart version
-	yamlFile, err := ioutil.ReadFile(r.resolveHelmChartFullPath())
-	if err != nil {
-		return errors.Wrap(err, "Failed to read chart file")
-	}
-
-	var helmChartConfig struct {
-		Version string `json:"version,omitempty"`
-	}
-	if err := yaml.Unmarshal(yamlFile, &helmChartConfig); err != nil {
-		return errors.Wrap(err, "Failed to unmarshal chart config")
-	}
-	r.helmChartsCurrentVersion = strings.TrimSpace(helmChartConfig.Version)
-
 	if r.helmChartsTargetVersion == "" {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Printf("Helm chart target version (Current version: %s, Press enter to continue): ",
-			r.helmChartsCurrentVersion)
+			r.helmChartConfig.Version)
 		r.helmChartsTargetVersion, err = reader.ReadString('\n')
 		if err != nil {
 			return errors.Wrap(err, "Failed to read helm chart target version from stdin")
@@ -231,7 +239,6 @@ func (r *Release) populateCurrentAndTargetVersions() error {
 	for _, version := range []string{
 		r.currentVersion,
 		r.targetVersion,
-		r.helmChartsCurrentVersion,
 		r.helmChartsTargetVersion,
 	} {
 		if version == "" {
@@ -482,9 +489,9 @@ func (r *Release) bumpHelmChartVersion() error {
 	for _, chartDir := range ChartDirs {
 		if _, err := r.shellRunner.Run(runOptions,
 			`git grep -lF "%s" %s | grep yaml | xargs sed -i '' -e "s/%s/%s/g"`,
-			r.currentVersion,
+			r.helmChartConfig.AppVersion,
 			path.Join("hack", chartDir),
-			r.currentVersion,
+			r.helmChartConfig.AppVersion,
 			r.targetVersion); err != nil {
 			return errors.Wrap(err, "Failed to update target versions")
 		}
