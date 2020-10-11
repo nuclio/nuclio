@@ -50,16 +50,16 @@ type helmChart struct {
 }
 
 type Release struct {
-	currentVersion           string
-	targetVersion            string
-	helmChartsTargetVersion  string
-	repositoryDirPath        string
-	repositoryOwnerName      string
-	repositoryScheme         string
-	developmentBranch        string
-	releaseBranch            string
-	publishHelmCharts        bool
-	skipCreateRelease        bool
+	currentVersion          string
+	targetVersion           string
+	helmChartsTargetVersion string
+	repositoryDirPath       string
+	repositoryOwnerName     string
+	repositoryScheme        string
+	developmentBranch       string
+	releaseBranch           string
+	publishHelmCharts       bool
+	skipCreateRelease       bool
 
 	logger      logger.Logger
 	shellRunner *cmdrunner.ShellRunner
