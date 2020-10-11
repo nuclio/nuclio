@@ -182,11 +182,11 @@ jobs:
 
     - name: Export env
       run: |
-        echo ::set-env name=NUCTL_EXTERNAL_IP_ADDRESSES::$(minikube ip)
-        echo ::set-env name=NUCTL_REGISTRY::localhost:5000
-        echo ::set-env name=NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL::$REPO
-        echo ::set-env name=NUCTL_NAMESPACE::$NAMESPACE
-        echo ::set-env name=KUBECONFIG::$(pwd)/kubeconfig
+        echo "NUCTL_EXTERNAL_IP_ADDRESSES=$(minikube ip)" >> $GITHUB_ENV
+        echo "NUCTL_REGISTRY=localhost:5000" >> $GITHUB_ENV
+        echo "NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL=$REPO" >> $GITHUB_ENV
+        echo "NUCTL_NAMESPACE=$NAMESPACE" >> $GITHUB_ENV
+        echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
 
     - name: Install nuclio helm chart
       run: |
@@ -277,9 +277,9 @@ jobs:
 
       - name: Export env
         run: |
-          echo ::set-env name=NUCTL_EXTERNAL_IP_ADDRESSES::$(minikube ip)
-          echo ::set-env name=NUCLIO_TEST_REGISTRY_URL::localhost:5000
-          echo ::set-env name=KUBECONFIG::$(pwd)/kubeconfig
+          echo "NUCTL_EXTERNAL_IP_ADDRESSES=$(minikube ip)" >> $GITHUB_ENV
+          echo "NUCLIO_TEST_REGISTRY_URL=localhost:5000" >> $GITHUB_ENV
+          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
 
       - name: Install nuclio helm chart
         run: |
