@@ -183,6 +183,7 @@ func (h *nethttp) AllocateWorkerAndSubmitEvent(responseWriter net_http.ResponseW
 	h.timeouts[workerIndex] = 0
 	h.answering[workerIndex] = 0
 	event := &h.events[workerIndex]
+	event.body = nil
 	event.request = request
 	event.responseWriter = responseWriter
 
