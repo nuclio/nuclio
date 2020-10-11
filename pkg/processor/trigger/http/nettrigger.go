@@ -196,6 +196,12 @@ func (h *nethttp) AllocateWorkerAndSubmitEvent(responseWriter net_http.ResponseW
 		return nil, true, nil, nil
 	}
 
+	// make sure there's no body left over from the previous request so
+	// the next request has it empty
+	if event.body != nil {
+		event.body = nil
+	}
+
 	h.answering[workerIndex] = 1
 	h.activeContexts[workerIndex] = nil
 
