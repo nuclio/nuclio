@@ -342,7 +342,8 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 	p.EnrichFunctionsWithDeployLogStream(functions)
 
 	if err = p.enrichFunctionsWithAPIGateways(functions, getFunctionsOptions.Namespace); err != nil {
-		return nil, errors.Wrap(err, "Failed to enrich functions with api gateways")
+		p.Logger.WarnWith("Failed to enrich functions with api gateways. Ignoring",
+			"err", err)
 	}
 
 	return functions, nil
