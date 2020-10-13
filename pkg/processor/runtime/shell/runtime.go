@@ -105,7 +105,7 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	// run the command
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		s.Logger.WarnWith("Failed Executing shell",
+		s.Logger.ErrorWith("Failed Executing shell",
 			"name", s.configuration.Meta.Name,
 			"version", s.configuration.Spec.Version,
 			"eventID", event.GetID(),
@@ -156,11 +156,6 @@ func (s *shell) getCommand() (string, error) {
 
 	// is there really a file there? could be user set module to something on the path
 	if common.FileExists(shellHandlerPath) {
-
-		// set permissions of handler such that if it wasn't executable before, it's executable now
-		//if err := os.Chmod(shellHandlerPath, 0755); err != nil {
-		//	return "", errors.Wrapf(err, "Failed to change mode for %s", shellHandlerPath)
-		//}
 
 		command = shellHandlerPath
 	} else {
