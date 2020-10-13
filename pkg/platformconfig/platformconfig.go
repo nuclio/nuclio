@@ -70,6 +70,10 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.CronTriggerCreationMode = ProcessorCronTriggerCreationMode
 	}
 
+	if config.Kube.DefaultServiceType == "" {
+		config.Kube.DefaultServiceType = DefaultServiceType
+	}
+
 	return config, nil
 }
 
