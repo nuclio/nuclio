@@ -75,9 +75,8 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 }
 
 func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-	command := s.command
-
-	command += " " + s.getCommandArguments(event)
+	command := []string{s.command}
+	command = append(command, s.getCommandArguments(event)...)
 
 	s.Logger.DebugWith("Executing shell",
 		"name", s.configuration.Meta.Name,
@@ -91,7 +90,7 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	defer cancel()
 
 	// create a command
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	cmd := exec.CommandContext(ctx, "sh", command...)
 	cmd.Stdin = strings.NewReader(string(event.GetBody()))
 
 	// set the command env
@@ -106,6 +105,13 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	// run the command
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		s.Logger.WarnWith("Failed Executing shell",
+			"name", s.configuration.Meta.Name,
+			"version", s.configuration.Spec.Version,
+			"eventID", event.GetID(),
+			"bodyLen", len(event.GetBody()),
+			"command", command,
+			"err", err)
 		return nil, errors.Wrap(err, "Failed to run shell command")
 	}
 
@@ -152,9 +158,9 @@ func (s *shell) getCommand() (string, error) {
 	if common.FileExists(shellHandlerPath) {
 
 		// set permissions of handler such that if it wasn't executable before, it's executable now
-		if err := os.Chmod(shellHandlerPath, 0755); err != nil {
-			return "", errors.Wrapf(err, "Failed to change mode for %s", shellHandlerPath)
-		}
+		//if err := os.Chmod(shellHandlerPath, 0755); err != nil {
+		//	return "", errors.Wrapf(err, "Failed to change mode for %s", shellHandlerPath)
+		//}
 
 		command = shellHandlerPath
 	} else {
@@ -166,12 +172,14 @@ func (s *shell) getCommand() (string, error) {
 	return command, nil
 }
 
-func (s *shell) getCommandArguments(event nuclio.Event) string {
-	if arguments := event.GetHeaderString("x-nuclio-arguments"); arguments != "" {
-		return arguments
+func (s *shell) getCommandArguments(event nuclio.Event) []string {
+	arguments := event.GetHeaderString("x-nuclio-arguments")
+
+	if arguments == "" {
+		arguments = s.configuration.Arguments
 	}
 
-	return s.configuration.Arguments
+	return strings.Split(arguments, " ")
 }
 
 func (s *shell) getEnvFromConfiguration() []string {
