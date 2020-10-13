@@ -1153,9 +1153,9 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"image":        imageName,
-			"runtime":      "shell",
-			"handler":      "main.sh",
+			"image":   imageName,
+			"runtime": "shell",
+			"handler": "main.sh",
 
 			// the `id` command
 			"source":       "aWQ=",
