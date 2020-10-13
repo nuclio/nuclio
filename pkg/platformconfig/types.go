@@ -20,6 +20,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -113,4 +114,6 @@ type CronTriggerCreationMode string
 const (
 	ProcessorCronTriggerCreationMode CronTriggerCreationMode = "processor"
 	KubeCronTriggerCreationMode      CronTriggerCreationMode = "kube"
+
+	DefaultServiceType = corev1.ServiceTypeNodePort
 )
