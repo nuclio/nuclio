@@ -275,7 +275,11 @@ func (e *exportProjectCommandeer) exportProject(projectConfig *platform.ProjectC
 	if e.rootCommandeer.platform.GetName() == "kube" {
 		apiGateways, err := e.exportAPIGateways(projectConfig)
 		if err != nil {
-			return nil, err
+
+			// in case an error occurred while exporting api gateways - skip this part
+			// (because it may fail when exporting after an upgrade from an older version)
+			e.rootCommandeer.loggerInstance.WarnWith("Failed to export api gateways. Continuing with project export",
+				"err", err)
 		}
 
 		exportedProject["apiGateways"] = apiGateways
