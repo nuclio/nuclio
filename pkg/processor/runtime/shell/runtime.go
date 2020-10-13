@@ -89,8 +89,30 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	ctx, cancel := context.WithTimeout(s.ctx, 60*time.Second)
 	defer cancel()
 
-	// create a command
-	cmd := exec.CommandContext(ctx, "sh", command...)
+	var cmd *exec.Cmd
+
+	inPath, err := s.commandInPath()
+	if err != nil {
+		s.Logger.ErrorWith("Failed checking if command is in PATH",
+			"name", s.configuration.Meta.Name,
+			"version", s.configuration.Spec.Version,
+			"eventID", event.GetID(),
+			"bodyLen", len(event.GetBody()),
+			"command", s.command,
+			"err", err)
+		return nil, errors.Wrap(err, "Failed checking if command is executable")
+	}
+	if inPath {
+
+		// if the command is an executable, run it as a command with sh -c.
+		cmd = exec.CommandContext(ctx, "sh", "-c", strings.Join(command, " "))
+	} else {
+
+		// if the command is a shell script run it with sh(without -c). this will make sh
+		// read the script and run it as shell script and run it.
+		cmd = exec.CommandContext(ctx, "sh", command...)
+	}
+
 	cmd.Stdin = strings.NewReader(string(event.GetBody()))
 
 	// set the command env
@@ -208,4 +230,21 @@ func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
 		fmt.Sprintf("NUCLIO_EVENT_TYPE_VERSION=%s", event.GetTypeVersion()),
 		fmt.Sprintf("NUCLIO_EVENT_VERSION=%s", event.GetVersion()),
 	}
+}
+
+// Checks if the command is in path, or it's file exists locally
+func (s *shell) commandInPath() (bool, error) {
+	if !common.FileExists(s.command) {
+
+		// file doesn't exist, checking PATH
+		_, err := exec.LookPath(s.command)
+		if err != nil {
+			return false, errors.Wrap(err, "File doesn't exist neither in working dir nor in PATH")
+		}
+
+		// file is in PATH, we consider this a command whether it is an executable or not
+		return true, nil
+	}
+
+	return false, nil
 }
