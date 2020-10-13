@@ -65,6 +65,9 @@ type RunOptions struct {
 	RestartPolicy    *RestartPolicy
 	GPUs             string
 	MountPoints      []MountPoint
+	RunAsUser        *int64
+	RunAsGroup       *int64
+	FSGroup          *int64
 }
 
 // ExecOptions are options for executing a command in a container

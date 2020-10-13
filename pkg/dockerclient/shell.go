@@ -241,9 +241,33 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		}
 	}
 
+	userArgument := ""
+	if runOptions.RunAsUser != nil || runOptions.RunAsGroup != nil {
+		userStr := ""
+		if runOptions.RunAsUser != nil && runOptions.RunAsGroup != nil {
+
+			// user and group
+			userStr = fmt.Sprintf("%d:%d", runOptions.RunAsUser, runOptions.RunAsGroup)
+		} else if runOptions.RunAsUser != nil {
+
+			// only user
+			userStr = fmt.Sprintf("%d", runOptions.RunAsUser)
+		} else {
+
+			// only group
+			userStr = fmt.Sprintf(":%d", runOptions.RunAsGroup)
+		}
+		userArgument = fmt.Sprintf("--user %s ", userStr)
+	}
+
+	groupAddArgument := ""
+	if runOptions.FSGroup != nil {
+		groupAddArgument = fmt.Sprintf("--group-add %d ", runOptions.FSGroup)
+	}
+
 	runResult, err := c.cmdRunner.Run(
 		&cmdrunner.RunOptions{LogRedactions: c.redactedValues},
-		"docker run %s %s %s %s %s %s %s %s %s %s %s %s %s",
+		"docker run %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s",
 		mountPointArguments,
 		gpus,
 		restartPolicy,
@@ -255,6 +279,8 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		labelArgument,
 		envArgument,
 		volumeArgument,
+		userArgument,
+		groupAddArgument,
 		imageName,
 		runOptions.Command)
 

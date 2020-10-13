@@ -672,6 +672,9 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		RestartPolicy: functionPlatformConfiguration.RestartPolicy,
 		GPUs:          gpus,
 		MountPoints:   mountPoints,
+		RunAsUser:     createFunctionOptions.FunctionConfig.Spec.SecurityContext.RunAsUser,
+		RunAsGroup:    createFunctionOptions.FunctionConfig.Spec.SecurityContext.RunAsGroup,
+		FSGroup:       createFunctionOptions.FunctionConfig.Spec.SecurityContext.FSGroup,
 	}
 
 	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image,
