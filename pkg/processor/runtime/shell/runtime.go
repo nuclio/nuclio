@@ -41,6 +41,7 @@ type shell struct {
 	configuration *Configuration
 	command       string
 	env           []string
+	commandInPath bool
 	ctx           context.Context
 }
 
@@ -69,6 +70,16 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 
 	newShellRuntime.env = newShellRuntime.getEnvFromConfiguration()
 
+	newShellRuntime.commandInPath, err = newShellRuntime.commandIsInPath()
+	if err != nil {
+		newShellRuntime.Logger.ErrorWith("Failed checking if command is in PATH",
+			"name", newShellRuntime.configuration.Meta.Name,
+			"version", newShellRuntime.configuration.Spec.Version,
+			"command", newShellRuntime.command,
+			"err", err)
+		return nil, errors.Wrap(err, "Failed checking if command is in PATH")
+	}
+
 	newShellRuntime.SetStatus(status.Ready)
 
 	return newShellRuntime, nil
@@ -91,18 +102,7 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 
 	var cmd *exec.Cmd
 
-	inPath, err := s.commandInPath()
-	if err != nil {
-		s.Logger.ErrorWith("Failed checking if command is in PATH",
-			"name", s.configuration.Meta.Name,
-			"version", s.configuration.Spec.Version,
-			"eventID", event.GetID(),
-			"bodyLen", len(event.GetBody()),
-			"command", s.command,
-			"err", err)
-		return nil, errors.Wrap(err, "Failed checking if command is executable")
-	}
-	if inPath {
+	if s.commandInPath {
 
 		// if the command is an executable, run it as a command with sh -c.
 		cmd = exec.CommandContext(ctx, "sh", "-c", strings.Join(command, " "))
@@ -127,7 +127,7 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	// run the command
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		s.Logger.ErrorWith("Failed Executing shell",
+		s.Logger.ErrorWith("Failed to run shell command",
 			"name", s.configuration.Meta.Name,
 			"version", s.configuration.Spec.Version,
 			"eventID", event.GetID(),
@@ -232,8 +232,9 @@ func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
 	}
 }
 
-// Checks if the command is in path, or it's file exists locally
-func (s *shell) commandInPath() (bool, error) {
+func (s *shell) commandIsInPath() (bool, error) {
+
+	// Checks if the command is in path, or it's file exists locally
 	if !common.FileExists(s.command) {
 
 		// file doesn't exist, checking PATH
