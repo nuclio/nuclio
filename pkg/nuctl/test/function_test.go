@@ -1104,9 +1104,6 @@ func (suite *functionDeployTestSuite) parseEventsRecorderOutput(outputBufferStri
 
 func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 
-	// TODO: if we implement this feature for local platform, remove this so the test will run with docker as well
-	suite.ensureRunningOnPlatform("kube")
-
 	runAsUserID := "1000"
 	runAsGroupID := "2000"
 	fsGroup := "3000"

@@ -45,6 +45,7 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	"golang.org/x/sync/errgroup"
+	v1 "k8s.io/api/core/v1"
 )
 
 type Platform struct {
@@ -659,6 +660,11 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		gpus = "all"
 	}
 
+	functionSecurityContext := createFunctionOptions.FunctionConfig.Spec.SecurityContext
+	if functionSecurityContext == nil {
+		functionSecurityContext = &v1.PodSecurityContext{}
+	}
+
 	// run the docker image
 	runContainerOptions := &dockerclient.RunOptions{
 		ContainerName: p.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
@@ -672,6 +678,9 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		RestartPolicy: functionPlatformConfiguration.RestartPolicy,
 		GPUs:          gpus,
 		MountPoints:   mountPoints,
+		RunAsUser:     functionSecurityContext.RunAsUser,
+		RunAsGroup:    functionSecurityContext.RunAsGroup,
+		FSGroup:       functionSecurityContext.FSGroup,
 	}
 
 	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image,
