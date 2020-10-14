@@ -156,17 +156,16 @@ func (c *ShellClient) RemoveImage(imageName string) error {
 
 // RunContainer will run a container based on an image and run options
 func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (string, error) {
-	portsArgument := ""
+	var dockerArguments []string
 
 	for localPort, dockerPort := range runOptions.Ports {
 		if localPort == RunOptionsNoPort {
-			portsArgument += fmt.Sprintf("-p %d ", dockerPort)
+			dockerArguments = append(dockerArguments, fmt.Sprintf("-p %d", dockerPort))
 		} else {
-			portsArgument += fmt.Sprintf("-p %d:%d ", localPort, dockerPort)
+			dockerArguments = append(dockerArguments, fmt.Sprintf("-p %d:%d", localPort, dockerPort))
 		}
 	}
 
-	restartPolicy := ""
 	if runOptions.RestartPolicy != nil && runOptions.RestartPolicy.Name != RestartPolicyNameNo {
 
 		// sanity check
@@ -176,111 +175,89 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 			return "", errors.Errorf("Cannot combine restart policy with container removal")
 		}
 		restartMaxRetries := runOptions.RestartPolicy.MaximumRetryCount
-		restartPolicy = fmt.Sprintf("--restart %s", runOptions.RestartPolicy.Name)
+		restartPolicy := fmt.Sprintf("--restart %s", runOptions.RestartPolicy.Name)
 		if runOptions.RestartPolicy.Name == RestartPolicyNameOnFailure && restartMaxRetries >= 0 {
 			restartPolicy += fmt.Sprintf(":%d", restartMaxRetries)
 		}
+		dockerArguments = append(dockerArguments, restartPolicy)
 	}
 
 	detach := "-d"
 	if runOptions.Attach {
 		detach = ""
 	}
+	dockerArguments = append(dockerArguments, detach)
 
-	gpus := ""
 	if runOptions.GPUs != "" {
-		gpus = fmt.Sprintf("--gpus %s", runOptions.GPUs)
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--gpus %s", runOptions.GPUs))
 	}
 
-	removeContainer := ""
 	if runOptions.Remove {
-		removeContainer = "--rm"
+		dockerArguments = append(dockerArguments, "--rm")
 	}
 
-	nameArgument := ""
 	if runOptions.ContainerName != "" {
-		nameArgument = fmt.Sprintf("--name %s", runOptions.ContainerName)
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--name %s", runOptions.ContainerName))
 	}
 
-	netArgument := ""
 	if runOptions.Network != "" {
-		netArgument = fmt.Sprintf("--net %s", runOptions.Network)
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--net %s", runOptions.Network))
 	}
 
-	labelArgument := ""
 	if runOptions.Labels != nil {
 		for labelName, labelValue := range runOptions.Labels {
-			labelArgument += fmt.Sprintf("--label %s='%s' ", labelName, c.replaceSingleQuotes(labelValue))
+			dockerArguments = append(dockerArguments,
+				fmt.Sprintf("--label %s='%s'", labelName, c.replaceSingleQuotes(labelValue)))
 		}
 	}
 
-	envArgument := ""
 	if runOptions.Env != nil {
 		for envName, envValue := range runOptions.Env {
-			envArgument += fmt.Sprintf("--env %s='%s' ", envName, envValue)
+			dockerArguments = append(dockerArguments, fmt.Sprintf("--env %s='%s'", envName, envValue))
 		}
 	}
 
-	volumeArgument := ""
 	if runOptions.Volumes != nil {
 		for volumeHostPath, volumeContainerPath := range runOptions.Volumes {
-			volumeArgument += fmt.Sprintf("--volume %s:%s ", volumeHostPath, volumeContainerPath)
+			dockerArguments = append(dockerArguments,
+				fmt.Sprintf("--volume %s:%s ", volumeHostPath, volumeContainerPath))
 		}
 	}
 
-	mountPointArguments := ""
 	if len(runOptions.MountPoints) > 0 {
 		for _, mountPoint := range runOptions.MountPoints {
-			mountPointArguments += fmt.Sprintf("--mount source=%s,destination=%s",
-				mountPoint.Source,
-				mountPoint.Destination)
+			readonly := ""
 			if !mountPoint.RW {
-				mountPointArguments += ",readonly"
+				readonly = ",readonly"
 			}
-			mountPointArguments += " "
+			dockerArguments = append(dockerArguments,
+				fmt.Sprintf("--mount source=%s,destination=%s%s",
+					mountPoint.Source,
+					mountPoint.Destination,
+					readonly))
 		}
 	}
 
-	userArgument := ""
 	if runOptions.RunAsUser != nil || runOptions.RunAsGroup != nil {
 		userStr := ""
-		if runOptions.RunAsUser != nil && runOptions.RunAsGroup != nil {
-
-			// user and group
-			userStr = fmt.Sprintf("%d:%d", runOptions.RunAsUser, runOptions.RunAsGroup)
-		} else if runOptions.RunAsUser != nil {
-
-			// only user
-			userStr = fmt.Sprintf("%d", runOptions.RunAsUser)
-		} else {
-
-			// only group
-			userStr = fmt.Sprintf(":%d", runOptions.RunAsGroup)
+		if runOptions.RunAsUser != nil {
+			userStr += fmt.Sprintf("%d", runOptions.RunAsUser)
 		}
-		userArgument = fmt.Sprintf("--user %s ", userStr)
+		if runOptions.RunAsGroup != nil {
+			userStr += fmt.Sprintf(":%d", runOptions.RunAsGroup)
+		}
+
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--user %s", userStr))
 	}
 
-	groupAddArgument := ""
 	if runOptions.FSGroup != nil {
-		groupAddArgument = fmt.Sprintf("--group-add %d ", runOptions.FSGroup)
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--group-add %d", runOptions.FSGroup))
 	}
 
 	runResult, err := c.cmdRunner.Run(
 		&cmdrunner.RunOptions{LogRedactions: c.redactedValues},
-		"docker run %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s",
-		mountPointArguments,
-		gpus,
-		restartPolicy,
-		detach,
-		removeContainer,
-		portsArgument,
-		nameArgument,
-		netArgument,
-		labelArgument,
-		envArgument,
-		volumeArgument,
-		userArgument,
-		groupAddArgument,
+		"docker run %s %s %s",
+		strings.Join(dockerArguments, " "),
 		imageName,
 		runOptions.Command)
 
