@@ -182,11 +182,9 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		dockerArguments = append(dockerArguments, restartPolicy)
 	}
 
-	detach := "-d"
-	if runOptions.Attach {
-		detach = ""
+	if !runOptions.Attach {
+		dockerArguments = append(dockerArguments, "-d")
 	}
-	dockerArguments = append(dockerArguments, detach)
 
 	if runOptions.GPUs != "" {
 		dockerArguments = append(dockerArguments, fmt.Sprintf("--gpus %s", runOptions.GPUs))
