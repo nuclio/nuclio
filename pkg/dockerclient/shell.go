@@ -239,17 +239,17 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	if runOptions.RunAsUser != nil || runOptions.RunAsGroup != nil {
 		userStr := ""
 		if runOptions.RunAsUser != nil {
-			userStr += fmt.Sprintf("%d", runOptions.RunAsUser)
+			userStr += fmt.Sprintf("%d", *runOptions.RunAsUser)
 		}
 		if runOptions.RunAsGroup != nil {
-			userStr += fmt.Sprintf(":%d", runOptions.RunAsGroup)
+			userStr += fmt.Sprintf(":%d", *runOptions.RunAsGroup)
 		}
 
 		dockerArguments = append(dockerArguments, fmt.Sprintf("--user %s", userStr))
 	}
 
 	if runOptions.FSGroup != nil {
-		dockerArguments = append(dockerArguments, fmt.Sprintf("--group-add %d", runOptions.FSGroup))
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--group-add %d", *runOptions.FSGroup))
 	}
 
 	runResult, err := c.cmdRunner.Run(
