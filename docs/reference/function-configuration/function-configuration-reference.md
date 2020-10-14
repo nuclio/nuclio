@@ -72,7 +72,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | targetCPU | int | Target CPU when auto scaling, as a percentage (default: 75%) |
 | dataBindings | See reference | A map of data sources used by the function ("data bindings") |
 | triggers.(name).maxWorkers | int | The max number of concurrent requests this trigger can process |
-| triggers.(name).kind | string | The trigger type (kind) - `cron` \| `eventhub` \| `http` \| `kafka-cluster` \| `kinesis` \| `nats` \| `rabbitmq` |
+| triggers.(name).kind | string | The trigger type (kind) - `cron` \| `eventhub` \| `http` \| `kafka-cluster` \| `kinesis` \| `nats` \| `rabbit-mq` |
 | triggers.(name).url | string | The trigger specific URL (not used by all triggers) |
 | triggers.(name).annotations | list of strings | Annotations to be assigned to the trigger, if applicable |
 | triggers.(name).workerAvailabilityTimeoutMilliseconds | int | The number of milliseconds to wait for a worker if one is not available. 0 = never wait (default: 10000, which is 10 seconds)|
