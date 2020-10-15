@@ -24,7 +24,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -528,10 +527,6 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
 	}
 
-	if err := p.validateAPIGatewayAuthMode(&newAPIGateway); err != nil {
-		return errors.Wrap(err, "Failed to validate api gateway auth mode")
-	}
-
 	// set state to waiting for provisioning
 	createAPIGatewayOptions.APIGatewayConfig.Status = platform.APIGatewayStatus{
 		State: platform.APIGatewayStateWaitingForProvisioning,
@@ -562,10 +557,6 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 
 	if err := p.enrichAndValidateAPIGatewayName(&updatedAPIGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
-	}
-
-	if err := p.validateAPIGatewayAuthMode(&updatedAPIGateway); err != nil {
-		return errors.Wrap(err, "Failed to validate api gateway auth mode")
 	}
 
 	// set api gateway state to "waitingForProvisioning", so the controller will know to update this resource
@@ -1094,18 +1085,6 @@ func (p *Platform) enrichAndValidateAPIGatewayName(apiGateway *nuclioio.NuclioAP
 	}
 	if apiGateway.Spec.Name != apiGateway.Name {
 		return nuclio.NewErrBadRequest("Api gateway metadata.name must match api gateway spec.name")
-	}
-
-	return nil
-}
-
-func (p *Platform) validateAPIGatewayAuthMode(apiGateway *nuclioio.NuclioAPIGateway) error {
-	allowedAuthenticationModes, err := p.GetAllowedAuthenticationModes()
-	if err != nil {
-		return errors.Wrap(err, "Failed getting allowed authentication modes")
-	}
-	if common.StringInSlice(string(apiGateway.Spec.AuthenticationMode), allowedAuthenticationModes) {
-		return nuclio.NewErrBadRequest("Api gateway authnetication mode not allowed")
 	}
 
 	return nil

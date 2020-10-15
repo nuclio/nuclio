@@ -402,6 +402,13 @@ func (m *Manager) compileDexAuthAnnotations(spec Spec) (map[string]string, error
 }
 
 func (m *Manager) compileIguazioSessionVerificationAnnotations(sessionVerificationEndpoint string) (map[string]string, error) {
+	if m.platformConfiguration.IngressConfig.IguazioAuthURL == "" {
+		return nil, errors.New("No iguazio auth URL configured")
+	}
+
+	if m.platformConfiguration.IngressConfig.IguazioSignInURL == "" {
+		return nil, errors.New("No iguazio sign in URL configured")
+	}
 
 	return map[string]string{
 		"nginx.ingress.kubernetes.io/auth-method":           "POST",
