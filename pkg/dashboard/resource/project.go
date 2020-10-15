@@ -409,6 +409,10 @@ func (pr *projectResource) importFunction(function *functionInfo, authConfig *pl
 func (pr *projectResource) importProjectAPIGateways(projectImportInfoInstance *projectImportInfo) []restful.Attributes {
 	var failedAPIGateways []restful.Attributes
 
+	if projectImportInfoInstance.APIGateways == nil {
+		return nil
+	}
+
 	// iterate over all api gateways and try to create each
 	for _, apiGateway := range projectImportInfoInstance.APIGateways {
 
