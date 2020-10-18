@@ -241,7 +241,7 @@ func (suite *apiGatewayInvokeTestSuite) invokeApiGateURL(request *http.Request,
 				"requestURL", request.URL,
 				"body", string(body))
 			return string(body), errors.Errorf("Unexpected body response. received: %s expected %s",
-				body, expectedBody)
+				body, *expectedBody)
 		}
 	}
 
