@@ -18,6 +18,7 @@ package command
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -46,6 +47,7 @@ type invokeCommandeer struct {
 	contentType                     string
 	headers                         string
 	body                            string
+	basicAuth                       string
 }
 
 func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
@@ -92,6 +94,12 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			// set headers
 			for headerName, headerValue := range common.StringToStringMap(commandeer.headers, "=") {
 				commandeer.createFunctionInvocationOptions.Headers.Set(headerName, headerValue)
+			}
+
+			// set basic auth
+			if commandeer.basicAuth != "" {
+				commandeer.createFunctionInvocationOptions.Headers.Set("Authorization",
+					fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(commandeer.basicAuth))))
 			}
 
 			// populate content type
@@ -141,7 +149,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "Invoke the function via - \"any\": a load balancer or an external IP; \"loadbalancer\": a load balancer; \"external-ip\": an external IP")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.LogLevelName, "log-level", "l", "info", "Log level - \"none\", \"debug\", \"info\", \"warn\", or \"error\"")
 	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", os.Getenv("NUCTL_EXTERNAL_IP_ADDRESSES"), "External IP addresses (comma-delimited) with which to invoke the function")
-
+	cmd.Flags().StringVarP(&commandeer.basicAuth, "basic-auth", "", "", "HTTP Basic auth username:password (e.g. --basic-auth my-user:my-password)")
 	commandeer.cmd = cmd
 
 	return commandeer
