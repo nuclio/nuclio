@@ -242,7 +242,7 @@ jobs:
 
       - uses: azure/setup-helm@v1
         with:
-          version: "v3.2.4"
+          version: "v3.3.4"
 
       - uses: actions/cache@v2
         with:
@@ -253,17 +253,19 @@ jobs:
 
       - uses: manusa/actions-setup-minikube@v2.0.1
         with:
-          minikube version: "v1.12.1"
+          minikube version: "v1.14.0"
           kubernetes version: "v1.17.9"
           github token: ${{ github.token }}
-          start args: '--addons=registry --insecure-registry="10.1.0.0/24"'
+          driver: docker
+          start args: '--addons registry ingress metrics-server --insecure-registry "10.1.0.0/24" "10.96.0.0/24"'
 
       - name: Post minikube setup
         run: |
 
           # redirect $(minikube ip):5000 -> localhost:5000
           docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
-          kubectl config view --flatten >> kubeconfig
+          minikube kubectl -- config view --flatten > kubeconfig_flatten
+          minikube kubectl -- get service
 
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v2

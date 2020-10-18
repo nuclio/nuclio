@@ -425,6 +425,7 @@ test: build-test
 test-k8s: build-test
 	docker run \
 		--rm \
+		--network host \
 		--volume /var/run/docker.sock:/var/run/docker.sock \
 		--volume $(GOPATH)/bin:/go/bin \
 		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
@@ -435,7 +436,9 @@ test-k8s: build-test
 		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
 		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--env NUCLIO_TEST_REGISTRY_URL=$(NUCLIO_TEST_REGISTRY_URL) \
 		--env NUCLIO_OS=$(NUCLIO_OS) \
+		--env MINIKUBE_HOME=$(MINIKUBE_HOME) \
 		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
 		--env KUBECONFIG=/kubeconfig \
 		$(NUCLIO_DOCKER_TEST_TAG) \
