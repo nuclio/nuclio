@@ -172,6 +172,10 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 }
 
 func (suite *apiGatewayInvokeTestSuite) getAPIGatewayDefaultHost() string {
+	defaultTestAPIGatewayHost := common.GetEnvOrDefaultString("NUCTL_TEST_DEFAULT_APIGATEWAY_HOST", "")
+	if defaultTestAPIGatewayHost != "" {
+		return defaultTestAPIGatewayHost
+	}
 
 	// select host address according to system's kubernetes runner (minikube / docker-for-mac)
 	if common.GetEnvOrDefaultString("MINIKUBE_HOME", "") != "" {
