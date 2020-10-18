@@ -147,7 +147,7 @@ jobs:
 
     - uses: azure/setup-helm@v1
       with:
-        version: "v3.2.4"
+        version: "v3.3.4"
 
     - uses: actions/cache@v2
       with:
@@ -158,17 +158,22 @@ jobs:
 
     - uses: manusa/actions-setup-minikube@v2.0.1
       with:
-        minikube version: "v1.12.1"
+        minikube version: "v1.14.0"
         kubernetes version: "v1.17.9"
+        driver: docker
         github token: ${{ github.token }}
-        start args: '--addons=registry --insecure-registry="10.1.0.0/24"'
+        start args: '--addons registry --addons ingress'
 
     - name: Post minikube setup
       run: |
 
+        # activate minikube docker
+        eval $(minikube -p minikube docker-env)
+
+
         # redirect $(minikube ip):5000 -> localhost:5000
         docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
-        kubectl config view --flatten >> kubeconfig
+        kubectl config view --flatten > kubeconfig_flatten
 
     - name: Fetch nuclio docker images
       uses: actions/download-artifact@v2
@@ -186,7 +191,8 @@ jobs:
         echo "NUCTL_REGISTRY=localhost:5000" >> $GITHUB_ENV
         echo "NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL=$REPO" >> $GITHUB_ENV
         echo "NUCTL_NAMESPACE=$NAMESPACE" >> $GITHUB_ENV
-        echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+        echo "KUBECONFIG=$(pwd)/kubeconfig_flatten" >> $GITHUB_ENV
+        echo "NUCTL_TEST_DEFAULT_APIGATEWAY_HOST=nuclio-test-function-host.info" >> $GITHUB_ENV
 
     - name: Install nuclio helm chart
       run: |
@@ -195,12 +201,13 @@ jobs:
           | envsubst \
           | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
 
-    - name: Install nginx ingress controller
-      run: |
-        ./test/k8s/ci_assets/install_nginx_ingress_controller.sh
-
     - name: Run nuctl k8s tests
       run: |
+
+        # write function host to /etc/hosts
+        echo "${NUCTL_EXTERNAL_IP_ADDRESSES} ${NUCTL_TEST_DEFAULT_APIGATEWAY_HOST}" | sudo tee -a /etc/hosts
+
+        # run test
         make test-k8s-nuctl
 
   test_docker_nuctl:
@@ -255,17 +262,19 @@ jobs:
         with:
           minikube version: "v1.14.0"
           kubernetes version: "v1.17.9"
-          github token: ${{ github.token }}
           driver: docker
-          start args: '--addons registry ingress metrics-server --insecure-registry "10.1.0.0/24" "10.96.0.0/24"'
+          github token: ${{ github.token }}
+          start args: '--addons registry --addons ingress'
 
       - name: Post minikube setup
         run: |
 
+          # activate minikube docker
+          eval $(minikube -p minikube docker-env)
+
           # redirect $(minikube ip):5000 -> localhost:5000
           docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
-          minikube kubectl -- config view --flatten > kubeconfig_flatten
-          minikube kubectl -- get service
+          kubectl config view --flatten > kubeconfig_flatten
 
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v2
@@ -281,10 +290,11 @@ jobs:
         run: |
           echo "NUCTL_EXTERNAL_IP_ADDRESSES=$(minikube ip)" >> $GITHUB_ENV
           echo "NUCLIO_TEST_REGISTRY_URL=localhost:5000" >> $GITHUB_ENV
-          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+          echo "KUBECONFIG=$(pwd)/kubeconfig_flatten" >> $GITHUB_ENV
 
       - name: Install nuclio helm chart
         run: |
+
           # create namespace
           kubectl create namespace ${NAMESPACE}
 
