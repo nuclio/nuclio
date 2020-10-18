@@ -182,6 +182,9 @@ jobs:
 
     - name: Load nuclio docker images
       run: |
+
+        # activate minikube docker
+        eval $(minikube -p minikube docker-env)
         docker load -i nuclio_docker_images.tar.gz
         rm nuclio_docker_images.tar.gz
 
@@ -290,7 +293,7 @@ jobs:
         run: |
           echo "NUCTL_EXTERNAL_IP_ADDRESSES=$(minikube ip)" >> $GITHUB_ENV
           echo "NUCLIO_TEST_REGISTRY_URL=localhost:5000" >> $GITHUB_ENV
-          echo "KUBECONFIG=$(pwd)/kubeconfig_flatten" >> $GITHUB_ENV
+          echo "NUCLIO_TEST_KUBECONFIG=$(pwd)/kubeconfig_flatten" >> $GITHUB_ENV
 
       - name: Install nuclio helm chart
         run: |
