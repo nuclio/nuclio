@@ -151,7 +151,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 
 	// invoke the api-gateway URL to make sure it works (we get the expected function response)
 	err = common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
-		responseBody, err := suite.invokeApiGateURL(request, &expectedResponseBody)
+		responseBody, err := suite.invokeHTTPRequest(request, &expectedResponseBody)
 		suite.Require().NoError(err)
 		suite.Require().Equal(expectedResponseBody, responseBody)
 		return true
@@ -165,7 +165,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 			request.SetBasicAuth(basicAuthUsername, "bad-credentials")
 		}
 
-		_, err := suite.invokeApiGateURL(request, nil)
+		_, err := suite.invokeHTTPRequest(request, nil)
 		suite.Require().Error(err)
 
 	}
@@ -220,12 +220,13 @@ func (suite *apiGatewayInvokeTestSuite) deployFunction() string {
 	return functionName
 }
 
-func (suite *apiGatewayInvokeTestSuite) invokeApiGateURL(request *http.Request,
+func (suite *apiGatewayInvokeTestSuite) invokeHTTPRequest(request *http.Request,
 	expectedBody *string) (string, error) {
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
-		suite.logger.WarnWith("Failed while sending http /POST request to api gateway URL",
+		suite.logger.WarnWith("Failed invoking HTTP request",
 			"requestURL", request.URL,
+			"requestMethod", request.Method,
 			"err", err)
 		return "", err
 	}
@@ -233,8 +234,9 @@ func (suite *apiGatewayInvokeTestSuite) invokeApiGateURL(request *http.Request,
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		suite.logger.WarnWith("Failed while reading api gateway response body",
+		suite.logger.WarnWith("Failed while reading response body",
 			"requestURL", request.URL,
+			"requestMethod", request.Method,
 			"err", err)
 		return "", err
 	}
@@ -243,13 +245,14 @@ func (suite *apiGatewayInvokeTestSuite) invokeApiGateURL(request *http.Request,
 		if string(body) != *expectedBody {
 			suite.logger.WarnWith("Got unexpected response from api gateway",
 				"requestURL", request.URL,
+				"requestMethod", request.Method,
 				"body", string(body))
 			return string(body), errors.Errorf("Unexpected body response. received: %s expected %s",
 				body, *expectedBody)
 		}
 	}
 
-	suite.logger.DebugWith("Got expected response", "body", string(body))
+	suite.logger.DebugWith("Got expected response", "body", body)
 	return string(body), nil
 }
 
