@@ -423,6 +423,7 @@ test: build-test
 
 .PHONY: test-k8s
 test-k8s: build-test
+	NUCLIO_TEST_KUBECONFIG=$(if $(NUCLIO_TEST_KUBECONFIG),$(NUCLIO_TEST_KUBECONFIG),$(KUBECONFIG)) \
 	docker run \
 		--rm \
 		--network host \
@@ -430,7 +431,7 @@ test-k8s: build-test
 		--volume $(GOPATH)/bin:/go/bin \
 		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
 		--volume /tmp:/tmp \
-		--volume $(KUBECONFIG)/:/kubeconfig \
+		--volume $(NUCLIO_TEST_KUBECONFIG)/:/kubeconfig \
 		--workdir $(GO_BUILD_TOOL_WORKDIR) \
 		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
 		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
