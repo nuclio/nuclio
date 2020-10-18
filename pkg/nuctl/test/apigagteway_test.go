@@ -17,13 +17,18 @@ limitations under the License.
 package test
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
+	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -133,34 +138,37 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 
 	defer suite.ExecuteNuctl([]string{"delete", "apigateway", apiGatewayName}, nil) // nolint: errcheck
 
-	// should pass, we are using correct credentials
-	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
-		map[string]string{
-			"method":     "POST",
-			"body":       "-reverse this string+",
-			"via":        "external-ip",
-			"basic-auth": fmt.Sprintf("%s:%s", basicAuthUsername, basicAuthPassword),
-		},
-		false)
-	suite.Require().NoError(err)
-	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+	expectedResponseBody := "+gnirts siht esrever-"
+	apiGatewayURL := fmt.Sprintf("http://%s%s", apiGatewayHost, apiGatewayPath)
+	request, err := http.NewRequest("POST", apiGatewayURL, bytes.NewBuffer([]byte("-reverse this string+")))
+	suite.Require().NoError(err, "Failed to create new request")
 
-	// we want it clean for next scenario
-	suite.outputBuffer.Reset()
+	// prepare request
+	request.Header.Set("Content-Type", "application/text")
+	if authenticationMode == ingress.AuthenticationModeBasicAuth {
+		request.SetBasicAuth(basicAuthUsername, basicAuthPassword)
+	}
 
-	// expect it to fail, we are using a bad basic auth
-	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
-		map[string]string{
-			"method":     "POST",
-			"body":       "-reverse this string+",
-			"via":        "external-ip",
-			"basic-auth": fmt.Sprintf("%s:%s", "bad-username", "a-bad-password"),
-		},
-		true)
+	// invoke the api-gateway URL to make sure it works (we get the expected function response)
+	err = common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
+		responseBody, err := suite.invokeApiGateURL(request, &expectedResponseBody)
+		suite.Require().NoError(err)
+		suite.Require().Equal(expectedResponseBody, responseBody)
+		return true
+	})
 	suite.Require().NoError(err)
 
-	// ensure no response was given
-	suite.Require().NotContains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+	if authenticationMode != ingress.AuthenticationModeNone {
+
+		// now try with bad credentials
+		if authenticationMode == ingress.AuthenticationModeBasicAuth {
+			request.SetBasicAuth(basicAuthUsername, "bad-credentials")
+		}
+
+		_, err := suite.invokeApiGateURL(request, nil)
+		suite.Require().Error(err)
+
+	}
 }
 
 func (suite *apiGatewayInvokeTestSuite) getAPIGatewayDefaultHost() string {
@@ -206,6 +214,39 @@ func (suite *apiGatewayInvokeTestSuite) deployFunction() string {
 	suite.outputBuffer.Reset()
 
 	return functionName
+}
+
+func (suite *apiGatewayInvokeTestSuite) invokeApiGateURL(request *http.Request,
+	expectedBody *string) (string, error) {
+	resp, err := http.DefaultClient.Do(request)
+	if err != nil {
+		suite.logger.WarnWith("Failed while sending http /POST request to api gateway URL",
+			"requestURL", request.URL,
+			"err", err)
+		return "", err
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		suite.logger.WarnWith("Failed while reading api gateway response body",
+			"requestURL", request.URL,
+			"err", err)
+		return "", err
+	}
+
+	if expectedBody != nil {
+		if string(body) != *expectedBody {
+			suite.logger.WarnWith("Got unexpected response from api gateway",
+				"requestURL", request.URL,
+				"body", string(body))
+			return string(body), errors.Errorf("Unexpected body response. received: %s expected %s",
+				body, expectedBody)
+		}
+	}
+
+	suite.logger.DebugWith("Got expected response", "body", string(body))
+	return string(body), nil
 }
 
 func TestAPIGatewayTestSuite(t *testing.T) {
