@@ -176,8 +176,17 @@ jobs:
       with:
         name: nuclio-docker-images
 
-    - name: Load nuclio docker images
+    - name: Load nuclio docker images to host (for helm)
       run: |
+
+        docker load -i nuclio_docker_images.tar.gz
+        rm nuclio_docker_images.tar.gz
+
+    - name: Load nuclio docker images to minikube (for nuclio itself)
+      run: |
+
+        # activate minikube docker
+        eval $(minikube -p minikube docker-env)
         docker load -i nuclio_docker_images.tar.gz
         rm nuclio_docker_images.tar.gz
 
