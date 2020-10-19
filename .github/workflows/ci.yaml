@@ -178,9 +178,6 @@ jobs:
 
     - name: Load nuclio docker images
       run: |
-
-        # activate minikube docker
-        eval $(minikube -p minikube docker-env)
         docker load -i nuclio_docker_images.tar.gz
         rm nuclio_docker_images.tar.gz
 
