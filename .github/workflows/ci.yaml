@@ -167,10 +167,6 @@ jobs:
     - name: Post minikube setup
       run: |
 
-        # activate minikube docker
-        eval $(minikube -p minikube docker-env)
-
-
         # redirect $(minikube ip):5000 -> localhost:5000
         docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
         kubectl config view --flatten > kubeconfig_flatten
@@ -271,9 +267,6 @@ jobs:
 
       - name: Post minikube setup
         run: |
-
-          # activate minikube docker
-          eval $(minikube -p minikube docker-env)
 
           # redirect $(minikube ip):5000 -> localhost:5000
           docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
