@@ -150,12 +150,15 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 	}
 
 	// invoke the api-gateway URL to make sure it works (we get the expected function response)
+	responseBody := ""
 	err = common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
-		responseBody, err := suite.invokeHTTPRequest(request, &expectedResponseBody)
-		suite.Require().NoError(err)
-		suite.Require().Equal(expectedResponseBody, responseBody)
+		responseBody, err = suite.invokeHTTPRequest(request, &expectedResponseBody)
+		if err != nil {
+			return false
+		}
 		return true
 	})
+	suite.Require().Equal(expectedResponseBody, responseBody)
 	suite.Require().NoError(err)
 
 	if authenticationMode != ingress.AuthenticationModeNone {
@@ -243,7 +246,7 @@ func (suite *apiGatewayInvokeTestSuite) invokeHTTPRequest(request *http.Request,
 
 	if expectedBody != nil {
 		if string(body) != *expectedBody {
-			suite.logger.WarnWith("Got unexpected response from api gateway",
+			suite.logger.WarnWith("Got unexpected response body",
 				"requestURL", request.URL,
 				"requestMethod", request.Method,
 				"body", string(body))
