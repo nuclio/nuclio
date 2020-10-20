@@ -137,51 +137,59 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 
 	defer suite.ExecuteNuctl([]string{"delete", "apigateway", apiGatewayName}, nil) // nolint: errcheck
 
+	expectedResponseBody := "+gnirts siht esrever-"
+	apiGatewayURL := fmt.Sprintf("http://%s%s", apiGatewayHost, apiGatewayPath)
+
+	// a function that creates an HTTP request
+	createHTTPRequest := func() *http.Request {
+		request, err := http.NewRequest("POST", apiGatewayURL, bytes.NewBuffer([]byte("-reverse this string+")))
+		suite.Require().NoError(err, "Failed to create new request")
+
+		request.Header.Set("Content-Type", "application/text")
+		return request
+	}
+
 	// invoke the api-gateway URL to make sure it works (we get the expected function response)
+	// we retry as it takes some time for apigw resource create function ingress
 	err = common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
-		apiGatewayURL := fmt.Sprintf("http://%s%s", apiGatewayHost, apiGatewayPath)
-
-		req, err := http.NewRequest("POST", apiGatewayURL, bytes.NewBuffer([]byte("-reverse this string+")))
-		suite.Require().NoError(err)
-
-		req.Header.Set("Content-Type", "application/text")
-
+		request := createHTTPRequest()
 		if authenticationMode == ingress.AuthenticationModeBasicAuth {
-			req.SetBasicAuth(basicAuthUsername, basicAuthPassword)
+			request.SetBasicAuth(basicAuthUsername, basicAuthPassword)
 		}
-
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			suite.logger.WarnWith("Failed while sending http /POST request to api gateway URL",
-				"apiGatewayURL", apiGatewayURL,
-				"err", err)
-			return false
-		}
-
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			suite.logger.WarnWith("Failed while reading api gateway response body",
-				"apiGatewayURL", apiGatewayURL,
-				"err", err)
-			return false
-		}
-
-		if string(body) != "+gnirts siht esrever-" {
-			suite.logger.WarnWith("Got unexpected response from api gateway",
-				"apiGatewayURL", apiGatewayURL,
-				"body", string(body))
-			return false
-		}
-
-		suite.logger.DebugWith("Got expected response", "body", string(body))
-
-		return true
+		responseBody, statusCode, err := suite.invokeHTTPRequest(request)
+		return err == nil && statusCode == http.StatusOK && responseBody == expectedResponseBody
 	})
 	suite.Require().NoError(err)
+
+	// test scenarios where auth is given, but bad credentials were given
+	if authenticationMode != ingress.AuthenticationModeNone {
+
+		// create request
+		request := createHTTPRequest()
+
+		// fill request request with credentials correspondingly to its ingress auth mode
+		switch authenticationMode {
+		case ingress.AuthenticationModeBasicAuth:
+			request.SetBasicAuth(basicAuthUsername, "bad-credentials")
+		default:
+			suite.Require().Failf("Must implement a scenario where a test would fail for ingress %s",
+				string(authenticationMode))
+		}
+
+		// invoke http request with bad credentials
+		_, statusCode, err := suite.invokeHTTPRequest(request)
+		suite.Require().NoError(err)
+
+		// expect it to fail due to unauthorized request
+		suite.Require().Equal(statusCode, http.StatusUnauthorized)
+	}
 }
 
 func (suite *apiGatewayInvokeTestSuite) getAPIGatewayDefaultHost() string {
+	defaultTestAPIGatewayHost := common.GetEnvOrDefaultString("NUCTL_TEST_DEFAULT_APIGATEWAY_HOST", "")
+	if defaultTestAPIGatewayHost != "" {
+		return defaultTestAPIGatewayHost
+	}
 
 	// select host address according to system's kubernetes runner (minikube / docker-for-mac)
 	if common.GetEnvOrDefaultString("MINIKUBE_HOME", "") != "" {
@@ -197,9 +205,9 @@ func (suite *apiGatewayInvokeTestSuite) deployFunction() string {
 	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-		"runtime": "golang",
-		"handler": "main:Reverse",
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"runtime": "python",
+		"handler": "reverser:handler",
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -221,8 +229,32 @@ func (suite *apiGatewayInvokeTestSuite) deployFunction() string {
 
 	// make sure reverser worked
 	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+	suite.outputBuffer.Reset()
 
 	return functionName
+}
+
+func (suite *apiGatewayInvokeTestSuite) invokeHTTPRequest(request *http.Request) (string, int, error) {
+	resp, err := http.DefaultClient.Do(request)
+	if err != nil {
+		suite.logger.WarnWith("Failed invoking HTTP request",
+			"requestURL", request.URL,
+			"requestMethod", request.Method,
+			"err", err)
+		return "", 0, err
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		suite.logger.WarnWith("Failed while reading response body",
+			"requestURL", request.URL,
+			"requestMethod", request.Method,
+			"err", err)
+		return "", 0, err
+	}
+	suite.logger.DebugWith("Got expected response", "body", body)
+	return string(body), resp.StatusCode, nil
 }
 
 func TestAPIGatewayTestSuite(t *testing.T) {
@@ -231,8 +263,5 @@ func TestAPIGatewayTestSuite(t *testing.T) {
 	}
 
 	suite.Run(t, new(apiGatewayCreateGetAndDeleteTestSuite))
-
-	// TODO: enable this when we find a way to add support ingresses on minikube
-	// currently works only on docker-for-mac
-	//suite.Run(t, new(apiGatewayInvokeTestSuite))
+	suite.Run(t, new(apiGatewayInvokeTestSuite))
 }
