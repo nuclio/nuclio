@@ -1,6 +1,6 @@
 # Getting Started with Nuclio on Minikube
 
-Follow this step-by-step guide to set up Nuclio on [Minikube](https://github.com/kubernetes/minikube/), which is a single-node Kubernetes cluster that runs in a virtual machine (VM) on a local computer.
+Follow this step-by-step guide to set up Nuclio on [Minikube](https://github.com/kubernetes/minikube/), which is a tool that lets you run Kubernetes locally.
 
 #### In this document
 
@@ -15,27 +15,23 @@ Follow this step-by-step guide to set up Nuclio on [Minikube](https://github.com
 
 Ensure that the following components are installed on your installation machine:
 
+- [Docker](https://docs.docker.com/get-docker/)
 - [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
+- [Helm](https://helm.sh/docs/intro/install/)
 
 It's recommended that you use these drivers:
 
-- For **Mac OS** - [hyperkit driver](https://github.com/kubernetes/minikube/blob/master/docs/drivers.md#hyperkit-driver)
-- For **Linux** - [virtualbox](https://www.virtualbox.org/wiki/Linux_Downloads)
+- For **Mac OS** - [Docker](https://minikube.sigs.k8s.io/docs/drivers/docker/)
+- For **Linux** - [Docker](https://minikube.sigs.k8s.io/docs/drivers/docker/) or [KVM2](https://minikube.sigs.k8s.io/docs/drivers/kvm2/)
+- For **Windows** - [Docker](https://minikube.sigs.k8s.io/docs/drivers/docker/) or [Hyper-V](https://minikube.sigs.k8s.io/docs/drivers/hyperv/)
 
 ## Prepare Minikube
 
-**Start Minikube** as you normally would. Note that the following command also enables role-based access control (RBAC) (which is disabled by default on Minikube version 0.24.1 and later) so that you can get more comfortable working with an RBAC-enabled Kubernetes cluster:
+**Start Minikube** as you normally would. Note that the following command also enables role-based access control (RBAC) so that you can get more comfortable working with an RBAC-enabled Kubernetes cluster:
 
-- **Mac OS**
-
-    ```sh
-    minikube start --vm-driver=hyperkit --extra-config=apiserver.authorization-mode=RBAC
-    ```
-- **Linux**
-
-    ```sh
-    minikube start --vm-driver=virtualbox --extra-config=apiserver.authorization-mode=RBAC
-    ```
+```shell script
+minikube start --kubernetes-version v1.17.9 --driver docker --extra-config=apiserver.authorization-mode=RBAC
+```
 
 **Set admin permissions:** bypass Minikube configuration issues by giving cluster-admin permissions to the Kubernetes services, so that services such as `kube-dns` can work in Minikube:
 > **Note:** You are encouraged to look at the [**kubedns-rbac**](https://github.com/nuclio/nuclio/blob/master/hack/minikube/resources/kubedns-rbac.yaml) file that's used in the following command, and the RBAC configuration files used in the [Nuclio installation](#install-nuclio) section, before applying the files, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).<br/>
