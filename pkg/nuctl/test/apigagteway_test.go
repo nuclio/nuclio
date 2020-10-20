@@ -156,8 +156,8 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 		if authenticationMode == ingress.AuthenticationModeBasicAuth {
 			request.SetBasicAuth(basicAuthUsername, basicAuthPassword)
 		}
-		responseBody, err := suite.invokeHTTPRequest(request)
-		return err == nil && responseBody == expectedResponseBody
+		responseBody, statusCode, err := suite.invokeHTTPRequest(request)
+		return err == nil && statusCode == http.StatusOK && responseBody == expectedResponseBody
 	})
 	suite.Require().NoError(err)
 
@@ -177,10 +177,11 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 		}
 
 		// invoke http request with bad credentials
-		_, err := suite.invokeHTTPRequest(request)
+		_, statusCode, err := suite.invokeHTTPRequest(request)
+		suite.Require().NoError(err)
 
-		// expect it to fail
-		suite.Require().Error(err)
+		// expect it to fail due to unauthorized request
+		suite.Require().Equal(statusCode, http.StatusUnauthorized)
 	}
 }
 
@@ -204,9 +205,9 @@ func (suite *apiGatewayInvokeTestSuite) deployFunction() string {
 	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-		"runtime": "golang",
-		"handler": "main:Reverse",
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"runtime": "python",
+		"handler": "reverser:handler",
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -233,14 +234,14 @@ func (suite *apiGatewayInvokeTestSuite) deployFunction() string {
 	return functionName
 }
 
-func (suite *apiGatewayInvokeTestSuite) invokeHTTPRequest(request *http.Request) (string, error) {
+func (suite *apiGatewayInvokeTestSuite) invokeHTTPRequest(request *http.Request) (string, int, error) {
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		suite.logger.WarnWith("Failed invoking HTTP request",
 			"requestURL", request.URL,
 			"requestMethod", request.Method,
 			"err", err)
-		return "", err
+		return "", 0, err
 	}
 
 	defer resp.Body.Close()
@@ -250,10 +251,10 @@ func (suite *apiGatewayInvokeTestSuite) invokeHTTPRequest(request *http.Request)
 			"requestURL", request.URL,
 			"requestMethod", request.Method,
 			"err", err)
-		return "", err
+		return "", 0, err
 	}
 	suite.logger.DebugWith("Got expected response", "body", body)
-	return string(body), nil
+	return string(body), resp.StatusCode, nil
 }
 
 func TestAPIGatewayTestSuite(t *testing.T) {
