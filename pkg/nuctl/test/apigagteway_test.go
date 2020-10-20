@@ -28,7 +28,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
-	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -140,37 +139,48 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 
 	expectedResponseBody := "+gnirts siht esrever-"
 	apiGatewayURL := fmt.Sprintf("http://%s%s", apiGatewayHost, apiGatewayPath)
-	request, err := http.NewRequest("POST", apiGatewayURL, bytes.NewBuffer([]byte("-reverse this string+")))
-	suite.Require().NoError(err, "Failed to create new request")
 
-	// prepare request
-	request.Header.Set("Content-Type", "application/text")
-	if authenticationMode == ingress.AuthenticationModeBasicAuth {
-		request.SetBasicAuth(basicAuthUsername, basicAuthPassword)
+	// a function that creates an HTTP request
+	createHTTPRequest := func() *http.Request {
+		request, err := http.NewRequest("POST", apiGatewayURL, bytes.NewBuffer([]byte("-reverse this string+")))
+		suite.Require().NoError(err, "Failed to create new request")
+
+		request.Header.Set("Content-Type", "application/text")
+		return request
 	}
 
 	// invoke the api-gateway URL to make sure it works (we get the expected function response)
-	responseBody := ""
+	// we retry as it takes some time for apigw resource create function ingress
 	err = common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
-		responseBody, err = suite.invokeHTTPRequest(request, &expectedResponseBody)
-		if err != nil {
-			return false
+		request := createHTTPRequest()
+		if authenticationMode == ingress.AuthenticationModeBasicAuth {
+			request.SetBasicAuth(basicAuthUsername, basicAuthPassword)
 		}
-		return true
+		responseBody, err := suite.invokeHTTPRequest(request)
+		return err == nil && responseBody == expectedResponseBody
 	})
-	suite.Require().Equal(expectedResponseBody, responseBody)
 	suite.Require().NoError(err)
 
+	// test scenarios where auth is given, but bad credentials were given
 	if authenticationMode != ingress.AuthenticationModeNone {
 
-		// now try with bad credentials
-		if authenticationMode == ingress.AuthenticationModeBasicAuth {
+		// create request
+		request := createHTTPRequest()
+
+		// fill request request with credentials correspondingly to its ingress auth mode
+		switch authenticationMode {
+		case ingress.AuthenticationModeBasicAuth:
 			request.SetBasicAuth(basicAuthUsername, "bad-credentials")
+		default:
+			suite.Require().Failf("Must implement a scenario where a test would fail for ingress %s",
+				string(authenticationMode))
 		}
 
-		_, err := suite.invokeHTTPRequest(request, nil)
-		suite.Require().Error(err)
+		// invoke http request with bad credentials
+		_, err := suite.invokeHTTPRequest(request)
 
+		// expect it to fail
+		suite.Require().Error(err)
 	}
 }
 
@@ -223,8 +233,7 @@ func (suite *apiGatewayInvokeTestSuite) deployFunction() string {
 	return functionName
 }
 
-func (suite *apiGatewayInvokeTestSuite) invokeHTTPRequest(request *http.Request,
-	expectedBody *string) (string, error) {
+func (suite *apiGatewayInvokeTestSuite) invokeHTTPRequest(request *http.Request) (string, error) {
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		suite.logger.WarnWith("Failed invoking HTTP request",
@@ -243,18 +252,6 @@ func (suite *apiGatewayInvokeTestSuite) invokeHTTPRequest(request *http.Request,
 			"err", err)
 		return "", err
 	}
-
-	if expectedBody != nil {
-		if string(body) != *expectedBody {
-			suite.logger.WarnWith("Got unexpected response body",
-				"requestURL", request.URL,
-				"requestMethod", request.Method,
-				"body", string(body))
-			return string(body), errors.Errorf("Unexpected body response. received: %s expected %s",
-				body, *expectedBody)
-		}
-	}
-
 	suite.logger.DebugWith("Got expected response", "body", body)
 	return string(body), nil
 }
