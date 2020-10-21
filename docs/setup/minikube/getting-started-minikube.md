@@ -30,16 +30,12 @@ It's recommended that you use these drivers:
 **Start Minikube** as you normally would. Note that the following command also enables role-based access control (RBAC) so that you can get more comfortable working with an RBAC-enabled Kubernetes cluster:
 
 ```shell script
-minikube start --kubernetes-version v1.17.9 --driver docker --extra-config=apiserver.authorization-mode=RBAC
+minikube start --kubernetes-version v1.17.9 --driver docker --extra-config=apiserver.authorization-mode=RBAC --addons ingress
 ```
 
-**Set admin permissions:** bypass Minikube configuration issues by giving cluster-admin permissions to the Kubernetes services, so that services such as `kube-dns` can work in Minikube:
-> **Note:** You are encouraged to look at the [**kubedns-rbac**](https://github.com/nuclio/nuclio/blob/master/hack/minikube/resources/kubedns-rbac.yaml) file that's used in the following command, and the RBAC configuration files used in the [Nuclio installation](#install-nuclio) section, before applying the files, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).<br/>
-> If you don't want to elevate your Kubernetes services, run Minikube with RBAC disabled (omit `--extra-config` from `minikube start`) and skip the RBAC related commands in the Nuclio installation instructions.
+> **Note:** You may want to add `--addons ingress` to your `minikube start` command to support creating function ingresses.
+> Ensure that your function ingress appears on your hosts /etc/hosts file (you can do that by `echo "$(minikube ip) my-function.info" | sudo tee -a /etc/hosts`)
 
-```sh
-kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/minikube/resources/kubedns-rbac.yaml
-```
 
 **Bring up a Docker registry inside Minikube.** You'll later push your functions to this registry:
 
@@ -63,32 +59,34 @@ At this stage you should have a functioning Kubernetes cluster, a Docker registr
 > **Note:** All Nuclio resources go into the "nuclio" namespace, and role-based access control (RBAC) is configured accordingly.
 
 ```sh
-kubectl create namespace nuclio
+minikube kubectl -- create namespace nuclio
 ```
 
-**Create the RBAC roles** that are required for using Nuclio (provided you didn't disable RBAC when [preparing Minikube](#prepare-minikube)):
-> **Note:** As indicated in the [Minikube preparation](#prepare-minikube) instructions, you are encouraged to look at the [**nuclio-rbac.yaml**](https://github.com/nuclio/nuclio/blob/master/hack/k8s/resources/nuclio-rbac.yaml) file that's used in the following command before applying it.
+**Add nuclio to helm repo charts:** the following commands add Nuclio repo charts to your helm repos:
+```sh
+helm repo add nuclio https://nuclio.github.io/nuclio/charts
+```
+
+**Deploy Nuclio to the cluster:** the following command deploys Nuclio and its minimum required kubernetes resources (including RBAC roles):
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
+helm --namespace nuclio install nuclio nuclio/nuclio
 ```
 
-**Deploy Nuclio to the cluster:** the following command deploys the Nuclio controller and dashboard, among other resources:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio.yaml
-```
-
-Use the command `kubectl get pods --namespace nuclio` to verify both the controller and dashboard are running.
+Use the command `minikube kubectl -- get pods --namespace nuclio` to verify both the controller and dashboard are running.
 
 **Forward the Nuclio dashboard port:** the Nuclio dashboard publishes a service at port 8070. To use the dashboard, you first need to forward this port to your local IP address:
 ```sh
-kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
+minikube kubectl -- port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
 
 ## Deploy a function with the Nuclio dashboard
 
-Browse to `http://localhost:8070` (after having forwarded this port as part of the Nuclio installation). You should see the [Nuclio dashboard](/README.md#dashboard) UI. Choose one of the built-in examples and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
+Browse to `http://localhost:8070` (after having forwarded this port as part of the Nuclio installation).
+You should see the [Nuclio dashboard](/README.md#dashboard) UI.
+Choose one of the built-in examples and click **Deploy**.
+The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network.
+When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
 
 ## Deploy a function with the Nuclio CLI (nuctl)
 
