@@ -27,14 +27,22 @@ It's recommended that you use these drivers:
 
 ## Prepare Minikube
 
-**Start Minikube** as you normally would. Note that the following command also enables role-based access control (RBAC) so that you can get more comfortable working with an RBAC-enabled Kubernetes cluster:
+**Start Minikube** as you normally would.
+Note that the following command also enables role-based access control (RBAC) so that you can get more comfortable working with an RBAC-enabled Kubernetes cluster:
 
-```shell script
+```sh
 minikube start --kubernetes-version v1.17.9 --driver docker --extra-config=apiserver.authorization-mode=RBAC --addons ingress
 ```
 
-> **Note:** You may want to add `--addons ingress` to your `minikube start` command to support creating function ingresses.
-> Ensure that your function ingress appears on your hosts /etc/hosts file (you can do that by `echo "$(minikube ip) my-function.info" | sudo tee -a /etc/hosts`)
+> **Note:** You may want to
+> 1. Change Kubernetes version, the current recommended version is 1.17.9
+> 2. Add `--addons ingress` to your `minikube start` command to support creating function ingresses.
+
+> Ensure that your function ingress appears on your hosts file (**/etc/hosts**).
+> You can do this by running this command:
+> ```sh
+> echo "$(minikube ip) my-function.info" | sudo tee -a /etc/hosts
+> ```
 
 
 **Bring up a Docker registry inside Minikube.** You'll later push your functions to this registry:
@@ -67,7 +75,7 @@ minikube kubectl -- create namespace nuclio
 helm repo add nuclio https://nuclio.github.io/nuclio/charts
 ```
 
-**Deploy Nuclio to the cluster:** the following command deploys Nuclio and its minimum required kubernetes resources (including RBAC roles):
+**Deploy Nuclio to the cluster:** the following command deploys Nuclio and its minimum required Kubernetes resources (including RBAC roles):
 
 ```sh
 helm --namespace nuclio install nuclio nuclio/nuclio
@@ -86,7 +94,7 @@ Browse to `http://localhost:8070` (after having forwarded this port as part of t
 You should see the [Nuclio dashboard](/README.md#dashboard) UI.
 Choose one of the built-in examples and click **Deploy**.
 The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network.
-When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
+When the function deployment is completed, you can click on **Test** to invoke the function with a body.
 
 ## Deploy a function with the Nuclio CLI (nuctl)
 
