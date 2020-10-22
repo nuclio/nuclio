@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -140,6 +141,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	if err := p.EnrichCreateFunctionOptions(createFunctionOptions); err != nil {
 		return nil, errors.Wrap(err, "Create function options enrichment failed")
+	}
+
+	if err := p.enrichHTTPTriggersWithServiceType(createFunctionOptions); err != nil {
+		return nil, errors.Wrap(err, "Failed to enrich HTTP triggers with service type")
 	}
 
 	if err := p.ValidateCreateFunctionOptions(createFunctionOptions); err != nil {
@@ -1088,4 +1093,62 @@ func (p *Platform) enrichAndValidateAPIGatewayName(apiGateway *nuclioio.NuclioAP
 	}
 
 	return nil
+}
+
+func (p *Platform) enrichHTTPTriggersWithServiceType(createFunctionOptions *platform.CreateFunctionOptions) error {
+
+	var err error
+
+	// for backwards compatibility
+	serviceType := createFunctionOptions.FunctionConfig.Spec.ServiceType
+	if serviceType == "" {
+		if serviceType, err = p.getDefaultServiceType(); err != nil {
+			return errors.Wrap(err, "Failed getting default service type")
+		}
+	}
+
+	for idx, trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
+		if trigger.Kind == "http" {
+			createFunctionOptions.FunctionConfig.Spec.Triggers[idx] = p.enrichTriggerWithServiceType(createFunctionOptions,
+				trigger,
+				serviceType)
+		}
+	}
+
+	return nil
+}
+
+func (p *Platform) enrichTriggerWithServiceType(createFunctionOptions *platform.CreateFunctionOptions,
+	trigger functionconfig.Trigger,
+	serviceType v1.ServiceType) functionconfig.Trigger {
+
+	if trigger.Attributes == nil {
+		trigger.Attributes = map[string]interface{}{}
+	}
+
+	if triggerServiceType, serviceTypeExists := trigger.Attributes["serviceType"];
+		!serviceTypeExists || triggerServiceType == "" {
+
+		p.Logger.DebugWith("Enriching function HTTP trigger with service type",
+			"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
+			"triggerName", trigger.Name,
+			"serviceType", serviceType)
+		trigger.Attributes["serviceType"] = serviceType
+	}
+
+	return trigger
+}
+
+func (p *Platform) getDefaultServiceType() (v1.ServiceType, error) {
+	switch configType := p.Config.(type) {
+	case *platformconfig.Config:
+		return configType.Kube.DefaultServiceType, nil
+
+	// FIXME: see comment in GetScaleToZeroConfiguration
+	// for now, if nuctl - return the constant default
+	case *config.Configuration:
+		return platformconfig.DefaultServiceType, nil
+	default:
+		return "", errors.New("Not a valid configuration instance")
+	}
 }
