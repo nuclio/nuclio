@@ -1126,8 +1126,7 @@ func (p *Platform) enrichTriggerWithServiceType(createFunctionOptions *platform.
 		trigger.Attributes = map[string]interface{}{}
 	}
 
-	if triggerServiceType, serviceTypeExists := trigger.Attributes["serviceType"];
-		!serviceTypeExists || triggerServiceType == "" {
+	if triggerServiceType, serviceTypeExists := trigger.Attributes["serviceType"]; !serviceTypeExists || triggerServiceType == "" {
 
 		p.Logger.DebugWith("Enriching function HTTP trigger with service type",
 			"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
