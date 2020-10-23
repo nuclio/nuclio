@@ -278,7 +278,7 @@ func (e *exportProjectCommandeer) exportProject(projectConfig *platform.ProjectC
 
 			// in case an error occurred while exporting api gateways - skip this part
 			// (because it may fail when exporting after an upgrade from an older version)
-			e.rootCommandeer.loggerInstance.WarnWith("Failed to export api gateways. Continuing with project export",
+			e.rootCommandeer.loggerInstance.DebugWith("Failed to export api gateways. Continuing with project export",
 				"err", err)
 		}
 
