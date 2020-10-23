@@ -39,9 +39,10 @@ import (
 
 type KubeTestSuite struct {
 	processorsuite.TestSuite
-	CmdRunner   cmdrunner.CmdRunner
-	RegistryURL string
-	Controller  *controller.Controller
+	CmdRunner     cmdrunner.CmdRunner
+	RegistryURL   string
+	Controller    *controller.Controller
+	KubeClientSet *kubernetes.Clientset
 }
 
 func (suite *KubeTestSuite) SetupSuite() {
@@ -69,6 +70,13 @@ func (suite *KubeTestSuite) SetupSuite() {
 	// do not rename function name
 	suite.FunctionNameUniquify = false
 
+	// create kube client set
+	restConfig, err := common.GetClientConfig(common.GetKubeconfigPath(""))
+	suite.Require().NoError(err)
+
+	suite.KubeClientSet, err = kubernetes.NewForConfig(restConfig)
+	suite.Require().NoError(err)
+
 	// create controller instance
 	suite.Controller = suite.createController()
 }
@@ -77,11 +85,25 @@ func (suite *KubeTestSuite) TearDownTest() {
 	suite.TestSuite.TearDownTest()
 
 	// remove nuclio function leftovers
-	_, err := suite.executeKubectl([]string{"delete", "nucliofunctions", "--all"}, nil)
-	suite.Require().NoError(err)
+	defer func() {
+		_, err := suite.executeKubectl([]string{"delete", "nucliofunctions", "--all", "--force"},
+			map[string]string{
+				"grace-period": "0",
+			})
+		suite.Require().NoError(err)
+	}()
+
+	// remove nuclio apigateway leftovers
+	defer func() {
+		_, err := suite.executeKubectl([]string{"delete", "nuclioapigateways", "--all", "--force"},
+			map[string]string{
+				"grace-period": "0",
+			})
+		suite.Require().NoError(err)
+	}()
 
 	// wait until controller remove it all
-	err = common.RetryUntilSuccessful(2*time.Minute,
+	err := common.RetryUntilSuccessful(5*time.Minute,
 		5*time.Second,
 		func() bool {
 			results, err := suite.executeKubectl([]string{"get", "all"},
@@ -157,28 +179,28 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	restConfig, err := common.GetClientConfig(common.GetKubeconfigPath(""))
 	suite.Require().NoError(err)
 
-	kubeClientSet, err := kubernetes.NewForConfig(restConfig)
-	suite.Require().NoError(err)
-
 	nuclioClientSet, err := nuclioioclient.NewForConfig(restConfig)
 	suite.Require().NoError(err)
 
 	// create a client for function deployments
-	functionresClient, err := functionres.NewLazyClient(suite.Logger, kubeClientSet, nuclioClientSet)
+	functionresClient, err := functionres.NewLazyClient(suite.Logger, suite.KubeClientSet, nuclioClientSet)
 	suite.Require().NoError(err)
 
 	// create ingress manager
-	ingressManager, err := ingress.NewManager(suite.Logger, kubeClientSet, suite.PlatformConfiguration)
+	ingressManager, err := ingress.NewManager(suite.Logger, suite.KubeClientSet, suite.PlatformConfiguration)
 	suite.Require().NoError(err)
 
 	// create api-gateway provisioner
-	apigatewayresClient, err := apigatewayres.NewLazyClient(suite.Logger, kubeClientSet, nuclioClientSet, ingressManager)
+	apigatewayresClient, err := apigatewayres.NewLazyClient(suite.Logger,
+		suite.KubeClientSet,
+		nuclioClientSet,
+		ingressManager)
 	suite.Require().NoError(err)
 
 	controllerInstance, err := controller.NewController(suite.Logger,
 		suite.Namespace,
 		"",
-		kubeClientSet,
+		suite.KubeClientSet,
 		nuclioClientSet,
 		functionresClient,
 		apigatewayresClient,
