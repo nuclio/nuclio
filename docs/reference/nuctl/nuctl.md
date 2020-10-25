@@ -48,14 +48,14 @@ You can also use the `--platform` CLI flag to ensure that you're running against
 <a id="docker"></a>
 ### Local Docker
 
-To ensure that you're running `nuctl` on a local instance of Docker, add `--platform local` to the CLI command.
+To force `nuctl` to run locally, using a Docker daemon, add `--platform local` to the CLI command.
 
 For an example of function deployment using `nuctl` against Docker, see the Nuclio [Docker getting-started guide](/docs/setup/docker/getting-started-docker.md).
 
 <a id="kubernetes"></a>
 ### Kubernetes
 
-To ensure that you're running `nuctl` on Kubernetes, add `--platform kube` to the CLI command.
+To force `nuctl` to run against a Kubernetes instance of Nuclio, add `--platform kube` to the CLI command.
 
 When running on Kubernetes, `nuctl` requires a running registry on your Kubernetes cluster and access to a kubeconfig file.
 
