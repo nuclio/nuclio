@@ -493,6 +493,10 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Handler = functionHandlers[0]
 	}
 
+	if len(functionconfig.GetTriggersByKind(b.options.FunctionConfig.Spec.Triggers, "http")) > 1 {
+		return errors.New("Function cannot have more than one http trigger")
+	}
+
 	// if output image name isn't set, set it to a derivative of the name
 	if b.processorImage.imageName == "" {
 		processorImageName, err := b.getImage()
@@ -1496,7 +1500,7 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
 		}
 
-		tempFile, err := b.getFunctionTempFile(tempDir, functionPath, isArchive)
+		tempFile, err := b.getFunctionTempFile(tempDir, functionPath, isArchive, codeEntryType)
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to get function temporary file")
 		}
@@ -1525,6 +1529,15 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 	}
 
 	return functionPath, nil
+}
+
+func (b *Builder) getS3FunctionItemKey() (string, error) {
+	s3Attributes, err := b.validateAndParseS3Attributes(b.options.FunctionConfig.Spec.Build.CodeEntryAttributes)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to parse and validate s3 code entry attributes")
+	}
+
+	return s3Attributes["s3ItemKey"], nil
 }
 
 func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {
@@ -1586,8 +1599,22 @@ func (b *Builder) populateFunctionSourceCodeFromFilePath() {
 	}
 }
 
-func (b *Builder) getFunctionTempFile(tempDir string, functionPath string, isArchive bool) (*os.File, error) {
+func (b *Builder) getFunctionTempFile(tempDir string,
+	functionPath string,
+	isArchive bool,
+	codeEntryType string) (*os.File, error) {
+	var err error
+
 	functionPathBase := path.Base(functionPath)
+
+	// if the codeEntryType of the function is s3 - set its itemKey as the function path
+	// (so the file extension will be parsed correctly)
+	if codeEntryType == S3EntryType {
+		functionPath, err = b.getS3FunctionItemKey()
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get function's s3 item key")
+		}
+	}
 
 	// for archives, use a temporary local file renamed to something short to allow wacky long archive URLs
 	if isArchive || util.IsCompressed(functionPathBase) {

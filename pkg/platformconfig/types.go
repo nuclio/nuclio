@@ -20,6 +20,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -97,3 +98,22 @@ type LabelSelectorAndConfig struct {
 type Kubernetes struct {
 	Deployment *appsv1.Deployment `json:"deployment,omitempty"`
 }
+
+// default values for created ingresses
+type IngressConfig struct {
+	EnableSSLRedirect          bool     `json:"enableSSLRedirect,omitempty"`
+	TLSSecret                  string   `json:"tlsSecret,omitempty"`
+	IguazioAuthURL             string   `json:"iguazioAuthURL,omitempty"`
+	IguazioSignInURL           string   `json:"iguazioSignInURL,omitempty"`
+	AllowedAuthenticationModes []string `json:"allowedAuthenticationModes,omitempty"`
+	Oauth2ProxyURL             string   `json:"oauth2ProxyURL,omitempty"`
+}
+
+type CronTriggerCreationMode string
+
+const (
+	ProcessorCronTriggerCreationMode CronTriggerCreationMode = "processor"
+	KubeCronTriggerCreationMode      CronTriggerCreationMode = "kube"
+
+	DefaultServiceType = corev1.ServiceTypeNodePort
+)

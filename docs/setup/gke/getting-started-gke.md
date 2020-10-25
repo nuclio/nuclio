@@ -138,9 +138,10 @@ When the function deployment completes, you can select **Invoke** to invoke the 
 <a id="deploy-a-function-with-the-nuclio-cli"></a>
 ## Deploy a function with the Nuclio CLI (nuctl)
 
-Run the following Nuclio CLI (`nuctl`) command from a command-line shell to deploy the example [`helloworld`](/hack/examples/golang/helloworld/helloworld.go) Go function.
+Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest version of the Nuclio CLI (`nuctl`) for your platform, and then run the following NCLI command from a command-line shell to deploy the example [`helloworld`](/hack/examples/golang/helloworld/helloworld.go) Go function.
 Replace the `<URL>` placeholder with the URL of your Docker registry.
 If you're using Docker Hub, the URL should include your username - `docker.io/<username>` - and you might also need to log into your Docker Hub account (`docker login`) on the installation machine before running the deployment command.
+> **Note:** If you are using Docker Hub, the URL here includes your username - `registry.hub.docker.com/<username>`.
 
 You can add the `--verbose` flag if you want to peek under the hood.
 ```sh

@@ -22,7 +22,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/errors"
+	"k8s.io/api/core/v1"
 )
+
+type PlatformKubeConfig struct {
+
+	// TODO: Move IngressConfig here
+	DefaultServiceType v1.ServiceType `json:"defaultServiceType,omitempty"`
+}
 
 type Config struct {
 	Kind                     string                   `json:"kind,omitempty"`
@@ -32,7 +39,10 @@ type Config struct {
 	Metrics                  Metrics                  `json:"metrics,omitempty"`
 	ScaleToZero              ScaleToZero              `json:"scaleToZero,omitempty"`
 	AutoScale                AutoScale                `json:"autoScale,omitempty"`
+	CronTriggerCreationMode  CronTriggerCreationMode  `json:"cronTriggerCreationMode,omitempty"`
 	FunctionAugmentedConfigs []LabelSelectorAndConfig `json:"functionAugmentedConfigs,omitempty"`
+	IngressConfig            IngressConfig            `json:"ingressConfig,omitempty"`
+	Kube                     PlatformKubeConfig       `json:"kube,omitempty"`
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {
@@ -53,6 +63,15 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.Kind = "kube"
 	} else {
 		config.Kind = "local"
+	}
+
+	// default cron trigger creation mode to processor
+	if config.CronTriggerCreationMode == "" {
+		config.CronTriggerCreationMode = ProcessorCronTriggerCreationMode
+	}
+
+	if config.Kube.DefaultServiceType == "" {
+		config.Kube.DefaultServiceType = DefaultServiceType
 	}
 
 	return config, nil

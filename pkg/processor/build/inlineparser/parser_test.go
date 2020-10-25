@@ -18,6 +18,7 @@ package inlineparser
 
 import (
 	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/nuclio/logger"
@@ -61,9 +62,11 @@ def handler(context, event):
     body = simplejson.loads(event.body.decode('utf-8'))
     return body['return_this']
 `
-	tmpFile, err := ioutil.TempFile("", "nucilio-parser-test")
+	tmpFile, err := ioutil.TempFile("", "nuclio-parser-test")
 	suite.Require().NoError(err)
-	tmpFile.Close()
+	suite.Require().NoError(tmpFile.Close())
+
+	defer os.Remove(tmpFile.Name()) // nolint: errcheck
 
 	err = ioutil.WriteFile(tmpFile.Name(), []byte(content), 0600)
 	suite.Require().NoError(err)
@@ -100,9 +103,11 @@ def handler(context, event):
     body = simplejson.loads(event.body.decode('utf-8'))
     return body['return_this']
 `
-	tmpFile, err := ioutil.TempFile("", "nucilio-parser-test")
+	tmpFile, err := ioutil.TempFile("", "nuclio-parser-test")
 	suite.Require().NoError(err)
-	tmpFile.Close()
+	suite.Require().NoError(tmpFile.Close())
+
+	defer os.Remove(tmpFile.Name()) // nolint: errcheck
 
 	err = ioutil.WriteFile(tmpFile.Name(), []byte(content), 0600)
 	suite.Require().NoError(err)
@@ -132,9 +137,11 @@ func (suite *InlineParserTestSuite) TestBlockWithError() {
 def handler(context, event):
 	pass
 `
-	tmpFile, err := ioutil.TempFile("", "nucilio-parser-test")
+	tmpFile, err := ioutil.TempFile("", "nuclio-parser-test")
 	suite.Require().NoError(err)
-	tmpFile.Close()
+	suite.Require().NoError(tmpFile.Close())
+
+	defer os.Remove(tmpFile.Name()) // nolint: errcheck
 
 	err = ioutil.WriteFile(tmpFile.Name(), []byte(content), 0600)
 	suite.Require().NoError(err)

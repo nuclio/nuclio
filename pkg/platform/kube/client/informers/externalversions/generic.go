@@ -59,6 +59,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Nuclio().V1beta1().NuclioFunctionEvents().Informer()}, nil
 	case v1beta1.SchemeGroupVersion.WithResource("nuclioprojects"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Nuclio().V1beta1().NuclioProjects().Informer()}, nil
+	case v1beta1.SchemeGroupVersion.WithResource("nuclioapigateways"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Nuclio().V1beta1().NuclioAPIGateways().Informer()}, nil
 
 	}
 

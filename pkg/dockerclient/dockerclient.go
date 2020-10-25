@@ -56,7 +56,7 @@ type Client interface {
 	// GetContainerLogs returns raw logs from a given container ID
 	GetContainerLogs(containerID string) (string, error)
 
-	// GetContainers returns a list of container IDs which match a certain criteria
+	// GetContainers returns a list of containers which match a certain criteria
 	GetContainers(*GetContainerOptions) ([]Container, error)
 
 	// GetContainerEvents returns a list of container events which occurred within a time range
@@ -73,6 +73,12 @@ type Client interface {
 
 	// DeleteNetwork deletes a docker network
 	DeleteNetwork(networkName string) error
+
+	// CreateVolume create a docker volume
+	CreateVolume(*CreateVolumeOptions) error
+
+	// DeleteVolume delete a docker volume
+	DeleteVolume(volumeName string) error
 
 	// Save saves a docker image as tar in specified path
 	Save(imageName string, outPath string) error

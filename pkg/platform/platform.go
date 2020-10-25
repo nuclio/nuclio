@@ -94,6 +94,22 @@ type Platform interface {
 	GetFunctionEvents(getFunctionEventsOptions *GetFunctionEventsOptions) ([]FunctionEvent, error)
 
 	//
+	// API Gateway
+	//
+
+	// Create APIGateway creates and deploys a new api gateway
+	CreateAPIGateway(createAPIGatewayOptions *CreateAPIGatewayOptions) error
+
+	// UpdateAPIGateway will update a previously deployed api gateway
+	UpdateAPIGateway(updateAPIGatewayOptions *UpdateAPIGatewayOptions) error
+
+	// DeleteAPIGateway will delete a previously deployed api gateway
+	DeleteAPIGateway(deleteAPIGatewayOptions *DeleteAPIGatewayOptions) error
+
+	// GetAPIGateways will list existing api gateways
+	GetAPIGateways(getAPIGatewaysOptions *GetAPIGatewaysOptions) ([]APIGateway, error)
+
+	//
 	// Misc
 	//
 
@@ -117,6 +133,9 @@ type Platform interface {
 
 	// Get scale to zero configuration
 	GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error)
+
+	// Get allowed authentication modes
+	GetAllowedAuthenticationModes() ([]string, error)
 
 	// GetNamespaces returns all the namespaces in the platform
 	GetNamespaces() ([]string, error)

@@ -24,13 +24,15 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 type projectResource struct {
@@ -46,6 +48,7 @@ type projectImportInfo struct {
 	Project        *projectInfo
 	Functions      map[string]*functionInfo
 	FunctionEvents map[string]*functionEventInfo
+	APIGateways    map[string]*apiGatewayInfo
 }
 
 // GetAll returns all projects
@@ -177,7 +180,35 @@ func (pr *projectResource) export(project platform.Project) restful.Attributes {
 		"project":        projectAttributes,
 		"functions":      map[string]restful.Attributes{},
 		"functionEvents": map[string]restful.Attributes{},
+		"apiGateways":    map[string]restful.Attributes{},
 	}
+
+	// get functions and function events to export
+	functionsMap, functionEventsMap := pr.getFunctionsAndFunctionEventsMap(project)
+
+	// get api-gateways to export
+	apiGatewaysMap := pr.getAPIGatewaysMap(project)
+
+	attributes["functions"] = functionsMap
+	attributes["functionEvents"] = functionEventsMap
+	attributes["apiGateways"] = apiGatewaysMap
+
+	return attributes
+}
+
+func (pr *projectResource) getAPIGatewaysMap(project platform.Project) map[string]restful.Attributes {
+	apiGatewaysMap, err := apiGatewayResourceInstance.GetAllByNamespace(project.GetConfig().Meta.Namespace, true)
+	if err != nil {
+		pr.Logger.WarnWith("Failed to get all api-gateways in the namespace",
+			"namespace", project.GetConfig().Meta.Namespace,
+			"err", err)
+	}
+
+	return apiGatewaysMap
+}
+
+func (pr *projectResource) getFunctionsAndFunctionEventsMap(project platform.Project) (map[string]restful.Attributes,
+	map[string]restful.Attributes) {
 
 	functionsMap := map[string]restful.Attributes{}
 	functionEventsMap := map[string]restful.Attributes{}
@@ -185,13 +216,13 @@ func (pr *projectResource) export(project platform.Project) restful.Attributes {
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Name:      "",
 		Namespace: project.GetConfig().Meta.Namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", project.GetConfig().Meta.Name),
 	}
 
 	functions, err := pr.getPlatform().GetFunctions(getFunctionsOptions)
 
 	if err != nil {
-		return attributes
+		return functionsMap, functionEventsMap
 	}
 
 	namespace := project.GetConfig().Meta.Namespace
@@ -207,10 +238,7 @@ func (pr *projectResource) export(project platform.Project) restful.Attributes {
 		}
 	}
 
-	attributes["functions"] = functionsMap
-	attributes["functionEvents"] = functionEventsMap
-
-	return attributes
+	return functionsMap, functionEventsMap
 }
 
 func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id string,
@@ -286,6 +314,7 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 
 	failedFunctions := pr.importProjectFunctions(projectImportInfoInstance, authConfig)
 	failedFunctionEvents := pr.importProjectFunctionEvents(projectImportInfoInstance, failedFunctions)
+	failedAPIGateways := pr.importProjectAPIGateways(projectImportInfoInstance)
 
 	attributes = restful.Attributes{
 		"functionImportResult": restful.Attributes{
@@ -297,6 +326,11 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 			"createdAmount":        len(projectImportInfoInstance.FunctionEvents) - len(failedFunctionEvents),
 			"failedAmount":         len(failedFunctionEvents),
 			"failedFunctionEvents": failedFunctionEvents,
+		},
+		"apiGatewayImportResult": restful.Attributes{
+			"createdAmount":     len(projectImportInfoInstance.APIGateways) - len(failedAPIGateways),
+			"failedAmount":      len(failedAPIGateways),
+			"failedAPIGateways": failedAPIGateways,
 		},
 	}
 
@@ -372,6 +406,39 @@ func (pr *projectResource) importFunction(function *functionInfo, authConfig *pl
 	return nil
 }
 
+func (pr *projectResource) importProjectAPIGateways(projectImportInfoInstance *projectImportInfo) []restful.Attributes {
+	var failedAPIGateways []restful.Attributes
+
+	if projectImportInfoInstance.APIGateways == nil {
+		return nil
+	}
+
+	// iterate over all api gateways and try to create each
+	for _, apiGateway := range projectImportInfoInstance.APIGateways {
+
+		if err := kube.ValidateAPIGatewaySpec(apiGateway.Spec); err != nil {
+			failedAPIGateways = append(failedAPIGateways, restful.Attributes{
+				"apiGateway": apiGateway.Spec.Name,
+				"error":      err.Error(),
+			})
+
+			// when it is invalid continue to the next api gateway
+			continue
+		}
+
+		// create the api gateway
+		_, _, err := apiGatewayResourceInstance.createAPIGateway(apiGateway)
+		if err != nil {
+			failedAPIGateways = append(failedAPIGateways, restful.Attributes{
+				"apiGateway": apiGateway.Spec.Name,
+				"error":      err.Error(),
+			})
+		}
+	}
+
+	return failedAPIGateways
+}
+
 func (pr *projectResource) importProjectFunctionEvents(projectImportInfoInstance *projectImportInfo,
 	failedFunctions []restful.Attributes) []restful.Attributes {
 
@@ -433,14 +500,9 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 
 	err = pr.getPlatform().DeleteProject(&deleteProjectOptions)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-		if errWithStatus, ok := err.(*nuclio.ErrorWithStatusCode); ok {
-			statusCode = errWithStatus.StatusCode()
-		}
-
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
-			StatusCode: statusCode,
+			StatusCode: common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError),
 		}, err
 	}
 
@@ -471,19 +533,11 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 		Spec: *projectInfo.Spec,
 	}
 
-	err = pr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
+	if err = pr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
 		ProjectConfig: projectConfig,
-	})
-
-	if err != nil {
+	}); err != nil {
 		pr.Logger.WarnWith("Failed to update project", "err", err)
-	}
-
-	// if there was an error, try to get the status code
-	if err != nil {
-		if errWithStatusCode, ok := err.(nuclio.ErrorWithStatusCode); ok {
-			statusCode = errWithStatusCode.StatusCode()
-		}
+		statusCode = common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError)
 	}
 
 	// return the stuff

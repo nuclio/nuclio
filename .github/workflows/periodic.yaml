@@ -1,12 +1,28 @@
 name: Periodic
+
 on:
   schedule:
   - cron:  '0 */12 * * *'
+
 jobs:
   build:
     name: Periodic Regression
     runs-on: ubuntu-latest
+
+    # let's not run this on every fork, comment this out when developing periodic on your fork
+    if: github.repository == 'nuclio/nuclio'
+
     steps:
+    - name: Dump github context
+      run: echo "$GITHUB_CONTEXT"
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+
+    - name: Dump runner context
+      run: echo "$RUNNER_CONTEXT"
+      env:
+        RUNNER_CONTEXT: ${{ toJson(runner) }}
+
     - uses: actions/checkout@v2
 
     # since github-actions gives us 14G only, and fills it up with some garbage

@@ -72,7 +72,7 @@ Note:
 - To achieve tenant separation for various Nuclio projects and functions, and to avoid cross-tenant contamination and resource races, a fully functioning Nuclio deployment is used in each namespace and the Nuclio controller is configured to be namespaced.
   This means that the controller handles Nuclio resources (functions, function events, and projects) only within its own namespace.
   This is supported by using the `controller.namespace` and `rbac.crdAccessMode` [Helm values](/hack/k8s/helm/nuclio/values.yaml) configurations.
-- To provide ample separation at the level of the container registry, it's highly recommended that the Nuclio deployments of multiple tenants either don't share container registries, or that they don't share a tenant when using a multi-tenant registry (such as `docker.io` or `quay.io`).
+- To provide ample separation at the level of the container registry, it's highly recommended that the Nuclio deployments of multiple tenants either don't share container registries, or that they don't share a tenant when using a multi-tenant registry (such as `registry.hub.docker.com` or `quay.io`).
 
 <a id="version-freezing"></a>
 ## Freezing a qualified version

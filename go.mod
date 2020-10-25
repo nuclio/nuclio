@@ -25,7 +25,7 @@ require (
 	github.com/imdario/mergo v0.3.7
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/mattn/go-runewidth v0.0.9 // indirect
-	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b
+	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/mholt/archiver/v3 v3.3.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/mapstructure v1.1.2
@@ -36,8 +36,8 @@ require (
 	github.com/nuclio/errors v0.0.3
 	github.com/nuclio/logger v0.0.1
 	github.com/nuclio/logger-appinsights v0.0.1
-	github.com/nuclio/nuclio-sdk-go v0.1.0
-	github.com/nuclio/zap v0.0.3
+	github.com/nuclio/nuclio-sdk-go v0.2.0
+	github.com/nuclio/zap v0.0.4
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/prometheus/client_golang v1.1.0
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
@@ -48,11 +48,12 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/streadway/amqp v0.0.0-20190815230801-eade30b20f1d
 	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25 // indirect
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.1
 	github.com/tedsuo/ifrit v0.0.0-20191009134036-9a97d0632f00 // indirect
 	github.com/tsenart/vegeta v6.3.0+incompatible
+	github.com/v3io/scaler v0.4.0
 	github.com/v3io/scaler-types v1.7.0
-	github.com/v3io/v3io-go v0.1.6
+	github.com/v3io/v3io-go v0.1.9
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
 	github.com/valyala/fasthttp v1.14.0
@@ -64,6 +65,7 @@ require (
 	k8s.io/api v0.15.12
 	k8s.io/apimachinery v0.15.12
 	k8s.io/client-go v0.15.12
+	k8s.io/metrics v0.15.12
 	pack.ag/amqp v0.12.5
 )
 

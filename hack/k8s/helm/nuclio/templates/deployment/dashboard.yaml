@@ -21,7 +21,7 @@ spec:
   replicas: {{ .Values.dashboard.replicas }}
   selector:
     matchLabels:
-      app: {{ template "nuclio.nuclioName" . }}
+      app: {{ template "nuclio.name" . }}
       release: {{ .Release.Name }}
       nuclio.io/app: dashboard
       nuclio.io/name: {{ template "nuclio.dashboardName" . }}
@@ -29,7 +29,7 @@ spec:
   template:
     metadata:
       labels:
-        app: {{ template "nuclio.nuclioName" . }}
+        app: {{ template "nuclio.name" . }}
         release: {{ .Release.Name }}
         nuclio.io/app: dashboard
         nuclio.io/name: {{ template "nuclio.dashboardName" . }}
@@ -52,7 +52,7 @@ spec:
         - mountPath: /var/run/docker.sock
           name: docker-sock
         {{- end }}
-        {{- if or .Values.registry.secretName .Values.registry.credentials }}
+        {{- if (include "nuclio.registry.credentialsSecretName" .) }}
         - name: registry-credentials
           mountPath: "/etc/nuclio/dashboard/registry-credentials"
           readOnly: true
@@ -65,7 +65,7 @@ spec:
         - name: NUCLIO_DASHBOARD_REGISTRY_URL
           valueFrom:
             configMapKeyRef:
-              name: {{ template "nuclio.registryPushPullUrlName" . }}
+              name: {{ template "nuclio.registry.pushPullUrlName" . }}
               key: "registry_url"
               optional: true
         - name: NUCLIO_DASHBOARD_DEPLOYMENT_NAME
@@ -119,7 +119,7 @@ spec:
           value: "nil"
         {{- end }}
         - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
-          value: {{ template "nuclio.registryCredentialsName" . }}
+          value: {{ template "nuclio.registry.credentialsSecretName" . }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ .Values.dashboard.externalIPAddresses | join "," | quote }}
         - name: NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE
@@ -132,15 +132,15 @@ spec:
         hostPath:
           path: /var/run/docker.sock
       {{- end }}
-      {{- if or .Values.registry.secretName .Values.registry.credentials }}
+      {{- if (include "nuclio.registry.credentialsSecretName" .) }}
       - name: registry-credentials
         secret:
-          secretName: {{ template "nuclio.registryCredentialsName" . }}
+          secretName: {{ template "nuclio.registry.credentialsSecretName" . }}
           optional: true
       {{- end }}
       {{- if .Values.platform }}
       - name: platform-config
         configMap:
-          name: {{ template "nuclio.platformName" . }}
+          name: {{ template "nuclio.platformConfigName" . }}
       {{- end }}
 {{- end }}

@@ -225,6 +225,23 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
+	// clear output buffer from last invocation
+	suite.outputBuffer.Reset()
+
+	// get the function
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "fu", functionName}, map[string]string{
+		"output": "yaml",
+	}, false)
+	suite.Require().NoError(err)
+
+	deployedFunctionConfig := functionconfig.Config{}
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &deployedFunctionConfig)
+	suite.Require().NoError(err)
+
+	// the function has 1 http trigger - api. here we are verifying the default HTTP trigger wasn't added
+	suite.Require().Equal(1, len(functionconfig.GetTriggersByKind(deployedFunctionConfig.Spec.Triggers, "http")))
+	suite.Require().Equal("http", deployedFunctionConfig.Spec.Triggers["api"].Kind)
+
 	// use nutctl to delete the function when we're done
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
@@ -600,7 +617,10 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	// assert data from different spec and not original spec
 	suite.Assert().Equal(2, *deployedFunctionConfig.Spec.MinReplicas)
 	suite.Assert().Equal(6, *deployedFunctionConfig.Spec.MaxReplicas)
-	suite.Assert().Equal(0, len(deployedFunctionConfig.Spec.Triggers))
+
+	// check that created trigger is default trigger and not the original one
+	suite.Assert().Equal(1, len(deployedFunctionConfig.Spec.Triggers))
+	suite.Assert().Contains(deployedFunctionConfig.Spec.Triggers, "default-http")
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -668,7 +688,10 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 
 	// assert data from different spec and not original spec
 	suite.Assert().Equal(6, *deployedFunctionConfig.Spec.MaxReplicas)
-	suite.Assert().Equal(0, len(deployedFunctionConfig.Spec.Triggers))
+
+	// check that created trigger is default trigger and not the original one
+	suite.Assert().Equal(1, len(deployedFunctionConfig.Spec.Triggers))
+	suite.Assert().Contains(deployedFunctionConfig.Spec.Triggers, "default-http")
 
 	// assert from args and not from either spec
 	suite.Assert().Equal(minReplicas, *deployedFunctionConfig.Spec.MinReplicas)
@@ -787,7 +810,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	deployedFunction.Meta.ResourceVersion = functionResourceVersion
 
 	// write function config to file
-	staleFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(deployedFunction,
+	staleFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(&deployedFunction.Config,
 		"stale-resource-version-*.yaml")
 	suite.Require().NoError(err)
 
@@ -810,7 +833,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	deployedFunction.Meta.ResourceVersion = ""
 
 	// write function config to file
-	overriddenFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(deployedFunction,
+	overriddenFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(&deployedFunction.Config,
 		"overridden-resource-version-*.yaml")
 	suite.Require().NoError(err)
 
@@ -834,6 +857,65 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	suite.Require().NoErrorf(err, "Resource version should have been changed (real: %s, expected: %s)",
 		deployedFunction.Meta.ResourceVersion,
 		functionResourceVersion)
+}
+
+func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "port-change" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+		"runtime": "python",
+		"handler": "event_recorder:handler",
+	}
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	suite.Require().NoError(err)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	// wait for function to become ready
+	suite.waitForFunctionState(functionName, functionconfig.FunctionStateReady)
+
+	deployedFunctionConfig, err := suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
+	suite.Require().NoError(err)
+
+	// ensure allocated http port is returned
+	suite.Require().NotZero(deployedFunctionConfig.Status.HTTPPort)
+
+	desiredHTTPPort := 30555
+	namedArgs = map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+		"runtime": "python",
+		"handler": "event_recorder:handler",
+		"triggers": fmt.Sprintf(`{
+	   "http": {
+	       "kind": "http",
+	       "attributes": {
+	           "port": %d
+	       }
+	   }
+	}`, desiredHTTPPort),
+	}
+
+	// redeploy function with a specific port
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	suite.Require().NoError(err)
+
+	// wait for function to become ready again
+	suite.waitForFunctionState(functionName, functionconfig.FunctionStateReady)
+
+	suite.outputBuffer.Reset()
+
+	deployedFunctionConfig, err = suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
+	suite.Require().NoError(err)
+
+	suite.Require().Equal(desiredHTTPPort, deployedFunctionConfig.Status.HTTPPort)
 }
 
 // Expecting the Code Entry Type to be modified to image
@@ -908,82 +990,84 @@ func (suite *functionDeployTestSuite) TestDeployWaitReadinessTimeoutBeforeFailur
 	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 }
 
-func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
-	suite.ensureRunningOnPlatform("kube")
-
-	uniqueSuffix := "-" + xid.New().String()
-	functionName := "event-recorder" + uniqueSuffix
-	imageName := "nuclio/processor-" + functionName
-
-	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
-		"runtime": "python",
-		"handler": "event_recorder:handler",
-		"triggers": `{
-    "crontrig": {
-        "kind": "cron",
-        "attributes": {
-            "interval": "3s",
-            "event": {
-                "body": "somebody",
-                "headers": {
-                    "Extra-Header-1": "value1",
-                    "Extra-Header-2": "value2"
-                }
-            }
-        }
-    }
-}`,
-	}
-
-	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
-	suite.Require().NoError(err)
-
-	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
-
-	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
-
-	// try a few times to invoke, until it succeeds (validate function deployment finished)
-	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
-		map[string]string{
-			"method": "POST",
-			"via":    "external-ip",
-		},
-		false)
-	suite.Require().NoError(err)
-
-	// wait 15 seconds so at least 1 interval will pass
-	suite.logger.InfoWith("Sleeping for 15 sec (so at least 1 interval will pass)")
-	time.Sleep(15 * time.Second)
-	suite.logger.InfoWith("Done sleeping")
-
-	suite.outputBuffer.Reset()
-
-	// try a few times to invoke, until it succeeds
-	// the output buffer should contain a response body with the function's called events from the cron trigger
-	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
-		map[string]string{
-			"method": "POST",
-			"via":    "external-ip",
-		},
-		false)
-	suite.Require().NoError(err)
-
-	events := suite.parseEventsRecorderOutput(suite.outputBuffer.String())
-
-	// validate at least 1 cron job ran
-	suite.Require().GreaterOrEqual(len(events), 1)
-
-	// validate the body was sent
-	suite.Require().Equal(events[0].Body, "somebody")
-
-	// validate headers were attached properly
-	suite.Require().Contains(events[0].Headers, "X-Nuclio-Invoke-Trigger")
-	suite.Require().Contains(events[0].Headers, "Extra-Header-1")
-	suite.Require().Contains(events[0].Headers, "Extra-Header-2")
-}
+// TODO: un-comment when cron triggers are implemented by default as k8s cron jobs or there's k8s testing infra
+//func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
+//
+//	suite.ensureRunningOnPlatform("kube")
+//
+//	uniqueSuffix := "-" + xid.New().String()
+//	functionName := "event-recorder" + uniqueSuffix
+//	imageName := "nuclio/processor-" + functionName
+//
+//	namedArgs := map[string]string{
+//		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+//		"runtime": "python",
+//		"handler": "event_recorder:handler",
+//		"triggers": `{
+//    "crontrig": {
+//        "kind": "cron",
+//        "attributes": {
+//            "interval": "3s",
+//            "event": {
+//                "body": "somebody",
+//                "headers": {
+//                    "Extra-Header-1": "value1",
+//                    "Extra-Header-2": "value2"
+//                }
+//            }
+//        }
+//    }
+//}`,
+//	}
+//
+//	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+//	suite.Require().NoError(err)
+//
+//	// use nutctl to delete the function when we're done
+//	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+//
+//	// make sure to clean up after the test
+//	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+//
+//	// try a few times to invoke, until it succeeds (validate function deployment finished)
+//	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
+//		map[string]string{
+//			"method": "POST",
+//			"via":    "external-ip",
+//		},
+//		false)
+//	suite.Require().NoError(err)
+//
+//	// wait 15 seconds so at least 1 interval will pass
+//	suite.logger.InfoWith("Sleeping for 15 sec (so at least 1 interval will pass)")
+//	time.Sleep(15 * time.Second)
+//	suite.logger.InfoWith("Done sleeping")
+//
+//	suite.outputBuffer.Reset()
+//
+//	// try a few times to invoke, until it succeeds
+//	// the output buffer should contain a response body with the function's called events from the cron trigger
+//	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
+//		map[string]string{
+//			"method": "POST",
+//			"via":    "external-ip",
+//		},
+//		false)
+//	suite.Require().NoError(err)
+//
+//	events := suite.parseEventsRecorderOutput(suite.outputBuffer.String())
+//
+//	// validate at least 1 cron job ran
+//	suite.Require().GreaterOrEqual(len(events), 1)
+//
+//	// validate the body was sent
+//	suite.Require().Equal(events[0].Body, "somebody")
+//
+//	// validate headers were attached properly
+//	suite.Require().Contains(events[0].Headers, "X-Nuclio-Invoke-Trigger")
+//	suite.Require().Contains(events[0].Headers, "Extra-Header-1")
+//	suite.Require().Contains(events[0].Headers, "Extra-Header-2")
+//}
 
 func (suite *functionDeployTestSuite) parseEventsRecorderOutput(outputBufferString string) []triggertest.Event {
 	var foundResponseBody bool
@@ -1016,6 +1100,86 @@ func (suite *functionDeployTestSuite) parseEventsRecorderOutput(outputBufferStri
 	suite.Require().NoError(err)
 
 	return events
+}
+
+func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
+
+	runAsUserID := "1000"
+	runAsGroupID := "2000"
+	fsGroup := "3000"
+
+	// with executable handler
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "security-context" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"image":        imageName,
+			"runtime":      "shell",
+			"handler":      "id",
+			"run-as-user":  runAsUserID,
+			"run-as-group": runAsGroupID,
+			"fsgroup":      fsGroup,
+		})
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	// use nuctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	// try a few times to invoke, until it succeeds
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
+		map[string]string{"method": "POST"},
+		false)
+	suite.Require().NoError(err)
+
+	// make sure the id command from the handler, returns the correct uid and gids
+	suite.Require().Contains(suite.outputBuffer.String(), fmt.Sprintf(`uid=%s gid=%s groups=%s`,
+		runAsUserID,
+		runAsGroupID,
+		fsGroup))
+
+	// with script handler
+	uniqueSuffix = "-" + xid.New().String()
+	functionName = "security-context" + uniqueSuffix
+	imageName = "nuclio/processor-" + functionName
+
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"image":   imageName,
+			"runtime": "shell",
+			"handler": "main.sh",
+
+			// the `id` command
+			"source":       "aWQ=",
+			"run-as-user":  runAsUserID,
+			"run-as-group": runAsGroupID,
+			"fsgroup":      fsGroup,
+		})
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	// use nuctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	// try a few times to invoke, until it succeeds
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
+		map[string]string{"method": "POST"},
+		false)
+	suite.Require().NoError(err)
+
+	// make sure the id command from the handler, returns the correct uid and gids
+	suite.Require().Contains(suite.outputBuffer.String(), fmt.Sprintf(`uid=%s gid=%s groups=%s`,
+		runAsUserID,
+		runAsGroupID,
+		fsGroup))
 }
 
 type functionGetTestSuite struct {

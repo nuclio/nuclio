@@ -19,7 +19,7 @@ kind: ClusterRole
 metadata:
   name: {{ template "nuclio.crdAdminName" . }}-clusterrole
   labels:
-    app: {{ template "nuclio.nuclioName" . }}
+    app: {{ template "nuclio.name" . }}
     release: {{ .Release.Name }}
 rules:
   - apiGroups: [""]
@@ -28,8 +28,11 @@ rules:
 
 {{- if eq .Values.rbac.crdAccessMode "cluster" }}
   - apiGroups: ["nuclio.io"]
-    resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents"]
+    resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents", "nuclioapigateways"]
     verbs: ["*"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["list"]
 
 {{- else if eq .Values.rbac.crdAccessMode "namespaced" }}
 
@@ -39,11 +42,11 @@ kind: Role
 metadata:
   name: {{ template "nuclio.crdAdminName" . }}-role
   labels:
-    app: {{ template "nuclio.nuclioName" . }}
+    app: {{ template "nuclio.name" . }}
     release: {{ .Release.Name }}
 rules:
   - apiGroups: ["nuclio.io"]
-    resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents"]
+    resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents", "nuclioapigateways"]
     verbs: ["*"]
 {{- end }}
 {{- end }}

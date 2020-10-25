@@ -50,9 +50,11 @@ func main() {
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
 	functionOperatorNumWorkersStr := flag.String("function-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_OPERATOR_NUM_WORKERS", "4"), "Set number of workers for the function operator (optional)")
 	functionOperatorResyncIntervalStr := flag.String("function-operator-resync-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_OPERATOR_RESYNC_INTERVAL", "10m"), "Set resync interval for the function operator (optional)")
-	cronJobStalePodsDeletionIntervalStr := flag.String("cron-job-stale-pods-deletion-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_JOB_STALE_PODS_DELETION_INTERVAL", "1m"), "Set interval for the deletion of stale cron job pods (optional)")
+	cronJobStaleResourcesCleanupIntervalStr := flag.String("cron-job-stale-resources-cleanup-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_JOB_STALE_RESOURCES_CLEANUP_INTERVAL", "1m"), "Set interval for the cleanup of stale cron job resources (optional)")
 	functionEventOperatorNumWorkersStr := flag.String("function-event-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_EVENT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function event operator (optional)")
-	projectOperatorNumWorkersStr := flag.String("project-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PROJECT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function operator (optional)")
+	projectOperatorNumWorkersStr := flag.String("project-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PROJECT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the project operator (optional)")
+	apiGatewayOperatorNumWorkersStr := flag.String("api-gateway-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_API_GATEWAY_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the api gateway operator (optional)")
+
 	flag.Parse()
 
 	// get the namespace from args -> env -> default (*)
@@ -73,9 +75,10 @@ func main() {
 		*platformConfigurationPath,
 		*functionOperatorNumWorkersStr,
 		*functionOperatorResyncIntervalStr,
-		*cronJobStalePodsDeletionIntervalStr,
+		*cronJobStaleResourcesCleanupIntervalStr,
 		*functionEventOperatorNumWorkersStr,
-		*projectOperatorNumWorkersStr); err != nil {
+		*projectOperatorNumWorkersStr,
+		*apiGatewayOperatorNumWorkersStr); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)

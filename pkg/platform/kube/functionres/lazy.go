@@ -62,11 +62,9 @@ import (
 )
 
 const (
-	containerHTTPPort             = 8080
 	containerHTTPPortName         = "http"
 	containerMetricPort           = 8090
 	containerMetricPortName       = "metrics"
-	nvidiaGpuResourceName         = "nvidia.com/gpu"
 	nginxIngressUpdateGracePeriod = 5 * time.Second
 )
 
@@ -197,11 +195,6 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 		}
 	}
 
-	// set a default
-	if function.Spec.ServiceType == "" {
-		function.Spec.ServiceType = v1.ServiceTypeNodePort
-	}
-
 	// create or update the applicable configMap
 	resources.configMap, err = lc.createOrUpdateConfigMap(function)
 	if err != nil {
@@ -232,9 +225,11 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 		return nil, errors.Wrap(err, "Failed to create/update ingress")
 	}
 
-	resources.cronJobs, err = lc.createOrUpdateCronJobs(functionLabels, function, &resources)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create cron jobs from cron triggers")
+	if lc.platformConfigurationProvider.GetPlatformConfiguration().CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		resources.cronJobs, err = lc.createOrUpdateCronJobs(functionLabels, function, &resources)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create cron jobs from cron triggers")
+		}
 	}
 
 	lc.logger.Debug("Successfully created/updated resources")
@@ -370,9 +365,11 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		return errors.Wrap(err, "Failed to delete function events")
 	}
 
-	err = lc.deleteCronJobs(name, namespace)
-	if err != nil {
-		return errors.Wrap(err, "Failed to delete function cron jobs")
+	if lc.platformConfigurationProvider.GetPlatformConfiguration().CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		err = lc.deleteCronJobs(name, namespace)
+		if err != nil {
+			return errors.Wrap(err, "Failed to delete function cron jobs")
+		}
 	}
 
 	lc.logger.DebugWith("Deleted deployed function", "namespace", namespace, "name", name)
@@ -756,6 +753,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 					},
 					Volumes:            volumes,
 					ServiceAccountName: function.Spec.ServiceAccount,
+					SecurityContext:    function.Spec.SecurityContext,
 				},
 			},
 		}
@@ -810,6 +808,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+		deployment.Spec.Template.Spec.SecurityContext = function.Spec.SecurityContext
 
 		if function.Spec.ServiceAccount != "" {
 			deployment.Spec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
@@ -843,14 +842,11 @@ func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunctio
 	// redeploying a Nuclio function will get stuck if no GPU is available
 	// to overcome it, we simply change the update strategy to recreate
 	// so k8s will kill the existing pod\function and create the new one
-	if gpuResource, ok := function.Spec.Resources.Limits[nvidiaGpuResourceName]; ok {
+	if function.Spec.PositiveGPUResourceLimit() {
 
 		// requested a gpu resource, change to recreate
-		if !gpuResource.IsZero() {
-			return appsv1.RecreateDeploymentStrategyType
-		}
+		return appsv1.RecreateDeploymentStrategyType
 	}
-
 	// no gpu resources requested, set to rollingUpdate (default)
 	return appsv1.RollingUpdateDeploymentStrategyType
 }
@@ -1075,7 +1071,7 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 				ObjectMeta: ingressMeta,
 				Spec:       ingressSpec,
 			})
-		if err != nil {
+		if err == nil {
 			lc.waitForNginxIngressToStabilize()
 		}
 
@@ -1113,7 +1109,7 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 		}
 
 		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
-		if err != nil {
+		if err == nil {
 			lc.waitForNginxIngressToStabilize()
 		}
 
@@ -1394,8 +1390,9 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 		spec.Selector = functionLabels
 	}
 
-	spec.Type = function.Spec.ServiceType
+	spec.Type = lc.resolveFunctionServiceType(function)
 	serviceTypeIsNodePort := spec.Type == v1.ServiceTypeNodePort
+	functionHTTPPort := function.Spec.GetHTTPPort()
 
 	// update the service's node port on the following conditions:
 	// 1. this is a new service (spec.Ports is an empty list)
@@ -1406,14 +1403,17 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 		spec.Ports = []v1.ServicePort{
 			{
 				Name: containerHTTPPortName,
-				Port: int32(containerHTTPPort),
+				Port: int32(abstract.FunctionContainerHTTPPort),
 			},
 		}
 		if serviceTypeIsNodePort {
-			spec.Ports[0].NodePort = int32(function.Spec.GetHTTPPort())
+			spec.Ports[0].NodePort = int32(functionHTTPPort)
 		} else {
 			spec.Ports[0].NodePort = 0
 		}
+		lc.logger.DebugWith("Updating service node port",
+			"functionName", function.Name,
+			"ports", spec.Ports)
 	}
 
 	// check if platform requires additional ports
@@ -1532,7 +1532,10 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	functionAddress := fmt.Sprintf("%s:%d", host, port)
 
 	// generate the curl command to be run by the CronJob to invoke the function
-	curlCommand := fmt.Sprintf("curl --silent %s %s", headersAsCurlArg, functionAddress)
+	// invoke the function (retry for 10 seconds)
+	curlCommand := fmt.Sprintf("curl --silent %s %s --retry 10 --retry-delay 1 --retry-max-time 10 --retry-connrefused",
+		headersAsCurlArg,
+		functionAddress)
 
 	if attributes.Event.Body != "" {
 		eventBody := attributes.Event.Body
@@ -1579,10 +1582,12 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 		},
 	}
 
-	// set concurrency policy if given
+	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
+	concurrencyPolicy := batchv1beta1.ForbidConcurrent
 	if attributes.ConcurrencyPolicy != "" {
-		spec.ConcurrencyPolicy = batchv1beta1.ConcurrencyPolicy(util.Capitalize(attributes.ConcurrencyPolicy))
+		concurrencyPolicy = batchv1beta1.ConcurrencyPolicy(util.Capitalize(attributes.ConcurrencyPolicy))
 	}
+	spec.ConcurrencyPolicy = concurrencyPolicy
 
 	// set default history limit (no need for more than one - makes kube jobs api clearer)
 	spec.SuccessfulJobsHistoryLimit = &one
@@ -1753,7 +1758,7 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 	container.Ports = []v1.ContainerPort{
 		{
 			Name:          containerHTTPPortName,
-			ContainerPort: containerHTTPPort,
+			ContainerPort: abstract.FunctionContainerHTTPPort,
 			Protocol:      "TCP",
 		},
 	}
@@ -2010,7 +2015,7 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 		return v1.ResourceMemory
 	case "alpha.kubernetes.io/nvidia-gpu":
 		return v1.ResourceName(resourceName)
-	case "nvidia.com/gpu":
+	case functionconfig.NvidiaGPUResourceName:
 		return v1.ResourceName(resourceName)
 	case "ephemeral-storage":
 		return v1.ResourceEphemeralStorage
@@ -2019,6 +2024,27 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	default:
 		return ""
 	}
+}
+
+func (lc *lazyClient) resolveFunctionServiceType(function *nuclioio.NuclioFunction) v1.ServiceType {
+	functionHTTPTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "http")
+
+	// if the http trigger has a configured service type, return that.
+	for _, trigger := range functionHTTPTriggers {
+		if serviceTypeInterface, serviceTypeExists := trigger.Attributes["serviceType"]; serviceTypeExists {
+			if serviceType, serviceTypeIsString := serviceTypeInterface.(string); serviceTypeIsString {
+				return v1.ServiceType(serviceType)
+			}
+		}
+	}
+
+	// otherwise, if the function spec has a service type, return that (for backwards compatibility)
+	if function.Spec.ServiceType != "" {
+		return function.Spec.ServiceType
+	}
+
+	// otherwise return platform default
+	return lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultServiceType
 }
 
 //

@@ -21,8 +21,10 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
 	"github.com/nuclio/logger"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 //
@@ -225,6 +227,125 @@ type GetFunctionEventsOptions struct {
 
 // to appease k8s
 func (s *FunctionEventSpec) DeepCopyInto(out *FunctionEventSpec) {
+
+	// TODO: proper deep copy
+	*out = *s
+}
+
+//
+// APIGateway
+//
+
+const DefaultAPIGatewayName string = "default"
+
+type APIGatewayMeta struct {
+	Name              string            `json:"name,omitempty"`
+	Namespace         string            `json:"namespace,omitempty"`
+	Labels            map[string]string `json:"labels,omitempty"`
+	Annotations       map[string]string `json:"annotations,omitempty"`
+	CreationTimestamp *metav1.Time      `json:"creationTimestamp,omitempty"`
+}
+
+func (agc *APIGatewayConfig) PrepareAPIGatewayForExport(noScrub bool) {
+	if !noScrub {
+		agc.scrubAPIGatewayData()
+	}
+}
+
+func (agc *APIGatewayConfig) scrubAPIGatewayData() {
+
+	// scrub namespace from api-gateway meta
+	agc.Meta.Namespace = ""
+
+	// creation timestamp won't be relevant on export
+	agc.Meta.CreationTimestamp = nil
+
+	// empty status
+	agc.Status = APIGatewayStatus{}
+}
+
+type APIGatewayAuthenticationSpec struct {
+	BasicAuth *BasicAuth       `json:"basicAuth,omitempty"`
+	DexAuth   *ingress.DexAuth `json:"dexAuth,omitempty"`
+}
+
+type BasicAuth struct {
+	Username string `json:"username"`
+	Password string `json:"password,omitempty"`
+}
+
+type APIGatewayUpstreamKind string
+
+const (
+	APIGatewayUpstreamKindNuclioFunction APIGatewayUpstreamKind = "nucliofunction"
+)
+
+type NuclioFunctionAPIGatewaySpec struct {
+	Name string `json:"name,omitempty"`
+}
+
+type APIGatewayUpstreamSpec struct {
+	Kind             APIGatewayUpstreamKind        `json:"kind,omitempty"`
+	Nucliofunction   *NuclioFunctionAPIGatewaySpec `json:"nucliofunction,omitempty"`
+	Percentage       int                           `json:"percentage,omitempty"`
+	RewriteTarget    string                        `json:"rewriteTarget,omitempty"`
+	ExtraAnnotations map[string]string             `json:"extraAnnotations,omitempty"`
+}
+
+type APIGatewaySpec struct {
+	Host               string                        `json:"host,omitempty"`
+	Name               string                        `json:"name,omitempty"`
+	Description        string                        `json:"description,omitempty"`
+	Path               string                        `json:"path,omitempty"`
+	AuthenticationMode ingress.AuthenticationMode    `json:"authenticationMode,omitempty"`
+	Authentication     *APIGatewayAuthenticationSpec `json:"authentication,omitempty"`
+	Upstreams          []APIGatewayUpstreamSpec      `json:"upstreams,omitempty"`
+}
+
+type APIGatewayConfig struct {
+	Meta   APIGatewayMeta   `json:"metadata,omitempty"`
+	Spec   APIGatewaySpec   `json:"spec,omitempty"`
+	Status APIGatewayStatus `json:"status,omitempty"`
+}
+
+// APIGatewayState is state of api gateway
+type APIGatewayState string
+
+// Possible api gateway states
+const (
+	APIGatewayStateNone                   APIGatewayState = ""
+	APIGatewayStateReady                  APIGatewayState = "ready"
+	APIGatewayStateError                  APIGatewayState = "error"
+	APIGatewayStateWaitingForProvisioning APIGatewayState = "waitingForProvisioning"
+)
+
+type APIGatewayStatus struct {
+	Name        string          `json:"name,omitempty"`
+	LastError   string          `json:"last_error,omitempty"`
+	Description string          `json:"description,omitempty"`
+	State       APIGatewayState `json:"state,omitempty"`
+}
+
+type CreateAPIGatewayOptions struct {
+	APIGatewayConfig APIGatewayConfig
+}
+
+type UpdateAPIGatewayOptions struct {
+	APIGatewayConfig APIGatewayConfig
+}
+
+type DeleteAPIGatewayOptions struct {
+	Meta APIGatewayMeta
+}
+
+type GetAPIGatewaysOptions struct {
+	Name      string
+	Namespace string
+	Labels    string
+}
+
+// to appease k8s
+func (s *APIGatewaySpec) DeepCopyInto(out *APIGatewaySpec) {
 
 	// TODO: proper deep copy
 	*out = *s

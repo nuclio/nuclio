@@ -29,16 +29,16 @@ type CORS struct {
 	Enabled bool
 
 	// allow configuration
-	AllowOrigin      string
+	AllowOrigins     []string
 	AllowMethods     []string
 	AllowHeaders     []string
 	AllowCredentials bool
 
 	// preflight
 	PreflightRequestMethod string
-	PreflightMaxAgeSeconds int
+	PreflightMaxAgeSeconds *int
 
-	// computed
+	// encoded
 	allowMethodsStr           string
 	allowHeadersStr           string
 	preflightMaxAgeSecondsStr string
@@ -46,9 +46,11 @@ type CORS struct {
 }
 
 func NewCORS() *CORS {
-	return &CORS{
-		Enabled:     true,
-		AllowOrigin: "*",
+	cors := &CORS{
+		Enabled: true,
+		AllowOrigins: []string{
+			"*",
+		},
 		AllowMethods: []string{
 			fasthttp.MethodHead,
 			fasthttp.MethodGet,
@@ -61,26 +63,35 @@ func NewCORS() *CORS {
 			fasthttp.HeaderAccept,
 			fasthttp.HeaderContentLength,
 			fasthttp.HeaderContentType,
+			fasthttp.HeaderAuthorization,
 
 			// nuclio custom
 			"X-nuclio-log-level",
 		},
 		AllowCredentials:       false,
 		PreflightRequestMethod: fasthttp.MethodOptions,
-		PreflightMaxAgeSeconds: -1, // disable cache by default
 	}
+	cors.populatePreflightMaxAgeSeconds()
+	return cors
 }
 
 func (c *CORS) OriginAllowed(origin string) bool {
 	if origin == "" {
 		return false
 	}
-	return c.AllowOrigin == "*" || origin == c.AllowOrigin
+
+	// when all origins are allowed
+	if c.isAllowAllOrigins() {
+		return true
+	}
+
+	// check one-by-one
+	return common.StringSliceContainsStringCaseInsensitive(c.AllowOrigins, origin)
 }
 
 func (c *CORS) MethodAllowed(method string) bool {
 	return method != "" &&
-		(method == c.PreflightRequestMethod || common.StringSliceContainsString(c.AllowMethods, method))
+		(method == c.PreflightRequestMethod || common.StringSliceContainsStringCaseInsensitive(c.AllowMethods, method))
 }
 
 func (c *CORS) HeadersAllowed(headers []string) bool {
@@ -110,12 +121,32 @@ func (c *CORS) EncodeAllowCredentialsHeader() string {
 	if c.allowCredentialsStr == "" {
 		c.allowCredentialsStr = strconv.FormatBool(c.AllowCredentials)
 	}
-	return c.allowHeadersStr
+	return c.allowCredentialsStr
 }
 
 func (c *CORS) EncodePreflightMaxAgeSeconds() string {
+
+	// defensive programing
+	c.populatePreflightMaxAgeSeconds()
+
 	if c.preflightMaxAgeSecondsStr == "" {
-		c.preflightMaxAgeSecondsStr = strconv.Itoa(c.PreflightMaxAgeSeconds)
+		c.preflightMaxAgeSecondsStr = strconv.Itoa(*c.PreflightMaxAgeSeconds)
 	}
 	return c.preflightMaxAgeSecondsStr
+}
+
+func (c *CORS) isAllowAllOrigins() bool {
+	for _, allowOrigin := range c.AllowOrigins {
+		if allowOrigin == "*" {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *CORS) populatePreflightMaxAgeSeconds() {
+	if c.PreflightMaxAgeSeconds == nil {
+		five := 5
+		c.PreflightMaxAgeSeconds = &five
+	}
 }

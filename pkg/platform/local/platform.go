@@ -19,10 +19,10 @@ package local
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"path"
 	"strconv"
@@ -39,11 +39,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
+	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	"golang.org/x/sync/errgroup"
+	v1 "k8s.io/api/core/v1"
 )
 
 type Platform struct {
@@ -58,6 +60,7 @@ type Platform struct {
 
 const Mib = 1048576
 const UnhealthyContainerErrorMessage = "Container is not healthy (detected by nuclio platform)"
+const FunctionProcessorContainerDirPath = "/etc/nuclio/config/processor"
 
 // NewPlatform instantiates a new local platform
 func NewPlatform(parentLogger logger.Logger,
@@ -381,8 +384,21 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 		}
 	}
 
-	p.Logger.InfoWith("Function deleted", "name", deleteFunctionOptions.FunctionConfig.Meta.Name)
+	// get function platform specific configuration
+	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&deleteFunctionOptions.FunctionConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create function platform configuration")
+	}
 
+	if functionPlatformConfiguration.ProcessorMountMode == ProcessorMountModeVolume {
+
+		// delete function volumes after containers are deleted
+		if err := p.dockerClient.DeleteVolume(p.GetProcessorMountVolumeName(&deleteFunctionOptions.FunctionConfig)); err != nil {
+			return errors.Wrapf(err, "Failed to delete function volume")
+		}
+	}
+
+	p.Logger.InfoWith("Function deleted", "name", deleteFunctionOptions.FunctionConfig.Meta.Name)
 	return nil
 }
 
@@ -516,262 +532,6 @@ func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error 
 	})
 }
 
-func (p *Platform) getFreeLocalPort() (int, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
-	if err != nil {
-		return 0, err
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return 0, err
-	}
-
-	defer l.Close() // nolint: errcheck
-	return l.Addr().(*net.TCPAddr).Port, nil
-}
-
-func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
-	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
-
-	// get function platform specific configuration
-	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&createFunctionOptions.FunctionConfig)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create function platform configuration")
-	}
-
-	// get function port - either from configuration, from the previous deployment or from a free port
-	functionHTTPPort, err := p.getFunctionHTTPPort(createFunctionOptions, previousHTTPPort)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function HTTP port")
-	}
-
-	createFunctionOptions.Logger.DebugWith("Function port allocated",
-		"port", functionHTTPPort,
-		"previousHTTPPort", previousHTTPPort)
-
-	labels := map[string]string{
-		"nuclio.io/platform":      "local",
-		"nuclio.io/namespace":     createFunctionOptions.FunctionConfig.Meta.Namespace,
-		"nuclio.io/function-name": createFunctionOptions.FunctionConfig.Meta.Name,
-		"nuclio.io/function-spec": p.encodeFunctionSpec(&createFunctionOptions.FunctionConfig.Spec),
-	}
-
-	for labelName, labelValue := range createFunctionOptions.FunctionConfig.Meta.Labels {
-		labels[labelName] = labelValue
-	}
-
-	marshalledAnnotations := p.marshallAnnotations(createFunctionOptions.FunctionConfig.Meta.Annotations)
-	if marshalledAnnotations != nil {
-		labels["nuclio.io/annotations"] = string(marshalledAnnotations)
-	}
-
-	// create processor configuration at a temporary location unless user specified a configuration
-	localProcessorConfigPath, err := p.createProcessorConfig(createFunctionOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create processor configuration")
-	}
-
-	// create volumes string[string] map for volumes
-	volumesMap := map[string]string{
-		localProcessorConfigPath: path.Join("/", "etc", "nuclio", "config", "processor", "processor.yaml"),
-	}
-
-	for _, volume := range createFunctionOptions.FunctionConfig.Spec.Volumes {
-
-		// only add hostpath volumes
-		if volume.Volume.HostPath != nil {
-			volumesMap[volume.Volume.HostPath.Path] = volume.VolumeMount.MountPath
-		}
-	}
-
-	envMap := map[string]string{}
-	for _, env := range createFunctionOptions.FunctionConfig.Spec.Env {
-		envMap[env.Name] = env.Value
-	}
-
-	// run the docker image
-	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image, &dockerclient.RunOptions{
-		ContainerName: p.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
-		Ports:         map[int]int{functionHTTPPort: 8080},
-		Env:           envMap,
-		Labels:        labels,
-		Volumes:       volumesMap,
-		Network:       functionPlatformConfiguration.Network,
-		RestartPolicy: functionPlatformConfiguration.RestartPolicy,
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to run docker container")
-	}
-
-	p.Logger.InfoWith("Waiting for function to be ready", "timeout", createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds)
-
-	var readinessTimeout time.Duration
-	if createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds != 0 {
-		readinessTimeout = time.Duration(createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds) * time.Second
-	} else {
-		readinessTimeout = abstract.DefaultReadinessTimeoutSeconds * time.Second
-	}
-
-	if err = p.dockerClient.AwaitContainerHealth(containerID, &readinessTimeout); err != nil {
-		var errMessage string
-
-		// try to get error logs
-		containerLogs, getContainerLogsErr := p.dockerClient.GetContainerLogs(containerID)
-		if getContainerLogsErr == nil {
-			errMessage = fmt.Sprintf("Function wasn't ready in time. Logs:\n%s", containerLogs)
-		} else {
-			errMessage = fmt.Sprintf("Function wasn't ready in time (couldn't fetch logs: %s)", getContainerLogsErr.Error())
-		}
-
-		return nil, errors.Wrap(err, errMessage)
-	}
-
-	return &platform.CreateFunctionResult{
-		CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
-			Image:                 createFunctionOptions.FunctionConfig.Spec.Image,
-			UpdatedFunctionConfig: createFunctionOptions.FunctionConfig,
-		},
-		Port:        functionHTTPPort,
-		ContainerID: containerID,
-	}, nil
-}
-
-func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateFunctionOptions) (string, error) {
-
-	configWriter, err := processorconfig.NewWriter()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to create processor configuration writer")
-	}
-
-	// must specify "/tmp" here so that it's available on docker for mac
-	processorConfigFile, err := ioutil.TempFile("/tmp", "processor-config-")
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to create temporary processor config")
-	}
-
-	defer processorConfigFile.Close() // nolint: errcheck
-
-	if err = configWriter.Write(processorConfigFile, &processor.Configuration{
-		Config: createFunctionOptions.FunctionConfig,
-	}); err != nil {
-		return "", errors.Wrap(err, "Failed to write processor config")
-	}
-
-	p.Logger.DebugWith("Wrote processor configuration", "path", processorConfigFile.Name())
-
-	// read the file once for logging
-	processorConfigContents, err := ioutil.ReadFile(processorConfigFile.Name())
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to read processor configuration file")
-	}
-
-	// log
-	p.Logger.DebugWith("Wrote processor configuration file", "contents", string(processorConfigContents))
-
-	return processorConfigFile.Name(), nil
-}
-
-func (p *Platform) encodeFunctionSpec(spec *functionconfig.Spec) string {
-	encodedFunctionSpec, _ := json.Marshal(spec)
-
-	return string(encodedFunctionSpec)
-}
-
-func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFunctionOptions,
-	previousHTTPPort int) (int, error) {
-
-	// if the configuration specified an HTTP port - use that
-	if createFunctionOptions.FunctionConfig.Spec.GetHTTPPort() != 0 {
-		p.Logger.DebugWith("Configuration specified HTTP port",
-			"port",
-			createFunctionOptions.FunctionConfig.Spec.GetHTTPPort())
-
-		return createFunctionOptions.FunctionConfig.Spec.GetHTTPPort(), nil
-	}
-
-	// if there was a previous deployment and no configuration - use that
-	if previousHTTPPort != 0 {
-		return previousHTTPPort, nil
-	}
-
-	// get a free local port
-	freeLocalPort, err := p.getFreeLocalPort()
-	if err != nil {
-		return -1, errors.Wrap(err, "Failed to get free local port")
-	}
-
-	p.Logger.DebugWith("Found free local port", "port", freeLocalPort)
-
-	return freeLocalPort, nil
-}
-
-func (p *Platform) GetContainerNameByCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) string {
-	return fmt.Sprintf("nuclio-%s-%s",
-		createFunctionOptions.FunctionConfig.Meta.Namespace,
-		createFunctionOptions.FunctionConfig.Meta.Name)
-}
-
-func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container) int {
-	ports := container.HostConfig.PortBindings["8080/tcp"]
-	if len(ports) == 0 {
-		return 0
-	}
-
-	httpPort, _ := strconv.Atoi(ports[0].HostPort)
-
-	return httpPort
-}
-
-func (p *Platform) marshallAnnotations(annotations map[string]string) []byte {
-	if annotations == nil {
-		return nil
-	}
-
-	marshalledAnnotations, err := json.Marshal(annotations)
-	if err != nil {
-		return nil
-	}
-
-	// convert to string and return address
-	return marshalledAnnotations
-}
-
-func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
-	var previousHTTPPort int
-
-	createFunctionOptions.Logger.InfoWith("Cleaning up before deployment")
-
-	getContainerOptions := &dockerclient.GetContainerOptions{
-		Name:    p.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
-		Stopped: true,
-	}
-
-	containers, err := p.dockerClient.GetContainers(getContainerOptions)
-
-	if err != nil {
-		return 0, errors.Wrap(err, "Failed to get function")
-	}
-
-	// if the function exists, delete it
-	if len(containers) > 0 {
-		createFunctionOptions.Logger.InfoWith("Function already exists, deleting")
-
-		// iterate over containers and delete
-		for _, container := range containers {
-			previousHTTPPort = p.getContainerHTTPTriggerPort(&container)
-
-			err = p.dockerClient.RemoveContainer(container.Name)
-			if err != nil {
-				return 0, errors.Wrap(err, "Failed to delete existing function")
-			}
-		}
-	}
-
-	return previousHTTPPort, nil
-}
-
 func (p *Platform) ValidateFunctionContainersHealthiness() {
 	namespaces, err := p.GetNamespaces()
 	if err != nil {
@@ -868,6 +628,285 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 	}
 }
 
+func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
+	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
+
+	// get function platform specific configuration
+	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&createFunctionOptions.FunctionConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create function platform configuration")
+	}
+
+	mountPoints, volumesMap, err := p.resolveAndCreateFunctionMounts(createFunctionOptions,
+		functionPlatformConfiguration.ProcessorMountMode)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve and create function mounts")
+	}
+
+	labels := p.compileDeployFunctionLabels(createFunctionOptions)
+	envMap := p.compileDeployFunctionEnvMap(createFunctionOptions)
+
+	// get function port - either from configuration, from the previous deployment or from a free port
+	functionExternalHTTPPort, err := p.getFunctionHTTPPort(createFunctionOptions, previousHTTPPort)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function HTTP port")
+	}
+
+	gpus := ""
+	if createFunctionOptions.FunctionConfig.Spec.PositiveGPUResourceLimit() {
+
+		// TODO: allow user specify the exact gpu index/uuid & capabilities
+		// https://docs.docker.com/config/containers/resource_constraints/#access-an-nvidia-gpu
+		gpus = "all"
+	}
+
+	functionSecurityContext := createFunctionOptions.FunctionConfig.Spec.SecurityContext
+	if functionSecurityContext == nil {
+		functionSecurityContext = &v1.PodSecurityContext{}
+	}
+
+	// run the docker image
+	runContainerOptions := &dockerclient.RunOptions{
+		ContainerName: p.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
+		Ports: map[int]int{
+			functionExternalHTTPPort: abstract.FunctionContainerHTTPPort,
+		},
+		Env:           envMap,
+		Labels:        labels,
+		Volumes:       volumesMap,
+		Network:       functionPlatformConfiguration.Network,
+		RestartPolicy: functionPlatformConfiguration.RestartPolicy,
+		GPUs:          gpus,
+		MountPoints:   mountPoints,
+		RunAsUser:     functionSecurityContext.RunAsUser,
+		RunAsGroup:    functionSecurityContext.RunAsGroup,
+		FSGroup:       functionSecurityContext.FSGroup,
+	}
+
+	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image,
+		runContainerOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to run docker container")
+	}
+
+	timeout := createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds
+	if err := p.waitForContainer(containerID, timeout); err != nil {
+		return nil, err
+	}
+
+	functionExternalHTTPPort, err = p.resolveDeployedFunctionHTTPPort(containerID)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve deployed function HTTP port")
+	}
+
+	return &platform.CreateFunctionResult{
+		CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
+			Image:                 createFunctionOptions.FunctionConfig.Spec.Image,
+			UpdatedFunctionConfig: createFunctionOptions.FunctionConfig,
+		},
+		Port:        functionExternalHTTPPort,
+		ContainerID: containerID,
+	}, nil
+}
+
+func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platform.CreateFunctionOptions,
+	processorMountMode ProcessorMountMode) ([]dockerclient.MountPoint, map[string]string, error) {
+
+	var mountPoints []dockerclient.MountPoint
+	volumesMap := p.compileDeployFunctionVolumesMap(createFunctionOptions)
+
+	switch processorMountMode {
+	case ProcessorMountModeVolume:
+		if err := p.prepareFunctionVolumeMount(createFunctionOptions); err != nil {
+			return nil, nil, errors.Wrap(err, "Failed to prepare function volume mount")
+		}
+		mountPoints = append(mountPoints, dockerclient.MountPoint{
+			Source:      p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
+			Destination: FunctionProcessorContainerDirPath,
+
+			// read only mode
+			RW: false,
+		})
+	default:
+
+		// create processor configuration at a temporary location unless user specified a configuration
+		localProcessorConfigPath, err := p.createProcessorConfig(createFunctionOptions)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Failed to create processor configuration")
+		}
+
+		// volumize it
+		volumesMap[localProcessorConfigPath] = path.Join(FunctionProcessorContainerDirPath, "processor.yaml")
+	}
+
+	return mountPoints, volumesMap, nil
+}
+
+func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateFunctionOptions) (string, error) {
+
+	configWriter, err := processorconfig.NewWriter()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create processor configuration writer")
+	}
+
+	// must specify "/tmp" here so that it's available on docker for mac
+	processorConfigFile, err := ioutil.TempFile("/tmp", "processor-config-")
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create temporary processor config")
+	}
+
+	defer processorConfigFile.Close() // nolint: errcheck
+
+	if err = configWriter.Write(processorConfigFile, &processor.Configuration{
+		Config: createFunctionOptions.FunctionConfig,
+	}); err != nil {
+		return "", errors.Wrap(err, "Failed to write processor config")
+	}
+
+	// make it readable by other users, in case user use different USER directive on function image
+	if err := os.Chmod(processorConfigFile.Name(), 0644); err != nil {
+		return "", errors.Wrap(err, "Failed to change processor config file permission")
+	}
+
+	p.Logger.DebugWith("Wrote processor configuration", "path", processorConfigFile.Name())
+
+	// read the file once for logging
+	processorConfigContents, err := ioutil.ReadFile(processorConfigFile.Name())
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to read processor configuration file")
+	}
+
+	// log
+	p.Logger.DebugWith("Wrote processor configuration file", "contents", string(processorConfigContents))
+
+	return processorConfigFile.Name(), nil
+}
+
+func (p *Platform) encodeFunctionSpec(spec *functionconfig.Spec) string {
+	encodedFunctionSpec, _ := json.Marshal(spec)
+
+	return string(encodedFunctionSpec)
+}
+
+func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFunctionOptions,
+	previousHTTPPort int) (int, error) {
+
+	// if the configuration specified an HTTP port - use that
+	if createFunctionOptions.FunctionConfig.Spec.GetHTTPPort() != 0 {
+		p.Logger.DebugWith("Configuration specified HTTP port",
+			"port",
+			createFunctionOptions.FunctionConfig.Spec.GetHTTPPort())
+
+		return createFunctionOptions.FunctionConfig.Spec.GetHTTPPort(), nil
+	}
+
+	// if there was a previous deployment and no configuration - use that
+	if previousHTTPPort != 0 {
+		createFunctionOptions.Logger.DebugWith("Using previous deployment HTTP port ",
+			"previousHTTPPort", previousHTTPPort)
+		return previousHTTPPort, nil
+	}
+
+	return dockerclient.RunOptionsNoPort, nil
+}
+
+func (p *Platform) GetContainerNameByCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) string {
+	return fmt.Sprintf("nuclio-%s-%s",
+		createFunctionOptions.FunctionConfig.Meta.Namespace,
+		createFunctionOptions.FunctionConfig.Meta.Name)
+}
+
+func (p *Platform) GetProcessorMountVolumeName(functionConfig *functionconfig.Config) string {
+	return fmt.Sprintf("nuclio-%s-%s",
+		functionConfig.Meta.Namespace,
+		functionConfig.Meta.Name)
+}
+
+func (p *Platform) resolveDeployedFunctionHTTPPort(containerID string) (int, error) {
+	containers, err := p.dockerClient.GetContainers(&dockerclient.GetContainerOptions{
+		ID: containerID,
+	})
+	if err != nil || len(containers) == 0 {
+		return 0, errors.Wrap(err, "Failed to get container")
+	}
+	return p.getContainerHTTPTriggerPort(&containers[0])
+}
+
+func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container) (int, error) {
+	functionHostPort := dockerclient.Port(fmt.Sprintf("%d/tcp", abstract.FunctionContainerHTTPPort))
+
+	portBindings := container.HostConfig.PortBindings[functionHostPort]
+	ports := container.NetworkSettings.Ports[functionHostPort]
+	if len(portBindings) == 0 && len(ports) == 0 {
+		return 0, nil
+	}
+
+	if len(portBindings) != 0 && portBindings[0].HostPort != "" {
+
+		// by default take the port binding, as if the user requested
+		return strconv.Atoi(portBindings[0].HostPort)
+	} else if len(ports) != 0 && ports[0].HostPort != "" {
+
+		// in case the user did not set an explicit port, take the random port assigned by docker
+		return strconv.Atoi(ports[0].HostPort)
+	} else {
+
+		// something bad happened if we got here
+		return 0, errors.New("No port was assigned")
+	}
+}
+
+func (p *Platform) marshallAnnotations(annotations map[string]string) []byte {
+	if annotations == nil {
+		return nil
+	}
+
+	marshalledAnnotations, err := json.Marshal(annotations)
+	if err != nil {
+		return nil
+	}
+
+	// convert to string and return address
+	return marshalledAnnotations
+}
+
+func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
+	var previousHTTPPort int
+
+	createFunctionOptions.Logger.InfoWith("Cleaning up before deployment")
+
+	getContainerOptions := &dockerclient.GetContainerOptions{
+		Name:    p.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
+		Stopped: true,
+	}
+
+	containers, err := p.dockerClient.GetContainers(getContainerOptions)
+
+	if err != nil {
+		return 0, errors.Wrap(err, "Failed to get function")
+	}
+
+	// if the function exists, delete it
+	if len(containers) > 0 {
+		createFunctionOptions.Logger.InfoWith("Function already exists, deleting")
+
+		// iterate over containers and delete
+		for _, container := range containers {
+			previousHTTPPort, err = p.getContainerHTTPTriggerPort(&container)
+			if err != nil {
+				return 0, errors.Wrap(err, "Failed to get container http trigger port")
+			}
+
+			err = p.dockerClient.RemoveContainer(container.Name)
+			if err != nil {
+				return 0, errors.Wrap(err, "Failed to delete existing function")
+			}
+		}
+	}
+
+	return previousHTTPPort, nil
+}
+
 func (p *Platform) checkAndSetFunctionUnhealthy(containerID string, function platform.Function) error {
 	if err := p.dockerClient.AwaitContainerHealth(containerID,
 		&p.functionContainersHealthinessTimeout); err != nil {
@@ -918,4 +957,107 @@ func (p *Platform) checkAndSetFunctionHealthy(containerID string, function platf
 		Config: *function.GetConfig(),
 		Status: *functionStatus,
 	})
+}
+
+func (p *Platform) waitForContainer(containerID string, timeout int) error {
+	p.Logger.InfoWith("Waiting for function to be ready",
+		"timeout", timeout)
+
+	var readinessTimeout time.Duration
+	if timeout != 0 {
+		readinessTimeout = time.Duration(timeout) * time.Second
+	} else {
+		readinessTimeout = abstract.DefaultReadinessTimeoutSeconds * time.Second
+	}
+
+	if err := p.dockerClient.AwaitContainerHealth(containerID, &readinessTimeout); err != nil {
+		var errMessage string
+
+		// try to get error logs
+		containerLogs, getContainerLogsErr := p.dockerClient.GetContainerLogs(containerID)
+		if getContainerLogsErr == nil {
+			errMessage = fmt.Sprintf("Function wasn't ready in time. Logs:\n%s", containerLogs)
+		} else {
+			errMessage = fmt.Sprintf("Function wasn't ready in time (couldn't fetch logs: %s)", getContainerLogsErr.Error())
+		}
+
+		return errors.Wrap(err, errMessage)
+	}
+	return nil
+}
+
+func (p *Platform) compileDeployFunctionVolumesMap(createFunctionOptions *platform.CreateFunctionOptions) map[string]string {
+	volumesMap := map[string]string{}
+	for _, volume := range createFunctionOptions.FunctionConfig.Spec.Volumes {
+
+		// only add hostpath volumes
+		if volume.Volume.HostPath != nil {
+			volumesMap[volume.Volume.HostPath.Path] = volume.VolumeMount.MountPath
+		}
+	}
+	return volumesMap
+}
+
+func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.CreateFunctionOptions) error {
+
+	// create docker volume
+	if err := p.dockerClient.CreateVolume(&dockerclient.CreateVolumeOptions{
+		Name: p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
+	}); err != nil {
+		return errors.Wrapf(err, "Failed to create volume for function %s",
+			createFunctionOptions.FunctionConfig.Meta.Name)
+	}
+
+	// marshaling processor config
+	processorConfigBody, err := yaml.Marshal(&processor.Configuration{
+		Config: createFunctionOptions.FunctionConfig,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to marshal processor configuration")
+	}
+
+	// dumping contents to volume's processor path
+	if _, err := p.dockerClient.RunContainer("alpine:3.11", &dockerclient.RunOptions{
+		Remove: true,
+		MountPoints: []dockerclient.MountPoint{
+			{
+				Source:      p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
+				Destination: FunctionProcessorContainerDirPath,
+				RW:          true,
+			},
+		},
+		Command: fmt.Sprintf(`sh -c 'echo "%s" | base64 -d | install -m 777 /dev/stdin %s'`,
+			base64.StdEncoding.EncodeToString(processorConfigBody),
+			path.Join(FunctionProcessorContainerDirPath, "processor.yaml")),
+	}); err != nil {
+		return errors.Wrap(err, "Failed to write processor config to volume")
+	}
+	return nil
+}
+
+func (p *Platform) compileDeployFunctionEnvMap(createFunctionOptions *platform.CreateFunctionOptions) map[string]string {
+	envMap := map[string]string{}
+	for _, env := range createFunctionOptions.FunctionConfig.Spec.Env {
+		envMap[env.Name] = env.Value
+	}
+	return envMap
+}
+
+func (p *Platform) compileDeployFunctionLabels(createFunctionOptions *platform.CreateFunctionOptions) map[string]string {
+	labels := map[string]string{
+		"nuclio.io/platform":      "local",
+		"nuclio.io/namespace":     createFunctionOptions.FunctionConfig.Meta.Namespace,
+		"nuclio.io/function-name": createFunctionOptions.FunctionConfig.Meta.Name,
+		"nuclio.io/function-spec": p.encodeFunctionSpec(&createFunctionOptions.FunctionConfig.Spec),
+	}
+
+	for labelName, labelValue := range createFunctionOptions.FunctionConfig.Meta.Labels {
+		labels[labelName] = labelValue
+	}
+
+	marshalledAnnotations := p.marshallAnnotations(createFunctionOptions.FunctionConfig.Meta.Annotations)
+	if marshalledAnnotations != nil {
+		labels["nuclio.io/annotations"] = string(marshalledAnnotations)
+	}
+	return labels
 }

@@ -209,7 +209,15 @@ func StripPrefixes(input string, prefixes []string) string {
 			return strings.TrimPrefix(input, prefix)
 		}
 	}
+	return input
+}
 
+func StripSuffixes(input string, suffixes []string) string {
+	for _, suffix := range suffixes {
+		if strings.HasSuffix(input, suffix) {
+			return strings.TrimSuffix(input, suffix)
+		}
+	}
 	return input
 }
 
@@ -373,6 +381,21 @@ func GetSourceDir() string {
 	}
 }
 
+// Quote returns a shell-escaped version of the string s. The returned value
+// is a string that can safely be used as one token in a shell command line.
+func Quote(s string) string {
+	var specialCharPattern = regexp.MustCompile(`[^\w@%+=:,./-]`)
+
+	if len(s) == 0 {
+		return "''"
+	}
+	if specialCharPattern.MatchString(s) {
+		return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
+	}
+
+	return s
+}
+
 func ByteSliceToString(b []byte) string {
 
 	// https://golang.org/src/strings/builder.go#L45
@@ -386,6 +409,19 @@ func MatchStringPatterns(patterns []string, s string) bool {
 		if regexp.MustCompile(pattern).MatchString(s) {
 
 			// one matching pattern is enough
+			return true
+		}
+	}
+	return false
+}
+
+func CompileImageName(registryURL string, imageName string) string {
+	return strings.TrimSuffix(registryURL, "/") + "/" + imageName
+}
+
+func AnyPositiveInSliceInt64(numbers []int64) bool {
+	for _, number := range numbers {
+		if number >= 0 {
 			return true
 		}
 	}

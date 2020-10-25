@@ -26,6 +26,10 @@ import (
 	"k8s.io/api/core/v1"
 )
 
+const (
+	NvidiaGPUResourceName = "nvidia.com/gpu"
+)
+
 // DataBinding holds configuration for a databinding
 type DataBinding struct {
 	Name       string                 `json:"name,omitempty"`
@@ -139,6 +143,14 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 	return ingresses
 }
 
+func GetDefaultHTTPTrigger() Trigger {
+	return Trigger{
+		Kind:       "http",
+		Name:       "default-http",
+		MaxWorkers: 1,
+	}
+}
+
 // Ingress holds configuration for an ingress - an entity that can route HTTP requests
 // to the function
 type Ingress struct {
@@ -242,6 +254,7 @@ type Spec struct {
 	Avatar                  string                  `json:"avatar,omitempty"`
 	ServiceType             v1.ServiceType          `json:"serviceType,omitempty"`
 	ImagePullPolicy         v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
+	SecurityContext         *v1.PodSecurityContext  `json:"securityContext,omitempty"`
 	ServiceAccount          string                  `json:"serviceAccount,omitempty"`
 	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
 
@@ -299,7 +312,25 @@ func (s *Spec) GetHTTPPort() int {
 			httpPort, httpPortValid := trigger.Attributes["port"]
 			if httpPortValid {
 				switch typedHTTPPort := httpPort.(type) {
+				case int8:
+					return int(typedHTTPPort)
+				case int16:
+					return int(typedHTTPPort)
+				case int32:
+					return int(typedHTTPPort)
+				case int64:
+					return int(typedHTTPPort)
+				case uint:
+					return int(typedHTTPPort)
+				case uint8:
+					return int(typedHTTPPort)
+				case uint16:
+					return int(typedHTTPPort)
+				case uint32:
+					return int(typedHTTPPort)
 				case uint64:
+					return int(typedHTTPPort)
+				case float32:
 					return int(typedHTTPPort)
 				case float64:
 					return int(typedHTTPPort)
@@ -321,6 +352,14 @@ func (s *Spec) GetEventTimeout() (time.Duration, error) {
 	}
 
 	return timeout, err
+}
+
+//PositiveGPUResourceLimit returns whether gpu is assigned
+func (s *Spec) PositiveGPUResourceLimit() bool {
+	if gpuResourceLimit, found := s.Resources.Limits[NvidiaGPUResourceName]; found {
+		return !gpuResourceLimit.IsZero()
+	}
+	return false
 }
 
 const (
@@ -469,6 +508,7 @@ type Status struct {
 	Logs        []map[string]interface{} `json:"logs,omitempty"`
 	HTTPPort    int                      `json:"httpPort,omitempty"`
 	ScaleToZero *ScaleToZeroStatus       `json:"scaleToZero,omitempty"`
+	APIGateways []string                 `json:"apiGateways,omitempty"`
 }
 
 type ScaleToZeroStatus struct {

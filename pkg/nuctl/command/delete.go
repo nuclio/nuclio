@@ -43,11 +43,13 @@ func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
 	deleteFunctionCommand := newDeleteFunctionCommandeer(commandeer).cmd
 	deleteProjectCommand := newDeleteProjectCommandeer(commandeer).cmd
 	deleteFunctionEventCommand := newDeleteFunctionEventCommandeer(commandeer).cmd
+	deleteAPIGatewayCommand := newDeleteAPIGatewayCommandeer(commandeer).cmd
 
 	cmd.AddCommand(
 		deleteFunctionCommand,
 		deleteProjectCommand,
 		deleteFunctionEventCommand,
+		deleteAPIGatewayCommand,
 	)
 
 	commandeer.cmd = cmd
@@ -127,6 +129,46 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 
 			return deleteCommandeer.rootCommandeer.platform.DeleteProject(&platform.DeleteProjectOptions{
 				Meta: commandeer.projectMeta,
+			})
+		},
+	}
+
+	commandeer.cmd = cmd
+
+	return commandeer
+}
+
+type deleteAPIGatewayCommandeer struct {
+	*deleteCommandeer
+	apiGatewayMeta platform.APIGatewayMeta
+}
+
+func newDeleteAPIGatewayCommandeer(deleteCommandeer *deleteCommandeer) *deleteAPIGatewayCommandeer {
+	commandeer := &deleteAPIGatewayCommandeer{
+		deleteCommandeer: deleteCommandeer,
+	}
+
+	cmd := &cobra.Command{
+		Use:     "apigateways name",
+		Aliases: []string{"agw", "apigateway"},
+		Short:   "(or apigateway) Delete api gateway",
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			// if we got positional arguments
+			if len(args) == 0 {
+				return errors.New("Api gateway delete requires a single identifier")
+			}
+
+			// initialize root
+			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
+			commandeer.apiGatewayMeta.Name = args[0]
+			commandeer.apiGatewayMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
+
+			return deleteCommandeer.rootCommandeer.platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{
+				Meta: commandeer.apiGatewayMeta,
 			})
 		},
 	}

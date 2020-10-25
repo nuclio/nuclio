@@ -20,18 +20,19 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/loggersink"
+	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 
 	"github.com/nuclio/errors"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 func Run(kubeconfigPath string,
@@ -40,9 +41,10 @@ func Run(kubeconfigPath string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
-	cronJobStalePodsDeletionIntervalStr string,
+	cronJobStaleResourcesCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
-	projectOperatorNumWorkersStr string) error {
+	projectOperatorNumWorkersStr string,
+	apiGatewayOperatorNumWorkersStr string) error {
 
 	newController, err := createController(kubeconfigPath,
 		namespace,
@@ -50,9 +52,10 @@ func Run(kubeconfigPath string,
 		platformConfigurationPath,
 		functionOperatorNumWorkersStr,
 		functionOperatorResyncIntervalStr,
-		cronJobStalePodsDeletionIntervalStr,
+		cronJobStaleResourcesCleanupIntervalStr,
 		functionEventOperatorNumWorkersStr,
-		projectOperatorNumWorkersStr)
+		projectOperatorNumWorkersStr,
+		apiGatewayOperatorNumWorkersStr)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create controller")
 	}
@@ -72,9 +75,10 @@ func createController(kubeconfigPath string,
 	platformConfigurationPath string,
 	functionOperatorNumWorkersStr string,
 	functionOperatorResyncIntervalStr string,
-	cronJobStalePodsDeletionIntervalStr string,
+	cronJobStaleResourcesCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
-	projectOperatorNumWorkersStr string) (*controller.Controller, error) {
+	projectOperatorNumWorkersStr string,
+	apiGatewayOperatorNumWorkersStr string) (*controller.Controller, error) {
 
 	functionOperatorNumWorkers, err := strconv.Atoi(functionOperatorNumWorkersStr)
 	if err != nil {
@@ -91,7 +95,7 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to parse resync interval for function operator")
 	}
 
-	cronJobStalePodsDeletionInterval, err := time.ParseDuration(cronJobStalePodsDeletionIntervalStr)
+	cronJobStaleResourcesCleanupInterval, err := time.ParseDuration(cronJobStaleResourcesCleanupIntervalStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse cron job stale pods deletion interval")
 	}
@@ -99,6 +103,11 @@ func createController(kubeconfigPath string,
 	projectOperatorNumWorkers, err := strconv.Atoi(projectOperatorNumWorkersStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve number of workers for project operator")
+	}
+
+	apiGatewayOperatorNumWorkers, err := strconv.Atoi(apiGatewayOperatorNumWorkersStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve number of workers for api gateway operator")
 	}
 
 	// get platform configuration
@@ -113,7 +122,7 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}
 
-	restConfig, err := getClientConfig(kubeconfigPath)
+	restConfig, err := common.GetClientConfig(kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get client configuration")
 	}
@@ -134,30 +143,36 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create function deployment client")
 	}
 
+	// create ingress manager
+	ingressManager, err := ingress.NewManager(rootLogger, kubeClientSet, platformConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create ingress manager")
+	}
+
+	// create api gateway provisioner
+	apigatewayresClient, err := apigatewayres.NewLazyClient(rootLogger, kubeClientSet, nuclioClientSet, ingressManager)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create api gateway provisioner")
+	}
+
 	newController, err := controller.NewController(rootLogger,
 		namespace,
 		imagePullSecrets,
 		kubeClientSet,
 		nuclioClientSet,
 		functionresClient,
+		apigatewayresClient,
 		functionOperatorResyncInterval,
-		cronJobStalePodsDeletionInterval,
+		cronJobStaleResourcesCleanupInterval,
 		platformConfiguration,
 		functionOperatorNumWorkers,
 		functionEventOperatorNumWorkers,
-		projectOperatorNumWorkers)
+		projectOperatorNumWorkers,
+		apiGatewayOperatorNumWorkers)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return newController, nil
-}
-
-func getClientConfig(kubeconfigPath string) (*rest.Config, error) {
-	if kubeconfigPath != "" {
-		return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-	}
-
-	return rest.InClusterConfig()
 }

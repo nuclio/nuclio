@@ -98,6 +98,34 @@ func (mp *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 }
 
 //
+// API Gateway
+//
+
+// Create APIGateway creates and deploys a new api gateway
+func (mp *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
+	args := mp.Called(createAPIGatewayOptions)
+	return args.Error(0)
+}
+
+// UpdateAPIGateway will update a previously deployed api gateway
+func (mp *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
+	args := mp.Called(updateAPIGatewayOptions)
+	return args.Error(0)
+}
+
+// DeleteAPIGateway will delete a previously deployed api gateway
+func (mp *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
+	args := mp.Called(deleteAPIGatewayOptions)
+	return args.Error(0)
+}
+
+// GetAPIGateways will list existing api gateways
+func (mp *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
+	args := mp.Called(getAPIGatewaysOptions)
+	return args.Get(0).([]platform.APIGateway), args.Error(1)
+}
+
+//
 // Function event
 //
 
@@ -170,6 +198,11 @@ func (mp *Platform) GetExternalIPAddresses() ([]string, error) {
 func (mp *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error) {
 	args := mp.Called()
 	return args.Get(0).(*platformconfig.ScaleToZero), args.Error(1)
+}
+
+func (mp *Platform) GetAllowedAuthenticationModes() ([]string, error) {
+	args := mp.Called()
+	return args.Get(0).([]string), args.Error(1)
 }
 
 // GetHealthCheckMode returns the healthcheck mode the platform requires

@@ -57,13 +57,9 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 		return errors.Wrap(err, "Failed to write configuration")
 	}
 
-	// enrich config with env vars existing only in codeEntry config
-	if codeEntryConfig.Spec.Env != nil && config.Spec.Env != nil {
-		for _, codeEntryEnvVar := range codeEntryConfig.Spec.Env {
-			if !common.EnvInSlice(codeEntryEnvVar, config.Spec.Env) {
-				config.Spec.Env = append(config.Spec.Env, codeEntryEnvVar)
-			}
-		}
+	err = r.validateConfigurationFileFunctionConfig(&codeEntryConfig)
+	if err != nil {
+		return errors.Wrap(err, "configuration file invalid")
 	}
 
 	// normalizing the received config to the JSON values of the function config Go struct
@@ -103,5 +99,39 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 		return errors.Wrap(err, "Failed to parse new config from JSON to *Config struct")
 	}
 
+	r.enrichPostMergeConfig(config, &codeEntryConfig)
+
+	return nil
+}
+
+func (r *Reader) enrichPostMergeConfig(config, codeEntryConfig *Config) {
+
+	// enrich config with env vars existing only in codeEntry config
+	if codeEntryConfig.Spec.Env != nil && config.Spec.Env != nil {
+		for _, codeEntryEnvVar := range codeEntryConfig.Spec.Env {
+			if !common.EnvInSlice(codeEntryEnvVar, config.Spec.Env) {
+				config.Spec.Env = append(config.Spec.Env, codeEntryEnvVar)
+			}
+		}
+	}
+
+	// If one of the configs had the default http trigger and the other had a regular trigger
+	// then there would be 2 triggers which isn't valid, in this case we can delete the default trigger.
+	// If both configs had regular triggers and not the default, the validation later will fail as expected.
+	if len(GetTriggersByKind(config.Spec.Triggers, "http")) > 1 {
+		defaultHTTPTrigger := GetDefaultHTTPTrigger()
+		delete(config.Spec.Triggers, defaultHTTPTrigger.Name)
+	}
+}
+
+// There is already validation of the function config pre merge, and validation post merge.
+// This validation function is for validation during the merge itself which is mainly to convey to the user
+// about validity of the configuration file itself, and therefore help the user understand where his problem lies.
+func (r *Reader) validateConfigurationFileFunctionConfig(codeEntryConfig *Config) error {
+	if len(GetTriggersByKind(codeEntryConfig.Spec.Triggers, "http")) > 1 {
+		return errors.New("FunctionConfig from configuration file cannot have more than 1 http trigger")
+	}
+
+	// TODO: decide if we want to add more "mid merge" validations.
 	return nil
 }

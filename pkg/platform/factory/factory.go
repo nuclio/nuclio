@@ -17,9 +17,6 @@ limitations under the License.
 package factory
 
 import (
-	"os"
-	"path/filepath"
-
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -27,7 +24,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/local"
 
-	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
@@ -41,6 +37,12 @@ func CreatePlatform(parentLogger logger.Logger,
 
 	var newPlatform platform.Platform
 	var err error
+	var kubeconfigPath string
+
+	// it might not be a kube configuration
+	if _, ok := platformConfiguration.(*config.Configuration); ok {
+		kubeconfigPath = platformConfiguration.(*config.Configuration).KubeconfigPath
+	}
 
 	containerBuilderConfiguration := getContainerBuilderConfiguration(platformConfiguration)
 
@@ -52,14 +54,14 @@ func CreatePlatform(parentLogger logger.Logger,
 
 	case "kube":
 		newPlatform, err = kube.NewPlatform(parentLogger,
-			getKubeconfigPath(platformConfiguration),
+			common.GetKubeconfigPath(kubeconfigPath),
 			containerBuilderConfiguration,
 			platformConfiguration)
 
 	case "auto":
 
 		// try to get kubeconfig path
-		kubeconfigPath := getKubeconfigPath(platformConfiguration)
+		kubeconfigPath := common.GetKubeconfigPath(kubeconfigPath)
 
 		if kubeconfigPath != "" || kube.IsInCluster() {
 
@@ -180,36 +182,4 @@ func getContainerBuilderConfiguration(platformConfiguration interface{}) *contai
 		common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_KANIKO_CACHE_REPO", "")
 
 	return &containerBuilderConfiguration
-}
-
-func getKubeconfigPath(platformConfiguration interface{}) string {
-	var kubeconfigPath string
-
-	// it might not be a kube configuration
-	if _, ok := platformConfiguration.(*config.Configuration); ok {
-		kubeconfigPath = platformConfiguration.(*config.Configuration).KubeconfigPath
-	}
-
-	// do we still not have a kubeconfig path?
-	if kubeconfigPath == "" {
-		kubeconfigPath = common.GetEnvOrDefaultString("KUBECONFIG", getKubeconfigFromHomeDir())
-	}
-	return kubeconfigPath
-}
-
-func getKubeconfigFromHomeDir() string {
-	homeDir, err := homedir.Dir()
-	if err != nil {
-		return ""
-	}
-
-	homeKubeConfigPath := filepath.Join(homeDir, ".kube", "config")
-
-	// if the file exists @ home, use it
-	_, err = os.Stat(homeKubeConfigPath)
-	if err == nil {
-		return homeKubeConfigPath
-	}
-
-	return ""
 }

@@ -282,8 +282,11 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
 		triggerName, triggerConfiguration := triggerName, triggerConfiguration
 
-		// skipping cron triggers when platform kind is "kube" - k8s cron jobs will be created instead
-		if triggerConfiguration.Kind == "cron" && platformKind == "kube" {
+		// skipping cron triggers when platform kind is "kube" and k8s cron jobs are enabled- k8s cron jobs will be created instead
+		if triggerConfiguration.Kind == "cron" &&
+			platformKind == "kube" &&
+			processorConfiguration.PlatformConfig.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+
 			p.logger.DebugWith("Skipping cron trigger creation inside the processor",
 				"triggerName", triggerName,
 				"platformKind", platformKind)
@@ -321,33 +324,7 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
 
-	// create default event source, given the triggers already created by configuration
-	defaultTriggers, err := p.createDefaultTriggers(processorConfiguration, triggers)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create default triggers")
-	}
-
-	// augment with default triggers, if any were created
-	triggers = append(triggers, defaultTriggers...)
-
 	return triggers, nil
-}
-
-func (p *Processor) createDefaultTriggers(processorConfiguration *processor.Configuration,
-	existingTriggers []trigger.Trigger) ([]trigger.Trigger, error) {
-	createdTriggers := []trigger.Trigger{}
-
-	// if there's already an http event source in the list of existing, do nothing
-	if p.hasHTTPTrigger(existingTriggers) {
-		return createdTriggers, nil
-	}
-
-	httpTrigger, err := p.createDefaultHTTPTrigger(processorConfiguration)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create default HTTP event source")
-	}
-
-	return append(createdTriggers, httpTrigger), nil
 }
 
 func (p *Processor) hasHTTPTrigger(triggers []trigger.Trigger) bool {

@@ -1,3 +1,7 @@
+# possible release name overrides
+# nameOverride:
+# fullnameOverride:
+
 # if true, all components assume no internet connectivity
 offline: false
 
@@ -6,7 +10,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.4.9-amd64
+    tag: 1.5.2-amd64
     pullPolicy: IfNotPresent  
 
   # Uncomment to have the controller to listen only the namespace's events, 
@@ -19,6 +23,8 @@ controller:
     functionEvent:
       numWorkers: 2
     project:
+      numWorkers: 2
+    apiGateway:
       numWorkers: 2
 
   # the image of the created k8s cron job for function cron triggers
@@ -33,7 +39,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.4.9-amd64
+    tag: 1.5.2-amd64
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
@@ -85,7 +91,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.4.9-amd64
+    tag: 1.5.2-amd64
     pullPolicy: IfNotPresent
 
 dlx:
@@ -93,7 +99,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.4.9-amd64
+    tag: 1.5.2-amd64
     pullPolicy: IfNotPresent
 
 registry:
@@ -162,8 +168,11 @@ rbac:
 
   # serviceAccountName: service-account-name
 
-  # Allow / deny cluster-wide CRD access. values: "cluster", "namespaced".
-  # If set to "namespaced" dashboard will not be able to create nuclio resources in any namespace other than the one in which it is installed
+  # Allow / deny cluster-wide resource access. values: "cluster", "namespaced".
+  # If set to "namespaced" dashboard will not be able to create nuclio resources in any namespace other
+  # than the one in which it is installed
+  # Likewise, for "namespaced", the controller won't be able to act on these nuclio resources in any
+  # namespace other than the one in which it is installed
   crdAccessMode: cluster
 
 crd:
@@ -191,3 +200,12 @@ platform: {}
 #     - myPrometheusPull
 #     functions:
 #     - myPrometheusPull
+#   cronTriggerCreationMode: "kube"
+#   kube:
+#     defaultServiceType: NodePort
+
+# global is a stanza that is used if this is used as a subchart. Ignore otherwise
+global:
+  registry:
+    url:
+    secretName:

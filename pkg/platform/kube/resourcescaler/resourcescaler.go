@@ -1,4 +1,4 @@
-package main
+package resourcescaler
 
 import (
 	"os"
@@ -8,9 +8,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
-	// load all sinks
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	_ "github.com/nuclio/nuclio/pkg/sinks"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"

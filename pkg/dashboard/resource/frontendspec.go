@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
+	"k8s.io/api/core/v1"
 )
 
 type frontendSpecResource struct {
@@ -51,6 +52,11 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 	scaleToZeroConfiguration, err := fesr.getPlatform().GetScaleToZeroConfiguration()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed getting scale to zero configuration")
+	}
+
+	allowedAuthenticationModes, err := fesr.getPlatform().GetAllowedAuthenticationModes()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed getting allowed authentication modes")
 	}
 
 	scaleToZeroMode := platformconfig.DisabledScaleToZeroMode
@@ -80,6 +86,7 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 			"scaleToZero":                    scaleToZeroAttribute,
 			"defaultFunctionConfig":          defaultFunctionConfig,
 			"platformKind":                   platformKind,
+			"allowedAuthenticationModes":     allowedAuthenticationModes,
 		},
 	}
 
@@ -94,6 +101,14 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface{} {
 	one := 1
 	defaultWorkerAvailabilityTimeoutMilliseconds := trigger.DefaultWorkerAvailabilityTimeoutMilliseconds
+
+	defaultServiceType := fesr.resolveDefaultServiceType()
+	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+	defaultHTTPTrigger.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
+	defaultHTTPTrigger.Attributes = map[string]interface{}{
+		"serviceType": defaultServiceType,
+	}
+
 	defaultFunctionSpec := functionconfig.Spec{
 		MinReplicas:             &one,
 		MaxReplicas:             &one,
@@ -101,9 +116,16 @@ func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interfac
 		TargetCPU:               abstract.DefaultTargetCPU,
 		Triggers: map[string]functionconfig.Trigger{
 
+			// this trigger name starts with the prefix "default" and should be used as a default http trigger
+			// as opposed to the other defaults which only hold configurations for the creation of every other trigger.
+			defaultHTTPTrigger.Name: defaultHTTPTrigger,
+
 			// notice that this is a mapping between trigger kind and its default values
 			"http": {
 				WorkerAvailabilityTimeoutMilliseconds: &defaultWorkerAvailabilityTimeoutMilliseconds,
+				Attributes: map[string]interface{}{
+					"serviceType": defaultServiceType,
+				},
 			},
 			"cron": {
 				WorkerAvailabilityTimeoutMilliseconds: &defaultWorkerAvailabilityTimeoutMilliseconds,
@@ -125,6 +147,14 @@ func (fesr *frontendSpecResource) GetCustomRoutes() ([]restful.CustomRoute, erro
 			RouteFunc: fesr.getFrontendSpec,
 		},
 	}, nil
+}
+
+func (fesr *frontendSpecResource) resolveDefaultServiceType() v1.ServiceType {
+	var defaultServiceType v1.ServiceType = ""
+	if dashboardServer, ok := fesr.resource.GetServer().(*dashboard.Server); ok {
+		defaultServiceType = dashboardServer.GetPlatformConfiguration().Kube.DefaultServiceType
+	}
+	return defaultServiceType
 }
 
 // register the resource

@@ -65,13 +65,14 @@ The `spec` section contains the requirements and attributes and has the followin
 | volumes | map | A map in an architecture similar to Kubernetes volumes, for Docker deployment |
 | replicas | int | The number of desired instances; 0 for auto-scaling. |
 | minReplicas | int | The minimum number of replicas |
-| platform.attributes.restartPolicy.name | string | function image container restart policy name (applied for docker platform only) |
-| platform.attributes.restartPolicy.maximumRetryCount | int | restart maximum counter before exhausted |
+| platform.attributes.restartPolicy.name | string | Function image container restart policy name (applied for docker platform only) |
+| platform.attributes.restartPolicy.maximumRetryCount | int | Restart maximum counter before exhausted |
+| platform.attributes.processorMountMode | string | The way docker would mount the processor config (options: bind, volume; default: bind) |
 | maxReplicas | int | The maximum number of replicas |
 | targetCPU | int | Target CPU when auto scaling, as a percentage (default: 75%) |
 | dataBindings | See reference | A map of data sources used by the function ("data bindings") |
 | triggers.(name).maxWorkers | int | The max number of concurrent requests this trigger can process |
-| triggers.(name).kind | string | The trigger type (kind) - `cron` \| `eventhub` \| `http` \| `kafka-cluster` \| `kinesis` \| `nats` \| `rabbitmq` |
+| triggers.(name).kind | string | The trigger type (kind) - `cron` \| `eventhub` \| `http` \| `kafka-cluster` \| `kinesis` \| `nats` \| `rabbit-mq` |
 | triggers.(name).url | string | The trigger specific URL (not used by all triggers) |
 | triggers.(name).annotations | list of strings | Annotations to be assigned to the trigger, if applicable |
 | triggers.(name).workerAvailabilityTimeoutMilliseconds | int | The number of milliseconds to wait for a worker if one is not available. 0 = never wait (default: 10000, which is 10 seconds)|
@@ -93,6 +94,9 @@ The `spec` section contains the requirements and attributes and has the followin
 | readinessTimeoutSeconds | int | Number of seconds that the controller will wait for the function to become ready before declaring failure (default: 60) |
 | avatar | string | Base64 representation of an icon to be shown in UI for the function |
 | eventTimeout | string | Global event timeout, in the format supported for the `Duration` parameter of the [`time.ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function |
+| securityContext.runAsUser | int | The UID to run the entrypoint of the container process. (k8s only) |
+| securityContext.runAsGroup | int | The GID to run the entrypoint of the container process. (k8s only) |
+| securityContext.fsGroup | int | A supplemental group added to the groups to run the entrypoint of the container process. (k8s only) |
 
 <a id="spec-example"></a>
 ### Example
@@ -111,6 +115,10 @@ spec:
       restartPolicy:
         name: on-failure
         maximumRetryCount: 3
+
+      # will use `volume` to mount the processor into function
+      # more info @ https://docs.docker.com/storage/volumes
+      processorMountMode: volume
   env:
   - name: SOME_ENV
     value: abc
@@ -141,7 +149,11 @@ spec:
       memory: 128M
     limits:
       cpu: 2
-      memory: 256M  
+      memory: 256M
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 2000
+    fsGroup: 3000
 ```
 
 ## See also

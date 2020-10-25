@@ -41,6 +41,7 @@ type shell struct {
 	configuration *Configuration
 	command       string
 	env           []string
+	commandInPath bool
 	ctx           context.Context
 }
 
@@ -69,15 +70,24 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 
 	newShellRuntime.env = newShellRuntime.getEnvFromConfiguration()
 
+	newShellRuntime.commandInPath, err = newShellRuntime.commandIsInPath()
+	if err != nil {
+		newShellRuntime.Logger.ErrorWith("Failed checking if command is in PATH",
+			"name", newShellRuntime.configuration.Meta.Name,
+			"version", newShellRuntime.configuration.Spec.Version,
+			"command", newShellRuntime.command,
+			"err", err)
+		return nil, errors.Wrap(err, "Failed checking if command is in PATH")
+	}
+
 	newShellRuntime.SetStatus(status.Ready)
 
 	return newShellRuntime, nil
 }
 
 func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-	command := s.command
-
-	command += " " + s.getCommandArguments(event)
+	command := []string{s.command}
+	command = append(command, s.getCommandArguments(event)...)
 
 	s.Logger.DebugWith("Executing shell",
 		"name", s.configuration.Meta.Name,
@@ -90,8 +100,19 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	ctx, cancel := context.WithTimeout(s.ctx, 60*time.Second)
 	defer cancel()
 
-	// create a command
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	var cmd *exec.Cmd
+
+	if s.commandInPath {
+
+		// if the command is an executable, run it as a command with sh -c.
+		cmd = exec.CommandContext(ctx, "sh", "-c", strings.Join(command, " "))
+	} else {
+
+		// if the command is a shell script run it with sh(without -c). this will make sh
+		// read the script and run it as shell script and run it.
+		cmd = exec.CommandContext(ctx, "sh", command...)
+	}
+
 	cmd.Stdin = strings.NewReader(string(event.GetBody()))
 
 	// set the command env
@@ -106,6 +127,13 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	// run the command
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		s.Logger.ErrorWith("Failed to run shell command",
+			"name", s.configuration.Meta.Name,
+			"version", s.configuration.Spec.Version,
+			"eventID", event.GetID(),
+			"bodyLen", len(event.GetBody()),
+			"command", command,
+			"err", err)
 		return nil, errors.Wrap(err, "Failed to run shell command")
 	}
 
@@ -151,11 +179,6 @@ func (s *shell) getCommand() (string, error) {
 	// is there really a file there? could be user set module to something on the path
 	if common.FileExists(shellHandlerPath) {
 
-		// set permissions of handler such that if it wasn't executable before, it's executable now
-		if err := os.Chmod(shellHandlerPath, 0755); err != nil {
-			return "", errors.Wrapf(err, "Failed to change mode for %s", shellHandlerPath)
-		}
-
 		command = shellHandlerPath
 	} else {
 
@@ -166,12 +189,14 @@ func (s *shell) getCommand() (string, error) {
 	return command, nil
 }
 
-func (s *shell) getCommandArguments(event nuclio.Event) string {
-	if arguments := event.GetHeaderString("x-nuclio-arguments"); arguments != "" {
-		return arguments
+func (s *shell) getCommandArguments(event nuclio.Event) []string {
+	arguments := event.GetHeaderString("x-nuclio-arguments")
+
+	if arguments == "" {
+		arguments = s.configuration.Arguments
 	}
 
-	return s.configuration.Arguments
+	return strings.Split(arguments, " ")
 }
 
 func (s *shell) getEnvFromConfiguration() []string {
@@ -205,4 +230,22 @@ func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
 		fmt.Sprintf("NUCLIO_EVENT_TYPE_VERSION=%s", event.GetTypeVersion()),
 		fmt.Sprintf("NUCLIO_EVENT_VERSION=%s", event.GetVersion()),
 	}
+}
+
+func (s *shell) commandIsInPath() (bool, error) {
+
+	// Checks if the command is in path, or it's file exists locally
+	if !common.FileExists(s.command) {
+
+		// file doesn't exist, checking PATH
+		_, err := exec.LookPath(s.command)
+		if err != nil {
+			return false, errors.Wrap(err, "File doesn't exist neither in working dir nor in PATH")
+		}
+
+		// file is in PATH, we consider this a command whether it is an executable or not
+		return true, nil
+	}
+
+	return false, nil
 }

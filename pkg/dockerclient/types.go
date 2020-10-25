@@ -29,6 +29,9 @@ const (
 	RestartPolicyNameOnFailure     RestartPolicyName = "on-failure"
 )
 
+// RunOptionsNoPort urge docker shell client not to map an explicit source port (but rather a random one)
+const RunOptionsNoPort int = -1
+
 // LogInOptions are options for logging in
 type LogInOptions struct {
 	Username string
@@ -60,6 +63,11 @@ type RunOptions struct {
 	ImageMayNotExist bool
 	Network          string
 	RestartPolicy    *RestartPolicy
+	GPUs             string
+	MountPoints      []MountPoint
+	RunAsUser        *int64
+	RunAsGroup       *int64
+	FSGroup          *int64
 }
 
 // ExecOptions are options for executing a command in a container
@@ -144,6 +152,9 @@ type MountPoint struct {
 	Destination string
 	Mode        string
 	RW          bool
+	Type        string
+	Driver      string
+	Name        string
 }
 
 // HostConfig the non-portable Config structure of a container.
@@ -336,5 +347,10 @@ type Address struct {
 
 // CreateNetworkOptions are options for creating a network
 type CreateNetworkOptions struct {
+	Name string
+}
+
+// CreateVolumeOptions are options for creating a volume
+type CreateVolumeOptions struct {
 	Name string
 }

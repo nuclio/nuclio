@@ -85,15 +85,17 @@ func createCORSConfiguration(CORSConfiguration *cors.CORS) *cors.CORS {
 		corsInstance.AllowMethods = CORSConfiguration.AllowMethods
 	}
 
-	if CORSConfiguration.AllowOrigin != "" {
-		corsInstance.AllowOrigin = CORSConfiguration.AllowOrigin
+	if len(CORSConfiguration.AllowOrigins) > 0 {
+		corsInstance.AllowOrigins = CORSConfiguration.AllowOrigins
 	}
 
 	if CORSConfiguration.AllowCredentials {
 		corsInstance.AllowCredentials = CORSConfiguration.AllowCredentials
 	}
 
-	corsInstance.PreflightMaxAgeSeconds = CORSConfiguration.PreflightMaxAgeSeconds
+	if CORSConfiguration.PreflightMaxAgeSeconds != nil {
+		corsInstance.PreflightMaxAgeSeconds = CORSConfiguration.PreflightMaxAgeSeconds
+	}
 
 	return corsInstance
 

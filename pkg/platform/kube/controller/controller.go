@@ -19,6 +19,7 @@ package controller
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -35,12 +36,15 @@ type Controller struct {
 	kubeClientSet         kubernetes.Interface
 	nuclioClientSet       nuclioioclient.Interface
 	functionresClient     functionres.Client
+	apigatewayresClient   apigatewayres.Client
 	imagePullSecrets      string
 	functionOperator      *functionOperator
 	projectOperator       *projectOperator
 	functionEventOperator *functionEventOperator
+	apiGatewayOperator    *apiGatewayOperator
 	cronJobMonitoring     *CronJobMonitoring
 	platformConfiguration *platformconfig.Config
+	resyncInterval        time.Duration
 }
 
 func NewController(parentLogger logger.Logger,
@@ -49,12 +53,14 @@ func NewController(parentLogger logger.Logger,
 	kubeClientSet kubernetes.Interface,
 	nuclioClientSet nuclioioclient.Interface,
 	functionresClient functionres.Client,
+	apigatewayresClient apigatewayres.Client,
 	resyncInterval time.Duration,
-	cronJobStalePodsDeletionInterval time.Duration,
+	cronJobStaleResourcesCleanupInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
 	functionOperatorNumWorkers int,
 	functionEventOperatorNumWorkers int,
-	projectOperatorNumWorkers int) (*Controller, error) {
+	projectOperatorNumWorkers int,
+	apiGatewayOperatorNumWorkers int) (*Controller, error) {
 	var err error
 
 	// replace "*" with "", which is actually "all" in kube-speak
@@ -69,7 +75,9 @@ func NewController(parentLogger logger.Logger,
 		kubeClientSet:         kubeClientSet,
 		nuclioClientSet:       nuclioClientSet,
 		functionresClient:     functionresClient,
+		apigatewayresClient:   apigatewayresClient,
 		platformConfiguration: platformConfiguration,
+		resyncInterval:        resyncInterval,
 	}
 
 	newController.logger.DebugWith("Read configuration",
@@ -83,7 +91,7 @@ func NewController(parentLogger logger.Logger,
 	// create a function operator
 	newController.functionOperator, err = newFunctionOperator(parentLogger,
 		newController,
-		&resyncInterval,
+		&newController.resyncInterval,
 		imagePullSecrets,
 		functionresClient,
 		functionOperatorNumWorkers)
@@ -95,7 +103,7 @@ func NewController(parentLogger logger.Logger,
 	// create a function event operator
 	newController.functionEventOperator, err = newFunctionEventOperator(parentLogger,
 		newController,
-		&resyncInterval,
+		&newController.resyncInterval,
 		functionEventOperatorNumWorkers)
 
 	if err != nil {
@@ -105,16 +113,27 @@ func NewController(parentLogger logger.Logger,
 	// create a project operator
 	newController.projectOperator, err = newProjectOperator(parentLogger,
 		newController,
-		&resyncInterval,
+		&newController.resyncInterval,
 		projectOperatorNumWorkers)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create project operator")
 	}
 
-	// create cron job monitoring
-	newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
+	// create an api gateway operator
+	newController.apiGatewayOperator, err = newAPIGatewayOperator(parentLogger,
 		newController,
-		&cronJobStalePodsDeletionInterval)
+		&newController.resyncInterval,
+		apiGatewayOperatorNumWorkers)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create api gateway operator")
+	}
+
+	// create cron job monitoring
+	if platformConfiguration.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
+			newController,
+			&cronJobStaleResourcesCleanupInterval)
+	}
 
 	return newController, nil
 }
@@ -137,12 +156,24 @@ func (c *Controller) Start() error {
 		return errors.Wrap(err, "Failed to start function event operator")
 	}
 
-	// start cron job monitoring
-	c.cronJobMonitoring.start()
+	// start the api gateway operator
+	if err := c.apiGatewayOperator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start api gateway operator")
+	}
+
+	if c.cronJobMonitoring != nil {
+
+		// start cron job monitoring
+		c.cronJobMonitoring.start()
+	}
 
 	return nil
 }
 
 func (c *Controller) GetPlatformConfiguration() *platformconfig.Config {
 	return c.platformConfiguration
+}
+
+func (c *Controller) GetResyncInterval() time.Duration {
+	return c.resyncInterval
 }

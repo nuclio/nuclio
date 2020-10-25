@@ -25,8 +25,9 @@ import (
 )
 
 type functionPlatformConfiguration struct {
-	Network       string
-	RestartPolicy *dockerclient.RestartPolicy
+	Network            string
+	RestartPolicy      *dockerclient.RestartPolicy
+	ProcessorMountMode ProcessorMountMode
 }
 
 func newFunctionPlatformConfiguration(functionConfig *functionconfig.Config) (*functionPlatformConfiguration, error) {
@@ -39,3 +40,10 @@ func newFunctionPlatformConfiguration(functionConfig *functionconfig.Config) (*f
 
 	return &newConfiguration, nil
 }
+
+type ProcessorMountMode string
+
+const (
+	ProcessorMountModeBind   ProcessorMountMode = "bind"
+	ProcessorMountModeVolume ProcessorMountMode = "volume"
+)

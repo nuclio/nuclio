@@ -69,7 +69,7 @@ func (ap *AbstractProject) CreateAndWait() error {
 
 	err = common.RetryUntilSuccessful(ProjectGetUponCreationTimeout, ProjectGetUponCreationRetryInterval, func() bool {
 		ap.Logger.DebugWith("Trying to get created project",
-			"projectName", ap.GetConfig().Meta.Name,
+			"projectMeta", ap.GetConfig().Meta,
 			"timeout", ProjectGetUponCreationTimeout,
 			"retryInterval", ProjectGetUponCreationRetryInterval)
 		projects, err := ap.Platform.GetProjects(&GetProjectsOptions{

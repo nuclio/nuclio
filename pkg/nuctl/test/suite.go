@@ -34,6 +34,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
@@ -57,6 +58,7 @@ type Suite struct {
 	inputBuffer         bytes.Buffer
 	defaultWaitDuration time.Duration
 	defaultWaitInterval time.Duration
+	namespace           string
 }
 
 func (suite *Suite) SetupSuite() {
@@ -82,6 +84,8 @@ func (suite *Suite) SetupSuite() {
 	// init default wait values to be used during tests for retries
 	suite.defaultWaitDuration = 1 * time.Minute
 	suite.defaultWaitInterval = 5 * time.Second
+
+	suite.namespace = common.GetEnvOrDefaultString("NUCTL_NAMESPACE", "nuclio")
 
 	// default to local platform if platform isn't set
 	if os.Getenv(nuctlPlatformEnvVarName) == "" {
@@ -180,9 +184,10 @@ func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMus
 	for scanner.Scan() {
 
 		for patternIdx, patternName := range patternsMustExist {
+
+			// one line may match more than one pattern
 			if strings.Contains(scanner.Text(), patternName) {
 				foundPatternsMustExist[patternIdx] = true
-				break
 			}
 		}
 
@@ -203,6 +208,24 @@ func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMus
 	for _, foundPattern := range foundPatternsMustNotExist {
 		suite.Require().False(foundPattern)
 	}
+}
+
+func (suite *Suite) verifyAPIGatewayExists(apiGatewayName, primaryFunctionName string) {
+
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
+	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "agw", apiGatewayName}, map[string]string{
+		"output": "yaml",
+	}, false)
+	suite.Require().NoError(err)
+
+	apiGateway := platform.APIGatewayConfig{}
+	apiGatewayBodyBytes := suite.outputBuffer.Bytes()
+	err = yaml.Unmarshal(apiGatewayBodyBytes, &apiGateway)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal(apiGatewayName, apiGateway.Meta.Name)
+	suite.Assert().Equal(primaryFunctionName, apiGateway.Spec.Upstreams[0].Nucliofunction.Name)
 }
 
 func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
@@ -231,7 +254,8 @@ func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
 	}
 }
 
-func (suite *Suite) getFunctionInFormat(functionName string, outputFormat string) (*functionconfig.Config, error) {
+func (suite *Suite) getFunctionInFormat(functionName string,
+	outputFormat string) (*functionconfig.ConfigWithStatus, error) {
 	suite.outputBuffer.Reset()
 	var err error
 
@@ -246,7 +270,7 @@ func (suite *Suite) getFunctionInFormat(functionName string, outputFormat string
 		return nil, errors.Wrapf(err, "Failed to get function %s", functionName)
 	}
 
-	parsedFunction := functionconfig.Config{}
+	parsedFunction := functionconfig.ConfigWithStatus{}
 
 	// unmarshal response correspondingly to output format
 	switch outputFormat {
@@ -259,6 +283,27 @@ func (suite *Suite) getFunctionInFormat(functionName string, outputFormat string
 	}
 
 	return &parsedFunction, err
+}
+
+func (suite *Suite) waitForFunctionState(functionName string, expectedState functionconfig.FunctionState) {
+	err := common.RetryUntilSuccessful(1*time.Minute, 5*time.Second, func() bool {
+		functionConfigWithStatus, err := suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
+		if err != nil {
+			suite.logger.ErrorWith("Waiting for function readiness failed", "err", err)
+			return false
+		}
+		if functionConfigWithStatus.Status.State != expectedState {
+			suite.logger.DebugWith("Function state is not ready yet",
+				"expectedState", expectedState,
+				"currentState", functionConfigWithStatus.Status.State)
+			return false
+		}
+		return true
+	})
+	suite.Require().NoErrorf(err,
+		"Failed to wait for function '%s' with expected state '%s'",
+		functionName,
+		expectedState)
 }
 
 func (suite *Suite) writeFunctionConfigToTempFile(functionConfig *functionconfig.Config,

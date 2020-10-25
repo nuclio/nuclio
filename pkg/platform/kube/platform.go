@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/config"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -339,6 +340,19 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 
 	p.EnrichFunctionsWithDeployLogStream(functions)
 
+	if err = p.enrichFunctionsWithAPIGateways(functions, getFunctionsOptions.Namespace); err != nil {
+
+		// relevant when upgrading nuclio from a version that didn't have api-gateways to one that has
+		if !strings.Contains(errors.RootCause(err).Error(),
+			"the server could not find the requested resource (get nuclioapigateways.nuclio.io)") {
+
+			return nil, errors.Wrap(err, "Failed to enrich functions with api gateways")
+		}
+
+		p.Logger.DebugWith("API Gateway CRD is not installed, skipping function api gateways enrichment",
+			"err", err)
+	}
+
 	return functions, nil
 }
 
@@ -502,6 +516,140 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 
 	// render it
 	return platformProjects, nil
+}
+
+// CreateAPIGateway creates and deploys a new api gateway
+func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
+	newAPIGateway := nuclioio.NuclioAPIGateway{}
+	p.platformAPIGatewayToAPIGateway(&createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
+
+	if err := p.enrichAndValidateAPIGatewayName(&newAPIGateway); err != nil {
+		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
+	}
+
+	// set state to waiting for provisioning
+	createAPIGatewayOptions.APIGatewayConfig.Status = platform.APIGatewayStatus{
+		State: platform.APIGatewayStateWaitingForProvisioning,
+	}
+
+	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioAPIGateways(createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
+		Create(&newAPIGateway)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create api gateway")
+	}
+
+	return nil
+}
+
+// UpdateAPIGateway will update a previously existing api gateway
+func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
+	apiGateway, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
+		Get(updateAPIGatewayOptions.APIGatewayConfig.Meta.Name, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get api gateway to update")
+	}
+
+	updatedAPIGateway := nuclioio.NuclioAPIGateway{}
+	p.platformAPIGatewayToAPIGateway(&updateAPIGatewayOptions.APIGatewayConfig, &updatedAPIGateway)
+	apiGateway.Spec = updatedAPIGateway.Spec
+
+	if err := p.enrichAndValidateAPIGatewayName(&updatedAPIGateway); err != nil {
+		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
+	}
+
+	// set api gateway state to "waitingForProvisioning", so the controller will know to update this resource
+	apiGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
+
+	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
+		Update(apiGateway)
+	if err != nil {
+		return errors.Wrap(err, "Failed to update api gateway")
+	}
+
+	return nil
+}
+
+// DeleteAPIGateway will delete a previously existing api gateway
+func (p *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
+
+	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioAPIGateways(deleteAPIGatewayOptions.Meta.Namespace).
+		Delete(deleteAPIGatewayOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
+
+		return errors.Wrapf(err,
+			"Failed to delete api gateway %s from namespace %s",
+			deleteAPIGatewayOptions.Meta.Name,
+			deleteAPIGatewayOptions.Meta.Namespace)
+	}
+
+	return nil
+}
+
+// GetAPIGateways will list existing api gateways
+func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
+	var platformAPIGateways []platform.APIGateway
+	var apiGateways []nuclioio.NuclioAPIGateway
+
+	// if identifier specified, we need to get a single NuclioAPIGateway
+	if getAPIGatewaysOptions.Name != "" {
+
+		// get specific NuclioAPIGateway CR
+		apiGateway, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+			NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
+			Get(getAPIGatewaysOptions.Name, metav1.GetOptions{})
+		if err != nil {
+
+			// if we didn't find the NuclioAPIGateway, return an empty slice
+			if apierrors.IsNotFound(err) {
+				return platformAPIGateways, nil
+			}
+
+			return nil, errors.Wrap(err, "Failed to get api gateway")
+		}
+
+		apiGateways = append(apiGateways, *apiGateway)
+
+	} else {
+
+		apiGatewayInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+			NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
+			List(metav1.ListOptions{LabelSelector: getAPIGatewaysOptions.Labels})
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to list api gateways")
+		}
+
+		apiGateways = apiGatewayInstanceList.Items
+	}
+
+	// convert []nuclioio.NuclioAPIGateway -> NuclioAPIGateway
+	for apiGatewayInstanceIndex := 0; apiGatewayInstanceIndex < len(apiGateways); apiGatewayInstanceIndex++ {
+		apiGatewayInstance := apiGateways[apiGatewayInstanceIndex]
+
+		newAPIGateway, err := platform.NewAbstractAPIGateway(p.Logger,
+			p,
+			platform.APIGatewayConfig{
+				Meta: platform.APIGatewayMeta{
+					Name:              apiGatewayInstance.Name,
+					Namespace:         apiGatewayInstance.Namespace,
+					Labels:            apiGatewayInstance.Labels,
+					Annotations:       apiGatewayInstance.Annotations,
+					CreationTimestamp: &apiGatewayInstance.CreationTimestamp,
+				},
+				Spec:   apiGatewayInstance.Spec,
+				Status: apiGatewayInstance.Status,
+			})
+		if err != nil {
+			return nil, err
+		}
+
+		platformAPIGateways = append(platformAPIGateways, newAPIGateway)
+	}
+
+	// render it
+	return platformAPIGateways, nil
 }
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
@@ -747,6 +895,23 @@ func (p *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, e
 	}
 }
 
+func (p *Platform) GetAllowedAuthenticationModes() ([]string, error) {
+	switch configType := p.Config.(type) {
+	case *platformconfig.Config:
+		allowedAuthenticationModes := []string{string(ingress.AuthenticationModeNone), string(ingress.AuthenticationModeBasicAuth)}
+		if len(configType.IngressConfig.AllowedAuthenticationModes) > 0 {
+			allowedAuthenticationModes = configType.IngressConfig.AllowedAuthenticationModes
+		}
+		return allowedAuthenticationModes, nil
+
+	// FIXME: see comment in GetScaleToZeroConfiguration
+	case *config.Configuration:
+		return nil, nil
+	default:
+		return nil, errors.New("Not a valid configuration instance")
+	}
+}
+
 func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
 	functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
 		Name:      functionName,
@@ -765,6 +930,49 @@ func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error 
 		FunctionMeta:   &function.GetConfig().Meta,
 		FunctionStatus: function.GetStatus(),
 	})
+}
+
+func (p *Platform) generateFunctionToAPIGatewaysMapping(namespace string) (map[string][]string, error) {
+	functionToAPIGateways := map[string][]string{}
+
+	// get all api gateways in the namespace
+	apiGateways, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioAPIGateways(namespace).
+		List(metav1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to list api gateways")
+	}
+
+	// iterate over all api gateways
+	for _, apiGateway := range apiGateways.Items {
+
+		// iterate over all upstreams(functions) of the api gateway
+		for _, upstream := range apiGateway.Spec.Upstreams {
+
+			// append the current api gateway to the function's api gateways list
+			functionToAPIGateways[upstream.Nucliofunction.Name] =
+				append(functionToAPIGateways[upstream.Nucliofunction.Name], apiGateway.Name)
+		}
+	}
+
+	return functionToAPIGateways, nil
+}
+
+func (p *Platform) enrichFunctionsWithAPIGateways(functions []platform.Function, namespace string) error {
+	var err error
+	var functionToAPIGateways map[string][]string
+
+	// generate function to api gateways mapping
+	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(namespace); err != nil {
+		return errors.Wrap(err, "Failed to get function to api gateways mapping")
+	}
+
+	// set the api gateways list for every function according to the mapping above
+	for _, function := range functions {
+		function.GetStatus().APIGateways = functionToAPIGateways[function.GetConfig().Meta.Name]
+	}
+
+	return nil
 }
 
 func (p *Platform) clearCallStack(message string) string {
@@ -854,10 +1062,30 @@ func (p *Platform) platformProjectToProject(platformProject *platform.ProjectCon
 	project.Spec = platformProject.Spec
 }
 
+func (p *Platform) platformAPIGatewayToAPIGateway(platformAPIGateway *platform.APIGatewayConfig, apiGateway *nuclioio.NuclioAPIGateway) {
+	apiGateway.Name = platformAPIGateway.Meta.Name
+	apiGateway.Namespace = platformAPIGateway.Meta.Namespace
+	apiGateway.Labels = platformAPIGateway.Meta.Labels
+	apiGateway.Annotations = platformAPIGateway.Meta.Annotations
+	apiGateway.Spec = platformAPIGateway.Spec
+	apiGateway.Status = platformAPIGateway.Status
+}
+
 func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *platform.FunctionEventConfig, functionEvent *nuclioio.NuclioFunctionEvent) {
 	functionEvent.Name = platformFunctionEvent.Meta.Name
 	functionEvent.Namespace = platformFunctionEvent.Meta.Namespace
 	functionEvent.Labels = platformFunctionEvent.Meta.Labels
 	functionEvent.Annotations = platformFunctionEvent.Meta.Annotations
 	functionEvent.Spec = platformFunctionEvent.Spec // deep copy instead?
+}
+
+func (p *Platform) enrichAndValidateAPIGatewayName(apiGateway *nuclioio.NuclioAPIGateway) error {
+	if apiGateway.Spec.Name == "" {
+		apiGateway.Spec.Name = apiGateway.Name
+	}
+	if apiGateway.Spec.Name != apiGateway.Name {
+		return nuclio.NewErrBadRequest("Api gateway metadata.name must match api gateway spec.name")
+	}
+
+	return nil
 }

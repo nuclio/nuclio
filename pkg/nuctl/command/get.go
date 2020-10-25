@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -43,11 +44,13 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 	getFunctionCommand := newGetFunctionCommandeer(commandeer).cmd
 	getProjectCommand := newGetProjectCommandeer(commandeer).cmd
 	getFunctionEventCommand := newGetFunctionEventCommandeer(commandeer).cmd
+	getAPIGatewayCommand := newGetAPIGatewayCommandeer(commandeer).cmd
 
 	cmd.AddCommand(
 		getFunctionCommand,
 		getProjectCommand,
 		getFunctionEventCommand,
+		getAPIGatewayCommand,
 	)
 
 	commandeer.cmd = cmd
@@ -104,25 +107,28 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				functions,
 				commandeer.output,
 				cmd.OutOrStdout(),
-				commandeer.renderFunctionConfig)
+				commandeer.renderFunctionConfigWithStatus)
 		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
-
 	commandeer.cmd = cmd
 
 	return commandeer
 }
 
-func (g *getFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error) error {
+func (g *getFunctionCommandeer) renderFunctionConfigWithStatus(functions []platform.Function,
+	renderer func(interface{}) error) error {
 	for _, function := range functions {
-		if err := renderer(function.GetConfig()); err != nil {
-			return errors.Wrap(err, "Failed to render function config")
+		functionConfigWithStatus := functionconfig.ConfigWithStatus{
+			Config: *function.GetConfig(),
+			Status: *function.GetStatus(),
+		}
+		if err := renderer(functionConfigWithStatus); err != nil {
+			return errors.Wrap(err, "Failed to render function config with status")
 		}
 	}
-
 	return nil
 }
 
@@ -187,6 +193,72 @@ func (g *getProjectCommandeer) renderProjectConfig(projects []platform.Project, 
 	for _, project := range projects {
 		if err := renderer(project.GetConfig()); err != nil {
 			return errors.Wrap(err, "Failed to render project config")
+		}
+	}
+
+	return nil
+}
+
+type getAPIGatewayCommandeer struct {
+	*getCommandeer
+	getAPIGatewaysOptions platform.GetAPIGatewaysOptions
+	output                string
+}
+
+func newGetAPIGatewayCommandeer(getCommandeer *getCommandeer) *getAPIGatewayCommandeer {
+	commandeer := &getAPIGatewayCommandeer{
+		getCommandeer: getCommandeer,
+	}
+
+	cmd := &cobra.Command{
+		Use:     "apigateways name",
+		Aliases: []string{"agw", "apigateway"},
+		Short:   "(or apigateway) Display api gateways information",
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			// if we got positional arguments
+			if len(args) != 0 {
+
+				// second argument is a resource name
+				commandeer.getAPIGatewaysOptions.Name = args[0]
+			}
+
+			// initialize root
+			if err := getCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
+			commandeer.getAPIGatewaysOptions.Namespace = getCommandeer.rootCommandeer.namespace
+
+			apiGateways, err := getCommandeer.rootCommandeer.platform.GetAPIGateways(&commandeer.getAPIGatewaysOptions)
+			if err != nil {
+				return errors.Wrap(err, "Failed to get api gateways")
+			}
+
+			if len(apiGateways) == 0 {
+				if commandeer.getAPIGatewaysOptions.Name != "" {
+					return nuclio.NewErrNotFound("No api gateways found")
+				}
+				cmd.OutOrStdout().Write([]byte("No api gateways found")) // nolint: errcheck
+				return nil
+			}
+
+			// render the function events
+			return common.RenderAPIGateways(apiGateways, commandeer.output, cmd.OutOrStdout(), commandeer.renderAPIGatewayConfig)
+		},
+	}
+
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+
+	commandeer.cmd = cmd
+
+	return commandeer
+}
+
+func (g *getAPIGatewayCommandeer) renderAPIGatewayConfig(apiGateways []platform.APIGateway, renderer func(interface{}) error) error {
+	for _, apiGateway := range apiGateways {
+		if err := renderer(apiGateway.GetConfig()); err != nil {
+			return errors.Wrap(err, "Failed to render api gateway config")
 		}
 	}
 

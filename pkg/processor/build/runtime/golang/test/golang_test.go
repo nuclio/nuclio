@@ -34,6 +34,7 @@ type testSuite struct {
 
 func (suite *testSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
+	suite.Runtime = "golang"
 
 	suite.TestSuite.RuntimeSuite = suite
 	suite.TestSuite.ArchivePattern = "golang"
@@ -78,7 +79,7 @@ func (suite *testSuite) TestBuildWithContextInitializer() {
 
 func (suite *testSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
 	functionInfo := buildsuite.FunctionInfo{
-		Runtime: "golang",
+		Runtime: suite.Runtime,
 	}
 
 	switch functionName {

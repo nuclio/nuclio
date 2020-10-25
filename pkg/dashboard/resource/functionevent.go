@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -243,19 +244,11 @@ func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*r
 		Spec: *functionEventInfo.Spec,
 	}
 
-	err = fer.getPlatform().UpdateFunctionEvent(&platform.UpdateFunctionEventOptions{
+	if err = fer.getPlatform().UpdateFunctionEvent(&platform.UpdateFunctionEventOptions{
 		FunctionEventConfig: functionEventConfig,
-	})
-
-	if err != nil {
+	}); err != nil {
 		fer.Logger.WarnWith("Failed to update function event", "err", err)
-	}
-
-	// if there was an error, try to get the status code
-	if err != nil {
-		if errWithStatusCode, ok := err.(nuclio.ErrorWithStatusCode); ok {
-			statusCode = errWithStatusCode.StatusCode()
-		}
+		statusCode = common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError)
 	}
 
 	// return the stuff
