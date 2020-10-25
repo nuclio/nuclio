@@ -6,7 +6,7 @@
 - [Download and Installation](#download-n-install)
 - [Usage](#usage)
 - [The running platform](#running-platform)
-  - [Docker](#docker)
+  - [Local Docker](#docker)
   - [Kubernetes](#kubernetes)
 
 <a id="overview"></a>
@@ -42,13 +42,13 @@ nuctl --help
 `nuctl` automatically identifies the platform from which it's being run.
 You can also use the `--platform` CLI flag to ensure that you're running against a specific platform, as explained in this reference:
 
-- [Docker](#docker)
+- [Local Docker](#docker)
 - [Kubernetes](#kubernetes)
 
 <a id="docker"></a>
-### Docker
+### Local Docker
 
-To ensure that you're running `nuctl` on Docker, add `--platform local` to the CLI command.
+To ensure that you're running `nuctl` on a local instance of Docker, add `--platform local` to the CLI command.
 
 For an example of function deployment using `nuctl` against Docker, see the Nuclio [Docker getting-started guide](/docs/setup/docker/getting-started-docker.md).
 
