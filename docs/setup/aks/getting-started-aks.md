@@ -24,61 +24,61 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
 
 ## Set up your AKS cluster
 
-**Create a resource group** by running the following `az` command (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/group#az_group_create)):
+1.  <a id="create-resource-group"></a>**Create a resource group** by running the following `az` command (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/group#az_group_create)):
 
-```sh
-az group create --name <resource-group-name> --location <location>
-```
+    ```sh
+    az group create --name <resource-group-name> --location <location>
+    ```
 
-The following example creates a resource group named "my-nuclio-k8s-rg" that is located in western Europe (location "westeurope"):
-```sh
-az group create --name my-nuclio-k8s-rg --location westeurope
-```
+    The following example creates a resource group named "my-nuclio-k8s-rg" that is located in western Europe (location "westeurope"):
+    ```sh
+    az group create --name my-nuclio-k8s-rg --location westeurope
+    ```
 
-**Create a Kubernetes cluster** by running the following `az` command (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/aks#az_aks_create)):
+2.  <a id="create-k8s-cluster"></a>**Create a Kubernetes cluster** by running the following `az` command (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/aks#az_aks_create)):
 
-```sh
-az aks create --resource-group <resource-group-name> --name <cluster-name> --node-count <number>
-```
+    ```sh
+    az aks create --resource-group <resource-group-name> --name <cluster-name> --node-count <number>
+    ```
 
-The following example creates a cluster named "myNuclioCluster" in the "my-nuclio-k8s-rg" resource group that was created in the example in the previous step:
-```sh
-az aks create --resource-group my-nuclio-k8s-rg --name myNuclioCluster --node-count 2 --generate-ssh-keys
-```
+    The following example creates a cluster named "myNuclioCluster" in the "my-nuclio-k8s-rg" resource group that was created in the example in the previous step:
+    ```sh
+    az aks create --resource-group my-nuclio-k8s-rg --name myNuclioCluster --node-count 2 --generate-ssh-keys
+    ```
 
-After several minutes, the deployment completes and returns information about the AKS deployment, in JSON format.
+    After several minutes, the deployment completes and returns information about the AKS deployment, in JSON format.
 
-**Install the kubectl CLI**.
-If the CLI is already installed, you can skip to the next step.
-The [`kubectl`](https://kubernetes.io/docs/user-guide/kubectl-overview/) Kubernetes command-line application enables you to connect to the Kubernetes cluster from your client computer.
-To install `kubectl` locally, run the following `az` command (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/aks#az_aks_install_cli)):
+3.  <a id="install-kubectl-cli"></a>**Install the kubectl CLI**.
+    If the CLI is already installed, you can skip to the [next step](#connect-aks-cluster-to-kubectl).
+    The [`kubectl`](https://kubernetes.io/docs/user-guide/kubectl-overview/) Kubernetes command-line application enables you to connect to the Kubernetes cluster from your client computer.
+    To install `kubectl` locally, run the following `az` command (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/aks#az_aks_install_cli)):
 
-```sh
-az aks install-cli
-```
+    ```sh
+    az aks install-cli
+    ```
 
-**Connect to the cluster with kubectl** by running the following `az` command, which configures the `kubectl` CLI to connect to your Kubernetes cluster (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/aks#az_aks_get_credentials)):
+4.  <a id="connect-aks-cluster-to-kubectl"></a>**Connect to the cluster with kubectl** by running the following `az` command, which configures the `kubectl` CLI to connect to your Kubernetes cluster (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/aks#az_aks_get_credentials)):
 
-```sh
-az aks get-credentials --resource-group=<resource-group-name> --name=<cluster-name>
-```
+    ```sh
+    az aks get-credentials --resource-group=<resource-group-name> --name=<cluster-name>
+    ```
 
-For example, the following command gets the credentials of a cluster named "myNuclioCluster" in the "my-nuclio-k8s-rg" resource group that was created in the examples in the previous steps:
-```sh
-az aks get-credentials --resource-group=my-nuclio-k8s-rg --name=myNuclioCluster
-```
+    For example, the following command gets the credentials of a cluster named "myNuclioCluster" in the "my-nuclio-k8s-rg" resource group that was created in the examples in the previous steps:
+    ```sh
+    az aks get-credentials --resource-group=my-nuclio-k8s-rg --name=myNuclioCluster
+    ```
 
-**Verify the connection to your cluster** by running the following `kubectl` command (see the [Kubernetes documentation](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#get)):
+5.  <a id="verify-connection-to-cluster"></a>**Verify the connection to your cluster** by running the following `kubectl` command (see the [Kubernetes documentation](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#get)):
 
-```sh
-kubectl get nodes
-```
+    ```sh
+    kubectl get nodes
+    ```
 
-The output is expected to resemble the following example:
-```sh
-NAME                             STATUS    AGE       VERSION
-k8s-myNuclioCluster-36346190-0   Ready     49m       v1.7.7
-```
+    The output is expected to resemble the following example:
+    ```sh
+    NAME                             STATUS    AGE       VERSION
+    k8s-myNuclioCluster-36346190-0   Ready     49m       v1.7.7
+    ```
 
 ## Create a container registry using the Azure CLI
 
