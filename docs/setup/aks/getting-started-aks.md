@@ -48,7 +48,8 @@ az aks create --resource-group my-nuclio-k8s-rg --name myNuclioCluster --node-co
 
 After several minutes, the deployment completes and returns information about the AKS deployment, in JSON format.
 
-**Install the kubectl CLI**, if it's not already installed (in which case you can skip to the next step).
+**Install the kubectl CLI**.
+If the CLI is already installed, you can skip to the next step.
 The [`kubectl`](https://kubernetes.io/docs/user-guide/kubectl-overview/) Kubernetes command-line application enables you to connect to the Kubernetes cluster from your client computer.
 To install `kubectl` locally, run the following `az` command (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/aks#az_aks_install_cli)):
 
