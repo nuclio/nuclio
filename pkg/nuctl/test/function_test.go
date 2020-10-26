@@ -1213,12 +1213,12 @@ func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocati
 	// use nutctl to delete the function when we're done
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
-	curlFunctionName := "curl-function" + uniqueSuffix
-	curlImageName := "nuclio/processor-" + curlFunctionName
+	wgetFunctionName := "wget-function" + uniqueSuffix
+	wgetImageName := "nuclio/processor-" + wgetFunctionName
 
-	err = suite.ExecuteNuctl([]string{"deploy", curlFunctionName, "--verbose", "--no-pull"},
+	err = suite.ExecuteNuctl([]string{"deploy", wgetFunctionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"image":   curlImageName,
+			"image":   wgetImageName,
 			"runtime": "shell",
 			"handler": "main.sh",
 
@@ -1229,13 +1229,13 @@ func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocati
 	suite.Require().NoError(err)
 
 	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(curlImageName) // nolint: errcheck
+	defer suite.dockerClient.RemoveImage(wgetImageName) // nolint: errcheck
 
 	// use nuctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", curlFunctionName}, nil) // nolint: errcheck
+	defer suite.ExecuteNuctl([]string{"delete", "fu", wgetFunctionName}, nil) // nolint: errcheck
 
 	// try a few times to invoke, until it succeeds
-	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", curlFunctionName},
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", wgetFunctionName},
 		map[string]string{
 			"method":  "POST",
 			"headers": fmt.Sprintf("x-nuclio-arguments=%s", functionClusterURL),
