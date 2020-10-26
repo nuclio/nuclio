@@ -265,13 +265,17 @@ func (agc *APIGatewayConfig) scrubAPIGatewayData() {
 }
 
 type APIGatewayAuthenticationSpec struct {
-	BasicAuth *BasicAuth       `json:"basicAuth,omitempty"`
-	DexAuth   *ingress.DexAuth `json:"dexAuth,omitempty"`
+	BasicAuth *BasicAuth `json:"basicAuth,omitempty"`
+	DexAuth   *DexAuth   `json:"dexAuth,omitempty"`
 }
 
 type BasicAuth struct {
 	Username string `json:"username"`
 	Password string `json:"password,omitempty"`
+}
+
+type DexAuth struct {
+	RedirectUnauthorizedToSignIn bool `json:"redirectUnauthorizedToSignIn,omitempty"`
 }
 
 type APIGatewayUpstreamKind string
