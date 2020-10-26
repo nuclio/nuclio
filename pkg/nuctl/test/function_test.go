@@ -1182,6 +1182,73 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 		fsGroup))
 }
 
+func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocation() {
+
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "deploy-reverser" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+	functionClusterURL := fmt.Sprintf("http://nuclio-%s.nuclio.svc.cluster.local:8080", functionName)
+
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"runtime": "golang",
+		"handler": "main:Reverse",
+		"triggers": `{
+	    "http": {
+	        "kind": "http",
+	        "attributes": {
+	            "serviceType": "ClusterIP"
+	        }
+	    }
+	}`,
+	}
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	curlFunctionName := "curl-function" + uniqueSuffix
+	curlImageName := "nuclio/processor-" + curlFunctionName
+
+	err = suite.ExecuteNuctl([]string{"deploy", curlFunctionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"image":   curlImageName,
+			"runtime": "shell",
+			"handler": "main.sh",
+
+			// wgets the url given in the `x-nuclio-arguments` with the POST body from the body
+			"source": "dXJsPSQxCnJlYWQgYm9keQoKd2dldCAtTyAtIC0tcG9zdC1kYXRhICIkYm9keSIgJHVybCAyPiAvZGV2L251bGw=",
+		})
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(curlImageName) // nolint: errcheck
+
+	// use nuctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", curlFunctionName}, nil) // nolint: errcheck
+
+	// try a few times to invoke, until it succeeds
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", curlFunctionName},
+		map[string]string{
+			"method":  "POST",
+			"headers": fmt.Sprintf("x-nuclio-arguments=%s", functionClusterURL),
+			"body":    "-reverse this string+",
+			"via":     "external-ip",
+		},
+		false)
+	suite.Require().NoError(err)
+
+	// make sure reverser worked
+	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+}
+
 type functionGetTestSuite struct {
 	Suite
 }
