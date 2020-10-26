@@ -79,7 +79,7 @@
     "karma": "^4.4.1",
     "karma-chrome-launcher": "^3.1.0",
     "karma-jasmine": "^3.1.1",
-    "protractor": "^5.4.4",
+    "protractor": "github:angular/protractor#release-5.4",
     "protractor-jasmine2-screenshot-reporter": "^0.2.0"
   }
 }
