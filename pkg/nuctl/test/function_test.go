@@ -18,6 +18,7 @@ package test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -1187,7 +1188,9 @@ func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocati
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "deploy-reverser" + uniqueSuffix
 	imageName := "nuclio/processor-" + functionName
-	functionClusterURL := fmt.Sprintf("http://nuclio-%s.nuclio.svc.cluster.local:8080", functionName)
+	functionClusterURL := fmt.Sprintf("http://nuclio-%s.%s.svc.cluster.local:8080",
+		functionName,
+		suite.namespace)
 
 	namedArgs := map[string]string{
 		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
@@ -1216,14 +1219,19 @@ func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocati
 	wgetFunctionName := "wget-function" + uniqueSuffix
 	wgetImageName := "nuclio/processor-" + wgetFunctionName
 
+	// wgets the url given in the `x-nuclio-arguments` with the POST body from the body
+	wgetSourceCode := `url=$1
+read body
+
+wget -O - --post-data "$body" $url 2> /dev/null
+`
+
 	err = suite.ExecuteNuctl([]string{"deploy", wgetFunctionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"image":   wgetImageName,
 			"runtime": "shell",
 			"handler": "main.sh",
-
-			// wgets the url given in the `x-nuclio-arguments` with the POST body from the body
-			"source": "dXJsPSQxCnJlYWQgYm9keQoKd2dldCAtTyAtIC0tcG9zdC1kYXRhICIkYm9keSIgJHVybCAyPiAvZGV2L251bGw=",
+			"source":  base64.StdEncoding.EncodeToString([]byte(wgetSourceCode)),
 		})
 
 	suite.Require().NoError(err)
