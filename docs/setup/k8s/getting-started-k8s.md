@@ -79,7 +79,7 @@ Browse to `http://localhost:8070` (after having forwarded this port as part of t
 Select the "default" project and then select **New Function** from the action toolbar to display the **Create function** page (http://localhost:8070/projects/default/create-function).
 Choose one of the predefined template functions, and select **Deploy**. 
 The first build populates the local Docker cache with base images and other files, so it might take a while to complete, depending on your network.
-When the function deployment completes, you can select **Invoke** to invoke the function with a body.
+When the function deployment completes, you can select **Test** to invoke the function with a body.
 
 <a id="deploy-a-function-with-the-nuclio-cli"></a>
 ## Deploy a function with the Nuclio CLI (nuctl)
