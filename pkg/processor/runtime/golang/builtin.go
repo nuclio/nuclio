@@ -36,5 +36,12 @@ func builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, e
 		"ShardID", event.GetShardID(),
 		"Body", string(event.GetBody()))
 
-	return "Built in handler called", nil
+	return nuclio.Response{
+		ContentType: "application/json",
+		Headers: map[string]interface{}{
+			"X-nuclio-filestream-path": "/tmp/something.txt",
+			// "X-nuclio-filestream-delete-after-send": "",
+			"x-aaa": "bbb",
+		},
+	}, nil
 }
