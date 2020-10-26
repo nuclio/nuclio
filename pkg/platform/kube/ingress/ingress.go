@@ -380,17 +380,20 @@ func (m *Manager) compileDexAuthAnnotations(spec Spec) (map[string]string, error
 		oauth2ProxyURL = spec.Authentication.DexAuth.Oauth2ProxyURL
 	}
 
+	addSignInAnnotation := false
+	if spec.Authentication != nil && spec.Authentication.DexAuth != nil && spec.Authentication.DexAuth.RedirectUnauthorizedToSignIn {
+		addSignInAnnotation = true
+	}
+
 	if oauth2ProxyURL == "" {
 		return nil, errors.New("Oauth2 proxy URL is missing")
 	}
 
 	authURL := fmt.Sprintf("%s/oauth2/auth", oauth2ProxyURL)
-	signinURL := fmt.Sprintf("%s/oauth2/start?rd=https://$host$escaped_request_uri", oauth2ProxyURL)
 
-	return map[string]string{
+	annotations := map[string]string{
 		"nginx.ingress.kubernetes.io/auth-response-headers": "Authorization",
 		"nginx.ingress.kubernetes.io/auth-url":              authURL,
-		"nginx.ingress.kubernetes.io/auth-signin":           signinURL,
 		"nginx.ingress.kubernetes.io/configuration-snippet": `auth_request_set $name_upstream_1 $upstream_cookie__oauth2_proxy_1;
       
       access_by_lua_block {
@@ -398,7 +401,14 @@ func (m *Manager) compileDexAuthAnnotations(spec Spec) (map[string]string, error
           ngx.header["Set-Cookie"] = "_oauth2_proxy_1=" .. ngx.var.name_upstream_1 .. ngx.var.auth_cookie:match("(; .*)")
         end
       }`,
-	}, nil
+	}
+
+	if addSignInAnnotation {
+		signinURL := fmt.Sprintf("%s/oauth2/start?rd=https://$host$escaped_request_uri", oauth2ProxyURL)
+		annotations["nginx.ingress.kubernetes.io/auth-signin"] = signinURL
+	}
+
+	return annotations, nil
 }
 
 func (m *Manager) compileIguazioSessionVerificationAnnotations(sessionVerificationEndpoint string) (map[string]string, error) {

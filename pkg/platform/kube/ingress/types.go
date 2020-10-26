@@ -34,7 +34,8 @@ type BasicAuth struct {
 }
 
 type DexAuth struct {
-	Oauth2ProxyURL string `json:"oauth2ProxyUrl,omitempty"`
+	Oauth2ProxyURL               string `json:"oauth2ProxyUrl,omitempty"`
+	RedirectUnauthorizedToSignIn bool   `json:"redirectUnauthorizedToSignIn,omitempty"`
 }
 
 type AuthenticationMode string
