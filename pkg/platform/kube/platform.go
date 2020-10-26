@@ -24,6 +24,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -1146,7 +1147,14 @@ func (p *Platform) getDefaultServiceType() (v1.ServiceType, error) {
 	// FIXME: see comment in GetScaleToZeroConfiguration
 	// for now, if nuctl - return the constant default
 	case *config.Configuration:
-		return platformconfig.DefaultServiceType, nil
+		nuctlDefaultServiceType := v1.ServiceType(
+			common.GetEnvOrDefaultString("NUCTL_DEFAULT_SERVICE_TYPE", ""))
+
+		if nuctlDefaultServiceType == "" {
+			nuctlDefaultServiceType = platformconfig.DefaultServiceType
+		}
+
+		return nuctlDefaultServiceType, nil
 	default:
 		return "", errors.New("Not a valid configuration instance")
 	}
