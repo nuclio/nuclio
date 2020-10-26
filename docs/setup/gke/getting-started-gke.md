@@ -29,7 +29,9 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
 
 - The [Google Container Registry (GCR)](cloud.google.com/container-registry/) API is [enabled](https://console.cloud.google.com/flows/enableapi?apiid=cloudbuild.googleapis.com) on your project.
 
-- The [Nuclio CLI](/docs/reference/nuctl/nuctl.md) (`nuctl`) is installed: simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
+
+- The [Nuclio CLI](/docs/reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli).
+    To install the CLI, simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
 
 ## Set up a Kubernetes cluster and a local environment
 

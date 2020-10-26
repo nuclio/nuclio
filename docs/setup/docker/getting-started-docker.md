@@ -19,7 +19,9 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
     ```sh
     docker version
     ```
-- The [Nuclio CLI](/docs/reference/nuctl/nuctl.md) (`nuctl`) is installed: simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
+
+- The [Nuclio CLI](/docs/reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli).
+    To install the CLI, simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
 
 <a id="run-nuclio"></a>
 ## Run Nuclio
