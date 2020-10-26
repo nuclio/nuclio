@@ -35,15 +35,13 @@ minikube start --kubernetes-version v1.17.9 --driver docker --extra-config=apise
 ```
 
 > **Note:** You may want to
-> 1. Change the Kubernetes version. Currently, the recommended version is 1.17.9.
-> 2. Add `--addons ingress` to your `minikube start` command to support creating function ingresses.
-
-> Ensure that your function ingress appears on your hosts file (**/etc/hosts**).
-> You can do this by running this command:
-> ```sh
-> echo "$(minikube ip) my-function.info" | sudo tee -a /etc/hosts
-> ```
-
+> - Change the Kubernetes version. Currently, the recommended version is 1.17.9.
+> - Add `--addons ingress` to your `minikube start` command to support creating function ingresses.
+>     Ensure that your function ingress appears on your hosts file (**/etc/hosts**).
+>     You can do this by running this command:
+>     ```sh
+>     echo "$(minikube ip) my-function.info" | sudo tee -a /etc/hosts
+>     ```
 
 **Bring up a Docker registry inside Minikube.** You'll later push your functions to this registry:
 
