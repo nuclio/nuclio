@@ -8,22 +8,24 @@ Follow this step-by-step guide to set up Nuclio on [Minikube](https://github.com
 - [Prepare Minikube](#prepare-minikube)
 - [Install Nuclio](#install-nuclio)
 - [Deploy a function with the Nuclio dashboard](#deploy-a-function-with-the-nuclio-dashboard)
-- [Deploy a function with the Nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli-nuctl)
+- [Deploy a function with the Nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli)
 - [What's next](#whats-next)
 
 ## Prerequisites
 
-Ensure that the following components are installed on your installation machine:
+Before starting the set-up procedure, ensure that the following prerequisites are met:
 
-- [Docker](https://docs.docker.com/get-docker/)
-- [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
-- [Helm](https://helm.sh/docs/intro/install/)
+- The following components are installed on your installation machine:
+    - [Docker](https://docs.docker.com/get-docker/)
+    - [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
+    - [Helm](https://helm.sh/docs/intro/install/)
+- The [Nuclio CLI](/docs/reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli).
+    To install the CLI, simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
+- It's recommended that you use these drivers:
 
-It's recommended that you use these drivers:
-
-- For **Mac OS** - [Docker](https://minikube.sigs.k8s.io/docs/drivers/docker/)
-- For **Linux** - [Docker](https://minikube.sigs.k8s.io/docs/drivers/docker/) or [KVM2](https://minikube.sigs.k8s.io/docs/drivers/kvm2/)
-- For **Windows** - [Docker](https://minikube.sigs.k8s.io/docs/drivers/docker/) or [Hyper-V](https://minikube.sigs.k8s.io/docs/drivers/hyperv/)
+    - For **Mac OS** - [Docker](https://minikube.sigs.k8s.io/docs/drivers/docker/)
+    - For **Linux** - [Docker](https://minikube.sigs.k8s.io/docs/drivers/docker/) or [KVM2](https://minikube.sigs.k8s.io/docs/drivers/kvm2/)
+    - For **Windows** - [Docker](https://minikube.sigs.k8s.io/docs/drivers/docker/) or [Hyper-V](https://minikube.sigs.k8s.io/docs/drivers/hyperv/)
 
 ## Prepare Minikube
 
@@ -86,39 +88,62 @@ Use the command `minikube kubectl -- get pods --namespace nuclio` to verify both
 minikube kubectl -- port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
 
+<a id="deploy-a-function-with-the-nuclio-dashboard"></a>
 ## Deploy a function with the Nuclio dashboard
 
-Browse to `http://localhost:8070` (after having forwarded this port as part of the Nuclio installation).
-You should see the [Nuclio dashboard](/README.md#dashboard) UI.
-Choose one of the built-in examples and click **Deploy**.
-The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network.
-When the function deployment is completed, you can click on **Test** to invoke the function with a body.
+Browse to `http://localhost:8070` (after having forwarded this port as part of the Nuclio installation) to see the [Nuclio dashboard](/README.md#dashboard).
+Select the "default" project and then select **New Function** from the action toolbar to display the **Create function** page (http://localhost:8070/projects/default/create-function).
+Choose one of the predefined template functions, and select **Deploy**. 
+The first build populates the local Docker cache with base images and other files, so it might take a while to complete, depending on your network.
+When the function deployment completes, you can select **Test** to invoke the function with a body.
 
+<a id="deploy-a-function-with-the-nuclio-cli"></a>
 ## Deploy a function with the Nuclio CLI (nuctl)
 
-Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest version of the Nuclio CLI (`nuctl`) for your platform, and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
-
+Run the following Nuclio CLI (`nuctl`) command from a command-line shell to deploy the example [`helloworld`](/hack/examples/golang/helloworld/helloworld.go) Go function.
+You can add the `--verbose` flag if you want to peek under the hood.
 ```sh
 nuctl deploy helloworld -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry $(minikube ip):5000 --run-registry localhost:5000
 ```
-
 > **Note:** The difference between the two registries specified in this command and the reason for their addresses being different is as follows:
 >
 > - The `--registry` option defines the Docker registry onto which the function images that you build will be pushed. This is the registry that you previously brought up on your Minikube VM.
 > - The `--registry-run` option defines the registry from which the [`kubelet`](https://kubernetes.io/docs/reference/generated/kubelet/) Kubernetes "node agent" will pull the function images. Because this operation occurs in the Minikube VM, the command specifies `localhost` instead of the VM's IP address.
 
-Then, invoke the function:
-
+When the function deployment completes, you can get the function information by running the following CLI command:
 ```sh
-nuctl invoke -n nuclio helloworld
+nuctl get function helloworld
+```
+Sample output -
+```sh
+  NAMESPACE | NAME        | PROJECT | STATE | NODE PORT | REPLICAS  
+  nuclio    | helloworld  | default | ready |     42089 | 1/1   
+```
+You can see from the sample output that the deployed function `helloworld` is running and using port `42089`.
+
+Run the following CLI command to invoke the function:
+```sh
+nuctl invoke helloworld --method POST --body '{"hello":"world"}' --content-type "application/json"
+```
+Sample output -
+```sh
+> Response headers:
+Server = nuclio
+Date = Thu, 18 Jun 2020 06:56:27 GMT
+Content-Type = application/text
+Content-Length = 21
+
+> Response body:
+Hello, from Nuclio :]
 ```
 
 ## What's next?
 
 See the following resources to make the best of your new Nuclio environment:
 
-- [Deploying functions](/docs/tasks/deploying-functions.md)
-- [Invoking functions by name with an ingress](/docs/concepts/k8s/function-ingress.md)
+- [Deploying Functions](/docs/tasks/deploying-functions.md)
+- [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
 - [More function examples](/hack/examples/README.md)
 - [References](/docs/reference/)
+- [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
 
