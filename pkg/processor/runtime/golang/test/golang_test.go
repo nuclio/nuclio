@@ -34,7 +34,7 @@ import (
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/suite"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 )
 
 type TestSuite struct {
@@ -279,14 +279,13 @@ func (suite *TestSuite) TestFileStream() {
 			return true
 		})
 
-		if !testRequest.deleteAfterSend {
-			err = os.Remove(tempFile.Name())
-			suite.Require().NoError(err)
-		} else {
-
+		if testRequest.deleteAfterSend {
 			// expect file to be removed
 			_, err = os.Stat(tempFile.Name())
 			suite.Require().Error(err)
+		} else {
+			err = os.Remove(tempFile.Name())
+			suite.Require().NoError(err)
 		}
 	}
 }
