@@ -15,7 +15,6 @@
 
         ctrl.createFunctionEvent = createFunctionEvent;
         ctrl.deleteFunctionEvent = deleteFunctionEvent;
-        ctrl.getExternalIPAddresses = getExternalIPAddresses;
         ctrl.getFunctionEvents = getFunctionEvents;
         ctrl.invokeFunction = invokeFunction;
 
@@ -43,14 +42,6 @@
         }
 
         /**
-         * Gets external IP addresses
-         * @returns {Promise}
-         */
-        function getExternalIPAddresses() {
-            return NuclioProjectsDataService.getExternalIPAddresses();
-        }
-
-        /**
          * Gets list of events
          * @param {Object} functionData
          * @returns {Promise}
@@ -62,11 +53,12 @@
         /**
          * Invoke function event
          * @param {Object} eventData
+         * @param {string} invokeVia
          * @param {Promise} canceller
          * @returns {Promise}
          */
-        function invokeFunction(eventData, canceller) {
-            return NuclioEventDataService.invokeFunction(eventData, canceller);
+        function invokeFunction(eventData, invokeVia, canceller) {
+            return NuclioEventDataService.invokeFunction(eventData, invokeVia, canceller);
         }
     }
 }());

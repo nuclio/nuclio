@@ -21,40 +21,58 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
-	"github.com/nuclio/nuclio/pkg/version"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 
+	"github.com/aws/aws-sdk-go/private/util"
 	"github.com/ghodss/yaml"
+	"github.com/imdario/mergo"
+	"github.com/mitchellh/mapstructure"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
 	"golang.org/x/sync/errgroup"
-	apps_v1beta1 "k8s.io/api/apps/v1beta1"
-	autos_v2 "k8s.io/api/autoscaling/v2beta1"
+	appsv1 "k8s.io/api/apps/v1"
+	autosv2 "k8s.io/api/autoscaling/v2beta1"
+	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	"k8s.io/api/core/v1"
-	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 )
 
 const (
-	containerHTTPPort       = 8080
-	containerHTTPPortName   = "http"
-	containerMetricPort     = 8090
-	containerMetricPortName = "metrics"
+	containerHTTPPortName         = "http"
+	containerMetricPort           = 8090
+	containerMetricPortName       = "metrics"
+	nginxIngressUpdateGracePeriod = 5 * time.Second
+)
+
+type deploymentResourceMethod string
+
+const (
+	createDeploymentResourceMethod deploymentResourceMethod = "create"
+	updateDeploymentResourceMethod deploymentResourceMethod = "update"
 )
 
 //
@@ -64,14 +82,14 @@ const (
 type lazyClient struct {
 	logger                        logger.Logger
 	kubeClientSet                 kubernetes.Interface
-	nuclioClientSet               nuclioio_client.Interface
+	nuclioClientSet               nuclioioclient.Interface
 	classLabels                   labels.Set
 	platformConfigurationProvider PlatformConfigurationProvider
 }
 
 func NewLazyClient(parentLogger logger.Logger,
 	kubeClientSet kubernetes.Interface,
-	nuclioClientSet nuclioio_client.Interface) (Client, error) {
+	nuclioClientSet nuclioioclient.Interface) (Client, error) {
 
 	newClient := lazyClient{
 		logger:          parentLogger.GetChild("functionres"),
@@ -86,11 +104,11 @@ func NewLazyClient(parentLogger logger.Logger,
 }
 
 func (lc *lazyClient) List(ctx context.Context, namespace string) ([]Resources, error) {
-	listOptions := meta_v1.ListOptions{
+	listOptions := metav1.ListOptions{
 		LabelSelector: "nuclio.io/class=function",
 	}
 
-	result, err := lc.kubeClientSet.AppsV1beta1().Deployments(namespace).List(listOptions)
+	result, err := lc.kubeClientSet.AppsV1().Deployments(namespace).List(listOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list deployments")
 	}
@@ -112,12 +130,15 @@ func (lc *lazyClient) List(ctx context.Context, namespace string) ([]Resources, 
 }
 
 func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (Resources, error) {
-	var result *apps_v1beta1.Deployment
-
-	result, err := lc.kubeClientSet.AppsV1beta1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
-	lc.logger.DebugWith("Got deployment",
+	var result *appsv1.Deployment
+	deploymentName := kube.DeploymentNameFromFunctionName(name)
+	result, err := lc.kubeClientSet.AppsV1().
+		Deployments(namespace).
+		Get(deploymentName, metav1.GetOptions{})
+	lc.logger.DebugWithCtx(ctx,
+		"Got deployment",
 		"namespace", namespace,
-		"name", name,
+		"deploymentName", deploymentName,
 		"result", result,
 		"err", err)
 
@@ -155,7 +176,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
 	for _, augmentedConfig := range platformConfig.FunctionAugmentedConfigs {
 
-		selector, err := meta_v1.LabelSelectorAsSelector(&augmentedConfig.LabelSelector)
+		selector, err := metav1.LabelSelectorAsSelector(&augmentedConfig.LabelSelector)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get selector from label selector")
 		}
@@ -172,11 +193,6 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 				return nil, errors.Wrap(err, "Failed to join augmented function config into target function")
 			}
 		}
-	}
-
-	// set a default
-	if function.Spec.ServiceType == v1.ServiceType("") {
-		function.Spec.ServiceType = v1.ServiceTypeNodePort
 	}
 
 	// create or update the applicable configMap
@@ -209,13 +225,24 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 		return nil, errors.Wrap(err, "Failed to create/update ingress")
 	}
 
-	lc.logger.Debug("Deployment created/updated")
+	if lc.platformConfigurationProvider.GetPlatformConfiguration().CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		resources.cronJobs, err = lc.createOrUpdateCronJobs(functionLabels, function, &resources)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create cron jobs from cron triggers")
+		}
+	}
+
+	lc.logger.Debug("Successfully created/updated resources")
 
 	return &resources, nil
 }
 
 func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name string) error {
-	lc.logger.DebugWith("Waiting for deployment to be available", "namespace", namespace, "name", name)
+	deploymentName := kube.DeploymentNameFromFunctionName(name)
+	lc.logger.DebugWith("Waiting for deployment to be available",
+		"namespace", namespace,
+		"functionName", name,
+		"deploymentName", deploymentName)
 
 	waitMs := 250
 
@@ -224,7 +251,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 		// wait a bit
 		time.Sleep(time.Duration(waitMs) * time.Millisecond)
 
-		// expenentially wait more next time, up to 2 seconds
+		// exponentially wait more next time, up to 2 seconds
 		waitMs *= 2
 		if waitMs > 2000 {
 			waitMs = 2000
@@ -236,7 +263,9 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 		}
 
 		// get the deployment. if it doesn't exist yet, retry a bit later
-		result, err := lc.kubeClientSet.AppsV1beta1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
+		result, err := lc.kubeClientSet.AppsV1().
+			Deployments(namespace).
+			Get(deploymentName, metav1.GetOptions{})
 		if err != nil {
 			continue
 		}
@@ -246,17 +275,20 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 
 			// when we find the right condition, check its Status to see if it's true.
 			// a DeploymentCondition whose Type == Available and Status == True means the deployment is available
-			if deploymentCondition.Type == apps_v1beta1.DeploymentAvailable {
+			if deploymentCondition.Type == appsv1.DeploymentAvailable {
 				available := deploymentCondition.Status == v1.ConditionTrue
 
 				if available && result.Status.UnavailableReplicas == 0 {
-					lc.logger.DebugWith("Deployment is available", "reason", deploymentCondition.Reason)
+					lc.logger.DebugWith("Deployment is available",
+						"reason", deploymentCondition.Reason,
+						"deploymentName", deploymentName)
 					return nil
 				}
 
 				lc.logger.DebugWith("Deployment not available yet",
 					"reason", deploymentCondition.Reason,
-					"unavailableReplicas", result.Status.UnavailableReplicas)
+					"unavailableReplicas", result.Status.UnavailableReplicas,
+					"deploymentName", deploymentName)
 
 				// we found the condition, wasn't available
 				break
@@ -266,64 +298,78 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 }
 
 func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string) error {
-	propogationPolicy := meta_v1.DeletePropagationForeground
-	deleteOptions := &meta_v1.DeleteOptions{
-		PropagationPolicy: &propogationPolicy,
+	propagationPolicy := metav1.DeletePropagationForeground
+	deleteOptions := &metav1.DeleteOptions{
+		PropagationPolicy: &propagationPolicy,
 	}
 
 	// Delete ingress
-	err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(namespace).Delete(name, deleteOptions)
+	ingressName := kube.IngressNameFromFunctionName(name)
+	err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(namespace).Delete(ingressName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete ingress")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted ingress", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted ingress", "namespace", namespace, "ingressName", ingressName)
 	}
 
 	// Delete HPA if exists
-	err = lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Delete(name, deleteOptions)
+	hpaName := kube.HPANameFromFunctionName(name)
+	err = lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Delete(hpaName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete HPA")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted HPA", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted HPA", "namespace", namespace, "hpaName", hpaName)
 	}
 
 	// Delete Service if exists
-	err = lc.kubeClientSet.CoreV1().Services(namespace).Delete(name, deleteOptions)
+	serviceName := kube.ServiceNameFromFunctionName(name)
+	err = lc.kubeClientSet.CoreV1().Services(namespace).Delete(serviceName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete service")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted service", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted service", "namespace", namespace, "serviceName", serviceName)
 	}
 
 	// Delete Deployment if exists
-	err = lc.kubeClientSet.AppsV1beta1().Deployments(namespace).Delete(name, deleteOptions)
+	deploymentName := kube.DeploymentNameFromFunctionName(name)
+	err = lc.kubeClientSet.AppsV1().Deployments(namespace).Delete(deploymentName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete deployment")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted deployment", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted deployment",
+			"namespace", namespace,
+			"deploymentName", deploymentName)
 	}
 
 	// Delete configMap if exists
-	err = lc.kubeClientSet.CoreV1().ConfigMaps(namespace).Delete(name, deleteOptions)
+	configMapName := kube.ConfigMapNameFromFunctionName(name)
+	err = lc.kubeClientSet.CoreV1().ConfigMaps(namespace).Delete(configMapName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete configMap")
 		}
 	} else {
-		lc.logger.DebugWith("Deleted configMap", "namespace", namespace, "name", name)
+		lc.logger.DebugWith("Deleted configMap", "namespace", namespace, "configMapName", configMapName)
 	}
 
 	err = lc.deleteFunctionEvents(ctx, name, namespace)
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete function events")
+	}
+
+	if lc.platformConfigurationProvider.GetPlatformConfiguration().CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		err = lc.deleteCronJobs(name, namespace)
+		if err != nil {
+			return errors.Wrap(err, "Failed to delete function cron jobs")
+		}
 	}
 
 	lc.logger.DebugWith("Deleted deployed function", "namespace", namespace, "name", name)
@@ -336,6 +382,128 @@ func (lc *lazyClient) SetPlatformConfigurationProvider(platformConfigurationProv
 	lc.platformConfigurationProvider = platformConfigurationProvider
 }
 
+func (lc *lazyClient) createOrUpdateCronJobs(functionLabels labels.Set,
+	function *nuclioio.NuclioFunction,
+	resources Resources) ([]*batchv1beta1.CronJob, error) {
+	var cronJobs []*batchv1beta1.CronJob
+	var suspendCronJobs bool
+
+	// if function was paused - suspend all cron jobs
+	if function.Spec.Disable {
+		suspendCronJobs = true
+	}
+
+	cronTriggerCronJobs, err := lc.createOrUpdateCronTriggerCronJobs(functionLabels, function, resources, suspendCronJobs)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create cron trigger cron jobs")
+	}
+
+	cronJobs = append(cronJobs, cronTriggerCronJobs...)
+	return cronJobs, nil
+}
+
+// create cron triggers as k8s cron jobs instead of creating them inside the processor
+// these k8s cron jobs will invoke the function's default http trigger on their schedule/interval
+// this will enable using the scale to zero functionality of http triggers for cron triggers
+func (lc *lazyClient) createOrUpdateCronTriggerCronJobs(functionLabels labels.Set,
+	function *nuclioio.NuclioFunction,
+	resources Resources,
+	suspendCronJobs bool) ([]*batchv1beta1.CronJob, error) {
+	var cronJobs []*batchv1beta1.CronJob
+
+	cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
+
+	// first, remove all cron-trigger-cron-jobs that are irrelevant - exists but doesn't appear on function spec (removed on update)
+	if err := lc.deleteRemovedCronTriggersCronJob(functionLabels, function, cronTriggers); err != nil {
+		return nil, errors.Wrap(err, "Failed to delete removed cron triggers cron job")
+	}
+
+	for triggerName, cronTrigger := range cronTriggers {
+		cronJobSpec, err := lc.generateCronTriggerCronJobSpec(functionLabels, function, resources, cronTrigger)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to generate cron job spec from cron trigger. Trigger name: %s", triggerName)
+		}
+
+		extraMetaLabels := labels.Set{
+			"nuclio.io/component":                  "cron-trigger",
+			"nuclio.io/function-cron-trigger-name": triggerName,
+		}
+		cronJob, err := lc.createOrUpdateCronJob(functionLabels,
+			extraMetaLabels,
+			function,
+			triggerName,
+			cronJobSpec,
+			suspendCronJobs)
+		if err != nil {
+
+			go func() {
+				if deleteCronJobsErr := lc.deleteCronJobs(function.Name, function.Namespace); deleteCronJobsErr != nil {
+					lc.logger.WarnWith("Failed to delete cron jobs on cron job creation failure",
+						"deleteCronJobsErr", deleteCronJobsErr)
+				}
+			}()
+
+			return nil, errors.Wrapf(err, "Failed to create/update cron job for trigger: %s", triggerName)
+		}
+
+		cronJobs = append(cronJobs, cronJob)
+	}
+
+	return cronJobs, nil
+}
+
+// delete every cron-trigger-cron-job of the function that has been removed from the function's triggers
+func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set,
+	function *nuclioio.NuclioFunction,
+	newCronTriggers map[string]functionconfig.Trigger) error {
+
+	// make a list of all the new cron trigger cron job names
+	var newCronTriggerNames []string
+	for newCronTriggerName := range newCronTriggers {
+		newCronTriggerNames = append(newCronTriggerNames, newCronTriggerName)
+	}
+
+	cronTriggerInNewCronTriggers, err := lc.compileCronTriggerNotInSliceLabels(newCronTriggerNames)
+	if err != nil {
+		return errors.Wrap(err, "Failed to compile cron trigger not in slice labels")
+	}
+
+	// retrieve all the cron jobs that aren't inside the new cron triggers, so they can be deleted
+	cronJobsToDelete, err := lc.kubeClientSet.BatchV1beta1().CronJobs(function.Namespace).List(metav1.ListOptions{
+		LabelSelector: lc.compileCronTriggerLabelSelector(function.Name, cronTriggerInNewCronTriggers),
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to list cron jobs")
+	}
+
+	// if there's none to delete return
+	if len(cronJobsToDelete.Items) == 0 {
+		return nil
+	}
+
+	lc.logger.DebugWith("Deleting removed cron trigger cron job",
+		"cronJobsToDelete", cronJobsToDelete)
+
+	errGroup := errgroup.Group{}
+	for _, cronJobToDelete := range cronJobsToDelete.Items {
+		cronJobToDelete := cronJobToDelete
+		errGroup.Go(func() error {
+			// delete this removed cron trigger cron job
+			err := lc.kubeClientSet.BatchV1beta1().
+				CronJobs(function.Namespace).
+				Delete(cronJobToDelete.Name, &metav1.DeleteOptions{})
+
+			if err != nil {
+				return errors.Wrapf(err, "Failed to delete removed cron trigger cron job: %s", cronJobToDelete.Name)
+			}
+
+			return nil
+		})
+	}
+
+	return errGroup.Wait()
+}
+
 // as a closure so resourceExists can update
 func (lc *lazyClient) createOrUpdateResource(resourceName string,
 	getResource func() (interface{}, error),
@@ -346,66 +514,91 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 	var resource interface{}
 	var err error
 
-	deadline := time.Now().Add(1 * time.Minute)
+	updateDeadline := time.Now().Add(2 * time.Minute)
 
-	// get the resource until it's not deleting
 	for {
+		waitingForDeletionDeadline := time.Now().Add(1 * time.Minute)
 
-		// get resource will return the resource
-		resource, err = getResource()
+		// get the resource until it's not deleting
+		for {
 
-		// if the resource is deleting, wait for it to complete deleting
-		if err == nil && resourceIsDeleting(resource) {
-			lc.logger.DebugWith("Resource is deleting, waiting", "name", resourceName)
+			// get resource will return the resource
+			resource, err = getResource()
 
-			// we need to wait a bit and try again
-			time.Sleep(1 * time.Second)
+			// if the resource is deleting, wait for it to complete deleting
+			if err == nil && resourceIsDeleting(resource) {
+				lc.logger.DebugWith("Resource is deleting, waiting", "name", resourceName)
 
-			// if we passed the deadline
-			if time.Now().After(deadline) {
-				return nil, errors.New("Timed out waiting for service to delete")
+				// we need to wait a bit and try again
+				time.Sleep(1 * time.Second)
+
+				// if we passed the deadline
+				if time.Now().After(waitingForDeletionDeadline) {
+					return nil, errors.New("Timed out waiting for service to delete")
+				}
+
+			} else {
+
+				// there was either an error or the resource exists and is not being deleted
+				break
+			}
+		}
+
+		// if there's an error
+		if err != nil {
+
+			// if there was an error and it wasn't not found - there was an error. bail
+			if !apierrors.IsNotFound(err) {
+				return nil, errors.Wrapf(err, "Failed to get resource")
 			}
 
-		} else {
+			// create the resource
+			resource, err = createResource()
 
-			// there was either an error or the resource exists and is not being deleted
-			break
+			if err != nil {
+				if !apierrors.IsAlreadyExists(err) {
+					return nil, errors.Wrap(err, "Failed to create resource")
+				}
+
+				// this case could happen if several controllers are running in parallel. (may happen on rolling upgrade of the controller)
+				lc.logger.WarnWith("Got \"resource already exists\" error on creation. Retrying (Perhaps more than 1 controller is running?)",
+					"name", resourceName,
+					"err", err.Error())
+				continue
+			}
+
+			lc.logger.DebugWith("Resource created", "name", resourceName)
+			return resource, nil
 		}
-	}
 
-	// if there's an error
-	if err != nil {
-
-		// if there was an error and it wasn't not found - there was an error. bail
-		if err != nil && !apierrors.IsNotFound(err) {
-			return nil, errors.Wrapf(err, "Failed to get resource")
-		}
-
-		// create the resource
-		resource, err = createResource()
-
+		resource, err = updateResource(resource)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create resource")
+
+			// if there was an error and it wasn't conflict - there was an error. Bail
+			if !apierrors.IsConflict(err) {
+				return nil, errors.Wrapf(err, "Failed to update resource")
+			}
+
+			// if we passed the deadline
+			if time.Now().After(updateDeadline) {
+				return nil, errors.Errorf("Timed out updating resource: %s", resourceName)
+			}
+
+			lc.logger.DebugWith("Got conflict while trying to update resource. Retrying", "name", resourceName)
+			continue
 		}
 
+		lc.logger.DebugWith("Resource updated", "name", resourceName)
 		return resource, nil
 	}
-
-	resource, err = updateResource(resource)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to update resource")
-	}
-
-	lc.logger.DebugWith("Resource updated")
-
-	return resource, nil
 }
 
 func (lc *lazyClient) createOrUpdateConfigMap(function *nuclioio.NuclioFunction) (*v1.ConfigMap, error) {
 
 	getConfigMap := func() (interface{}, error) {
-		return lc.kubeClientSet.CoreV1().ConfigMaps(function.Namespace).Get(lc.configMapNameFromFunctionName(function.Name),
-			meta_v1.GetOptions{})
+		return lc.kubeClientSet.CoreV1().
+			ConfigMaps(function.Namespace).
+			Get(kube.ConfigMapNameFromFunctionName(function.Name), metav1.GetOptions{})
 	}
 
 	configMapIsDeleting := func(resource interface{}) bool {
@@ -449,7 +642,9 @@ func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction) (*v1.Service, error) {
 
 	getService := func() (interface{}, error) {
-		return lc.kubeClientSet.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+		return lc.kubeClientSet.CoreV1().
+			Services(function.Namespace).
+			Get(kube.ServiceNameFromFunctionName(function.Name), metav1.GetOptions{})
 	}
 
 	serviceIsDeleting := func(resource interface{}) bool {
@@ -461,8 +656,8 @@ func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 		lc.populateServiceSpec(functionLabels, function, &spec)
 
 		return lc.kubeClientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
-			ObjectMeta: meta_v1.ObjectMeta{
-				Name:      function.Name,
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      kube.ServiceNameFromFunctionName(function.Name),
 				Namespace: function.Namespace,
 				Labels:    functionLabels,
 			},
@@ -495,7 +690,7 @@ func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 
 func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	imagePullSecrets string,
-	function *nuclioio.NuclioFunction) (*apps_v1beta1.Deployment, error) {
+	function *nuclioio.NuclioFunction) (*appsv1.Deployment, error) {
 
 	// to make sure the pod re-pulls the image, we need to specify a unique string here
 	podAnnotations, err := lc.getPodAnnotations(function)
@@ -503,8 +698,12 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		return nil, errors.Wrap(err, "Failed to get pod annotations")
 	}
 
-	replicas := int32(lc.getFunctionReplicas(function))
-	lc.logger.DebugWith("Got replicas", "replicas", replicas)
+	replicas := function.GetComputedReplicas()
+	if replicas != nil {
+		lc.logger.DebugWith("Got replicas", "replicas", *replicas)
+	} else {
+		lc.logger.DebugWith("Got nil replicas")
+	}
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function annotations")
@@ -514,63 +713,114 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	volumes, volumeMounts := lc.getFunctionVolumeAndMounts(function)
 
 	getDeployment := func() (interface{}, error) {
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+		return lc.kubeClientSet.AppsV1().
+			Deployments(function.Namespace).
+			Get(kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
 	}
 
 	deploymentIsDeleting := func(resource interface{}) bool {
-		return (resource).(*apps_v1beta1.Deployment).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*appsv1.Deployment).ObjectMeta.DeletionTimestamp != nil
+	}
+
+	if function.Spec.ImagePullSecrets != "" {
+		imagePullSecrets = function.Spec.ImagePullSecrets
 	}
 
 	createDeployment := func() (interface{}, error) {
+		method := createDeploymentResourceMethod
 		container := v1.Container{Name: "nuclio"}
-
 		lc.populateDeploymentContainer(functionLabels, function, &container)
 		container.VolumeMounts = volumeMounts
 
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(&apps_v1beta1.Deployment{
+		deploymentSpec := appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: functionLabels,
+			},
+			Replicas: replicas,
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        kube.PodNameFromFunctionName(function.Name),
+					Namespace:   function.Namespace,
+					Labels:      functionLabels,
+					Annotations: podAnnotations,
+				},
+				Spec: v1.PodSpec{
+					ImagePullSecrets: []v1.LocalObjectReference{
+						{Name: imagePullSecrets},
+					},
+					Containers: []v1.Container{
+						container,
+					},
+					Volumes:            volumes,
+					ServiceAccountName: function.Spec.ServiceAccount,
+					SecurityContext:    function.Spec.SecurityContext,
+				},
+			},
+		}
 
-			ObjectMeta: meta_v1.ObjectMeta{
-				Name:        function.Name,
+		deployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        kube.DeploymentNameFromFunctionName(function.Name),
 				Namespace:   function.Namespace,
 				Labels:      functionLabels,
 				Annotations: deploymentAnnotations,
 			},
-			Spec: apps_v1beta1.DeploymentSpec{
-				Replicas: &replicas,
-				Template: v1.PodTemplateSpec{
-					ObjectMeta: meta_v1.ObjectMeta{
-						Name:        function.Name,
-						Namespace:   function.Namespace,
-						Labels:      functionLabels,
-						Annotations: podAnnotations,
-					},
-					Spec: v1.PodSpec{
-						ImagePullSecrets: []v1.LocalObjectReference{
-							{Name: imagePullSecrets},
-						},
-						Containers: []v1.Container{
-							container,
-						},
-						Volumes: volumes,
-					},
-				},
-			},
-		})
+			Spec: deploymentSpec,
+		}
+
+		// enrich deployment spec with default fields that were passed inside the platform configuration
+		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment, method); err != nil {
+			return nil, err
+		}
+		return lc.kubeClientSet.AppsV1().Deployments(function.Namespace).Create(deployment)
 	}
 
 	updateDeployment := func(resource interface{}) (interface{}, error) {
-		deployment := resource.(*apps_v1beta1.Deployment)
+		deployment := resource.(*appsv1.Deployment)
+		method := updateDeploymentResourceMethod
 
-		deployment.Labels = functionLabels
+		// If we got nil replicas it means leave as is (in order to prevent unwanted scale down)
+		// but need to make sure the current replicas is not less than the min replicas
+		if replicas == nil {
+			minReplicas := function.GetComputedMinReplicas()
+			maxReplicas := function.GetComputedMaxReplicas()
+			lc.logger.DebugWith("Verifying current replicas not lower than minReplicas or higher than max",
+				"maxReplicas", maxReplicas,
+				"minReplicas", minReplicas,
+				"currentReplicas", deployment.Status.Replicas)
+			if deployment.Status.Replicas > maxReplicas {
+				replicas = &maxReplicas
+			} else if deployment.Status.Replicas < minReplicas {
+				replicas = &minReplicas
+			} else {
+
+				// if we're within the valid range - and want to leave as is (since replicas == nil) - use current value
+				// NOTE: since we're using the existing deployment (given by our get function) ResourceVersion is set
+				// meaning the update will fail with conflict if something has changed in the meanwhile (e.g. HPA
+				// changed the replicas count) - retry is handled by the createOrUpdateResource wrapper
+				replicas = &deployment.Status.Replicas
+			}
+		}
+
 		deployment.Annotations = deploymentAnnotations
-		deployment.Spec.Replicas = &replicas
+		deployment.Spec.Replicas = replicas
 		deployment.Spec.Template.Annotations = podAnnotations
-		deployment.Spec.Template.Labels = functionLabels
 		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+		deployment.Spec.Template.Spec.SecurityContext = function.Spec.SecurityContext
 
-		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
+		if function.Spec.ServiceAccount != "" {
+			deployment.Spec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
+		}
+
+		// enrich deployment spec with default fields that were passed inside the platform configuration
+		// performed on update too, in case the platform config has been modified after the creation of this deployment
+		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment, method); err != nil {
+			return nil, err
+		}
+
+		return lc.kubeClientSet.AppsV1().Deployments(function.Namespace).Update(deployment)
 	}
 
 	resource, err := lc.createOrUpdateResource("deployment",
@@ -583,34 +833,128 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		return nil, err
 	}
 
-	return resource.(*apps_v1beta1.Deployment), err
+	return resource.(*appsv1.Deployment), err
+}
+
+func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunction) appsv1.DeploymentStrategyType {
+
+	// Since k8s (ATM) does not support rolling update for GPU
+	// redeploying a Nuclio function will get stuck if no GPU is available
+	// to overcome it, we simply change the update strategy to recreate
+	// so k8s will kill the existing pod\function and create the new one
+	if function.Spec.PositiveGPUResourceLimit() {
+
+		// requested a gpu resource, change to recreate
+		return appsv1.RecreateDeploymentStrategyType
+	}
+	// no gpu resources requested, set to rollingUpdate (default)
+	return appsv1.RollingUpdateDeploymentStrategyType
+}
+
+func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclioio.NuclioFunction,
+	deployment *appsv1.Deployment, method deploymentResourceMethod) error {
+	var allowSetDeploymentStrategy = true
+
+	// get deployment augmented configurations
+	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get deployment augmented configs")
+	}
+
+	// merge
+	for _, augmentedConfig := range deploymentAugmentedConfigs {
+		if augmentedConfig.Kubernetes.Deployment != nil {
+			if augmentedConfig.Kubernetes.Deployment.Spec.Strategy.Type != "" ||
+				augmentedConfig.Kubernetes.Deployment.Spec.Strategy.RollingUpdate != nil {
+				allowSetDeploymentStrategy = false
+			}
+			if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
+				return errors.Wrap(err, "Failed to merge deployment spec")
+			}
+		}
+	}
+
+	switch method {
+
+	// on create, change inplace the deployment strategy
+	case createDeploymentResourceMethod:
+		if allowSetDeploymentStrategy {
+			deployment.Spec.Strategy.Type = lc.resolveDeploymentStrategy(function)
+		}
+	case updateDeploymentResourceMethod:
+		if allowSetDeploymentStrategy {
+			newDeploymentStrategyType := lc.resolveDeploymentStrategy(function)
+			if newDeploymentStrategyType != deployment.Spec.Strategy.Type {
+
+				// if current strategy is rolling update, in order to change it to `Recreate`
+				// we must remove `rollingUpdate` field
+				if deployment.Spec.Strategy.Type == appsv1.RollingUpdateDeploymentStrategyType &&
+					newDeploymentStrategyType == appsv1.RecreateDeploymentStrategyType {
+					deployment.Spec.Strategy.RollingUpdate = nil
+				}
+				deployment.Spec.Strategy.Type = newDeploymentStrategyType
+			}
+		}
+	}
+	return nil
+}
+
+func (lc *lazyClient) getDeploymentAugmentedConfigs(function *nuclioio.NuclioFunction) ([]platformconfig.LabelSelectorAndConfig, error) {
+	var configs []platformconfig.LabelSelectorAndConfig
+
+	// get the function labels
+	functionLabels := lc.getFunctionLabels(function)
+
+	// get platform config
+	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
+
+	for _, augmentedConfig := range platformConfig.FunctionAugmentedConfigs {
+
+		selector, err := metav1.LabelSelectorAsSelector(&augmentedConfig.LabelSelector)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get selector from label selector")
+		}
+
+		// if the label matches any of the function labels, augment the deployment with provided function config
+		// NOTE: supports spec only for now. in the future we can remove .Spec and try to merge both meta and spec
+		if selector.Matches(functionLabels) {
+			configs = append(configs, augmentedConfig)
+		}
+	}
+
+	return configs, nil
 }
 
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels labels.Set,
-	function *nuclioio.NuclioFunction) (*autos_v2.HorizontalPodAutoscaler, error) {
+	function *nuclioio.NuclioFunction) (*autosv2.HorizontalPodAutoscaler, error) {
 
-	maxReplicas := int32(function.Spec.MaxReplicas)
-	if maxReplicas == 0 {
-		maxReplicas = 10
+	minReplicas := function.GetComputedMinReplicas()
+	maxReplicas := function.GetComputedMaxReplicas()
+	lc.logger.DebugWith("Create/Update hpa", "minReplicas", minReplicas, "maxReplicas", maxReplicas)
+
+	// hpa min replicas must be equal or greater than 1
+	if minReplicas < 1 {
+		minReplicas = int32(1)
 	}
 
-	minReplicas := int32(function.Spec.MinReplicas)
-	if minReplicas == 0 {
-		minReplicas = 1
+	// hpa max replicas must be equal or greater than 1
+	if maxReplicas < 1 {
+		maxReplicas = int32(1)
 	}
 
 	targetCPU := int32(function.Spec.TargetCPU)
 	if targetCPU == 0 {
-		targetCPU = 75
+		targetCPU = abstract.DefaultTargetCPU
 	}
 
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
-		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,
-			meta_v1.GetOptions{})
+		return lc.kubeClientSet.AutoscalingV2beta1().
+			HorizontalPodAutoscalers(function.Namespace).
+			Get(kube.HPANameFromFunctionName(function.Name), metav1.GetOptions{})
 	}
 
 	horizontalPodAutoscalerIsDeleting := func(resource interface{}) bool {
-		return (resource).(*autos_v2.HorizontalPodAutoscaler).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*autosv2.HorizontalPodAutoscaler).ObjectMeta.DeletionTimestamp != nil
 	}
 
 	createHorizontalPodAutoscaler := func() (interface{}, error) {
@@ -623,20 +967,20 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 			return nil, errors.Wrap(err, "Failed to get function metric specs")
 		}
 
-		hpa := autos_v2.HorizontalPodAutoscaler{
-			ObjectMeta: meta_v1.ObjectMeta{
-				Name:      function.Name,
+		hpa := autosv2.HorizontalPodAutoscaler{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      kube.HPANameFromFunctionName(function.Name),
 				Namespace: function.Namespace,
 				Labels:    functionLabels,
 			},
-			Spec: autos_v2.HorizontalPodAutoscalerSpec{
+			Spec: autosv2.HorizontalPodAutoscalerSpec{
 				MinReplicas: &minReplicas,
 				MaxReplicas: maxReplicas,
 				Metrics:     metricSpecs,
-				ScaleTargetRef: autos_v2.CrossVersionObjectReference{
-					APIVersion: "apps/apps_v1beta1",
+				ScaleTargetRef: autosv2.CrossVersionObjectReference{
+					APIVersion: "apps/apps_v1",
 					Kind:       "Deployment",
-					Name:       function.Name,
+					Name:       kube.DeploymentNameFromFunctionName(function.Name),
 				},
 			},
 		}
@@ -645,7 +989,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 	}
 
 	updateHorizontalPodAutoscaler := func(resourceToUpdate interface{}) (interface{}, error) {
-		hpa := resourceToUpdate.(*autos_v2.HorizontalPodAutoscaler)
+		hpa := resourceToUpdate.(*autosv2.HorizontalPodAutoscaler)
 
 		metricSpecs, err := lc.GetFunctionMetricSpecs(function.Name, targetCPU)
 		if err != nil {
@@ -658,13 +1002,18 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 		hpa.Spec.MaxReplicas = maxReplicas
 
 		// when the min replicas equal the max replicas, there's no need for hpa resourceToUpdate
-		if function.Spec.MinReplicas == function.Spec.MaxReplicas {
-			propogationPolicy := meta_v1.DeletePropagationForeground
-			deleteOptions := &meta_v1.DeleteOptions{
+		if minReplicas == maxReplicas {
+			propogationPolicy := metav1.DeletePropagationForeground
+			deleteOptions := &metav1.DeleteOptions{
 				PropagationPolicy: &propogationPolicy,
 			}
 
-			err := lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
+			lc.logger.DebugWith("Deleting hpa - min replicas and max replicas are equal",
+				"name", hpa.Name)
+
+			err := lc.kubeClientSet.AutoscalingV2beta1().
+				HorizontalPodAutoscalers(function.Namespace).
+				Delete(hpa.Name, deleteOptions)
 			return nil, err
 		}
 
@@ -682,28 +1031,30 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 		return nil, err
 	}
 
-	return resource.(*autos_v2.HorizontalPodAutoscaler), err
+	return resource.(*autosv2.HorizontalPodAutoscaler), err
 }
 
 func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
-	function *nuclioio.NuclioFunction) (*ext_v1beta1.Ingress, error) {
+	function *nuclioio.NuclioFunction) (*extv1beta1.Ingress, error) {
 
 	getIngress := func() (interface{}, error) {
-		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+		return lc.kubeClientSet.ExtensionsV1beta1().
+			Ingresses(function.Namespace).
+			Get(kube.IngressNameFromFunctionName(function.Name), metav1.GetOptions{})
 	}
 
 	ingressIsDeleting := func(resource interface{}) bool {
-		return (resource).(*ext_v1beta1.Ingress).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*extv1beta1.Ingress).ObjectMeta.DeletionTimestamp != nil
 	}
 
 	createIngress := func() (interface{}, error) {
-		ingressMeta := meta_v1.ObjectMeta{
-			Name:      function.Name,
+		ingressMeta := metav1.ObjectMeta{
+			Name:      kube.IngressNameFromFunctionName(function.Name),
 			Namespace: function.Namespace,
 			Labels:    functionLabels,
 		}
 
-		ingressSpec := ext_v1beta1.IngressSpec{}
+		ingressSpec := extv1beta1.IngressSpec{}
 
 		if err := lc.populateIngressConfig(functionLabels, function, &ingressMeta, &ingressSpec); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate ingress spec")
@@ -714,14 +1065,21 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 			return nil, nil
 		}
 
-		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Create(&ext_v1beta1.Ingress{
-			ObjectMeta: ingressMeta,
-			Spec:       ingressSpec,
-		})
+		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().
+			Ingresses(function.Namespace).
+			Create(&extv1beta1.Ingress{
+				ObjectMeta: ingressMeta,
+				Spec:       ingressSpec,
+			})
+		if err == nil {
+			lc.waitForNginxIngressToStabilize()
+		}
+
+		return resultIngress, err
 	}
 
 	updateIngress := func(resource interface{}) (interface{}, error) {
-		ingress := resource.(*ext_v1beta1.Ingress)
+		ingress := resource.(*extv1beta1.Ingress)
 
 		// save to bool if there are current rules
 		ingressRulesExist := len(ingress.Spec.Rules) > 0
@@ -734,12 +1092,14 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 
 			// if there are no rules and previously were, delete the ingress resource
 			if ingressRulesExist {
-				propogationPolicy := meta_v1.DeletePropagationForeground
-				deleteOptions := &meta_v1.DeleteOptions{
+				propogationPolicy := metav1.DeletePropagationForeground
+				deleteOptions := &metav1.DeleteOptions{
 					PropagationPolicy: &propogationPolicy,
 				}
 
-				err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Delete(function.Name, deleteOptions)
+				err := lc.kubeClientSet.ExtensionsV1beta1().
+					Ingresses(function.Namespace).
+					Delete(kube.IngressNameFromFunctionName(function.Name), deleteOptions)
 				return nil, err
 
 			}
@@ -748,7 +1108,12 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 			return nil, nil
 		}
 
-		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
+		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
+		if err == nil {
+			lc.waitForNginxIngressToStabilize()
+		}
+
+		return resultIngress, err
 	}
 
 	resource, err := lc.createOrUpdateResource("ingress",
@@ -765,7 +1130,150 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 		return nil, nil
 	}
 
-	return resource.(*ext_v1beta1.Ingress), err
+	return resource.(*extv1beta1.Ingress), err
+}
+
+func (lc *lazyClient) deleteCronJobs(functionName, functionNamespace string) error {
+	lc.logger.InfoWith("Deleting function cron jobs", "functionName", functionName)
+
+	functionNameLabel := fmt.Sprintf("nuclio.io/function-name=%s", functionName)
+
+	return lc.kubeClientSet.BatchV1beta1().
+		CronJobs(functionNamespace).
+		DeleteCollection(&metav1.DeleteOptions{},
+			metav1.ListOptions{LabelSelector: functionNameLabel})
+}
+
+func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
+	extraMetaLabels labels.Set,
+	function *nuclioio.NuclioFunction,
+	jobName string,
+	cronJobSpec *batchv1beta1.CronJobSpec,
+	suspendCronJob bool) (*batchv1beta1.CronJob, error) {
+
+	// should cron job be suspended or not (true when function is paused)
+	cronJobSpec.Suspend = &suspendCronJob
+
+	// prepare cron job meta labels
+	cronJobMetaLabels := labels.Merge(functionLabels, extraMetaLabels)
+
+	getCronJob := func() (interface{}, error) {
+		cronJobs, err := lc.kubeClientSet.BatchV1beta1().
+			CronJobs(function.Namespace).
+			List(metav1.ListOptions{
+				LabelSelector: cronJobMetaLabels.String(),
+			})
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed getting cron jobs for function %s", function.Name)
+		}
+		if len(cronJobs.Items) == 0 {
+
+			// purposefully return a k8s NotFound because the `createOrUpdateResource` checks the err type
+			return nil, apierrors.NewNotFound(nuclioio.Resource("cronjob"), jobName)
+		}
+		return &cronJobs.Items[0], nil
+	}
+
+	cronJobIsDeleting := func(resource interface{}) bool {
+		return (resource).(*batchv1beta1.CronJob).ObjectMeta.DeletionTimestamp != nil
+	}
+
+	// Prepare the new cron job object
+
+	// prepare cron job meta
+	cronJobMeta := metav1.ObjectMeta{
+		Name:      kube.CronJobName(),
+		Namespace: function.Namespace,
+		Labels:    cronJobMetaLabels,
+	}
+
+	// prepare pod template labels
+	podTemplateLabels := labels.Set{
+		"nuclio.io/function-cron-job-pod": "true",
+	}
+	podTemplateLabels = labels.Merge(podTemplateLabels, functionLabels)
+	cronJobSpec.JobTemplate.Spec.Template.Labels = podTemplateLabels
+
+	// this new object will be used both on creation/update
+	newCronJob := batchv1beta1.CronJob{
+		ObjectMeta: cronJobMeta,
+		Spec:       *cronJobSpec,
+	}
+
+	createCronJob := func() (interface{}, error) {
+		resultCronJob, err := lc.kubeClientSet.BatchV1beta1().
+			CronJobs(function.Namespace).
+			Create(&newCronJob)
+
+		return resultCronJob, err
+	}
+
+	updateCronJob := func(resource interface{}) (interface{}, error) {
+		cronJob := resource.(*batchv1beta1.CronJob)
+
+		// Use the original name of the CronJob
+		newCronJob.Name = cronJob.Name
+
+		// set the contents of the cron job pointer to be the updated cron job
+		*cronJob = newCronJob
+
+		resultCronJob, err := lc.kubeClientSet.BatchV1beta1().CronJobs(function.Namespace).Update(cronJob)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to update cron job")
+		}
+
+		return resultCronJob, nil
+	}
+
+	resource, err := lc.createOrUpdateResource("cronJob",
+		getCronJob,
+		cronJobIsDeleting,
+		createCronJob,
+		updateCronJob)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resource == nil {
+		return nil, nil
+	}
+
+	return resource.(*batchv1beta1.CronJob), err
+}
+
+func (lc *lazyClient) compileCronTriggerLabelSelector(functionName, additionalLabels string) string {
+	labelSelector := labels.Set{
+		"nuclio.io/component":     "cron-trigger",
+		"nuclio.io/function-name": functionName,
+	}.String()
+
+	if additionalLabels != "" {
+		labelSelector += fmt.Sprintf(",%s", additionalLabels)
+	}
+	return labelSelector
+}
+
+func (lc *lazyClient) compileCronTriggerNotInSliceLabels(slice []string) (string, error) {
+	if len(slice) == 0 {
+		return "", nil
+	}
+
+	labelSet, err := labels.NewRequirement("nuclio.io/function-cron-trigger-name",
+		selection.NotIn,
+		slice)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create cron trigger list requirement label")
+	}
+	return labelSet.String(), nil
+}
+
+// nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
+func (lc *lazyClient) waitForNginxIngressToStabilize() {
+	lc.logger.DebugWith("Waiting for nginx ingress to stabilize",
+		"nginxIngressUpdateGracePeriod", nginxIngressUpdateGracePeriod)
+	time.Sleep(nginxIngressUpdateGracePeriod)
+	lc.logger.Debug("Finished waiting for nginx ingress to stabilize")
 }
 
 func (lc *lazyClient) initClassLabels() {
@@ -785,25 +1293,6 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) label
 	}
 
 	return result
-}
-
-func (lc *lazyClient) getFunctionReplicas(function *nuclioio.NuclioFunction) int {
-	replicas := function.Spec.Replicas
-
-	// only when function is scaled to zero, allow for replicas to be set to zero
-	if function.Spec.Disabled || function.Status.State == functionconfig.FunctionStateScaledToZero {
-		replicas = 0
-	} else if replicas == 0 {
-
-		// in this path, there's a always a minimum of one replica than needs to be available
-		if function.Spec.MinReplicas > 0 {
-			replicas = function.Spec.MinReplicas
-		} else {
-			replicas = 1
-		}
-	}
-
-	return replicas
 }
 
 func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[string]string, error) {
@@ -840,12 +1329,10 @@ func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.NuclioFunction
 	var nuclioVersion string
 
 	// get version
-	if info, err := version.Get(); err == nil {
-		nuclioVersion = info.Label
-	} else {
+	nuclioVersion = version.Get().Label
+	if nuclioVersion == "" {
 		nuclioVersion = "unknown"
 	}
-
 	annotations["nuclio.io/function-config"] = serializedFunctionConfigJSON
 	annotations["nuclio.io/controller-version"] = nuclioVersion
 
@@ -894,7 +1381,8 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	spec *v1.ServiceSpec) {
 
-	if function.Status.State == functionconfig.FunctionStateScaledToZero {
+	if function.Status.State == functionconfig.FunctionStateScaledToZero ||
+		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero {
 
 		// pass all further requests to DLX service
 		spec.Selector = map[string]string{"nuclio.io/app": "dlx"}
@@ -902,8 +1390,9 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 		spec.Selector = functionLabels
 	}
 
-	spec.Type = function.Spec.ServiceType
+	spec.Type = lc.resolveFunctionServiceType(function)
 	serviceTypeIsNodePort := spec.Type == v1.ServiceTypeNodePort
+	functionHTTPPort := function.Spec.GetHTTPPort()
 
 	// update the service's node port on the following conditions:
 	// 1. this is a new service (spec.Ports is an empty list)
@@ -914,14 +1403,17 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 		spec.Ports = []v1.ServicePort{
 			{
 				Name: containerHTTPPortName,
-				Port: int32(containerHTTPPort),
+				Port: int32(abstract.FunctionContainerHTTPPort),
 			},
 		}
 		if serviceTypeIsNodePort {
-			spec.Ports[0].NodePort = int32(function.Spec.GetHTTPPort())
+			spec.Ports[0].NodePort = int32(functionHTTPPort)
 		} else {
 			spec.Ports[0].NodePort = 0
 		}
+		lc.logger.DebugWith("Updating service node port",
+			"functionName", function.Name,
+			"ports", spec.Ports)
 	}
 
 	// check if platform requires additional ports
@@ -989,10 +1481,142 @@ func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.Ser
 	return to
 }
 
+func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
+	function *nuclioio.NuclioFunction,
+	resources Resources,
+	cronTrigger functionconfig.Trigger) (*batchv1beta1.CronJobSpec, error) {
+	var err error
+	one := int32(1)
+	spec := batchv1beta1.CronJobSpec{}
+
+	type cronAttributes struct {
+		Schedule          string
+		Interval          string
+		ConcurrencyPolicy string
+		JobBackoffLimit   int32
+		Event             cron.Event
+	}
+
+	// get the attributes from the cron trigger
+	var attributes cronAttributes
+	if err = mapstructure.Decode(cronTrigger.Attributes, &attributes); err != nil {
+		return nil, errors.Wrap(err, "Failed to decode cron trigger attributes")
+	}
+
+	// populate schedule
+	if attributes.Interval != "" {
+		spec.Schedule = fmt.Sprintf("@every %s", attributes.Interval)
+	} else {
+		spec.Schedule, err = lc.normalizeCronTriggerScheduleInput(attributes.Schedule)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to normalize cron schedule")
+		}
+	}
+
+	// generate a string containing all of the headers with --header flag as prefix, to be used by curl later
+	headersAsCurlArg := ""
+	for headerKey := range attributes.Event.Headers {
+		headerValue := attributes.Event.GetHeaderString(headerKey)
+		headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, headerKey, headerValue)
+	}
+
+	// add default header
+	headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, "x-nuclio-invoke-trigger", "cron")
+
+	// get the function http trigger address from the service
+	functionService, err := resources.Service()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function service")
+	}
+	host, port := kube.GetDomainNameInvokeURL(functionService.Name, function.Namespace)
+	functionAddress := fmt.Sprintf("%s:%d", host, port)
+
+	// generate the curl command to be run by the CronJob to invoke the function
+	// invoke the function (retry for 10 seconds)
+	curlCommand := fmt.Sprintf("curl --silent %s %s --retry 10 --retry-delay 1 --retry-max-time 10 --retry-connrefused",
+		headersAsCurlArg,
+		functionAddress)
+
+	if attributes.Event.Body != "" {
+		eventBody := attributes.Event.Body
+
+		// if a body exists - dump it into a file, and pass this file as argument (done to support JSON body)
+		eventBodyFilePath := "/tmp/eventbody.out"
+		eventBodyCurlArg := fmt.Sprintf("--data '@%s'", eventBodyFilePath)
+
+		// if body is a valid JSON parse it accordingly
+		eventBodyAsJSON, err := json.Marshal(eventBody)
+		if err == nil {
+			eventBody = string(eventBodyAsJSON)
+		}
+
+		curlCommand = fmt.Sprintf("echo %s > %s && %s %s",
+			eventBody,
+			eventBodyFilePath,
+			curlCommand,
+			eventBodyCurlArg)
+	}
+
+	// get cron job retries until failing a job (default=2)
+	jobBackoffLimit := attributes.JobBackoffLimit
+	if jobBackoffLimit == 0 {
+		jobBackoffLimit = 2
+	}
+
+	spec.JobTemplate = batchv1beta1.JobTemplateSpec{
+		Spec: batchv1.JobSpec{
+			BackoffLimit: &jobBackoffLimit,
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:            "function-invocator",
+							Image:           common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME", "appropriate/curl:latest"),
+							Args:            []string{"/bin/sh", "-c", curlCommand},
+							ImagePullPolicy: v1.PullPolicy(common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_PULL_POLICY", "IfNotPresent")),
+						},
+					},
+					RestartPolicy: v1.RestartPolicyNever,
+				},
+			},
+		},
+	}
+
+	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
+	concurrencyPolicy := batchv1beta1.ForbidConcurrent
+	if attributes.ConcurrencyPolicy != "" {
+		concurrencyPolicy = batchv1beta1.ConcurrencyPolicy(util.Capitalize(attributes.ConcurrencyPolicy))
+	}
+	spec.ConcurrencyPolicy = concurrencyPolicy
+
+	// set default history limit (no need for more than one - makes kube jobs api clearer)
+	spec.SuccessfulJobsHistoryLimit = &one
+	spec.FailedJobsHistoryLimit = &one
+
+	return &spec, nil
+}
+
+func (lc *lazyClient) normalizeCronTriggerScheduleInput(schedule string) (string, error) {
+
+	splittedSchedule := strings.Split(schedule, " ")
+
+	// if schedule is of length 5, do nothing
+	if len(splittedSchedule) == 5 {
+		return schedule, nil
+	}
+
+	// normalizes cron schedules of length 6 to be of length 5 (removes the seconds slot)
+	if len(splittedSchedule) != 6 {
+		return "", errors.New(fmt.Sprintf("Unexpected cron schedule syntax: %s. (expects standard UNIX cron schedule)", schedule))
+	}
+
+	return strings.Join(splittedSchedule[1:6], " "), nil
+}
+
 func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
-	meta *meta_v1.ObjectMeta,
-	spec *ext_v1beta1.IngressSpec) error {
+	meta *metav1.ObjectMeta,
+	spec *extv1beta1.IngressSpec) error {
 	meta.Annotations = make(map[string]string)
 
 	lc.logger.DebugWith("Preparing ingress")
@@ -1015,8 +1639,8 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 		`proxy_set_header X-Nuclio-Target "%s";`, function.Name)
 
 	// clear out existing so that we don't keep adding rules
-	spec.Rules = []ext_v1beta1.IngressRule{}
-	spec.TLS = []ext_v1beta1.IngressTLS{}
+	spec.Rules = []extv1beta1.IngressRule{}
+	spec.TLS = []extv1beta1.IngressTLS{}
 
 	for _, ingress := range functionconfig.GetIngressesFromTriggers(function.Spec.Triggers) {
 		if err := lc.addIngressToSpec(&ingress, functionLabels, function, spec); err != nil {
@@ -1062,20 +1686,21 @@ func (lc *lazyClient) formatIngressPattern(ingressPattern string,
 func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 	functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
-	spec *ext_v1beta1.IngressSpec) error {
+	spec *extv1beta1.IngressSpec) error {
 
 	lc.logger.DebugWith("Adding ingress",
 		"function", function.Name,
+		"ingressName", kube.IngressNameFromFunctionName(function.Name),
 		"labels", functionLabels,
 		"host", ingress.Host,
 		"paths", ingress.Paths,
 		"TLS", ingress.TLS)
 
-	ingressRule := ext_v1beta1.IngressRule{
+	ingressRule := extv1beta1.IngressRule{
 		Host: ingress.Host,
 	}
 
-	ingressRule.IngressRuleValue.HTTP = &ext_v1beta1.HTTPIngressRuleValue{}
+	ingressRule.IngressRuleValue.HTTP = &extv1beta1.HTTPIngressRuleValue{}
 
 	// populate the ingress rule value
 	for _, path := range ingress.Paths {
@@ -1084,10 +1709,10 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 			return errors.Wrap(err, "Failed to format ingress pattern")
 		}
 
-		httpIngressPath := ext_v1beta1.HTTPIngressPath{
+		httpIngressPath := extv1beta1.HTTPIngressPath{
 			Path: formattedPath,
-			Backend: ext_v1beta1.IngressBackend{
-				ServiceName: function.Name,
+			Backend: extv1beta1.IngressBackend{
+				ServiceName: kube.ServiceNameFromFunctionName(function.Name),
 				ServicePort: intstr.IntOrString{
 					Type:   intstr.String,
 					StrVal: containerHTTPPortName,
@@ -1100,7 +1725,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 
 		// add TLS if such exists
 		if ingress.TLS.SecretName != "" {
-			ingressTLS := ext_v1beta1.IngressTLS{}
+			ingressTLS := extv1beta1.IngressTLS{}
 			ingressTLS.SecretName = ingress.TLS.SecretName
 			ingressTLS.Hosts = ingress.TLS.Hosts
 
@@ -1124,7 +1749,7 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 		container.Resources.Requests = make(v1.ResourceList)
 
 		// the default is 500 milli cpu
-		cpuQuantity, err := resource.ParseQuantity("25m") // nolint: errcheck
+		cpuQuantity, err := apiresource.ParseQuantity("25m") // nolint: errcheck
 		if err == nil {
 			container.Resources.Requests["cpu"] = cpuQuantity
 		}
@@ -1133,7 +1758,7 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 	container.Ports = []v1.ContainerPort{
 		{
 			Name:          containerHTTPPortName,
-			ContainerPort: containerHTTPPort,
+			ContainerPort: abstract.FunctionContainerHTTPPort,
 			Protocol:      "TCP",
 		},
 	}
@@ -1210,8 +1835,8 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 	}
 
 	*configMap = v1.ConfigMap{
-		ObjectMeta: meta_v1.ObjectMeta{
-			Name:      lc.configMapNameFromFunctionName(function.Name),
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      kube.ConfigMapNameFromFunctionName(function.Name),
 			Namespace: function.Namespace,
 		},
 		Data: map[string]string{
@@ -1222,13 +1847,10 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 	return nil
 }
 
-func (lc *lazyClient) configMapNameFromFunctionName(functionName string) string {
-	return functionName
-}
-
 func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFunction) ([]v1.Volume, []v1.VolumeMount) {
 	trueVal := true
 	var configVolumes []functionconfig.Volume
+	var filteredFunctionVolumes []functionconfig.Volume
 
 	processorConfigVolumeName := "processor-config-volume"
 	platformConfigVolumeName := "platform-config-volume"
@@ -1237,7 +1859,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 	processorConfigVolume := functionconfig.Volume{}
 	processorConfigVolume.Volume.Name = processorConfigVolumeName
 	processorConfigMapVolumeSource := v1.ConfigMapVolumeSource{}
-	processorConfigMapVolumeSource.Name = lc.configMapNameFromFunctionName(function.Name)
+	processorConfigMapVolumeSource.Name = kube.ConfigMapNameFromFunctionName(function.Name)
 	processorConfigVolume.Volume.ConfigMap = &processorConfigMapVolumeSource
 	processorConfigVolume.VolumeMount.Name = processorConfigVolumeName
 	processorConfigVolume.VolumeMount.MountPath = "/etc/nuclio/config/processor"
@@ -1252,6 +1874,19 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 	platformConfigVolume.VolumeMount.Name = platformConfigVolumeName
 	platformConfigVolume.VolumeMount.MountPath = "/etc/nuclio/config/platform"
 
+	// ignore HostPath volumes
+	for _, configVolume := range function.Spec.Volumes {
+		if configVolume.Volume.HostPath != nil {
+			lc.logger.WarnWith("Ignoring volume. HostPath volumes are now deprecated",
+				"configVolume",
+				configVolume)
+
+		} else {
+			filteredFunctionVolumes = append(filteredFunctionVolumes, configVolume)
+		}
+	}
+	function.Spec.Volumes = filteredFunctionVolumes
+
 	// merge from functionconfig and injected configuration
 	configVolumes = append(configVolumes, function.Spec.Volumes...)
 	configVolumes = append(configVolumes, processorConfigVolume)
@@ -1261,6 +1896,28 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 	var volumeMounts []v1.VolumeMount
 
 	for _, configVolume := range configVolumes {
+		if configVolume.Volume.FlexVolume != nil && configVolume.Volume.FlexVolume.Driver == "v3io/fuse" {
+
+			// make sure the given sub path matches the needed structure. fix in case it doesn't
+			subPath, subPathExists := configVolume.Volume.FlexVolume.Options["subPath"]
+			if subPathExists && len(subPath) != 0 {
+
+				// insert slash in the beginning in case it wasn't given (example: "my/path" -> "/my/path")
+				if !filepath.IsAbs(subPath) {
+					subPath = "/" + subPath
+				}
+
+				subPath = filepath.Clean(subPath)
+				if subPath == "/" {
+					subPath = ""
+				}
+
+				configVolume.Volume.FlexVolume.Options["subPath"] = subPath
+			}
+		}
+
+		lc.logger.DebugWith("Adding volume", "configVolume", configVolume)
+
 		volumes = append(volumes, configVolume.Volume)
 		volumeMounts = append(volumeMounts, configVolume.VolumeMount)
 	}
@@ -1273,7 +1930,7 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 	// create error group
 	errGroup, _ := errgroup.WithContext(ctx)
 
-	listOptions := meta_v1.ListOptions{
+	listOptions := metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
 	}
 
@@ -1286,7 +1943,9 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 
 	for _, functionEvent := range result.Items {
 		errGroup.Go(func() error {
-			err = lc.nuclioClientSet.NuclioV1beta1().NuclioFunctionEvents(namespace).Delete(functionEvent.Name, &meta_v1.DeleteOptions{})
+			err = lc.nuclioClientSet.NuclioV1beta1().
+				NuclioFunctionEvents(namespace).
+				Delete(functionEvent.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return errors.Wrap(err, "Failed to delete function event")
 			}
@@ -1302,31 +1961,31 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 	return nil
 }
 
-func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int32) ([]autos_v2.MetricSpec, error) {
-	var metricSpecs []autos_v2.MetricSpec
+func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int32) ([]autosv2.MetricSpec, error) {
+	var metricSpecs []autosv2.MetricSpec
 	config := lc.platformConfigurationProvider.GetPlatformConfiguration()
 	if lc.functionsHaveAutoScaleMetrics(config) {
-		targetValue, err := resource.ParseQuantity(config.AutoScale.TargetValue)
+		targetValue, err := apiresource.ParseQuantity(config.AutoScale.TargetValue)
 		if err != nil {
 			return metricSpecs, errors.Wrap(err, "Failed to parse target value for auto scale")
 		}
 
 		// special cases for k8s resources that are supplied by regular metric server, excluding cpu
 		if lc.getMetricResourceByName(config.AutoScale.MetricName) != "" {
-			metricSpecs = []autos_v2.MetricSpec{
+			metricSpecs = []autosv2.MetricSpec{
 				{
 					Type: "Resource",
-					Resource: &autos_v2.ResourceMetricSource{
+					Resource: &autosv2.ResourceMetricSource{
 						Name:               lc.getMetricResourceByName(config.AutoScale.MetricName),
 						TargetAverageValue: &targetValue,
 					},
 				},
 			}
 		} else {
-			metricSpecs = []autos_v2.MetricSpec{
+			metricSpecs = []autosv2.MetricSpec{
 				{
 					Type: "Pods",
-					Pods: &autos_v2.PodsMetricSource{
+					Pods: &autosv2.PodsMetricSource{
 						MetricName:         config.AutoScale.MetricName,
 						TargetAverageValue: targetValue,
 					},
@@ -1338,10 +1997,10 @@ func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int3
 	} else {
 
 		// special case, keep support for target cpu in percentage
-		metricSpecs = append(metricSpecs, autos_v2.MetricSpec{
+		metricSpecs = append(metricSpecs, autosv2.MetricSpec{
 			Type: "Resource",
-			Resource: &autos_v2.ResourceMetricSource{
-				Name: v1.ResourceCPU,
+			Resource: &autosv2.ResourceMetricSource{
+				Name:                     v1.ResourceCPU,
 				TargetAverageUtilization: &targetCPU,
 			},
 		})
@@ -1355,14 +2014,37 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	case "memory":
 		return v1.ResourceMemory
 	case "alpha.kubernetes.io/nvidia-gpu":
-		return v1.ResourceNvidiaGPU
+		return v1.ResourceName(resourceName)
+	case functionconfig.NvidiaGPUResourceName:
+		return v1.ResourceName(resourceName)
 	case "ephemeral-storage":
 		return v1.ResourceEphemeralStorage
 	case "storage":
 		return v1.ResourceStorage
 	default:
-		return v1.ResourceName("")
+		return ""
 	}
+}
+
+func (lc *lazyClient) resolveFunctionServiceType(function *nuclioio.NuclioFunction) v1.ServiceType {
+	functionHTTPTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "http")
+
+	// if the http trigger has a configured service type, return that.
+	for _, trigger := range functionHTTPTriggers {
+		if serviceTypeInterface, serviceTypeExists := trigger.Attributes["serviceType"]; serviceTypeExists {
+			if serviceType, serviceTypeIsString := serviceTypeInterface.(string); serviceTypeIsString {
+				return v1.ServiceType(serviceType)
+			}
+		}
+	}
+
+	// otherwise, if the function spec has a service type, return that (for backwards compatibility)
+	if function.Spec.ServiceType != "" {
+		return function.Spec.ServiceType
+	}
+
+	// otherwise return platform default
+	return lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultServiceType
 }
 
 //
@@ -1370,16 +2052,16 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 //
 
 type lazyResources struct {
-	logger                  logger.Logger
-	deployment              *apps_v1beta1.Deployment
+	deployment              *appsv1.Deployment
 	configMap               *v1.ConfigMap
 	service                 *v1.Service
-	horizontalPodAutoscaler *autos_v2.HorizontalPodAutoscaler
-	ingress                 *ext_v1beta1.Ingress
+	horizontalPodAutoscaler *autosv2.HorizontalPodAutoscaler
+	ingress                 *extv1beta1.Ingress
+	cronJobs                []*batchv1beta1.CronJob
 }
 
 // Deployment returns the deployment
-func (lr *lazyResources) Deployment() (*apps_v1beta1.Deployment, error) {
+func (lr *lazyResources) Deployment() (*appsv1.Deployment, error) {
 	return lr.deployment, nil
 }
 
@@ -1394,11 +2076,16 @@ func (lr *lazyResources) Service() (*v1.Service, error) {
 }
 
 // HorizontalPodAutoscaler returns the hpa
-func (lr *lazyResources) HorizontalPodAutoscaler() (*autos_v2.HorizontalPodAutoscaler, error) {
+func (lr *lazyResources) HorizontalPodAutoscaler() (*autosv2.HorizontalPodAutoscaler, error) {
 	return lr.horizontalPodAutoscaler, nil
 }
 
 // Ingress returns the ingress
-func (lr *lazyResources) Ingress() (*ext_v1beta1.Ingress, error) {
+func (lr *lazyResources) Ingress() (*extv1beta1.Ingress, error) {
 	return lr.ingress, nil
+}
+
+// CronJob returns the cron job
+func (lr *lazyResources) CronJobs() ([]*batchv1beta1.CronJob, error) {
+	return lr.cronJobs, nil
 }

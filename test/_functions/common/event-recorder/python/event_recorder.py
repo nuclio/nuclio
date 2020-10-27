@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
 import json
 
 events_log_file_path = '/tmp/events.json'
@@ -19,14 +20,15 @@ events_log_file_path = '/tmp/events.json'
 def handler(context, event):
     """post event to the request recorder"""
 
-    if event.trigger.klass == 'async':
+    if event.trigger.kind != 'http' or event.get_header('x-nuclio-invoke-trigger'):
         body = event.body.decode('utf-8')
         context.logger.info('Received event body: {0}'.format(body))
 
         # serialized record
         serialized_record = json.dumps({
             'body': body,
-            'headers': dict(event.headers)
+            'headers': dict(event.headers),
+            'timestamp': datetime.datetime.utcnow().isoformat(),
         })
 
         # store in log file

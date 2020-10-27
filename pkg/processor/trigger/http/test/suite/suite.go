@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/test/compare"
@@ -36,7 +36,6 @@ import (
 // EventFields for events
 type EventFields struct {
 	ID             nuclio.ID              `json:"id,omitempty"`
-	TriggerClass   string                 `json:"triggerClass,omitempty"`
 	TriggerKind    string                 `json:"eventType,omitempty"`
 	ContentType    string                 `json:"contentType,omitempty"`
 	Headers        map[string]interface{} `json:"headers,omitempty"`
@@ -63,11 +62,35 @@ type Request struct {
 	RequestPath     string
 	RequestPort     int
 
-	ExpectedLogMessages        []string
-	ExpectedLogRecords         []map[string]interface{}
-	ExpectedResponseBody       interface{}
-	ExpectedResponseHeaders    map[string]string
-	ExpectedResponseStatusCode *int
+	ExpectedLogMessages           []string
+	ExpectedLogRecords            []map[string]interface{}
+	ExpectedResponseBody          interface{}
+	ExpectedResponseHeaders       map[string]string
+	ExpectedResponseHeadersValues map[string][]string
+	ExpectedResponseStatusCode    *int
+
+	RetryUntilSuccessfulStatusCode *int
+	RetryUntilSuccessfulDuration   time.Duration
+	RetryUntilSuccessfulInterval   time.Duration
+}
+
+func (r *Request) Enrich(deployResult *platform.CreateFunctionResult) {
+	defaultStatusCode := http.StatusOK
+	if r.ExpectedResponseStatusCode == nil {
+		r.ExpectedResponseStatusCode = &defaultStatusCode
+	}
+
+	if r.RequestPort == 0 {
+		r.RequestPort = deployResult.Port
+	}
+
+	if r.RequestPath == "" {
+		r.RequestPath = "/"
+	}
+
+	if r.RequestMethod == "" {
+		r.RequestMethod = "POST"
+	}
 }
 
 // TestSuite is an HTTP test suite
@@ -98,99 +121,91 @@ func (suite *TestSuite) DeployFunctionAndExpectError(createFunctionOptions *plat
 // DeployFunctionAndRequest deploys a function and call it with request
 func (suite *TestSuite) DeployFunctionAndRequest(createFunctionOptions *platform.CreateFunctionOptions,
 	request *Request) *platform.CreateFunctionResult {
+	return suite.DeployFunctionAndRequests(createFunctionOptions, []*Request{request})
+}
 
-	defaultStatusCode := http.StatusOK
-	if request.ExpectedResponseStatusCode == nil {
-		request.ExpectedResponseStatusCode = &defaultStatusCode
-	}
-
-	// by default BuildAndRunFunction will map 8080
-	if request.RequestPort == 0 {
-		request.RequestPort = 8080
-	}
-
-	if request.RequestPath == "" {
-		request.RequestPath = "/"
-	}
-
-	if request.RequestMethod == "" {
-		request.RequestMethod = "POST"
-	}
+// DeployFunctionAndRequests deploys a function and call it with multiple requests
+func (suite *TestSuite) DeployFunctionAndRequests(createFunctionOptions *platform.CreateFunctionOptions,
+	requests []*Request) *platform.CreateFunctionResult {
 
 	return suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		for _, request := range requests {
+			request.Enrich(deployResult)
+			if !suite.SendRequestVerifyResponse(request) {
 
-		// modify request port to that of the deployed
-		request.RequestPort = deployResult.Port
-
-		return suite.SendRequestVerifyResponse(request)
+				// fail fast
+				return false
+			}
+		}
+		return true
 	})
 }
 
 // SendRequestVerifyResponse sends a request and verifies we got expected response
 func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
+	var httpResponse *http.Response
+	var err error
 
-	suite.Logger.DebugWith("Sending request",
-		"requestPort", request.RequestPort,
-		"requestPath", request.RequestPath,
-		"requestHeaders", request.RequestHeaders,
-		"requestBody", request.RequestBody,
-		"requestLogLevel", request.RequestLogLevel)
+	// retry
+	if request.RetryUntilSuccessfulStatusCode != nil {
+		err = common.RetryUntilSuccessful(request.RetryUntilSuccessfulDuration,
+			request.RetryUntilSuccessfulInterval,
+			func() bool {
+				httpResponse, err = suite.sendRequest(request)
+				if err != nil {
+					return false
+				}
+				return httpResponse.StatusCode == *request.RetryUntilSuccessfulStatusCode
+			})
 
-	baseURL := "localhost"
-
-	// change verify-url if needed to ask from docker ip
-	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		baseURL = os.Getenv("NUCLIO_TEST_HOST")
-	}
-
-	// Send request to proper url
-	url := fmt.Sprintf("http://%s:%d%s", baseURL, request.RequestPort, request.RequestPath)
-
-	// create a request
-	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))
-	suite.Require().NoError(err)
-
-	// if there are request headers, add them
-	if request.RequestHeaders != nil {
-		for requestHeaderName, requestHeaderValue := range request.RequestHeaders {
-			httpRequest.Header.Add(requestHeaderName, fmt.Sprintf("%v", requestHeaderValue))
-		}
 	} else {
-		httpRequest.Header.Add("Content-Type", "text/plain")
+		httpResponse, err = suite.sendRequest(request)
 	}
 
-	// if there is a log level, add the header
-	if request.RequestLogLevel != nil {
-		httpRequest.Header.Add("X-nuclio-log-level", *request.RequestLogLevel)
-	}
+	// if we fail to connect, fail, so callee might retry
+	if err != nil && common.MatchStringPatterns([]string{
 
-	// invoke the function
-	httpResponse, err := suite.httpClient.Do(httpRequest)
+		// function is not up yet
+		"EOF",
+		"connection reset by peer",
 
-	// if we fail to connect, fail
-	if err != nil && strings.Contains(err.Error(), "EOF") {
+		// https://github.com/golang/go/issues/19943#issuecomment-355607646
+		// tl;dr: we should actively retry on such errors, because Go won't as request might not be idempotent
+		"server closed idle connection",
+	}, err.Error()) {
 		time.Sleep(500 * time.Millisecond)
 		return false
 	}
 
+	suite.Require().NoError(err, "Failed to send request")
+
+	body, err := ioutil.ReadAll(httpResponse.Body)
 	suite.Require().NoError(err)
 
 	if request.ExpectedResponseStatusCode != nil {
 		suite.Require().Equal(*request.ExpectedResponseStatusCode,
 			httpResponse.StatusCode,
-			"Got unexpected status code with request body (%s)",
-			request.RequestBody)
+			"Got unexpected status code with request body (%s) and response body (%s)",
+			request.RequestBody,
+			body)
 	}
 
-	body, err := ioutil.ReadAll(httpResponse.Body)
-	suite.Require().NoError(err)
-
 	// verify header correctness
+	// the httpResponse may contain more headers. just check that all the expected
+
 	if request.ExpectedResponseHeaders != nil {
-		// the httpResponse may contain more headers. just check that all the expected
+
 		// headers contain the proper values
 		for expectedHeaderName, expectedHeaderValue := range request.ExpectedResponseHeaders {
 			suite.Require().Equal(expectedHeaderValue, httpResponse.Header.Get(expectedHeaderName))
+		}
+	}
+
+	if request.ExpectedResponseHeadersValues != nil {
+
+		// header may contain list of values
+		for expectedHeaderName, expectedHeaderValues := range request.ExpectedResponseHeadersValues {
+			suite.Require().Equal(expectedHeaderValues, httpResponse.Header.Values(expectedHeaderName))
 		}
 	}
 
@@ -212,7 +227,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		err := json.Unmarshal(body, &unmarshalledBody)
 		suite.Require().NoError(err)
 
-		suite.Require().True(compare.CompareNoOrder(typedExpectedResponseBody, unmarshalledBody))
+		suite.Require().True(compare.NoOrder(typedExpectedResponseBody, unmarshalledBody))
 	case *regexp.Regexp:
 		suite.Require().Regexp(typedExpectedResponseBody, string(body))
 	case func([]byte):
@@ -260,6 +275,39 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	}
 
 	return true
+}
+
+func (suite *TestSuite) sendRequest(request *Request) (*http.Response, error) {
+	suite.Logger.DebugWith("Sending request",
+		"requestPort", request.RequestPort,
+		"requestPath", request.RequestPath,
+		"requestHeaders", request.RequestHeaders,
+		"requestBodyLength", len(request.RequestBody),
+		"requestLogLevel", request.RequestLogLevel)
+
+	// Send request to proper url
+	url := fmt.Sprintf("http://%s:%d%s", suite.GetTestHost(), request.RequestPort, request.RequestPath)
+
+	// create a request
+	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))
+	suite.Require().NoError(err)
+
+	// if there are request headers, add them
+	if request.RequestHeaders != nil {
+		for requestHeaderName, requestHeaderValue := range request.RequestHeaders {
+			httpRequest.Header.Add(requestHeaderName, fmt.Sprintf("%v", requestHeaderValue))
+		}
+	} else {
+		httpRequest.Header.Add("Content-Type", "text/plain")
+	}
+
+	// if there is a log level, add the header
+	if request.RequestLogLevel != nil {
+		httpRequest.Header.Add("X-nuclio-log-level", *request.RequestLogLevel)
+	}
+
+	// invoke the function
+	return suite.httpClient.Do(httpRequest)
 }
 
 // subMap returns a subset of source with only the keys in keys

@@ -19,6 +19,9 @@
 
     .main-header-section {
         height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
 
     .main-header-title-wrapper {
@@ -29,22 +32,16 @@
         font-weight: 500;
         height: 20px;
         line-height: 24px;
-        margin-top: 20px;
         padding-left: 24px;
 
         .main-header-title {
             &:not(.disable-behavior) {
                 cursor: pointer;
                 transition: @igz-basic-transition-color;
-
-                &:hover .main-header-title-text {
-                    color: @bright-turquoise;
-                }
             }
 
             &.disable-behavior {
                 font-weight: bold;
-                color: @dusk-three;
             }
         }
 
@@ -55,6 +52,25 @@
                 font-size: 11px;
                 font-weight: 100;
                 padding: 0 6px;
+            }
+        }
+    }
+
+    .languages-dropdown {
+        margin-right: 75px;
+        width: 70px;
+
+        .default-dropdown-field {
+            font-size: 13px;
+
+            .dropdown-selected-item {
+                font-size: 13px;
+            }
+        }
+
+        .default-dropdown-container {
+            .list-item {
+                font-size: 13px;
             }
         }
     }

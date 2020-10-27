@@ -13,7 +13,7 @@
 ## Watch
 Instead of rebuilding the project after every little modification to the source code, `gulp watch` could be used to watch for changes in source code files and automatically re-build.
 
-**Note:** linter will not run in this kind of rebuild, so it is recommended to make a full build from time to time to make sure linter errors are not piling up.
+**Note:** linter will not run in this kind of rebuild, so it is recommended to make a full build from time to time, to make sure linter errors are not piling up.
 
 ## Using LiveReload
 LiveReload is a tool used by web developers for on-the-fly development and testing.

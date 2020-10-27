@@ -18,19 +18,17 @@ package prometheuspull
 
 import (
 	"os"
-	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/nuclio/errors"
 )
 
 type Configuration struct {
 	metricsink.Configuration
-	InstanceName   string
-	parsedInterval time.Duration
+	InstanceName string
 }
 
 func NewConfiguration(name string, metricSinkConfiguration *platformconfig.MetricSink) (*Configuration, error) {

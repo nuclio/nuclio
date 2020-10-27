@@ -32,6 +32,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&NuclioProjectList{},
 		&NuclioFunctionEvent{},
 		&NuclioFunctionEventList{},
+		&NuclioAPIGateway{},
+		&NuclioAPIGatewayList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

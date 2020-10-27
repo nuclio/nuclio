@@ -17,17 +17,27 @@ limitations under the License.
 package http
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http/cors"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/nuclio/errors"
 )
+
+const DefaultReadBufferSize = 16 * 1024
+const DefaultMaxRequestBodySize = 4 * 1024 * 1024
 
 type Configuration struct {
 	trigger.Configuration
 	ReadBufferSize int
+
+	// NOTE: Modifying the max request body size affect with gradually memory consumption increasing
+	// as the entire request being read into the memory
+	// https://github.com/valyala/fasthttp/issues/667#issuecomment-540965683
+	MaxRequestBodySize int
+	CORS               *cors.CORS
 }
 
 func NewConfiguration(ID string,
@@ -48,8 +58,49 @@ func NewConfiguration(ID string,
 	}
 
 	if newConfiguration.ReadBufferSize == 0 {
-		newConfiguration.ReadBufferSize = 4 * 1024
+		newConfiguration.ReadBufferSize = DefaultReadBufferSize
 	}
 
+	if newConfiguration.MaxRequestBodySize == 0 {
+		newConfiguration.MaxRequestBodySize = DefaultMaxRequestBodySize
+	}
+
+	if newConfiguration.CORS != nil && newConfiguration.CORS.Enabled {
+		newConfiguration.CORS = createCORSConfiguration(newConfiguration.CORS)
+	}
 	return &newConfiguration, nil
+}
+
+func createCORSConfiguration(CORSConfiguration *cors.CORS) *cors.CORS {
+
+	// take defaults
+	corsInstance := cors.NewCORS()
+
+	// override with custom configuration if provided
+	if len(CORSConfiguration.AllowHeaders) > 0 {
+		corsInstance.AllowHeaders = CORSConfiguration.AllowHeaders
+	}
+
+	if len(CORSConfiguration.AllowMethods) > 0 {
+		corsInstance.AllowMethods = CORSConfiguration.AllowMethods
+	}
+
+	if len(CORSConfiguration.AllowOrigins) > 0 {
+		corsInstance.AllowOrigins = CORSConfiguration.AllowOrigins
+	}
+
+	if CORSConfiguration.AllowCredentials {
+		corsInstance.AllowCredentials = CORSConfiguration.AllowCredentials
+	}
+
+	if CORSConfiguration.PreflightMaxAgeSeconds != nil {
+		corsInstance.PreflightMaxAgeSeconds = CORSConfiguration.PreflightMaxAgeSeconds
+	}
+
+	return corsInstance
+
+}
+
+func (c *Configuration) corsEnabled() bool {
+	return c.CORS != nil && c.CORS.Enabled
 }

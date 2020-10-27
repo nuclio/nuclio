@@ -19,11 +19,13 @@ package command
 import (
 	"os"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/config"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/spf13/cobra"
@@ -43,7 +45,7 @@ type RootCommandeer struct {
 	platformConfiguration interface{}
 
 	// platform-specific configurations
-	kubeConfiguration kube.Configuration
+	kubeConfiguration config.Configuration
 }
 
 func NewRootCommandeer() *RootCommandeer {
@@ -56,11 +58,7 @@ func NewRootCommandeer() *RootCommandeer {
 		SilenceErrors: true,
 	}
 
-	defaultPlatformType := os.Getenv("NUCTL_PLATFORM")
-	if defaultPlatformType == "" {
-		defaultPlatformType = "auto"
-	}
-
+	defaultPlatformType := common.GetEnvOrDefaultString("NUCTL_PLATFORM", "auto")
 	defaultNamespace := os.Getenv("NUCTL_NAMESPACE")
 
 	cmd.PersistentFlags().BoolVarP(&commandeer.verbose, "verbose", "v", false, "Verbose output")
@@ -84,6 +82,8 @@ func NewRootCommandeer() *RootCommandeer {
 		newUpdateCommandeer(commandeer).cmd,
 		newVersionCommandeer(commandeer).cmd,
 		newCreateCommandeer(commandeer).cmd,
+		newExportCommandeer(commandeer).cmd,
+		newImportCommandeer(commandeer).cmd,
 	)
 
 	commandeer.cmd = cmd
@@ -116,7 +116,7 @@ func (rc *RootCommandeer) initialize() error {
 
 	rc.platform, err = rc.createPlatform(rc.loggerInstance)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create logger")
+		return errors.Wrap(err, "Failed to create platform")
 	}
 
 	// use default namespace by platform if specified
@@ -125,7 +125,6 @@ func (rc *RootCommandeer) initialize() error {
 	}
 
 	rc.loggerInstance.DebugWith("Created platform", "name", rc.platform.GetName())
-
 	return nil
 }
 
@@ -151,11 +150,11 @@ func (rc *RootCommandeer) createPlatform(logger logger.Logger) (platform.Platfor
 	// ask the factory to create the appropriate platform
 	// TODO: as more platforms are supported, i imagine the last argument will be to some
 	// sort of configuration provider interface
-	platformInstance, err := factory.CreatePlatform(logger, rc.platformName, &rc.kubeConfiguration)
+	platformInstance, err := factory.CreatePlatform(logger, rc.platformName, &rc.kubeConfiguration, rc.namespace)
 
 	// set platform specific common
 	switch platformInstance.(type) {
-	case (*kube.Platform):
+	case *kube.Platform:
 		rc.platformConfiguration = &rc.kubeConfiguration
 	}
 

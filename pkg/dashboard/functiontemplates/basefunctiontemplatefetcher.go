@@ -5,17 +5,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/ghodss/yaml"
 	"github.com/icza/dyno"
-	"github.com/nuclio/logger"
+	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 )
 
 type BaseFunctionTemplateFetcher struct {
-	logger logger.Logger
 }
 
 func (bftf *BaseFunctionTemplateFetcher) createFunctionTemplate(ftfc FunctionTemplateFileContents,

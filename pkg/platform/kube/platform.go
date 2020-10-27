@@ -22,21 +22,23 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/config"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
-	"github.com/mitchellh/go-homedir"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Platform struct {
@@ -52,11 +54,14 @@ type Platform struct {
 const Mib = 1048576
 
 // NewPlatform instantiates a new kubernetes platform
-func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, error) {
+func NewPlatform(parentLogger logger.Logger,
+	kubeconfigPath string,
+	containerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration,
+	platformConfiguration interface{}) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform)
+	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract platform")
 	}
@@ -95,11 +100,29 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 		return nil, errors.Wrap(err, "Failed to create updater")
 	}
 
+	// create container builder
+	if containerBuilderConfiguration != nil && containerBuilderConfiguration.Kind == "kaniko" {
+		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewKaniko(newPlatform.Logger,
+			newPlatform.consumer.kubeClientSet, containerBuilderConfiguration)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create kaniko builder")
+		}
+	} else {
+
+		// Default container image builder
+		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger, containerBuilderConfiguration)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create docker builder")
+		}
+	}
+
 	return newPlatform, nil
 }
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
-func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
+func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (
+	*platform.CreateFunctionResult, error) {
+
 	var existingFunctionInstance *nuclioio.NuclioFunction
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
@@ -110,15 +133,42 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	// save the log stream for the name
-	p.DeployLogStreams[createFunctionOptions.FunctionConfig.Meta.GetUniqueID()] = logStream
+	p.DeployLogStreams.Store(createFunctionOptions.FunctionConfig.Meta.GetUniqueID(), logStream)
 
 	// replace logger
 	createFunctionOptions.Logger = logStream.GetLogger()
 
-	reportCreationError := func(creationError error) error {
-		createFunctionOptions.Logger.WarnWith("Create function failed failed, setting function status",
-			"err", creationError)
+	if err := p.EnrichCreateFunctionOptions(createFunctionOptions); err != nil {
+		return nil, errors.Wrap(err, "Create function options enrichment failed")
+	}
 
+	if err := p.ValidateCreateFunctionOptions(createFunctionOptions); err != nil {
+		return nil, errors.Wrap(err, "Create function options validation failed")
+	}
+
+	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
+	// with appropriate namespace and name
+	// e.g. ./nuctl deploy --path /path/to/function-with-function.yaml (function.yaml specifying the name and namespace)
+	// TODO: We should enrich the createFunctionOptions.FunctionConfig meta & spec before reaching here
+	// And delete this check
+	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" &&
+		createFunctionOptions.FunctionConfig.Meta.Name != "" {
+		existingFunctionInstance, existingFunctionConfig, err =
+			p.getFunctionInstanceAndConfig(createFunctionOptions.FunctionConfig.Meta.Namespace,
+				createFunctionOptions.FunctionConfig.Meta.Name)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get existing function config")
+		}
+	}
+
+	// if function exists, perform some validation with new function create options
+	if err := p.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(existingFunctionConfig,
+		createFunctionOptions); err != nil {
+		return nil, errors.Wrap(err, "Validation against existing function config failed")
+	}
+
+	// called when function creation failed, update function status with failure
+	reportCreationError := func(creationError error, briefErrorsMessage string, clearCallStack bool) error {
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
 
@@ -127,44 +177,67 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			errorStack.Truncate(4 * Mib)
 		}
 
-		// post logs and error
-		return p.UpdateFunction(&platform.UpdateFunctionOptions{
-			FunctionMeta: &createFunctionOptions.FunctionConfig.Meta,
-			FunctionStatus: &functionconfig.Status{
-				State:   functionconfig.FunctionStateError,
-				Message: errorStack.String(),
-			},
-		})
-	}
+		// when no brief error message was passed - infer it from the creation error
+		if briefErrorsMessage == "" {
+			rootCause := errors.RootCause(creationError)
 
-	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
-	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" && createFunctionOptions.FunctionConfig.Meta.Name != "" {
-		existingFunctionConfig, err = p.getExistingFunctionConfig(createFunctionOptions)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get existing function config")
+			// when clearCallStack is requested and there's a root cause - set it to be the specific root cause
+			if clearCallStack && rootCause != nil {
+				briefErrorsMessage = rootCause.Error()
+
+				// otherwise, set it to be the whole error stack
+			} else {
+				briefErrorsMessage = errorStack.String()
+			}
 		}
+
+		if clearCallStack {
+			briefErrorsMessage = p.clearCallStack(briefErrorsMessage)
+		}
+
+		// low severity to not over log in the warning
+		createFunctionOptions.Logger.DebugWith("Function creation failed, brief error message extracted",
+			"briefErrorsMessage", briefErrorsMessage)
+
+		createFunctionOptions.Logger.WarnWith("Function creation failed, updating function status",
+			"errorStack", errorStack.String())
+
+		defaultHTTPPort := 0
+		if existingFunctionInstance != nil {
+			defaultHTTPPort = existingFunctionInstance.Status.HTTPPort
+		}
+
+		// create or update the function. The possible creation needs to happen here, since on cases of
+		// early build failures we might get here before the function CR was created. After this point
+		// it is guaranteed to be created and updated with the reported error state
+		_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
+			createFunctionOptions,
+			&functionconfig.Status{
+				HTTPPort: defaultHTTPPort,
+				State:    functionconfig.FunctionStateError,
+				Message:  briefErrorsMessage,
+			})
+		return err
 	}
 
-	// the builder will may update configuration, so we have to create the function in the platform only after
+	// the builder may update the configuration, so we have to create the function in the platform only after
 	// the builder does that
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
 		var err error
 
-		createFunctionOptions.Logger.DebugWith("Getting existing function",
-			"namespace", updatedFunctionConfig.Meta.Namespace,
-			"name", updatedFunctionConfig.Meta.Name)
-
 		existingFunctionInstance, err = p.getFunction(updatedFunctionConfig.Meta.Namespace,
 			updatedFunctionConfig.Meta.Name)
-
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function")
 		}
 
-		createFunctionOptions.Logger.DebugWith("Completed getting existing function",
-			"found", existingFunctionInstance)
+		// if the function already exists then it either doesn't have the FunctionAnnotationSkipDeploy annotation, or it
+		// was imported and has the annotation, but on this recreate it shouldn't. So the annotation should be removed.
+		if existingFunctionInstance != nil {
+			createFunctionOptions.FunctionConfig.Meta.RemoveSkipDeployAnnotation()
+		}
 
-		// create or update the function if existing. FunctionInstance is nil, the function will be created
+		// create or update the function if it exists. If functionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
 		// the goal here is for the function to exist prior to building so that it is gettable
 		existingFunctionInstance, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
@@ -185,20 +258,68 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil
 	}
 
+	// called after function was built
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
+
+		skipDeploy := functionconfig.ShouldSkipDeploy(createFunctionOptions.FunctionConfig.Meta.Annotations)
+
+		// after a function build (or skip-build) if the annotation FunctionAnnotationSkipBuild exists, it should be removed
+		// so next time, the build will happen. (skip-deploy will be removed on next update so the controller can use the
+		// annotation as well).
+		createFunctionOptions.FunctionConfig.Meta.RemoveSkipBuildAnnotation()
+
 		if buildErr != nil {
 
 			// try to report the error
-			reportCreationError(buildErr) // nolint: errcheck
-
+			reportingErr := reportCreationError(buildErr, "", false)
+			if reportingErr != nil {
+				p.Logger.ErrorWith("Creation error reporting failed",
+					"reportingErr", reportingErr,
+					"buildErr", buildErr)
+				return nil, reportingErr
+			}
 			return nil, buildErr
 		}
 
-		createFunctionResult, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
+		if err := p.setScaleToZeroSpec(&createFunctionOptions.FunctionConfig.Spec); err != nil {
+			return nil, errors.Wrap(err, "Failed setting scale to zero spec")
+		}
+
+		if skipDeploy {
+			p.Logger.Info("Skipping function deployment")
+
+			_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
+				createFunctionOptions,
+				&functionconfig.Status{
+					State: functionconfig.FunctionStateImported,
+				})
+
+			return &platform.CreateFunctionResult{
+				CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
+					Image:                 createFunctionOptions.FunctionConfig.Spec.Image,
+					UpdatedFunctionConfig: createFunctionOptions.FunctionConfig,
+				},
+			}, nil
+		}
+
+		createFunctionResult, updatedFunctionInstance, briefErrorsMessage, deployErr := p.deployer.deploy(existingFunctionInstance,
+			createFunctionOptions)
+
+		// update the function instance (after the deployment)
+		if updatedFunctionInstance != nil {
+			existingFunctionInstance = updatedFunctionInstance
+		}
+
 		if deployErr != nil {
 
 			// try to report the error
-			reportCreationError(deployErr) // nolint: errcheck
+			reportingErr := reportCreationError(deployErr, briefErrorsMessage, true)
+			if reportingErr != nil {
+				p.Logger.ErrorWith("Deployment error reporting failed",
+					"reportingErr", reportingErr,
+					"buildErr", buildErr)
+				return nil, reportingErr
+			}
 
 			return nil, deployErr
 		}
@@ -217,13 +338,19 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
-	// iterate over functions and enrich with deploy logs
-	for _, function := range functions {
+	p.EnrichFunctionsWithDeployLogStream(functions)
 
-		// enrich with build logs
-		if deployLogStream, exists := p.DeployLogStreams[function.GetConfig().Meta.GetUniqueID()]; exists {
-			deployLogStream.ReadLogs(nil, &function.GetStatus().Logs)
+	if err = p.enrichFunctionsWithAPIGateways(functions, getFunctionsOptions.Namespace); err != nil {
+
+		// relevant when upgrading nuclio from a version that didn't have api-gateways to one that has
+		if !strings.Contains(errors.RootCause(err).Error(),
+			"the server could not find the requested resource (get nuclioapigateways.nuclio.io)") {
+
+			return nil, errors.Wrap(err, "Failed to enrich functions with api gateways")
 		}
+
+		p.Logger.DebugWith("API Gateway CRD is not installed, skipping function api gateways enrichment",
+			"err", err)
 	}
 
 	return functions, nil
@@ -243,31 +370,6 @@ func IsInCluster() bool {
 	return len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0
 }
 
-func GetKubeconfigPath(platformConfiguration interface{}) string {
-	var kubeconfigPath string
-
-	// if kubeconfig is passed in the options, use that
-	if platformConfiguration != nil {
-
-		// it might not be a kube configuration
-		if _, ok := platformConfiguration.(*Configuration); ok {
-			kubeconfigPath = platformConfiguration.(*Configuration).KubeconfigPath
-		}
-	}
-
-	// do we still not have a kubeconfig path? try environment variable
-	if kubeconfigPath == "" {
-		kubeconfigPath = os.Getenv("KUBECONFIG")
-	}
-
-	// still don't? try looking @ home directory
-	if kubeconfigPath == "" {
-		kubeconfigPath = getKubeconfigFromHomeDir()
-	}
-
-	return kubeconfigPath
-}
-
 // GetName returns the platform name
 func (p *Platform) GetName() string {
 	return "kube"
@@ -277,7 +379,7 @@ func (p *Platform) GetName() string {
 func (p *Platform) GetNodes() ([]platform.Node, error) {
 	var platformNodes []platform.Node
 
-	kubeNodes, err := p.consumer.kubeClientSet.CoreV1().Nodes().List(meta_v1.ListOptions{})
+	kubeNodes, err := p.consumer.kubeClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get nodes")
 	}
@@ -312,17 +414,14 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
 	project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
-		Get(updateProjectOptions.ProjectConfig.Meta.Name, meta_v1.GetOptions{})
+		Get(updateProjectOptions.ProjectConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get projects")
 	}
 
 	updatedProject := nuclioio.NuclioProject{}
 	p.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
-
-	if &updatedProject.Spec != nil {
-		project.Spec = updatedProject.Spec
-	}
+	project.Spec = updatedProject.Spec
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
@@ -337,25 +436,13 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 
 // DeleteProject will delete a previously existing project
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
-	getFunctionsOptions := &platform.GetFunctionsOptions{
-		Namespace: deleteProjectOptions.Meta.Namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", deleteProjectOptions.Meta.Name),
+	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
+		return err
 	}
 
-	functions, err := p.GetFunctions(getFunctionsOptions)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get functions")
-	}
-
-	if len(functions) != 0 {
-		return platform.ErrProjectContainsFunctions
-	}
-
-	err = p.consumer.nuclioClientSet.NuclioV1beta1().
+	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(deleteProjectOptions.Meta.Namespace).
-		Delete(deleteProjectOptions.Meta.Name, &meta_v1.DeleteOptions{})
-
-	if err != nil {
+		Delete(deleteProjectOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
 		return errors.Wrapf(err,
 			"Failed to delete project %s from namespace %s",
 			deleteProjectOptions.Meta.Name,
@@ -376,7 +463,7 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 		// get specific NuclioProject CR
 		Project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 			NuclioProjects(getProjectsOptions.Meta.Namespace).
-			Get(getProjectsOptions.Meta.Name, meta_v1.GetOptions{})
+			Get(getProjectsOptions.Meta.Name, metav1.GetOptions{})
 
 		if err != nil {
 
@@ -394,7 +481,7 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 
 		projectInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 			NuclioProjects(getProjectsOptions.Meta.Namespace).
-			List(meta_v1.ListOptions{LabelSelector: ""})
+			List(metav1.ListOptions{LabelSelector: ""})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list projects")
@@ -431,6 +518,140 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 	return platformProjects, nil
 }
 
+// CreateAPIGateway creates and deploys a new api gateway
+func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
+	newAPIGateway := nuclioio.NuclioAPIGateway{}
+	p.platformAPIGatewayToAPIGateway(&createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
+
+	if err := p.enrichAndValidateAPIGatewayName(&newAPIGateway); err != nil {
+		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
+	}
+
+	// set state to waiting for provisioning
+	createAPIGatewayOptions.APIGatewayConfig.Status = platform.APIGatewayStatus{
+		State: platform.APIGatewayStateWaitingForProvisioning,
+	}
+
+	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioAPIGateways(createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
+		Create(&newAPIGateway)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create api gateway")
+	}
+
+	return nil
+}
+
+// UpdateAPIGateway will update a previously existing api gateway
+func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
+	apiGateway, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
+		Get(updateAPIGatewayOptions.APIGatewayConfig.Meta.Name, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get api gateway to update")
+	}
+
+	updatedAPIGateway := nuclioio.NuclioAPIGateway{}
+	p.platformAPIGatewayToAPIGateway(&updateAPIGatewayOptions.APIGatewayConfig, &updatedAPIGateway)
+	apiGateway.Spec = updatedAPIGateway.Spec
+
+	if err := p.enrichAndValidateAPIGatewayName(&updatedAPIGateway); err != nil {
+		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
+	}
+
+	// set api gateway state to "waitingForProvisioning", so the controller will know to update this resource
+	apiGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
+
+	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
+		Update(apiGateway)
+	if err != nil {
+		return errors.Wrap(err, "Failed to update api gateway")
+	}
+
+	return nil
+}
+
+// DeleteAPIGateway will delete a previously existing api gateway
+func (p *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
+
+	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioAPIGateways(deleteAPIGatewayOptions.Meta.Namespace).
+		Delete(deleteAPIGatewayOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
+
+		return errors.Wrapf(err,
+			"Failed to delete api gateway %s from namespace %s",
+			deleteAPIGatewayOptions.Meta.Name,
+			deleteAPIGatewayOptions.Meta.Namespace)
+	}
+
+	return nil
+}
+
+// GetAPIGateways will list existing api gateways
+func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
+	var platformAPIGateways []platform.APIGateway
+	var apiGateways []nuclioio.NuclioAPIGateway
+
+	// if identifier specified, we need to get a single NuclioAPIGateway
+	if getAPIGatewaysOptions.Name != "" {
+
+		// get specific NuclioAPIGateway CR
+		apiGateway, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+			NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
+			Get(getAPIGatewaysOptions.Name, metav1.GetOptions{})
+		if err != nil {
+
+			// if we didn't find the NuclioAPIGateway, return an empty slice
+			if apierrors.IsNotFound(err) {
+				return platformAPIGateways, nil
+			}
+
+			return nil, errors.Wrap(err, "Failed to get api gateway")
+		}
+
+		apiGateways = append(apiGateways, *apiGateway)
+
+	} else {
+
+		apiGatewayInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+			NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
+			List(metav1.ListOptions{LabelSelector: getAPIGatewaysOptions.Labels})
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to list api gateways")
+		}
+
+		apiGateways = apiGatewayInstanceList.Items
+	}
+
+	// convert []nuclioio.NuclioAPIGateway -> NuclioAPIGateway
+	for apiGatewayInstanceIndex := 0; apiGatewayInstanceIndex < len(apiGateways); apiGatewayInstanceIndex++ {
+		apiGatewayInstance := apiGateways[apiGatewayInstanceIndex]
+
+		newAPIGateway, err := platform.NewAbstractAPIGateway(p.Logger,
+			p,
+			platform.APIGatewayConfig{
+				Meta: platform.APIGatewayMeta{
+					Name:              apiGatewayInstance.Name,
+					Namespace:         apiGatewayInstance.Namespace,
+					Labels:            apiGatewayInstance.Labels,
+					Annotations:       apiGatewayInstance.Annotations,
+					CreationTimestamp: &apiGatewayInstance.CreationTimestamp,
+				},
+				Spec:   apiGatewayInstance.Spec,
+				Status: apiGatewayInstance.Status,
+			})
+		if err != nil {
+			return nil, err
+		}
+
+		platformAPIGateways = append(platformAPIGateways, newAPIGateway)
+	}
+
+	// render it
+	return platformAPIGateways, nil
+}
+
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
 func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
@@ -455,16 +676,13 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 
 	functionEvent, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
-		Get(updateFunctionEventOptions.FunctionEventConfig.Meta.Name, meta_v1.GetOptions{})
+		Get(updateFunctionEventOptions.FunctionEventConfig.Meta.Name, metav1.GetOptions{})
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function event")
 	}
 
-	// update it with spec if passed
-	if &updateFunctionEventOptions.FunctionEventConfig.Spec != nil {
-		functionEvent.Spec = updatedFunctionEvent.Spec
-	}
+	functionEvent.Spec = updatedFunctionEvent.Spec
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
@@ -481,7 +699,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
 	err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
-		Delete(deleteFunctionEventOptions.Meta.Name, &meta_v1.DeleteOptions{})
+		Delete(deleteFunctionEventOptions.Meta.Name, &metav1.DeleteOptions{})
 
 	if err != nil {
 		return errors.Wrapf(err,
@@ -504,7 +722,7 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 		// get specific function event CR
 		functionEvent, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 			NuclioFunctionEvents(getFunctionEventsOptions.Meta.Namespace).
-			Get(getFunctionEventsOptions.Meta.Name, meta_v1.GetOptions{})
+			Get(getFunctionEventsOptions.Meta.Name, metav1.GetOptions{})
 
 		if err != nil {
 
@@ -529,7 +747,7 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 
 		functionEventInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 			NuclioFunctionEvents(getFunctionEventsOptions.Meta.Namespace).
-			List(meta_v1.ListOptions{LabelSelector: labelSelector})
+			List(metav1.ListOptions{LabelSelector: labelSelector})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list function events")
@@ -640,7 +858,7 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 
 // GetNamespaces returns all the namespaces in the platform
 func (p *Platform) GetNamespaces() ([]string, error) {
-	namespaces, err := p.consumer.kubeClientSet.CoreV1().Namespaces().List(meta_v1.ListOptions{})
+	namespaces, err := p.consumer.kubeClientSet.CoreV1().Namespaces().List(metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 			return nil, nuclio.WrapErrForbidden(err)
@@ -661,27 +879,145 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{}, nil
 }
 
-func getKubeconfigFromHomeDir() string {
-	homeDir, err := homedir.Dir()
+func (p *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error) {
+	switch configType := p.Config.(type) {
+	case *platformconfig.Config:
+		return &configType.ScaleToZero, nil
+
+	// FIXME: When deploying using nuctl in a kubernetes environment, it will be a kube platform, but the configuration
+	// will be of type *config.Configuration which has no scale to zero configuration
+	// we need to fix the platform config (p.Config) to always be of the same type (*platformconfig.Config) and not
+	// passing interface{} everywhere
+	case *config.Configuration:
+		return nil, nil
+	default:
+		return nil, errors.New("Not a valid configuration instance")
+	}
+}
+
+func (p *Platform) GetAllowedAuthenticationModes() ([]string, error) {
+	switch configType := p.Config.(type) {
+	case *platformconfig.Config:
+		allowedAuthenticationModes := []string{string(ingress.AuthenticationModeNone), string(ingress.AuthenticationModeBasicAuth)}
+		if len(configType.IngressConfig.AllowedAuthenticationModes) > 0 {
+			allowedAuthenticationModes = configType.IngressConfig.AllowedAuthenticationModes
+		}
+		return allowedAuthenticationModes, nil
+
+	// FIXME: see comment in GetScaleToZeroConfiguration
+	case *config.Configuration:
+		return nil, nil
+	default:
+		return nil, errors.New("Not a valid configuration instance")
+	}
+}
+
+func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
+	functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
+		Name:      functionName,
+		Namespace: namespace,
+	})
+	if err != nil || len(functions) == 0 {
+		return errors.Wrap(err, "Failed to get existing functions")
+	}
+
+	// enrich with build logs
+	p.EnrichFunctionsWithDeployLogStream(functions)
+
+	function := functions[0]
+
+	return p.updater.update(&platform.UpdateFunctionOptions{
+		FunctionMeta:   &function.GetConfig().Meta,
+		FunctionStatus: function.GetStatus(),
+	})
+}
+
+func (p *Platform) generateFunctionToAPIGatewaysMapping(namespace string) (map[string][]string, error) {
+	functionToAPIGateways := map[string][]string{}
+
+	// get all api gateways in the namespace
+	apiGateways, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioAPIGateways(namespace).
+		List(metav1.ListOptions{})
 	if err != nil {
+		return nil, errors.Wrap(err, "Failed to list api gateways")
+	}
+
+	// iterate over all api gateways
+	for _, apiGateway := range apiGateways.Items {
+
+		// iterate over all upstreams(functions) of the api gateway
+		for _, upstream := range apiGateway.Spec.Upstreams {
+
+			// append the current api gateway to the function's api gateways list
+			functionToAPIGateways[upstream.Nucliofunction.Name] =
+				append(functionToAPIGateways[upstream.Nucliofunction.Name], apiGateway.Name)
+		}
+	}
+
+	return functionToAPIGateways, nil
+}
+
+func (p *Platform) enrichFunctionsWithAPIGateways(functions []platform.Function, namespace string) error {
+	var err error
+	var functionToAPIGateways map[string][]string
+
+	// generate function to api gateways mapping
+	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(namespace); err != nil {
+		return errors.Wrap(err, "Failed to get function to api gateways mapping")
+	}
+
+	// set the api gateways list for every function according to the mapping above
+	for _, function := range functions {
+		function.GetStatus().APIGateways = functionToAPIGateways[function.GetConfig().Meta.Name]
+	}
+
+	return nil
+}
+
+func (p *Platform) clearCallStack(message string) string {
+	if message == "" {
 		return ""
 	}
 
-	homeKubeConfigPath := filepath.Join(homeDir, ".kube", "config")
-
-	// if the file exists @ home, use it
-	_, err = os.Stat(homeKubeConfigPath)
-	if err == nil {
-		return homeKubeConfigPath
-	}
-
-	return ""
+	splitMessage := strings.Split(message, "\nCall stack:\n")
+	return splitMessage[0]
 }
 
-func (p *Platform) getFunction(namespace string, name string) (*nuclioio.NuclioFunction, error) {
+func (p *Platform) setScaleToZeroSpec(functionSpec *functionconfig.Spec) error {
+
+	// If function already has scale to zero spec, don't override it
+	if functionSpec.ScaleToZero != nil {
+		return nil
+	}
+
+	scaleToZeroConfiguration, err := p.GetScaleToZeroConfiguration()
+	if err != nil {
+		return errors.Wrap(err, "Failed getting scale to zero configuration")
+	}
+
+	if scaleToZeroConfiguration == nil {
+		return nil
+	}
+
+	if scaleToZeroConfiguration.Mode == platformconfig.EnabledScaleToZeroMode {
+		functionSpec.ScaleToZero = &functionconfig.ScaleToZeroSpec{
+			ScaleResources: scaleToZeroConfiguration.ScaleResources,
+		}
+	}
+
+	return nil
+}
+
+func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction, error) {
+	p.Logger.DebugWith("Getting function",
+		"namespace", namespace,
+		"name", name)
 
 	// get specific function CR
-	function, err := p.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(name, meta_v1.GetOptions{})
+	function, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioFunctions(namespace).
+		Get(name, metav1.GetOptions{})
 	if err != nil {
 
 		// if we didn't find the function, return nothing
@@ -692,34 +1028,30 @@ func (p *Platform) getFunction(namespace string, name string) (*nuclioio.NuclioF
 		return nil, errors.Wrap(err, "Failed to get function")
 	}
 
+	p.Logger.DebugWith("Completed getting function",
+		"name", name,
+		"namespace", namespace,
+		"function", function)
+
 	return function, nil
 }
 
-func (p *Platform) getExistingFunctionConfig(createFunctionOptions *platform.CreateFunctionOptions) (*functionconfig.ConfigWithStatus, error) {
-	createFunctionOptions.Logger.DebugWith("Getting existing function",
-		"namespace", createFunctionOptions.FunctionConfig.Meta.Namespace,
-		"name", createFunctionOptions.FunctionConfig.Meta.Name)
-
-	existingFunctionInstance, err := p.getFunction(createFunctionOptions.FunctionConfig.Meta.Namespace,
-		createFunctionOptions.FunctionConfig.Meta.Name)
-
+func (p *Platform) getFunctionInstanceAndConfig(namespace, name string) (*nuclioio.NuclioFunction,
+	*functionconfig.ConfigWithStatus, error) {
+	functionInstance, err := p.getFunction(namespace, name)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function")
+		return nil, nil, errors.Wrap(err, "Failed to get function")
 	}
 
-	createFunctionOptions.Logger.DebugWith("Completed getting existing function",
-		"found", existingFunctionInstance)
-
-	if existingFunctionInstance != nil {
-
-		// build function config out of existing function instance
-		existingFunctionConfig := &functionconfig.ConfigWithStatus{
-			Config: functionconfig.Config{Spec: existingFunctionInstance.Spec},
-			Status: existingFunctionInstance.Status,
+	// found function instance, return as function config
+	if functionInstance != nil {
+		initializedFunctionInstance, err := newFunction(p.Logger, p, functionInstance, p.consumer)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Failed to create new function instance")
 		}
-		return existingFunctionConfig, nil
+		return functionInstance, initializedFunctionInstance.GetConfigWithStatus(), nil
 	}
-	return nil, nil
+	return nil, nil, nil
 }
 
 func (p *Platform) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.NuclioProject) {
@@ -730,10 +1062,30 @@ func (p *Platform) platformProjectToProject(platformProject *platform.ProjectCon
 	project.Spec = platformProject.Spec
 }
 
+func (p *Platform) platformAPIGatewayToAPIGateway(platformAPIGateway *platform.APIGatewayConfig, apiGateway *nuclioio.NuclioAPIGateway) {
+	apiGateway.Name = platformAPIGateway.Meta.Name
+	apiGateway.Namespace = platformAPIGateway.Meta.Namespace
+	apiGateway.Labels = platformAPIGateway.Meta.Labels
+	apiGateway.Annotations = platformAPIGateway.Meta.Annotations
+	apiGateway.Spec = platformAPIGateway.Spec
+	apiGateway.Status = platformAPIGateway.Status
+}
+
 func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *platform.FunctionEventConfig, functionEvent *nuclioio.NuclioFunctionEvent) {
 	functionEvent.Name = platformFunctionEvent.Meta.Name
 	functionEvent.Namespace = platformFunctionEvent.Meta.Namespace
 	functionEvent.Labels = platformFunctionEvent.Meta.Labels
 	functionEvent.Annotations = platformFunctionEvent.Meta.Annotations
 	functionEvent.Spec = platformFunctionEvent.Spec // deep copy instead?
+}
+
+func (p *Platform) enrichAndValidateAPIGatewayName(apiGateway *nuclioio.NuclioAPIGateway) error {
+	if apiGateway.Spec.Name == "" {
+		apiGateway.Spec.Name = apiGateway.Name
+	}
+	if apiGateway.Spec.Name != apiGateway.Name {
+		return nuclio.NewErrBadRequest("Api gateway metadata.name must match api gateway spec.name")
+	}
+
+	return nil
 }

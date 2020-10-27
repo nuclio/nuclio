@@ -19,10 +19,10 @@ package runtime
 import (
 	"os"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 	"github.com/nuclio/nuclio/pkg/processor/status"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
@@ -48,8 +48,17 @@ type Runtime interface {
 	// GetStatus returns the runtime's reported status
 	GetStatus() status.Status
 
+	// Start starts the runtime, or does nothing if the runtime does not require starting (e.g. Go and shell runtimes)
+	Start() error
+
 	// Stop stops the runtime
 	Stop() error
+
+	// Restart restarts the runtime
+	Restart() error
+
+	// SupportsRestart return true if the runtime supports restart
+	SupportsRestart() bool
 }
 
 // AbstractRuntime is the base for all runtimes
@@ -123,6 +132,22 @@ func (ar *AbstractRuntime) GetStatus() status.Status {
 	return ar.status
 }
 
+// Start starts the runtime, or does nothing if the runtime does not require starting (e.g. Go and shell runtimes)
+func (ar *AbstractRuntime) Start() error {
+	return nil
+}
+
+// Restart restarts the runtime
+func (ar *AbstractRuntime) Restart() error {
+	runtimeName := ar.GetConfiguration().Spec.Runtime
+	return errors.Errorf("Runtime %s does not support restart", runtimeName)
+}
+
+// SupportsRestart returns true if the runtime supports restart
+func (ar *AbstractRuntime) SupportsRestart() bool {
+	return false
+}
+
 func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger,
 	configuration *Configuration) (map[string]databinding.DataBinding, error) {
 
@@ -163,6 +188,7 @@ func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger
 func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 	configuration *Configuration,
 	databindings map[string]databinding.DataBinding) (*nuclio.Context, error) {
+	var err error
 
 	newContext := &nuclio.Context{
 		Logger:          parentLogger,
@@ -170,14 +196,20 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 		WorkerID:        configuration.WorkerID,
 		FunctionName:    configuration.Meta.Name,
 		FunctionVersion: configuration.Spec.Version,
+		TriggerKind:     configuration.TriggerKind,
 		TriggerName:     configuration.TriggerName,
+	}
+
+	if newContext.Platform, err = nuclio.NewPlatform(parentLogger,
+		ar.configuration.PlatformConfig.Kind,
+		ar.configuration.Meta.Namespace,
+	); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize Platform")
 	}
 
 	// iterate through data bindings and get the context object - the thing users will actuall
 	// work with in the handlers
 	for databindingName, databindingInstance := range databindings {
-		var err error
-
 		newContext.DataBinding[databindingName], err = databindingInstance.GetContextObject()
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get databinding context object")

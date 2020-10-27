@@ -153,7 +153,7 @@ Updating a function is similar to creating a function. The only differences are:
 * You must provide certain fields (e.g. `spec.image`) which should be taken from a `GET` - update does not currently support augmentation. Whatever you pass in the body is the new function spec.
 
 #### Request
-* URL: `PUT /api/functions`
+* URL: `PUT /api/functions/<function name>`
 * Headers:
   * `Content-Type`: Must be set to `application/json`
 * Body:
@@ -188,7 +188,7 @@ Updating a function is similar to creating a function. The only differences are:
 
 ### Invoking a function
 #### Request
-The HTTP method you apply to this endpoint is the one with which dashboard will invoke the function. For example, if you `DELETE /api/function_invokations`, the HTTP method in the event as received by the function will be `DELETE`.
+The HTTP method you apply to this endpoint is the one with which dashboard will invoke the function. For example, if you `DELETE /api/function_invocations`, the HTTP method in the event as received by the function will be `DELETE`.
 * URL: `<Method> /api/function_invocations`
 * Headers:
   * `x-nuclio-function-name`: Function name (required)
@@ -211,7 +211,7 @@ The HTTP method you apply to this endpoint is the one with which dashboard will 
   * `Content-Type`: Must be set to `application/json`
 * Body:
 ```json
- {
+{
     "metadata": {
         "name": "hello-world",
         "namespace": "nuclio"
@@ -227,7 +227,7 @@ The HTTP method you apply to this endpoint is the one with which dashboard will 
 #### Request
 * URL: `GET /api/projects`
 * Headers:
-  * `x-nuclio-project-namespace`: Namespace (required)
+  * `x-nuclio-project-namespace`: Namespace (optional)
 
 #### Response
 * Status code: 200
@@ -240,7 +240,6 @@ The HTTP method you apply to this endpoint is the one with which dashboard will 
             "namespace": "nuclio"
         },
         "spec": {
-            "displayName": "My project #1",
             "description": "Some description"
         }
     },
@@ -250,7 +249,6 @@ The HTTP method you apply to this endpoint is the one with which dashboard will 
             "namespace": "nuclio"
         },
         "spec": {
-            "displayName": "My project #2",
             "description": "Some description"
         }
     }
@@ -261,7 +259,7 @@ The HTTP method you apply to this endpoint is the one with which dashboard will 
 #### Request
 * URL: `GET /api/projects/<project name>`
 * Headers:
-  * `x-nuclio-project-namespace`: Namespace (required)
+  * `x-nuclio-project-namespace`: Namespace (optional)
 
 #### Response
 * Status code: 200
@@ -273,7 +271,6 @@ The HTTP method you apply to this endpoint is the one with which dashboard will 
         "namespace": "nuclio"
     },
     "spec": {
-        "displayName": "My project #1",
         "description": "Some description"
     }
 }
@@ -294,7 +291,6 @@ Creating a project is synchronous. By the time the response returns, the project
         "namespace": "nuclio"
     },
     "spec": {
-        "displayName": "My project #1",
         "description": "Some description"
     }
 }
@@ -317,7 +313,6 @@ Creating a project is synchronous. By the time the response returns, the project
         "namespace": "nuclio"
     },
     "spec": {
-        "displayName": "My project #1",
         "description": "Some description"
     }
 }

@@ -20,17 +20,19 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 	"github.com/nuclio/nuclio/test/httpsrv"
 
-	"github.com/mholt/archiver"
+	"github.com/mholt/archiver/v3"
+	"github.com/nuclio/errors"
 )
 
 type FunctionInfo struct {
@@ -46,7 +48,7 @@ type RuntimeSuite interface {
 
 type archiveInfo struct {
 	extension  string
-	compressor func(string, []string) error
+	compressor func([]string, string) error
 }
 
 type TestSuite struct {
@@ -60,8 +62,8 @@ func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 
 	suite.archiveInfos = []archiveInfo{
-		{".zip", archiver.Zip.Make},
-		{".tar.gz", archiver.TarGz.Make},
+		{".zip", archiver.DefaultZip.Archive},
+		{".tar.gz", archiver.DefaultTarGz.Archive},
 	}
 }
 
@@ -88,6 +90,13 @@ func (suite *TestSuite) TestBuildDir() {
 }
 
 func (suite *TestSuite) TestBuildURL() {
+	createFunctionOptions := suite.getDeployOptions("reverser")
+
+	suite.DeployFunctionFromURL(createFunctionOptions, &httpsuite.Request{
+		RequestMethod:        "POST",
+		RequestBody:          "abcdef",
+		ExpectedResponseBody: "fedcba",
+	})
 }
 
 func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
@@ -145,17 +154,13 @@ func (suite *TestSuite) TestBuildArchive() {
 
 func (suite *TestSuite) TestBuildArchiveFromURL() {
 	for _, archiveInfo := range suite.archiveInfos {
-		suite.compressAndDeployFunctionFromURL(archiveInfo.extension,
-			archiveInfo.compressor,
-			suite.ArchivePattern)
+		suite.compressAndDeployFunctionFromURL(archiveInfo.extension, archiveInfo.compressor)
 	}
 }
 
 func (suite *TestSuite) TestBuildArchiveFromURLWithCustomDir() {
 	for _, archiveInfo := range suite.archiveInfos {
-		suite.compressAndDeployFunctionFromURLWithCustomDir(archiveInfo.extension,
-			archiveInfo.compressor,
-			suite.ArchivePattern)
+		suite.compressAndDeployFunctionFromURLWithCustomDir(archiveInfo.extension, archiveInfo.compressor)
 	}
 }
 
@@ -164,19 +169,19 @@ func (suite *TestSuite) TestBuildArchiveFromGithub() {
 
 	extension := suite.archiveInfos[0].extension
 	compressor := suite.archiveInfos[0].compressor
-	suite.compressAndDeployFunctionFromGithub(extension, compressor, suite.ArchivePattern)
+	suite.compressAndDeployFunctionFromGithub(extension, compressor)
 }
 
 func (suite *TestSuite) TestBuildFuncFromFunctionSourceCode() {
-	createFunctionOptions := suite.getDeployOptions("reverser")
 
 	// Java "source" is a jar file, and it it'll be a .java file it must be named in the same name as the class
 	// Skip for now
-	if createFunctionOptions.FunctionConfig.Spec.Runtime == "java" {
+	if suite.Runtime == "java" {
 		suite.T().Skip("Java runtime not supported")
 		return
 	}
 
+	createFunctionOptions := suite.getDeployOptions("reverser")
 	functionSourceCode, err := ioutil.ReadFile(createFunctionOptions.FunctionConfig.Spec.Build.Path)
 	suite.Assert().NoError(err)
 
@@ -271,7 +276,7 @@ func (suite *TestSuite) TestBuildLongInitialization() {
 func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
 
 	// long-initialization functions have a 5-second sleep on load
-	createFunctionOptions := suite.getDeployOptions("long-initialization")
+	createFunctionOptions := suite.getDeployOptions("context-init-fail")
 
 	// allow them less time than that to become ready, expect deploy to fail
 	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 3
@@ -314,8 +319,7 @@ func (suite *TestSuite) DeployFunctionFromURL(createFunctionOptions *platform.Cr
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string,
-	compressor func(string, []string) error,
-	archivePattern string) {
+	compressor func([]string, string) error) {
 
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
 
@@ -323,31 +327,31 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 		archiveExtension,
 		".*",
 		compressor)
+	defer os.Remove(archivePath) // nolint: errcheck
 
 	suite.compressAndDeployFunctionWithCodeEntryOptions(archivePath, createFunctionOptions)
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromURLWithCustomDir(archiveExtension string,
-	compressor func(string, []string) error,
-	archivePattern string) {
+	compressor func([]string, string) error) {
 
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
 	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
-		"workDir": archivePattern,
+		"workDir": suite.ArchivePattern,
 	}
 
 	parentPath := filepath.Dir(createFunctionOptions.FunctionConfig.Spec.Build.Path)
 	archivePath := suite.createFunctionArchive(parentPath,
 		archiveExtension,
-		archivePattern,
+		suite.ArchivePattern,
 		compressor)
+	defer os.Remove(archivePath) // nolint: errcheck
 
 	suite.compressAndDeployFunctionWithCodeEntryOptions(archivePath, createFunctionOptions)
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromGithub(archiveExtension string,
-	compressor func(string, []string) error,
-	archivePattern string) {
+	compressor func([]string, string) error) {
 
 	branch := "master"
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
@@ -356,8 +360,9 @@ func (suite *TestSuite) compressAndDeployFunctionFromGithub(archiveExtension str
 	parentPath := filepath.Dir(createFunctionOptions.FunctionConfig.Spec.Build.Path)
 	archivePath := suite.createFunctionArchive(parentPath,
 		archiveExtension,
-		archivePattern,
+		suite.ArchivePattern,
 		compressor)
+	defer os.Remove(archivePath) // nolint: errcheck
 
 	// create a path like it would have been created by github
 	pathToFunction := "/some/repo"
@@ -377,7 +382,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromGithub(archiveExtension str
 		httpServer.Addr,
 		pathToFunction)
 
-	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = "github"
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = build.GithubEntryType
 	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{"branch": branch}
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
@@ -407,7 +412,7 @@ func (suite *TestSuite) compressAndDeployFunctionWithCodeEntryOptions(archivePat
 		httpServer.Addr,
 		pathToFunction)
 
-	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = "archive"
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = build.ArchiveEntryType
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
@@ -425,13 +430,14 @@ func (suite *TestSuite) getDeployOptionsDir(functionName string) *platform.Creat
 	return createFunctionOptions
 }
 
-func (suite *TestSuite) compressAndDeployFunction(archiveExtension string, compressor func(string, []string) error) {
+func (suite *TestSuite) compressAndDeployFunction(archiveExtension string, compressor func([]string, string) error) {
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
 
 	archivePath := suite.createFunctionArchive(createFunctionOptions.FunctionConfig.Spec.Build.Path,
 		archiveExtension,
 		".*",
 		compressor)
+	defer os.Remove(archivePath) // nolint: errcheck
 
 	// set the path to the zip
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = archivePath
@@ -447,10 +453,10 @@ func (suite *TestSuite) compressAndDeployFunction(archiveExtension string, compr
 func (suite *TestSuite) createFunctionArchive(functionDir string,
 	archiveExtension string,
 	archivePattern string,
-	compressor func(string, []string) error) string {
+	compressor func([]string, string) error) string {
 
 	// create a temp directory that will hold the archive
-	archiveDir, err := ioutil.TempDir("", "build-zip-"+suite.TestID)
+	archiveDir, err := ioutil.TempDir("", "build-zip-*")
 	suite.Require().NoError(err)
 
 	// use the reverse function
@@ -470,7 +476,7 @@ func (suite *TestSuite) createFunctionArchive(functionDir string,
 	}
 
 	// create the archive
-	err = compressor(archivePath, functionFileNames)
+	err = compressor(functionFileNames, archivePath)
 	suite.Require().NoError(err)
 
 	return archivePath

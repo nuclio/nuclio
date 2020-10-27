@@ -19,11 +19,11 @@ package prometheuspush
 import (
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	prometheusclient "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
@@ -107,13 +107,9 @@ func (ms *MetricSink) pushPeriodically() {
 				continue
 			}
 
-			// AddFromGatherer is used here rather than FromGatherer to not delete a
-			// previously pushed success timestamp in case of a failure of this
-			// backup.
-			if err := push.AddFromGatherer(ms.configuration.JobName,
-				nil,
-				ms.configuration.URL,
-				ms.metricRegistry); err != nil {
+			// Add is used here rather than Put to not delete a
+			// previously pushed success timestamp in case of a failure of this backup.
+			if err := push.New(ms.configuration.URL, ms.configuration.JobName).Gatherer(ms.metricRegistry).Add(); err != nil {
 				ms.Logger.WarnWith("Failed to push metrics", "err", err)
 			}
 		case <-ms.StopChannel:
@@ -129,6 +125,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 		// create a gatherer for the trigger
 		triggerGatherer, err := prometheus.NewTriggerGatherer(ms.configuration.InstanceName,
 			trigger,
+			ms.Logger,
 			ms.metricRegistry)
 
 		if err != nil {
@@ -141,6 +138,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 		for _, worker := range trigger.GetWorkers() {
 			workerGatherer, err := prometheus.NewWorkerGatherer(ms.configuration.InstanceName,
 				trigger,
+				ms.Logger,
 				worker,
 				ms.metricRegistry)
 

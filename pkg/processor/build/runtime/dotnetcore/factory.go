@@ -17,20 +17,21 @@ limitations under the License.
 package dotnetcore
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
 type factory struct{}
 
 func (f *factory) Create(logger logger.Logger,
+	containerBuilderKind string,
 	stagingDir string,
 	functionConfig *functionconfig.Config) (runtime.Runtime, error) {
 
-	abstractRuntime, err := runtime.NewAbstractRuntime(logger, stagingDir, functionConfig)
+	abstractRuntime, err := runtime.NewAbstractRuntime(logger, containerBuilderKind, stagingDir, functionConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract runtime")
 	}

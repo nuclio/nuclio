@@ -21,15 +21,18 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/status"
+	"github.com/nuclio/nuclio/pkg/processwaiter"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
@@ -38,8 +41,7 @@ import (
 // TODO: Find a better place (both on file system and configuration)
 const (
 	socketPathTemplate = "/tmp/nuclio-rpc-%s.sock"
-	connectionTimeout  = 10 * time.Second
-	eventTimeout       = 5 * time.Minute
+	connectionTimeout  = 2 * time.Minute
 )
 
 type result struct {
@@ -57,13 +59,14 @@ type result struct {
 type AbstractRuntime struct {
 	runtime.AbstractRuntime
 	configuration  *runtime.Configuration
-	eventEncoder   *EventJSONEncoder
-	outReader      *bufio.Reader
+	eventEncoder   EventEncoder
 	wrapperProcess *os.Process
 	resultChan     chan *result
 	functionLogger logger.Logger
 	runtime        Runtime
 	startChan      chan struct{}
+	socketType     SocketType
+	processWaiter  *processwaiter.ProcessWaiter
 }
 
 type rpcLogRecord struct {
@@ -89,68 +92,104 @@ func NewAbstractRuntime(logger logger.Logger,
 		configuration:   configuration,
 		runtime:         runtimeInstance,
 		startChan:       make(chan struct{}, 1),
+		socketType:      UnixSocket,
 	}
-
-	if err := newRuntime.runWrapper(); err != nil {
-		newRuntime.SetStatus(status.Error)
-		return nil, errors.Wrap(err, "Failed to run wrapper")
-	}
-
-	newRuntime.SetStatus(status.Ready)
 
 	return newRuntime, nil
 }
 
+func (r *AbstractRuntime) Start() error {
+	if err := r.startWrapper(); err != nil {
+		r.SetStatus(status.Error)
+		return errors.Wrap(err, "Failed to run wrapper")
+	}
+
+	r.SetStatus(status.Ready)
+	return nil
+}
+
 // ProcessEvent processes an event
 func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-	// TODO: Check that status is Ready?
-	r.Logger.DebugWith("Processing event",
-		"name", r.configuration.Meta.Name,
-		"version", r.configuration.Spec.Version,
-		"eventID", event.GetID())
-
 	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
 		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
 	}
 
 	r.functionLogger = functionLogger
+
 	// We don't use defer to reset r.functionLogger since it decreases performance
 	if err := r.eventEncoder.Encode(event); err != nil {
 		r.functionLogger = nil
 		return nil, errors.Wrapf(err, "Can't encode event: %+v", event)
 	}
 
-	select {
-	case result, ok := <-r.resultChan:
-		if !ok {
-			msg := "Client disconnected"
-			r.Logger.Error(msg)
-			r.SetStatus(status.Error)
-			r.functionLogger = nil
-			return nil, errors.New(msg)
+	result, ok := <-r.resultChan
+	r.functionLogger = nil
+	if !ok {
+		msg := "Client disconnected"
+		r.Logger.Error(msg)
+		r.SetStatus(status.Error)
+		r.functionLogger = nil
+		return nil, errors.New(msg)
+	}
+
+	return nuclio.Response{
+		Body:        result.DecodedBody,
+		ContentType: result.ContentType,
+		Headers:     result.Headers,
+		StatusCode:  result.StatusCode,
+	}, nil
+}
+
+// Stop stops the runtime
+func (r *AbstractRuntime) Stop() error {
+	if r.wrapperProcess != nil {
+
+		// stop waiting for process
+		if err := r.processWaiter.Cancel(); err != nil {
+			r.Logger.WarnWith("Failed to cancel process waiting")
 		}
 
-		r.Logger.DebugWith("Event executed",
-			"name", r.configuration.Meta.Name,
-			"status", result.StatusCode,
-			"eventID", event.GetID())
-
-		r.functionLogger = nil
-		return nuclio.Response{
-			Body:        result.DecodedBody,
-			ContentType: result.ContentType,
-			Headers:     result.Headers,
-			StatusCode:  result.StatusCode,
-		}, nil
-	case <-time.After(eventTimeout):
-		r.functionLogger = nil
-		return nil, fmt.Errorf("handler timeout after %s", eventTimeout)
+		err := r.wrapperProcess.Kill()
+		if err != nil {
+			r.SetStatus(status.Error)
+			return errors.Wrap(err, "Can't kill wrapper process")
+		}
 	}
+
+	r.SetStatus(status.Stopped)
+	return nil
+}
+
+// Restart restarts the runtime
+func (r *AbstractRuntime) Restart() error {
+	if err := r.Stop(); err != nil {
+		return err
+	}
+
+	// Send error for current event (non-blocking)
+	select {
+	case r.resultChan <- &result{
+		StatusCode: http.StatusRequestTimeout,
+		err:        errors.New("Runtime restarted"),
+	}:
+
+	default:
+		r.Logger.Warn("Nothing waiting on result channel during restart. Continuing")
+	}
+
+	close(r.resultChan)
+	if err := r.startWrapper(); err != nil {
+		r.SetStatus(status.Error)
+		return errors.Wrap(err, "Can't start wrapper process")
+	}
+
+	r.SetStatus(status.Ready)
+	return nil
 }
 
 // GetSocketType returns the type of socket the runtime works with (unix/tcp)
 func (r *AbstractRuntime) GetSocketType() SocketType {
-	return UnixSocket
+	return r.socketType
 }
 
 // WaitForStart returns whether the runtime supports sending an indication that it started
@@ -158,7 +197,12 @@ func (r *AbstractRuntime) WaitForStart() bool {
 	return false
 }
 
-func (r *AbstractRuntime) runWrapper() error {
+// SupportsRestart returns true if the runtime supports restart
+func (r *AbstractRuntime) SupportsRestart() bool {
+	return true
+}
+
+func (r *AbstractRuntime) startWrapper() error {
 	var err error
 
 	var listener net.Listener
@@ -174,23 +218,30 @@ func (r *AbstractRuntime) runWrapper() error {
 		return errors.Wrap(err, "Can't create listener")
 	}
 
+	r.processWaiter, err = processwaiter.NewProcessWaiter()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create process waiter")
+	}
+
 	wrapperProcess, err := r.runtime.RunWrapper(address)
 	if err != nil {
 		return errors.Wrap(err, "Can't run wrapper")
 	}
+
 	r.wrapperProcess = wrapperProcess
+
+	go r.watchWrapperProcess()
 
 	conn, err := listener.Accept()
 	if err != nil {
 		return errors.Wrap(err, "Can't get connection from wrapper")
 	}
 
-	r.Logger.Info("Wrapper connected")
+	r.Logger.InfoWith("Wrapper connected", "wid", r.Context.WorkerID)
 
-	r.eventEncoder = NewEventJSONEncoder(r.Logger, conn)
-	r.outReader = bufio.NewReader(conn)
+	r.eventEncoder = r.runtime.GetEventEncoder(conn)
 	r.resultChan = make(chan *result)
-	go r.wrapperOutputHandler()
+	go r.wrapperOutputHandler(conn, r.resultChan)
 
 	// wait for start if required to
 	if r.runtime.WaitForStart() {
@@ -225,6 +276,7 @@ func (r *AbstractRuntime) createUnixListener() (net.Listener, string, error) {
 	if !ok {
 		return nil, "", fmt.Errorf("Can't get underlying Unix listener")
 	}
+
 	if err = unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
 		return nil, "", errors.Wrap(err, "Can't set deadline")
 	}
@@ -252,18 +304,27 @@ func (r *AbstractRuntime) createTCPListener() (net.Listener, string, error) {
 	return listener, fmt.Sprintf("%d", port), nil
 }
 
-func (r *AbstractRuntime) wrapperOutputHandler() {
+func (r *AbstractRuntime) wrapperOutputHandler(conn io.Reader, resultChan chan *result) {
+
+	// Reset might close outChan, which will cause panic when sending
+	defer func() {
+		if err := recover(); err != nil {
+			r.Logger.WarnWith("Recovered during output handler (Restart called?)", "err", err)
+		}
+	}()
+
+	outReader := bufio.NewReader(conn)
+
 	// Read logs & output
 	for {
 		unmarshalledResult := &result{}
 		var data []byte
 
-		data, unmarshalledResult.err = r.outReader.ReadBytes('\n')
+		data, unmarshalledResult.err = outReader.ReadBytes('\n')
 
 		if unmarshalledResult.err != nil {
-			r.Logger.WarnWith("Failed to read from connection", "err", unmarshalledResult.err)
-			r.resultChan <- unmarshalledResult
-			// TODO: close(r.resultChan) ?
+			r.Logger.WarnWith(string(common.FailedReadFromConnection), "err", unmarshalledResult.err)
+			resultChan <- unmarshalledResult
 			continue
 		}
 
@@ -286,9 +347,9 @@ func (r *AbstractRuntime) wrapperOutputHandler() {
 			}
 
 			// write back to result channel
-			r.resultChan <- unmarshalledResult
+			resultChan <- unmarshalledResult
 		case 'm':
-			r.handleReponseMetric(data[1:])
+			r.handleResponseMetric(data[1:])
 		case 'l':
 			r.handleResponseLog(data[1:])
 		case 's':
@@ -321,7 +382,7 @@ func (r *AbstractRuntime) handleResponseLog(response []byte) {
 	logFunc(logRecord.Message, vars...)
 }
 
-func (r *AbstractRuntime) handleReponseMetric(response []byte) {
+func (r *AbstractRuntime) handleResponseMetric(response []byte) {
 	var metrics struct {
 		DurationSec float64 `json:"duration"`
 	}
@@ -353,14 +414,42 @@ func (r *AbstractRuntime) resolveFunctionLogger(functionLogger logger.Logger) lo
 	return functionLogger
 }
 
-// Stop stops the runtime
-func (r *AbstractRuntime) Stop() error {
-	err := r.wrapperProcess.Kill()
-	if err != nil {
-		r.SetStatus(status.Error)
-	} else {
-		r.SetStatus(status.Stopped)
+func (r *AbstractRuntime) newResultChan() {
+
+	// We create the channel buffered so we won't block on sending
+	r.resultChan = make(chan *result, 1)
+}
+
+func (r *AbstractRuntime) watchWrapperProcess() {
+
+	// whatever happens, clear wrapper process
+	defer func() { r.wrapperProcess = nil }()
+
+	// wait for the process
+	processWaitResult := <-r.processWaiter.Wait(r.wrapperProcess, nil)
+
+	// if we were simply canceled, do nothing
+	if processWaitResult.Err == processwaiter.ErrCancelled {
+		r.Logger.DebugWith("Process watch cancelled. Returning", "wid", r.Context.WorkerID)
+		return
 	}
 
-	return err
+	// if process exited gracefully (i.e. wasn't force killed), do nothing
+	if processWaitResult.Err == nil && processWaitResult.ProcessState.Success() {
+		r.Logger.DebugWith("Process watch done - process exited successfully")
+		return
+	}
+
+	r.Logger.ErrorWith(string(common.UnexpectedTerminationChildProcess),
+		"error", processWaitResult.Err,
+		"status", processWaitResult.ProcessState.String())
+
+	var panicMessage string
+	if processWaitResult.Err != nil {
+		panicMessage = processWaitResult.Err.Error()
+	} else {
+		panicMessage = processWaitResult.ProcessState.String()
+	}
+
+	panic(fmt.Sprintf("Wrapper process for worker %d exited unexpectedly with: %s", r.Context.WorkerID, panicMessage))
 }

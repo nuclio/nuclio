@@ -17,12 +17,12 @@ limitations under the License.
 package eventhub
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 	"github.com/nuclio/nuclio/pkg/processor/util/eventhub"
 
-	"github.com/nuclio/amqp"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"pack.ag/amqp"
 )
 
 type eventhub struct {

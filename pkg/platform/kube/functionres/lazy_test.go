@@ -20,16 +20,26 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type mockedPlatformConfigurationProvider struct {
+	platformConfiguration *platformconfig.Config
+}
+
+func (c *mockedPlatformConfigurationProvider) GetPlatformConfiguration() *platformconfig.Config {
+	return c.platformConfiguration
+}
 
 type lazyTestSuite struct {
 	suite.Suite
@@ -43,8 +53,8 @@ func (suite *lazyTestSuite) SetupTest() {
 }
 
 func (suite *lazyTestSuite) TestNoTriggers() {
-	ingressMeta := meta_v1.ObjectMeta{}
-	ingressSpec := ext_v1beta1.IngressSpec{}
+	ingressMeta := metav1.ObjectMeta{}
+	ingressSpec := extv1beta1.IngressSpec{}
 
 	// function instance has no triggers
 	functionInstance := nuclioio.NuclioFunction{}
@@ -66,8 +76,8 @@ func (suite *lazyTestSuite) TestNoTriggers() {
 }
 
 func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
-	ingressMeta := meta_v1.ObjectMeta{}
-	ingressSpec := ext_v1beta1.IngressSpec{}
+	ingressMeta := metav1.ObjectMeta{}
+	ingressSpec := extv1beta1.IngressSpec{}
 
 	// function instance has no triggers
 	functionInstance := nuclioio.NuclioFunction{}
@@ -94,8 +104,8 @@ func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
 }
 
 func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
-	ingressMeta := meta_v1.ObjectMeta{}
-	ingressSpec := ext_v1beta1.IngressSpec{}
+	ingressMeta := metav1.ObjectMeta{}
+	ingressSpec := extv1beta1.IngressSpec{}
 
 	annotations := map[string]string{
 		"a1": "v1",
@@ -203,7 +213,7 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 	toServicePorts := suite.client.ensureServicePortsExist([]v1.ServicePort{
 		{
 			Name:     containerHTTPPortName,
-			Port:     int32(containerHTTPPort),
+			Port:     int32(abstract.FunctionContainerHTTPPort),
 			NodePort: 12345,
 		},
 	}, []v1.ServicePort{
@@ -219,7 +229,7 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 	toServicePorts = suite.client.ensureServicePortsExist([]v1.ServicePort{
 		{
 			Name:     containerHTTPPortName,
-			Port:     int32(containerHTTPPort),
+			Port:     int32(abstract.FunctionContainerHTTPPort),
 			NodePort: 12345,
 		},
 	}, []v1.ServicePort{
@@ -233,7 +243,89 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 	suite.Require().Len(toServicePorts, 2)
 }
 
-func (suite *lazyTestSuite) getIngressRuleByHost(rules []ext_v1beta1.IngressRule, host string) *ext_v1beta1.IngressRule {
+func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			FunctionAugmentedConfigs: []platformconfig.LabelSelectorAndConfig{
+				{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"nuclio.io/class": "apply-me",
+						},
+					},
+					FunctionConfig: functionconfig.Config{},
+					Kubernetes:     platformconfig.Kubernetes{},
+				},
+				{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"nuclio.io/class": "apply-me",
+						},
+					},
+					FunctionConfig: functionconfig.Config{},
+					Kubernetes: platformconfig.Kubernetes{
+						Deployment: &appsv1.Deployment{
+							Spec: appsv1.DeploymentSpec{
+								Paused: true,
+							},
+						},
+					},
+				},
+				{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"nuclio.io/class": "dont-apply-me",
+						},
+					},
+					FunctionConfig: functionconfig.Config{},
+					Kubernetes: platformconfig.Kubernetes{
+						Deployment: &appsv1.Deployment{
+							Spec: appsv1.DeploymentSpec{
+								Template: v1.PodTemplateSpec{
+									Spec: v1.PodSpec{
+										ServiceAccountName: "pleasedont",
+									},
+								},
+							},
+						},
+					},
+				},
+				{
+					LabelSelector:  metav1.LabelSelector{},
+					FunctionConfig: functionconfig.Config{},
+					Kubernetes: platformconfig.Kubernetes{
+						Deployment: &appsv1.Deployment{
+							Spec: appsv1.DeploymentSpec{
+								Strategy: appsv1.DeploymentStrategy{
+									Type:          appsv1.RecreateDeploymentStrategyType,
+									RollingUpdate: nil,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	functionInstance := nuclioio.NuclioFunction{}
+	functionInstance.Name = "func-name"
+	functionInstance.Namespace = "func-namespace"
+	functionInstance.Labels = map[string]string{
+		"nuclio.io/class": "apply-me",
+	}
+
+	deployment := appsv1.Deployment{}
+	err := suite.client.enrichDeploymentFromPlatformConfiguration(&functionInstance,
+		&deployment,
+		updateDeploymentResourceMethod)
+	suite.Equal(deployment.Spec.Strategy.Type, appsv1.RecreateDeploymentStrategyType)
+	suite.True(deployment.Spec.Paused)
+	suite.Equal(deployment.Spec.Template.Spec.ServiceAccountName, "")
+	suite.Require().NoError(err)
+}
+
+func (suite *lazyTestSuite) getIngressRuleByHost(rules []extv1beta1.IngressRule, host string) *extv1beta1.IngressRule {
 	for _, rule := range rules {
 		if rule.Host == host {
 			return &rule

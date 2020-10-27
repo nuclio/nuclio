@@ -9,8 +9,8 @@ The queue name may be a Go template, which may include any of the following fiel
 | Id | string |The trigger id |
 | Namespace | string | The function deployment namespace |
 | Name | string | The deployed function name |
-| Labels | map | Labels sepcified in the funtion metadata |
-| Annotations | map | Annotations sepcified in the funtion metadata |
+| Labels | map | Labels specified in the function metadata |
+| Annotations | map | Annotations specified in the function metadata |
 
 ## Attributes
 
@@ -25,7 +25,7 @@ The queue name may be a Go template, which may include any of the following fiel
 triggers:
   myNatsTopic:
     kind: "nats"
-    url: "10.0.0.3:4222"
+    url: "nats://10.0.0.3:4222"
     attributes:
       "topic": "my.topic"
       "queueName": "{{ .Namespace }}.{{ .Name }}.{{ .Id }}"

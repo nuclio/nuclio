@@ -30,10 +30,12 @@ import java.util.Date;
 public class WrapperLogger implements Logger {
     private Gson gson;
     private BufferedOutputStream out;
+    private String workerID;
 
-    public WrapperLogger(OutputStream out) {
+    public WrapperLogger(OutputStream out, String workerID) {
         this.out = new BufferedOutputStream(out);
         this.gson = new Gson();
+        this.workerID = workerID;
     }
 
     /**
@@ -47,7 +49,7 @@ public class WrapperLogger implements Logger {
         Map<String, Object> withMap = new HashMap<String, Object>();
         if (with.length % 2 != 0) {
             System.err.println(
-                    String.format("error: bad width length - %d", with.length));
+                    String.format("error: bad with length - %d", with.length));
             return withMap;
         }
 
@@ -73,7 +75,9 @@ public class WrapperLogger implements Logger {
      * @param with    With parameters
      */
     private void log(LogLevel level, String message, Object... with) {
-        Log log = new Log(level, message, encodeWith(with));
+        Map<String, Object> encodedWith = encodeWith(with);
+        encodedWith.put("worker_id", this.workerID);
+        Log log = new Log(level, message, encodedWith);
 
         try {
             this.out.write('l');
@@ -90,7 +94,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log an error message
-     * e.g. logger.Error("%s not responding after %d seconds", dbHost, timeout)
+     * e.g. logger.error("%s not responding after %d seconds", dbHost, timeout)
      *
      * @param format Message format
      * @param args   formatting arguments
@@ -103,7 +107,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log a warning message
-     * e.g. logger.Warn("%s %.2f full", "memory", mem_full)
+     * e.g. logger.warn("%s %.2f full", "memory", mem_full)
      *
      * @param format Message format
      * @param args   formatting arguments
@@ -116,7 +120,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log an info message
-     * e.g. logger.Info("event with %d bytes", event.GetSize())
+     * e.g. logger.info("event with %d bytes", event.GetSize())
      *
      * @param format Message format
      * @param args   formatting arguments
@@ -129,7 +133,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log a debug message
-     * e.g. logger.Debug("event with %d bytes", event.GetSize())
+     * e.g. logger.debug("event with %d bytes", event.GetSize())
      *
      * @param format Message format
      * @param args   formatting arguments
@@ -142,7 +146,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log a structured error message
-     * e.g. logger.ErrorWith("bad request", "error", "daffy not found", "time", 7)
+     * e.g. logger.errorWith("bad request", "error", "daffy not found", "time", 7)
      *
      * @param format Message format
      * @param with   formatting arguments
@@ -154,7 +158,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log a structured warning message
-     * e.g. logger.WarnWith("system overload", "resource", "memory", "used", 0.9)
+     * e.g. logger.warnWith("system overload", "resource", "memory", "used", 0.9)
      *
      * @param format Message format
      * @param with   formatting arguments
@@ -166,7 +170,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log a structured info message
-     * e.g. logger.InfoWith("event processed", "time", 0.3, "count", 9009)
+     * e.g. logger.infoWith("event processed", "time", 0.3, "count", 9009)
      *
      * @param format Message format
      * @param with   formatting arguments
@@ -178,7 +182,7 @@ public class WrapperLogger implements Logger {
 
     /**
      * Log a structured debug message
-     * e.g. logger.DebugWith("event", "body_size", 2339, "content-type", "text/plain")
+     * e.g. logger.debugWith("event", "body_size", 2339, "content-type", "text/plain")
      *
      * @param format Message format
      * @param with   formatting arguments

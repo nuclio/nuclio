@@ -28,7 +28,6 @@ import (
 
 type invocationResource struct {
 	*resource
-	nodeAddresses []string
 }
 
 // called after initialization

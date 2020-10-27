@@ -21,6 +21,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 )
 
+// Configuration is processor configuration
 type Configuration struct {
 	functionconfig.Config
 	PlatformConfig *platformconfig.Config

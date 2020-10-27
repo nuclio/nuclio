@@ -24,8 +24,8 @@ import (
 	"syscall"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -85,25 +85,18 @@ func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interf
 	// create a command
 	cmd := exec.Command(sr.shell, "-c", formattedCommand)
 
-	// if no run options passed, use default values
-	if runOptions == nil {
-		runOptions = &RunOptions{}
+	// if there are runOptions, set them
+	if runOptions.WorkingDir != nil {
+		cmd.Dir = *runOptions.WorkingDir
 	}
 
-	// if there are runOptions, set them
-	if runOptions != nil {
-		if runOptions.WorkingDir != nil {
-			cmd.Dir = *runOptions.WorkingDir
-		}
+	// get environment variables if any
+	if runOptions.Env != nil {
+		cmd.Env = sr.getEnvFromOptions(runOptions)
+	}
 
-		// get environment variables if any
-		if runOptions.Env != nil {
-			cmd.Env = sr.getEnvFromOptions(runOptions)
-		}
-
-		if runOptions.Stdin != nil {
-			cmd.Stdin = strings.NewReader(*runOptions.Stdin)
-		}
+	if runOptions.Stdin != nil {
+		cmd.Stdin = strings.NewReader(*runOptions.Stdin)
 	}
 
 	runResult := RunResult{

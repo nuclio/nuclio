@@ -20,18 +20,17 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	mqttclient "github.com/eclipse/paho.mqtt.golang"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
 type AbstractTrigger struct {
 	trigger.AbstractTrigger
-	event         Event
 	configuration *Configuration
 	MQTTClient    mqttclient.Client
 
@@ -51,7 +50,8 @@ func NewAbstractTrigger(parentLogger logger.Logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
-		"mqtt")
+		"mqtt",
+		configuration.Name)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
@@ -186,7 +186,7 @@ func (t *AbstractTrigger) allocateWorker(message mqttclient.Message) (*worker.Wo
 		workerAllocator = t.WorkerAllocator
 	}
 
-	workerAvailabilityTimeout := time.Duration(t.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond
+	workerAvailabilityTimeout := time.Duration(*t.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond
 
 	// try to allocate the worker
 	workerInstance, err := workerAllocator.Allocate(workerAvailabilityTimeout)

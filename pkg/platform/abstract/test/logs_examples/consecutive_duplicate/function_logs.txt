@@ -1,0 +1,15 @@
+{"level":"debug","time":"2020-03-12T16:36:32.828Z","name":"processor.kafka-cluster.kafakaf.sarama","message":"Sarama: Failed to connect to broker 10.0.0.2: dial tcp: address 10.0.0.2: missing port in address"}
+{"level":"debug","time":"2020-03-12T16:36:32.828Z","name":"processor.kafka-cluster.kafakaf.sarama","message":"Sarama: client/metadata got error from broker -1 while fetching metadata: dial tcp: address 10.0.0.2: missing port in address"}
+{"level":"debug","time":"2020-03-12T16:36:32.828Z","name":"processor.kafka-cluster.kafakaf.sarama","message":"Sarama: client/metadata no available broker to send metadata request to"}
+{"level":"debug","time":"2020-03-12T16:36:32.828Z","name":"processor.kafka-cluster.kafakaf.sarama","message":"Sarama: client/brokers resurrecting 1 dead seed brokers"}
+{"level":"debug","time":"2020-03-12T16:36:32.828Z","name":"processor.kafka-cluster.kafakaf.sarama","message":"Sarama: client/metadata retrying after 250ms... (1 attempts remaining)"}
+{"level":"debug","time":"2020-03-12T16:36:33.078Z","name":"processor.kafka-cluster.kafakaf.sarama","message":"Sarama: client/metadata fetching metadata for all topics from broker 10.0.0.2"}
+{"level":"debug","time":"2020-03-12T16:36:33.078Z","name":"processor.kafka-cluster.kafakaf.sarama","message":"Sarama: Failed to connect to broker 10.0.0.2: dial tcp: address 10.0.0.2: missing port in address"}
+{"level":"debug","time":"2020-03-12T16:36:33.078Z","name":"processor.kafka-cluster.kafakaf.sarama","message":"Sarama: client/metadata got error from broker -1 while fetching metadata: dial tcp: address 10.0.0.2: missing port in address"}
+{"level":"debug","time":"2020-03-12T16:36:33.078Z","name":"processor.kafka-cluster.kafakaf.sarama","message":"Sarama: client/metadata no available broker to send metadata request to"}
+{"level":"debug","time":"2020-03-12T16:36:33.078Z","name":"processor.kafka-cluster.kafakaf.sarama","message":"Sarama: client/brokers resurrecting 1 dead seed brokers"}
+{"level":"debug","time":"2020-03-12T16:36:33.078Z","name":"processor.kafka-cluster.kafakaf.sarama","message":"Sarama: Closing Client"}
+{"level":"error","time":"2020-03-12T16:36:33.078Z","name":"processor","message":"Failed to start trigger","err":"Failed to create consumer"}
+
+Error - kafka: client has run out of available brokers to talk to (Is your cluster reachable?)
+    .../nuclio/pkg/processor/trigger/kafka/trigger.go:340

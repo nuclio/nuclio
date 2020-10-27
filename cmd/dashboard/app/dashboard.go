@@ -22,15 +22,15 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
-	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
 )
 
 func Run(listenAddress string,
@@ -46,14 +46,21 @@ func Run(listenAddress string,
 	platformConfigurationPath string,
 	templatesGitRepository string,
 	templatesGitRef string,
-	templatesArchiveAddress string) error {
+	templatesArchiveAddress string,
+	templatesGitUsername string,
+	templatesGitPassword string,
+	templatesGithubAccessToken string,
+	defaultHTTPIngressHostTemplate string,
+	imageNamePrefixTemplate string,
+	platformAuthorizationMode string,
+	dependantImageRegistryURL string) error {
 	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
 	var functionZipTemplateFetcher *functiontemplates.ZipFunctionTemplateFetcher
 
-	// read platform configuration
-	platformConfiguration, err := readPlatformConfiguration(platformConfigurationPath)
+	// get platform configuration
+	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
 	if err != nil {
-		return errors.Wrap(err, "Failed to read platform configuration")
+		return errors.Wrap(err, "Failed to get platform configuration")
 	}
 
 	// create a root logger
@@ -63,13 +70,24 @@ func Run(listenAddress string,
 	}
 
 	// create a platform
-	platformInstance, err := factory.CreatePlatform(rootLogger, platformType, nil)
+	platformInstance, err := factory.CreatePlatform(rootLogger, platformType, platformConfiguration, defaultNamespace)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create platform")
 	}
 
 	// create git fetcher
 	if templatesGitRepository != "" && templatesGitRef != "" {
+		rootLogger.DebugWith("Fetching function templates from git repository",
+			"templatesGitRepository", templatesGitRepository,
+			"templatesGitRef", templatesGitRef)
+
+		// attach credentials if given
+		templatesGitRepository = attachCredentialsToGitRepository(rootLogger,
+			templatesGitRepository,
+			templatesGitUsername,
+			templatesGitPassword,
+			templatesGithubAccessToken)
+
 		functionGitTemplateFetcher, err = functiontemplates.NewGitFunctionTemplateFetcher(rootLogger,
 			templatesGitRepository,
 			templatesGitRef)
@@ -131,28 +149,36 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to set external ip addresses")
 	}
 
-	rootLogger.InfoWith("Starting",
+	if defaultHTTPIngressHostTemplate != "" {
+		platformInstance.SetDefaultHTTPIngressHostTemplate(defaultHTTPIngressHostTemplate)
+	}
+
+	if imageNamePrefixTemplate != "" {
+		platformInstance.SetImageNamePrefixTemplate(imageNamePrefixTemplate)
+	}
+
+	rootLogger.InfoWith("Starting dashboard",
 		"name", platformInstance.GetName(),
 		"noPull", noPullBaseImages,
 		"offline", offline,
 		"defaultCredRefreshInterval", defaultCredRefreshIntervalString,
 		"defaultNamespace", defaultNamespace,
-		"platformConfiguration", platformConfiguration)
+		"version", version.Get(),
+		"platformConfiguration", platformConfiguration,
+		"containerBuilderKind", platformInstance.GetContainerBuilderKind())
 
 	// see if the platform has anything to say about the namespace
 	defaultNamespace = platformInstance.ResolveDefaultNamespace(defaultNamespace)
 
-	version.Log(rootLogger)
-
-	trueValue := true
-
 	// create a web server configuration
+	trueValue := true
 	webServerConfiguration := &platformconfig.WebServer{
 		Enabled:       &trueValue,
 		ListenAddress: listenAddress,
 	}
 
 	server, err := dashboard.NewServer(rootLogger,
+		platformInstance.GetContainerBuilderKind(),
 		dockerKeyDir,
 		defaultRegistryURL,
 		defaultRunRegistryURL,
@@ -164,7 +190,11 @@ func Run(listenAddress string,
 		defaultNamespace,
 		offline,
 		functionTemplatesRepository,
-		platformConfiguration)
+		platformConfiguration,
+		defaultHTTPIngressHostTemplate,
+		imageNamePrefixTemplate,
+		platformAuthorizationMode,
+		dependantImageRegistryURL)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}
@@ -204,11 +234,20 @@ func getDefaultCredRefreshInterval(logger logger.Logger, defaultCredRefreshInter
 	return &defaultCredRefreshInterval
 }
 
-func readPlatformConfiguration(configurationPath string) (*platformconfig.Config, error) {
-	platformConfigurationReader, err := platformconfig.NewReader()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
+// create new repo URL with the credentials inside of it (when credentials are passed)
+// example: https://github.com/owner/repo.git -> https://<USERNAME>:<PASSWORD>@github.com/owner/repo.git
+func attachCredentialsToGitRepository(logger logger.Logger, repo, username, password, accessToken string) string {
+	if accessToken != "" {
+		username = accessToken
+		password = "x-oauth-basic"
+	} else if username == "" || password == "" {
+		return repo
 	}
 
-	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
+	splitRepo := strings.Split(repo, "//")
+	if len(splitRepo) != 2 {
+		logger.WarnWith("Unknown git repository structure. Skipping credentials attachment", "repo", repo)
+		return repo
+	}
+	return strings.Join([]string{splitRepo[0], "//", username, ":", password, "@", splitRepo[1]}, "")
 }

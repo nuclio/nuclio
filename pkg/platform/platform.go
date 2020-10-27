@@ -16,10 +16,15 @@ limitations under the License.
 
 package platform
 
+import (
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+)
+
 type HealthCheckMode string
 
 const (
-
 	// health check should be performed by an internal client
 	HealthCheckModeInternalClient HealthCheckMode = "internalClient"
 
@@ -30,7 +35,6 @@ const (
 // Platform defines the interface that any underlying function platform must provide for nuclio
 // to run over it
 type Platform interface {
-
 	//
 	// Function
 	//
@@ -53,7 +57,7 @@ type Platform interface {
 	// GetFunctions will list existing functions
 	GetFunctions(getFunctionsOptions *GetFunctionsOptions) ([]Function, error)
 
-	// GetDefaultInvokeIPAddresses will return a list of ip addresses to be used by the platform to inovke a function
+	// GetDefaultInvokeIPAddresses will return a list of ip addresses to be used by the platform to invoke a function
 	GetDefaultInvokeIPAddresses() ([]string, error)
 
 	//
@@ -90,6 +94,22 @@ type Platform interface {
 	GetFunctionEvents(getFunctionEventsOptions *GetFunctionEventsOptions) ([]FunctionEvent, error)
 
 	//
+	// API Gateway
+	//
+
+	// Create APIGateway creates and deploys a new api gateway
+	CreateAPIGateway(createAPIGatewayOptions *CreateAPIGatewayOptions) error
+
+	// UpdateAPIGateway will update a previously deployed api gateway
+	UpdateAPIGateway(updateAPIGatewayOptions *UpdateAPIGatewayOptions) error
+
+	// DeleteAPIGateway will delete a previously deployed api gateway
+	DeleteAPIGateway(deleteAPIGatewayOptions *DeleteAPIGatewayOptions) error
+
+	// GetAPIGateways will list existing api gateways
+	GetAPIGateways(getAPIGatewaysOptions *GetAPIGatewaysOptions) ([]APIGateway, error)
+
+	//
 	// Misc
 	//
 
@@ -100,6 +120,22 @@ type Platform interface {
 	// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
 	// These addresses are either set through SetExternalIPAddresses or automatically discovered
 	GetExternalIPAddresses() ([]string, error)
+
+	SetDefaultHTTPIngressHostTemplate(string)
+
+	GetDefaultHTTPIngressHostTemplate() string
+
+	SetImageNamePrefixTemplate(string)
+
+	GetImageNamePrefixTemplate() string
+
+	RenderImageNamePrefixTemplate(projectName string, functionName string) (string, error)
+
+	// Get scale to zero configuration
+	GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error)
+
+	// Get allowed authentication modes
+	GetAllowedAuthenticationModes() ([]string, error)
 
 	// GetNamespaces returns all the namespaces in the platform
 	GetNamespaces() ([]string, error)
@@ -115,4 +151,28 @@ type Platform interface {
 
 	// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
 	ResolveDefaultNamespace(string) string
+
+	// BuildAndPushContainerImage builds container image and pushes it into container registry
+	BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error
+
+	// Get Onbuild stage for multistage builds
+	GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error)
+
+	// Change Onbuild artifact paths depending on the type of the builder used
+	TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error)
+
+	// GetOnbuildImageRegistry returns onbuild base registry
+	GetOnbuildImageRegistry(registry string) string
+
+	// GetBaseImageRegistry returns base image registry
+	GetBaseImageRegistry(registry string) string
+
+	// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
+	GetDefaultRegistryCredentialsSecretName() string
+
+	// Save build logs from platform logger to function store or k8s
+	SaveFunctionDeployLogs(functionName, namespace string) error
+
+	// GetContainerBuilderKind returns the container-builder kind
+	GetContainerBuilderKind() string
 }

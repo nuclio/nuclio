@@ -20,6 +20,18 @@ import (
 	"encoding/json"
 )
 
+type RestartPolicyName string
+
+const (
+	RestartPolicyNameUnlessStopped RestartPolicyName = "unless-stopped"
+	RestartPolicyNameAlways        RestartPolicyName = "always"
+	RestartPolicyNameNo            RestartPolicyName = "no"
+	RestartPolicyNameOnFailure     RestartPolicyName = "on-failure"
+)
+
+// RunOptionsNoPort urge docker shell client not to map an explicit source port (but rather a random one)
+const RunOptionsNoPort int = -1
+
 // LogInOptions are options for logging in
 type LogInOptions struct {
 	Username string
@@ -50,6 +62,12 @@ type RunOptions struct {
 	Attach           bool
 	ImageMayNotExist bool
 	Network          string
+	RestartPolicy    *RestartPolicy
+	GPUs             string
+	MountPoints      []MountPoint
+	RunAsUser        *int64
+	RunAsGroup       *int64
+	FSGroup          *int64
 }
 
 // ExecOptions are options for executing a command in a container
@@ -65,6 +83,7 @@ type GetContainerOptions struct {
 	Name    string
 	Labels  map[string]string
 	Stopped bool
+	ID      string
 }
 
 // ContainerJSONBase contains response of Engine API:
@@ -108,6 +127,22 @@ type ContainerState struct {
 	Error      string
 	StartedAt  string
 	FinishedAt string
+	Health     *Health
+}
+
+// Health stores container health state
+type Health struct {
+	Status        string
+	FailingStreak int
+	Log           []HealthLog
+}
+
+// HealthLog stores container health logs
+type HealthLog struct {
+	Start    string
+	End      string
+	ExitCode int
+	Output   string
 }
 
 // MountPoint represents a mount point configuration inside the container.
@@ -117,6 +152,9 @@ type MountPoint struct {
 	Destination string
 	Mode        string
 	RW          bool
+	Type        string
+	Driver      string
+	Name        string
 }
 
 // HostConfig the non-portable Config structure of a container.
@@ -175,7 +213,7 @@ type LogConfig struct {
 
 // RestartPolicy represents the restart policies of the container.
 type RestartPolicy struct {
-	Name              string
+	Name              RestartPolicyName
 	MaximumRetryCount int
 }
 
@@ -309,5 +347,10 @@ type Address struct {
 
 // CreateNetworkOptions are options for creating a network
 type CreateNetworkOptions struct {
+	Name string
+}
+
+// CreateVolumeOptions are options for creating a volume
+type CreateVolumeOptions struct {
 	Name string
 }

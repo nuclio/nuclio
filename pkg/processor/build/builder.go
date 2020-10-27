@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -28,10 +29,10 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
@@ -46,18 +47,23 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/ruby"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
-	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/mholt/archiver/v3"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/rs/xid"
+	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/v3io/version-go"
 	"gopkg.in/yaml.v2"
 )
 
 const (
-	functionConfigFileName = "function.yaml"
+	FunctionConfigFileName = "function.yaml"
 	uhttpcImage            = "quay.io/nuclio/uhttpc:0.0.1-amd64"
-	githubEntryType        = "github"
-	archiveEntryType       = "archive"
+	GithubEntryType        = "github"
+	ArchiveEntryType       = "archive"
+	S3EntryType            = "s3"
+	ImageEntryType         = "image"
+	SourceCodeEntryType    = "sourceCode"
 )
 
 // holds parameters for things that are required before a runtime can be initialized
@@ -87,16 +93,12 @@ type Builder struct {
 	// full path to staging directory (under tempDir) which is used as the docker build context for the function
 	stagingDir string
 
-	// a docker client with which to build stuff
-	dockerClient dockerclient.Client
-
 	// inline blocks of configuration, having appeared in the source prefixed with @nuclio.<something>
 	inlineConfigurationBlock inlineparser.Block
 
 	// information about the processor image - the one that actually holds the processor binary and is pushed
 	// to the cluster
 	processorImage struct {
-
 		// a map of local_path:dest_path. each file / dir from local_path will be copied into
 		// the docker image at dest_path
 		objectsToCopyDuringBuild map[string]string
@@ -113,38 +115,41 @@ type Builder struct {
 
 	// original function configuration, for fields that are overridden and need to be restored
 	originalFunctionConfig functionconfig.Config
+
+	s3Client common.S3Client
+
+	versionInfo *version.Info
 }
 
 // NewBuilder returns a new builder
-func NewBuilder(parentLogger logger.Logger, platform platform.Platform) (*Builder, error) {
-	var err error
-
+func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client common.S3Client) (*Builder, error) {
 	newBuilder := &Builder{
-		logger:   parentLogger,
-		platform: platform,
+		logger:      parentLogger,
+		platform:    platform,
+		s3Client:    s3Client,
+		versionInfo: version.Get(),
 	}
 
 	newBuilder.initializeSupportedRuntimes()
-
-	newBuilder.dockerClient, err = dockerclient.NewShellClient(newBuilder.logger, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create docker client")
-	}
-
 	return newBuilder, nil
 }
 
 // Build builds the handler
 func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	var err error
+	var inferredCodeEntryType string
+	var configurationRead bool
 
 	b.options = options
 
-	b.logger.InfoWith("Building", "name", b.options.FunctionConfig.Meta.Name)
+	b.logger.InfoWith("Building",
+		"versionInfo", b.versionInfo,
+		"name", b.options.FunctionConfig.Meta.Name)
 
-	configurationRead := false
-	if common.IsFile(b.providedFunctionConfigFilePath()) {
-		b.logger.InfoWith("Reading user provided configuration", "path", b.providedFunctionConfigFilePath())
+	// TODO: delete b.providedFunctionConfigFilePath call from here, as it is called again from b.readConfiguration
+	configFilePath := b.providedFunctionConfigFilePath()
+	b.logger.DebugWith("Function configuration found in directory", "configFilePath", configFilePath)
+	if common.IsFile(configFilePath) {
 		if _, err = b.readConfiguration(); err != nil {
 			return nil, errors.Wrap(err, "Failed to read configuration")
 		}
@@ -169,15 +174,21 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	b.originalFunctionConfig.Spec.Build.Path = b.options.FunctionConfig.Spec.Build.Path
 
 	// resolve the function path - download in case its a URL
-	b.options.FunctionConfig.Spec.Build.Path, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
+	b.options.FunctionConfig.Spec.Build.Path,
+		inferredCodeEntryType,
+		err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to resolve function path")
+		return nil, err
+	}
+
+	// when no code entry type was explicitly passed set it to the inferred type
+	if b.options.FunctionConfig.Spec.Build.CodeEntryType == "" {
+		b.options.FunctionConfig.Spec.Build.CodeEntryType = inferredCodeEntryType
 	}
 
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
 	// later on (e.g. for creating files)
 	if common.IsFile(b.options.FunctionConfig.Spec.Build.Path) {
-		var functionSourceCode string
 
 		// see if there are any inline blocks in the code. ignore errors during parse / load / whatever
 		b.parseInlineBlocks() // nolint: errcheck
@@ -188,22 +199,13 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 			return nil, errors.Wrap(b.inlineConfigurationBlock.Error, "Failed to parse inline configuration")
 		}
 
-		// try to see if we need to convert the file path -> functionSourceCode
-		functionSourceCode, err = b.getSourceCodeFromFilePath()
-		if err != nil {
-			b.logger.DebugWith("Not populating function source code", "reason", errors.Cause(err))
-		} else {
-
-			// set into source code
-			b.logger.DebugWith("Populating functionSourceCode from file path", "contents", functionSourceCode)
-			b.options.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
-		}
+		// populate function source code
+		b.populateFunctionSourceCodeFromFilePath()
 	}
 
 	// prepare configuration from both configuration files and things builder infers
 	if !configurationRead {
-		_, err = b.readConfiguration()
-		if err != nil {
+		if _, err = b.readConfiguration(); err != nil {
 			return nil, errors.Wrap(err, "Failed to read configuration")
 		}
 	}
@@ -222,7 +224,13 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 	// copy the configuration we enriched, restoring any fields that should not be leaked externally
 	enrichedConfiguration := b.options.FunctionConfig
-	enrichedConfiguration.Spec.Build.Path = b.originalFunctionConfig.Spec.Build.Path
+
+	// function build path is irrelevant when the CET is image (especially when it is a local path)
+	if enrichedConfiguration.Spec.Build.CodeEntryType == ImageEntryType {
+		enrichedConfiguration.Spec.Build.Path = ""
+	} else {
+		enrichedConfiguration.Spec.Build.Path = b.originalFunctionConfig.Spec.Build.Path
+	}
 
 	// if a callback is registered, call back
 	if b.options.OnAfterConfigUpdate != nil {
@@ -242,25 +250,16 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		return nil, errors.Wrap(err, "Failed to build processor image")
 	}
 
-	// push the processor image
-	if err := b.pushProcessorImage(processorImage); err != nil {
-		return nil, errors.Wrap(err, "Failed to push processor image")
+	if enrichedConfiguration.Spec.Build.CodeEntryType == ImageEntryType {
+		enrichedConfiguration.Spec.Image = processorImage
 	}
 
 	buildResult := &platform.CreateFunctionBuildResult{
-		Image: processorImage,
+		Image:                 processorImage,
 		UpdatedFunctionConfig: enrichedConfiguration,
 	}
 
 	b.logger.InfoWith("Build complete", "result", buildResult)
-
-	if b.options.OutputImageFile != "" {
-		b.logger.InfoWith("Saving built docker image as archive", "outputFile", b.options.OutputImageFile)
-		err := b.dockerClient.Save(processorImage, b.options.OutputImageFile)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to save docker image")
-		}
-	}
 
 	return buildResult, nil
 }
@@ -268,6 +267,11 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 // GetFunctionPath returns the path to the function
 func (b *Builder) GetFunctionPath() string {
 	return b.options.FunctionConfig.Spec.Build.Path
+}
+
+// GetProjectName returns the name of the project
+func (b *Builder) GetProjectName() string {
+	return b.options.FunctionConfig.Meta.Labels["nuclio.io/project-name"]
 }
 
 // GetFunctionName returns the name of the function
@@ -300,6 +304,95 @@ func (b *Builder) GetFunctionDir() string {
 // GetNoBaseImagePull return true if we shouldn't pull base images
 func (b *Builder) GetNoBaseImagePull() bool {
 	return b.options.FunctionConfig.Spec.Build.NoBaseImagesPull
+}
+
+// GenerateDockerfileContents return function docker file
+func (b *Builder) GenerateDockerfileContents(baseImage string,
+	onbuildArtifacts []runtime.Artifact,
+	imageArtifactPaths map[string]string,
+	directives map[string][]functionconfig.Directive,
+	healthCheckRequired bool) (string, error) {
+
+	// now that all artifacts are in the artifacts directory, we can craft a Dockerfile
+	dockerfileTemplateContents := `# Multistage builds
+
+{{ range $onbuildStage := .OnbuildStages }}
+{{ $onbuildStage }}
+{{ end }}
+
+# From the base image
+FROM {{ .BaseImage }}
+
+# Old(er) Docker support - must use all build args
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
+
+{{ if .PreCopyDirectives }}
+# Run the pre-copy directives
+{{ range $directive := .PreCopyDirectives }}
+{{ $directive.Kind }} {{ $directive.Value }}
+{{ end }}
+{{ end }}
+
+# Copy required objects from the suppliers
+{{ range $localArtifactPath, $imageArtifactPath := .OnbuildArtifactPaths }}
+COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
+{{ end }}
+
+{{ range $localArtifactPath, $imageArtifactPath := .ImageArtifactPaths }}
+COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
+{{ end }}
+
+{{ if .HealthcheckRequired }}
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+{{ end }}
+
+# Run the post-copy directives
+{{ range $directive := .PostCopyDirectives }}
+{{ $directive.Kind }} {{ $directive.Value }}
+{{ end }}
+
+# Run processor with configuration and platform configuration
+CMD [ "processor" ]
+`
+
+	onbuildStages, err := b.platform.GetOnbuildStages(onbuildArtifacts)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to transform retrieve onbuild stages")
+	}
+
+	// Transform `onbuildArtifactPaths` depending on the builder being used
+	onbuildArtifactPaths, err := b.platform.TransformOnbuildArtifactPaths(onbuildArtifacts)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to transform onbuildArtifactPaths")
+	}
+
+	dockerfileTemplate, err := template.New("singleStageDockerfile").
+		Parse(dockerfileTemplateContents)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create onbuildImage template")
+	}
+
+	var dockerfileTemplateBuffer bytes.Buffer
+	err = dockerfileTemplate.Execute(&dockerfileTemplateBuffer, &map[string]interface{}{
+		"BaseImage":            baseImage,
+		"OnbuildStages":        onbuildStages,
+		"OnbuildArtifactPaths": onbuildArtifactPaths,
+		"ImageArtifactPaths":   imageArtifactPaths,
+		"PreCopyDirectives":    directives["preCopy"],
+		"PostCopyDirectives":   directives["postCopy"],
+		"HealthcheckRequired":  healthCheckRequired,
+	})
+
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to run template")
+	}
+
+	dockerfileContents := dockerfileTemplateBuffer.String()
+
+	return dockerfileContents, nil
 }
 
 func (b *Builder) initializeSupportedRuntimes() {
@@ -344,13 +437,13 @@ func (b *Builder) providedFunctionConfigFilePath() string {
 	// if the user only provided a function file, check if it had a function configuration file
 	// in an inline configuration block (@nuclio.configure)
 	if common.IsFile(b.options.FunctionConfig.Spec.Build.Path) {
-		inlineFunctionConfig, found := b.inlineConfigurationBlock.Contents[functionConfigFileName]
+		inlineFunctionConfig, found := b.inlineConfigurationBlock.Contents[FunctionConfigFileName]
 		if !found {
 			return ""
 		}
 
 		// create a temporary file containing the contents and return that
-		functionConfigPath, err := b.createTempFileFromYAML(functionConfigFileName, inlineFunctionConfig)
+		functionConfigPath, err := b.createTempFileFromYAML(FunctionConfigFileName, inlineFunctionConfig)
 
 		b.logger.DebugWith("Function configuration generated from inline", "path", functionConfigPath)
 
@@ -361,13 +454,11 @@ func (b *Builder) providedFunctionConfigFilePath() string {
 		b.logger.WarnWith("Failed to unmarshal inline configuration - ignoring", "err", err)
 	}
 
-	functionConfigPath := filepath.Join(b.options.FunctionConfig.Spec.Build.Path, functionConfigFileName)
+	functionConfigPath := filepath.Join(b.options.FunctionConfig.Spec.Build.Path, FunctionConfigFileName)
 
 	if !common.FileExists(functionConfigPath) {
 		return ""
 	}
-
-	b.logger.DebugWith("Function configuration found in directory", "path", functionConfigPath)
 
 	return functionConfigPath
 }
@@ -382,11 +473,16 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Runtime = b.runtime.GetName()
 	}
 
+	// python is just a reference to python:3.6
+	if b.options.FunctionConfig.Spec.Runtime == "python" {
+		b.options.FunctionConfig.Spec.Runtime = "python:3.6"
+	}
+
 	// if the function handler isn't set, ask runtime
 	if b.options.FunctionConfig.Spec.Handler == "" {
 		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.GetFunctionPath())
 		if err != nil {
-			return errors.Wrap(err, "Failed to detect ")
+			return errors.Wrap(err, "Failed to detect function handler")
 		}
 
 		if len(functionHandlers) == 0 {
@@ -397,9 +493,22 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Handler = functionHandlers[0]
 	}
 
+	if len(functionconfig.GetTriggersByKind(b.options.FunctionConfig.Spec.Triggers, "http")) > 1 {
+		return errors.New("Function cannot have more than one http trigger")
+	}
+
 	// if output image name isn't set, set it to a derivative of the name
 	if b.processorImage.imageName == "" {
-		b.processorImage.imageName = b.getImage()
+		processorImageName, err := b.getImage()
+		if err != nil {
+			return errors.Wrap(err, "Failed getting processor image name")
+		}
+		b.processorImage.imageName = processorImageName
+	}
+
+	splitProcessorImageName := strings.Split(b.processorImage.imageName, ":")
+	if len(splitProcessorImageName) == 2 {
+		b.processorImage.imageTag = splitProcessorImageName[1]
 	}
 
 	// if tag isn't set - set latest
@@ -407,12 +516,17 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.processorImage.imageTag = "latest"
 	}
 
-	b.logger.DebugWith("Enriched configuration", "options", b.options, "pi", b.processorImage)
+	b.logger.DebugWith("Enriched configuration",
+		"functionConfig", b.options.FunctionConfig,
+		"platform", b.options.PlatformName,
+		"dependantImagesRegistryURL", b.options.DependantImagesRegistryURL,
+		"outputImageFile", b.options.OutputImageFile,
+		"processorImage", b.processorImage)
 
 	return nil
 }
 
-func (b *Builder) getImage() string {
+func (b *Builder) getImage() (string, error) {
 	var imageName string
 
 	if b.options.FunctionConfig.Spec.Build.Image == "" {
@@ -427,12 +541,23 @@ func (b *Builder) getImage() string {
 			}
 		}
 
-		imageName = fmt.Sprintf("%sprocessor-%s", repository, b.GetFunctionName())
+		imagePrefix, err := b.platform.RenderImageNamePrefixTemplate(b.GetProjectName(), b.GetFunctionName())
+
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to render image name prefix template")
+		}
+
+		// to keep old behaviour (before image prefix template option added)
+		if imagePrefix == "" {
+			imageName = fmt.Sprintf("%sprocessor-%s", repository, b.GetFunctionName())
+		} else {
+			imageName = fmt.Sprintf("%s%sprocessor", repository, imagePrefix)
+		}
 	} else {
 		imageName = b.options.FunctionConfig.Spec.Build.Image
 	}
 
-	return imageName
+	return imageName, nil
 }
 
 func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (string, error) {
@@ -471,6 +596,11 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 		moduleFileName = fmt.Sprintf("%s.%s", moduleFileName, runtimeExtension)
 	}
 
+	// Since our functions run under UNIX, we need to remove '\r\n' & make it '\n'
+	// That way, while deploying a function from the UI while using Windows,
+	// ...the inserted hidden windows characters (^M) will be removed
+	decodedFunctionSourceCode = common.RemoveWindowsCarriage(decodedFunctionSourceCode)
+
 	sourceFilePath := path.Join(tempDir, moduleFileName)
 
 	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFilePath)
@@ -482,103 +612,103 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 	return sourceFilePath, nil
 }
 
-func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
+func (b *Builder) resolveFunctionPath(functionPath string) (string, string, error) {
 	var err error
+	var inferredCodeEntryType string
 
 	if b.options.FunctionConfig.Spec.Build.FunctionSourceCode != "" {
 
 		// if user gave function as source code rather than a path - write it to a temporary file
 		functionSourceCodeTempPath, err := b.writeFunctionSourceCodeToTempFile(b.options.FunctionConfig.Spec.Build.FunctionSourceCode)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to save function code to temporary file")
+			return "", "", errors.Wrap(err, "Failed to save function code to temporary file")
 		}
 
-		return functionSourceCodeTempPath, nil
+		return functionSourceCodeTempPath, SourceCodeEntryType, nil
 	}
 
+	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
+
 	// function can either be in the path, received inline or an executable via handler
-	if b.options.FunctionConfig.Spec.Build.Path == "" &&
-		b.options.FunctionConfig.Spec.Image == "" {
+	if functionPath == "" &&
+		b.options.FunctionConfig.Spec.Image == "" &&
+		codeEntryType != S3EntryType {
 
 		if b.options.FunctionConfig.Spec.Runtime != "shell" {
-			return "", errors.New("Function path must be provided when specified runtime isn't shell")
-
+			return "", "", errors.New("Function path must be provided when specified runtime isn't shell")
 		}
 
 		// did user give handler to an executable
 		if b.options.FunctionConfig.Spec.Handler == "" {
-			return "", errors.New("If shell runtime is specified, function path or handler name must be provided")
+			return "", "", errors.New("If shell runtime is specified, function path or handler name must be provided")
 		}
 	}
 
-	// if the function path is a URL or type is Github - first download the file
-	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
-
-	// user has to provide valid url when code entry type is github
-	if !common.IsURL(functionPath) && codeEntryType == githubEntryType {
-		return "", errors.New("Must provide valid URL when code entry type is github or archive")
+	// user has to provide valid url when code entry type is github or archive
+	isURL := common.IsURL(functionPath)
+	if !isURL && (codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) {
+		return "", "", errors.New("Must provide valid URL when code entry type is github or archive")
 	}
 
+	// if the function path is a URL, type is Github or S3 - first download the file
 	// for backwards compatibility, don't check for entry type url specifically
-	if common.IsURL(functionPath) {
-		if codeEntryType == githubEntryType {
-			functionPath, err = b.getFunctionPathFromGithubURL(functionPath)
-			if err != nil {
-				return "", errors.Wrapf(err, "Failed to infer function path of github entry type")
-			}
-		}
-
-		tempDir, err := b.mkDirUnderTemp("download")
-		if err != nil {
-			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
-		}
-
-		tempFileName := path.Join(tempDir, path.Base(functionPath))
-		userDefinedHeaders, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["headers"]
-		headers := http.Header{}
-
-		if found {
-
-			// guaranteed a map with key of type string, the values need to be checked for correctness
-			for key, value := range userDefinedHeaders.(map[string]interface{}) {
-				stringValue, ok := value.(string)
-				if !ok {
-					return "", errors.New("Failed to convert header value to string")
-				}
-				headers.Set(key, stringValue)
-			}
-		}
-
-		b.logger.DebugWith("Downloading function",
-			"url", functionPath,
-			"target", tempFileName,
-			"headers", headers)
-
-		if err = common.DownloadFile(functionPath, tempFileName, headers); err != nil {
-			return "", err
-		}
-
-		functionPath = tempFileName
+	if functionPath, err = b.resolveFunctionPathFromURL(functionPath, codeEntryType); err != nil {
+		return "", "", errors.Wrap(err, "Failed to download function from the given URL")
 	}
 
 	// Assume it's a local path
 	resolvedPath, err := filepath.Abs(filepath.Clean(functionPath))
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to get resolve non-url path")
+		return "", "", errors.Wrap(err, "Failed to resolve function path")
 	}
 
 	if !common.FileExists(resolvedPath) {
-		return "", fmt.Errorf("Function path doesn't exist: %s", resolvedPath)
+		return "", "", errors.Errorf("Function path doesn't exist: %s", resolvedPath)
+	}
+
+	// when no code entry type was passed and it's an archive or jar
+	if codeEntryType == "" && (util.IsCompressed(resolvedPath) || util.IsJar(resolvedPath) || common.IsDir(resolvedPath)) {
+
+		// if it's a URL, set it as an archive code entry type, otherwise save the built image so it'll be possible to redeploy
+		if isURL {
+			inferredCodeEntryType = ArchiveEntryType
+		} else {
+			inferredCodeEntryType = ImageEntryType
+		}
 	}
 
 	if util.IsCompressed(resolvedPath) {
 		resolvedPath, err = b.decompressFunctionArchive(resolvedPath)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to decompress function archive")
+			return "", "", errors.Wrap(err, "Failed to decompress function archive")
 		}
 	}
 
-	return resolvedPath, nil
+	return resolvedPath, inferredCodeEntryType, nil
+}
+
+func (b *Builder) validateAndParseS3Attributes(attributes map[string]interface{}) (map[string]string, error) {
+	parsedAttributes := map[string]string{}
+
+	mandatoryFields := []string{"s3Bucket", "s3ItemKey"}
+	optionalFields := []string{"s3Region", "s3AccessKeyId", "s3SecretAccessKey", "s3SessionToken"}
+
+	for _, key := range append(mandatoryFields, optionalFields...) {
+		value, found := attributes[key]
+		if !found {
+			if common.StringInSlice(key, mandatoryFields) {
+				return nil, errors.Errorf("Mandatory field - '%s' not given", key)
+			}
+			continue
+		}
+		valueAsString, ok := value.(string)
+		if !ok {
+			return nil, errors.Errorf("The given field - '%s' is not of type string", key)
+		}
+		parsedAttributes[key] = valueAsString
+	}
+
+	return parsedAttributes, nil
 }
 
 func (b *Builder) getFunctionPathFromGithubURL(functionPath string) (string, error) {
@@ -611,7 +741,7 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 	}
 
 	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
-	if codeEntryType == githubEntryType {
+	if codeEntryType == GithubEntryType {
 		decompressDir, err = b.resolveGithubArchiveWorkDir(decompressDir)
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to get decompressed directory of entry type github")
@@ -640,17 +770,19 @@ func (b *Builder) resolveGithubArchiveWorkDir(decompressDir string) (string, err
 }
 
 func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (string, error) {
-	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
 	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
 
-	if (codeEntryType == archiveEntryType || codeEntryType == githubEntryType) && found {
+	if found {
 		userSpecifiedWorkDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
 		if !ok {
-			return "", errors.New("If code entry type is (archive or github) and workDir is provided, " +
-				"workDir expected to be string")
+			return "", nuclio.NewErrBadRequest(string(common.WorkDirectoryExpectedBeString))
 		}
 		decompressDir = filepath.Join(decompressDir, userSpecifiedWorkDirectory)
+		if !common.FileExists(decompressDir) {
+			return "", nuclio.NewErrBadRequest(string(common.WorkDirectoryDoesNotExist))
+		}
 	}
+
 	return decompressDir, nil
 }
 
@@ -667,7 +799,7 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 
 	functionConfigFile, err := os.Open(functionConfigPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to open function configuraition file: %q", functionConfigFile.Name())
+		return errors.Wrapf(err, "Failed to open function configuration file: %s", functionConfigPath)
 	}
 
 	defer functionConfigFile.Close() // nolint: errcheck
@@ -690,7 +822,6 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 
 func (b *Builder) createRuntime() (runtime.Runtime, error) {
 	runtimeName, err := b.getRuntimeName()
-
 	if err != nil {
 		return nil, err
 	}
@@ -703,6 +834,7 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 
 	// create a runtime instance
 	runtimeInstance, err := runtimeFactory.(runtime.Factory).Create(b.logger,
+		b.platform.GetContainerBuilderKind(),
 		b.stagingDir,
 		&b.options.FunctionConfig)
 
@@ -722,7 +854,7 @@ func (b *Builder) getRuntimeName() (string, error) {
 
 		// if the function path is a directory, runtime must be specified in the command-line arguments or configuration
 		if common.IsDir(b.options.FunctionConfig.Spec.Build.Path) {
-			if common.FileExists(path.Join(b.options.FunctionConfig.Spec.Build.Path, functionConfigFileName)) {
+			if common.FileExists(path.Join(b.options.FunctionConfig.Spec.Build.Path, FunctionConfigFileName)) {
 				return "", errors.New("Build path is directory - function.yaml must specify runtime")
 			}
 
@@ -783,9 +915,17 @@ func (b *Builder) prepareStagingDir() error {
 
 	handlerDirInStaging := b.getHandlerDir(b.stagingDir)
 
-	// make sure the handler stagind dir exists
-	if err := os.MkdirAll(handlerDirInStaging, 0755); err != nil {
-		return errors.Wrapf(err, "Failed to create handler path in staging @ %s", handlerDirInStaging)
+	handlerSubPath := b.getHandlerSubPath()
+
+	// make sure the handler staging dir exists
+	handlerDirIncludingSubPath := path.Join(handlerDirInStaging, handlerSubPath)
+	if err := os.MkdirAll(handlerDirIncludingSubPath, 0755); err != nil {
+		return errors.Wrapf(err, "Failed to create handler path in staging @ %s", handlerDirIncludingSubPath)
+	}
+
+	// copy any objects the runtime needs into staging
+	if err := b.copyHandlerToStagingDir(handlerSubPath); err != nil {
+		return errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
 	// first, tell the specific runtime to do its thing
@@ -793,28 +933,35 @@ func (b *Builder) prepareStagingDir() error {
 		return errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
-	// copy any objects the runtime needs into staging
-	if err := b.copyHandlerToStagingDir(); err != nil {
-		return errors.Wrap(err, "Failed to prepare staging dir")
-	}
-
 	return nil
 }
 
-func (b *Builder) copyHandlerToStagingDir() error {
+func (b *Builder) getHandlerSubPath() string {
+
+	// when it is a java function, and it is not structured as a java project - apply java project structure
+	if b.runtime.GetName() == "java" && !common.IsJavaProjectDir(b.options.FunctionConfig.Spec.Build.Path) {
+		return path.Join("src", "main", "java")
+	}
+
+	return ""
+}
+
+func (b *Builder) copyHandlerToStagingDir(handlerSubPath string) error {
 	handlerDirObjectPaths := b.runtime.GetHandlerDirObjectPaths()
 	handlerDirInStaging := b.getHandlerDir(b.stagingDir)
+	handlerDirIncludingSubpath := path.Join(handlerDirInStaging, handlerSubPath)
 
 	b.logger.DebugWith("Runtime provided handler objects to staging dir",
 		"handlerDirObjectPaths", handlerDirObjectPaths,
-		"handlerDirInStaging", handlerDirInStaging)
+		"handlerDirInStaging", handlerDirInStaging,
+		"handlerDirIncludingSubpath", handlerDirIncludingSubpath)
 
 	// copy the files - ignore where we need to copy this in the image, this'll be done later. right now
 	// we just want to copy the file from wherever it is to the staging dir root
 	for _, handlerDirObjectPath := range handlerDirObjectPaths {
 
 		// copy the object (TODO: most likely will need to better support dirs)
-		if err := util.CopyTo(handlerDirObjectPath, handlerDirInStaging); err != nil {
+		if err := util.CopyTo(handlerDirObjectPath, handlerDirIncludingSubpath); err != nil {
 			return errors.Wrap(err, "Failed to copy handler object")
 		}
 	}
@@ -855,12 +1002,23 @@ func (b *Builder) cleanupTempDir() error {
 }
 
 func (b *Builder) buildProcessorImage() (string, error) {
-	buildArgs, err := b.getBuildArgs()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get build args")
+	buildArgs := b.getBuildArgs()
+
+	// Use dedicated base and onbuild image registries (pull registry) if defined
+	// - An empty baseImageRegistry will result in base images being pulled from the web, each base image according
+	// to it's fully qualified image name (different for each runtime)
+	// - An empty onbuildImageRegistry will result in onbuild images looked for in quay.io
+	baseImageRegistry := b.options.FunctionConfig.Spec.Build.BaseImageRegistry
+	if baseImageRegistry == "" {
+		baseImageRegistry = b.platform.GetBaseImageRegistry(b.options.FunctionConfig.Spec.Build.Registry)
 	}
 
-	processorDockerfilePathInStaging, err := b.createProcessorDockerfile()
+	onbuildImageRegistry := b.options.FunctionConfig.Spec.Build.BaseImageRegistry
+	if onbuildImageRegistry == "" {
+		onbuildImageRegistry = b.platform.GetOnbuildImageRegistry(b.options.FunctionConfig.Spec.Build.Registry)
+	}
+
+	processorDockerfileInfo, err := b.createProcessorDockerfile(baseImageRegistry, onbuildImageRegistry)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}
@@ -869,39 +1027,46 @@ func (b *Builder) buildProcessorImage() (string, error) {
 
 	b.logger.InfoWith("Building processor image", "imageName", imageName)
 
-	err = b.dockerClient.Build(&dockerclient.BuildOptions{
-		ContextDir:     b.stagingDir,
-		Image:          imageName,
-		DockerfilePath: processorDockerfilePathInStaging,
-		NoCache:        b.options.FunctionConfig.Spec.Build.NoCache,
-		BuildArgs:      buildArgs,
+	err = b.platform.BuildAndPushContainerImage(&containerimagebuilderpusher.BuildOptions{
+		ContextDir:          b.stagingDir,
+		Image:               imageName,
+		TempDir:             b.tempDir,
+		DockerfileInfo:      processorDockerfileInfo,
+		NoCache:             b.options.FunctionConfig.Spec.Build.NoCache,
+		NoBaseImagePull:     b.GetNoBaseImagePull(),
+		BuildArgs:           buildArgs,
+		RegistryURL:         b.options.FunctionConfig.Spec.Build.Registry,
+		SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
+		OutputImageFile:     b.options.OutputImageFile,
+		BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
 	})
 
 	return imageName, err
 }
 
-func (b *Builder) createProcessorDockerfile() (string, error) {
+func (b *Builder) createProcessorDockerfile(baseImageRegistry string, onbuildImageRegistry string) (
+	*runtime.ProcessorDockerfileInfo, error) {
 
 	// get the contents of the processor dockerfile from the runtime
-	processorDockerfileContents, err := b.getRuntimeProcessorDockerfileContents()
+	processorDockerfileInfo, err := b.getRuntimeProcessorDockerfileInfo(baseImageRegistry, onbuildImageRegistry)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to get Dockerfile contents")
+		return nil, errors.Wrap(err, "Failed to get Dockerfile contents")
 	}
-
-	// generated dockerfile should reside in staging
-	processorDockerfilePathInStaging := filepath.Join(b.stagingDir, "Dockerfile.processor")
 
 	// log the resulting dockerfile
-	b.logger.DebugWith("Created processor Dockerfile", "contents", processorDockerfileContents)
+	b.logger.DebugWith("Created processor Dockerfile",
+		"dockerfileInfo", processorDockerfileInfo.DockerfileContents,
+		"baseImageRegistry", baseImageRegistry,
+		"onbuildImageRegistry", onbuildImageRegistry)
 
 	// write the contents to the path
-	if err := ioutil.WriteFile(processorDockerfilePathInStaging,
-		[]byte(processorDockerfileContents),
+	if err := ioutil.WriteFile(processorDockerfileInfo.DockerfilePath,
+		[]byte(processorDockerfileInfo.DockerfileContents),
 		0644); err != nil {
-		return "", errors.Wrap(err, "Failed to write processor Dockerfile")
+		return nil, errors.Wrap(err, "Failed to write processor Dockerfile")
 	}
 
-	return processorDockerfilePathInStaging, nil
+	return processorDockerfileInfo, nil
 }
 
 // this will parse the source file looking for @nuclio.configure blocks. It will then generate these files
@@ -954,20 +1119,12 @@ func (b *Builder) createTempFileFromYAML(fileName string, unmarshalledYAMLConten
 	return tempFileName, nil
 }
 
-func (b *Builder) pushProcessorImage(processorImage string) error {
-	if b.options.FunctionConfig.Spec.Build.Registry != "" {
-		return b.dockerClient.PushImage(processorImage, b.options.FunctionConfig.Spec.Build.Registry)
-	}
-
-	return nil
-}
-
 func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, error) {
 
 	// try to read the file extension
 	functionFileExtension := filepath.Ext(functionPath)
 	if functionFileExtension == "" {
-		return "", fmt.Errorf("Filepath %s has no extension", functionPath)
+		return "", errors.Errorf("Filepath %s has no extension", functionPath)
 	}
 
 	// Remove the final period
@@ -991,7 +1148,7 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 	}
 
 	if candidateRuntimeName == "" {
-		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
+		return "", errors.Errorf("Unsupported file extension: %s", functionFileExtension)
 	}
 
 	return candidateRuntimeName, nil
@@ -1000,7 +1157,7 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 func (b *Builder) getRuntimeFileExtensionByName(runtimeName string) (string, error) {
 	runtimeInfo, found := b.runtimeInfo[runtimeName]
 	if !found {
-		return "", fmt.Errorf("Unsupported runtime name: %s", runtimeName)
+		return "", errors.Errorf("Unsupported runtime name: %s", runtimeName)
 	}
 
 	return runtimeInfo.extension, nil
@@ -1009,7 +1166,7 @@ func (b *Builder) getRuntimeFileExtensionByName(runtimeName string) (string, err
 func (b *Builder) getRuntimeCommentParser(logger logger.Logger, runtimeName string) (inlineparser.ConfigParser, error) {
 	runtimeInfo, found := b.runtimeInfo[runtimeName]
 	if !found {
-		return nil, fmt.Errorf("Unsupported runtime name: %s", runtimeName)
+		return nil, errors.Errorf("Unsupported runtime name: %s", runtimeName)
 	}
 
 	return runtimeInfo.inlineParser, nil
@@ -1019,21 +1176,13 @@ func (b *Builder) getHandlerDir(stagingDir string) string {
 	return path.Join(stagingDir, "handler")
 }
 
-func (b *Builder) getRuntimeProcessorDockerfileContents() (string, error) {
+func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, onbuildImageRegistry string) (
+	*runtime.ProcessorDockerfileInfo, error) {
 
 	// gather the processor dockerfile info
-	processorDockerfileInfo, err := b.getProcessorDockerfileInfo()
+	processorDockerfileInfo, err := b.resolveProcessorDockerfileInfo(baseImageRegistry, onbuildImageRegistry)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to get processor Dockerfile info")
-	}
-
-	// gather artifacts
-	artifactDirNameInStaging := "artifacts"
-	artifactsDir := path.Join(b.stagingDir, artifactDirNameInStaging)
-
-	err = b.gatherArtifactsForSingleStageDockerfile(artifactsDir, processorDockerfileInfo)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to gather artifacts for single stage Dockerfile")
+		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
 
 	// get directives
@@ -1044,71 +1193,112 @@ func (b *Builder) getRuntimeProcessorDockerfileContents() (string, error) {
 		directives, err = b.commandsToDirectives(b.options.FunctionConfig.Spec.Build.Commands)
 
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to convert commands to directives")
+			return nil, errors.Wrap(err, "Failed to convert commands to directives")
 		}
 	}
 
 	// merge directives passed by user with directives passed by runtime
 	directives = b.mergeDirectives(directives, processorDockerfileInfo.Directives)
 
-	// generate single stage dockerfile contents
-	return b.generateSingleStageDockerfileContents(artifactDirNameInStaging,
-		processorDockerfileInfo.BaseImage,
-		processorDockerfileInfo.OnbuildArtifactPaths,
+	// path where generated dockerfile should reside (staging)
+	processorDockerfileInfo.DockerfilePath = filepath.Join(b.stagingDir, "Dockerfile.processor")
+
+	// generate dockerfile contents
+	processorDockerfileInfo.DockerfileContents, err = b.GenerateDockerfileContents(processorDockerfileInfo.BaseImage,
+		processorDockerfileInfo.OnbuildArtifacts,
 		processorDockerfileInfo.ImageArtifactPaths,
 		directives,
 		b.platform.GetHealthCheckMode() == platform.HealthCheckModeInternalClient)
-}
 
-func (b *Builder) getProcessorDockerfileInfo() (*runtime.ProcessorDockerfileInfo, error) {
-	versionInfo, err := version.Get()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get version info")
+		return nil, errors.Wrap(err, "Failed to generate docker file content")
 	}
 
+	return processorDockerfileInfo, nil
+}
+
+func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
+	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+
 	// get defaults from the runtime
-	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(versionInfo)
+	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(onbuildImageRegistry)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{
-		OnbuildArtifactPaths: runtimeProcessorDockerfileInfo.OnbuildArtifactPaths,
-		ImageArtifactPaths:   runtimeProcessorDockerfileInfo.ImageArtifactPaths,
-		Directives:           runtimeProcessorDockerfileInfo.Directives,
+		OnbuildArtifacts:   runtimeProcessorDockerfileInfo.OnbuildArtifacts,
+		ImageArtifactPaths: runtimeProcessorDockerfileInfo.ImageArtifactPaths,
+		Directives:         runtimeProcessorDockerfileInfo.Directives,
 	}
 
 	// set the base image
-	processorDockerfileInfo.BaseImage = b.getProcessorDockerfileBaseImage(runtimeProcessorDockerfileInfo.BaseImage)
-
-	// set the onbuild image
-	processorDockerfileInfo.OnbuildImage, err = b.getProcessorDockerfileOnbuildImage(versionInfo,
-		runtimeProcessorDockerfileInfo.OnbuildImage)
-
+	processorDockerfileInfo.BaseImage = b.getProcessorDockerfileBaseImage(runtimeProcessorDockerfileInfo.BaseImage,
+		baseImageRegistry)
+	processorDockerfileInfo.BaseImage, err = b.renderDependantImageURL(processorDockerfileInfo.BaseImage,
+		b.options.DependantImagesRegistryURL)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get onbuild image")
+		return nil, errors.Wrap(err, "Failed to render base image")
+	}
+
+	// set the onbuild images
+	for idx, onbuildArtifact := range processorDockerfileInfo.OnbuildArtifacts {
+		onbuildArtifact.Image, err = b.getProcessorDockerfileOnbuildImage(
+			runtimeProcessorDockerfileInfo.OnbuildArtifacts[idx].Image)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get onbuild image")
+		}
+
+		processorDockerfileInfo.OnbuildArtifacts[idx].Image, err = b.renderDependantImageURL(onbuildArtifact.Image,
+			b.options.DependantImagesRegistryURL)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to render onbuild image")
+		}
+	}
+
+	// if the platform requires an internal healthcheck client - add health check artifact
+	if b.platform.GetHealthCheckMode() == platform.HealthCheckModeInternalClient {
+		artifact := runtime.Artifact{
+			Name:          "uhttpc",
+			Image:         uhttpcImage,
+			ExternalImage: true,
+			Paths: map[string]string{
+				"/home/nuclio/bin/uhttpc": "/usr/local/bin/uhttpc",
+			},
+		}
+
+		processorDockerfileInfo.OnbuildArtifacts = append(processorDockerfileInfo.OnbuildArtifacts, artifact)
 	}
 
 	return &processorDockerfileInfo, nil
 }
 
-func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string) string {
+func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string, baseImageRegistry string) string {
 
 	// override base image, if required
 	switch b.options.FunctionConfig.Spec.Build.BaseImage {
 
 	// if user didn't pass anything, use default as specified in Dockerfile
 	case "":
-		return runtimeDefaultBaseImage
+		if baseImageRegistry == "" {
+			return runtimeDefaultBaseImage
+		}
 
-	// if user specified something - use that
+		// if a non empty baseImageRegistry was passed, use it as a registry prefix for the default base image
+		sepIndex := strings.Index(runtimeDefaultBaseImage, "/")
+		if sepIndex != -1 {
+			runtimeDefaultBaseImage = runtimeDefaultBaseImage[sepIndex+1:]
+		}
+		return strings.Join([]string{baseImageRegistry, runtimeDefaultBaseImage}, "/")
+
+	// if user specified something - use that, as is
+	// see description on https://github.com/nuclio/nuclio/pull/1544 - we don't implicitly mutate the given baseimage
 	default:
 		return b.options.FunctionConfig.Spec.Build.BaseImage
 	}
 }
 
-func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
-	runtimeDefaultOnbuildImage string) (string, error) {
+func (b *Builder) getProcessorDockerfileOnbuildImage(runtimeDefaultOnbuildImage string) (string, error) {
 
 	// if the user supplied an onbuild image, format it with the appropriate tag,
 	if b.options.FunctionConfig.Spec.Build.OnbuildImage != "" {
@@ -1119,8 +1309,8 @@ func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
 
 		var onbuildImageTemplateBuffer bytes.Buffer
 		err = onbuildImageTemplate.Execute(&onbuildImageTemplateBuffer, &map[string]interface{}{
-			"Label": versionInfo.Label,
-			"Arch":  versionInfo.Arch,
+			"Label": b.versionInfo.Label,
+			"Arch":  b.versionInfo.Arch,
 		})
 
 		if err != nil {
@@ -1139,162 +1329,7 @@ func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
 	return runtimeDefaultOnbuildImage, nil
 }
 
-func (b *Builder) generateSingleStageDockerfileContents(artifactDirNameInStaging string,
-	baseImage string,
-	onbuildArtifactPaths map[string]string,
-	imageArtifactPaths map[string]string,
-	directives map[string][]functionconfig.Directive,
-	healthCheckRequired bool) (string, error) {
-
-	// now that all artifacts are in the artifacts directory, we can craft a single stage Dockerfile
-	dockerfileTemplateContents := `# From the base image
-FROM {{ .BaseImage }}
-
-# Old(er) Docker support - must use all build args
-ARG NUCLIO_LABEL
-ARG NUCLIO_ARCH
-ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
-
-{{ if .PreCopyDirectives }}
-# Run the pre-copy directives
-{{ range $directive := .PreCopyDirectives }}
-{{ $directive.Kind }} {{ $directive.Value }}
-{{ end }}
-{{ end }}
-
-{{ if .HealthcheckRequired }}
-# Copy health checker
-COPY artifacts/uhttpc /usr/local/bin/uhttpc
-
-# Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
-{{ end }}
-
-# Copy required objects from the suppliers
-{{ range $localArtifactPath, $imageArtifactPath := .OnbuildArtifactPaths }}
-COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
-{{ end }}
-
-{{ range $localArtifactPath, $imageArtifactPath := .ImageArtifactPaths }}
-COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
-{{ end }}
-
-# Run the post-copy directives
-{{ range $directive := .PostCopyDirectives }}
-{{ $directive.Kind }} {{ $directive.Value }}
-{{ end }}
-
-# Run processor with configuration and platform configuration
-CMD [ "processor" ]
-`
-
-	// maps between a _relative_ path in staging to the path in the image
-	relativeOnbuildArtifactPaths := map[string]string{}
-	for localArtifactPath, imageArtifactPath := range onbuildArtifactPaths {
-		relativeArtifactPathInStaging := path.Join(artifactDirNameInStaging, path.Base(localArtifactPath))
-
-		relativeOnbuildArtifactPaths[relativeArtifactPathInStaging] = imageArtifactPath
-	}
-
-	dockerfileTemplate, err := template.New("singleStageDockerfile").
-		Parse(dockerfileTemplateContents)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to create onbuildImage template")
-	}
-
-	var dockerfileTemplateBuffer bytes.Buffer
-	err = dockerfileTemplate.Execute(&dockerfileTemplateBuffer, &map[string]interface{}{
-		"BaseImage":            baseImage,
-		"OnbuildArtifactPaths": relativeOnbuildArtifactPaths,
-		"ImageArtifactPaths":   imageArtifactPaths,
-		"PreCopyDirectives":    directives["preCopy"],
-		"PostCopyDirectives":   directives["postCopy"],
-		"HealthcheckRequired":  healthCheckRequired,
-	})
-
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to run template")
-	}
-
-	dockerfileContents := dockerfileTemplateBuffer.String()
-
-	return dockerfileContents, nil
-}
-
-func (b *Builder) gatherArtifactsForSingleStageDockerfile(artifactsDir string,
-	processorDockerfileInfo *runtime.ProcessorDockerfileInfo) error {
-	buildArgs, err := b.getBuildArgs()
-	if err != nil {
-		return errors.Wrap(err, "Failed to get build args")
-	}
-
-	// create an artifacts directory to which we'll copy all of our stuff
-	if err = os.MkdirAll(artifactsDir, 0755); err != nil {
-		return errors.Wrap(err, "Failed to create artifacts directory")
-	}
-
-	// only pull uhttpc if the platform requires an internal healthcheck client
-	if b.platform.GetHealthCheckMode() == platform.HealthCheckModeInternalClient {
-		if err = b.ensureImagesExist([]string{uhttpcImage}); err != nil {
-			return errors.Wrap(err, "Failed to ensure uhttpc image exists")
-		}
-
-		// to support single stage, we need to extract uhttpc and onbuild artifacts ourselves. this means
-		// running a container from a certain image and then extracting artifacts
-		err = b.dockerClient.CopyObjectsFromImage(uhttpcImage, map[string]string{
-			"/home/nuclio/bin/uhttpc": path.Join(b.stagingDir, "artifacts", "uhttpc"),
-		}, false)
-
-		if err != nil {
-			return errors.Wrap(err, "Failed to copy objects from uhttpc")
-		}
-	}
-
-	// to facilitate good ux, pull images that we're going to need (and log it) before copying
-	// objects from them. this also prevents docker spewing out errors about an image not existing
-	if err = b.ensureImagesExist([]string{processorDockerfileInfo.OnbuildImage}); err != nil {
-		return errors.Wrap(err, "Failed to ensure required images exist")
-	}
-
-	// maps between a path in the onbuild image to a local path in artifacts
-	onbuildArtifactPaths := map[string]string{}
-	for onbuildArtifactPath := range processorDockerfileInfo.OnbuildArtifactPaths {
-		onbuildArtifactPaths[onbuildArtifactPath] = path.Join(artifactsDir, path.Base(onbuildArtifactPath))
-	}
-
-	// build an image to trigger the onbuild stuff. then extract the artifacts
-	err = b.buildFromAndCopyObjectsFromContainer(processorDockerfileInfo.OnbuildImage,
-		onbuildArtifactPaths,
-		buildArgs)
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to copy objects from onbuild")
-	}
-
-	return nil
-}
-
-func (b *Builder) ensureImagesExist(images []string) error {
-	if b.GetNoBaseImagePull() {
-		b.logger.Debug("Skipping base images pull")
-		return nil
-	}
-
-	for _, image := range images {
-		if err := b.dockerClient.PullImage(image); err != nil {
-			return errors.Wrap(err, "Failed to pull image")
-		}
-	}
-
-	return nil
-}
-
-func (b *Builder) getBuildArgs() (map[string]string, error) {
-	versionInfo, err := version.Get()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get version info")
-	}
-
+func (b *Builder) getBuildArgs() map[string]string {
 	buildArgs := map[string]string{}
 
 	if b.options.FunctionConfig.Spec.Build.Offline {
@@ -1302,53 +1337,13 @@ func (b *Builder) getBuildArgs() (map[string]string, error) {
 	}
 
 	// set tag / arch
-	buildArgs["NUCLIO_LABEL"] = versionInfo.Label
-	buildArgs["NUCLIO_ARCH"] = versionInfo.Arch
+	buildArgs["NUCLIO_LABEL"] = b.versionInfo.Label
+	buildArgs["NUCLIO_ARCH"] = b.versionInfo.Arch
 
 	// set handler dir
 	buildArgs["NUCLIO_BUILD_LOCAL_HANDLER_DIR"] = "handler"
 
-	return buildArgs, nil
-}
-
-func (b *Builder) buildFromAndCopyObjectsFromContainer(onbuildImage string,
-	artifactPaths map[string]string,
-	buildArgs map[string]string) error {
-
-	dockerfilePath := path.Join(b.stagingDir, "Dockerfile.onbuild")
-
-	onbuildDockerfileContents := fmt.Sprintf(`FROM %s
-ARG NUCLIO_LABEL
-ARG NUCLIO_ARCH
-`, onbuildImage)
-
-	// generate a simple Dockerfile from the onbuild image
-	err := ioutil.WriteFile(dockerfilePath, []byte(onbuildDockerfileContents), 0644)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to write onbuild Dockerfile to %s", dockerfilePath)
-	}
-
-	// log
-	b.logger.DebugWith("Generated onbuild Dockerfile", "contents", onbuildDockerfileContents)
-
-	// generate an image name
-	onbuildImageName := fmt.Sprintf("nuclio-onbuild-%s", xid.New().String())
-
-	// trigger a build
-	err = b.dockerClient.Build(&dockerclient.BuildOptions{
-		Image:          onbuildImageName,
-		ContextDir:     b.stagingDir,
-		BuildArgs:      buildArgs,
-		DockerfilePath: dockerfilePath,
-	})
-	if err != nil {
-		return errors.Wrap(err, "Failed to build onbuild image")
-	}
-
-	defer b.dockerClient.RemoveImage(onbuildImageName) // nolint: errcheck
-
-	// now that we have an image, we can copy the artifacts from it
-	return b.dockerClient.CopyObjectsFromImage(onbuildImageName, artifactPaths, false)
+	return buildArgs
 }
 
 func (b *Builder) commandsToDirectives(commands []string) (map[string][]functionconfig.Directive, error) {
@@ -1363,16 +1358,52 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 	currentDirective := "preCopy"
 
 	// iterate over commands
-	for _, command := range commands {
-		if strings.TrimSpace(command) == "@nuclio.postCopy" {
-			currentDirective = "postCopy"
+	for i := 0; i < len(commands); i++ {
+		command := commands[i]
+
+		// check if the last character is backslash. if so treat this and the next command as one multi-line command
+		// example: commands = []{"echo 1\", "2\", "3"} -> "RUN echo 123"
+		aggregatedCommand := ""
+		for {
+
+			if strings.TrimSpace(command) == "@nuclio.postCopy" {
+				currentDirective = "postCopy"
+				break
+
+			} else if len(command) != 0 && command[len(command)-1] == '\\' {
+				// gets here when the current command ends with backslash - concatenate the next command to it
+
+				// remove backslash
+				command = command[:len(command)-1]
+
+				aggregatedCommand += command
+
+				// exit the loop if we've processed all the commands
+				if len(commands) <= i+1 {
+					break
+				}
+
+				// check if the next command is continuing the multi-line
+				i++
+				command = commands[i]
+
+			} else {
+				// gets here when the current command is not continuing a multi-line
+
+				aggregatedCommand += command
+				break
+			}
+		}
+
+		// may be true when @nuclio.postCopy is given
+		if aggregatedCommand == "" {
 			continue
 		}
 
 		// add to proper directive. support only RUN
 		directives[currentDirective] = append(directives[currentDirective], functionconfig.Directive{
 			Kind:  "RUN",
-			Value: command,
+			Value: aggregatedCommand,
 		})
 	}
 
@@ -1421,4 +1452,203 @@ func (b *Builder) getSourceCodeFromFilePath() (string, error) {
 	}
 
 	return string(functionContents), nil
+}
+
+// replaces the registry url if applicable. e.g. quay.io/nuclio/some-image:0.0.1 -> 10.0.0.1:2000/some-image:0.0.1
+func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegistryURL string) (string, error) {
+	if dependantImagesRegistryURL == "" {
+		return imageURL, nil
+	}
+
+	// be tolerant of trailing slash in dependantImagesRegistryURL
+	dependantImagesRegistryURL = strings.TrimSuffix(dependantImagesRegistryURL, "/")
+
+	// take the image part of the url
+	splitImageURL := strings.Split(imageURL, "/")
+	imageNameAndTag := splitImageURL[len(splitImageURL)-1]
+
+	renderedImageURL := dependantImagesRegistryURL + "/" + imageNameAndTag
+
+	b.logger.DebugWith("Rendering dependant image URL",
+		"imageURL", imageURL,
+		"dependantImagesRegistryURL", dependantImagesRegistryURL,
+		"renderedImageURL", renderedImageURL)
+
+	return renderedImageURL, nil
+}
+
+func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType string) (string, error) {
+	var err error
+
+	if common.IsURL(functionPath) || codeEntryType == S3EntryType {
+		if codeEntryType == GithubEntryType {
+			functionPath, err = b.getFunctionPathFromGithubURL(functionPath)
+			if err != nil {
+				return "", errors.Wrapf(err, "Failed to infer function path of github entry type")
+			}
+		}
+
+		isArchive := codeEntryType == S3EntryType ||
+			codeEntryType == GithubEntryType ||
+			codeEntryType == ArchiveEntryType
+
+		// jar is an exception - we want it to remain compressed, as our java runtime processor expects to get it
+		isArchive = isArchive && !util.IsJar(functionPath)
+
+		tempDir, err := b.mkDirUnderTemp("download")
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
+		}
+
+		tempFile, err := b.getFunctionTempFile(tempDir, functionPath, isArchive, codeEntryType)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to get function temporary file")
+		}
+
+		b.logger.DebugWith("Created local temporary function file for URL",
+			"path", functionPath,
+			"codeEntryType", codeEntryType,
+			"tempFileName", tempFile.Name())
+
+		switch codeEntryType {
+		case S3EntryType:
+			err = b.downloadFunctionFromS3(tempFile)
+		default:
+			err = b.downloadFunctionFromURL(tempFile, functionPath, codeEntryType)
+		}
+
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to download file")
+		}
+
+		if isArchive && !util.IsCompressed(tempFile.Name()) {
+			return "", errors.New("Downloaded file type is not supported. (expected an archive)")
+		}
+
+		return tempFile.Name(), nil
+	}
+
+	return functionPath, nil
+}
+
+func (b *Builder) getS3FunctionItemKey() (string, error) {
+	s3Attributes, err := b.validateAndParseS3Attributes(b.options.FunctionConfig.Spec.Build.CodeEntryAttributes)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to parse and validate s3 code entry attributes")
+	}
+
+	return s3Attributes["s3ItemKey"], nil
+}
+
+func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {
+	s3Attributes, err := b.validateAndParseS3Attributes(b.options.FunctionConfig.Spec.Build.CodeEntryAttributes)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse and validate s3 code entry attributes")
+	}
+
+	err = b.s3Client.Download(tempFile,
+		s3Attributes["s3Bucket"],
+		s3Attributes["s3ItemKey"],
+		s3Attributes["s3Region"],
+		s3Attributes["s3AccessKeyId"],
+		s3Attributes["s3SecretAccessKey"],
+		s3Attributes["s3SessionToken"])
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to download the function archive from s3")
+	}
+
+	return nil
+}
+
+func (b *Builder) downloadFunctionFromURL(tempFile *os.File,
+	functionPath string,
+	codeEntryType string) error {
+	userDefinedHeaders, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["headers"]
+	headers := http.Header{}
+
+	if found {
+
+		// guaranteed a map with key of type string, the values need to be checked for correctness
+		for key, value := range userDefinedHeaders.(map[string]interface{}) {
+			stringValue, ok := value.(string)
+			if !ok {
+				return errors.New("Failed to convert header value to string")
+			}
+			headers.Set(key, stringValue)
+		}
+	}
+
+	b.logger.DebugWith("Downloading function",
+		"url", functionPath,
+		"target", tempFile.Name(),
+		"headers", headers)
+
+	return common.DownloadFile(functionPath, tempFile, headers)
+}
+
+func (b *Builder) populateFunctionSourceCodeFromFilePath() {
+	functionSourceCode, err := b.getSourceCodeFromFilePath()
+	if err != nil {
+		b.logger.DebugWith("Not populating function source code", "reason", errors.Cause(err))
+	} else {
+
+		// set into source code
+		b.logger.DebugWith("Populating functionSourceCode from file path", "contents", functionSourceCode)
+		b.options.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+	}
+}
+
+func (b *Builder) getFunctionTempFile(tempDir string,
+	functionPath string,
+	isArchive bool,
+	codeEntryType string) (*os.File, error) {
+	var err error
+
+	functionPathBase := path.Base(functionPath)
+
+	// if the codeEntryType of the function is s3 - set its itemKey as the function path
+	// (so the file extension will be parsed correctly)
+	if codeEntryType == S3EntryType {
+		functionPath, err = b.getS3FunctionItemKey()
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get function's s3 item key")
+		}
+	}
+
+	// for archives, use a temporary local file renamed to something short to allow wacky long archive URLs
+	if isArchive || util.IsCompressed(functionPathBase) {
+		var fileExtension string
+
+		// get file archiver by its extension
+		fileArchiver, err := archiver.ByExtension(functionPath)
+		if err != nil {
+
+			// fallback to .zip
+			b.logger.DebugWith("Could not determine file extension, fallback to .zip",
+				"functionPath",
+				functionPath)
+			fileExtension = "zip"
+		} else {
+			fileExtension = fmt.Sprint(fileArchiver)
+		}
+		return ioutil.TempFile(tempDir, fmt.Sprintf("nuclio-function-*.%s", fileExtension))
+	}
+
+	// for non-archives, must retain file name
+	return os.OpenFile(path.Join(tempDir, functionPathBase), os.O_RDWR|os.O_CREATE, 0600)
+}
+
+func (b *Builder) resolveBuildTimeoutSeconds() int64 {
+	if b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds != nil {
+		if *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds > 0 {
+			return *b.options.FunctionConfig.Spec.Build.BuildTimeoutSeconds
+		}
+
+		// no timeout
+		return math.MaxInt64 - time.Now().UnixNano()
+	}
+
+	// default timeout in seconds
+	return 60 * 60
 }

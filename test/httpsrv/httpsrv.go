@@ -22,7 +22,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/errors"
 )
 
 // ServedObject represents an object that will be returned at a given pattern
@@ -80,7 +80,7 @@ func NewServer(addr string,
 		servedObjectCopy := servedObject
 
 		newServeMux.HandleFunc(servedObjectCopy.Pattern, func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte(servedObjectCopy.Contents))
+			w.Write([]byte(servedObjectCopy.Contents)) // nolint: errcheck
 		})
 	}
 

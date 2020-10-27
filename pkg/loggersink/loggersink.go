@@ -17,10 +17,10 @@ limitations under the License.
 package loggersink
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 )
@@ -83,6 +83,10 @@ func createLoggers(name string, loggerSinksWithLevel map[string]platformconfig.L
 		}
 
 	} else {
+		if len(loggers) == 0 {
+			return nil, errors.New("Must configure at least one logger")
+		}
+
 		loggerInstance = loggers[0]
 	}
 

@@ -3,6 +3,7 @@ package inlineparser
 import (
 	"archive/zip"
 	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/nuclio/zap"
@@ -27,7 +28,7 @@ type JarParserTestSuite struct {
 }
 
 func (suite *JarParserTestSuite) createJar() string {
-	tmpFile, err := ioutil.TempFile("", "nucilo-test-jar")
+	tmpFile, err := ioutil.TempFile("", "nuclio-test-jar")
 	suite.Require().NoError(err)
 
 	defer tmpFile.Close()
@@ -49,6 +50,7 @@ func (suite *JarParserTestSuite) TestJarParser() {
 	suite.Require().NoError(err)
 
 	jarPath := suite.createJar()
+	defer os.Remove(jarPath) // nolint: errcheck
 	parser := NewJarParser(logger)
 	config, err := parser.Parse(jarPath)
 	suite.Require().NoError(err)

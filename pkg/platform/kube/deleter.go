@@ -17,12 +17,13 @@ limitations under the License.
 package kube
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/platform"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type deleter struct {
@@ -47,9 +48,18 @@ func (d *deleter) delete(consumer *consumer, deleteFunctionOptions *platform.Del
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}
 
-	// get specific function CR
-	err = consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(deleteFunctionOptions.FunctionConfig.Meta.Namespace).Delete(resourceName, &meta_v1.DeleteOptions{})
+	// get clientset
+	nuclioClientSet, err := consumer.getNuclioClientSet(deleteFunctionOptions.AuthConfig)
 	if err != nil {
+		return errors.Wrap(err, "Failed to get nuclio clientset")
+	}
+
+	// get specific function CR
+	err = nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(deleteFunctionOptions.FunctionConfig.Meta.Namespace).
+		Delete(resourceName, &metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
 		return errors.Wrap(err, "Failed to delete function CR")
 	}
 

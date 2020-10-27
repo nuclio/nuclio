@@ -7,13 +7,16 @@
             controller: FunctionsDataWrapperController
         });
 
-    function FunctionsDataWrapperController(NuclioProjectsDataService, NuclioFunctionsDataService) {
+    function FunctionsDataWrapperController($q, $i18next, i18next, NuclioProjectsDataService,
+                                            NuclioFunctionsDataService) {
         var ctrl = this;
+        var lng = i18next.language;
 
-        ctrl.getExternalIPAddresses = getExternalIPAddresses;
+        ctrl.createFunction = createFunction;
         ctrl.getProject = getProject;
-        ctrl.getFunctions = getFunctions;
         ctrl.getFunction = getFunction;
+        ctrl.getFunctions = getFunctions;
+        ctrl.getStatistics = getStatistics;
         ctrl.deleteFunction = deleteFunction;
         ctrl.updateFunction = updateFunction;
 
@@ -22,11 +25,13 @@
         //
 
         /**
-         * Gets external IP addresses
+         * Deploys version
+         * @param {Object} version
+         * @param {string} projectID
          * @returns {Promise}
          */
-        function getExternalIPAddresses() {
-            return NuclioProjectsDataService.getExternalIPAddresses();
+        function createFunction(version, projectID) {
+            return NuclioFunctionsDataService.createFunction(version, projectID);
         }
 
         /**
@@ -39,6 +44,15 @@
         }
 
         /**
+         * Gets a function
+         * @param {Object} metadata
+         * @returns {Promise}
+         */
+        function getFunction(metadata) {
+            return NuclioFunctionsDataService.getFunction(metadata);
+        }
+
+        /**
          * Gets functions list
          * @param {string} id
          * @returns {Promise}
@@ -48,12 +62,11 @@
         }
 
         /**
-         * Gets a function
-         * @param {Object} metadata
+         * Gets statistics
          * @returns {Promise}
          */
-        function getFunction(metadata) {
-            return NuclioFunctionsDataService.getFunction(metadata);
+        function getStatistics() {
+            return $q.reject({msg: $i18next.t('common:N_A', {lng: lng})});
         }
 
         /**

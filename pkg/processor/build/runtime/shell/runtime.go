@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type shell struct {
@@ -33,19 +32,25 @@ func (s *shell) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (s *shell) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+func (s *shell) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
-	// format the onbuild image
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/processor:%s-%s",
-		versionInfo.Label,
-		versionInfo.Arch)
-
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "alpine:3.7"
-	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/nuclio/bin/processor": "/usr/local/bin/processor",
+	processorDockerfileInfo.BaseImage = "alpine:3.11"
+
+	// fill onbuild artifact
+	artifact := runtime.Artifact{
+		Name: "nuclio-processor",
+		Image: fmt.Sprintf("%s/nuclio/processor:%s-%s",
+			onbuildImageRegistry,
+			s.VersionInfo.Label,
+			s.VersionInfo.Arch),
+		Paths: map[string]string{
+			"/home/nuclio/bin/processor": "/usr/local/bin/processor",
+		},
 	}
+	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",

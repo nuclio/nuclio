@@ -15,6 +15,7 @@
 #
 # Build assets stage: builds the dashboard assets (js, html, css, etc)
 #
+ARG NUCLIO_LABEL
 
 FROM node:8 as build-static
 
@@ -32,19 +33,16 @@ RUN npm install -g gulp \
 #
 # Build binary stage: builds the dashboard binary
 #
+FROM nuclio-base:$NUCLIO_LABEL as build-binary
 
-FROM golang:1.10 as build-binary
-
-# copy source tree
-WORKDIR /go/src/github.com/nuclio/nuclio
-COPY . .
+ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
 # build the dashboard
-RUN go get github.com/v3io/v3io-go-http \
-    && go get github.com/nuclio/logger \
-    && go get github.com/nuclio/nuclio-sdk-go \
-    && go get github.com/nuclio/amqp \
-    && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o dashboard cmd/dashboard/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+    -a \
+    -installsuffix cgo \
+    -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
+    -o dashboard cmd/dashboard/main.go
 
 #
 # Output stage: Creates version file, copies binary and assets to an alpine image
@@ -52,20 +50,23 @@ RUN go get github.com/v3io/v3io-go-http \
 
 FROM nginx:stable-alpine
 
-ARG DOCKER_CLI_VERSION="17.09.0-ce"
+ARG DOCKER_CLI_VERSION="19.03.12"
 
 ENV DOWNLOAD_URL="https://download.docker.com/linux/static/stable/x86_64/docker-$DOCKER_CLI_VERSION.tgz"
 
-RUN apk --update --no-cache add ca-certificates git curl supervisor \
+RUN apk --update --no-cache add ca-certificates git curl parallel \
     && mkdir -p /tmp/download \
     && curl -L $DOWNLOAD_URL | tar -xz -C /tmp/download \
     && mv /tmp/download/docker/docker /usr/local/bin/ \
     && rm -rf /tmp/download \
     && apk del curl
 
-# copy supervisord configuration files
-COPY cmd/dashboard/docker/supervisor.conf /etc/supervisor.conf
-COPY cmd/dashboard/docker/dashboard.sv.conf /etc/supervisor/conf.d/dashboard.conf
+# copy runners
+COPY cmd/dashboard/docker/runners /runners
+COPY cmd/dashboard/docker/runner.sh /runner.sh
+
+# make them executable
+RUN chmod +x /runners/*.sh /runner.sh
 
 # copy nginx config
 COPY cmd/dashboard/docker/nginx.conf /etc/nginx/conf.d/default.conf
@@ -74,10 +75,6 @@ COPY cmd/dashboard/docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build-static /home/nuclio/dashboard/src/dist /etc/nginx/static/
 
 # copy dashboard binary from build binary stage
-COPY --from=build-binary /go/src/github.com/nuclio/nuclio/dashboard /usr/local/bin
+COPY --from=build-binary /nuclio/dashboard /usr/local/bin
 
-# generate a version file
-ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
-RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
-
-CMD ["supervisord", "-c", "/etc/supervisor.conf", "-l", "/etc/supervisor.log", "-j", "/etc/supervisor.pid"]
+CMD ["sh",  "-c", "./runner.sh"]

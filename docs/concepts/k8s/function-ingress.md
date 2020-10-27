@@ -17,14 +17,20 @@ In addition to configuring a service, Nuclio creates a [Kubernetes ingress](http
 
 ## Setting up an ingress controller
 
-In this guide, you'll set up a [Træfik](https://docs.traefik.io/) controller, but any type of Kubernetes ingress controller should work. You can read [Træfik's excellent documentation](https://docs.traefik.io/user-guide/kubernetes/), but for the purposes of this guide you can simply run the following commands to set up the controller:
+In this guide, you'll set up a [Træfik](https://docs.traefik.io/) controller, but any type of Kubernetes ingress controller should work. You can read [Træfik's excellent documentation](https://docs.traefik.io/user-guides/crd-acme/), but for the purposes of this guide you can simply run the following commands to set up the controller by using either of the following alternative methods:
 
-```sh
-kubectl apply -f https://raw.githubusercontent.com/containous/traefik/master/examples/k8s/traefik-rbac.yaml
-kubectl apply -f https://raw.githubusercontent.com/containous/traefik/master/examples/k8s/traefik-deployment.yaml
-```
+- Using `kubectl` to apply the resource YAML files. Note that this installs v1.7, and that the YAML files were removed from newer versions:
+  ```sh
+  kubectl apply -f https://raw.githubusercontent.com/containous/traefik/v1.7/examples/k8s/traefik-rbac.yaml
+  kubectl apply -f https://raw.githubusercontent.com/containous/traefik/v1.7/examples/k8s/traefik-deployment.yaml
+  ```
 
-Verify that the controller is up by running by running the `kubectl --namespace=kube-system get pods` command, and then run the `kubectl describe service --namespace=kube-system traefik-ingress-service` command to get the ingress NodePort. Following is a sample output for NodePort 30019:
+- Using [helm](https://helm.sh/) (provided `helm` is installed):
+  ```sh
+  helm install stable/traefik --name traefik --namespace kube-system
+  ```
+
+Verify that the controller is up by running the `kubectl --namespace=kube-system get pods` command, and then run the `kubectl describe service --namespace=kube-system traefik-ingress-service` command to get the ingress NodePort. Following is a sample output for NodePort 30019:
 
 ```sh
 ...
@@ -37,7 +43,7 @@ TargetPort:               8080/TCP
 ...
 ```
 
-> Note: You must ensure that all your requests are sent to the returned NodePort.
+> **Note:** You must ensure that all your requests are sent to the returned NodePort.
 
 Run the following command to deploy the sample `helloworld` function; (the command assumes the use of Minikube):
 ```sh
@@ -166,7 +172,7 @@ echo "$(minikube ip) my.host.com" | sudo tee -a /etc/hosts
 
 Now, do some invocations with curl. The following examples assume the use of Minikube (except were your configured host is used) and NodePort 30019.
 
-> Note: The parenthesized "works" and error indications at the end of each line signify the expected outcome and are not part of the command.
+> **Note:** The parenthesized "works" and error indications at the end of each line signify the expected outcome and are not part of the command.
 
 ```sh
 curl $(minikube ip):30019/ingress/latest (works)

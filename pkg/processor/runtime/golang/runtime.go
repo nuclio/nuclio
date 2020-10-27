@@ -21,10 +21,10 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/status"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
@@ -35,6 +35,7 @@ type golang struct {
 	entrypoint    entrypoint
 }
 
+// NewRuntime returns a new golang runtime
 func NewRuntime(parentLogger logger.Logger,
 	configuration *runtime.Configuration,
 	handler handler) (runtime.Runtime, error) {

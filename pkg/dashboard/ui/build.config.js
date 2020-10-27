@@ -21,9 +21,14 @@ module.exports = {
             'node_modules/iguazio.dashboard-controls/src/nuclio/**/*.js',
             '!node_modules/iguazio.dashboard-controls/src/nuclio/**/*.spec.js'
         ],
+        vendor: {
+            js: 'node_modules/iguazio.dashboard-controls/src/third-party/**/*.js',
+            less: 'node_modules/iguazio.dashboard-controls/src/third-party/**/*.less'
+        },
         templates: 'node_modules/iguazio.dashboard-controls/src/**/*.html',
         fonts: 'node_modules/iguazio.dashboard-controls/src/igz_controls/fonts/**/*',
         images: 'node_modules/iguazio.dashboard-controls/src/igz_controls/images/*',
+        i18n: 'node_modules/iguazio.dashboard-controls/src/i18n/**/*',
         templates_module_name: 'iguazio.dashboard-controls.templates'
     },
 
@@ -72,6 +77,7 @@ module.exports = {
             'src/images/**/*',
             'node_modules/iguazio.dashboard-controls/dist/images/**/*'
         ],
+        i18n: 'node_modules/iguazio.dashboard-controls/dist/i18n/**/*',
         templates: 'src/app/components/**/*.tpl.html', // html files should be only in components folder
         templates_module_name: 'nuclio.app.templates'
     },
@@ -144,8 +150,13 @@ module.exports = {
             'node_modules/bootstrap/js/dropdown.js',
             'node_modules/lodash/lodash.js',
             'node_modules/ng-dialog/js/ngDialog.js',
-            'node_modules/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.concat.min.js',
-            'node_modules/ng-scrollbars/dist/scrollbars.min.js',
+            'node_modules/i18next/i18next.js',
+            'node_modules/ng-i18next/dist/ng-i18next.js',
+            'node_modules/i18next-xhr-backend/i18nextXHRBackend.js',
+            'node_modules/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.js',
+            'node_modules/i18next-chained-backend/i18nextChainedBackend.js',
+            'node_modules/i18next-localstorage-backend/i18nextLocalStorageBackend.js',
+            'node_modules/iguazio.dashboard-controls/dist/js/vendor.js',
             'node_modules/monaco-editor/min/vs/loader.js',
             'node_modules/ng-file-upload/dist/ng-file-upload.js',
             'node_modules/ng-file-upload/dist/FileAPI.js',
@@ -154,12 +165,12 @@ module.exports = {
             'node_modules/tc-angular-ellipsis/src/angular-ellipsis.min.js'
         ],
         less: [
-            'node_modules/bootstrap/less/bootstrap.less'
+            'node_modules/bootstrap/less/bootstrap.less',
+            'node_modules/iguazio.dashboard-controls/dist/less/vendor.less'
         ],
         css: [
             'node_modules/jquery-ui/themes/themes/theme.css',
             'node_modules/ng-dialog/css/ngDialog.css',
-            'node_modules/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.css',
             'node_modules/angular-ui-layout/src/ui-layout.css',
             'node_modules/angularjs-slider/dist/rzslider.css',
             'node_modules/angular-cron-jobs/dist/angular-cron-jobs.css'
@@ -191,6 +202,10 @@ module.exports = {
         app: {
             js: 'iguazio.dashboard-controls.js',
             less: 'iguazio.dashboard-controls.less'
+        },
+        vendor: {
+            js: 'vendor.js',
+            less: 'vendor.less'
         }
     },
 
@@ -198,7 +213,6 @@ module.exports = {
      * Config for resources
      */
     resources: {
-        previewServer: './resources/previewServer',
-        errHandler: './resources/gulpErrorHandler'
+        previewServer: './resources/previewServer'
     }
 };

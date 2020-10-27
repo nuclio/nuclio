@@ -16,32 +16,24 @@
 # Build stage: builds the autoscaler binary
 #
 
-FROM golang:1.10-alpine3.7 as builder
+ARG NUCLIO_LABEL
 
-RUN apk --update --no-cache add \
-    git \
-    gcc \
-    musl-dev
+FROM nuclio-base:$NUCLIO_LABEL as build-autoscaler
 
-WORKDIR /go/src/github.com/nuclio/nuclio
+ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
-COPY . .
+# build autoscaler
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+    -a \
+    -installsuffix cgo \
+    -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
+    -o autoscaler cmd/autoscaler/main.go
 
-RUN go get github.com/v3io/scaler-types \
-    && go get github.com/v3io/v3io-go-http \
-    && go get github.com/nuclio/logger \
-    && go get github.com/nuclio/nuclio-sdk-go
+FROM alpine:3.11
 
-RUN mkdir -p /home/nuclio/bin \
-            && GOOS=linux GOARCH=amd64 go build -buildmode=plugin -a -installsuffix cgo -ldflags="-s -w" \
-            -o /home/nuclio/plugins/plugin.so pkg/platform/kube/resourcescaler/resourcescaler.go \
-            && rm -rf /go/src/github.com/nuclio/nuclio
+RUN apk add --no-cache ca-certificates
 
-FROM alpine:3.7
+# copy autoscaler binary from build stage
+COPY --from=build-autoscaler /nuclio/autoscaler /usr/local/bin
 
-WORKDIR /home/nuclio
-
-COPY --from=builder /home/nuclio/plugins/plugin.so /home/nuclio/plugins/plugin.so
-COPY --from=quay.io/v3io/autoscaler:v0.0.1 /home/v3io/bin/autoscaler /home/nuclio/autoscaler
-
-CMD ["/home/nuclio/autoscaler"]
+CMD [ "autoscaler" ]

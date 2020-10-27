@@ -1,0 +1,72 @@
+area/ui:
+  - pkg/dashboard/ui/**/*
+
+# platforms
+platform/kube:
+  - pkg/platform/kube/**/*
+
+platform/local:
+  - pkg/platform/local/**/*
+
+# triggers
+trigger/cron:
+  - pkg/processsor/trigger/cron/**/*
+
+trigger/http:
+  - pkg/processsor/trigger/http/**/*
+
+trigger/kafka:
+  - pkg/processsor/trigger/kafka/**/*
+
+trigger/kickstart:
+  - pkg/processsor/trigger/kickstart/**/*
+
+trigger/kinesis:
+  - pkg/processsor/trigger/kinesis/**/*
+
+trigger/mqtt:
+  - pkg/processsor/trigger/mqtt/**/*
+
+trigger/nats:
+  - pkg/processsor/trigger/nats/**/*
+
+trigger/partitioned:
+  - pkg/processsor/trigger/partitioned/**/*
+
+trigger/poller:
+  - pkg/processsor/trigger/poller/**/*
+
+trigger/pubsub:
+  - pkg/processsor/trigger/pubsub/**/*
+
+trigger/rabbitmq:
+  - pkg/processsor/trigger/rabbitmq/**/*
+
+trigger/v3iostream:
+  - pkg/processsor/trigger/v3iostream/**/*
+
+# runtimes
+runtime/python:
+  - pkg/processor/**/runtime/python/**/*
+
+runtime/golang:
+  - pkg/processor/**/runtime/golang/**/*
+
+runtime/dotnetcore:
+  - pkg/processor/**/runtime/dotnetcore/**/*
+
+runtime/java:
+  - pkg/processor/**/runtime/java/**/*
+
+runtime/nodejs:
+  - pkg/processor/**/runtime/nodejs/**/*
+
+runtime/ruby:
+  - pkg/processor/**/runtime/ruby/**/*
+
+runtime/shell:
+  - pkg/processor/**/runtime/shell/**/*
+
+# nuctl
+nuctl:
+  - pkg/nuctl/command/**/*

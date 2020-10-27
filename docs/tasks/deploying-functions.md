@@ -17,7 +17,7 @@ After successfully installing Nuclio, you can start writing functions and deploy
 
 The entry point, essentially a function native to the runtime, is called whenever one of the configured triggers receives an event (more on configuring triggers later).
 
-> Note: Nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (for example, `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived.
+> **Note:** Nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (for example, `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived.
 
 The entry point may return a response which is handled differently based on which trigger configured the function. Some synchronous triggers (like HTTP) expect a response, some (like RabbitMQ) expect an ack or nack and others (like cron) ignore the response altogether.
 
@@ -51,7 +51,7 @@ def my_entry_point(context, event):
 
 To convert source code to a running function, you must first _deploy_ the function. A deploy process has three stages:
 
-1. The source code is built to a Docker image and pushed to a Docker registry
+1. The source code is built to a container image and pushed to a Docker registry
 2. A function object is created in Nuclio (i.e., in Kubernetes, this is a function CRD)
 3. A controller creates the appropriate function resources on the cluster (i.e., in Kubernetes this is the deployment, service, ingress, etc.)
 
@@ -74,7 +74,7 @@ nuctl deploy my-function \
 	--registry $(minikube ip):5000 --run-registry localhost:5000
 ```
 
-> Note:
+> **Note:**
 > 1. `--path` can also hold a URL
 > 2. See the applicable setup guide to get registry informatiom
 

@@ -20,10 +20,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,7 +39,8 @@ type functionEventOperator struct {
 
 func newFunctionEventOperator(parentLogger logger.Logger,
 	controller *Controller,
-	resyncInterval *time.Duration) (*functionEventOperator, error) {
+	resyncInterval *time.Duration,
+	numWorkers int) (*functionEventOperator, error) {
 	var err error
 
 	loggerInstance := parentLogger.GetChild("function_event")
@@ -51,7 +52,7 @@ func newFunctionEventOperator(parentLogger logger.Logger,
 
 	// create a function event operator
 	newFunctionEventOperator.operator, err = operator.NewMultiWorker(loggerInstance,
-		2,
+		numWorkers,
 		newFunctionEventOperator.getListWatcher(controller.namespace),
 		&nuclioio.NuclioFunctionEvent{},
 		resyncInterval,
@@ -60,6 +61,10 @@ func newFunctionEventOperator(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function event operator")
 	}
+
+	parentLogger.DebugWith("Created function event operator",
+		"numWorkers", numWorkers,
+		"resyncInterval", resyncInterval)
 
 	return newFunctionEventOperator, nil
 }

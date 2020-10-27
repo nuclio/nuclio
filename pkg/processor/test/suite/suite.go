@@ -19,16 +19,18 @@ package processorsuite
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/local"
-	"github.com/nuclio/nuclio/pkg/version"
+	"github.com/nuclio/nuclio/pkg/platform/factory"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -52,16 +54,21 @@ type OnAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool
 // function container (through an trigger of some sort)
 type TestSuite struct {
 	suite.Suite
-	Logger       logger.Logger
-	DockerClient dockerclient.Client
-	Platform     platform.Platform
-	TestID       string
-	Runtime      string
-	RuntimeDir   string
-	FunctionDir  string
-	containerID  string
-	TempDir      string
-	CleanupTemp  bool
+	Logger                logger.Logger
+	DockerClient          dockerclient.Client
+	Platform              platform.Platform
+	TestID                string
+	Runtime               string
+	RuntimeDir            string
+	FunctionDir           string
+	PlatformType          string
+	Namespace             string
+	PlatformConfiguration *platformconfig.Config
+	FunctionNameUniquify  bool
+
+	containerID            string
+	createdTempDirs        []string
+	cleanupCreatedTempDirs bool
 }
 
 // BlastRequest holds information for BlastHTTP function
@@ -79,18 +86,22 @@ type BlastConfiguration struct {
 
 // SetupSuite is called for suite setup
 func (suite *TestSuite) SetupSuite() {
+	var err error
+
 	if suite.RuntimeDir == "" {
 		suite.RuntimeDir = suite.Runtime
 	}
 
-	// update version so that linker doesn't need to inject it
-	err := version.Set(&version.Info{
-		GitCommit: "c",
-		Label:     "latest",
-		Arch:      "amd64",
-		OS:        "linux",
-	})
-	suite.Require().NoError(err)
+	if suite.PlatformType == "" {
+		suite.PlatformType = "local"
+	}
+
+	if suite.Namespace == "" {
+		suite.Namespace = "default"
+	}
+
+	// this will preserve the current behavior where function names are renamed to be unique upon deployment
+	suite.FunctionNameUniquify = true
 
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
@@ -98,8 +109,12 @@ func (suite *TestSuite) SetupSuite() {
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
 	suite.Require().NoError(err)
 
-	suite.Platform, err = local.NewPlatform(suite.Logger)
+	suite.Platform, err = factory.CreatePlatform(suite.Logger,
+		suite.PlatformType,
+		suite.PlatformConfiguration,
+		suite.Namespace)
 	suite.Require().NoError(err)
+	suite.Require().NotNil(suite.Platform)
 }
 
 // SetupTest is called before each test in the suite
@@ -109,21 +124,27 @@ func (suite *TestSuite) SetupTest() {
 
 // BlastHTTP is a stress test suite
 func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
+	var totalResults vegeta.Metrics
 
 	// get createFunctionOptions from given blastConfiguration
 	createFunctionOptions, err := suite.blastConfigurationToDeployOptions(&configuration)
 	suite.Require().NoError(err)
 
 	// deploy the function
-	_, err = suite.Platform.CreateFunction(createFunctionOptions)
-	suite.Require().NoError(err)
+	suite.deployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		configuration.URL = fmt.Sprintf("http://%s:%d", suite.GetTestHost(), deployResult.Port)
 
-	// blast the function
-	totalResults, err := suite.blastFunction(&configuration)
-	suite.Require().NoError(err)
+		err := suite.probeAndWaitForFunctionReadiness(&configuration)
+		suite.Require().NoError(err, "Failed to probe and wait for function readiness")
+
+		// blast the function
+		totalResults, err = suite.blastFunction(&configuration)
+		suite.Require().NoError(err)
+		return true
+	}, false)
 
 	// delete the function
-	if os.Getenv("NUCLIO_TEST_KEEP_DOCKER") == "" {
+	if os.Getenv(keepDockerEnvKey) == "" {
 		err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
 			FunctionConfig: createFunctionOptions.FunctionConfig,
 		})
@@ -141,24 +162,21 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
 // NewBlastConfiguration populates BlastRequest struct with default values
 func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
-
-	// default host configuration
-	host := "localhost"
-
-	// Check if situation is dockerized, if so set url to host
-	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		host = os.Getenv("NUCLIO_TEST_HOST")
+	return BlastConfiguration{
+		Method:        http.MethodGet,
+		Workers:       32,
+		RatePerWorker: 5,
+		Duration:      10 * time.Second,
+		URL:           suite.GetTestHost(),
+		FunctionName:  "outputter",
+		FunctionPath:  "outputter",
+		TimeOut:       600 * time.Second,
 	}
-
-	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 5,
-		Duration: 10 * time.Second, URL: fmt.Sprintf("http://%s:8080", host),
-		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Second * 600}
-
-	return request
 }
 
 // TearDownTest is called after each test in the suite
 func (suite *TestSuite) TearDownTest() {
+	suite.Logger.InfoWith("Tearing down test", "testName", suite.T().Name())
 
 	// if we managed to get a container up, dump logs if we failed and remove the container either way
 	if suite.containerID != "" {
@@ -169,7 +187,7 @@ func (suite *TestSuite) TearDownTest() {
 			time.Sleep(2 * time.Second)
 
 			if logs, err := suite.DockerClient.GetContainerLogs(suite.containerID); err == nil {
-				suite.Logger.WarnWith("Test failed, retreived logs", "logs", logs)
+				suite.Logger.WarnWith("Test failed, retrieved logs", "logs", logs)
 			} else {
 				suite.Logger.WarnWith("Failed to get docker logs on failure", "err", err)
 			}
@@ -181,8 +199,12 @@ func (suite *TestSuite) TearDownTest() {
 		}
 	}
 
-	if !suite.T().Skipped() && suite.CleanupTemp && common.FileExists(suite.TempDir) {
-		suite.Failf("", "Temporary dir %s was not cleaned", suite.TempDir)
+	if !suite.T().Skipped() && suite.cleanupCreatedTempDirs {
+		for _, tempDir := range suite.createdTempDirs {
+			if common.FileExists(tempDir) {
+				suite.Failf("", "Temporary dir %s was not cleaned", tempDir)
+			}
+		}
 	}
 }
 
@@ -219,7 +241,7 @@ func (suite *TestSuite) DeployFunctionAndRedeploy(createFunctionOptions *platfor
 
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *TestSuite) GetNuclioSourceDir() string {
-	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
+	return common.GetSourceDir()
 }
 
 // GetTestFunctionsDir returns the test function dir
@@ -231,11 +253,7 @@ func (suite *TestSuite) GetTestFunctionsDir() string {
 func (suite *TestSuite) GetTestHost() string {
 
 	// If an env var is set, use that. otherwise localhost
-	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		return os.Getenv("NUCLIO_TEST_HOST")
-	}
-
-	return "localhost"
+	return common.GetEnvOrDefaultString("NUCLIO_TEST_HOST", "localhost")
 }
 
 // GetDeployOptions populates a platform.CreateFunctionOptions structure from function name and path
@@ -251,9 +269,9 @@ func (suite *TestSuite) GetDeployOptions(functionName string, functionPath strin
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
 	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = functionPath
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
 
-	suite.TempDir = suite.CreateTempDir()
-	createFunctionOptions.FunctionConfig.Spec.Build.TempDir = suite.TempDir
+	createFunctionOptions.FunctionConfig.Spec.Build.TempDir = suite.CreateTempDir()
 
 	return createFunctionOptions
 }
@@ -273,7 +291,7 @@ func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.Cr
 
 	// give the name a unique prefix, except if name isn't set
 	// TODO: will affect concurrent runs
-	if createFunctionOptions.FunctionConfig.Meta.Name != "" {
+	if suite.FunctionNameUniquify && createFunctionOptions.FunctionConfig.Meta.Name != "" {
 		createFunctionOptions.FunctionConfig.Meta.Name = suite.GetUniqueFunctionName(createFunctionOptions.FunctionConfig.Meta.Name)
 	}
 
@@ -281,11 +299,22 @@ func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.Cr
 	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 
 	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
-	suite.CleanupTemp = !createFunctionOptions.FunctionConfig.Spec.Build.NoCleanup
+	suite.cleanupCreatedTempDirs = !createFunctionOptions.FunctionConfig.Spec.Build.NoCleanup
 }
 
 func (suite *TestSuite) GetUniqueFunctionName(name string) string {
-	return fmt.Sprintf("%s-%s", name, suite.TestID)
+	uniqueFunctionName := fmt.Sprintf("%s-%s", name, suite.TestID)
+
+	// k8s maximum name limit
+	k8sMaxNameLength := 63
+	if len(uniqueFunctionName) > k8sMaxNameLength {
+
+		// trims
+		uniqueFunctionName = uniqueFunctionName[:k8sMaxNameLength-len(uniqueFunctionName)]
+	}
+
+	// to not reach
+	return uniqueFunctionName
 }
 
 func (suite *TestSuite) GetRuntimeDir() string {
@@ -297,11 +326,9 @@ func (suite *TestSuite) GetRuntimeDir() string {
 }
 
 func (suite *TestSuite) CreateTempDir() string {
-	tempDir, err := ioutil.TempDir("", "build-test-"+suite.TestID)
-	if err != nil {
-		suite.FailNowf("Failed to create temporary dir %s for test %s", suite.TempDir, suite.TestID)
-	}
-
+	tempDir, err := ioutil.TempDir("", "build-test-*")
+	suite.Require().NoError(err, "Failed to create temporary dir")
+	suite.createdTempDirs = append(suite.createdTempDirs, tempDir)
 	return tempDir
 }
 
@@ -312,18 +339,18 @@ func (suite *TestSuite) blastConfigurationToDeployOptions(request *BlastConfigur
 	createFunctionOptions := suite.GetDeployOptions(request.FunctionName,
 		suite.GetFunctionPath(request.FunctionPath))
 
-	// Configure deployOptipns properties, number of MaxWorkers like in the default stress request - 32
-	createFunctionOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", createFunctionOptions.FunctionConfig.Meta.Name, suite.TestID)
+	// Configure deployOptions properties, number of MaxWorkers like in the default stress request
+	createFunctionOptions.FunctionConfig.Meta.Name =
+		fmt.Sprintf("%s-%s",
+			createFunctionOptions.FunctionConfig.Meta.Name,
+			suite.TestID)
 	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
-	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
-		Kind:       "http",
-		MaxWorkers: 32,
-		URL:        ":8080",
-		Attributes: map[string]interface{}{
-			"port": 8080,
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"httpTrigger": {
+			Kind:       "http",
+			MaxWorkers: request.Workers,
 		},
 	}
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"trigger": defaultHTTPTriggerConfiguration}
 	createFunctionOptions.FunctionConfig.Spec.Handler = request.Handler
 
 	return createFunctionOptions, nil
@@ -361,16 +388,28 @@ func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOption
 	onAfterContainerRun OnAfterContainerRun,
 	expectFailure bool) *platform.CreateFunctionResult {
 
+	var deployResult *platform.CreateFunctionResult
+
 	// add some commonly used options to createFunctionOptions
 	suite.PopulateDeployOptions(createFunctionOptions)
 
 	// delete the function when done
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
-		FunctionConfig: createFunctionOptions.FunctionConfig,
-	})
+	defer func() {
 
-	deployResult := suite.deployFunction(createFunctionOptions, onAfterContainerRun, expectFailure)
+		// if we didnt deploy yet, try remove what is created
+		if deployResult == nil {
+			suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+				FunctionConfig: createFunctionOptions.FunctionConfig,
+			})
+		} else {
 
+			// if we did deploy, remove what was deployed
+			suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+				FunctionConfig: deployResult.UpdatedFunctionConfig,
+			})
+		}
+	}()
+	deployResult = suite.deployFunction(createFunctionOptions, onAfterContainerRun, expectFailure)
 	return deployResult
 }
 
@@ -414,4 +453,38 @@ func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFun
 	}
 
 	return deployResult
+}
+
+func (suite *TestSuite) probeAndWaitForFunctionReadiness(configuration *BlastConfiguration) error {
+
+	// sending some probe requests to function, to ensure it responses before blasting it
+	return common.RetryUntilSuccessful(30*time.Second, 1*time.Second, func() bool {
+
+		// create a request
+		httpRequest, err := http.NewRequest(configuration.Method, configuration.URL, nil)
+		suite.Require().NoError(err)
+
+		suite.Logger.DebugWith("Sending function probe request",
+			"configurationMethod", configuration.Method,
+			"configurationURL", configuration.URL)
+		httpResponse, responseErr := http.DefaultClient.Do(httpRequest)
+
+		// if we fail to connect, fail
+		if responseErr != nil {
+			if strings.Contains(responseErr.Error(), "EOF") ||
+				strings.Contains(responseErr.Error(), "connection reset by peer") {
+
+				// function isn't ready yet, give it another try
+				suite.Logger.DebugWith("Function is not ready yet, retrying")
+				return false
+			}
+
+			// if we got here, we failed on something more fatal, fail test
+			suite.Fail("Function probing failed",
+				"responseErr", responseErr)
+		}
+
+		// we need at least one good answer in the range of [200, 500)
+		return http.StatusOK <= httpResponse.StatusCode && httpResponse.StatusCode < http.StatusInternalServerError
+	})
 }

@@ -52,8 +52,8 @@ var (
 		{map[int]int{1: 1}, map[int]int{1: 1}, true},
 		{map[int]int{1: 2}, map[int]int{1: 1}, false},
 		{map[int]float32{1: 1}, map[int]int{1: 1}, false}, // different type
-		{map[int][]int{1: []int{1, 2, 3}}, map[int][]int{1: []int{2, 3, 1}}, true},
-		{map[int][]int{1: []int{1, 2}}, map[int][]int{1: []int{2, 3}}, false},
+		{map[int][]int{1: {1, 2, 3}}, map[int][]int{1: {2, 3, 1}}, true},
+		{map[int][]int{1: {1, 2}}, map[int][]int{1: {2, 3}}, false},
 	}
 )
 
@@ -64,7 +64,7 @@ type CompareTestSuite struct {
 func (suite *CompareTestSuite) TestCases() {
 	// TODO: Find out how to make testify work with t.Run (currently panics on error)
 	for _, testCase := range testCases {
-		result := CompareNoOrder(testCase.left, testCase.right)
+		result := NoOrder(testCase.left, testCase.right)
 		suite.Require().Equalf(testCase.result, result, "%v <-> %v", testCase.right, testCase.left)
 	}
 }

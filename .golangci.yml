@@ -1,0 +1,48 @@
+linters:
+  disable-all: true
+  enable:
+    - deadcode
+    - goconst
+    - gofmt
+    - golint
+    - gosimple
+    - ineffassign
+    - interfacer
+    - misspell
+    - staticcheck
+    - unconvert
+    - varcheck
+    - vet
+    - vetshadow
+    - errcheck
+    - govet
+    - structcheck
+    - typecheck
+
+run:
+
+  # timeout for analysis
+  timeout: 5m
+
+  skip-dirs:
+    - docs
+
+issues:
+
+  # List of regexps of issue texts to exclude
+  exclude:
+    - "comment on"
+    - "error should be the last"
+    - "should have comment"
+
+  exclude-rules:
+
+    # Auto generated files for kubernetes
+    - path: pkg/platform/kube/client
+      linters:
+        - errcheck
+
+    # list of excluded linters applied on test files
+    - path: _test\.go
+      linters:
+        - goconst

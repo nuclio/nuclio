@@ -4,7 +4,8 @@
     angular.module('nuclio.app')
         .run(appInit);
 
-    function appInit($urlRouter, $http, $injector, lodash, ConfigService, NuclioProjectsDataService) {
+    function appInit($urlRouter, $http, $injector, $window, i18next, lodash, ConfigService,
+                     NuclioProjectsDataService) {
         // @if !IGZ_TESTING
         // @if IGZ_E2E_TESTING
         if ($injector.has('$httpBackend')) {
@@ -22,12 +23,17 @@
                 lodash.merge(ConfigService, config.data);
             })
             .then(function () {
-                NuclioProjectsDataService.getExternalIPAddresses()
+                NuclioProjectsDataService.getFrontendSpec()
                     .then(function (response) {
-                        ConfigService.externalIPAddress = response.externalIPAddresses.addresses[0];
-                    })
-                    .catch(function () {
-                        ConfigService.externalIPAddress = null;
+                        lodash.assign(ConfigService.nuclio, {
+                            defaultFunctionConfig: lodash.get(response, 'defaultFunctionConfig', {}),
+                            externalIPAddress: lodash.get(response, 'externalIPAddresses[0]', ''),
+                            imageNamePrefixTemplate: lodash.get(response, 'imageNamePrefixTemplate', ''),
+                            ingressHostTemplate: lodash.get(response, 'defaultHTTPIngressHostTemplate', ''),
+                            namespace: lodash.get(response, 'namespace', ''),
+                            platformKind: lodash.get(response, 'platformKind', ''),
+                            scaleToZero: lodash.get(response, 'scaleToZero', {})
+                        });
                     });
             })
             .then(function () {
@@ -37,5 +43,40 @@
         // @endif
 
         /*eslint angular/on-watch: 0*/
+
+        i18next
+            .use($window.i18nextChainedBackend)
+            .use($window.i18nextBrowserLanguageDetector);
+
+        i18next.init({
+            debug: false,
+            fallbackLng: 'en',
+            preload: ['en'],
+            initImmediate: false,
+            nonExplicitWhitelist: true,
+            partialBundledLanguages: true,
+            defaultNs: 'common',
+            ns: [
+                'common',
+                'header',
+                'functions'
+            ],
+            // @if !IGZ_TESTING
+            backend: {
+                backends: [
+                    $window.i18nextLocalStorageBackend,
+                    $window.i18nextXHRBackend
+                ],
+                backendOptions: [
+                    {
+                        expirationTime: 24 * 60 * 60 * 1000
+                    },
+                    {
+                        loadPath: 'assets/i18n/{{lng}}/{{ns}}.json'
+                    }
+                ]
+            }
+            // @endif
+        });
     }
 }());

@@ -20,11 +20,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type updater struct {
@@ -47,7 +47,9 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	u.logger.InfoWith("Updating function", "name", updateFunctionOptions.FunctionMeta.Name)
 
 	// get specific function CR
-	function, err := u.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).Get(updateFunctionOptions.FunctionMeta.Name, meta_v1.GetOptions{})
+	function, err := u.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
+		Get(updateFunctionOptions.FunctionMeta.Name, metav1.GetOptions{})
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
@@ -67,8 +69,15 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 		function.Status = *updateFunctionOptions.FunctionStatus
 	}
 
+	// get clientset
+	nuclioClientSet, err := u.consumer.getNuclioClientSet(updateFunctionOptions.AuthConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get nuclio clientset")
+	}
+
 	// trigger an update
-	updatedFunction, err := u.consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).Update(function)
+	functionCreateOrUpdateTimestamp := time.Now()
+	updatedFunction, err := nuclioClientSet.NuclioV1beta1().NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).Update(function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function CR")
 	}
@@ -77,7 +86,8 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	_, err = waitForFunctionReadiness(u.logger,
 		u.consumer,
 		updatedFunction.Namespace,
-		updatedFunction.Name)
+		updatedFunction.Name,
+		functionCreateOrUpdateTimestamp)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to wait for function readiness")

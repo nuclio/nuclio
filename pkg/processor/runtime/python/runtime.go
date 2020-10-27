@@ -18,16 +18,17 @@ package python
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -50,14 +51,18 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		configuration,
 		newPythonRuntime)
 
-	return newPythonRuntime, err
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create runtime")
+	}
+
+	return newPythonRuntime, nil
 }
 
 func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 	wrapperScriptPath := py.getWrapperScriptPath()
 	py.Logger.DebugWith("Using Python wrapper script path", "path", wrapperScriptPath)
 	if !common.IsFile(wrapperScriptPath) {
-		return nil, fmt.Errorf("Can't find wrapper at %q", wrapperScriptPath)
+		return nil, errors.Errorf("Can't find wrapper at %q", wrapperScriptPath)
 	}
 
 	handler := py.getHandler()
@@ -84,6 +89,7 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 		"--platform-kind", py.configuration.PlatformConfig.Kind,
 		"--namespace", py.configuration.Meta.Namespace,
 		"--worker-id", strconv.Itoa(py.configuration.WorkerID),
+		"--trigger-kind", py.configuration.TriggerKind,
 		"--trigger-name", py.configuration.TriggerName,
 	}
 
@@ -92,7 +98,7 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	return cmd.Process, cmd.Start()
 }
@@ -125,15 +131,28 @@ func (py *python) getWrapperScriptPath() string {
 }
 
 func (py *python) getPythonPath() string {
-	pythonPath := os.Getenv("NUCLIO_PYTHON_PATH")
-	if len(pythonPath) == 0 {
-		return "/opt/nuclio"
-	}
 
-	return pythonPath
+	// check if image contains pre-configured PYTHONPATH
+	pythonPath := os.Getenv("PYTHONPATH")
+
+	// get user default nuclio python path
+	nuclioPythonPath := common.GetEnvOrDefaultString("NUCLIO_PYTHON_PATH", "/opt/nuclio")
+
+	// preserve PYTHONPATH if given, let nuclio come first
+	if pythonPath != "" {
+		return fmt.Sprintf("%s:%s", nuclioPythonPath, pythonPath)
+	}
+	return nuclioPythonPath
 }
 
 func (py *python) getPythonExePath() (string, error) {
+
+	// let user bring his own python binary
+	pythonExePath := os.Getenv("NUCLIO_PYTHON_EXE_PATH")
+	if pythonExePath != "" {
+		return exec.LookPath(pythonExePath)
+	}
+
 	baseName := "python3"
 
 	_, runtimeVersion := py.configuration.Spec.GetRuntimeNameAndVersion()
@@ -156,4 +175,8 @@ func (py *python) getPythonExePath() (string, error) {
 	}
 
 	return "", errors.Wrap(err, "Can't find python executable")
+}
+
+func (py *python) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
+	return rpc.NewEventMsgPackEncoder(py.Logger, writer)
 }

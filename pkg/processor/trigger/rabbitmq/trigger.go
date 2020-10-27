@@ -21,11 +21,11 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/streadway/amqp"
 )
@@ -49,7 +49,8 @@ func newTrigger(parentLogger logger.Logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
-		"rabbitMq")
+		"rabbitMq",
+		configuration.Name)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
@@ -147,11 +148,11 @@ func (rmq *rabbitMq) createBrokerResources() error {
 
 		rmq.brokerQueue, err = rmq.brokerChannel.QueueDeclare(
 			rmq.configuration.QueueName, // queue name (account  + function name)
-			false, // durable  TBD: change to true if/when we bind to persistent storage
-			false, // delete when unused
-			false, // exclusive
-			false, // no-wait
-			nil,   // arguments
+			false,                       // durable  TBD: change to true if/when we bind to persistent storage
+			false,                       // delete when unused
+			false,                       // exclusive
+			false,                       // no-wait
+			nil,                         // arguments
 		)
 		if err != nil {
 			return errors.Wrap(err, "Failed to declare queue")
@@ -161,8 +162,8 @@ func (rmq *rabbitMq) createBrokerResources() error {
 
 		for _, topic := range rmq.configuration.Topics {
 			err = rmq.brokerChannel.QueueBind(
-				rmq.brokerQueue.Name, // queue name
-				topic,                // routing key
+				rmq.brokerQueue.Name,           // queue name
+				topic,                          // routing key
 				rmq.configuration.ExchangeName, // exchange
 				false,
 				nil)
@@ -179,12 +180,12 @@ func (rmq *rabbitMq) createBrokerResources() error {
 
 	rmq.brokerInputMessagesChannel, err = rmq.brokerChannel.Consume(
 		rmq.configuration.QueueName, // queue
-		"",    // consumer
-		false, // auto-ack
-		false, // exclusive
-		false, // no-local
-		true,  // no-wait
-		nil,   // args
+		"",                          // consumer
+		false,                       // auto-ack
+		false,                       // exclusive
+		false,                       // no-local
+		true,                        // no-wait
+		nil,                         // args
 	)
 	if err != nil {
 		return errors.Wrap(err, "Failed to start consuming messages")

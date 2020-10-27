@@ -1,0 +1,55 @@
+# Copyright 2017 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- if .Values.dashboard.enabled }}
+{{- if .Values.dashboard.ingress.enabled }}
+{{- $fullName := include "nuclio.dashboardName" . -}}
+{{- $ingressPath := .Values.dashboard.ingress.path }}
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  labels:
+    app: {{ template "nuclio.name" . }}
+    release: {{ .Release.Name }}
+    nuclio.io/app: dashboard
+    nuclio.io/name: {{ $fullName }}
+    nuclio.io/class: ingress
+{{- with .Values.dashboard.ingress.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+{{- if .Values.dashboard.ingress.tls }}
+  tls:
+  {{- range .Values.dashboard.ingress.tls }}
+    - hosts:
+      {{- range .hosts }}
+        - {{ . | quote }}
+      {{- end }}
+      secretName: {{ .secretName }}
+  {{- end }}
+{{- end }}
+  rules:
+  {{- range .Values.dashboard.ingress.hosts }}
+    - host: {{ . | quote }}
+      http:
+        paths:
+          - path: {{ $ingressPath }}
+            backend:
+              serviceName: {{ $fullName }}
+              servicePort: admin
+  {{- end }}
+{{- end }}
+{{- end }}

@@ -25,6 +25,4 @@ spec:
 
   build:
     commands:
-    - "apk update"
-    - "apk add --no-cache gcc g++ make libffi-dev openssl-dev"
     - "pip install simple-crypt"

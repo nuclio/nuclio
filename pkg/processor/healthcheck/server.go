@@ -19,11 +19,11 @@ package healthcheck
 import (
 	"net/http"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/status"
 
 	"github.com/heptiolabs/healthcheck"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

@@ -1,0 +1,2 @@
+[12:10:04.910] (E) Unexpected termination of child process [status="exit status 1"]
+[12:10:04.950] (D) Error - Failed to connect to broker

@@ -23,8 +23,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

@@ -23,3 +23,5 @@ type NuclioFunctionExpansion interface{}
 type NuclioFunctionEventExpansion interface{}
 
 type NuclioProjectExpansion interface{}
+
+type NuclioAPIGatewayExpansion interface{}

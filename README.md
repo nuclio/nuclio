@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/nuclio/nuclio.svg?branch=master)](https://travis-ci.org/nuclio/nuclio)
+![Periodic](https://github.com/nuclio/nuclio/workflows/Periodic/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nuclio/nuclio)](https://goreportcard.com/report/github.com/nuclio/nuclio)
 [![Slack](https://img.shields.io/badge/slack-join%20chat%20%E2%86%92-e01563.svg)](https://lit-oasis-83353.herokuapp.com/)
 
@@ -20,30 +20,40 @@ Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news
 
 ## Overview
 
-Nuclio is a new "serverless" project, derived from Iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use Nuclio as a standalone Docker container or on top of an existing [Kubernetes](https://kubernetes.io) cluster. See deployment instructions in the Nuclio documentation.
+Nuclio is a high-performance "serverless" framework focused on data, I/O, and compute intensive workloads. It is well integrated with popular data science tools, such as [Jupyter](https://jupyter.org/) and [Kubeflow](https://www.kubeflow.org/); supports a variety of data and streaming sources; and supports execution over CPUs and GPUs. The Nuclio project began in 2017 and is constantly and rapidly evolving; many start-ups and enterprises are now using Nuclio in production.
 
-Nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10-100 times faster than some other frameworks. To learn more about how Nuclio works, see the Nuclio [architecture](/docs/concepts/architecture.md) documentation, go over a [recent presentation](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio) or watch [Nuclio Serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A). Additional articles and tutorials are listed in [Nuclio web site](https://nuclio.io/).
+You can use Nuclio as a standalone Docker container or on top of an existing [Kubernetes](https://kubernetes.io) cluster; see the deployment instructions in the Nuclio documentation. You can also use Nuclio through a fully managed application service (in the cloud or on-prem) in the [Iguazio Data Science Platform](https://www.iguazio.com/), which you can [try for free](https://go.iguazio.com/start-your-free-trial).
+
+If you wish to create and manage Nuclio functions through code - for example, from Jupyter Notebook - see the [Nuclio Jupyter project](https://github.com/nuclio/nuclio-jupyter), which features a Python package and SDK for creating and deploying Nuclio functions from Jupyter Notebook.
+Nuclio is also an integral part of the new open-source [MLRun](https://github.com/mlrun/mlrun) library for data science automation and tracking and of the open-source [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/misc/nuclio/) framework for building and deploying portable, scalable ML workflows.
+
+Nuclio is extremely fast: a single function instance can process hundreds of thousands of HTTP requests or data records per second.
+This is 10-100 times faster than some other frameworks. To learn more about how Nuclio works, see the Nuclio [architecture](/docs/concepts/architecture.md) documentation, read this review of [Nuclio vs. AWS Lambda](https://theburningmonk.com/2019/04/comparing-nuclio-and-aws-lambda/), or watch the [Nuclio serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A).
+You can find links to additional articles and tutorials on the [Nuclio web site](https://nuclio.io/).
+
+Nuclio is secure: Nuclio is integrated with [Kaniko](https://github.com/GoogleContainerTools/kaniko) to allow a secure and production-ready way of building Docker images at run time.
 
 For further questions and support, [click to join](https://lit-oasis-83353.herokuapp.com) the [Nuclio Slack](https://nuclio-io.slack.com) workspace.
 
 ## Why another "serverless" project?
 
-We considered existing cloud and open-source serverless solutions, but none addressed our needs:
+None of the existing cloud and open-source serverless solutions addressed all the desired capabilities of a serverless framework:
 
-* Real-time processing with minimal CPU and I/O overhead and maximum parallelism
-* Native integration with a large variety of data sources, triggers, and processing models
-* Abstraction of data resources from the function code - to support code portability, simplicity and data-path acceleration
-* Simple debugging, regression testing, and multi-versioned CI/CD pipelines
-* Portability across low-power devices, laptops, on-prem clusters and public clouds
+- Real-time processing with minimal CPU/GPU and I/O overhead and maximum parallelism
+- Native integration with a large variety of data sources, triggers, processing models, and ML frameworks
+- Stateful functions with data-path acceleration
+- Simple debugging, regression testing, and multi-versioned CI/CD pipelines
+- Portability across low-power devices, laptops, edge and on-prem clusters, and public clouds
+- Open-source but designed for the enterprise (including logging, monitoring, security, and usability)
 
-We designed Nuclio to be extendable, using a modular and layered approach that supports constant additions of triggers and data sources. We hope many will join us in developing new modules, developer tools, and platforms.
+Nuclio was created to fulfill these requirements.  It was intentionally designed as an extendable open-source framework, using a modular and layered approach that supports constant addition of triggers and data sources, with the hope that many will join the effort of developing new modules, developer tools, and platforms for Nuclio.
 
 ## Quick-start steps
 
 The simplest way to explore Nuclio is to run its graphical user interface (GUI) of the Nuclio [dashboard](#dashboard). All you need to run the dashboard is Docker:
 
 ```sh
-docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp quay.io/nuclio/dashboard:stable-amd64
+docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp --name nuclio-dashboard quay.io/nuclio/dashboard:stable-amd64
 ```
 
 ![dashboard](/docs/assets/images/dashboard.png)
@@ -88,22 +98,20 @@ The dashboard is a standalone microservice that is accessed through HTTP and inc
 
 #### Builder
 
-A builder receives raw code and optional build instructions and dependencies, and generates the function artifact - a binary file or a Docker container image that the builder can also push to a specified image repository. The builder can run in the context of the CLI or as a separate service, for automated development pipelines.
+A builder receives raw code and optional build instructions and dependencies, and generates the function artifact - a binary file or a container image that the builder can also push to a specified image repository. The builder can run in the context of the CLI or as a separate service, for automated development pipelines.
 
-#### Dealer
+<a id="supported-container-images-note"></a>
+> **Note:** The current version of Nuclio supports Docker images.
 
-A dealer is used with streaming and batch jobs to distribute a set of tasks or data partitions/shards among the available function instances, and to guarantee that all tasks are completed successfully.
-For example, if a function reads from a message stream with 20 partitions, the dealer will guarantee that the partitions are distributed evenly across workers, taking into account the number of function instances and failures.
+#### Scaler
+
+The scaler is designed to auto-scale, scale-to-zero, and wake up functions, based on the function load and usage.
 
 ### Function concepts
 
 #### Triggers
 
 Functions can be invoked through a variety of event sources that are defined in the function (such as HTTP, RabbitMQ, Kafka, Kinesis, NATS, DynamoDB, Iguazio V3IO, or schedule). Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
-
-#### Data bindings
-
-Data-binding rules allow users to specify persistent input/output data resources to be used by the function. (Data connections are preserved between executions.) Bound data can be in the form of files, objects, records, messages, etc. The function specification may include an array of data-binding rules, each specifying the data resource and its credentials and usage parameters. Data-binding abstraction allows using the same function with different data sources of the same type, and enables function portability.
 
 #### SDK
 
@@ -152,6 +160,7 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
 ## Further reading
 
 - Setup
+    - [Getting Started with Nuclio on Docker](/docs/setup/docker/getting-started-docker.md)
     - [Getting Started with Nuclio on Minikube](/docs/setup/minikube/getting-started-minikube.md)
     - [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md)
     - [Getting Started with Nuclio on Azure Kubernetes Service (AKS)](/docs/setup/aks/getting-started-aks.md)
@@ -163,14 +172,15 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
     - [Deploying Pre-Built Functions](/docs/tasks/deploying-pre-built-functions.md)
     - [Configuring a Platform](/docs/tasks/configuring-a-platform.md)
 - Concepts
+    - [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
     - [Architecture](/docs/concepts/architecture.md)
     - Kubernetes
     - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
 - References
+    - [nuctl](/docs/reference/nuctl/nuctl.md)
     - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
     - [Triggers](/docs/reference/triggers)
-    - [nuctl](/docs/reference/nuctl)
-    - [Runtime - .NET Core 2](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
+    - [Runtime - .NET Core 3.1](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
     - [Runtime - Shell](/docs/reference/runtimes/shell/writing-a-shell-function.md)
 - [Examples](hack/examples/README.md)
 - Sandbox
@@ -179,8 +189,6 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
 - Contributing
     - [Code conventions](/docs/devel/coding-conventions.md)
     - [Contributing to Nuclio](/docs/devel/contributing.md)
-- Reference
-    - [nuctl Reference](/docs/reference/nuctl/nuctl.md)
 - Media
     - [Running High-Speed Serverless with nuclio (slides)](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio)
     - [CNCF Webinar – Serverless and AI (video)](https://www.youtube.com/watch?v=pTCx569Kd4A)

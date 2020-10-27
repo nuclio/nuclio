@@ -17,7 +17,18 @@ limitations under the License.
 package platform
 
 import (
+	"time"
+
+	"github.com/nuclio/nuclio/pkg/common"
+
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
+)
+
+const (
+	ProjectGetUponCreationTimeout       = 30 * time.Second
+	ProjectGetUponCreationRetryInterval = 1 * time.Second
 )
 
 type Project interface {
@@ -46,4 +57,31 @@ func NewAbstractProject(parentLogger logger.Logger,
 // GetConfig returns the project config
 func (ap *AbstractProject) GetConfig() *ProjectConfig {
 	return &ap.ProjectConfig
+}
+
+func (ap *AbstractProject) CreateAndWait() error {
+	err := ap.Platform.CreateProject(&CreateProjectOptions{
+		ProjectConfig: *ap.GetConfig(),
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to create project")
+	}
+
+	err = common.RetryUntilSuccessful(ProjectGetUponCreationTimeout, ProjectGetUponCreationRetryInterval, func() bool {
+		ap.Logger.DebugWith("Trying to get created project",
+			"projectMeta", ap.GetConfig().Meta,
+			"timeout", ProjectGetUponCreationTimeout,
+			"retryInterval", ProjectGetUponCreationRetryInterval)
+		projects, err := ap.Platform.GetProjects(&GetProjectsOptions{
+			Meta: ap.GetConfig().Meta,
+		})
+		return err == nil && len(projects) > 0
+	})
+	if err != nil {
+		return nuclio.WrapErrInternalServerError(errors.Wrapf(err,
+			"Failed to wait for a created project %s",
+			ap.GetConfig().Meta.Name))
+	}
+
+	return nil
 }

@@ -17,8 +17,9 @@ limitations under the License.
 package registry
 
 import (
-	"fmt"
 	"sync"
+
+	"github.com/nuclio/errors"
 )
 
 type Registry struct {
@@ -43,7 +44,7 @@ func (r *Registry) Register(kind string, registeree interface{}) {
 	if found {
 
 		// registries register things on package initialization; no place for error handling
-		panic(fmt.Sprintf("Already registered: %s", kind))
+		panic(errors.Errorf("Already registered: %s", kind))
 	}
 
 	r.Registered[kind] = registeree
@@ -57,7 +58,7 @@ func (r *Registry) Get(kind string) (interface{}, error) {
 	if !found {
 
 		// registries register things on package initialization; no place for error handling
-		return nil, fmt.Errorf("Registry for %s failed to find: %s", r.className, kind)
+		return nil, errors.Errorf("Registry for %s failed to find: %s", r.className, kind)
 	}
 
 	return registree, nil

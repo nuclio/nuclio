@@ -20,10 +20,10 @@ import (
 	"encoding/json"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
+	"github.com/nuclio/errors"
 	"github.com/spf13/cobra"
 	"k8s.io/api/core/v1"
 )
@@ -71,7 +71,7 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
-		Aliases: []string{"fu"},
+		Aliases: []string{"fu", "fn"},
 		Short:   "Update functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
@@ -110,7 +110,7 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 
 			// update stuff
 			commandeer.functionConfig.Meta.Namespace = updateCommandeer.rootCommandeer.namespace
-			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
+			commandeer.functionConfig.Spec.Build.Commands = updateCommandeer.commands
 
 			return updateCommandeer.rootCommandeer.platform.UpdateFunction(&platform.UpdateFunctionOptions{
 				FunctionMeta: &commandeer.functionConfig.Meta,
@@ -118,13 +118,6 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 			})
 		},
 	}
-
-	// add run flags
-	//addDeployFlags(cmd,
-	//	&commandeer.updateOptions.Deploy,
-	//	&commandeer.commands,
-	//	&commandeer.encodedDataBindings,
-	//	&commandeer.encodedTriggers)
 
 	commandeer.cmd = cmd
 

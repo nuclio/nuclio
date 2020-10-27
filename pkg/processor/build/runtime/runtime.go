@@ -24,23 +24,30 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
 )
 
 type ProcessorDockerfileInfo struct {
-	BaseImage            string
-	OnbuildImage         string
-	OnbuildArtifactPaths map[string]string
-	ImageArtifactPaths   map[string]string
-	Directives           map[string][]functionconfig.Directive
+	BaseImage          string
+	ImageArtifactPaths map[string]string
+	OnbuildArtifacts   []Artifact
+	Directives         map[string][]functionconfig.Directive
+	DockerfileContents string
+	DockerfilePath     string
+}
+
+type Artifact struct {
+	Name          string
+	Image         string
+	Paths         map[string]string
+	ExternalImage bool
 }
 
 type Runtime interface {
-
 	// DetectFunctionHandlers returns a list of all the handlers
 	// in that directory given a path holding a function (or functions)
 	DetectFunctionHandlers(functionPath string) ([]string, error)
@@ -50,7 +57,7 @@ type Runtime interface {
 	OnAfterStagingDirCreated(stagingDir string) error
 
 	// GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-	GetProcessorDockerfileInfo(versionInfo *version.Info) (*ProcessorDockerfileInfo, error)
+	GetProcessorDockerfileInfo(onbuildImageRegistry string) (*ProcessorDockerfileInfo, error)
 
 	// GetName returns the name of the runtime, including version if applicable
 	GetName() string
@@ -61,7 +68,7 @@ type Runtime interface {
 }
 
 type Factory interface {
-	Create(logger.Logger, string, *functionconfig.Config) (Runtime, error)
+	Create(logger.Logger, string, string, *functionconfig.Config) (Runtime, error)
 }
 
 type AbstractRuntime struct {
@@ -70,9 +77,11 @@ type AbstractRuntime struct {
 	FunctionConfig *functionconfig.Config
 	DockerClient   dockerclient.Client
 	CmdRunner      cmdrunner.CmdRunner
+	VersionInfo    *version.Info
 }
 
 func NewAbstractRuntime(logger logger.Logger,
+	containerBuilderKind string,
 	stagingDir string,
 	functionConfig *functionconfig.Config) (*AbstractRuntime, error) {
 	var err error
@@ -81,6 +90,7 @@ func NewAbstractRuntime(logger logger.Logger,
 		Logger:         logger,
 		StagingDir:     stagingDir,
 		FunctionConfig: functionConfig,
+		VersionInfo:    version.Get(),
 	}
 
 	newRuntime.CmdRunner, err = cmdrunner.NewShellRunner(newRuntime.Logger)
@@ -89,9 +99,11 @@ func NewAbstractRuntime(logger logger.Logger,
 	}
 
 	// create a docker client
-	newRuntime.DockerClient, err = dockerclient.NewShellClient(newRuntime.Logger, newRuntime.CmdRunner)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create docker client")
+	if containerBuilderKind == "docker" {
+		newRuntime.DockerClient, err = dockerclient.NewShellClient(newRuntime.Logger, newRuntime.CmdRunner)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create docker client")
+		}
 	}
 
 	return newRuntime, nil
@@ -149,8 +161,8 @@ func (ar *AbstractRuntime) GetHandlerDirObjectPaths() []string {
 func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string, error) {
 
 	// use the function path: /some/path/func.py -> func
-	functionFileName := path.Base(ar.FunctionConfig.Spec.Build.Path)
-	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
+	functionBuildPath := ar.FunctionConfig.Spec.Build.Path
+	functionFileName := strings.TrimSuffix(path.Base(functionBuildPath), path.Ext(functionBuildPath))
 
 	return []string{fmt.Sprintf("%s:%s", functionFileName, "handler")}, nil
 }

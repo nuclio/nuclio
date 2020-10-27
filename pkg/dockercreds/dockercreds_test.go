@@ -270,7 +270,7 @@ func (suite *LogInFromDirTestSuite) TearDownTest() {
 
 func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 
-	suite.createFilesInDir(suite.tempDir, []interface{}{
+	err := suite.createFilesInDir(suite.tempDir, []interface{}{
 		dirNode{".data", []interface{}{}},
 		fileNode{".dockerjsonconfig1", suite.kubernetesAuthsSecrets[0]},
 		fileNode{".dockerjsonconfig2", suite.kubernetesAuthsSecrets[1]},
@@ -280,6 +280,7 @@ func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 		fileNode{"user2---url2.json", "pass2"},
 		fileNode{"user3---url3.json", "pass3"},
 	})
+	suite.Require().NoError(err)
 
 	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
 		Username: "some-user-0",
@@ -317,12 +318,13 @@ func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 		URL:      "https://url3",
 	}).Return(nil).Once()
 
-	suite.dockerCreds.LoadFromDir(suite.tempDir)
+	err = suite.dockerCreds.LoadFromDir(suite.tempDir)
+	suite.Require().NoError(err)
 
 	// verify expected credentials
 	credentials := suite.dockerCreds.GetCredentials()
 
-	compare.CompareNoOrder(credentials, []Credentials{
+	compare.NoOrder(credentials, []Credentials{
 		{Username: "some-user-0", Password: "some-password-0", URL: "some-url-0"},
 		{Username: "some-user-1", Password: "some-password-1", URL: "some-url-1"},
 		{Username: "user1", Password: "pass1", URL: "https://url1"},
@@ -335,11 +337,12 @@ func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 }
 
 func (suite *LogInFromDirTestSuite) TestRefreshLogins() {
-	suite.createFilesInDir(suite.tempDir, []interface{}{
+	err := suite.createFilesInDir(suite.tempDir, []interface{}{
 		fileNode{".dockerjsonconfig1", suite.kubernetesAuthsSecrets[0]},
 		fileNode{"user1---url1---1s.json", "pass1"},
 		fileNode{"user2---url2.json", "pass2"},
 	})
+	suite.Require().NoError(err)
 
 	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
 		Username: "some-user-0",
@@ -359,14 +362,15 @@ func (suite *LogInFromDirTestSuite) TestRefreshLogins() {
 		URL:      "https://url2",
 	}).Return(nil).Times(3)
 
-	defaultRefreshInterval := time.Duration(1500 * time.Millisecond)
+	defaultRefreshInterval := 1500 * time.Millisecond
 
 	// expect user1 to be refreshed three times (uses interval from name), user 2 to be refreshed twice (uses interval
 	// from default). Add one to each since login occurs immediately
 	dockerCreds, err := NewDockerCreds(suite.logger, suite.mockDockerClient, &defaultRefreshInterval)
 	suite.Require().NoError(err)
 
-	dockerCreds.LoadFromDir(suite.tempDir)
+	err = dockerCreds.LoadFromDir(suite.tempDir)
+	suite.Require().NoError(err)
 
 	// wait 3.5 seconds to allow the 1 second interval to happen fully 3 times
 	time.Sleep(3500 * time.Millisecond)
@@ -376,10 +380,11 @@ func (suite *LogInFromDirTestSuite) TestRefreshLogins() {
 }
 
 func (suite *LogInFromDirTestSuite) TestNoRefreshLogins() {
-	suite.createFilesInDir(suite.tempDir, []interface{}{
+	err := suite.createFilesInDir(suite.tempDir, []interface{}{
 		fileNode{"user1---url1.json", "pass1"},
 		fileNode{"user2---url2.json", "pass2"},
 	})
+	suite.Require().NoError(err)
 
 	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
 		Username: "user1",
@@ -393,7 +398,8 @@ func (suite *LogInFromDirTestSuite) TestNoRefreshLogins() {
 		URL:      "https://url2",
 	}).Return(nil).Once()
 
-	suite.dockerCreds.LoadFromDir(suite.tempDir)
+	err = suite.dockerCreds.LoadFromDir(suite.tempDir)
+	suite.Require().NoError(err)
 
 	// wait 3 seconds - nothing should happen
 	time.Sleep(3 * time.Second)

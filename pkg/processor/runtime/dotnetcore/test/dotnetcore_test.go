@@ -21,7 +21,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -39,15 +38,16 @@ func (suite *TestSuite) SetupTest() {
 }
 
 func (suite *TestSuite) TestOutputs() {
-	// TODO: Have common tests and use here and in Python
-	// see https://github.com/nuclio/nuclio/issues/227
-
 	statusOK := http.StatusOK
 	statusCreated := http.StatusCreated
 	statusInternalError := http.StatusInternalServerError
 	logLevelDebug := "debug"
 	logLevelWarn := "warn"
 	testPath := "/path/to/nowhere"
+	longTestBody := `long body: Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. 
+	Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculous mus. Donec quam felis, ultricies nec, 
+	pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, 
+	vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis pretium.`
 
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
 
@@ -56,110 +56,98 @@ func (suite *TestSuite) TestOutputs() {
 		suite.GetFunctionPath("_outputter"))
 
 	deployOptions.FunctionConfig.Spec.Handler = "nuclio:outputter"
-	suite.DeployFunction(deployOptions, func(deployResult *platform.CreateFunctionResult) bool {
-
-		testRequests := []httpsuite.Request{
-			{
-				Name:                       "string",
-				RequestBody:                "return_string",
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
-				ExpectedResponseBody:       "a string",
-				ExpectedResponseStatusCode: &statusOK,
+	suite.DeployFunctionAndRequests(deployOptions, []*httpsuite.Request{
+		{
+			Name:                       "string",
+			RequestBody:                "return_string",
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       "a string",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                       "json_convert",
+			RequestBody:                "json_convert",
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       "{\n  \"Name\": \"John Doe\",\n  \"Email\": \"john@iguazio.com\"\n}",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                       "long body",
+			RequestBody:                longTestBody,
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       longTestBody,
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                       "panic",
+			RequestBody:                "panic",
+			ExpectedResponseStatusCode: &statusInternalError,
+		},
+		{
+			Name:           "response object",
+			RequestHeaders: map[string]interface{}{"a": "1", "b": "2"},
+			RequestBody:    "return_response",
+			ExpectedResponseHeaders: map[string]string{
+				"a":            "1",
+				"b":            "2",
+				"h1":           "v1",
+				"h2":           "v2",
+				"Content-Type": "text/plain; charset=utf-8",
 			},
-			{
-				Name:                       "panic",
-				RequestBody:                "panic",
-				ExpectedResponseStatusCode: &statusInternalError,
+			ExpectedResponseBody:       "response body",
+			ExpectedResponseStatusCode: &statusCreated,
+		},
+		{
+			Name:                       "logs - debug",
+			RequestBody:                "log",
+			RequestLogLevel:            &logLevelDebug,
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       "returned logs",
+			ExpectedResponseStatusCode: &statusOK,
+			ExpectedLogMessages: []string{
+				"Debug message",
+				"Info message",
+				"Warn message",
+				"Error message",
 			},
-			{
-				Name:           "response object",
-				RequestHeaders: map[string]interface{}{"a": "1", "b": "2"},
-				RequestBody:    "return_response",
-				ExpectedResponseHeaders: map[string]string{
-					"a":            "1",
-					"b":            "2",
-					"h1":           "v1",
-					"h2":           "v2",
-					"Content-Type": "text/plain; charset=utf-8",
-				},
-				ExpectedResponseBody:       "response body",
-				ExpectedResponseStatusCode: &statusCreated,
+		},
+		{
+			Name:                       "logs - warn",
+			RequestBody:                "log",
+			RequestLogLevel:            &logLevelWarn,
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       "returned logs",
+			ExpectedResponseStatusCode: &statusOK,
+			ExpectedLogMessages: []string{
+				"Warn message",
+				"Error message",
 			},
-			{
-				Name:                       "logs - debug",
-				RequestBody:                "log",
-				RequestLogLevel:            &logLevelDebug,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
-				ExpectedResponseBody:       "returned logs",
-				ExpectedResponseStatusCode: &statusOK,
-				ExpectedLogMessages: []string{
-					"Debug message",
-					"Info message",
-					"Warn message",
-					"Error message",
-				},
-			},
-			{
-				Name:                       "logs - warn",
-				RequestBody:                "log",
-				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
-				ExpectedResponseBody:       "returned logs",
-				ExpectedResponseStatusCode: &statusOK,
-				ExpectedLogMessages: []string{
-					"Warn message",
-					"Error message",
-				},
-			},
-			{
-				Name:                 "GET",
-				RequestMethod:        "GET",
-				ExpectedResponseBody: "GET",
-			},
-			{
-				Name:                       "fields",
-				RequestPath:                "/?x=1&y=2",
-				RequestBody:                "return_fields",
-				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
-				ExpectedResponseBody:       "x=1,y=2",
-				ExpectedResponseStatusCode: &statusOK,
-			},
-			{
-				Name:                 "path",
-				RequestBody:          "return_path",
-				RequestPath:          testPath,
-				ExpectedResponseBody: testPath,
-			},
-		}
-
-		for _, testRequest := range testRequests {
-			suite.Logger.DebugWith("Running sub test", "name", testRequest.Name)
-
-			// set defaults
-			if testRequest.RequestPort == 0 {
-				testRequest.RequestPort = deployResult.Port
-			}
-
-			if testRequest.RequestMethod == "" {
-				testRequest.RequestMethod = "POST"
-			}
-
-			if testRequest.RequestPath == "" {
-				testRequest.RequestPath = "/"
-			}
-
-			if !suite.SendRequestVerifyResponse(&testRequest) {
-				return false
-			}
-		}
-
-		return true
+		},
+		{
+			Name:                 "GET",
+			RequestMethod:        "GET",
+			ExpectedResponseBody: "GET",
+		},
+		{
+			Name:                       "fields",
+			RequestPath:                "/?x=1&y=2",
+			RequestBody:                "return_fields",
+			RequestLogLevel:            &logLevelWarn,
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       "x=1,y=2",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                 "path",
+			RequestBody:          "return_path",
+			RequestPath:          testPath,
+			ExpectedResponseBody: testPath,
+		},
 	})
 }
 
 func (suite *TestSuite) TestStress() {
-	// Create blastConfiguration using default configurations + changes for golang specification
+	// Create blastConfiguration using default configurations + changes for dotnet specification
 	blastConfiguration := suite.NewBlastConfiguration()
 	blastConfiguration.FunctionPath = "_outputter"
 	blastConfiguration.Handler = "nuclio:outputter"

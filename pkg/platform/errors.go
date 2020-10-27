@@ -20,5 +20,8 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-// A project contains functions, cannot be deleted
+// A project containing resources(functions/api gateways), cannot be deleted
 var ErrProjectContainsFunctions = nuclio.NewErrConflict("Project contains functions")
+var ErrProjectContainsAPIGateways = nuclio.NewErrConflict("Project contains api gateways")
+
+var ErrUnsupportedMethod = nuclio.NewErrNotImplemented("Unsupported method")

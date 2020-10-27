@@ -1,0 +1,75 @@
+<div class="close-button igz-icon-close" data-ng-click="$ctrl.onClose()"></div>
+
+<div class="title">
+    <span>
+        {{ 'functions:NEW_PROJECT' | i18next }}
+    </span>
+</div>
+
+<div class="main-content ">
+    <form name="newProjectForm" novalidate data-ng-keydown="$ctrl.createProject($event)">
+        <div class="field-group">
+            <div class="field-label">
+                {{ 'functions:PROJECT_NAME' | i18next }}
+            </div>
+            <div class="field-input">
+                <igz-validating-input-field class="nuclio-validating-input"
+                                            data-field-type="input"
+                                            data-input-name="metadata.name"
+                                            data-input-value="$ctrl.data.metadata.name"
+                                            data-is-focused="true"
+                                            data-form-object="newProjectForm"
+                                            data-validation-is-required="true"
+                                            data-update-data-callback="$ctrl.inputValueCallback(newData, field)"
+                                            data-validation-max-length="{{$ctrl.maxLengths.projectName}}"
+                                            data-validation-rules="$ctrl.validationRules.projectName"
+                                            data-placeholder-text="{{ 'functions:PLACEHOLDER.ENTER_PROJECT_NAME' | i18next }}">
+                </igz-validating-input-field>
+            </div>
+        </div>
+        <div class="field-group">
+            <div class="field-label">
+                {{ 'common:DESCRIPTION' | i18next }}
+            </div>
+            <div class="field-input">
+                <div class="error" data-ng-show="$ctrl.isShowFieldInvalidState(newProjectForm, 'spec.description')">
+                    {{ 'common:ERROR_MSG.INVALID_INPUTS' | i18next }}
+                </div>
+                <igz-validating-input-field class="nuclio-validating-input"
+                                            data-field-type="input"
+                                            data-input-name="spec.description"
+                                            data-input-value="$ctrl.data.spec.description"
+                                            data-form-object="newProjectForm"
+                                            data-update-data-callback="$ctrl.inputValueCallback(newData, field)"
+                                            data-placeholder-text="{{ 'functions:PLACEHOLDER.ENTER_DESCRIPTION' | i18next }}">
+                </igz-validating-input-field>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="buttons">
+    <button class="ncl-secondary-button igz-button-just-text"
+            data-test-id="projects.new-project_cancel.button"
+            tabindex="0"
+            data-ng-click="$ctrl.onClose()"
+            data-ng-keydown="$ctrl.onClose($event)">
+        {{ 'common:CANCEL' | i18next }}
+    </button>
+    <button class="ncl-primary-button igz-button-primary"
+            data-test-id="projects.new-project_create.button"
+            tabindex="0"
+            data-ng-click="$ctrl.createProject()"
+            data-ng-keydown="$ctrl.createProject($event)"
+            data-ng-hide="$ctrl.isLoadingState">
+        {{ 'common:CREATE' | i18next }}
+    </button>
+    <button class="ncl-primary-button igz-button-primary" data-ng-show="$ctrl.isLoadingState">
+        {{ 'common:LOADING_CAPITALIZE_ELLIPSIS' | i18next }}
+    </button>
+</div>
+
+<div class="error-text text-centered error-relative"
+     data-ng-show="$ctrl.isServerError()">
+    {{ 'common:ERROR' | i18next }}:&nbsp;{{$ctrl.serverError}}
+</div>

@@ -21,14 +21,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/mgutz/ansi"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/spf13/cobra"
@@ -54,6 +57,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 		Use:   "invoke function-name",
 		Short: "Invoke a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var err error
 
 			// if we got positional arguments
 			if len(args) != 1 {
@@ -67,8 +71,16 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 
 			commandeer.createFunctionInvocationOptions.Name = args[0]
 			commandeer.createFunctionInvocationOptions.Namespace = rootCommandeer.namespace
-			commandeer.createFunctionInvocationOptions.Body = []byte(commandeer.body)
+
+			// try parse body input from flag
+			commandeer.createFunctionInvocationOptions.Body, err = commandeer.resolveBody()
+			if err != nil {
+				return errors.Wrap(err, "Failed to resolve body")
+			}
 			commandeer.createFunctionInvocationOptions.Headers = http.Header{}
+
+			// resolve invocation method
+			commandeer.createFunctionInvocationOptions.Method = commandeer.resolveMethod()
 
 			// set external IP, if given
 			if commandeer.externalIPAddresses != "" {
@@ -82,7 +94,11 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				commandeer.createFunctionInvocationOptions.Headers.Set(headerName, headerValue)
 			}
 
-			commandeer.createFunctionInvocationOptions.Headers.Set("Content-Type", commandeer.contentType)
+			// populate content type
+			err = commandeer.populateContentType()
+			if err != nil {
+				return errors.Wrap(err, "Failed to populate content-type")
+			}
 
 			// verify correctness of logger level
 			switch commandeer.createFunctionInvocationOptions.LogLevelName {
@@ -117,14 +133,14 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 		},
 	}
 
-	cmd.Flags().StringVarP(&commandeer.contentType, "content-type", "c", "application/json", "HTTP Content-Type")
+	cmd.Flags().StringVarP(&commandeer.contentType, "content-type", "c", "", "HTTP Content-Type")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Path, "path", "p", "", "Path to the function to invoke")
-	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Method, "method", "m", "GET", "HTTP method for invoking the function")
+	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Method, "method", "m", "", "HTTP method for invoking the function")
 	cmd.Flags().StringVarP(&commandeer.body, "body", "b", "", "HTTP message body")
 	cmd.Flags().StringVarP(&commandeer.headers, "headers", "d", "", "HTTP headers (name=val1[,name=val2,...])")
 	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "Invoke the function via - \"any\": a load balancer or an external IP; \"loadbalancer\": a load balancer; \"external-ip\": an external IP")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.LogLevelName, "log-level", "l", "info", "Log level - \"none\", \"debug\", \"info\", \"warn\", or \"error\"")
-	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", "", "External IP addresses (comma-delimited) with which to invoke the function")
+	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", os.Getenv("NUCTL_EXTERNAL_IP_ADDRESSES"), "External IP addresses (comma-delimited) with which to invoke the function")
 
 	commandeer.cmd = cmd
 
@@ -153,6 +169,73 @@ func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *p
 	}
 
 	return nil
+}
+
+// populateContentType populate from flag if given, header if given or default to resolve from body
+func (i *invokeCommandeer) populateContentType() error {
+	var contentTypes []string
+	contentTypeHeaderName := "Content-Type"
+	headers := i.createFunctionInvocationOptions.Headers
+
+	// given as flag
+	if i.contentType != "" {
+		contentTypes = append(contentTypes, i.contentType)
+	}
+
+	// given as header
+	if headers.Get(contentTypeHeaderName) != "" {
+
+		// we want all values given
+		contentTypes = append(contentTypes, headers.Values(contentTypeHeaderName)...)
+	}
+
+	// not given at all
+	if len(contentTypes) == 0 {
+
+		// try guess from body
+		contentTypes = append(contentTypes, http.DetectContentType([]byte(i.body)))
+	}
+
+	// reset
+	headers.Del(contentTypeHeaderName)
+
+	// iterate over all content types and add
+	for _, contentType := range contentTypes {
+		parsedContentType, _, err := mime.ParseMediaType(contentType)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to parse media type %s", contentType)
+		}
+		headers.Add(contentTypeHeaderName, parsedContentType)
+	}
+	return nil
+}
+
+func (i *invokeCommandeer) resolveBody() ([]byte, error) {
+
+	// try resolve body from flag
+	if i.body != "" {
+		i.cmd.SetIn(bytes.NewBufferString(i.body))
+	}
+
+	// fallback to stdin
+	return nuctlcommon.ReadFromInOrStdin(i.cmd.InOrStdin())
+}
+
+func (i *invokeCommandeer) resolveMethod() string {
+
+	// if user did not specified method
+	if i.createFunctionInvocationOptions.Method == "" {
+
+		// user provided request body, default to POST
+		if len(i.createFunctionInvocationOptions.Body) > 0 {
+			return http.MethodPost
+		}
+
+		// In case of no body, default to GET
+		return http.MethodGet
+
+	}
+	return i.createFunctionInvocationOptions.Method
 }
 
 func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) error {
@@ -242,7 +325,7 @@ func (i *invokeCommandeer) outputResponseHeaders(invokeResult *platform.CreateFu
 	for headerName, headerValue := range invokeResult.Headers {
 
 		// skip the log headers
-		if strings.ToLower(headerName) == strings.ToLower("X-Nuclio-Logs") {
+		if strings.EqualFold(headerName, "X-Nuclio-Logs") {
 			continue
 		}
 

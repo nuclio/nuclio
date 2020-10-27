@@ -17,14 +17,16 @@ limitations under the License.
 package java
 
 import (
+	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -47,7 +49,11 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		configuration,
 		newJavaRuntime)
 
-	return newJavaRuntime, err
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create runtime")
+	}
+
+	return newJavaRuntime, nil
 }
 
 func (j *java) RunWrapper(port string) (*os.Process, error) {
@@ -61,6 +67,7 @@ func (j *java) RunWrapper(port string) (*os.Process, error) {
 		"-jar", j.wrapperJarPath(),
 		"-handler", j.handlerName(),
 		"-port", port,
+		"-workerid", strconv.Itoa(j.configuration.WorkerID),
 	}...)
 
 	cmd := exec.Command(args[0], args[1:]...)
@@ -121,4 +128,8 @@ func (j *java) getJVMOptions() ([]string, error) {
 	}
 
 	return jvmOptions, nil
+}
+
+func (j *java) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
+	return rpc.NewEventJSONEncoder(j.Logger, writer)
 }

@@ -19,6 +19,8 @@ package platformconfig
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -62,11 +64,19 @@ type MetricSink struct {
 }
 
 type ScaleToZero struct {
-	MetricName     string `json:"metricName,omitempty"`
-	WindowSize     string `json:"windowSize,omitempty"`
-	PollerInterval string `json:"pollerInterval,omitempty"`
-	ScalerInterval string `json:"scalerInterval,omitempty"`
+	Mode                     ScaleToZeroMode                `json:"mode,omitempty"`
+	ScalerInterval           string                         `json:"scalerInterval,omitempty"`
+	ResourceReadinessTimeout string                         `json:"resourceReadinessTimeout,omitempty"`
+	ScaleResources           []functionconfig.ScaleResource `json:"scaleResources,omitempty"`
+	InactivityWindowPresets  []string                       `json:"inactivityWindowPresets,omitempty"`
 }
+
+type ScaleToZeroMode string
+
+const (
+	EnabledScaleToZeroMode  ScaleToZeroMode = "enabled"
+	DisabledScaleToZeroMode ScaleToZeroMode = "disabled"
+)
 
 type AutoScale struct {
 	MetricName  string `json:"metricName,omitempty"`
@@ -82,4 +92,28 @@ type Metrics struct {
 type LabelSelectorAndConfig struct {
 	LabelSelector  v1.LabelSelector      `json:"labelSelector,omitempty"`
 	FunctionConfig functionconfig.Config `json:"functionConfig,omitempty"`
+	Kubernetes     Kubernetes            `json:"kubernetes,omitempty"`
 }
+
+type Kubernetes struct {
+	Deployment *appsv1.Deployment `json:"deployment,omitempty"`
+}
+
+// default values for created ingresses
+type IngressConfig struct {
+	EnableSSLRedirect          bool     `json:"enableSSLRedirect,omitempty"`
+	TLSSecret                  string   `json:"tlsSecret,omitempty"`
+	IguazioAuthURL             string   `json:"iguazioAuthURL,omitempty"`
+	IguazioSignInURL           string   `json:"iguazioSignInURL,omitempty"`
+	AllowedAuthenticationModes []string `json:"allowedAuthenticationModes,omitempty"`
+	Oauth2ProxyURL             string   `json:"oauth2ProxyURL,omitempty"`
+}
+
+type CronTriggerCreationMode string
+
+const (
+	ProcessorCronTriggerCreationMode CronTriggerCreationMode = "processor"
+	KubeCronTriggerCreationMode      CronTriggerCreationMode = "kube"
+
+	DefaultServiceType = corev1.ServiceTypeNodePort
+)

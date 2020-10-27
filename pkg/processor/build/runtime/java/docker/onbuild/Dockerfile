@@ -20,8 +20,8 @@ FROM quay.io/nuclio/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
 
 FROM openjdk:9-slim as user-handler-builder
 
-RUN apt-get update \
-    && apt-get install -y curl \
+RUN apt-get update -qqy \
+    && apt-get install -o APT::Immediate-Configure=false -qqy curl \
     && curl -LO https://services.gradle.org/distributions/gradle-4.5.1-bin.zip \
     && unzip gradle-4.5.1-bin.zip \
     && rm gradle-4.5.1-bin.zip \
@@ -39,14 +39,17 @@ COPY --from=processor /home/nuclio/bin/processor /home/gradle/bin/processor
 # Build user handler jar
 #
 
-RUN mkdir -p /home/gradle/src/userHandler/src/main/java
+RUN mkdir -p /home/gradle/src/userHandler
 
 # Copy the user handler builder script
 COPY pkg/processor/build/runtime/java/docker/onbuild/build-user-handler.sh /home/gradle/src/userHandler/build-user-handler.sh
 RUN chmod +x /home/gradle/src/userHandler/build-user-handler.sh
 
-# Copy the SDK Jar to /home/gradle/src/userHandler
-COPY pkg/processor/runtime/java/nuclio-sdk-1.0-SNAPSHOT.jar /home/gradle/src/userHandler
+# Download the nuclio SDK Jar
+RUN curl -LO https://repo1.maven.org/fromsearch?filepath=io/nuclio/nuclio-sdk-java/1.0.0/nuclio-sdk-java-1.0.0.jar
+
+# Copy the downloaded SDK Jar to the userHandler folder
+RUN cp nuclio-sdk-java-1.0.0.jar /home/gradle/src/userHandler/nuclio-sdk-java-1.0.0.jar
 
 # Copy the gradle build script and user sources to /home/gradle/src/userHandler
 ONBUILD COPY handler/build.gradle /home/gradle/src/userHandler
@@ -54,9 +57,9 @@ ONBUILD COPY handler/build.gradle /home/gradle/src/userHandler
 # Specify the directory where the handler is kept. By default it is the context dir, but it is overridable
 ONBUILD ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
 
-# Copy the entire code to /home/gradle/src/userHandler/src/main/java, where gradle expects it to reside. Note that
+# Copy the entire code to /home/gradle/src/userHandler, where gradle expects it to reside. Note that
 # this will also copy build.gradle... but we'll ignore it
-ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /home/gradle/src/userHandler/src/main/java
+ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /home/gradle/src/userHandler
 
 # Run the handle builder to create /home/gradle/src/userHandler/build/libs/user-handler.jar.
 ONBUILD RUN cd /home/gradle/src/userHandler \
@@ -74,10 +77,12 @@ ONBUILD RUN mv /home/gradle/src/userHandler/build/libs/user-handler.jar /home/gr
 
 # The directory will hold wrapper source, SDK jar, user-handler.jar and wrapper gradle build script
 COPY pkg/processor/runtime/java/build.gradle \
-    pkg/processor/runtime/java/nuclio-sdk-1.0-SNAPSHOT.jar \
     pkg/processor/runtime/java/docker \
     pkg/processor/build/runtime/java/docker/onbuild/build-wrapped-handler.sh \
     /home/gradle/src/wrapper/
+
+# Copy also the downloaded nuclio SDK Jar to the wrapper folder
+RUN cp nuclio-sdk-java-1.0.0.jar /home/gradle/src/wrapper/nuclio-sdk-java-1.0.0.jar
 
 # Download dependencies
 RUN cd /home/gradle/src/wrapper \

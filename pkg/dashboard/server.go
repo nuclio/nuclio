@@ -19,40 +19,50 @@ package dashboard
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+)
+
+type PlatformAuthorizationMode string
+
+const (
+	PlatformAuthorizationModeServiceAccount          PlatformAuthorizationMode = "service-account"
+	PlatformAuthorizationModeAuthorizationHeaderOIDC PlatformAuthorizationMode = "authorization-header-oidc"
 )
 
 type Server struct {
 	*restful.AbstractServer
-	dockerKeyDir          string
-	defaultRegistryURL    string
-	defaultRunRegistryURL string
-	dockerClient          dockerclient.Client
-	dockerCreds           *dockercreds.DockerCreds
-	Platform              platform.Platform
-	NoPullBaseImages      bool
-	externalIPAddresses   []string
-	defaultNamespace      string
-	Offline               bool
-	Repository            *functiontemplates.Repository
-	platformConfiguration *platformconfig.Config
+	dockerKeyDir                   string
+	defaultRegistryURL             string
+	defaultRunRegistryURL          string
+	dockerCreds                    *dockercreds.DockerCreds
+	Platform                       platform.Platform
+	NoPullBaseImages               bool
+	externalIPAddresses            []string
+	defaultNamespace               string
+	Offline                        bool
+	Repository                     *functiontemplates.Repository
+	platformConfiguration          *platformconfig.Config
+	defaultHTTPIngressHostTemplate string
+	imageNamePrefixTemplate        string
+	platformAuthorizationMode      PlatformAuthorizationMode
+	dependantImageRegistryURL      string
 }
 
 func NewServer(parentLogger logger.Logger,
+	containerBuilderKind string,
 	dockerKeyDir string,
 	defaultRegistryURL string,
 	defaultRunRegistryURL string,
@@ -64,11 +74,14 @@ func NewServer(parentLogger logger.Logger,
 	defaultNamespace string,
 	offline bool,
 	repository *functiontemplates.Repository,
-	platformConfiguration *platformconfig.Config) (*Server, error) {
+	platformConfiguration *platformconfig.Config,
+	defaultHTTPIngressHostTemplate string,
+	imageNamePrefixTemplate string,
+	platformAuthorizationMode string,
+	dependantImageRegistryURL string) (*Server, error) {
 
-	var err error
-
-	newDockerClient, err := dockerclient.NewShellClient(parentLogger, nil)
+	// newDockerClient may be nil
+	newDockerClient, err := createDockerClient(parentLogger, containerBuilderKind)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
@@ -84,18 +97,21 @@ func NewServer(parentLogger logger.Logger,
 	}
 
 	newServer := &Server{
-		dockerKeyDir:          dockerKeyDir,
-		defaultRegistryURL:    defaultRegistryURL,
-		defaultRunRegistryURL: defaultRunRegistryURL,
-		dockerClient:          newDockerClient,
-		dockerCreds:           newDockerCreds,
-		Platform:              platform,
-		NoPullBaseImages:      noPullBaseImages,
-		externalIPAddresses:   externalIPAddresses,
-		defaultNamespace:      defaultNamespace,
-		Offline:               offline,
-		Repository:            repository,
-		platformConfiguration: platformConfiguration,
+		dockerKeyDir:                   dockerKeyDir,
+		defaultRegistryURL:             defaultRegistryURL,
+		defaultRunRegistryURL:          defaultRunRegistryURL,
+		dockerCreds:                    newDockerCreds,
+		Platform:                       platform,
+		NoPullBaseImages:               noPullBaseImages,
+		externalIPAddresses:            externalIPAddresses,
+		defaultNamespace:               defaultNamespace,
+		Offline:                        offline,
+		Repository:                     repository,
+		platformConfiguration:          platformConfiguration,
+		defaultHTTPIngressHostTemplate: defaultHTTPIngressHostTemplate,
+		imageNamePrefixTemplate:        imageNamePrefixTemplate,
+		platformAuthorizationMode:      PlatformAuthorizationMode(platformAuthorizationMode),
+		dependantImageRegistryURL:      dependantImageRegistryURL,
 	}
 
 	// create server
@@ -109,8 +125,10 @@ func NewServer(parentLogger logger.Logger,
 	}
 
 	// try to load docker keys, ignoring errors
-	if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
-		newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
+	if containerBuilderKind == "docker" {
+		if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
+			newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
+		}
 	}
 
 	// if the docker registry was not specified, try to take from credentials. this way the user only needs
@@ -151,12 +169,28 @@ func (s *Server) GetRunRegistryURL() string {
 	return s.defaultRunRegistryURL
 }
 
+func (s *Server) GetDependantImagesRegistryURL() string {
+	return s.dependantImageRegistryURL
+}
+
 func (s *Server) GetExternalIPAddresses() []string {
 	return s.externalIPAddresses
 }
 
+func (s *Server) GetDefaultHTTPIngressHostTemplate() string {
+	return s.defaultHTTPIngressHostTemplate
+}
+
+func (s *Server) GetImageNamePrefixTemplate() string {
+	return s.imageNamePrefixTemplate
+}
+
 func (s *Server) GetDefaultNamespace() string {
 	return s.defaultNamespace
+}
+
+func (s *Server) GetPlatformConfiguration() *platformconfig.Config {
+	return s.platformConfiguration
 }
 
 func (s *Server) InstallMiddleware(router chi.Router) error {
@@ -202,40 +236,48 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(201)
 }
 
+func (s *Server) GetPlatformAuthorizationMode() PlatformAuthorizationMode {
+	return s.platformAuthorizationMode
+}
+
 func (s *Server) getRegistryURL() string {
 	registryURL := ""
 	credentials := s.dockerCreds.GetCredentials()
 
 	if len(credentials) >= 1 {
-		registryURL = credentials[0].URL
-
-		// if the user specified the docker hub, we can't use this as-is. add the user name to the URL
-		// to generate a valid URL
-		for _, dockerPattern := range []string{
-			".docker.com",
-			".docker.io",
-		} {
-			if strings.HasSuffix(registryURL, dockerPattern) {
-				registryURL = fmt.Sprintf("%s/%s", registryURL, credentials[0].Username)
-				break
-			}
-		}
-
-		// trim prefixes
-		registryURL = common.StripPrefixes(registryURL,
-			[]string{
-				"https://",
-				"http://",
-			})
-
+		registryURL = s.resolveDockerCredentialsRegistryURL(credentials[0])
 		s.Logger.InfoWith("Using registry from credentials", "url", registryURL)
 	}
 
-	// if we're still without a valid registry, use a hardcoded one (TODO: remove this)
-	if registryURL == "" {
-		registryURL = "localhost:5000"
+	return registryURL
+}
+
+func (s *Server) resolveDockerCredentialsRegistryURL(credentials dockercreds.Credentials) string {
+	registryURL := credentials.URL
+
+	// TODO: This auto-expansion does not support with kaniko today, must provide full URL. Remove this?
+	// if the user specified the docker hub, we can't use this as-is. add the user name to the URL
+	// to generate a valid URL
+	if common.MatchStringPatterns([]string{
+		`\.docker\.com`,
+		`\.docker\.io`,
+	}, registryURL) {
+		registryURL = common.StripSuffixes(registryURL, []string{
+
+			// when using docker.io as login address, the resolved address in the docker credentials file
+			// might contain the registry version, strip it if so
+			"/v1",
+			"/v1/",
+		})
+		registryURL = fmt.Sprintf("%s/%s", registryURL, credentials.Username)
 	}
 
+	// trim prefixes
+	registryURL = common.StripPrefixes(registryURL,
+		[]string{
+			"https://",
+			"http://",
+		})
 	return registryURL
 }
 
@@ -247,11 +289,12 @@ func (s *Server) loadDockerKeys(dockerKeyDir string) error {
 	return s.dockerCreds.LoadFromDir(dockerKeyDir)
 }
 
-func (s *Server) readPlatformConfiguration(configurationPath string) (*platformconfig.Config, error) {
-	platformConfigurationReader, err := platformconfig.NewReader()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
+func createDockerClient(parentLogger logger.Logger, containerBuilderKind string) (
+	dockerclient.Client, error) {
+	if containerBuilderKind == "docker" {
+		return dockerclient.NewShellClient(parentLogger, nil)
 	}
 
-	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
+	// if docker won't be use, return nil as a client
+	return nil, nil
 }

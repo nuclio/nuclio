@@ -16,7 +16,9 @@ limitations under the License.
 
 package golang
 
-import "github.com/nuclio/nuclio-sdk-go"
+import (
+	"github.com/nuclio/nuclio-sdk-go"
+)
 
 // this is used for running a standalone processor during development
 func builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
@@ -31,6 +33,7 @@ func builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, e
 		"Time", event.GetTimestamp().String(),
 		"Headers", event.GetHeaders(),
 		"ContentType", event.GetContentType(),
+		"ShardID", event.GetShardID(),
 		"Body", string(event.GetBody()))
 
 	return "Built in handler called", nil

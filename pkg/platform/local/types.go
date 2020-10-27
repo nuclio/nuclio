@@ -17,14 +17,17 @@ limitations under the License.
 package local
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/nuclio/errors"
 )
 
 type functionPlatformConfiguration struct {
-	Network string
+	Network            string
+	RestartPolicy      *dockerclient.RestartPolicy
+	ProcessorMountMode ProcessorMountMode
 }
 
 func newFunctionPlatformConfiguration(functionConfig *functionconfig.Config) (*functionPlatformConfiguration, error) {
@@ -37,3 +40,10 @@ func newFunctionPlatformConfiguration(functionConfig *functionconfig.Config) (*f
 
 	return &newConfiguration, nil
 }
+
+type ProcessorMountMode string
+
+const (
+	ProcessorMountModeBind   ProcessorMountMode = "bind"
+	ProcessorMountModeVolume ProcessorMountMode = "volume"
+)

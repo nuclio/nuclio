@@ -10,6 +10,8 @@
         'ngCookies',
         'ngSanitize',
         'angular-yamljs',
+        'angular-moment',
+        'angular-base64',
         'ngDialog',
         'ngScrollbars',
         'fiestah.money',
@@ -17,6 +19,7 @@
         'iguazio.dashboard-controls',
         'ngFileUpload',
         'rzModule',
-        'angular-cron-jobs'
+        'angular-cron-jobs',
+        'jm.i18next'
     ]);
 }());

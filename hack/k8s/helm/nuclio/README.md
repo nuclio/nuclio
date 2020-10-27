@@ -6,7 +6,7 @@
 
 ## Introduction
 
-This chart bootstraps a Nuclio deployment (controller and playground) and service on a Kubernetes cluster using the Helm Package manager. Before you get started you will need:
+This chart bootstraps a Nuclio deployment (controller and dashboard) and service on a Kubernetes cluster using the Helm Package manager. Before you get started you will need:
 
 - A Kubernetes 1.7+ cluster with tiller installed
 - helm 
@@ -29,15 +29,16 @@ Start by creating a namespace:
 kubectl create namespace nuclio
 ```
 
-**Create a registry secret:** because Nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials. Replace the `<...>` placeholders in the following commands with your username, password, and URL:
-> Note: If you want to use Docker Hub, the URL is `registry.hub.docker.com`.
+**Create a registry secret:** because Nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials.
+Replace the `<...>` placeholders in the following commands with your username, password, and URL:
+> **Note:** If you want to use Docker Hub, the URL is `registry.hub.docker.com`.
 
 Create the secret:
 ``` sh
 read -s mypassword
 <enter your password>
 
-kubectl create secret docker-registry nuclio-registry-credentials --namespace nuclio \
+kubectl create secret docker-registry nuclio-registry-credentials \
     --docker-username <username> \
     --docker-password $mypassword \
     --docker-server <registry name> \
@@ -50,50 +51,64 @@ unset mypassword
 There are no special flags required when installing in AKS or vanilla Kubernetes:
 
 ``` sh
-helm install --namespace nuclio --name nuclio nuclio/nuclio
+helm install nuclio nuclio/nuclio
 ```
 
 ### Install on GKE (or when using GCR)
 If you're using GCR as your image registry, there is a small quirk where the login URL is different from the push/pull URL. By default, Nuclio will take the push/pull URL from the secret, but in this case we need to let Nuclio know what the push/pull URL is:
 
 ``` sh
-helm install \
+helm install nuclio \
 	--set registry.pushPullUrl gcr.io/<your project name> \
 	nuclio/nuclio
 ```
 
 ### Install on Minikube using a local, insecure registry
-By clearing `registry.secretName`, Nuclio will not try to load Docker secrets.
-
-``` sh
-helm install \
-	--set registry.secretName= \
-	nuclio/nuclio
-```
-
-### Advanced: Run on Docker for Mac as a core Nuclio developer
-Make sure your images are up to date and install the helm chart using the latest tag:
-```sh
-helm install \
-	--set registry.secretName= \
-	--set controller.image.tag=latest-amd64 \
-	--set dashboard.image.tag=latest-amd64 \
-	--set controller.baseImagePullPolicy=Never \
-	--set dashboard.baseImagePullPolicy=Never \
-	.
-```
 
 You will need to run a local Docker registry. Run the following command on the host if you're working with Docker for Mac or on the Minikube VM:
 ```sh
 docker run -d -p 5000:5000 registry:2
 ```
 
-Forward the dashboard port
+By not providing a registry secret name (`registry.secretName`) nor credentials (`registry.credentials.username` / `registry.credentials.password`), Nuclio will understand credentials are not needed, and not try to load Docker secrets.
+
+``` sh
+helm install nuclio \
+    --set registry.pushPullUrl=localhost:5000 \
+	nuclio/nuclio
+```
+
+Forward the dashboard port:
+```sh
+kubectl port-forward $(kubectl get pod -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
+```
+
+### Advanced: Run on Docker for Mac as a core Nuclio developer, with an insecure registry
+In this example we will install and run nuclio in the default namespace, for simplicity
+
+Build the images locally (with your modified code) by running this on the repo root directory:
+```sh
+make build
+```
+
+Run a local Docker registry:
+```sh
+docker run -d -p 5000:5000 registry:2
+```
+
+Make sure your images are up to date and install the helm chart using the latest tag:
+```sh
+helm install nuclio \
+    --set registry.pushPullUrl=localhost:5000 \
+	--set controller.image.tag=latest-amd64 \
+	--set dashboard.image.tag=latest-amd64 \
+	--set dashboard.baseImagePullPolicy=Never \
+	.
+```
+
+Forward the dashboard port:
 ```sh
 kubectl port-forward $(kubectl get pod -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
 
 > Note: You can delete one (or both) of the deployments and run the service in the IDE. It will pick up the local kubeconfig file
-
-## Configuration
-TODO

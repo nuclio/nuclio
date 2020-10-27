@@ -20,15 +20,16 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"k8s.io/api/apps/v1beta1"
-	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/api/core/v1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type function struct {
@@ -39,6 +40,7 @@ type function struct {
 	availableReplicas  int
 	ingressAddress     string
 	httpPort           int
+	service            *v1.Service
 }
 
 func newFunction(parentLogger logger.Logger,
@@ -51,9 +53,11 @@ func newFunction(parentLogger logger.Logger,
 	// create a config from function
 	functionConfig := functionconfig.Config{
 		Meta: functionconfig.Meta{
-			Name:      nuclioioFunction.Name,
-			Namespace: nuclioioFunction.Namespace,
-			Labels:    nuclioioFunction.Labels,
+			Name:            nuclioioFunction.Name,
+			Namespace:       nuclioioFunction.Namespace,
+			Labels:          nuclioioFunction.Labels,
+			Annotations:     nuclioioFunction.Annotations,
+			ResourceVersion: nuclioioFunction.ResourceVersion,
 		},
 		Spec: nuclioioFunction.Spec,
 	}
@@ -71,37 +75,100 @@ func newFunction(parentLogger logger.Logger,
 	newFunction.AbstractFunction = *newAbstractFunction
 	newFunction.function = nuclioioFunction
 	newFunction.consumer = consumer
+	newFunction.httpPort = nuclioioFunction.Status.HTTPPort
 
 	return newFunction, nil
 }
 
 // Initialize loads sub-resources so we can populate our configuration
 func (f *function) Initialize([]string) error {
-	var deployment *v1beta1.Deployment
-	var ingress *ext_v1beta1.Ingress
-	var deploymentErr, ingressErr error
+	var deploymentList *appsv1.DeploymentList
+	var ingressList *extv1beta1.IngressList
+	var serviceList *v1.ServiceList
+
+	var deployment *appsv1.Deployment
+	var ingress *extv1beta1.Ingress
+	var service *v1.Service
+	var deploymentErr, ingressErr, serviceErr error
 
 	waitGroup := sync.WaitGroup{}
 
 	// wait for service, ingress and deployment
-	waitGroup.Add(2)
+	waitGroup.Add(3)
+
+	listOptions := metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", f.Config.Meta.Name),
+	}
 
 	// get deployment info
 	go func() {
-		if deployment == nil {
-			deployment, deploymentErr = f.consumer.kubeClientSet.AppsV1beta1().
+		if deploymentList == nil {
+			deploymentList, deploymentErr = f.consumer.kubeClientSet.AppsV1().
 				Deployments(f.Config.Meta.Namespace).
-				Get(f.Config.Meta.Name, meta_v1.GetOptions{})
+				List(listOptions)
+
+			if deploymentErr != nil {
+				return
+			}
+
+			// there should be only one
+			if len(deploymentList.Items) != 1 {
+				deploymentErr = errors.Errorf("Found unexpected number of deployments for function %s: %d",
+					f.function.Name,
+					len(deploymentList.Items))
+			} else {
+				deployment = &deploymentList.Items[0]
+			}
 		}
 
 		waitGroup.Done()
 	}()
 
+	// get service info
 	go func() {
-		if ingress == nil {
-			ingress, ingressErr = f.consumer.kubeClientSet.ExtensionsV1beta1().
+		if serviceList == nil {
+			serviceList, serviceErr = f.consumer.kubeClientSet.CoreV1().
+				Services(f.Config.Meta.Namespace).
+				List(listOptions)
+
+			if serviceErr != nil {
+				return
+			}
+
+			// there should be only one
+			if len(serviceList.Items) != 1 {
+				serviceErr = errors.Errorf("Found unexpected number of services for function %s: %d",
+					f.function.Name,
+					len(serviceList.Items))
+			} else {
+				service = &serviceList.Items[0]
+			}
+		}
+
+		waitGroup.Done()
+	}()
+
+	// get ingress info
+	go func() {
+		if ingressList == nil {
+			ingressList, ingressErr = f.consumer.kubeClientSet.ExtensionsV1beta1().
 				Ingresses(f.Config.Meta.Namespace).
-				Get(f.Config.Meta.Name, meta_v1.GetOptions{})
+				List(listOptions)
+
+			if ingressErr != nil {
+				return
+			}
+
+			// no more than one
+			if len(ingressList.Items) > 1 {
+				ingressErr = errors.Errorf("Found unexpected number of ingresses for function %s: %d",
+					f.function.Name,
+					len(ingressList.Items))
+
+				// there can be 0
+			} else if len(ingressList.Items) == 1 {
+				ingress = &ingressList.Items[0]
+			}
 		}
 
 		waitGroup.Done()
@@ -120,12 +187,14 @@ func (f *function) Initialize([]string) error {
 	}
 
 	// update fields
+	f.service = service
+
 	f.availableReplicas = int(deployment.Status.AvailableReplicas)
 	if deployment.Spec.Replicas != nil {
 		f.configuredReplicas = int(*deployment.Spec.Replicas)
 	}
 
-	if ingressErr != nil && ingress != nil && len(ingress.Status.LoadBalancer.Ingress) > 0 {
+	if ingressErr == nil && ingress != nil && len(ingress.Status.LoadBalancer.Ingress) > 0 {
 		f.ingressAddress = ingress.Status.LoadBalancer.Ingress[0].IP
 	}
 
@@ -150,10 +219,11 @@ func (f *function) GetReplicas() (int, int) {
 func (f *function) GetConfig() *functionconfig.Config {
 	return &functionconfig.Config{
 		Meta: functionconfig.Meta{
-			Name:        f.function.Name,
-			Namespace:   f.function.Namespace,
-			Labels:      f.function.Labels,
-			Annotations: f.function.Annotations,
+			Name:            f.function.Name,
+			Namespace:       f.function.Namespace,
+			Labels:          f.function.Labels,
+			Annotations:     f.function.Annotations,
+			ResourceVersion: f.function.ResourceVersion,
 		},
 		Spec: f.function.Spec,
 	}
@@ -243,15 +313,20 @@ func (f *function) getExternalIPInvokeURL() (string, int, string, error) {
 }
 
 func (f *function) getDomainNameInvokeURL() (string, int, string, error) {
+	host, port := GetDomainNameInvokeURL(f.service.Name, f.function.Namespace)
+	return host, port, "", nil
+}
+
+func GetDomainNameInvokeURL(serviceName, namespace string) (string, int) {
 	var domainName string
 
-	if f.function.ObjectMeta.Namespace == "" {
-		domainName = f.function.ObjectMeta.Name
+	if namespace == "" {
+		domainName = serviceName
 	} else {
 		domainName = fmt.Sprintf("%s.%s.svc.cluster.local",
-			f.function.ObjectMeta.Name,
-			f.function.ObjectMeta.Namespace)
+			serviceName,
+			namespace)
 	}
 
-	return domainName, 8080, "", nil
+	return domainName, 8080
 }

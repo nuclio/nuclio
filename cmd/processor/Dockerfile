@@ -12,15 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.10
+ARG NUCLIO_LABEL
 
-# copy source tree
-WORKDIR /go/src/github.com/nuclio/nuclio
-COPY . .
+FROM nuclio-base:$NUCLIO_LABEL as build-processor
+
+ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
 # build the processor
-RUN go get github.com/v3io/v3io-go-http \
-    && go get github.com/nuclio/logger \
-    && go get github.com/nuclio/nuclio-sdk-go \
-    && go get github.com/nuclio/amqp \
-    && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+    -a \
+    -installsuffix cgo \
+    -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
+    -o processor cmd/processor/main.go
+
+FROM scratch
+
+COPY --from=build-processor  /nuclio/processor /home/nuclio/bin/processor

@@ -18,15 +18,13 @@ package abstract
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -47,7 +45,6 @@ func newInvoker(parentLogger logger.Logger, platform platform.Platform) (*invoke
 
 func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (*platform.CreateFunctionInvocationResult, error) {
 	var invokeURL string
-	var invokePort int
 
 	// save options
 	i.createFunctionInvocationOptions = createFunctionInvocationOptions
@@ -63,7 +60,7 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 	}
 
 	if len(functions) == 0 {
-		return nil, fmt.Errorf("Function not found: %s @ %s",
+		return nil, errors.Errorf("Function not found: %s @ %s",
 			createFunctionInvocationOptions.Name,
 			createFunctionInvocationOptions.Namespace)
 	}
@@ -83,9 +80,6 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 	}
 
 	fullpath := "http://" + invokeURL
-	if invokePort != 0 {
-		fullpath += ":" + strconv.Itoa(invokePort)
-	}
 
 	if createFunctionInvocationOptions.Path != "" {
 		fullpath += "/" + createFunctionInvocationOptions.Path
@@ -99,12 +93,6 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 	if createFunctionInvocationOptions.Method != "GET" {
 		body = bytes.NewBuffer(createFunctionInvocationOptions.Body)
 	}
-
-	i.logger.InfoWith("Executing function",
-		"method", createFunctionInvocationOptions.Method,
-		"url", fullpath,
-		"body", body,
-	)
 
 	// issue the request
 	req, err = http.NewRequest(createFunctionInvocationOptions.Method, fullpath, body)
@@ -120,6 +108,11 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 	if createFunctionInvocationOptions.LogLevelName != "none" && req.Header.Get("x-nuclio-log-level") == "" {
 		req.Header.Set("x-nuclio-log-level", createFunctionInvocationOptions.LogLevelName)
 	}
+
+	i.logger.InfoWith("Executing function",
+		"method", createFunctionInvocationOptions.Method,
+		"url", fullpath,
+		"headers", req.Header)
 
 	response, err := client.Do(req)
 	if err != nil {

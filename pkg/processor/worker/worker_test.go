@@ -57,8 +57,20 @@ func (mr *MockRuntime) GetStatus() status.Status {
 	return status.Ready
 }
 
+func (mr *MockRuntime) Start() error {
+	return nil
+}
+
 func (mr *MockRuntime) Stop() error {
 	return nil
+}
+
+func (mr *MockRuntime) Restart() error {
+	return nil
+}
+
+func (mr *MockRuntime) SupportsRestart() bool {
+	return true
 }
 
 type WorkerTestSuite struct {
@@ -79,7 +91,8 @@ func (suite *WorkerTestSuite) TestProcessEvent() {
 	mockRuntime.On("ProcessEvent", event, suite.logger).Return(nil, nil).Once()
 
 	// process the event
-	worker.ProcessEvent(event, suite.logger)
+	_, err := worker.ProcessEvent(event, suite.logger)
+	suite.Require().NoError(err)
 
 	// make sure all expectations are met
 	mockRuntime.AssertExpectations(suite.T())

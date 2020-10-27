@@ -17,20 +17,26 @@ limitations under the License.
 package trigger
 
 import (
-	"fmt"
 	"runtime/debug"
 	"strings"
+	"sync/atomic"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/satori/go.uuid"
 )
 
+const (
+	MaxWorkersLimit                              = 100000
+	DefaultWorkerAvailabilityTimeoutMilliseconds = 10000 // 10 seconds
+)
+
+// Trigger is common trigger interface
 type Trigger interface {
 
 	// Initialize performs post creation initializations
@@ -61,9 +67,14 @@ type Trigger interface {
 	// TODO: locks and such when relevant
 	GetWorkers() []*worker.Worker
 
+	// GetNamespace returns namespace
 	GetNamespace() string
 
+	// GetFunctionName returns function name
 	GetFunctionName() string
+
+	// TimeoutWorker times out a worker
+	TimeoutWorker(worker *worker.Worker) error
 }
 
 // AbstractTrigger implements common trigger operations
@@ -73,6 +84,7 @@ type AbstractTrigger struct {
 	WorkerAllocator worker.Allocator
 	Class           string
 	Kind            string
+	Name            string
 	Statistics      Statistics
 	Namespace       string
 	FunctionName    string
@@ -82,13 +94,26 @@ func NewAbstractTrigger(logger logger.Logger,
 	allocator worker.Allocator,
 	configuration *Configuration,
 	class string,
-	kind string) (AbstractTrigger, error) {
+	kind string,
+	name string) (AbstractTrigger, error) {
+
+	// enrich default trigger configuration
+	if configuration.WorkerAvailabilityTimeoutMilliseconds == nil || *configuration.WorkerAvailabilityTimeoutMilliseconds < 0 {
+		logger.InfoWith("Setting default worker availability timeout",
+			"DefaultWorkerAvailabilityTimeoutMilliseconds",
+			DefaultWorkerAvailabilityTimeoutMilliseconds)
+
+		defaultWorkerAvailabilityTimeoutMilliseconds := DefaultWorkerAvailabilityTimeoutMilliseconds
+		configuration.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
+	}
+
 	return AbstractTrigger{
 		Logger:          logger,
 		ID:              configuration.ID,
 		WorkerAllocator: allocator,
 		Class:           class,
 		Kind:            kind,
+		Name:            name,
 		Namespace:       configuration.RuntimeConfiguration.Meta.Namespace,
 		FunctionName:    configuration.RuntimeConfiguration.Meta.Name,
 	}, nil
@@ -107,6 +132,11 @@ func (at *AbstractTrigger) GetClass() string {
 // GetKind return the kind
 func (at *AbstractTrigger) GetKind() string {
 	return at.Kind
+}
+
+// GetName returns the name
+func (at *AbstractTrigger) GetName() string {
+	return at.Name
 }
 
 // AllocateWorkerAndSubmitEvent submits event to allocated worker
@@ -138,7 +168,6 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 	functionLogger logger.Logger,
 	timeout time.Duration) (responses []interface{}, submitError error, processErrors []error) {
-
 	var workerInstance *worker.Worker
 
 	defer at.HandleSubmitPanic(workerInstance, &submitError)
@@ -178,6 +207,10 @@ func (at *AbstractTrigger) GetWorkers() []*worker.Worker {
 
 // GetStatistics returns trigger statistics
 func (at *AbstractTrigger) GetStatistics() *Statistics {
+
+	// copy worker allocator statistics
+	at.Statistics.WorkerAllocatorStatistics = *at.WorkerAllocator.GetStatistics()
+
 	return &at.Statistics
 }
 
@@ -209,9 +242,10 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance *worker.Worker,
 			"stack",
 			string(callStack))
 
-		*submitError = fmt.Errorf("Caught panic: %s", err)
+		*submitError = errors.Errorf("Caught panic: %s", err)
 
 		if workerInstance != nil {
+			workerInstance.ResetEventTime()
 			at.WorkerAllocator.Release(workerInstance)
 		}
 
@@ -236,12 +270,17 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	return
 }
 
+// TimeoutWorker times out a worker
+func (at *AbstractTrigger) TimeoutWorker(worker *worker.Worker) error {
+	return nil
+}
+
 // UpdateStatistics updates the trigger statistics
 func (at *AbstractTrigger) UpdateStatistics(success bool) {
 	if success {
-		at.Statistics.EventsHandleSuccessTotal++
+		atomic.AddUint64(&at.Statistics.EventsHandledSuccessTotal, 1)
 	} else {
-		at.Statistics.EventsHandleFailureTotal++
+		atomic.AddUint64(&at.Statistics.EventsHandledFailureTotal, 1)
 	}
 }
 

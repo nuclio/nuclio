@@ -13,20 +13,30 @@
 # limitations under the License.
 
 {{- if .Values.dlx.enabled }}
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "nuclio.dlxName" . }}
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "nuclio.name" . }}
+      release: {{ .Release.Name }}
+      nuclio.io/app: dlx
+      nuclio.io/class: service
+      nuclio.io/name: {{ template "nuclio.dlxName" . }}
   template:
     metadata:
       labels:
+        app: {{ template "nuclio.name" . }}
+        release: {{ .Release.Name }}
         nuclio.io/app: dlx
         nuclio.io/class: service
         nuclio.io/name: {{ template "nuclio.dlxName" . }}
       annotations:
         nuclio.io/version: {{ .Values.dlx.image.tag }}
+        checksum/configmap-platform: {{ include (print $.Template.BasePath "/configmap/platform.yaml") . | sha256sum }}
     spec:
       serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
       containers:
@@ -47,6 +57,6 @@ spec:
       volumes:
       - name: platform-config
         configMap:
-          name: {{ template "nuclio.platformName" . }}
+          name: {{ template "nuclio.platformConfigName" . }}
       {{- end }}
 {{- end }}

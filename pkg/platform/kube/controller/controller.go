@@ -19,39 +19,48 @@ package controller
 import (
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 type Controller struct {
 	logger                logger.Logger
 	namespace             string
-	restConfig            *rest.Config
 	kubeClientSet         kubernetes.Interface
-	nuclioClientSet       nuclioio_client.Interface
+	nuclioClientSet       nuclioioclient.Interface
 	functionresClient     functionres.Client
+	apigatewayresClient   apigatewayres.Client
 	imagePullSecrets      string
 	functionOperator      *functionOperator
 	projectOperator       *projectOperator
 	functionEventOperator *functionEventOperator
+	apiGatewayOperator    *apiGatewayOperator
+	cronJobMonitoring     *CronJobMonitoring
 	platformConfiguration *platformconfig.Config
+	resyncInterval        time.Duration
 }
 
 func NewController(parentLogger logger.Logger,
 	namespace string,
 	imagePullSecrets string,
 	kubeClientSet kubernetes.Interface,
-	nuclioClientSet nuclioio_client.Interface,
+	nuclioClientSet nuclioioclient.Interface,
 	functionresClient functionres.Client,
+	apigatewayresClient apigatewayres.Client,
 	resyncInterval time.Duration,
-	platformConfiguration *platformconfig.Config) (*Controller, error) {
+	cronJobStaleResourcesCleanupInterval time.Duration,
+	platformConfiguration *platformconfig.Config,
+	functionOperatorNumWorkers int,
+	functionEventOperatorNumWorkers int,
+	projectOperatorNumWorkers int,
+	apiGatewayOperatorNumWorkers int) (*Controller, error) {
 	var err error
 
 	// replace "*" with "", which is actually "all" in kube-speak
@@ -66,14 +75,14 @@ func NewController(parentLogger logger.Logger,
 		kubeClientSet:         kubeClientSet,
 		nuclioClientSet:       nuclioClientSet,
 		functionresClient:     functionresClient,
+		apigatewayresClient:   apigatewayresClient,
 		platformConfiguration: platformConfiguration,
+		resyncInterval:        resyncInterval,
 	}
 
-	// log version info
-	version.Log(newController.logger)
-
 	newController.logger.DebugWith("Read configuration",
-		"platformConfig", newController.platformConfiguration)
+		"platformConfig", newController.platformConfiguration,
+		"version", version.Get())
 
 	// set ourselves as the platform configuration provider of the function resource client (it needs it to do
 	// stuff when creating stuff)
@@ -82,30 +91,48 @@ func NewController(parentLogger logger.Logger,
 	// create a function operator
 	newController.functionOperator, err = newFunctionOperator(parentLogger,
 		newController,
-		&resyncInterval,
+		&newController.resyncInterval,
 		imagePullSecrets,
-		functionresClient)
+		functionresClient,
+		functionOperatorNumWorkers)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create functions operator")
 	}
 
+	// create a function event operator
+	newController.functionEventOperator, err = newFunctionEventOperator(parentLogger,
+		newController,
+		&newController.resyncInterval,
+		functionEventOperatorNumWorkers)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create function event operator")
+	}
+
 	// create a project operator
 	newController.projectOperator, err = newProjectOperator(parentLogger,
 		newController,
-		&resyncInterval)
-
+		&newController.resyncInterval,
+		projectOperatorNumWorkers)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create project operator")
 	}
 
-	// create a function event operator
-	newController.functionEventOperator, err = newFunctionEventOperator(parentLogger,
+	// create an api gateway operator
+	newController.apiGatewayOperator, err = newAPIGatewayOperator(parentLogger,
 		newController,
-		&resyncInterval)
-
+		&newController.resyncInterval,
+		apiGatewayOperatorNumWorkers)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create function event operator")
+		return nil, errors.Wrap(err, "Failed to create api gateway operator")
+	}
+
+	// create cron job monitoring
+	if platformConfiguration.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
+			newController,
+			&cronJobStaleResourcesCleanupInterval)
 	}
 
 	return newController, nil
@@ -129,9 +156,24 @@ func (c *Controller) Start() error {
 		return errors.Wrap(err, "Failed to start function event operator")
 	}
 
+	// start the api gateway operator
+	if err := c.apiGatewayOperator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start api gateway operator")
+	}
+
+	if c.cronJobMonitoring != nil {
+
+		// start cron job monitoring
+		c.cronJobMonitoring.start()
+	}
+
 	return nil
 }
 
 func (c *Controller) GetPlatformConfiguration() *platformconfig.Config {
 	return c.platformConfiguration
+}
+
+func (c *Controller) GetResyncInterval() time.Duration {
+	return c.resyncInterval
 }

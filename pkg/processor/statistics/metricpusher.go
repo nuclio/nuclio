@@ -21,10 +21,10 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
@@ -105,10 +105,10 @@ func (mp *MetricPusher) readConfiguration(metricSinkConfiguration *platformconfi
 
 func (mp *MetricPusher) createGatherers(triggerProvider triggerProvider) error {
 
-	for _, trigger := range triggerProvider.GetTriggers() {
+	for _, _trigger := range triggerProvider.GetTriggers() {
 
 		// create a gatherer for the trigger
-		triggerGatherer, err := newTriggerGatherer(mp.instanceName, trigger, mp.metricRegistry)
+		triggerGatherer, err := newTriggerGatherer(mp.instanceName, mp.logger, _trigger, mp.metricRegistry)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create trigger gatherer")
 		}
@@ -116,8 +116,8 @@ func (mp *MetricPusher) createGatherers(triggerProvider triggerProvider) error {
 		mp.gatherers = append(mp.gatherers, triggerGatherer)
 
 		// now add workers
-		for _, worker := range trigger.GetWorkers() {
-			workerGatherer, err := newWorkerGatherer(mp.instanceName, trigger, worker, mp.metricRegistry)
+		for _, worker := range _trigger.GetWorkers() {
+			workerGatherer, err := newWorkerGatherer(mp.instanceName, _trigger, worker, mp.metricRegistry)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create worker gatherer")
 			}
@@ -142,10 +142,9 @@ func (mp *MetricPusher) periodicallyPushMetrics() {
 			mp.logger.WarnWith("Failed to gather metrics", "err", err)
 		}
 
-		// AddFromGatherer is used here rather than FromGatherer to not delete a
-		// previously pushed success timestamp in case of a failure of this
-		// backup.
-		if err := push.AddFromGatherer(mp.jobName, nil, mp.pushGatewayURL, mp.metricRegistry); err != nil {
+		// Add is used here rather than Put to not delete a
+		// previously pushed success timestamp in case of a failure of this backup.
+		if err := push.New(mp.pushGatewayURL, mp.jobName).Gatherer(mp.metricRegistry).Add(); err != nil {
 			mp.logger.WarnWith("Failed to push metrics", "err", err)
 		}
 	}

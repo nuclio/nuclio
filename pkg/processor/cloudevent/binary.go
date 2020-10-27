@@ -52,6 +52,11 @@ func (s *Binary) GetKind() string {
 	return s.event.GetHeaderString("CE-Source")
 }
 
+// get specific kind of source (http, rabbit mq, etc)
+func (s *Binary) GetName() string {
+	return s.event.GetHeaderString("CE-Name")
+}
+
 // GetTimestamp returns when the event originated
 func (s *Binary) GetTimestamp() time.Time {
 	parsedTime, err := time.Parse(time.RFC3339, s.event.GetHeaderString("CE-EventTime"))
@@ -75,4 +80,14 @@ func (s *Binary) GetTypeVersion() string {
 // GetVersion returns the version of the event
 func (s *Binary) GetVersion() string {
 	return s.event.GetHeaderString("CE-CloudEventsVersion")
+}
+
+// GetLastInBatch returns whether the event is the last event in a trigger specific batch
+func (s *Binary) GetLastInBatch() bool {
+	return s.event.GetLastInBatch()
+}
+
+// GetOffset returns the offset of the event
+func (s *Binary) GetOffset() int {
+	return s.event.GetOffset()
 }

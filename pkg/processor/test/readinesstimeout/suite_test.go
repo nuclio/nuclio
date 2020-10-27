@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package readinessTimeout
+package readinesstimeout
 
 import (
 	"path"
@@ -38,18 +38,18 @@ func (suite *readinessTimeoutTestSuite) TestPythonNoReadinessTimeout() {
 	beforeTime := time.Now()
 	suite.deployFailingPythonFunction(0)
 
-	// the default timeout is 30 seconds - it must have timed out after that
-	suite.Require().True(time.Since(beforeTime) >= 30*time.Second)
+	// fail faster than the default 30 second timeout
+	suite.Require().LessOrEqual(time.Since(beforeTime).Seconds(), float64(30))
 }
 
 // Deploys a failing Python function. Expect the function to fail after 10 seconds
 func (suite *readinessTimeoutTestSuite) TestPythonSpecifiedReadinessTimeout() {
-
+	readinessTimeoutSeconds := 20
 	beforeTime := time.Now()
-	suite.deployFailingPythonFunction(10)
+	suite.deployFailingPythonFunction(readinessTimeoutSeconds)
 
-	// the default timeout is 30 seconds - it must have timed out after that
-	suite.Require().True(time.Since(beforeTime) <= 29*time.Second)
+	// fail faster than the specified 20 second timeout
+	suite.Require().LessOrEqual(time.Since(beforeTime).Seconds(), float64(readinessTimeoutSeconds))
 }
 
 func (suite *readinessTimeoutTestSuite) deployFailingPythonFunction(readinessTimeoutSeconds int) {
@@ -80,7 +80,7 @@ func (suite *readinessTimeoutTestSuite) deployFailingPythonFunction(readinessTim
 	})
 }
 
-func TestOfflineSuite(t *testing.T) {
+func TestReadinessTimeoutSuite(t *testing.T) {
 	if testing.Short() {
 		return
 	}

@@ -1,0 +1,5 @@
+[repeated 2 times] Sarama: Failed to connect to broker 10.0.0.2: dial tcp: address 10.0.0.2: missing port in address
+Failed to start trigger [err="Failed to create consumer"]
+
+Error - kafka: client has run out of available brokers to talk to (Is your cluster reachable?)
+    .../nuclio/pkg/processor/trigger/kafka/trigger.go:340

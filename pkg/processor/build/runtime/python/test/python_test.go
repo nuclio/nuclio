@@ -41,9 +41,14 @@ func (suite *testSuite) SetupSuite() {
 
 	suite.TestSuite.RuntimeSuite = suite
 	suite.TestSuite.ArchivePattern = "python"
+	suite.Runtime = suite.runtime
 }
 
 func (suite *testSuite) TestBuildPy2() {
+	if suite.Runtime != "python:2.7" {
+		suite.T().Skip("This should only run when runtime is python 2.7")
+	}
+
 	createFunctionOptions := suite.GetDeployOptions("printer",
 		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "python", "py2-printer"))
 
@@ -80,6 +85,9 @@ func (suite *testSuite) GetFunctionInfo(functionName string) buildsuite.Function
 
 	case "long-initialization":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "long-initialization", "python", "sleepy.py"}
+
+	case "context-init-fail":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "context-init-fail", "python", "contextinitfail.py"}
 
 	default:
 		suite.Logger.InfoWith("Test skipped", "functionName", functionName)

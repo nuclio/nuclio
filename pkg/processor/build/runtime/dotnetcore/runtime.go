@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type dotnetcore struct {
@@ -33,22 +32,28 @@ func (d *dotnetcore) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (d *dotnetcore) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+func (d *dotnetcore) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
-	// format the onbuild image
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-dotnetcore-onbuild:%s-%s",
-		versionInfo.Label,
-		versionInfo.Arch)
+	// fill onbuild artifact
+	artifact := runtime.Artifact{
+		Name: "dotnetcore-onbuild",
+		Image: fmt.Sprintf("%s/nuclio/handler-builder-dotnetcore-onbuild:%s-%s",
+			onbuildImageRegistry,
+			d.VersionInfo.Label,
+			d.VersionInfo.Arch),
+		Paths: map[string]string{
+			"/home/nuclio/bin/processor":             "/usr/local/bin/processor",
+			"/home/nuclio/bin/wrapper":               "/opt/nuclio/wrapper",
+			"/home/nuclio/bin/handler":               "/opt/nuclio/handler",
+			"/home/nuclio/src/nuclio-sdk-dotnetcore": "/opt/nuclio/nuclio-sdk-dotnetcore",
+		},
+	}
+	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "microsoft/dotnet:2-runtime"
-	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/nuclio/bin/processor":             "/usr/local/bin/processor",
-		"/home/nuclio/bin/wrapper":               "/opt/nuclio/wrapper",
-		"/home/nuclio/bin/handler":               "/opt/nuclio/handler",
-		"/home/nuclio/src/nuclio-sdk-dotnetcore": "/opt/nuclio/nuclio-sdk-dotnetcore",
-	}
+	processorDockerfileInfo.BaseImage = "mcr.microsoft.com/dotnet/core/runtime:3.1"
 
 	return &processorDockerfileInfo, nil
 }

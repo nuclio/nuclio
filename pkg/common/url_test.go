@@ -17,13 +17,13 @@ limitations under the License.
 package common
 
 import (
-	"errors"
 	"net/http"
 	"os"
 	"testing"
 
+	"github.com/jarcoal/httpmock"
+	"github.com/nuclio/errors"
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/jarcoal/httpmock.v1"
 )
 
 type IsURLTestSuite struct {
@@ -50,11 +50,26 @@ func (ts *IsURLTestSuite) TestIsURLWithHTTPS() {
 	ts.Require().True(IsURL("https://www.example.com"))
 }
 
+func (ts *IsURLTestSuite) TestIsLocalFileURLWithHTTP() {
+	ts.Require().False(IsLocalFileURL("http://www.example.com"))
+}
+
+func (ts *IsURLTestSuite) TestIsLocalFileURL() {
+	ts.Require().True(IsLocalFileURL("file://path/to/file"))
+}
+
+func (ts *IsURLTestSuite) TestGetPathFromLocalFileURL() {
+	ts.Require().Equal("/path/to/file", GetPathFromLocalFileURL("file://path/to/file"))
+}
+
 func (ts *DownloadFileTestSuite) TestDownloadFile() {
 	content := "content"
 	errResult := ts.testDownloadFile(func(req *http.Request) (*http.Response, error) {
 		responder := httpmock.NewStringResponder(200, content)
 		response, err := responder(req)
+		if err != nil {
+			return nil, errors.Wrap(err, "Could not get response")
+		}
 		response.ContentLength = int64(len(content))
 		return response, err
 	})
@@ -66,6 +81,9 @@ func (ts *DownloadFileTestSuite) TestDownloadFileContentLengthMissMatch() {
 	errResult := ts.testDownloadFile(func(req *http.Request) (*http.Response, error) {
 		responder := httpmock.NewStringResponder(200, content)
 		response, err := responder(req)
+		if err != nil {
+			return nil, errors.Wrap(err, "Could not get response")
+		}
 		response.ContentLength = int64(len(content)) - 1
 		return response, err
 	})
@@ -84,7 +102,12 @@ func (ts *DownloadFileTestSuite) testDownloadFile(responder httpmock.Responder) 
 	url := "http://www.example.com/file.txt"
 	httpmock.RegisterResponder("GET", url, responder)
 
-	return DownloadFile(url, os.DevNull, http.Header{})
+	out, err := os.Create(os.DevNull)
+	if err != nil {
+		return err
+	}
+
+	return DownloadFile(url, out, http.Header{})
 }
 
 func TestIsURLTestSuite(t *testing.T) {

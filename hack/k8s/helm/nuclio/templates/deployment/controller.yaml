@@ -13,20 +13,30 @@
 # limitations under the License.
 
 {{- if .Values.controller.enabled }}
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "nuclio.controllerName" . }}
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "nuclio.name" . }}
+      release: {{ .Release.Name }}
+      nuclio.io/app: controller
+      nuclio.io/class: service
+      nuclio.io/name: {{ template "nuclio.controllerName" . }}
   template:
     metadata:
       labels:
+        app: {{ template "nuclio.name" . }}
+        release: {{ .Release.Name }}
         nuclio.io/app: controller
         nuclio.io/class: service
         nuclio.io/name: {{ template "nuclio.controllerName" . }}
       annotations:
         nuclio.io/version: {{ .Values.controller.image.tag }}
+        checksum/configmap-platform: {{ include (print $.Template.BasePath "/configmap/platform.yaml") . | sha256sum }}
     spec:
       serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
       containers:
@@ -35,11 +45,23 @@ spec:
         imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
         env:
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
-          value: {{ template "nuclio.registryCredentialsName" . }}
+          value: {{ template "nuclio.registry.credentialsSecretName" . }}
+        - name: NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME
+          value: {{ .Values.controller.cronTriggerCronJobImage.repository }}:{{ .Values.controller.cronTriggerCronJobImage.tag }}
+        - name: NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_PULL_POLICY
+          value: {{ .Values.controller.cronTriggerCronJobImage.pullPolicy }}
         {{- if .Values.controller.namespace }}
         - name: NUCLIO_CONTROLLER_NAMESPACE
           value: {{ .Values.controller.namespace | quote }}
         {{- end }}
+        - name: NUCLIO_CONTROLLER_FUNCTION_OPERATOR_NUM_WORKERS
+          value: {{ .Values.controller.operator.function.numWorkers | quote }}
+        - name: NUCLIO_CONTROLLER_FUNCTION_EVENT_OPERATOR_NUM_WORKERS
+          value: {{ .Values.controller.operator.functionEvent.numWorkers | quote }}
+        - name: NUCLIO_CONTROLLER_PROJECT_OPERATOR_NUM_WORKERS
+          value: {{ .Values.controller.operator.project.numWorkers | quote }}
+        - name: NUCLIO_CONTROLLER_API_GATEWAY_OPERATOR_NUM_WORKERS
+          value: {{ .Values.controller.operator.apiGateway.numWorkers | quote }}
         {{- if .Values.platform }}
         volumeMounts:
         - name: platform-config
@@ -49,6 +71,6 @@ spec:
       volumes:
       - name: platform-config
         configMap:
-          name: {{ template "nuclio.platformName" . }}
+          name: {{ template "nuclio.platformConfigName" . }}
       {{- end }}
 {{- end }}

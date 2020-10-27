@@ -20,8 +20,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -52,9 +51,7 @@ func NewGitFunctionTemplateFetcher(parentLogger logger.Logger,
 func (gftf *GitFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 	var functionTemplates []*FunctionTemplate
 
-	gftf.logger.DebugWith("Fetching templates from git",
-		"repository", gftf.repository,
-		"ref", gftf.ref)
+	gftf.logger.DebugWith("Fetching templates from git", "ref", gftf.ref)
 
 	rootTree, err := gftf.getRootTree()
 	if err != nil {

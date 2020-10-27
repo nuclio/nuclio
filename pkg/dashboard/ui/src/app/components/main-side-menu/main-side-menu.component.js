@@ -29,8 +29,8 @@
          */
         function onInit() {
             NuclioVersionService.getVersion()
-                .then(function (response) {
-                    ctrl.nuclioVersion = lodash.get(response.data, 'dashboard.label', 'unstable');
+                .then(function (versionInfo) {
+                    ctrl.nuclioVersion = lodash.get(versionInfo, 'dashboard.label', 'unknown version');
                 });
         }
 

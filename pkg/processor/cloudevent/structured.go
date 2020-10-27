@@ -57,6 +57,11 @@ func (s *Structured) GetKind() string {
 	return s.cloudEvent.Source
 }
 
+// GetKind returns specific kind of source (http, rabbit mq, etc)
+func (s *Structured) GetName() string {
+	return s.cloudEvent.Source
+}
+
 // GetTimestamp returns when the event originated
 func (s *Structured) GetTimestamp() time.Time {
 	return s.cloudEvent.EventTime
@@ -102,4 +107,14 @@ func (s *Structured) GetTypeVersion() string {
 // GetVersion returns the version of the event
 func (s *Structured) GetVersion() string {
 	return s.cloudEvent.CloudEventsVersion
+}
+
+// GetLastInBatch returns whether the event is the last event in a trigger specific batch
+func (s *Structured) GetLastInBatch() bool {
+	return s.cloudEvent.LastInBatch
+}
+
+// GetOffset returns the offset of the event
+func (s *Structured) GetOffset() int {
+	return s.cloudEvent.Offset
 }

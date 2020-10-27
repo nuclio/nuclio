@@ -1,8 +1,9 @@
 package trigger
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
+
+	"github.com/nuclio/errors"
 )
 
 type Factory struct{}

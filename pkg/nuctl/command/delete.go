@@ -17,10 +17,10 @@ limitations under the License.
 package command
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
+	"github.com/nuclio/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -43,11 +43,13 @@ func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
 	deleteFunctionCommand := newDeleteFunctionCommandeer(commandeer).cmd
 	deleteProjectCommand := newDeleteProjectCommandeer(commandeer).cmd
 	deleteFunctionEventCommand := newDeleteFunctionEventCommandeer(commandeer).cmd
+	deleteAPIGatewayCommand := newDeleteAPIGatewayCommandeer(commandeer).cmd
 
 	cmd.AddCommand(
 		deleteFunctionCommand,
 		deleteProjectCommand,
 		deleteFunctionEventCommand,
+		deleteAPIGatewayCommand,
 	)
 
 	commandeer.cmd = cmd
@@ -67,9 +69,9 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 	}
 
 	cmd := &cobra.Command{
-		Use:     "function [name[:version]]",
-		Aliases: []string{"fu"},
-		Short:   "Delete functions",
+		Use:     "functions [name[:version]]",
+		Aliases: []string{"fu", "fn", "function"},
+		Short:   "(or function) Delete functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -107,9 +109,9 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 	}
 
 	cmd := &cobra.Command{
-		Use:     "project name",
-		Aliases: []string{"proj"},
-		Short:   "Delete projects",
+		Use:     "projects name",
+		Aliases: []string{"proj", "prj", "project"},
+		Short:   "(or project) Delete projects",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -136,6 +138,46 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 	return commandeer
 }
 
+type deleteAPIGatewayCommandeer struct {
+	*deleteCommandeer
+	apiGatewayMeta platform.APIGatewayMeta
+}
+
+func newDeleteAPIGatewayCommandeer(deleteCommandeer *deleteCommandeer) *deleteAPIGatewayCommandeer {
+	commandeer := &deleteAPIGatewayCommandeer{
+		deleteCommandeer: deleteCommandeer,
+	}
+
+	cmd := &cobra.Command{
+		Use:     "apigateways name",
+		Aliases: []string{"agw", "apigateway"},
+		Short:   "(or apigateway) Delete api gateway",
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			// if we got positional arguments
+			if len(args) == 0 {
+				return errors.New("Api gateway delete requires a single identifier")
+			}
+
+			// initialize root
+			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
+			commandeer.apiGatewayMeta.Name = args[0]
+			commandeer.apiGatewayMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
+
+			return deleteCommandeer.rootCommandeer.platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{
+				Meta: commandeer.apiGatewayMeta,
+			})
+		},
+	}
+
+	commandeer.cmd = cmd
+
+	return commandeer
+}
+
 type deleteFunctionEventCommandeer struct {
 	*deleteCommandeer
 	functionEventMeta platform.FunctionEventMeta
@@ -147,9 +189,9 @@ func newDeleteFunctionEventCommandeer(deleteCommandeer *deleteCommandeer) *delet
 	}
 
 	cmd := &cobra.Command{
-		Use:     "functionevent name",
-		Aliases: []string{"fe"},
-		Short:   "Delete function event",
+		Use:     "functionevents name",
+		Aliases: []string{"fe", "functionevent"},
+		Short:   "(or functionevent) Delete function event",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments

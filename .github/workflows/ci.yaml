@@ -1,0 +1,317 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+    - development
+    - '[0-9]+.[0-9]+.x'
+
+  # Run CI also on push to master
+  push:
+    branches:
+    - master
+
+env:
+  REPO: quay.io
+  REPO_NAME: nuclio
+  NUCLIO_LABEL: ${{ github.run_number }}
+  NAMESPACE: nuclio
+  NUCLIO_GO_TEST_TIMEOUT: "30m"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+    - name: Dump github context
+      run: echo "$GITHUB_CONTEXT"
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+
+    - name: Dump runner context
+      run: echo "$RUNNER_CONTEXT"
+      env:
+        RUNNER_CONTEXT: ${{ toJson(runner) }}
+
+    - uses: actions/checkout@v2
+
+    - uses: actions/setup-go@v2
+      with:
+        go-version: "^1.14.0"
+
+    - uses: actions/cache@v2
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Lint
+      run: make lint
+
+  test_short:
+    name: Test short
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: actions/setup-go@v2
+      with:
+        go-version: "^1.14.0"
+
+    - uses: actions/cache@v2
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Run short test
+      run: |
+        make test-short
+
+  build_nuctl:
+    name: Build nuctl
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: actions/setup-go@v2
+      with:
+        go-version: "^1.14.0"
+
+    - name: Build
+      run: |
+        make nuctl
+      env:
+        NUCLIO_NUCTL_CREATE_SYMLINK: false
+
+  build_docker_images:
+    name: Build docker images
+    runs-on: ubuntu-latest
+    steps:
+    - name: Dump GitHub context
+      run: echo "$GITHUB_CONTEXT"
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+
+    - name: Dump runner context
+      run: echo "$RUNNER_CONTEXT"
+      env:
+        RUNNER_CONTEXT: ${{ toJson(runner) }}
+
+    - name: Dump github ref
+      run: echo "$GITHUB_REF"
+
+    - uses: actions/checkout@v2
+
+    # since github-actions gives us 14G only, and fill it up with some garbage
+    # we will free up some space for us (~2GB)
+    - name: Freeing some disk space
+      run: docker system prune --all --force
+
+    - name: Build
+      run: make docker-images
+      env:
+        NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
+
+    # Clean build leftovers
+    - name: Post build cleanup
+      run: docker system prune --force
+
+    - name: Save
+      run: |
+        # list built images
+        # join with " "
+        # save docker images
+        # compress using pigz (use fast, the difference is insignificant)
+        docker images \
+            --filter="reference=${REPO}/${REPO_NAME}/*:${NUCLIO_LABEL}*" \
+            --format "{{ .Repository }}:{{ .Tag }}" \
+          | xargs docker save \
+          | pigz --fast > nuclio_docker_images.tar.gz
+
+    - name: Upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: nuclio-docker-images
+        path: nuclio_docker_images.tar.gz
+
+  test_k8s_nuctl:
+    name: Test Kubernetes nuctl
+    runs-on: ubuntu-latest
+    needs:
+    - build_docker_images
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: azure/setup-helm@v1
+      with:
+        version: "v3.3.4"
+
+    - uses: actions/cache@v2
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - uses: manusa/actions-setup-minikube@v2.0.1
+      with:
+        minikube version: "v1.14.0"
+        kubernetes version: "v1.17.9"
+        driver: docker
+        github token: ${{ github.token }}
+        start args: '--addons registry --addons ingress'
+
+    - name: Post minikube setup
+      run: |
+
+        # redirect $(minikube ip):5000 -> localhost:5000
+        docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
+        kubectl config view --flatten > kubeconfig_flatten
+
+    - name: Fetch nuclio docker images
+      uses: actions/download-artifact@v2
+      with:
+        name: nuclio-docker-images
+
+    - name: Load nuclio docker images
+      run: |
+
+        # load nuclio docker images to host docker
+        docker load -i nuclio_docker_images.tar.gz
+
+        # activate minikube docker
+        eval $(minikube -p minikube docker-env)
+
+        # load nuclio docker images to minikube
+        docker load -i nuclio_docker_images.tar.gz
+        rm nuclio_docker_images.tar.gz
+
+    - name: Export env
+      run: |
+        echo "NUCTL_EXTERNAL_IP_ADDRESSES=$(minikube ip)" >> $GITHUB_ENV
+        echo "NUCTL_REGISTRY=localhost:5000" >> $GITHUB_ENV
+        echo "NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL=$REPO" >> $GITHUB_ENV
+        echo "NUCTL_NAMESPACE=$NAMESPACE" >> $GITHUB_ENV
+        echo "KUBECONFIG=$(pwd)/kubeconfig_flatten" >> $GITHUB_ENV
+        echo "NUCTL_TEST_DEFAULT_APIGATEWAY_HOST=nuclio-test-function-host.info" >> $GITHUB_ENV
+
+    - name: Install nuclio helm chart
+      run: |
+        kubectl create namespace ${NAMESPACE}
+        cat test/k8s/ci_assets/helm_values.yaml \
+          | envsubst \
+          | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
+
+    - name: Run nuctl k8s tests
+      run: |
+
+        # write function host to /etc/hosts
+        echo "${NUCTL_EXTERNAL_IP_ADDRESSES} ${NUCTL_TEST_DEFAULT_APIGATEWAY_HOST}" | sudo tee -a /etc/hosts
+
+        # run test
+        make test-k8s-nuctl
+
+  test_docker_nuctl:
+    name: Test Docker nuctl
+    runs-on: ubuntu-latest
+    needs:
+    - build_docker_images
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: actions/cache@v2
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Fetch nuclio docker images
+      uses: actions/download-artifact@v2
+      with:
+        name: nuclio-docker-images
+
+    - name: Load nuclio docker images
+      run: |
+        docker load -i nuclio_docker_images.tar.gz
+        rm nuclio_docker_images.tar.gz
+
+    - name: Run nuctl docker tests
+      run: |
+        make test-docker-nuctl
+
+  test_k8s:
+    name: Test Kubernetes
+    runs-on: ubuntu-latest
+    needs:
+      - build_docker_images
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: azure/setup-helm@v1
+        with:
+          version: "v3.3.4"
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - uses: manusa/actions-setup-minikube@v2.0.1
+        with:
+          minikube version: "v1.14.0"
+          kubernetes version: "v1.17.9"
+          driver: docker
+          github token: ${{ github.token }}
+          start args: '--addons registry --addons ingress'
+
+      - name: Post minikube setup
+        run: |
+
+          # redirect $(minikube ip):5000 -> localhost:5000
+          docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
+          kubectl config view --flatten > kubeconfig_flatten
+
+      - name: Fetch nuclio docker images
+        uses: actions/download-artifact@v2
+        with:
+          name: nuclio-docker-images
+
+      - name: Load nuclio docker images
+        run: |
+          docker load -i nuclio_docker_images.tar.gz
+          rm nuclio_docker_images.tar.gz
+
+      - name: Export env
+        run: |
+          echo "NUCTL_EXTERNAL_IP_ADDRESSES=$(minikube ip)" >> $GITHUB_ENV
+          echo "NUCLIO_TEST_REGISTRY_URL=localhost:5000" >> $GITHUB_ENV
+          echo "NUCLIO_TEST_KUBECONFIG=$(pwd)/kubeconfig_flatten" >> $GITHUB_ENV
+
+      - name: Install nuclio helm chart
+        run: |
+
+          # create namespace
+          kubectl create namespace ${NAMESPACE}
+
+          # install helm chart
+          ./test/k8s/ci_assets/install_nuclio_crds.sh
+
+      - name: Run k8s tests
+        run: |
+          make test-k8s
+
+  test_python:
+    name: Test python
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Run python test
+      run: |
+        make test-python

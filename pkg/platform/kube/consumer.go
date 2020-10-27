@@ -17,29 +17,43 @@ limitations under the License.
 package kube
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
-	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	"os"
 
+	"github.com/nuclio/nuclio/pkg/platform"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/client-go/kubernetes"
+	// enable OIDC plugin
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 type consumer struct {
 	kubeClientSet   kubernetes.Interface
-	nuclioClientSet nuclioio_client.Interface
+	nuclioClientSet nuclioioclient.Interface
 	kubeHost        string
+	kubeconfigPath  string
 }
 
 func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error) {
 	logger.DebugWith("Using kubeconfig", "kubeconfigPath", kubeconfigPath)
 
-	newConsumer := consumer{}
+	newConsumer := consumer{
+		kubeconfigPath: kubeconfigPath,
+	}
 
 	// create REST config
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create REST config")
+	}
+
+	// add bearer token if specified in environment
+	token := os.Getenv("NUCLIO_KUBE_CONSUMER_BEARER_TOKEN")
+	if token != "" {
+		restConfig.BearerToken = token
 	}
 
 	// set kube host
@@ -52,10 +66,29 @@ func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error)
 	}
 
 	// create a client for function custom resources
-	newConsumer.nuclioClientSet, err = nuclioio_client.NewForConfig(restConfig)
+	newConsumer.nuclioClientSet, err = nuclioioclient.NewForConfig(restConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function custom resource client")
 	}
 
 	return &newConsumer, nil
+}
+
+func (c *consumer) getNuclioClientSet(authConfig *platform.AuthConfig) (nuclioioclient.Interface, error) {
+
+	// if no authentication was passed, can use the generic client. otherwise must create
+	if authConfig == nil {
+		return c.nuclioClientSet, nil
+	}
+
+	// create REST config
+	restConfig, err := clientcmd.BuildConfigFromFlags("", c.kubeconfigPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create REST config")
+	}
+
+	// set the auth provider config
+	restConfig.BearerToken = authConfig.Token
+
+	return nuclioioclient.NewForConfig(restConfig)
 }

@@ -24,7 +24,8 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/errors"
 )
 
 type dockerCred struct {
@@ -88,7 +89,7 @@ func (dc *dockerCred) initialize() error {
 		dc.credentials.RefreshInterval = dc.defaultRefreshInterval
 	}
 
-	// if user didn't specify "https://" in the url, add it. otherwise don't
+	// if user didn't specify "https://" in the url, add it
 	if !strings.HasPrefix(dc.credentials.URL, "https://") {
 		dc.credentials.URL = "https://" + dc.credentials.URL
 	}
@@ -232,7 +233,7 @@ func extractMetaFromKeyPath(keyPath string) (string, string, string, error) {
 
 func (dc *dockerCred) login() error {
 	dc.dockerCreds.logger.DebugWith("Logging in",
-		"url", dc.path,
+		"path", dc.path,
 		"user", dc.credentials.Username)
 
 	// try to login

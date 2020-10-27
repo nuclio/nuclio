@@ -17,12 +17,12 @@ limitations under the License.
 package v3ioitempoller
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -65,5 +65,5 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 // register factory
 func init() {
-	trigger.RegistrySingleton.Register("v3io-item-poller", &factory{})
+	trigger.RegistrySingleton.Register("v3ioItemPoller", &factory{})
 }

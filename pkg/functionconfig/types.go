@@ -17,9 +17,17 @@ limitations under the License.
 package functionconfig
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/v3io/scaler-types"
 	"k8s.io/api/core/v1"
+)
+
+const (
+	NvidiaGPUResourceName = "nvidia.com/gpu"
 )
 
 // DataBinding holds configuration for a databinding
@@ -43,7 +51,7 @@ type Partition struct {
 	Checkpoint Checkpoint `json:"checkpoint,omitempty"`
 }
 
-// VolumeAndMount stores simple volume and mount
+// Volume stores simple volume and mount
 type Volume struct {
 	Volume      v1.Volume      `json:"volume,omitempty"`
 	VolumeMount v1.VolumeMount `json:"volumeMount,omitempty"`
@@ -53,6 +61,7 @@ type Volume struct {
 type Trigger struct {
 	Class                                 string            `json:"class"`
 	Kind                                  string            `json:"kind"`
+	Name                                  string            `json:"name"`
 	Disabled                              bool              `json:"disabled,omitempty"`
 	MaxWorkers                            int               `json:"maxWorkers,omitempty"`
 	URL                                   string            `json:"url,omitempty"`
@@ -62,7 +71,7 @@ type Trigger struct {
 	Secret                                string            `json:"secret,omitempty"`
 	Partitions                            []Partition       `json:"partitions,omitempty"`
 	Annotations                           map[string]string `json:"annotations,omitempty"`
-	WorkerAvailabilityTimeoutMilliseconds int               `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
+	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
 	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
 
 	// Dealer Information
@@ -134,6 +143,14 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 	return ingresses
 }
 
+func GetDefaultHTTPTrigger() Trigger {
+	return Trigger{
+		Kind:       "http",
+		Name:       "default-http",
+		MaxWorkers: 1,
+	}
+}
+
 // Ingress holds configuration for an ingress - an entity that can route HTTP requests
 // to the function
 type Ingress struct {
@@ -185,6 +202,7 @@ type Build struct {
 	FunctionConfigPath  string                 `json:"functionConfigPath,omitempty"`
 	TempDir             string                 `json:"tempDir,omitempty"`
 	Registry            string                 `json:"registry,omitempty"`
+	BaseImageRegistry   string                 `json:"baseImageRegistry,omitempty"`
 	Image               string                 `json:"image,omitempty"`
 	NoBaseImagesPull    bool                   `json:"noBaseImagesPull,omitempty"`
 	NoCache             bool                   `json:"noCache,omitempty"`
@@ -201,13 +219,14 @@ type Build struct {
 	CodeEntryType       string                 `json:"codeEntryType,omitempty"`
 	CodeEntryAttributes map[string]interface{} `json:"codeEntryAttributes,omitempty"`
 	Timestamp           int64                  `json:"timestamp,omitempty"`
+	BuildTimeoutSeconds *int64                 `json:"buildTimeoutSeconds,omitempty"`
 	Mode                BuildMode              `json:"mode,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration
 type Spec struct {
 	Description             string                  `json:"description,omitempty"`
-	Disabled                bool                    `json:"disable,omitempty"`
+	Disable                 bool                    `json:"disable,omitempty"`
 	Publish                 bool                    `json:"publish,omitempty"`
 	Handler                 string                  `json:"handler,omitempty"`
 	Runtime                 string                  `json:"runtime,omitempty"`
@@ -215,9 +234,9 @@ type Spec struct {
 	Resources               v1.ResourceRequirements `json:"resources,omitempty"`
 	Image                   string                  `json:"image,omitempty"`
 	ImageHash               string                  `json:"imageHash,omitempty"`
-	Replicas                int                     `json:"replicas,omitempty"`
-	MinReplicas             int                     `json:"minReplicas,omitempty"`
-	MaxReplicas             int                     `json:"maxReplicas,omitempty"`
+	Replicas                *int                    `json:"replicas,omitempty"`
+	MinReplicas             *int                    `json:"minReplicas,omitempty"`
+	MaxReplicas             *int                    `json:"maxReplicas,omitempty"`
 	TargetCPU               int                     `json:"targetCPU,omitempty"`
 	DataBindings            map[string]DataBinding  `json:"dataBindings,omitempty"`
 	Triggers                map[string]Trigger      `json:"triggers,omitempty"`
@@ -226,6 +245,7 @@ type Spec struct {
 	Alias                   string                  `json:"alias,omitempty"`
 	Build                   Build                   `json:"build,omitempty"`
 	RunRegistry             string                  `json:"runRegistry,omitempty"`
+	ImagePullSecrets        string                  `json:"imagePullSecrets,omitempty"`
 	RuntimeAttributes       map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 	LoggerSinks             []LoggerSink            `json:"loggerSinks,omitempty"`
 	DealerURI               string                  `json:"dealerURI,omitempty"`
@@ -234,6 +254,30 @@ type Spec struct {
 	Avatar                  string                  `json:"avatar,omitempty"`
 	ServiceType             v1.ServiceType          `json:"serviceType,omitempty"`
 	ImagePullPolicy         v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
+	SecurityContext         *v1.PodSecurityContext  `json:"securityContext,omitempty"`
+	ServiceAccount          string                  `json:"serviceAccount,omitempty"`
+	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
+
+	// Currently relevant only for k8s platform
+	// if true - wait the whole ReadinessTimeoutSeconds before marking this function as unhealthy
+	// otherwise, fail the function instantly when there is indication of deployment failure (e.g. pod stuck on crash
+	// loop, pod container exited with an error, pod is unschedulable).
+	// Default: false
+	WaitReadinessTimeoutBeforeFailure bool `json:"waitReadinessTimeoutBeforeFailure,omitempty"`
+
+	// We're letting users write "20s" and not the default marshalled time.Duration
+	// (Which is in nanoseconds)
+	EventTimeout string `json:"eventTimeout"`
+}
+
+type ScaleToZeroSpec struct {
+	ScaleResources []ScaleResource `json:"scaleResources,omitempty"`
+}
+
+type ScaleResource struct {
+	MetricName string `json:"metricName,omitempty"`
+	WindowSize string `json:"windowSize,omitempty"`
+	Threshold  int    `json:"threshold"`
 }
 
 // to appease k8s
@@ -243,6 +287,7 @@ func (s *Spec) DeepCopyInto(out *Spec) {
 	*out = *s
 }
 
+// GetRuntimeNameAndVersion return runtime and version
 func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
 	runtimeAndVersion := strings.Split(s.Runtime, ":")
 
@@ -256,6 +301,7 @@ func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
 	}
 }
 
+// GetHTTPPort returns the HTTP port
 func (s *Spec) GetHTTPPort() int {
 	if s.Triggers == nil {
 		return 0
@@ -266,7 +312,25 @@ func (s *Spec) GetHTTPPort() int {
 			httpPort, httpPortValid := trigger.Attributes["port"]
 			if httpPortValid {
 				switch typedHTTPPort := httpPort.(type) {
+				case int8:
+					return int(typedHTTPPort)
+				case int16:
+					return int(typedHTTPPort)
+				case int32:
+					return int(typedHTTPPort)
+				case int64:
+					return int(typedHTTPPort)
+				case uint:
+					return int(typedHTTPPort)
+				case uint8:
+					return int(typedHTTPPort)
+				case uint16:
+					return int(typedHTTPPort)
+				case uint32:
+					return int(typedHTTPPort)
 				case uint64:
+					return int(typedHTTPPort)
+				case float32:
 					return int(typedHTTPPort)
 				case float64:
 					return int(typedHTTPPort)
@@ -280,16 +344,76 @@ func (s *Spec) GetHTTPPort() int {
 	return 0
 }
 
+// GetEventTimeout returns the event timeout as time.Duration
+func (s *Spec) GetEventTimeout() (time.Duration, error) {
+	timeout, err := time.ParseDuration(s.EventTimeout)
+	if err == nil && timeout <= 0 {
+		err = fmt.Errorf("eventTimeout <= 0 (%s)", timeout)
+	}
+
+	return timeout, err
+}
+
+//PositiveGPUResourceLimit returns whether gpu is assigned
+func (s *Spec) PositiveGPUResourceLimit() bool {
+	if gpuResourceLimit, found := s.Resources.Limits[NvidiaGPUResourceName]; found {
+		return !gpuResourceLimit.IsZero()
+	}
+	return false
+}
+
+const (
+	FunctionAnnotationSkipBuild  = "skip-build"
+	FunctionAnnotationSkipDeploy = "skip-deploy"
+)
+
 // Meta identifies a function
 type Meta struct {
 	Name        string            `json:"name,omitempty"`
 	Namespace   string            `json:"namespace,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// Used to determine whether the object is stale
+	// more details @ https://kubernetes.io/docs/reference/using-api/api-concepts/#resource-versions
+	ResourceVersion string `json:"resourceVersion,omitempty"`
 }
 
+// GetUniqueID return unique id
 func (m *Meta) GetUniqueID() string {
 	return m.Namespace + ":" + m.Name
+}
+
+func (m *Meta) AddSkipDeployAnnotation() {
+	m.Annotations[FunctionAnnotationSkipDeploy] = strconv.FormatBool(true)
+}
+
+func (m *Meta) AddSkipBuildAnnotation() {
+	m.Annotations[FunctionAnnotationSkipBuild] = strconv.FormatBool(true)
+}
+
+func (m *Meta) RemoveSkipDeployAnnotation() {
+	delete(m.Annotations, FunctionAnnotationSkipDeploy)
+}
+
+func (m *Meta) RemoveSkipBuildAnnotation() {
+	delete(m.Annotations, FunctionAnnotationSkipBuild)
+}
+
+func ShouldSkipDeploy(annotations map[string]string) bool {
+	var skipFunctionDeploy bool
+	if skipFunctionBuildDeploy, ok := annotations[FunctionAnnotationSkipDeploy]; ok {
+		skipFunctionDeploy, _ = strconv.ParseBool(skipFunctionBuildDeploy)
+	}
+	return skipFunctionDeploy
+}
+
+func ShouldSkipBuild(annotations map[string]string) bool {
+	var skipFunctionBuild bool
+	if skipFunctionBuildStr, ok := annotations[FunctionAnnotationSkipBuild]; ok {
+		skipFunctionBuild, _ = strconv.ParseBool(skipFunctionBuildStr)
+	}
+	return skipFunctionBuild
 }
 
 // Config holds the configuration of a function - meta and spec
@@ -304,33 +428,95 @@ func NewConfig() *Config {
 		Meta: Meta{
 			Namespace: "default",
 		},
-		Spec: Spec{
-			Replicas: 1,
-		},
 	}
 }
 
+func (c *Config) CleanFunctionSpec() {
+
+	// artifacts are created unique to the cluster not needed to be returned to any client of nuclio REST API
+	c.Spec.RunRegistry = ""
+	c.Spec.Build.Registry = ""
+	if c.Spec.Build.FunctionSourceCode != "" {
+		c.Spec.Image = ""
+	}
+}
+
+func (c *Config) PrepareFunctionForExport(noScrub bool) {
+	if !noScrub {
+		c.scrubFunctionData()
+	}
+	c.AddSkipAnnotations()
+}
+
+func (c *Config) AddSkipAnnotations() {
+
+	if c.Meta.Annotations == nil {
+		c.Meta.Annotations = map[string]string{}
+	}
+
+	// add annotations for not deploying or building on import
+	c.Meta.AddSkipBuildAnnotation()
+	c.Meta.AddSkipDeployAnnotation()
+}
+
+func (c *Config) scrubFunctionData() {
+	c.CleanFunctionSpec()
+
+	// scrub namespace from function meta
+	c.Meta.Namespace = ""
+
+	// remove secrets and passwords from triggers
+	newTriggers := c.Spec.Triggers
+	for triggerName, trigger := range newTriggers {
+		trigger.Password = ""
+		trigger.Secret = ""
+		newTriggers[triggerName] = trigger
+	}
+	c.Spec.Triggers = newTriggers
+}
+
+// FunctionState is state of function
 type FunctionState string
 
+// Possible function states
 const (
-	FunctionStateWaitingForBuild                 FunctionState = "waitingForBuild"
-	FunctionStateBuilding                        FunctionState = "building"
-	FunctionStateWaitingForResourceConfiguration FunctionState = "waitingForResourceConfiguration"
-	FunctionStateConfiguringResources            FunctionState = "configuringResources"
-	FunctionStateReady                           FunctionState = "ready"
-	FunctionStateError                           FunctionState = "error"
-	FunctionStateScaledToZero                    FunctionState = "scaledToZero"
+	FunctionStateWaitingForBuild                  FunctionState = "waitingForBuild"
+	FunctionStateBuilding                         FunctionState = "building"
+	FunctionStateWaitingForResourceConfiguration  FunctionState = "waitingForResourceConfiguration"
+	FunctionStateWaitingForScaleResourcesFromZero FunctionState = "waitingForScaleResourceFromZero"
+	FunctionStateWaitingForScaleResourcesToZero   FunctionState = "waitingForScaleResourceToZero"
+	FunctionStateConfiguringResources             FunctionState = "configuringResources"
+	FunctionStateReady                            FunctionState = "ready"
+	FunctionStateError                            FunctionState = "error"
+	FunctionStateScaledToZero                     FunctionState = "scaledToZero"
+	FunctionStateImported                         FunctionState = "imported"
 )
+
+func FunctionStateInSlice(a FunctionState, list []FunctionState) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
 
 // Status holds the status of the function
 type Status struct {
-	State    FunctionState            `json:"state,omitempty"`
-	Message  string                   `json:"message,omitempty"`
-	Logs     []map[string]interface{} `json:"logs,omitempty"`
-	HTTPPort int                      `json:"httpPort,omitempty"`
+	State       FunctionState            `json:"state,omitempty"`
+	Message     string                   `json:"message,omitempty"`
+	Logs        []map[string]interface{} `json:"logs,omitempty"`
+	HTTPPort    int                      `json:"httpPort,omitempty"`
+	ScaleToZero *ScaleToZeroStatus       `json:"scaleToZero,omitempty"`
+	APIGateways []string                 `json:"apiGateways,omitempty"`
 }
 
-// to appease k8s
+type ScaleToZeroStatus struct {
+	LastScaleEvent     scaler_types.ScaleEvent `json:"lastScaleEvent,omitempty"`
+	LastScaleEventTime *time.Time              `json:"lastScaleEventTime,omitempty"`
+}
+
+// DeepCopyInto copies to appease k8s
 func (s *Status) DeepCopyInto(out *Status) {
 
 	// TODO: proper deep copy

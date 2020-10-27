@@ -26,7 +26,6 @@ import (
 func EventReturner(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	eventFields := struct {
 		ID             nuclio.ID              `json:"id,omitempty"`
-		TriggerClass   string                 `json:"triggerClass,omitempty"`
 		TriggerKind    string                 `json:"eventType,omitempty"`
 		ContentType    string                 `json:"contentType,omitempty"`
 		Headers        map[string]interface{} `json:"headers,omitempty"`
@@ -40,22 +39,21 @@ func EventReturner(context *nuclio.Context, event nuclio.Event) (interface{}, er
 		TypeVersion    string                 `json:"typeVersion,omitempty"`
 		Version        string                 `json:"version,omitempty"`
 		Body           []byte                 `json:"body,omitempty"`
-	} {
-		ID: event.GetID(),
-		TriggerClass: event.GetTriggerInfo().GetClass(),
-		TriggerKind: event.GetTriggerInfo().GetKind(),
-		ContentType: event.GetContentType(),
-		Headers: event.GetHeaders(),
-		Timestamp: event.GetTimestamp(),
-		Path: event.GetPath(),
-		URL: event.GetURL(),
-		Method: event.GetMethod(),
-		ShardID: event.GetShardID(),
+	}{
+		ID:             event.GetID(),
+		TriggerKind:    event.GetTriggerInfo().GetKind(),
+		ContentType:    event.GetContentType(),
+		Headers:        event.GetHeaders(),
+		Timestamp:      event.GetTimestamp(),
+		Path:           event.GetPath(),
+		URL:            event.GetURL(),
+		Method:         event.GetMethod(),
+		ShardID:        event.GetShardID(),
 		TotalNumShards: event.GetTotalNumShards(),
-		Type: event.GetType(),
-		TypeVersion: event.GetTypeVersion(),
-		Version: event.GetVersion(),
-		Body: event.GetBody(),
+		Type:           event.GetType(),
+		TypeVersion:    event.GetTypeVersion(),
+		Version:        event.GetVersion(),
+		Body:           event.GetBody(),
 	}
 
 	return json.Marshal(&eventFields)

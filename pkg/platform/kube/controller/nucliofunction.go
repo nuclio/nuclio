@@ -21,13 +21,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/scaler-types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -47,7 +50,8 @@ func newFunctionOperator(parentLogger logger.Logger,
 	controller *Controller,
 	resyncInterval *time.Duration,
 	imagePullSecrets string,
-	functionresClient functionres.Client) (*functionOperator, error) {
+	functionresClient functionres.Client,
+	numWorkers int) (*functionOperator, error) {
 	var err error
 
 	loggerInstance := parentLogger.GetChild("function")
@@ -61,7 +65,7 @@ func newFunctionOperator(parentLogger logger.Logger,
 
 	// create a function operator
 	newFunctionOperator.operator, err = operator.NewMultiWorker(loggerInstance,
-		4,
+		numWorkers,
 		newFunctionOperator.getListWatcher(controller.namespace),
 		&nuclioio.NuclioFunction{},
 		resyncInterval,
@@ -70,6 +74,10 @@ func newFunctionOperator(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function operator")
 	}
+
+	parentLogger.DebugWith("Created function operator",
+		"numWorkers", numWorkers,
+		"resyncInterval", resyncInterval)
 
 	return newFunctionOperator, nil
 }
@@ -88,12 +96,18 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return errors.New("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
 	}
 
-	// only respond to functions which are either waiting for resource configuration or are ready. We respond to
+	// only respond to functions which are either waiting for something or are in non-transitional state. We respond to
 	// ready functions as part of controller resyncs, where we verify that a given function CRD has its resources
 	// properly configured
-	if function.Status.State != functionconfig.FunctionStateWaitingForResourceConfiguration &&
-		function.Status.State != functionconfig.FunctionStateReady &&
-		function.Status.State != functionconfig.FunctionStateScaledToZero {
+	statesToRespond := []functionconfig.FunctionState{
+		functionconfig.FunctionStateWaitingForResourceConfiguration,
+		functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
+		functionconfig.FunctionStateWaitingForScaleResourcesToZero,
+		functionconfig.FunctionStateReady,
+		functionconfig.FunctionStateScaledToZero,
+		functionconfig.FunctionStateError,
+	}
+	if !functionconfig.FunctionStateInSlice(function.Status.State, statesToRespond) {
 		fo.logger.DebugWith("NuclioFunction is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
 			"state", function.Status.State,
@@ -102,16 +116,55 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return nil
 	}
 
+	if functionconfig.ShouldSkipDeploy(function.Annotations) {
+		fo.logger.InfoWith("Skipping function deploy",
+			"name", function.Name,
+			"state", function.Status.State,
+			"namespace", function.Namespace)
+		return fo.setFunctionStatus(function, &functionconfig.Status{
+			State: functionconfig.FunctionStateImported,
+		})
+	}
+
+	// check if function in error state has become available again
+	if function.Status.State == functionconfig.FunctionStateError {
+		functionDeployment, err := fo.controller.kubeClientSet.
+			AppsV1().
+			Deployments(function.Namespace).
+			Get(kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
+		if err != nil {
+			fo.logger.WarnWith("Failed to get function deployments",
+				"functionName", function.Name,
+				"functionNamespace", function.Namespace)
+			return nil
+		}
+
+		if functionDeployment.Spec.Replicas != nil &&
+			*functionDeployment.Spec.Replicas > 0 &&
+			functionDeployment.Status.AvailableReplicas <= 0 {
+
+			// function deployment has not been recovered
+			return nil
+		}
+
+		fo.logger.InfoWith("Function deployment has been recovered, removing error and set state as ready",
+			"functionName", function.Name,
+			"functionNamespace", function.Namespace)
+		function.Status.State = functionconfig.FunctionStateReady
+		function.Status.Message = ""
+		return fo.setFunctionStatus(function, &function.Status)
+	}
+
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
 	if err != nil {
 		return fo.setFunctionError(function, errors.Wrap(err,
 			"Failed to create/update function"))
 	}
 
-	// wait for up to 30 seconds or whatever was set in the spec
+	// wait for up to 60 seconds or whatever was set in the spec
 	readinessTimeout := function.Spec.ReadinessTimeoutSeconds
 	if readinessTimeout == 0 {
-		readinessTimeout = 30
+		readinessTimeout = abstract.DefaultReadinessTimeoutSeconds
 	}
 
 	waitContext, cancel := context.WithDeadline(ctx, time.Now().Add(time.Duration(readinessTimeout)*time.Second))
@@ -139,13 +192,38 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		}
 	}
 
-	// if the function state was ready, don't re-write the function state
-	if function.Status.State != functionconfig.FunctionStateReady &&
-		function.Status.State != functionconfig.FunctionStateScaledToZero {
-		return fo.setFunctionStatus(function, &functionconfig.Status{
-			State:    functionconfig.FunctionStateReady,
+	waitingStates := []functionconfig.FunctionState{
+		functionconfig.FunctionStateWaitingForResourceConfiguration,
+		functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
+		functionconfig.FunctionStateWaitingForScaleResourcesToZero,
+	}
+
+	if functionconfig.FunctionStateInSlice(function.Status.State, waitingStates) {
+
+		var scaleEvent scaler_types.ScaleEvent
+		var finalState functionconfig.FunctionState
+		switch function.Status.State {
+		case functionconfig.FunctionStateWaitingForScaleResourcesToZero:
+			scaleEvent = scaler_types.ScaleToZeroCompletedScaleEvent
+			finalState = functionconfig.FunctionStateScaledToZero
+		case functionconfig.FunctionStateWaitingForScaleResourcesFromZero:
+			scaleEvent = scaler_types.ScaleFromZeroCompletedScaleEvent
+			finalState = functionconfig.FunctionStateReady
+		case functionconfig.FunctionStateWaitingForResourceConfiguration:
+			scaleEvent = scaler_types.ResourceUpdatedScaleEvent
+			finalState = functionconfig.FunctionStateReady
+		}
+
+		functionStatus := &functionconfig.Status{
+			State:    finalState,
 			HTTPPort: httpPort,
-		})
+		}
+
+		if err := fo.setFunctionScaleToZeroStatus(ctx, functionStatus, scaleEvent); err != nil {
+			return errors.Wrap(err, "Failed setting function scale to zero status")
+		}
+
+		return fo.setFunctionStatus(function, functionStatus)
 	}
 
 	return nil
@@ -158,6 +236,20 @@ func (fo *functionOperator) Delete(ctx context.Context, namespace string, name s
 		"namespace", namespace)
 
 	return fo.functionresClient.Delete(ctx, namespace, name)
+}
+
+func (fo *functionOperator) setFunctionScaleToZeroStatus(ctx context.Context,
+	functionStatus *functionconfig.Status,
+	scaleToZeroEvent scaler_types.ScaleEvent) error {
+
+	fo.logger.DebugWith("Setting scale to zero status",
+		"LastScaleEvent", scaleToZeroEvent)
+	now := time.Now()
+	functionStatus.ScaleToZero = &functionconfig.ScaleToZeroStatus{
+		LastScaleEvent:     scaleToZeroEvent,
+		LastScaleEventTime: &now,
+	}
+	return nil
 }
 
 func (fo *functionOperator) start() error {

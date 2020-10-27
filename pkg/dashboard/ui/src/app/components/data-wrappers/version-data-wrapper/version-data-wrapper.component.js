@@ -4,6 +4,7 @@
     angular.module('nuclio.app')
         .component('versionDataWrapper', {
             bindings: {
+                containers: '<',
                 version: '<'
             },
             templateUrl: 'data-wrappers/version-data-wrapper/version-data-wrapper.tpl.html',
@@ -15,8 +16,8 @@
 
         ctrl.createFunction = createFunction;
         ctrl.deleteFunction = deleteFunction;
-        ctrl.getExternalIPAddresses = getExternalIPAddresses;
         ctrl.getFunction = getFunction;
+        ctrl.getFunctions = getFunctions;
         ctrl.getProject = getProject;
         ctrl.updateFunction = updateFunction;
 
@@ -44,20 +45,21 @@
         }
 
         /**
-         * Gets external IP addresses
-         * @returns {Promise}
-         */
-        function getExternalIPAddresses() {
-            return NuclioProjectsDataService.getExternalIPAddresses();
-        }
-
-        /**
          * Gets a function
          * @param {Object} metadata
          * @returns {Promise}
          */
         function getFunction(metadata) {
             return NuclioFunctionsDataService.getFunction(metadata);
+        }
+
+        /**
+         * Gets functions list
+         * @param {string} id
+         * @returns {Promise}
+         */
+        function getFunctions(id) {
+            return NuclioFunctionsDataService.getFunctions(id);
         }
 
         /**

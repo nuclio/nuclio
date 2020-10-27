@@ -18,20 +18,19 @@ package kinesis
 
 import (
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	kinesisclient "github.com/sendgridlabs/go-kinesis"
 )
 
 type kinesis struct {
 	trigger.AbstractTrigger
-	event         Event
 	configuration *Configuration
-	kinesisAuth   *kinesisclient.AuthCredentials
+	kinesisAuth   kinesisclient.Auth
 	kinesisClient kinesisclient.KinesisClient
 	shards        []*shard
 }
@@ -45,7 +44,8 @@ func newTrigger(parentLogger logger.Logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
-		"kinesis")
+		"kinesis",
+		configuration.Name)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
@@ -58,7 +58,14 @@ func newTrigger(parentLogger logger.Logger,
 		configuration.SecretAccessKey,
 		"")
 
-	newTrigger.kinesisClient = kinesisclient.New(newTrigger.kinesisAuth, configuration.RegionName)
+	switch endpoint := configuration.URL; {
+	case endpoint != "":
+		newTrigger.kinesisClient = kinesisclient.NewWithEndpoint(newTrigger.kinesisAuth,
+			configuration.RegionName,
+			endpoint)
+	default:
+		newTrigger.kinesisClient = kinesisclient.New(newTrigger.kinesisAuth, configuration.RegionName)
+	}
 
 	// iterate over shards and create
 	for _, shardID := range configuration.Shards {

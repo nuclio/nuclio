@@ -18,10 +18,10 @@ package python
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type python struct {
@@ -34,33 +34,45 @@ func (p *python) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
+	pythonCommonModules := []string{
+		"nuclio-sdk",
+		"msgpack",
+	}
 
 	if p.FunctionConfig.Spec.Runtime == "python:2.7" {
 		processorDockerfileInfo.BaseImage = "python:2.7-alpine"
 	} else {
-		processorDockerfileInfo.BaseImage = "python:3.6-alpine"
-	}
-
-	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/nuclio/bin/processor": "/usr/local/bin/processor",
-		"/home/nuclio/bin/py":        "/opt/nuclio/",
+		processorDockerfileInfo.BaseImage = "python:3.6"
 	}
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",
 	}
 
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-python-onbuild:%s-%s",
-		versionInfo.Label,
-		versionInfo.Arch)
+	// fill onbuild artifact
+	artifact := runtime.Artifact{
+		Name: "python-onbuild",
+		Image: fmt.Sprintf("%s/nuclio/handler-builder-python-onbuild:%s-%s",
+			onbuildImageRegistry,
+			p.VersionInfo.Label,
+			p.VersionInfo.Arch),
+		Paths: map[string]string{
+			"/home/nuclio/bin/processor": "/usr/local/bin/processor",
+			"/home/nuclio/bin/py":        "/opt/nuclio/",
+		},
+	}
+	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
 		"postCopy": {
 			{
-				Kind:  "RUN",
-				Value: "pip install nuclio-sdk --no-index --find-links /opt/nuclio/whl",
+				Kind: "RUN",
+				Value: fmt.Sprintf(
+					"pip install %s --no-index --find-links /opt/nuclio/whl",
+					strings.Join(pythonCommonModules, " ")),
 			},
 		},
 	}

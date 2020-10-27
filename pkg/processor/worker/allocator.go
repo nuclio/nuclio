@@ -18,6 +18,7 @@ package worker
 
 import (
 	"errors"
+	"sync/atomic"
 	"time"
 
 	"github.com/nuclio/logger"
@@ -39,6 +40,12 @@ type Allocator interface {
 
 	// get direct access to all workers for things like management / housekeeping
 	GetWorkers() []*Worker
+
+	// get number of workers available in the allocator
+	GetNumWorkersAvailable() int
+
+	// GetStatistics returns worker allocator statistics
+	GetStatistics() *AllocatorStatistics
 }
 
 //
@@ -47,8 +54,9 @@ type Allocator interface {
 //
 
 type singleton struct {
-	logger logger.Logger
-	worker *Worker
+	logger     logger.Logger
+	worker     *Worker
+	statistics AllocatorStatistics
 }
 
 func NewSingletonWorkerAllocator(parentLogger logger.Logger, worker *Worker) (Allocator, error) {
@@ -76,6 +84,15 @@ func (s *singleton) GetWorkers() []*Worker {
 	return []*Worker{s.worker}
 }
 
+func (s *singleton) GetNumWorkersAvailable() int {
+	return 1
+}
+
+// GetStatistics returns worker allocator statistics
+func (s *singleton) GetStatistics() *AllocatorStatistics {
+	return &s.statistics
+}
+
 //
 // Fixed pool of workers
 // Holds a fixed number of workers. When a worker is unavailable, caller is blocked
@@ -85,6 +102,7 @@ type fixedPool struct {
 	logger     logger.Logger
 	workerChan chan *Worker
 	workers    []*Worker
+	statistics AllocatorStatistics
 }
 
 func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) (Allocator, error) {
@@ -93,6 +111,7 @@ func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) 
 		logger:     parentLogger.GetChild("fixed_pool_allocator"),
 		workerChan: make(chan *Worker, len(workers)),
 		workers:    workers,
+		statistics: AllocatorStatistics{},
 	}
 
 	// iterate over workers, shove to pool
@@ -105,22 +124,45 @@ func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) 
 
 func (fp *fixedPool) Allocate(timeout time.Duration) (*Worker, error) {
 
-	// if no timeout is specified, just try to get a worker
-	if timeout == 0 {
-		select {
-		case workerInstance := <-fp.workerChan:
-			return workerInstance, nil
-		default:
-			return nil, ErrNoAvailableWorkers
-		}
-	} else {
-		select {
-		case workerInstance := <-fp.workerChan:
-			return workerInstance, nil
-		case <-time.After(timeout):
+	// we don't want to completely lock here, but we'll use atomic to inc counters where possible
+	atomic.AddUint64(&fp.statistics.WorkerAllocationCount, 1)
+
+	// get total number of workers
+	totalNumberWorkers := len(fp.workers)
+	currentNumberOfAvailableWorkers := len(fp.workerChan)
+	percentageOfAvailableWorkers := float64(currentNumberOfAvailableWorkers*100.0) / float64(totalNumberWorkers)
+
+	// measure how many workers are available in the queue while we're allocating
+	atomic.AddUint64(&fp.statistics.WorkerAllocationWorkersAvailablePercentage, uint64(percentageOfAvailableWorkers))
+
+	// try to allocate a worker and fall back to default immediately if there's none available
+	select {
+	case workerInstance := <-fp.workerChan:
+		atomic.AddUint64(&fp.statistics.WorkerAllocationSuccessImmediateTotal, 1)
+
+		return workerInstance, nil
+	default:
+
+		// if there's no timeout, return now
+		if timeout == 0 {
+			atomic.AddUint64(&fp.statistics.WorkerAllocationTimeoutTotal, 1)
 			return nil, ErrNoAvailableWorkers
 		}
 
+		waitStartAt := time.Now()
+
+		// if there is a timeout, try to allocate while waiting for the time
+		// to pass
+		select {
+		case workerInstance := <-fp.workerChan:
+			atomic.AddUint64(&fp.statistics.WorkerAllocationSuccessAfterWaitTotal, 1)
+			atomic.AddUint64(&fp.statistics.WorkerAllocationWaitDurationMilliSecondsSum,
+				uint64(time.Since(waitStartAt).Nanoseconds()/1e6))
+			return workerInstance, nil
+		case <-time.After(timeout):
+			atomic.AddUint64(&fp.statistics.WorkerAllocationTimeoutTotal, 1)
+			return nil, ErrNoAvailableWorkers
+		}
 	}
 }
 
@@ -136,4 +178,13 @@ func (fp *fixedPool) Shareable() bool {
 // get direct access to all workers for things like management / housekeeping
 func (fp *fixedPool) GetWorkers() []*Worker {
 	return fp.workers
+}
+
+func (fp *fixedPool) GetNumWorkersAvailable() int {
+	return len(fp.workerChan)
+}
+
+// GetStatistics returns worker allocator statistics
+func (fp *fixedPool) GetStatistics() *AllocatorStatistics {
+	return &fp.statistics
 }

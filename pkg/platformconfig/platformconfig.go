@@ -17,10 +17,19 @@ limitations under the License.
 package platformconfig
 
 import (
-	"fmt"
+	"os"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+
+	"github.com/nuclio/errors"
+	"k8s.io/api/core/v1"
 )
+
+type PlatformKubeConfig struct {
+
+	// TODO: Move IngressConfig here
+	DefaultServiceType v1.ServiceType `json:"defaultServiceType,omitempty"`
+}
 
 type Config struct {
 	Kind                     string                   `json:"kind,omitempty"`
@@ -30,7 +39,42 @@ type Config struct {
 	Metrics                  Metrics                  `json:"metrics,omitempty"`
 	ScaleToZero              ScaleToZero              `json:"scaleToZero,omitempty"`
 	AutoScale                AutoScale                `json:"autoScale,omitempty"`
+	CronTriggerCreationMode  CronTriggerCreationMode  `json:"cronTriggerCreationMode,omitempty"`
 	FunctionAugmentedConfigs []LabelSelectorAndConfig `json:"functionAugmentedConfigs,omitempty"`
+	IngressConfig            IngressConfig            `json:"ingressConfig,omitempty"`
+	Kube                     PlatformKubeConfig       `json:"kube,omitempty"`
+}
+
+func NewPlatformConfig(configurationPath string) (*Config, error) {
+
+	// read or get default platform config
+	platformConfigurationReader, err := NewReader()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
+	}
+
+	config, err := platformConfigurationReader.ReadFileOrDefault(configurationPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read platform configuration")
+	}
+
+	// determine config kind
+	if len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0 {
+		config.Kind = "kube"
+	} else {
+		config.Kind = "local"
+	}
+
+	// default cron trigger creation mode to processor
+	if config.CronTriggerCreationMode == "" {
+		config.CronTriggerCreationMode = ProcessorCronTriggerCreationMode
+	}
+
+	if config.Kube.DefaultServiceType == "" {
+		config.Kube.DefaultServiceType = DefaultServiceType
+	}
+
+	return config, nil
 }
 
 func (config *Config) GetSystemLoggerSinks() (map[string]LoggerSinkWithLevel, error) {
@@ -79,7 +123,7 @@ func (config *Config) getMetricSinks(metricSinkNames []string) (map[string]Metri
 	for _, metricSinkName := range metricSinkNames {
 		metricSink, metricSinkFound := config.Metrics.Sinks[metricSinkName]
 		if !metricSinkFound {
-			return nil, fmt.Errorf("Failed to find metric sink %s", metricSinkName)
+			return nil, errors.Errorf("Failed to find metric sink %s", metricSinkName)
 		}
 
 		metricSinks[metricSinkName] = metricSink
@@ -97,7 +141,7 @@ func (config *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBin
 		// get sink by name
 		sink, sinkFound := config.Logger.Sinks[sinkBinding.Sink]
 		if !sinkFound {
-			return nil, fmt.Errorf("Failed to find logger sink %s", sinkBinding.Sink)
+			return nil, errors.Errorf("Failed to find logger sink %s", sinkBinding.Sink)
 		}
 
 		result[sinkBinding.Sink] = LoggerSinkWithLevel{

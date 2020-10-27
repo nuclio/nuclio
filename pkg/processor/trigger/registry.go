@@ -53,8 +53,17 @@ func (r *Registry) NewTrigger(logger logger.Logger,
 		return nil, err
 	}
 
-	// set trigger name for runtime config, this can be overridden by the trigger if it pleases
-	runtimeConfiguration.TriggerName = name
+	triggerConfiguration.Name = name
+
+	// if there's no worker allocator - the runtime belongs to a single trigger. if there is,
+	// it belongs to multiple workers and therefore pass the worker allocator name
+	if triggerConfiguration.WorkerAllocatorName == "" {
+		runtimeConfiguration.TriggerKind = kind
+		runtimeConfiguration.TriggerName = name
+	} else {
+		runtimeConfiguration.TriggerKind = ""
+		runtimeConfiguration.TriggerName = triggerConfiguration.WorkerAllocatorName
+	}
 
 	return registree.(Creator).Create(logger,
 		name,

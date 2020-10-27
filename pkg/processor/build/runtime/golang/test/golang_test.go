@@ -20,11 +20,11 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
+	"github.com/nuclio/errors"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -34,6 +34,7 @@ type testSuite struct {
 
 func (suite *testSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
+	suite.Runtime = "golang"
 
 	suite.TestSuite.RuntimeSuite = suite
 	suite.TestSuite.ArchivePattern = "golang"
@@ -78,7 +79,7 @@ func (suite *testSuite) TestBuildWithContextInitializer() {
 
 func (suite *testSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
 	functionInfo := buildsuite.FunctionInfo{
-		Runtime: "golang",
+		Runtime: suite.Runtime,
 	}
 
 	switch functionName {
@@ -97,6 +98,9 @@ func (suite *testSuite) GetFunctionInfo(functionName string) buildsuite.Function
 
 	case "long-initialization":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "long-initialization", "golang", "sleepy.go"}
+
+	case "context-init-fail":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "context-init-fail", "golang", "contextinitfail.go"}
 
 	default:
 		suite.Logger.InfoWith("Test skipped", "functionName", functionName)

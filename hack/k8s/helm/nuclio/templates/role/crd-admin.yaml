@@ -17,12 +17,36 @@
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: {{ template "nuclio.crdAdminName" . }}-role
+  name: {{ template "nuclio.crdAdminName" . }}-clusterrole
+  labels:
+    app: {{ template "nuclio.name" . }}
+    release: {{ .Release.Name }}
 rules:
-- apiGroups: ["nuclio.io"]
-  resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents"]
-  verbs: ["*"]
-- apiGroups: [""]
-  resources: ["nodes"]
-  verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+
+{{- if eq .Values.rbac.crdAccessMode "cluster" }}
+  - apiGroups: ["nuclio.io"]
+    resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents", "nuclioapigateways"]
+    verbs: ["*"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["list"]
+
+{{- else if eq .Values.rbac.crdAccessMode "namespaced" }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ template "nuclio.crdAdminName" . }}-role
+  labels:
+    app: {{ template "nuclio.name" . }}
+    release: {{ .Release.Name }}
+rules:
+  - apiGroups: ["nuclio.io"]
+    resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents", "nuclioapigateways"]
+    verbs: ["*"]
+{{- end }}
 {{- end }}

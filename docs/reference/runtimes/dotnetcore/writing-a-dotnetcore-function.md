@@ -1,4 +1,4 @@
-# Writing a .NET Core 2 Function
+# Writing a .NET Core 3.1 Function
 
 This guide uses practical examples to guide you through the process of writing serverless .NET Core functions.
 
@@ -10,7 +10,7 @@ This guide uses practical examples to guide you through the process of writing s
 
 ## Overview
 
-The .NET Core runtime allows function developers to create serverless functions using [.NET Core 2](https://dotnet.github.io/). This guide walks you through the function-creation process.
+The .NET Core runtime allows function developers to create serverless functions using [.NET Core 3.1](https://dotnet.microsoft.com/). This guide walks you through the function-creation process.
 
 ## Deploy a .NET Core function
 
@@ -47,7 +47,7 @@ The function configuration needs to include the following:
 
 Run the following command to deploy the function with the Nuclio CLI (`nuctl`).
 
-> Note: If you're not running on top of Kubernetes, pass the `--platform local` option to `nuctl`.
+> **Note:** If you're not running on top of Kubernetes, pass the `--platform local` option to `nuctl`.
 
 ```sh
 nuctl deploy -p /tmp/nuclio-dotnetcore-script/reverser.cs reverser

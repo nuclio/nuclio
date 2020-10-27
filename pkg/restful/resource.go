@@ -21,11 +21,13 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/go-chi/chi"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
@@ -92,6 +94,11 @@ const (
 	ResourceMethodCreate
 	ResourceMethodUpdate
 	ResourceMethodDelete
+)
+
+const (
+	ParamImport = "import"
+	ParamExport = "export"
 )
 
 // AbstractResource is base for resources
@@ -183,6 +190,98 @@ func (ar *AbstractResource) GetRouter() chi.Router {
 	return ar.router
 }
 
+func (ar *AbstractResource) parseURLParamValue(paramValue string) interface{} {
+	parsedBool, err := strconv.ParseBool(paramValue)
+	if err == nil {
+		return parsedBool
+	}
+
+	parsedInt, err := strconv.ParseInt(paramValue, 10, 64)
+	if err == nil {
+		return parsedInt
+	}
+
+	parsedUint, err := strconv.ParseUint(paramValue, 10, 64)
+	if err == nil {
+		return parsedUint
+	}
+
+	parsedFloat, err := strconv.ParseFloat(paramValue, 10)
+	if err == nil {
+		return parsedFloat
+	}
+
+	return paramValue
+}
+
+func (ar *AbstractResource) GetURLParamValues(paramKey string, request *http.Request) []interface{} {
+	paramValues, ok := request.URL.Query()[paramKey]
+	if !ok || len(paramValues) == 0 {
+		return nil
+	}
+
+	var values []interface{}
+	for _, value := range paramValues {
+		values = append(values, ar.parseURLParamValue(value))
+	}
+
+	return values
+}
+
+func (ar *AbstractResource) GetURLParamValue(paramKey string, request *http.Request) interface{} {
+	paramValues, ok := request.URL.Query()[paramKey]
+	if !ok || len(paramValues) == 0 {
+		return nil
+	}
+
+	return ar.parseURLParamValue(paramValues[0])
+}
+
+func (ar *AbstractResource) GetURLParamBoolOrDefault(request *http.Request, paramKey string, defaultValue bool) bool {
+	booleanParam, ok := ar.GetURLParamValue(paramKey, request).(bool)
+	if !ok {
+		return defaultValue
+	}
+
+	return booleanParam
+}
+
+func (ar *AbstractResource) GetURLParamInt64OrDefault(request *http.Request, paramKey string, defaultValue int64) int64 {
+	int64Param, ok := ar.GetURLParamValue(paramKey, request).(int64)
+	if !ok {
+		return defaultValue
+	}
+
+	return int64Param
+}
+
+func (ar *AbstractResource) GetURLParamUint64OrDefault(request *http.Request, paramKey string, defaultValue uint64) uint64 {
+	uint64Param, ok := ar.GetURLParamValue(paramKey, request).(uint64)
+	if !ok {
+		return defaultValue
+	}
+
+	return uint64Param
+}
+
+func (ar *AbstractResource) GetURLParamFloatOrDefault(request *http.Request, paramKey string, defaultValue float64) float64 {
+	float64Param, ok := ar.GetURLParamValue(paramKey, request).(float64)
+	if !ok {
+		return defaultValue
+	}
+
+	return float64Param
+}
+
+func (ar *AbstractResource) GetURLParamStringOrDefault(request *http.Request, paramKey string, defaultValue string) string {
+	stringParam, ok := ar.GetURLParamValue(paramKey, request).(string)
+	if !ok {
+		return defaultValue
+	}
+
+	return stringParam
+}
+
 func (ar *AbstractResource) registerRoutes() error {
 	for _, resourceMethod := range ar.resourceMethods {
 		switch resourceMethod {
@@ -257,6 +356,7 @@ func (ar *AbstractResource) handleGetList(responseWriter http.ResponseWriter, re
 }
 
 func (ar *AbstractResource) handleGetDetails(responseWriter http.ResponseWriter, request *http.Request) {
+	encoder := ar.encoderFactory.NewEncoder(responseWriter, ar.name)
 
 	// registered as "/:id/"
 	resourceID := chi.URLParam(request, "id")
@@ -279,10 +379,11 @@ func (ar *AbstractResource) handleGetDetails(responseWriter http.ResponseWriter,
 		attributes = Attributes{}
 	}
 
-	ar.encoderFactory.NewEncoder(responseWriter, ar.name).EncodeResource(resourceID, attributes)
+	encoder.EncodeResource(resourceID, attributes)
 }
 
 func (ar *AbstractResource) handleCreate(responseWriter http.ResponseWriter, request *http.Request) {
+	encoder := ar.encoderFactory.NewEncoder(responseWriter, ar.name)
 
 	// delegate to child
 	resourceID, attributes, err := ar.Resource.Create(request)
@@ -297,10 +398,11 @@ func (ar *AbstractResource) handleCreate(responseWriter http.ResponseWriter, req
 		return
 	}
 
-	ar.encoderFactory.NewEncoder(responseWriter, ar.name).EncodeResource(resourceID, attributes)
+	encoder.EncodeResource(resourceID, attributes)
 }
 
 func (ar *AbstractResource) handleUpdate(responseWriter http.ResponseWriter, request *http.Request) {
+	encoder := ar.encoderFactory.NewEncoder(responseWriter, ar.name)
 
 	// registered as "/:id/"
 	resourceID := chi.URLParam(request, "id")
@@ -318,7 +420,7 @@ func (ar *AbstractResource) handleUpdate(responseWriter http.ResponseWriter, req
 		return
 	}
 
-	ar.encoderFactory.NewEncoder(responseWriter, ar.name).EncodeResource(resourceID, attributes)
+	encoder.EncodeResource(resourceID, attributes)
 }
 
 func (ar *AbstractResource) handleDelete(responseWriter http.ResponseWriter, request *http.Request) {
@@ -399,36 +501,25 @@ func (ar *AbstractResource) writeErrorReason(responseWriter io.Writer, err error
 		err = typedErr.GetError()
 	}
 
+	errorCause := ""
+	if errors.Cause(err) != nil {
+		errorCause = errors.Cause(err).Error()
+	}
+
 	// try to get the error stack
 	errors.PrintErrorStack(&buffer, err, 10)
 
 	// format to json manually
 	serializedError, _ := json.Marshal(struct {
-		Error string `json:"error"`
+		Error           string `json:"error"`
+		ErrorStackTrace string `json:"errorStackTrace"`
 	}{
+		errorCause,
 		buffer.String(),
 	})
 
 	// write to the response
 	responseWriter.Write(serializedError) // nolint: errcheck
-}
-
-func (ar *AbstractResource) getStatusCodeFromError(err error, defaultStatusCode int) int {
-	if err == nil {
-		return defaultStatusCode
-	}
-
-	// see if the user returned an error with status code
-	switch typedError := err.(type) {
-	case nuclio.ErrorWithStatusCode:
-		return typedError.StatusCode()
-	case *nuclio.ErrorWithStatusCode:
-		return typedError.StatusCode()
-	case *errors.Error:
-		return http.StatusInternalServerError
-	default:
-		return defaultStatusCode
-	}
 }
 
 func (ar *AbstractResource) statusCodeIsError(statusCode int) bool {
@@ -441,7 +532,7 @@ func (ar *AbstractResource) writeStatusCodeAndErrorReason(responseWriter http.Re
 	defaultStatusCode int) bool {
 
 	// get the status code from the error
-	statusCode := ar.getStatusCodeFromError(err, defaultStatusCode)
+	statusCode := common.ResolveErrorStatusCodeOrDefault(err, defaultStatusCode)
 
 	// if the status code is an actual error, write the error reason and return
 	if ar.statusCodeIsError(statusCode) {

@@ -1,3 +1,7 @@
+# possible release name overrides
+# nameOverride:
+# fullnameOverride:
+
 # if true, all components assume no internet connectivity
 offline: false
 
@@ -6,12 +10,28 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.1.1-amd64
+    tag: 1.5.2-amd64
     pullPolicy: IfNotPresent  
 
   # Uncomment to have the controller to listen only the namespace's events, 
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
+
+  operator:
+    function:
+      numWorkers: 4
+    functionEvent:
+      numWorkers: 2
+    project:
+      numWorkers: 2
+    apiGateway:
+      numWorkers: 2
+
+  # the image of the created k8s cron job for function cron triggers
+  cronTriggerCronJobImage:
+    repository: appropriate/curl
+    tag: latest
+    pullPolicy: IfNotPresent
 
 # Dashboard settings
 dashboard:
@@ -19,20 +39,59 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.1.1-amd64
+    tag: 1.5.2-amd64
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
+  httpIngressHostTemplate: ""
+  imageNamePrefixTemplate: ""
+
+  # Supported container builders: "kaniko", "docker"
+  containerBuilderKind: "docker"
+
+  kaniko:
+
+    #  Set this flag to specify a remote repository for storing cached layers
+    #
+    # cacheRepo: someurl
+
+    # Set this flag to push images to a plain HTTP registry
+    insecurePushRegistry: false
+
+    # Set this flag to pull images from a plain HTTP registry
+    insecurePullRegistry: false
+
+    image:
+      repository: gcr.io/kaniko-project/executor
+      tag: v0.17.1
+      pullPolicy: IfNotPresent
 
   # Uncomment to configure node port
   # nodePort: 32050
+
+  # Uncomment if you serve the templates locally (for offline environments);
+  # otherwise, the templates will be pulled from GitHub
+  # templatesArchiveAddress: <url>
+
+  ingress:
+    enabled: false
+    annotations: {}
+      # kubernetes.io/ingress.class: nginx
+      # kubernetes.io/tls-acme: "true"
+    path: /
+    hosts:
+      - nuclio.local
+    tls: []
+    #  - secretName: nuclio-tls
+    #    hosts:
+    #      - nuclio.local
 
 autoscaler:
   enabled: false
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.1.1-amd64
+    tag: 1.5.2-amd64
     pullPolicy: IfNotPresent
 
 dlx:
@@ -40,7 +99,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.1.1-amd64
+    tag: 1.5.2-amd64
     pullPolicy: IfNotPresent
 
 registry:
@@ -54,21 +113,33 @@ registry:
   #     --docker-server <url> \
   #     --docker-email ignored@nuclio.io
   #
-  # If you'd still like to have this managed as part of the helm chart, comment out this line and populate
-  # the credentials stanza below. The chart will create a secret for you (note: the credentials will be
-  # visible to anyone with access to helm) and name it after the release
+  # IMPORTANT:
+  # K8S doesn't allow secret sharing between namespaces, so in order to deploy a nuclio function
+  # to namespace which differs from a namespace in which nuclio is running,
+  # secret must be copied to that namespace:
   #
-  secretName: registry-credentials
+  #  kubectl get secret <secret-name> -n <source-namespace> -o yaml \
+  #     | sed s/"namespace: <source-namespace>"/"namespace: <destination-namespace>"/ \
+  #     | kubectl apply -f -
+  #
+  #
+  # If you'd still like to have this managed as part of the helm chart, populate
+  # the credentials stanza below. The chart will create a secret for you (note: the credentials will be
+  # visible to anyone with access to helm).
+  # If secretName is commented out or empty (and credentials are given) then the
+  # chart will create a secret with default name `{releaseName}-registry-credentials`
+  #
+  # secretName: registry-credentials
 
   # In some cases the docker server URL in the registry secrets isn't the same as the URL with which
-  # you push and pull. For example, in GKE you login to `gcr.io` (or some other regional URL) yet have
-  # to push/pull from `gcr.io/<project-name>. If this is the case, specify the url here and it will be
-  # used instead of the url in the secrets
+  # you push and pull. For example, in GKE you log into `gcr.io` (or some other regional URL) yet have
+  # to push/pull from `gcr.io/<project-name>. If this is the case, specify the URL here and it will be
+  # used instead of the URL in the secrets
   #
   # pushPullUrl: gcr.io/<project-name>
 
-  # In case you'd like helm to generate the secret for you by uncommenting secretName, `loginUrl` specifies
-  # the URL with which the components in nuclio will try to login to
+  # In case you'd like helm to generate the secret for you, `loginUrl` specifies
+  # the URL with which the components in nuclio will try to log into
   #
   # loginUrl: someurl
 
@@ -77,14 +148,36 @@ registry:
     # username: someuser
     # password: somepass
 
+  #  Use a custom "base" images registry (pull registry). Default behavior will pull the default
+  #  base images from the web
+  #  Note: To override a pull registry for both "onbuild" and base images, use `dependantImageRegistryURL`.
+  defaultBaseRegistryURL: ""
+
+  #  Use a custom "onbuild" images registry (pull registry).
+  #  Note: To override a pull registry for both "onbuild" and base images, use `dependantImageRegistryURL`.
+  defaultOnbuildRegistryURL: "quay.io"
+
+  # Use this registry URL as an override for both base and "onbuild" images, so they'll be pulled from the
+  # specified registry URL and not from the default registries
+  # dependantImageRegistryURL: someUrl
+
 rbac:
 
   # If true, creates the necessary roles and role bindings for nuclio's service account
   create: true
 
+  # serviceAccountName: service-account-name
+
+  # Allow / deny cluster-wide resource access. values: "cluster", "namespaced".
+  # If set to "namespaced" dashboard will not be able to create nuclio resources in any namespace other
+  # than the one in which it is installed
+  # Likewise, for "namespaced", the controller won't be able to act on these nuclio resources in any
+  # namespace other than the one in which it is installed
+  crdAccessMode: cluster
+
 crd:
   
-  # If true, creates cluster wide custom resources defenitions for nuclio's resources
+  # If true, creates cluster wide custom resources definitions for nuclio's resources
   create: true
 
 platform: {}
@@ -107,3 +200,12 @@ platform: {}
 #     - myPrometheusPull
 #     functions:
 #     - myPrometheusPull
+#   cronTriggerCreationMode: "kube"
+#   kube:
+#     defaultServiceType: NodePort
+
+# global is a stanza that is used if this is used as a subchart. Ignore otherwise
+global:
+  registry:
+    url:
+    secretName:

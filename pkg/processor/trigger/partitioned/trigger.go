@@ -18,11 +18,11 @@ package partitioned
 
 import (
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -54,14 +54,18 @@ func NewAbstractStream(parentLogger logger.Logger,
 	stream Stream,
 	kind string) (*AbstractStream, error) {
 
+	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
+		workerAllocator,
+		&configuration.Configuration,
+		"async",
+		kind,
+		configuration.Name)
+	if err != nil {
+		return nil, errors.New("Failed to create abstract trigger")
+	}
+
 	newAbstractStream := &AbstractStream{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          parentLogger.GetChild(configuration.ID),
-			WorkerAllocator: workerAllocator,
-			Class:           "async",
-			Kind:            kind,
-		},
+		AbstractTrigger: abstractTrigger,
 		workerAllocator: workerAllocator,
 		configuration:   configuration,
 		stream:          stream,

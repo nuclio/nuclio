@@ -29,31 +29,31 @@
                     }
                 },
                 data: {
-                    pageTitle: 'Monaco'
+                    pageTitle: 'common:MONACO'
                 }
             })
             .state('app.nuclio-welcome', {
                 url: 'welcome',
                 views: {
                     main: {
-                        template: '<projects-welcome-page-data-wrapper></projects-welcome-page-data-wrapper>'
+                        template: '<ncl-projects-welcome-page></ncl-projects-welcome-page>'
                     }
                 },
                 data: {
-                    pageTitle: 'Welcome',
-                    mainHeaderTitle: 'Welcome'
+                    pageTitle: 'common:WELCOME',
+                    mainHeaderTitle: 'common:WELCOME'
                 }
             })
             .state('app.projects', {
                 url: 'projects',
                 views: {
                     main: {
-                        template: '<projects-data-wrapper></projects-data-wrapper>'
+                        template: '<ncl-projects></ncl-projects>'
                     }
                 },
                 data: {
-                    pageTitle: 'Projects',
-                    mainHeaderTitle: 'Projects'
+                    pageTitle: 'common:PROJECTS',
+                    mainHeaderTitle: 'common:PROJECTS'
                 },
                 params: {
                     namespace: null
@@ -67,8 +67,8 @@
                     }
                 },
                 data: {
-                    pageTitle: 'Create Function',
-                    mainHeaderTitle: 'Projects',
+                    pageTitle: 'common:CREATE_FUNCTION',
+                    mainHeaderTitle: 'common:PROJECTS',
                     capability: 'projects'
                 },
                 params: {
@@ -87,8 +87,8 @@
                     createCancelled: false
                 },
                 data: {
-                    pageTitle: 'Functions',
-                    mainHeaderTitle: 'Functions'
+                    pageTitle: 'common:FUNCTIONS',
+                    mainHeaderTitle: 'common:FUNCTIONS'
                 }
             })
             .state('app.project.functions', {
@@ -99,8 +99,8 @@
                     }
                 },
                 data: {
-                    pageTitle: 'Functions',
-                    mainHeaderTitle: 'Functions'
+                    pageTitle: 'common:FUNCTIONS',
+                    mainHeaderTitle: 'common:FUNCTIONS'
                 }
             })
             .state('app.project.create-function', {
@@ -111,7 +111,7 @@
                     }
                 },
                 data: {
-                    pageTitle: 'Create Function'
+                    pageTitle: 'common:CREATE_FUNCTION'
                 }
             })
             .state('app.project.function', {
@@ -127,17 +127,19 @@
                     functionData: {}
                 },
                 data: {
-                    pageTitle: 'Functions',
-                    mainHeaderTitle: 'Functions'
+                    pageTitle: 'common:FUNCTIONS',
+                    mainHeaderTitle: 'common:FUNCTIONS'
                 },
                 resolve: {
                     function: [
                         'FunctionsService', 'NuclioFunctionsDataService', 'NuclioProjectsDataService', '$state', '$stateParams',
                         function (FunctionsService, NuclioFunctionsDataService, NuclioProjectsDataService, $state, $stateParams) {
-                            return NuclioProjectsDataService.getProject($stateParams.projectId).then(function (project) {
-                                if ($stateParams.isNewFunction) {
-                                    return angular.copy($stateParams.functionData);
-                                } else {
+                            return NuclioProjectsDataService.getProject($stateParams.projectId)
+                                .then(function (project) {
+                                    if ($stateParams.isNewFunction) {
+                                        return angular.copy($stateParams.functionData);
+                                    }
+
                                     var functionMetadata = {
                                         name: $stateParams.functionId,
                                         namespace: project.metadata.namespace,
@@ -148,8 +150,7 @@
                                         .catch(function () {
                                             $state.go('app.project.functions', {projectId: $stateParams.projectId});
                                         });
-                                }
-                            })
+                                })
                                 .catch(function () {
                                     $state.go('app.projects');
                                 });
@@ -162,71 +163,73 @@
                 url: '',
                 views: {
                     'function': {
-                        template: '<version-data-wrapper data-version="$resolve.function"></version-data-wrapper>'
+                        template: '<version-data-wrapper data-version="$resolve.function"' +
+                            'data-containers="$resolve.containers"></version-data-wrapper>'
                     }
                 },
                 params: {
                     functionData: {}
                 },
                 data: {
-                    pageTitle: 'Edit version',
-                    mainHeaderTitle: 'Edit version'
+                    pageTitle: 'common:EDIT_VERSION',
+                    mainHeaderTitle: 'common:EDIT_VERSION'
                 }
             })
             .state('app.project.function.edit.code', {
                 url: '/code',
                 views: {
                     version: {
-                        template: '<ncl-version-code data-version="$resolve.function"></ncl-version-code>'
+                        template: '<ncl-version-code data-version="$ctrl.version"></ncl-version-code>'
                     }
                 },
                 params: {
                     functionData: {}
                 },
                 data: {
-                    pageTitle: 'Code'
+                    pageTitle: 'common:CODE'
                 }
             })
             .state('app.project.function.edit.configuration', {
                 url: '/configuration',
                 views: {
                     version: {
-                        template: '<ncl-version-configuration data-version="$resolve.function"></ncl-version-configuration>'
+                        template: '<ncl-version-configuration data-version="$ctrl.version"></ncl-version-configuration>'
                     }
                 },
                 params: {
                     functionData: {}
                 },
                 data: {
-                    pageTitle: 'Configuration'
+                    pageTitle: 'common:CONFIGURATION'
                 }
             })
             .state('app.project.function.edit.triggers', {
                 url: '/triggers',
                 views: {
                     version: {
-                        template: '<ncl-version-triggers data-version="$resolve.function"></ncl-version-triggers>'
+                        template: '<ncl-version-triggers data-version="$ctrl.version"' +
+                            'data-containers="$ctrl.containers"></ncl-version-triggers>'
                     }
                 },
                 params: {
                     functionData: {}
                 },
                 data: {
-                    pageTitle: 'Triggers'
+                    pageTitle: 'common:TRIGGERS'
                 }
             })
             .state('app.project.function.edit.monitoring', {
                 url: '/monitoring',
                 views: {
                     version: {
-                        template: '<ncl-version-monitoring data-version="$resolve.function"></ncl-version-monitoring>'
+                        template: '<ncl-version-monitoring data-version="$ctrl.version"></ncl-version-monitoring>'
                     }
                 },
                 params: {
                     functionData: {}
                 },
                 data: {
-                    pageTitle: 'Monitoring'
+                    pageTitle: 'common:MONITORING'
                 }
             });
 

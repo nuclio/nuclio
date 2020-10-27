@@ -1,0 +1,10 @@
+  1. Get the application URL by running these commands:
+{{- if .Values.dashboard.ingress.enabled }}
+{{- range .Values.dashboard.ingress.hosts }}
+  http{{ if $.Values.dashboard.ingress.tls }}s{{ end }}://{{ . }}{{ $.Values.dashboard.ingress.path }}
+{{- end }}
+{{- else }}
+  Port forward dashboard
+  kubectl -n {{ .Release.Namespace }} port-forward $(kubectl get pods -n {{ .Release.Namespace }} -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
+  and visit http://localhost:8070 to use nuclio
+{{- end }}

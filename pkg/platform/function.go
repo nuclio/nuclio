@@ -20,9 +20,9 @@ import (
 	"math/rand"
 	"strconv"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -115,6 +115,7 @@ func (af *AbstractFunction) GetStatus() *functionconfig.Status {
 	return &af.Status
 }
 
+// GetExternalIPInvocationURL returns function external invocation url
 func (af *AbstractFunction) GetExternalIPInvocationURL() (string, int, error) {
 	externalIPAddresses, err := af.Platform.GetExternalIPAddresses()
 	if err != nil || len(externalIPAddresses) == 0 {
@@ -126,4 +127,12 @@ func (af *AbstractFunction) GetExternalIPInvocationURL() (string, int, error) {
 
 	// return it and the port
 	return chosenExternalIPAddress, af.function.GetStatus().HTTPPort, nil
+}
+
+// GetConfigWithStatus returns both function config and status
+func (af *AbstractFunction) GetConfigWithStatus() *functionconfig.ConfigWithStatus {
+	return &functionconfig.ConfigWithStatus{
+		Config: *af.GetConfig(),
+		Status: *af.GetStatus(),
+	}
 }

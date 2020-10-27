@@ -25,9 +25,9 @@ import (
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
+
+	"github.com/nuclio/errors"
 )
 
 type java struct {
@@ -47,30 +47,49 @@ func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (j *java) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+func (j *java) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
-
-	// format the onbuild image
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-java-onbuild:%s-%s",
-		versionInfo.Label,
-		versionInfo.Arch)
-
-	// set the default base image
 	processorDockerfileInfo.BaseImage = "openjdk:9-jre-slim"
-	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/gradle/bin/processor":                                  "/usr/local/bin/processor",
-		"/home/gradle/src/wrapper/build/libs/nuclio-java-wrapper.jar": "/opt/nuclio/nuclio-java-wrapper.jar",
+
+	// fill onbuild artifact
+	artifact := runtime.Artifact{
+		Name: "java-onbuild",
+		Image: fmt.Sprintf("%s/nuclio/handler-builder-java-onbuild:%s-%s",
+			onbuildImageRegistry,
+			j.VersionInfo.Label,
+			j.VersionInfo.Arch),
+		Paths: map[string]string{
+			"/home/gradle/bin/processor":                                  "/usr/local/bin/processor",
+			"/home/gradle/src/wrapper/build/libs/nuclio-java-wrapper.jar": "/opt/nuclio/nuclio-java-wrapper.jar",
+		},
 	}
+	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	return &processorDockerfileInfo, nil
 }
 
 func (j *java) createGradleBuildScript(stagingBuildDir string) error {
-	gradleBuildScriptPath := path.Join(stagingBuildDir, "handler", "build.gradle")
+	handlerPath := path.Join(stagingBuildDir, "handler")
 
 	// if user supplied gradle build script - use it
+	gradleBuildScriptPath := path.Join(handlerPath, "build.gradle")
 	if common.IsFile(gradleBuildScriptPath) {
 		j.Logger.DebugWith("Found user gradle build script, using it", "path", gradleBuildScriptPath)
+		return nil
+	}
+
+	// if the given function files weren't in the standard structure, the gradle might be inside /src/main/java
+	// move build.gradle to the expected path
+	alternativeGradleBuildScriptPath := path.Join(handlerPath, "src", "main", "java", "build.gradle")
+	if common.IsFile(alternativeGradleBuildScriptPath) {
+		j.Logger.DebugWith("Found user gradle build script in alternative path, moving and using it", "path", alternativeGradleBuildScriptPath)
+
+		// move the file to where it's expected to be
+		err := os.Rename(alternativeGradleBuildScriptPath, gradleBuildScriptPath)
+		if err != nil {
+			return errors.Wrap(err, "Failed to move build.gradle from alternative path to expected path")
+		}
 		return nil
 	}
 
@@ -129,7 +148,7 @@ dependencies {
 	compile group: '{{.Group}}', name: '{{.Name}}', version: '{{.Version}}'
 	{{ end }}
 
-    compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
+    compile files('./nuclio-sdk-java-1.0.0.jar')
 }
 
 shadowJar {

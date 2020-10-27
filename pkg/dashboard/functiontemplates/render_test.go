@@ -35,11 +35,13 @@ func (suite *testSuite) SetupSuite() {
 }
 
 func (suite *testSuite) TestFunctionTemplateRender() {
+	minReplicas := 1
+	maxReplicas := 2
 	expectedFunctionConfig := &functionconfig.Config{
 		Spec: functionconfig.Spec{
 			Handler:     "myhandler",
-			MinReplicas: 1,
-			MaxReplicas: 2,
+			MinReplicas: &minReplicas,
+			MaxReplicas: &maxReplicas,
 			Runtime:     "python:3.6",
 		},
 	}

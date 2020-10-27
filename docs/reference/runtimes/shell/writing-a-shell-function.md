@@ -11,7 +11,7 @@ This guide uses practical examples to guide you through the process of writing s
 
 ## Overview
 
-The shell runtime allows function developers to fork a process on every received event. Developers can choose to provide an executable script or run any executable binary in the Docker image. This guide walks you through both scenarios.
+The shell runtime allows function developers to fork a process on every received event. Developers can choose to provide an executable script or run any executable binary in the container image. This guide walks you through both scenarios.
 
 ## Handle events with a bash script
 
@@ -41,7 +41,7 @@ The function configuration needs to include the following:
 2. `handler` - set to the name of the executable file. In this example, the file is **reverser.sh**.
 
 Run the following command to deploy the function with the Nuclio CLI (`nuctl`):
-> Note: if you're not running on top of Kubernetes, pass the `--platform local` option to `nuctl`.
+> **Note:** if you're not running on top of Kubernetes, pass the `--platform local` option to `nuctl`.
 
 ```sh
 nuctl deploy -p /tmp/nuclio-shell-script/reverser.sh rev
@@ -63,7 +63,7 @@ em-esrever
 
 ## Handle events with any executable binary
 
-Because the shell runtime simply forks a process, you can leverage it to run any executable binary in the Docker image. This means that you don't need to provide any code to the shell runtime, only a function configuration. In this example, you install the [ImageMagick](https://www.imagemagick.org/script/index.php) utility and call its `convert` executable on each event. You then send the function images and use `convert` to reduce the image by 50% in the response. You do this by invoking the `nuctl` CLI as follows:
+Because the shell runtime simply forks a process, you can leverage it to run any executable binary in the container image. This means that you don't need to provide any code to the shell runtime, only a function configuration. In this example, you install the [ImageMagick](https://www.imagemagick.org/script/index.php) utility and call its `convert` executable on each event. You then send the function images and use `convert` to reduce the image by 50% in the response. You do this by invoking the `nuctl` CLI as follows:
 
 ```sh
 nuctl deploy -p /dev/null convert \

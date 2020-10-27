@@ -20,13 +20,18 @@ import (
 	"os"
 
 	"github.com/nuclio/nuclio/cmd/nuctl/app"
-	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 func main() {
 	if err := app.Run(); err != nil {
-
-		errors.PrintErrorStack(os.Stderr, err, 5)
+		if errWithCode, ok := err.(*nuclio.ErrorWithStatusCode); ok && errWithCode != nil {
+			os.Stdout.WriteString(errWithCode.Error())
+		} else {
+			errors.PrintErrorStack(os.Stderr, err, 5)
+		}
 		os.Exit(1)
 	}
 

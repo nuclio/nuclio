@@ -17,9 +17,9 @@ limitations under the License.
 package partitioned
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -46,10 +46,6 @@ func NewAbstractPartition(logger logger.Logger, stream *AbstractStream) (*Abstra
 	newPartition.Worker, err = newPartition.Stream.workerAllocator.Allocate(0)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to allocate worker")
-	}
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create partition consumer")
 	}
 
 	return newPartition, nil

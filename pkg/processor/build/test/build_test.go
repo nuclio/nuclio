@@ -22,16 +22,25 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
+	"github.com/nuclio/nuclio/pkg/platform/local"
+	"github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 	"github.com/nuclio/nuclio/test/httpsrv"
 
+	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 type testSuite struct {
@@ -39,36 +48,33 @@ type testSuite struct {
 }
 
 func (suite *testSuite) TestBuildFuncFromSourceWithInlineConfig() {
-	createFunctionOptions := &platform.CreateFunctionOptions{
-		Logger: suite.Logger,
-	}
-
 	functionSourceCode := `
 # @nuclio.configure
 #
 # function.yaml:
-#   metadata:
-#     name: echo-foo-inline
-#     namespace: default
 #   spec:
 #     env:
 #     - name: MESSAGE
 #       value: foo
 
 echo $MESSAGE`
+	suite.createShellFunctionFromSourceCode("test-inline-config", functionSourceCode, &httpsuite.Request{
+		RequestMethod:        "POST",
+		RequestBody:          "",
+		ExpectedResponseBody: "foo\n",
+	})
+}
 
-	createFunctionOptions.FunctionConfig.Spec.Handler = "echo-foo-inline.sh"
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
-	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
-	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(
-		[]byte(functionSourceCode))
+func (suite *testSuite) TestBuildFuncFromSourceWithWindowsCarriage() {
+	functionSourceCode := `#!/bin/sh
+echo 'test'`
 
-	suite.DeployFunctionAndRequest(createFunctionOptions,
-		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "",
-			ExpectedResponseBody: "foo\n",
-		})
+	functionSourceCode = strings.Replace(functionSourceCode, "\n", "\r\n", -1)
+	suite.createShellFunctionFromSourceCode("test-windows-carriage", functionSourceCode, &httpsuite.Request{
+		RequestMethod:        "POST",
+		RequestBody:          "",
+		ExpectedResponseBody: "test\n",
+	})
 }
 
 func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
@@ -84,14 +90,15 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
 	// should remain untouched
 	tempFile, err := ioutil.TempFile(os.TempDir(), "prefix")
 	suite.Require().NoError(err)
-	defer os.Remove(tempFile.Name())
+	defer os.Remove(tempFile.Name()) // nolint: errcheck
 
 	// we *don't* want the contents of the temp file to appear in the function source code, because
 	// the function source code is already populated
-	tempFile.WriteString("Contents of temp file")
+	_, err = tempFile.WriteString("Contents of temp file")
+	suite.Require().NoError(err)
 
 	createFunctionOptions.FunctionConfig.Meta.Name = "funcsource-test"
-	createFunctionOptions.FunctionConfig.Meta.Namespace = "test"
+	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = tempFile.Name()
@@ -125,7 +132,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeDeployOnceNeverBuild() {
 `))
 
 	createFunctionOptions.FunctionConfig.Meta.Name = "neverbuild-test"
-	createFunctionOptions.FunctionConfig.Meta.Namespace = "test"
+	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
@@ -166,7 +173,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 `))
 
 	createFunctionOptions.FunctionConfig.Meta.Name = "neverbuild-redeploy-func"
-	createFunctionOptions.FunctionConfig.Meta.Namespace = "test"
+	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
@@ -319,7 +326,6 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 	createFunctionOptions.FunctionConfig.Spec.Handler = "cachetest:handler"
 	createFunctionOptions.FunctionConfig.Spec.Build.TempDir = suite.CreateTempDir()
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
-
 		// install curl
 		"apk --update --no-cache add curl",
 
@@ -369,7 +375,7 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 		})
 
 	// stop serving
-	httpServer.Stop()
+	httpServer.Stop() // nolint: errcheck
 
 	//
 	// Second build: Don't change source code. Expect everything to come from the cache
@@ -403,7 +409,7 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 		})
 
 	// stop serving
-	httpServer.Stop()
+	httpServer.Stop() // nolint: errcheck
 
 	//
 	// Third build: Change the source code. Expect only the second file contents to change, because the
@@ -448,7 +454,466 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 		})
 
 	// stop serving
-	httpServer.Stop()
+	httpServer.Stop() // nolint: errcheck
+}
+
+func (suite *testSuite) TestBuildFuncFromImageAndRedeploy() {
+
+	// generate random responses
+	functionAResponse := fmt.Sprintf("FunctionA-%s", xid.New().String())
+	functionBResponse := fmt.Sprintf("FunctionB-%s", xid.New().String())
+
+	// create two functions
+	createAFunctionResult := suite.createShellFunctionWithResponse(functionAResponse)
+	createBFunctionResult := suite.createShellFunctionWithResponse(functionBResponse)
+
+	suite.Assert().NotEmpty(createAFunctionResult.Image)
+	suite.Assert().NotEmpty(createBFunctionResult.Image)
+
+	// codeEntryType -> image
+	createFunctionFromImageOptions := &platform.CreateFunctionOptions{
+		Logger:         suite.Logger,
+		FunctionConfig: createAFunctionResult.UpdatedFunctionConfig,
+	}
+
+	// deploy the 3rd function based on functionA image name
+	suite.DeployFunction(createFunctionFromImageOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		request := &httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "/",
+			ExpectedResponseBody: fmt.Sprintf("%s\n", functionAResponse),
+			RequestPort:          deployResult.Port,
+		}
+		suite.SendRequestVerifyResponse(request)
+		suite.NotEmpty(deployResult.Image)
+
+		// update function to take image from functionB
+		createFunctionFromImageOptions.FunctionConfig.Meta.Name = createBFunctionResult.UpdatedFunctionConfig.Meta.Name
+		createFunctionFromImageOptions.FunctionConfig.Spec.Handler = createBFunctionResult.UpdatedFunctionConfig.Spec.Handler
+		createFunctionFromImageOptions.FunctionConfig.Spec.Image = createBFunctionResult.Image
+		createFunctionFromImageOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+			{Name: "MESSAGE", Value: functionBResponse},
+		}
+
+		// redeploy function, use functionB image - its response should be equal to functionB
+		redeployResults := suite.DeployFunctionAndRequest(createFunctionFromImageOptions,
+			&httpsuite.Request{
+				RequestMethod:        "POST",
+				ExpectedResponseBody: fmt.Sprintf("%s\n", functionBResponse),
+			})
+		return suite.NotEqual(deployResult.Image, redeployResults.Image)
+	})
+}
+
+func (suite *testSuite) TestBuildFuncFromRemoteArchiveRedeploy() {
+	createFunctionOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Name:      "build-from-local",
+				Namespace: "default",
+			},
+			Spec: functionconfig.Spec{
+				Env: []v1.EnvVar{
+					{
+						Name:  "MANIPULATION_KIND",
+						Value: "reverse",
+					},
+				},
+				Handler: "string-manipulator:handler",
+				Runtime: "python",
+				Build: functionconfig.Build{
+					CodeEntryAttributes: map[string]interface{}{
+						"workDir": "/nuclio-templates-master/string-manipulator",
+					},
+					Path: "https://github.com/nuclio/nuclio-templates/archive/master.zip",
+				},
+			},
+		},
+	}
+	deployResult := suite.DeployFunctionAndRequest(createFunctionOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcd",
+			ExpectedResponseBody: "dcba",
+		})
+
+	suite.Equal(deployResult.CreateFunctionBuildResult.UpdatedFunctionConfig.Spec.Build.CodeEntryType, "archive")
+
+	// validate that when redeploying it works and the function uses another image than before
+	redeployFunctionOptions := &platform.CreateFunctionOptions{
+		Logger:         suite.Logger,
+		FunctionConfig: deployResult.UpdatedFunctionConfig,
+	}
+	redeployResult := suite.DeployFunctionAndRequest(redeployFunctionOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcd",
+			ExpectedResponseBody: "dcba",
+		})
+
+	suite.NotEqual(deployResult.Image, redeployResult.Image)
+}
+
+func (suite *testSuite) TestBuildFuncFromLocalArchiveRedeployUsesSameImage() {
+	createFunctionOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Name:      "build-from-local",
+				Namespace: "default",
+			},
+			Spec: functionconfig.Spec{
+				Handler: "main:handler",
+				Runtime: "python",
+				Build: functionconfig.Build{
+					CodeEntryAttributes: map[string]interface{}{
+						"workDir": "/funcs/my-python-func",
+					},
+					Path: path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "build", "test", "test_funcs.zip"),
+				},
+			},
+		},
+	}
+	deployResult := suite.DeployFunctionAndRequest(createFunctionOptions,
+		&httpsuite.Request{
+			RequestMethod:        "GET",
+			ExpectedResponseBody: "hello world",
+		})
+
+	suite.Equal(deployResult.CreateFunctionBuildResult.UpdatedFunctionConfig.Spec.Build.CodeEntryType, "image")
+
+	// validate that when redeploying it works and the function uses the same image as before
+	redeployFunctionOptions := &platform.CreateFunctionOptions{
+		Logger:         suite.Logger,
+		FunctionConfig: deployResult.UpdatedFunctionConfig,
+	}
+	redeployResult := suite.DeployFunctionAndRequest(redeployFunctionOptions,
+		&httpsuite.Request{
+			RequestMethod:        "GET",
+			ExpectedResponseBody: "hello world",
+		})
+
+	suite.Equal(deployResult.Image, redeployResult.Image)
+}
+
+func (suite *testSuite) TestGenerateProcessorDockerfile() {
+	newPlatform, err := local.NewPlatform(suite.Logger, nil, nil)
+	suite.Require().NoErrorf(err, "Instantiating Platform failed: %s", err)
+
+	builder, err := build.NewBuilder(suite.Logger, newPlatform, nil)
+	suite.Require().NoErrorf(err, "Instantiating Builder failed: %s", err)
+
+	// all elements, health check required
+	suite.generateDockerfileAndVerify(builder, true, &runtime.ProcessorDockerfileInfo{
+		BaseImage: "baseImage",
+		OnbuildArtifacts: []runtime.Artifact{
+			{
+				Name:  "onbuild-1",
+				Image: "onbuildImage",
+				Paths: map[string]string{
+					"onbuildLocal1": "onbuildImage1",
+					"onbuildLocal2": "onbuildImage2",
+				},
+			},
+			{
+				Name:  "uhttpc-1",
+				Image: "quay.io/nuclio/uhttpc:0.0.1-amd64",
+				Paths: map[string]string{
+					"/home/nuclio/bin/uhttpc": "/usr/local/bin/uhttpc",
+				},
+				ExternalImage: true,
+			},
+		},
+		ImageArtifactPaths: map[string]string{
+			"imageLocal1": "imageImage1",
+			"imageLocal2": "imageImage2",
+		},
+		Directives: map[string][]functionconfig.Directive{
+			"preCopy": {
+				{Kind: "preCopyKind1", Value: "preCopyValue1"},
+				{Kind: "preCopyKind2", Value: "preCopyValue2"},
+			},
+			"postCopy": {
+				{Kind: "postCopyKind1", Value: "postCopyValue1"},
+				{Kind: "postCopyKind2", Value: "postCopyValue2"},
+			},
+		},
+	}, `# Multistage builds
+# From the base image
+FROM baseImage
+# Old(er) Docker support - must use all build args
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
+# Run the pre-copy directives
+preCopyKind1 preCopyValue1
+preCopyKind2 preCopyValue2
+# Copy required objects from the suppliers
+COPY artifacts/onbuildLocal1 onbuildImage1
+COPY artifacts/onbuildLocal2 onbuildImage2
+COPY artifacts/uhttpc /usr/local/bin/uhttpc
+COPY imageLocal1 imageImage1
+COPY imageLocal2 imageImage2
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+# Run the post-copy directives
+postCopyKind1 postCopyValue1
+postCopyKind2 postCopyValue2
+# Run processor with configuration and platform configuration
+CMD [ "processor" ]`)
+
+	// all elements, health check not required
+	suite.generateDockerfileAndVerify(builder, false, &runtime.ProcessorDockerfileInfo{
+		BaseImage: "baseImage",
+		OnbuildArtifacts: []runtime.Artifact{
+			{
+				Name:  "onbuild-1",
+				Image: "onbuildImage",
+				Paths: map[string]string{
+					"onbuildLocal1": "onbuildImage1",
+					"onbuildLocal2": "onbuildImage2",
+				},
+			},
+		},
+		ImageArtifactPaths: map[string]string{
+			"imageLocal1": "imageImage1",
+			"imageLocal2": "imageImage2",
+		},
+		Directives: map[string][]functionconfig.Directive{
+			"preCopy": {
+				{Kind: "preCopyKind1", Value: "preCopyValue1"},
+				{Kind: "preCopyKind2", Value: "preCopyValue2"},
+			},
+			"postCopy": {
+				{Kind: "postCopyKind1", Value: "postCopyValue1"},
+				{Kind: "postCopyKind2", Value: "postCopyValue2"},
+			},
+		},
+	}, `# Multistage builds
+# From the base image
+FROM baseImage
+# Old(er) Docker support - must use all build args
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
+# Run the pre-copy directives
+preCopyKind1 preCopyValue1
+preCopyKind2 preCopyValue2
+# Copy required objects from the suppliers
+COPY artifacts/onbuildLocal1 onbuildImage1
+COPY artifacts/onbuildLocal2 onbuildImage2
+COPY imageLocal1 imageImage1
+COPY imageLocal2 imageImage2
+# Run the post-copy directives
+postCopyKind1 postCopyValue1
+postCopyKind2 postCopyValue2
+# Run processor with configuration and platform configuration
+CMD [ "processor" ]`)
+}
+
+func (suite *testSuite) TestGenerateKanikoProcessorDockerfile() {
+
+	containerBuilderConfiguration := &containerimagebuilderpusher.ContainerBuilderConfiguration{
+		Kind: "kaniko",
+	}
+
+	containerBuilder, err := containerimagebuilderpusher.NewKaniko(suite.Logger, nil, containerBuilderConfiguration)
+	if err != nil {
+		suite.Fail("Instantiating kaniko builder failed:", err)
+	}
+
+	newPlatform := &kube.Platform{
+		Platform: &abstract.Platform{
+			ContainerBuilder: containerBuilder,
+		},
+	}
+
+	builder, err := build.NewBuilder(suite.Logger, newPlatform, nil)
+	if err != nil {
+		suite.Fail("Instantiating Builder failed:", err)
+	}
+
+	// all elements, health check required
+	suite.generateDockerfileAndVerify(builder, true, &runtime.ProcessorDockerfileInfo{
+		BaseImage: "baseImage",
+		OnbuildArtifacts: []runtime.Artifact{
+			{
+				Name:  "onbuild-1",
+				Image: "onbuildImage",
+				Paths: map[string]string{
+					"onbuildLocal1": "onbuildImage1",
+					"onbuildLocal2": "onbuildImage2",
+				},
+			},
+			{
+				Name:  "uhttpc-1",
+				Image: "quay.io/nuclio/uhttpc:0.0.1-amd64",
+				Paths: map[string]string{
+					"/home/nuclio/bin/uhttpc": "/usr/local/bin/uhttpc",
+				},
+				ExternalImage: true,
+			},
+		},
+		ImageArtifactPaths: map[string]string{
+			"imageLocal1": "imageImage1",
+			"imageLocal2": "imageImage2",
+		},
+		Directives: map[string][]functionconfig.Directive{
+			"preCopy": {
+				{Kind: "preCopyKind1", Value: "preCopyValue1"},
+				{Kind: "preCopyKind2", Value: "preCopyValue2"},
+			},
+			"postCopy": {
+				{Kind: "postCopyKind1", Value: "postCopyValue1"},
+				{Kind: "postCopyKind2", Value: "postCopyValue2"},
+			},
+		},
+	}, `# Multistage builds
+FROM onbuildImage AS onbuild-1
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+# From the base image
+FROM baseImage
+# Old(er) Docker support - must use all build args
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
+# Run the pre-copy directives
+preCopyKind1 preCopyValue1
+preCopyKind2 preCopyValue2
+# Copy required objects from the suppliers
+COPY --from=onbuild-1 onbuildLocal1 onbuildImage1
+COPY --from=onbuild-1 onbuildLocal2 onbuildImage2
+COPY --from=quay.io/nuclio/uhttpc:0.0.1-amd64 /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+COPY imageLocal1 imageImage1
+COPY imageLocal2 imageImage2
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+# Run the post-copy directives
+postCopyKind1 postCopyValue1
+postCopyKind2 postCopyValue2
+# Run processor with configuration and platform configuration
+CMD [ "processor" ]`)
+
+	// all elements, health check not required
+	suite.generateDockerfileAndVerify(builder, false, &runtime.ProcessorDockerfileInfo{
+		BaseImage: "baseImage",
+		OnbuildArtifacts: []runtime.Artifact{
+			{
+				Name:  "onbuild-1",
+				Image: "onbuildImage",
+				Paths: map[string]string{
+					"onbuildLocal1": "onbuildImage1",
+					"onbuildLocal2": "onbuildImage2",
+				},
+			},
+		},
+		ImageArtifactPaths: map[string]string{
+			"imageLocal1": "imageImage1",
+			"imageLocal2": "imageImage2",
+		},
+		Directives: map[string][]functionconfig.Directive{
+			"preCopy": {
+				{Kind: "preCopyKind1", Value: "preCopyValue1"},
+				{Kind: "preCopyKind2", Value: "preCopyValue2"},
+			},
+			"postCopy": {
+				{Kind: "postCopyKind1", Value: "postCopyValue1"},
+				{Kind: "postCopyKind2", Value: "postCopyValue2"},
+			},
+		},
+	}, `# Multistage builds
+FROM onbuildImage AS onbuild-1
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+# From the base image
+FROM baseImage
+# Old(er) Docker support - must use all build args
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
+# Run the pre-copy directives
+preCopyKind1 preCopyValue1
+preCopyKind2 preCopyValue2
+# Copy required objects from the suppliers
+COPY --from=onbuild-1 onbuildLocal1 onbuildImage1
+COPY --from=onbuild-1 onbuildLocal2 onbuildImage2
+COPY imageLocal1 imageImage1
+COPY imageLocal2 imageImage2
+# Run the post-copy directives
+postCopyKind1 postCopyValue1
+postCopyKind2 postCopyValue2
+# Run processor with configuration and platform configuration
+CMD [ "processor" ]`)
+}
+
+func (suite *testSuite) generateDockerfileAndVerify(builder *build.Builder,
+	healthCheckRequired bool,
+	dockerfileInfo *runtime.ProcessorDockerfileInfo,
+	expectedDockerfile string) {
+
+	dockerfileContents, err := builder.GenerateDockerfileContents(dockerfileInfo.BaseImage,
+		dockerfileInfo.OnbuildArtifacts,
+		dockerfileInfo.ImageArtifactPaths,
+		dockerfileInfo.Directives,
+		healthCheckRequired)
+
+	dockerfileContents = common.RemoveEmptyLines(dockerfileContents)
+
+	suite.Require().NoError(err)
+	suite.Require().Equal(expectedDockerfile, common.RemoveEmptyLines(dockerfileContents))
+}
+
+func (suite *testSuite) createShellFunctionFromSourceCode(functionName string,
+	sourceCode string,
+	request *httpsuite.Request) *platform.CreateFunctionResult {
+
+	if functionName == "" {
+
+		// fallback to a random name
+		functionName = xid.New().String()
+	}
+	createFunctionOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Name:      functionName,
+				Namespace: "default",
+			},
+			Spec: functionconfig.Spec{
+				Handler: fmt.Sprintf("%s.sh", functionName),
+				Runtime: "shell",
+				Build: functionconfig.Build{
+					FunctionSourceCode: base64.StdEncoding.EncodeToString([]byte(sourceCode)),
+				},
+			},
+		},
+	}
+	return suite.DeployFunctionAndRequest(createFunctionOptions, request)
+}
+
+func (suite *testSuite) createShellFunctionWithResponse(responseMessage string) *platform.CreateFunctionResult {
+	functionName := xid.New().String()
+	functionSourceCode := fmt.Sprintf(`
+# @nuclio.configure
+#
+# function.yaml:
+#   metadata:
+#     name: %s
+#     namespace: default
+#   spec:
+#     env:
+#     - name: MESSAGE
+#       value: %s
+echo ${MESSAGE}
+`, functionName, responseMessage)
+
+	return suite.createShellFunctionFromSourceCode(functionName, functionSourceCode,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			ExpectedResponseBody: fmt.Sprintf("%s\n", responseMessage),
+		})
 }
 
 func TestIntegrationSuite(t *testing.T) {

@@ -17,28 +17,45 @@ limitations under the License.
 package app
 
 import (
+	"strconv"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/loggersink"
-	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 
+	"github.com/nuclio/errors"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 func Run(kubeconfigPath string,
 	namespace string,
 	imagePullSecrets string,
-	platformConfigurationPath string) error {
+	platformConfigurationPath string,
+	functionOperatorNumWorkersStr string,
+	functionOperatorResyncIntervalStr string,
+	cronJobStaleResourcesCleanupIntervalStr string,
+	functionEventOperatorNumWorkersStr string,
+	projectOperatorNumWorkersStr string,
+	apiGatewayOperatorNumWorkersStr string) error {
 
-	newController, err := createController(kubeconfigPath, namespace, imagePullSecrets, platformConfigurationPath)
+	newController, err := createController(kubeconfigPath,
+		namespace,
+		imagePullSecrets,
+		platformConfigurationPath,
+		functionOperatorNumWorkersStr,
+		functionOperatorResyncIntervalStr,
+		cronJobStaleResourcesCleanupIntervalStr,
+		functionEventOperatorNumWorkersStr,
+		projectOperatorNumWorkersStr,
+		apiGatewayOperatorNumWorkersStr)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create controller")
 	}
@@ -55,12 +72,48 @@ func Run(kubeconfigPath string,
 func createController(kubeconfigPath string,
 	namespace string,
 	imagePullSecrets string,
-	platformConfigurationPath string) (*controller.Controller, error) {
+	platformConfigurationPath string,
+	functionOperatorNumWorkersStr string,
+	functionOperatorResyncIntervalStr string,
+	cronJobStaleResourcesCleanupIntervalStr string,
+	functionEventOperatorNumWorkersStr string,
+	projectOperatorNumWorkersStr string,
+	apiGatewayOperatorNumWorkersStr string) (*controller.Controller, error) {
 
-	// read platform configuration
-	platformConfiguration, err := readPlatformConfiguration(platformConfigurationPath)
+	functionOperatorNumWorkers, err := strconv.Atoi(functionOperatorNumWorkersStr)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read platform configuration")
+		return nil, errors.Wrap(err, "Failed to resolve number of workers for function operator")
+	}
+
+	functionEventOperatorNumWorkers, err := strconv.Atoi(functionEventOperatorNumWorkersStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve number of workers for function event operator")
+	}
+
+	functionOperatorResyncInterval, err := time.ParseDuration(functionOperatorResyncIntervalStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse resync interval for function operator")
+	}
+
+	cronJobStaleResourcesCleanupInterval, err := time.ParseDuration(cronJobStaleResourcesCleanupIntervalStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse cron job stale pods deletion interval")
+	}
+
+	projectOperatorNumWorkers, err := strconv.Atoi(projectOperatorNumWorkersStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve number of workers for project operator")
+	}
+
+	apiGatewayOperatorNumWorkers, err := strconv.Atoi(apiGatewayOperatorNumWorkersStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve number of workers for api gateway operator")
+	}
+
+	// get platform configuration
+	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get platform configuration")
 	}
 
 	// create a root logger
@@ -69,7 +122,7 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}
 
-	restConfig, err := getClientConfig(kubeconfigPath)
+	restConfig, err := common.GetClientConfig(kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get client configuration")
 	}
@@ -79,7 +132,7 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create k8s client set")
 	}
 
-	nuclioClientSet, err := nuclioio_client.NewForConfig(restConfig)
+	nuclioClientSet, err := nuclioioclient.NewForConfig(restConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create nuclio client set")
 	}
@@ -90,35 +143,36 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create function deployment client")
 	}
 
+	// create ingress manager
+	ingressManager, err := ingress.NewManager(rootLogger, kubeClientSet, platformConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create ingress manager")
+	}
+
+	// create api gateway provisioner
+	apigatewayresClient, err := apigatewayres.NewLazyClient(rootLogger, kubeClientSet, nuclioClientSet, ingressManager)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create api gateway provisioner")
+	}
+
 	newController, err := controller.NewController(rootLogger,
 		namespace,
 		imagePullSecrets,
 		kubeClientSet,
 		nuclioClientSet,
 		functionresClient,
-		5*time.Minute,
-		platformConfiguration)
+		apigatewayresClient,
+		functionOperatorResyncInterval,
+		cronJobStaleResourcesCleanupInterval,
+		platformConfiguration,
+		functionOperatorNumWorkers,
+		functionEventOperatorNumWorkers,
+		projectOperatorNumWorkers,
+		apiGatewayOperatorNumWorkers)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return newController, nil
-}
-
-func getClientConfig(kubeconfigPath string) (*rest.Config, error) {
-	if kubeconfigPath != "" {
-		return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-	}
-
-	return rest.InClusterConfig()
-}
-
-func readPlatformConfiguration(configurationPath string) (*platformconfig.Config, error) {
-	platformConfigurationReader, err := platformconfig.NewReader()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
-	}
-
-	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
 }

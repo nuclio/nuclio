@@ -9,17 +9,18 @@
 // Do not put here required modules that are in devDependencies in package.json, instead require them only in the
 // specific gulp task that uses them (for example: karma, protractor, livereload)
 var babel = require('gulp-babel');
+var color = require('ansi-colors');
 var config = require('./build.config');
 var cache = require('gulp-file-transform-cache');
 var gulp = require('gulp');
 var path = require('path');
 var less = require('gulp-less');
 var lessImport = require('gulp-less-import');
+var log = require('fancy-log');
 var rename = require('gulp-rename');
 var concat = require('gulp-concat');
 var runSequence = require('run-sequence');
 var eslint = require('gulp-eslint');
-var gutil = require('gulp-util');
 var preprocess = require('gulp-preprocess');
 var minifyCss = require('gulp-cssnano');
 var gulpIf = require('gulp-if');
@@ -59,9 +60,7 @@ if (state.isDevMode) {
 /**
  * Make sure resources are built before app
  */
-iRequire.setup(require('sync-exec'), gutil);
 var previewServer = iRequire(config.resources.previewServer);
-var errHandler = iRequire(config.resources.errHandler);
 
 //
 // ******* Tasks *******
@@ -107,7 +106,7 @@ gulp.task('vendor.css', function () {
         .pipe(errorHandler(handleError))
         .pipe(concat(config.output_files.vendor.css))
         .pipe(gulpIf(!state.isDevMode, minifyCss({
-            reduceIdents: false
+            reduceIndents: false
         })))
         .pipe(gulpIf(!state.isDevMode, rev()))
         .pipe(gulp.dest(distFolder))
@@ -257,6 +256,17 @@ gulp.task('images', function () {
 });
 
 /**
+ * Copy all translation files to the build directory
+ */
+gulp.task('i18n', function () {
+    var distFolder = config.assets_dir + '/i18n';
+
+    return gulp.src(config.app_files.i18n)
+        .pipe(errorHandler(handleError))
+        .pipe(gulp.dest(distFolder));
+});
+
+/**
  * Build index.html for ordinary use
  */
 gulp.task('index.html', function () {
@@ -287,7 +297,7 @@ gulp.task('lint', function () {
  * Serve static files
  */
 gulp.task('serve-static', function () {
-    previewServer.start(gutil.log, config.build_dir);
+    previewServer.start(log, config.build_dir);
 });
 
 /**
@@ -363,7 +373,7 @@ gulp.task('test-e2e-run', function () {
      * @type {number}
      */
     if (argv['browsers']) {
-        browserInstances = parseInt(argv['browsers'])
+        browserInstances = parseInt(argv['browsers']);
     }
 
     if (argv['demo']) {
@@ -414,7 +424,7 @@ gulp.task('test-e2e-run', function () {
      */
     if (argv['exclude-pattern']) {
         argv['exclude-pattern'].split(',').forEach(function (excludePattern) {
-            exclusions.push(config.test_files.e2e.specs_location + excludePattern.trim() + '.spec.js')
+            exclusions.push(config.test_files.e2e.specs_location + excludePattern.trim() + '.spec.js');
         });
         argumentList.push(
             '--exclude', exclusions.join(',')
@@ -459,7 +469,6 @@ gulp.task('stop-server', function (next) {
  */
 gulp.task('watcher', function () {
     state.isDevMode = true;
-    errHandler.resist();
     if (livereload !== null) {
         livereload.listen();
     }
@@ -467,36 +476,46 @@ gulp.task('watcher', function () {
     gulp.watch(config.app_files.less_files, function () {
         return runSequence('app.css');
     });
-    gutil.log('Watching', gutil.colors.yellow('LESS'), 'files');
+    log('Watching', color.yellow('LESS'), 'files');
 
     var appFiles = config.app_files.js
         .concat(config.app_files.templates);
     gulp.watch(appFiles, function () {
         return runSequence('app.js');
     });
-    gutil.log('Watching', gutil.colors.yellow('JavaScript'), 'files');
+    log('Watching', color.yellow('JavaScript'), 'files');
 
     gulp.watch(config.app_files.html, function () {
         return runSequence('index.html');
     });
-    gutil.log('Watching', gutil.colors.yellow('HTML'), 'files');
+    log('Watching', color.yellow('HTML'), 'files');
 
     gulp.watch(config.app_files.json, function () {
         return runSequence('dashboard-config.json');
     });
-    gutil.log('Watching', gutil.colors.blue('JSON'), 'files');
+    log('Watching', color.blue('JSON'), 'files');
+
+    gulp.watch(config.app_files.i18n, {interval: 3000}, function () {
+        return runSequence('i18n');
+    });
+    log('Watching', color.blue('I18N'), 'files');
 
     gulp.watch(config.shared_files.less, function () {
         return runSequence('build_shared');
     });
-    gutil.log('Watching', gutil.colors.yellow('LESS'), 'shared_files');
+    log('Watching', color.yellow('LESS'), 'shared_files');
 
     var appFilesShared = config.shared_files.js
         .concat(config.shared_files.templates);
     gulp.watch(appFilesShared, function () {
         return runSequence('build_shared');
     });
-    gutil.log('Watching', gutil.colors.yellow('JavaScript'), 'shared_files');
+    log('Watching', color.yellow('JavaScript'), 'shared_files');
+
+    gulp.watch(config.shared_files.i18n, {interval: 3000}, function () {
+        return runSequence('build_shared');
+    });
+    log('Watching', color.blue('I18N'), 'shared_files');
 });
 
 /**
@@ -554,7 +573,7 @@ function buildConfigFromArgs() {
  * Base build task
  */
 gulp.task('build', function (next) {
-    runSequence('lint', 'clean', ['vendor.css', 'vendor.js'], ['app.css', 'app.js', 'fonts', 'images', 'monaco'], 'index.html', 'dashboard-config.json', next);
+    runSequence('lint', 'clean', ['vendor.css', 'vendor.js'], ['app.css', 'app.js', 'fonts', 'images', 'i18n', 'monaco'], 'index.html', 'dashboard-config.json', next);
 });
 
 /**
@@ -571,7 +590,7 @@ gulp.task('test-unit', function (next) {
  */
 gulp.task('test-e2e', function (next) {
     runSequence('e2e-help', 'update-web-driver', 'set-e2e-testing', 'build', 'serve-static', 'test-e2e-mock-module', 'test-e2e-mock-html',
-        'test-e2e-run', 'stop-server', next);
+                'test-e2e-run', 'stop-server', next);
 });
 
 /**
@@ -624,18 +643,24 @@ gulp.task('clean_shared', function () {
 });
 
 /**
- * Build app.css (include all project less files)
+ * Build shared less file (include all shared less files)
  */
 gulp.task('app.less_shared', function () {
     var distFolder = config.shared_files.dist + '/less';
 
-    var task = gulp
+    var appLess = gulp
         .src(config.shared_files.less)
         .pipe(errorHandler(handleError))
         .pipe(concat(config.shared_output_files.app.less))
         .pipe(gulp.dest(distFolder));
 
-    return task;
+    var vendorLess = gulp
+        .src(config.shared_files.vendor.less)
+        .pipe(errorHandler(handleError))
+        .pipe(concat(config.shared_output_files.vendor.less))
+        .pipe(gulp.dest(distFolder));
+
+    return merge2(appLess, vendorLess);
 });
 
 /**
@@ -653,6 +678,11 @@ gulp.task('app.js_shared', function () {
             ]
         }));
 
+    var vendorJs = gulp.src(config.shared_files.vendor.js)
+        .pipe(errorHandler(handleError))
+        .pipe(concat(config.shared_output_files.vendor.js))
+        .pipe(gulp.dest(distFolder));
+
     var templates = gulp.src(config.shared_files.templates)
         .pipe(errorHandler(handleError))
         .pipe(minifyHtml({
@@ -669,7 +699,7 @@ gulp.task('app.js_shared', function () {
         .pipe(concat(config.shared_output_files.app.js))
         .pipe(gulp.dest(distFolder));
 
-    return task;
+    return merge2(task, vendorJs);
 });
 
 /**
@@ -679,6 +709,17 @@ gulp.task('fonts_shared', function () {
     var distFolder = config.shared_files.dist + '/fonts';
 
     return gulp.src(config.shared_files.fonts)
+        .pipe(errorHandler(handleError))
+        .pipe(gulp.dest(distFolder));
+});
+
+/**
+ * Copy all translation files to the build directory
+ */
+gulp.task('i18n_shared', function () {
+    var distFolder = config.shared_files.dist + '/i18n';
+
+    return gulp.src(config.shared_files.i18n)
         .pipe(errorHandler(handleError))
         .pipe(gulp.dest(distFolder));
 });
@@ -725,7 +766,7 @@ gulp.task('inject-version_shared', function () {
  */
 gulp.task('build_shared', function (next) {
     if (state.isDevMode) {
-        runSequence('lint_shared', 'inject-version_shared', ['app.less_shared', 'app.js_shared', 'fonts_shared', 'images_shared'], next);
+        runSequence('lint_shared', 'inject-version_shared', ['app.less_shared', 'app.js_shared', 'fonts_shared', 'images_shared', 'i18n_shared'], next);
     } else {
         next();
     }

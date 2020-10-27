@@ -8,7 +8,7 @@
         return {
             createProject: createProject,
             deleteProject: deleteProject,
-            getExternalIPAddresses: getExternalIPAddresses,
+            getFrontendSpec: getFrontendSpec,
             getProject: getProject,
             getProjects: getProjects,
             updateProject: updateProject
@@ -20,35 +20,31 @@
 
         /**
          * Creates a new project
-         * @param {Object} project - the project to create
+         * @param {Promise} project - the project to create
          */
         function createProject(project) {
             var headers = {
                 'Content-Type': 'application/json'
             };
-            var data = {
-                metadata: {},
-                spec: project.spec
-            };
+            var data = lodash.pick(project, ['metadata', 'spec']);
             var namespace = NuclioNamespacesDataService.getNamespace();
 
             if (!lodash.isNil(namespace)) {
                 data.metadata.namespace = namespace;
             }
 
-            return NuclioClientService.makeRequest(
-                {
-                    method: 'POST',
-                    url: NuclioClientService.buildUrlWithPath('projects', ''),
-                    headers: headers,
-                    data: data,
-                    withCredentials: false
-                });
+            return NuclioClientService.makeRequest({
+                method: 'POST',
+                url: NuclioClientService.buildUrlWithPath('projects', ''),
+                headers: headers,
+                data: data,
+                withCredentials: false
+            });
         }
 
         /**
          * Deletes a project
-         * @param {Object} project - the project to create
+         * @param {Promise} project - the project to create
          */
         function deleteProject(project) {
             var headers = {
@@ -63,14 +59,13 @@
                 data.metadata = lodash.omit(data.metadata, 'namespace');
             }
 
-            return NuclioClientService.makeRequest(
-                {
-                    method: 'DELETE',
-                    url: NuclioClientService.buildUrlWithPath('projects', ''),
-                    headers: headers,
-                    data: data,
-                    withCredentials: false
-                });
+            return NuclioClientService.makeRequest({
+                method: 'DELETE',
+                url: NuclioClientService.buildUrlWithPath('projects', ''),
+                headers: headers,
+                data: data,
+                withCredentials: false
+            });
         }
 
         /**
@@ -80,13 +75,12 @@
         function getProjects() {
             var headers = NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-project-namespace');
 
-            return NuclioClientService.makeRequest(
-                {
-                    headers: headers,
-                    method: 'GET',
-                    url: NuclioClientService.buildUrlWithPath('projects', ''),
-                    withCredentials: false
-                });
+            return NuclioClientService.makeRequest({
+                headers: headers,
+                method: 'GET',
+                url: NuclioClientService.buildUrlWithPath('projects', ''),
+                withCredentials: false
+            });
         }
 
         /**
@@ -97,18 +91,17 @@
         function getProject(id) {
             var headers = NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-project-namespace');
 
-            return NuclioClientService.makeRequest(
-                {
-                    headers: headers,
-                    method: 'GET',
-                    url: NuclioClientService.buildUrlWithPath('projects/', id),
-                    withCredentials: false
-                });
+            return NuclioClientService.makeRequest({
+                headers: headers,
+                method: 'GET',
+                url: NuclioClientService.buildUrlWithPath('projects/', id),
+                withCredentials: false
+            });
         }
 
         /**
          * Updates a new project
-         * @param {Object} project - the project to update
+         * @param {Promise} project - the project to update
          */
         function updateProject(project) {
             var headers = {
@@ -124,27 +117,25 @@
                 data.metadata = lodash.omit(data.metadata, 'namespace');
             }
 
-            return NuclioClientService.makeRequest(
-                {
-                    method: 'PUT',
-                    url: NuclioClientService.buildUrlWithPath('projects', ''),
-                    headers: headers,
-                    data: data,
-                    withCredentials: false
-                });
+            return NuclioClientService.makeRequest({
+                method: 'PUT',
+                url: NuclioClientService.buildUrlWithPath('projects', ''),
+                headers: headers,
+                data: data,
+                withCredentials: false
+            });
         }
 
         /**
-         * Gets external IP addresses for functions
-         * @returns {Promise}
+         * Gets front-end spec.
+         * @returns {Promise.<Object>}
          */
-        function getExternalIPAddresses() {
-            return NuclioClientService.makeRequest(
-                {
-                    method: 'GET',
-                    url: NuclioClientService.buildUrlWithPath('external_ip_addresses'),
-                    withCredentials: false
-                });
+        function getFrontendSpec() {
+            return NuclioClientService.makeRequest({
+                method: 'GET',
+                url: NuclioClientService.buildUrlWithPath('frontend_spec'),
+                withCredentials: false
+            });
         }
     }
 }());

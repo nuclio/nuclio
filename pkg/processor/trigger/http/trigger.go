@@ -17,20 +17,28 @@ limitations under the License.
 package http
 
 import (
-	net_http "net/http"
+	"bufio"
+	"encoding/json"
+	nethttp "net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/status"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	"github.com/valyala/fasthttp"
+)
+
+var (
+	timeoutResponse = []byte(`{"error": "handler timed out"}`)
 )
 
 type http struct {
@@ -38,6 +46,11 @@ type http struct {
 	configuration    *Configuration
 	events           []Event
 	bufferLoggerPool *nucliozap.BufferLoggerPool
+	status           status.Status
+	activeContexts   []*fasthttp.RequestCtx
+	timeouts         []uint64 // flag of worker is in timeout
+	answering        []uint64 // flag the worker is answering
+	server           *fasthttp.Server
 }
 
 func newTrigger(logger logger.Logger,
@@ -58,11 +71,14 @@ func newTrigger(logger logger.Logger,
 		return nil, errors.New("HTTP trigger requires a shareable worker allocator")
 	}
 
+	numWorkers := len(workerAllocator.GetWorkers())
+
 	abstractTrigger, err := trigger.NewAbstractTrigger(logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"sync",
-		"http")
+		"http",
+		configuration.Name)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
@@ -71,32 +87,51 @@ func newTrigger(logger logger.Logger,
 		AbstractTrigger:  abstractTrigger,
 		configuration:    configuration,
 		bufferLoggerPool: bufferLoggerPool,
+		status:           status.Initializing,
+		activeContexts:   make([]*fasthttp.RequestCtx, numWorkers),
+		timeouts:         make([]uint64, numWorkers),
+		answering:        make([]uint64, numWorkers),
 	}
 
-	newTrigger.allocateEvents(len(workerAllocator.GetWorkers()))
+	newTrigger.allocateEvents(numWorkers)
 	return &newTrigger, nil
 }
 
 func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 	h.Logger.InfoWith("Starting",
 		"listenAddress", h.configuration.URL,
-		"readBufferSize", h.configuration.ReadBufferSize)
+		"readBufferSize", h.configuration.ReadBufferSize,
+		"maxRequestBodySize", h.configuration.MaxRequestBodySize,
+		"cors", h.configuration.CORS)
 
-	s := &fasthttp.Server{
-		Handler:        h.requestHandler,
-		Name:           "nuclio",
-		ReadBufferSize: h.configuration.ReadBufferSize,
+	h.server = &fasthttp.Server{
+		Handler:            h.onRequestFromFastHTTP(),
+		Name:               "nuclio",
+		ReadBufferSize:     h.configuration.ReadBufferSize,
+		Logger:             NewFastHTTPLogger(h.Logger),
+		MaxRequestBodySize: h.configuration.MaxRequestBodySize,
 	}
 
 	// start listening
-	go s.ListenAndServe(h.configuration.URL) // nolint: errcheck
+	go h.server.ListenAndServe(h.configuration.URL) // nolint: errcheck
 
+	h.status = status.Ready
 	return nil
 }
 
 func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
+	h.Logger.Debug("Shutting down")
 
-	// TODO
+	h.status = status.Stopped
+
+	if h.server != nil {
+		err := h.server.Shutdown()
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to stop server")
+		}
+	}
+
 	return nil, nil
 }
 
@@ -104,9 +139,40 @@ func (h *http) GetConfig() map[string]interface{} {
 	return common.StructureToMap(h.configuration)
 }
 
+func (h *http) TimeoutWorker(worker *worker.Worker) error {
+	workerIndex := worker.GetIndex()
+	if workerIndex < 0 || workerIndex >= len(h.activeContexts) {
+		return errors.Errorf("Worker %d out of range", workerIndex)
+	}
+
+	h.timeouts[workerIndex] = 1
+	time.Sleep(time.Millisecond) // Let worker do it's thing
+	if h.answering[workerIndex] == 1 {
+		return errors.Errorf("Worker %d answered the request", workerIndex)
+	}
+
+	ctx := h.activeContexts[workerIndex]
+	if ctx == nil {
+		return errors.Errorf("Worker %d answered the request", workerIndex)
+	}
+
+	h.activeContexts[workerIndex] = nil
+
+	ctx.SetStatusCode(nethttp.StatusRequestTimeout)
+	bodyWrite := func(w *bufio.Writer) {
+		w.Write(timeoutResponse) // nolint: errcheck
+		w.Flush()                // nolint: errcheck
+	}
+
+	// This doesn't flush automatically, you still need to give fasthttp some
+	// time to process
+	ctx.SetBodyStreamWriter(bodyWrite)
+	return nil
+}
+
 func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	functionLogger logger.Logger,
-	timeout time.Duration) (response interface{}, submitError error, processError error) {
+	timeout time.Duration) (response interface{}, timedOut bool, submitError error, processError error) {
 
 	var workerInstance *worker.Worker
 
@@ -116,8 +182,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
 	if err != nil {
 		h.UpdateStatistics(false)
-
-		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
+		return nil, false, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
 	// use the event @ the worker index
@@ -125,9 +190,12 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	workerIndex := workerInstance.GetIndex()
 	if workerIndex < 0 || workerIndex >= len(h.events) {
 		h.WorkerAllocator.Release(workerInstance)
-		return nil, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events)), nil
+		return nil, false, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events)), nil
 	}
 
+	h.activeContexts[workerIndex] = ctx
+	h.timeouts[workerIndex] = 0
+	h.answering[workerIndex] = 0
 	event := &h.events[workerIndex]
 	event.ctx = ctx
 
@@ -137,12 +205,181 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	// release worker when we're done
 	h.WorkerAllocator.Release(workerInstance)
 
-	return
+	if h.timeouts[workerIndex] == 1 {
+		return nil, true, nil, nil
+	}
+
+	h.answering[workerIndex] = 1
+	h.activeContexts[workerIndex] = nil
+
+	return response, false, nil, processError
 }
 
-func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
+func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
+
+	// when CORS is enabled, processor HTTP server is responding to "PreflightRequestMethod" (e.g.: OPTIONS)
+	// That means => function will not be able to answer on the method configured by PreflightRequestMethod
+	return func(ctx *fasthttp.RequestCtx) {
+
+		// ensure request is part of CORS pre-flight
+		if h.ensureRequestIsCORSPreflightRequest(ctx) {
+			h.handlePreflightRequest(ctx)
+		} else {
+			h.handleRequest(ctx)
+		}
+	}
+}
+
+func (h *http) ensureRequestIsCORSPreflightRequest(ctx *fasthttp.RequestCtx) bool {
+	if !h.configuration.corsEnabled() {
+
+		// no cors is enabled, irrelevant
+		return false
+	}
+
+	requestMethod := common.ByteSliceToString(ctx.Method())
+	if requestMethod != h.configuration.CORS.PreflightRequestMethod {
+
+		// request method is not preflight method
+		return false
+	}
+
+	// access control request method must not be empty
+	// access control describe the actual request method to be made (on the post pre-preflight request)
+	accessControlRequestMethod := common.ByteSliceToString(ctx.Request.Header.Peek("Access-Control-Request-Method"))
+	return len(accessControlRequestMethod) != 0
+}
+
+func (h *http) preflightRequestValidation(ctx *fasthttp.RequestCtx) bool {
+	requestHeaders := &ctx.Request.Header
+	accessControlRequestMethod := common.ByteSliceToString(requestHeaders.Peek("Access-Control-Request-Method"))
+	accessControlRequestHeaders := common.ByteSliceToString(requestHeaders.Peek("Access-Control-Request-Headers"))
+
+	// ensure origin is allowed
+	origin := common.ByteSliceToString(requestHeaders.Peek("Origin"))
+	corsConfiguration := h.configuration.CORS
+	if !corsConfiguration.OriginAllowed(origin) {
+		h.Logger.DebugWith("Origin is not allowed",
+			"origin", origin,
+			"allowOrigins", h.configuration.CORS.AllowOrigins)
+		return false
+	}
+
+	// request is outside the scope of CORS specifications
+	if !corsConfiguration.MethodAllowed(accessControlRequestMethod) {
+		h.Logger.DebugWith("Request method is not allowed",
+			"accessControlRequestMethod", accessControlRequestMethod,
+			"allowMethods", h.configuration.CORS.AllowMethods)
+		return false
+	}
+
+	// ensure request headers allowed, it is possible (and valid) to be empty
+	if accessControlRequestHeaders != "" {
+		if !corsConfiguration.HeadersAllowed(strings.Split(accessControlRequestHeaders, ", ")) {
+			h.Logger.DebugWith("Request headers are not allowed",
+				"accessControlRequestHeaders", accessControlRequestHeaders,
+				"allowHeaders", h.configuration.CORS.AllowHeaders)
+			return false
+		}
+	}
+	return true
+}
+
+func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
+	responseHeaders := &ctx.Response.Header
+	corsConfiguration := h.configuration.CORS
+
+	// default to bad preflight request unless all specifications are valid
+	ctx.SetStatusCode(nethttp.StatusBadRequest)
+
+	// always return vary <- https://stackoverflow.com/a/25329887
+	responseHeaders.Add("Vary", "Origin")
+	responseHeaders.Add("Vary", "Access-Control-Request-Method")
+	responseHeaders.Add("Vary", "Access-Control-Request-Headers")
+
+	// ensure preflight request headers are valid
+	if !h.preflightRequestValidation(ctx) {
+		h.UpdateStatistics(false)
+		return
+	}
+
+	// indicate whether resource can be shared
+	origin := common.ByteSliceToString(ctx.Request.Header.Peek("Origin"))
+	responseHeaders.Set("Access-Control-Allow-Origin", origin)
+
+	// indicate resource support credentials
+	if corsConfiguration.AllowCredentials {
+		responseHeaders.Set("Access-Control-Allow-Credentials", corsConfiguration.EncodeAllowCredentialsHeader())
+	}
+
+	// set preflight results max age
+	responseHeaders.Set("Access-Control-Max-Age", corsConfiguration.EncodePreflightMaxAgeSeconds())
+
+	// indicate what methods can be used
+	responseHeaders.Set("Access-Control-Allow-Methods", corsConfiguration.EncodedAllowMethods())
+
+	// indicate what headers can be used
+	responseHeaders.Set("Access-Control-Allow-Headers", corsConfiguration.EncodeAllowHeaders())
+
+	// specifications met, set preflight request as OK
+	ctx.SetStatusCode(nethttp.StatusOK)
+	h.UpdateStatistics(true)
+}
+
+func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
+
+	// ensure server is running
+	if h.status != status.Ready {
+		ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
+		msg := map[string]interface{}{
+			"error":  "Server not ready",
+			"status": h.status.String(),
+		}
+
+		if err := json.NewEncoder(ctx).Encode(msg); err != nil {
+			h.Logger.WarnWith("Can't encode error message", "error", err)
+		}
+		return false
+	}
+
+	// if cors is enabled, ensure request is valid
+	if h.configuration.corsEnabled() {
+
+		// always return vary <- https://stackoverflow.com/a/25329887
+		ctx.Response.Header.Add("Vary", "Origin")
+
+		// ensure origin is allowed
+		origin := common.ByteSliceToString(ctx.Request.Header.Peek("Origin"))
+		if !h.configuration.CORS.OriginAllowed(origin) {
+			h.Logger.DebugWith("Origin is not allowed",
+				"origin", origin,
+				"allowOrigins", h.configuration.CORS.AllowOrigins)
+			return false
+		}
+
+		// indicate whether resource can be shared
+		ctx.Response.Header.Set("Access-Control-Allow-Origin", origin)
+
+		// indicate resource support credentials
+		if h.configuration.CORS.AllowCredentials {
+			ctx.Response.Header.Set("Access-Control-Allow-Credentials",
+				h.configuration.CORS.EncodeAllowCredentialsHeader())
+		}
+	}
+	return true
+}
+
+func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	var functionLogger logger.Logger
 	var bufferLogger *nucliozap.BufferLogger
+
+	// perform pre request handling validation
+	if !h.preHandleRequestValidation(ctx) {
+
+		// in case validation failed, stop here
+		h.UpdateStatistics(false)
+		return
+	}
 
 	// attach the context to the event
 	// get the log level required
@@ -164,9 +401,23 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
 	}
 
-	response, submitError, processError := h.AllocateWorkerAndSubmitEvent(ctx,
+	response, timedOut, submitError, processError := h.AllocateWorkerAndSubmitEvent(ctx,
 		functionLogger,
-		time.Duration(h.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond)
+		time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond)
+
+	if timedOut {
+		return
+	}
+
+	// Clear active context in case of error
+	if submitError != nil || processError != nil {
+		for i, activeCtx := range h.activeContexts {
+			if activeCtx == ctx {
+				h.activeContexts[i] = nil
+				break
+			}
+		}
+	}
 
 	if responseLogLevel != nil {
 
@@ -179,7 +430,7 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 			logContents = logContents[:len(logContents)-1]
 		}
 
-		// write open bracket for JSON
+		// write close bracket for JSON
 		logContents = append(logContents, byte(']'))
 
 		// there's a limit on the amount of logs that can be passed in a header
@@ -199,33 +450,34 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 
 		// no available workers
 		case worker.ErrNoAvailableWorkers:
-			ctx.Response.SetStatusCode(net_http.StatusServiceUnavailable)
+			ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
 
 			// something else - most likely a bug
 		default:
 			h.Logger.WarnWith("Failed to submit event", "err", submitError)
-			ctx.Response.SetStatusCode(net_http.StatusInternalServerError)
+			ctx.Response.SetStatusCode(nethttp.StatusInternalServerError)
 		}
 
 		return
 	}
 
-	// if the function returned an error - just return 500
 	if processError != nil {
 		var statusCode int
 
 		// check if the user returned an error with a status code
-		errorWithStatusCode, errorHasStatusCode := processError.(nuclio.ErrorWithStatusCode)
+		switch typedError := processError.(type) {
+		case nuclio.ErrorWithStatusCode:
+			statusCode = typedError.StatusCode()
+		case *nuclio.ErrorWithStatusCode:
+			statusCode = typedError.StatusCode()
+		default:
 
-		// if the user didn't use one of the errors with status code, return internal error
-		// otherwise return the status code the user wanted
-		if !errorHasStatusCode {
-			statusCode = net_http.StatusInternalServerError
-		} else {
-			statusCode = errorWithStatusCode.StatusCode()
+			// if the user didn't use one of the errors with status code, return internal error
+			statusCode = nethttp.StatusInternalServerError
 		}
 
 		ctx.Response.SetStatusCode(statusCode)
+		ctx.Response.SetBodyString(processError.Error())
 		return
 	}
 

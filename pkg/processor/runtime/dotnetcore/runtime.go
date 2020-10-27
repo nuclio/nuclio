@@ -18,16 +18,16 @@ package dotnetcore
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
-	"github.com/nuclio/nuclio/pkg/processor/status"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -53,10 +53,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	// set status to ready
-	newDotnetCoreRuntime.SetStatus(status.Ready)
-
-	return newDotnetCoreRuntime, err
+	return newDotnetCoreRuntime, nil
 }
 
 func (d *dotnetcore) RunWrapper(socketPath string) (*os.Process, error) {
@@ -107,4 +104,8 @@ func (d *dotnetcore) getWrapperDLLPath() string {
 	}
 
 	return scriptPath
+}
+
+func (d *dotnetcore) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
+	return rpc.NewEventJSONEncoder(d.Logger, writer)
 }

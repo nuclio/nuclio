@@ -67,7 +67,7 @@ func (suite *repositoryTestSuite) TestFilteredGet() {
 	err = fetcher.SetGeneratedFunctionTemplates(functionTemplates)
 	suite.Require().NoError(err, "Failed to set fetcher's templates")
 
-	// create repositiory
+	// create repository
 	repository, err := NewRepository(suite.logger, []FunctionTemplateFetcher{fetcher})
 	suite.Require().NoError(err, "Failed to create repository")
 

@@ -15,9 +15,10 @@
 GO_VERSION := $(shell go version | cut -d " " -f 3)
 GOPATH ?= $(shell go env GOPATH)
 OS_NAME = $(shell uname)
+KUBECONFIG := $(if $(KUBECONFIG),$(KUBECONFIG),$(HOME)/.kube/config)
 
 # upstream repo
-NUCLIO_DOCKER_REPO := quay.io/nuclio
+NUCLIO_DOCKER_REPO ?= quay.io/nuclio
 
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
@@ -25,7 +26,8 @@ NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
 
 ifeq ($(OS_NAME), Linux)
 	NUCLIO_DEFAULT_TEST_HOST := $(shell docker network inspect bridge | grep "Gateway" | grep -o '"[^"]*"$$')
-	# On EC2 we don't have gateway, use default
+
+# On EC2 we don't have gateway, use default
 	ifeq ($(NUCLIO_DEFAULT_TEST_HOST),)
 		NUCLIO_DEFAULT_TEST_HOST := "172.17.0.1"
 	endif
@@ -39,10 +41,7 @@ NUCLIO_LABEL := $(if $(NUCLIO_LABEL),$(NUCLIO_LABEL),latest)
 NUCLIO_TEST_HOST := $(if $(NUCLIO_TEST_HOST),$(NUCLIO_TEST_HOST),$(NUCLIO_DEFAULT_TEST_HOST))
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
 
-NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
-\"label\": \"$(NUCLIO_LABEL)\",  \
-\"os\": \"$(NUCLIO_OS)\",  \
-\"arch\": \"$(NUCLIO_ARCH)\"}
+NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\", \"label\": \"$(NUCLIO_LABEL)\"}
 
 # Dockerized tests variables - not available for changes
 NUCLIO_DOCKER_TEST_DOCKERFILE_PATH := test/docker/Dockerfile
@@ -55,19 +54,21 @@ NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_LABEL)-$(NUCLIO_ARCH)
 
 # Link flags
 GO_LINK_FLAGS ?= -s -w
-GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) -X github.com/nuclio/nuclio/pkg/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
-	-X github.com/nuclio/nuclio/pkg/version.label=$(NUCLIO_LABEL) \
-	-X github.com/nuclio/nuclio/pkg/version.os=$(NUCLIO_OS) \
-	-X github.com/nuclio/nuclio/pkg/version.arch=$(NUCLIO_ARCH)
+GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) \
+	-X github.com/v3io/version-go.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
+	-X github.com/v3io/version-go.label=$(NUCLIO_LABEL)
 
-# inject version info as file
-NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTENTS="$(NUCLIO_VERSION_INFO)"
+# Docker client version to be used
+DOCKER_CLI_VERSION := 19.03.12
+
+# Nuclio test timeout
+NUCLIO_GO_TEST_TIMEOUT ?= "30m"
 
 #
 #  Must be first target
 #
 all:
-	$(error Please pick a target)
+	$(error "Please pick a target (run 'make targets' to view targets)")
 
 
 #
@@ -75,6 +76,7 @@ all:
 #
 
 helm-publish:
+	$(eval HELM_PUBLISH_COMMIT_MESSAGE := "Releasing chart $(shell helm inspect chart hack/k8s/helm/nuclio | yq r - version)")
 	@echo Fetching branch
 	@rm -rf /tmp/nuclio-helm
 	@git clone -b gh-pages --single-branch git@github.com:nuclio/nuclio.git /tmp/nuclio-helm
@@ -82,7 +84,7 @@ helm-publish:
 	@helm package -d /tmp/nuclio-helm/charts hack/k8s/helm/nuclio
 	@cd /tmp/nuclio-helm/charts && helm repo index --merge index.yaml --url https://nuclio.github.io/nuclio/charts/ .
 	@echo Publishing
-	@cd /tmp/nuclio-helm/charts && git add --all && git commit && git push origin
+	@cd /tmp/nuclio-helm/charts && git add --all && git commit -m $(HELM_PUBLISH_COMMIT_MESSAGE) && git push origin
 	@echo Done
 
 #
@@ -90,16 +92,12 @@ helm-publish:
 #
 
 # tools get built with the specified OS/arch and inject version
-GO_BUILD_TOOL_WORKDIR = /go/src/github.com/nuclio/nuclio
-GO_BUILD_TOOL = docker run \
-	--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
-	--volume $(shell pwd)/../nuclio-sdk-go:$(GO_BUILD_TOOL_WORKDIR)/../nuclio-sdk-go \
-	--volume $(shell pwd)/../logger:$(GO_BUILD_TOOL_WORKDIR)/../logger \
+GO_BUILD_TOOL_WORKDIR = /nuclio
+GO_BUILD_NUCTL = docker run \
 	--volume $(GOPATH)/bin:/go/bin \
-	--workdir $(GO_BUILD_TOOL_WORKDIR) \
 	--env GOOS=$(NUCLIO_OS) \
 	--env GOARCH=$(NUCLIO_ARCH) \
-	golang:1.10 \
+	nuclio-base:$(NUCLIO_LABEL) \
 	go build -a \
 	-installsuffix cgo \
 	-ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
@@ -145,16 +143,23 @@ print-docker-images:
 # Tools
 #
 
+NUCLIO_NUCTL_CREATE_SYMLINK := $(if $(NUCLIO_NUCTL_CREATE_SYMLINK),$(NUCLIO_NUCTL_CREATE_SYMLINK),true)
 NUCTL_BIN_NAME = nuctl-$(NUCLIO_LABEL)-$(NUCLIO_OS)-$(NUCLIO_ARCH)
 NUCTL_TARGET = $(GOPATH)/bin/nuctl
 
-nuctl: ensure-gopath
-	$(GO_BUILD_TOOL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
+nuctl: ensure-gopath build-base
+	$(GO_BUILD_NUCTL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 	@rm -f $(NUCTL_TARGET)
+ifeq ($(NUCLIO_NUCTL_CREATE_SYMLINK), true)
 	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
+endif
 
-processor: ensure-gopath
-	docker build --file cmd/processor/Dockerfile --tag $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG) .
+processor: ensure-gopath build-base
+	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--file cmd/processor/Dockerfile \
+		--tag $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG)
 
@@ -165,8 +170,10 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG)
 # Controller
 NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/controller:$(NUCLIO_DOCKER_IMAGE_TAG)
 
-controller: ensure-gopath
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+controller: ensure-gopath build-base
+	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/controller/Dockerfile \
 		--tag $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -176,8 +183,11 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
 # Dashboard
 NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
 
-dashboard: ensure-gopath
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+dashboard: ensure-gopath build-base
+	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/dashboard/docker/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -187,8 +197,10 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME)
 # Scaler
 NUCLIO_DOCKER_SCALER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/autoscaler:$(NUCLIO_DOCKER_IMAGE_TAG)
 
-autoscaler: ensure-gopath
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+autoscaler: ensure-gopath build-base
+	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/autoscaler/Dockerfile \
 		--tag $(NUCLIO_DOCKER_SCALER_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -198,8 +210,10 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_SCALER_IMAGE_NAME)
 # Dlx
 NUCLIO_DOCKER_DLX_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_TAG)
 
-dlx: ensure-gopath
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+dlx: ensure-gopath build-base
+	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/dlx/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DLX_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -214,11 +228,12 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DLX_IMAGE_NAME)
 NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME=\
 $(NUCLIO_DOCKER_REPO)/handler-builder-python-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
-handler-builder-python-onbuild:
+PIP_REQUIRE_VIRTUALENV=false
 
-	# `--exists-action i` means to ignore and skip download if whl already exists
-	pip download -d pkg/processor/runtime/python/py/whl --exists-action i -r pkg/processor/runtime/python/py/requirements.txt
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+handler-builder-python-onbuild:
+	docker build \
+		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/python/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME) .
 
@@ -226,19 +241,26 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME)
 
 # Go
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=\
-$(NUCLIO_DOCKER_REPO)/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+ $(NUCLIO_DOCKER_REPO)/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME=\
-$(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)-alpine
+ $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)-alpine
 
-handler-builder-golang-onbuild:
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL)  \
-		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
-		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
-
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL)  \
+handler-builder-golang-onbuild-alpine: build-base
+	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME) .
+
+handler-builder-golang-onbuild: build-base handler-builder-golang-onbuild-alpine
+	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
+		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) \
 	$(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME)
@@ -247,7 +269,8 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) \
 NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/processor-pypy2-5.9-jessie:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 processor-pypy:
-	docker build $(NUCLIO_BUILD_ARGS) \
+	docker build \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--file pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy \
 		--build-arg NUCLIO_PYPY_VERSION=2-5.9 \
 		--build-arg NUCLIO_PYPY_OS=jessie \
@@ -270,7 +293,9 @@ NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME=\
 $(NUCLIO_DOCKER_REPO)/handler-builder-nodejs-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 handler-builder-nodejs-onbuild:
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+	docker build \
+		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/nodejs/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME) .
 
@@ -281,7 +306,9 @@ NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME=\
 $(NUCLIO_DOCKER_REPO)/handler-builder-ruby-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 handler-builder-ruby-onbuild:
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+	docker build \
+		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/ruby/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME) .
 
@@ -293,7 +320,9 @@ NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=$(NUCLIO_DOCKER_REPO
 NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH = pkg/processor/build/runtime/dotnetcore/docker/onbuild/Dockerfile
 
 handler-builder-dotnetcore-onbuild: processor
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+	docker build \
+		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		-f $(NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH) \
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME) .
 
@@ -304,87 +333,202 @@ NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME=\
 $(NUCLIO_DOCKER_REPO)/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 handler-builder-java-onbuild:
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+	docker build \
+		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/java/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME)
 
+.PHONY: modules
+modules: ensure-gopath
+	@echo Getting go modules
+	@go mod download
+
 #
 # Testing
 #
 .PHONY: lint
-lint: ensure-gopath
+lint: modules
 	@echo Installing linters...
-	go get -u github.com/pavius/impi/cmd/impi
-	go get -u gopkg.in/alecthomas/gometalinter.v2
-	@$(GOPATH)/bin/gometalinter.v2 --install
+	@test -e $(GOPATH)/bin/impi || \
+		mkdir -p $(GOPATH)/bin && \
+		curl -s https://api.github.com/repos/pavius/impi/releases/latest \
+			| grep -i "browser_download_url.*impi.*$(OS_NAME)" \
+			| cut -d : -f 2,3 \
+			| tr -d \" \
+			| wget -O $(GOPATH)/bin/impi -qi -
+	@test -e $(GOPATH)/bin/golangci-lint || \
+	  	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.27.0
 
 	@echo Verifying imports...
-	$(GOPATH)/bin/impi \
+	chmod +x $(GOPATH)/bin/impi && $(GOPATH)/bin/impi \
 		--local github.com/nuclio/nuclio/ \
 		--scheme stdLocalThirdParty \
 		--skip pkg/platform/kube/apis \
 		--skip pkg/platform/kube/client \
-		./cmd/... ./pkg/...
+		./cmd/... ./pkg/... ./hack/...
 
 	@echo Linting...
-	@$(GOPATH)/bin/gometalinter.v2 \
-		--deadline=300s \
-		--disable-all \
-		--enable-gc \
-		--enable=deadcode \
-		--enable=goconst \
-		--enable=gofmt \
-		--enable=golint \
-		--enable=gosimple \
-		--enable=ineffassign \
-		--enable=interfacer \
-		--enable=misspell \
-		--enable=staticcheck \
-		--enable=unconvert \
-		--enable=varcheck \
-		--enable=vet \
-		--enable=vetshadow \
-		--enable=errcheck \
-		--exclude="_test.go" \
-		--exclude="comment on" \
-		--exclude="error should be the last" \
-		--exclude="should have comment" \
-		--skip=pkg/platform/kube/apis \
-		--skip=pkg/platform/kube/client \
-		./cmd/... ./pkg/...
-
+	$(GOPATH)/bin/golangci-lint run -v
 	@echo Done.
 
 .PHONY: test-undockerized
 test-undockerized: ensure-gopath
-	go test -v ./cmd/... ./pkg/... -p 1
+	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./cmd/... ./pkg/...
+
+.PHONY: test-kafka-undockerized
+test-kafka-undockerized: ensure-gopath
+	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./pkg/processor/trigger/kafka/...
+
+# This is to work around hostname resolution issues for sarama and kafka in CI
+.PHONY: test-periodic-undockerized
+test-periodic-undockerized: ensure-gopath
+	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) $(shell go list ./cmd/... ./pkg/... | grep -v trigger/kafka)
+
+.PHONY: test-k8s-undockerized
+test-k8s-undockerized: ensure-gopath
+	NUCLIO_K8S_TESTS_ENABLED=true go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./pkg/platform/kube/...
+
+.PHONY: fmt
+fmt:
+	gofmt -s -w .
+
+.PHONY: build-test
+build-test: ensure-gopath build-base
+	docker build \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
+		--file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
+		--tag $(NUCLIO_DOCKER_TEST_TAG) .
 
 .PHONY: test
-test: ensure-gopath
-	docker build --file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
-	--tag $(NUCLIO_DOCKER_TEST_TAG) .
+test: build-test
+	docker run \
+		--rm \
+		--volume /var/run/docker.sock:/var/run/docker.sock \
+		--volume $(GOPATH)/bin:/go/bin \
+		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
+		--volume /tmp:/tmp \
+		--workdir $(GO_BUILD_TOOL_WORKDIR) \
+		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
+		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
+		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--env NUCLIO_OS=$(NUCLIO_OS) \
+		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
+		$(NUCLIO_DOCKER_TEST_TAG) \
+		/bin/bash -c "make test-undockerized"
 
-	docker run --rm --volume /var/run/docker.sock:/var/run/docker.sock \
-	--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
-	--volume /tmp:/tmp \
-	--workdir /go/src/github.com/nuclio/nuclio \
-	--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
-	$(NUCLIO_DOCKER_TEST_TAG) \
-	/bin/bash -c "make test-undockerized"
+.PHONY: test-k8s
+test-k8s: build-test
+	NUCLIO_TEST_KUBECONFIG=$(if $(NUCLIO_TEST_KUBECONFIG),$(NUCLIO_TEST_KUBECONFIG),$(KUBECONFIG)) \
+	docker run \
+		--rm \
+		--network host \
+		--volume /var/run/docker.sock:/var/run/docker.sock \
+		--volume $(GOPATH)/bin:/go/bin \
+		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
+		--volume /tmp:/tmp \
+		--volume $(NUCLIO_TEST_KUBECONFIG)/:/kubeconfig \
+		--workdir $(GO_BUILD_TOOL_WORKDIR) \
+		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
+		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
+		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--env NUCLIO_TEST_REGISTRY_URL=$(NUCLIO_TEST_REGISTRY_URL) \
+		--env NUCLIO_OS=$(NUCLIO_OS) \
+		--env MINIKUBE_HOME=$(MINIKUBE_HOME) \
+		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
+		--env KUBECONFIG=/kubeconfig \
+		$(NUCLIO_DOCKER_TEST_TAG) \
+		/bin/bash -c "make test-k8s-undockerized"
+
+.PHONY: test-periodic
+test-periodic: build-test
+	docker run \
+		--rm \
+		--volume /var/run/docker.sock:/var/run/docker.sock \
+		--volume $(GOPATH)/bin:/go/bin \
+		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
+		--volume /tmp:/tmp \
+		--workdir $(GO_BUILD_TOOL_WORKDIR) \
+		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
+		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
+		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--env NUCLIO_OS=$(NUCLIO_OS) \
+		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
+		$(NUCLIO_DOCKER_TEST_TAG) \
+		/bin/bash -c "make test-periodic-undockerized"
+
+.PHONY: test-kafka
+test-kafka: build-test
+	docker run \
+		--rm \
+		--volume /var/run/docker.sock:/var/run/docker.sock \
+		--volume $(GOPATH)/bin:/go/bin \
+		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
+		--volume /tmp:/tmp \
+		--workdir $(GO_BUILD_TOOL_WORKDIR) \
+		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
+		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
+		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--env NUCLIO_OS=$(NUCLIO_OS) \
+		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
+		$(NUCLIO_DOCKER_TEST_TAG) \
+		/bin/bash -c "make test-kafka-undockerized"
 
 .PHONY: test-python
 test-python:
-	docker build -f pkg/processor/runtime/python/test/Dockerfile.py3-test .
-	docker build -f pkg/processor/runtime/python/test/Dockerfile.py2-test .
+	docker build \
+		--build-arg CACHEBUST=$(shell date +%s) \
+		--build-arg PYTHON_IMAGE_TAG=3.6-slim-stretch \
+		-f pkg/processor/runtime/python/test/Dockerfile .
+	docker build \
+		--build-arg CACHEBUST=$(shell date +%s) \
+		--build-arg PYTHON_IMAGE_TAG=2.7-slim-stretch \
+		-f pkg/processor/runtime/python/test/Dockerfile .
 
 .PHONY: test-short
-test-short: ensure-gopath
+test-short: modules ensure-gopath
 	go test -v ./cmd/... ./pkg/... -short
+
+.PHONY: test-k8s-nuctl
+test-k8s-nuctl:
+	NUCTL_EXTERNAL_IP_ADDRESSES=$(if $(NUCTL_EXTERNAL_IP_ADDRESSES),$(NUCTL_EXTERNAL_IP_ADDRESSES),"localhost") \
+		NUCTL_RUN_REGISTRY=$(NUCTL_REGISTRY) \
+		NUCTL_PLATFORM=kube \
+		NUCTL_NAMESPACE=$(if $(NUCTL_NAMESPACE),$(NUCTL_NAMESPACE),"default") \
+		go test -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+
+.PHONY: test-docker-nuctl
+test-docker-nuctl:
+	NUCTL_PLATFORM=local go test -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+
+.PHONY: build-base
+build-base: build-builder
+	docker build \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--file hack/docker/build/base/Dockerfile \
+		--tag nuclio-base:$(NUCLIO_LABEL) .
+	docker build \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--file hack/docker/build/base-alpine/Dockerfile \
+		--tag nuclio-base-alpine:$(NUCLIO_LABEL) .
+
+.PHONY: build-builder
+build-builder:
+	docker build -f hack/docker/build/builder/Dockerfile -t nuclio-builder:$(NUCLIO_LABEL) .
 
 .PHONY: ensure-gopath
 ensure-gopath:
 ifndef GOPATH
 	$(error GOPATH must be set)
 endif
+
+.PHONY: targets
+targets:
+	awk -F: '/^[^ \t="]+:/ && !/PHONY/ {print $$1}' Makefile | sort -u

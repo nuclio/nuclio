@@ -75,6 +75,16 @@ func (mdc *MockDockerClient) RemoveContainer(containerID string) error {
 	return nil
 }
 
+// StopContainer stops a container given a container ID
+func (mdc *MockDockerClient) StopContainer(containerID string) error {
+	return nil
+}
+
+// StartContainer stops a container given a container ID
+func (mdc *MockDockerClient) StartContainer(containerID string) error {
+	return nil
+}
+
 // GetContainerLogs returns raw logs from a given container ID
 func (mdc *MockDockerClient) GetContainerLogs(containerID string) (string, error) {
 	return "", nil
@@ -82,6 +92,11 @@ func (mdc *MockDockerClient) GetContainerLogs(containerID string) (string, error
 
 // GetContainers returns a list of container IDs which match a certain criteria
 func (mdc *MockDockerClient) GetContainers(options *GetContainerOptions) ([]Container, error) {
+	return nil, nil
+}
+
+// GetContainerEvents returns a list of container events which occurred within a time range
+func (mdc *MockDockerClient) GetContainerEvents(containerName string, since string, until string) ([]string, error) {
 	return nil, nil
 }
 
@@ -105,6 +120,18 @@ func (mdc *MockDockerClient) CreateNetwork(options *CreateNetworkOptions) error 
 // DeleteNetwork deletes a docker network
 func (mdc *MockDockerClient) DeleteNetwork(networkName string) error {
 	args := mdc.Called(networkName)
+	return args.Error(0)
+}
+
+// CreateVolume creates a docker volume
+func (mdc *MockDockerClient) CreateVolume(options *CreateVolumeOptions) error {
+	args := mdc.Called(options)
+	return args.Error(0)
+}
+
+// DeleteVolume deletes a docker volume
+func (mdc *MockDockerClient) DeleteVolume(volumeName string) error {
+	args := mdc.Called(volumeName)
 	return args.Error(0)
 }
 

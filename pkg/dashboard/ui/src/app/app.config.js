@@ -4,17 +4,36 @@
     var injectedConfig = angular.fromJson('/* @echo IGZ_CUSTOM_CONFIG */' || '{}');
 
     var defaultConfig = {
+        url: {
+            nuclio: {
+                baseUrl: location.protocol + '//' + location.hostname + ':8070/api'
+            }
+        },
         mode: 'production',
         isDemoMode: function () {
             return defaultConfig.mode === 'demo';
         },
         isStagingMode: function (strict) {
             return defaultConfig.mode === 'staging' || !strict && defaultConfig.mode === 'demo';
+        },
+        nuclio: {
+            defaultFunctionConfig: {},
+            externalIPAddress: '',
+            imageNamePrefixTemplate: '',
+            ingressHostTemplate: '',
+            namespace: '',
+            platformKind: '',
+            scaleToZero: {
+                inactivityWindowPresets: null,
+                mode: 'disabled',
+                scaleResources: null
+            }
         }
     };
 
     angular.module('nuclio.app')
-        .constant('ConfigService', window._.merge(defaultConfig, injectedConfig));
+        .constant('ConfigService', window._.merge(defaultConfig, injectedConfig))
+        .constant('lodash', window._);
 
     angular.module('nuclio.app')
         .config(config)

@@ -17,14 +17,11 @@ limitations under the License.
 package util
 
 import (
-	"fmt"
 	"path"
-	"reflect"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
-	"github.com/mholt/archiver"
+	"github.com/mholt/archiver/v3"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -41,17 +38,7 @@ func NewDecompressor(parentLogger logger.Logger) (*Decompressor, error) {
 }
 
 func (d *Decompressor) Decompress(source string, target string) error {
-	fileArchiver := archiver.MatchingFormat(source)
-	if fileArchiver == nil {
-		return fmt.Errorf("File %s is not compressed or has an unknown extension", source)
-	}
-
-	d.logger.DebugWith("File is compressed, now decompressing",
-		"file", source,
-		"compression", reflect.TypeOf(fileArchiver),
-		"target", target)
-
-	if err := fileArchiver.Open(source, target); err != nil {
+	if err := archiver.Unarchive(source, target); err != nil {
 		return errors.Wrapf(err, "Failed to decompress file %s", source)
 	}
 
@@ -61,10 +48,22 @@ func (d *Decompressor) Decompress(source string, target string) error {
 func IsCompressed(source string) bool {
 
 	// Jars are special case
-	if strings.ToLower(path.Ext(source)) == ".jar" {
+	if IsJar(source) {
 		return false
 	}
 
-	fileArchiver := archiver.MatchingFormat(source)
-	return fileArchiver != nil
+	unarchiver, err := archiver.ByExtension(source)
+	if err != nil {
+		return false
+	}
+	u, ok := unarchiver.(archiver.Unarchiver)
+	if !ok {
+		return false
+	}
+
+	return u != nil
+}
+
+func IsJar(source string) bool {
+	return strings.ToLower(path.Ext(source)) == ".jar"
 }

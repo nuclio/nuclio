@@ -48,8 +48,8 @@ func (esg *TriggerGatherer) Gather() error {
 
 	esg.prevStatistics = currentStatistics
 
-	esg.track("EventsHandleSuccessTotal", float64(diffStatistics.EventsHandleSuccessTotal))
-	esg.track("EventsHandleFailureTotal", float64(diffStatistics.EventsHandleFailureTotal))
+	esg.track("EventsHandledSuccessTotal", float64(diffStatistics.EventsHandledSuccessTotal))
+	esg.track("EventsHandledFailureTotal", float64(diffStatistics.EventsHandledFailureTotal))
 
 	return nil
 }

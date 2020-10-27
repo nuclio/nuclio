@@ -20,7 +20,7 @@ To be able to generate such an image using Docker, you must provide a Dockerfile
 
 Dockerfile deployment isn't better than source-based deployment; it's just another way for users to create function images. Even prior to version 0.5.0, Nuclio had features that allowed users to inject build-time parameters, like `spec.build.commands` for running `apk`, `apt-get`, `pip`, and other package providers. However, some users may prefer to handle build themselves, using the tools they know and love.
 
-> Note: While the process itself is offered as an alternative, many good things came from this feature. Most notably, prior to version 0.5.0, users were limited to using pre-baked "alpine" or "jessie" base images. Now, source-based and Dockerfile-based builds can provide any base image, as long as this base image contains the runtime environment suitable for the runtime; (for example, to run Python functions, the image must contain a Python interpreter).
+> **Note:** While the process itself is offered as an alternative, many good things came from this feature. Most notably, prior to version 0.5.0, users were limited to using pre-baked "alpine" or "jessie" base images. Now, source-based and Dockerfile-based builds can provide any base image, as long as this base image contains the runtime environment suitable for the runtime; (for example, to run Python functions, the image must contain a Python interpreter).
 
 ## Building a function with Docker
 
@@ -32,14 +32,14 @@ curl -LO https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/go
 
 Now, create a Dockerfile by following the guidelines in the [Go reference](/docs/reference/runtimes/golang/golang-reference.md#dockerfile).
 
-> Note: Future versions of `nuctl` will automate creating these blueprints through something like `nuctl create blueprint --runtime python:3.6`, which will create a Dockerfile, a **function.yaml** file, and an empty Python handler.
+> **Note:** Future versions of `nuctl` will automate creating these blueprints through something like `nuctl create blueprint --runtime python:3.6`, which will create a Dockerfile, a **function.yaml** file, and an empty Python handler.
 
 The Dockerfile will look something like this:
 
 ```
 ARG NUCLIO_LABEL=latest
 ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_BASE_IMAGE=alpine:3.7
+ARG NUCLIO_BASE_IMAGE=alpine:3.11
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-golang-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}-alpine
 
 # Supplies processor uhttpc, used for healthcheck
@@ -66,7 +66,7 @@ CMD [ "processor" ]
 This multi-stage Dockerfile uses three `FROM` directives:
 
 1. `FROM nuclio/uhttpc:0.0.1-amd64` - used for providing an [open-source health-check related binary](https://github.com/nuclio/uhttpc) (basically, a self contained curl). This is used for the "local" platform. You don't need this or the `HEALTHCHECK` platform if you plan on running only on Kubernetes.
-2. `FROM alpine:3.7` - the base image on which the final processor image will run.
+2. `FROM alpine:3.11` - the base image on which the final processor image will run.
 3. `FROM nuclio/handler-builder-golang-onbuild` - this is where it gets interesting: while every runtime needs the processor binary, each runtime must also provide a unique set of artifacts. Interpreter-based runtimes, like Python and NodeJS, simply need to provide the shim layer and the user's code. However, compiled runtimes (Go, Java, .NET Core) must compile the user's code into a binary. This is done with a set of `ONBUILD` directives in the `onbuild` image. You provide the source, and the base image will do everything that is required to provide you with the artifact at the expected location. In this tutorial, by simply using `FROM nuclio/handler-builder-golang-onbuild` and providing Go source code, you will build a Go plugin that will reside at `/opt/nuclio/handler.so`. All you have to do is copy the plugin to the proper location in you final processor image.
 
 It is up to you to customize this Dockerfile, if you so choose (for example, by adding `RUN` directives that add dependencies), but all provided Dockerfiles are ready to go. Go ahead and build the function; you only need the **Dockerfile** and **helloworld.go**:
@@ -75,7 +75,7 @@ It is up to you to customize this Dockerfile, if you so choose (for example, by 
 docker build -t helloworld-from-df .
 ```
 
-> Note: Each runtime has a different Dockerfile. Consult the appropriate [runtime reference documents](/docs/reference/runtimes) to understand the specific nuances.
+> **Note:** Each runtime has a different Dockerfile. Consult the appropriate [runtime reference documents](/docs/reference/runtimes) to understand the specific nuances.
 
 ## Deploying a function built with Docker
 

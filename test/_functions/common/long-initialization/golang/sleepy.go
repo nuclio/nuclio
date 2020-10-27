@@ -27,5 +27,5 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 }
 
 func init() {
-	time.Sleep(5*time.Second)
+	time.Sleep(5 * time.Second)
 }

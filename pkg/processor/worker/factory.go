@@ -20,10 +20,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"golang.org/x/sync/errgroup"
 )
 
 type Factory struct{}
@@ -94,6 +95,12 @@ func (waf *Factory) createWorker(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
+	err = runtimeInstance.Start()
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to start runtime")
+	}
+
 	return NewWorker(workerLogger,
 		workerIndex,
 		runtimeInstance)
@@ -104,13 +111,25 @@ func (waf *Factory) createWorkers(logger logger.Logger,
 	runtimeConfiguration *runtime.Configuration) ([]*Worker, error) {
 	workers := make([]*Worker, numWorkers)
 
-	for workerIndex := 0; workerIndex < numWorkers; workerIndex++ {
-		worker, err := waf.createWorker(logger, workerIndex, runtimeConfiguration)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create worker")
-		}
+	errGroup := errgroup.Group{}
 
-		workers[workerIndex] = worker
+	for workerIndex := 0; workerIndex < numWorkers; workerIndex++ {
+		workerIndex := workerIndex
+
+		errGroup.Go(func() error {
+			worker, err := waf.createWorker(logger, workerIndex, runtimeConfiguration)
+			if err != nil {
+				return errors.Wrap(err, "Failed to create worker")
+			}
+
+			workers[workerIndex] = worker
+
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return nil, errors.Wrap(err, "Failed to create workers")
 	}
 
 	return workers, nil

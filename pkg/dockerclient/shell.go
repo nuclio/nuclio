@@ -18,23 +18,26 @@ package dockerclient
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
 // ShellClient is a docker client that uses the shell to communicate with docker
 type ShellClient struct {
-	logger         logger.Logger
-	cmdRunner      cmdrunner.CmdRunner
-	redactedValues []string
+	logger             logger.Logger
+	cmdRunner          cmdrunner.CmdRunner
+	redactedValues     []string
+	buildTimeout       time.Duration
+	buildRetryInterval time.Duration
 }
 
 // NewShellClient creates a new docker client
@@ -42,8 +45,10 @@ func NewShellClient(parentLogger logger.Logger, runner cmdrunner.CmdRunner) (*Sh
 	var err error
 
 	newClient := &ShellClient{
-		logger:    parentLogger.GetChild("docker"),
-		cmdRunner: runner,
+		logger:             parentLogger.GetChild("docker"),
+		cmdRunner:          runner,
+		buildTimeout:       1 * time.Hour,
+		buildRetryInterval: 3 * time.Second,
 	}
 
 	// set cmdrunner
@@ -65,7 +70,7 @@ func NewShellClient(parentLogger logger.Logger, runner cmdrunner.CmdRunner) (*Sh
 
 // Build will build a docker image, given build options
 func (c *ShellClient) Build(buildOptions *BuildOptions) error {
-	c.logger.DebugWith("Building image", "image", buildOptions.Image)
+	c.logger.DebugWith("Building image", "buildOptions", buildOptions)
 
 	// if context dir is not passed, use the dir containing the dockerfile
 	if buildOptions.ContextDir == "" && buildOptions.DockerfilePath != "" {
@@ -87,35 +92,25 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		cacheOption = "--no-cache"
 	}
 
-	runOptions := &cmdrunner.RunOptions{
-		CaptureOutputMode: cmdrunner.CaptureOutputModeStdout,
-		WorkingDir:        &buildOptions.ContextDir,
-	}
-
-	_, err := c.runCommand(runOptions,
-		"docker build --force-rm -t %s -f %s %s %s .",
-		buildOptions.Image,
-		buildOptions.DockerfilePath,
-		cacheOption,
-		buildArgs)
-
-	return err
+	return c.build(buildOptions, buildArgs, cacheOption)
 }
 
 // CopyObjectsFromImage copies objects (files, directories) from a given image to local storage. it does
 // this through an intermediate container which is deleted afterwards
-func (c *ShellClient) CopyObjectsFromImage(imageName string, objectsToCopy map[string]string, allowCopyErrors bool) error {
-	runResult, err := c.runCommand(nil, "docker create %s /bin/sh", imageName)
+func (c *ShellClient) CopyObjectsFromImage(imageName string,
+	objectsToCopy map[string]string,
+	allowCopyErrors bool) error {
+
+	// create container from image
+	containerID, err := c.createContainer(imageName)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to create container from %s", imageName)
 	}
 
-	containerID := runResult.Output
-	containerID = strings.TrimSpace(containerID)
-	defer func() {
-		c.runCommand(nil, "docker rm -f %s", containerID) // nolint: errcheck
-	}()
+	// delete once done copying objects
+	defer c.runCommand(nil, "docker rm -f %s", containerID) // nolint: errcheck
 
+	// copy objects
 	for objectImagePath, objectLocalPath := range objectsToCopy {
 		_, err = c.runCommand(nil, "docker cp %s:%s %s", containerID, objectImagePath, objectLocalPath)
 		if err != nil && !allowCopyErrors {
@@ -128,7 +123,7 @@ func (c *ShellClient) CopyObjectsFromImage(imageName string, objectsToCopy map[s
 
 // PushImage pushes a local image to a remote docker repository
 func (c *ShellClient) PushImage(imageName string, registryURL string) error {
-	taggedImage := registryURL + "/" + imageName
+	taggedImage := common.CompileImageName(registryURL, imageName)
 
 	c.logger.InfoWith("Pushing image", "from", imageName, "to", taggedImage)
 
@@ -161,64 +156,106 @@ func (c *ShellClient) RemoveImage(imageName string) error {
 
 // RunContainer will run a container based on an image and run options
 func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (string, error) {
-	portsArgument := ""
+	var dockerArguments []string
 
 	for localPort, dockerPort := range runOptions.Ports {
-		portsArgument += fmt.Sprintf("-p %d:%d ", localPort, dockerPort)
+		if localPort == RunOptionsNoPort {
+			dockerArguments = append(dockerArguments, fmt.Sprintf("-p %d", dockerPort))
+		} else {
+			dockerArguments = append(dockerArguments, fmt.Sprintf("-p %d:%d", localPort, dockerPort))
+		}
 	}
 
-	detach := "-d"
-	if runOptions.Attach {
-		detach = ""
+	if runOptions.RestartPolicy != nil && runOptions.RestartPolicy.Name != RestartPolicyNameNo {
+
+		// sanity check
+		// https://docs.docker.com/engine/reference/run/#restart-policies---restart
+		// combining --restart (restart policy) with the --rm (clean up) flag results in an error.
+		if runOptions.Remove {
+			return "", errors.Errorf("Cannot combine restart policy with container removal")
+		}
+		restartMaxRetries := runOptions.RestartPolicy.MaximumRetryCount
+		restartPolicy := fmt.Sprintf("--restart %s", runOptions.RestartPolicy.Name)
+		if runOptions.RestartPolicy.Name == RestartPolicyNameOnFailure && restartMaxRetries >= 0 {
+			restartPolicy += fmt.Sprintf(":%d", restartMaxRetries)
+		}
+		dockerArguments = append(dockerArguments, restartPolicy)
 	}
 
-	removeContainer := ""
+	if !runOptions.Attach {
+		dockerArguments = append(dockerArguments, "-d")
+	}
+
+	if runOptions.GPUs != "" {
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--gpus %s", runOptions.GPUs))
+	}
+
 	if runOptions.Remove {
-		removeContainer = "--rm"
+		dockerArguments = append(dockerArguments, "--rm")
 	}
 
-	nameArgument := ""
 	if runOptions.ContainerName != "" {
-		nameArgument = fmt.Sprintf("--name %s", runOptions.ContainerName)
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--name %s", runOptions.ContainerName))
 	}
 
-	netArgument := ""
 	if runOptions.Network != "" {
-		netArgument = fmt.Sprintf("--net %s", runOptions.Network)
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--net %s", runOptions.Network))
 	}
 
-	labelArgument := ""
 	if runOptions.Labels != nil {
 		for labelName, labelValue := range runOptions.Labels {
-			labelArgument += fmt.Sprintf("--label %s='%s' ", labelName, c.replaceSingleQuotes(labelValue))
+			dockerArguments = append(dockerArguments,
+				fmt.Sprintf("--label %s='%s'", labelName, c.replaceSingleQuotes(labelValue)))
 		}
 	}
 
-	envArgument := ""
 	if runOptions.Env != nil {
 		for envName, envValue := range runOptions.Env {
-			envArgument += fmt.Sprintf("--env %s='%s' ", envName, envValue)
+			dockerArguments = append(dockerArguments, fmt.Sprintf("--env %s='%s'", envName, envValue))
 		}
 	}
 
-	volumeArgument := ""
 	if runOptions.Volumes != nil {
 		for volumeHostPath, volumeContainerPath := range runOptions.Volumes {
-			volumeArgument += fmt.Sprintf("--volume %s:%s ", volumeHostPath, volumeContainerPath)
+			dockerArguments = append(dockerArguments,
+				fmt.Sprintf("--volume %s:%s ", volumeHostPath, volumeContainerPath))
 		}
+	}
+
+	if len(runOptions.MountPoints) > 0 {
+		for _, mountPoint := range runOptions.MountPoints {
+			readonly := ""
+			if !mountPoint.RW {
+				readonly = ",readonly"
+			}
+			dockerArguments = append(dockerArguments,
+				fmt.Sprintf("--mount source=%s,destination=%s%s",
+					mountPoint.Source,
+					mountPoint.Destination,
+					readonly))
+		}
+	}
+
+	if runOptions.RunAsUser != nil || runOptions.RunAsGroup != nil {
+		userStr := ""
+		if runOptions.RunAsUser != nil {
+			userStr += fmt.Sprintf("%d", *runOptions.RunAsUser)
+		}
+		if runOptions.RunAsGroup != nil {
+			userStr += fmt.Sprintf(":%d", *runOptions.RunAsGroup)
+		}
+
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--user %s", userStr))
+	}
+
+	if runOptions.FSGroup != nil {
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--group-add %d", *runOptions.FSGroup))
 	}
 
 	runResult, err := c.cmdRunner.Run(
 		&cmdrunner.RunOptions{LogRedactions: c.redactedValues},
-		"docker run %s %s %s %s %s %s %s %s %s %s",
-		detach,
-		removeContainer,
-		portsArgument,
-		nameArgument,
-		netArgument,
-		labelArgument,
-		envArgument,
-		volumeArgument,
+		"docker run %s %s %s",
+		strings.Join(dockerArguments, " "),
 		imageName,
 		runOptions.Command)
 
@@ -305,6 +342,18 @@ func (c *ShellClient) RemoveContainer(containerID string) error {
 	return err
 }
 
+// StopContainer stops a container given a container ID
+func (c *ShellClient) StopContainer(containerID string) error {
+	_, err := c.runCommand(nil, "docker stop %s", containerID)
+	return err
+}
+
+// StartContainer stops a container given a container ID
+func (c *ShellClient) StartContainer(containerID string) error {
+	_, err := c.runCommand(nil, "docker start %s", containerID)
+	return err
+}
+
 // GetContainerLogs returns raw logs from a given container ID
 // Concatenating stdout and stderr since there's no way to re-interlace them
 func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
@@ -336,23 +385,39 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 		inspectInterval := 100 * time.Millisecond
 
 		for !timedOut {
+			containers, err := c.GetContainers(&GetContainerOptions{
+				ID:      containerID,
+				Stopped: true,
+			})
+			if err == nil && len(containers) > 0 {
+				container := containers[0]
 
-			// inspect the container's health, return if it's healthy
-			runResult, err := c.runCommand(nil, "docker inspect --format '{{json .State.Health.Status}}' %s", containerID)
-			if err == nil {
-				stdoutLines := strings.Split(runResult.Output, "\n")
-				lastStdoutLine := c.getLastNonEmptyLine(stdoutLines, 0)
-
-				if lastStdoutLine == `"healthy"` {
+				// container is healthy
+				if container.State.Health.Status == "healthy" {
 					containerHealthy <- nil
 					return
 				}
-			}
 
-			// wait a bit before retrying
-			c.logger.DebugWith("Container not healthy yet, retrying soon",
-				"inspectOutput", runResult.Output,
-				"nextCheckIn", inspectInterval)
+				// container exited, bail out
+				if container.State.Status == "exited" {
+					containerHealthy <- errors.Errorf("Container exited with status: %d", container.State.ExitCode)
+					return
+				}
+
+				// container is dead, bail out
+				// https://docs.docker.com/engine/reference/commandline/ps/#filtering
+				if container.State.Status == "dead" {
+					containerHealthy <- errors.New("Container seems to be dead")
+					return
+				}
+
+				// wait a bit before retrying
+				c.logger.DebugWith("Container not healthy yet, retrying soon",
+					"timeout", timeout,
+					"containerID", containerID,
+					"containerState", container.State,
+					"nextCheckIn", inspectInterval)
+			}
 
 			time.Sleep(inspectInterval)
 
@@ -365,16 +430,25 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 
 	// wait for either the container to be healthy or the timeout
 	select {
-	case <-containerHealthy:
-		c.logger.Debug("Container is healthy")
+	case err := <-containerHealthy:
+		if err != nil {
+			return errors.Wrapf(err, "Container %s is not healthy", containerID)
+		}
+		c.logger.DebugWith("Container is healthy", "containerID", containerID)
 	case <-timeoutChan:
 		timedOut = true
 
 		containerLogs, err := c.GetContainerLogs(containerID)
 		if err != nil {
-			c.logger.ErrorWith("Container wasn't healthy within timeout (failed to get logs)", "timeout", timeout, "err", err)
+			c.logger.ErrorWith("Container wasn't healthy within timeout (failed to get logs)",
+				"containerID", containerID,
+				"timeout", timeout,
+				"err", err)
 		} else {
-			c.logger.WarnWith("Container wasn't healthy within timeout", "timeout", timeout, "logs", containerLogs)
+			c.logger.WarnWith("Container wasn't healthy within timeout",
+				"containerID", containerID,
+				"timeout", timeout,
+				"logs", containerLogs)
 		}
 
 		return errors.New("Container wasn't healthy in time")
@@ -397,6 +471,11 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 		nameFilterArgument = fmt.Sprintf(`--filter "name=^/%s$" `, options.Name)
 	}
 
+	idFilterArgument := ""
+	if options.ID != "" {
+		idFilterArgument = fmt.Sprintf(`--filter "id=%s"`, options.ID)
+	}
+
 	labelFilterArgument := ""
 	for labelName, labelValue := range options.Labels {
 		labelFilterArgument += fmt.Sprintf(`--filter "label=%s=%s" `,
@@ -405,8 +484,9 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 	}
 
 	runResult, err := c.runCommand(nil,
-		"docker ps --quiet %s %s %s",
+		"docker ps --quiet %s %s %s %s",
 		stoppedContainersArgument,
+		idFilterArgument,
 		nameFilterArgument,
 		labelFilterArgument)
 
@@ -438,6 +518,18 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 	return containersInfo, nil
 }
 
+// GetContainerEvents returns a list of container events which occurred within a time range
+func (c *ShellClient) GetContainerEvents(containerName string, since string, until string) ([]string, error) {
+	runResults, err := c.runCommand(nil, "docker events --filter container=%s --since %s --until %s",
+		containerName,
+		since,
+		until)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get container events")
+	}
+	return strings.Split(strings.TrimSpace(runResults.Output), "\n"), nil
+}
+
 // LogIn allows docker client to access secured registries
 func (c *ShellClient) LogIn(options *LogInOptions) error {
 	c.redactedValues = append(c.redactedValues, options.Password)
@@ -460,6 +552,20 @@ func (c *ShellClient) CreateNetwork(options *CreateNetworkOptions) error {
 // DeleteNetwork deletes a docker network
 func (c *ShellClient) DeleteNetwork(networkName string) error {
 	_, err := c.runCommand(nil, `docker network rm %s`, networkName)
+
+	return err
+}
+
+// CreateVolume creates a docker volume
+func (c *ShellClient) CreateVolume(options *CreateVolumeOptions) error {
+	_, err := c.runCommand(nil, `docker volume create %s`, options.Name)
+
+	return err
+}
+
+// DeleteVolume deletes a docker volume
+func (c *ShellClient) DeleteVolume(volumeName string) error {
+	_, err := c.runCommand(nil, `docker volume rm %s`, volumeName)
 
 	return err
 }
@@ -491,6 +597,7 @@ func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string
 
 	if runOptions.CaptureOutputMode == cmdrunner.CaptureOutputModeStdout && runResult.Stderr != "" {
 		c.logger.WarnWith("Docker command outputted to stderr - this may result in errors",
+			"workingDir", runOptions.WorkingDir,
 			"cmd", common.Redact(runOptions.LogRedactions, fmt.Sprintf(format, vars...)),
 			"stderr", runResult.Stderr)
 	}
@@ -521,4 +628,98 @@ func (c *ShellClient) getLastNonEmptyLine(lines []string, offset int) string {
 
 func (c *ShellClient) replaceSingleQuotes(input string) string {
 	return strings.Replace(input, "'", "’", -1)
+}
+
+func (c *ShellClient) resolveDockerBuildNetwork() string {
+
+	// may contain none as a value
+	networkInterface := os.Getenv("NUCLIO_DOCKER_BUILD_NETWORK")
+	if networkInterface == "" {
+		networkInterface = common.GetEnvOrDefaultString("NUCLIO_BUILD_USE_HOST_NET", "host")
+	}
+	switch networkInterface {
+	case "host":
+		fallthrough
+	case "default":
+		fallthrough
+	case "none":
+		return fmt.Sprintf("--network %s", networkInterface)
+	default:
+		return ""
+	}
+}
+
+func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string, cacheOption string) error {
+	var lastBuildErr error
+	retryOnErrorMessages := []string{
+
+		// when one of the underlying image is gone (from cache)
+		"^No such image: sha256:",
+
+		// when overlay image is gone (from disk)
+		"^failed to get digest sha256:",
+	}
+
+	runOptions := &cmdrunner.RunOptions{
+		CaptureOutputMode: cmdrunner.CaptureOutputModeStdout,
+		WorkingDir:        &buildOptions.ContextDir,
+	}
+
+	// retry build on predefined errors that occur during race condition and collisions between
+	// shared onbuild layers
+	common.RetryUntilSuccessfulOnErrorPatterns(c.buildTimeout, // nolint: errcheck
+		c.buildRetryInterval,
+		retryOnErrorMessages,
+		func() string { // nolint: errcheck
+			runResults, err := c.runCommand(runOptions,
+				"docker build %s --force-rm -t %s -f %s %s %s .",
+				c.resolveDockerBuildNetwork(),
+				buildOptions.Image,
+				buildOptions.DockerfilePath,
+				cacheOption,
+				buildArgs)
+
+			// preserve error
+			lastBuildErr = err
+
+			if err != nil {
+				return runResults.Stderr
+			}
+			return ""
+		})
+	return lastBuildErr
+}
+
+func (c *ShellClient) createContainer(imageName string) (string, error) {
+	var lastCreateContainerError error
+	var containerID string
+	retryOnErrorMessages := []string{
+
+		// sometimes, creating the container fails on not finding the image because
+		// docker was on high load and did not get to update its cache
+		fmt.Sprintf("^Unable to find image '%s.*' locally", imageName),
+	}
+
+	// retry in case docker daemon is under high load
+	// e.g.: between build and create, docker would need to update its cached manifest of built images
+	common.RetryUntilSuccessfulOnErrorPatterns(10*time.Second, // nolint: errcheck
+		2*time.Second,
+		retryOnErrorMessages,
+		func() string {
+
+			// create container from image
+			runResults, err := c.runCommand(nil, "docker create %s /bin/sh", imageName)
+
+			// preserve error
+			lastCreateContainerError = err
+
+			if err != nil {
+				return runResults.Stderr
+			}
+			containerID = runResults.Output
+			containerID = strings.TrimSpace(containerID)
+			return ""
+		})
+
+	return containerID, lastCreateContainerError
 }

@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/eventhandlerparser"
-	"github.com/nuclio/nuclio/pkg/version"
+
+	"github.com/nuclio/errors"
 )
 
 type golang struct {
@@ -59,32 +59,35 @@ func (g *golang) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
-	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
+func (g *golang) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+
+	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{
+		BaseImage: "alpine:3.11",
+	}
 
 	// if the base image is not default (which is alpine) and is not alpine based, must use the non-alpine onbuild image
+	var onbuildImage string
 	if g.FunctionConfig.Spec.Build.BaseImage != "" &&
 		!strings.Contains(g.FunctionConfig.Spec.Build.BaseImage, "alpine") {
 
 		// use non-alpine based image
-		processorDockerfileInfo.OnbuildImage = "quay.io/nuclio/handler-builder-golang-onbuild:%s-%s"
+		onbuildImage = "%s/nuclio/handler-builder-golang-onbuild:%s-%s"
 	} else {
 
 		// use alpine based image
-		processorDockerfileInfo.OnbuildImage = "quay.io/nuclio/handler-builder-golang-onbuild:%s-%s-alpine"
+		onbuildImage = "%s/nuclio/handler-builder-golang-onbuild:%s-%s-alpine"
 	}
 
-	// format the onbuild image
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf(processorDockerfileInfo.OnbuildImage,
-		versionInfo.Label,
-		versionInfo.Arch)
-
-	// set the default base image
-	processorDockerfileInfo.BaseImage = "alpine:3.7"
-	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
-		"/home/nuclio/bin/handler.so": "/opt/nuclio/handler.so",
+	// fill onbuild artifact
+	artifact := runtime.Artifact{
+		Image: fmt.Sprintf(onbuildImage, onbuildImageRegistry, g.VersionInfo.Label, g.VersionInfo.Arch),
+		Name:  "golang-onbuild",
+		Paths: map[string]string{
+			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
+			"/home/nuclio/bin/handler.so": "/opt/nuclio/handler.so",
+		},
 	}
+	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	return &processorDockerfileInfo, nil
 }

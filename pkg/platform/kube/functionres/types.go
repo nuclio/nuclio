@@ -6,10 +6,11 @@ import (
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
-	apps_v1beta1 "k8s.io/api/apps/v1beta1"
-	autos_v2 "k8s.io/api/autoscaling/v2beta1"
+	appsv1 "k8s.io/api/apps/v1"
+	autosv2 "k8s.io/api/autoscaling/v2beta1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	"k8s.io/api/core/v1"
-	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
 )
 
 type PlatformConfigurationProvider interface {
@@ -43,7 +44,7 @@ type Client interface {
 type Resources interface {
 
 	// Deployment returns the deployment
-	Deployment() (*apps_v1beta1.Deployment, error)
+	Deployment() (*appsv1.Deployment, error)
 
 	// ConfigMap returns the configmap
 	ConfigMap() (*v1.ConfigMap, error)
@@ -52,8 +53,11 @@ type Resources interface {
 	Service() (*v1.Service, error)
 
 	// HorizontalPodAutoscaler returns the hpa
-	HorizontalPodAutoscaler() (*autos_v2.HorizontalPodAutoscaler, error)
+	HorizontalPodAutoscaler() (*autosv2.HorizontalPodAutoscaler, error)
 
 	// Ingress returns the ingress
-	Ingress() (*ext_v1beta1.Ingress, error)
+	Ingress() (*extv1beta1.Ingress, error)
+
+	// CronJob returns the cron job
+	CronJobs() ([]*batchv1beta1.CronJob, error)
 }

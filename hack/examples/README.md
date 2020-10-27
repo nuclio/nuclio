@@ -7,9 +7,15 @@ To help you make the most of Nuclio, the following function examples are provide
 - [Hello World](golang/helloworld) (`helloworld`): A simple function that showcases unstructured logging and a structured response.
 - [Compliance Checker](golang/regexscan) (`regexscan`): A function that uses regular expressions to find patterns of social-security numbers (SSN), credit-card numbers, etc., using text input.
 - [Image Resize and Convert](golang/image) (`image`): A function that demonstrates how to pass a binary-large object (blob) in an HTTP request body and response. The function defines an HTTP request that accepts a binary image or URL as input, converts the input to the target format and size, and returns the converted image in the HTTP response.
-- [HTTP ingress](golang/ingress) (`ingress`): A simple function with an HTTP ingress configuration (using embedded YAML code) that routes specific URL paths to the function.
+- [HTTP Ingress](golang/ingress) (`ingress`): A simple function with an HTTP ingress configuration (using embedded YAML code) that routes specific URL paths to the function.
 - [RabbitMQ](golang/rabbitmq) (`rabbitmq`): A multi-trigger function with a configuration that connects to RabbitMQ to read messages and write them to local ephemeral storage. If triggered with an HTTP `GET` request, the function returns the messages that it read from RabbitMQ.
 - [Azure Event Hub](golang/eventhub) (`eventhub`): An Azure Event Hub triggered function with a configuration that connects to an Azure Event Hub. The function reads messages from two partitions, process the messages, invokes another function, and sends the processed payload to another Azure Event Hub. You can find a full demo scenario [here](https://github.com/nuclio/demos/tree/master/fleet-alarm-detection-azure).
+- [Call Function](golang/callfunction) (`callfunction`): A set of two functions that demonstrates the `CallFunction` feature:
+
+    - [`fibonacci`](golang/callfunction/fibonacci/fibonacci.go) - For input parameter `n`, returns the `n`-th number in the Fibonacci series (`fib(n)`).
+    - [`fibonaccisum`](golang/callfunction/fibonaccisum/fibonaccisum.go) - Uses `CallFunction` to call the `fibonacci` function for input numbers 2, 10, and 17, and returns the sum of the three returned Fibonacci numbers (`fib(2)+fib(10)+fib(17)`).
+
+    To try the example, deploy the `fibonacci` function and name it `fibonacci`; then, deploy the `fibonaccisum` function to the same namespace, using your preferred function name, and call it.
 
 ## Python examples
 
@@ -21,14 +27,14 @@ To help you make the most of Nuclio, the following function examples are provide
 
 ## Shell examples
 
-- [Image convert](shell/img-convert) (`img-convert`): A wrapper script around ImageMagick's **convert** executable, which is capable of generating thumbnails from received images (among other things). 
+- [Image Convert](shell/img-convert) (`img-convert`): A wrapper script around ImageMagick's **convert** executable, which is capable of generating thumbnails from received images (among other things). 
 
 ## NodeJS examples
 
 - [Reverser](nodejs/reverser) (`reverser`): Returns the reverse of the body received in the event.
 - [Dates](nodejs/dates) (`dates`): Uses **moment.js** (which is installed as part of the build) to add a specified amount of time to `"now"`, and returns this amount as a string.
 
-## .NET Core 2.0 examples
+## .NET Core 3.1 examples
 
 - [Reverser](dotnetcore/reverser) (`reverser`): Returns the reverse of the body received in the event.
 - [Hello World](dotnetcore/helloworld):  (`helloworld`): A simple function that showcases structured logging, unstructured logging and a structured response.
