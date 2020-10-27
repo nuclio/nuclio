@@ -14,8 +14,8 @@ limitations under the License.
 package resource
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
