@@ -60,7 +60,7 @@ func (agr *apiGatewayResource) GetAll(request *http.Request) (map[string]restful
 	return agr.GetAllByNamespace(&getAPIGatewaysOptions, exportFunction)
 }
 
-// GetAll returns all api-gateways
+// GetAllByNamespace returns all api-gateways by namespace
 func (agr *apiGatewayResource) GetAllByNamespace(getAPIGatewayOptions *platform.GetAPIGatewaysOptions,
 	exportFunction bool) (map[string]restful.Attributes, error) {
 	response := map[string]restful.Attributes{}
