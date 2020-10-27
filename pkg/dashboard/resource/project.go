@@ -197,7 +197,7 @@ func (pr *projectResource) export(project platform.Project) restful.Attributes {
 }
 
 func (pr *projectResource) getAPIGatewaysMap(project platform.Project) map[string]restful.Attributes {
-	apiGatewaysMap, err := apiGatewayResourceInstance.GetAllByNamespace(project.GetConfig().Meta.Namespace, true)
+	apiGatewaysMap, err := apiGatewayResourceInstance.GetAllByNamespace(project.GetConfig().Meta.Namespace, "", true)
 	if err != nil {
 		pr.Logger.WarnWith("Failed to get all api-gateways in the namespace",
 			"namespace", project.GetConfig().Meta.Namespace,
