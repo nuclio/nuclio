@@ -51,20 +51,21 @@ func (agr *apiGatewayResource) GetAll(request *http.Request) (map[string]restful
 	exportFunction := agr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
 	projectName := request.Header.Get("x-nuclio-project-name")
 
-	return agr.GetAllByNamespace(namespace, projectName, exportFunction)
-}
-
-// GetAll returns all api-gateways
-func (agr *apiGatewayResource) GetAllByNamespace(namespace string, projectName string, exportFunction bool) (map[string]restful.Attributes, error) {
-	response := map[string]restful.Attributes{}
-
 	// filter by project name (when it's specified)
 	getAPIGatewaysOptions := platform.GetAPIGatewaysOptions{Namespace: namespace}
 	if projectName != "" {
 		getAPIGatewaysOptions.Labels = fmt.Sprintf("nuclio.io/project-name=%s", projectName)
 	}
 
-	apiGateways, err := agr.getPlatform().GetAPIGateways(&platform.GetAPIGatewaysOptions{Namespace: namespace})
+	return agr.GetAllByNamespace(&getAPIGatewaysOptions, exportFunction)
+}
+
+// GetAll returns all api-gateways
+func (agr *apiGatewayResource) GetAllByNamespace(getAPIGatewayOptions *platform.GetAPIGatewaysOptions,
+	exportFunction bool) (map[string]restful.Attributes, error) {
+	response := map[string]restful.Attributes{}
+
+	apiGateways, err := agr.getPlatform().GetAPIGateways(getAPIGatewayOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get api gateways")
 	}
