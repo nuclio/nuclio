@@ -294,6 +294,11 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 // Validation and enforcement of required function creation logic
 func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
 
+	if common.StringInSlice(createFunctionOptions.FunctionConfig.Meta.Name, ap.resolvePreservedFunctionNames()) {
+		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function name %s is preserved and cannot be used.",
+			createFunctionOptions.FunctionConfig.Meta.Name))
+	}
+
 	if err := ap.validateTriggers(createFunctionOptions); err != nil {
 		return errors.Wrap(err, "Triggers validation failed")
 	}
@@ -944,5 +949,16 @@ func (ap *Platform) enrichMinMaxReplicas(createFunctionOptions *platform.CreateF
 	if createFunctionOptions.FunctionConfig.Spec.MaxReplicas == nil &&
 		createFunctionOptions.FunctionConfig.Spec.MinReplicas != nil {
 		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = createFunctionOptions.FunctionConfig.Spec.MinReplicas
+	}
+}
+
+func (ap *Platform) resolvePreservedFunctionNames() []string {
+
+	// these names are preserved for Nuclio internal purposes and to avoid collisions with nuclio internal resources
+	return []string{
+		"dashboard",
+		"controller",
+		"dlx",
+		"scaler",
 	}
 }
