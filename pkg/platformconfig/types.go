@@ -115,5 +115,5 @@ const (
 	ProcessorCronTriggerCreationMode CronTriggerCreationMode = "processor"
 	KubeCronTriggerCreationMode      CronTriggerCreationMode = "kube"
 
-	DefaultServiceType = corev1.ServiceTypeClusterIP
+	DefaultServiceType = corev1.ServiceTypeNodePort
 )
