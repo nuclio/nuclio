@@ -281,13 +281,13 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 	}
 
 	// add nginx specific annotations
-	annotations := map[string]string{}
-	annotations["kubernetes.io/ingress.class"] = "nginx"
+	annotations := map[string]ingress.AnnotationValue{}
+	annotations["kubernetes.io/ingress.class"] = ingress.AnnotationValue{Value: "nginx"}
 
 	// if percentage is given, it is the canary upstream
 	if upstream.Percentage != 0 {
-		annotations["nginx.ingress.kubernetes.io/canary"] = "true"
-		annotations["nginx.ingress.kubernetes.io/canary-weight"] = strconv.FormatInt(int64(upstream.Percentage), 10)
+		annotations["nginx.ingress.kubernetes.io/canary"] = ingress.AnnotationValue{Value: "true"}
+		annotations["nginx.ingress.kubernetes.io/canary-weight"] = ingress.AnnotationValue{Value: strconv.FormatInt(int64(upstream.Percentage), 10)}
 		commonIngressSpec.Name = lc.generateIngressName(apiGateway.Name, true)
 	} else {
 		commonIngressSpec.Name = lc.generateIngressName(apiGateway.Name, false)
@@ -296,7 +296,7 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 	commonIngressSpec.Annotations = annotations
 
 	for annotationKey, annotationValue := range upstream.ExtraAnnotations {
-		commonIngressSpec.Annotations[annotationKey] = annotationValue
+		commonIngressSpec.Annotations[annotationKey] = ingress.AnnotationValue{Value: annotationValue}
 	}
 
 	return lc.ingressManager.GenerateResources(ctx, commonIngressSpec)
