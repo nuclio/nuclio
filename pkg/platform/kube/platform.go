@@ -1108,12 +1108,10 @@ func (p *Platform) enrichHTTPTriggersWithServiceType(createFunctionOptions *plat
 		}
 	}
 
-	for idx, trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
-		if trigger.Kind == "http" {
-			createFunctionOptions.FunctionConfig.Spec.Triggers[idx] = p.enrichTriggerWithServiceType(createFunctionOptions,
-				trigger,
-				serviceType)
-		}
+	for triggerName, trigger := range functionconfig.GetTriggersByKind(createFunctionOptions.FunctionConfig.Spec.Triggers, "http") {
+		createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName] = p.enrichTriggerWithServiceType(createFunctionOptions,
+			trigger,
+			serviceType)
 	}
 
 	return nil
