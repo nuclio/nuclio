@@ -1185,6 +1185,9 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 
 func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocation() {
 
+	// TODO: remove this if we ever implement "ServiceType" for local platform
+	suite.ensureRunningOnPlatform("kube")
+
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "deploy-reverser" + uniqueSuffix
 	imageName := "nuclio/processor-" + functionName
