@@ -918,7 +918,7 @@ func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange
 	suite.Require().Equal(desiredHTTPPort, deployedFunctionConfig.Status.HTTPPort)
 }
 
-func (suite *functionDeployTestSuite) TestDeployFailsOnPreservedFunctionName() {
+func (suite *functionDeployTestSuite) TestDeployFailsOnReservedFunctionName() {
 	functionName := "dashboard"
 	imageName := "nuclio/processor-" + functionName
 

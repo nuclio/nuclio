@@ -86,6 +86,33 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 	}
 }
 
+func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateFailsOnReservedResourceName() {
+	suite.ensureRunningOnPlatform("kube")
+	apiGatewayName := "dashboard"
+
+	namedArgs := map[string]string{
+		"host":                "some-host",
+		"description":         "some-description",
+		"path":                "some-path",
+		"authentication-mode": "basicAuth",
+		"basic-auth-username": "basic-username",
+		"basic-auth-password": "basic-password",
+		"function":            "function",
+		"canary-function":     "canary-function",
+		"canary-percentage":   "25",
+	}
+
+	// remove leftovers in case test failed for any reason
+	defer suite.ExecuteNuctl([]string{"delete", "apigateway", apiGatewayName}, nil) // nolint: errcheck
+
+	err := suite.ExecuteNuctl([]string{
+		"create",
+		"apigateway",
+		apiGatewayName,
+	}, namedArgs)
+	suite.Require().Error(err, "Resource name is reserved and its creation should be failed")
+}
+
 type apiGatewayInvokeTestSuite struct {
 	Suite
 }
