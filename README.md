@@ -175,7 +175,7 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
     - [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
     - [Architecture](/docs/concepts/architecture.md)
     - Kubernetes
-    - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
+        - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
 - References
     - [nuctl](/docs/reference/nuctl/nuctl.md)
     - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
