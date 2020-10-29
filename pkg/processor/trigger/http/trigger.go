@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"encoding/json"
 	nethttp "net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -484,18 +485,46 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	// format the response into the context, based on its type
 	switch typedResponse := response.(type) {
 	case nuclio.Response:
-
-		// set body
-		ctx.Response.SetBody(typedResponse.Body)
+		fileStreamPath := ""
+		fileStreamDeleteAfterSend := false
 
 		// set headers
 		for headerKey, headerValue := range typedResponse.Headers {
-			switch typedHeaderValue := headerValue.(type) {
-			case string:
-				ctx.Response.Header.Set(headerKey, typedHeaderValue)
-			case int:
-				ctx.Response.Header.Set(headerKey, strconv.Itoa(typedHeaderValue))
+
+			// check if it's a special header
+			if strings.EqualFold(headerKey, "X-nuclio-filestream-delete-after-send") {
+				fileStreamDeleteAfterSend = true
+			} else {
+				switch typedHeaderValue := headerValue.(type) {
+				case string:
+					if strings.EqualFold(headerKey, "X-nuclio-filestream-path") {
+						fileStreamPath = headerValue.(string)
+					} else {
+						ctx.Response.Header.Set(headerKey, typedHeaderValue)
+					}
+				case int:
+					ctx.Response.Header.Set(headerKey, strconv.Itoa(typedHeaderValue))
+				}
 			}
+		}
+
+		if fileStreamPath != "" {
+			fileResponse, err := newFileResponse(h.Logger, fileStreamPath, fileStreamDeleteAfterSend)
+			if err != nil {
+				if os.IsNotExist(err) {
+					ctx.Response.SetStatusCode(nethttp.StatusNotFound)
+				} else {
+					h.Logger.WarnWith("Failed to open file for file streaming", "error", err)
+					ctx.Response.SetStatusCode(nethttp.StatusInternalServerError)
+				}
+
+				return
+			}
+
+			ctx.Response.SetBodyStream(fileResponse, -1)
+		} else {
+			// set body
+			ctx.Response.SetBody(typedResponse.Body)
 		}
 
 		// set content type if set

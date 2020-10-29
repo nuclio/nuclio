@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"bytes"
 	"math"
+	"math/rand"
 	"os"
 	"path"
 	"path/filepath"
@@ -34,6 +35,9 @@ import (
 
 	"github.com/nuclio/errors"
 )
+
+var LettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
+var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 // IsFile returns true if the object @ path is a file
 func IsFile(path string) bool {
@@ -426,4 +430,13 @@ func AnyPositiveInSliceInt64(numbers []int64) bool {
 		}
 	}
 	return false
+}
+
+func GenerateRandomString(length int, letters []rune) string {
+	randomString := make([]rune, length)
+	for i := range randomString {
+		randomString[i] = letters[seededRand.Intn(len(letters))]
+	}
+
+	return string(randomString)
 }
