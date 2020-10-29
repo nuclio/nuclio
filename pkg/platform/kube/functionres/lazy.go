@@ -1399,7 +1399,12 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 	// 2. this is an existing service (spec.Ports is not an empty list) BUT not if the service already has a node port
 	//    and the function specifies 0 (meaning auto assign). This is to prevent cases where service already has a node
 	//    port and then updating it causes node port change
-	if len(spec.Ports) == 0 || !(spec.Ports[0].NodePort != 0 && function.Spec.GetHTTPPort() == 0) {
+	// 3. this is an existing service (spec.Ports is not an empty list) and node port was previously configured, but
+	//    the trigger type has been updated to ClusterIP(or any other type which isn't NodePort).
+	if len(spec.Ports) == 0 ||
+		!(spec.Ports[0].NodePort != 0 && function.Spec.GetHTTPPort() == 0) ||
+		(spec.Ports[0].NodePort != 0 && !serviceTypeIsNodePort) {
+
 		spec.Ports = []v1.ServicePort{
 			{
 				Name: containerHTTPPortName,
