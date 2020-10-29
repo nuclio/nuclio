@@ -197,6 +197,7 @@ jobs:
         echo "NUCTL_NAMESPACE=$NAMESPACE" >> $GITHUB_ENV
         echo "KUBECONFIG=$(pwd)/kubeconfig_flatten" >> $GITHUB_ENV
         echo "NUCTL_TEST_DEFAULT_APIGATEWAY_HOST=nuclio-test-function-host.info" >> $GITHUB_ENV
+        echo "NUCTL_DEFAULT_SERVICE_TYPE=NodePort" >> $GITHUB_ENV
 
     - name: Install nuclio helm chart
       run: |
