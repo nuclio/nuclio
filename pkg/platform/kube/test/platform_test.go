@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -307,6 +309,118 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestFunctionIsReadyAfterDeploymentFailure() {
+	functionName := "function-recovery"
+	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
+	readinessTimeoutSeconds := 10
+	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = readinessTimeoutSeconds
+	getFunctionOptions := &platform.GetFunctionsOptions{
+		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+	}
+	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
+
+		// get the function
+		function := suite.getFunction(getFunctionOptions)
+
+		// ensure function is ready
+		suite.Require().Equal(functionconfig.FunctionStateReady, function.GetStatus().State)
+
+		// get function pod, first one is enough
+		pod := suite.getFunctionPods(functionName)[0]
+
+		// get node name on which function pod is running
+		nodeName := pod.Spec.NodeName
+
+		// mark the node as unschedulable, we want to evict the pod from there
+		suite.Logger.InfoWith("Setting cluster node as unschedulable", "nodeName", nodeName)
+		_, err := suite.KubeClientSet.CoreV1().Nodes().Update(&v1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      nodeName,
+				Namespace: suite.Namespace,
+			},
+			Spec: v1.NodeSpec{
+				Unschedulable: true,
+			},
+		})
+		suite.Require().NoError(err, "Failed to set nodes unschedulable")
+
+		// no matter how this test ends up - ensure the node is schedulable again
+		defer func() {
+			_, err := suite.KubeClientSet.CoreV1().Nodes().Update(&v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      nodeName,
+					Namespace: suite.Namespace,
+				},
+				Spec: v1.NodeSpec{
+					Unschedulable: false,
+				},
+			})
+			suite.Require().NoError(err)
+		}()
+
+		// delete function pod
+		zeroSeconds := int64(0)
+		suite.Logger.InfoWith("Deleting function pod", "podName", pod.Name)
+		err = suite.KubeClientSet.CoreV1().Pods(suite.Namespace).Delete(pod.Name,
+			&metav1.DeleteOptions{
+				GracePeriodSeconds: &zeroSeconds,
+			})
+		suite.Require().NoError(err, "Failed to delete function pod")
+
+		// wait for controller to mark function in error due to pods are unschedulable
+		err = common.RetryUntilSuccessful(time.Duration(2*readinessTimeoutSeconds)*time.Second,
+			1*time.Second,
+			func() bool {
+				function = suite.getFunction(getFunctionOptions)
+				suite.Logger.InfoWith("Waiting for function state",
+					"currentFunctionState", function.GetStatus().State,
+					"expectedFunctionState", functionconfig.FunctionStateError)
+				return function.GetStatus().State == functionconfig.FunctionStateError
+			})
+		suite.Require().NoError(err, "Failed to ensure function state is error")
+
+		// mark k8s cluster nodes as schedulable
+		suite.Logger.InfoWith("Setting cluster node as schedulable", "nodeName", nodeName)
+		_, err = suite.KubeClientSet.CoreV1().Nodes().Update(&v1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      nodeName,
+				Namespace: suite.Namespace,
+			},
+			Spec: v1.NodeSpec{
+				Unschedulable: false,
+			},
+		})
+		suite.Require().NoError(err, "Failed to set nodes schedulable")
+
+		// wait for function pods to run, meaning its deployment is available
+		err = common.RetryUntilSuccessful(10*time.Second,
+			1*time.Second,
+			func() bool {
+				pod = suite.getFunctionPods(functionName)[0]
+				suite.Logger.InfoWith("Waiting for function pod",
+					"podName", pod.Name,
+					"currentPodPhase", pod.Status.Phase,
+					"expectedPodPhase", v1.PodRunning)
+				return pod.Status.Phase == v1.PodRunning
+			})
+		suite.Require().NoError(err, "Failed to ensure function pod is running again")
+
+		// wait for function state to become ready again
+		err = common.RetryUntilSuccessful(2*suite.Controller.GetResyncInterval(),
+			1*time.Second,
+			func() bool {
+				function = suite.getFunction(getFunctionOptions)
+				suite.Logger.InfoWith("Waiting for function state",
+					"currentFunctionState", function.GetStatus().State,
+					"expectedFunctionState", functionconfig.FunctionStateReady)
+				return function.GetStatus().State == functionconfig.FunctionStateReady
+			})
+		suite.Require().NoError(err, "Failed to ensure function is ready again")
+		return true
+	})
+}
+
 func (suite *DeployFunctionTestSuite) verifyCreatedTrigger(functionName string, trigger functionconfig.Trigger) bool {
 	functionInstance := &nuclioio.NuclioFunction{}
 	suite.getResourceAndUnmarshal("nucliofunction",
@@ -328,6 +442,23 @@ func (suite *DeployFunctionTestSuite) ensureTriggerAmount(functionName, triggerK
 
 	functionHTTPTriggers := functionconfig.GetTriggersByKind(functionInstance.Spec.Triggers, triggerKind)
 	suite.Require().Equal(amount, len(functionHTTPTriggers))
+}
+
+func (suite *DeployFunctionTestSuite) getFunction(getFunctionOptions *platform.GetFunctionsOptions) platform.Function {
+
+	// get the function
+	functions, err := suite.Platform.GetFunctions(getFunctionOptions)
+	suite.Require().NoError(err)
+	return functions[0]
+}
+
+func (suite *DeployFunctionTestSuite) getFunctionPods(functionName string) []v1.Pod {
+	pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
+	})
+
+	suite.Require().NoError(err, "Failed to list function pods")
+	return pods.Items
 }
 
 func (suite *DeployFunctionTestSuite) compileCreateFunctionOptions(

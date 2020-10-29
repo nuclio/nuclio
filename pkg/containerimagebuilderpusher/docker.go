@@ -178,19 +178,18 @@ func (d *Docker) gatherArtifactsForSingleStageDockerfile(buildOptions *BuildOpti
 		if onbuildArtifact.ExternalImage {
 
 			// For existing images - just copy the artifacts
-			err := d.dockerClient.CopyObjectsFromImage(onbuildArtifact.Image, onbuildArtifactPaths, false)
-			if err != nil {
+			if err := d.dockerClient.CopyObjectsFromImage(onbuildArtifact.Image,
+				onbuildArtifactPaths,
+				false); err != nil {
 				return errors.Wrap(err, "Failed to copy artifact from external image")
 			}
 		}
 
 		// build an image to trigger the onbuild stuff. then extract the artifacts
-		err := d.buildFromAndCopyObjectsFromContainer(onbuildArtifact.Image,
+		if err := d.buildFromAndCopyObjectsFromContainer(onbuildArtifact.Image,
 			buildOptions.ContextDir,
 			onbuildArtifactPaths,
-			buildOptions.BuildArgs)
-
-		if err != nil {
+			buildOptions.BuildArgs); err != nil {
 			return errors.Wrap(err, "Failed to copy objects from onbuild")
 		}
 	}

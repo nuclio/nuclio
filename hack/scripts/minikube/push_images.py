@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 import subprocess
@@ -9,7 +9,7 @@ minikube_ip_addr = ''
 
 
 def _log(message):
-    print '> ' + message
+    print('> ' + message)
 
 
 def _run_command(cmd):
@@ -58,13 +58,15 @@ if __name__ == '__main__':
     # create name matcher. if it's empty, it'll match all
     name_matcher = re.compile(args.name)
 
-    minikube_ip_addr = _run_command('minikube ip').strip() + ':5000'
+    minikube_ip_addr = '{0}:5000'.format(_run_command('minikube ip').strip().decode())
 
     tag = '{0}-amd64'.format(os.environ.get('NUCLIO_LABEL', 'latest'))
 
     for image_url in [
         'nuclio/controller:' + tag,
         'nuclio/dashboard:' + tag,
+        'nuclio/dlx:' + tag,
+        'nuclio/autoscaler:' + tag,
         'nuclio/handler-builder-golang-onbuild:' + tag,
         'nuclio/handler-builder-golang-onbuild:' + tag + '-alpine',
         'nuclio/handler-builder-java-onbuild:' + tag,

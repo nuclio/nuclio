@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
@@ -104,6 +105,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		functionconfig.FunctionStateWaitingForScaleResourcesToZero,
 		functionconfig.FunctionStateReady,
 		functionconfig.FunctionStateScaledToZero,
+		functionconfig.FunctionStateError,
 	}
 	if !functionconfig.FunctionStateInSlice(function.Status.State, statesToRespond) {
 		fo.logger.DebugWith("NuclioFunction is not waiting for resource creation or ready, skipping create/update",
@@ -122,6 +124,35 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return fo.setFunctionStatus(function, &functionconfig.Status{
 			State: functionconfig.FunctionStateImported,
 		})
+	}
+
+	// check if function in error state has become available again
+	if function.Status.State == functionconfig.FunctionStateError {
+		functionDeployment, err := fo.controller.kubeClientSet.
+			AppsV1().
+			Deployments(function.Namespace).
+			Get(kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
+		if err != nil {
+			fo.logger.WarnWith("Failed to get function deployments",
+				"functionName", function.Name,
+				"functionNamespace", function.Namespace)
+			return nil
+		}
+
+		if functionDeployment.Spec.Replicas != nil &&
+			*functionDeployment.Spec.Replicas > 0 &&
+			functionDeployment.Status.AvailableReplicas <= 0 {
+
+			// function deployment has not been recovered
+			return nil
+		}
+
+		fo.logger.InfoWith("Function deployment has been recovered, removing error and set state as ready",
+			"functionName", function.Name,
+			"functionNamespace", function.Namespace)
+		function.Status.State = functionconfig.FunctionStateReady
+		function.Status.Message = ""
+		return fo.setFunctionStatus(function, &function.Status)
 	}
 
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)

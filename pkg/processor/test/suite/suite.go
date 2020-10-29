@@ -176,6 +176,7 @@ func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
 
 // TearDownTest is called after each test in the suite
 func (suite *TestSuite) TearDownTest() {
+	suite.Logger.InfoWith("Tearing down test", "testName", suite.T().Name())
 
 	// if we managed to get a container up, dump logs if we failed and remove the container either way
 	if suite.containerID != "" {

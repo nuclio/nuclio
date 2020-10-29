@@ -919,6 +919,25 @@ func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange
 	suite.Require().Equal(desiredHTTPPort, deployedFunctionConfig.Status.HTTPPort)
 }
 
+func (suite *functionDeployTestSuite) TestDeployFailsOnPreservedFunctionName() {
+	functionName := "dashboard"
+	imageName := "nuclio/processor-" + functionName
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	// use nuctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"runtime": "golang",
+			"handler": "main:Reverse",
+		})
+	suite.Require().Error(err, "Deploy should have been failed with precondition error.")
+	suite.Require().IsType(&nuclio.ErrPreconditionFailed, errors.RootCause(err))
+}
+
 // Expecting the Code Entry Type to be modified to image
 func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	uniqueSuffix := "-" + xid.New().String()
