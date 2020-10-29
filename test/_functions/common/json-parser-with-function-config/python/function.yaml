@@ -27,3 +27,5 @@ spec:
       kind: http
       workerAvailabilityTimeoutMilliseconds: 200
       maxWorkers: 1
+      attributes:
+        serviceType: NodePort

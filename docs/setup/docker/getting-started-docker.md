@@ -1,26 +1,34 @@
 # Getting Started with Nuclio on Docker
 
-Follow this step-by-step guide to set up a Nuclio development environment that uses Docker
+Follow this step-by-step guide to set up a Nuclio development environment that uses Docker.
 
 #### In this document
 
 - [Prerequisites](#prerequisites)
 - [Run Nuclio](#run-nuclio)
 - [Deploy a function with the Nuclio dashboard](#deploy-a-function-with-the-nuclio-dashboard)
-- [Deploy a function with the Nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli-nuctl)
+- [Deploy a function with the Nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli)
 - [What's next](#whats-next)
 
 ## Prerequisites
 
-Before beginning with the installation, ensure that you have a [Docker](https://docker.com) daemon running.
+Before starting the set-up procedure, ensure that the following prerequisites are met:
 
-To ensure your Docker daemon is running properly, run  `docker version` with the same user that will execute Nuctl commands
+- Your environment has a running [Docker](https://docker.com) daemon.
+    To ensure that your Docker daemon is running properly, run the following command with the same user that will be used to execute Nuclio CLI commands:
+    ```sh
+    docker version
+    ```
 
+- The [Nuclio CLI](/docs/reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli).
+    To install the CLI, simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
+
+<a id="run-nuclio"></a>
 ## Run Nuclio
 
-To run nuclio on Docker, simply run the following command:
-
-```bash
+Execute the following command from a command-line shell to run Nuclio on Docker.
+> **Note:** The `stable` tag refers to the latest version released from the `master` branch of the Nuclio repository (unlike versioned branches, such as `1.3.x`).
+```sh
 docker run \
   --rm \
   --detach \
@@ -31,50 +39,42 @@ docker run \
   quay.io/nuclio/dashboard:stable-amd64
 ```
 
-> NOTE: _stable_ tag refers to the latest version released by nuclio from `master` branch (unlike versioned branches, e.g.: 1.3.x)
-
-Browse to `http://localhost:8070` to explore Nuclio
-
+<a id="deploy-a-function-with-the-nuclio-dashboard"></a>
 ## Deploy a function with the Nuclio dashboard
 
-Browse to `http://localhost:8070/projects/default/create-function`.
-You should see the [Nuclio dashboard](/README.md#dashboard) UI.
-Choose one of the built-in examples and click **Deploy**. 
-The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network.
-When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
+Browse to `http://localhost:8070` to see the [Nuclio dashboard](/README.md#dashboard).
+Select the "default" project and then select **New Function** from the action toolbar to display the **Create function** page (http://localhost:8070/projects/default/create-function).
+Choose one of the predefined template functions, and select **Deploy**. 
+The first build populates the local Docker cache with base images and other files, so it might take a while to complete, depending on your network.
+When the function deployment completes, you can select **Test** to invoke the function with a body.
 
+<a id="deploy-a-function-with-the-nuclio-cli"></a>
 ## Deploy a function with the Nuclio CLI (nuctl)
 
-Deploy an _HelloWorld_ example function by executing the following command:
-
-```bash
+Run the following Nuclio CLI (`nuctl`) command from a command-line shell to deploy the example [`helloworld`](/hack/examples/golang/helloworld/helloworld.go) Go function.
+You can add the `--verbose` flag if you want to peek under the hood.
+```sh
 nuctl deploy helloworld \
     --path https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go
 ```
 
-Once function deployment is completed, You can get the function information by running:
-
-```bash
+When the function deployment completes, you can get the function information by running the following CLI command:
+```sh
 nuctl get function helloworld
 ```
-
-An example output:
-```bash
+Sample output -
+```sh
   NAMESPACE | NAME        | PROJECT | STATE | NODE PORT | REPLICAS  
   nuclio    | helloworld  | default | ready |     42089 | 1/1   
-``` 
+```
+You can see from the sample output that the deployed function `helloworld` is running and using port `42089`.
 
-You can see from the example output that the deployed function `helloworld` is _running_ and using port `42089`.
-
-To invoke the function, run
-
-```bash
+Run the following CLI command to invoke the function:
+```sh
 nuctl invoke helloworld --method POST --body '{"hello":"world"}' --content-type "application/json"
 ```
-
-An example output:
-
-```bash
+Sample output -
+```sh
 > Response headers:
 Server = nuclio
 Date = Thu, 18 Jun 2020 06:56:27 GMT
@@ -89,7 +89,8 @@ Hello, from Nuclio :]
 
 See the following resources to make the best of your new Nuclio environment:
 
-- [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
-- [Deploying functions](/docs/tasks/deploying-functions.md)
+- [Deploying Functions](/docs/tasks/deploying-functions.md)
 - [More function examples](/hack/examples/README.md)
 - [References](/docs/reference)
+- [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
+

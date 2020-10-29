@@ -28,7 +28,7 @@ import (
 // We generate random temporary file names so that there's a good
 // chance the file doesn't exist yet - keeps the number of tries in
 // TempFile to a minimum.
-var rand uint32
+var randomNumber uint32
 var randmu sync.Mutex
 
 func reseed() uint32 {
@@ -37,12 +37,12 @@ func reseed() uint32 {
 
 func nextPrefix() string {
 	randmu.Lock()
-	r := rand
+	r := randomNumber
 	if r == 0 {
 		r = reseed()
 	}
 	r = r*1664525 + 1013904223 // constants from Numerical Recipes
-	rand = r
+	randomNumber = r
 	randmu.Unlock()
 	return strconv.Itoa(int(1e9 + r%1e9))[1:]
 }
@@ -68,7 +68,7 @@ func TempFileSuffix(dir, suffix string) (f *os.File, err error) {
 		if os.IsExist(err) {
 			if nconflict++; nconflict > 10 {
 				randmu.Lock()
-				rand = reseed()
+				randomNumber = reseed()
 				randmu.Unlock()
 			}
 			continue
