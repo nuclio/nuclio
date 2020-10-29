@@ -294,8 +294,8 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 // Validation and enforcement of required function creation logic
 func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
 
-	if common.StringInSlice(createFunctionOptions.FunctionConfig.Meta.Name, ap.resolvePreservedFunctionNames()) {
-		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function name %s is preserved and cannot be used.",
+	if common.StringInSlice(createFunctionOptions.FunctionConfig.Meta.Name, ap.ResolveReservedResourceNames()) {
+		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function name %s is reserved and cannot be used.",
 			createFunctionOptions.FunctionConfig.Meta.Name))
 	}
 
@@ -329,45 +329,16 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 	return nil
 }
 
-func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error {
+// ResolveReservedFunctionNames returns a list of reserved resource names
+func (ap *Platform) ResolveReservedResourceNames() []string {
 
-	// validate the project has no functions
-	getFunctionsOptions := &platform.GetFunctionsOptions{
-		Namespace: namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
+	// these names are reserved for Nuclio internal purposes and to avoid collisions with nuclio internal resources
+	return []string{
+		"dashboard",
+		"controller",
+		"dlx",
+		"scaler",
 	}
-
-	functions, err := ap.platform.GetFunctions(getFunctionsOptions)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get functions")
-	}
-
-	if len(functions) != 0 {
-		return platform.ErrProjectContainsFunctions
-	}
-
-	// validate the project has no api gateways
-	getAPIGatewaysOptions := &platform.GetAPIGatewaysOptions{
-		Namespace: namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
-	}
-
-	apiGateways, err := ap.platform.GetAPIGateways(getAPIGatewaysOptions)
-	if err != nil {
-
-		// if api gateways are not supported on this platform, just ignore this validation
-		if err == platform.ErrUnsupportedMethod {
-			return nil
-		}
-
-		return errors.Wrap(err, "Failed to get api gateways")
-	}
-
-	if len(apiGateways) != 0 {
-		return platform.ErrProjectContainsAPIGateways
-	}
-
-	return nil
 }
 
 // CreateFunctionInvocation will invoke a previously deployed function
@@ -952,13 +923,43 @@ func (ap *Platform) enrichMinMaxReplicas(createFunctionOptions *platform.CreateF
 	}
 }
 
-func (ap *Platform) resolvePreservedFunctionNames() []string {
+func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error {
 
-	// these names are preserved for Nuclio internal purposes and to avoid collisions with nuclio internal resources
-	return []string{
-		"dashboard",
-		"controller",
-		"dlx",
-		"scaler",
+	// validate the project has no functions
+	getFunctionsOptions := &platform.GetFunctionsOptions{
+		Namespace: namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
 	}
+
+	functions, err := ap.platform.GetFunctions(getFunctionsOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get functions")
+	}
+
+	if len(functions) != 0 {
+		return platform.ErrProjectContainsFunctions
+	}
+
+	// validate the project has no api gateways
+	getAPIGatewaysOptions := &platform.GetAPIGatewaysOptions{
+		Namespace: namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
+	}
+
+	apiGateways, err := ap.platform.GetAPIGateways(getAPIGatewaysOptions)
+	if err != nil {
+
+		// if api gateways are not supported on this platform, just ignore this validation
+		if err == platform.ErrUnsupportedMethod {
+			return nil
+		}
+
+		return errors.Wrap(err, "Failed to get api gateways")
+	}
+
+	if len(apiGateways) != 0 {
+		return platform.ErrProjectContainsAPIGateways
+	}
+
+	return nil
 }

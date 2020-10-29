@@ -24,6 +24,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -1085,6 +1086,11 @@ func (p *Platform) enrichAndValidateAPIGatewayName(apiGateway *nuclioio.NuclioAP
 	}
 	if apiGateway.Spec.Name != apiGateway.Name {
 		return nuclio.NewErrBadRequest("Api gateway metadata.name must match api gateway spec.name")
+	}
+
+	if common.StringInSlice(apiGateway.Spec.Name, p.ResolveReservedResourceNames()) {
+		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("APIGateway name %s is reserved and cannot be used.",
+			apiGateway.Spec.Name))
 	}
 
 	return nil
