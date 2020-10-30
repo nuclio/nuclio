@@ -64,6 +64,7 @@
     "ng-i18next": "^1.0.5",
     "nodejs-fs-utils": "~1.0.26",
     "run-sequence": "~1.1.0",
+    "restangular": ">=1.5.1",
     "tc-angular-ellipsis": "0.1.6",
     "vinyl-paths": "^2.1.0",
     "yamljs": "^0.3.0",

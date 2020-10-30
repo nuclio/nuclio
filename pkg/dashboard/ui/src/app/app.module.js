@@ -16,6 +16,7 @@
         'ngScrollbars',
         'fiestah.money',
         'dibari.angular-ellipsis',
+        'restangular',
         'iguazio.dashboard-controls',
         'ngFileUpload',
         'rzModule',

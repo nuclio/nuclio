@@ -73,6 +73,18 @@
     @action-subtemplate-box-shadow: 0 2px 8px 0 .black(0.1)[@color];
 }
 
+.auto-complete-color-set() {
+    @auto-complete-suggestions-container-bg-color: @white;
+    @auto-complete-suggestions-container-box-shadow: 0 4px 10px 0 .black(0.25)[@color];
+    @auto-complete-suggestions-container-color: @dusk-three;
+
+    @auto-complete-list-item-color: @dusk-three;
+    @auto-complete-list-item-hover-focus-bg-color: @pale-grey-two;
+    @auto-complete-list-item-selected-color: @dusk-three;
+
+    @auto-complete-list-item-additional-info-color: .duskThree(0.64)[@color];
+}
+
 .default-dropdown-color-set() {
     @default-dropdown-field-border: 1px solid @pale-grey;
     @default-dropdown-field-color: @dusk-three;
@@ -247,6 +259,19 @@
     @checkboxes-list-option-color: @dusk-three;
 }
 
+.navigation-tabs-color-set() {
+    @navigation-tabs-bg-color: @white;
+    @navigation-tab-color: @greyish-purple;
+    @navigation-tab-border-bottom: 2px solid transparent;
+
+    @navigation-tab-active-hover-color: @dark-sky-blue;
+    @navigation-tab-active-hover-bg-color: @pale-grey-three;
+    @navigation-tab-active-hover-border-bottom: 2px solid @dark-sky-blue;
+
+    @navigation-tab-hover-bg-color: @pale-grey-three;
+    @navigation-tab-active-bg-color: @white;
+}
+
 .number-input-color-set() {
     @number-input-color: @dusk-three;
     @number-input-bg-color: @white;
@@ -344,6 +369,31 @@
     @alert-splash-screen-refresh-btn-border: 1px solid @white;
     @alert-splash-screen-refresh-btn-hover-bg-color: @bluish;
     @alert-splash-screen-refresh-btn-hover-box-shadow: 0 1px 3px 0 .black(0.2)[@color];
+}
+
+.text-edit-color-set() {
+    @close-btn-color: .duskThree(0.64)[@color];
+
+    @text-preview-wrapper-bg-color: @white;
+    @text-preview-wrapper-border-top: 1px solid @pale-grey-two;
+    @text-preview-wrapper-border-bottom: 1px solid @pale-grey-two;
+
+    @text-preview-container-color: @dusk-three;
+    @text-preview-container-border-color: transparent;
+    @text-preview-container-bg-color: transparent;
+}
+
+.toast-status-panel-color-set() {
+    @toast-panel-bg-color: @light-green;
+    @toast-panel-border: 1px solid @tealish;
+    @toast-panel-failed-bg-color: .darkishPink(0.1)[@color];
+    @toast-panel-failed-border: 1px solid @darkish-pink;
+    @toast-panel-in-progress-bg-color: .sunflowerYellow(0.1)[@color];
+    @toast-panel-in-progress-border: 1px solid @sunflower-yellow;
+
+    @toast-panel-status-color: @tealish;
+    @toast-panel-status-failed-color: @darkish-pink;
+    @toast-panel-status-in-progress-color: @pale-orange;
 }
 
 .validating-input-field-color-set() {
@@ -592,13 +642,44 @@
     @splash-logo-wrapper-circle-before-bg-color: @white;
 }
 
-.ncl-navigation-tabs-color-set() {
-    @navigation-tabs-bg-color: @pale-white;
-    @navigation-tab-color: @greyish-purple;
-    @navigation-tab-border-bottom: 2px solid transparent;
+.new-item-wizard-color-set() {
+    @ngdialog-new-item-wizard-bg-color: @east-bay;
+    @ngdialog-content-bg-color: @east-bay;
 
-    @navigation-tab-active-hover-color: @orange;
-    @navigation-tab-active-hover-border-bottom: 2px solid @orange;
+    @new-item-wizard-bg-color: @white;
+    @checkbox-label-color: @dusk-three;
+
+    @top-bar-bg-color: @ebony-clay;
+    @top-bar-box-shadow: 0 0 8px 0 .black(0.25)[@color];
+    @top-bar-close-btn-wrapper-color: @perano;
+
+    @main-part-bg-color: @pale-grey-three;
+    @main-part-title-color: @dusk-three;
+    @main-part-title-bg-color: @white;
+    @main-part-title-close-btn-wrapper-div-color: .duskThree(0.64)[@color];
+    @main-part-title-close-btn-wrapper-span-color: .duskThree(0.44)[@color];
+
+    @content-header-bg-color: @white;
+    @content-header-step-active-step-number-color: @white;
+    @content-header-step-active-step-number-bg-color: @comet;
+    @content-header-step-active-step-title-color: @comet;
+    @content-header-step-active-step-title-border: 2px solid @comet;
+    @content-header-step-done-step-title-color: @comet;
+    @content-header-step-done-before-color: @white;
+    @content-header-step-done-before-bg-color: @dark-sky-blue;
+    @content-header-step-info-step-number-color: @comet;
+    @content-header-step-info-step-number-bg-color: @white;
+    @content-header-step-info-step-number-border: 2px solid @comet;
+    @content-header-step-info-step-title-color: @comet;
+
+    @content-bg-color: @pale-grey-three;
+    @content-step-title-color: @ebony-clay;
+    @content-step-section-devider-border-bottom: 1px solid @gallery;
+    @content-input-title-color: @ebony-clay;
+    @content-input-description-color: @comet;
+    @content-additional-options-color: @light-grayish-blue;
+    @content-error-message-color: @darkish-pink;
+    @content-info-message-color: .duskThree(0.64)[@color];
 }
 
 .common-table-color-set() {
@@ -681,24 +762,35 @@
     @tooltip-inner-bg-color: .duskThree(0.9)[@color];
 }
 
+.new-api-gateway-wizard-color-set() {
+    @api-gateway-block-border: 1px solid @silver;
+    @api-gateway-block-bg-color: @white;
+    @api-gateway-block-title-font-color: @greyish-purple;
+
+    @api-gateway-percentage-background-color: @dark-sky-blue;
+    @api-gateway-percentage-value-font-color: @white;
+
+    @hexagon-background-polygon-fill: @white;
+    @hexagon-background-polygon-stroke: @silver;
+
+    @connector-line-stroke-color: @silver;
+}
+
+.ncl-navigation-tabs-color-set() {
+    @navigation-tabs-bg-color: @pale-white;
+    @navigation-tab-color: @greyish-purple;
+    @navigation-tab-border-bottom: 2px solid transparent;
+
+    @navigation-tab-active-hover-color: @orange;
+    @navigation-tab-active-hover-border-bottom: 2px solid @orange;
+}
+
 .ncl-function-from-template-color-set() {
     @template-tile-border-color: @orange;
 }
 
 .ncl-new-function-color-set() {
     @function-type-icon-bg-color: @dark-sky-blue;
-}
-
-.text-edit-color-set() {
-    @close-btn-color: .duskThree(0.64)[@color];
-
-    @text-preview-wrapper-bg-color: @white;
-    @text-preview-wrapper-border-top: 1px solid @pale-grey-two;
-    @text-preview-wrapper-border-bottom: 1px solid @pale-grey-two;
-
-    @text-preview-container-color: @dusk-three;
-    @text-preview-container-border-color: transparent;
-    @text-preview-container-bg-color: transparent;
 }
 
 //
