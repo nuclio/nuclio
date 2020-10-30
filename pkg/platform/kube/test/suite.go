@@ -18,6 +18,7 @@ package test
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 	"time"
 
@@ -139,19 +140,28 @@ func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.C
 	// delete the api gateway when done
 	defer func() {
 
-		if err != nil {
+		if err == nil {
 			suite.Logger.Debug("Deleting deployed api gateway")
 			err := suite.Platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{
 				Meta: createAPIGatewayOptions.APIGatewayConfig.Meta,
 			})
 			suite.Require().NoError(err)
+
+			suite.verifyAPIGatewayIngress(createAPIGatewayOptions, false)
 		}
 	}()
 
-	// give the ingresses some time - after 10 seconds, give up
+	// verify ingress created
+	ingressObject := suite.verifyAPIGatewayIngress(createAPIGatewayOptions, true)
+
+	onAfterIngressCreated(ingressObject)
+}
+
+func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *platform.CreateAPIGatewayOptions, exist bool) *extensionsv1beta1.Ingress {
 	deadline := time.Now().Add(10 * time.Second)
 
-	var ingress *extensionsv1beta1.Ingress
+	var ingressObject *extensionsv1beta1.Ingress
+	var err error
 
 	for {
 
@@ -160,20 +170,23 @@ func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.C
 			suite.FailNow("API gateway ingress didn't create in time")
 		}
 
-		ingress, err = suite.KubeClientSet.
+		ingressObject, err = suite.KubeClientSet.
 			ExtensionsV1beta1().
 			Ingresses(suite.Namespace).
 			Get(
 				// TODO: consider canary ingress as well
 				kube.IngressNameFromAPIGatewayName(createAPIGatewayOptions.APIGatewayConfig.Meta.Name, false),
 				metav1.GetOptions{})
-		if err == nil {
-			suite.Logger.DebugWith("API gateway ingress found")
+		if err != nil && !exist && errors.IsNotFound(err) {
+			suite.Logger.DebugWith("API gateway ingress removed")
+			break
+		}
+		if err == nil && exist {
+			suite.Logger.DebugWith("API gateway ingress created")
 			break
 		}
 	}
-
-	onAfterIngressCreated(ingress)
+	return ingressObject
 }
 
 func (suite *KubeTestSuite) executeKubectl(positionalArgs []string,

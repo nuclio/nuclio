@@ -60,43 +60,41 @@ type DeployFunctionTestSuite struct {
 
 func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 	functionName := "some-function-name"
+	apiGatewayName := "some-api-gateway-name"
 	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
+	configOauth2ProxyURL := "config-oauth2-url"
+	suite.PlatformConfiguration.IngressConfig = platformconfig.IngressConfig{
+		Oauth2ProxyURL: configOauth2ProxyURL,
+	}
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		apiGatewayName := "some-api-gateway-name"
-		oauth2ProxyURL := "some-oauth2-url"
-		createAPIGatewayOptions := &platform.CreateAPIGatewayOptions{
-			APIGatewayConfig: platform.APIGatewayConfig{
-				Meta: platform.APIGatewayMeta{
-					Name:      apiGatewayName,
-					Namespace: suite.Namespace,
-				},
-				Spec: platform.APIGatewaySpec{
-					Host:               "some-host",
-					AuthenticationMode: ingress.AuthenticationModeOauth2,
-					Authentication: &platform.APIGatewayAuthenticationSpec{
-						DexAuth: &ingress.DexAuth{
-							Oauth2ProxyURL:               oauth2ProxyURL,
-							RedirectUnauthorizedToSignIn: true,
-						},
-					},
-					Upstreams: []platform.APIGatewayUpstreamSpec{
-						{
-							Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-							Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
-								Name: functionName,
-							},
-						},
-					},
-				},
+		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
+		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+			suite.Assert().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
+			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
+
+			// When there are \n in the string it means that the multiline string wasn't interpreted correctly
+			// This is mostly caused by redundant whitespace in the code backticked string
+			suite.Assert().NotContains(ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"], "\\n")
+		}, false)
+
+		overrideOauth2ProxyURL := "override-oauth2-url"
+		createAPIGatewayOptions = suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
+		createAPIGatewayOptions.APIGatewayConfig.Spec.Authentication = &platform.APIGatewayAuthenticationSpec{
+			DexAuth: &ingress.DexAuth{
+				Oauth2ProxyURL:               overrideOauth2ProxyURL,
+				RedirectUnauthorizedToSignIn: true,
 			},
 		}
 		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
 			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
-			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], oauth2ProxyURL)
+			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
+			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)
 
 			// When there are \n in the string it means that the multiline string wasn't interpreted correctly
 			// This is mostly caused by redundant whitespace in the code backticked string
-			suite.Assert().NotContains(ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"], "\n")
+			suite.Assert().NotContains(ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"], "\\n")
 		}, false)
 		return true
 	})
@@ -526,6 +524,30 @@ def handler(context, event):
   return "hello world"
 `))
 	return createFunctionOptions
+}
+
+func (suite *DeployAPIGatewayTestSuite) compileCreateAPIGatewayOptions(
+	apiGatewayName string, functionName string) *platform.CreateAPIGatewayOptions {
+
+	return &platform.CreateAPIGatewayOptions{
+		APIGatewayConfig: platform.APIGatewayConfig{
+			Meta: platform.APIGatewayMeta{
+				Name:      apiGatewayName,
+				Namespace: suite.Namespace,
+			},
+			Spec: platform.APIGatewaySpec{
+				Host: "some-host",
+				Upstreams: []platform.APIGatewayUpstreamSpec{
+					{
+						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+							Name: functionName,
+						},
+					},
+				},
+			},
+		},
+	}
 }
 
 func TestPlatformTestSuite(t *testing.T) {
