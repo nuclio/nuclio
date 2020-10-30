@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
@@ -34,8 +35,12 @@ import (
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"github.com/ghodss/yaml"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+type OnAfterIngressCreated func(*extensionsv1beta1.Ingress)
 
 type KubeTestSuite struct {
 	processorsuite.TestSuite
@@ -116,6 +121,59 @@ func (suite *KubeTestSuite) TearDownTest() {
 			return strings.Contains(results.Output, "No resources found in")
 		})
 	suite.Require().NoError(err)
+}
+
+func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
+	onAfterIngressCreated OnAfterIngressCreated,
+	expectError bool) {
+
+	// deploy the api gateway
+	err := suite.Platform.CreateAPIGateway(createAPIGatewayOptions)
+
+	if !expectError {
+		suite.Require().NoError(err)
+	} else {
+		suite.Require().Error(err)
+	}
+
+	// delete the api gateway when done
+	defer func() {
+
+		if err != nil {
+			suite.Logger.Debug("Deleting deployed api gateway")
+			err := suite.Platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{ // nolint: errcheck
+				Meta: createAPIGatewayOptions.APIGatewayConfig.Meta,
+			})
+			suite.Require().NoError(err)
+		}
+	}()
+
+	// give the ingresses some time - after 10 seconds, give up
+	deadline := time.Now().Add(10 * time.Second)
+
+	var ingress *extensionsv1beta1.Ingress
+
+	for {
+
+		// stop after 10 seconds
+		if time.Now().After(deadline) {
+			suite.FailNow("API gateway ingress didn't create in time")
+		}
+
+		ingress, err = suite.KubeClientSet.
+			ExtensionsV1beta1().
+			Ingresses(suite.Namespace).
+			Get(
+				// TODO: consider canary ingress as well
+				kube.IngressNameFromAPIGatewayName(createAPIGatewayOptions.APIGatewayConfig.Meta.Name, false),
+				metav1.GetOptions{})
+		if err == nil {
+			suite.Logger.DebugWith("API gateway ingress found")
+			break
+		}
+	}
+
+	onAfterIngressCreated(ingress)
 }
 
 func (suite *KubeTestSuite) executeKubectl(positionalArgs []string,
