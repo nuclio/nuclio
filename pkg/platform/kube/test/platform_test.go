@@ -93,7 +93,10 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
 			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], oauth2ProxyURL)
-			suite.Logger.InfoWith("BLA", "val", ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"])
+
+			// When there are \n in the string it means that the multiline string wasn't interpreted correctly
+			// This is mostly caused by redundant whitespace in the code backticked string
+			suite.Assert().NotContains(ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"], "\n")
 		}, false)
 		return true
 	})
