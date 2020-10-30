@@ -63,6 +63,7 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		apiGatewayName := "some-api-gateway-name"
+		oauth2ProxyURL := "some-oauth2-url"
 		createAPIGatewayOptions := &platform.CreateAPIGatewayOptions{
 			APIGatewayConfig: platform.APIGatewayConfig{
 				Meta: platform.APIGatewayMeta{
@@ -74,7 +75,7 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 					AuthenticationMode: ingress.AuthenticationModeOauth2,
 					Authentication: &platform.APIGatewayAuthenticationSpec{
 						DexAuth: &ingress.DexAuth{
-							Oauth2ProxyURL:               "some-oauth2-url",
+							Oauth2ProxyURL:               oauth2ProxyURL,
 							RedirectUnauthorizedToSignIn: true,
 						},
 					},
@@ -91,6 +92,7 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 		}
 		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
 			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
+			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], oauth2ProxyURL)
 			suite.Logger.InfoWith("BLA", "val", ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"])
 		}, false)
 		return true
