@@ -28,24 +28,73 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type DeployFunctionTestSuite struct {
+type DeployTestSuite struct {
 	KubeTestSuite
 }
 
-func (suite *DeployFunctionTestSuite) SetupSuite() {
+func (suite *DeployTestSuite) SetupSuite() {
 	suite.KubeTestSuite.SetupSuite()
 
 	// start controller in background
 	go suite.Controller.Start() // nolint: errcheck
+}
+
+type DeployAPIGatewayTestSuite struct {
+	DeployTestSuite
+}
+
+type DeployFunctionTestSuite struct {
+	DeployTestSuite
+}
+
+func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
+	functionName := "some-function-name"
+	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		apiGatewayName := "some-api-gateway-name"
+		createAPIGatewayOptions := &platform.CreateAPIGatewayOptions{
+			APIGatewayConfig: platform.APIGatewayConfig{
+				Meta: platform.APIGatewayMeta{
+					Name:      apiGatewayName,
+					Namespace: suite.Namespace,
+				},
+				Spec: platform.APIGatewaySpec{
+					Host:               "some-host",
+					AuthenticationMode: ingress.AuthenticationModeOauth2,
+					Authentication: &platform.APIGatewayAuthenticationSpec{
+						DexAuth: &ingress.DexAuth{
+							Oauth2ProxyURL:               "some-oauth2-url",
+							RedirectUnauthorizedToSignIn: true,
+						},
+					},
+					Upstreams: []platform.APIGatewayUpstreamSpec{
+						{
+							Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+							Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+								Name: functionName,
+							},
+						},
+					},
+				},
+			},
+		}
+		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
+			suite.Logger.InfoWith("BLA", "val", ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"])
+		}, false)
+		return true
+	})
 }
 
 func (suite *DeployFunctionTestSuite) TestStaleResourceVersion() {
@@ -461,7 +510,7 @@ func (suite *DeployFunctionTestSuite) getFunctionPods(functionName string) []v1.
 	return pods.Items
 }
 
-func (suite *DeployFunctionTestSuite) compileCreateFunctionOptions(
+func (suite *DeployTestSuite) compileCreateFunctionOptions(
 	functionName string) *platform.CreateFunctionOptions {
 
 	createFunctionOptions := suite.KubeTestSuite.compileCreateFunctionOptions(functionName)
@@ -479,4 +528,5 @@ func TestPlatformTestSuite(t *testing.T) {
 		return
 	}
 	suite.Run(t, new(DeployFunctionTestSuite))
+	suite.Run(t, new(DeployAPIGatewayTestSuite))
 }
