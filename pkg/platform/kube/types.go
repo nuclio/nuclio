@@ -26,11 +26,11 @@ type DeployOptions struct {
 }
 
 func IngressNameFromAPIGatewayName(apiGatewayName string, canary bool) string {
+	resourceName := fmt.Sprintf("nuclio-apigateway-%s", apiGatewayName)
 	if canary {
-		return fmt.Sprintf("apigateway-%s-canary", apiGatewayName)
+		resourceName = resourceName + "-canary"
 	}
-
-	return fmt.Sprintf("apigateway-%s", apiGatewayName)
+	return resourceName
 }
 
 func DeploymentNameFromFunctionName(functionName string) string {
