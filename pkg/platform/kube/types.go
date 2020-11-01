@@ -26,7 +26,7 @@ type DeployOptions struct {
 }
 
 func IngressNameFromAPIGatewayName(apiGatewayName string, canary bool) string {
-	resourceName := fmt.Sprintf("nuclio-apigateway-%s", apiGatewayName)
+	resourceName := fmt.Sprintf("nuclio-%s", apiGatewayName)
 	if canary {
 		resourceName = resourceName + "-canary"
 	}
