@@ -483,7 +483,6 @@ func (r *Release) bumpHelmChartVersion() error {
 	ChartDirs := []string{
 		"k8s",
 		"gke",
-		"minikube",
 		"aks",
 	}
 	for _, chartDir := range ChartDirs {
