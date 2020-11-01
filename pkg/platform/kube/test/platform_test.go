@@ -72,10 +72,6 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
 			suite.Assert().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
-
-			// When there are \n in the string it means that the multiline string wasn't interpreted correctly
-			// This is mostly caused by redundant whitespace in the code backticked string
-			suite.Assert().NotContains(ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"], "\\n")
 		}, false)
 
 		overrideOauth2ProxyURL := "override-oauth2-url"
@@ -91,10 +87,6 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)
-
-			// When there are \n in the string it means that the multiline string wasn't interpreted correctly
-			// This is mostly caused by redundant whitespace in the code backticked string
-			suite.Assert().NotContains(ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"], "\\n")
 		}, false)
 		return true
 	})
