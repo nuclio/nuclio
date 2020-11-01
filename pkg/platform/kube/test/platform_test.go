@@ -28,24 +28,68 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type DeployFunctionTestSuite struct {
+type DeployTestSuite struct {
 	KubeTestSuite
 }
 
-func (suite *DeployFunctionTestSuite) SetupSuite() {
+func (suite *DeployTestSuite) SetupSuite() {
 	suite.KubeTestSuite.SetupSuite()
 
 	// start controller in background
 	go suite.Controller.Start() // nolint: errcheck
+}
+
+type DeployAPIGatewayTestSuite struct {
+	DeployTestSuite
+}
+
+type DeployFunctionTestSuite struct {
+	DeployTestSuite
+}
+
+func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
+	functionName := "some-function-name"
+	apiGatewayName := "some-api-gateway-name"
+	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
+	configOauth2ProxyURL := "config-oauth2-url"
+	suite.PlatformConfiguration.IngressConfig = platformconfig.IngressConfig{
+		Oauth2ProxyURL: configOauth2ProxyURL,
+	}
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
+		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+			suite.Assert().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
+			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
+		}, false)
+
+		overrideOauth2ProxyURL := "override-oauth2-url"
+		createAPIGatewayOptions = suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
+		createAPIGatewayOptions.APIGatewayConfig.Spec.Authentication = &platform.APIGatewayAuthenticationSpec{
+			DexAuth: &ingress.DexAuth{
+				Oauth2ProxyURL:               overrideOauth2ProxyURL,
+				RedirectUnauthorizedToSignIn: true,
+			},
+		}
+		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
+			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
+			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)
+		}, false)
+		return true
+	})
 }
 
 func (suite *DeployFunctionTestSuite) TestStaleResourceVersion() {
@@ -461,7 +505,7 @@ func (suite *DeployFunctionTestSuite) getFunctionPods(functionName string) []v1.
 	return pods.Items
 }
 
-func (suite *DeployFunctionTestSuite) compileCreateFunctionOptions(
+func (suite *DeployTestSuite) compileCreateFunctionOptions(
 	functionName string) *platform.CreateFunctionOptions {
 
 	createFunctionOptions := suite.KubeTestSuite.compileCreateFunctionOptions(functionName)
@@ -474,9 +518,34 @@ def handler(context, event):
 	return createFunctionOptions
 }
 
+func (suite *DeployAPIGatewayTestSuite) compileCreateAPIGatewayOptions(
+	apiGatewayName string, functionName string) *platform.CreateAPIGatewayOptions {
+
+	return &platform.CreateAPIGatewayOptions{
+		APIGatewayConfig: platform.APIGatewayConfig{
+			Meta: platform.APIGatewayMeta{
+				Name:      apiGatewayName,
+				Namespace: suite.Namespace,
+			},
+			Spec: platform.APIGatewaySpec{
+				Host: "some-host",
+				Upstreams: []platform.APIGatewayUpstreamSpec{
+					{
+						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+							Name: functionName,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func TestPlatformTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
 	}
 	suite.Run(t, new(DeployFunctionTestSuite))
+	suite.Run(t, new(DeployAPIGatewayTestSuite))
 }
