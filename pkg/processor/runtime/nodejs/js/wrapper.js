@@ -18,6 +18,7 @@ const net = require('net')
 const events = require('events')
 
 const jsonCtype = 'application/json'
+const initContextFunctionName = 'initContext'
 
 let context = {
     userData: {},
@@ -197,7 +198,7 @@ function connectSocket(socketPath, handlerFunction) {
 }
 
 function executeInitContext(functionModule) {
-    const initContextFunction = functionModule['initContext']
+    const initContextFunction = functionModule[initContextFunctionName]
     if (initContextFunction !== undefined) {
         initContextFunction(context)
     }

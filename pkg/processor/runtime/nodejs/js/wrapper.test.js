@@ -16,6 +16,7 @@ limitations under the License.
 
 const assert = require('assert')
 const net = require('net')
+const fs = require('fs')
 const rewire = require('rewire')
 const wrapper = rewire('./wrapper.js')
 
@@ -42,14 +43,14 @@ describe('Wrapper', function () {
                     writtenData = message
                 }
             }
-            context.logger.info('HelloWorld', { a: 2 })
+            context.logger.info('HelloWorld', {a: 2})
             const writtenAsObject = JSON.parse(writtenData.substring(1))
 
-      // it is not empty
+            // it is not empty
             assert.notStrictEqual(writtenAsObject.datatime, '')
             assert.strictEqual(writtenAsObject.level, 'info')
             assert.strictEqual(writtenAsObject.message, 'HelloWorld')
-            assert.deepStrictEqual(writtenAsObject.with, { a: 2 })
+            assert.deepStrictEqual(writtenAsObject.with, {a: 2})
         })
     })
     describe('handleEvent()', function () {
@@ -68,7 +69,7 @@ describe('Wrapper', function () {
                 functionModule,
                 'handler'
             )
-            const event = { body: Buffer.from('abc').toString('base64') }
+            const event = {body: Buffer.from('abc').toString('base64')}
             await handleEvent(handlerFunction, event)
             const responseData = JSON.parse(writtenData[1].substring(1))
             assert.strictEqual(responseData.body, 'cba')
@@ -83,18 +84,28 @@ describe('Wrapper', function () {
             executeInitContext(functionModule)
             assert.strictEqual(context.userData.factor, 2)
         })
+        it('should skip initContext when function not exposed', function () {
+            const functionModulePath = projectRoot + 'test/_functions/common/reverser/nodejs/handler.js'
+            const functionModule = require(functionModulePath)
+            const executeInitContext = wrapper.__get__('executeInitContext')
+            try {
+                executeInitContext(functionModule)
+            } catch (err) {
+                assert.fail('InitContext should be skipped of `initContext` function is not exposed. err: ' + err)
+            }
+        })
     })
     describe('run()', function () {
+        const socketPath = '/tmp/just-a-socket'
         it('should run wrapper', function (done) {
             const handlerPath = projectRoot + 'test/_functions/common/context-init/nodejs/handler.js'
             const handlerName = 'handler'
             const run = wrapper.__get__('run')
             let responses = []
-            const socketPath = '/tmp/just-a-socket'
             const server = net.createServer(socket => {
                 const number = 10
 
-        // set in function initContext
+                // set in function initContext
                 const factor = 2
                 const requestBody = {
                     body: (new Buffer.from(number.toString())).toString('base64')
@@ -105,13 +116,18 @@ describe('Wrapper', function () {
                     responses.push(...encodedResponses.split('\n'))
                     responses = responses.map(response => response.substring(1))
                     socket.end()
-                    assert.strictEqual(JSON.parse(responses[1]).body, (number * factor).toString())
                     server.close()
+                    assert.strictEqual(JSON.parse(responses[1]).body, (number * factor).toString())
                     done()
                 })
             })
             server.listen(socketPath)
             run(server.address(), handlerPath, handlerName)
+        })
+        after(() => {
+            if (fs.existsSync(socketPath)) {
+                fs.unlinkSync(socketPath)
+            }
         })
     })
 })
