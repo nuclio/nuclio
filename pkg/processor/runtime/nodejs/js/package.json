@@ -1,0 +1,23 @@
+{
+  "name": "@nuclio/nodejs-wrapper",
+  "version": "1.0.0",
+  "description": "Nuclio NodeJS runtime wrapper",
+  "main": "wrapper.js",
+  "scripts": {
+    "test": "mocha wrapper.test.js",
+    "lint": "eslint *.js --fix"
+  },
+  "author": "nuclio",
+  "license": "MIT",
+  "homepage": "https://github.com/nuclio/nuclio#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "eslint": "^7.12.1",
+    "eslint-config-standard": "^16.0.1",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "mocha": "^8.2.0",
+    "rewire": "^5.0.0"
+  }
+}

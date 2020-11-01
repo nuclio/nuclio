@@ -1,0 +1,117 @@
+/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+const assert = require('assert')
+const net = require('net')
+const rewire = require('rewire')
+const wrapper = rewire('./wrapper.js')
+
+const projectRoot = (process.env.RUN_MODE === 'CI') ? '../' : '../../../../../'
+
+describe('Wrapper', function () {
+    describe('findFunction()', function () {
+        it('should find function handler', async function () {
+            const functionModulePath = projectRoot + 'test/_functions/common/reverser/nodejs/handler.js'
+            const functionModule = require(functionModulePath)
+            const foundFunction = await wrapper.__get__('findFunction')(
+                functionModule,
+                'handler'
+            )
+            assert.strictEqual(foundFunction, functionModule.handler)
+        })
+    })
+    describe('context.logger.<level>()', function () {
+        it('should log with level', function () {
+            const context = wrapper.__get__('context')
+            let writtenData = ''
+            context._socket = {
+                write: (message) => {
+                    writtenData = message
+                }
+            }
+            context.logger.info('HelloWorld', { a: 2 })
+            const writtenAsObject = JSON.parse(writtenData.substring(1))
+
+      // it is not empty
+            assert.notStrictEqual(writtenAsObject.datatime, '')
+            assert.strictEqual(writtenAsObject.level, 'info')
+            assert.strictEqual(writtenAsObject.message, 'HelloWorld')
+            assert.deepStrictEqual(writtenAsObject.with, { a: 2 })
+        })
+    })
+    describe('handleEvent()', function () {
+        it('should response with output', async function () {
+            const functionModulePath = projectRoot + 'test/_functions/common/reverser/nodejs/handler.js'
+            const functionModule = require(functionModulePath)
+            const context = wrapper.__get__('context')
+            const handleEvent = wrapper.__get__('handleEvent')
+            const writtenData = []
+            context._socket = {
+                write: (message) => {
+                    writtenData.push(message)
+                }
+            }
+            const handlerFunction = await wrapper.__get__('findFunction')(
+                functionModule,
+                'handler'
+            )
+            const event = { body: Buffer.from('abc').toString('base64') }
+            await handleEvent(handlerFunction, event)
+            const responseData = JSON.parse(writtenData[1].substring(1))
+            assert.strictEqual(responseData.body, 'cba')
+        })
+    })
+    describe('initContext()', function () {
+        it('should mutate context object', function () {
+            const functionModulePath = projectRoot + 'test/_functions/common/context-init/nodejs/handler.js'
+            const functionModule = require(functionModulePath)
+            const context = wrapper.__get__('context')
+            const executeInitContext = wrapper.__get__('executeInitContext')
+            executeInitContext(functionModule)
+            assert.strictEqual(context.userData.factor, 2)
+        })
+    })
+    describe('run()', function () {
+        it('should run wrapper', function (done) {
+            const handlerPath = projectRoot + 'test/_functions/common/context-init/nodejs/handler.js'
+            const handlerName = 'handler'
+            const run = wrapper.__get__('run')
+            let responses = []
+            const socketPath = '/tmp/just-a-socket'
+            const server = net.createServer(socket => {
+                const number = 10
+
+        // set in function initContext
+                const factor = 2
+                const requestBody = {
+                    body: (new Buffer.from(number.toString())).toString('base64')
+                }
+                socket.write(new Buffer.from(JSON.stringify(requestBody)))
+                socket.on('data', data => {
+                    const encodedResponses = data.toString().trim()
+                    responses.push(...encodedResponses.split('\n'))
+                    responses = responses.map(response => response.substring(1))
+                    socket.end()
+                    assert.strictEqual(JSON.parse(responses[1]).body, (number * factor).toString())
+                    server.close()
+                    done()
+                })
+            })
+            server.listen(socketPath)
+            run(server.address(), handlerPath, handlerName)
+        })
+    })
+})

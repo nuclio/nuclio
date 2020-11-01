@@ -22,4 +22,4 @@ FROM quay.io/nuclio/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
 FROM scratch
 
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
-COPY pkg/processor/runtime/nodejs/wrapper.js /home/nuclio/bin/wrapper.js
+COPY pkg/processor/runtime/nodejs/js/wrapper.js /home/nuclio/bin/wrapper.js
