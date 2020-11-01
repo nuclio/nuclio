@@ -22,8 +22,8 @@ const wrapper = rewire('./wrapper.js')
 
 const projectRoot = (process.env.RUN_MODE === 'CI') ? '../' : '../../../../../'
 
-describe('Wrapper', function () {
-    describe('findFunction()', function () {
+describe('Wrapper', () => {
+    describe('findFunction()', () => {
         it('should find function handler', async function () {
             const functionModulePath = projectRoot + 'test/_functions/common/reverser/nodejs/handler.js'
             const functionModule = require(functionModulePath)
@@ -34,7 +34,7 @@ describe('Wrapper', function () {
             assert.strictEqual(foundFunction, functionModule.handler)
         })
     })
-    describe('context.logger.<level>()', function () {
+    describe('context.logger.<level>()', () => {
         it('should log with level', function () {
             const context = wrapper.__get__('context')
             let writtenData = ''
@@ -53,8 +53,8 @@ describe('Wrapper', function () {
             assert.deepStrictEqual(writtenAsObject.with, {a: 2})
         })
     })
-    describe('handleEvent()', function () {
-        it('should response with output', async function () {
+    describe('handleEvent()', () => {
+        it('should response with output', async () => {
             const functionModulePath = projectRoot + 'test/_functions/common/reverser/nodejs/handler.js'
             const functionModule = require(functionModulePath)
             const context = wrapper.__get__('context')
@@ -75,16 +75,16 @@ describe('Wrapper', function () {
             assert.strictEqual(responseData.body, 'cba')
         })
     })
-    describe('initContext()', function () {
-        it('should mutate context object', function () {
-            const functionModulePath = projectRoot + 'test/_functions/common/context-init/nodejs/handler.js'
+    describe('initContext()', () => {
+        it('should mutate context object', async () => {
+            const functionModulePath = projectRoot + 'test/_functions/common/context-init/nodejs/contextinit.js'
             const functionModule = require(functionModulePath)
             const context = wrapper.__get__('context')
             const executeInitContext = wrapper.__get__('executeInitContext')
             executeInitContext(functionModule)
             assert.strictEqual(context.userData.factor, 2)
         })
-        it('should skip initContext when function not exposed', function () {
+        it('should skip initContext when function not exposed', async () => {
             const functionModulePath = projectRoot + 'test/_functions/common/reverser/nodejs/handler.js'
             const functionModule = require(functionModulePath)
             const executeInitContext = wrapper.__get__('executeInitContext')
@@ -94,11 +94,19 @@ describe('Wrapper', function () {
                 assert.fail('InitContext should be skipped of `initContext` function is not exposed. err: ' + err)
             }
         })
+        it('should fail executing initContext', () => {
+            const functionModulePath = projectRoot + 'test/_functions/common/context-init-fail/nodejs/contextinitfail.js'
+            const functionModule = require(functionModulePath)
+            const executeInitContext = wrapper.__get__('executeInitContext')
+            assert.throws(() => {
+                executeInitContext(functionModule)
+            }, Error)
+        })
     })
     describe('run()', function () {
         const socketPath = '/tmp/just-a-socket'
         it('should run wrapper', function (done) {
-            const handlerPath = projectRoot + 'test/_functions/common/context-init/nodejs/handler.js'
+            const handlerPath = projectRoot + 'test/_functions/common/context-init/nodejs/contextinit.js'
             const handlerName = 'handler'
             const run = wrapper.__get__('run')
             let responses = []

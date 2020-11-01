@@ -200,7 +200,7 @@ function connectSocket(socketPath, handlerFunction) {
 function executeInitContext(functionModule) {
     const initContextFunction = functionModule[initContextFunctionName]
     if (initContextFunction !== undefined) {
-        initContextFunction(context)
+        return initContextFunction(context)
     }
 }
 
@@ -241,7 +241,7 @@ function run(socketPath, handlerPath, handlerName) {
             return connectSocket(socketPath, handlerFunction)
         })
         .catch(err => {
-            console.error('Failed to to find function and run it ' + err)
+            console.error('Failed to to find function and run it. error: ' + err)
         })
 }
 
