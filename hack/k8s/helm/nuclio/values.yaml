@@ -27,6 +27,10 @@ controller:
     apiGateway:
       numWorkers: 2
 
+  monitoring:
+    function:
+      interval: 3m
+
   # the image of the created k8s cron job for function cron triggers
   cronTriggerCronJobImage:
     repository: appropriate/curl
