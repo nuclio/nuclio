@@ -51,6 +51,11 @@ type KubeTestSuite struct {
 	KubeClientSet *kubernetes.Clientset
 }
 
+// To run this test suite you are should
+// - set NUCLIO_K8S_TESTS_ENABLED env to true
+// - have Nuclio CRD installed (you can install them by running "test/k8s/ci_assets/install_nuclio_crds.sh")
+// - have docker registry running (you can run docker registry by running "docker run --rm -d -p 5000:5000 registry:2")
+// - use "(kube) - platform test" run configuration via GoLand to run your test
 func (suite *KubeTestSuite) SetupSuite() {
 	if !common.GetEnvOrDefaultBool("NUCLIO_K8S_TESTS_ENABLED", false) {
 		suite.T().Skip("Test can only run when `NUCLIO_K8S_TESTS_ENABLED` environ is enabled")
@@ -275,8 +280,9 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 		nuclioClientSet,
 		functionresClient,
 		apigatewayresClient,
-		time.Second*5,
-		time.Second*30,
+		time.Second*5,  // resync interval
+		time.Second*5,  // monitor interval
+		time.Second*30, // cronjob stale duration
 		suite.PlatformConfiguration,
 		4,
 		4,

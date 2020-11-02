@@ -22,6 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
+	"github.com/nuclio/nuclio/pkg/platform/kube/monitoring"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -38,13 +39,19 @@ type Controller struct {
 	functionresClient     functionres.Client
 	apigatewayresClient   apigatewayres.Client
 	imagePullSecrets      string
+	platformConfiguration *platformconfig.Config
+
+	// (re)syncers
 	functionOperator      *functionOperator
 	projectOperator       *projectOperator
 	functionEventOperator *functionEventOperator
 	apiGatewayOperator    *apiGatewayOperator
-	cronJobMonitoring     *CronJobMonitoring
-	platformConfiguration *platformconfig.Config
 	resyncInterval        time.Duration
+
+	// monitors
+	cronJobMonitoring       *CronJobMonitoring
+	functionMonitor         *monitoring.FunctionMonitor
+	functionMonitorInterval time.Duration
 }
 
 func NewController(parentLogger logger.Logger,
@@ -55,6 +62,7 @@ func NewController(parentLogger logger.Logger,
 	functionresClient functionres.Client,
 	apigatewayresClient apigatewayres.Client,
 	resyncInterval time.Duration,
+	functionMonitorInterval time.Duration,
 	cronJobStaleResourcesCleanupInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
 	functionOperatorNumWorkers int,
@@ -69,15 +77,16 @@ func NewController(parentLogger logger.Logger,
 	}
 
 	newController := &Controller{
-		logger:                parentLogger,
-		namespace:             namespace,
-		imagePullSecrets:      imagePullSecrets,
-		kubeClientSet:         kubeClientSet,
-		nuclioClientSet:       nuclioClientSet,
-		functionresClient:     functionresClient,
-		apigatewayresClient:   apigatewayresClient,
-		platformConfiguration: platformConfiguration,
-		resyncInterval:        resyncInterval,
+		logger:                  parentLogger,
+		namespace:               namespace,
+		imagePullSecrets:        imagePullSecrets,
+		kubeClientSet:           kubeClientSet,
+		nuclioClientSet:         nuclioClientSet,
+		functionresClient:       functionresClient,
+		apigatewayresClient:     apigatewayresClient,
+		platformConfiguration:   platformConfiguration,
+		resyncInterval:          resyncInterval,
+		functionMonitorInterval: functionMonitorInterval,
 	}
 
 	newController.logger.DebugWith("Read configuration",
@@ -128,6 +137,15 @@ func NewController(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create api gateway operator")
 	}
 
+	newController.functionMonitor, err = monitoring.NewFunctionMonitor(parentLogger,
+		namespace,
+		kubeClientSet,
+		nuclioClientSet,
+		functionMonitorInterval)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create function monitor")
+	}
+
 	// create cron job monitoring
 	if platformConfiguration.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
 		newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
@@ -161,6 +179,11 @@ func (c *Controller) Start() error {
 		return errors.Wrap(err, "Failed to start api gateway operator")
 	}
 
+	// start function monitor
+	if err := c.functionMonitor.Start(); err != nil {
+		return errors.Wrap(err, "Failed to start function monitor")
+	}
+
 	if c.cronJobMonitoring != nil {
 
 		// start cron job monitoring
@@ -170,10 +193,29 @@ func (c *Controller) Start() error {
 	return nil
 }
 
+func (c *Controller) Stop() error {
+	// TODO: stop operators
+
+	// stop cronjob monitoring
+	c.cronJobMonitoring.stop()
+
+	// stop function monitor
+	c.functionMonitor.Stop()
+	return nil
+}
+
 func (c *Controller) GetPlatformConfiguration() *platformconfig.Config {
 	return c.platformConfiguration
 }
 
 func (c *Controller) GetResyncInterval() time.Duration {
 	return c.resyncInterval
+}
+
+func (c *Controller) GetFunctionMonitorInterval() time.Duration {
+	return c.functionMonitorInterval
+}
+
+func (c *Controller) GetFunctionMonitor() *monitoring.FunctionMonitor {
+	return c.functionMonitor
 }

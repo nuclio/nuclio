@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+	"github.com/nuclio/nuclio/pkg/platform/kube/monitoring"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/stretchr/testify/suite"
@@ -356,12 +357,20 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 func (suite *DeployFunctionTestSuite) TestFunctionIsReadyAfterDeploymentFailure() {
 	functionName := "function-recovery"
 	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
-	readinessTimeoutSeconds := 10
-	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = readinessTimeoutSeconds
 	getFunctionOptions := &platform.GetFunctionsOptions{
 		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
+
+	// change blocking interval so test wont take so long
+	oldMonitoringPostDeploymentMonitoringBlockingInterval := monitoring.PostDeploymentMonitoringBlockingInterval
+	monitoring.PostDeploymentMonitoringBlockingInterval = 1 * time.Millisecond
+	defer func() {
+
+		// undo changes
+		monitoring.PostDeploymentMonitoringBlockingInterval = oldMonitoringPostDeploymentMonitoringBlockingInterval
+	}()
+
 	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
 
 		// get the function
@@ -413,7 +422,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionIsReadyAfterDeploymentFailure(
 		suite.Require().NoError(err, "Failed to delete function pod")
 
 		// wait for controller to mark function in error due to pods are unschedulable
-		err = common.RetryUntilSuccessful(time.Duration(2*readinessTimeoutSeconds)*time.Second,
+		err = common.RetryUntilSuccessful(2*suite.Controller.GetFunctionMonitorInterval(),
 			1*time.Second,
 			func() bool {
 				function = suite.getFunction(getFunctionOptions)
@@ -438,7 +447,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionIsReadyAfterDeploymentFailure(
 		suite.Require().NoError(err, "Failed to set nodes schedulable")
 
 		// wait for function pods to run, meaning its deployment is available
-		err = common.RetryUntilSuccessful(10*time.Second,
+		err = common.RetryUntilSuccessful(2*suite.Controller.GetFunctionMonitorInterval(),
 			1*time.Second,
 			func() bool {
 				pod = suite.getFunctionPods(functionName)[0]
