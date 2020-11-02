@@ -17,6 +17,9 @@ type PlatformConfigurationProvider interface {
 
 	// GetPlatformConfiguration returns a platform configuration
 	GetPlatformConfiguration() *platformconfig.Config
+
+	// GetPlatformConfigurationName returns platform configuration resource name
+	GetPlatformConfigurationName() string
 }
 
 type Client interface {

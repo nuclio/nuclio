@@ -1873,7 +1873,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 	platformConfigVolume := functionconfig.Volume{}
 	platformConfigVolume.Volume.Name = platformConfigVolumeName
 	platformConfigMapVolumeSource := v1.ConfigMapVolumeSource{}
-	platformConfigMapVolumeSource.Name = "platform-config"
+	platformConfigMapVolumeSource.Name = lc.platformConfigurationProvider.GetPlatformConfigurationName()
 	platformConfigMapVolumeSource.Optional = &trueVal
 	platformConfigVolume.Volume.ConfigMap = &platformConfigMapVolumeSource
 	platformConfigVolume.VolumeMount.Name = platformConfigVolumeName

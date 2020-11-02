@@ -31,20 +31,21 @@ import (
 )
 
 type Controller struct {
-	logger                logger.Logger
-	namespace             string
-	kubeClientSet         kubernetes.Interface
-	nuclioClientSet       nuclioioclient.Interface
-	functionresClient     functionres.Client
-	apigatewayresClient   apigatewayres.Client
-	imagePullSecrets      string
-	functionOperator      *functionOperator
-	projectOperator       *projectOperator
-	functionEventOperator *functionEventOperator
-	apiGatewayOperator    *apiGatewayOperator
-	cronJobMonitoring     *CronJobMonitoring
-	platformConfiguration *platformconfig.Config
-	resyncInterval        time.Duration
+	logger                    logger.Logger
+	namespace                 string
+	kubeClientSet             kubernetes.Interface
+	nuclioClientSet           nuclioioclient.Interface
+	functionresClient         functionres.Client
+	apigatewayresClient       apigatewayres.Client
+	imagePullSecrets          string
+	functionOperator          *functionOperator
+	projectOperator           *projectOperator
+	functionEventOperator     *functionEventOperator
+	apiGatewayOperator        *apiGatewayOperator
+	cronJobMonitoring         *CronJobMonitoring
+	platformConfiguration     *platformconfig.Config
+	platformConfigurationName string
+	resyncInterval            time.Duration
 }
 
 func NewController(parentLogger logger.Logger,
@@ -57,6 +58,7 @@ func NewController(parentLogger logger.Logger,
 	resyncInterval time.Duration,
 	cronJobStaleResourcesCleanupInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
+	platformConfigurationName string,
 	functionOperatorNumWorkers int,
 	functionEventOperatorNumWorkers int,
 	projectOperatorNumWorkers int,
@@ -69,15 +71,16 @@ func NewController(parentLogger logger.Logger,
 	}
 
 	newController := &Controller{
-		logger:                parentLogger,
-		namespace:             namespace,
-		imagePullSecrets:      imagePullSecrets,
-		kubeClientSet:         kubeClientSet,
-		nuclioClientSet:       nuclioClientSet,
-		functionresClient:     functionresClient,
-		apigatewayresClient:   apigatewayresClient,
-		platformConfiguration: platformConfiguration,
-		resyncInterval:        resyncInterval,
+		logger:                    parentLogger,
+		namespace:                 namespace,
+		imagePullSecrets:          imagePullSecrets,
+		kubeClientSet:             kubeClientSet,
+		nuclioClientSet:           nuclioClientSet,
+		functionresClient:         functionresClient,
+		apigatewayresClient:       apigatewayresClient,
+		platformConfiguration:     platformConfiguration,
+		platformConfigurationName: platformConfigurationName,
+		resyncInterval:            resyncInterval,
 	}
 
 	newController.logger.DebugWith("Read configuration",
@@ -172,6 +175,10 @@ func (c *Controller) Start() error {
 
 func (c *Controller) GetPlatformConfiguration() *platformconfig.Config {
 	return c.platformConfiguration
+}
+
+func (c *Controller) GetPlatformConfigurationName() string {
+	return c.platformConfigurationName
 }
 
 func (c *Controller) GetResyncInterval() time.Duration {
