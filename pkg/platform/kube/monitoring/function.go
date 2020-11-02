@@ -117,11 +117,9 @@ func (fm *FunctionMonitor) checkFunctionStatuses() error {
 
 func (fm *FunctionMonitor) checkFunctionStatus(function *nuclioio.NuclioFunction) error {
 
-	// ignore transitional states other than ready / error
-	// ignore recently deployed function
-	if fm.resolveFunctionProvisionedOrRecentlyDeployed(function) {
-		fm.logger.DebugWith("Skipping check for function status change",
-			"functionName", function.Name)
+	if fm.shouldSkipCheckFunctionStatus(function) {
+
+		// skip check for function status
 		return nil
 	}
 
@@ -175,11 +173,7 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 }
 
 func (fm *FunctionMonitor) resolveFunctionProvisionedOrRecentlyDeployed(function *nuclioio.NuclioFunction) bool {
-	if !functionconfig.FunctionStateInSlice(function.Status.State,
-		[]functionconfig.FunctionState{
-			functionconfig.FunctionStateReady,
-			functionconfig.FunctionStateError,
-		}) {
+	if functionconfig.FunctionStateProvisioning(function.Status.State) {
 
 		// Skip app monitoring cycle if app service are being provisioned
 		fm.lastProvisioningTimestamps[function.Name] = time.Now()
@@ -196,4 +190,21 @@ func (fm *FunctionMonitor) resolveFunctionProvisionedOrRecentlyDeployed(function
 		}
 	}
 	return false
+}
+
+func (fm *FunctionMonitor) shouldSkipCheckFunctionStatus(function *nuclioio.NuclioFunction) bool {
+
+	// ignore provisioning states
+	// ignore recently deployed function
+	if fm.resolveFunctionProvisionedOrRecentlyDeployed(function) {
+		fm.logger.DebugWith("Skipping check for function status change",
+			"functionName", function.Name)
+		return true
+	}
+
+	// ignore transitional states other than ready / error
+	return !functionconfig.FunctionStateInSlice(function.Status.State, []functionconfig.FunctionState{
+		functionconfig.FunctionStateReady,
+		functionconfig.FunctionStateScaledToZero,
+	})
 }
