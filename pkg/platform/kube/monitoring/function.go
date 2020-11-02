@@ -145,12 +145,19 @@ func (fm *FunctionMonitor) checkFunctionStatus(function *nuclioio.NuclioFunction
 		function.Status.Message = ""
 		stateChanged = true
 	} else if !functionIsAvailable && function.Status.State == functionconfig.FunctionStateReady {
+		fm.logger.InfoWith("Function has become unhealthy, setting error state",
+			"functionName", function.Name,
+			"functionNamespace", function.Namespace)
 		function.Status.State = functionconfig.FunctionStateError
 		function.Status.Message = "function has become unhealthy"
 		stateChanged = true
 	}
 
 	if stateChanged {
+		fm.logger.DebugWith("Updating function",
+			"functionName", function.Name,
+			"functionStatus", function.Status,
+			"functionNamespace", function.Namespace)
 		if _, err := fm.nuclioClientSet.
 			NuclioV1beta1().
 			NuclioFunctions(fm.namespace).
