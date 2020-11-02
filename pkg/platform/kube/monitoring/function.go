@@ -212,6 +212,6 @@ func (fm *FunctionMonitor) shouldSkipCheckFunctionStatus(function *nuclioio.Nucl
 	// ignore transitional states other than ready / error
 	return !functionconfig.FunctionStateInSlice(function.Status.State, []functionconfig.FunctionState{
 		functionconfig.FunctionStateReady,
-		functionconfig.FunctionStateScaledToZero,
+		functionconfig.FunctionStateError,
 	})
 }
