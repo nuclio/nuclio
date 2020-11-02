@@ -240,9 +240,6 @@ function run(socketPath, handlerPath, handlerName) {
             }
             return connectSocket(socketPath, handlerFunction)
         })
-        .catch(err => {
-            console.error('Failed to to find function and run it. error: ' + err)
-        })
 }
 
 if (require.main === module) {
@@ -261,4 +258,8 @@ if (require.main === module) {
     const handlerName = args[2]
 
     run(socketPath, handlerPath, handlerName)
+        .catch((err) => {
+            console.error('Error occurred during running. Error:', err)
+            process.exit(1)
+        })
 }
