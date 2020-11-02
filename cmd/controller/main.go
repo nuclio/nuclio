@@ -48,7 +48,7 @@ func main() {
 	namespace := flag.String("namespace", "", "Namespace to listen on, or * for all")
 	imagePullSecrets := flag.String("image-pull-secrets", os.Getenv("NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS"), "Optional secret name to use for pull")
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
-	platformConfigurationName := flag.String("platform-config-name", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PLATFORM_CONFIG_NAME", "nuclio-platform-config"), "Platform configuration resource name")
+	platformConfigurationName := flag.String("platform-config-name", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PLATFORM_CONFIGURATION_NAME", "nuclio-platform-config"), "Platform configuration resource name")
 	functionOperatorNumWorkersStr := flag.String("function-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_OPERATOR_NUM_WORKERS", "4"), "Set number of workers for the function operator (optional)")
 	functionOperatorResyncIntervalStr := flag.String("function-operator-resync-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_OPERATOR_RESYNC_INTERVAL", "10m"), "Set resync interval for the function operator (optional)")
 	cronJobStaleResourcesCleanupIntervalStr := flag.String("cron-job-stale-resources-cleanup-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_JOB_STALE_RESOURCES_CLEANUP_INTERVAL", "1m"), "Set interval for the cleanup of stale cron job resources (optional)")
