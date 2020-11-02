@@ -502,7 +502,7 @@ func FunctionStateInSlice(a FunctionState, list []FunctionState) bool {
 }
 
 func FunctionStateProvisioned(functionState FunctionState) bool {
-	return !FunctionStateInSlice(functionState,
+	return FunctionStateInSlice(functionState,
 		[]FunctionState{
 			FunctionStateReady,
 			FunctionStateError,
