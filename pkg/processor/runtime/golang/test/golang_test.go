@@ -207,6 +207,7 @@ func (suite *TestSuite) TestFileStream() {
 		path.Join(suite.GetTestFunctionsDir(), "common", "file-streamer", "golang"))
 
 	tempDir := suite.CreateTempDir()
+	defer os.RemoveAll(tempDir)
 	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
 		{
 			Volume: v1.Volume{
