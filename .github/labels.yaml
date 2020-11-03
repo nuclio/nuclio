@@ -70,3 +70,7 @@ runtime/shell:
 # nuctl
 nuctl:
   - pkg/nuctl/command/**/*
+
+# releaser
+releaser:
+  - hack/scripts/releaser/**/*

@@ -149,7 +149,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string) {
 	lc.Logger.DebugWithCtx(ctx, "Deleting api gateway base ingress", "name", name)
 
-	err := lc.ingressManager.DeleteByName(lc.generateIngressName(name, false), namespace, true)
+	err := lc.ingressManager.DeleteByName(kube.IngressNameFromAPIGatewayName(name, false), namespace, true)
 	if err != nil {
 		lc.Logger.WarnWithCtx(ctx, "Failed to delete base ingress. Continuing with deletion",
 			"err", errors.Cause(err))
@@ -157,7 +157,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 
 	lc.Logger.DebugWithCtx(ctx, "Deleting api gateway canary ingress", "name", name)
 
-	err = lc.ingressManager.DeleteByName(lc.generateIngressName(name, true), namespace, true)
+	err = lc.ingressManager.DeleteByName(kube.IngressNameFromAPIGatewayName(name, true), namespace, true)
 	if err != nil {
 		lc.Logger.WarnWithCtx(ctx, "Failed to delete canary ingress. Continuing with deletion",
 			"err", errors.Cause(err))
@@ -170,7 +170,7 @@ func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGat
 
 	// remove old canary ingress if it exists
 	// this works thanks to an assumption that ingress names == api gateway name
-	previousCanaryIngressName := lc.generateIngressName(apiGateway.Name, true)
+	previousCanaryIngressName := kube.IngressNameFromAPIGatewayName(apiGateway.Name, true)
 	err := lc.ingressManager.DeleteByName(previousCanaryIngressName, apiGateway.Namespace, true)
 	if err != nil {
 		lc.Logger.WarnWithCtx(ctx,
@@ -267,6 +267,11 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 		}
 	case ingress.AuthenticationModeOauth2:
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeOauth2
+		if apiGateway.Spec.Authentication != nil && apiGateway.Spec.Authentication.DexAuth != nil {
+			commonIngressSpec.Authentication = &ingress.Authentication{
+				DexAuth: apiGateway.Spec.Authentication.DexAuth,
+			}
+		}
 	case ingress.AuthenticationModeAccessKey:
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeAccessKey
 	default:
@@ -281,9 +286,9 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 	if upstream.Percentage != 0 {
 		annotations["nginx.ingress.kubernetes.io/canary"] = "true"
 		annotations["nginx.ingress.kubernetes.io/canary-weight"] = strconv.FormatInt(int64(upstream.Percentage), 10)
-		commonIngressSpec.Name = lc.generateIngressName(apiGateway.Name, true)
+		commonIngressSpec.Name = kube.IngressNameFromAPIGatewayName(apiGateway.Name, true)
 	} else {
-		commonIngressSpec.Name = lc.generateIngressName(apiGateway.Name, false)
+		commonIngressSpec.Name = kube.IngressNameFromAPIGatewayName(apiGateway.Name, false)
 	}
 
 	commonIngressSpec.Annotations = annotations
@@ -326,14 +331,6 @@ func (lc *lazyClient) getServiceHTTPPort(service v1.Service) (int, error) {
 	}
 
 	return 0, errors.New("Service has no http port")
-}
-
-func (lc *lazyClient) generateIngressName(apiGatewayName string, canary bool) string {
-	if canary {
-		return fmt.Sprintf("apigateway-%s-canary", apiGatewayName)
-	}
-
-	return fmt.Sprintf("apigateway-%s", apiGatewayName)
 }
 
 //

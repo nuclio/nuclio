@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
@@ -34,14 +35,20 @@ import (
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"github.com/ghodss/yaml"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
+type OnAfterIngressCreated func(*extensionsv1beta1.Ingress)
+
 type KubeTestSuite struct {
 	processorsuite.TestSuite
-	CmdRunner   cmdrunner.CmdRunner
-	RegistryURL string
-	Controller  *controller.Controller
+	CmdRunner     cmdrunner.CmdRunner
+	RegistryURL   string
+	Controller    *controller.Controller
+	KubeClientSet *kubernetes.Clientset
 }
 
 func (suite *KubeTestSuite) SetupSuite() {
@@ -69,6 +76,13 @@ func (suite *KubeTestSuite) SetupSuite() {
 	// do not rename function name
 	suite.FunctionNameUniquify = false
 
+	// create kube client set
+	restConfig, err := common.GetClientConfig(common.GetKubeconfigPath(""))
+	suite.Require().NoError(err)
+
+	suite.KubeClientSet, err = kubernetes.NewForConfig(restConfig)
+	suite.Require().NoError(err)
+
 	// create controller instance
 	suite.Controller = suite.createController()
 }
@@ -77,11 +91,25 @@ func (suite *KubeTestSuite) TearDownTest() {
 	suite.TestSuite.TearDownTest()
 
 	// remove nuclio function leftovers
-	_, err := suite.executeKubectl([]string{"delete", "nucliofunctions", "--all"}, nil)
-	suite.Require().NoError(err)
+	defer func() {
+		_, err := suite.executeKubectl([]string{"delete", "nucliofunctions", "--all", "--force"},
+			map[string]string{
+				"grace-period": "0",
+			})
+		suite.Require().NoError(err)
+	}()
+
+	// remove nuclio apigateway leftovers
+	defer func() {
+		_, err := suite.executeKubectl([]string{"delete", "nuclioapigateways", "--all", "--force"},
+			map[string]string{
+				"grace-period": "0",
+			})
+		suite.Require().NoError(err)
+	}()
 
 	// wait until controller remove it all
-	err = common.RetryUntilSuccessful(2*time.Minute,
+	err := common.RetryUntilSuccessful(5*time.Minute,
 		5*time.Second,
 		func() bool {
 			results, err := suite.executeKubectl([]string{"get", "all"},
@@ -94,6 +122,71 @@ func (suite *KubeTestSuite) TearDownTest() {
 			return strings.Contains(results.Output, "No resources found in")
 		})
 	suite.Require().NoError(err)
+}
+
+func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
+	onAfterIngressCreated OnAfterIngressCreated,
+	expectError bool) {
+
+	// deploy the api gateway
+	err := suite.Platform.CreateAPIGateway(createAPIGatewayOptions)
+
+	if !expectError {
+		suite.Require().NoError(err)
+	} else {
+		suite.Require().Error(err)
+	}
+
+	// delete the api gateway when done
+	defer func() {
+
+		if err == nil {
+			suite.Logger.Debug("Deleting deployed api gateway")
+			err := suite.Platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{
+				Meta: createAPIGatewayOptions.APIGatewayConfig.Meta,
+			})
+			suite.Require().NoError(err)
+
+			suite.verifyAPIGatewayIngress(createAPIGatewayOptions, false)
+		}
+	}()
+
+	// verify ingress created
+	ingressObject := suite.verifyAPIGatewayIngress(createAPIGatewayOptions, true)
+
+	onAfterIngressCreated(ingressObject)
+}
+
+func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *platform.CreateAPIGatewayOptions, exist bool) *extensionsv1beta1.Ingress {
+	deadline := time.Now().Add(10 * time.Second)
+
+	var ingressObject *extensionsv1beta1.Ingress
+	var err error
+
+	for {
+
+		// stop after 10 seconds
+		if time.Now().After(deadline) {
+			suite.FailNow("API gateway ingress didn't create in time")
+		}
+
+		ingressObject, err = suite.KubeClientSet.
+			ExtensionsV1beta1().
+			Ingresses(suite.Namespace).
+			Get(
+				// TODO: consider canary ingress as well
+				kube.IngressNameFromAPIGatewayName(createAPIGatewayOptions.APIGatewayConfig.Meta.Name, false),
+				metav1.GetOptions{})
+		if err != nil && !exist && errors.IsNotFound(err) {
+			suite.Logger.DebugWith("API gateway ingress removed")
+			break
+		}
+		if err == nil && exist {
+			suite.Logger.DebugWith("API gateway ingress created")
+			break
+		}
+	}
+	return ingressObject
 }
 
 func (suite *KubeTestSuite) executeKubectl(positionalArgs []string,
@@ -157,34 +250,35 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	restConfig, err := common.GetClientConfig(common.GetKubeconfigPath(""))
 	suite.Require().NoError(err)
 
-	kubeClientSet, err := kubernetes.NewForConfig(restConfig)
-	suite.Require().NoError(err)
-
 	nuclioClientSet, err := nuclioioclient.NewForConfig(restConfig)
 	suite.Require().NoError(err)
 
 	// create a client for function deployments
-	functionresClient, err := functionres.NewLazyClient(suite.Logger, kubeClientSet, nuclioClientSet)
+	functionresClient, err := functionres.NewLazyClient(suite.Logger, suite.KubeClientSet, nuclioClientSet)
 	suite.Require().NoError(err)
 
 	// create ingress manager
-	ingressManager, err := ingress.NewManager(suite.Logger, kubeClientSet, suite.PlatformConfiguration)
+	ingressManager, err := ingress.NewManager(suite.Logger, suite.KubeClientSet, suite.PlatformConfiguration)
 	suite.Require().NoError(err)
 
 	// create api-gateway provisioner
-	apigatewayresClient, err := apigatewayres.NewLazyClient(suite.Logger, kubeClientSet, nuclioClientSet, ingressManager)
+	apigatewayresClient, err := apigatewayres.NewLazyClient(suite.Logger,
+		suite.KubeClientSet,
+		nuclioClientSet,
+		ingressManager)
 	suite.Require().NoError(err)
 
 	controllerInstance, err := controller.NewController(suite.Logger,
 		suite.Namespace,
 		"",
-		kubeClientSet,
+		suite.KubeClientSet,
 		nuclioClientSet,
 		functionresClient,
 		apigatewayresClient,
 		time.Second*5,
 		time.Second*30,
 		suite.PlatformConfiguration,
+		"nuclio-platform-config",
 		4,
 		4,
 		4,

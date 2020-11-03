@@ -31,19 +31,21 @@ import (
 )
 
 type Controller struct {
-	logger                logger.Logger
-	namespace             string
-	kubeClientSet         kubernetes.Interface
-	nuclioClientSet       nuclioioclient.Interface
-	functionresClient     functionres.Client
-	apigatewayresClient   apigatewayres.Client
-	imagePullSecrets      string
-	functionOperator      *functionOperator
-	projectOperator       *projectOperator
-	functionEventOperator *functionEventOperator
-	apiGatewayOperator    *apiGatewayOperator
-	cronJobMonitoring     *CronJobMonitoring
-	platformConfiguration *platformconfig.Config
+	logger                    logger.Logger
+	namespace                 string
+	kubeClientSet             kubernetes.Interface
+	nuclioClientSet           nuclioioclient.Interface
+	functionresClient         functionres.Client
+	apigatewayresClient       apigatewayres.Client
+	imagePullSecrets          string
+	functionOperator          *functionOperator
+	projectOperator           *projectOperator
+	functionEventOperator     *functionEventOperator
+	apiGatewayOperator        *apiGatewayOperator
+	cronJobMonitoring         *CronJobMonitoring
+	platformConfiguration     *platformconfig.Config
+	platformConfigurationName string
+	resyncInterval            time.Duration
 }
 
 func NewController(parentLogger logger.Logger,
@@ -56,6 +58,7 @@ func NewController(parentLogger logger.Logger,
 	resyncInterval time.Duration,
 	cronJobStaleResourcesCleanupInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
+	platformConfigurationName string,
 	functionOperatorNumWorkers int,
 	functionEventOperatorNumWorkers int,
 	projectOperatorNumWorkers int,
@@ -68,14 +71,16 @@ func NewController(parentLogger logger.Logger,
 	}
 
 	newController := &Controller{
-		logger:                parentLogger,
-		namespace:             namespace,
-		imagePullSecrets:      imagePullSecrets,
-		kubeClientSet:         kubeClientSet,
-		nuclioClientSet:       nuclioClientSet,
-		functionresClient:     functionresClient,
-		apigatewayresClient:   apigatewayresClient,
-		platformConfiguration: platformConfiguration,
+		logger:                    parentLogger,
+		namespace:                 namespace,
+		imagePullSecrets:          imagePullSecrets,
+		kubeClientSet:             kubeClientSet,
+		nuclioClientSet:           nuclioClientSet,
+		functionresClient:         functionresClient,
+		apigatewayresClient:       apigatewayresClient,
+		platformConfiguration:     platformConfiguration,
+		platformConfigurationName: platformConfigurationName,
+		resyncInterval:            resyncInterval,
 	}
 
 	newController.logger.DebugWith("Read configuration",
@@ -89,7 +94,7 @@ func NewController(parentLogger logger.Logger,
 	// create a function operator
 	newController.functionOperator, err = newFunctionOperator(parentLogger,
 		newController,
-		&resyncInterval,
+		&newController.resyncInterval,
 		imagePullSecrets,
 		functionresClient,
 		functionOperatorNumWorkers)
@@ -101,7 +106,7 @@ func NewController(parentLogger logger.Logger,
 	// create a function event operator
 	newController.functionEventOperator, err = newFunctionEventOperator(parentLogger,
 		newController,
-		&resyncInterval,
+		&newController.resyncInterval,
 		functionEventOperatorNumWorkers)
 
 	if err != nil {
@@ -111,7 +116,7 @@ func NewController(parentLogger logger.Logger,
 	// create a project operator
 	newController.projectOperator, err = newProjectOperator(parentLogger,
 		newController,
-		&resyncInterval,
+		&newController.resyncInterval,
 		projectOperatorNumWorkers)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create project operator")
@@ -120,7 +125,7 @@ func NewController(parentLogger logger.Logger,
 	// create an api gateway operator
 	newController.apiGatewayOperator, err = newAPIGatewayOperator(parentLogger,
 		newController,
-		&resyncInterval,
+		&newController.resyncInterval,
 		apiGatewayOperatorNumWorkers)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create api gateway operator")
@@ -170,4 +175,12 @@ func (c *Controller) Start() error {
 
 func (c *Controller) GetPlatformConfiguration() *platformconfig.Config {
 	return c.platformConfiguration
+}
+
+func (c *Controller) GetPlatformConfigurationName() string {
+	return c.platformConfigurationName
+}
+
+func (c *Controller) GetResyncInterval() time.Duration {
+	return c.resyncInterval
 }

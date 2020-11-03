@@ -19,16 +19,22 @@ package test
 import (
 	"encoding/base64"
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/golang"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 type TestSuite struct {
@@ -194,6 +200,94 @@ func (suite *TestSuite) TestCustomEvent() {
 		RequestPath:          requestPath,
 		ExpectedResponseBody: bodyVerifier,
 	})
+}
+
+func (suite *TestSuite) TestFileStream() {
+	createFunctionOptions := suite.GetDeployOptions("file-streamer",
+		path.Join(suite.GetTestFunctionsDir(), "common", "file-streamer", "golang"))
+
+	tempDir := os.TempDir()
+	defer os.RemoveAll(tempDir)
+
+	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
+		{
+			Volume: v1.Volume{
+				Name: "tmp",
+				VolumeSource: v1.VolumeSource{
+					HostPath: &v1.HostPathVolumeSource{
+						Path: tempDir,
+					},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      "tmp",
+				MountPath: tempDir,
+			},
+		},
+	}
+
+	for _, testRequest := range []struct {
+		responseSize    int
+		repeat          int
+		requestBody     string
+		deleteAfterSend bool
+	}{
+		{
+			responseSize:    4 * 1024,
+			repeat:          20,
+			requestBody:     common.GenerateRandomString(256, common.LettersAndNumbers),
+			deleteAfterSend: false,
+		},
+		{
+			responseSize:    10 * 1024 * 1024,
+			deleteAfterSend: true,
+		},
+	} {
+		// generate a random file
+		tempFile, err := ioutil.TempFile(tempDir, "")
+		suite.Require().NoError(err)
+
+		responseBody := common.GenerateRandomString(testRequest.responseSize, common.LettersAndNumbers)
+
+		// write random stuff to the file which we'll expect as a response
+		_, err = tempFile.Write([]byte(responseBody))
+		suite.Require().NoError(err)
+
+		httpRequest := httpsuite.Request{
+			RequestBody:          testRequest.requestBody,
+			RequestMethod:        "POST",
+			RequestPath:          tempFile.Name(),
+			ExpectedResponseBody: responseBody,
+			ExpectedResponseHeaders: map[string]string{
+				"X-request-body": testRequest.requestBody,
+			},
+		}
+
+		if testRequest.deleteAfterSend {
+			httpRequest.RequestPath += "?delete_after_send=true"
+		}
+
+		suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+			httpRequest.Enrich(deployResult)
+
+			for repeatIdx := 0; repeatIdx < testRequest.repeat+1; repeatIdx++ {
+				if !suite.SendRequestVerifyResponse(&httpRequest) {
+					return false
+				}
+			}
+
+			return true
+		})
+
+		if testRequest.deleteAfterSend {
+			// expect file to be removed
+			_, err = os.Stat(tempFile.Name())
+			suite.Require().Error(err)
+		} else {
+			err = os.Remove(tempFile.Name())
+			suite.Require().NoError(err)
+		}
+	}
 }
 
 func (suite *TestSuite) TestStress() {

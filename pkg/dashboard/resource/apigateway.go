@@ -15,6 +15,7 @@ package resource
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -48,15 +49,23 @@ func (agr *apiGatewayResource) GetAll(request *http.Request) (map[string]restful
 	}
 
 	exportFunction := agr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
+	projectName := request.Header.Get("x-nuclio-project-name")
 
-	return agr.GetAllByNamespace(namespace, exportFunction)
+	// filter by project name (when it's specified)
+	getAPIGatewaysOptions := platform.GetAPIGatewaysOptions{Namespace: namespace}
+	if projectName != "" {
+		getAPIGatewaysOptions.Labels = fmt.Sprintf("nuclio.io/project-name=%s", projectName)
+	}
+
+	return agr.GetAllByNamespace(&getAPIGatewaysOptions, exportFunction)
 }
 
-// GetAll returns all api-gateways
-func (agr *apiGatewayResource) GetAllByNamespace(namespace string, exportFunction bool) (map[string]restful.Attributes, error) {
+// GetAllByNamespace returns all api-gateways by namespace
+func (agr *apiGatewayResource) GetAllByNamespace(getAPIGatewayOptions *platform.GetAPIGatewaysOptions,
+	exportFunction bool) (map[string]restful.Attributes, error) {
 	response := map[string]restful.Attributes{}
 
-	apiGateways, err := agr.getPlatform().GetAPIGateways(&platform.GetAPIGatewaysOptions{Namespace: namespace})
+	apiGateways, err := agr.getPlatform().GetAPIGateways(getAPIGatewayOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get api gateways")
 	}
@@ -309,7 +318,11 @@ func (agr *apiGatewayResource) getAPIGatewayInfoFromRequest(request *http.Reques
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
-	if err = agr.processAPIGatewayInfo(&apiGatewayInfoInstance, nameRequired, specRequired); err != nil {
+	if err = agr.processAPIGatewayInfo(&apiGatewayInfoInstance,
+		nameRequired,
+		specRequired,
+		request.Header.Get("x-nuclio-project-name")); err != nil {
+
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to process api gateway info"))
 	}
 
@@ -318,7 +331,8 @@ func (agr *apiGatewayResource) getAPIGatewayInfoFromRequest(request *http.Reques
 
 func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo,
 	nameRequired bool,
-	specRequired bool) error {
+	specRequired bool,
+	projectName string) error {
 	var err error
 
 	if apiGatewayInfoInstance.Meta == nil {
@@ -362,6 +376,14 @@ func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *api
 	// status is optional, ensure it exists
 	if apiGatewayInfoInstance.Status == nil {
 		apiGatewayInfoInstance.Status = &platform.APIGatewayStatus{}
+	}
+
+	if projectName != "" {
+		if apiGatewayInfoInstance.Meta.Labels == nil {
+			apiGatewayInfoInstance.Meta.Labels = map[string]string{}
+		}
+
+		apiGatewayInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
 	}
 
 	return nil

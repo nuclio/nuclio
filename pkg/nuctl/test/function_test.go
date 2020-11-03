@@ -18,6 +18,7 @@ package test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -33,6 +34,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
@@ -918,6 +920,25 @@ func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange
 	suite.Require().Equal(desiredHTTPPort, deployedFunctionConfig.Status.HTTPPort)
 }
 
+func (suite *functionDeployTestSuite) TestDeployFailsOnReservedFunctionName() {
+	functionName := "dashboard"
+	imageName := "nuclio/processor-" + functionName
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	// use nuctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"runtime": "golang",
+			"handler": "main:Reverse",
+		})
+	suite.Require().Error(err, "Deploy should have been failed with precondition error.")
+	suite.Require().IsType(&nuclio.ErrPreconditionFailed, errors.RootCause(err))
+}
+
 // Expecting the Code Entry Type to be modified to image
 func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	uniqueSuffix := "-" + xid.New().String()
@@ -1180,6 +1201,83 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 		runAsUserID,
 		runAsGroupID,
 		fsGroup))
+}
+
+func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocation() {
+
+	// TODO: remove this if we ever implement "ServiceType" for local platform
+	suite.ensureRunningOnPlatform("kube")
+
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "deploy-reverser" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+	serviceName := kube.ServiceNameFromFunctionName(functionName)
+	url, port := kube.GetDomainNameInvokeURL(serviceName, suite.namespace)
+	functionClusterURL := fmt.Sprintf("http://%s:%d", url, port)
+
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"runtime": "golang",
+		"handler": "main:Reverse",
+		"triggers": `{
+	    "http": {
+	        "kind": "http",
+	        "attributes": {
+	            "serviceType": "ClusterIP"
+	        }
+	    }
+	}`,
+	}
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	wgetFunctionName := "wget-function" + uniqueSuffix
+	wgetImageName := "nuclio/processor-" + wgetFunctionName
+
+	// wgets the url given in the `x-nuclio-arguments` with the POST body from the body
+	wgetSourceCode := `url=$1
+read body
+
+wget -O - --post-data "$body" $url 2> /dev/null
+`
+
+	err = suite.ExecuteNuctl([]string{"deploy", wgetFunctionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"image":   wgetImageName,
+			"runtime": "shell",
+			"handler": "main.sh",
+			"source":  base64.StdEncoding.EncodeToString([]byte(wgetSourceCode)),
+		})
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(wgetImageName) // nolint: errcheck
+
+	// use nuctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", wgetFunctionName}, nil) // nolint: errcheck
+
+	// try a few times to invoke, until it succeeds
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", wgetFunctionName},
+		map[string]string{
+			"method":  "POST",
+			"headers": fmt.Sprintf("x-nuclio-arguments=%s", functionClusterURL),
+			"body":    "-reverse this string+",
+			"via":     "external-ip",
+		},
+		false)
+	suite.Require().NoError(err)
+
+	// make sure reverser worked
+	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
 type functionGetTestSuite struct {
