@@ -501,6 +501,20 @@ func FunctionStateInSlice(a FunctionState, list []FunctionState) bool {
 	return false
 }
 
+func FunctionStateProvisioned(functionState FunctionState) bool {
+	return FunctionStateInSlice(functionState,
+		[]FunctionState{
+			FunctionStateReady,
+			FunctionStateError,
+			FunctionStateScaledToZero,
+			FunctionStateImported,
+		})
+}
+
+func FunctionStateProvisioning(functionState FunctionState) bool {
+	return !FunctionStateProvisioned(functionState)
+}
+
 // Status holds the status of the function
 type Status struct {
 	State       FunctionState            `json:"state,omitempty"`

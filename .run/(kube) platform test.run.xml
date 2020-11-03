@@ -1,0 +1,17 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="(kube) platform test" type="GoTestRunConfiguration" factoryName="Go Test">
+    <module name="nuclio" />
+    <working_directory value="$PROJECT_DIR$/pkg/platform/kube/test" />
+    <go_parameters value="-ldflags=&quot;-X github.com/v3io/version-go.label=latest&quot;" />
+    <parameters value=" -testify.m ^TestFunctionIsReadyAfterDeploymentFailure$" />
+    <envs>
+      <env name="NUCLIO_K8S_TESTS_ENABLED" value="true" />
+    </envs>
+    <framework value="gotest" />
+    <kind value="PACKAGE" />
+    <package value="github.com/nuclio/nuclio/pkg/platform/kube/test" />
+    <directory value="$PROJECT_DIR$/pkg/nuctl/test" />
+    <filePath value="$PROJECT_DIR$/pkg/nuctl/test/function_test.go" />
+    <method v="2" />
+  </configuration>
+</component>

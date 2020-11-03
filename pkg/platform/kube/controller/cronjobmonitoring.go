@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ type CronJobMonitoring struct {
 	logger                               logger.Logger
 	controller                           *Controller
 	cronJobStaleResourcesCleanupInterval *time.Duration
+	stopChan                             chan struct{}
 }
 
 func NewCronJobMonitoring(parentLogger logger.Logger,
@@ -37,25 +39,45 @@ func NewCronJobMonitoring(parentLogger logger.Logger,
 
 func (cjm *CronJobMonitoring) start() {
 
-	go cjm.startCronJobStaleResourcesCleanupLoop() // nolint: errcheck
+	// create stop channel
+	cjm.stopChan = make(chan struct{}, 1)
 
+	// spawn a goroutine for cronjob monitoring
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				callStack := debug.Stack()
+				cjm.logger.ErrorWith("Panic caught while monitoring cronjobs",
+					"err", err,
+					"stack", string(callStack))
+			}
+		}()
+		stalePodsFieldSelector := cjm.compileStalePodsFieldSelector()
+		cjm.logger.InfoWith("Starting cron job stale resources cleanup loop",
+			"cronJobStaleResourcesCleanupInterval", cjm.cronJobStaleResourcesCleanupInterval,
+			"fieldSelectors", stalePodsFieldSelector)
+		for {
+			select {
+			case <-time.After(*cjm.cronJobStaleResourcesCleanupInterval):
+
+				// cleanup all cron job related stale resources (as k8s lacks this logic)
+				cjm.deleteStaleJobs()
+				cjm.deleteStalePods(stalePodsFieldSelector)
+
+			case <-cjm.stopChan:
+				cjm.logger.Debug("Stopped cronjob monitoring")
+				return
+			}
+		}
+	}()
 }
 
-// cleanup all cron job related stale resources (as k8s lacks this logic)
-func (cjm *CronJobMonitoring) startCronJobStaleResourcesCleanupLoop() error {
-	stalePodsFieldSelector := cjm.compileStalePodsFieldSelector()
+func (cjm *CronJobMonitoring) stop() {
+	cjm.logger.Info("Stopping cron job monitoring")
 
-	cjm.logger.InfoWith("Starting cron job stale resources cleanup loop",
-		"cronJobStaleResourcesCleanupInterval", cjm.cronJobStaleResourcesCleanupInterval,
-		"fieldSelectors", stalePodsFieldSelector)
-
-	for {
-
-		// sleep until next deletion time cronJobStaleResourcesCleanupInterval
-		time.Sleep(*cjm.cronJobStaleResourcesCleanupInterval)
-
-		cjm.deleteStaleJobs()
-		cjm.deleteStalePods(stalePodsFieldSelector)
+	// post to channel
+	if cjm.stopChan != nil {
+		cjm.stopChan <- struct{}{}
 	}
 }
 

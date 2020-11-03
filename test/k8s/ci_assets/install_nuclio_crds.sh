@@ -10,5 +10,4 @@ helm install \
     --set crd.create=true \
     --debug \
     --wait \
-    --namespace ${NAMESPACE:-nuclio} \
     nuclio hack/k8s/helm/nuclio

@@ -23,7 +23,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
-	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
@@ -96,16 +95,12 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return errors.New("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
 	}
 
-	// only respond to functions which are either waiting for something or are in non-transitional state. We respond to
-	// ready functions as part of controller resyncs, where we verify that a given function CRD has its resources
-	// properly configured
+	// only respond to functions which are either waiting for something or are in transitional state
 	statesToRespond := []functionconfig.FunctionState{
 		functionconfig.FunctionStateWaitingForResourceConfiguration,
 		functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
 		functionconfig.FunctionStateWaitingForScaleResourcesToZero,
-		functionconfig.FunctionStateReady,
 		functionconfig.FunctionStateScaledToZero,
-		functionconfig.FunctionStateError,
 	}
 	if !functionconfig.FunctionStateInSlice(function.Status.State, statesToRespond) {
 		fo.logger.DebugWith("NuclioFunction is not waiting for resource creation or ready, skipping create/update",
@@ -124,35 +119,6 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return fo.setFunctionStatus(function, &functionconfig.Status{
 			State: functionconfig.FunctionStateImported,
 		})
-	}
-
-	// check if function in error state has become available again
-	if function.Status.State == functionconfig.FunctionStateError {
-		functionDeployment, err := fo.controller.kubeClientSet.
-			AppsV1().
-			Deployments(function.Namespace).
-			Get(kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
-		if err != nil {
-			fo.logger.WarnWith("Failed to get function deployments",
-				"functionName", function.Name,
-				"functionNamespace", function.Namespace)
-			return nil
-		}
-
-		if functionDeployment.Spec.Replicas != nil &&
-			*functionDeployment.Spec.Replicas > 0 &&
-			functionDeployment.Status.AvailableReplicas <= 0 {
-
-			// function deployment has not been recovered
-			return nil
-		}
-
-		fo.logger.InfoWith("Function deployment has been recovered, removing error and set state as ready",
-			"functionName", function.Name,
-			"functionNamespace", function.Namespace)
-		function.Status.State = functionconfig.FunctionStateReady
-		function.Status.Message = ""
-		return fo.setFunctionStatus(function, &function.Status)
 	}
 
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
@@ -263,11 +229,12 @@ func (fo *functionOperator) setFunctionError(function *nuclioio.NuclioFunction, 
 	// whatever the error, try to update the function CR
 	fo.logger.WarnWith("Setting function error", "name", function.Name, "err", err)
 
-	if fo.setFunctionStatus(function, &functionconfig.Status{
+	if setStatusErr := fo.setFunctionStatus(function, &functionconfig.Status{
 		State:   functionconfig.FunctionStateError,
 		Message: errors.GetErrorStackString(err, 10),
-	}) != nil {
-		fo.logger.Warn("Failed to update function on error")
+	}); setStatusErr != nil {
+		fo.logger.Warn("Failed to update function on error",
+			"setStatusErr", errors.Cause(setStatusErr))
 	}
 
 	return err
