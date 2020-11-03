@@ -48,6 +48,7 @@ func main() {
 	namespace := flag.String("namespace", "", "Namespace to listen on, or * for all")
 	imagePullSecrets := flag.String("image-pull-secrets", os.Getenv("NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS"), "Optional secret name to use for pull")
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
+	platformConfigurationName := flag.String("platform-config-name", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PLATFORM_CONFIGURATION_NAME", "nuclio-platform-config"), "Platform configuration resource name")
 	functionOperatorNumWorkersStr := flag.String("function-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_OPERATOR_NUM_WORKERS", "4"), "Set number of workers for the function operator (optional)")
 	functionOperatorResyncIntervalStr := flag.String("function-operator-resync-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_OPERATOR_RESYNC_INTERVAL", "10m"), "Set resync interval for the function operator (optional)")
 	functionMonitorIntervalStr := flag.String("function-monitor-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_MONITOR_INTERVAL", "3m"), "Set function monitor interval (optional)")
@@ -74,6 +75,7 @@ func main() {
 		resolvedNamespace,
 		*imagePullSecrets,
 		*platformConfigurationPath,
+		*platformConfigurationName,
 		*functionOperatorNumWorkersStr,
 		*functionOperatorResyncIntervalStr,
 		*functionMonitorIntervalStr,

@@ -284,6 +284,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 		time.Second*5,  // monitor interval
 		time.Second*30, // cronjob stale duration
 		suite.PlatformConfiguration,
+		"nuclio-platform-config",
 		4,
 		4,
 		4,
