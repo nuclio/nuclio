@@ -8,7 +8,7 @@
         });
 
     function NclHeaderController($timeout, $element, $rootScope, $scope, $state, $transitions, $i18next, i18next,
-                                 lodash, ConfigService) {
+                                 lodash, ConfigService, NavigationTabsService) {
         var ctrl = this;
 
         var deregisterExitFunction = null;
@@ -46,7 +46,7 @@
          * Initialization function
          */
         function onInit() {
-            $scope.$on('$stateChangeSuccess', onStateChangeSuccess);
+            $transitions.onSuccess({}, onStateChangeSuccess);
             setSelectedLanguage();
         }
 
@@ -54,6 +54,8 @@
          * Post linking method
          */
         function postLink() {
+            ctrl.navigationTabsConfig = NavigationTabsService.getNavigationTabsConfig($state.current.name);
+
             $timeout(function () {
                 setMainWrapperPosition();
 
@@ -138,10 +140,10 @@
          * tabs config
          * Needed for better UX - header title changes correctly even before controller data resolved and broadcast
          * have been sent
-         * @param {Object} event
-         * @param {Object} toState
+         * @param {Object} transition
          */
-        function onStateChangeSuccess(event, toState) {
+        function onStateChangeSuccess(transition) {
+            ctrl.navigationTabsConfig = NavigationTabsService.getNavigationTabsConfig(transition.$to().name);
 
             $timeout(function () {
                 setMainWrapperPosition();

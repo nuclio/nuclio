@@ -28,6 +28,9 @@
                 mode: 'disabled',
                 scaleResources: null
             }
+        },
+        screenAutoRefreshIntervals: {
+            apiGateways: 30000
         }
     };
 

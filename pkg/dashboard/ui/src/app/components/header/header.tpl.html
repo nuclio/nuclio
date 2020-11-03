@@ -18,7 +18,11 @@
             </form>
         </div>
     </div>
-    </div>
+
+    <igz-navigation-tabs class="igz-component"
+                         data-ng-if="$ctrl.navigationTabsConfig.length > 0"
+                         data-tab-items="$ctrl.navigationTabsConfig">
+    </igz-navigation-tabs>
 </header>
 
 <div class="header-expansion-button"

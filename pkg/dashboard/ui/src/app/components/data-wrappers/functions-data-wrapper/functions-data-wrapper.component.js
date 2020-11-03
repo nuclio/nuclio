@@ -35,7 +35,7 @@
         }
 
         /**
-         * Gets a list of all project
+         * Gets a project
          * @param {string} id - project ID
          * @returns {Promise}
          */

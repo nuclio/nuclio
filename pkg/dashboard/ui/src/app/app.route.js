@@ -103,6 +103,18 @@
                     mainHeaderTitle: 'common:FUNCTIONS'
                 }
             })
+            .state('app.project.api-gateways', {
+                url: '/api-gateways',
+                views: {
+                    project: {
+                        template: '<api-gateways-data-wrapper></api-gateways-data-wrapper>'
+                    }
+                },
+                data: {
+                    pageTitle: 'functions:API_GATEWAYS',
+                    mainHeaderTitle: 'functions:API_GATEWAYS',
+                }
+            })
             .state('app.project.create-function', {
                 url: '/create-function',
                 views: {
