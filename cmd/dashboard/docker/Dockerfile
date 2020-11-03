@@ -17,7 +17,7 @@
 #
 ARG NUCLIO_LABEL
 
-FROM node:8 as build-static
+FROM node:10.21.0 as build-static
 
 # copy source tree
 COPY ./pkg/dashboard/ui /home/nuclio/dashboard/src
