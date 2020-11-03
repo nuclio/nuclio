@@ -15,60 +15,58 @@ limitations under the License.
 */
 
 // We use non default file name and handler name to test configuration as well
-exports.testHandler = function(context, event) {
-    if (event.method != 'POST') {
-        context.callback(event.method);
-	return;
+exports.testHandler = function (context, event) {
+    if (event.method !== 'POST') {
+        context.callback(event.method)
+        return
     }
 
-    var body = event.body.toString();
+    const headers = event.headers
 
-    switch (body) {
-	case 'return_string':
-	    context.callback('a string');
-	    return;
-	case 'return_status_and_string':
-	    context.callback([201, 'a string after status']);
-	    return;
-	case 'return_list':
-	    context.callback([{a: 1}, {b: 2}]);
-	    return;
-	case 'return_status_and_dict':
-	    context.callback([201, {a: 'dict after status', b: 'foo'}]);
-	    return;
-	case 'log':
-	    context.logger.debug('Debug message');
-	    context.logger.info('Info message');
-	    context.logger.warn('Warn message');
-	    context.logger.error('Error message');
-	    context.callback([201, 'returned logs']);
-	    return;
-	case 'log_with':
-	    context.logger.errorWith('Error message', {source: 'rabbit', weight: 7});
-	    context.callback([201, 'returned logs with']);
-	    return;
-	case 'return_response':
-	    headers = event.headers;
-	    headers['h1'] = 'v1';
-	    headers['h2'] = 'v2';
-
-	    context.callback(new context.Response('response body', headers, 'text/plain', 201));
-	    return;
-	case 'return_fields':
-	    var fields = [];
-	    for (var key in event.fields) {
-		fields.push(key + '=' + event.fields[key]);
-	    }
-	    // We use sorted to get predictable output
-	    fields.sort();
-	    context.callback(fields.join(','));
-	    return;
-	case 'return_path':
-	    context.callback(event.path);
-	    return;
-	case 'return_error':
-	    throw 'some error';
-	default:
-	    throw 'Unknown return mode: ' + event.body;
+    switch (event.body.toString()) {
+        case 'return_string':
+            context.callback('a string')
+            return
+        case 'return_status_and_string':
+            context.callback([201, 'a string after status'])
+            return
+        case 'return_list':
+            context.callback([{ a: 1 }, { b: 2 }])
+            return
+        case 'return_status_and_dict':
+            context.callback([201, { a: 'dict after status', b: 'foo' }])
+            return
+        case 'log':
+            context.logger.debug('Debug message')
+            context.logger.info('Info message')
+            context.logger.warn('Warn message')
+            context.logger.error('Error message')
+            context.callback([201, 'returned logs'])
+            return
+        case 'log_with':
+            context.logger.errorWith('Error message', { source: 'rabbit', weight: 7 })
+            context.callback([201, 'returned logs with'])
+            return
+        case 'return_response':
+            headers.h1 = 'v1'
+            headers.h2 = 'v2'
+            context.callback(new context.Response('response body',
+                                                  headers,
+                                                  'text/plain',
+                                                  201))
+            return
+        case 'return_fields':
+            context.callback(Object.entries(event.fields)
+                .map(([key, value]) => `${key}=${value}`)
+                .sort() // get predictable output
+                .join(','))
+            return
+        case 'return_path':
+            context.callback(event.path)
+            return
+        case 'return_error':
+            throw 'some error'
+        default:
+            throw `Unknown return mode: ${event.body}`
     }
 }

@@ -316,3 +316,12 @@ jobs:
     - name: Run python test
       run: |
         make test-python
+  test_nodejs:
+    name: Test NodeJS
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Run NodeJS test
+      run: |
+        make test-nodejs

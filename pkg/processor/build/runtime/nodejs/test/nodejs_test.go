@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -58,12 +59,27 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 	case "long-initialization":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "long-initialization", "nodejs", "sleepy.js"}
 
+	case "context-init-fail":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "context-init-fail", "nodejs", "contextinitfail.js"}
+
 	default:
 		suite.Logger.InfoWith("Test skipped", "functionName", functionName)
 		functionInfo.Skip = true
 	}
 
 	return functionInfo
+}
+
+func (suite *TestSuite) TestBuildWithContextInitializer() {
+	createFunctionOptions := suite.GetDeployOptions("context-init",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "context-init", "nodejs", "contextinit.js"))
+
+	suite.DeployFunctionAndRequest(createFunctionOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "10",
+			ExpectedResponseBody: "20",
+		})
 }
 
 func TestIntegrationSuite(t *testing.T) {

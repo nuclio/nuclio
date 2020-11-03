@@ -255,7 +255,7 @@ func (r *AbstractRuntime) startWrapper() error {
 	return nil
 }
 
-// Create a listener on unix domian docker, return listener, path to socket and error
+// Create a listener on unix domain docker, return listener, path to socket and error
 func (r *AbstractRuntime) createUnixListener() (net.Listener, string, error) {
 	socketPath := fmt.Sprintf(socketPathTemplate, xid.New().String())
 

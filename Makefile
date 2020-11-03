@@ -481,6 +481,17 @@ test-kafka: build-test
 		$(NUCLIO_DOCKER_TEST_TAG) \
 		/bin/bash -c "make test-kafka-undockerized"
 
+.PHONY: test-nodejs
+test-nodejs:
+	docker run \
+	 --rm \
+	 --volume $(shell pwd)/pkg/processor/runtime/nodejs/js:/nuclio/nodejs \
+	 --volume $(shell pwd)/test:/nuclio/test \
+	 --workdir /nuclio/nodejs \
+	 --env RUN_MODE=CI \
+	 node:10.20-alpine \
+	 sh -c 'npm install && npm run lint && npm run test'
+
 .PHONY: test-python
 test-python:
 	docker build \
