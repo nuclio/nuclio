@@ -260,7 +260,7 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeBasicAuth
 		commonIngressSpec.Authentication = &ingress.Authentication{
 			BasicAuth: &ingress.BasicAuth{
-				Name:     fmt.Sprintf("apigateway-%s", apiGateway.Name),
+				Name:     kube.BasicAuthNameFromAPIGatewayName(apiGateway.Name),
 				Username: apiGateway.Spec.Authentication.BasicAuth.Username,
 				Password: apiGateway.Spec.Authentication.BasicAuth.Password,
 			},

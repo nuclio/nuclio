@@ -33,6 +33,10 @@ func IngressNameFromAPIGatewayName(apiGatewayName string, canary bool) string {
 	return resourceName
 }
 
+func BasicAuthNameFromAPIGatewayName(apiGatewayName string) string {
+	return fmt.Sprintf("nuclio-agw-%s", apiGatewayName)
+}
+
 func DeploymentNameFromFunctionName(functionName string) string {
 	return fmt.Sprintf("nuclio-%s", functionName)
 }
