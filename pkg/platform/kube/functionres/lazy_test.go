@@ -37,6 +37,10 @@ type mockedPlatformConfigurationProvider struct {
 	platformConfiguration *platformconfig.Config
 }
 
+func (c *mockedPlatformConfigurationProvider) GetPlatformConfigurationName() string {
+	return "mocked-platform-configuration"
+}
+
 func (c *mockedPlatformConfigurationProvider) GetPlatformConfiguration() *platformconfig.Config {
 	return c.platformConfiguration
 }

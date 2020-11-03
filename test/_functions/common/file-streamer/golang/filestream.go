@@ -25,7 +25,7 @@ func FileStreamer(context *nuclio.Context, event nuclio.Event) (interface{}, err
 
 	headers := map[string]interface{}{
 		"X-nuclio-filestream-path": event.GetPath(),
-		"X-request-body": string(event.GetBody()),
+		"X-request-body":           string(event.GetBody()),
 	}
 
 	if event.GetFieldString("delete_after_send") == "true" {

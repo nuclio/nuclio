@@ -278,6 +278,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 		time.Second*5,
 		time.Second*30,
 		suite.PlatformConfiguration,
+		"",
 		4,
 		4,
 		4,
