@@ -155,3 +155,7 @@ func (n *nodejs) getNodeExePath() (string, error) {
 func (n *nodejs) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
 	return rpc.NewEventJSONEncoder(n.Logger, writer)
 }
+
+func (n *nodejs) WaitForStart() bool {
+	return true
+}

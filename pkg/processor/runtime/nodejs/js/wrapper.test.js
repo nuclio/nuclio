@@ -20,12 +20,13 @@ const fs = require('fs')
 const rewire = require('rewire')
 const wrapper = rewire('./wrapper.js')
 
-const projectRoot = (process.env.RUN_MODE === 'CI') ? '../' : '../../../../../'
+const projectRoot = (process.env.RUN_MODE === 'CI') ? '..' : '../../../../..'
+const testFunctionsDirPath = `${projectRoot}/test/_functions`
 
 describe('Wrapper', () => {
     describe('findFunction()', () => {
         it('should find function handler', async function () {
-            const functionModulePath = projectRoot + 'test/_functions/common/reverser/nodejs/handler.js'
+            const functionModulePath = `${testFunctionsDirPath}/common/reverser/nodejs/handler.js`
             const functionModule = require(functionModulePath)
             const foundFunction = await wrapper.__get__('findFunction')(
                 functionModule,
@@ -55,7 +56,7 @@ describe('Wrapper', () => {
     })
     describe('handleEvent()', () => {
         it('should response with output', async () => {
-            const functionModulePath = projectRoot + 'test/_functions/common/reverser/nodejs/handler.js'
+            const functionModulePath = `${testFunctionsDirPath}/common/reverser/nodejs/handler.js`
             const functionModule = require(functionModulePath)
             const context = wrapper.__get__('context')
             const handleEvent = wrapper.__get__('handleEvent')
@@ -77,7 +78,7 @@ describe('Wrapper', () => {
     })
     describe('initContext()', () => {
         it('should mutate context object', async () => {
-            const functionModulePath = projectRoot + 'test/_functions/common/context-init/nodejs/contextinit.js'
+            const functionModulePath = `${testFunctionsDirPath}/common/context-init/nodejs/contextinit.js`
             const functionModule = require(functionModulePath)
             const context = wrapper.__get__('context')
             const executeInitContext = wrapper.__get__('executeInitContext')
@@ -85,17 +86,17 @@ describe('Wrapper', () => {
             assert.strictEqual(context.userData.factor, 2)
         })
         it('should skip initContext when function not exposed', async () => {
-            const functionModulePath = projectRoot + 'test/_functions/common/reverser/nodejs/handler.js'
+            const functionModulePath = `${testFunctionsDirPath}/common/reverser/nodejs/handler.js`
             const functionModule = require(functionModulePath)
             const executeInitContext = wrapper.__get__('executeInitContext')
             try {
                 executeInitContext(functionModule)
             } catch (err) {
-                assert.fail('InitContext should be skipped of `initContext` function is not exposed. err: ' + err)
+                assert.fail(`InitContext should be skipped of \`initContext\` function is not exposed. err: ${err}`)
             }
         })
         it('should fail executing initContext', () => {
-            const functionModulePath = projectRoot + 'test/_functions/common/context-init-fail/nodejs/contextinitfail.js'
+            const functionModulePath = `${testFunctionsDirPath}/common/context-init-fail/nodejs/contextinitfail.js`
             const functionModule = require(functionModulePath)
             const executeInitContext = wrapper.__get__('executeInitContext')
             assert.throws(() => {
@@ -106,7 +107,7 @@ describe('Wrapper', () => {
     describe('run()', function () {
         const socketPath = '/tmp/just-a-socket'
         it('should run wrapper', function (done) {
-            const handlerPath = projectRoot + 'test/_functions/common/context-init/nodejs/contextinit.js'
+            const handlerPath = `${testFunctionsDirPath}/common/context-init/nodejs/contextinit.js`
             const handlerName = 'handler'
             const run = wrapper.__get__('run')
             let responses = []
@@ -120,9 +121,15 @@ describe('Wrapper', () => {
                 }
                 socket.write(new Buffer.from(JSON.stringify(requestBody)))
                 socket.on('data', data => {
-                    const encodedResponses = data.toString().trim()
-                    responses.push(...encodedResponses.split('\n'))
-                    responses = responses.map(response => response.substring(1))
+                    if (data.toString().trim() === 's') {
+
+                        // ignore start message
+                        return
+                    }
+                    responses = [
+                        ...responses,
+                        ...data.toString().trim().split('\n'),
+                    ].filter(response => response !== 's').map(response => response.substring(1))
                     socket.end()
                     server.close()
                     assert.strictEqual(JSON.parse(responses[1]).body, (number * factor).toString())

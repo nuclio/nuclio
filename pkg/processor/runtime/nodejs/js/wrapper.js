@@ -20,6 +20,20 @@ const events = require('events')
 const jsonCtype = 'application/json'
 const initContextFunctionName = 'initContext'
 
+const messageTypes = {
+    LOG: 'l',
+    RESPONSE: 'r',
+    METRIC: 'm',
+    START: 's',
+}
+
+const logLevels = {
+    DEBUG: 'debug',
+    INFO: 'info',
+    WARNING: 'warning',
+    ERROR: 'error',
+}
+
 let context = {
     userData: {},
     callback: async (handlerResponse) => {
@@ -27,14 +41,14 @@ let context = {
     },
     Response: Response,
     logger: {
-        error: (message, withData) => log('error', message, withData),
-        warn: (message, withData) => log('warning', message, withData),
-        info: (message, withData) => log('info', message, withData),
-        debug: (message, withData) => log('debug', message, withData),
-        errorWith: (message, withData) => log('error', message, withData),
-        warnWith: (message, withData) => log('warning', message, withData),
-        infoWith: (message, withData) => log('info', message, withData),
-        debugWith: (message, withData) => log('debug', message, withData),
+        error: logWithLevel(logLevels.ERROR),
+        warn: logWithLevel(logLevels.WARNING),
+        info: logWithLevel(logLevels.INFO),
+        debug: logWithLevel(logLevels.DEBUG),
+        errorWith: logWithLevel(logLevels.ERROR),
+        warnWith: logWithLevel(logLevels.WARNING),
+        infoWith: logWithLevel(logLevels.INFO),
+        debugWith: logWithLevel(logLevels.DEBUG),
     },
     _socket: undefined,
     _eventEmitter: new events.EventEmitter(),
@@ -43,11 +57,13 @@ let context = {
 function Response(body = null,
                   headers = null,
                   contentType = 'text/plain',
-                  statusCode = 200) {
+                  statusCode = 200,
+                  bodyEncoding = 'text') {
     this.body = body
     this.headers = headers
     this.content_type = contentType
     this.status_code = statusCode
+    this.body_encoding = bodyEncoding
 
     if (!isString(this.body)) {
         this.body = JSON.stringify(this.body)
@@ -55,18 +71,26 @@ function Response(body = null,
     }
 }
 
+function writeMessageToProcessor(messageType, messageContents) {
+    context._socket.write(`${messageType}${messageContents}\n`)
+}
+
+function logWithLevel(level) {
+    return (...args) => log(level, ...args)
+}
+
 function log(level, message, withData) {
     if (withData === undefined) {
         withData = {}
     }
-
+    const datetime = (new Date()).toISOString()
     const record = {
-        datetime: new Date().toISOString(),
-        level: level,
-        message: message,
+        datetime,
+        level,
+        message,
         with: withData,
     }
-    context._socket.write('l' + JSON.stringify(record) + '\n')
+    writeMessageToProcessor(messageTypes.LOG, JSON.stringify(record))
 }
 
 function isString(obj) {
@@ -75,7 +99,7 @@ function isString(obj) {
 
 // Status reply is a list of [status, content]
 function isStatusReply(handlerOutput) {
-    return handlerOutput instanceof Array &&
+    return Array.isArray(handlerOutput) &&
         handlerOutput.length === 2 &&
         typeof (handlerOutput[0]) === 'number'
 }
@@ -102,10 +126,7 @@ function responseFromOutput(handlerOutput) {
             response.content_type = jsonCtype
         }
     } else if (handlerOutput instanceof Response) {
-        response.body = handlerOutput.body
-        response.content_type = handlerOutput.content_type
-        response.headers = handlerOutput.headers
-        response.status_code = handlerOutput.status_code
+        Object.assign(response, handlerOutput)
     } else {
 
         // other object
@@ -113,7 +134,7 @@ function responseFromOutput(handlerOutput) {
         response.content_type = jsonCtype
     }
 
-    if (response.body instanceof Buffer) {
+    if (Buffer.isBuffer(response.body)) {
         response.body = response.body.toString('base64')
         response.body_encoding = 'base64'
     }
@@ -125,10 +146,11 @@ function writeDuration(start, end) {
     const duration = {
         duration: Math.max(0.00000000001, (end.getTime() - start.getTime()) / 1000)
     }
-    context._socket.write('m' + JSON.stringify(duration) + '\n')
+    writeMessageToProcessor(messageTypes.METRIC, JSON.stringify(duration))
 }
 
 async function handleEvent(handlerFunction, incomingEvent) {
+    let response = {}
     try {
         incomingEvent.body = new Buffer.from(incomingEvent['body'], 'base64')
         incomingEvent.timestamp = new Date(incomingEvent['timestamp'] * 1000)
@@ -149,41 +171,39 @@ async function handleEvent(handlerFunction, incomingEvent) {
         // write execution duration
         const end = new Date()
         writeDuration(start, end)
+        response = responseFromOutput(handlerResponse)
 
-        // write response
-        const response = responseFromOutput(handlerResponse)
-        context._socket.write('r' + JSON.stringify(response) + '\n')
     } catch (err) {
-        console.log('ERROR: ' + err)
+        console.log(`ERROR: ${err}`)
         let errorMessage = err.toString()
 
         if (err.stack !== undefined) {
             console.log(err.stack)
-            errorMessage += '\n' + err.stack
+            errorMessage += `\n${err.stack}`
         }
 
-        const response = {
-            body: 'Error in handler: ' + errorMessage,
+        response = {
+            body: `Error in handler: ${errorMessage}`,
             content_type: 'text/plain',
             headers: {},
             status_code: 500,
             body_encoding: 'text'
         }
+    } finally {
 
-        context._socket.write('r' + JSON.stringify(response) + '\n')
+        // write response
+        writeMessageToProcessor(messageTypes.RESPONSE, JSON.stringify(response))
     }
 }
 
 function connectSocket(socketPath, handlerFunction) {
     const socket = new net.Socket()
-    console.log('socketPath = ' + socketPath)
-    if (/:/.test(socketPath)) {
+    console.log(`socketPath = ${socketPath}`)
+    if (socketPath.includes(':')) {
 
         // TCP - host:port
-        const parts = socketPath.split(':')
-        const host = parts[1]
-        const port = parseInt(parts[0])
-
+        const [host, portStr] = socketPath.split(':')
+        const port = Number.parseInt(portStr)
         socket.connect(port, host)
     } else {
 
@@ -191,6 +211,9 @@ function connectSocket(socketPath, handlerFunction) {
         socket.connect(socketPath)
     }
     context._socket = socket
+    socket.on('ready', () => {
+        writeMessageToProcessor(messageTypes.START, '')
+    })
     socket.on('data', async data => {
         let incomingEvent = JSON.parse(data)
         await handleEvent(handlerFunction, incomingEvent)
@@ -199,7 +222,7 @@ function connectSocket(socketPath, handlerFunction) {
 
 function executeInitContext(functionModule) {
     const initContextFunction = functionModule[initContextFunctionName]
-    if (initContextFunction !== undefined) {
+    if (typeof initContextFunction === 'function') {
         return initContextFunction(context)
     }
 }
@@ -217,11 +240,12 @@ async function findFunction(functionModule, name) {
     const delayMilliseconds = 250
     while (functionToFind === undefined) {
         if (attempts < 40) {
-            console.warn('function "' + name + '" not found yet in ' + functionModule)
+            console.warn(`function "${name}" not found yet in ${functionModule}`)
             attempts++
             await sleep(delayMilliseconds)
         } else {
-            console.error('error: function "' + name + '" not found by deadline in ' + functionModule)
+            console.warn(`function "${name}" not found by deadline in ${functionModule}`)
+            throw `Failed to find function "${name}" in "${functionModule}"`
         }
         functionToFind = functionModule[name]
     }
@@ -235,7 +259,7 @@ function run(socketPath, handlerPath, handlerName) {
             try {
                 executeInitContext(functionModule)
             } catch (err) {
-                console.error('Failed to init context: ' + err)
+                console.error(`Failed to init context: ${err}`)
                 throw err
             }
             return connectSocket(socketPath, handlerFunction)

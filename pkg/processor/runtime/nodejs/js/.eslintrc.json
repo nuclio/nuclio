@@ -7,7 +7,7 @@
   },
   "extends": "eslint:recommended",
   "parserOptions": {
-    "ecmaVersion": 10
+    "ecmaVersion": 2020
   },
   "rules": {
     "complexity": [
