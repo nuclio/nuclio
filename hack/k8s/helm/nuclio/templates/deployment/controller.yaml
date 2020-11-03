@@ -50,6 +50,10 @@ spec:
           value: {{ .Values.controller.cronTriggerCronJobImage.repository }}:{{ .Values.controller.cronTriggerCronJobImage.tag }}
         - name: NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_PULL_POLICY
           value: {{ .Values.controller.cronTriggerCronJobImage.pullPolicy }}
+        {{- if .Values.platform }}
+        - name: NUCLIO_CONTROLLER_PLATFORM_CONFIGURATION_NAME
+          value: {{ template "nuclio.platformConfigName" . }}
+        {{- end}}
         {{- if .Values.controller.namespace }}
         - name: NUCLIO_CONTROLLER_NAMESPACE
           value: {{ .Values.controller.namespace | quote }}
