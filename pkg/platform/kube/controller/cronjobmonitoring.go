@@ -47,7 +47,7 @@ func (cjm *CronJobMonitoring) start() {
 		defer func() {
 			if err := recover(); err != nil {
 				callStack := debug.Stack()
-				cjm.logger.ErrorWith("Panic caught while starting cronjob monitoring",
+				cjm.logger.ErrorWith("Panic caught while monitoring cronjobs",
 					"err", err,
 					"stack", string(callStack))
 			}

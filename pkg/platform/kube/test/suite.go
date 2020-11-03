@@ -51,9 +51,9 @@ type KubeTestSuite struct {
 	KubeClientSet *kubernetes.Clientset
 }
 
-// To run this test suite you are should
+// To run this test suite you should:
 // - set NUCLIO_K8S_TESTS_ENABLED env to true
-// - have Nuclio CRD installed (you can install them by running "test/k8s/ci_assets/install_nuclio_crds.sh")
+// - have Nuclio CRDs installed (you can install them by running "test/k8s/ci_assets/install_nuclio_crds.sh")
 // - have docker registry running (you can run docker registry by running "docker run --rm -d -p 5000:5000 registry:2")
 // - use "(kube) - platform test" run configuration via GoLand to run your test
 func (suite *KubeTestSuite) SetupSuite() {

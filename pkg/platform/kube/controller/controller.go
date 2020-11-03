@@ -51,7 +51,7 @@ type Controller struct {
 
 	// monitors
 	cronJobMonitoring       *CronJobMonitoring
-	functionMonitor         *monitoring.FunctionMonitor
+	functionMonitoring      *monitoring.FunctionMonitor
 	functionMonitorInterval time.Duration
 }
 
@@ -140,7 +140,7 @@ func NewController(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create api gateway operator")
 	}
 
-	newController.functionMonitor, err = monitoring.NewFunctionMonitor(parentLogger,
+	newController.functionMonitoring, err = monitoring.NewFunctionMonitor(parentLogger,
 		namespace,
 		kubeClientSet,
 		nuclioClientSet,
@@ -183,7 +183,7 @@ func (c *Controller) Start() error {
 	}
 
 	// start function monitor
-	if err := c.functionMonitor.Start(); err != nil {
+	if err := c.functionMonitoring.Start(); err != nil {
 		return errors.Wrap(err, "Failed to start function monitor")
 	}
 
@@ -203,7 +203,7 @@ func (c *Controller) Stop() error {
 	c.cronJobMonitoring.stop()
 
 	// stop function monitor
-	c.functionMonitor.Stop()
+	c.functionMonitoring.Stop()
 	return nil
 }
 
@@ -223,6 +223,6 @@ func (c *Controller) GetFunctionMonitorInterval() time.Duration {
 	return c.functionMonitorInterval
 }
 
-func (c *Controller) GetFunctionMonitor() *monitoring.FunctionMonitor {
-	return c.functionMonitor
+func (c *Controller) GetFunctionMonitoring() *monitoring.FunctionMonitor {
+	return c.functionMonitoring
 }
