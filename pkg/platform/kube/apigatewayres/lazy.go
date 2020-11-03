@@ -260,7 +260,7 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeBasicAuth
 		commonIngressSpec.Authentication = &ingress.Authentication{
 			BasicAuth: &ingress.BasicAuth{
-				Name:     fmt.Sprintf("apigateway-%s", apiGateway.Name),
+				Name:     kube.BasicAuthNameFromAPIGatewayName(apiGateway.Name),
 				Username: apiGateway.Spec.Authentication.BasicAuth.Username,
 				Password: apiGateway.Spec.Authentication.BasicAuth.Password,
 			},
@@ -278,21 +278,11 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 		return nil, errors.New("Unsupported ApiGateway authentication mode provided")
 	}
 
-	// add nginx specific annotations
-	annotations := map[string]string{}
-	annotations["kubernetes.io/ingress.class"] = "nginx"
+	// if percentage is given, it is the canary deployment
+	canaryDeployment := upstream.Percentage != 0
+	commonIngressSpec.Name = kube.IngressNameFromAPIGatewayName(apiGateway.Name, canaryDeployment)
 
-	// if percentage is given, it is the canary upstream
-	if upstream.Percentage != 0 {
-		annotations["nginx.ingress.kubernetes.io/canary"] = "true"
-		annotations["nginx.ingress.kubernetes.io/canary-weight"] = strconv.FormatInt(int64(upstream.Percentage), 10)
-		commonIngressSpec.Name = kube.IngressNameFromAPIGatewayName(apiGateway.Name, true)
-	} else {
-		commonIngressSpec.Name = kube.IngressNameFromAPIGatewayName(apiGateway.Name, false)
-	}
-
-	commonIngressSpec.Annotations = annotations
-
+	commonIngressSpec.Annotations = lc.resolveCommonAnnotations(canaryDeployment, upstream.Percentage)
 	for annotationKey, annotationValue := range upstream.ExtraAnnotations {
 		commonIngressSpec.Annotations[annotationKey] = annotationValue
 	}
@@ -331,6 +321,20 @@ func (lc *lazyClient) getServiceHTTPPort(service v1.Service) (int, error) {
 	}
 
 	return 0, errors.New("Service has no http port")
+}
+
+func (lc *lazyClient) resolveCommonAnnotations(canaryDeployment bool, upstreamPercentage int) map[string]string {
+	annotations := map[string]string{}
+
+	// add nginx specific annotations
+	annotations["kubernetes.io/ingress.class"] = "nginx"
+
+	// add canary deployment specific annotations
+	if canaryDeployment {
+		annotations["nginx.ingress.kubernetes.io/canary"] = "true"
+		annotations["nginx.ingress.kubernetes.io/canary-weight"] = strconv.Itoa(upstreamPercentage)
+	}
+	return annotations
 }
 
 //
