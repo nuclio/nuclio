@@ -21,6 +21,8 @@ exports.testHandler = function (context, event) {
         return
     }
 
+    const headers = event.headers
+
     switch (event.body.toString()) {
         case 'return_string':
             context.callback('a string')
@@ -29,10 +31,10 @@ exports.testHandler = function (context, event) {
             context.callback([201, 'a string after status'])
             return
         case 'return_list':
-            context.callback([{a: 1}, {b: 2}])
+            context.callback([{ a: 1 }, { b: 2 }])
             return
         case 'return_status_and_dict':
-            context.callback([201, {a: 'dict after status', b: 'foo'}])
+            context.callback([201, { a: 'dict after status', b: 'foo' }])
             return
         case 'log':
             context.logger.debug('Debug message')
@@ -42,17 +44,16 @@ exports.testHandler = function (context, event) {
             context.callback([201, 'returned logs'])
             return
         case 'log_with':
-            context.logger.errorWith('Error message', {source: 'rabbit', weight: 7})
+            context.logger.errorWith('Error message', { source: 'rabbit', weight: 7 })
             context.callback([201, 'returned logs with'])
             return
         case 'return_response':
-            const headers = event.headers
             headers.h1 = 'v1'
             headers.h2 = 'v2'
             context.callback(new context.Response('response body',
-                headers,
-                'text/plain',
-                201))
+                                                  headers,
+                                                  'text/plain',
+                                                  201))
             return
         case 'return_fields':
             context.callback(Object.entries(event.fields)

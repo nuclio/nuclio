@@ -79,10 +79,7 @@ function logWithLevel(level) {
     return (...args) => log(level, ...args)
 }
 
-function log(level, message, withData) {
-    if (withData === undefined) {
-        withData = {}
-    }
+function log(level, message, withData = {}) {
     const datetime = (new Date()).toISOString()
     const record = {
         datetime,

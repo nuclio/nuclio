@@ -44,14 +44,14 @@ describe('Wrapper', () => {
                     writtenData = message
                 }
             }
-            context.logger.info('HelloWorld', {a: 2})
+            context.logger.info('HelloWorld', { a: 2 })
             const writtenAsObject = JSON.parse(writtenData.substring(1))
 
             // it is not empty
             assert.notStrictEqual(writtenAsObject.datatime, '')
             assert.strictEqual(writtenAsObject.level, 'info')
             assert.strictEqual(writtenAsObject.message, 'HelloWorld')
-            assert.deepStrictEqual(writtenAsObject.with, {a: 2})
+            assert.deepStrictEqual(writtenAsObject.with, { a: 2 })
         })
     })
     describe('handleEvent()', () => {
@@ -70,7 +70,7 @@ describe('Wrapper', () => {
                 functionModule,
                 'handler'
             )
-            const event = {body: Buffer.from('abc').toString('base64')}
+            const event = { body: Buffer.from('abc').toString('base64') }
             await handleEvent(handlerFunction, event)
             const responseData = JSON.parse(writtenData[1].substring(1))
             assert.strictEqual(responseData.body, 'cba')

@@ -10,9 +10,12 @@
     "ecmaVersion": 2020
   },
   "rules": {
+    "object-curly-spacing": [
+      "error", "always"
+    ],
     "complexity": [
       2,
-      10
+      12
     ],
     "curly": [
       2,
