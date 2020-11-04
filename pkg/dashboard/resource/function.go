@@ -334,8 +334,8 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 	if err != nil {
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
-			StatusCode: http.StatusInternalServerError,
-		}, err
+			StatusCode: common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError),
+		}, errors.RootCause(err)
 	}
 
 	return &restful.CustomRouteFuncResponse{
