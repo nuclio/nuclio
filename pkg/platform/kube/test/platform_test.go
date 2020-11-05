@@ -32,6 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/monitoring"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/nuclio/errors"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -70,13 +71,16 @@ func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways(
 		apiGatewayName := "func-apigw"
 		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
-			suite.Assert().Contains(ingress.Spec.Backend.ServiceName, functionName)
+			suite.Assert().Contains(ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServiceName, functionName)
+
+			// try to delete the function while it uses this api gateway
+			err := suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+				FunctionConfig: createFunctionOptions.FunctionConfig,
+			})
+			suite.Assert().Equal(platform.ErrFunctionIsUsedByAPIGateways, errors.RootCause(err))
+
 		}, false)
 
-		err := suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
-			FunctionConfig: createFunctionOptions.FunctionConfig,
-		})
-		suite.Assert().Equal(err, platform.ErrFunctionIsUsedByAPIGateways)
 		return true
 	})
 }
@@ -560,6 +564,7 @@ func (suite *DeployTestSuite) compileCreateAPIGatewayOptions(
 			},
 			Spec: platform.APIGatewaySpec{
 				Host: "some-host",
+				AuthenticationMode: ingress.AuthenticationModeNone,
 				Upstreams: []platform.APIGatewayUpstreamSpec{
 					{
 						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
@@ -578,6 +583,6 @@ func TestPlatformTestSuite(t *testing.T) {
 		return
 	}
 	suite.Run(t, new(DeployFunctionTestSuite))
-	suite.Run(t, new(DeleteFunctionTestSuite))
 	suite.Run(t, new(DeployAPIGatewayTestSuite))
+	suite.Run(t, new(DeleteFunctionTestSuite))
 }
