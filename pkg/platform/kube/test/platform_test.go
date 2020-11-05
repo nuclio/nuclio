@@ -563,7 +563,7 @@ func (suite *DeployTestSuite) compileCreateAPIGatewayOptions(
 				Namespace: suite.Namespace,
 			},
 			Spec: platform.APIGatewaySpec{
-				Host: "some-host",
+				Host:               "some-host",
 				AuthenticationMode: ingress.AuthenticationModeNone,
 				Upstreams: []platform.APIGatewayUpstreamSpec{
 					{
