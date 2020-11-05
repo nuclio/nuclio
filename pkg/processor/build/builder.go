@@ -509,6 +509,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 	splitProcessorImageName := strings.Split(b.processorImage.imageName, ":")
 	if len(splitProcessorImageName) == 2 {
 		b.processorImage.imageTag = splitProcessorImageName[1]
+		b.processorImage.imageName = splitProcessorImageName[0]
 	}
 
 	// if tag isn't set - set latest

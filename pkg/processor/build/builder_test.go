@@ -611,6 +611,64 @@ func (suite *testSuite) TestResolveFunctionPathS3CodeEntry() {
 	suite.testResolveFunctionPathArchive(buildConfiguration, "")
 }
 
+// test that when `spec.build.image` is given, it is enriched correctly
+func (suite *testSuite) TestImageNameConfigurationEnrichment() {
+	suite.builder.options.FunctionConfig.Meta.Name = "name"
+	suite.builder.options.FunctionConfig.Spec.Handler = "handler"
+	suite.builder.options.FunctionConfig.Spec.Runtime = "python3.6"
+
+	type testAttributes struct {
+		inputImageName             string
+		expectedProcessorImageName string
+		expectedProcessorImageTag  string
+	}
+
+	// test different possibilities of image names
+	for _, testAttributesInstance := range []testAttributes{
+		{
+			"imagename",
+			"imagename",
+			"latest",
+		},
+		{
+			"imagename:imagetag",
+			"imagename",
+			"imagetag",
+		},
+		{
+			"username.x.com/imagename",
+			"username.x.com/imagename",
+			"latest",
+		},
+		{
+			"username.x.com/imagename:imagetag",
+			"username.x.com/imagename",
+			"imagetag",
+		},
+		{
+			"x.com/<some-user>/imagename",
+			"x.com/<some-user>/imagename",
+			"latest",
+		},
+		{
+			"x.com/<some-user>/imagename:imagetag",
+			"x.com/<some-user>/imagename",
+			"imagetag",
+		},
+	} {
+
+		suite.builder.options.FunctionConfig.Spec.Build.Image = testAttributesInstance.inputImageName
+		err := suite.builder.validateAndEnrichConfiguration()
+		suite.Assert().NoError(err)
+		suite.Assert().Equal(testAttributesInstance.expectedProcessorImageName, suite.builder.processorImage.imageName)
+		suite.Assert().Equal(testAttributesInstance.expectedProcessorImageTag, suite.builder.processorImage.imageTag)
+
+		// cleanup for the next test
+		suite.builder.processorImage.imageName = ""
+		suite.builder.processorImage.imageTag = ""
+	}
+}
+
 func (suite *testSuite) mergeDirectivesAndVerify(first map[string][]functionconfig.Directive,
 	second map[string][]functionconfig.Directive,
 	merged map[string][]functionconfig.Directive) {
