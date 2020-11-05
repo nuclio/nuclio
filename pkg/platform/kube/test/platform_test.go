@@ -32,6 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/monitoring"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/nuclio/errors"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -57,6 +58,31 @@ type DeployAPIGatewayTestSuite struct {
 
 type DeployFunctionTestSuite struct {
 	DeployTestSuite
+}
+
+type DeleteFunctionTestSuite struct {
+	DeployTestSuite
+}
+
+func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways() {
+	functionName := "func-to-delete"
+	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		apiGatewayName := "func-apigw"
+		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+			suite.Assert().Contains(ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServiceName, functionName)
+
+			// try to delete the function while it uses this api gateway
+			err := suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+				FunctionConfig: createFunctionOptions.FunctionConfig,
+			})
+			suite.Assert().Equal(platform.ErrFunctionIsUsedByAPIGateways, errors.RootCause(err))
+
+		}, false)
+
+		return true
+	})
 }
 
 func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
@@ -527,7 +553,7 @@ def handler(context, event):
 	return createFunctionOptions
 }
 
-func (suite *DeployAPIGatewayTestSuite) compileCreateAPIGatewayOptions(
+func (suite *DeployTestSuite) compileCreateAPIGatewayOptions(
 	apiGatewayName string, functionName string) *platform.CreateAPIGatewayOptions {
 
 	return &platform.CreateAPIGatewayOptions{
@@ -537,7 +563,8 @@ func (suite *DeployAPIGatewayTestSuite) compileCreateAPIGatewayOptions(
 				Namespace: suite.Namespace,
 			},
 			Spec: platform.APIGatewaySpec{
-				Host: "some-host",
+				Host:               "some-host",
+				AuthenticationMode: ingress.AuthenticationModeNone,
 				Upstreams: []platform.APIGatewayUpstreamSpec{
 					{
 						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
@@ -557,4 +584,5 @@ func TestPlatformTestSuite(t *testing.T) {
 	}
 	suite.Run(t, new(DeployFunctionTestSuite))
 	suite.Run(t, new(DeployAPIGatewayTestSuite))
+	suite.Run(t, new(DeleteFunctionTestSuite))
 }

@@ -369,6 +369,10 @@ func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunction
 
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+	if err := p.validateFunctionHasNoAPIGateways(deleteFunctionOptions); err != nil {
+		return errors.Wrap(err, "Failed while validating function has no api gateways")
+	}
+
 	return p.deleter.delete(p.consumer, deleteFunctionOptions)
 }
 
@@ -1117,6 +1121,22 @@ func (p *Platform) enrichHTTPTriggersWithServiceType(createFunctionOptions *plat
 		createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName] = p.enrichTriggerWithServiceType(createFunctionOptions,
 			trigger,
 			serviceType)
+	}
+
+	return nil
+}
+
+func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+	var functionToAPIGateways map[string][]string
+	var err error
+
+	// generate function to api gateways mapping
+	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(deleteFunctionOptions.FunctionConfig.Meta.Namespace); err != nil {
+		return errors.Wrap(err, "Failed to get function to api gateways mapping")
+	}
+
+	if len(functionToAPIGateways[deleteFunctionOptions.FunctionConfig.Meta.Name]) > 0 {
+		return platform.ErrFunctionIsUsedByAPIGateways
 	}
 
 	return nil
