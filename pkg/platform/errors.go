@@ -24,4 +24,6 @@ import (
 var ErrProjectContainsFunctions = nuclio.NewErrConflict("Project contains functions")
 var ErrProjectContainsAPIGateways = nuclio.NewErrConflict("Project contains api gateways")
 
+var ErrFunctionIsUsedByAPIGateways = nuclio.NewErrConflict("Function is used by api gateways")
+
 var ErrUnsupportedMethod = nuclio.NewErrNotImplemented("Unsupported method")

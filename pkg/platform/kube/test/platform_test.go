@@ -59,6 +59,28 @@ type DeployFunctionTestSuite struct {
 	DeployTestSuite
 }
 
+type DeleteFunctionTestSuite struct {
+	DeployTestSuite
+}
+
+func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways() {
+	functionName := "func-to-delete"
+	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		apiGatewayName := "func-apigw"
+		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+			suite.Assert().Contains(ingress.Spec.Backend.ServiceName, functionName)
+		}, false)
+
+		err := suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+			FunctionConfig: createFunctionOptions.FunctionConfig,
+		})
+		suite.Assert().Equal(err, platform.ErrFunctionIsUsedByAPIGateways)
+		return true
+	})
+}
+
 func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 	functionName := "some-function-name"
 	apiGatewayName := "some-api-gateway-name"
@@ -527,7 +549,7 @@ def handler(context, event):
 	return createFunctionOptions
 }
 
-func (suite *DeployAPIGatewayTestSuite) compileCreateAPIGatewayOptions(
+func (suite *DeployTestSuite) compileCreateAPIGatewayOptions(
 	apiGatewayName string, functionName string) *platform.CreateAPIGatewayOptions {
 
 	return &platform.CreateAPIGatewayOptions{
@@ -556,5 +578,6 @@ func TestPlatformTestSuite(t *testing.T) {
 		return
 	}
 	suite.Run(t, new(DeployFunctionTestSuite))
+	suite.Run(t, new(DeleteFunctionTestSuite))
 	suite.Run(t, new(DeployAPIGatewayTestSuite))
 }

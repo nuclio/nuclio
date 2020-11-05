@@ -1136,7 +1136,7 @@ func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platf
 	}
 
 	if len(functionToAPIGateways[deleteFunctionOptions.FunctionConfig.Meta.Name]) > 0 {
-		return nuclio.NewErrConflict("Function is used by api gateways")
+		return platform.ErrFunctionIsUsedByAPIGateways
 	}
 
 	return nil
