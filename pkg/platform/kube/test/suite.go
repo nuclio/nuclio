@@ -35,6 +35,8 @@ import (
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"github.com/ghodss/yaml"
+	"github.com/nuclio/errors"
+	"golang.org/x/sync/errgroup"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	kubeapierrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -101,24 +103,18 @@ func (suite *KubeTestSuite) TearDownTest() {
 	suite.TestSuite.TearDownTest()
 
 	// remove nuclio function leftovers
-	defer func() {
-		_, err := suite.executeKubectl([]string{"delete", "nucliofunctions", "--all", "--force"},
-			map[string]string{
-				"grace-period": "0",
-			})
-		suite.Require().NoError(err)
-	}()
+	var errGroup errgroup.Group
+	for _, resourceKind := range []string{"nucliofunctions", "nuclioapigateways"} {
+		resourceKind := resourceKind
+		errGroup.Go(func() error {
+			return suite.deleteAllResourcesByKind(resourceKind)
+		})
+	}
 
-	// remove nuclio apigateway leftovers
-	defer func() {
-		_, err := suite.executeKubectl([]string{"delete", "nuclioapigateways", "--all", "--force"},
-			map[string]string{
-				"grace-period": "0",
-			})
-		suite.Require().NoError(err)
-	}()
+	// wait and ensure no error occurred during CRDs deletion
+	suite.Require().NoError(errGroup.Wait(), "Failed waiting for CRDs deletion")
 
-	// wait until controller remove it all
+	// wait until controller delete all CRD resources (deployments, ingresses, etc)
 	err := common.RetryUntilSuccessful(5*time.Minute,
 		5*time.Second,
 		func() bool {
@@ -234,6 +230,18 @@ func (suite *KubeTestSuite) getResourceAndUnmarshal(resourceKind, resourceName s
 	resourceContent := suite.getResource(resourceKind, resourceName)
 	err := yaml.Unmarshal([]byte(resourceContent), resource)
 	suite.Require().NoError(err)
+}
+
+func (suite *KubeTestSuite) deleteAllResourcesByKind(kind string) error {
+	_, err := suite.executeKubectl([]string{"delete", kind, "--all", "--force"},
+		map[string]string{
+			"grace-period": "0",
+		})
+	if err != nil {
+		return errors.Wrapf(err, "Failed delete all resources for kind \"%s\"", kind)
+	}
+	suite.Logger.DebugWith("Successfully deleted all resources", "kind", kind)
+	return nil
 }
 
 func (suite *KubeTestSuite) compileCreateFunctionOptions(functionName string) *platform.CreateFunctionOptions {
