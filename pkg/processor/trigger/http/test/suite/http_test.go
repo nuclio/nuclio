@@ -17,6 +17,7 @@ limitations under the License.
 package httpsuite
 
 import (
+	"net/http"
 	"path"
 	"strconv"
 	"strings"
@@ -40,6 +41,7 @@ func (suite *HTTPTestSuite) SetupTest() {
 }
 
 func (suite *HTTPTestSuite) TestCORS() {
+	exposeHeaders := "x-nuclio-something, x-nuclio-somethingelse"
 	allowHeaders := "Accept, Content-Length, Content-Type, X-nuclio-log-level"
 	allowMethods := "OPTIONS, GET, POST, HEAD, PUT"
 	preflightMaxAgeSeconds := 10
@@ -50,6 +52,7 @@ func (suite *HTTPTestSuite) TestCORS() {
 		"allowOrigins":           []string{origin},
 		"allowHeaders":           strings.Split(allowHeaders, ", "),
 		"allowMethods":           strings.Split(allowMethods, ", "),
+		"exposeHeaders":          strings.Split(exposeHeaders, ", "),
 		"preflightMaxAgeSeconds": preflightMaxAgeSeconds,
 	}
 	validPreflightResponseStatusCode := fasthttp.StatusOK
@@ -59,24 +62,34 @@ func (suite *HTTPTestSuite) TestCORS() {
 
 			// Happy flow
 			{
-				RequestMethod: "OPTIONS",
+				RequestMethod: http.MethodOptions,
 				RequestHeaders: map[string]interface{}{
 					"Origin":                         origin,
-					"Access-Control-Request-Method":  "POST",
+					"Access-Control-Request-Method":  http.MethodPost,
 					"Access-Control-Request-Headers": "X-nuclio-log-level",
 				},
 				ExpectedResponseStatusCode: &validPreflightResponseStatusCode,
 				ExpectedResponseHeadersValues: map[string][]string{
-					"Access-Control-Allow-Methods": {allowMethods},
-					"Access-Control-Allow-Headers": {allowHeaders},
-					"Access-Control-Allow-Origin":  {origin},
-					"Access-Control-Max-Age":       {strconv.Itoa(preflightMaxAgeSeconds)},
+					"Access-Control-Expose-Headers": {exposeHeaders},
+					"Access-Control-Allow-Methods":  {allowMethods},
+					"Access-Control-Allow-Headers":  {allowHeaders},
+					"Access-Control-Allow-Origin":   {origin},
+					"Access-Control-Max-Age":        {strconv.Itoa(preflightMaxAgeSeconds)},
+				},
+			},
+			{
+				RequestMethod: http.MethodPost,
+				RequestHeaders: map[string]interface{}{
+					"Origin": origin,
+				},
+				ExpectedResponseHeadersValues: map[string][]string{
+					"Access-Control-Expose-Headers": {exposeHeaders},
 				},
 			},
 
 			// Disallowed request method
 			{
-				RequestMethod: "OPTIONS",
+				RequestMethod: http.MethodOptions,
 				RequestHeaders: map[string]interface{}{
 					"Origin":                        origin,
 					"Access-Control-Request-Method": "ABC",
@@ -86,10 +99,10 @@ func (suite *HTTPTestSuite) TestCORS() {
 
 			// Disallowed origin
 			{
-				RequestMethod: "OPTIONS",
+				RequestMethod: http.MethodOptions,
 				RequestHeaders: map[string]interface{}{
 					"Origin":                        "dummy-origin",
-					"Access-Control-Request-Method": "POST",
+					"Access-Control-Request-Method": http.MethodPost,
 				},
 				ExpectedResponseStatusCode: &invalidPreflightResponseStatusCode,
 			},

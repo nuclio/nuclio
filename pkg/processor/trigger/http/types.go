@@ -89,6 +89,10 @@ func createCORSConfiguration(CORSConfiguration *cors.CORS) *cors.CORS {
 		corsInstance.AllowOrigins = CORSConfiguration.AllowOrigins
 	}
 
+	if len(CORSConfiguration.ExposeHeaders) > 0 {
+		corsInstance.ExposeHeaders = CORSConfiguration.ExposeHeaders
+	}
+
 	if CORSConfiguration.AllowCredentials {
 		corsInstance.AllowCredentials = CORSConfiguration.AllowCredentials
 	}

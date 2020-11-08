@@ -366,6 +366,12 @@ func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
 			ctx.Response.Header.Set("Access-Control-Allow-Credentials",
 				h.configuration.CORS.EncodeAllowCredentialsHeader())
 		}
+
+		// set expose headers
+		if len(h.configuration.CORS.ExposeHeaders) > 0 {
+			ctx.Response.Header.Set("Access-Control-Expose-Headers",
+				h.configuration.CORS.EncodeExposeHeaders())
+		}
 	}
 	return true
 }
