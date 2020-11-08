@@ -189,7 +189,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
 			Config: createFunctionOptions.FunctionConfig,
 			Status: functionconfig.Status{
-				State:   functionconfig.FunctionStateError,
+				State:   functionconfig.FunctionStateProvisioningError,
 				Message: errorStack.String(),
 			},
 		})
@@ -559,7 +559,7 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 			functionName := functionConfig.Meta.Name
 
 			functionIsReady := functionStatus.State == functionconfig.FunctionStateReady
-			functionWasSetAsUnhealthy := functionStatus.State == functionconfig.FunctionStateError &&
+			functionWasSetAsUnhealthy := functionconfig.FunctionStateErrored(functionStatus.State) &&
 				strings.EqualFold(UnhealthyContainerErrorMessage, functionStatus.Message)
 
 			if !(functionIsReady || functionWasSetAsUnhealthy) {

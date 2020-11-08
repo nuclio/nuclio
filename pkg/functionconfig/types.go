@@ -487,18 +487,26 @@ const (
 	FunctionStateWaitingForScaleResourcesToZero   FunctionState = "waitingForScaleResourceToZero"
 	FunctionStateConfiguringResources             FunctionState = "configuringResources"
 	FunctionStateReady                            FunctionState = "ready"
+	FunctionStateProvisioningError                FunctionState = "provisioningError"
 	FunctionStateError                            FunctionState = "error"
 	FunctionStateScaledToZero                     FunctionState = "scaledToZero"
 	FunctionStateImported                         FunctionState = "imported"
 )
 
-func FunctionStateInSlice(a FunctionState, list []FunctionState) bool {
-	for _, b := range list {
-		if b == a {
+func FunctionStateInSlice(functionState FunctionState, functionStates []FunctionState) bool {
+	for _, state := range functionStates {
+		if functionState == state {
 			return true
 		}
 	}
 	return false
+}
+
+func FunctionStateErrored(functionState FunctionState) bool {
+	return FunctionStateInSlice(functionState, []FunctionState{
+		FunctionStateError,
+		FunctionStateProvisioningError,
+	})
 }
 
 func FunctionStateProvisioned(functionState FunctionState) bool {

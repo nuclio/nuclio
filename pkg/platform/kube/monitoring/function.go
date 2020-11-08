@@ -117,9 +117,8 @@ func (fm *FunctionMonitor) checkFunctionStatuses() error {
 
 func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunction) error {
 
+	// skip check for function status
 	if fm.shouldSkipFunctionMonitoring(function) {
-
-		// skip check for function status
 		return nil
 	}
 
@@ -150,7 +149,8 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 		fm.logger.InfoWith("Updating function",
 			"functionName", function.Name,
 			"functionStatus", function.Status,
-			"functionNamespace", function.Namespace)
+			"functionNamespace", function.Namespace,
+			"functionDeploymentStatus", functionDeployment.Status)
 		if _, err := fm.nuclioClientSet.
 			NuclioV1beta1().
 			NuclioFunctions(fm.namespace).
@@ -164,29 +164,53 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 	return nil
 }
 
-// consider function deployment available if it has at least one available pod
+// consider function deployment available when all pods are available
 func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
-	return !(deployment.Spec.Replicas != nil &&
+	atLeastOneRunningPod := !(deployment.Spec.Replicas != nil &&
 		*deployment.Spec.Replicas > 0 &&
 		deployment.Status.AvailableReplicas <= 0)
-
+	allReplicasAvailable := deployment.Status.UnavailableReplicas <= 0
+	return atLeastOneRunningPod && allReplicasAvailable
 }
 
+// We monitor functions that meet the following conditions:
+// 1. not in provisioning state
+// 2. not recently deployed
+// 3. not in provisioning failures
+// 4. not in transitional states
 func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(function *nuclioio.NuclioFunction) bool {
 
-	// ignore provisioning states
-	// ignore recently deployed function
+	// (1) ignore provisioning states
+	// (2) ignore recently deployed function
 	if fm.resolveFunctionProvisionedOrRecentlyDeployed(function) {
 		fm.logger.DebugWith("Skipping check for function status change",
 			"functionName", function.Name)
 		return true
 	}
 
-	// ignore transitional states other than ready / error
-	return !functionconfig.FunctionStateInSlice(function.Status.State, []functionconfig.FunctionState{
+	// (3) ignore provisioning failures, we (yet) do not allow recovering from such scenarios.
+	if functionconfig.FunctionStateInSlice(function.Status.State, []functionconfig.FunctionState{
+		functionconfig.FunctionStateProvisioningError,
+	}) {
+		fm.logger.DebugWith("Ignoring function that failed provisioning",
+			"functionName", function.Name,
+			"functionState", function.Status.State)
+		return true
+	}
+
+	// (4) ignore transitional states other than ready / error
+	if !functionconfig.FunctionStateInSlice(function.Status.State, []functionconfig.FunctionState{
 		functionconfig.FunctionStateReady,
 		functionconfig.FunctionStateError,
-	})
+	}) {
+		fm.logger.DebugWith("Ignoring transitional function state",
+			"functionName", function.Name,
+			"functionState", function.Status.State)
+		return true
+	}
+
+	// do not skip as function should be monitored
+	return false
 }
 
 func (fm *FunctionMonitor) resolveFunctionProvisionedOrRecentlyDeployed(function *nuclioio.NuclioFunction) bool {

@@ -261,8 +261,10 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 		switch function.Status.State {
 		case functionconfig.FunctionStateReady:
 			return true, nil
-		case functionconfig.FunctionStateError:
-			return false, errors.Errorf("NuclioFunction in error state:\n%s", function.Status.Message)
+		case functionconfig.FunctionStateError, functionconfig.FunctionStateProvisioningError:
+			return false, errors.Errorf("NuclioFunction in %s state:\n%s",
+				function.Status.State,
+				function.Status.Message)
 		default:
 			if !function.Spec.WaitReadinessTimeoutBeforeFailure {
 
