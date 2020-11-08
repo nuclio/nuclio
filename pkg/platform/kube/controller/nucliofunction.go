@@ -85,7 +85,9 @@ func newFunctionOperator(parentLogger logger.Logger,
 func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.Object) error {
 	function, objectIsFunction := object.(*nuclioio.NuclioFunction)
 	if !objectIsFunction {
-		return fo.setFunctionError(nil, errors.New("Received unexpected object, expected function"))
+		return fo.setFunctionError(nil,
+			functionconfig.FunctionStateError,
+			errors.New("Received unexpected object, expected function"))
 	}
 
 	// validate function name is according to k8s convention
@@ -123,7 +125,9 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
 	if err != nil {
-		return fo.setFunctionError(function, errors.Wrap(err, "Failed to create/update function"))
+		return fo.setFunctionError(function,
+			functionconfig.FunctionStateUnhealthyError,
+			errors.Wrap(err, "Failed to create/update function"))
 	}
 
 	// wait for up to 60 seconds or whatever was set in the spec
@@ -138,6 +142,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	// wait until the function resources are ready
 	if err = fo.functionresClient.WaitAvailable(waitContext, function.Namespace, function.Name); err != nil {
 		return fo.setFunctionError(function,
+			functionconfig.FunctionStateError,
 			errors.Wrap(err, "Failed to wait for function resources to be available"))
 	}
 
@@ -223,13 +228,18 @@ func (fo *functionOperator) start() error {
 	return nil
 }
 
-func (fo *functionOperator) setFunctionError(function *nuclioio.NuclioFunction, err error) error {
+func (fo *functionOperator) setFunctionError(function *nuclioio.NuclioFunction,
+	functionErrorState functionconfig.FunctionState,
+	err error) error {
 
 	// whatever the error, try to update the function CR
-	fo.logger.WarnWith("Setting function error", "name", function.Name, "err", err)
+	fo.logger.WarnWith("Setting function error",
+		"functionErrorState", functionErrorState,
+		"functionName", function.Name,
+		"err", err)
 
 	if setStatusErr := fo.setFunctionStatus(function, &functionconfig.Status{
-		State:   functionconfig.FunctionStateError,
+		State:   functionErrorState,
 		Message: errors.GetErrorStackString(err, 10),
 	}); setStatusErr != nil {
 		fo.logger.Warn("Failed to update function on error",

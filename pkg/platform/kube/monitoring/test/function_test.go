@@ -53,8 +53,8 @@ func (suite *FunctionMonitoringTestSuite) TestNoRecoveryAfterBuildError() {
 			// wait for monitoring
 			time.Sleep(waitOnMonitoringIntervals)
 
-			// ensure function is still in provisioning error state (due to build error)
-			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateProvisioningError)
+			// ensure function is still in error state (due to build error)
+			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
 
 			// remove failing build command
 			createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{}
@@ -80,8 +80,8 @@ func (suite *FunctionMonitoringTestSuite) TestNoRecoveryAfterBuildError() {
 					// let interval occur at least once
 					time.Sleep(waitOnMonitoringIntervals)
 
-					// ensure function is still in provisioning error state (due to build error)
-					suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateProvisioningError)
+					// ensure function is still in error state (due to build error)
+					suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
 					return true
 				})
 
@@ -150,8 +150,8 @@ def handler(context, event):
 			// wait for monitoring
 			time.Sleep(waitOnMonitoringIntervals)
 
-			// ensure function is still in provisioning error state (due to deploy error of missing configmap)
-			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateProvisioningError)
+			// ensure function is still in error state (due to deploy error of missing configmap)
+			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
 
 			// create the missing configmap
 			configMap, err = suite.KubeClientSet.CoreV1().ConfigMaps(suite.Namespace).Create(configMap)
@@ -179,7 +179,7 @@ def handler(context, event):
 			time.Sleep(waitOnMonitoringIntervals)
 
 			// ensure function monitoring did not recover the function from its recent deploy error
-			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateProvisioningError)
+			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
 
 			return true
 		}, func(deployResult *platform.CreateFunctionResult) bool {
@@ -258,8 +258,8 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 				function = suite.GetFunction(getFunctionOptions)
 				suite.Logger.InfoWith("Waiting for function state",
 					"currentFunctionState", function.GetStatus().State,
-					"expectedFunctionState", functionconfig.FunctionStateError)
-				return function.GetStatus().State == functionconfig.FunctionStateError
+					"expectedFunctionState", functionconfig.FunctionStateUnhealthyError)
+				return function.GetStatus().State == functionconfig.FunctionStateUnhealthyError
 			})
 		suite.Require().NoError(err, "Failed to ensure function state is error")
 

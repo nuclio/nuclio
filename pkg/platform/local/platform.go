@@ -189,7 +189,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
 			Config: createFunctionOptions.FunctionConfig,
 			Status: functionconfig.Status{
-				State:   functionconfig.FunctionStateProvisioningError,
+				State:   functionconfig.FunctionStateError,
 				Message: errorStack.String(),
 			},
 		})

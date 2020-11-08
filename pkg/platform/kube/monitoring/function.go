@@ -135,12 +135,12 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 
 	stateChanged := false
 	functionIsAvailable := fm.isAvailable(functionDeployment)
-	if functionIsAvailable && function.Status.State == functionconfig.FunctionStateError {
+	if functionIsAvailable && function.Status.State == functionconfig.FunctionStateUnhealthyError {
 		function.Status.State = functionconfig.FunctionStateReady
 		function.Status.Message = ""
 		stateChanged = true
 	} else if !functionIsAvailable && function.Status.State == functionconfig.FunctionStateReady {
-		function.Status.State = functionconfig.FunctionStateError
+		function.Status.State = functionconfig.FunctionStateUnhealthyError
 		function.Status.Message = "Function has become unhealthy"
 		stateChanged = true
 	}
@@ -176,8 +176,7 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 // We monitor functions that meet the following conditions:
 // 1. not in provisioning state
 // 2. not recently deployed
-// 3. not in provisioning failures
-// 4. not in transitional states
+// 3. not in transitional states
 func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(function *nuclioio.NuclioFunction) bool {
 
 	// (1) ignore provisioning states
@@ -188,20 +187,10 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(function *nuclioio.Nucli
 		return true
 	}
 
-	// (3) ignore provisioning failures, we (yet) do not allow recovering from such scenarios.
-	if functionconfig.FunctionStateInSlice(function.Status.State, []functionconfig.FunctionState{
-		functionconfig.FunctionStateProvisioningError,
-	}) {
-		fm.logger.DebugWith("Ignoring function that failed provisioning",
-			"functionName", function.Name,
-			"functionState", function.Status.State)
-		return true
-	}
-
-	// (4) ignore transitional states other than ready / error
+	// (3) ignore transitional states other than ready / error
 	if !functionconfig.FunctionStateInSlice(function.Status.State, []functionconfig.FunctionState{
 		functionconfig.FunctionStateReady,
-		functionconfig.FunctionStateError,
+		functionconfig.FunctionStateUnhealthyError,
 	}) {
 		fm.logger.DebugWith("Ignoring transitional function state",
 			"functionName", function.Name,

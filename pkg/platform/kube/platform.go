@@ -220,7 +220,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			createFunctionOptions,
 			&functionconfig.Status{
 				HTTPPort: defaultHTTPPort,
-				State:    functionconfig.FunctionStateProvisioningError,
+				State:    functionconfig.FunctionStateError,
 				Message:  briefErrorsMessage,
 			})
 		return err
