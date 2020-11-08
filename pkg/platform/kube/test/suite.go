@@ -36,7 +36,8 @@ import (
 
 	"github.com/ghodss/yaml"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kubeapierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -72,6 +73,10 @@ func (suite *KubeTestSuite) SetupSuite() {
 
 	// only set up parent AFTER we set platform's type
 	suite.TestSuite.SetupSuite()
+
+	// fill test external ip addresses
+	err = suite.Platform.SetExternalIPAddresses(strings.Split(suite.GetTestHost(), ","))
+	suite.Require().NoError(err, "Failed to set platform external ip addresses")
 
 	suite.RegistryURL = common.GetEnvOrDefaultString("NUCLIO_TEST_REGISTRY_URL", "localhost:5000")
 
@@ -126,7 +131,7 @@ func (suite *KubeTestSuite) TearDownTest() {
 			}
 			return strings.Contains(results.Output, "No resources found in")
 		})
-	suite.Require().NoError(err)
+	suite.Require().NoError(err, "Not all nuclio resources were deleted")
 }
 
 func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
@@ -182,7 +187,7 @@ func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *pla
 				// TODO: consider canary ingress as well
 				kube.IngressNameFromAPIGatewayName(createAPIGatewayOptions.APIGatewayConfig.Meta.Name, false),
 				metav1.GetOptions{})
-		if err != nil && !exist && errors.IsNotFound(err) {
+		if err != nil && !exist && kubeapierrors.IsNotFound(err) {
 			suite.Logger.DebugWith("API gateway ingress removed")
 			break
 		}

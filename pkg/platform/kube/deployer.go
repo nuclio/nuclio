@@ -158,12 +158,11 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 	// do the create / update
 	// TODO: Infer timestamp from function config (consider create/update scenarios)
 	functionCreateOrUpdateTimestamp := time.Now()
-	_, err := d.createOrUpdateFunction(functionInstance,
+	if _, err := d.createOrUpdateFunction(functionInstance,
 		createFunctionOptions,
 		&functionconfig.Status{
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
-		})
-	if err != nil {
+		}); err != nil {
 		return nil, nil, err.Error(), errors.Wrap(err, "Failed to create function")
 	}
 

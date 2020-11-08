@@ -50,9 +50,9 @@ type Controller struct {
 	resyncInterval        time.Duration
 
 	// monitors
-	cronJobMonitoring       *CronJobMonitoring
-	functionMonitoring      *monitoring.FunctionMonitor
-	functionMonitorInterval time.Duration
+	cronJobMonitoring          *CronJobMonitoring
+	functionMonitoring         *monitoring.FunctionMonitor
+	functionMonitoringInterval time.Duration
 }
 
 func NewController(parentLogger logger.Logger,
@@ -63,7 +63,7 @@ func NewController(parentLogger logger.Logger,
 	functionresClient functionres.Client,
 	apigatewayresClient apigatewayres.Client,
 	resyncInterval time.Duration,
-	functionMonitorInterval time.Duration,
+	functionMonitoringInterval time.Duration,
 	cronJobStaleResourcesCleanupInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
 	platformConfigurationName string,
@@ -79,17 +79,17 @@ func NewController(parentLogger logger.Logger,
 	}
 
 	newController := &Controller{
-		logger:                    parentLogger,
-		namespace:                 namespace,
-		imagePullSecrets:          imagePullSecrets,
-		kubeClientSet:             kubeClientSet,
-		nuclioClientSet:           nuclioClientSet,
-		functionresClient:         functionresClient,
-		apigatewayresClient:       apigatewayresClient,
-		platformConfiguration:     platformConfiguration,
-		platformConfigurationName: platformConfigurationName,
-		resyncInterval:            resyncInterval,
-		functionMonitorInterval:   functionMonitorInterval,
+		logger:                     parentLogger,
+		namespace:                  namespace,
+		imagePullSecrets:           imagePullSecrets,
+		kubeClientSet:              kubeClientSet,
+		nuclioClientSet:            nuclioClientSet,
+		functionresClient:          functionresClient,
+		apigatewayresClient:        apigatewayresClient,
+		platformConfiguration:      platformConfiguration,
+		platformConfigurationName:  platformConfigurationName,
+		resyncInterval:             resyncInterval,
+		functionMonitoringInterval: functionMonitoringInterval,
 	}
 
 	newController.logger.DebugWith("Read configuration",
@@ -144,7 +144,7 @@ func NewController(parentLogger logger.Logger,
 		namespace,
 		kubeClientSet,
 		nuclioClientSet,
-		functionMonitorInterval)
+		functionMonitoringInterval)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function monitor")
 	}
@@ -219,8 +219,12 @@ func (c *Controller) GetResyncInterval() time.Duration {
 	return c.resyncInterval
 }
 
-func (c *Controller) GetFunctionMonitorInterval() time.Duration {
-	return c.functionMonitorInterval
+func (c *Controller) GetFunctionMonitoringInterval() time.Duration {
+	return c.functionMonitoringInterval
+}
+
+func (c *Controller) SetFunctionMonitoringInterval(interval time.Duration) {
+	c.functionMonitoringInterval = interval
 }
 
 func (c *Controller) GetFunctionMonitoring() *monitoring.FunctionMonitor {
