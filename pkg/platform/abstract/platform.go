@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"sync"
@@ -343,6 +344,9 @@ func (ap *Platform) ResolveReservedResourceNames() []string {
 
 // CreateFunctionInvocation will invoke a previously deployed function
 func (ap *Platform) CreateFunctionInvocation(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (*platform.CreateFunctionInvocationResult, error) {
+	if createFunctionInvocationOptions.Headers == nil {
+		createFunctionInvocationOptions.Headers = http.Header{}
+	}
 	return ap.invoker.invoke(createFunctionInvocationOptions)
 }
 
