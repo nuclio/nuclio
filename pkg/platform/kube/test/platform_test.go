@@ -21,15 +21,12 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
-	"github.com/nuclio/nuclio/pkg/platform/kube/monitoring"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -41,88 +38,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type DeployTestSuite struct {
-	KubeTestSuite
-}
-
-func (suite *DeployTestSuite) SetupSuite() {
-	suite.KubeTestSuite.SetupSuite()
-
-	// start controller in background
-	go suite.Controller.Start() // nolint: errcheck
-}
-
-type DeployAPIGatewayTestSuite struct {
-	DeployTestSuite
-}
-
 type DeployFunctionTestSuite struct {
-	DeployTestSuite
-}
-
-type DeleteFunctionTestSuite struct {
-	DeployTestSuite
-}
-
-func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways() {
-	functionName := "func-to-delete"
-	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		apiGatewayName := "func-apigw"
-		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
-			suite.Assert().Contains(ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServiceName, functionName)
-
-			// try to delete the function while it uses this api gateway
-			err := suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
-				FunctionConfig: createFunctionOptions.FunctionConfig,
-			})
-			suite.Assert().Equal(platform.ErrFunctionIsUsedByAPIGateways, errors.RootCause(err))
-
-		}, false)
-
-		return true
-	})
-}
-
-func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
-	functionName := "some-function-name"
-	apiGatewayName := "some-api-gateway-name"
-	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
-	configOauth2ProxyURL := "config-oauth2-url"
-	suite.PlatformConfiguration.IngressConfig = platformconfig.IngressConfig{
-		Oauth2ProxyURL: configOauth2ProxyURL,
-	}
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
-		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
-			suite.Assert().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
-			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
-		}, false)
-
-		overrideOauth2ProxyURL := "override-oauth2-url"
-		createAPIGatewayOptions = suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
-		createAPIGatewayOptions.APIGatewayConfig.Spec.Authentication = &platform.APIGatewayAuthenticationSpec{
-			DexAuth: &ingress.DexAuth{
-				Oauth2ProxyURL:               overrideOauth2ProxyURL,
-				RedirectUnauthorizedToSignIn: true,
-			},
-		}
-		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
-			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
-			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
-			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)
-		}, false)
-		return true
-	})
+	KubeTestSuite
 }
 
 func (suite *DeployFunctionTestSuite) TestStaleResourceVersion() {
 	var resourceVersion string
 
-	createFunctionOptions := suite.compileCreateFunctionOptions("resource-schema")
+	createFunctionOptions := suite.CompileCreateFunctionOptions("resource-schema")
 
 	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
 
@@ -180,7 +103,7 @@ func (suite *DeployFunctionTestSuite) TestSecurityContext() {
 	runAsGroupID := int64(2000)
 	fsGroup := int64(3000)
 	functionName := "security-context"
-	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Spec.SecurityContext = &v1.PodSecurityContext{
 		RunAsUser:  &runAsUserID,
 		RunAsGroup: &runAsGroupID,
@@ -188,7 +111,7 @@ func (suite *DeployFunctionTestSuite) TestSecurityContext() {
 	}
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		deploymentInstance := &appsv1.Deployment{}
-		suite.getResourceAndUnmarshal("deployment",
+		suite.GetResourceAndUnmarshal("deployment",
 			kube.DeploymentNameFromFunctionName(functionName),
 			deploymentInstance)
 
@@ -250,15 +173,15 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 		},
 	}
 	functionName := "augmented-config"
-	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Meta.Labels = functionLabels
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		deploymentInstance := &appsv1.Deployment{}
 		functionInstance := &nuclioio.NuclioFunction{}
-		suite.getResourceAndUnmarshal("nucliofunction",
+		suite.GetResourceAndUnmarshal("nucliofunction",
 			functionName,
 			functionInstance)
-		suite.getResourceAndUnmarshal("deployment",
+		suite.GetResourceAndUnmarshal("deployment",
 			kube.DeploymentNameFromFunctionName(functionName),
 			deploymentInstance)
 
@@ -278,12 +201,12 @@ func (suite *DeployFunctionTestSuite) TestMinMaxReplicas() {
 	functionName := "min-max-replicas"
 	two := 2
 	three := 3
-	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &two
 	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &three
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		hpaInstance := &autoscalingv1.HorizontalPodAutoscaler{}
-		suite.getResourceAndUnmarshal("hpa", kube.HPANameFromFunctionName(functionName), hpaInstance)
+		suite.GetResourceAndUnmarshal("hpa", kube.HPANameFromFunctionName(functionName), hpaInstance)
 		suite.Require().Equal(two, int(*hpaInstance.Spec.MinReplicas))
 		suite.Require().Equal(three, int(hpaInstance.Spec.MaxReplicas))
 		return true
@@ -292,7 +215,7 @@ func (suite *DeployFunctionTestSuite) TestMinMaxReplicas() {
 
 func (suite *DeployFunctionTestSuite) TestDefaultHTTPTrigger() {
 	defaultTriggerFunctionName := "with-default-http-trigger"
-	createDefaultTriggerFunctionOptions := suite.compileCreateFunctionOptions(defaultTriggerFunctionName)
+	createDefaultTriggerFunctionOptions := suite.CompileCreateFunctionOptions(defaultTriggerFunctionName)
 	suite.DeployFunction(createDefaultTriggerFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// ensure only 1 http trigger exists, always.
@@ -302,7 +225,7 @@ func (suite *DeployFunctionTestSuite) TestDefaultHTTPTrigger() {
 	})
 
 	customTriggerFunctionName := "custom-http-trigger"
-	createCustomTriggerFunctionOptions := suite.compileCreateFunctionOptions(customTriggerFunctionName)
+	createCustomTriggerFunctionOptions := suite.CompileCreateFunctionOptions(customTriggerFunctionName)
 	customTrigger := functionconfig.Trigger{
 		Kind:       "http",
 		Name:       "custom-trigger",
@@ -326,10 +249,10 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 
 	// create function with service of type nodePort from platform default
 	defaultNodePortFunctionName := "with-default-http-trigger-node-port"
-	createNodePortTriggerFunctionOptions := suite.compileCreateFunctionOptions(defaultNodePortFunctionName)
+	createNodePortTriggerFunctionOptions := suite.CompileCreateFunctionOptions(defaultNodePortFunctionName)
 	suite.DeployFunction(createNodePortTriggerFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		serviceInstance := &v1.Service{}
-		suite.getResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(defaultNodePortFunctionName), serviceInstance)
+		suite.GetResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(defaultNodePortFunctionName), serviceInstance)
 		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
 		return true
 	})
@@ -339,28 +262,28 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 
 	// create function with service of type clusterIP from platform default
 	defaultClusterIPFunctionName := "with-default-http-trigger-cluster-ip"
-	createClusterIPTriggerFunctionOptions := suite.compileCreateFunctionOptions(defaultClusterIPFunctionName)
+	createClusterIPTriggerFunctionOptions := suite.CompileCreateFunctionOptions(defaultClusterIPFunctionName)
 	suite.DeployFunction(createClusterIPTriggerFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		serviceInstance := &v1.Service{}
-		suite.getResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(defaultClusterIPFunctionName), serviceInstance)
+		suite.GetResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(defaultClusterIPFunctionName), serviceInstance)
 		suite.Require().Equal(v1.ServiceTypeClusterIP, serviceInstance.Spec.Type)
 		return true
 	})
 
 	// override default service type in function spec (backwards compatibility)
 	customFunctionName := "custom-function"
-	customFunctionOptions := suite.compileCreateFunctionOptions(customFunctionName)
+	customFunctionOptions := suite.CompileCreateFunctionOptions(customFunctionName)
 	customFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeNodePort
 	suite.DeployFunction(customFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		serviceInstance := &v1.Service{}
-		suite.getResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(customFunctionName), serviceInstance)
+		suite.GetResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(customFunctionName), serviceInstance)
 		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
 		return true
 	})
 
 	// override default service type in trigger spec
 	customTriggerFunctionName := "with-default-http-trigger-cluster-ip"
-	customTriggerFunctionOptions := suite.compileCreateFunctionOptions(customTriggerFunctionName)
+	customTriggerFunctionOptions := suite.CompileCreateFunctionOptions(customTriggerFunctionName)
 	customTrigger := functionconfig.Trigger{
 		Kind:       "http",
 		Name:       "custom-trigger",
@@ -374,208 +297,73 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 	}
 	suite.DeployFunction(customTriggerFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		serviceInstance := &v1.Service{}
-		suite.getResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(customTriggerFunctionName), serviceInstance)
+		suite.GetResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(customTriggerFunctionName), serviceInstance)
 		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
 		return true
 	})
 }
 
-func (suite *DeployFunctionTestSuite) TestFunctionIsReadyAfterDeploymentFailure() {
-	functionName := "function-recovery"
-	createFunctionOptions := suite.compileCreateFunctionOptions(functionName)
-	getFunctionOptions := &platform.GetFunctionsOptions{
-		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
-		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
-	}
+type DeleteFunctionTestSuite struct {
+	KubeTestSuite
+}
 
-	// change blocking interval so test wont take so long
-	oldMonitoringPostDeploymentMonitoringBlockingInterval := monitoring.PostDeploymentMonitoringBlockingInterval
-	monitoring.PostDeploymentMonitoringBlockingInterval = 1 * time.Millisecond
-	defer func() {
+func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways() {
+	functionName := "func-to-delete"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		apiGatewayName := "func-apigw"
+		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+			suite.Assert().Contains(ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServiceName, functionName)
 
-		// undo changes
-		monitoring.PostDeploymentMonitoringBlockingInterval = oldMonitoringPostDeploymentMonitoringBlockingInterval
-	}()
-
-	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
-
-		// get the function
-		function := suite.getFunction(getFunctionOptions)
-
-		// ensure function is ready
-		suite.Require().Equal(functionconfig.FunctionStateReady, function.GetStatus().State)
-
-		// get function pod, first one is enough
-		pod := suite.getFunctionPods(functionName)[0]
-
-		// get node name on which function pod is running
-		nodeName := pod.Spec.NodeName
-
-		// mark the node as unschedulable, we want to evict the pod from there
-		suite.Logger.InfoWith("Setting cluster node as unschedulable", "nodeName", nodeName)
-		_, err := suite.KubeClientSet.CoreV1().Nodes().Update(&v1.Node{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      nodeName,
-				Namespace: suite.Namespace,
-			},
-			Spec: v1.NodeSpec{
-				Unschedulable: true,
-			},
-		})
-		suite.Require().NoError(err, "Failed to set nodes unschedulable")
-
-		// no matter how this test ends up - ensure the node is schedulable again
-		defer func() {
-			_, err := suite.KubeClientSet.CoreV1().Nodes().Update(&v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      nodeName,
-					Namespace: suite.Namespace,
-				},
-				Spec: v1.NodeSpec{
-					Unschedulable: false,
-				},
+			// try to delete the function while it uses this api gateway
+			err := suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+				FunctionConfig: createFunctionOptions.FunctionConfig,
 			})
-			suite.Require().NoError(err)
-		}()
+			suite.Assert().Equal(platform.ErrFunctionIsUsedByAPIGateways, errors.RootCause(err))
 
-		// delete function pod
-		zeroSeconds := int64(0)
-		suite.Logger.InfoWith("Deleting function pod", "podName", pod.Name)
-		err = suite.KubeClientSet.CoreV1().Pods(suite.Namespace).Delete(pod.Name,
-			&metav1.DeleteOptions{
-				GracePeriodSeconds: &zeroSeconds,
-			})
-		suite.Require().NoError(err, "Failed to delete function pod")
+		}, false)
 
-		// wait for controller to mark function in error due to pods are unschedulable
-		err = common.RetryUntilSuccessful(2*suite.Controller.GetFunctionMonitorInterval(),
-			1*time.Second,
-			func() bool {
-				function = suite.getFunction(getFunctionOptions)
-				suite.Logger.InfoWith("Waiting for function state",
-					"currentFunctionState", function.GetStatus().State,
-					"expectedFunctionState", functionconfig.FunctionStateError)
-				return function.GetStatus().State == functionconfig.FunctionStateError
-			})
-		suite.Require().NoError(err, "Failed to ensure function state is error")
-
-		// mark k8s cluster nodes as schedulable
-		suite.Logger.InfoWith("Setting cluster node as schedulable", "nodeName", nodeName)
-		_, err = suite.KubeClientSet.CoreV1().Nodes().Update(&v1.Node{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      nodeName,
-				Namespace: suite.Namespace,
-			},
-			Spec: v1.NodeSpec{
-				Unschedulable: false,
-			},
-		})
-		suite.Require().NoError(err, "Failed to set nodes schedulable")
-
-		// wait for function pods to run, meaning its deployment is available
-		err = common.RetryUntilSuccessful(2*suite.Controller.GetFunctionMonitorInterval(),
-			1*time.Second,
-			func() bool {
-				pod = suite.getFunctionPods(functionName)[0]
-				suite.Logger.InfoWith("Waiting for function pod",
-					"podName", pod.Name,
-					"currentPodPhase", pod.Status.Phase,
-					"expectedPodPhase", v1.PodRunning)
-				return pod.Status.Phase == v1.PodRunning
-			})
-		suite.Require().NoError(err, "Failed to ensure function pod is running again")
-
-		// wait for function state to become ready again
-		err = common.RetryUntilSuccessful(2*suite.Controller.GetResyncInterval(),
-			1*time.Second,
-			func() bool {
-				function = suite.getFunction(getFunctionOptions)
-				suite.Logger.InfoWith("Waiting for function state",
-					"currentFunctionState", function.GetStatus().State,
-					"expectedFunctionState", functionconfig.FunctionStateReady)
-				return function.GetStatus().State == functionconfig.FunctionStateReady
-			})
-		suite.Require().NoError(err, "Failed to ensure function is ready again")
 		return true
 	})
 }
 
-func (suite *DeployFunctionTestSuite) verifyCreatedTrigger(functionName string, trigger functionconfig.Trigger) bool {
-	functionInstance := &nuclioio.NuclioFunction{}
-	suite.getResourceAndUnmarshal("nucliofunction",
-		functionName,
-		functionInstance)
-
-	// TODO: verify other parts of the trigger spec
-	suite.Require().Equal(trigger.Name, functionInstance.Spec.Triggers[trigger.Name].Name)
-	suite.Require().Equal(trigger.Kind, functionInstance.Spec.Triggers[trigger.Name].Kind)
-	suite.Require().Equal(trigger.MaxWorkers, functionInstance.Spec.Triggers[trigger.Name].MaxWorkers)
-	return true
+type DeployAPIGatewayTestSuite struct {
+	KubeTestSuite
 }
 
-func (suite *DeployFunctionTestSuite) ensureTriggerAmount(functionName, triggerKind string, amount int) {
-	functionInstance := &nuclioio.NuclioFunction{}
-	suite.getResourceAndUnmarshal("nucliofunction",
-		functionName,
-		functionInstance)
-
-	functionHTTPTriggers := functionconfig.GetTriggersByKind(functionInstance.Spec.Triggers, triggerKind)
-	suite.Require().Equal(amount, len(functionHTTPTriggers))
-}
-
-func (suite *DeployFunctionTestSuite) getFunction(getFunctionOptions *platform.GetFunctionsOptions) platform.Function {
-
-	// get the function
-	functions, err := suite.Platform.GetFunctions(getFunctionOptions)
-	suite.Require().NoError(err)
-	return functions[0]
-}
-
-func (suite *DeployFunctionTestSuite) getFunctionPods(functionName string) []v1.Pod {
-	pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
-	})
-
-	suite.Require().NoError(err, "Failed to list function pods")
-	return pods.Items
-}
-
-func (suite *DeployTestSuite) compileCreateFunctionOptions(
-	functionName string) *platform.CreateFunctionOptions {
-
-	createFunctionOptions := suite.KubeTestSuite.compileCreateFunctionOptions(functionName)
-	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
-	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
-def handler(context, event):
-  return "hello world"
-`))
-	return createFunctionOptions
-}
-
-func (suite *DeployTestSuite) compileCreateAPIGatewayOptions(
-	apiGatewayName string, functionName string) *platform.CreateAPIGatewayOptions {
-
-	return &platform.CreateAPIGatewayOptions{
-		APIGatewayConfig: platform.APIGatewayConfig{
-			Meta: platform.APIGatewayMeta{
-				Name:      apiGatewayName,
-				Namespace: suite.Namespace,
-			},
-			Spec: platform.APIGatewaySpec{
-				Host:               "some-host",
-				AuthenticationMode: ingress.AuthenticationModeNone,
-				Upstreams: []platform.APIGatewayUpstreamSpec{
-					{
-						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
-							Name: functionName,
-						},
-					},
-				},
-			},
-		},
+func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
+	functionName := "some-function-name"
+	apiGatewayName := "some-api-gateway-name"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	configOauth2ProxyURL := "config-oauth2-url"
+	suite.PlatformConfiguration.IngressConfig = platformconfig.IngressConfig{
+		Oauth2ProxyURL: configOauth2ProxyURL,
 	}
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
+		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+			suite.Assert().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
+			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
+		}, false)
+
+		overrideOauth2ProxyURL := "override-oauth2-url"
+		createAPIGatewayOptions = suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
+		createAPIGatewayOptions.APIGatewayConfig.Spec.Authentication = &platform.APIGatewayAuthenticationSpec{
+			DexAuth: &ingress.DexAuth{
+				Oauth2ProxyURL:               overrideOauth2ProxyURL,
+				RedirectUnauthorizedToSignIn: true,
+			},
+		}
+		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
+			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
+			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)
+		}, false)
+		return true
+	})
 }
 
 func TestPlatformTestSuite(t *testing.T) {

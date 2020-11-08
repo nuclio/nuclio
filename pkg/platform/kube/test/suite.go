@@ -17,6 +17,7 @@ limitations under the License.
 package test
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
+	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
@@ -37,9 +39,9 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 	"golang.org/x/sync/errgroup"
+	"k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	kubeapierrors "k8s.io/apimachinery/pkg/api/errors"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -97,6 +99,11 @@ func (suite *KubeTestSuite) SetupSuite() {
 
 	// create controller instance
 	suite.Controller = suite.createController()
+
+	// start controller
+	if err := suite.Controller.Start(); err != nil {
+		suite.Require().NoError(err, "Failed to start controller")
+	}
 }
 
 func (suite *KubeTestSuite) TearDownTest() {
@@ -128,6 +135,66 @@ func (suite *KubeTestSuite) TearDownTest() {
 			return strings.Contains(results.Output, "No resources found in")
 		})
 	suite.Require().NoError(err, "Not all nuclio resources were deleted")
+}
+
+func (suite *KubeTestSuite) CompileCreateFunctionOptions(functionName string) *platform.CreateFunctionOptions {
+	createFunctionOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Name:      functionName,
+				Namespace: suite.Namespace,
+			},
+			Spec: functionconfig.Spec{
+				Build: functionconfig.Build{
+					Registry: suite.RegistryURL,
+				},
+			},
+		},
+	}
+	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
+def handler(context, event):
+  return "hello world"
+`))
+
+	// expose function for testing purposes
+	createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeNodePort
+	return createFunctionOptions
+}
+
+func (suite *KubeTestSuite) GetFunctionAndExpectState(getFunctionOptions *platform.GetFunctionsOptions,
+	expectedState functionconfig.FunctionState) platform.Function {
+	function := suite.GetFunction(getFunctionOptions)
+	suite.Require().Equal(expectedState,
+		function.GetStatus().State,
+		"Function is in unexpected state. Expected: %s, Existing: %s",
+		expectedState, function.GetStatus().State)
+	return function
+}
+
+func (suite *KubeTestSuite) GetFunction(getFunctionOptions *platform.GetFunctionsOptions) platform.Function {
+
+	// get the function
+	functions, err := suite.Platform.GetFunctions(getFunctionOptions)
+	suite.Require().NoError(err)
+	return functions[0]
+}
+
+func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
+	pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
+	})
+
+	suite.Require().NoError(err, "Failed to list function pods")
+	return pods.Items
+}
+
+func (suite *KubeTestSuite) GetResourceAndUnmarshal(resourceKind, resourceName string, resource interface{}) {
+	resourceContent := suite.getResource(resourceKind, resourceName)
+	err := yaml.Unmarshal([]byte(resourceContent), resource)
+	suite.Require().NoError(err)
 }
 
 func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
@@ -226,12 +293,6 @@ func (suite *KubeTestSuite) getResource(resourceKind, resourceName string) strin
 	return results.Output
 }
 
-func (suite *KubeTestSuite) getResourceAndUnmarshal(resourceKind, resourceName string, resource interface{}) {
-	resourceContent := suite.getResource(resourceKind, resourceName)
-	err := yaml.Unmarshal([]byte(resourceContent), resource)
-	suite.Require().NoError(err)
-}
-
 func (suite *KubeTestSuite) deleteAllResourcesByKind(kind string) error {
 	_, err := suite.executeKubectl([]string{"delete", kind, "--all", "--force"},
 		map[string]string{
@@ -242,26 +303,6 @@ func (suite *KubeTestSuite) deleteAllResourcesByKind(kind string) error {
 	}
 	suite.Logger.DebugWith("Successfully deleted all resources", "kind", kind)
 	return nil
-}
-
-func (suite *KubeTestSuite) compileCreateFunctionOptions(functionName string) *platform.CreateFunctionOptions {
-	createFunctionOptions := &platform.CreateFunctionOptions{
-		Logger: suite.Logger,
-		FunctionConfig: functionconfig.Config{
-			Meta: functionconfig.Meta{
-				Name:      functionName,
-				Namespace: suite.Namespace,
-			},
-			Spec: functionconfig.Spec{
-				Build: functionconfig.Build{
-					Registry: suite.RegistryURL,
-				},
-			},
-		},
-	}
-	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
-	createFunctionOptions.FunctionConfig.Spec.Build.Registry = suite.RegistryURL
-	return createFunctionOptions
 }
 
 func (suite *KubeTestSuite) createController() *controller.Controller {
@@ -304,4 +345,52 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 		4)
 	suite.Require().NoError(err)
 	return controllerInstance
+}
+
+func (suite *KubeTestSuite) verifyCreatedTrigger(functionName string, trigger functionconfig.Trigger) bool {
+	functionInstance := &nuclioio.NuclioFunction{}
+	suite.GetResourceAndUnmarshal("nucliofunction",
+		functionName,
+		functionInstance)
+
+	// TODO: verify other parts of the trigger spec
+	suite.Require().Equal(trigger.Name, functionInstance.Spec.Triggers[trigger.Name].Name)
+	suite.Require().Equal(trigger.Kind, functionInstance.Spec.Triggers[trigger.Name].Kind)
+	suite.Require().Equal(trigger.MaxWorkers, functionInstance.Spec.Triggers[trigger.Name].MaxWorkers)
+	return true
+}
+
+func (suite *KubeTestSuite) ensureTriggerAmount(functionName, triggerKind string, amount int) {
+	functionInstance := &nuclioio.NuclioFunction{}
+	suite.GetResourceAndUnmarshal("nucliofunction",
+		functionName,
+		functionInstance)
+
+	functionHTTPTriggers := functionconfig.GetTriggersByKind(functionInstance.Spec.Triggers, triggerKind)
+	suite.Require().Equal(amount, len(functionHTTPTriggers))
+}
+
+func (suite *KubeTestSuite) compileCreateAPIGatewayOptions(apiGatewayName string,
+	functionName string) *platform.CreateAPIGatewayOptions {
+
+	return &platform.CreateAPIGatewayOptions{
+		APIGatewayConfig: platform.APIGatewayConfig{
+			Meta: platform.APIGatewayMeta{
+				Name:      apiGatewayName,
+				Namespace: suite.Namespace,
+			},
+			Spec: platform.APIGatewaySpec{
+				Host:               "some-host",
+				AuthenticationMode: ingress.AuthenticationModeNone,
+				Upstreams: []platform.APIGatewayUpstreamSpec{
+					{
+						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+							Name: functionName,
+						},
+					},
+				},
+			},
+		},
+	}
 }
