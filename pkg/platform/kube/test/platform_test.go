@@ -264,7 +264,7 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 	// create function with service of type clusterIP from platform default
 	defaultClusterIPFunctionName := "with-default-http-trigger-cluster-ip"
 	createClusterIPTriggerFunctionOptions := suite.CompileCreateFunctionOptions(defaultClusterIPFunctionName)
-	createNodePortTriggerFunctionOptions.FunctionConfig.Spec.ServiceType = ""
+	createClusterIPTriggerFunctionOptions.FunctionConfig.Spec.ServiceType = ""
 	suite.DeployFunction(createClusterIPTriggerFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		serviceInstance := &v1.Service{}
 		suite.GetResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(defaultClusterIPFunctionName), serviceInstance)
