@@ -219,7 +219,43 @@ func (fo *functionOperator) setFunctionScaleToZeroStatus(ctx context.Context,
 }
 
 func (fo *functionOperator) start() error {
+	if err := fo.updateStuckFunctionsState(); err != nil {
+		return errors.Wrap(err, "Failed while updating stuck functions state")
+	}
+
 	go fo.operator.Start() // nolint: errcheck
+
+	return nil
+}
+
+// this function should be called when the controller is just starting
+// updates the state of every function that is stuck to "error"
+// (for example, if the controller is just starting and there's a function in "building" state,
+//  it means that there's no controller to handle the deploy afterwards and it'll stay on "building" state forever)
+func (fo *functionOperator) updateStuckFunctionsState() error {
+
+	// get all functions
+	functions, err := fo.controller.nuclioClientSet.NuclioV1beta1().
+		NuclioFunctions(fo.controller.namespace).
+		List(metav1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to list nuclio functions")
+	}
+
+	// if the function is in one of these states, it will be stuck on them forever (when nuclio controller is just starting)
+	stuckStates := []functionconfig.FunctionState{functionconfig.FunctionStateBuilding}
+
+	// iterate over all functions and check if they are stuck
+	for _, function := range functions.Items {
+
+		// if a function is stuck just set its state to error, so it'll be reflected to the user
+		if functionconfig.FunctionStateInSlice(function.Status.State, stuckStates) {
+			function.Status.State = functionconfig.FunctionStateError
+			if err := fo.setFunctionStatus(&function, &function.Status); err != nil {
+				return errors.Wrap(err, "Failed to set function status to error")
+			}
+		}
+	}
 
 	return nil
 }
