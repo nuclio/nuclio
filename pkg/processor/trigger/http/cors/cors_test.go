@@ -17,6 +17,16 @@ func (suite *TestSuite) SetupSuite() {
 	suite.cors.Enabled = true
 }
 
+func (suite *TestSuite) TestEncodeExposeHeaders() {
+	// empty by default
+	suite.Require().Equal(suite.cors.EncodeExposeHeaders(), "")
+
+	// empty lazy-load encoded string
+	suite.cors.exposeHeadersStr = ""
+	suite.cors.ExposeHeaders = []string{"x-nuclio-something", "x-nuclio-somethingelse"}
+	suite.Require().Equal(suite.cors.EncodeExposeHeaders(), "x-nuclio-something, x-nuclio-somethingelse")
+}
+
 func (suite *TestSuite) TestEncodeAllowCredentialsHeader() {
 
 	// false by default

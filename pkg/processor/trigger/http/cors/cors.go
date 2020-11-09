@@ -33,6 +33,7 @@ type CORS struct {
 	AllowMethods     []string
 	AllowHeaders     []string
 	AllowCredentials bool
+	ExposeHeaders    []string
 
 	// preflight
 	PreflightRequestMethod string
@@ -43,6 +44,7 @@ type CORS struct {
 	allowHeadersStr           string
 	preflightMaxAgeSecondsStr string
 	allowCredentialsStr       string
+	exposeHeadersStr          string
 }
 
 func NewCORS() *CORS {
@@ -68,6 +70,7 @@ func NewCORS() *CORS {
 			// nuclio custom
 			"X-nuclio-log-level",
 		},
+		ExposeHeaders:          []string{},
 		AllowCredentials:       false,
 		PreflightRequestMethod: fasthttp.MethodOptions,
 	}
@@ -115,6 +118,13 @@ func (c *CORS) EncodeAllowHeaders() string {
 		c.allowHeadersStr = strings.Join(c.AllowHeaders, ", ")
 	}
 	return c.allowHeadersStr
+}
+
+func (c *CORS) EncodeExposeHeaders() string {
+	if c.exposeHeadersStr == "" {
+		c.exposeHeadersStr = strings.Join(c.ExposeHeaders, ", ")
+	}
+	return c.exposeHeadersStr
 }
 
 func (c *CORS) EncodeAllowCredentialsHeader() string {
