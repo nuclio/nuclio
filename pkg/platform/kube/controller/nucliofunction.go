@@ -251,6 +251,8 @@ func (fo *functionOperator) updateStuckFunctionsState() error {
 		// if a function is stuck just set its state to error, so it'll be reflected to the user
 		if functionconfig.FunctionStateInSlice(function.Status.State, stuckStates) {
 			function.Status.State = functionconfig.FunctionStateError
+			function.Status.Message = "Function found on stuck state" +
+				" (Perhaps nuclio controller went down during function deployment. Try to redeploy)"
 			if err := fo.setFunctionStatus(&function, &function.Status); err != nil {
 				return errors.Wrap(err, "Failed to set function status to error")
 			}
