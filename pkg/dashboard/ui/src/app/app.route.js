@@ -113,6 +113,16 @@
                 data: {
                     pageTitle: 'functions:API_GATEWAYS',
                     mainHeaderTitle: 'functions:API_GATEWAYS',
+                },
+                resolve: {
+                    kubePlatform: ['$state', '$timeout', 'FunctionsService',
+                        function ($state, $timeout, FunctionsService) {
+                            return $timeout(function () {
+                                if (!FunctionsService.isKubePlatform()) {
+                                    $state.go('app.projects');
+                                }
+                            });
+                        }]
                 }
             })
             .state('app.project.create-function', {
