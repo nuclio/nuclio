@@ -125,7 +125,7 @@
 
             var config = {
                 method: 'put',
-                url: NuclioClientService.buildUrlWithPath('api_gateways/'),
+                url: NuclioClientService.buildUrlWithPath('api_gateways'),
                 headers: headers,
                 data: apiGateway,
                 withCredentials: false
