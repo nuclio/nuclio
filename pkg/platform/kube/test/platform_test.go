@@ -119,6 +119,49 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestUpdateStuckFunctionStatus() {
+
+	// deploy a regular function
+	createFunctionOptions := suite.compileCreateFunctionOptions("resource-schema")
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		// change its state to "building", so it'll appear as stuck when we'll restart the controller
+		updateFunctionOptions := platform.UpdateFunctionOptions{
+			FunctionMeta: &createFunctionOptions.FunctionConfig.Meta,
+			FunctionSpec: &createFunctionOptions.FunctionConfig.Spec,
+			FunctionStatus: &functionconfig.Status{
+				State: functionconfig.FunctionStateBuilding,
+			},
+		}
+		go suite.Platform.UpdateFunction(&updateFunctionOptions) // nolint: errcheck
+
+		// sleep enough time to let the function update to "building" state
+		// this UpdateFunction action runs in goroutine because it's expected to be stuck on "building" state
+		time.Sleep(3 * time.Second)
+
+		// restart the controller
+		err := suite.Controller.Stop()
+		suite.Assert().NoError(err)
+		err = suite.Controller.Start()
+		suite.Assert().NoError(err)
+
+		// get the function, and validate the controller recognized that stuck function, and updated its state to "error"
+		getFunctionsOptions := &platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		}
+		functions, err := suite.Platform.GetFunctions(getFunctionsOptions)
+		suite.Assert().NoError(err)
+
+		suite.Assert().Len(functions, 1)
+
+		function := functions[0]
+		suite.Assert().Equal(function.GetStatus().State, functionconfig.FunctionStateError)
+
+		return true
+	})
+}
+
 func (suite *DeployFunctionTestSuite) TestStaleResourceVersion() {
 	var resourceVersion string
 
