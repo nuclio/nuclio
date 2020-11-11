@@ -9,12 +9,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/monitoring"
 	kubetest "github.com/nuclio/nuclio/pkg/platform/kube/test"
 
 	"github.com/stretchr/testify/suite"
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,52 +36,26 @@ func (suite *FunctionMonitoringTestSuite) TestNoRecoveryAfterBuildError() {
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
 
-	// fail during build
-	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
-		"exit 1",
-	}
-
 	// wait for at least one monitor + post deployment blocking intervals
-	waitOnMonitoringIntervals := 2*suite.Controller.GetFunctionMonitoringInterval() +
+	postDeploymentSleepInterval := 2*suite.Controller.GetFunctionMonitoringInterval() +
 		monitoring.PostDeploymentMonitoringBlockingInterval
 
-	suite.DeployFunctionExpectErrorAndRedeploy(createFunctionOptions,
+	suite.DeployFunctionAndRedeployExpectError(createFunctionOptions,
 		func(deployResult *platform.CreateFunctionResult) bool {
 
-			// wait for monitoring
-			time.Sleep(waitOnMonitoringIntervals)
-
-			// ensure function is still in error state (due to build error)
-			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
-
-			// remove failing build command
-			createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{}
-
-			// function should be in error state
-			return true
-		}, func(deployResult *platform.CreateFunctionResult) bool {
-
-			// let interval occur at least once
-			time.Sleep(waitOnMonitoringIntervals)
-
-			// ensure function in ready state, build passes
-			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateReady)
-
-			// make next deploy fail again
+			// make next deploy fail
 			createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
 				"exit 1",
 			}
+			return true
+		},
+		func(deployResult *platform.CreateFunctionResult) bool {
 
-			suite.DeployFunctionExpectError(createFunctionOptions,
-				func(deployResult *platform.CreateFunctionResult) bool {
+			// wait for monitoring
+			time.Sleep(postDeploymentSleepInterval)
 
-					// let interval occur at least once
-					time.Sleep(waitOnMonitoringIntervals)
-
-					// ensure function is still in error state (due to build error)
-					suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
-					return true
-				})
+			// ensure function is still in error state (due to build error)
+			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
 
 			return true
 		})
@@ -140,7 +112,7 @@ def handler(context, event):
 `, functionVolume.VolumeMount.MountPath)))
 
 	// wait for at least one monitor + post deployment blocking intervals
-	waitOnMonitoringIntervals := 2*suite.Controller.GetFunctionMonitoringInterval() +
+	postDeploymentSleepInterval := 2*suite.Controller.GetFunctionMonitoringInterval() +
 		monitoring.PostDeploymentMonitoringBlockingInterval
 
 	suite.DeployFunctionExpectErrorAndRedeploy(createFunctionOptions,
@@ -148,7 +120,7 @@ def handler(context, event):
 			var err error
 
 			// wait for monitoring
-			time.Sleep(waitOnMonitoringIntervals)
+			time.Sleep(postDeploymentSleepInterval)
 
 			// ensure function is still in error state (due to deploy error of missing configmap)
 			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
@@ -158,25 +130,10 @@ def handler(context, event):
 			suite.Require().NoError(err, "Failed to create configmap")
 
 			// wait for k8s to recover deployment from missing configmap error
-			expectedUnavailableReplicas := 0
-			err = common.RetryUntilSuccessful(3*time.Minute,
-				time.Second,
-				func() bool {
-					deploymentInstance := &appsv1.Deployment{}
-					suite.GetResourceAndUnmarshal("deployment",
-						kube.DeploymentNameFromFunctionName(functionName),
-						deploymentInstance)
-					suite.Logger.InfoWith("Waiting for deployment unavailable replicas to be zero",
-						"currentUnavailableReplicas", deploymentInstance.Status.UnavailableReplicas,
-						"expectedUnavailableReplicas", expectedUnavailableReplicas)
-
-					// wait until all replicas are available
-					return int(deploymentInstance.Status.UnavailableReplicas) == expectedUnavailableReplicas
-				})
-			suite.Require().NoError(err, "Failed to wait for replicas to become healthy")
+			suite.WaitForFunctionDeploymentAvailability(functionName, 3*time.Minute)
 
 			// wait for monitoring
-			time.Sleep(waitOnMonitoringIntervals)
+			time.Sleep(postDeploymentSleepInterval)
 
 			// ensure function monitoring did not recover the function from its recent deploy error
 			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
@@ -185,7 +142,7 @@ def handler(context, event):
 		}, func(deployResult *platform.CreateFunctionResult) bool {
 
 			// let interval occur at least once
-			time.Sleep(waitOnMonitoringIntervals)
+			time.Sleep(postDeploymentSleepInterval)
 
 			// ensure function in ready state, deploy passes
 			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateReady)
@@ -201,6 +158,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
 
+	functionMonitoringSleepTimeout := 2 * suite.Controller.GetFunctionMonitoringInterval()
 	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
 
 		// get the function
@@ -251,17 +209,10 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 			})
 		suite.Require().NoError(err, "Failed to delete function pod")
 
-		// wait for controller to mark function in error due to pods are unschedulable
-		err = common.RetryUntilSuccessful(2*suite.Controller.GetFunctionMonitoringInterval(),
-			1*time.Second,
-			func() bool {
-				function = suite.GetFunction(getFunctionOptions)
-				suite.Logger.InfoWith("Waiting for function state",
-					"currentFunctionState", function.GetStatus().State,
-					"expectedFunctionState", functionconfig.FunctionStateUnhealthy)
-				return function.GetStatus().State == functionconfig.FunctionStateUnhealthy
-			})
-		suite.Require().NoError(err, "Failed to ensure function state is error")
+		// wait for controller to mark function in error due to pods being unschedulable
+		suite.WaitForFunctionState(getFunctionOptions,
+			functionconfig.FunctionStateUnhealthy,
+			functionMonitoringSleepTimeout)
 
 		// mark k8s cluster nodes as schedulable
 		suite.Logger.InfoWith("Setting cluster node as schedulable", "nodeName", nodeName)
@@ -277,7 +228,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		suite.Require().NoError(err, "Failed to set nodes schedulable")
 
 		// wait for function pods to run, meaning its deployment is available
-		err = common.RetryUntilSuccessful(2*suite.Controller.GetFunctionMonitoringInterval(),
+		err = common.RetryUntilSuccessful(functionMonitoringSleepTimeout,
 			1*time.Second,
 			func() bool {
 				pod = suite.GetFunctionPods(functionName)[0]
@@ -290,16 +241,9 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		suite.Require().NoError(err, "Failed to ensure function pod is running again")
 
 		// wait for function state to become ready again
-		err = common.RetryUntilSuccessful(2*suite.Controller.GetResyncInterval(),
-			1*time.Second,
-			func() bool {
-				function = suite.GetFunction(getFunctionOptions)
-				suite.Logger.InfoWith("Waiting for function state",
-					"currentFunctionState", function.GetStatus().State,
-					"expectedFunctionState", functionconfig.FunctionStateReady)
-				return function.GetStatus().State == functionconfig.FunctionStateReady
-			})
-		suite.Require().NoError(err, "Failed to ensure function is ready again")
+		suite.WaitForFunctionState(getFunctionOptions,
+			functionconfig.FunctionStateReady,
+			functionMonitoringSleepTimeout)
 		return true
 	})
 }
