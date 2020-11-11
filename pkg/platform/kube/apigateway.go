@@ -3,8 +3,9 @@ package kube
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/nuclio/pkg/platform"
+
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 func ValidateAPIGatewaySpec(apiGatewaySpec *platform.APIGatewaySpec) error {
