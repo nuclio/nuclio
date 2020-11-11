@@ -4,6 +4,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -141,7 +142,7 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 		stateChanged = true
 	} else if !functionIsAvailable && function.Status.State == functionconfig.FunctionStateReady {
 		function.Status.State = functionconfig.FunctionStateUnhealthy
-		function.Status.Message = "Function has become unhealthy"
+		function.Status.Message = common.FunctionStateMessageUnhealthy
 		stateChanged = true
 	}
 

@@ -502,13 +502,6 @@ func FunctionStateInSlice(functionState FunctionState, functionStates []Function
 	return false
 }
 
-func FunctionStateErrored(functionState FunctionState) bool {
-	return FunctionStateInSlice(functionState, []FunctionState{
-		FunctionStateError,
-		FunctionStateUnhealthy,
-	})
-}
-
 func FunctionStateProvisioned(functionState FunctionState) bool {
 	return FunctionStateInSlice(functionState,
 		[]FunctionState{

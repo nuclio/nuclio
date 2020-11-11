@@ -26,7 +26,6 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -559,8 +558,14 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 			functionName := functionConfig.Meta.Name
 
 			functionIsReady := functionStatus.State == functionconfig.FunctionStateReady
-			functionWasSetAsUnhealthy := functionconfig.FunctionStateErrored(functionStatus.State) &&
-				strings.EqualFold(UnhealthyContainerErrorMessage, functionStatus.Message)
+			functionWasSetAsUnhealthy := functionconfig.FunctionStateInSlice(functionStatus.State,
+				[]functionconfig.FunctionState{
+					functionconfig.FunctionStateError,
+					functionconfig.FunctionStateUnhealthy,
+				}) && common.StringInSlice(functionStatus.Message, []string{
+				common.FunctionStateMessageUnhealthy,
+				common.DeprecatedFunctionStateMessage,
+			})
 
 			if !(functionIsReady || functionWasSetAsUnhealthy) {
 
