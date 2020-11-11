@@ -19,7 +19,6 @@ package restful
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -505,13 +504,6 @@ func (ar *AbstractResource) writeErrorReason(responseWriter io.Writer, err error
 	errorCause := ""
 	if errors.Cause(err) != nil {
 		errorCause = errors.Cause(err).Error()
-	}
-
-	if errors.RootCause(err) != nil {
-		rootCauseError := errors.RootCause(err).Error()
-		if errorCause != rootCauseError {
-			errorCause = fmt.Sprintf("%s: %s", errorCause, errors.RootCause(err).Error())
-		}
 	}
 
 	// try to get the error stack

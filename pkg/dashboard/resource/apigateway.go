@@ -119,6 +119,10 @@ func (agr *apiGatewayResource) GetByID(request *http.Request, id string) (restfu
 func (agr *apiGatewayResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
 	apiGatewayInfo, responseErr := agr.getAPIGatewayInfoFromRequest(request, true, true)
 	if responseErr != nil {
+		if errors.RootCause(responseErr) != nil {
+			responseErr = errors.RootCause(responseErr)
+		}
+
 		return
 	}
 
