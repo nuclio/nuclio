@@ -508,7 +508,10 @@ func (ar *AbstractResource) writeErrorReason(responseWriter io.Writer, err error
 	}
 
 	if errors.RootCause(err) != nil {
-		errorCause = fmt.Sprintf("%s: %s", errorCause, errors.RootCause(err).Error())
+		rootCauseError := errors.RootCause(err).Error()
+		if errorCause != rootCauseError {
+			errorCause = fmt.Sprintf("%s: %s", errorCause, errors.RootCause(err).Error())
+		}
 	}
 
 	// try to get the error stack
