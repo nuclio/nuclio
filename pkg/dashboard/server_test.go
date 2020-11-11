@@ -20,22 +20,31 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/dockercreds"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform"
+	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 
 	"github.com/nuclio/logger"
-	nucliozap "github.com/nuclio/zap"
+	"github.com/nuclio/zap"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
 type DashboardServerTestSuite struct {
 	suite.Suite
 	Server
+	mockPlatform *mockplatform.Platform
 	Logger logger.Logger
 }
 
 func (suite *DashboardServerTestSuite) SetupTest() {
 	var err error
+
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
+
+	suite.mockPlatform = &mockplatform.Platform{}
+	suite.Platform = suite.mockPlatform
 }
 
 func (suite *DashboardServerTestSuite) TestResolveRegistryURLFromDockerCredentials() {
@@ -65,6 +74,47 @@ func (suite *DashboardServerTestSuite) TestResolveRegistryURLFromDockerCredentia
 		expectedRegistryURL := testCase.expectedRegistryURLHost + "/" + dummyUsername
 		suite.Require().Equal(expectedRegistryURL, suite.resolveDockerCredentialsRegistryURL(testCase.credentials))
 	}
+}
+
+func (suite *DashboardServerTestSuite) TestUpdateStuckFunctionsState() {
+	returnedFunctionBuilding := platform.AbstractFunction{}
+	returnedFunctionBuilding.Config.Meta.Name = "f1"
+	returnedFunctionBuilding.Config.Meta.Namespace = "default-namespace"
+	returnedFunctionBuilding.Status.State = functionconfig.FunctionStateBuilding
+	returnedFunctionReady := platform.AbstractFunction{}
+	returnedFunctionReady.Config.Meta.Name = "f2"
+	returnedFunctionReady.Config.Meta.Namespace = "default-namespace"
+	returnedFunctionReady.Status.State = functionconfig.FunctionStateReady
+
+	suite.defaultNamespace = "default-namespace"
+
+	// verify
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("default-namespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+	verifyUpdateFunction := func(updateFunctionsOptions *platform.UpdateFunctionOptions) bool {
+		suite.Require().Equal(returnedFunctionBuilding.GetConfig().Meta.Name, updateFunctionsOptions.FunctionMeta.Name)
+		suite.Require().Equal(functionconfig.FunctionStateError, updateFunctionsOptions.FunctionStatus.State)
+
+		return true
+	}
+
+	// mock returned functions
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunctionBuilding, &returnedFunctionReady}, nil).
+		Once()
+
+	// mock update function - expect it to be called only once, for the function with "building" state
+	suite.mockPlatform.
+		On("UpdateFunction", mock.MatchedBy(verifyUpdateFunction)).
+		Return(nil).
+		Once()
+
+	err := suite.updateStuckFunctionsState()
+	suite.Assert().NoError(err)
 }
 
 func TestDashboardServerTestSuite(t *testing.T) {

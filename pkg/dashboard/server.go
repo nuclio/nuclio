@@ -274,7 +274,9 @@ func (s *Server) getRegistryURL() string {
 func (s *Server) updateStuckFunctionsState() error {
 
 	// get all functions
-	functions, err := s.Platform.GetFunctions(&platform.GetFunctionsOptions{})
+	functions, err := s.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		Namespace: s.GetDefaultNamespace(),
+	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get nuclio functions")
 	}
@@ -283,7 +285,7 @@ func (s *Server) updateStuckFunctionsState() error {
 	stuckStates := []functionconfig.FunctionState{functionconfig.FunctionStateBuilding}
 
 	// iterate over all functions and check if they are stuck
-	for _, function := range functions{
+	for _, function := range functions {
 		functionStatus := function.GetStatus()
 
 		// if a function is stuck just set its state to error, so it'll be reflected to the user
