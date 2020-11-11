@@ -200,7 +200,9 @@ func (c *Controller) Stop() error {
 	// TODO: stop operators
 
 	// stop cronjob monitoring
-	c.cronJobMonitoring.stop()
+	if c.cronJobMonitoring != nil {
+		c.cronJobMonitoring.stop()
+	}
 
 	// stop function monitor
 	c.functionMonitoring.Stop()
