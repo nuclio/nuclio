@@ -122,10 +122,6 @@ func (agr *apiGatewayResource) Create(request *http.Request) (id string, attribu
 		return
 	}
 
-	if err := kube.ValidateAPIGatewaySpec(apiGatewayInfo.Spec); err != nil {
-		return "", nil, errors.Wrap(err, "Api gateway spec validation failed")
-	}
-
 	// create an api gateway config
 	apiGatewayConfig := platform.APIGatewayConfig{
 		Meta:   *apiGatewayInfo.Meta,
@@ -376,6 +372,12 @@ func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *api
 		}
 
 		apiGatewayInfoInstance.Spec = &platform.APIGatewaySpec{}
+	}
+
+	if specRequired {
+		if err := kube.ValidateAPIGatewaySpec(apiGatewayInfoInstance.Spec); err != nil {
+			return errors.Wrap(err, "Api gateway spec validation failed")
+		}
 	}
 
 	// status is optional, ensure it exists
