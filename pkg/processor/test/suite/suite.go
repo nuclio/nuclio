@@ -254,6 +254,21 @@ func (suite *TestSuite) DeployFunctionExpectErrorAndRedeploy(createFunctionOptio
 	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun, false)
 }
 
+func (suite *TestSuite) DeployFunctionAndRedeployExpectError(createFunctionOptions *platform.CreateFunctionOptions,
+	onAfterFirstContainerRun OnAfterContainerRun,
+	onAfterSecondContainerRun OnAfterContainerRun) {
+
+	suite.PopulateDeployOptions(createFunctionOptions)
+
+	// delete the function when done
+	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+		FunctionConfig: createFunctionOptions.FunctionConfig,
+	})
+
+	suite.deployFunction(createFunctionOptions, onAfterFirstContainerRun, false)
+	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun, true)
+}
+
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *TestSuite) GetNuclioSourceDir() string {
 	return common.GetSourceDir()

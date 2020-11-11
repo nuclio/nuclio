@@ -39,6 +39,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 	"golang.org/x/sync/errgroup"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	kubeapierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -195,6 +196,44 @@ func (suite *KubeTestSuite) GetResourceAndUnmarshal(resourceKind, resourceName s
 	resourceContent := suite.getResource(resourceKind, resourceName)
 	err := yaml.Unmarshal([]byte(resourceContent), resource)
 	suite.Require().NoError(err)
+}
+
+func (suite *KubeTestSuite) WaitForFunctionDeploymentAvailability(functionName string,
+	duration time.Duration) {
+
+	expectedUnavailableReplicas := 0
+	err := common.RetryUntilSuccessful(duration,
+		time.Second,
+		func() bool {
+			deploymentInstance := &appsv1.Deployment{}
+			suite.GetResourceAndUnmarshal("deployment",
+				kube.DeploymentNameFromFunctionName(functionName),
+				deploymentInstance)
+			suite.Logger.InfoWith("Waiting for deployment unavailable replicas to be zero",
+				"currentUnavailableReplicas", deploymentInstance.Status.UnavailableReplicas,
+				"expectedUnavailableReplicas", expectedUnavailableReplicas)
+
+			// wait until all replicas are available
+			return int(deploymentInstance.Status.UnavailableReplicas) == expectedUnavailableReplicas
+		})
+	suite.Require().NoError(err, "Failed to wait for replicas to become healthy")
+}
+
+func (suite *KubeTestSuite) WaitForFunctionState(getFunctionOptions *platform.GetFunctionsOptions,
+	desiredFunctionState functionconfig.FunctionState,
+	duration time.Duration, ) {
+
+	err := common.RetryUntilSuccessful(duration,
+		1*time.Second,
+		func() bool {
+			function := suite.GetFunction(getFunctionOptions)
+			suite.Logger.InfoWith("Waiting for function state",
+				"currentFunctionState", function.GetStatus().State,
+				"desiredFunctionState", desiredFunctionState)
+			return function.GetStatus().State == desiredFunctionState
+		})
+	suite.Require().NoError(err, "Function did not reach its desired state")
+
 }
 
 func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
