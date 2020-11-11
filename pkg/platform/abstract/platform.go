@@ -38,6 +38,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"k8s.io/api/core/v1"
 )
 
 //
@@ -215,12 +216,17 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 			ap.GetDefaultRegistryCredentialsSecretName()
 	}
 
-	// `python` is just a reference
+	// `python` is just an alias
 	if createFunctionOptions.FunctionConfig.Spec.Runtime == "python" {
 		createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
 	}
 
 	ap.enrichDefaultHTTPTrigger(createFunctionOptions)
+
+	// enrich with security context
+	if createFunctionOptions.FunctionConfig.Spec.SecurityContext == nil {
+		createFunctionOptions.FunctionConfig.Spec.SecurityContext = &v1.PodSecurityContext{}
+	}
 
 	return nil
 }
