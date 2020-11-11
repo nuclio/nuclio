@@ -295,8 +295,8 @@ func (s *Server) updateStuckFunctionsState() error {
 				" (Perhaps nuclio dashboard went down during function deployment. Try to redeploy)"
 
 			if err := s.Platform.UpdateFunction(&platform.UpdateFunctionOptions{
-				FunctionMeta: &function.GetConfig().Meta,
-				FunctionSpec: &function.GetConfig().Spec,
+				FunctionMeta:   &function.GetConfig().Meta,
+				FunctionSpec:   &function.GetConfig().Spec,
 				FunctionStatus: functionStatus,
 			}); err != nil {
 				return errors.Wrapf(err, "Failed to set function: %s status to error", function.GetConfig().Meta.Name)

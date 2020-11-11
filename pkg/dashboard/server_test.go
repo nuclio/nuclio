@@ -34,7 +34,7 @@ type DashboardServerTestSuite struct {
 	suite.Suite
 	Server
 	mockPlatform *mockplatform.Platform
-	Logger logger.Logger
+	Logger       logger.Logger
 }
 
 func (suite *DashboardServerTestSuite) SetupTest() {
