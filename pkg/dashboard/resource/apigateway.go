@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
@@ -119,6 +120,10 @@ func (agr *apiGatewayResource) Create(request *http.Request) (id string, attribu
 	apiGatewayInfo, responseErr := agr.getAPIGatewayInfoFromRequest(request, true, true)
 	if responseErr != nil {
 		return
+	}
+
+	if err := kube.ValidateAPIGatewaySpec(apiGatewayInfo.Spec); err != nil {
+		return "", nil, errors.Wrap(err, "Api gateway spec validation failed")
 	}
 
 	// create an api gateway config
