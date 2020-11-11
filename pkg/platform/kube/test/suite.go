@@ -221,7 +221,7 @@ func (suite *KubeTestSuite) WaitForFunctionDeploymentAvailability(functionName s
 
 func (suite *KubeTestSuite) WaitForFunctionState(getFunctionOptions *platform.GetFunctionsOptions,
 	desiredFunctionState functionconfig.FunctionState,
-	duration time.Duration, ) {
+	duration time.Duration) {
 
 	err := common.RetryUntilSuccessful(duration,
 		1*time.Second,
