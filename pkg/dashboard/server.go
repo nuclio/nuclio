@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -161,6 +162,18 @@ func NewServer(parentLogger logger.Logger,
 	return newServer, nil
 }
 
+func (s *Server) Start() error {
+	if err := s.AbstractServer.Start(); err != nil {
+		return errors.Wrap(err, "Failed to start server")
+	}
+
+	if err := s.updateStuckFunctionsState(); err != nil {
+		return errors.Wrap(err, "Failed while updating stuck functions state")
+	}
+
+	return nil
+}
+
 func (s *Server) GetRegistryURL() string {
 	return s.defaultRegistryURL
 }
@@ -252,6 +265,44 @@ func (s *Server) getRegistryURL() string {
 	}
 
 	return registryURL
+}
+
+// this function should be called when the dashboard is just starting
+// updates the state of every function that is stuck to "error"
+// (for example, if the dashboard is just starting and there's a function in "building" state,
+//  it means that there's no dashboard to handle the deploy afterwards and it'll stay on "building" state forever)
+func (s *Server) updateStuckFunctionsState() error {
+
+	// get all functions
+	functions, err := s.Platform.GetFunctions(&platform.GetFunctionsOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get nuclio functions")
+	}
+
+	// if the function is in one of these states, it will be stuck on them forever (when nuclio dashboard is just starting)
+	stuckStates := []functionconfig.FunctionState{functionconfig.FunctionStateBuilding}
+
+	// iterate over all functions and check if they are stuck
+	for _, function := range functions{
+		functionStatus := function.GetStatus()
+
+		// if a function is stuck just set its state to error, so it'll be reflected to the user
+		if functionconfig.FunctionStateInSlice(functionStatus.State, stuckStates) {
+			functionStatus.State = functionconfig.FunctionStateError
+			functionStatus.Message = "Function found on stuck state" +
+				" (Perhaps nuclio dashboard went down during function deployment. Try to redeploy)"
+
+			if err := s.Platform.UpdateFunction(&platform.UpdateFunctionOptions{
+				FunctionMeta: &function.GetConfig().Meta,
+				FunctionSpec: &function.GetConfig().Spec,
+				FunctionStatus: functionStatus,
+			}); err != nil {
+				return errors.Wrapf(err, "Failed to set function: %s status to error", function.GetConfig().Meta.Name)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (s *Server) resolveDockerCredentialsRegistryURL(credentials dockercreds.Credentials) string {
