@@ -126,7 +126,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
 	if err != nil {
 		return fo.setFunctionError(function,
-			functionconfig.FunctionStateUnhealthy,
+			functionconfig.FunctionStateError,
 			errors.Wrap(err, "Failed to create/update function"))
 	}
 
@@ -142,7 +142,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	// wait until the function resources are ready
 	if err = fo.functionresClient.WaitAvailable(waitContext, function.Namespace, function.Name); err != nil {
 		return fo.setFunctionError(function,
-			functionconfig.FunctionStateError,
+			functionconfig.FunctionStateUnhealthy,
 			errors.Wrap(err, "Failed to wait for function resources to be available"))
 	}
 
