@@ -260,7 +260,7 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 		switch function.Status.State {
 		case functionconfig.FunctionStateReady:
 			return true, nil
-		case functionconfig.FunctionStateError, functionconfig.FunctionStateUnhealthyError:
+		case functionconfig.FunctionStateError, functionconfig.FunctionStateUnhealthy:
 			return false, errors.Errorf("NuclioFunction in %s state:\n%s",
 				function.Status.State,
 				function.Status.Message)

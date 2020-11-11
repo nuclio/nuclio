@@ -126,7 +126,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
 	if err != nil {
 		return fo.setFunctionError(function,
-			functionconfig.FunctionStateUnhealthyError,
+			functionconfig.FunctionStateUnhealthy,
 			errors.Wrap(err, "Failed to create/update function"))
 	}
 

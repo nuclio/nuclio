@@ -258,8 +258,8 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 				function = suite.GetFunction(getFunctionOptions)
 				suite.Logger.InfoWith("Waiting for function state",
 					"currentFunctionState", function.GetStatus().State,
-					"expectedFunctionState", functionconfig.FunctionStateUnhealthyError)
-				return function.GetStatus().State == functionconfig.FunctionStateUnhealthyError
+					"expectedFunctionState", functionconfig.FunctionStateUnhealthy)
+				return function.GetStatus().State == functionconfig.FunctionStateUnhealthy
 			})
 		suite.Require().NoError(err, "Failed to ensure function state is error")
 

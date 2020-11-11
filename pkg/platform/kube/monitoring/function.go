@@ -135,12 +135,12 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 
 	stateChanged := false
 	functionIsAvailable := fm.isAvailable(functionDeployment)
-	if functionIsAvailable && function.Status.State == functionconfig.FunctionStateUnhealthyError {
+	if functionIsAvailable && function.Status.State == functionconfig.FunctionStateUnhealthy {
 		function.Status.State = functionconfig.FunctionStateReady
 		function.Status.Message = ""
 		stateChanged = true
 	} else if !functionIsAvailable && function.Status.State == functionconfig.FunctionStateReady {
-		function.Status.State = functionconfig.FunctionStateUnhealthyError
+		function.Status.State = functionconfig.FunctionStateUnhealthy
 		function.Status.Message = "Function has become unhealthy"
 		stateChanged = true
 	}
@@ -190,7 +190,7 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(function *nuclioio.Nucli
 	// (3) ignore transitional states other than ready / error
 	if !functionconfig.FunctionStateInSlice(function.Status.State, []functionconfig.FunctionState{
 		functionconfig.FunctionStateReady,
-		functionconfig.FunctionStateUnhealthyError,
+		functionconfig.FunctionStateUnhealthy,
 	}) {
 		fm.logger.DebugWith("Ignoring transitional function state",
 			"functionName", function.Name,

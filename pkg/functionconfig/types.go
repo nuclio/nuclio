@@ -488,7 +488,7 @@ const (
 	FunctionStateConfiguringResources             FunctionState = "configuringResources"
 	FunctionStateReady                            FunctionState = "ready"
 	FunctionStateError                            FunctionState = "error"
-	FunctionStateUnhealthyError                   FunctionState = "unhealthyError"
+	FunctionStateUnhealthy                        FunctionState = "unhealthy"
 	FunctionStateScaledToZero                     FunctionState = "scaledToZero"
 	FunctionStateImported                         FunctionState = "imported"
 )
@@ -505,7 +505,7 @@ func FunctionStateInSlice(functionState FunctionState, functionStates []Function
 func FunctionStateErrored(functionState FunctionState) bool {
 	return FunctionStateInSlice(functionState, []FunctionState{
 		FunctionStateError,
-		FunctionStateUnhealthyError,
+		FunctionStateUnhealthy,
 	})
 }
 
@@ -514,7 +514,7 @@ func FunctionStateProvisioned(functionState FunctionState) bool {
 		[]FunctionState{
 			FunctionStateReady,
 			FunctionStateError,
-			FunctionStateUnhealthyError,
+			FunctionStateUnhealthy,
 			FunctionStateScaledToZero,
 			FunctionStateImported,
 		})
