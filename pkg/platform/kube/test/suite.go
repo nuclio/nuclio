@@ -184,7 +184,11 @@ func (suite *KubeTestSuite) GetFunction(getFunctionOptions *platform.GetFunction
 }
 
 func (suite *KubeTestSuite) GetFunctionDeployment(functionName string) *appsv1.Deployment {
-	return suite.getFunctionDeployment(functionName)
+	deploymentInstance := &appsv1.Deployment{}
+	suite.GetResourceAndUnmarshal("deployment",
+		kube.DeploymentNameFromFunctionName(functionName),
+		deploymentInstance)
+	return deploymentInstance
 }
 
 func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
@@ -208,7 +212,7 @@ func (suite *KubeTestSuite) WaitForFunctionDeployment(functionName string,
 	err := common.RetryUntilSuccessful(duration,
 		time.Second,
 		func() bool {
-			return callback(suite.getFunctionDeployment(functionName))
+			return callback(suite.GetFunctionDeployment(functionName))
 		})
 	suite.Require().NoError(err, "Failed to wait on deployment callback")
 }
@@ -426,12 +430,4 @@ func (suite *KubeTestSuite) compileCreateAPIGatewayOptions(apiGatewayName string
 			},
 		},
 	}
-}
-
-func (suite *KubeTestSuite) getFunctionDeployment(functionName string) *appsv1.Deployment {
-	deploymentInstance := &appsv1.Deployment{}
-	suite.GetResourceAndUnmarshal("deployment",
-		kube.DeploymentNameFromFunctionName(functionName),
-		deploymentInstance)
-	return deploymentInstance
 }

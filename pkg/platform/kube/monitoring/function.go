@@ -150,13 +150,8 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 		stateChanged = true
 	}
 
-	// log and return if function did not change
+	// return if function did not change
 	if !stateChanged {
-		fm.logger.DebugWith("Function state did not change",
-			"functionName", function.Name,
-			"functionNamespace", function.Namespace,
-			"functionStatus", function.Status,
-			"functionIsAvailable", functionIsAvailable)
 		return nil
 	}
 
@@ -194,8 +189,7 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(function *nuclioio.Nucli
 
 	// skip disabled functions / 0-ed replicas functions
 	functionReplicas := function.GetComputedReplicas()
-	if function.Spec.Disable ||
-		(functionReplicas != nil && *functionReplicas == 0) {
+	if function.Spec.Disable || (*functionReplicas == 0) {
 		fm.logger.DebugWith("Skipping check for disabled / zero replicas function",
 			"functionName", function.Name,
 			"functionReplicas", functionReplicas,
