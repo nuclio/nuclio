@@ -188,11 +188,10 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(function *nuclioio.NuclioFunction) bool {
 
 	// skip disabled functions / 0-ed replicas functions
-	functionReplicas := function.GetComputedReplicas()
-	if function.Spec.Disable || (*functionReplicas == 0) {
+	if function.Spec.Disable || (function.Spec.Replicas != nil && *function.Spec.Replicas == 0) {
 		fm.logger.DebugWith("Skipping check for disabled / zero replicas function",
 			"functionName", function.Name,
-			"functionReplicas", functionReplicas,
+			"functionReplicas", function.Spec.Replicas,
 			"functionDisabled", function.Spec.Disable)
 		return true
 	}
