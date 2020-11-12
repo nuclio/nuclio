@@ -17,6 +17,7 @@ limitations under the License.
 package httpsuite
 
 import (
+	"encoding/json"
 	"net/http"
 	"path"
 	"strconv"
@@ -70,7 +71,6 @@ func (suite *HTTPTestSuite) TestCORS() {
 				},
 				ExpectedResponseStatusCode: &validPreflightResponseStatusCode,
 				ExpectedResponseHeadersValues: map[string][]string{
-					"Access-Control-Expose-Headers": {exposeHeaders},
 					"Access-Control-Allow-Methods":  {allowMethods},
 					"Access-Control-Allow-Headers":  {allowHeaders},
 					"Access-Control-Allow-Origin":   {origin},
@@ -112,9 +112,8 @@ func (suite *HTTPTestSuite) TestCORS() {
 func (suite *HTTPTestSuite) TestMaxRequestBodySize() {
 	createFunctionOptions := suite.getHTTPDeployOptions()
 	maxRequestBodySize := 64
-	trigger := createFunctionOptions.FunctionConfig.Spec.Triggers[suite.triggerName]
-	trigger.Kind = "http"
-	trigger.Attributes["maxRequestBodySize"] = maxRequestBodySize
+	createFunctionOptions.FunctionConfig.Spec.Triggers[suite.triggerName].
+		Attributes["maxRequestBodySize"] = maxRequestBodySize
 	statusOK := fasthttp.StatusOK
 	statusBadRequest := fasthttp.StatusBadRequest
 	suite.DeployFunctionAndRequests(createFunctionOptions,
@@ -140,17 +139,32 @@ func (suite *HTTPTestSuite) TestMaxRequestBodySize() {
 		})
 }
 
-func (suite *HTTPTestSuite) getHTTPDeployOptions() *platform.CreateFunctionOptions {
-	createFunctionOptions := suite.GetDeployOptions("event_recorder",
-		suite.GetFunctionPath(path.Join("event_recorder_python")))
+func (suite *HTTPTestSuite) TestFunctionEvent() {
+	createFunctionOptions := suite.getHTTPDeployOptions()
+	requestPath := "/../../here"
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*Request{
+		{
+			RequestPath: requestPath,
+			RequestHeaders: map[string]interface{}{
+				"x-nuclio-invoke-trigger": "http-event-recorder",
+			},
+			ExpectedResponseBody: func(body []byte) {
+				unmarshalledBody := EventFields{}
+				err := json.Unmarshal(body, &unmarshalledBody)
+				suite.Require().NoError(err)
 
+				// path remain the same
+				suite.Require().Equal(requestPath, unmarshalledBody.Path)
+			},
+		},
+	})
+}
+
+func (suite *HTTPTestSuite) getHTTPDeployOptions() *platform.CreateFunctionOptions {
+	createFunctionOptions := suite.GetDeployOptions("http-trigger-test",
+		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "python"))
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
-	createFunctionOptions.FunctionConfig.Meta.Name = "http-trigger-test"
-	createFunctionOptions.FunctionConfig.Spec.Build.Path = path.Join(suite.GetTestFunctionsDir(),
-		"common",
-		"event-recorder",
-		"python",
-		"event_recorder.py")
+	createFunctionOptions.FunctionConfig.Spec.Handler = "eventreturner:handler"
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		suite.triggerName: {
 			Kind:       "http",

@@ -73,7 +73,7 @@ func (e *Event) GetMethod() string {
 
 // GetPath returns the path of the event
 func (e *Event) GetPath() string {
-	return string(e.ctx.Request.URI().Path())
+	return string(e.ctx.Request.URI().PathOriginal())
 }
 
 // GetFieldByteSlice returns the field by name as a byte slice
