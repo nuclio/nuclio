@@ -116,7 +116,7 @@ class Wrapper(object):
 
             except UnicodeDecodeError as exc:
 
-                # in case of an unpacking error, reset unpacker to avoid consecutive errors
+                # reset unpacker to avoid consecutive errors
                 self._unpacker = self._resolve_unpacker()
                 self._on_serving_error(exc)
 

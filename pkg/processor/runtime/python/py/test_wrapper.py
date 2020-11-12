@@ -72,7 +72,7 @@ class TestSubmitEvents(unittest.TestCase):
         self._unix_stream_server.shutdown()
         self._unix_stream_server_thread.join()
 
-    def test_nonutf8_message(self):
+    def test_non_utf8_headers(self):
         self._wait_for_socket_creation()
         self._wrapper._entrypoint = lambda context, event: event.body
 
@@ -82,7 +82,7 @@ class TestSubmitEvents(unittest.TestCase):
         ]
 
         # middle event is malformed
-        events[len(events) // 2]['path'] = b'\xda'
+        events[len(events) // 2]['headers']['x-nuclio'] = b'\xda'
 
         # send events
         t = threading.Thread(target=self._send_events, args=(events,))
