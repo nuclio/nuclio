@@ -183,6 +183,10 @@ func (suite *KubeTestSuite) GetFunction(getFunctionOptions *platform.GetFunction
 	return functions[0]
 }
 
+func (suite *KubeTestSuite) GetFunctionDeployment(functionName string) *appsv1.Deployment {
+	return suite.getFunctionDeployment(functionName)
+}
+
 func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
 	pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
@@ -198,25 +202,15 @@ func (suite *KubeTestSuite) GetResourceAndUnmarshal(resourceKind, resourceName s
 	suite.Require().NoError(err)
 }
 
-func (suite *KubeTestSuite) WaitForFunctionDeploymentAvailability(functionName string,
-	duration time.Duration) {
-
-	expectedUnavailableReplicas := 0
+func (suite *KubeTestSuite) WaitForFunctionDeployment(functionName string,
+	duration time.Duration,
+	callback func(*appsv1.Deployment) bool) {
 	err := common.RetryUntilSuccessful(duration,
 		time.Second,
 		func() bool {
-			deploymentInstance := &appsv1.Deployment{}
-			suite.GetResourceAndUnmarshal("deployment",
-				kube.DeploymentNameFromFunctionName(functionName),
-				deploymentInstance)
-			suite.Logger.InfoWith("Waiting for deployment unavailable replicas to be zero",
-				"currentUnavailableReplicas", deploymentInstance.Status.UnavailableReplicas,
-				"expectedUnavailableReplicas", expectedUnavailableReplicas)
-
-			// wait until all replicas are available
-			return int(deploymentInstance.Status.UnavailableReplicas) == expectedUnavailableReplicas
+			return callback(suite.getFunctionDeployment(functionName))
 		})
-	suite.Require().NoError(err, "Failed to wait for replicas to become healthy")
+	suite.Require().NoError(err, "Failed to wait on deployment callback")
 }
 
 func (suite *KubeTestSuite) WaitForFunctionState(getFunctionOptions *platform.GetFunctionsOptions,
@@ -432,4 +426,12 @@ func (suite *KubeTestSuite) compileCreateAPIGatewayOptions(apiGatewayName string
 			},
 		},
 	}
+}
+
+func (suite *KubeTestSuite) getFunctionDeployment(functionName string) *appsv1.Deployment {
+	deploymentInstance := &appsv1.Deployment{}
+	suite.GetResourceAndUnmarshal("deployment",
+		kube.DeploymentNameFromFunctionName(functionName),
+		deploymentInstance)
+	return deploymentInstance
 }

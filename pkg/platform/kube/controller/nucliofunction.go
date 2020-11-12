@@ -97,11 +97,13 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return errors.New("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
 	}
 
-	// only respond to functions which are either waiting for something or are in transitional state
+	// ready functions as part of controller resyncs, where we verify that a given function CRD has its resources
+	// properly configured
 	statesToRespond := []functionconfig.FunctionState{
 		functionconfig.FunctionStateWaitingForResourceConfiguration,
 		functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
 		functionconfig.FunctionStateWaitingForScaleResourcesToZero,
+		functionconfig.FunctionStateReady,
 		functionconfig.FunctionStateScaledToZero,
 	}
 	if !functionconfig.FunctionStateInSlice(function.Status.State, statesToRespond) {

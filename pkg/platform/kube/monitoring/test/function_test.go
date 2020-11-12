@@ -13,6 +13,7 @@ import (
 	kubetest "github.com/nuclio/nuclio/pkg/platform/kube/test"
 
 	"github.com/stretchr/testify/suite"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -130,7 +131,15 @@ def handler(context, event):
 			suite.Require().NoError(err, "Failed to create configmap")
 
 			// wait for k8s to recover deployment from missing configmap error
-			suite.WaitForFunctionDeploymentAvailability(functionName, 3*time.Minute)
+			suite.WaitForFunctionDeployment(functionName,
+				3*time.Minute,
+				func(functionDeployment *appsv1.Deployment) bool {
+					suite.Logger.InfoWith("Waiting for deployment unavailable replicas to be zero",
+						"unavailableReplicas", functionDeployment.Status.UnavailableReplicas)
+
+					// wait until all replicas are available
+					return functionDeployment.Status.UnavailableReplicas == 0
+				})
 
 			// wait for monitoring
 			time.Sleep(postDeploymentSleepInterval)
@@ -244,6 +253,53 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		suite.WaitForFunctionState(getFunctionOptions,
 			functionconfig.FunctionStateReady,
 			functionMonitoringSleepTimeout)
+		return true
+	})
+}
+
+func (suite *FunctionMonitoringTestSuite) TestPausedFunctionShouldRemainInReadyState() {
+	functionName := "paused-function"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	getFunctionOptions := &platform.GetFunctionsOptions{
+		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+	}
+
+	functionMonitoringSleepTimeout := 2 * suite.Controller.GetFunctionMonitoringInterval()
+	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
+		zero := 0
+		deployResults.UpdatedFunctionConfig.Spec.Replicas = &zero
+		deployResults.UpdatedFunctionConfig.Spec.Disable = true
+		deployResults.UpdatedFunctionConfig.Spec.Image = deployResults.Image
+		err := suite.Platform.UpdateFunction(&platform.UpdateFunctionOptions{
+			FunctionMeta: &deployResults.UpdatedFunctionConfig.Meta,
+			FunctionSpec: &deployResults.UpdatedFunctionConfig.Spec,
+		})
+		suite.Require().NoError(err, "Failed to update function")
+
+		// wait for function deployment replicas gets to zero
+		suite.WaitForFunctionDeployment(functionName,
+			1*time.Minute,
+			func(functionDeployment *appsv1.Deployment) bool {
+				suite.Logger.InfoWith("Waiting for deployment replicas to be zero",
+					"replicas", functionDeployment.Status.Replicas)
+				return functionDeployment.Status.Replicas == 0
+			})
+
+		// wait for function monitoring to run
+		time.Sleep(functionMonitoringSleepTimeout)
+
+		// get the function
+		function := suite.GetFunction(getFunctionOptions)
+
+		// function is ready, with 0 replicas
+		suite.Require().Equal(functionconfig.FunctionStateReady, function.GetStatus().State)
+		suite.Require().NotNil(function.GetConfig().Spec.Replicas)
+		suite.Require().Equal(zero, *function.GetConfig().Spec.Replicas)
+
+		// function deployment replicas should remain 0
+		functionDeployment := suite.GetFunctionDeployment(functionName)
+		suite.Require().Equal(int(functionDeployment.Status.Replicas), zero)
 		return true
 	})
 }
