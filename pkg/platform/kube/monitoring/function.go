@@ -211,7 +211,7 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(function *nuclioio.Nucli
 		return true
 	}
 
-	// ignore transitional states other than ready / error
+	// ignore provisioned states other than ready / unhealthy
 	if !functionconfig.FunctionStateInSlice(function.Status.State, []functionconfig.FunctionState{
 		functionconfig.FunctionStateReady,
 		functionconfig.FunctionStateUnhealthy,
