@@ -199,6 +199,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	h.answering[workerIndex] = 0
 	event := &h.events[workerIndex]
 	event.ctx = ctx
+	event.disablePathNormalizing = h.configuration.DisablePathNormalizing
 
 	// submit to worker
 	response, processError = h.SubmitEventToWorker(functionLogger, workerInstance, event)

@@ -26,7 +26,8 @@ import (
 // allows accessing fasthttp.RequestCtx as a event.Sync
 type Event struct {
 	nuclio.AbstractEvent
-	ctx *fasthttp.RequestCtx
+	ctx                    *fasthttp.RequestCtx
+	disablePathNormalizing bool
 }
 
 // GetContentType returns the content type of the body
@@ -73,6 +74,11 @@ func (e *Event) GetMethod() string {
 
 // GetPath returns the path of the event
 func (e *Event) GetPath() string {
+	if e.disablePathNormalizing {
+
+		// return non urldecoded or normalized path
+		return string(e.ctx.Request.URI().PathOriginal())
+	}
 	return string(e.ctx.Request.URI().Path())
 }
 

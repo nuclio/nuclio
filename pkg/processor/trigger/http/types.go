@@ -36,8 +36,9 @@ type Configuration struct {
 	// NOTE: Modifying the max request body size affect with gradually memory consumption increasing
 	// as the entire request being read into the memory
 	// https://github.com/valyala/fasthttp/issues/667#issuecomment-540965683
-	MaxRequestBodySize int
-	CORS               *cors.CORS
+	MaxRequestBodySize     int
+	CORS                   *cors.CORS
+	DisablePathNormalizing bool
 }
 
 func NewConfiguration(ID string,
