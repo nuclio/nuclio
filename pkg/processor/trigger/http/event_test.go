@@ -14,14 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-
 package http
 
 import (
-	"github.com/valyala/fasthttp"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/valyala/fasthttp"
 )
 
 type EventTestSuite struct {
