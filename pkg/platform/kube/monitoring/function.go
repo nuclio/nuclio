@@ -181,26 +181,18 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 }
 
 // We monitor functions that meet the following conditions:
-// - not disabled / replicas set to 0
 // - not in provisioning state
 // - not recently deployed
 // - not in transitional states
+// - not disabled / replicas set to 0
 func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(function *nuclioio.NuclioFunction) bool {
-
-	// skip disabled functions / 0-ed replicas functions
-	if function.Spec.Disable || (function.Spec.Replicas != nil && *function.Spec.Replicas == 0) {
-		fm.logger.DebugWith("Skipping check for disabled / zero replicas function",
-			"functionName", function.Name,
-			"functionReplicas", function.Spec.Replicas,
-			"functionDisabled", function.Spec.Disable)
-		return true
-	}
 
 	// ignore provisioning states
 	// ignore recently deployed function
 	if fm.resolveFunctionProvisionedOrRecentlyDeployed(function) {
-		fm.logger.DebugWith("Skipping check for function status change",
-			"functionName", function.Name)
+		fm.logger.DebugWith("Function is being provisioned or recently deployed, skipping",
+			"functionName", function.Name,
+			"functionState", function.Status.State)
 		return true
 	}
 
@@ -209,9 +201,18 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(function *nuclioio.Nucli
 		functionconfig.FunctionStateReady,
 		functionconfig.FunctionStateUnhealthy,
 	}) {
-		fm.logger.DebugWith("Ignoring transitional function state",
+		fm.logger.DebugWith("Function state is not ready or unhealthy, skipping",
 			"functionName", function.Name,
 			"functionState", function.Status.State)
+		return true
+	}
+
+	// skip disabled functions / 0-ed replicas functions
+	if function.Spec.Disable || (function.Spec.Replicas != nil && *function.Spec.Replicas == 0) {
+		fm.logger.DebugWith("Function is disabled or has 0 desired replicas, skipping",
+			"functionName", function.Name,
+			"functionReplicas", function.Spec.Replicas,
+			"functionDisabled", function.Spec.Disable)
 		return true
 	}
 
