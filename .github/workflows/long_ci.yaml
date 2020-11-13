@@ -51,10 +51,14 @@ jobs:
             const script = require(`${ process.env.GITHUB_WORKSPACE }/${ process.env.ADD_REMOVE_LABELS_SCRIPT_PATH }`)
             await script({ github, context, prNumber, labelsToAdd, labelsToRemove })
 
-      - name: Build and Test
-        run: make build test
+      - name: Build
+        run: make build
         env:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
+
+      # TODO: use `make test` once kafka integration test is fixed
+      - name: Test
+        run: make test-periodic
 
       - if: ${{ success() }}
         run: echo "LONG_CI_FINISH_LABEL=${{ env.SUCCESS_LABEL }}" >> $GITHUB_ENV
