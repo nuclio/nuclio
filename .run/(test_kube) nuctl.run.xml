@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="(kube) nuctl test" type="GoTestRunConfiguration" factoryName="Go Test">
+  <configuration default="false" name="(test:kube) nuctl" type="GoTestRunConfiguration" factoryName="Go Test">
     <module name="nuclio" />
     <working_directory value="$PROJECT_DIR$/pkg/nuctl/test" />
     <go_parameters value="-ldflags=&quot;-X github.com/v3io/version-go.label=latest&quot;" />

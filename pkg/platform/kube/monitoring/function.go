@@ -4,6 +4,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -117,11 +118,14 @@ func (fm *FunctionMonitor) checkFunctionStatuses() error {
 
 func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunction) error {
 
+	// skip check for function status
 	if fm.shouldSkipFunctionMonitoring(function) {
-
-		// skip check for function status
 		return nil
 	}
+
+	fm.logger.DebugWith("Getting function deployment function",
+		"functionName", function.Name,
+		"functionNamespace", function.Namespace)
 
 	functionDeployment, err := fm.kubeClientSet.
 		AppsV1().
@@ -136,57 +140,84 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 
 	stateChanged := false
 	functionIsAvailable := fm.isAvailable(functionDeployment)
-	if functionIsAvailable && function.Status.State == functionconfig.FunctionStateError {
+	if functionIsAvailable && function.Status.State == functionconfig.FunctionStateUnhealthy {
 		function.Status.State = functionconfig.FunctionStateReady
 		function.Status.Message = ""
 		stateChanged = true
 	} else if !functionIsAvailable && function.Status.State == functionconfig.FunctionStateReady {
-		function.Status.State = functionconfig.FunctionStateError
-		function.Status.Message = "Function has become unhealthy"
+		function.Status.State = functionconfig.FunctionStateUnhealthy
+		function.Status.Message = common.FunctionStateMessageUnhealthy
 		stateChanged = true
 	}
 
-	if stateChanged {
-		fm.logger.InfoWith("Updating function",
+	// return if function did not change
+	if !stateChanged {
+		return nil
+	}
+
+	// function state has changed, update CRD correspondingly
+	fm.logger.InfoWith("Function state has changed, updating",
+		"functionName", function.Name,
+		"functionStatus", function.Status,
+		"functionNamespace", function.Namespace,
+		"functionDeploymentStatus", functionDeployment.Status,
+		"functionIsAvailable", functionIsAvailable)
+	if _, err := fm.nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(fm.namespace).
+		Update(function); err != nil {
+		fm.logger.WarnWith("Failed to update function",
 			"functionName", function.Name,
 			"functionStatus", function.Status,
 			"functionNamespace", function.Namespace)
-		if _, err := fm.nuclioClientSet.
-			NuclioV1beta1().
-			NuclioFunctions(fm.namespace).
-			Update(function); err != nil {
-			fm.logger.WarnWith("Failed to update function",
-				"functionName", function.Name,
-				"functionStatus", function.Status,
-				"functionNamespace", function.Namespace)
-		}
 	}
 	return nil
 }
 
-// consider function deployment available if it has at least one available pod
+// consider function deployment available when all pods are available
 func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
-	return !(deployment.Spec.Replicas != nil &&
-		*deployment.Spec.Replicas > 0 &&
-		deployment.Status.AvailableReplicas <= 0)
-
+	atLeastOneReplicasRequested := deployment.Spec.Replicas != nil && *deployment.Spec.Replicas > 0
+	return atLeastOneReplicasRequested && deployment.Status.UnavailableReplicas == 0
 }
 
+// We monitor functions that meet the following conditions:
+// - not in provisioning state
+// - not recently deployed
+// - not in transitional states
+// - not disabled / replicas set to 0
 func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(function *nuclioio.NuclioFunction) bool {
 
 	// ignore provisioning states
 	// ignore recently deployed function
 	if fm.resolveFunctionProvisionedOrRecentlyDeployed(function) {
-		fm.logger.DebugWith("Skipping check for function status change",
-			"functionName", function.Name)
+		fm.logger.DebugWith("Function is being provisioned or recently deployed, skipping",
+			"functionName", function.Name,
+			"functionState", function.Status.State)
 		return true
 	}
 
-	// ignore transitional states other than ready / error
-	return !functionconfig.FunctionStateInSlice(function.Status.State, []functionconfig.FunctionState{
+	// ignore provisioned states other than ready / unhealthy
+	if !functionconfig.FunctionStateInSlice(function.Status.State, []functionconfig.FunctionState{
 		functionconfig.FunctionStateReady,
-		functionconfig.FunctionStateError,
-	})
+		functionconfig.FunctionStateUnhealthy,
+	}) {
+		fm.logger.DebugWith("Function state is not ready or unhealthy, skipping",
+			"functionName", function.Name,
+			"functionState", function.Status.State)
+		return true
+	}
+
+	// skip disabled functions / 0-ed replicas functions
+	if function.Spec.Disable || (function.Spec.Replicas != nil && *function.Spec.Replicas == 0) {
+		fm.logger.DebugWith("Function is disabled or has 0 desired replicas, skipping",
+			"functionName", function.Name,
+			"functionReplicas", function.Spec.Replicas,
+			"functionDisabled", function.Spec.Disable)
+		return true
+	}
+
+	// do not skip as function should be monitored
+	return false
 }
 
 func (fm *FunctionMonitor) resolveFunctionProvisionedOrRecentlyDeployed(function *nuclioio.NuclioFunction) bool {

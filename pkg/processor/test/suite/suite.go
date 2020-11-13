@@ -239,6 +239,36 @@ func (suite *TestSuite) DeployFunctionAndRedeploy(createFunctionOptions *platfor
 	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun, false)
 }
 
+func (suite *TestSuite) DeployFunctionExpectErrorAndRedeploy(createFunctionOptions *platform.CreateFunctionOptions,
+	onAfterFirstContainerRun OnAfterContainerRun,
+	onAfterSecondContainerRun OnAfterContainerRun) {
+
+	suite.PopulateDeployOptions(createFunctionOptions)
+
+	// delete the function when done
+	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+		FunctionConfig: createFunctionOptions.FunctionConfig,
+	})
+
+	suite.deployFunction(createFunctionOptions, onAfterFirstContainerRun, true)
+	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun, false)
+}
+
+func (suite *TestSuite) DeployFunctionAndRedeployExpectError(createFunctionOptions *platform.CreateFunctionOptions,
+	onAfterFirstContainerRun OnAfterContainerRun,
+	onAfterSecondContainerRun OnAfterContainerRun) {
+
+	suite.PopulateDeployOptions(createFunctionOptions)
+
+	// delete the function when done
+	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+		FunctionConfig: createFunctionOptions.FunctionConfig,
+	})
+
+	suite.deployFunction(createFunctionOptions, onAfterFirstContainerRun, false)
+	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun, true)
+}
+
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *TestSuite) GetNuclioSourceDir() string {
 	return common.GetSourceDir()
@@ -252,8 +282,8 @@ func (suite *TestSuite) GetTestFunctionsDir() string {
 // GetTestHost returns the host on which a remote testing entity resides (e.g. brokers, functions)
 func (suite *TestSuite) GetTestHost() string {
 
-	// If an env var is set, use that. otherwise localhost
-	return common.GetEnvOrDefaultString("NUCLIO_TEST_HOST", "localhost")
+	// If an env var is set, use that, otherwise 127.0.0.1
+	return common.GetEnvOrDefaultString("NUCLIO_TEST_HOST", "127.0.0.1")
 }
 
 // GetDeployOptions populates a platform.CreateFunctionOptions structure from function name and path

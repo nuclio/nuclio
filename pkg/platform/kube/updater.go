@@ -77,23 +77,23 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 
 	// trigger an update
 	functionCreateOrUpdateTimestamp := time.Now()
-	updatedFunction, err := nuclioClientSet.NuclioV1beta1().NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).Update(function)
+	updatedFunction, err := nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
+		Update(function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function CR")
 	}
 
 	// wait for the function to be ready
-	_, err = waitForFunctionReadiness(u.logger,
+	if _, err = waitForFunctionReadiness(u.logger,
 		u.consumer,
 		updatedFunction.Namespace,
 		updatedFunction.Name,
-		functionCreateOrUpdateTimestamp)
-
-	if err != nil {
+		functionCreateOrUpdateTimestamp); err != nil {
 		return errors.Wrap(err, "Failed to wait for function readiness")
 	}
 
-	u.logger.InfoWith("Function updated")
-
+	u.logger.InfoWith("Function updated", "functionName", updatedFunction.Name)
 	return nil
 }
