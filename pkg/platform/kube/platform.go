@@ -152,6 +152,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
 
+	if err := p.validateFunctionIngresses(createFunctionOptions); err != nil {
+		return nil, errors.Wrap(err, "Failed while validating function ingresses")
+	}
+
 	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
 	// with appropriate namespace and name
 	// e.g. ./nuctl deploy --path /path/to/function-with-function.yaml (function.yaml specifying the name and namespace)
@@ -535,6 +539,10 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 
 	if err := p.enrichAndValidateAPIGatewayName(&newAPIGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
+	}
+
+	if err := p.validateAPIGatewayFunctionsHaveNoIngresses(createAPIGatewayOptions); err != nil {
+		return errors.Wrap(err , "Failed to validate api gateway functions have no ingresses")
 	}
 
 	// set state to waiting for provisioning
@@ -1181,4 +1189,49 @@ func (p *Platform) getDefaultServiceType() (v1.ServiceType, error) {
 	default:
 		return "", errors.New("Not a valid configuration instance")
 	}
+}
+
+func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
+
+	// check ingresses on every upstream function
+	for _, upstream := range createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams {
+		function, err := p.GetFunctions(&platform.GetFunctionsOptions{
+			Namespace: createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace,
+			Name: upstream.Nucliofunction.Name,
+		})
+		if err != nil {
+			return errors.New("Failed to get function")
+		}
+		if len(function) == 0 {
+
+			// if such function doesn't exist, just skip - because it doesn't have ingresses for sure
+			continue
+		}
+
+		ingresses := functionconfig.GetIngressesFromTriggers(function[0].GetConfig().Spec.Triggers)
+		if len(ingresses) > 0 {
+			return nuclio.NewErrConflict("Api gateway upstream function cannot have an ingress")
+		}
+	}
+
+	return nil
+}
+
+func (p *Platform) validateFunctionIngresses(createFunctionOptions *platform.CreateFunctionOptions) error {
+
+	// validate that a function is not exposed inside http triggers, while it is also exposed by an api gateway
+	// this is done to prevent the nginx bug, where it is not working properly when the same service is exposed more than once
+	// (specifically when it has canary ingresses)
+	ingresses := functionconfig.GetIngressesFromTriggers(createFunctionOptions.FunctionConfig.Spec.Triggers)
+	if len(ingresses) > 0 {
+		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(createFunctionOptions.FunctionConfig.Meta.Namespace)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get function to api gateways mapping")
+		}
+		if _, found := functionToAPIGateways[createFunctionOptions.FunctionConfig.Meta.Name]; found {
+			return nuclio.NewErrBadRequest("Function can't expose ingresses while it is being exposed by an api gateway")
+		}
+	}
+
+	return nil
 }
