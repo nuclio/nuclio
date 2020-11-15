@@ -34,9 +34,11 @@ import nuclio_sdk
 if sys.version_info[:2] >= (3, 0):
     from socketserver import UnixStreamServer, BaseRequestHandler
     from unittest import mock
+    import http.client as httpclient
 else:
     from SocketServer import UnixStreamServer, BaseRequestHandler
     import mock
+    import httplib as httpclient
 
 
 class TestSubmitEvents(unittest.TestCase):
@@ -69,6 +71,42 @@ class TestSubmitEvents(unittest.TestCase):
         self._unix_stream_server.server_close()
         self._unix_stream_server.shutdown()
         self._unix_stream_server_thread.join()
+
+    def test_non_utf8_headers(self):
+        self._wait_for_socket_creation()
+        self._wrapper._entrypoint = lambda context, event: event.body
+
+        events = [
+            json.loads(nuclio_sdk.Event(_id=str(i), body='e{0}'.format(i)).to_json())
+            for i in range(3)
+        ]
+
+        # middle event is malformed
+        events[len(events) // 2]['headers']['x-nuclio'] = b'\xda'
+
+        # send events
+        t = threading.Thread(target=self._send_events, args=(events,))
+        t.start()
+
+        self._wrapper.serve_requests(num_requests=len(events))
+        t.join()
+
+        # processor start
+        # duration
+        # function response
+        # malformed log line (wrapper)
+        # malformed response
+        # duration
+        # function response
+        self._wait_until_received_messages(7)
+
+        malformed_response = self._unix_stream_server._messages[4]['body']
+        self.assertEqual(httpclient.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
+
+        # ensure messages coming after malformed request are still valid
+        last_function_response = self._unix_stream_server._messages[-1]['body']
+        self.assertEqual(httpclient.OK, last_function_response['status_code'])
+        self.assertEqual(events[-1]['body'], last_function_response['body'])
 
     def test_bad_function_code(self):
         def raise_exception(ctx, event):
@@ -140,7 +178,12 @@ class TestSubmitEvents(unittest.TestCase):
         recorded_event_ids = set()
         expected_events_length = 10000
 
-        t = threading.Thread(target=self._send_events, args=(expected_events_length,))
+        events = (
+            nuclio_sdk.Event(_id=i, body='e{}'.format(i))
+            for i in range(expected_events_length)
+        )
+
+        t = threading.Thread(target=self._send_events, args=(events,))
         t.start()
 
         self._wrapper._entrypoint = functools.partial(record_event, recorded_event_ids)
@@ -159,7 +202,11 @@ class TestSubmitEvents(unittest.TestCase):
             return 'OK'
 
         num_of_events = 10
-        self._send_events(num_of_events)
+        events = (
+            nuclio_sdk.Event(_id=i, body='e{}'.format(i))
+            for i in range(num_of_events)
+        )
+        self._send_events(events)
         self._wrapper._entrypoint = event_recorder
         self._wrapper.serve_requests(num_of_events)
         self.assertEqual(num_of_events, len(recorded_events), 'wrong number of events')
@@ -203,9 +250,11 @@ class TestSubmitEvents(unittest.TestCase):
     #     self.assertEqual(num_of_events, self._wrapper._entrypoint.call_count, 'Received unexpected number of events')
 
     def _send_event(self, event):
+        if not isinstance(event, dict):
+            event = self._event_to_dict(event)
 
         # pack exactly as processor or wrapper explodes
-        body = msgpack.Packer().pack(self._event_to_dict(event))
+        body = msgpack.Packer().pack(event)
 
         # big endian body len
         body_len = struct.pack(">I", len(body))
@@ -222,10 +271,10 @@ class TestSubmitEvents(unittest.TestCase):
     def _event_to_dict(self, event):
         return json.loads(event.to_json())
 
-    def _send_events(self, num_of_events):
+    def _send_events(self, events):
         self._wait_for_socket_creation()
-        for i in range(num_of_events):
-            self._send_event(nuclio_sdk.Event(_id=i, body='e{}'.format(i)))
+        for event in events:
+            self._send_event(event)
 
     def _wait_for_socket_creation(self, timeout=10, interval=0.1):
 
@@ -239,11 +288,12 @@ class TestSubmitEvents(unittest.TestCase):
             time.sleep(interval)
             current_messages_length = len(self._unix_stream_server._messages)
             if current_messages_length >= minimum_messages_length:
-                break
+                return
             self._logger.debug_with('Waiting for messages to arrive',
                                     current_messages_length=current_messages_length,
                                     minimum_messages_length=minimum_messages_length)
             timeout -= interval
+        raise RuntimeError('Failed waiting for messages')
 
     def _create_unix_stream_server(self, socket_path):
         unix_stream_server = _SingleConnectionUnixStreamServer(socket_path, _Connection)
@@ -329,7 +379,7 @@ class TestCallFunction(unittest.TestCase):
 
         # prepare a responder
         connection_response = mock.MagicMock()
-        connection_response.status = 204
+        connection_response.status = httpclient.NO_CONTENT
         connection_response.getheaders = lambda: [('Content-Type', 'application/json')]
         connection_response.read = mock.MagicMock(return_value='{"b": "some_response"}')
 
@@ -349,7 +399,7 @@ class TestCallFunction(unittest.TestCase):
 
         self.assertEqual({'b': 'some_response'}, response.body)
         self.assertEqual('application/json', response.content_type)
-        self.assertEqual(204, response.status_code)
+        self.assertEqual(httpclient.NO_CONTENT, response.status_code)
 
     def test_get_function_url(self):
         self.assertEqual(nuclio_sdk.Platform('local', 'ns')._get_function_url('function-name'),
