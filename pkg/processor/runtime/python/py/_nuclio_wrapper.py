@@ -222,15 +222,14 @@ class Wrapper(object):
         self._log_and_response_error(exc, 'Exception caught while serving')
 
     def _on_handle_event_error(self, exc):
-        error_message = 'Exception caught in handler'
-        formatted_response_error = '{0} - "{1}": {2}'.format(error_message,
-                                                             exc,
-                                                             traceback.format_exc())
-        self._log_and_response_error(exc, error_message, formatted_response_error)
+        self._log_and_response_error(exc, 'Exception caught in handler')
 
-    def _log_and_response_error(self, exc, error_message, overridden_response_error=''):
+    def _log_and_response_error(self, exc, error_message):
+        encoded_error_response = '{0} - "{1}": {2}'.format(error_message,
+                                                           exc,
+                                                           traceback.format_exc())
         self._logger.error_with(error_message, exc=str(exc), traceback=traceback.format_exc())
-        self._write_response_error(overridden_response_error or error_message)
+        self._write_response_error(encoded_error_response or error_message)
 
     def _write_response_error(self, body):
         try:
