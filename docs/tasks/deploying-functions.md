@@ -68,7 +68,7 @@ Now deploy your function, specifying the function name, the path, the "nuclio" n
 ```sh
 nuctl deploy my-function \
 	--path /tmp/nuclio/my_function.py \
-	--runtime python:2.7 \
+	--runtime python \
 	--handler my_function:my_entry_point \
 	--namespace nuclio \
 	--registry $(minikube ip):5000 --run-registry localhost:5000
@@ -179,7 +179,7 @@ With `nuctl`, you simply pass `--env` and a JSON encoding of the trigger configu
 ```sh
 nuctl deploy my-function \
 	--path /tmp/nuclio/my_function.py \
-	--runtime python:2.7 \
+	--runtime python \
 	--handler my_function:my_entry_point \
 	--namespace nuclio \
 	--registry $(minikube ip):5000 --run-registry localhost:5000 \
@@ -202,7 +202,7 @@ spec:
   - name: MY_ENV_VALUE
     value: my value
   handler: my_function:my_entry_point
-  runtime: python:2.7
+  runtime: python
   triggers:
     periodic:
       attributes:
@@ -239,7 +239,7 @@ import os
 #     - name: MY_ENV_VALUE
 #       value: my value
 #     handler: my_function_with_config:my_entry_point
-#     runtime: python:2.7
+#     runtime: python
 #     triggers:
 #       periodic:
 #         attributes:

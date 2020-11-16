@@ -59,7 +59,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | :--- | :--- | :--- |
 | description | string | A textual description of the function |
 | handler | string | The entry point to the function, in the form of `package:entrypoint`. Varies slightly between runtimes, see the appropriate runtime documentation for specifics |
-| runtime | string | The name of the language runtime. One of: `golang`, `python:2.7`, `python:3.6`, `shell`, `java`, `nodejs`, `pypy` | 
+| runtime | string | The name of the language runtime. One of: `golang`, `python`, `shell`, `java`, `nodejs`, `pypy` | 
 | <a id="spec.image"></a>image | string | The name of the function's container image &mdash; used for the `image` [code-entry type](#spec.build.codeEntryType); see [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md#code-entry-type-image) |
 | env | map | A name-value environment-variables tuple; it's also possible to reference secrets from the map elements, as demonstrated in the [specifcation example](#spec-example) |
 | volumes | map | A map in an architecture similar to Kubernetes volumes, for Docker deployment |

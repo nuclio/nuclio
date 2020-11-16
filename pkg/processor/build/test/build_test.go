@@ -226,7 +226,7 @@ func (suite *testSuite) TestBuildFunctionFromFileExpectSourceCodePopulated() {
 	createFunctionOptions := suite.GetDeployOptions("reverser",
 		path.Join(suite.GetNuclioSourceDir(), "test", "_functions", "common", "reverser", "python", "reverser.py"))
 
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:2.7"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "reverser:handler"
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
@@ -269,9 +269,9 @@ func (suite *testSuite) TestBuildJessiePassesNonInteractiveFlag() {
 	createFunctionOptions := suite.GetDeployOptions("printer",
 		path.Join(suite.GetNuclioSourceDir(), "test", "_functions", "python", "py2-printer"))
 
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:2.7"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "printer:handler"
-	createFunctionOptions.FunctionConfig.Spec.Build.BaseImage = "python:2.7-jessie"
+	createFunctionOptions.FunctionConfig.Spec.Build.BaseImage = "python:3.6-jessie"
 
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = append(createFunctionOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq update")
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = append(createFunctionOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq install curl")
