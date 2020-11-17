@@ -67,4 +67,4 @@ require (
 	pack.ag/amqp v0.12.5
 )
 
-replace github.com/Shopify/sarama => github.com/iguazio/sarama v1.25.1-0.20200331135945-d92101249c96
+replace github.com/Shopify/sarama => github.com/iguazio/sarama v1.25.1-0.20201117150928-15517d41c014
