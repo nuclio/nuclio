@@ -23,10 +23,10 @@ func (nf *NuclioFunction) GetConfig() *functionconfig.ConfigWithStatus {
 	return &functionconfig.ConfigWithStatus{
 		Config: functionconfig.Config{
 			Meta: functionconfig.Meta{
-				Name: nf.Name,
-				Namespace: nf.Namespace,
-				Labels: nf.Labels,
-				Annotations: nf.Annotations,
+				Name:            nf.Name,
+				Namespace:       nf.Namespace,
+				Labels:          nf.Labels,
+				Annotations:     nf.Annotations,
 				ResourceVersion: nf.ResourceVersion,
 			},
 			Spec: nf.Spec,

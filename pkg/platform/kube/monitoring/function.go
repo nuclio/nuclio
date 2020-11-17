@@ -8,7 +8,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
-	kubecommon"github.com/nuclio/nuclio/pkg/platform/kube/common"
+	kubecommon "github.com/nuclio/nuclio/pkg/platform/kube/common"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
