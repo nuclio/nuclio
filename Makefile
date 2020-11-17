@@ -453,14 +453,13 @@ test-kafka: build-test
 
 .PHONY: test-python
 test-python:
-	docker build \
-		--build-arg CACHEBUST=$(shell date +%s) \
-		--build-arg PYTHON_IMAGE_TAG=3.6-slim-stretch \
-		-f pkg/processor/runtime/python/test/Dockerfile .
-	docker build \
-		--build-arg CACHEBUST=$(shell date +%s) \
-		--build-arg PYTHON_IMAGE_TAG=2.7-slim-stretch \
-		-f pkg/processor/runtime/python/test/Dockerfile .
+	@$(eval PYTHON_IMAGE_TAGS ?= 3.9 3.8 3.7 3.6 2.7)
+	@$(eval TEST_BUILD_COMMANDS := $(foreach PYTHON_IMAGE_TAG,$(PYTHON_IMAGE_TAGS), docker build \
+	  --build-arg PYTHON_IMAGE_TAG=$(PYTHON_IMAGE_TAG) \
+	  --build-arg CACHEBUST=$(shell date +%s) \
+	  --file pkg/processor/runtime/python/test/Dockerfile \
+	  .;))
+	@$(foreach TEST_BUILD_COMMAND,$(TEST_BUILD_COMMANDS), $(TEST_BUILD_COMMAND))
 
 .PHONY: test-short
 test-short: modules ensure-gopath

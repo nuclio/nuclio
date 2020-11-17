@@ -23,7 +23,6 @@ import (
 	"path"
 	"regexp"
 	"testing"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -32,41 +31,18 @@ import (
 	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
-	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/suite"
 )
 
-// shared with EventReturner
-type eventFields struct {
-	ID             nuclio.ID              `json:"id,omitempty"`
-	TriggerKind    string                 `json:"eventType,omitempty"`
-	ContentType    string                 `json:"contentType,omitempty"`
-	Headers        map[string]interface{} `json:"headers,omitempty"`
-	Timestamp      time.Time              `json:"timestamp,omitempty"`
-	Path           string                 `json:"path,omitempty"`
-	URL            string                 `json:"url,omitempty"`
-	Method         string                 `json:"method,omitempty"`
-	ShardID        int                    `json:"shardID,omitempty"`
-	TotalNumShards int                    `json:"totalNumShards,omitempty"`
-	Type           string                 `json:"type,omitempty"`
-	TypeVersion    string                 `json:"typeVersion,omitempty"`
-	Version        string                 `json:"version,omitempty"`
-	Body           string                 `json:"body,omitempty"`
-}
-
-type testSuite struct {
+type TestSuite struct {
 	httpsuite.TestSuite
 	cloudevents.CloudEventsTestSuite
 	callfunction.CallFunctionTestSuite
 	runtime string
 }
 
-func newTestSuite(runtime string) *testSuite {
-	return &testSuite{runtime: runtime}
-}
-
-func (suite *testSuite) SetupTest() {
+func (suite *TestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
 	suite.Runtime = suite.runtime
@@ -77,7 +53,7 @@ func (suite *testSuite) SetupTest() {
 	suite.CallFunctionTestSuite.HTTPSuite = &suite.TestSuite
 }
 
-func (suite *testSuite) TestStress() {
+func (suite *TestSuite) TestStress() {
 
 	// Create blastConfiguration using default configurations + changes for python specification
 	blastConfiguration := suite.NewBlastConfiguration()
@@ -86,7 +62,7 @@ func (suite *testSuite) TestStress() {
 	suite.BlastHTTP(blastConfiguration)
 }
 
-func (suite *testSuite) TestOutputs() {
+func (suite *TestSuite) TestOutputs() {
 	statusOK := http.StatusOK
 	statusCreated := http.StatusCreated
 	statusInternalError := http.StatusInternalServerError
@@ -244,7 +220,7 @@ func (suite *testSuite) TestOutputs() {
 	suite.DeployFunctionAndRequests(createFunctionOptions, testRequests)
 }
 
-func (suite *testSuite) TestCustomEvent() {
+func (suite *TestSuite) TestCustomEvent() {
 	createFunctionOptions := suite.GetDeployOptions("event-returner",
 		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "python"))
 
@@ -258,7 +234,7 @@ func (suite *testSuite) TestCustomEvent() {
 	}
 
 	bodyVerifier := func(body []byte) {
-		unmarshalledBody := eventFields{}
+		unmarshalledBody := httpsuite.EventFields{}
 
 		// read the body JSON
 		err := json.Unmarshal(body, &unmarshalledBody)
@@ -287,7 +263,7 @@ func (suite *testSuite) TestCustomEvent() {
 	})
 }
 
-func (suite *testSuite) TestContextInitError() {
+func (suite *TestSuite) TestContextInitError() {
 	createFunctionOptions := suite.GetDeployOptions("context-init-fail",
 		path.Join(suite.GetTestFunctionsDir(), "common", "context-init-fail", "python"))
 
@@ -299,7 +275,7 @@ func (suite *testSuite) TestContextInitError() {
 	})
 }
 
-func (suite *testSuite) TestModifiedRequestBodySize() {
+func (suite *TestSuite) TestModifiedRequestBodySize() {
 
 	// TODO: make test more generic and run cross runtimes
 	maxRequestBodySizes := []int{
@@ -326,12 +302,48 @@ func (suite *testSuite) TestModifiedRequestBodySize() {
 	}
 }
 
+func (suite *TestSuite) TestNonUTF8Headers() {
+	createFunctionOptions := suite.GetDeployOptions("non-utf8-headers",
+		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
+	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
+
+	nonUTF8String := string([]byte{192, 175})
+	internalServerErrorStatus := http.StatusInternalServerError
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+		{
+			RequestMethod: http.MethodPost,
+			RequestBody:   nonUTF8String,
+		},
+		{
+
+			// failed, non utf8 headers can not be parsed
+			RequestBody:   "testBody",
+			RequestMethod: http.MethodPost,
+			RequestHeaders: map[string]interface{}{
+				"nonUTFHeader": nonUTF8String,
+			},
+			ExpectedResponseStatusCode: &internalServerErrorStatus,
+		},
+		{
+
+			// everything is back to normal
+			RequestMethod: http.MethodGet,
+		},
+	})
+}
+
 func TestIntegrationSuite(t *testing.T) {
 	if testing.Short() {
 		return
 	}
 
-	suite.Run(t, newTestSuite("python"))
-	suite.Run(t, newTestSuite("python:2.7"))
-	suite.Run(t, newTestSuite("python:3.6"))
+	for _, runtime := range []string{
+		"python",
+		"python:2.7",
+		"python:3.6",
+	} {
+		testSuite := new(TestSuite)
+		testSuite.runtime = runtime
+		suite.Run(t, testSuite)
+	}
 }

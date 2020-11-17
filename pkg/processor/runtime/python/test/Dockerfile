@@ -12,15 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG PYTHON_IMAGE_TAG=3.6-slim-stretch
-
+ARG PYTHON_IMAGE_TAG=3.6
 FROM python:$PYTHON_IMAGE_TAG
 
 WORKDIR /nuclio
 
-RUN apt-get update && apt-get install gcc -y
+# copy common/dev requirements file
+COPY pkg/processor/runtime/python/py/requirements/dev.txt py/requirements/dev.txt
+COPY pkg/processor/runtime/python/py/requirements/common.txt py/requirements/common.txt
 
+# install common / dev
+RUN python -m pip install \
+    --requirement py/requirements/common.txt \
+    --requirement py/requirements/dev.txt
+
+# copy files
 COPY pkg/processor/runtime/python .
+
+# determine runtime version and install its packages (if exists)
+ARG PYTHON_IMAGE_TAG=3.6
+RUN RUNTIME_REQUIREMENTS_SPECIFIC_FILE="py/requirements/python$(echo "$PYTHON_IMAGE_TAG" | tr '.' '_').txt" \
+    && (test -f ${RUNTIME_REQUIREMENTS_SPECIFIC_FILE} \
+        && python -m pip install -r ${RUNTIME_REQUIREMENTS_SPECIFIC_FILE}) \
+        || true
 
 ARG CACHEBUST=1
 RUN ./test/test.sh
