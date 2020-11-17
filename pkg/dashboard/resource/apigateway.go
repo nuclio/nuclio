@@ -334,7 +334,7 @@ func (agr *apiGatewayResource) getAPIGatewayInfoFromRequest(request *http.Reques
 	return &apiGatewayInfoInstance, nil
 }
 
-func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo,
+func (agr *apiGatewayResource) enrichAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo,
 	nameRequired bool,
 	specRequired bool,
 	projectName string) error {
@@ -377,12 +377,6 @@ func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *api
 		apiGatewayInfoInstance.Spec = &platform.APIGatewaySpec{}
 	}
 
-	if specRequired {
-		if err := kube.ValidateAPIGatewaySpec(apiGatewayInfoInstance.Spec); err != nil {
-			return errors.Wrap(err, "Api gateway spec validation failed")
-		}
-	}
-
 	// status is optional, ensure it exists
 	if apiGatewayInfoInstance.Status == nil {
 		apiGatewayInfoInstance.Status = &platform.APIGatewayStatus{}
@@ -394,6 +388,27 @@ func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *api
 		}
 
 		apiGatewayInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
+	}
+
+	return nil
+}
+
+func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo,
+	nameRequired bool,
+	specRequired bool,
+	projectName string) error {
+
+	// enrichment
+	err := agr.enrichAPIGatewayInfo(apiGatewayInfoInstance, nameRequired, specRequired, projectName)
+	if err != nil {
+		return errors.Wrap(err, "Failed to enrich api gateway info")
+	}
+
+	// validation
+	if specRequired {
+		if err := kube.ValidateAPIGatewaySpec(apiGatewayInfoInstance.Spec); err != nil {
+			return errors.Wrap(err, "Api gateway spec validation failed")
+		}
 	}
 
 	return nil
