@@ -22,6 +22,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
+	kubecommon "github.com/nuclio/nuclio/pkg/platform/kube/common"
+	triggercommon "github.com/nuclio/nuclio/pkg/processor/trigger/common"
+
+	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/scaler-types"
 	"k8s.io/api/core/v1"
 )
@@ -96,17 +102,24 @@ func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trig
 }
 
 // GetIngressesFromTriggers returns all ingresses from a map of triggers
-func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
+func GetIngressesFromTriggers(triggers map[string]Trigger) (map[string]Ingress, error) {
 	ingresses := map[string]Ingress{}
 
-	for _, trigger := range GetTriggersByKind(triggers, "http") {
+	for triggerName, trigger := range GetTriggersByKind(triggers, "http") {
 
 		// if there are attributes
 		if encodedIngresses, found := trigger.Attributes["ingresses"]; found {
 
 			// iterate over the encoded ingresses map and created ingress structures
-			for encodedIngressName, encodedIngress := range encodedIngresses.(map[string]interface{}) {
-				encodedIngressMap := encodedIngress.(map[string]interface{})
+			encodedIngresses, validStructure := encodedIngresses.(map[string]interface{})
+			if !validStructure {
+				return nil, errors.Errorf("Malformed structure for ingresses in trigger '%s'", triggerName)
+			}
+			for encodedIngressName, encodedIngress := range encodedIngresses {
+				encodedIngressMap, validStructure := encodedIngress.(map[string]interface{})
+				if !validStructure {
+					return nil, errors.Errorf("Malformed structure for ingress '%s'", encodedIngressName)
+				}
 
 				ingress := Ingress{}
 
@@ -140,7 +153,7 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 		}
 	}
 
-	return ingresses
+	return ingresses, nil
 }
 
 func GetDefaultHTTPTrigger() Trigger {
@@ -457,6 +470,83 @@ func (c *Config) AddSkipAnnotations() {
 	// add annotations for not deploying or building on import
 	c.Meta.AddSkipBuildAnnotation()
 	c.Meta.AddSkipDeployAnnotation()
+}
+
+func (c *Config) Validate() error {
+	if common.StringInSlice(c.Meta.Name, kubecommon.ResolveReservedResourceNames()) {
+		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function name %s is reserved and cannot be used.",
+			c.Meta.Name))
+	}
+
+	if err := c.validateTriggers(); err != nil {
+		return errors.Wrap(err, "Triggers validation failed")
+	}
+
+	if err := c.validateMinMaxReplicas(); err != nil {
+		return errors.Wrap(err, "Min max replicas validation failed")
+	}
+
+	return nil
+}
+
+func (c *Config) validateMinMaxReplicas() error {
+	minReplicas := c.Spec.MinReplicas
+	maxReplicas := c.Spec.MaxReplicas
+
+	if minReplicas != nil {
+		if maxReplicas == nil && *minReplicas == 0 {
+			return errors.New("Max replicas must be set when min replicas is zero")
+		}
+		if maxReplicas != nil && *minReplicas > *maxReplicas {
+			return errors.New("Min replicas must be less than or equal to max replicas")
+		}
+	}
+	if maxReplicas != nil && *maxReplicas == 0 {
+		return errors.New("Max replicas must be greater than zero")
+	}
+
+	return nil
+}
+
+func (c *Config) validateTriggers() error {
+	var httpTriggerExists bool
+
+	for triggerName, _trigger := range c.Spec.Triggers {
+
+		// validate ingresses structure correctness (when it exists)
+		if encodedIngresses, found := _trigger.Attributes["ingresses"]; found {
+			parsedIngresses, validStructure := encodedIngresses.(map[string]interface{})
+			if !validStructure {
+				return errors.Errorf("Malformed ingresses format for trigger '%s' (expects a map)", triggerName)
+			}
+
+			// validate each ingress structure correctness
+			for ingressName, ingress := range parsedIngresses {
+				if _, validStructure := ingress.(map[string]interface{}); !validStructure {
+					return errors.Errorf("Malformed structure for ingress '%s' in trigger '%s'", ingressName, triggerName)
+				}
+			}
+		}
+
+		// no more workers than limitation allows
+		if _trigger.MaxWorkers > triggercommon.MaxWorkersLimit {
+			return errors.Errorf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
+				triggerName,
+				_trigger.MaxWorkers,
+				triggercommon.MaxWorkersLimit)
+		}
+
+		// no more than one http trigger is allowed
+		if _trigger.Kind == "http" {
+			if !httpTriggerExists {
+				httpTriggerExists = true
+				continue
+			}
+			return errors.New("There's more than one http trigger (unsupported)")
+		}
+	}
+
+	return nil
 }
 
 func (c *Config) scrubFunctionData() {

@@ -33,7 +33,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -301,17 +300,8 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 // Validation and enforcement of required function creation logic
 func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
 
-	if common.StringInSlice(createFunctionOptions.FunctionConfig.Meta.Name, ap.ResolveReservedResourceNames()) {
-		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function name %s is reserved and cannot be used.",
-			createFunctionOptions.FunctionConfig.Meta.Name))
-	}
-
-	if err := ap.validateTriggers(createFunctionOptions); err != nil {
-		return errors.Wrap(err, "Triggers validation failed")
-	}
-
-	if err := ap.validateMinMaxReplicas(createFunctionOptions); err != nil {
-		return errors.Wrap(err, "Min max replicas validation failed")
+	if err := createFunctionOptions.FunctionConfig.Validate(); err != nil {
+		return errors.Wrap(err, "Failed to validate function config")
 	}
 
 	if err := ap.validateProjectExists(createFunctionOptions); err != nil {
@@ -334,18 +324,6 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 	}
 
 	return nil
-}
-
-// ResolveReservedFunctionNames returns a list of reserved resource names
-func (ap *Platform) ResolveReservedResourceNames() []string {
-
-	// these names are reserved for Nuclio internal purposes and to avoid collisions with nuclio internal resources
-	return []string{
-		"dashboard",
-		"controller",
-		"dlx",
-		"scaler",
-	}
 }
 
 // CreateFunctionInvocation will invoke a previously deployed function
@@ -854,25 +832,6 @@ func (ap *Platform) enrichImageName(createFunctionOptions *platform.CreateFuncti
 	return nil
 }
 
-func (ap *Platform) validateMinMaxReplicas(createFunctionOptions *platform.CreateFunctionOptions) error {
-	minReplicas := createFunctionOptions.FunctionConfig.Spec.MinReplicas
-	maxReplicas := createFunctionOptions.FunctionConfig.Spec.MaxReplicas
-
-	if minReplicas != nil {
-		if maxReplicas == nil && *minReplicas == 0 {
-			return errors.New("Max replicas must be set when min replicas is zero")
-		}
-		if maxReplicas != nil && *minReplicas > *maxReplicas {
-			return errors.New("Min replicas must be less than or equal to max replicas")
-		}
-	}
-	if maxReplicas != nil && *maxReplicas == 0 {
-		return errors.New("Max replicas must be greater than zero")
-	}
-
-	return nil
-}
-
 func (ap *Platform) validateProjectExists(createFunctionOptions *platform.CreateFunctionOptions) error {
 
 	// validate the project exists
@@ -889,31 +848,6 @@ func (ap *Platform) validateProjectExists(createFunctionOptions *platform.Create
 
 	if len(projects) == 0 {
 		return errors.New("Project does not exist")
-	}
-	return nil
-}
-
-func (ap *Platform) validateTriggers(createFunctionOptions *platform.CreateFunctionOptions) error {
-
-	var httpTriggerExists bool
-	for triggerName, _trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
-
-		// no more workers than limitation allows
-		if _trigger.MaxWorkers > trigger.MaxWorkersLimit {
-			return errors.Errorf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
-				triggerName,
-				_trigger.MaxWorkers,
-				trigger.MaxWorkersLimit)
-		}
-
-		// no more than one http trigger is allowed
-		if _trigger.Kind == "http" {
-			if !httpTriggerExists {
-				httpTriggerExists = true
-				continue
-			}
-			return errors.New("There's more than one http trigger (unsupported)")
-		}
 	}
 	return nil
 }

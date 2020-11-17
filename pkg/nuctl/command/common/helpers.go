@@ -16,7 +16,7 @@ import (
 func FormatFunctionIngresses(function platform.Function) string {
 	var formattedIngresses string
 
-	ingresses := function.GetIngresses()
+	ingresses, _ := function.GetIngresses()
 
 	for _, ingress := range ingresses {
 		host := ingress.Host

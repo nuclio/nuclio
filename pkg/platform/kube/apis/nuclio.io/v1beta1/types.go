@@ -19,6 +19,22 @@ type NuclioFunction struct {
 	Status functionconfig.Status `json:"status,omitempty"`
 }
 
+func (nf *NuclioFunction) GetConfig() *functionconfig.ConfigWithStatus {
+	return &functionconfig.ConfigWithStatus{
+		Config: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Name: nf.Name,
+				Namespace: nf.Namespace,
+				Labels: nf.Labels,
+				Annotations: nf.Annotations,
+				ResourceVersion: nf.ResourceVersion,
+			},
+			Spec: nf.Spec,
+		},
+		Status: nf.Status,
+	}
+}
+
 func (nf *NuclioFunction) GetComputedReplicas() *int32 {
 	zero := int32(0)
 	one := int32(1)

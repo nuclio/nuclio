@@ -64,10 +64,10 @@ func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, e
 }
 
 // GetIngresses returns all ingresses for this function
-func (f *function) GetIngresses() map[string]functionconfig.Ingress {
+func (f *function) GetIngresses() (map[string]functionconfig.Ingress, error) {
 
 	// local platform doesn't support ingress
-	return map[string]functionconfig.Ingress{}
+	return map[string]functionconfig.Ingress{}, nil
 }
 
 // GetReplicas returns the current # of replicas and the configured # of replicas

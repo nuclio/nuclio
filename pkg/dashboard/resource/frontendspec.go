@@ -23,7 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	triggercommon "github.com/nuclio/nuclio/pkg/processor/trigger/common"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
@@ -100,7 +100,7 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 
 func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface{} {
 	one := 1
-	defaultWorkerAvailabilityTimeoutMilliseconds := trigger.DefaultWorkerAvailabilityTimeoutMilliseconds
+	defaultWorkerAvailabilityTimeoutMilliseconds := triggercommon.DefaultWorkerAvailabilityTimeoutMilliseconds
 
 	defaultServiceType := fesr.resolveDefaultServiceType()
 	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
