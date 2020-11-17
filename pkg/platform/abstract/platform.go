@@ -901,6 +901,11 @@ func (ap *Platform) validateTriggers(createFunctionOptions *platform.CreateFunct
 	var httpTriggerExists bool
 	for triggerName, _trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
 
+		// do not allow trigger with empty name
+		if triggerName == "" {
+			return errors.Errorf("Trigger name cannot be empty")
+		}
+
 		// no more workers than limitation allows
 		if _trigger.MaxWorkers > trigger.MaxWorkersLimit {
 			return errors.Errorf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",

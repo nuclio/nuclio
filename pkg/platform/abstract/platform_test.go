@@ -208,6 +208,16 @@ func (suite *TestAbstractSuite) TestFunctionTriggersEnriched() {
 			},
 			shouldFailValidation: true,
 		},
+
+		// do not allow empty name triggers
+		{
+			triggers: map[string]functionconfig.Trigger{
+				"": {
+					Kind: "http",
+				},
+			},
+			shouldFailValidation: true,
+		},
 	} {
 		// name it with index and shift with 65 to get A as first letter
 		functionName := string(rune(idx + 65))
