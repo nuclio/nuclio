@@ -221,7 +221,10 @@ func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.
 		createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
 	}
 
-	ap.enrichDefaultHTTPTrigger(createFunctionOptions)
+	// enrich triggers
+	if err := ap.enrichTriggers(createFunctionOptions); err != nil {
+		return errors.Wrap(err, "Failed enriching triggers")
+	}
 
 	// enrich with security context
 	if createFunctionOptions.FunctionConfig.Spec.SecurityContext == nil {
@@ -971,5 +974,24 @@ func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error 
 		return platform.ErrProjectContainsAPIGateways
 	}
 
+	return nil
+}
+
+func (ap *Platform) enrichTriggers(createFunctionOptions *platform.CreateFunctionOptions) error {
+
+	// add default http trigger if missing http trigger
+	ap.enrichDefaultHTTPTrigger(createFunctionOptions)
+
+	for triggerName, triggerInstance := range createFunctionOptions.FunctionConfig.Spec.Triggers {
+
+		// ensure having max workers
+		if common.StringInSlice(triggerInstance.Kind, []string{"http", "v3ioStream"}) {
+			if triggerInstance.MaxWorkers == 0 {
+				triggerInstance.MaxWorkers = 1
+			}
+		}
+
+		createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName] = triggerInstance
+	}
 	return nil
 }

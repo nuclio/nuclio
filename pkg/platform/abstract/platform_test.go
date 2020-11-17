@@ -12,6 +12,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -70,18 +71,14 @@ func (suite *TestAbstractSuite) SetupSuite() {
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err, "Logger should create successfully")
 
-	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
-	suite.Require().NoError(err, "Docker client should create successfully")
-
 	testPlatform := &TestPlatform{
 		logger:         suite.Logger,
 		suiteAssertion: suite.Assert(),
 	}
-	suite.Platform, err = NewPlatform(suite.Logger, testPlatform, nil)
+	suite.Platform, err = NewPlatform(suite.Logger, testPlatform, &platformconfig.Config{})
 	suite.Require().NoError(err, "Could not create platform")
 
-	suite.Platform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(suite.Logger,
-		&containerimagebuilderpusher.ContainerBuilderConfiguration{})
+	suite.Platform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
 	suite.Require().NoError(err)
 }
 
@@ -166,6 +163,82 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 	}
 }
 
+func (suite *TestAbstractSuite) TestFunctionTriggersEnriched() {
+	for idx, testCase := range []struct {
+		triggers                 map[string]functionconfig.Trigger
+		expectedEnrichedTriggers map[string]functionconfig.Trigger
+		shouldFailValidation     bool
+	}{
+
+		// enrich maxWorkers to 1
+		{
+			triggers: map[string]functionconfig.Trigger{
+				"some-trigger": {
+					Kind: "http",
+				},
+			},
+			expectedEnrichedTriggers: map[string]functionconfig.Trigger{
+				"some-trigger": {
+					Kind:       "http",
+					MaxWorkers: 1,
+				},
+			},
+		},
+
+		// enrich with default http trigger
+		{
+			triggers: nil,
+			expectedEnrichedTriggers: func() map[string]functionconfig.Trigger {
+				defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+				return map[string]functionconfig.Trigger{
+					defaultHTTPTrigger.Name: defaultHTTPTrigger,
+				}
+			}(),
+		},
+
+		// do not allow more than 1 http trigger
+		{
+			triggers: map[string]functionconfig.Trigger{
+				"firstHTTPTrigger": {
+					Kind: "http",
+				},
+				"secondHTTPTrigger": {
+					Kind: "http",
+				},
+			},
+			shouldFailValidation: true,
+		},
+	} {
+		// name it with index and shift with 65 to get A as first letter
+		functionName := string(rune(idx + 65))
+		functionConfig := *functionconfig.NewConfig()
+
+		createFunctionOptions := &platform.CreateFunctionOptions{
+			Logger:         suite.Logger,
+			FunctionConfig: functionConfig,
+		}
+		createFunctionOptions.FunctionConfig.Meta.Name = functionName
+		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+			"nuclio.io/project-name": platform.DefaultProjectName,
+		}
+		createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
+		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+
+		err := suite.Platform.EnrichCreateFunctionOptions(createFunctionOptions)
+		suite.Require().NoError(err, "Failed to enrich function")
+
+		err = suite.Platform.ValidateCreateFunctionOptions(createFunctionOptions)
+		if testCase.shouldFailValidation {
+			suite.Require().Error(err, "Validation passed unexpectedly")
+			continue
+		}
+
+		suite.Require().NoError(err, "Validation failed unexpectedly")
+		suite.Equal(testCase.expectedEnrichedTriggers,
+			createFunctionOptions.FunctionConfig.Spec.Triggers)
+	}
+}
+
 func (suite *TestAbstractSuite) TestGetProcessorLogsOnMultiWorker() {
 	suite.testGetProcessorLogsTestFromFile(MultiWorkerFunctionLogsFilePath)
 }
@@ -209,9 +282,5 @@ func (suite *TestAbstractSuite) testGetProcessorLogsTestFromFile(functionLogsFil
 }
 
 func TestAbstractPlatformTestSuite(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-
 	suite.Run(t, new(TestAbstractSuite))
 }
