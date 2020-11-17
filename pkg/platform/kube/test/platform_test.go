@@ -58,7 +58,7 @@ func (suite *DeployFunctionTestSuite) TestFailOnMalformedIngressesStructure() {
 			Attributes: map[string]interface{}{
 				"ingresses": map[string]interface{}{
 					"0": map[string]interface{}{
-						"host": "some-host",
+						"host":  "some-host",
 						"paths": []string{"/"},
 					},
 					"malformed-ingress": "I should be a map and not a string",
@@ -68,17 +68,17 @@ func (suite *DeployFunctionTestSuite) TestFailOnMalformedIngressesStructure() {
 	}
 
 	type testStruct struct {
-		createFunctionOptions *platform.CreateFunctionOptions
-		expectedErrorRootCause         error
+		createFunctionOptions  *platform.CreateFunctionOptions
+		expectedErrorRootCause error
 	}
 
 	for _, testAttributes := range []testStruct{
 		{
-			createFunctionOptions: createFunctionOptionsMalformedIngressesStructure,
+			createFunctionOptions:  createFunctionOptionsMalformedIngressesStructure,
 			expectedErrorRootCause: errors.New("Malformed ingresses format for trigger 'http-trigger' (expects a map)"),
 		},
 		{
-			createFunctionOptions: createFunctionOptionsMalformedSpecificIngressStructure,
+			createFunctionOptions:  createFunctionOptionsMalformedSpecificIngressStructure,
 			expectedErrorRootCause: errors.New("Malformed structure for ingress 'malformed-ingress' in trigger 'http-trigger'"),
 		},
 	} {
@@ -86,8 +86,8 @@ func (suite *DeployFunctionTestSuite) TestFailOnMalformedIngressesStructure() {
 			testAttributes.expectedErrorRootCause,
 			func(deployResult *platform.CreateFunctionResult) bool {
 
-			return true
-		})
+				return true
+			})
 	}
 }
 
