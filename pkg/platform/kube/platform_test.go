@@ -32,14 +32,14 @@ func (mp *TestPlatform) GetProjects(getProjectsOptions *platform.GetProjectsOpti
 	}, nil
 }
 
-type TestAbstractSuite struct {
+type KubePlatformTestSuite struct {
 	suite.Suite
 	Logger             logger.Logger
 	Platform           *Platform
 	PlatformKubeConfig *platformconfig.PlatformKubeConfig
 }
 
-func (suite *TestAbstractSuite) SetupSuite() {
+func (suite *KubePlatformTestSuite) SetupSuite() {
 	var err error
 
 	common.SetVersionFromEnv()
@@ -66,7 +66,7 @@ func (suite *TestAbstractSuite) SetupSuite() {
 	}
 }
 
-func (suite *TestAbstractSuite) TestFunctionTriggersEnriched() {
+func (suite *KubePlatformTestSuite) TestFunctionTriggersEnriched() {
 	for idx, testCase := range []struct {
 		triggers                 map[string]functionconfig.Trigger
 		expectedEnrichedTriggers map[string]functionconfig.Trigger
@@ -119,5 +119,5 @@ func (suite *TestAbstractSuite) TestFunctionTriggersEnriched() {
 }
 
 func TestKubePlatformTestSuite(t *testing.T) {
-	suite.Run(t, new(TestAbstractSuite))
+	suite.Run(t, new(KubePlatformTestSuite))
 }

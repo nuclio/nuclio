@@ -47,7 +47,7 @@ func (mp *TestPlatform) GetProjects(getProjectsOptions *platform.GetProjectsOpti
 	}, nil
 }
 
-type TestAbstractSuite struct {
+type AbstractPlatformTestSuite struct {
 	suite.Suite
 	Logger           logger.Logger
 	DockerClient     dockerclient.Client
@@ -61,7 +61,7 @@ type TestAbstractSuite struct {
 	DefaultNamespace string
 }
 
-func (suite *TestAbstractSuite) SetupSuite() {
+func (suite *AbstractPlatformTestSuite) SetupSuite() {
 	var err error
 
 	common.SetVersionFromEnv()
@@ -82,12 +82,12 @@ func (suite *TestAbstractSuite) SetupSuite() {
 	suite.Require().NoError(err)
 }
 
-func (suite *TestAbstractSuite) SetupTest() {
+func (suite *AbstractPlatformTestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
 }
 
 // Test function with invalid min max replicas
-func (suite *TestAbstractSuite) TestMinMaxReplicas() {
+func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 	zero := 0
 	one := 1
 	two := 2
@@ -163,7 +163,7 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 	}
 }
 
-func (suite *TestAbstractSuite) TestFunctionTriggersEnriched() {
+func (suite *AbstractPlatformTestSuite) TestFunctionTriggersEnriched() {
 	for idx, testCase := range []struct {
 		triggers                 map[string]functionconfig.Trigger
 		expectedEnrichedTriggers map[string]functionconfig.Trigger
@@ -249,23 +249,23 @@ func (suite *TestAbstractSuite) TestFunctionTriggersEnriched() {
 	}
 }
 
-func (suite *TestAbstractSuite) TestGetProcessorLogsOnMultiWorker() {
+func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsOnMultiWorker() {
 	suite.testGetProcessorLogsTestFromFile(MultiWorkerFunctionLogsFilePath)
 }
 
-func (suite *TestAbstractSuite) TestGetProcessorLogsOnPanic() {
+func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsOnPanic() {
 	suite.testGetProcessorLogsTestFromFile(PanicFunctionLogsFilePath)
 }
 
-func (suite *TestAbstractSuite) TestGetProcessorLogsOnGoWithCallStack() {
+func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsOnGoWithCallStack() {
 	suite.testGetProcessorLogsTestFromFile(GoWithCallStackFunctionLogsFilePath)
 }
 
-func (suite *TestAbstractSuite) TestGetProcessorLogsWithSpecialSubstrings() {
+func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsWithSpecialSubstrings() {
 	suite.testGetProcessorLogsTestFromFile(SpecialSubstringsFunctionLogsFilePath)
 }
 
-func (suite *TestAbstractSuite) TestGetProcessorLogsWithConsecutiveDuplicateMessages() {
+func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsWithConsecutiveDuplicateMessages() {
 	suite.testGetProcessorLogsTestFromFile(ConsecutiveDuplicateFunctionLogsFilePath)
 }
 
@@ -274,7 +274,7 @@ func (suite *TestAbstractSuite) TestGetProcessorLogsWithConsecutiveDuplicateMess
 // - FunctionLogsFile
 // - FormattedFunctionLogsFile
 // - BriefErrorsMessageFile
-func (suite *TestAbstractSuite) testGetProcessorLogsTestFromFile(functionLogsFilePath string) {
+func (suite *AbstractPlatformTestSuite) testGetProcessorLogsTestFromFile(functionLogsFilePath string) {
 	functionLogsFile, err := os.Open(path.Join(functionLogsFilePath, FunctionLogsFile))
 	suite.Require().NoError(err, "Failed to read function logs file")
 
@@ -292,5 +292,5 @@ func (suite *TestAbstractSuite) testGetProcessorLogsTestFromFile(functionLogsFil
 }
 
 func TestAbstractPlatformTestSuite(t *testing.T) {
-	suite.Run(t, new(TestAbstractSuite))
+	suite.Run(t, new(AbstractPlatformTestSuite))
 }
