@@ -92,7 +92,7 @@ func newTrigger(parentLogger logger.Logger,
 		"fetchMax", configuration.FetchMax,
 		"channelBufferSize", configuration.ChannelBufferSize,
 		"maxWaitHandlerDuringRebalance", configuration.maxWaitHandlerDuringRebalance,
-		"loggingLevel", configuration.LoggingLevel)
+		"logLevel", configuration.LogLevel)
 
 	newTrigger.kafkaConfig, err = newTrigger.newKafkaConfig()
 	if err != nil {
@@ -327,7 +327,7 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Consumer.MaxWaitTime = k.configuration.maxWaitTime
 	config.Consumer.MaxProcessingTime = k.configuration.maxProcessingTime
 	config.ChannelBufferSize = k.configuration.ChannelBufferSize
-	config.LogLevel = k.configuration.LoggingLevel
+	config.LogLevel = k.configuration.LogLevel
 
 	// configure TLS if applicable
 	if k.configuration.CACert != "" {

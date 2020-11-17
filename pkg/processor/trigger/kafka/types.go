@@ -60,7 +60,7 @@ type Configuration struct {
 	CACert                        string
 	AccessKey                     string
 	AccessCertificate             string
-	LoggingLevel                  int
+	LogLevel                      int
 
 	// resolved fields
 	brokers                       []string
@@ -103,7 +103,7 @@ func NewConfiguration(ID string,
 		{Key: "nuclio.io/kafka-access-key", ValueString: &newConfiguration.AccessKey},
 		{Key: "nuclio.io/kafka-access-cert", ValueString: &newConfiguration.AccessCertificate},
 		{Key: "nuclio.io/kafka-ca-cert", ValueString: &newConfiguration.CACert},
-		{Key: "nuclio.io/kafka-logging-level", ValueInt: &newConfiguration.LoggingLevel},
+		{Key: "nuclio.io/kafka-log-level", ValueInt: &newConfiguration.LogLevel},
 	})
 
 	if err != nil {
