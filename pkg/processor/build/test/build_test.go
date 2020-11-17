@@ -140,7 +140,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeDeployOnceNeverBuild() {
 	// expect failure
 	createFunctionOptions.FunctionConfig.Spec.Build.Mode = functionconfig.NeverBuild
 
-	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+	suite.DeployFunctionExpectError(createFunctionOptions, nil, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
 		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{

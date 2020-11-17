@@ -63,6 +63,7 @@ func (suite *TestSuite) TestRunFunctionContainerWithCustomRestartPolicy() {
 	}
 	containerName := suite.Platform.(*local.Platform).GetContainerNameByCreateFunctionOptions(createFunctionOptions)
 	suite.DeployFunctionExpectError(createFunctionOptions,
+		nil,
 		func(deployResult *platform.CreateFunctionResult) bool {
 
 			// give some time to docker to flush its events
