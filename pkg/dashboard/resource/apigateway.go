@@ -23,7 +23,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
@@ -117,7 +116,7 @@ func (agr *apiGatewayResource) GetByID(request *http.Request, id string) (restfu
 
 // Create deploys an api gateway
 func (agr *apiGatewayResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
-	apiGatewayInfo, responseErr := agr.getAPIGatewayInfoFromRequest(request, true, true)
+	apiGatewayInfo, responseErr := agr.getAPIGatewayInfoFromRequest(request, true)
 	if responseErr != nil {
 		if errors.RootCause(responseErr) != nil {
 			responseErr = errors.RootCause(responseErr)
@@ -163,7 +162,7 @@ func (agr *apiGatewayResource) Create(request *http.Request) (id string, attribu
 func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	// get api gateway config and status from body
-	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request, true, false)
+	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request, false)
 	if err != nil {
 		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", err)
 
@@ -271,7 +270,7 @@ func (agr *apiGatewayResource) createAPIGateway(apiGatewayInfoInstance *apiGatew
 func (agr *apiGatewayResource) deleteAPIGateway(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	// get api gateway config and status from body
-	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request, true, false)
+	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request, false)
 	if err != nil {
 		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", err)
 
@@ -317,7 +316,6 @@ func (agr *apiGatewayResource) getNamespaceFromRequest(request *http.Request) st
 }
 
 func (agr *apiGatewayResource) getAPIGatewayInfoFromRequest(request *http.Request,
-	nameRequired bool,
 	specRequired bool) (*apiGatewayInfo, error) {
 
 	// read body
@@ -332,7 +330,6 @@ func (agr *apiGatewayResource) getAPIGatewayInfoFromRequest(request *http.Reques
 	}
 
 	if err = agr.processAPIGatewayInfo(&apiGatewayInfoInstance,
-		nameRequired,
 		specRequired,
 		request.Header.Get("x-nuclio-project-name")); err != nil {
 
@@ -342,54 +339,14 @@ func (agr *apiGatewayResource) getAPIGatewayInfoFromRequest(request *http.Reques
 	return &apiGatewayInfoInstance, nil
 }
 
-func (agr *apiGatewayResource) enrichAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo,
-	nameRequired bool,
-	specRequired bool,
-	projectName string) error {
-	var err error
-
-	if apiGatewayInfoInstance.Meta == nil {
-		return nuclio.NewErrBadRequest("Api gateway must be provided with metadata")
-	}
-
-	// enrich meta name from spec if needed
-	if apiGatewayInfoInstance.Meta.Name == "" {
-		apiGatewayInfoInstance.Meta.Name = apiGatewayInfoInstance.Spec.Name
-	}
-
-	// override namespace if applicable
-	if apiGatewayInfoInstance.Meta != nil {
-		apiGatewayInfoInstance.Meta.Namespace = agr.getNamespaceOrDefault(apiGatewayInfoInstance.Meta.Namespace)
-	}
-
-	// meta must exist
-	if apiGatewayInfoInstance.Meta == nil ||
-		(nameRequired && apiGatewayInfoInstance.Meta.Name == "") ||
-		apiGatewayInfoInstance.Meta.Namespace == "" {
-
-		if nameRequired {
-			err = errors.New("Api gateway name and namespace must be provided in metadata")
-		} else {
-			err = errors.New("Api gateway namespace must be provided in metadata")
-		}
-
-		return nuclio.WrapErrBadRequest(err)
-	}
+func (agr *apiGatewayResource) enrichAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo, projectName string) error {
 
 	// ensure spec exists if it's required
 	if apiGatewayInfoInstance.Spec == nil {
-		if specRequired {
-			return nuclio.NewErrBadRequest("Api gateway spec must be provided")
-		}
-
 		apiGatewayInfoInstance.Spec = &platform.APIGatewaySpec{}
 	}
 
-	// status is optional, ensure it exists
-	if apiGatewayInfoInstance.Status == nil {
-		apiGatewayInfoInstance.Status = &platform.APIGatewayStatus{}
-	}
-
+	// enrich project name when specified
 	if projectName != "" {
 		if apiGatewayInfoInstance.Meta.Labels == nil {
 			apiGatewayInfoInstance.Meta.Labels = map[string]string{}
@@ -398,25 +355,33 @@ func (agr *apiGatewayResource) enrichAPIGatewayInfo(apiGatewayInfoInstance *apiG
 		apiGatewayInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
 	}
 
+	// override namespace if applicable
+	apiGatewayInfoInstance.Meta.Namespace = agr.getNamespaceOrDefault(apiGatewayInfoInstance.Meta.Namespace)
+
+	// status is optional, ensure it exists
+	if apiGatewayInfoInstance.Status == nil {
+		apiGatewayInfoInstance.Status = &platform.APIGatewayStatus{}
+	}
+
 	return nil
 }
 
 func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo,
-	nameRequired bool,
 	specRequired bool,
 	projectName string) error {
 
-	// enrichment
-	err := agr.enrichAPIGatewayInfo(apiGatewayInfoInstance, nameRequired, specRequired, projectName)
-	if err != nil {
-		return errors.Wrap(err, "Failed to enrich api gateway info")
+	// validation (meta + spec existence)
+	if apiGatewayInfoInstance.Meta == nil {
+		return nuclio.NewErrBadRequest("Api gateway must be provided with metadata")
+	}
+	if specRequired && apiGatewayInfoInstance.Spec == nil {
+		return nuclio.NewErrBadRequest("Api gateway spec must be provided")
 	}
 
-	// validation
-	if specRequired {
-		if err := kube.ValidateAPIGatewaySpec(apiGatewayInfoInstance.Spec); err != nil {
-			return errors.Wrap(err, "Api gateway spec validation failed")
-		}
+	// enrichment
+	err := agr.enrichAPIGatewayInfo(apiGatewayInfoInstance, projectName)
+	if err != nil {
+		return errors.Wrap(err, "Failed to enrich api gateway info")
 	}
 
 	return nil

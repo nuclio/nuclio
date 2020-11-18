@@ -2,7 +2,6 @@ package kube
 
 import (
 	"fmt"
-
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/nuclio-sdk-go"
