@@ -21,7 +21,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	machinarymetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type LoggerSink struct {
@@ -90,13 +90,26 @@ type Metrics struct {
 }
 
 type LabelSelectorAndConfig struct {
-	LabelSelector  v1.LabelSelector      `json:"labelSelector,omitempty"`
-	FunctionConfig functionconfig.Config `json:"functionConfig,omitempty"`
-	Kubernetes     Kubernetes            `json:"kubernetes,omitempty"`
+	LabelSelector  machinarymetav1.LabelSelector `json:"labelSelector,omitempty"`
+	FunctionConfig functionconfig.Config         `json:"functionConfig,omitempty"`
+	Kubernetes     Kubernetes                    `json:"kubernetes,omitempty"`
 }
 
 type Kubernetes struct {
 	Deployment *appsv1.Deployment `json:"deployment,omitempty"`
+}
+
+type PlatformKubeConfig struct {
+
+	// TODO: Move IngressConfig here
+	DefaultServiceType corev1.ServiceType `json:"defaultServiceType,omitempty"`
+}
+
+type ImageRegistriesOverridesConfig struct {
+
+	// maps are [runtime -> image-ref]
+	BaseImageRegistries    *map[string]string `json:"base_image_registries,omitempty"`
+	OnbuildImageRegistries *map[string]string `json:"onbuild_image_registries,omitempty"`
 }
 
 // default values for created ingresses
