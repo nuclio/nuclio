@@ -45,6 +45,9 @@ type Platform interface {
 	// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 	CreateFunction(createFunctionOptions *CreateFunctionOptions) (*CreateFunctionResult, error)
 
+	// Enrich create function options upon creating function
+	EnrichCreateFunctionOptions(*CreateFunctionOptions) error
+
 	// UpdateFunction will update a previously deployed function
 	UpdateFunction(updateFunctionOptions *UpdateFunctionOptions) error
 

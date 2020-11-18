@@ -45,6 +45,11 @@ func (mp *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctio
 	return args.Get(0).(*platform.CreateFunctionResult), args.Error(1)
 }
 
+func (mp *Platform) EnrichCreateFunctionOptions(createFunctionBuildOptions *platform.CreateFunctionOptions) error {
+	args := mp.Called(createFunctionBuildOptions)
+	return args.Error(0)
+}
+
 // UpdateFunction will update a previously deployed function
 func (mp *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
 	args := mp.Called(updateFunctionOptions)

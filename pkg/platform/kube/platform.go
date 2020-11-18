@@ -144,10 +144,6 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Create function options enrichment failed")
 	}
 
-	if err := p.enrichHTTPTriggersWithServiceType(createFunctionOptions); err != nil {
-		return nil, errors.Wrap(err, "Failed to enrich HTTP triggers with service type")
-	}
-
 	if err := p.ValidateCreateFunctionOptions(createFunctionOptions); err != nil {
 		return nil, errors.Wrap(err, "Create function options validation failed")
 	}
@@ -335,6 +331,18 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	// do the deploy in the abstract base class
 	return p.HandleDeployFunction(existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
+}
+
+func (p Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
+	if err := p.Platform.EnrichCreateFunctionOptions(createFunctionOptions); err != nil {
+		return err
+	}
+
+	if err := p.enrichHTTPTriggersWithServiceType(createFunctionOptions); err != nil {
+		return errors.Wrap(err, "Failed to enrich HTTP triggers with service type")
+	}
+
+	return nil
 }
 
 // GetFunctions will return deployed functions
