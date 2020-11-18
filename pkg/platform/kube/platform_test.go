@@ -140,13 +140,13 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayTriggersEnriched() {
 
 		// test spec.name enriched from meta.name
 		{
-			apiGatewayConfig: func () platform.APIGatewayConfig {
+			apiGatewayConfig: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Name = ""
 				apiGatewayConfig.Meta.Name = "meta-name"
 				return apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func () platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Name = "meta-name"
 				apiGatewayConfig.Meta.Name = "meta-name"
@@ -157,13 +157,13 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayTriggersEnriched() {
 
 		// test meta.name enriched from spec.name
 		{
-			apiGatewayConfig: func () platform.APIGatewayConfig {
+			apiGatewayConfig: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Name = "spec-name"
 				apiGatewayConfig.Meta.Name = ""
 				return apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func () platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Name = "spec-name"
 				apiGatewayConfig.Meta.Name = "spec-name"
@@ -174,11 +174,11 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayTriggersEnriched() {
 
 		// test enrichment of waiting for provisioning state
 		{
-			apiGatewayConfig: func () platform.APIGatewayConfig {
+			apiGatewayConfig: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				return apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func () platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Status.State = platform.APIGatewayStateWaitingForProvisioning
 				return apiGatewayConfig
@@ -188,12 +188,12 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayTriggersEnriched() {
 
 		// test namespace existence
 		{
-			apiGatewayConfig: func () platform.APIGatewayConfig {
+			apiGatewayConfig: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Namespace = ""
 				return apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func () platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Namespace = ""
 				return apiGatewayConfig
@@ -203,13 +203,13 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayTriggersEnriched() {
 
 		// test name existence
 		{
-			apiGatewayConfig: func () platform.APIGatewayConfig {
+			apiGatewayConfig: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = ""
 				apiGatewayConfig.Spec.Name = ""
 				return apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func () platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = ""
 				apiGatewayConfig.Spec.Name = ""
@@ -220,13 +220,13 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayTriggersEnriched() {
 
 		// test metadata.name == spec.name
 		{
-			apiGatewayConfig: func () platform.APIGatewayConfig {
+			apiGatewayConfig: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = "name1"
 				apiGatewayConfig.Spec.Name = "name2"
 				return apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func () platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = "name1"
 				apiGatewayConfig.Spec.Name = "name2"
@@ -237,13 +237,13 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayTriggersEnriched() {
 
 		// test reserved names validation
 		{
-			apiGatewayConfig: func () platform.APIGatewayConfig {
+			apiGatewayConfig: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = "dashboard"
 				apiGatewayConfig.Spec.Name = "dashboard"
 				return apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func () platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = "dashboard"
 				apiGatewayConfig.Spec.Name = "dashboard"
@@ -254,13 +254,13 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayTriggersEnriched() {
 
 		// test len(upstreams) < 2
 		{
-			apiGatewayConfig: func () platform.APIGatewayConfig {
+			apiGatewayConfig: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				upstream := apiGatewayConfig.Spec.Upstreams[0]
 				apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{upstream, upstream, upstream}
 				return apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func () platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				upstream := apiGatewayConfig.Spec.Upstreams[0]
 				apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{upstream, upstream, upstream}
@@ -271,12 +271,12 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayTriggersEnriched() {
 
 		// test at least one upstream exists
 		{
-			apiGatewayConfig: func () platform.APIGatewayConfig {
+			apiGatewayConfig: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{}
 				return apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func () platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{}
 				return apiGatewayConfig
@@ -286,12 +286,12 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayTriggersEnriched() {
 
 		// test host exists
 		{
-			apiGatewayConfig: func () platform.APIGatewayConfig {
+			apiGatewayConfig: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Host = ""
 				return apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func () platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Host = ""
 				return apiGatewayConfig
@@ -301,12 +301,12 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayTriggersEnriched() {
 
 		// test wrong upstream kind
 		{
-			apiGatewayConfig: func () platform.APIGatewayConfig {
+			apiGatewayConfig: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Upstreams[0].Kind = "bad-kind"
 				return apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func () platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Upstreams[0].Kind = "bad-kind"
 				return apiGatewayConfig
@@ -316,14 +316,14 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayTriggersEnriched() {
 
 		// test all upstream have same kind
 		{
-			apiGatewayConfig: func () platform.APIGatewayConfig {
+			apiGatewayConfig: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				differentKindUpstream := apiGatewayConfig.Spec.Upstreams[0]
 				differentKindUpstream.Kind = "kind-2"
 				apiGatewayConfig.Spec.Upstreams = append(apiGatewayConfig.Spec.Upstreams, differentKindUpstream)
 				return apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func () platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				differentKindUpstream := apiGatewayConfig.Spec.Upstreams[0]
 				differentKindUpstream.Kind = "kind-2"
