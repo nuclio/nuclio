@@ -167,6 +167,10 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 	if err != nil {
 		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", err)
 
+		if errors.RootCause(err) != nil {
+			err = errors.RootCause(err)
+		}
+
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
 			StatusCode: http.StatusBadRequest,
@@ -270,6 +274,10 @@ func (agr *apiGatewayResource) deleteAPIGateway(request *http.Request) (*restful
 	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request, true, false)
 	if err != nil {
 		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", err)
+
+		if errors.RootCause(err) != nil {
+			err = errors.RootCause(err)
+		}
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
