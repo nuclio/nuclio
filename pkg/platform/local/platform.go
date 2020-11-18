@@ -26,7 +26,6 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -45,7 +44,6 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	"golang.org/x/sync/errgroup"
-	v1 "k8s.io/api/core/v1"
 )
 
 type Platform struct {
@@ -559,8 +557,14 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 			functionName := functionConfig.Meta.Name
 
 			functionIsReady := functionStatus.State == functionconfig.FunctionStateReady
-			functionWasSetAsUnhealthy := functionStatus.State == functionconfig.FunctionStateError &&
-				strings.EqualFold(UnhealthyContainerErrorMessage, functionStatus.Message)
+			functionWasSetAsUnhealthy := functionconfig.FunctionStateInSlice(functionStatus.State,
+				[]functionconfig.FunctionState{
+					functionconfig.FunctionStateError,
+					functionconfig.FunctionStateUnhealthy,
+				}) && common.StringInSlice(functionStatus.Message, []string{
+				common.FunctionStateMessageUnhealthy,
+				common.DeprecatedFunctionStateMessage,
+			})
 
 			if !(functionIsReady || functionWasSetAsUnhealthy) {
 
@@ -661,9 +665,6 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	functionSecurityContext := createFunctionOptions.FunctionConfig.Spec.SecurityContext
-	if functionSecurityContext == nil {
-		functionSecurityContext = &v1.PodSecurityContext{}
-	}
 
 	// run the docker image
 	runContainerOptions := &dockerclient.RunOptions{

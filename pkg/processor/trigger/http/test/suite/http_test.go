@@ -70,11 +70,10 @@ func (suite *HTTPTestSuite) TestCORS() {
 				},
 				ExpectedResponseStatusCode: &validPreflightResponseStatusCode,
 				ExpectedResponseHeadersValues: map[string][]string{
-					"Access-Control-Expose-Headers": {exposeHeaders},
-					"Access-Control-Allow-Methods":  {allowMethods},
-					"Access-Control-Allow-Headers":  {allowHeaders},
-					"Access-Control-Allow-Origin":   {origin},
-					"Access-Control-Max-Age":        {strconv.Itoa(preflightMaxAgeSeconds)},
+					"Access-Control-Allow-Methods": {allowMethods},
+					"Access-Control-Allow-Headers": {allowHeaders},
+					"Access-Control-Allow-Origin":  {origin},
+					"Access-Control-Max-Age":       {strconv.Itoa(preflightMaxAgeSeconds)},
 				},
 			},
 			{

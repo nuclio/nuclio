@@ -1,0 +1,84 @@
+name: Long CI
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to checkout to'
+        required: true
+
+env:
+  START_LABEL: long-ci-started
+  SUCCESS_LABEL: long-ci-succeeded
+  CANCELL_LABEL: long-ci-cancelled
+  FAILURE_LABEL: long-ci-failed
+  ADD_REMOVE_LABELS_SCRIPT_PATH: hack/scripts/ci/add-remove-labels.js
+
+jobs:
+  long_ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
+
+      - name: Dump github context
+        run: echo "$GITHUB_CONTEXT"
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+
+      - name: Dump runner context
+        run: echo "$RUNNER_CONTEXT"
+        env:
+          RUNNER_CONTEXT: ${{ toJson(runner) }}
+
+      # since github-actions gives us 14G only, and fills it up with some garbage
+      # we will free up some space for us (~2GB)
+      - name: Freeing up disk space
+        run: docker system prune --all --force
+
+      - name: Set labels
+        uses: actions/github-script@v3
+        env:
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = process.env.PR_NUMBER
+            const labelsToAdd = [ process.env.START_LABEL ]
+            const labelsToRemove = [ process.env.SUCCESS_LABEL, process.env.CANCELL_LABEL, process.env.FAILURE_LABEL ]
+            const script = require(`${ process.env.GITHUB_WORKSPACE }/${ process.env.ADD_REMOVE_LABELS_SCRIPT_PATH }`)
+            await script({ github, context, prNumber, labelsToAdd, labelsToRemove })
+
+      - name: Build
+        run: make build
+        env:
+          NUCLIO_NUCTL_CREATE_SYMLINK: false
+
+      # TODO: use `make test` once kafka integration test is fixed
+      - name: Test
+        run: make test-periodic
+
+      - if: ${{ success() }}
+        run: echo "LONG_CI_FINISH_LABEL=${{ env.SUCCESS_LABEL }}" >> $GITHUB_ENV
+
+      - if: ${{ failure() }}
+        run: echo "LONG_CI_FINISH_LABEL=${{ env.FAILURE_LABEL }}" >> $GITHUB_ENV
+
+      - if: ${{ cancelled() }}
+        run: echo "LONG_CI_FINISH_LABEL=${{ env.CANCELL_LABEL }}" >> $GITHUB_ENV
+
+      - name: Set labels
+        if: ${{ always() }}
+        uses: actions/github-script@v3
+        env:
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = process.env.PR_NUMBER
+            const labelsToAdd = [ process.env.LONG_CI_FINISH_LABEL ]
+            const labelsToRemove = [ process.env.START_LABEL ]
+            const script = require(`${ process.env.GITHUB_WORKSPACE }/${ process.env.ADD_REMOVE_LABELS_SCRIPT_PATH }`)
+            await script({ github, context, prNumber, labelsToAdd, labelsToRemove })

@@ -158,12 +158,11 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 	// do the create / update
 	// TODO: Infer timestamp from function config (consider create/update scenarios)
 	functionCreateOrUpdateTimestamp := time.Now()
-	_, err := d.createOrUpdateFunction(functionInstance,
+	if _, err := d.createOrUpdateFunction(functionInstance,
 		createFunctionOptions,
 		&functionconfig.Status{
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
-		})
-	if err != nil {
+		}); err != nil {
 		return nil, nil, err.Error(), errors.Wrap(err, "Failed to create function")
 	}
 
@@ -261,8 +260,10 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 		switch function.Status.State {
 		case functionconfig.FunctionStateReady:
 			return true, nil
-		case functionconfig.FunctionStateError:
-			return false, errors.Errorf("NuclioFunction in error state:\n%s", function.Status.Message)
+		case functionconfig.FunctionStateError, functionconfig.FunctionStateUnhealthy:
+			return false, errors.Errorf("NuclioFunction in %s state:\n%s",
+				function.Status.State,
+				function.Status.Message)
 		default:
 			if !function.Spec.WaitReadinessTimeoutBeforeFailure {
 
