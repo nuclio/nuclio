@@ -541,10 +541,10 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 	newAPIGateway := nuclioio.NuclioAPIGateway{}
 
 	// enrich
-	p.enrichAPIGatewayConfig(&createAPIGatewayOptions.APIGatewayConfig)
+	p.EnrichAPIGatewayConfig(&createAPIGatewayOptions.APIGatewayConfig)
 
 	// validate
-	if err := p.validateAPIGatewayConfig(&createAPIGatewayOptions.APIGatewayConfig); err != nil {
+	if err := p.ValidateAPIGatewayConfig(&createAPIGatewayOptions.APIGatewayConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
 	}
 
@@ -571,10 +571,10 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	}
 
 	// enrich
-	p.enrichAPIGatewayConfig(&updateAPIGatewayOptions.APIGatewayConfig)
+	p.EnrichAPIGatewayConfig(&updateAPIGatewayOptions.APIGatewayConfig)
 
 	// validate
-	if err := p.validateAPIGatewayConfig(&updateAPIGatewayOptions.APIGatewayConfig); err != nil {
+	if err := p.ValidateAPIGatewayConfig(&updateAPIGatewayOptions.APIGatewayConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
 	}
 
@@ -1104,7 +1104,7 @@ func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *p
 	functionEvent.Spec = platformFunctionEvent.Spec // deep copy instead?
 }
 
-func (p *Platform) enrichAPIGatewayConfig(platformAPIGateway *platform.APIGatewayConfig) {
+func (p *Platform) EnrichAPIGatewayConfig(platformAPIGateway *platform.APIGatewayConfig) {
 
 	// meta
 	if platformAPIGateway.Meta.Name == "" {
@@ -1133,14 +1133,14 @@ func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGa
 	return nil
 }
 
-func (p *Platform) validateAPIGatewayConfig(platformAPIGateway *platform.APIGatewayConfig) error {
+func (p *Platform) ValidateAPIGatewayConfig(platformAPIGateway *platform.APIGatewayConfig) error {
 
 	// general validations
 	if platformAPIGateway.Spec.Name != platformAPIGateway.Meta.Name {
 		return nuclio.NewErrBadRequest("Api gateway metadata.name must match api gateway spec.name")
 	}
 	if common.StringInSlice(platformAPIGateway.Spec.Name, p.ResolveReservedResourceNames()) {
-		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Api gateway name %s is reserved and cannot be used.",
+		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Api gateway name '%s' is reserved and cannot be used",
 			platformAPIGateway.Spec.Name))
 	}
 

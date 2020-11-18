@@ -21,7 +21,7 @@ func ValidateAPIGatewaySpec(apiGatewaySpec *platform.APIGatewaySpec) error {
 	// TODO: update this when adding more upstream kinds. for now allow only `nucliofunction` upstreams
 	kind := upstreams[0].Kind
 	if !isSupportedAPIGatewayUpstreamKind(kind) {
-		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported upstream kind: %s. (Currently supporting only nucliofunction)", kind))
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported upstream kind: '%s'. (Currently supporting only nucliofunction)", kind))
 	}
 
 	// make sure all upstreams have the same kind
