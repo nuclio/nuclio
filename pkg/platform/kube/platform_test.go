@@ -128,7 +128,7 @@ type APIGatewayKubePlatformTestSuite struct {
 	KubePlatformTestSuite
 }
 
-func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayTriggersEnriched() {
+func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidation() {
 
 	for _, testCase := range []struct {
 		apiGatewayConfig           platform.APIGatewayConfig
