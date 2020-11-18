@@ -17,10 +17,13 @@ limitations under the License.
 package test
 
 import (
+	"fmt"
 	"net/http"
 	"path"
 	"testing"
+	"time"
 
+	"github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -36,6 +39,36 @@ func (suite *TestSuite) SetupTest() {
 
 	suite.Runtime = "shell"
 	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "shell", "test")
+}
+
+func (suite *TestSuite) TestExecutionTimeout() {
+	statusOK := http.StatusOK
+	statusInternalError := http.StatusInternalServerError
+
+	createFunctionOptions := suite.GetDeployOptions("outputter",
+		suite.GetFunctionPath("outputter"))
+
+	defaultTimeout := time.Second * 4
+	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter.sh:main"
+	createFunctionOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
+		"defaultTimeout": defaultTimeout,
+	}
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+		{
+			Name:                       "do not timeout",
+			RequestBody:                fmt.Sprintf("sleep %d", int((defaultTimeout / 2).Seconds())),
+			ExpectedResponseBody:       fmt.Sprintf("sleeping %d\ndone\n", int((defaultTimeout / 2).Seconds())),
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:        "timing out",
+			RequestBody: fmt.Sprintf("sleep %d", int((defaultTimeout * 2).Seconds())),
+			ExpectedResponseBody: fmt.Sprintf(shell.ResponseErrorFormat,
+				"signal: killed",
+				fmt.Sprintf("sleeping %d\n", int((defaultTimeout*2).Seconds()))),
+			ExpectedResponseStatusCode: &statusInternalError,
+		},
+	})
 }
 
 func (suite *TestSuite) TestOutputs() {
@@ -95,6 +128,14 @@ func (suite *TestSuite) TestOutputs() {
 			ExpectedResponseHeaders:    expectedResponseHeaders,
 			ExpectedResponseBody:       "overridefirst-overridesecond\n",
 			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:        "return body on error",
+			RequestBody: "return_error_with_message",
+			ExpectedResponseBody: fmt.Sprintf(shell.ResponseErrorFormat,
+				"exit status 1",
+				"return_error_with_message\nsome_error\n"),
+			ExpectedResponseStatusCode: &statusInternalError,
 		},
 	}
 	suite.DeployFunctionAndRequests(createFunctionOptions, testRequests)

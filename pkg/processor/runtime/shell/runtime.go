@@ -89,16 +89,16 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	command := []string{s.command}
 	command = append(command, s.getCommandArguments(event)...)
 
+	// create a timeout context
+	ctx, cancel := context.WithTimeout(s.ctx, *s.configuration.DefaultTimeout)
+	defer cancel()
+
 	s.Logger.DebugWith("Executing shell",
 		"name", s.configuration.Meta.Name,
-		"version", s.configuration.Spec.Version,
 		"eventID", event.GetID(),
 		"bodyLen", len(event.GetBody()),
-		"command", command)
-
-	// create a timeout context (TODO: from configuration)
-	ctx, cancel := context.WithTimeout(s.ctx, 60*time.Second)
-	defer cancel()
+		"command", command,
+		"timeout", *s.configuration.DefaultTimeout)
 
 	var cmd *exec.Cmd
 
@@ -134,7 +134,11 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 			"bodyLen", len(event.GetBody()),
 			"command", command,
 			"err", err)
-		return nil, errors.Wrap(err, "Failed to run shell command")
+		return nuclio.Response{
+			StatusCode: http.StatusInternalServerError,
+			Headers:    s.configuration.ResponseHeaders,
+			Body:       []byte(fmt.Sprintf(ResponseErrorFormat, err, out)),
+		}, nil
 	}
 
 	// calculate call duration
@@ -145,7 +149,8 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	s.Statistics.DurationMilliSecondsCount++
 
 	s.Logger.DebugWith("Shell executed",
-		"eventID", event.GetID())
+		"eventID", event.GetID(),
+		"callDuration", callDuration)
 
 	return nuclio.Response{
 		StatusCode: http.StatusOK,
