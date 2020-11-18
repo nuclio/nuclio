@@ -1034,7 +1034,7 @@ func (ap *Platform) enrichTriggers(createFunctionOptions *platform.CreateFunctio
 func (ap *Platform) getBaseImagesOverrides() (*map[string]string, error) {
 	switch configType := ap.Config.(type) {
 	case *platformconfig.Config:
-		return configType.ImageRegistriesOverrides.BaseImageRegistries, nil
+		return configType.ImageRegistryOverrides.BaseImageRegistries, nil
 
 	// FIXME: When deploying using nuctl in a kubernetes environment, it will be a kube platform, but the configuration
 	// will be of type *config.Configuration which is lacking
@@ -1051,7 +1051,7 @@ func (ap *Platform) getBaseImagesOverrides() (*map[string]string, error) {
 func (ap *Platform) getOnbuildImagesOverrides() (*map[string]string, error) {
 	switch configType := ap.Config.(type) {
 	case *platformconfig.Config:
-		return configType.ImageRegistriesOverrides.OnbuildImageRegistries, nil
+		return configType.ImageRegistryOverrides.OnbuildImageRegistries, nil
 
 	// FIXME: When deploying using nuctl in a kubernetes environment, it will be a kube platform, but the configuration
 	// will be of type *config.Configuration which is lacking

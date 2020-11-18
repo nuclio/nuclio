@@ -25,18 +25,18 @@ import (
 )
 
 type Config struct {
-	Kind                     string                         `json:"kind,omitempty"`
-	WebAdmin                 WebServer                      `json:"webAdmin,omitempty"`
-	HealthCheck              WebServer                      `json:"healthCheck,omitempty"`
-	Logger                   Logger                         `json:"logger,omitempty"`
-	Metrics                  Metrics                        `json:"metrics,omitempty"`
-	ScaleToZero              ScaleToZero                    `json:"scaleToZero,omitempty"`
-	AutoScale                AutoScale                      `json:"autoScale,omitempty"`
-	CronTriggerCreationMode  CronTriggerCreationMode        `json:"cronTriggerCreationMode,omitempty"`
-	FunctionAugmentedConfigs []LabelSelectorAndConfig       `json:"functionAugmentedConfigs,omitempty"`
-	IngressConfig            IngressConfig                  `json:"ingressConfig,omitempty"`
-	Kube                     PlatformKubeConfig             `json:"kube,omitempty"`
-	ImageRegistriesOverrides ImageRegistriesOverridesConfig `json:"image_registries_overrides,omitempty"`
+	Kind                     string                       `json:"kind,omitempty"`
+	WebAdmin                 WebServer                    `json:"webAdmin,omitempty"`
+	HealthCheck              WebServer                    `json:"healthCheck,omitempty"`
+	Logger                   Logger                       `json:"logger,omitempty"`
+	Metrics                  Metrics                      `json:"metrics,omitempty"`
+	ScaleToZero              ScaleToZero                  `json:"scaleToZero,omitempty"`
+	AutoScale                AutoScale                    `json:"autoScale,omitempty"`
+	CronTriggerCreationMode  CronTriggerCreationMode      `json:"cronTriggerCreationMode,omitempty"`
+	FunctionAugmentedConfigs []LabelSelectorAndConfig     `json:"functionAugmentedConfigs,omitempty"`
+	IngressConfig            IngressConfig                `json:"ingressConfig,omitempty"`
+	Kube                     PlatformKubeConfig           `json:"kube,omitempty"`
+	ImageRegistryOverrides   ImageRegistryOverridesConfig `json:"imageRegistryOverrides,omitempty"`
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {

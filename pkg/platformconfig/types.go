@@ -105,11 +105,11 @@ type PlatformKubeConfig struct {
 	DefaultServiceType corev1.ServiceType `json:"defaultServiceType,omitempty"`
 }
 
-type ImageRegistriesOverridesConfig struct {
+type ImageRegistryOverridesConfig struct {
 
-	// maps are [runtime -> image-ref]
-	BaseImageRegistries    *map[string]string `json:"base_image_registries,omitempty"`
-	OnbuildImageRegistries *map[string]string `json:"onbuild_image_registries,omitempty"`
+	// maps are [runtime -> registry]
+	BaseImageRegistries    *map[string]string `json:"baseImageRegistries,omitempty"`
+	OnbuildImageRegistries *map[string]string `json:"onbuildImageRegistries,omitempty"`
 }
 
 // default values for created ingresses

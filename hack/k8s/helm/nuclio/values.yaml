@@ -207,10 +207,10 @@ platform: {}
 #   cronTriggerCreationMode: "kube"
 #   kube:
 #     defaultServiceType: NodePort
-#   image_registries_overrides:
-#     base_image_registries:
+#   imageRegistryOverrides:
+#     baseImageRegistries:
 #       "python:3.6": "myregistry"
-#     onbuild_image_registries:
+#     onbuildImageRegistries:
 #       "golang": "myregistry"
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
