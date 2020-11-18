@@ -118,7 +118,7 @@ func (agr *apiGatewayResource) GetByID(request *http.Request, id string) (restfu
 func (agr *apiGatewayResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
 	apiGatewayInfo, responseErr := agr.getAPIGatewayInfoFromRequest(request, true)
 	if responseErr != nil {
-		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err")
+		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", responseErr)
 
 		if errors.RootCause(responseErr) != nil {
 			responseErr = errors.RootCause(responseErr)
