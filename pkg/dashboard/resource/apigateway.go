@@ -118,6 +118,8 @@ func (agr *apiGatewayResource) GetByID(request *http.Request, id string) (restfu
 func (agr *apiGatewayResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
 	apiGatewayInfo, responseErr := agr.getAPIGatewayInfoFromRequest(request, true)
 	if responseErr != nil {
+		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", err)
+
 		if errors.RootCause(responseErr) != nil {
 			responseErr = errors.RootCause(responseErr)
 		}
@@ -147,7 +149,11 @@ func (agr *apiGatewayResource) Create(request *http.Request) (id string, attribu
 			return "", nil, nuclio.WrapErrConflict(err)
 		}
 
-		return "", nil, nuclio.WrapErrInternalServerError(err)
+		if errors.RootCause(err) != nil {
+			err = errors.RootCause(err)
+		}
+
+		return "", nil, err
 	}
 
 	// set attributes
@@ -186,6 +192,10 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 		APIGatewayConfig: apiGatewayConfig,
 	}); err != nil {
 		agr.Logger.WarnWith("Failed to update api gateway", "err", err)
+	}
+
+	if errors.RootCause(err) != nil {
+		err = errors.RootCause(err)
 	}
 
 	// return the stuff
@@ -288,6 +298,10 @@ func (agr *apiGatewayResource) deleteAPIGateway(request *http.Request) (*restful
 	deleteAPIGatewayOptions.Meta = *apiGatewayInfo.Meta
 
 	if err = agr.getPlatform().DeleteAPIGateway(&deleteAPIGatewayOptions); err != nil {
+		if errors.RootCause(err) != nil {
+			err = errors.RootCause(err)
+		}
+
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
 			StatusCode: common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError),
