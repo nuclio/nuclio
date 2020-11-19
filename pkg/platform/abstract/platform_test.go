@@ -163,7 +163,7 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 	}
 }
 
-func (suite *AbstractPlatformTestSuite) TestFunctionTriggersEnriched() {
+func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() {
 	for idx, testCase := range []struct {
 		triggers                 map[string]functionconfig.Trigger
 		expectedEnrichedTriggers map[string]functionconfig.Trigger
@@ -171,6 +171,7 @@ func (suite *AbstractPlatformTestSuite) TestFunctionTriggersEnriched() {
 	}{
 
 		// enrich maxWorkers to 1
+		// enrich name from key
 		{
 			triggers: map[string]functionconfig.Trigger{
 				"some-trigger": {
@@ -181,6 +182,7 @@ func (suite *AbstractPlatformTestSuite) TestFunctionTriggersEnriched() {
 				"some-trigger": {
 					Kind:       "http",
 					MaxWorkers: 1,
+					Name:       "some-trigger",
 				},
 			},
 		},

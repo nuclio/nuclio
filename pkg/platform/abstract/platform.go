@@ -928,7 +928,7 @@ func (ap *Platform) validateProjectExists(createFunctionOptions *platform.Create
 func (ap *Platform) validateTriggers(createFunctionOptions *platform.CreateFunctionOptions) error {
 
 	var httpTriggerExists bool
-	for triggerName, _trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
+	for triggerName, triggerInstance := range createFunctionOptions.FunctionConfig.Spec.Triggers {
 
 		// do not allow trigger with empty name
 		if triggerName == "" {
@@ -936,15 +936,15 @@ func (ap *Platform) validateTriggers(createFunctionOptions *platform.CreateFunct
 		}
 
 		// no more workers than limitation allows
-		if _trigger.MaxWorkers > trigger.MaxWorkersLimit {
+		if triggerInstance.MaxWorkers > trigger.MaxWorkersLimit {
 			return errors.Errorf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
 				triggerName,
-				_trigger.MaxWorkers,
+				triggerInstance.MaxWorkers,
 				trigger.MaxWorkersLimit)
 		}
 
 		// no more than one http trigger is allowed
-		if _trigger.Kind == "http" {
+		if triggerInstance.Kind == "http" {
 			if !httpTriggerExists {
 				httpTriggerExists = true
 				continue
@@ -1017,6 +1017,11 @@ func (ap *Platform) enrichTriggers(createFunctionOptions *platform.CreateFunctio
 	ap.enrichDefaultHTTPTrigger(createFunctionOptions)
 
 	for triggerName, triggerInstance := range createFunctionOptions.FunctionConfig.Spec.Triggers {
+
+		// if name was not given, inherit its key
+		if triggerInstance.Name == "" {
+			triggerInstance.Name = triggerName
+		}
 
 		// ensure having max workers
 		if common.StringInSlice(triggerInstance.Kind, []string{"http", "v3ioStream"}) {
