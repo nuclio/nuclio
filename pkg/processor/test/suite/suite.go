@@ -109,6 +109,10 @@ func (suite *TestSuite) SetupSuite() {
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
 	suite.Require().NoError(err)
 
+	if suite.PlatformConfiguration == nil {
+		suite.PlatformConfiguration, err = platformconfig.NewPlatformConfig("")
+		suite.Require().NoError(err)
+	}
 	suite.Platform, err = factory.CreatePlatform(suite.Logger,
 		suite.PlatformType,
 		suite.PlatformConfiguration,
