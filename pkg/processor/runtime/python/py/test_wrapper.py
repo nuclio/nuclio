@@ -104,7 +104,6 @@ class TestSubmitEvents(unittest.TestCase):
             expected_messages += 1
 
         self._wait_until_received_messages(expected_messages)
-        print(self._unix_stream_server._messages)
 
         malformed_response = self._unix_stream_server._messages[-3]['body']
         self.assertEqual(httpclient.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
