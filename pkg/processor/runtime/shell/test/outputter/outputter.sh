@@ -30,9 +30,4 @@ elif [ "${EVENT_BODY}" == "return_error_with_message" ]; then
 	exit 1
 elif [ "${EVENT_BODY}" == "return_arguments" ]; then
 	echo $1-$2
-elif [ "$(echo ${EVENT_BODY} | cut -d' ' -f1)" == "sleep" ]; then
-  export sleepTimeout=$(echo ${EVENT_BODY} | cut -d' ' -f2)
-  echo "sleeping ${sleepTimeout}"
-	sleep ${sleepTimeout}
-	echo "done"
 fi

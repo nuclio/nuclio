@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"path"
 	"testing"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
@@ -39,36 +38,6 @@ func (suite *TestSuite) SetupTest() {
 
 	suite.Runtime = "shell"
 	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "shell", "test")
-}
-
-func (suite *TestSuite) TestExecutionTimeout() {
-	statusOK := http.StatusOK
-	statusInternalError := http.StatusInternalServerError
-
-	createFunctionOptions := suite.GetDeployOptions("outputter",
-		suite.GetFunctionPath("outputter"))
-
-	defaultTimeout := time.Second * 4
-	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter.sh:main"
-	createFunctionOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
-		"defaultTimeout": defaultTimeout,
-	}
-	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
-		{
-			Name:                       "do not timeout",
-			RequestBody:                fmt.Sprintf("sleep %d", int((defaultTimeout / 2).Seconds())),
-			ExpectedResponseBody:       fmt.Sprintf("sleeping %d\ndone\n", int((defaultTimeout / 2).Seconds())),
-			ExpectedResponseStatusCode: &statusOK,
-		},
-		{
-			Name:        "timing out",
-			RequestBody: fmt.Sprintf("sleep %d", int((defaultTimeout * 2).Seconds())),
-			ExpectedResponseBody: fmt.Sprintf(shell.ResponseErrorFormat,
-				"signal: killed",
-				fmt.Sprintf("sleeping %d\n", int((defaultTimeout*2).Seconds()))),
-			ExpectedResponseStatusCode: &statusInternalError,
-		},
-	})
 }
 
 func (suite *TestSuite) TestOutputs() {
@@ -92,7 +61,8 @@ func (suite *TestSuite) TestOutputs() {
 		"arguments":       "first second",
 		"responseHeaders": map[string]interface{}{"header1": "value1"},
 	}
-	testRequests := []*httpsuite.Request{
+
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
 			Name:                       "return body",
 			RequestBody:                "return_body",
@@ -137,8 +107,7 @@ func (suite *TestSuite) TestOutputs() {
 				"return_error_with_message\nsome_error\n"),
 			ExpectedResponseStatusCode: &statusInternalError,
 		},
-	}
-	suite.DeployFunctionAndRequests(createFunctionOptions, testRequests)
+	})
 }
 
 func (suite *TestSuite) TestStress() {
