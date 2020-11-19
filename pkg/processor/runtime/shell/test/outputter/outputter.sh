@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/sh
-
 export EVENT_BODY=$(cat)
 
 if [ "${EVENT_BODY}" == "return_body" ]; then
