@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/config"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -464,10 +465,12 @@ func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
 	return ap.ExternalIPAddresses, nil
 }
 
+// GetScaleToZeroConfiguration returns scale to zero configuration
 func (ap *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error) {
 	return nil, nil
 }
 
+// GetAllowedAuthenticationModes returns allowed authentication modes
 func (ap *Platform) GetAllowedAuthenticationModes() ([]string, error) {
 	return nil, nil
 }
@@ -479,7 +482,8 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 
 // BuildAndPushContainerImage builds container image and pushes it into docker registry
 func (ap *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
-	return ap.ContainerBuilder.BuildAndPushContainerImage(buildOptions, ap.platform.ResolveDefaultNamespace("@nuclio.selfNamespace"))
+	return ap.ContainerBuilder.BuildAndPushContainerImage(buildOptions,
+		ap.platform.ResolveDefaultNamespace("@nuclio.selfNamespace"))
 }
 
 // Get Onbuild stage for multistage builds
@@ -493,13 +497,38 @@ func (ap *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Art
 }
 
 // GetBaseImageRegistry returns base image registry
-func (ap *Platform) GetBaseImageRegistry(registry string) string {
-	return ap.ContainerBuilder.GetBaseImageRegistry(registry)
+func (ap *Platform) GetBaseImageRegistry(registry string, runtime runtime.Runtime) (string, error) {
+	baseImagesOverrides, err := ap.getBaseImagesOverrides()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get base images override from platform")
+	}
+
+	if baseImagesOverrides == nil {
+		baseImagesOverrides = map[string]string{}
+	}
+
+	imageRegistryRuntimeOverride := runtime.GetOverrideImageRegistryFromMap(baseImagesOverrides)
+	if imageRegistryRuntimeOverride != "" {
+		return imageRegistryRuntimeOverride, nil
+	}
+	return ap.ContainerBuilder.GetBaseImageRegistry(registry), nil
 }
 
 // GetOnbuildImageRegistry returns onbuild image registry
-func (ap *Platform) GetOnbuildImageRegistry(registry string) string {
-	return ap.ContainerBuilder.GetOnbuildImageRegistry(registry)
+func (ap *Platform) GetOnbuildImageRegistry(registry string, runtime runtime.Runtime) (string, error) {
+	onbuildImagesOverrides, err := ap.getOnbuildImagesOverrides()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get onbuild images override from platform")
+	}
+	if onbuildImagesOverrides == nil {
+		onbuildImagesOverrides = map[string]string{}
+	}
+
+	imageRegistryRuntimeOverride := runtime.GetOverrideImageRegistryFromMap(onbuildImagesOverrides)
+	if imageRegistryRuntimeOverride != "" {
+		return imageRegistryRuntimeOverride, nil
+	}
+	return ap.ContainerBuilder.GetOnbuildImageRegistry(registry), nil
 }
 
 // GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
@@ -999,4 +1028,38 @@ func (ap *Platform) enrichTriggers(createFunctionOptions *platform.CreateFunctio
 		createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName] = triggerInstance
 	}
 	return nil
+}
+
+// returns overrides for base images per runtime
+func (ap *Platform) getBaseImagesOverrides() (map[string]string, error) {
+	switch configType := ap.Config.(type) {
+	case *platformconfig.Config:
+		return configType.ImageRegistryOverrides.BaseImageRegistries, nil
+
+	// FIXME: When deploying using nuctl in a kubernetes environment, it will be a kube platform, but the configuration
+	// will be of type *config.Configuration which is lacking
+	// we need to fix the platform config (p.Config) to always be of the same type (*platformconfig.Config) and not
+	// passing interface{} everywhere
+	case *config.Configuration:
+		return nil, nil
+	default:
+		return nil, errors.New("Not a valid configuration instance")
+	}
+}
+
+// returns overrides for base images per runtime
+func (ap *Platform) getOnbuildImagesOverrides() (map[string]string, error) {
+	switch configType := ap.Config.(type) {
+	case *platformconfig.Config:
+		return configType.ImageRegistryOverrides.OnbuildImageRegistries, nil
+
+	// FIXME: When deploying using nuctl in a kubernetes environment, it will be a kube platform, but the configuration
+	// will be of type *config.Configuration which is lacking
+	// we need to fix the platform config (p.Config) to always be of the same type (*platformconfig.Config) and not
+	// passing interface{} everywhere
+	case *config.Configuration:
+		return nil, nil
+	default:
+		return nil, errors.New("Not a valid configuration instance")
+	}
 }
