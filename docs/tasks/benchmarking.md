@@ -45,7 +45,7 @@ Transfer/sec:     33.36MB
 
 Deploy an empty Python function with 36 workers:
 ```sh
-nuctl deploy helloworld-py -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/development/hack/examples/python/empty/empty.py --platform local --triggers '{"mh": {"kind": "http", "maxWorkers": 36}}' --runtime python:2.7 --handler empty:handler
+nuctl deploy helloworld-py -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/development/hack/examples/python/empty/empty.py --platform local --triggers '{"mh": {"kind": "http", "maxWorkers": 36}}' --runtime python --handler empty:handler
 ```
 
 Run the benchmark:

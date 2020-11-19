@@ -29,9 +29,9 @@ import unittest
 import _nuclio_wrapper as wrapper
 import msgpack
 import nuclio_sdk
+import nuclio_sdk.helpers
 
-# python2/3 differences
-if sys.version_info[:2] >= (3, 0):
+if nuclio_sdk.helpers.PYTHON3:
     from socketserver import UnixStreamServer, BaseRequestHandler
     from unittest import mock
     import http.client as httpclient
@@ -92,15 +92,20 @@ class TestSubmitEvents(unittest.TestCase):
         t.join()
 
         # processor start
+        # if python 2 then: deprecation note
         # duration
         # function response
         # malformed log line (wrapper)
         # malformed response
         # duration
         # function response
-        self._wait_until_received_messages(7)
+        expected_messages = 7
+        if nuclio_sdk.helpers.PYTHON2:
+            expected_messages += 1
 
-        malformed_response = self._unix_stream_server._messages[4]['body']
+        self._wait_until_received_messages(expected_messages)
+
+        malformed_response = self._unix_stream_server._messages[-3]['body']
         self.assertEqual(httpclient.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
 
         # ensure messages coming after malformed request are still valid
