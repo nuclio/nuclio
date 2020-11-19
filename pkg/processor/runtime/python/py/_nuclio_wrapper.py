@@ -89,7 +89,7 @@ class Wrapper(object):
 
         # log deprecation warning
         if sys.version_info[:2] == (2, 7):
-            self._logger.warn('A future version of nuclio python will drop support for Python 2.7.')
+            self._logger.warn('Nuclio will drop support for Python 2.7 within the next minor version')
 
     def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
