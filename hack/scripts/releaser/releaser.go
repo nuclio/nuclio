@@ -319,7 +319,8 @@ func (r *Release) getGithubWorkflowsReleaseStatus() (string, error) {
 	}
 	var workflowRunsResponse struct {
 		WorkflowRuns []struct {
-			Status string `json:"status,omitempty"`
+			Status     string `json:"status,omitempty"`
+			Conclusion string `json:"conclusion,omitempty"`
 		} `json:"workflow_runs,omitempty"`
 	}
 	if err := json.Unmarshal(responseBody, &workflowRunsResponse); err != nil {
@@ -327,6 +328,16 @@ func (r *Release) getGithubWorkflowsReleaseStatus() (string, error) {
 	}
 	if len(workflowRunsResponse.WorkflowRuns) == 0 {
 		return "", nil
+	}
+
+	status := workflowRunsResponse.WorkflowRuns[0].Status
+	conclusion := workflowRunsResponse.WorkflowRuns[0].Conclusion
+
+	// https://developer.github.com/v3/actions/workflow-runs/#parameters-1
+	// conclusion is null until status become completed
+	// and then it holds whether it completed successfully or not.
+	if status == "completed" {
+		return conclusion, nil
 	}
 	return workflowRunsResponse.WorkflowRuns[0].Status, nil
 }
@@ -464,7 +475,7 @@ func (r *Release) waitForReleaseCompleteness() error {
 			case "1.1.x", "1.3.x":
 				return status == "finished"
 			default:
-				return status == "completed"
+				return status == "success"
 			}
 		})
 }
