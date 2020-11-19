@@ -108,8 +108,8 @@ type PlatformKubeConfig struct {
 type ImageRegistryOverridesConfig struct {
 
 	// maps are [runtime -> registry]
-	BaseImageRegistries    *map[string]string `json:"baseImageRegistries,omitempty"`
-	OnbuildImageRegistries *map[string]string `json:"onbuildImageRegistries,omitempty"`
+	BaseImageRegistries    map[string]string `json:"baseImageRegistries,omitempty"`
+	OnbuildImageRegistries map[string]string `json:"onbuildImageRegistries,omitempty"`
 }
 
 // default values for created ingresses

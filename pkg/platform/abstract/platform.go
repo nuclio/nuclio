@@ -504,10 +504,10 @@ func (ap *Platform) GetBaseImageRegistry(registry string, runtime runtime.Runtim
 	}
 
 	if baseImagesOverrides == nil {
-		baseImagesOverrides = new(map[string]string)
+		baseImagesOverrides = map[string]string{}
 	}
 
-	imageRegistryRuntimeOverride := runtime.GetOverrideImageRegistryFromMap(*baseImagesOverrides)
+	imageRegistryRuntimeOverride := runtime.GetOverrideImageRegistryFromMap(baseImagesOverrides)
 	if imageRegistryRuntimeOverride != "" {
 		return imageRegistryRuntimeOverride, nil
 	}
@@ -521,10 +521,10 @@ func (ap *Platform) GetOnbuildImageRegistry(registry string, runtime runtime.Run
 		return "", errors.Wrap(err, "Failed to get onbuild images override from platform")
 	}
 	if onbuildImagesOverrides == nil {
-		onbuildImagesOverrides = new(map[string]string)
+		onbuildImagesOverrides = map[string]string{}
 	}
 
-	imageRegistryRuntimeOverride := runtime.GetOverrideImageRegistryFromMap(*onbuildImagesOverrides)
+	imageRegistryRuntimeOverride := runtime.GetOverrideImageRegistryFromMap(onbuildImagesOverrides)
 	if imageRegistryRuntimeOverride != "" {
 		return imageRegistryRuntimeOverride, nil
 	}
@@ -1031,7 +1031,7 @@ func (ap *Platform) enrichTriggers(createFunctionOptions *platform.CreateFunctio
 }
 
 // returns overrides for base images per runtime
-func (ap *Platform) getBaseImagesOverrides() (*map[string]string, error) {
+func (ap *Platform) getBaseImagesOverrides() (map[string]string, error) {
 	switch configType := ap.Config.(type) {
 	case *platformconfig.Config:
 		return configType.ImageRegistryOverrides.BaseImageRegistries, nil
@@ -1048,7 +1048,7 @@ func (ap *Platform) getBaseImagesOverrides() (*map[string]string, error) {
 }
 
 // returns overrides for base images per runtime
-func (ap *Platform) getOnbuildImagesOverrides() (*map[string]string, error) {
+func (ap *Platform) getOnbuildImagesOverrides() (map[string]string, error) {
 	switch configType := ap.Config.(type) {
 	case *platformconfig.Config:
 		return configType.ImageRegistryOverrides.OnbuildImageRegistries, nil
