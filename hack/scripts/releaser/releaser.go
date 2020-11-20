@@ -40,9 +40,11 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const helmChartFilePath = "hack/k8s/helm/nuclio/Chart.yaml"
-const githubAPIURL = "https://api.github.com"
-const travisAPIURL = "https://api.travis-ci.org"
+const (
+	helmChartFilePath = "hack/k8s/helm/nuclio/Chart.yaml"
+	githubAPIURL      = "https://api.github.com"
+	travisAPIURL      = "https://api.travis-ci.org"
+)
 
 type helmChart struct {
 	Version    string `yaml:"version,omitempty"`
