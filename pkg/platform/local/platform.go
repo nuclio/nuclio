@@ -850,11 +850,10 @@ func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container
 
 		// in case the user did not set an explicit port, take the random port assigned by docker
 		return strconv.Atoi(ports[0].HostPort)
-	} else {
-
-		// something bad happened if we got here
-		return 0, errors.New("No port was assigned")
 	}
+
+	// function might failed during deploying and did not assign a port
+	return 0, nil
 }
 
 func (p *Platform) marshallAnnotations(annotations map[string]string) []byte {
@@ -874,33 +873,35 @@ func (p *Platform) marshallAnnotations(annotations map[string]string) []byte {
 func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
 	var previousHTTPPort int
 
-	createFunctionOptions.Logger.InfoWith("Cleaning up before deployment")
+	createFunctionOptions.Logger.InfoWith("Cleaning up before deployment",
+		"functionName", createFunctionOptions.FunctionConfig.Meta.Name)
 
-	getContainerOptions := &dockerclient.GetContainerOptions{
+	// get function containers
+	containers, err := p.dockerClient.GetContainers(&dockerclient.GetContainerOptions{
 		Name:    p.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
 		Stopped: true,
-	}
-
-	containers, err := p.dockerClient.GetContainers(getContainerOptions)
-
+	})
 	if err != nil {
-		return 0, errors.Wrap(err, "Failed to get function")
+		return 0, errors.Wrap(err, "Failed to get function containers")
 	}
 
 	// if the function exists, delete it
 	if len(containers) > 0 {
-		createFunctionOptions.Logger.InfoWith("Function already exists, deleting")
+		createFunctionOptions.Logger.InfoWith("Function already exists, deleting function containers",
+			"functionName", createFunctionOptions.FunctionConfig.Meta.Name)
 
 		// iterate over containers and delete
 		for _, container := range containers {
+			createFunctionOptions.Logger.DebugWith("Deleting function container",
+				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
+				"containerName", container.Name)
 			previousHTTPPort, err = p.getContainerHTTPTriggerPort(&container)
 			if err != nil {
 				return 0, errors.Wrap(err, "Failed to get container http trigger port")
 			}
 
-			err = p.dockerClient.RemoveContainer(container.Name)
-			if err != nil {
-				return 0, errors.Wrap(err, "Failed to delete existing function")
+			if err := p.dockerClient.RemoveContainer(container.Name); err != nil {
+				return 0, errors.Wrap(err, "Failed to delete function container")
 			}
 		}
 	}
