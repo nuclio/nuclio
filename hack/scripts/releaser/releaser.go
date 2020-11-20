@@ -564,6 +564,7 @@ func (r *Release) runAndRetrySkipIfFailed(funcToRetry func() error, errorMessage
 			if promptErr == nil && response {
 
 				// retry
+				r.logger.Debug("Retrying")
 				continue
 			}
 
@@ -571,6 +572,7 @@ func (r *Release) runAndRetrySkipIfFailed(funcToRetry func() error, errorMessage
 			if promptErr == nil && response {
 
 				// do not retry
+				r.logger.Debug("Skipping")
 				break
 			}
 
@@ -592,7 +594,7 @@ func (r *Release) promptForYesNo(promptMessage string) (bool, error) {
 		return false, errors.Wrap(err, "Failed to read yes no from prompt")
 	}
 
-	switch strings.ToLower(strings.TrimSpace(response)) {
+	switch normalizedResponse := strings.ToLower(strings.TrimSpace(response)); normalizedResponse {
 	case "y", "yes":
 		return true, nil
 	case "n", "no":
@@ -600,7 +602,7 @@ func (r *Release) promptForYesNo(promptMessage string) (bool, error) {
 	default:
 
 		// :nerd:
-		return strconv.ParseBool(response)
+		return strconv.ParseBool(normalizedResponse)
 
 	}
 }
