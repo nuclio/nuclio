@@ -20,6 +20,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -266,21 +267,20 @@ func (suite *testSuite) TestBuildInvalidFunctionPath() {
 }
 
 func (suite *testSuite) TestBuildJessiePassesNonInteractiveFlag() {
-	createFunctionOptions := suite.GetDeployOptions("printer",
-		path.Join(suite.GetNuclioSourceDir(), "test", "_functions", "python", "py2-printer"))
+	createFunctionOptions := suite.GetDeployOptions("jessie-non-interactive",
+		path.Join(suite.GetNuclioSourceDir(), "test", "_functions", "common", "empty", "python"))
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
-	createFunctionOptions.FunctionConfig.Spec.Handler = "printer:handler"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
 	createFunctionOptions.FunctionConfig.Spec.Build.BaseImage = "python:3.6-jessie"
 
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = append(createFunctionOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq update")
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = append(createFunctionOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq install curl")
 
+	statusOk := http.StatusOK
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "",
-			ExpectedResponseBody: "printed",
+			ExpectedResponseStatusCode: &statusOk,
 		})
 }
 
