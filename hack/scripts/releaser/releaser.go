@@ -100,7 +100,8 @@ func (r *Release) Run() error {
 			return errors.Wrap(err, "Failed to create release")
 		}
 
-		if err := r.waitForReleaseCompleteness(); err != nil {
+		if err := r.runAndRetrySkipIfFailed(r.waitForReleaseCompleteness,
+			"Waiting for release completeness has failed"); err != nil {
 			return errors.Wrap(err, "Failed to wait for release")
 		}
 	} else {
@@ -551,6 +552,55 @@ func (r *Release) bumpHelmChartVersion() error {
 		}
 	}
 	return nil
+}
+
+func (r *Release) runAndRetrySkipIfFailed(funcToRetry func() error, errorMessage string) error {
+	for {
+		if err := funcToRetry(); err != nil {
+
+			response, promptErr := r.promptForYesNo(fmt.Sprintf("%s. Retry?", errorMessage))
+			if promptErr == nil && response {
+
+				// retry
+				continue
+			}
+
+			response, promptErr = r.promptForYesNo(fmt.Sprintf("%s. Skip?", errorMessage))
+			if promptErr == nil && response {
+
+				// do not retry
+				break
+			}
+
+			// failure
+			return err
+		}
+
+		// success
+		return nil
+	}
+	return nil
+}
+
+func (r *Release) promptForYesNo(promptMessage string) (bool, error) {
+	fmt.Printf("%s ([y] Yes [n] No): ", promptMessage)
+
+	response, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to read yes no from prompt")
+	}
+
+	switch strings.ToLower(strings.TrimSpace(response)) {
+	case "y", "yes":
+		return true, nil
+	case "n", "no":
+		return false, nil
+	default:
+
+		// :nerd:
+		return strconv.ParseBool(response)
+
+	}
 }
 
 func run() error {
