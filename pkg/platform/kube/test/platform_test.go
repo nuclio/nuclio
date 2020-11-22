@@ -24,8 +24,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	kubecommon "github.com/nuclio/nuclio/pkg/platform/kube/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -161,7 +161,7 @@ func (suite *DeployFunctionTestSuite) TestSecurityContext() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		deploymentInstance := &appsv1.Deployment{}
 		suite.GetResourceAndUnmarshal("deployment",
-			kubecommon.DeploymentNameFromFunctionName(functionName),
+			kube.DeploymentNameFromFunctionName(functionName),
 			deploymentInstance)
 
 		// ensure function deployment was enriched
@@ -175,7 +175,7 @@ func (suite *DeployFunctionTestSuite) TestSecurityContext() {
 		suite.Require().Equal(fsGroup, *deploymentInstance.Spec.Template.Spec.SecurityContext.FSGroup)
 
 		// verify running function indeed using the right uid / gid / groups
-		podName := fmt.Sprintf("deployment/%s", kubecommon.DeploymentNameFromFunctionName(functionName))
+		podName := fmt.Sprintf("deployment/%s", kube.DeploymentNameFromFunctionName(functionName))
 		results, err := suite.executeKubectl([]string{"exec", podName, "--", "id"}, nil)
 		suite.Require().NoError(err, "Failed to execute `id` command on function pod")
 		suite.Require().Equal(fmt.Sprintf(`uid=%d gid=%d groups=%d,%d`,
@@ -231,7 +231,7 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 			functionName,
 			functionInstance)
 		suite.GetResourceAndUnmarshal("deployment",
-			kubecommon.DeploymentNameFromFunctionName(functionName),
+			kube.DeploymentNameFromFunctionName(functionName),
 			deploymentInstance)
 
 		// ensure function spec was enriched
@@ -255,7 +255,7 @@ func (suite *DeployFunctionTestSuite) TestMinMaxReplicas() {
 	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &three
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		hpaInstance := &autoscalingv1.HorizontalPodAutoscaler{}
-		suite.GetResourceAndUnmarshal("hpa", kubecommon.HPANameFromFunctionName(functionName), hpaInstance)
+		suite.GetResourceAndUnmarshal("hpa", kube.HPANameFromFunctionName(functionName), hpaInstance)
 		suite.Require().Equal(two, int(*hpaInstance.Spec.MinReplicas))
 		suite.Require().Equal(three, int(hpaInstance.Spec.MaxReplicas))
 		return true
@@ -302,7 +302,7 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 	createNodePortTriggerFunctionOptions.FunctionConfig.Spec.ServiceType = ""
 	suite.DeployFunction(createNodePortTriggerFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		serviceInstance := &v1.Service{}
-		suite.GetResourceAndUnmarshal("service", kubecommon.ServiceNameFromFunctionName(defaultNodePortFunctionName), serviceInstance)
+		suite.GetResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(defaultNodePortFunctionName), serviceInstance)
 		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
 		return true
 	})
@@ -316,7 +316,7 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 	createClusterIPTriggerFunctionOptions.FunctionConfig.Spec.ServiceType = ""
 	suite.DeployFunction(createClusterIPTriggerFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		serviceInstance := &v1.Service{}
-		suite.GetResourceAndUnmarshal("service", kubecommon.ServiceNameFromFunctionName(defaultClusterIPFunctionName), serviceInstance)
+		suite.GetResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(defaultClusterIPFunctionName), serviceInstance)
 		suite.Require().Equal(v1.ServiceTypeClusterIP, serviceInstance.Spec.Type)
 		return true
 	})
@@ -327,7 +327,7 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 	customFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeNodePort
 	suite.DeployFunction(customFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		serviceInstance := &v1.Service{}
-		suite.GetResourceAndUnmarshal("service", kubecommon.ServiceNameFromFunctionName(customFunctionName), serviceInstance)
+		suite.GetResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(customFunctionName), serviceInstance)
 		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
 		return true
 	})
@@ -348,7 +348,7 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 	}
 	suite.DeployFunction(customTriggerFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		serviceInstance := &v1.Service{}
-		suite.GetResourceAndUnmarshal("service", kubecommon.ServiceNameFromFunctionName(customTriggerFunctionName), serviceInstance)
+		suite.GetResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(customTriggerFunctionName), serviceInstance)
 		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
 		return true
 	})

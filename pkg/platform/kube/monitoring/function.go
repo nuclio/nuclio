@@ -6,9 +6,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
-	kubecommon "github.com/nuclio/nuclio/pkg/platform/kube/common"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -130,7 +130,7 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 	functionDeployment, err := fm.kubeClientSet.
 		AppsV1().
 		Deployments(function.Namespace).
-		Get(kubecommon.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
+		Get(kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
 	if err != nil {
 		fm.logger.WarnWith("Failed to get function deployment",
 			"functionName", function.Name,

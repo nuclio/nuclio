@@ -23,13 +23,17 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	triggercommon "github.com/nuclio/nuclio/pkg/processor/trigger/common"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/satori/go.uuid"
+)
+
+const (
+	MaxWorkersLimit                              = 100000
+	DefaultWorkerAvailabilityTimeoutMilliseconds = 10000 // 10 seconds
 )
 
 // Trigger is common trigger interface
@@ -97,9 +101,9 @@ func NewAbstractTrigger(logger logger.Logger,
 	if configuration.WorkerAvailabilityTimeoutMilliseconds == nil || *configuration.WorkerAvailabilityTimeoutMilliseconds < 0 {
 		logger.InfoWith("Setting default worker availability timeout",
 			"DefaultWorkerAvailabilityTimeoutMilliseconds",
-			triggercommon.DefaultWorkerAvailabilityTimeoutMilliseconds)
+			DefaultWorkerAvailabilityTimeoutMilliseconds)
 
-		defaultWorkerAvailabilityTimeoutMilliseconds := triggercommon.DefaultWorkerAvailabilityTimeoutMilliseconds
+		defaultWorkerAvailabilityTimeoutMilliseconds := DefaultWorkerAvailabilityTimeoutMilliseconds
 		configuration.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
 	}
 

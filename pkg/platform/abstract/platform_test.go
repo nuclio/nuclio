@@ -142,7 +142,7 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 		err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
 		suite.Require().NoError(err, "Failed to enrich function config")
 
-		err = suite.Platform.ValidateCreateFunctionOptions(createFunctionOptions)
+		err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
 		if MinMaxReplicas.shouldFailValidation {
 			suite.Error(err, "Validation should fail")
 			suite.Logger.DebugWith("Validation failed as expected ", "functionName", functionName)

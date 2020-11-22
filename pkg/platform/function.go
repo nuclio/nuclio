@@ -88,14 +88,7 @@ func (af *AbstractFunction) GetConfig() *functionconfig.Config {
 
 // GetIngresses returns all ingresses for this function
 func (af *AbstractFunction) GetIngresses() (map[string]functionconfig.Ingress, error) {
-	ingresses, err := functionconfig.GetIngressesFromTriggers(af.Config.Spec.Triggers)
-	if err != nil {
-		af.Logger.WarnWith("Failed to get ingresses from triggers. Returning an empty result",
-			"functionName", af.function.GetConfig().Meta.Name,
-			"err", err)
-	}
-
-	return ingresses, err
+	return functionconfig.GetIngressesFromTriggers(af.Config.Spec.Triggers)
 }
 
 // GetVersion returns a string representing the version

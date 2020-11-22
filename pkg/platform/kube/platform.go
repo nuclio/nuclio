@@ -31,7 +31,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/config"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	kubecommon "github.com/nuclio/nuclio/pkg/platform/kube/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -1106,7 +1105,7 @@ func (p *Platform) enrichAndValidateAPIGatewayName(apiGateway *nuclioio.NuclioAP
 		return nuclio.NewErrBadRequest("Api gateway metadata.name must match api gateway spec.name")
 	}
 
-	if common.StringInSlice(apiGateway.Spec.Name, kubecommon.ResolveReservedResourceNames()) {
+	if common.StringInSlice(apiGateway.Spec.Name, p.ResolveReservedResourceNames()) {
 		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("APIGateway name %s is reserved and cannot be used.",
 			apiGateway.Spec.Name))
 	}
@@ -1119,7 +1118,7 @@ func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfi
 		return errors.Wrap(err, "Function config enrichment failed")
 	}
 
-	if err := p.ValidateCreateFunctionOptions(functionConfig); err != nil {
+	if err := p.ValidateFunctionConfig(functionConfig); err != nil {
 		return errors.Wrap(err, "Function config validation failed")
 	}
 

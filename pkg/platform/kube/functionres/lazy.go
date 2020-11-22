@@ -33,7 +33,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
-	kubecommon "github.com/nuclio/nuclio/pkg/platform/kube/common"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
@@ -132,7 +131,7 @@ func (lc *lazyClient) List(ctx context.Context, namespace string) ([]Resources, 
 
 func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (Resources, error) {
 	var result *appsv1.Deployment
-	deploymentName := kubecommon.DeploymentNameFromFunctionName(name)
+	deploymentName := kube.DeploymentNameFromFunctionName(name)
 	result, err := lc.kubeClientSet.AppsV1().
 		Deployments(namespace).
 		Get(deploymentName, metav1.GetOptions{})
@@ -239,7 +238,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 }
 
 func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name string) error {
-	deploymentName := kubecommon.DeploymentNameFromFunctionName(name)
+	deploymentName := kube.DeploymentNameFromFunctionName(name)
 	lc.logger.DebugWith("Waiting for deployment to be available",
 		"namespace", namespace,
 		"functionName", name,
@@ -305,7 +304,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	}
 
 	// Delete ingress
-	ingressName := kubecommon.IngressNameFromFunctionName(name)
+	ingressName := kube.IngressNameFromFunctionName(name)
 	err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(namespace).Delete(ingressName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -316,7 +315,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	}
 
 	// Delete HPA if exists
-	hpaName := kubecommon.HPANameFromFunctionName(name)
+	hpaName := kube.HPANameFromFunctionName(name)
 	err = lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Delete(hpaName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -327,7 +326,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	}
 
 	// Delete Service if exists
-	serviceName := kubecommon.ServiceNameFromFunctionName(name)
+	serviceName := kube.ServiceNameFromFunctionName(name)
 	err = lc.kubeClientSet.CoreV1().Services(namespace).Delete(serviceName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -338,7 +337,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	}
 
 	// Delete Deployment if exists
-	deploymentName := kubecommon.DeploymentNameFromFunctionName(name)
+	deploymentName := kube.DeploymentNameFromFunctionName(name)
 	err = lc.kubeClientSet.AppsV1().Deployments(namespace).Delete(deploymentName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -351,7 +350,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	}
 
 	// Delete configMap if exists
-	configMapName := kubecommon.ConfigMapNameFromFunctionName(name)
+	configMapName := kube.ConfigMapNameFromFunctionName(name)
 	err = lc.kubeClientSet.CoreV1().ConfigMaps(namespace).Delete(configMapName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -599,7 +598,7 @@ func (lc *lazyClient) createOrUpdateConfigMap(function *nuclioio.NuclioFunction)
 	getConfigMap := func() (interface{}, error) {
 		return lc.kubeClientSet.CoreV1().
 			ConfigMaps(function.Namespace).
-			Get(kubecommon.ConfigMapNameFromFunctionName(function.Name), metav1.GetOptions{})
+			Get(kube.ConfigMapNameFromFunctionName(function.Name), metav1.GetOptions{})
 	}
 
 	configMapIsDeleting := func(resource interface{}) bool {
@@ -645,7 +644,7 @@ func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 	getService := func() (interface{}, error) {
 		return lc.kubeClientSet.CoreV1().
 			Services(function.Namespace).
-			Get(kubecommon.ServiceNameFromFunctionName(function.Name), metav1.GetOptions{})
+			Get(kube.ServiceNameFromFunctionName(function.Name), metav1.GetOptions{})
 	}
 
 	serviceIsDeleting := func(resource interface{}) bool {
@@ -658,7 +657,7 @@ func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 
 		return lc.kubeClientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      kubecommon.ServiceNameFromFunctionName(function.Name),
+				Name:      kube.ServiceNameFromFunctionName(function.Name),
 				Namespace: function.Namespace,
 				Labels:    functionLabels,
 			},
@@ -716,7 +715,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	getDeployment := func() (interface{}, error) {
 		return lc.kubeClientSet.AppsV1().
 			Deployments(function.Namespace).
-			Get(kubecommon.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
+			Get(kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
 	}
 
 	deploymentIsDeleting := func(resource interface{}) bool {
@@ -740,7 +739,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			Replicas: replicas,
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:        kubecommon.PodNameFromFunctionName(function.Name),
+					Name:        kube.PodNameFromFunctionName(function.Name),
 					Namespace:   function.Namespace,
 					Labels:      functionLabels,
 					Annotations: podAnnotations,
@@ -761,7 +760,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 
 		deployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        kubecommon.DeploymentNameFromFunctionName(function.Name),
+				Name:        kube.DeploymentNameFromFunctionName(function.Name),
 				Namespace:   function.Namespace,
 				Labels:      functionLabels,
 				Annotations: deploymentAnnotations,
@@ -951,7 +950,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
 		return lc.kubeClientSet.AutoscalingV2beta1().
 			HorizontalPodAutoscalers(function.Namespace).
-			Get(kubecommon.HPANameFromFunctionName(function.Name), metav1.GetOptions{})
+			Get(kube.HPANameFromFunctionName(function.Name), metav1.GetOptions{})
 	}
 
 	horizontalPodAutoscalerIsDeleting := func(resource interface{}) bool {
@@ -970,7 +969,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 
 		hpa := autosv2.HorizontalPodAutoscaler{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      kubecommon.HPANameFromFunctionName(function.Name),
+				Name:      kube.HPANameFromFunctionName(function.Name),
 				Namespace: function.Namespace,
 				Labels:    functionLabels,
 			},
@@ -981,7 +980,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 				ScaleTargetRef: autosv2.CrossVersionObjectReference{
 					APIVersion: "apps/apps_v1",
 					Kind:       "Deployment",
-					Name:       kubecommon.DeploymentNameFromFunctionName(function.Name),
+					Name:       kube.DeploymentNameFromFunctionName(function.Name),
 				},
 			},
 		}
@@ -1041,7 +1040,7 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 	getIngress := func() (interface{}, error) {
 		return lc.kubeClientSet.ExtensionsV1beta1().
 			Ingresses(function.Namespace).
-			Get(kubecommon.IngressNameFromFunctionName(function.Name), metav1.GetOptions{})
+			Get(kube.IngressNameFromFunctionName(function.Name), metav1.GetOptions{})
 	}
 
 	ingressIsDeleting := func(resource interface{}) bool {
@@ -1050,7 +1049,7 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 
 	createIngress := func() (interface{}, error) {
 		ingressMeta := metav1.ObjectMeta{
-			Name:      kubecommon.IngressNameFromFunctionName(function.Name),
+			Name:      kube.IngressNameFromFunctionName(function.Name),
 			Namespace: function.Namespace,
 			Labels:    functionLabels,
 		}
@@ -1100,7 +1099,7 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 
 				err := lc.kubeClientSet.ExtensionsV1beta1().
 					Ingresses(function.Namespace).
-					Delete(kubecommon.IngressNameFromFunctionName(function.Name), deleteOptions)
+					Delete(kube.IngressNameFromFunctionName(function.Name), deleteOptions)
 				return nil, err
 
 			}
@@ -1183,7 +1182,7 @@ func (lc *lazyClient) createOrUpdateCronJob(functionLabels labels.Set,
 
 	// prepare cron job meta
 	cronJobMeta := metav1.ObjectMeta{
-		Name:      kubecommon.CronJobName(),
+		Name:      kube.CronJobName(),
 		Namespace: function.Namespace,
 		Labels:    cronJobMetaLabels,
 	}
@@ -1701,7 +1700,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 
 	lc.logger.DebugWith("Adding ingress",
 		"function", function.Name,
-		"ingressName", kubecommon.IngressNameFromFunctionName(function.Name),
+		"ingressName", kube.IngressNameFromFunctionName(function.Name),
 		"labels", functionLabels,
 		"host", ingress.Host,
 		"paths", ingress.Paths,
@@ -1723,7 +1722,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 		httpIngressPath := extv1beta1.HTTPIngressPath{
 			Path: formattedPath,
 			Backend: extv1beta1.IngressBackend{
-				ServiceName: kubecommon.ServiceNameFromFunctionName(function.Name),
+				ServiceName: kube.ServiceNameFromFunctionName(function.Name),
 				ServicePort: intstr.IntOrString{
 					Type:   intstr.String,
 					StrVal: containerHTTPPortName,
@@ -1847,7 +1846,7 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 
 	*configMap = v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      kubecommon.ConfigMapNameFromFunctionName(function.Name),
+			Name:      kube.ConfigMapNameFromFunctionName(function.Name),
 			Namespace: function.Namespace,
 		},
 		Data: map[string]string{
@@ -1870,7 +1869,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 	processorConfigVolume := functionconfig.Volume{}
 	processorConfigVolume.Volume.Name = processorConfigVolumeName
 	processorConfigMapVolumeSource := v1.ConfigMapVolumeSource{}
-	processorConfigMapVolumeSource.Name = kubecommon.ConfigMapNameFromFunctionName(function.Name)
+	processorConfigMapVolumeSource.Name = kube.ConfigMapNameFromFunctionName(function.Name)
 	processorConfigVolume.Volume.ConfigMap = &processorConfigMapVolumeSource
 	processorConfigVolume.VolumeMount.Name = processorConfigVolumeName
 	processorConfigVolume.VolumeMount.MountPath = "/etc/nuclio/config/processor"

@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"net/http"
 	"regexp"
 	"strings"
@@ -298,10 +299,23 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 }
 
 // Validation and enforcement of required function creation logic
-func (ap *Platform) ValidateCreateFunctionOptions(functionConfig *functionconfig.Config) error {
+func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config) error {
+
+	if common.StringInSlice(functionConfig.Meta.Name, ap.ResolveReservedResourceNames()) {
+		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function name %s is reserved and cannot be used.",
+			functionConfig.Meta.Name))
+	}
+
+	if err := ap.validateTriggers(functionConfig); err != nil {
+		return errors.Wrap(err, "Triggers validation failed")
+	}
+
+	if err := ap.validateMinMaxReplicas(functionConfig); err != nil {
+		return errors.Wrap(err, "Min max replicas validation failed")
+	}
 
 	if err := functionConfig.Validate(); err != nil {
-		return errors.Wrap(err, "Failed to validate function config")
+		return errors.Wrap(err, "Function config validation failed")
 	}
 
 	if err := ap.validateProjectExists(functionConfig); err != nil {
@@ -324,6 +338,18 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 	}
 
 	return nil
+}
+
+// ResolveReservedFunctionNames returns a list of reserved resource names
+func (ap *Platform) ResolveReservedResourceNames() []string {
+
+	// these names are reserved for Nuclio internal purposes and to avoid collisions with nuclio internal resources
+	return []string{
+		"dashboard",
+		"controller",
+		"dlx",
+		"scaler",
+	}
 }
 
 // CreateFunctionInvocation will invoke a previously deployed function
@@ -866,6 +892,58 @@ func (ap *Platform) enrichMinMaxReplicas(functionConfig *functionconfig.Config) 
 		functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
 	}
 }
+
+
+func (ap *Platform) validateMinMaxReplicas(functionConfig *functionconfig.Config) error {
+	minReplicas := functionConfig.Spec.MinReplicas
+	maxReplicas := functionConfig.Spec.MaxReplicas
+
+	if minReplicas != nil {
+		if maxReplicas == nil && *minReplicas == 0 {
+			return errors.New("Max replicas must be set when min replicas is zero")
+		}
+		if maxReplicas != nil && *minReplicas > *maxReplicas {
+			return errors.New("Min replicas must be less than or equal to max replicas")
+		}
+	}
+	if maxReplicas != nil && *maxReplicas == 0 {
+		return errors.New("Max replicas must be greater than zero")
+	}
+
+	return nil
+}
+
+func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) error {
+	var httpTriggerExists bool
+
+	// validate ingresses structure correctness
+	if _, err := functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers); err != nil {
+		return nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to get ingresses from triggers"))
+	}
+
+	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
+
+		// no more workers than limitation allows
+		if triggerInstance.MaxWorkers > trigger.MaxWorkersLimit {
+			return errors.Errorf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
+				triggerName,
+				triggerInstance.MaxWorkers,
+				trigger.MaxWorkersLimit)
+		}
+
+		// no more than one http trigger is allowed
+		if triggerInstance.Kind == "http" {
+			if !httpTriggerExists {
+				httpTriggerExists = true
+				continue
+			}
+			return errors.New("There's more than one http trigger (unsupported)")
+		}
+	}
+
+	return nil
+}
+
 
 func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error {
 

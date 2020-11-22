@@ -35,7 +35,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
-	kubecommon "github.com/nuclio/nuclio/pkg/platform/kube/common"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
@@ -1212,7 +1211,7 @@ func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocati
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "deploy-reverser" + uniqueSuffix
 	imageName := "nuclio/processor-" + functionName
-	serviceName := kubecommon.ServiceNameFromFunctionName(functionName)
+	serviceName := kube.ServiceNameFromFunctionName(functionName)
 	url, port := kube.GetDomainNameInvokeURL(serviceName, suite.namespace)
 	functionClusterURL := fmt.Sprintf("http://%s:%d", url, port)
 

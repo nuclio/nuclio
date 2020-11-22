@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package common
+package kube
 
 import (
 	"fmt"
@@ -63,16 +63,4 @@ func ServiceNameFromFunctionName(functionName string) string {
 
 func CronJobName() string {
 	return fmt.Sprintf("nuclio-cron-job-%s", xid.New().String())
-}
-
-// ResolveReservedFunctionNames returns a list of reserved resource names
-func ResolveReservedResourceNames() []string {
-
-	// these names are reserved for Nuclio internal purposes and to avoid collisions with nuclio internal resources
-	return []string{
-		"dashboard",
-		"controller",
-		"dlx",
-		"scaler",
-	}
 }

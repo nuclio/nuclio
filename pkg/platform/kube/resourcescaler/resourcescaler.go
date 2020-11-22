@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
-	kubecommon "github.com/nuclio/nuclio/pkg/platform/kube/common"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -167,7 +167,7 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 }
 
 func (n *NuclioResourceScaler) ResolveServiceName(resource scaler_types.Resource) (string, error) {
-	return kubecommon.ServiceNameFromFunctionName(resource.Name), nil
+	return kube.ServiceNameFromFunctionName(resource.Name), nil
 }
 
 func (n *NuclioResourceScaler) parseScaleResources(function nuclioio.NuclioFunction) ([]scaler_types.ScaleResource, error) {

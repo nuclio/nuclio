@@ -13,7 +13,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
-	kubecommon "github.com/nuclio/nuclio/pkg/platform/kube/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
 	"github.com/nuclio/errors"
@@ -150,7 +149,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string) {
 	lc.Logger.DebugWithCtx(ctx, "Deleting api gateway base ingress", "name", name)
 
-	err := lc.ingressManager.DeleteByName(kubecommon.IngressNameFromAPIGatewayName(name, false), namespace, true)
+	err := lc.ingressManager.DeleteByName(kube.IngressNameFromAPIGatewayName(name, false), namespace, true)
 	if err != nil {
 		lc.Logger.WarnWithCtx(ctx, "Failed to delete base ingress. Continuing with deletion",
 			"err", errors.Cause(err))
@@ -158,7 +157,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 
 	lc.Logger.DebugWithCtx(ctx, "Deleting api gateway canary ingress", "name", name)
 
-	err = lc.ingressManager.DeleteByName(kubecommon.IngressNameFromAPIGatewayName(name, true), namespace, true)
+	err = lc.ingressManager.DeleteByName(kube.IngressNameFromAPIGatewayName(name, true), namespace, true)
 	if err != nil {
 		lc.Logger.WarnWithCtx(ctx, "Failed to delete canary ingress. Continuing with deletion",
 			"err", errors.Cause(err))
@@ -171,7 +170,7 @@ func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGat
 
 	// remove old canary ingress if it exists
 	// this works thanks to an assumption that ingress names == api gateway name
-	previousCanaryIngressName := kubecommon.IngressNameFromAPIGatewayName(apiGateway.Name, true)
+	previousCanaryIngressName := kube.IngressNameFromAPIGatewayName(apiGateway.Name, true)
 	err := lc.ingressManager.DeleteByName(previousCanaryIngressName, apiGateway.Namespace, true)
 	if err != nil {
 		lc.Logger.WarnWithCtx(ctx,
@@ -261,7 +260,7 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeBasicAuth
 		commonIngressSpec.Authentication = &ingress.Authentication{
 			BasicAuth: &ingress.BasicAuth{
-				Name:     kubecommon.BasicAuthNameFromAPIGatewayName(apiGateway.Name),
+				Name:     kube.BasicAuthNameFromAPIGatewayName(apiGateway.Name),
 				Username: apiGateway.Spec.Authentication.BasicAuth.Username,
 				Password: apiGateway.Spec.Authentication.BasicAuth.Password,
 			},
@@ -281,7 +280,7 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 
 	// if percentage is given, it is the canary deployment
 	canaryDeployment := upstream.Percentage != 0
-	commonIngressSpec.Name = kubecommon.IngressNameFromAPIGatewayName(apiGateway.Name, canaryDeployment)
+	commonIngressSpec.Name = kube.IngressNameFromAPIGatewayName(apiGateway.Name, canaryDeployment)
 
 	commonIngressSpec.Annotations = lc.resolveCommonAnnotations(canaryDeployment, upstream.Percentage)
 	for annotationKey, annotationValue := range upstream.ExtraAnnotations {
@@ -308,7 +307,7 @@ func (lc *lazyClient) getNuclioFunctionServiceNameAndPort(upstream platform.APIG
 	// it was "stupified" to this logic, in order to prevent api-gateway failing when a function has no service
 	// (which may happen when a function is imported, but not yet deployed, and in that point we import an api-gateway
 	// that has this function as an upstream)
-	serviceName := kubecommon.ServiceNameFromFunctionName(upstream.Nucliofunction.Name)
+	serviceName := kube.ServiceNameFromFunctionName(upstream.Nucliofunction.Name)
 
 	// use default port
 	return serviceName, abstract.FunctionContainerHTTPPort, nil

@@ -26,10 +26,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
-	kubecommon "github.com/nuclio/nuclio/pkg/platform/kube/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
@@ -186,7 +186,7 @@ func (suite *KubeTestSuite) GetFunction(getFunctionOptions *platform.GetFunction
 func (suite *KubeTestSuite) GetFunctionDeployment(functionName string) *appsv1.Deployment {
 	deploymentInstance := &appsv1.Deployment{}
 	suite.GetResourceAndUnmarshal("deployment",
-		kubecommon.DeploymentNameFromFunctionName(functionName),
+		kube.DeploymentNameFromFunctionName(functionName),
 		deploymentInstance)
 	return deploymentInstance
 }
@@ -285,7 +285,7 @@ func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *pla
 			Ingresses(suite.Namespace).
 			Get(
 				// TODO: consider canary ingress as well
-				kubecommon.IngressNameFromAPIGatewayName(createAPIGatewayOptions.APIGatewayConfig.Meta.Name, false),
+				kube.IngressNameFromAPIGatewayName(createAPIGatewayOptions.APIGatewayConfig.Meta.Name, false),
 				metav1.GetOptions{})
 		if err != nil && !exist && kubeapierrors.IsNotFound(err) {
 			suite.Logger.DebugWith("API gateway ingress removed")

@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/nuclio/logger"
 	"io"
 	"io/ioutil"
 	"os"
@@ -13,10 +14,14 @@ import (
 	"github.com/nuclio/errors"
 )
 
-func FormatFunctionIngresses(function platform.Function) string {
+func FormatFunctionIngresses(logger logger.Logger, function platform.Function) string {
 	var formattedIngresses string
 
-	ingresses, _ := function.GetIngresses()
+	ingresses, err := function.GetIngresses()
+	if err != nil {
+		logger.WarnWith("Failed to get ingresses. Returning empty result", "err", err)
+		return ""
+	}
 
 	for _, ingress := range ingresses {
 		host := ingress.Host
