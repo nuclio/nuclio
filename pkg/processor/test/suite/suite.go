@@ -32,7 +32,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
-	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/rs/xid"
@@ -215,17 +214,14 @@ func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFun
 	onAfterContainerRun OnAfterContainerRun) *platform.CreateFunctionResult {
 	return suite.deployFunctionPopulateMissingFields(createFunctionOptions,
 		onAfterContainerRun,
-		false,
-		nil)
+		false)
 }
 
 func (suite *TestSuite) DeployFunctionExpectError(createFunctionOptions *platform.CreateFunctionOptions,
-	expectedErrorRootCause error,
 	onAfterContainerRun OnAfterContainerRun) *platform.CreateFunctionResult {
 	return suite.deployFunctionPopulateMissingFields(createFunctionOptions,
 		onAfterContainerRun,
-		true,
-		expectedErrorRootCause)
+		true)
 }
 
 func (suite *TestSuite) DeployFunctionAndRedeploy(createFunctionOptions *platform.CreateFunctionOptions,

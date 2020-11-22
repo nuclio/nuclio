@@ -3,7 +3,6 @@ package common
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nuclio/logger"
 	"io"
 	"io/ioutil"
 	"os"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 )
 
 func FormatFunctionIngresses(logger logger.Logger, function platform.Function) string {

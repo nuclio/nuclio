@@ -2,7 +2,6 @@ package abstract
 
 import (
 	"bufio"
-	"github.com/nuclio/errors"
 	"io/ioutil"
 	"os"
 	"path"
@@ -14,6 +13,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/rs/xid"

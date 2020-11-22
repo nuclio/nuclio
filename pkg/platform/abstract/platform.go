@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"net/http"
 	"regexp"
 	"strings"
@@ -34,6 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"

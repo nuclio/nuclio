@@ -87,7 +87,7 @@ def handler(context, event):
 			"Resource version should be changed between deployments")
 
 		// we expect a failure due to a stale resource version
-		suite.DeployFunctionExpectError(createFunctionOptions, nil, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 			suite.Require().Nil(deployResult, "Deployment results is nil when creation failed")
 			return true
 		})
