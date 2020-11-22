@@ -87,7 +87,6 @@ func (suite *AbstractPlatformTestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
 }
 
-
 func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesStructure() {
 	functionConfig := functionconfig.NewConfig()
 	functionConfig.Meta.Name = "f1"
@@ -145,7 +144,7 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 			},
 			ExpectedError: "",
 		},
-	}{
+	} {
 		// set test triggers
 		functionConfig.Spec.Triggers = testCase.Triggers
 
