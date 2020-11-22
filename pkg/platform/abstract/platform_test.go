@@ -88,7 +88,7 @@ func (suite *AbstractPlatformTestSuite) SetupTest() {
 }
 
 
-func (suite *TestAbstractSuite) TestValidationFailOnMalformedIngressesStructure() {
+func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesStructure() {
 	functionConfig := functionconfig.NewConfig()
 	functionConfig.Meta.Name = "f1"
 
