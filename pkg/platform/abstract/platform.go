@@ -115,7 +115,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		return onAfterConfigUpdated(updatedFunctionConfig)
 	}
 
-	functionBuildRequired, err := ap.functionBuildRequired(createFunctionOptions)
+	functionBuildRequired, err := ap.functionBuildRequired(&createFunctionOptions.FunctionConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed determining whether function should build")
 	}
@@ -191,56 +191,56 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	return deployResult, nil
 }
 
-// Enrichment of create function options
-func (ap *Platform) EnrichCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
+// Enrichment of function config
+func (ap *Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) error {
 
 	// if labels is nil assign an empty map to it
-	if createFunctionOptions.FunctionConfig.Meta.Labels == nil {
-		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{}
+	if functionConfig.Meta.Labels == nil {
+		functionConfig.Meta.Labels = map[string]string{}
 	}
 
-	if err := ap.enrichProjectName(createFunctionOptions); err != nil {
+	if err := ap.enrichProjectName(functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching project name")
 	}
 
-	if err := ap.enrichImageName(createFunctionOptions); err != nil {
+	if err := ap.enrichImageName(functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching image name")
 	}
 
-	ap.enrichMinMaxReplicas(createFunctionOptions)
+	ap.enrichMinMaxReplicas(functionConfig)
 
 	// enrich with registry credential secret name
-	if createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets == "" {
-		createFunctionOptions.FunctionConfig.Spec.ImagePullSecrets =
+	if functionConfig.Spec.ImagePullSecrets == "" {
+		functionConfig.Spec.ImagePullSecrets =
 			ap.GetDefaultRegistryCredentialsSecretName()
 	}
 
 	// `python` is just an alias
-	if createFunctionOptions.FunctionConfig.Spec.Runtime == "python" {
-		createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
+	if functionConfig.Spec.Runtime == "python" {
+		functionConfig.Spec.Runtime = "python:3.6"
 	}
 
-	ap.enrichDefaultHTTPTrigger(createFunctionOptions)
+	ap.enrichDefaultHTTPTrigger(functionConfig)
 
 	// enrich with security context
-	if createFunctionOptions.FunctionConfig.Spec.SecurityContext == nil {
-		createFunctionOptions.FunctionConfig.Spec.SecurityContext = &v1.PodSecurityContext{}
+	if functionConfig.Spec.SecurityContext == nil {
+		functionConfig.Spec.SecurityContext = &v1.PodSecurityContext{}
 	}
 
 	return nil
 }
 
-func (ap *Platform) enrichDefaultHTTPTrigger(createFunctionOptions *platform.CreateFunctionOptions) {
-	if len(functionconfig.GetTriggersByKind(createFunctionOptions.FunctionConfig.Spec.Triggers, "http")) > 0 {
+func (ap *Platform) enrichDefaultHTTPTrigger(functionConfig *functionconfig.Config) {
+	if len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) > 0 {
 		return
 	}
 
-	if createFunctionOptions.FunctionConfig.Spec.Triggers == nil {
-		createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
+	if functionConfig.Spec.Triggers == nil {
+		functionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
 	}
 
 	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
-	createFunctionOptions.FunctionConfig.Spec.Triggers[defaultHTTPTrigger.Name] = defaultHTTPTrigger
+	functionConfig.Spec.Triggers[defaultHTTPTrigger.Name] = defaultHTTPTrigger
 }
 
 // Validate a function against its existing instance
@@ -298,13 +298,13 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 }
 
 // Validation and enforcement of required function creation logic
-func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
+func (ap *Platform) ValidateCreateFunctionOptions(functionConfig *functionconfig.Config) error {
 
-	if err := createFunctionOptions.FunctionConfig.Validate(); err != nil {
+	if err := functionConfig.Validate(); err != nil {
 		return errors.Wrap(err, "Failed to validate function config")
 	}
 
-	if err := ap.validateProjectExists(createFunctionOptions); err != nil {
+	if err := ap.validateProjectExists(functionConfig); err != nil {
 		return errors.Wrap(err, "Project existence validation failed")
 	}
 
@@ -487,28 +487,28 @@ func (ap *Platform) GetContainerBuilderKind() string {
 	return ap.ContainerBuilder.GetKind()
 }
 
-func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
+func (ap *Platform) functionBuildRequired(functionConfig *functionconfig.Config) (bool, error) {
 
 	// if neverBuild was passed explicitly don't build
-	if createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
+	if functionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
 		return false, nil
 	}
 
 	// if the function contains source code, an image name or a path somewhere - we need to rebuild. the shell
 	// runtime supports a case where user just tells image name and we build around the handler without a need
 	// for a path
-	if createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode != "" ||
-		createFunctionOptions.FunctionConfig.Spec.Build.Path != "" ||
-		createFunctionOptions.FunctionConfig.Spec.Build.Image != "" {
+	if functionConfig.Spec.Build.FunctionSourceCode != "" ||
+		functionConfig.Spec.Build.Path != "" ||
+		functionConfig.Spec.Build.Image != "" {
 		return true, nil
 	}
 
-	if createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType == build.S3EntryType {
+	if functionConfig.Spec.Build.CodeEntryType == build.S3EntryType {
 		return true, nil
 	}
 
 	// if user didn't give any of the above but _did_ specify an image to run from, just dont build
-	if createFunctionOptions.FunctionConfig.Spec.Image != "" {
+	if functionConfig.Spec.Image != "" {
 		return false, nil
 	}
 
@@ -785,11 +785,11 @@ func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage, wo
 }
 
 // Function must have project name - if it was not given - set to default project
-func (ap *Platform) enrichProjectName(createFunctionOptions *platform.CreateFunctionOptions) error {
+func (ap *Platform) enrichProjectName(functionConfig *functionconfig.Config) error {
 
 	// if no project name was given, set it to the default project
-	if createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] == "" {
-		createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = platform.DefaultProjectName
+	if functionConfig.Meta.Labels["nuclio.io/project-name"] == "" {
+		functionConfig.Meta.Labels["nuclio.io/project-name"] = platform.DefaultProjectName
 		ap.Logger.Debug("No project name specified. Setting to default")
 	}
 
@@ -797,14 +797,14 @@ func (ap *Platform) enrichProjectName(createFunctionOptions *platform.CreateFunc
 }
 
 // If a user specify the image name to be built - add "projectName-functionName-" prefix to it
-func (ap *Platform) enrichImageName(createFunctionOptions *platform.CreateFunctionOptions) error {
+func (ap *Platform) enrichImageName(functionConfig *functionconfig.Config) error {
 	if ap.ImageNamePrefixTemplate == "" {
 		return nil
 	}
-	functionName := createFunctionOptions.FunctionConfig.Meta.Name
-	projectName := createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"]
+	functionName := functionConfig.Meta.Name
+	projectName := functionConfig.Meta.Labels["nuclio.io/project-name"]
 
-	functionBuildRequired, err := ap.functionBuildRequired(createFunctionOptions)
+	functionBuildRequired, err := ap.functionBuildRequired(functionConfig)
 	if err != nil {
 		return errors.Wrap(err, "Failed determining whether function build is required for image name enrichment")
 	}
@@ -812,7 +812,7 @@ func (ap *Platform) enrichImageName(createFunctionOptions *platform.CreateFuncti
 	// if build is not required or custom image name was not asked enrichment is irrelevant
 	// note that leaving Spec.Build.Image will cause further enrichment deeper in build/builder.go.
 	// TODO: Revisit the need for this logic being stretched on so many places
-	if !functionBuildRequired || createFunctionOptions.FunctionConfig.Spec.Build.Image == "" {
+	if !functionBuildRequired || functionConfig.Spec.Build.Image == "" {
 		return nil
 	}
 
@@ -823,22 +823,22 @@ func (ap *Platform) enrichImageName(createFunctionOptions *platform.CreateFuncti
 	}
 
 	// avoid re-enrichment
-	if !strings.HasPrefix(createFunctionOptions.FunctionConfig.Spec.Build.Image, imagePrefix) {
+	if !strings.HasPrefix(functionConfig.Spec.Build.Image, imagePrefix) {
 
-		createFunctionOptions.FunctionConfig.Spec.Build.Image = fmt.Sprintf("%s%s",
-			imagePrefix, createFunctionOptions.FunctionConfig.Spec.Build.Image)
+		functionConfig.Spec.Build.Image = fmt.Sprintf("%s%s",
+			imagePrefix, functionConfig.Spec.Build.Image)
 	}
 
 	return nil
 }
 
-func (ap *Platform) validateProjectExists(createFunctionOptions *platform.CreateFunctionOptions) error {
+func (ap *Platform) validateProjectExists(functionConfig *functionconfig.Config) error {
 
 	// validate the project exists
 	getProjectsOptions := &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
-			Name:      createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
-			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+			Name:      functionConfig.Meta.Labels["nuclio.io/project-name"],
+			Namespace: functionConfig.Meta.Namespace,
 		},
 	}
 	projects, err := ap.platform.GetProjects(getProjectsOptions)
@@ -852,18 +852,18 @@ func (ap *Platform) validateProjectExists(createFunctionOptions *platform.Create
 	return nil
 }
 
-func (ap *Platform) enrichMinMaxReplicas(createFunctionOptions *platform.CreateFunctionOptions) {
+func (ap *Platform) enrichMinMaxReplicas(functionConfig *functionconfig.Config) {
 
 	// if min replicas was not set, and max replicas is set, assign max replicas to min replicas
-	if createFunctionOptions.FunctionConfig.Spec.MinReplicas == nil &&
-		createFunctionOptions.FunctionConfig.Spec.MaxReplicas != nil {
-		createFunctionOptions.FunctionConfig.Spec.MinReplicas = createFunctionOptions.FunctionConfig.Spec.MaxReplicas
+	if functionConfig.Spec.MinReplicas == nil &&
+		functionConfig.Spec.MaxReplicas != nil {
+		functionConfig.Spec.MinReplicas = functionConfig.Spec.MaxReplicas
 	}
 
 	// if max replicas was not set, and min replicas is set, assign min replicas to max replicas
-	if createFunctionOptions.FunctionConfig.Spec.MaxReplicas == nil &&
-		createFunctionOptions.FunctionConfig.Spec.MinReplicas != nil {
-		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = createFunctionOptions.FunctionConfig.Spec.MinReplicas
+	if functionConfig.Spec.MaxReplicas == nil &&
+		functionConfig.Spec.MinReplicas != nil {
+		functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
 	}
 }
 

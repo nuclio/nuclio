@@ -139,8 +139,8 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = MinMaxReplicas.MaxReplicas
 		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-		err := suite.Platform.EnrichCreateFunctionOptions(createFunctionOptions)
-		suite.Require().NoError(err, "Failed to enrich function")
+		err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+		suite.Require().NoError(err, "Failed to enrich function config")
 
 		err = suite.Platform.ValidateCreateFunctionOptions(createFunctionOptions)
 		if MinMaxReplicas.shouldFailValidation {

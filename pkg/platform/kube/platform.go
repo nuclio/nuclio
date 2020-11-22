@@ -141,16 +141,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// replace logger
 	createFunctionOptions.Logger = logStream.GetLogger()
 
-	if err := p.EnrichCreateFunctionOptions(createFunctionOptions); err != nil {
-		return nil, errors.Wrap(err, "Create function options enrichment failed")
-	}
-
-	if err := p.enrichHTTPTriggersWithServiceType(createFunctionOptions); err != nil {
-		return nil, errors.Wrap(err, "Failed to enrich HTTP triggers with service type")
-	}
-
-	if err := p.ValidateCreateFunctionOptions(createFunctionOptions); err != nil {
-		return nil, errors.Wrap(err, "Create function options validation failed")
+	if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
+		return nil, errors.Wrap(err, "Failed while enriching and validating function config")
 	}
 
 	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
@@ -231,6 +223,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// the builder does that
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
 		var err error
+
+		if err := p.enrichAndValidateFunctionConfig(updatedFunctionConfig); err != nil {
+			return errors.Wrap(err, "Failed while enriching and validating the updated function config")
+		}
 
 		existingFunctionInstance, err = p.getFunction(updatedFunctionConfig.Meta.Namespace,
 			updatedFunctionConfig.Meta.Name)
@@ -923,6 +919,18 @@ func (p *Platform) GetAllowedAuthenticationModes() ([]string, error) {
 	}
 }
 
+func (p *Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) error {
+	if err := p.Platform.EnrichFunctionConfig(functionConfig); err != nil {
+		return errors.Wrap(err, "Function config enrichment failed")
+	}
+
+	if err := p.enrichHTTPTriggersWithServiceType(functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich HTTP triggers with service type")
+	}
+
+	return nil
+}
+
 func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
 	functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
 		Name:      functionName,
@@ -1106,20 +1114,32 @@ func (p *Platform) enrichAndValidateAPIGatewayName(apiGateway *nuclioio.NuclioAP
 	return nil
 }
 
-func (p *Platform) enrichHTTPTriggersWithServiceType(createFunctionOptions *platform.CreateFunctionOptions) error {
+func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfig.Config) error {
+	if err := p.EnrichFunctionConfig(functionConfig); err != nil {
+		return errors.Wrap(err, "Function config enrichment failed")
+	}
+
+	if err := p.ValidateCreateFunctionOptions(functionConfig); err != nil {
+		return errors.Wrap(err, "Function config validation failed")
+	}
+
+	return nil
+}
+
+func (p *Platform) enrichHTTPTriggersWithServiceType(functionConfig *functionconfig.Config) error {
 
 	var err error
 
 	// for backwards compatibility
-	serviceType := createFunctionOptions.FunctionConfig.Spec.ServiceType
+	serviceType := functionConfig.Spec.ServiceType
 	if serviceType == "" {
 		if serviceType, err = p.getDefaultServiceType(); err != nil {
 			return errors.Wrap(err, "Failed getting default service type")
 		}
 	}
 
-	for triggerName, trigger := range functionconfig.GetTriggersByKind(createFunctionOptions.FunctionConfig.Spec.Triggers, "http") {
-		createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName] = p.enrichTriggerWithServiceType(createFunctionOptions,
+	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
+		functionConfig.Spec.Triggers[triggerName] = p.enrichTriggerWithServiceType(functionConfig,
 			trigger,
 			serviceType)
 	}
@@ -1143,7 +1163,7 @@ func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platf
 	return nil
 }
 
-func (p *Platform) enrichTriggerWithServiceType(createFunctionOptions *platform.CreateFunctionOptions,
+func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.Config,
 	trigger functionconfig.Trigger,
 	serviceType v1.ServiceType) functionconfig.Trigger {
 
@@ -1154,7 +1174,7 @@ func (p *Platform) enrichTriggerWithServiceType(createFunctionOptions *platform.
 	if triggerServiceType, serviceTypeExists := trigger.Attributes["serviceType"]; !serviceTypeExists || triggerServiceType == "" {
 
 		p.Logger.DebugWith("Enriching function HTTP trigger with service type",
-			"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
+			"functionName", functionConfig.Meta.Name,
 			"triggerName", trigger.Name,
 			"serviceType", serviceType)
 		trigger.Attributes["serviceType"] = serviceType

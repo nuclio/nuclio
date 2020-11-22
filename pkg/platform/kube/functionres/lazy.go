@@ -196,10 +196,6 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 		}
 	}
 
-	if err := lc.validateFunction(function); err != nil {
-		return nil, errors.Wrap(err, "Failed to validate function")
-	}
-
 	// create or update the applicable configMap
 	resources.configMap, err = lc.createOrUpdateConfigMap(function)
 	if err != nil {
@@ -596,16 +592,6 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 		lc.logger.DebugWith("Resource updated", "name", resourceName)
 		return resource, nil
 	}
-}
-
-func (lc *lazyClient) validateFunction(function *nuclioio.NuclioFunction) error {
-
-	// validate function config
-	if err := function.GetConfig().Validate(); err != nil {
-		return errors.Wrap(err, "Failed to validate function config")
-	}
-
-	return nil
 }
 
 func (lc *lazyClient) createOrUpdateConfigMap(function *nuclioio.NuclioFunction) (*v1.ConfigMap, error) {

@@ -131,12 +131,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// replace logger
 	createFunctionOptions.Logger = logStream.GetLogger()
 
-	if err := p.EnrichCreateFunctionOptions(createFunctionOptions); err != nil {
-		return nil, errors.Wrap(err, "Create function options enrichment failed")
-	}
-
-	if err := p.ValidateCreateFunctionOptions(createFunctionOptions); err != nil {
-		return nil, errors.Wrap(err, "Create function options validation failed")
+	if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
+		return nil, errors.Wrap(err, "Failed while enriching and validating function config")
 	}
 
 	// local currently doesn't support registries of any kind. remove push / run registry
@@ -196,6 +192,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
 		createFunctionOptions.Logger.DebugWith("Creating shadow function",
 			"name", createFunctionOptions.FunctionConfig.Meta.Name)
+
+		if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
+			return errors.Wrap(err, "Failed while enriching and validating the updated function config")
+		}
 
 		// create the function in the store
 		if err = p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
@@ -1061,4 +1061,16 @@ func (p *Platform) compileDeployFunctionLabels(createFunctionOptions *platform.C
 		labels["nuclio.io/annotations"] = string(marshalledAnnotations)
 	}
 	return labels
+}
+
+func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfig.Config) error {
+	if err := p.EnrichFunctionConfig(functionConfig); err != nil {
+		return errors.Wrap(err, "Function config enrichment failed")
+	}
+
+	if err := p.ValidateCreateFunctionOptions(functionConfig); err != nil {
+		return errors.Wrap(err, "Function config validation failed")
+	}
+
+	return nil
 }
