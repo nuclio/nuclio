@@ -18,6 +18,7 @@ package platform
 
 import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )
@@ -44,6 +45,12 @@ type Platform interface {
 
 	// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 	CreateFunction(createFunctionOptions *CreateFunctionOptions) (*CreateFunctionResult, error)
+
+	// Enrich function config upon creating function
+	EnrichFunctionConfig(functionConfig *functionconfig.Config) error
+
+	// Validate function config upon creating function
+	ValidateFunctionConfig(functionConfig *functionconfig.Config) error
 
 	// UpdateFunction will update a previously deployed function
 	UpdateFunction(updateFunctionOptions *UpdateFunctionOptions) error
@@ -131,10 +138,10 @@ type Platform interface {
 
 	RenderImageNamePrefixTemplate(projectName string, functionName string) (string, error)
 
-	// Get scale to zero configuration
+	// GetScaleToZeroConfiguration returns scale to zero configuration
 	GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error)
 
-	// Get allowed authentication modes
+	// GetAllowedAuthenticationModes returns allowed authentication modes
 	GetAllowedAuthenticationModes() ([]string, error)
 
 	// GetNamespaces returns all the namespaces in the platform
@@ -162,10 +169,10 @@ type Platform interface {
 	TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error)
 
 	// GetOnbuildImageRegistry returns onbuild base registry
-	GetOnbuildImageRegistry(registry string) string
+	GetOnbuildImageRegistry(registry string, runtime runtime.Runtime) (string, error)
 
 	// GetBaseImageRegistry returns base image registry
-	GetBaseImageRegistry(registry string) string
+	GetBaseImageRegistry(registry string, runtime runtime.Runtime) (string, error)
 
 	// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
 	GetDefaultRegistryCredentialsSecretName() string

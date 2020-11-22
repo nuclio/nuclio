@@ -12,6 +12,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -47,7 +48,7 @@ func (mp *TestPlatform) GetProjects(getProjectsOptions *platform.GetProjectsOpti
 	}, nil
 }
 
-type TestAbstractSuite struct {
+type AbstractPlatformTestSuite struct {
 	suite.Suite
 	Logger           logger.Logger
 	DockerClient     dockerclient.Client
@@ -61,7 +62,7 @@ type TestAbstractSuite struct {
 	DefaultNamespace string
 }
 
-func (suite *TestAbstractSuite) SetupSuite() {
+func (suite *AbstractPlatformTestSuite) SetupSuite() {
 	var err error
 
 	common.SetVersionFromEnv()
@@ -71,22 +72,18 @@ func (suite *TestAbstractSuite) SetupSuite() {
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err, "Logger should create successfully")
 
-	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
-	suite.Require().NoError(err, "Docker client should create successfully")
-
 	testPlatform := &TestPlatform{
 		logger:         suite.Logger,
 		suiteAssertion: suite.Assert(),
 	}
-	suite.Platform, err = NewPlatform(suite.Logger, testPlatform, nil)
+	suite.Platform, err = NewPlatform(suite.Logger, testPlatform, &platformconfig.Config{})
 	suite.Require().NoError(err, "Could not create platform")
 
-	suite.Platform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(suite.Logger,
-		&containerimagebuilderpusher.ContainerBuilderConfiguration{})
+	suite.Platform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
 	suite.Require().NoError(err)
 }
 
-func (suite *TestAbstractSuite) SetupTest() {
+func (suite *AbstractPlatformTestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
 }
 
@@ -164,7 +161,7 @@ func (suite *TestAbstractSuite) TestValidationFailOnMalformedIngressesStructure(
 }
 
 // Test function with invalid min max replicas
-func (suite *TestAbstractSuite) TestMinMaxReplicas() {
+func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 	zero := 0
 	one := 1
 	two := 2
@@ -240,23 +237,111 @@ func (suite *TestAbstractSuite) TestMinMaxReplicas() {
 	}
 }
 
-func (suite *TestAbstractSuite) TestGetProcessorLogsOnMultiWorker() {
+func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() {
+	for idx, testCase := range []struct {
+		triggers                 map[string]functionconfig.Trigger
+		expectedEnrichedTriggers map[string]functionconfig.Trigger
+		shouldFailValidation     bool
+	}{
+
+		// enrich maxWorkers to 1
+		// enrich name from key
+		{
+			triggers: map[string]functionconfig.Trigger{
+				"some-trigger": {
+					Kind: "http",
+				},
+			},
+			expectedEnrichedTriggers: map[string]functionconfig.Trigger{
+				"some-trigger": {
+					Kind:       "http",
+					MaxWorkers: 1,
+					Name:       "some-trigger",
+				},
+			},
+		},
+
+		// enrich with default http trigger
+		{
+			triggers: nil,
+			expectedEnrichedTriggers: func() map[string]functionconfig.Trigger {
+				defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+				return map[string]functionconfig.Trigger{
+					defaultHTTPTrigger.Name: defaultHTTPTrigger,
+				}
+			}(),
+		},
+
+		// do not allow more than 1 http trigger
+		{
+			triggers: map[string]functionconfig.Trigger{
+				"firstHTTPTrigger": {
+					Kind: "http",
+				},
+				"secondHTTPTrigger": {
+					Kind: "http",
+				},
+			},
+			shouldFailValidation: true,
+		},
+
+		// do not allow empty name triggers
+		{
+			triggers: map[string]functionconfig.Trigger{
+				"": {
+					Kind: "http",
+				},
+			},
+			shouldFailValidation: true,
+		},
+	} {
+		// name it with index and shift with 65 to get A as first letter
+		functionName := string(rune(idx + 65))
+		functionConfig := *functionconfig.NewConfig()
+
+		createFunctionOptions := &platform.CreateFunctionOptions{
+			Logger:         suite.Logger,
+			FunctionConfig: functionConfig,
+		}
+		createFunctionOptions.FunctionConfig.Meta.Name = functionName
+		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+			"nuclio.io/project-name": platform.DefaultProjectName,
+		}
+		createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
+		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+
+		err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+		suite.Require().NoError(err, "Failed to enrich function")
+
+		err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+		if testCase.shouldFailValidation {
+			suite.Require().Error(err, "Validation passed unexpectedly")
+			continue
+		}
+
+		suite.Require().NoError(err, "Validation failed unexpectedly")
+		suite.Equal(testCase.expectedEnrichedTriggers,
+			createFunctionOptions.FunctionConfig.Spec.Triggers)
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsOnMultiWorker() {
 	suite.testGetProcessorLogsTestFromFile(MultiWorkerFunctionLogsFilePath)
 }
 
-func (suite *TestAbstractSuite) TestGetProcessorLogsOnPanic() {
+func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsOnPanic() {
 	suite.testGetProcessorLogsTestFromFile(PanicFunctionLogsFilePath)
 }
 
-func (suite *TestAbstractSuite) TestGetProcessorLogsOnGoWithCallStack() {
+func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsOnGoWithCallStack() {
 	suite.testGetProcessorLogsTestFromFile(GoWithCallStackFunctionLogsFilePath)
 }
 
-func (suite *TestAbstractSuite) TestGetProcessorLogsWithSpecialSubstrings() {
+func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsWithSpecialSubstrings() {
 	suite.testGetProcessorLogsTestFromFile(SpecialSubstringsFunctionLogsFilePath)
 }
 
-func (suite *TestAbstractSuite) TestGetProcessorLogsWithConsecutiveDuplicateMessages() {
+func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsWithConsecutiveDuplicateMessages() {
 	suite.testGetProcessorLogsTestFromFile(ConsecutiveDuplicateFunctionLogsFilePath)
 }
 
@@ -265,7 +350,7 @@ func (suite *TestAbstractSuite) TestGetProcessorLogsWithConsecutiveDuplicateMess
 // - FunctionLogsFile
 // - FormattedFunctionLogsFile
 // - BriefErrorsMessageFile
-func (suite *TestAbstractSuite) testGetProcessorLogsTestFromFile(functionLogsFilePath string) {
+func (suite *AbstractPlatformTestSuite) testGetProcessorLogsTestFromFile(functionLogsFilePath string) {
 	functionLogsFile, err := os.Open(path.Join(functionLogsFilePath, FunctionLogsFile))
 	suite.Require().NoError(err, "Failed to read function logs file")
 
@@ -283,9 +368,5 @@ func (suite *TestAbstractSuite) testGetProcessorLogsTestFromFile(functionLogsFil
 }
 
 func TestAbstractPlatformTestSuite(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-
-	suite.Run(t, new(TestAbstractSuite))
+	suite.Run(t, new(AbstractPlatformTestSuite))
 }
