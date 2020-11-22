@@ -142,7 +142,7 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 		totalResults, err = suite.blastFunction(&configuration)
 		suite.Require().NoError(err)
 		return true
-	}, false, nil)
+	}, false)
 
 	// delete the function
 	if os.Getenv(keepDockerEnvKey) == "" {
@@ -239,8 +239,8 @@ func (suite *TestSuite) DeployFunctionAndRedeploy(createFunctionOptions *platfor
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 
-	suite.deployFunction(createFunctionOptions, onAfterFirstContainerRun, false, nil)
-	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun, false, nil)
+	suite.deployFunction(createFunctionOptions, onAfterFirstContainerRun, false)
+	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun, false)
 }
 
 func (suite *TestSuite) DeployFunctionExpectErrorAndRedeploy(createFunctionOptions *platform.CreateFunctionOptions,
@@ -254,8 +254,8 @@ func (suite *TestSuite) DeployFunctionExpectErrorAndRedeploy(createFunctionOptio
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 
-	suite.deployFunction(createFunctionOptions, onAfterFirstContainerRun, true, nil)
-	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun, false, nil)
+	suite.deployFunction(createFunctionOptions, onAfterFirstContainerRun, true)
+	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun, false)
 }
 
 func (suite *TestSuite) DeployFunctionAndRedeployExpectError(createFunctionOptions *platform.CreateFunctionOptions,
@@ -269,8 +269,8 @@ func (suite *TestSuite) DeployFunctionAndRedeployExpectError(createFunctionOptio
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 
-	suite.deployFunction(createFunctionOptions, onAfterFirstContainerRun, false, nil)
-	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun, true, nil)
+	suite.deployFunction(createFunctionOptions, onAfterFirstContainerRun, false)
+	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun, true)
 }
 
 // GetNuclioSourceDir returns path to nuclio source directory
@@ -420,8 +420,7 @@ func (suite *TestSuite) blastFunction(configuration *BlastConfiguration) (vegeta
 
 func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterContainerRun OnAfterContainerRun,
-	expectFailure bool,
-	expectedErrorRootCause error) *platform.CreateFunctionResult {
+	expectFailure bool) *platform.CreateFunctionResult {
 
 	var deployResult *platform.CreateFunctionResult
 
@@ -444,14 +443,13 @@ func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOption
 			})
 		}
 	}()
-	deployResult = suite.deployFunction(createFunctionOptions, onAfterContainerRun, expectFailure, expectedErrorRootCause)
+	deployResult = suite.deployFunction(createFunctionOptions, onAfterContainerRun, expectFailure)
 	return deployResult
 }
 
 func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterContainerRun OnAfterContainerRun,
-	expectFailure bool,
-	expectedErrorRootCause error) *platform.CreateFunctionResult {
+	expectFailure bool) *platform.CreateFunctionResult {
 
 	// deploy the function
 	deployResult, err := suite.Platform.CreateFunction(createFunctionOptions)
@@ -460,10 +458,6 @@ func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFun
 		suite.Require().NoError(err)
 	} else {
 		suite.Require().Error(err)
-
-		if expectedErrorRootCause != nil && errors.RootCause(err) != nil {
-			suite.Require().Equal(expectedErrorRootCause.Error(), errors.RootCause(err).Error())
-		}
 	}
 
 	// give the container some time - after 10 seconds, give up

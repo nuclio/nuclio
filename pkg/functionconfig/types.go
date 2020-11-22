@@ -109,7 +109,7 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) (map[string]Ingress, 
 			// iterate over the encoded ingresses map and created ingress structures
 			encodedIngresses, validStructure := encodedIngresses.(map[string]interface{})
 			if !validStructure {
-				return nil, errors.Errorf("Malformed structure for ingresses in trigger '%s'", triggerName)
+				return nil, errors.Errorf("Malformed structure for ingresses in trigger '%s' (expects a map)", triggerName)
 			}
 			for encodedIngressName, encodedIngress := range encodedIngresses {
 				encodedIngressMap, validStructure := encodedIngress.(map[string]interface{})

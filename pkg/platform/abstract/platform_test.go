@@ -2,6 +2,7 @@ package abstract
 
 import (
 	"bufio"
+	"github.com/nuclio/errors"
 	"io/ioutil"
 	"os"
 	"path"
@@ -87,6 +88,79 @@ func (suite *TestAbstractSuite) SetupSuite() {
 
 func (suite *TestAbstractSuite) SetupTest() {
 	suite.TestID = xid.New().String()
+}
+
+
+func (suite *TestAbstractSuite) TestValidationFailOnMalformedIngressesStructure() {
+	functionConfig := functionconfig.NewConfig()
+	functionConfig.Meta.Name = "f1"
+
+	for _, testCase := range []struct {
+		Triggers      map[string]functionconfig.Trigger
+		ExpectedError string
+	}{
+		// test malformed ingresses structure
+		{
+			Triggers: map[string]functionconfig.Trigger{
+				"http-trigger": {
+					Kind: "http",
+					Attributes: map[string]interface{}{
+						"ingresses": "I should be a map and not a string",
+					},
+				},
+			},
+			ExpectedError: "Malformed structure for ingresses in trigger 'http-trigger' (expects a map)",
+		},
+
+		// test malformed specific ingress structure
+		{
+			Triggers: map[string]functionconfig.Trigger{
+				"http-trigger": {
+					Kind: "http",
+					Attributes: map[string]interface{}{
+						"ingresses": map[string]interface{}{
+							"0": map[string]interface{}{
+								"host":  "some-host",
+								"paths": []string{"/"},
+							},
+							"malformed-ingress": "I should be a map and not a string",
+						},
+					},
+				},
+			},
+			ExpectedError: "Malformed structure for ingress 'malformed-ingress' in trigger 'http-trigger'",
+		},
+
+		// test good flow (expecting no error)
+		{
+			Triggers: map[string]functionconfig.Trigger{
+				"http-trigger": {
+					Kind: "http",
+					Attributes: map[string]interface{}{
+						"ingresses": map[string]interface{}{
+							"0": map[string]interface{}{
+								"host":  "some-host",
+								"paths": []string{"/"},
+							},
+						},
+					},
+				},
+			},
+			ExpectedError: "",
+		},
+	}{
+		// set test triggers
+		functionConfig.Spec.Triggers = testCase.Triggers
+
+		// run validations
+		err := suite.Platform.ValidateFunctionConfig(functionConfig)
+		if testCase.ExpectedError != "" {
+			suite.Assert().Error(err)
+			suite.Assert().Equal(testCase.ExpectedError, errors.RootCause(err).Error())
+		} else {
+			suite.Assert().NoError(err)
+		}
+	}
 }
 
 // Test function with invalid min max replicas

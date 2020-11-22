@@ -918,7 +918,7 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 
 	// validate ingresses structure correctness
 	if _, err := functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers); err != nil {
-		return nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to get ingresses from triggers"))
+		return errors.Wrap(err, "Failed to get ingresses from triggers")
 	}
 
 	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {

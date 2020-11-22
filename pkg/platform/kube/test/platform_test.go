@@ -42,55 +42,6 @@ type DeployFunctionTestSuite struct {
 	KubeTestSuite
 }
 
-func (suite *DeployFunctionTestSuite) TestFailOnMalformedIngressesStructure() {
-	createFunctionOptionsMalformedIngressesStructure := suite.CompileCreateFunctionOptions("resource-schema")
-	createFunctionOptionsMalformedIngressesStructure.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		"http-trigger": {
-			Attributes: map[string]interface{}{
-				"ingresses": "I should be a map and not a string",
-			},
-		},
-	}
-
-	createFunctionOptionsMalformedSpecificIngressStructure := suite.CompileCreateFunctionOptions("resource-schema")
-	createFunctionOptionsMalformedSpecificIngressStructure.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		"http-trigger": {
-			Attributes: map[string]interface{}{
-				"ingresses": map[string]interface{}{
-					"0": map[string]interface{}{
-						"host":  "some-host",
-						"paths": []string{"/"},
-					},
-					"malformed-ingress": "I should be a map and not a string",
-				},
-			},
-		},
-	}
-
-	type testStruct struct {
-		createFunctionOptions  *platform.CreateFunctionOptions
-		expectedErrorRootCause error
-	}
-
-	for _, testAttributes := range []testStruct{
-		{
-			createFunctionOptions:  createFunctionOptionsMalformedIngressesStructure,
-			expectedErrorRootCause: errors.New("Malformed ingresses format for trigger 'http-trigger' (expects a map)"),
-		},
-		{
-			createFunctionOptions:  createFunctionOptionsMalformedSpecificIngressStructure,
-			expectedErrorRootCause: errors.New("Malformed structure for ingress 'malformed-ingress' in trigger 'http-trigger'"),
-		},
-	} {
-		suite.DeployFunctionExpectError(testAttributes.createFunctionOptions,
-			testAttributes.expectedErrorRootCause,
-			func(deployResult *platform.CreateFunctionResult) bool {
-
-				return true
-			})
-	}
-}
-
 func (suite *DeployFunctionTestSuite) TestStaleResourceVersion() {
 	var resourceVersion string
 
