@@ -468,13 +468,6 @@ func (c *Config) AddSkipAnnotations() {
 	c.Meta.AddSkipDeployAnnotation()
 }
 
-func (c *Config) Validate() error {
-
-
-
-	return nil
-}
-
 func (c *Config) scrubFunctionData() {
 	c.CleanFunctionSpec()
 

@@ -314,10 +314,6 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 		return errors.Wrap(err, "Min max replicas validation failed")
 	}
 
-	if err := functionConfig.Validate(); err != nil {
-		return errors.Wrap(err, "Function config validation failed")
-	}
-
 	if err := ap.validateProjectExists(functionConfig); err != nil {
 		return errors.Wrap(err, "Project existence validation failed")
 	}
@@ -858,6 +854,25 @@ func (ap *Platform) enrichImageName(functionConfig *functionconfig.Config) error
 	return nil
 }
 
+func (ap *Platform) validateMinMaxReplicas(functionConfig *functionconfig.Config) error {
+	minReplicas := functionConfig.Spec.MinReplicas
+	maxReplicas := functionConfig.Spec.MaxReplicas
+
+	if minReplicas != nil {
+		if maxReplicas == nil && *minReplicas == 0 {
+			return errors.New("Max replicas must be set when min replicas is zero")
+		}
+		if maxReplicas != nil && *minReplicas > *maxReplicas {
+			return errors.New("Min replicas must be less than or equal to max replicas")
+		}
+	}
+	if maxReplicas != nil && *maxReplicas == 0 {
+		return errors.New("Max replicas must be greater than zero")
+	}
+
+	return nil
+}
+
 func (ap *Platform) validateProjectExists(functionConfig *functionconfig.Config) error {
 
 	// validate the project exists
@@ -875,41 +890,6 @@ func (ap *Platform) validateProjectExists(functionConfig *functionconfig.Config)
 	if len(projects) == 0 {
 		return errors.New("Project does not exist")
 	}
-	return nil
-}
-
-func (ap *Platform) enrichMinMaxReplicas(functionConfig *functionconfig.Config) {
-
-	// if min replicas was not set, and max replicas is set, assign max replicas to min replicas
-	if functionConfig.Spec.MinReplicas == nil &&
-		functionConfig.Spec.MaxReplicas != nil {
-		functionConfig.Spec.MinReplicas = functionConfig.Spec.MaxReplicas
-	}
-
-	// if max replicas was not set, and min replicas is set, assign min replicas to max replicas
-	if functionConfig.Spec.MaxReplicas == nil &&
-		functionConfig.Spec.MinReplicas != nil {
-		functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
-	}
-}
-
-
-func (ap *Platform) validateMinMaxReplicas(functionConfig *functionconfig.Config) error {
-	minReplicas := functionConfig.Spec.MinReplicas
-	maxReplicas := functionConfig.Spec.MaxReplicas
-
-	if minReplicas != nil {
-		if maxReplicas == nil && *minReplicas == 0 {
-			return errors.New("Max replicas must be set when min replicas is zero")
-		}
-		if maxReplicas != nil && *minReplicas > *maxReplicas {
-			return errors.New("Min replicas must be less than or equal to max replicas")
-		}
-	}
-	if maxReplicas != nil && *maxReplicas == 0 {
-		return errors.New("Max replicas must be greater than zero")
-	}
-
 	return nil
 }
 
@@ -944,6 +924,20 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 	return nil
 }
 
+func (ap *Platform) enrichMinMaxReplicas(functionConfig *functionconfig.Config) {
+
+	// if min replicas was not set, and max replicas is set, assign max replicas to min replicas
+	if functionConfig.Spec.MinReplicas == nil &&
+		functionConfig.Spec.MaxReplicas != nil {
+		functionConfig.Spec.MinReplicas = functionConfig.Spec.MaxReplicas
+	}
+
+	// if max replicas was not set, and min replicas is set, assign min replicas to max replicas
+	if functionConfig.Spec.MaxReplicas == nil &&
+		functionConfig.Spec.MinReplicas != nil {
+		functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
+	}
+}
 
 func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error {
 
