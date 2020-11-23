@@ -119,7 +119,6 @@ func (agr *apiGatewayResource) Create(request *http.Request) (id string, attribu
 	apiGatewayInfo, responseErr := agr.getAPIGatewayInfoFromRequest(request, true)
 	if responseErr != nil {
 		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", responseErr)
-
 		return
 	}
 
@@ -133,19 +132,20 @@ func (agr *apiGatewayResource) Create(request *http.Request) (id string, attribu
 	// create an api gateway
 	newAPIGateway, err := platform.NewAbstractAPIGateway(agr.Logger, agr.getPlatform(), apiGatewayConfig)
 	if err != nil {
-		return "", nil, nuclio.WrapErrInternalServerError(err)
+		responseErr = nuclio.WrapErrInternalServerError(err)
+		return
 	}
 
 	// just deploy. the status is async through polling
 	agr.Logger.DebugWith("Creating api gateway", "newAPIGateway", newAPIGateway)
-	if err = agr.getPlatform().CreateAPIGateway(&platform.CreateAPIGatewayOptions{
+	if responseErr = agr.getPlatform().CreateAPIGateway(&platform.CreateAPIGatewayOptions{
 		APIGatewayConfig: *newAPIGateway.GetConfig(),
-	}); err != nil {
-		if strings.Contains(errors.Cause(err).Error(), "already exists") {
-			return "", nil, nuclio.WrapErrConflict(err)
+	}); responseErr != nil {
+		if strings.Contains(errors.Cause(responseErr).Error(), "already exists") {
+			responseErr = nuclio.WrapErrConflict(responseErr)
 		}
 
-		return "", nil, err
+		return
 	}
 
 	// set attributes
@@ -236,21 +236,22 @@ func (agr *apiGatewayResource) createAPIGateway(apiGatewayInfoInstance *apiGatew
 	}
 
 	// create an api gateway
-	newAPIGateway, err := platform.NewAbstractAPIGateway(agr.Logger, agr.getPlatform(), apiGatewayConfig)
-	if err != nil {
-		return "", nil, nuclio.WrapErrInternalServerError(err)
+	newAPIGateway, responseErr := platform.NewAbstractAPIGateway(agr.Logger, agr.getPlatform(), apiGatewayConfig)
+	if responseErr != nil {
+		responseErr = nuclio.WrapErrInternalServerError(responseErr)
+		return
 	}
 
 	// just deploy. the status is async through polling
 	agr.Logger.DebugWith("Creating api gateway", "newAPIGateway", newAPIGateway)
-	if err = agr.getPlatform().CreateAPIGateway(&platform.CreateAPIGatewayOptions{
+	if responseErr = agr.getPlatform().CreateAPIGateway(&platform.CreateAPIGatewayOptions{
 		APIGatewayConfig: *newAPIGateway.GetConfig(),
-	}); err != nil {
-		if strings.Contains(errors.Cause(err).Error(), "already exists") {
-			return "", nil, nuclio.WrapErrConflict(err)
+	}); responseErr != nil {
+		if strings.Contains(errors.Cause(responseErr).Error(), "already exists") {
+			responseErr = nuclio.WrapErrConflict(responseErr)
 		}
 
-		return "", nil, nuclio.WrapErrInternalServerError(err)
+		return
 	}
 
 	// set attributes
@@ -330,7 +331,7 @@ func (agr *apiGatewayResource) getAPIGatewayInfoFromRequest(request *http.Reques
 	return &apiGatewayInfoInstance, nil
 }
 
-func (agr *apiGatewayResource) enrichAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo, projectName string) error {
+func (agr *apiGatewayResource) enrichAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo, projectName string) {
 
 	// ensure spec exists if it's required
 	if apiGatewayInfoInstance.Spec == nil {
@@ -353,8 +354,6 @@ func (agr *apiGatewayResource) enrichAPIGatewayInfo(apiGatewayInfoInstance *apiG
 	if apiGatewayInfoInstance.Status == nil {
 		apiGatewayInfoInstance.Status = &platform.APIGatewayStatus{}
 	}
-
-	return nil
 }
 
 func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo,
@@ -370,10 +369,7 @@ func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *api
 	}
 
 	// enrichment
-	err := agr.enrichAPIGatewayInfo(apiGatewayInfoInstance, projectName)
-	if err != nil {
-		return errors.Wrap(err, "Failed to enrich api gateway info")
-	}
+	agr.enrichAPIGatewayInfo(apiGatewayInfoInstance, projectName)
 
 	return nil
 }

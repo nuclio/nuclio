@@ -131,8 +131,10 @@ type APIGatewayKubePlatformTestSuite struct {
 func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidation() {
 
 	for _, testCase := range []struct {
-		apiGatewayConfig           platform.APIGatewayConfig
-		expectedEnrichedAPIGateway platform.APIGatewayConfig
+		apiGatewayConfig *platform.APIGatewayConfig
+
+		// keep empty to skip the enrichment validation
+		expectedEnrichedAPIGateway *platform.APIGatewayConfig
 
 		// keep empty when shouldn't fail
 		validationError string
@@ -140,206 +142,155 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test spec.name enriched from meta.name
 		{
-			apiGatewayConfig: func() platform.APIGatewayConfig {
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Name = ""
 				apiGatewayConfig.Meta.Name = "meta-name"
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Name = "meta-name"
 				apiGatewayConfig.Meta.Name = "meta-name"
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
-			validationError: "",
 		},
 
 		// test meta.name enriched from spec.name
 		{
-			apiGatewayConfig: func() platform.APIGatewayConfig {
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Name = "spec-name"
 				apiGatewayConfig.Meta.Name = ""
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Name = "spec-name"
 				apiGatewayConfig.Meta.Name = "spec-name"
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
-			validationError: "",
 		},
 
 		// test enrichment of waiting for provisioning state
 		{
-			apiGatewayConfig: func() platform.APIGatewayConfig {
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				return apiGatewayConfig
+				apiGatewayConfig.Status.State = ""
+				return &apiGatewayConfig
 			}(),
-			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
+			expectedEnrichedAPIGateway: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Status.State = platform.APIGatewayStateWaitingForProvisioning
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
-			validationError: "",
 		},
 
 		// test namespace existence
 		{
-			apiGatewayConfig: func() platform.APIGatewayConfig {
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Namespace = ""
-				return apiGatewayConfig
-			}(),
-			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
-				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				apiGatewayConfig.Meta.Namespace = ""
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
 			validationError: "Api gateway namespace must be provided in metadata",
 		},
 
 		// test name existence
 		{
-			apiGatewayConfig: func() platform.APIGatewayConfig {
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = ""
 				apiGatewayConfig.Spec.Name = ""
-				return apiGatewayConfig
-			}(),
-			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
-				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				apiGatewayConfig.Meta.Name = ""
-				apiGatewayConfig.Spec.Name = ""
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
 			validationError: "Api gateway name must be provided in metadata",
 		},
 
 		// test metadata.name == spec.name
 		{
-			apiGatewayConfig: func() platform.APIGatewayConfig {
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = "name1"
 				apiGatewayConfig.Spec.Name = "name2"
-				return apiGatewayConfig
-			}(),
-			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
-				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				apiGatewayConfig.Meta.Name = "name1"
-				apiGatewayConfig.Spec.Name = "name2"
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
 			validationError: "Api gateway metadata.name must match api gateway spec.name",
 		},
 
 		// test reserved names validation
 		{
-			apiGatewayConfig: func() platform.APIGatewayConfig {
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = "dashboard"
 				apiGatewayConfig.Spec.Name = "dashboard"
-				return apiGatewayConfig
-			}(),
-			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
-				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				apiGatewayConfig.Meta.Name = "dashboard"
-				apiGatewayConfig.Spec.Name = "dashboard"
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
 			validationError: "Api gateway name 'dashboard' is reserved and cannot be used",
 		},
 
 		// test len(upstreams) < 2
 		{
-			apiGatewayConfig: func() platform.APIGatewayConfig {
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				upstream := apiGatewayConfig.Spec.Upstreams[0]
 				apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{upstream, upstream, upstream}
-				return apiGatewayConfig
-			}(),
-			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
-				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				upstream := apiGatewayConfig.Spec.Upstreams[0]
-				apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{upstream, upstream, upstream}
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
 			validationError: "Received more than 2 upstreams. Currently not supported",
 		},
 
 		// test at least one upstream exists
 		{
-			apiGatewayConfig: func() platform.APIGatewayConfig {
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{}
-				return apiGatewayConfig
-			}(),
-			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
-				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{}
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
 			validationError: "One or more upstreams must be provided in spec",
 		},
 
 		// test host exists
 		{
-			apiGatewayConfig: func() platform.APIGatewayConfig {
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Host = ""
-				return apiGatewayConfig
-			}(),
-			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
-				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				apiGatewayConfig.Spec.Host = ""
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
 			validationError: "Host must be provided in spec",
 		},
 
 		// test wrong upstream kind
 		{
-			apiGatewayConfig: func() platform.APIGatewayConfig {
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Upstreams[0].Kind = "bad-kind"
-				return apiGatewayConfig
-			}(),
-			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
-				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				apiGatewayConfig.Spec.Upstreams[0].Kind = "bad-kind"
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
 			validationError: "Unsupported upstream kind: 'bad-kind'. (Currently supporting only nucliofunction)",
 		},
 
 		// test all upstream have same kind
 		{
-			apiGatewayConfig: func() platform.APIGatewayConfig {
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				differentKindUpstream := apiGatewayConfig.Spec.Upstreams[0]
 				differentKindUpstream.Kind = "kind-2"
 				apiGatewayConfig.Spec.Upstreams = append(apiGatewayConfig.Spec.Upstreams, differentKindUpstream)
-				return apiGatewayConfig
-			}(),
-			expectedEnrichedAPIGateway: func() platform.APIGatewayConfig {
-				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				differentKindUpstream := apiGatewayConfig.Spec.Upstreams[0]
-				differentKindUpstream.Kind = "kind-2"
-				apiGatewayConfig.Spec.Upstreams = append(apiGatewayConfig.Spec.Upstreams, differentKindUpstream)
-				return apiGatewayConfig
+				return &apiGatewayConfig
 			}(),
 			validationError: "All upstreams must be of the same kind",
 		},
 	} {
 
 		// run enrichment
-		suite.Platform.EnrichAPIGatewayConfig(&testCase.apiGatewayConfig)
-		suite.Equal(testCase.expectedEnrichedAPIGateway, testCase.apiGatewayConfig)
+		suite.Platform.EnrichAPIGatewayConfig(testCase.apiGatewayConfig)
+		if testCase.expectedEnrichedAPIGateway != nil {
+			suite.Equal(testCase.expectedEnrichedAPIGateway, testCase.apiGatewayConfig)
+		}
 
 		// run validation
-		err := suite.Platform.ValidateAPIGatewayConfig(&testCase.apiGatewayConfig)
+		err := suite.Platform.ValidateAPIGatewayConfig(testCase.apiGatewayConfig)
 		if testCase.validationError != "" {
 			suite.Assert().Error(err)
 			suite.Assert().Equal(testCase.validationError, errors.RootCause(err).Error())
