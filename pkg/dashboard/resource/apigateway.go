@@ -120,10 +120,6 @@ func (agr *apiGatewayResource) Create(request *http.Request) (id string, attribu
 	if responseErr != nil {
 		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", responseErr)
 
-		if errors.RootCause(responseErr) != nil {
-			responseErr = errors.RootCause(responseErr)
-		}
-
 		return
 	}
 
@@ -149,10 +145,6 @@ func (agr *apiGatewayResource) Create(request *http.Request) (id string, attribu
 			return "", nil, nuclio.WrapErrConflict(err)
 		}
 
-		if errors.RootCause(err) != nil {
-			err = errors.RootCause(err)
-		}
-
 		return "", nil, err
 	}
 
@@ -172,10 +164,6 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 	if err != nil {
 		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", err)
 
-		if errors.RootCause(err) != nil {
-			err = errors.RootCause(err)
-		}
-
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
 			StatusCode: http.StatusBadRequest,
@@ -192,10 +180,6 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 		APIGatewayConfig: apiGatewayConfig,
 	}); err != nil {
 		agr.Logger.WarnWith("Failed to update api gateway", "err", err)
-	}
-
-	if errors.RootCause(err) != nil {
-		err = errors.RootCause(err)
 	}
 
 	// return the stuff
@@ -284,10 +268,6 @@ func (agr *apiGatewayResource) deleteAPIGateway(request *http.Request) (*restful
 	if err != nil {
 		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", err)
 
-		if errors.RootCause(err) != nil {
-			err = errors.RootCause(err)
-		}
-
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
 			StatusCode: http.StatusBadRequest,
@@ -298,9 +278,6 @@ func (agr *apiGatewayResource) deleteAPIGateway(request *http.Request) (*restful
 	deleteAPIGatewayOptions.Meta = *apiGatewayInfo.Meta
 
 	if err = agr.getPlatform().DeleteAPIGateway(&deleteAPIGatewayOptions); err != nil {
-		if errors.RootCause(err) != nil {
-			err = errors.RootCause(err)
-		}
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
