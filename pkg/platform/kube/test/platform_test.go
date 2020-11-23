@@ -50,12 +50,10 @@ func (suite *DeployFunctionTestSuite) TestStaleResourceVersion() {
 	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
-		suite.Require().NoError(err)
-		function := functions[0]
 
 		// save resource version
 		resourceVersion = function.GetConfig().Meta.ResourceVersion
@@ -75,13 +73,11 @@ def handler(context, event):
 	afterSecondDeploy := func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
-		suite.Require().NoError(err, "Failed to get functions")
 
-		function := functions[0]
 		suite.Require().NotEqual(resourceVersion,
 			function.GetConfig().Meta.ResourceVersion,
 			"Resource version should be changed between deployments")
@@ -330,6 +326,69 @@ func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways(
 	})
 }
 
+func (suite *DeleteFunctionTestSuite) TestStaleResourceVersion() {
+	var resourceVersion string
+
+	createFunctionOptions := suite.CompileCreateFunctionOptions("delete-resource-schema")
+
+	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
+
+		// get the function
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		// save resource version
+		resourceVersion = function.GetConfig().Meta.ResourceVersion
+		suite.Require().NotEmpty(resourceVersion)
+
+		// ensure using newest resource version on second deploy
+		createFunctionOptions.FunctionConfig.Meta.ResourceVersion = resourceVersion
+
+		// change source code
+		createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
+def handler(context, event):
+  return "darn it!"
+`))
+		return true
+	}
+
+	afterSecondDeploy := func(deployResult *platform.CreateFunctionResult) bool {
+
+		// get the function
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		suite.Require().NotEqual(resourceVersion,
+			function.GetConfig().Meta.ResourceVersion,
+			"Resource version should be changed between deployments")
+
+		deployResult.UpdatedFunctionConfig.Meta.ResourceVersion = resourceVersion
+
+		// expect a failure due to a stale resource version
+		suite.Logger.Info("Deleting function")
+		err := suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+			FunctionConfig: deployResult.UpdatedFunctionConfig,
+		})
+		suite.Require().Error(err)
+
+		deployResult.UpdatedFunctionConfig.Meta.ResourceVersion = function.GetConfig().Meta.ResourceVersion
+
+		// succeeded delete function
+		suite.Logger.Info("Deleting function")
+		err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+			FunctionConfig: deployResult.UpdatedFunctionConfig,
+		})
+		suite.Require().NoError(err)
+		return true
+	}
+
+	suite.DeployFunctionAndRedeploy(createFunctionOptions, afterFirstDeploy, afterSecondDeploy)
+}
+
 type DeployAPIGatewayTestSuite struct {
 	KubeTestSuite
 }
@@ -373,6 +432,6 @@ func TestPlatformTestSuite(t *testing.T) {
 		return
 	}
 	suite.Run(t, new(DeployFunctionTestSuite))
-	suite.Run(t, new(DeployAPIGatewayTestSuite))
 	suite.Run(t, new(DeleteFunctionTestSuite))
+	suite.Run(t, new(DeployAPIGatewayTestSuite))
 }
