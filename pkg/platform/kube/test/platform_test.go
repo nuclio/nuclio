@@ -525,14 +525,12 @@ func (suite *ProjectTestSuite) TestCreate() {
 		suite.Require().NoError(err, "Failed to delete project")
 	}()
 
-
 	// get created project
 	projects, err := suite.Platform.GetProjects(&platform.GetProjectsOptions{
 		Meta: projectConfig.Meta,
 	})
 	suite.Require().NoError(err, "Failed to get projects")
 	suite.Require().Equal(len(projects), 1)
-
 
 	// requested and created project are equal
 	createdProject := projects[0]
@@ -572,7 +570,11 @@ func (suite *ProjectTestSuite) TestUpdate() {
 
 	// change project annotations
 	projectConfig.Meta.Annotations["annotation-key"] = "annotation-value-changed"
-	projectConfig.Meta.Annotations["added-annotation"] = "added"
+	projectConfig.Meta.Annotations["added-annotation"] = "added-annotation-value"
+
+	// change project labels
+	projectConfig.Meta.Labels["label-key"] = "label-value-changed"
+	projectConfig.Meta.Labels["added-label"] = "added-label-value"
 
 	// update project
 	err = suite.Platform.UpdateProject(&platform.UpdateProjectOptions{
@@ -580,17 +582,11 @@ func (suite *ProjectTestSuite) TestUpdate() {
 	})
 	suite.Require().NoError(err, "Failed to update project")
 
-	// get projects
-	projects, err := suite.Platform.GetProjects(&platform.GetProjectsOptions{
+	// get updated project
+	updatedProject := suite.GetProject(&platform.GetProjectsOptions{
 		Meta: projectConfig.Meta,
 	})
-	suite.Require().NoError(err, "Failed to get projects")
-	suite.Require().Equal(len(projects), 1)
-
-
-	// requested and updated are equal
-	createdProject := projects[0]
-	suite.Require().Equal(projectConfig, *createdProject.GetConfig())
+	suite.Require().Empty(cmp.Diff(projectConfig, *updatedProject.GetConfig()))
 }
 
 func (suite *ProjectTestSuite) TestDelete() {

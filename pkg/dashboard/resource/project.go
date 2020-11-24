@@ -571,7 +571,7 @@ func (pr *projectResource) getProjectInfoFromRequest(request *http.Request, name
 	}
 
 	projectInfoInstance := projectInfo{}
-	if err :=  json.Unmarshal(body, &projectInfoInstance); err != nil {
+	if err := json.Unmarshal(body, &projectInfoInstance); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 

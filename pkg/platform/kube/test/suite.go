@@ -188,6 +188,12 @@ func (suite *KubeTestSuite) GetFunction(getFunctionOptions *platform.GetFunction
 	return functions[0]
 }
 
+func (suite *KubeTestSuite) GetProject(getProjectFunctions *platform.GetProjectsOptions) platform.Project {
+	projects, err := suite.Platform.GetProjects(getProjectFunctions)
+	suite.Require().NoError(err, "Failed to get projects")
+	return projects[0]
+}
+
 func (suite *KubeTestSuite) GetFunctionDeployment(functionName string) *appsv1.Deployment {
 	deploymentInstance := &appsv1.Deployment{}
 	suite.GetResourceAndUnmarshal("deployment",
