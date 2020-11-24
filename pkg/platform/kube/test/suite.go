@@ -112,7 +112,12 @@ func (suite *KubeTestSuite) TearDownTest() {
 
 	// remove nuclio function leftovers
 	var errGroup errgroup.Group
-	for _, resourceKind := range []string{"nucliofunctions", "nuclioapigateways"} {
+	for _, resourceKind := range []string{
+		"nucliofunctions",
+		"nuclioprojects",
+		"nucliofunctionevents",
+		"nuclioapigateways",
+	} {
 		resourceKind := resourceKind
 		errGroup.Go(func() error {
 			return suite.deleteAllResourcesByKind(resourceKind)

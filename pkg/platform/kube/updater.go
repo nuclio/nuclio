@@ -69,6 +69,8 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 		function.Status = *updateFunctionOptions.FunctionStatus
 	}
 
+	function.ObjectMeta.Annotations = updateFunctionOptions.FunctionMeta.Annotations
+
 	// get clientset
 	nuclioClientSet, err := u.consumer.getNuclioClientSet(updateFunctionOptions.AuthConfig)
 	if err != nil {
