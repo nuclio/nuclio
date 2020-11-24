@@ -930,7 +930,7 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 
 	// validate ingresses structure correctness
 	if err := ap.validateIngresses(functionConfig.Spec.Triggers); err != nil {
-		return errors.Wrap(err, "Failed while validating ingresses")
+		return errors.Wrap(err, "Ingresses validation failed")
 	}
 
 	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
