@@ -260,25 +260,25 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
 	}
 
 	// validate resource version
-	if err := ap.ValidateResourceVersion(existingFunctionConfig, createFunctionOptions); err != nil {
+	if err := ap.ValidateResourceVersion(existingFunctionConfig, &createFunctionOptions.FunctionConfig); err != nil {
 		return nuclio.WrapErrConflict(err)
 	}
 	return nil
 }
 
 // Validate existing and new create function options resource version
-func (ap *Platform) ValidateResourceVersion(existingFunctionConfig *functionconfig.ConfigWithStatus,
-	createFunctionOptions *platform.CreateFunctionOptions) error {
+func (ap *Platform) ValidateResourceVersion(functionConfigWithStatus *functionconfig.ConfigWithStatus,
+	requestFunctionConfig *functionconfig.Config) error {
 
 	// if function has no existing instance, resource version validation is irrelevant.
-	if existingFunctionConfig == nil {
+	if functionConfigWithStatus == nil {
 		return nil
 	}
 
 	// existing function should always be the latest
 	// reason: the way we `GET` nuclio function ensures we retrieve the latest copy.
-	existingResourceVersion := existingFunctionConfig.Meta.ResourceVersion
-	requestResourceVersion := createFunctionOptions.FunctionConfig.Meta.ResourceVersion
+	existingResourceVersion := functionConfigWithStatus.Meta.ResourceVersion
+	requestResourceVersion := requestFunctionConfig.Meta.ResourceVersion
 
 	// when requestResourceVersion is empty, the existing one will be overridden
 	if requestResourceVersion != "" &&
@@ -325,7 +325,7 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 	return nil
 }
 
-// Validation and enforcement of required function deletion logic
+// Validation and enforcement of required project deletion logic
 func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	projectName := deleteProjectOptions.Meta.Name
 
@@ -335,6 +335,35 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 
 	if err := ap.validateProjectIsEmpty(deleteProjectOptions.Meta.Namespace, projectName); err != nil {
 		return errors.Wrap(err, "Cannot delete non-empty project")
+	}
+
+	return nil
+}
+
+// Validation and enforcement of required function deletion logic
+func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+	functionName := deleteFunctionOptions.FunctionConfig.Meta.Name
+	functionNamespace := deleteFunctionOptions.FunctionConfig.Meta.Namespace
+	functions, err := ap.platform.GetFunctions(&platform.GetFunctionsOptions{
+		Name:      functionName,
+		Namespace: functionNamespace,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get functions")
+	}
+
+	// function does not exists and hence nothing to validate (that might happen, delete method can be idempotent)
+	if len(functions) == 0 {
+		ap.Logger.DebugWith("Function is already deleted", "functionName", functionName)
+		return nil
+	}
+
+	functionToDelete := functions[0]
+
+	// validate resource version
+	if err := ap.ValidateResourceVersion(functionToDelete.GetConfigWithStatus(),
+		&deleteFunctionOptions.FunctionConfig); err != nil {
+		return nuclio.WrapErrConflict(err)
 	}
 
 	return nil
