@@ -96,7 +96,6 @@ func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trig
 }
 
 // GetIngressesFromTriggers returns all ingresses from a map of triggers
-// added validations on ingress structure, to prevent panics
 func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 	ingresses := map[string]Ingress{}
 

@@ -1647,8 +1647,7 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 	spec.Rules = []extv1beta1.IngressRule{}
 	spec.TLS = []extv1beta1.IngressTLS{}
 
-	ingresses := functionconfig.GetIngressesFromTriggers(function.Spec.Triggers)
-	for _, ingress := range ingresses {
+	for _, ingress := range functionconfig.GetIngressesFromTriggers(function.Spec.Triggers) {
 		if err := lc.addIngressToSpec(&ingress, functionLabels, function, spec); err != nil {
 			return errors.Wrap(err, "Failed to add ingress to spec")
 		}
