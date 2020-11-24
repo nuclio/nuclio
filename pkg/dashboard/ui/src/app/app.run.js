@@ -58,7 +58,6 @@
             defaultNs: 'common',
             ns: [
                 'common',
-                'header',
                 'functions'
             ],
             // @if !IGZ_TESTING
@@ -69,7 +68,7 @@
                 ],
                 backendOptions: [
                     {
-                        expirationTime: 24 * 60 * 60 * 1000
+                        expirationTime: 60 * 60 * 1000
                     },
                     {
                         loadPath: 'assets/i18n/{{lng}}/{{ns}}.json'

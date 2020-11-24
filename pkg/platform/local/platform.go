@@ -326,79 +326,13 @@ func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunction
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 
-	// delete the function from the local store
-	err := p.localStore.deleteFunction(&deleteFunctionOptions.FunctionConfig.Meta)
-	if err != nil && err != nuclio.ErrNotFound {
-		p.Logger.WarnWith("Failed to delete function from local store", "err", err.Error())
+	// delete function options validation
+	if err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions); err != nil {
+		return errors.Wrap(err, "Failed while validating function deletion options")
 	}
 
-	getFunctionEventsOptions := &platform.FunctionEventMeta{
-		Labels: map[string]string{
-			"nuclio.io/function-name": deleteFunctionOptions.FunctionConfig.Meta.Name,
-		},
-		Namespace: deleteFunctionOptions.FunctionConfig.Meta.Namespace,
-	}
-	functionEvents, err := p.localStore.getFunctionEvents(getFunctionEventsOptions)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get function events")
-	}
-
-	p.Logger.InfoWith("Got function events", "num", len(functionEvents))
-
-	errGroup, _ := errgroup.WithContext(context.TODO())
-	for _, functionEvent := range functionEvents {
-
-		errGroup.Go(func() error {
-			err = p.localStore.deleteFunctionEvent(&functionEvent.GetConfig().Meta)
-			if err != nil {
-				return errors.Wrap(err, "Failed to delete function event")
-			}
-			return nil
-		})
-	}
-
-	// wait for all errgroup goroutines
-	if err := errGroup.Wait(); err != nil {
-		return errors.Wrap(err, "Failed to delete function events")
-	}
-
-	getContainerOptions := &dockerclient.GetContainerOptions{
-		Labels: map[string]string{
-			"nuclio.io/platform":      "local",
-			"nuclio.io/namespace":     deleteFunctionOptions.FunctionConfig.Meta.Namespace,
-			"nuclio.io/function-name": deleteFunctionOptions.FunctionConfig.Meta.Name,
-		},
-	}
-
-	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get containers")
-	}
-
-	// iterate over contains and delete them. It's possible that under some weird circumstances
-	// there are a few instances of this function in the namespace
-	for _, containerInfo := range containersInfo {
-		if err := p.dockerClient.RemoveContainer(containerInfo.ID); err != nil {
-			return err
-		}
-	}
-
-	// get function platform specific configuration
-	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&deleteFunctionOptions.FunctionConfig)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create function platform configuration")
-	}
-
-	if functionPlatformConfiguration.ProcessorMountMode == ProcessorMountModeVolume {
-
-		// delete function volumes after containers are deleted
-		if err := p.dockerClient.DeleteVolume(p.GetProcessorMountVolumeName(&deleteFunctionOptions.FunctionConfig)); err != nil {
-			return errors.Wrapf(err, "Failed to delete function volume")
-		}
-	}
-
-	p.Logger.InfoWith("Function deleted", "name", deleteFunctionOptions.FunctionConfig.Meta.Name)
-	return nil
+	// actual function and its resources deletion
+	return p.delete(deleteFunctionOptions)
 }
 
 // GetHealthCheckMode returns the healthcheck mode the platform requires
@@ -709,6 +643,83 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		Port:        functionExternalHTTPPort,
 		ContainerID: containerID,
 	}, nil
+}
+
+func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+
+	// delete the function from the local store
+	err := p.localStore.deleteFunction(&deleteFunctionOptions.FunctionConfig.Meta)
+	if err != nil && err != nuclio.ErrNotFound {
+		p.Logger.WarnWith("Failed to delete function from local store", "err", err.Error())
+	}
+
+	getFunctionEventsOptions := &platform.FunctionEventMeta{
+		Labels: map[string]string{
+			"nuclio.io/function-name": deleteFunctionOptions.FunctionConfig.Meta.Name,
+		},
+		Namespace: deleteFunctionOptions.FunctionConfig.Meta.Namespace,
+	}
+	functionEvents, err := p.localStore.getFunctionEvents(getFunctionEventsOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function events")
+	}
+
+	p.Logger.InfoWith("Got function events", "num", len(functionEvents))
+
+	errGroup, _ := errgroup.WithContext(context.TODO())
+	for _, functionEvent := range functionEvents {
+
+		errGroup.Go(func() error {
+			err = p.localStore.deleteFunctionEvent(&functionEvent.GetConfig().Meta)
+			if err != nil {
+				return errors.Wrap(err, "Failed to delete function event")
+			}
+			return nil
+		})
+	}
+
+	// wait for all errgroup goroutines
+	if err := errGroup.Wait(); err != nil {
+		return errors.Wrap(err, "Failed to delete function events")
+	}
+
+	getContainerOptions := &dockerclient.GetContainerOptions{
+		Labels: map[string]string{
+			"nuclio.io/platform":      "local",
+			"nuclio.io/namespace":     deleteFunctionOptions.FunctionConfig.Meta.Namespace,
+			"nuclio.io/function-name": deleteFunctionOptions.FunctionConfig.Meta.Name,
+		},
+	}
+
+	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get containers")
+	}
+
+	// iterate over contains and delete them. It's possible that under some weird circumstances
+	// there are a few instances of this function in the namespace
+	for _, containerInfo := range containersInfo {
+		if err := p.dockerClient.RemoveContainer(containerInfo.ID); err != nil {
+			return err
+		}
+	}
+
+	// get function platform specific configuration
+	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&deleteFunctionOptions.FunctionConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create function platform configuration")
+	}
+
+	if functionPlatformConfiguration.ProcessorMountMode == ProcessorMountModeVolume {
+
+		// delete function volumes after containers are deleted
+		if err := p.dockerClient.DeleteVolume(p.GetProcessorMountVolumeName(&deleteFunctionOptions.FunctionConfig)); err != nil {
+			return errors.Wrapf(err, "Failed to delete function volume")
+		}
+	}
+
+	p.Logger.InfoWith("Function deleted", "name", deleteFunctionOptions.FunctionConfig.Meta.Name)
+	return nil
 }
 
 func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platform.CreateFunctionOptions,
