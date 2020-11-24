@@ -220,15 +220,16 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	// the builder may update the configuration, so we have to create the function in the platform only after
 	// the builder does that
-	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
+	onAfterConfigUpdated := func() error {
 		var err error
 
-		if err := p.enrichAndValidateFunctionConfig(updatedFunctionConfig); err != nil {
+		// enrich and validate again because it may not be valid after config was updated by external code entry type
+		if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
 			return errors.Wrap(err, "Failed while enriching and validating the updated function config")
 		}
 
-		existingFunctionInstance, err = p.getFunction(updatedFunctionConfig.Meta.Namespace,
-			updatedFunctionConfig.Meta.Name)
+		existingFunctionInstance, err = p.getFunction(createFunctionOptions.FunctionConfig.Meta.Namespace,
+			createFunctionOptions.FunctionConfig.Meta.Name)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function")
 		}

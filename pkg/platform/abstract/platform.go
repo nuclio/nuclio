@@ -100,7 +100,7 @@ func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 // of common code
 func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.ConfigWithStatus,
 	createFunctionOptions *platform.CreateFunctionOptions,
-	onAfterConfigUpdated func(*functionconfig.Config) error,
+	onAfterConfigUpdated func() error,
 	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (
 	*platform.CreateFunctionResult, error) {
 
@@ -114,7 +114,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	onAfterConfigUpdatedWrapper := func(updatedFunctionConfig *functionconfig.Config) error {
 		createFunctionOptions.FunctionConfig = *updatedFunctionConfig
 
-		return onAfterConfigUpdated(updatedFunctionConfig)
+		return onAfterConfigUpdated()
 	}
 
 	functionBuildRequired, err := ap.functionBuildRequired(&createFunctionOptions.FunctionConfig)
@@ -929,8 +929,8 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 	var httpTriggerExists bool
 
 	// validate ingresses structure correctness
-	if _, err := functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers); err != nil {
-		return errors.Wrap(err, "Failed to get ingresses from triggers")
+	if err := ap.validateIngresses(functionConfig.Spec.Triggers); err != nil {
+		return errors.Wrap(err, "Failed while validating ingresses")
 	}
 
 	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
@@ -955,6 +955,32 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 				continue
 			}
 			return errors.New("There's more than one http trigger (unsupported)")
+		}
+	}
+
+	return nil
+}
+
+func (ap *Platform) validateIngresses(triggers map[string]functionconfig.Trigger) error {
+	for triggerName, triggerInstance := range functionconfig.GetTriggersByKind(triggers, "http") {
+
+		// if there are ingresses
+		if encodedIngresses, found := triggerInstance.Attributes["ingresses"]; found {
+
+			// validate ingresses structure
+			encodedIngresses, validStructure := encodedIngresses.(map[string]interface{})
+			if !validStructure {
+				return errors.Errorf("Malformed structure for ingresses in trigger '%s' (expects a map)", triggerName)
+			}
+
+			for encodedIngressName, encodedIngress := range encodedIngresses {
+
+				// validate each ingress structure
+				_, validStructure := encodedIngress.(map[string]interface{})
+				if !validStructure {
+					return errors.Errorf("Malformed structure for ingress '%s' in trigger '%s'", encodedIngressName, triggerName)
+				}
+			}
 		}
 	}
 

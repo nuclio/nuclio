@@ -11,17 +11,12 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
 )
 
-func FormatFunctionIngresses(logger logger.Logger, function platform.Function) string {
+func FormatFunctionIngresses(function platform.Function) string {
 	var formattedIngresses string
 
-	ingresses, err := function.GetIngresses()
-	if err != nil {
-		logger.WarnWith("Failed to get ingresses. Returning empty result", "err", err)
-		return ""
-	}
+	ingresses := function.GetIngresses()
 
 	for _, ingress := range ingresses {
 		host := ingress.Host

@@ -189,10 +189,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		})
 	}
 
-	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
+	onAfterConfigUpdated := func() error {
 		createFunctionOptions.Logger.DebugWith("Creating shadow function",
 			"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
+		// enrich and validate again because it may not be valid after config was updated by external code entry type
 		if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
 			return errors.Wrap(err, "Failed while enriching and validating the updated function config")
 		}

@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuclio/errors"
 	"github.com/v3io/scaler-types"
 	"k8s.io/api/core/v1"
 )
@@ -98,24 +97,18 @@ func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trig
 
 // GetIngressesFromTriggers returns all ingresses from a map of triggers
 // added validations on ingress structure, to prevent panics
-func GetIngressesFromTriggers(triggers map[string]Trigger) (map[string]Ingress, error) {
+func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 	ingresses := map[string]Ingress{}
 
-	for triggerName, trigger := range GetTriggersByKind(triggers, "http") {
+	for _, trigger := range GetTriggersByKind(triggers, "http") {
 
 		// if there are attributes
 		if encodedIngresses, found := trigger.Attributes["ingresses"]; found {
 
 			// iterate over the encoded ingresses map and created ingress structures
-			encodedIngresses, validStructure := encodedIngresses.(map[string]interface{})
-			if !validStructure {
-				return nil, errors.Errorf("Malformed structure for ingresses in trigger '%s' (expects a map)", triggerName)
-			}
+			encodedIngresses := encodedIngresses.(map[string]interface{})
 			for encodedIngressName, encodedIngress := range encodedIngresses {
-				encodedIngressMap, validStructure := encodedIngress.(map[string]interface{})
-				if !validStructure {
-					return nil, errors.Errorf("Malformed structure for ingress '%s' in trigger '%s'", encodedIngressName, triggerName)
-				}
+				encodedIngressMap := encodedIngress.(map[string]interface{})
 
 				ingress := Ingress{}
 
@@ -149,7 +142,7 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) (map[string]Ingress, 
 		}
 	}
 
-	return ingresses, nil
+	return ingresses
 }
 
 func GetDefaultHTTPTrigger() Trigger {
