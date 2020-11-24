@@ -71,7 +71,6 @@ func (suite *AbstractPlatformTestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
 }
 
-
 func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesStructure() {
 	functionConfig := functionconfig.NewConfig()
 	functionConfig.Meta.Name = "f1"
