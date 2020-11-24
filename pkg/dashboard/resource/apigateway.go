@@ -114,47 +114,16 @@ func (agr *apiGatewayResource) GetByID(request *http.Request, id string) (restfu
 	return agr.apiGatewayToAttributes(apiGateway), nil
 }
 
-// Create deploys an api gateway
-func (agr *apiGatewayResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
-	apiGatewayInfo, responseErr := agr.getAPIGatewayInfoFromRequest(request, true)
-	if responseErr != nil {
-		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", responseErr)
-		return
-	}
-
-	// create an api gateway config
-	apiGatewayConfig := platform.APIGatewayConfig{
-		Meta:   *apiGatewayInfo.Meta,
-		Spec:   *apiGatewayInfo.Spec,
-		Status: *apiGatewayInfo.Status,
-	}
-
-	// create an api gateway
-	newAPIGateway, err := platform.NewAbstractAPIGateway(agr.Logger, agr.getPlatform(), apiGatewayConfig)
+// Create an api gateway
+// returns (id, attributes, error)
+func (agr *apiGatewayResource) Create(request *http.Request) (string, restful.Attributes, error) {
+	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request, true)
 	if err != nil {
-		responseErr = nuclio.WrapErrInternalServerError(err)
-		return
+		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", err)
+		return "", nil, err
 	}
 
-	// just deploy. the status is async through polling
-	agr.Logger.DebugWith("Creating api gateway", "newAPIGateway", newAPIGateway)
-	if responseErr = agr.getPlatform().CreateAPIGateway(&platform.CreateAPIGatewayOptions{
-		APIGatewayConfig: *newAPIGateway.GetConfig(),
-	}); responseErr != nil {
-		if strings.Contains(errors.Cause(responseErr).Error(), "already exists") {
-			responseErr = nuclio.WrapErrConflict(responseErr)
-		}
-
-		return
-	}
-
-	// set attributes
-	attributes = agr.apiGatewayToAttributes(newAPIGateway)
-	agr.Logger.DebugWith("Successfully created api gateway",
-		"id", id,
-		"attributes", attributes)
-
-	return
+	return agr.createAPIGateway(apiGatewayInfo)
 }
 
 func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
@@ -225,41 +194,42 @@ func (agr *apiGatewayResource) export(apiGateway platform.APIGateway) restful.At
 	return attributes
 }
 
-func (agr *apiGatewayResource) createAPIGateway(apiGatewayInfoInstance *apiGatewayInfo) (id string,
-	attributes restful.Attributes, responseErr error) {
+// returns (id, attributes, error)
+func (agr *apiGatewayResource) createAPIGateway(apiGatewayInfoInstance *apiGatewayInfo) (string, restful.Attributes, error) {
 
 	// create an api gateway config
 	apiGatewayConfig := platform.APIGatewayConfig{
 		Meta:   *apiGatewayInfoInstance.Meta,
 		Spec:   *apiGatewayInfoInstance.Spec,
-		Status: platform.APIGatewayStatus{},
+	}
+
+	if apiGatewayInfoInstance.Status != nil {
+		apiGatewayConfig.Status = *apiGatewayInfoInstance.Status
 	}
 
 	// create an api gateway
-	newAPIGateway, responseErr := platform.NewAbstractAPIGateway(agr.Logger, agr.getPlatform(), apiGatewayConfig)
-	if responseErr != nil {
-		responseErr = nuclio.WrapErrInternalServerError(responseErr)
-		return
+	newAPIGateway, err := platform.NewAbstractAPIGateway(agr.Logger, agr.getPlatform(), apiGatewayConfig)
+	if err != nil {
+		return "", nil, nuclio.WrapErrInternalServerError(err)
 	}
 
 	// just deploy. the status is async through polling
 	agr.Logger.DebugWith("Creating api gateway", "newAPIGateway", newAPIGateway)
-	if responseErr = agr.getPlatform().CreateAPIGateway(&platform.CreateAPIGatewayOptions{
+	if err = agr.getPlatform().CreateAPIGateway(&platform.CreateAPIGatewayOptions{
 		APIGatewayConfig: *newAPIGateway.GetConfig(),
-	}); responseErr != nil {
-		if strings.Contains(errors.Cause(responseErr).Error(), "already exists") {
-			responseErr = nuclio.WrapErrConflict(responseErr)
+	}); err != nil {
+		if strings.Contains(errors.Cause(err).Error(), "already exists") {
+			err = nuclio.WrapErrConflict(err)
 		}
 
-		return
+		return "", nil, err
 	}
 
 	// set attributes
-	attributes = agr.apiGatewayToAttributes(newAPIGateway)
-	agr.Logger.DebugWith("Successfully created api gateway",
-		"id", id,
-		"attributes", attributes)
-	return
+	attributes := agr.apiGatewayToAttributes(newAPIGateway)
+	agr.Logger.DebugWith("Successfully created api gateway", "attributes", attributes)
+
+	return apiGatewayConfig.Meta.Name, attributes, nil
 }
 
 func (agr *apiGatewayResource) deleteAPIGateway(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
