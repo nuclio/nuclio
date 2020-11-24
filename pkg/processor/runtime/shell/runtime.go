@@ -38,11 +38,12 @@ import (
 
 type shell struct {
 	*runtime.AbstractRuntime
-	configuration *Configuration
-	command       string
-	env           []string
-	commandInPath bool
-	ctx           context.Context
+	configuration  *Configuration
+	command        string
+	env            []string
+	commandInPath  bool
+	ctx            context.Context
+	restartChannel chan struct{}
 }
 
 // NewRuntime returns a new shell runtime
@@ -69,6 +70,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 	}
 
 	newShellRuntime.env = newShellRuntime.getEnvFromConfiguration()
+	newShellRuntime.restartChannel = make(chan struct{}, 1)
 
 	newShellRuntime.commandInPath, err = newShellRuntime.commandIsInPath()
 	if err != nil {
@@ -89,28 +91,64 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	command := []string{s.command}
 	command = append(command, s.getCommandArguments(event)...)
 
+	// create a timeout context
+	ctx, cancel := context.WithCancel(s.ctx)
+	defer cancel()
+
 	s.Logger.DebugWith("Executing shell",
 		"name", s.configuration.Meta.Name,
-		"version", s.configuration.Spec.Version,
 		"eventID", event.GetID(),
 		"bodyLen", len(event.GetBody()),
-		"command", command)
+		"command", command,
+		"eventTimeout", s.configuration.Spec.EventTimeout)
 
-	// create a timeout context (TODO: from configuration)
-	ctx, cancel := context.WithTimeout(s.ctx, 60*time.Second)
-	defer cancel()
+	responseChan := make(chan nuclio.Response, 1)
+
+	// process event in background
+	go s.processEvent(ctx, command, event, responseChan)
+
+	// wait for event response, return once it is done (or errored)
+	for {
+		select {
+		case response := <-responseChan:
+			return response, nil
+
+		case <-ctx.Done():
+			return nil, nuclio.NewErrRequestTimeout("Failed waiting for function execution")
+
+		case <-s.restartChannel:
+			s.Logger.Warn("Cancelling execution due to an ongoing restart")
+			cancel()
+		}
+	}
+}
+
+func (s *shell) processEvent(context context.Context,
+	command []string,
+	event nuclio.Event,
+	responseChan chan nuclio.Response) {
+
+	response := nuclio.Response{
+		StatusCode: http.StatusInternalServerError,
+		Headers:    s.configuration.ResponseHeaders,
+	}
+
+	// write response upon finishing
+	defer func() {
+		responseChan <- response
+	}()
 
 	var cmd *exec.Cmd
 
 	if s.commandInPath {
 
 		// if the command is an executable, run it as a command with sh -c.
-		cmd = exec.CommandContext(ctx, "sh", "-c", strings.Join(command, " "))
+		cmd = exec.CommandContext(context, "sh", "-c", strings.Join(command, " "))
 	} else {
 
 		// if the command is a shell script run it with sh(without -c). this will make sh
 		// read the script and run it as shell script and run it.
-		cmd = exec.CommandContext(ctx, "sh", command...)
+		cmd = exec.CommandContext(context, "sh", command...)
 	}
 
 	cmd.Stdin = strings.NewReader(string(event.GetBody()))
@@ -134,7 +172,8 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 			"bodyLen", len(event.GetBody()),
 			"command", command,
 			"err", err)
-		return nil, errors.Wrap(err, "Failed to run shell command")
+		response.Body = []byte(fmt.Sprintf(ResponseErrorFormat, err, out))
+		return
 	}
 
 	// calculate call duration
@@ -145,13 +184,10 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	s.Statistics.DurationMilliSecondsCount++
 
 	s.Logger.DebugWith("Shell executed",
-		"eventID", event.GetID())
-
-	return nuclio.Response{
-		StatusCode: http.StatusOK,
-		Headers:    s.configuration.ResponseHeaders,
-		Body:       out,
-	}, nil
+		"eventID", event.GetID(),
+		"callDuration", callDuration)
+	response.StatusCode = http.StatusOK
+	response.Body = out
 }
 
 func (s *shell) getCommand() (string, error) {
@@ -230,6 +266,24 @@ func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
 		fmt.Sprintf("NUCLIO_EVENT_TYPE_VERSION=%s", event.GetTypeVersion()),
 		fmt.Sprintf("NUCLIO_EVENT_VERSION=%s", event.GetVersion()),
 	}
+}
+
+func (s *shell) Restart() error {
+	if err := s.Stop(); err != nil {
+		return errors.Wrap(err, "Failed to stop runtime")
+	}
+	s.Logger.Warn("Restarting")
+	s.restartChannel <- struct{}{}
+	return s.Start()
+}
+
+func (s *shell) Start() error {
+	s.SetStatus(status.Ready)
+	return nil
+}
+
+func (s *shell) SupportsRestart() bool {
+	return true
 }
 
 func (s *shell) commandIsInPath() (bool, error) {

@@ -14,18 +14,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export EVENT_BODY=$(cat)
+EVENTBODY=$(cat)
 
-if [ "${EVENT_BODY}" == "return_body" ]; then
-	echo ${EVENT_BODY}
-elif [ "${EVENT_BODY}" == "return_env" ]; then
-	echo ${ENV1}-${ENV2}
-elif [ "${EVENT_BODY}" == "return_error" ]; then
-	exit 1
-elif [ "${EVENT_BODY}" == "return_error_with_message" ]; then
-  echo ${EVENT_BODY}
-  >&2 echo "some_error"
-	exit 1
-elif [ "${EVENT_BODY}" == "return_arguments" ]; then
-	echo $1-$2
-fi
+sleep_and_exit() {
+  sleepTimeout=$(echo ${EVENTBODY} | cut -d' ' -f2)
+	sleep ${sleepTimeout}
+	exit 0
+}
+
+wait_infinitely() {
+
+  # doing nothing while waiting for processor to kill me
+  while true; do
+    sleep 0.1
+    read
+  done < /dev/stdin
+}
+
+case $EVENTBODY in
+  "sleep"*) sleep_and_exit ;;
+  *)        wait_infinitely ;;
+esac

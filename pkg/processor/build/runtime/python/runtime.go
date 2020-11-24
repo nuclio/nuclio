@@ -43,6 +43,9 @@ func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runti
 	}
 
 	if p.FunctionConfig.Spec.Runtime == "python:2.7" {
+		p.Logger.Warn("Python 2.7 runtime is deprecated. " +
+			"Nuclio will drop support for Python 2.7 runtime as of version 1.6.0. " +
+			"Please migrate your code to Python 3.6")
 		processorDockerfileInfo.BaseImage = "python:2.7-alpine"
 	} else {
 		processorDockerfileInfo.BaseImage = "python:3.6"

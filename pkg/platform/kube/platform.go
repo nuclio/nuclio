@@ -377,6 +377,15 @@ func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunction
 
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+	p.Logger.DebugWith("Deleting function",
+		"functionConfig", deleteFunctionOptions.FunctionConfig)
+
+	// pre delete validation
+	if err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions); err != nil {
+		return errors.Wrap(err, "Failed while validating function deletion options")
+	}
+
+	// user must clean api gateway before deleting the function
 	if err := p.validateFunctionHasNoAPIGateways(deleteFunctionOptions); err != nil {
 		return errors.Wrap(err, "Failed while validating function has no api gateways")
 	}

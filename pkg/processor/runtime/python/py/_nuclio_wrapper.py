@@ -23,6 +23,7 @@ import traceback
 
 import msgpack
 import nuclio_sdk
+import nuclio_sdk.helpers
 import nuclio_sdk.json_encoder
 import nuclio_sdk.logger
 
@@ -86,6 +87,12 @@ class Wrapper(object):
 
         # indicate that we're ready
         self._write_packet_to_processor('s')
+
+        # log deprecation warning
+        if nuclio_sdk.helpers.PYTHON2:
+            self._logger.warn('Python 2.7 runtime is deprecated. '
+                              'Nuclio will drop support for Python 2.7 runtime as of version 1.6.0. '
+                              'Please migrate your code to Python 3.6')
 
     def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""

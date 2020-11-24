@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/config"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -259,25 +260,25 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
 	}
 
 	// validate resource version
-	if err := ap.ValidateResourceVersion(existingFunctionConfig, createFunctionOptions); err != nil {
+	if err := ap.ValidateResourceVersion(existingFunctionConfig, &createFunctionOptions.FunctionConfig); err != nil {
 		return nuclio.WrapErrConflict(err)
 	}
 	return nil
 }
 
 // Validate existing and new create function options resource version
-func (ap *Platform) ValidateResourceVersion(existingFunctionConfig *functionconfig.ConfigWithStatus,
-	createFunctionOptions *platform.CreateFunctionOptions) error {
+func (ap *Platform) ValidateResourceVersion(functionConfigWithStatus *functionconfig.ConfigWithStatus,
+	requestFunctionConfig *functionconfig.Config) error {
 
 	// if function has no existing instance, resource version validation is irrelevant.
-	if existingFunctionConfig == nil {
+	if functionConfigWithStatus == nil {
 		return nil
 	}
 
 	// existing function should always be the latest
 	// reason: the way we `GET` nuclio function ensures we retrieve the latest copy.
-	existingResourceVersion := existingFunctionConfig.Meta.ResourceVersion
-	requestResourceVersion := createFunctionOptions.FunctionConfig.Meta.ResourceVersion
+	existingResourceVersion := functionConfigWithStatus.Meta.ResourceVersion
+	requestResourceVersion := requestFunctionConfig.Meta.ResourceVersion
 
 	// when requestResourceVersion is empty, the existing one will be overridden
 	if requestResourceVersion != "" &&
@@ -324,7 +325,7 @@ func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platfor
 	return nil
 }
 
-// Validation and enforcement of required function deletion logic
+// Validation and enforcement of required project deletion logic
 func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	projectName := deleteProjectOptions.Meta.Name
 
@@ -334,6 +335,35 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 
 	if err := ap.validateProjectIsEmpty(deleteProjectOptions.Meta.Namespace, projectName); err != nil {
 		return errors.Wrap(err, "Cannot delete non-empty project")
+	}
+
+	return nil
+}
+
+// Validation and enforcement of required function deletion logic
+func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+	functionName := deleteFunctionOptions.FunctionConfig.Meta.Name
+	functionNamespace := deleteFunctionOptions.FunctionConfig.Meta.Namespace
+	functions, err := ap.platform.GetFunctions(&platform.GetFunctionsOptions{
+		Name:      functionName,
+		Namespace: functionNamespace,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get functions")
+	}
+
+	// function does not exists and hence nothing to validate (that might happen, delete method can be idempotent)
+	if len(functions) == 0 {
+		ap.Logger.DebugWith("Function is already deleted", "functionName", functionName)
+		return nil
+	}
+
+	functionToDelete := functions[0]
+
+	// validate resource version
+	if err := ap.ValidateResourceVersion(functionToDelete.GetConfigWithStatus(),
+		&deleteFunctionOptions.FunctionConfig); err != nil {
+		return nuclio.WrapErrConflict(err)
 	}
 
 	return nil
@@ -464,10 +494,12 @@ func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
 	return ap.ExternalIPAddresses, nil
 }
 
+// GetScaleToZeroConfiguration returns scale to zero configuration
 func (ap *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error) {
 	return nil, nil
 }
 
+// GetAllowedAuthenticationModes returns allowed authentication modes
 func (ap *Platform) GetAllowedAuthenticationModes() ([]string, error) {
 	return nil, nil
 }
@@ -479,7 +511,8 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 
 // BuildAndPushContainerImage builds container image and pushes it into docker registry
 func (ap *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
-	return ap.ContainerBuilder.BuildAndPushContainerImage(buildOptions, ap.platform.ResolveDefaultNamespace("@nuclio.selfNamespace"))
+	return ap.ContainerBuilder.BuildAndPushContainerImage(buildOptions,
+		ap.platform.ResolveDefaultNamespace("@nuclio.selfNamespace"))
 }
 
 // Get Onbuild stage for multistage builds
@@ -493,13 +526,38 @@ func (ap *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Art
 }
 
 // GetBaseImageRegistry returns base image registry
-func (ap *Platform) GetBaseImageRegistry(registry string) string {
-	return ap.ContainerBuilder.GetBaseImageRegistry(registry)
+func (ap *Platform) GetBaseImageRegistry(registry string, runtime runtime.Runtime) (string, error) {
+	baseImagesOverrides, err := ap.getBaseImagesOverrides()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get base images override from platform")
+	}
+
+	if baseImagesOverrides == nil {
+		baseImagesOverrides = map[string]string{}
+	}
+
+	imageRegistryRuntimeOverride := runtime.GetOverrideImageRegistryFromMap(baseImagesOverrides)
+	if imageRegistryRuntimeOverride != "" {
+		return imageRegistryRuntimeOverride, nil
+	}
+	return ap.ContainerBuilder.GetBaseImageRegistry(registry), nil
 }
 
 // GetOnbuildImageRegistry returns onbuild image registry
-func (ap *Platform) GetOnbuildImageRegistry(registry string) string {
-	return ap.ContainerBuilder.GetOnbuildImageRegistry(registry)
+func (ap *Platform) GetOnbuildImageRegistry(registry string, runtime runtime.Runtime) (string, error) {
+	onbuildImagesOverrides, err := ap.getOnbuildImagesOverrides()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get onbuild images override from platform")
+	}
+	if onbuildImagesOverrides == nil {
+		onbuildImagesOverrides = map[string]string{}
+	}
+
+	imageRegistryRuntimeOverride := runtime.GetOverrideImageRegistryFromMap(onbuildImagesOverrides)
+	if imageRegistryRuntimeOverride != "" {
+		return imageRegistryRuntimeOverride, nil
+	}
+	return ap.ContainerBuilder.GetOnbuildImageRegistry(registry), nil
 }
 
 // GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
@@ -899,7 +957,7 @@ func (ap *Platform) validateProjectExists(createFunctionOptions *platform.Create
 func (ap *Platform) validateTriggers(createFunctionOptions *platform.CreateFunctionOptions) error {
 
 	var httpTriggerExists bool
-	for triggerName, _trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
+	for triggerName, triggerInstance := range createFunctionOptions.FunctionConfig.Spec.Triggers {
 
 		// do not allow trigger with empty name
 		if triggerName == "" {
@@ -907,15 +965,15 @@ func (ap *Platform) validateTriggers(createFunctionOptions *platform.CreateFunct
 		}
 
 		// no more workers than limitation allows
-		if _trigger.MaxWorkers > trigger.MaxWorkersLimit {
+		if triggerInstance.MaxWorkers > trigger.MaxWorkersLimit {
 			return errors.Errorf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
 				triggerName,
-				_trigger.MaxWorkers,
+				triggerInstance.MaxWorkers,
 				trigger.MaxWorkersLimit)
 		}
 
 		// no more than one http trigger is allowed
-		if _trigger.Kind == "http" {
+		if triggerInstance.Kind == "http" {
 			if !httpTriggerExists {
 				httpTriggerExists = true
 				continue
@@ -989,6 +1047,11 @@ func (ap *Platform) enrichTriggers(createFunctionOptions *platform.CreateFunctio
 
 	for triggerName, triggerInstance := range createFunctionOptions.FunctionConfig.Spec.Triggers {
 
+		// if name was not given, inherit its key
+		if triggerInstance.Name == "" {
+			triggerInstance.Name = triggerName
+		}
+
 		// ensure having max workers
 		if common.StringInSlice(triggerInstance.Kind, []string{"http", "v3ioStream"}) {
 			if triggerInstance.MaxWorkers == 0 {
@@ -999,4 +1062,44 @@ func (ap *Platform) enrichTriggers(createFunctionOptions *platform.CreateFunctio
 		createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName] = triggerInstance
 	}
 	return nil
+}
+
+// returns overrides for base images per runtime
+func (ap *Platform) getBaseImagesOverrides() (map[string]string, error) {
+	switch configType := ap.Config.(type) {
+	case *platformconfig.Config:
+		if configType != nil {
+			return configType.ImageRegistryOverrides.BaseImageRegistries, nil
+		}
+		return nil, nil
+
+	// FIXME: When deploying using nuctl in a kubernetes environment, it will be a kube platform, but the configuration
+	// will be of type *config.Configuration which is lacking
+	// we need to fix the platform config (p.Config) to always be of the same type (*platformconfig.Config) and not
+	// passing interface{} everywhere
+	case *config.Configuration:
+		return nil, nil
+	default:
+		return nil, errors.New("Not a valid configuration instance")
+	}
+}
+
+// returns overrides for base images per runtime
+func (ap *Platform) getOnbuildImagesOverrides() (map[string]string, error) {
+	switch configType := ap.Config.(type) {
+	case *platformconfig.Config:
+		if configType != nil {
+			return configType.ImageRegistryOverrides.OnbuildImageRegistries, nil
+		}
+		return nil, nil
+
+	// FIXME: When deploying using nuctl in a kubernetes environment, it will be a kube platform, but the configuration
+	// will be of type *config.Configuration which is lacking
+	// we need to fix the platform config (p.Config) to always be of the same type (*platformconfig.Config) and not
+	// passing interface{} everywhere
+	case *config.Configuration:
+		return nil, nil
+	default:
+		return nil, errors.New("Not a valid configuration instance")
+	}
 }

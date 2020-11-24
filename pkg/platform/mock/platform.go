@@ -257,12 +257,12 @@ func (mp *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Art
 	return map[string]string{}, nil
 }
 
-func (mp *Platform) GetBaseImageRegistry(registry string) string {
-	return "quay.io"
+func (mp *Platform) GetBaseImageRegistry(registry string, runtime runtime.Runtime) (string, error) {
+	return "quay.io", nil
 }
 
-func (mp *Platform) GetOnbuildImageRegistry(registry string) string {
-	return ""
+func (mp *Platform) GetOnbuildImageRegistry(registry string, runtime runtime.Runtime) (string, error) {
+	return "", nil
 }
 
 func (mp *Platform) GetDefaultRegistryCredentialsSecretName() string {

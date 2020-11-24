@@ -12,20 +12,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/rs/xid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
-
-type TestPlatform struct {
-	platform.Platform
-	logger         logger.Logger
-	suiteAssertion *assert.Assertions
-}
 
 const (
 	MultiWorkerFunctionLogsFilePath          = "test/logs_examples/multi_worker"
@@ -38,17 +32,10 @@ const (
 	BriefErrorsMessageFile                   = "brief_errors_message.txt"
 )
 
-// GetProjects will list existing projects
-func (mp *TestPlatform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	project, err := platform.NewAbstractProject(mp.logger, nil, platform.ProjectConfig{})
-	mp.suiteAssertion.NoError(err, "Failed to create new abstract project")
-	return []platform.Project{
-		project,
-	}, nil
-}
-
 type AbstractPlatformTestSuite struct {
 	suite.Suite
+	mockedPlatform *mock.Platform
+
 	Logger           logger.Logger
 	DockerClient     dockerclient.Client
 	Platform         *Platform
@@ -71,11 +58,8 @@ func (suite *AbstractPlatformTestSuite) SetupSuite() {
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err, "Logger should create successfully")
 
-	testPlatform := &TestPlatform{
-		logger:         suite.Logger,
-		suiteAssertion: suite.Assert(),
-	}
-	suite.Platform, err = NewPlatform(suite.Logger, testPlatform, &platformconfig.Config{})
+	suite.mockedPlatform = &mock.Platform{}
+	suite.Platform, err = NewPlatform(suite.Logger, suite.mockedPlatform, &platformconfig.Config{})
 	suite.Require().NoError(err, "Could not create platform")
 
 	suite.Platform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
@@ -84,6 +68,112 @@ func (suite *AbstractPlatformTestSuite) SetupSuite() {
 
 func (suite *AbstractPlatformTestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
+	for _, testCase := range []struct {
+		existingFunctions     []platform.Function
+		deleteFunctionOptions *platform.DeleteFunctionOptions
+		shouldFailValidation  bool
+	}{
+
+		// happy flow
+		{
+			existingFunctions: []platform.Function{
+				&platform.AbstractFunction{
+					Logger:   suite.Logger,
+					Platform: suite.Platform.platform,
+					Config: functionconfig.Config{
+						Meta: functionconfig.Meta{
+							Name: "existing",
+						},
+					},
+				},
+			},
+			deleteFunctionOptions: &platform.DeleteFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						Name: "existing",
+					},
+				},
+			},
+		},
+
+		// function may not be existing, validation should pass (delete is idempotent)
+		{
+			deleteFunctionOptions: &platform.DeleteFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						Name:            "not-existing",
+						ResourceVersion: "",
+					},
+					Spec: functionconfig.Spec{},
+				},
+			},
+		},
+
+		// matching resourceVersion
+		{
+			existingFunctions: []platform.Function{
+				&platform.AbstractFunction{
+					Logger:   suite.Logger,
+					Platform: suite.Platform.platform,
+					Config: functionconfig.Config{
+						Meta: functionconfig.Meta{
+							Name:            "existing",
+							ResourceVersion: "1",
+						},
+					},
+				},
+			},
+			deleteFunctionOptions: &platform.DeleteFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						Name:            "existing",
+						ResourceVersion: "1",
+					},
+				},
+			},
+		},
+
+		// fail: stale resourceVersion
+		{
+			existingFunctions: []platform.Function{
+				&platform.AbstractFunction{
+					Logger:   suite.Logger,
+					Platform: suite.Platform.platform,
+					Config: functionconfig.Config{
+						Meta: functionconfig.Meta{
+							Name:            "existing",
+							ResourceVersion: "2",
+						},
+					},
+				},
+			},
+			deleteFunctionOptions: &platform.DeleteFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						Name:            "existing",
+						ResourceVersion: "1",
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+	} {
+
+		suite.mockedPlatform.On("GetFunctions", &platform.GetFunctionsOptions{
+			Name:      testCase.deleteFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: testCase.deleteFunctionOptions.FunctionConfig.Meta.Namespace,
+		}).Return(testCase.existingFunctions, nil).Once()
+
+		err := suite.Platform.ValidateDeleteFunctionOptions(testCase.deleteFunctionOptions)
+		if testCase.shouldFailValidation {
+			suite.Require().Error(err)
+		} else {
+			suite.Require().NoError(err)
+		}
+	}
 }
 
 // Test function with invalid min max replicas
@@ -118,6 +208,15 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 		{MinReplicas: &two, MaxReplicas: &one, shouldFailValidation: true},
 		{MinReplicas: &two, MaxReplicas: &two, ExpectedMinReplicas: &two, ExpectedMaxReplicas: &two, shouldFailValidation: false},
 	} {
+
+		suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+			Meta: platform.ProjectMeta{
+				Name:      platform.DefaultProjectName,
+				Namespace: "default",
+			},
+		}).Return([]platform.Project{
+			&platform.AbstractProject{},
+		}, nil).Once()
 
 		// name it with index and shift with 65 to get A as first letter
 		functionName := string(rune(idx + 65))
@@ -163,7 +262,7 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 	}
 }
 
-func (suite *AbstractPlatformTestSuite) TestFunctionTriggersEnriched() {
+func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() {
 	for idx, testCase := range []struct {
 		triggers                 map[string]functionconfig.Trigger
 		expectedEnrichedTriggers map[string]functionconfig.Trigger
@@ -171,6 +270,7 @@ func (suite *AbstractPlatformTestSuite) TestFunctionTriggersEnriched() {
 	}{
 
 		// enrich maxWorkers to 1
+		// enrich name from key
 		{
 			triggers: map[string]functionconfig.Trigger{
 				"some-trigger": {
@@ -181,6 +281,7 @@ func (suite *AbstractPlatformTestSuite) TestFunctionTriggersEnriched() {
 				"some-trigger": {
 					Kind:       "http",
 					MaxWorkers: 1,
+					Name:       "some-trigger",
 				},
 			},
 		},
@@ -219,6 +320,16 @@ func (suite *AbstractPlatformTestSuite) TestFunctionTriggersEnriched() {
 			shouldFailValidation: true,
 		},
 	} {
+
+		suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+			Meta: platform.ProjectMeta{
+				Name:      platform.DefaultProjectName,
+				Namespace: "default",
+			},
+		}).Return([]platform.Project{
+			&platform.AbstractProject{},
+		}, nil).Once()
+
 		// name it with index and shift with 65 to get A as first letter
 		functionName := string(rune(idx + 65))
 		functionConfig := *functionconfig.NewConfig()

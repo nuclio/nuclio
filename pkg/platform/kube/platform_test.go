@@ -9,33 +9,19 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+	"github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
 )
 
-type TestPlatform struct {
-	platform.Platform
-	logger         logger.Logger
-	suiteAssertion *assert.Assertions
-}
-
-// GetProjects will list existing projects
-func (mp *TestPlatform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	project, err := platform.NewAbstractProject(mp.logger, nil, platform.ProjectConfig{})
-	mp.suiteAssertion.NoError(err, "Failed to create new abstract project")
-	return []platform.Project{
-		project,
-	}, nil
-}
-
 type KubePlatformTestSuite struct {
 	suite.Suite
+	mockedPlatform     *mock.Platform
 	Logger             logger.Logger
 	Platform           *Platform
 	PlatformKubeConfig *platformconfig.PlatformKubeConfig
@@ -52,10 +38,8 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 	suite.PlatformKubeConfig = &platformconfig.PlatformKubeConfig{
 		DefaultServiceType: v1.ServiceTypeClusterIP,
 	}
-	abstractPlatform, err := abstract.NewPlatform(suite.Logger, &TestPlatform{
-		logger:         suite.Logger,
-		suiteAssertion: suite.Assert(),
-	}, &platformconfig.Config{
+	suite.mockedPlatform = &mock.Platform{}
+	abstractPlatform, err := abstract.NewPlatform(suite.Logger, suite.mockedPlatform, &platformconfig.Config{
 		Kube: *suite.PlatformKubeConfig,
 	})
 	suite.Require().NoError(err, "Could not create platform")
@@ -94,6 +78,15 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnriched() {
 			}(),
 		},
 	} {
+		suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+			Meta: platform.ProjectMeta{
+				Name:      platform.DefaultProjectName,
+				Namespace: suite.Platform.ResolveDefaultNamespace(""),
+			},
+		}).Return([]platform.Project{
+			&platform.AbstractProject{},
+		}, nil).Once()
+
 		// name it with index and shift with 65 to get A as first letter
 		functionName := string(rune(idx + 65))
 		functionConfig := *functionconfig.NewConfig()

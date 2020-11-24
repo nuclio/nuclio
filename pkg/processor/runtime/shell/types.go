@@ -7,6 +7,8 @@ import (
 	"github.com/nuclio/errors"
 )
 
+const ResponseErrorFormat = "Failed to run shell command.\nError: %s\nOutput:%s"
+
 type Configuration struct {
 	*runtime.Configuration
 	Arguments       string

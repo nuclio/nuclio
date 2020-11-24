@@ -330,8 +330,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 
 	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta
 
-	err = fr.getPlatform().DeleteFunction(&deleteFunctionOptions)
-	if err != nil {
+	if err := fr.getPlatform().DeleteFunction(&deleteFunctionOptions); err != nil {
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
 			StatusCode: common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError),
@@ -342,7 +341,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 		ResourceType: "function",
 		Single:       true,
 		StatusCode:   http.StatusNoContent,
-	}, err
+	}, nil
 }
 
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
@@ -377,8 +376,7 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	}
 
 	functionInfoInstance := functionInfo{}
-	err = json.Unmarshal(body, &functionInfoInstance)
-	if err != nil {
+	if err := json.Unmarshal(body, &functionInfoInstance); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
@@ -406,6 +404,7 @@ func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, funct
 }
 
 func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionInfo, projectName string) (*functionInfo, error) {
+
 	// override namespace if applicable
 	if functionInfoInstance.Meta != nil {
 		functionInfoInstance.Meta.Namespace = fr.getNamespaceOrDefault(functionInfoInstance.Meta.Namespace)
