@@ -42,7 +42,11 @@
 {{- end -}}
 
 {{- define "nuclio.dashboardName" -}}
+{{- if (include "mlrun-kit.nuclio.dashboardNameOverride" .) }}
+{{- (include "mlrun-kit.nuclio.dashboardNameOverride" .) | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
 {{- printf "%s-dashboard" (include "nuclio.fullName" .) | trunc 63 -}}
+{{- end -}}
 {{- end -}}
 
 {{- define "nuclio.serviceAccountName" -}}
