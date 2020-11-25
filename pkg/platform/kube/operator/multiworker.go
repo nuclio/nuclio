@@ -20,6 +20,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -93,7 +95,13 @@ func (mw *MultiWorker) Start() error {
 	mw.logger.InfoWith("Starting")
 
 	// run the informer
-	go mw.informer.Run(mw.stopChannel)
+	go func() {
+		defer common.CatchAndLogPanic(context.Background(),
+			mw.logger,
+			"running multi worker informer")
+
+		mw.informer.Run(mw.stopChannel)
+	}()
 
 	// wait for cache to sync up with
 	if !cache.WaitForCacheSync(mw.stopChannel, mw.informer.HasSynced) {
@@ -102,6 +110,10 @@ func (mw *MultiWorker) Start() error {
 
 	for workerIdx := 0; workerIdx < mw.numWorkers; workerIdx++ {
 		go func() {
+			defer common.CatchAndLogPanic(context.Background(),
+				mw.logger,
+				"processing items")
+
 			wait.Until(mw.processItems, time.Second, mw.stopChannel)
 		}()
 	}
@@ -139,16 +151,16 @@ func (mw *MultiWorker) processItems() {
 		// try to process the item
 		err := mw.processItem(itemKey)
 		if err != nil {
-			mw.logger.WarnWith("Failed to process item", "err", err)
+			mw.logger.WarnWith("Failed to process item", "itemKey", itemKey, "err", errors.Cause(err))
 
 			// do we have any more retries?
 			if mw.queue.NumRequeues(itemKey) < mw.maxProcessingRetries {
-				mw.logger.DebugWith("Requeueing")
+				mw.logger.DebugWith("Requeueing", "itemKey", itemKey)
 
 				// add it back, rate limited
 				mw.queue.AddRateLimited(itemKey)
 			} else {
-				mw.logger.WarnWith("No retries, left. Giving up")
+				mw.logger.WarnWith("No retries, left. Giving up", "itemKey", itemKey)
 
 				mw.queue.Forget(itemKey)
 			}
@@ -174,10 +186,15 @@ func (mw *MultiWorker) processItem(itemKey string) error {
 	// Get the object
 	itemObject, itemObjectExists, err := mw.informer.GetIndexer().GetByKey(itemKey)
 	if err != nil {
-		return err
+		mw.logger.ErrorWith("Failed to find item by key",
+			"err", errors.Cause(err),
+			"itemKey", itemKey,
+			"itemObjectExists", itemObjectExists)
+		return errors.Wrapf(err, "Failed to find item by key %s", itemKey)
 	}
 
 	mw.logger.DebugWith("Got item from queue",
+		"itemKey", itemKey,
 		"itemObjectExists", itemObjectExists)
 
 	// if the item doesn't exist

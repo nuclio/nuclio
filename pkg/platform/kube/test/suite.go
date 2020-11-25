@@ -110,6 +110,14 @@ func (suite *KubeTestSuite) SetupSuite() {
 func (suite *KubeTestSuite) TearDownTest() {
 	suite.TestSuite.TearDownTest()
 
+	defer func() {
+
+		// delete leftovers if controller was not able to delete them
+		suite.executeKubectl([]string{"delete", "all"}, map[string]string{
+			"selector": "nuclio.io/app",
+		}) // nolint: errcheck
+	}()
+
 	// remove nuclio function leftovers
 	var errGroup errgroup.Group
 	for _, resourceKind := range []string{"nucliofunctions", "nuclioapigateways"} {
