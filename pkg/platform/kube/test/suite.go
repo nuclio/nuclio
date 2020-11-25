@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -105,6 +106,14 @@ func (suite *KubeTestSuite) SetupSuite() {
 	if err := suite.Controller.Start(); err != nil {
 		suite.Require().NoError(err, "Failed to start controller")
 	}
+}
+
+func (suite *KubeTestSuite) SetupTest() {
+	suite.TestSuite.SetupTest()
+
+	// default project must get deleted during testings, ensure it recreated
+	err := factory.EnsureDefaultProjectExistence(suite.Logger, suite.Platform, suite.Namespace)
+	suite.Require().NoError(err, "Failed to ensure default project exists")
 }
 
 func (suite *KubeTestSuite) TearDownTest() {
