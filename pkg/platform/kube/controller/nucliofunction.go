@@ -103,7 +103,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 					functionconfig.FunctionStateError,
 					errors.Wrap(panicError, "Failed to create/update function"))
 			},
-		}) // nolint: errcheck
+		})
 
 	// validate function name is according to k8s convention
 	errorMessages := validation.IsQualifiedName(function.Name)
