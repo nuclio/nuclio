@@ -96,7 +96,7 @@ func (mw *MultiWorker) Start() error {
 
 	// run the informer
 	go func() {
-		defer common.CatchAndLogPanic(context.Background(),
+		defer common.CatchAndLogPanic(context.Background(), // nolint: errcheck
 			mw.logger,
 			"running multi worker informer")
 
@@ -110,7 +110,7 @@ func (mw *MultiWorker) Start() error {
 
 	for workerIdx := 0; workerIdx < mw.numWorkers; workerIdx++ {
 		go func() {
-			defer common.CatchAndLogPanic(context.Background(),
+			defer common.CatchAndLogPanic(context.Background(), // nolint: errcheck
 				mw.logger,
 				"processing items")
 

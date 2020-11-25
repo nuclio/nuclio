@@ -113,9 +113,10 @@ func (suite *KubeTestSuite) TearDownTest() {
 	defer func() {
 
 		// delete leftovers if controller was not able to delete them
-		suite.executeKubectl([]string{"delete", "all"}, map[string]string{
-			"selector": "nuclio.io/app",
-		}) // nolint: errcheck
+		suite.executeKubectl([]string{"delete", "all"}, // nolint: errcheck
+			map[string]string{
+				"selector": "nuclio.io/app",
+			})
 	}()
 
 	// remove nuclio function leftovers

@@ -91,7 +91,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			errors.New("Received unexpected object, expected function"))
 	}
 
-	defer common.CatchAndLogPanicWithOptions(ctx,
+	defer common.CatchAndLogPanicWithOptions(ctx, // nolint: errcheck
 		fo.logger,
 		"nucliofunction.CreateOrUpdate",
 		&common.CatchAndLogPanicOptions{
@@ -99,11 +99,11 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 				"function", function,
 			},
 			CustomHandler: func(panicError error) {
-				fo.setFunctionError(function,
+				fo.setFunctionError(function, // nolint: errcheck
 					functionconfig.FunctionStateError,
-					errors.Wrap(panicError, "Failed to create/update function")) // nolint: errcheck
+					errors.Wrap(panicError, "Failed to create/update function"))
 			},
-		})
+		}) // nolint: errcheck
 
 	// validate function name is according to k8s convention
 	errorMessages := validation.IsQualifiedName(function.Name)
