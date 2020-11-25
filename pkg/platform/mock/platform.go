@@ -2,6 +2,7 @@ package mock
 
 import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -45,8 +46,13 @@ func (mp *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctio
 	return args.Get(0).(*platform.CreateFunctionResult), args.Error(1)
 }
 
-func (mp *Platform) EnrichCreateFunctionOptions(createFunctionBuildOptions *platform.CreateFunctionOptions) error {
-	args := mp.Called(createFunctionBuildOptions)
+func (mp *Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) error {
+	args := mp.Called(functionConfig)
+	return args.Error(0)
+}
+
+func (mp *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config) error {
+	args := mp.Called(functionConfig)
 	return args.Error(0)
 }
 

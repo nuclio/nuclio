@@ -96,10 +96,10 @@ func (suite *KubePlatformTestSuite) TestFunctionTriggersEnriched() {
 		createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
 		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-		err := suite.Platform.EnrichCreateFunctionOptions(createFunctionOptions)
+		err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
 		suite.Require().NoError(err, "Failed to enrich function")
 
-		err = suite.Platform.ValidateCreateFunctionOptions(createFunctionOptions)
+		err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
 		if testCase.shouldFailValidation {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			continue
