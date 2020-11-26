@@ -549,19 +549,20 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 // CreateAPIGateway creates and deploys a new api gateway
 func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
 	newAPIGateway := nuclioio.NuclioAPIGateway{}
-	p.platformAPIGatewayToAPIGateway(&createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
 
-	if err := p.enrichAndValidateAPIGatewayName(&newAPIGateway); err != nil {
+	// enrich
+	p.EnrichAPIGatewayConfig(&createAPIGatewayOptions.APIGatewayConfig)
+
+	// validate
+	if err := p.ValidateAPIGatewayConfig(&createAPIGatewayOptions.APIGatewayConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
 	}
 
-	// set state to waiting for provisioning
-	createAPIGatewayOptions.APIGatewayConfig.Status = platform.APIGatewayStatus{
-		State: platform.APIGatewayStateWaitingForProvisioning,
-	}
+	p.platformAPIGatewayToAPIGateway(&createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
 
+	// create
 	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		NuclioAPIGateways(createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
+		NuclioAPIGateways(newAPIGateway.Namespace).
 		Create(&newAPIGateway)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create api gateway")
@@ -579,17 +580,17 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 		return errors.Wrap(err, "Failed to get api gateway to update")
 	}
 
-	updatedAPIGateway := nuclioio.NuclioAPIGateway{}
-	p.platformAPIGatewayToAPIGateway(&updateAPIGatewayOptions.APIGatewayConfig, &updatedAPIGateway)
-	apiGateway.Spec = updatedAPIGateway.Spec
+	// enrich
+	p.EnrichAPIGatewayConfig(&updateAPIGatewayOptions.APIGatewayConfig)
 
-	if err := p.enrichAndValidateAPIGatewayName(&updatedAPIGateway); err != nil {
+	// validate
+	if err := p.ValidateAPIGatewayConfig(&updateAPIGatewayOptions.APIGatewayConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
 	}
 
-	// set api gateway state to "waitingForProvisioning", so the controller will know to update this resource
-	apiGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
+	apiGateway.Spec = updateAPIGatewayOptions.APIGatewayConfig.Spec
 
+	// update
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Update(apiGateway)
@@ -603,6 +604,12 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 // DeleteAPIGateway will delete a previously existing api gateway
 func (p *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
 
+	// validate
+	if err := p.validateAPIGatewayMeta(&deleteAPIGatewayOptions.Meta); err != nil {
+		return errors.Wrap(err, "Failed to validate api gateway meta")
+	}
+
+	// delete
 	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(deleteAPIGatewayOptions.Meta.Namespace).
 		Delete(deleteAPIGatewayOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
@@ -1107,17 +1114,54 @@ func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *p
 	functionEvent.Spec = platformFunctionEvent.Spec // deep copy instead?
 }
 
-func (p *Platform) enrichAndValidateAPIGatewayName(apiGateway *nuclioio.NuclioAPIGateway) error {
-	if apiGateway.Spec.Name == "" {
-		apiGateway.Spec.Name = apiGateway.Name
-	}
-	if apiGateway.Spec.Name != apiGateway.Name {
-		return nuclio.NewErrBadRequest("Api gateway metadata.name must match api gateway spec.name")
+func (p *Platform) EnrichAPIGatewayConfig(platformAPIGateway *platform.APIGatewayConfig) {
+
+	// meta
+	if platformAPIGateway.Meta.Name == "" {
+		platformAPIGateway.Meta.Name = platformAPIGateway.Spec.Name
 	}
 
-	if common.StringInSlice(apiGateway.Spec.Name, p.ResolveReservedResourceNames()) {
-		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("APIGateway name %s is reserved and cannot be used.",
-			apiGateway.Spec.Name))
+	// spec
+	if platformAPIGateway.Spec.Name == "" {
+		platformAPIGateway.Spec.Name = platformAPIGateway.Meta.Name
+	}
+
+	// status
+	// set api gateway state to "waitingForProvisioning", so the controller will know to create/update this resource
+	platformAPIGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
+}
+
+func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGatewayMeta) error {
+	if platformAPIGatewayMeta.Name == "" {
+		return nuclio.NewErrBadRequest("Api gateway name must be provided in metadata")
+	}
+
+	if platformAPIGatewayMeta.Namespace == "" {
+		return nuclio.NewErrBadRequest("Api gateway namespace must be provided in metadata")
+	}
+
+	return nil
+}
+
+func (p *Platform) ValidateAPIGatewayConfig(platformAPIGateway *platform.APIGatewayConfig) error {
+
+	// general validations
+	if platformAPIGateway.Spec.Name != platformAPIGateway.Meta.Name {
+		return nuclio.NewErrBadRequest("Api gateway metadata.name must match api gateway spec.name")
+	}
+	if common.StringInSlice(platformAPIGateway.Spec.Name, p.ResolveReservedResourceNames()) {
+		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Api gateway name '%s' is reserved and cannot be used",
+			platformAPIGateway.Spec.Name))
+	}
+
+	// meta
+	if err := p.validateAPIGatewayMeta(&platformAPIGateway.Meta); err != nil {
+		return errors.Wrap(err, "Failed to validate api gateway meta")
+	}
+
+	// spec
+	if err := ValidateAPIGatewaySpec(&platformAPIGateway.Spec); err != nil {
+		return errors.Wrap(err, "Api gateway spec validation failed")
 	}
 
 	return nil
