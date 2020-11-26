@@ -26,6 +26,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
 	"runtime/debug"
@@ -463,7 +464,6 @@ func CatchAndLogPanicWithOptions(ctx context.Context,
 	options *CatchAndLogPanicOptions) error {
 	if err := recover(); err != nil {
 		callStack := debug.Stack()
-		fmt.Println(err)
 		logPanic(ctx, loggerInstance, actionName, options.Args, callStack, err)
 
 		asErr := errorFromRecoveredError(err)
@@ -501,6 +501,6 @@ func errorFromRecoveredError(recoveredError interface{}) error {
 	case error:
 		return typedErr
 	default:
-		return errors.New("Unknown")
+		return errors.New(fmt.Sprintf("Unknown error type: %s", reflect.TypeOf(typedErr)))
 	}
 }
