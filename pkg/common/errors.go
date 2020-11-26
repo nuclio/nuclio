@@ -18,7 +18,7 @@ func ResolveErrorStatusCodeOrDefault(err error, defaultStatusCode int) int {
 	}
 
 	// resolve from root cause
-	switch rootCauseTypedError := errors.RootCause(err).(type) {
+	switch rootCauseTypedError := errors.Cause(err).(type) {
 	case nuclio.ErrorWithStatusCode:
 		return rootCauseTypedError.StatusCode()
 	case *nuclio.ErrorWithStatusCode:

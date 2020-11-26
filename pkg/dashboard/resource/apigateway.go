@@ -117,7 +117,7 @@ func (agr *apiGatewayResource) GetByID(request *http.Request, id string) (restfu
 // Create an api gateway
 // returns (id, attributes, error)
 func (agr *apiGatewayResource) Create(request *http.Request) (string, restful.Attributes, error) {
-	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request, true)
+	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request)
 	if err != nil {
 		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", err)
 		return "", nil, err
@@ -129,7 +129,7 @@ func (agr *apiGatewayResource) Create(request *http.Request) (string, restful.At
 func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	// get api gateway config and status from body
-	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request, false)
+	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request)
 	if err != nil {
 		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", err)
 
@@ -235,7 +235,7 @@ func (agr *apiGatewayResource) createAPIGateway(apiGatewayInfoInstance *apiGatew
 func (agr *apiGatewayResource) deleteAPIGateway(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	// get api gateway config and status from body
-	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request, false)
+	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request)
 	if err != nil {
 		agr.Logger.WarnWith("Failed to get api gateway config and status from body", "err", err)
 
@@ -277,8 +277,7 @@ func (agr *apiGatewayResource) getNamespaceFromRequest(request *http.Request) st
 	return agr.getNamespaceOrDefault(request.Header.Get("x-nuclio-api-gateway-namespace"))
 }
 
-func (agr *apiGatewayResource) getAPIGatewayInfoFromRequest(request *http.Request,
-	specRequired bool) (*apiGatewayInfo, error) {
+func (agr *apiGatewayResource) getAPIGatewayInfoFromRequest(request *http.Request) (*apiGatewayInfo, error) {
 
 	// read body
 	body, err := ioutil.ReadAll(request.Body)
@@ -291,21 +290,17 @@ func (agr *apiGatewayResource) getAPIGatewayInfoFromRequest(request *http.Reques
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
-	if err = agr.processAPIGatewayInfo(&apiGatewayInfoInstance,
-		specRequired,
-		request.Header.Get("x-nuclio-project-name")); err != nil {
-
-		return nil, errors.Wrap(err, "Failed to process api gateway info")
-	}
+	// enrichment
+	agr.enrichAPIGatewayInfo(&apiGatewayInfoInstance, request.Header.Get("x-nuclio-project-name"))
 
 	return &apiGatewayInfoInstance, nil
 }
 
 func (agr *apiGatewayResource) enrichAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo, projectName string) {
 
-	// ensure spec exists if it's required
-	if apiGatewayInfoInstance.Spec == nil {
-		apiGatewayInfoInstance.Spec = &platform.APIGatewaySpec{}
+	// ensure meta exists
+	if apiGatewayInfoInstance.Meta == nil {
+		apiGatewayInfoInstance.Meta = &platform.APIGatewayMeta{}
 	}
 
 	// enrich project name when specified
@@ -320,26 +315,18 @@ func (agr *apiGatewayResource) enrichAPIGatewayInfo(apiGatewayInfoInstance *apiG
 	// override namespace if applicable
 	apiGatewayInfoInstance.Meta.Namespace = agr.getNamespaceOrDefault(apiGatewayInfoInstance.Meta.Namespace)
 
+	// ensure spec exists
+	if apiGatewayInfoInstance.Spec == nil {
+		apiGatewayInfoInstance.Spec = &platform.APIGatewaySpec{}
+	}
+
 	// status is optional, ensure it exists
 	if apiGatewayInfoInstance.Status == nil {
 		apiGatewayInfoInstance.Status = &platform.APIGatewayStatus{}
 	}
 }
 
-func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo,
-	specRequired bool,
-	projectName string) error {
-
-	// validation (meta + spec existence)
-	if apiGatewayInfoInstance.Meta == nil {
-		return nuclio.NewErrBadRequest("Api gateway must be provided with metadata")
-	}
-	if specRequired && apiGatewayInfoInstance.Spec == nil {
-		return nuclio.NewErrBadRequest("Api gateway spec must be provided")
-	}
-
-	// enrichment
-	agr.enrichAPIGatewayInfo(apiGatewayInfoInstance, projectName)
+func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo, projectName string) error {
 
 	return nil
 }
