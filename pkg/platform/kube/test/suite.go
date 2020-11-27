@@ -111,7 +111,7 @@ func (suite *KubeTestSuite) SetupSuite() {
 func (suite *KubeTestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
-	// default project must get deleted during testings, ensure it recreated
+	// default project gets deleted during testings, ensure it is being recreated
 	err := factory.EnsureDefaultProjectExistence(suite.Logger, suite.Platform, suite.Namespace)
 	suite.Require().NoError(err, "Failed to ensure default project exists")
 }
