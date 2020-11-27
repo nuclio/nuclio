@@ -19,13 +19,17 @@ package common
 import (
 	"bufio"
 	"bytes"
+	"context"
+	"fmt"
 	"math"
 	"math/rand"
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"text/template"
@@ -34,6 +38,7 @@ import (
 	"unsafe"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 )
 
 var LettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
@@ -439,4 +444,63 @@ func GenerateRandomString(length int, letters []rune) string {
 	}
 
 	return string(randomString)
+}
+
+func CatchAndLogPanic(ctx context.Context,
+	loggerInstance logger.Logger,
+	actionName string) error {
+	return CatchAndLogPanicWithOptions(ctx,
+		loggerInstance,
+		actionName,
+		&CatchAndLogPanicOptions{
+			Args:          nil,
+			CustomHandler: nil,
+		})
+}
+
+func CatchAndLogPanicWithOptions(ctx context.Context,
+	loggerInstance logger.Logger,
+	actionName string,
+	options *CatchAndLogPanicOptions) error {
+	if err := recover(); err != nil {
+		callStack := debug.Stack()
+		logPanic(ctx, loggerInstance, actionName, options.Args, callStack, err)
+
+		asErr := errorFromRecoveredError(err)
+		if options.CustomHandler != nil {
+			options.CustomHandler(asErr)
+		}
+		return asErr
+	}
+	return nil
+}
+
+func logPanic(ctx context.Context,
+	loggerInstance logger.Logger,
+	actionName string,
+	args []interface{},
+	callStack []byte,
+	err interface{}) {
+
+	logArgs := []interface{}{
+		"err", err,
+		"stack", string(callStack),
+	}
+
+	if args != nil {
+		logArgs = append(logArgs, args...)
+	}
+
+	loggerInstance.ErrorWithCtx(ctx, "Panic caught while "+actionName, logArgs...)
+}
+
+func errorFromRecoveredError(recoveredError interface{}) error {
+	switch typedErr := recoveredError.(type) {
+	case string:
+		return errors.New(typedErr)
+	case error:
+		return typedErr
+	default:
+		return errors.New(fmt.Sprintf("Unknown error type: %s", reflect.TypeOf(typedErr)))
+	}
 }
