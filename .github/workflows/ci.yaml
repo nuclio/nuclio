@@ -156,9 +156,9 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
-    - uses: manusa/actions-setup-minikube@v2.0.1
+    - uses: manusa/actions-setup-minikube@v2.1.0
       with:
-        minikube version: "v1.14.2"
+        minikube version: "v1.15.1"
         kubernetes version: "v1.17.9"
         driver: docker
         github token: ${{ github.token }}
@@ -263,9 +263,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - uses: manusa/actions-setup-minikube@v2.0.1
+      - uses: manusa/actions-setup-minikube@v2.1.0
         with:
-          minikube version: "v1.14.2"
+          minikube version: "v1.15.1"
           kubernetes version: "v1.17.9"
           driver: docker
           github token: ${{ github.token }}
