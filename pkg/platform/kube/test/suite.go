@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -107,6 +108,14 @@ func (suite *KubeTestSuite) SetupSuite() {
 	}
 }
 
+func (suite *KubeTestSuite) SetupTest() {
+	suite.TestSuite.SetupTest()
+
+	// default project gets deleted during testings, ensure it is being recreated
+	err := factory.EnsureDefaultProjectExistence(suite.Logger, suite.Platform, suite.Namespace)
+	suite.Require().NoError(err, "Failed to ensure default project exists")
+}
+
 func (suite *KubeTestSuite) TearDownTest() {
 	suite.TestSuite.TearDownTest()
 
@@ -121,7 +130,12 @@ func (suite *KubeTestSuite) TearDownTest() {
 
 	// remove nuclio function leftovers
 	var errGroup errgroup.Group
-	for _, resourceKind := range []string{"nucliofunctions", "nuclioapigateways"} {
+	for _, resourceKind := range []string{
+		"nucliofunctions",
+		"nuclioprojects",
+		"nucliofunctionevents",
+		"nuclioapigateways",
+	} {
 		resourceKind := resourceKind
 		errGroup.Go(func() error {
 			return suite.deleteAllResourcesByKind(resourceKind)
@@ -190,6 +204,12 @@ func (suite *KubeTestSuite) GetFunction(getFunctionOptions *platform.GetFunction
 	functions, err := suite.Platform.GetFunctions(getFunctionOptions)
 	suite.Require().NoError(err)
 	return functions[0]
+}
+
+func (suite *KubeTestSuite) GetProject(getProjectFunctions *platform.GetProjectsOptions) platform.Project {
+	projects, err := suite.Platform.GetProjects(getProjectFunctions)
+	suite.Require().NoError(err, "Failed to get projects")
+	return projects[0]
 }
 
 func (suite *KubeTestSuite) GetFunctionDeployment(functionName string) *appsv1.Deployment {

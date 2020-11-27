@@ -444,12 +444,14 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
 		Get(updateProjectOptions.ProjectConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
-		return errors.Wrap(err, "Failed to get projects")
+		return errors.Wrap(err, "Failed to get project")
 	}
 
 	updatedProject := nuclioio.NuclioProject{}
 	p.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
 	project.Spec = updatedProject.Spec
+	project.Annotations = updatedProject.Annotations
+	project.Labels = updatedProject.Labels
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
@@ -718,6 +720,8 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 	}
 
 	functionEvent.Spec = updatedFunctionEvent.Spec
+	functionEvent.Annotations = updatedFunctionEvent.Annotations
+	functionEvent.Labels = updatedFunctionEvent.Labels
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
