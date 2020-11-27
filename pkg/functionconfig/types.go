@@ -105,7 +105,8 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 		if encodedIngresses, found := trigger.Attributes["ingresses"]; found {
 
 			// iterate over the encoded ingresses map and created ingress structures
-			for encodedIngressName, encodedIngress := range encodedIngresses.(map[string]interface{}) {
+			encodedIngresses := encodedIngresses.(map[string]interface{})
+			for encodedIngressName, encodedIngress := range encodedIngresses {
 				encodedIngressMap := encodedIngress.(map[string]interface{})
 
 				ingress := Ingress{}

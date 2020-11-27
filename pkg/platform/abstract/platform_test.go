@@ -15,6 +15,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/rs/xid"
@@ -68,6 +69,92 @@ func (suite *AbstractPlatformTestSuite) SetupSuite() {
 
 func (suite *AbstractPlatformTestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesStructure() {
+	functionConfig := functionconfig.NewConfig()
+	functionConfig.Meta.Name = "f1"
+	functionConfig.Meta.Namespace = "default"
+	functionConfig.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": platform.DefaultProjectName,
+	}
+
+	for _, testCase := range []struct {
+		Triggers      map[string]functionconfig.Trigger
+		ExpectedError string
+	}{
+		// test malformed ingresses structure
+		{
+			Triggers: map[string]functionconfig.Trigger{
+				"http-trigger": {
+					Kind: "http",
+					Attributes: map[string]interface{}{
+						"ingresses": "I should be a map and not a string",
+					},
+				},
+			},
+			ExpectedError: "Malformed structure for ingresses in trigger 'http-trigger' (expects a map)",
+		},
+
+		// test malformed specific ingress structure
+		{
+			Triggers: map[string]functionconfig.Trigger{
+				"http-trigger": {
+					Kind: "http",
+					Attributes: map[string]interface{}{
+						"ingresses": map[string]interface{}{
+							"0": map[string]interface{}{
+								"host":  "some-host",
+								"paths": []string{"/"},
+							},
+							"malformed-ingress": "I should be a map and not a string",
+						},
+					},
+				},
+			},
+			ExpectedError: "Malformed structure for ingress 'malformed-ingress' in trigger 'http-trigger'",
+		},
+
+		// test good flow (expecting no error)
+		{
+			Triggers: map[string]functionconfig.Trigger{
+				"http-trigger": {
+					Kind: "http",
+					Attributes: map[string]interface{}{
+						"ingresses": map[string]interface{}{
+							"0": map[string]interface{}{
+								"host":  "some-host",
+								"paths": []string{"/"},
+							},
+						},
+					},
+				},
+			},
+			ExpectedError: "",
+		},
+	} {
+
+		suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+			Meta: platform.ProjectMeta{
+				Name:      platform.DefaultProjectName,
+				Namespace: "default",
+			},
+		}).Return([]platform.Project{
+			&platform.AbstractProject{},
+		}, nil).Once()
+
+		// set test triggers
+		functionConfig.Spec.Triggers = testCase.Triggers
+
+		// run validations
+		err := suite.Platform.ValidateFunctionConfig(functionConfig)
+		if testCase.ExpectedError != "" {
+			suite.Assert().Error(err)
+			suite.Assert().Equal(testCase.ExpectedError, errors.RootCause(err).Error())
+		} else {
+			suite.Assert().NoError(err)
+		}
+	}
 }
 
 func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
@@ -235,10 +322,10 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = MinMaxReplicas.MaxReplicas
 		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-		err := suite.Platform.EnrichCreateFunctionOptions(createFunctionOptions)
-		suite.Require().NoError(err, "Failed to enrich function")
+		err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+		suite.Require().NoError(err, "Failed to enrich function config")
 
-		err = suite.Platform.ValidateCreateFunctionOptions(createFunctionOptions)
+		err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
 		if MinMaxReplicas.shouldFailValidation {
 			suite.Error(err, "Validation should fail")
 			suite.Logger.DebugWith("Validation failed as expected ", "functionName", functionName)
@@ -345,10 +432,10 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
 		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-		err := suite.Platform.EnrichCreateFunctionOptions(createFunctionOptions)
+		err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
 		suite.Require().NoError(err, "Failed to enrich function")
 
-		err = suite.Platform.ValidateCreateFunctionOptions(createFunctionOptions)
+		err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
 		if testCase.shouldFailValidation {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			continue

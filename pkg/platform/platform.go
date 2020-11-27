@@ -18,6 +18,7 @@ package platform
 
 import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )
@@ -45,8 +46,11 @@ type Platform interface {
 	// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 	CreateFunction(createFunctionOptions *CreateFunctionOptions) (*CreateFunctionResult, error)
 
-	// Enrich create function options upon creating function
-	EnrichCreateFunctionOptions(*CreateFunctionOptions) error
+	// Enrich function config upon creating function
+	EnrichFunctionConfig(functionConfig *functionconfig.Config) error
+
+	// Validate function config upon creating function
+	ValidateFunctionConfig(functionConfig *functionconfig.Config) error
 
 	// UpdateFunction will update a previously deployed function
 	UpdateFunction(updateFunctionOptions *UpdateFunctionOptions) error

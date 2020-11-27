@@ -449,12 +449,12 @@ func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOption
 
 func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterContainerRun OnAfterContainerRun,
-	expectError bool) *platform.CreateFunctionResult {
+	expectFailure bool) *platform.CreateFunctionResult {
 
 	// deploy the function
 	deployResult, err := suite.Platform.CreateFunction(createFunctionOptions)
 
-	if !expectError {
+	if !expectFailure {
 		suite.Require().NoError(err)
 	} else {
 		suite.Require().Error(err)
