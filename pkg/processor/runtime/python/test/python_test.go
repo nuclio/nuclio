@@ -290,8 +290,6 @@ func (suite *TestSuite) TestModifiedRequestBodySize() {
 		createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
 		createFunctionOptions.FunctionConfig.Spec.Triggers["http"] = functionconfig.Trigger{
 			Kind:       "http",
-			Name:       "myHTTPTrigger",
-			MaxWorkers: 1,
 			Attributes: map[string]interface{}{
 				"maxRequestBodySize": maxRequestBodySize,
 			},
