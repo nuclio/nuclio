@@ -83,6 +83,7 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 		Triggers      map[string]functionconfig.Trigger
 		ExpectedError string
 	}{
+
 		// test malformed ingresses structure
 		{
 			Triggers: map[string]functionconfig.Trigger{
@@ -146,8 +147,12 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 		// set test triggers
 		functionConfig.Spec.Triggers = testCase.Triggers
 
-		// run validations
-		err := suite.Platform.ValidateFunctionConfig(functionConfig)
+		// enrich
+		err := suite.Platform.EnrichFunctionConfig(functionConfig)
+		suite.Require().NoError(err)
+
+		// validate
+		err = suite.Platform.ValidateFunctionConfig(functionConfig)
 		if testCase.ExpectedError != "" {
 			suite.Assert().Error(err)
 			suite.Assert().Equal(testCase.ExpectedError, errors.RootCause(err).Error())
@@ -402,6 +407,17 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			triggers: map[string]functionconfig.Trigger{
 				"": {
 					Kind: "http",
+				},
+			},
+			shouldFailValidation: true,
+		},
+
+		// mismatching trigger key and name
+		{
+			triggers: map[string]functionconfig.Trigger{
+				"a": {
+					Kind: "http",
+					Name: "b",
 				},
 			},
 			shouldFailValidation: true,

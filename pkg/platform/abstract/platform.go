@@ -962,19 +962,25 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 		return errors.Wrap(err, "Ingresses validation failed")
 	}
 
-	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
+	for triggerKey, triggerInstance := range functionConfig.Spec.Triggers {
 
 		// do not allow trigger with empty name
-		if triggerName == "" {
-			return errors.Errorf("Trigger name cannot be empty")
+		if triggerKey == "" {
+			return nuclio.NewErrBadRequest("Trigger key can not be empty")
+		}
+
+		// trigger key and name must match
+		if triggerKey != triggerInstance.Name {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Trigger key and name must match (%s  %s)",
+				triggerKey, triggerInstance.Name))
 		}
 
 		// no more workers than limitation allows
 		if triggerInstance.MaxWorkers > trigger.MaxWorkersLimit {
-			return errors.Errorf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
-				triggerName,
+			return nuclio.NewErrBadRequest(fmt.Sprintf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
+				triggerKey,
 				triggerInstance.MaxWorkers,
-				trigger.MaxWorkersLimit)
+				trigger.MaxWorkersLimit))
 		}
 
 		// no more than one http trigger is allowed
@@ -983,7 +989,7 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 				httpTriggerExists = true
 				continue
 			}
-			return errors.New("There's more than one http trigger (unsupported)")
+			return nuclio.NewErrBadRequest("There's more than one http trigger (unsupported)")
 		}
 	}
 
