@@ -971,7 +971,7 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 
 		// trigger key and name must match
 		if triggerKey != triggerInstance.Name {
-			return nuclio.NewErrBadRequest(fmt.Sprintf("Trigger key and name must match (%s  %s)",
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Trigger key and name mismatch (%s != %s)",
 				triggerKey, triggerInstance.Name))
 		}
 
