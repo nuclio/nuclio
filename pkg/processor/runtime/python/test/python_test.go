@@ -289,7 +289,7 @@ func (suite *TestSuite) TestModifiedRequestBodySize() {
 			path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
 		createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
 		createFunctionOptions.FunctionConfig.Spec.Triggers["http"] = functionconfig.Trigger{
-			Kind:       "http",
+			Kind: "http",
 			Attributes: map[string]interface{}{
 				"maxRequestBodySize": maxRequestBodySize,
 			},
