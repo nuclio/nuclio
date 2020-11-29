@@ -326,11 +326,6 @@ func (agr *apiGatewayResource) enrichAPIGatewayInfo(apiGatewayInfoInstance *apiG
 	}
 }
 
-func (agr *apiGatewayResource) processAPIGatewayInfo(apiGatewayInfoInstance *apiGatewayInfo, projectName string) error {
-
-	return nil
-}
-
 // register the resource
 var apiGatewayResourceInstance = &apiGatewayResource{
 	resource: newResource("api/api_gateways", []restful.ResourceMethod{
