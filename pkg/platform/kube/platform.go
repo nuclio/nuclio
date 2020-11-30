@@ -1218,8 +1218,10 @@ func (p *Platform) overrideHTTPTriggerServiceType(functionConfig *functionconfig
 				functionConfig.Meta.Name,
 				trigger.Name)
 		}
-		trigger.Attributes["serviceType"] = serviceType
-		functionConfig.Spec.Triggers[triggerName] = trigger
+		if serviceType != "" {
+			trigger.Attributes["serviceType"] = serviceType
+			functionConfig.Spec.Triggers[triggerName] = trigger
+		}
 	}
 
 	return nil
