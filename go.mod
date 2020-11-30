@@ -54,7 +54,7 @@ require (
 	github.com/tsenart/vegeta v6.3.0+incompatible
 	github.com/v3io/scaler v0.4.0
 	github.com/v3io/scaler-types v1.7.0
-	github.com/v3io/v3io-go v0.1.9
+	github.com/v3io/v3io-go v0.2.3
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
 	github.com/valyala/fasthttp v1.14.0
