@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
 	"github.com/nuclio/logger"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -49,12 +50,13 @@ type CreateFunctionBuildOptions struct {
 }
 
 type CreateFunctionOptions struct {
-	Logger                     logger.Logger
-	FunctionConfig             functionconfig.Config
-	CreationStateUpdated       chan bool
-	InputImageFile             string
-	AuthConfig                 *AuthConfig
-	DependantImagesRegistryURL string
+	Logger                         logger.Logger
+	FunctionConfig                 functionconfig.Config
+	CreationStateUpdated           chan bool
+	InputImageFile                 string
+	AuthConfig                     *AuthConfig
+	DependantImagesRegistryURL     string
+	OverrideHTTPTriggerServiceType v1.ServiceType
 }
 
 type UpdateFunctionOptions struct {
