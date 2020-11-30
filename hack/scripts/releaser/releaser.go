@@ -560,16 +560,14 @@ func (r *Release) runAndRetrySkipIfFailed(funcToRetry func() error, errorMessage
 	for {
 		if err := funcToRetry(); err != nil {
 
-			response, promptErr := r.promptForYesNo(fmt.Sprintf("%s. Retry?", errorMessage))
-			if promptErr == nil && response {
+			if r.promptForYesNo(fmt.Sprintf("%s. Retry?", errorMessage)) {
 
 				// retry
 				r.logger.Debug("Retrying")
 				continue
 			}
 
-			response, promptErr = r.promptForYesNo(fmt.Sprintf("%s. Skip?", errorMessage))
-			if promptErr == nil && response {
+			if r.promptForYesNo(fmt.Sprintf("%s. Skip?", errorMessage)) {
 
 				// do not retry
 				r.logger.Debug("Skipping")
@@ -586,24 +584,27 @@ func (r *Release) runAndRetrySkipIfFailed(funcToRetry func() error, errorMessage
 	return nil
 }
 
-func (r *Release) promptForYesNo(promptMessage string) (bool, error) {
+func (r *Release) promptForYesNo(promptMessage string) bool {
 	fmt.Printf("%s ([y] Yes [n] No): ", promptMessage)
 
-	response, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	userInput, err := bufio.NewReader(os.Stdin).ReadString('\n')
 	if err != nil {
-		return false, errors.Wrap(err, "Failed to read yes no from prompt")
+		panic("Failed to read input from stdin")
 	}
 
-	switch normalizedResponse := strings.ToLower(strings.TrimSpace(response)); normalizedResponse {
+	switch normalizedResponse := strings.ToLower(strings.TrimSpace(userInput)); normalizedResponse {
 	case "y", "yes":
-		return true, nil
+		return true
 	case "n", "no":
-		return false, nil
+		return false
 	default:
 
-		// :nerd:
-		return strconv.ParseBool(normalizedResponse)
-
+		parsed, err := strconv.ParseBool(normalizedResponse)
+		if err != nil {
+			fmt.Printf("Invalid input '%s', retry again", normalizedResponse)
+			return r.promptForYesNo(promptMessage)
+		}
+		return parsed
 	}
 }
 
