@@ -98,6 +98,7 @@ func (suite *testSuite) TestOutputs() {
 		"content-type": "text/plain",
 	}
 	testPath := "/path/to/nowhere"
+	nonUTF8String := string([]byte{192, 175})
 
 	createFunctionOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("outputter"))
@@ -106,6 +107,16 @@ func (suite *testSuite) TestOutputs() {
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		testRequests := []httpsuite.Request{
+			{
+
+				// failed, non utf8 headers can not be parsed
+				RequestBody:   "testBody",
+				RequestMethod: http.MethodPost,
+				RequestHeaders: map[string]interface{}{
+					"nonUTFHeader": nonUTF8String,
+				},
+				ExpectedResponseStatusCode: &statusInternalError,
+			},
 			{
 				Name:                       "return string",
 				RequestBody:                "return_string",
