@@ -98,13 +98,14 @@ func (r *Release) Run() error {
 	}
 
 	if !r.skipCreateRelease {
-		if err := r.createRelease(); err != nil {
-			return errors.Wrap(err, "Failed to create release")
+		if err := r.runAndRetrySkipIfFailed(r.createRelease,
+			"Waiting for release creation has failed"); err != nil {
+			return errors.Wrap(err, "Failed to wait for release creation")
 		}
 
 		if err := r.runAndRetrySkipIfFailed(r.waitForReleaseCompleteness,
 			"Waiting for release completeness has failed"); err != nil {
-			return errors.Wrap(err, "Failed to wait for release")
+			return errors.Wrap(err, "Failed to wait for release completion")
 		}
 	} else {
 		r.logger.Info("Skipping release creation")
