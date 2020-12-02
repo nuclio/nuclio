@@ -11,8 +11,9 @@ on:
     - development
 
 env:
-  REPO: quay.io
-  REPO_NAME: nuclio
+  GO_VERSION: 1.10
+  GO111MODULE: off
+  GOPATH: /home/runner/work/nuclio/nuclio/go
 
 jobs:
   release:
@@ -53,7 +54,7 @@ jobs:
 
     - uses: actions/setup-go@v2
       with:
-        go-version: "^1.12.0"
+        go-version: ${{ env.GO_VERSION }}
 
     # since github-actions gives us 14G only, and fill it up with some garbage
     # we will free up some space for us (~2GB)
@@ -92,7 +93,6 @@ jobs:
         NUCLIO_OS=windows NUCLIO_ARCH=amd64 make tools
       env:
         NUCLIO_NUCTL_CREATE_SYMLINK: false
-        GOPATH: /home/runner/go
 
     - name: Upload binaries
       uses: AButler/upload-release-assets@v2.0
