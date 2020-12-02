@@ -55,7 +55,9 @@ class Wrapper(object):
 
         # make a writeable file from processor
         self._processor_sock_wfile = self._processor_sock.makefile('w')
-        self._unpacker = msgpack.Unpacker(raw=False, max_buffer_size=10 * 1024 * 1024)
+
+        # create msgpack unpacker
+        self._unpacker = self._resolve_unpacker()
 
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
@@ -154,6 +156,9 @@ class Wrapper(object):
                     formatted_exception = 'Exception caught in handler "{0}": {1}'.format(exc, traceback.format_exc())
 
             except Exception as exc:
+
+                # reset unpacker to avoid consecutive unicode decoding errors
+                self._unpacker = self._resolve_unpacker()
                 formatted_exception = 'Exception caught while serving "{0}": {1}'.format(exc, traceback.format_exc())
 
             # if we have a formatted exception, return it as 500
@@ -220,6 +225,9 @@ class Wrapper(object):
     def _write_packet_to_processor(self, body):
         self._processor_sock_wfile.write(body + '\n')
         self._processor_sock_wfile.flush()
+
+    def _resolve_unpacker(self):
+        return msgpack.Unpacker(raw=False, max_buffer_size=10 * 1024 * 1024)
 
 #
 # init
