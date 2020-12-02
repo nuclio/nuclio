@@ -328,6 +328,11 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME)
 #
 # Testing
 #
+
+.PHONY: fmt
+fmt:
+	gofmt -s -w .
+
 .PHONY: lint
 lint: ensure-gopath
 	@echo Installing linters...
