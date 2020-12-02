@@ -11,7 +11,7 @@ on:
     - development
 
 env:
-  GO_VERSION: 1.10.x
+  GO_VERSION: 1.12.x
   GO111MODULE: off
   GOPATH: /home/runner/work/nuclio/nuclio/go
 
