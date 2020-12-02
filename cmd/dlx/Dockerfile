@@ -30,7 +30,7 @@ COPY . .
 RUN go get github.com/v3io/scaler-types \
     && go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/logger \
-    && go get golang.org/x/net/... \
+    && go get -d golang.org/x/net/... \
     && go get github.com/nuclio/nuclio-sdk-go \
     && cd $GOPATH/src/github.com/nuclio/nuclio-sdk-go && git checkout v0.0.1 \
     && cd $GOPATH/src/github.com/v3io/scaler-types && git checkout v1.6.0 \

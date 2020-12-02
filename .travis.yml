@@ -24,7 +24,7 @@ script:
       && git checkout v0.0.1
       && cd $GOPATH/src/github.com/nuclio/nuclio
   - go get github.com/nuclio/amqp
-  - go get golang.org/x/net/...
+  - go get -d golang.org/x/net/...
   - go get github.com/v3io/scaler-types
       && cd $GOPATH/src/github.com/v3io/scaler-types
       && git checkout v1.6.0
