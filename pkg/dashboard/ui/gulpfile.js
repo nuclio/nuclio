@@ -191,7 +191,8 @@ gulp.task('app.js', function () {
         .pipe(minifyHtml({
             removeComments: true,
             collapseWhitespace: true,
-            collapseInlineTagWhitespace: true
+            collapseInlineTagWhitespace: true,
+            conservativeCollapse: true
         }))
         .pipe(ngHtml2Js({
             moduleName: config.app_files.templates_module_name
@@ -542,7 +543,8 @@ function buildIndexHtml(isVersionForTests) {
         .pipe(gulpIf(!state.isDevMode, minifyHtml({
             removeComments: true,
             collapseWhitespace: true,
-            collapseInlineTagWhitespace: true
+            collapseInlineTagWhitespace: true,
+            conservativeCollapse: true
         })))
         .pipe(gulp.dest(config.build_dir));
 
@@ -688,7 +690,8 @@ gulp.task('app.js_shared', function () {
         .pipe(minifyHtml({
             removeComments: true,
             collapseWhitespace: true,
-            collapseInlineTagWhitespace: true
+            collapseInlineTagWhitespace: true,
+            conservativeCollapse: true
         }))
         .pipe(ngHtml2Js({
             moduleName: config.shared_files.templates_module_name
