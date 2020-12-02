@@ -13,7 +13,7 @@ on:
 
 env:
   GO111MODULE: off
-  GOPATH: /home/runner/work/nuclio/go
+  GOPATH: /home/runner/work/nuclio/nuclio/go
 
 jobs:
   lint:
