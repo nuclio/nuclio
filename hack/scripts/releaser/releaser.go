@@ -362,19 +362,19 @@ func (r *Release) getTravisReleaseStatus() (string, error) {
 		return "", errors.Wrap(err, "Failed to read all response body")
 	}
 
-	var BuildsResponse []struct {
-		Build struct {
-			Branch string `json:"branch,omitempty"`
-			Status string `json:"status,omitempty"`
-		} `json:"build,omitempty"`
+	type Build struct {
+		Branch string `json:"branch,omitempty"`
+		State string `json:"state,omitempty"`
 	}
+	var BuildsResponse []Build
 	if err := json.Unmarshal(responseBody, &BuildsResponse); err != nil {
 		return "", errors.Wrap(err, "Failed to unmarshal builds response")
 	}
 	releaseBuildState := ""
 	for _, buildResponse := range BuildsResponse {
-		if buildResponse.Build.Branch == r.targetVersion {
-			releaseBuildState = buildResponse.Build.Status
+		if buildResponse.Branch == r.targetVersion {
+			releaseBuildState = buildResponse.State
+			break
 		}
 	}
 	return releaseBuildState, nil
