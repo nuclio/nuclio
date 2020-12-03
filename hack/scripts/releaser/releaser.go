@@ -364,7 +364,7 @@ func (r *Release) getTravisReleaseStatus() (string, error) {
 
 	type Build struct {
 		Branch string `json:"branch,omitempty"`
-		State string `json:"state,omitempty"`
+		State  string `json:"state,omitempty"`
 	}
 	var BuildsResponse []Build
 	if err := json.Unmarshal(responseBody, &BuildsResponse); err != nil {
