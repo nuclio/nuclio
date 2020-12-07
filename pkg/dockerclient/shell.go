@@ -92,7 +92,12 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		cacheOption = "--no-cache"
 	}
 
-	return c.build(buildOptions, buildArgs, cacheOption)
+	if err := c.build(buildOptions, buildArgs, cacheOption); err != nil {
+		return errors.Wrap(err, "Failed to build")
+	}
+
+	c.logger.DebugWith("Successfully built image", "image", buildOptions.Image)
+	return nil
 }
 
 // CopyObjectsFromImage copies objects (files, directories) from a given image to local storage. it does
@@ -659,6 +664,9 @@ func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string, cacheO
 
 		// when overlay image is gone (from disk)
 		"^failed to get digest sha256:",
+
+		// when trying to reuse a missing nuclio-onbuild between functions
+		"^Unable to find image 'nuclio-onbuild-.*' locally",
 	}
 
 	runOptions := &cmdrunner.RunOptions{
@@ -671,7 +679,7 @@ func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string, cacheO
 	common.RetryUntilSuccessfulOnErrorPatterns(c.buildTimeout, // nolint: errcheck
 		c.buildRetryInterval,
 		retryOnErrorMessages,
-		func() string { // nolint: errcheck
+		func() string {
 			runResults, err := c.runCommand(runOptions,
 				"docker build %s --force-rm -t %s -f %s %s %s .",
 				c.resolveDockerBuildNetwork(),

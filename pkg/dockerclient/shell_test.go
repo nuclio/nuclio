@@ -17,64 +17,56 @@ limitations under the License.
 package dockerclient
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
-	"github.com/nuclio/nuclio/pkg/common"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
-type mockCmdRunner struct {
-	mock.Mock
-	expectedStdout   string
-	expectedStderr   string
-	expectedExitCode int
-}
-
-func newMockCmdRunner(expectedStdout, expectedStderr string, expectedErrorCode int) *mockCmdRunner {
-	return &mockCmdRunner{
-		expectedStdout:   expectedStdout,
-		expectedStderr:   expectedStderr,
-		expectedExitCode: expectedErrorCode,
-	}
-}
-
-func (mcr *mockCmdRunner) Run(options *cmdrunner.RunOptions, format string, vars ...interface{}) (cmdrunner.RunResult, error) {
-	if options == nil {
-		options = &cmdrunner.RunOptions{}
-	}
-
-	return cmdrunner.RunResult{
-			ExitCode: mcr.expectedExitCode,
-			Output:   common.Redact(options.LogRedactions, mcr.expectedStdout),
-			Stderr:   common.Redact(options.LogRedactions, mcr.expectedStderr)},
-		nil
-}
-
-type CmdClientTestSuite struct {
+type ShellClientTestSuite struct {
 	suite.Suite
-	logger      logger.Logger
-	shellClient ShellClient
+	logger          logger.Logger
+	mockedCmdRunner *cmdrunner.MockRunner
+	shellClient     *ShellClient
 }
 
-func (suite *CmdClientTestSuite) SetupTest() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	shellClient, err := NewShellClient(suite.logger, newMockCmdRunner("", "", 0))
-	if err != nil {
-		panic("Failed to create shell client")
-	}
+func (suite *ShellClientTestSuite) SetupTest() {
+	var err error
 
-	suite.shellClient = *shellClient
+	// create logger
+	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err, "Failed to create logger")
+
+	// create mocked cmd runner
+	suite.mockedCmdRunner = cmdrunner.NewMockRunner()
+	suite.mockedCmdRunner.
+		On("Run", mock.Anything, "docker version", mock.Anything).
+		Return(cmdrunner.RunResult{
+			Output: "test",
+		}, nil)
+
+	// create docker shell client
+	suite.shellClient, err = NewShellClient(suite.logger, suite.mockedCmdRunner)
+	suite.Require().NoError(err, "Failed to create shell client")
+
+	suite.shellClient.buildRetryInterval = 1 * time.Millisecond
 }
 
-func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsStdout() {
+func (suite *ShellClientTestSuite) TestShellClientRunContainerReturnsStdout() {
 	testPhrase := "testing"
-	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdout = testPhrase
-
+	suite.mockedCmdRunner.
+		On("Run", mock.Anything, "docker run %s %s %s", mock.Anything).
+		Return(cmdrunner.RunResult{
+			Output: testPhrase,
+		}, nil).
+		Once()
 	output, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
 			Ports: map[int]int{7779: 7779},
@@ -84,13 +76,18 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsStdout() {
 	suite.Equal(testPhrase, output)
 }
 
-func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsMultilineStdout() {
-	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdout = `
+func (suite *ShellClientTestSuite) TestShellClientRunContainerReturnsMultilineStdout() {
+	suite.mockedCmdRunner.
+		On("Run", mock.Anything, "docker run %s %s %s", mock.Anything).
+		Return(cmdrunner.RunResult{
+			Output: `
 hello world
 this is another line
 and another
 andthisistheid
-`
+`,
+		}, nil).
+		Once()
 
 	containerID, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
@@ -101,9 +98,13 @@ andthisistheid
 	suite.Require().Equal("andthisistheid", containerID)
 }
 
-func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsStderr() {
-	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStderr = "foo"
-
+func (suite *ShellClientTestSuite) TestShellClientRunContainerReturnsStderr() {
+	suite.mockedCmdRunner.
+		On("Run", mock.Anything, "docker run %s %s %s", mock.Anything).
+		Return(cmdrunner.RunResult{
+			Stderr: "foo",
+		}, nil).
+		Once()
 	_, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
 			Ports: map[int]int{7779: 7779},
@@ -112,13 +113,17 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsStderr() {
 	suite.Require().NoError(err)
 }
 
-func (suite *CmdClientTestSuite) TestShellClientRunContainerFailsOnNonSingleStdout() {
-	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdout = `
+func (suite *ShellClientTestSuite) TestShellClientRunContainerFailsOnNonSingleStdout() {
+	suite.mockedCmdRunner.
+		On("Run", mock.Anything, "docker run %s %s %s", mock.Anything).
+		Return(cmdrunner.RunResult{
+			Output: `
 hello world
 this is another line
 and another
-andthisistheid with a space`
-
+andthisistheid with a space`,
+		}, nil).
+		Once()
 	_, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
 			Ports: map[int]int{7779: 7779},
@@ -127,13 +132,18 @@ andthisistheid with a space`
 	suite.Require().Error(err, "Output from docker command includes more than just ID")
 }
 
-func (suite *CmdClientTestSuite) TestShellClientRunContainerWhenImageMayNotExist() {
-	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdout = `
+func (suite *ShellClientTestSuite) TestShellClientRunContainerWhenImageMayNotExist() {
+	suite.mockedCmdRunner.
+		On("Run", mock.Anything, "docker run %s %s %s", mock.Anything).
+		Return(cmdrunner.RunResult{
+			Output: `
 hello world
 this is another line
 and another
 therealidishere
-and this a line informing a new version of alpine was pulled. with a space`
+and this a line informing a new version of alpine was pulled. with a space`,
+		}, nil).
+		Once()
 
 	containerID, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
@@ -145,8 +155,14 @@ and this a line informing a new version of alpine was pulled. with a space`
 	suite.Require().Equal("therealidishere", containerID)
 }
 
-func (suite *CmdClientTestSuite) TestShellClientRunContainerRedactsOutput() {
-	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdout = `helloworldsecret`
+func (suite *ShellClientTestSuite) TestShellClientRunContainerRedactsOutput() {
+	suite.mockedCmdRunner.
+		On("Run", mock.Anything, "docker run %s %s %s", mock.Anything).
+		Return(cmdrunner.RunResult{
+			Output: "helloworldsecret",
+		}, nil).
+		Once()
+
 	suite.shellClient.redactedValues = append(suite.shellClient.redactedValues, "secret")
 	output, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
@@ -157,6 +173,59 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerRedactsOutput() {
 	suite.Require().Equal("helloworld[redacted]", output)
 }
 
-func TestCmdRunnerTestSuite(t *testing.T) {
-	suite.Run(t, new(CmdClientTestSuite))
+func (suite *ShellClientTestSuite) TestBuildBailOnUnknownError() {
+
+	// mock failing
+	suite.mockedCmdRunner.
+		On("Run",
+			mock.Anything,
+			mock.MatchedBy(func(command string) bool {
+				return strings.Contains(command, "docker build %s")
+			}),
+			mock.Anything).
+		Return(cmdrunner.RunResult{
+			Stderr: `some bad happened`,
+		}, errors.New("unexpected error")).
+		Once()
+
+	err := suite.shellClient.Build(&BuildOptions{
+		ContextDir: "",
+	})
+	suite.Require().Error(err)
+
+	// 1 for docker version + 1 unknown build error
+	suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 2)
+}
+
+func (suite *ShellClientTestSuite) TestBuildRetryOnErrors() {
+
+	// mock failing
+	suite.mockedCmdRunner.
+		On("Run",
+			mock.Anything,
+			mock.MatchedBy(func(command string) bool {
+				return strings.Contains(command, "docker build %s")
+			}),
+			mock.Anything).
+		Return(cmdrunner.RunResult{
+			Stderr: `Unable to find image 'nuclio-onbuild-someid:sometag' locally`,
+		}, errors.New("execution error")).
+		Twice()
+
+	// success build
+	suite.mockedCmdRunner.
+		On("Run", mock.Anything, mock.Anything, mock.Anything).
+		Return(cmdrunner.RunResult{}, nil)
+
+	err := suite.shellClient.Build(&BuildOptions{
+		ContextDir: "",
+	})
+	suite.Require().Nil(err)
+
+	// 1 for docker version + 2 failing builds + 1 success build
+	suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 4)
+}
+
+func TestShellRunnerTestSuite(t *testing.T) {
+	suite.Run(t, new(ShellClientTestSuite))
 }
