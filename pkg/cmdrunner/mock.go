@@ -18,6 +18,7 @@ package cmdrunner
 
 import (
 	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/stretchr/testify/mock"
 )
 
