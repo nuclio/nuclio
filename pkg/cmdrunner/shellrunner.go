@@ -29,35 +29,6 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type CaptureOutputMode int
-
-const (
-	CaptureOutputModeCombined CaptureOutputMode = iota
-	CaptureOutputModeStdout
-)
-
-// RunOptions specifies runOptions to CmdRunner.Run
-type RunOptions struct {
-	WorkingDir        *string
-	Stdin             *string
-	Env               map[string]string
-	LogRedactions     []string
-	CaptureOutputMode CaptureOutputMode
-}
-
-type RunResult struct {
-	Output   string
-	Stderr   string
-	ExitCode int
-}
-
-// CmdRunner specifies the interface to an underlying command runner
-type CmdRunner interface {
-
-	// Run runs a command, given runOptions
-	Run(runOptions *RunOptions, format string, vars ...interface{}) (RunResult, error)
-}
-
 type ShellRunner struct {
 	logger logger.Logger
 	shell  string
