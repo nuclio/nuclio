@@ -28,6 +28,7 @@ import (
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 
 	"github.com/nuclio/errors"
 	"github.com/spf13/cobra"
@@ -165,9 +166,11 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to enrich function config before deployment")
 			}
 
-			err = commandeer.overrideHTTPTrigger(&commandeer.functionConfig, v1.ServiceType(commandeer.overrideHTTPTriggerServiceType))
-			if err != nil {
-				return errors.Wrap(err, "Failed overriding function http trigger service type")
+			if _, ok := rootCommandeer.platform.(*kube.Platform); ok {
+				err = commandeer.overrideHTTPTrigger(&commandeer.functionConfig, v1.ServiceType(commandeer.overrideHTTPTriggerServiceType))
+				if err != nil {
+					return errors.Wrap(err, "Failed overriding function http trigger service type")
+				}
 			}
 
 			_, deployErr := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
