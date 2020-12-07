@@ -49,12 +49,12 @@ type CreateFunctionBuildOptions struct {
 }
 
 type CreateFunctionOptions struct {
-	Logger                         logger.Logger
-	FunctionConfig                 functionconfig.Config
-	CreationStateUpdated           chan bool
-	InputImageFile                 string
-	AuthConfig                     *AuthConfig
-	DependantImagesRegistryURL     string
+	Logger                     logger.Logger
+	FunctionConfig             functionconfig.Config
+	CreationStateUpdated       chan bool
+	InputImageFile             string
+	AuthConfig                 *AuthConfig
+	DependantImagesRegistryURL string
 }
 
 type UpdateFunctionOptions struct {

@@ -171,9 +171,9 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			_, deployErr := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
-				Logger:                         rootCommandeer.loggerInstance,
-				FunctionConfig:                 commandeer.functionConfig,
-				InputImageFile:                 commandeer.inputImageFile,
+				Logger:         rootCommandeer.loggerInstance,
+				FunctionConfig: commandeer.functionConfig,
+				InputImageFile: commandeer.inputImageFile,
 			})
 
 			// don't check deploy error yet, first try to save the logs either way, and then return the error if necessary
