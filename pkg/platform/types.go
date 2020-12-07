@@ -24,7 +24,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
 	"github.com/nuclio/logger"
-	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -56,7 +55,6 @@ type CreateFunctionOptions struct {
 	InputImageFile                 string
 	AuthConfig                     *AuthConfig
 	DependantImagesRegistryURL     string
-	OverrideHTTPTriggerServiceType v1.ServiceType
 }
 
 type UpdateFunctionOptions struct {

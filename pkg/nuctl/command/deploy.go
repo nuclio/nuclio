@@ -160,11 +160,20 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			commandeer.functionConfig.Meta.RemoveSkipDeployAnnotation()
 
 			commandeer.rootCommandeer.loggerInstance.DebugWith("Deploying function", "functionConfig", commandeer.functionConfig)
+			err = rootCommandeer.platform.EnrichFunctionConfig(&commandeer.functionConfig)
+			if err != nil {
+				return errors.Wrap(err, "Failed to enrich function config before deployment")
+			}
+
+			err = commandeer.overrideHTTPTrigger(&commandeer.functionConfig, v1.ServiceType(commandeer.overrideHTTPTriggerServiceType))
+			if err != nil {
+				return errors.Wrap(err, "Failed overriding function http trigger service type")
+			}
+
 			_, deployErr := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 				Logger:                         rootCommandeer.loggerInstance,
 				FunctionConfig:                 commandeer.functionConfig,
 				InputImageFile:                 commandeer.inputImageFile,
-				OverrideHTTPTriggerServiceType: v1.ServiceType(commandeer.overrideHTTPTriggerServiceType),
 			})
 
 			// don't check deploy error yet, first try to save the logs either way, and then return the error if necessary
@@ -530,6 +539,26 @@ func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
 			Name:  envNameAndValue[0],
 			Value: envNameAndValue[1],
 		})
+	}
+
+	return nil
+}
+
+func (d *deployCommandeer) overrideHTTPTrigger(functionConfig *functionconfig.Config, serviceType v1.ServiceType) error {
+
+	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
+		if trigger.Attributes == nil {
+
+			// For sanity - this shouldn't happen as we use this function after enriching the default service type
+			// if it doesn't exist
+			return errors.Errorf("Trigger's service type not populated in function %s, in trigger %s",
+				functionConfig.Meta.Name,
+				trigger.Name)
+		}
+		if serviceType != "" {
+			trigger.Attributes["serviceType"] = serviceType
+			functionConfig.Spec.Triggers[triggerName] = trigger
+		}
 	}
 
 	return nil

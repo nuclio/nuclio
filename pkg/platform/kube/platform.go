@@ -144,13 +144,6 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Failed while enriching and validating function config")
 	}
 
-	// run this here because it is only relevant for kube platform and enrichAndValidateFunctionConfig uses
-	// general platform methods to which passing OverrideHTTPTriggerServiceType is irrelevant
-	if err := p.overrideHTTPTriggerServiceType(&createFunctionOptions.FunctionConfig,
-		createFunctionOptions.OverrideHTTPTriggerServiceType); err != nil {
-		return nil, errors.Wrap(err, "Failed overriding the http trigger's service type")
-	}
-
 	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
 	// with appropriate namespace and name
 	// e.g. ./nuctl deploy --path /path/to/function-with-function.yaml (function.yaml specifying the name and namespace)
@@ -233,13 +226,6 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		// enrich and validate again because it may not be valid after config was updated by external code entry type
 		if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
 			return errors.Wrap(err, "Failed while enriching and validating the updated function config")
-		}
-
-		// run this again because if the config was updated by external code entry type we still want to override
-		// the trigger service type.
-		if err := p.overrideHTTPTriggerServiceType(&createFunctionOptions.FunctionConfig,
-			createFunctionOptions.OverrideHTTPTriggerServiceType); err != nil {
-			return errors.Wrap(err, "Failed overriding the http trigger's service type")
 		}
 
 		existingFunctionInstance, err = p.getFunction(createFunctionOptions.FunctionConfig.Meta.Namespace,
@@ -1204,27 +1190,6 @@ func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.C
 	}
 
 	return trigger
-}
-
-func (p *Platform) overrideHTTPTriggerServiceType(functionConfig *functionconfig.Config,
-	serviceType v1.ServiceType) error {
-
-	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
-		if trigger.Attributes == nil {
-
-			// For sanity - this shouldn't happen as we use this function after enriching the default service type
-			// if it doesn't exist
-			return errors.Errorf("Trigger's service type not populated in function %s, in trigger %s",
-				functionConfig.Meta.Name,
-				trigger.Name)
-		}
-		if serviceType != "" {
-			trigger.Attributes["serviceType"] = serviceType
-			functionConfig.Spec.Triggers[triggerName] = trigger
-		}
-	}
-
-	return nil
 }
 
 func (p *Platform) getDefaultServiceType() (v1.ServiceType, error) {
