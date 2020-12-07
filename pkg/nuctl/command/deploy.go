@@ -161,16 +161,12 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			commandeer.functionConfig.Meta.RemoveSkipDeployAnnotation()
 
 			commandeer.rootCommandeer.loggerInstance.DebugWith("Deploying function", "functionConfig", commandeer.functionConfig)
-			err = rootCommandeer.platform.EnrichFunctionConfig(&commandeer.functionConfig)
-			if err != nil {
+			if err = rootCommandeer.platform.EnrichFunctionConfig(&commandeer.functionConfig); err != nil {
 				return errors.Wrap(err, "Failed to enrich function config before deployment")
 			}
 
-			if _, ok := rootCommandeer.platform.(*kube.Platform); ok {
-				err = commandeer.overrideHTTPTrigger(&commandeer.functionConfig, v1.ServiceType(commandeer.overrideHTTPTriggerServiceType))
-				if err != nil {
-					return errors.Wrap(err, "Failed overriding function http trigger service type")
-				}
+			if err = commandeer.overrideFunctionConfig(&commandeer.functionConfig); err != nil {
+				return errors.Wrap(err, "Failed to override function config")
 			}
 
 			_, deployErr := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
@@ -542,6 +538,19 @@ func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
 			Name:  envNameAndValue[0],
 			Value: envNameAndValue[1],
 		})
+	}
+
+	return nil
+}
+
+func (d *deployCommandeer) overrideFunctionConfig(functionConfig *functionconfig.Config) error {
+
+	// kube platform specific overrides
+	if _, ok := d.rootCommandeer.platform.(*kube.Platform); ok {
+
+		if err := d.overrideHTTPTrigger(functionConfig, v1.ServiceType(d.overrideHTTPTriggerServiceType)); err != nil {
+			return errors.Wrap(err, "Failed overriding function http trigger service type")
+		}
 	}
 
 	return nil
