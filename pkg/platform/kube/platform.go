@@ -1210,18 +1210,17 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(createAPIGatewayOp
 
 		ingresses := functionconfig.GetIngressesFromTriggers(function[0].GetConfig().Spec.Triggers)
 		if len(ingresses) > 0 {
-			return nuclio.NewErrConflict("Api gateway upstream function cannot have an ingress")
+			return nuclio.NewErrConflict("Api gateway upstream function must not have an ingress")
 		}
 	}
 
 	return nil
 }
 
+// validate that a function is not exposed inside http triggers, while it is also exposed by an api gateway
+// this is done to prevent the nginx bug, where it is not working properly when the same service is exposed more than once
+// (specifically when it has canary ingresses)
 func (p *Platform) validateFunctionIngresses(createFunctionOptions *platform.CreateFunctionOptions) error {
-
-	// validate that a function is not exposed inside http triggers, while it is also exposed by an api gateway
-	// this is done to prevent the nginx bug, where it is not working properly when the same service is exposed more than once
-	// (specifically when it has canary ingresses)
 	ingresses := functionconfig.GetIngressesFromTriggers(createFunctionOptions.FunctionConfig.Spec.Triggers)
 	if len(ingresses) > 0 {
 		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(createFunctionOptions.FunctionConfig.Meta.Namespace)
