@@ -468,7 +468,7 @@ functionAugmentedConfigs:
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
 	suite.Require().NoError(err)
 
-	expectedFunctionAugumentedConfigs := []LabelSelectorAndConfig{
+	expectedFunctionAugmentedConfigs := []LabelSelectorAndConfig{
 		{
 
 			// all function matches `nuclio.io/class: function` should have deployment spec of MinReadySeconds: 90
@@ -497,7 +497,7 @@ functionAugmentedConfigs:
 		},
 	}
 
-	suite.Require().True(compare.NoOrder(expectedFunctionAugumentedConfigs,
+	suite.Require().True(compare.NoOrder(expectedFunctionAugmentedConfigs,
 		readConfiguration.FunctionAugmentedConfigs))
 }
 

@@ -219,7 +219,7 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 			commandeer.apiGatewayConfig.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
 			return createCommandeer.rootCommandeer.platform.CreateAPIGateway(&platform.CreateAPIGatewayOptions{
-				APIGatewayConfig: commandeer.apiGatewayConfig,
+				APIGatewayConfig: &commandeer.apiGatewayConfig,
 			})
 		},
 	}

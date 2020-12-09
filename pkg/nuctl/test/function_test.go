@@ -1280,6 +1280,77 @@ wget -O - --post-data "$body" $url 2> /dev/null
 	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
+func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
+
+	// TODO: remove this if we ever implement "ServiceType" for local platform
+	suite.ensureRunningOnPlatform("kube")
+
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "reverser-cluster-ip" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+
+	namedArgs := map[string]string{
+		"path":                      path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"runtime":                   "golang",
+		"handler":                   "main:Reverse",
+		"http-trigger-service-type": "ClusterIP",
+	}
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	functionName2 := "reverser-node-port" + uniqueSuffix
+	imageName2 := "nuclio/processor-" + functionName2
+
+	namedArgs = map[string]string{
+		"path":                      path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"runtime":                   "golang",
+		"handler":                   "main:Reverse",
+		"http-trigger-service-type": "NodePort",
+	}
+
+	err = suite.ExecuteNuctl([]string{"deploy", functionName2, "--verbose", "--no-pull"}, namedArgs)
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName2) // nolint: errcheck
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName2}, nil) // nolint: errcheck
+
+	// get the function
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "fu", functionName}, map[string]string{
+		"output": "yaml",
+	}, false)
+	suite.Require().NoError(err)
+
+	functionConfig := functionconfig.Config{}
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &functionConfig)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal("ClusterIP", functionConfig.Spec.Triggers["default-http"].Attributes["serviceType"])
+
+	// get the function
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "fu", functionName2}, map[string]string{
+		"output": "yaml",
+	}, false)
+	suite.Require().NoError(err)
+
+	function2Config := functionconfig.Config{}
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &function2Config)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal("NodePort", function2Config.Spec.Triggers["default-http"].Attributes["serviceType"])
+}
+
 type functionGetTestSuite struct {
 	Suite
 }

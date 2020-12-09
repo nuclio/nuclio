@@ -19,6 +19,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-chi/chi v4.0.2+incompatible
 	github.com/go-chi/cors v1.0.0
+	github.com/google/go-cmp v0.5.3
 	github.com/hashicorp/go-uuid v1.0.1
 	github.com/heptiolabs/healthcheck v0.0.0-20180807145615-6ff867650f40
 	github.com/icza/dyno v0.0.0-20180601094105-0c96289f9585
@@ -53,7 +54,7 @@ require (
 	github.com/tsenart/vegeta v6.3.0+incompatible
 	github.com/v3io/scaler v0.4.0
 	github.com/v3io/scaler-types v1.7.0
-	github.com/v3io/v3io-go v0.1.9
+	github.com/v3io/v3io-go v0.2.3
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
 	github.com/valyala/fasthttp v1.14.0

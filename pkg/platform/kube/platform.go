@@ -140,20 +140,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// replace logger
 	createFunctionOptions.Logger = logStream.GetLogger()
 
-	if err := p.EnrichCreateFunctionOptions(createFunctionOptions); err != nil {
-		return nil, errors.Wrap(err, "Create function options enrichment failed")
-	}
-
-	if err := p.enrichHTTPTriggersWithServiceType(createFunctionOptions); err != nil {
-		return nil, errors.Wrap(err, "Failed to enrich HTTP triggers with service type")
-	}
-
-	if err := p.ValidateCreateFunctionOptions(createFunctionOptions); err != nil {
-		return nil, errors.Wrap(err, "Create function options validation failed")
-	}
-
-	if err := p.validateFunctionIngresses(createFunctionOptions); err != nil {
-		return nil, errors.Wrap(err, "Failed while validating function ingresses")
+	if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
+		return nil, errors.Wrap(err, "Failed while enriching and validating function config")
 	}
 
 	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
@@ -232,11 +220,16 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	// the builder may update the configuration, so we have to create the function in the platform only after
 	// the builder does that
-	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
+	onAfterConfigUpdated := func() error {
 		var err error
 
-		existingFunctionInstance, err = p.getFunction(updatedFunctionConfig.Meta.Namespace,
-			updatedFunctionConfig.Meta.Name)
+		// enrich and validate again because it may not be valid after config was updated by external code entry type
+		if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
+			return errors.Wrap(err, "Failed while enriching and validating the updated function config")
+		}
+
+		existingFunctionInstance, err = p.getFunction(createFunctionOptions.FunctionConfig.Meta.Namespace,
+			createFunctionOptions.FunctionConfig.Meta.Name)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function")
 		}
@@ -341,6 +334,18 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	return p.HandleDeployFunction(existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
 
+func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) error {
+	if err := p.Platform.EnrichFunctionConfig(functionConfig); err != nil {
+		return err
+	}
+
+	if err := p.enrichHTTPTriggersWithServiceType(functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich HTTP triggers with service type")
+	}
+
+	return nil
+}
+
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	functions, err := p.getter.get(p.consumer, getFunctionsOptions)
@@ -373,6 +378,15 @@ func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunction
 
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+	p.Logger.DebugWith("Deleting function",
+		"functionConfig", deleteFunctionOptions.FunctionConfig)
+
+	// pre delete validation
+	if err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions); err != nil {
+		return errors.Wrap(err, "Failed while validating function deletion options")
+	}
+
+	// user must clean api gateway before deleting the function
 	if err := p.validateFunctionHasNoAPIGateways(deleteFunctionOptions); err != nil {
 		return errors.Wrap(err, "Failed while validating function has no api gateways")
 	}
@@ -430,12 +444,14 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
 		Get(updateProjectOptions.ProjectConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
-		return errors.Wrap(err, "Failed to get projects")
+		return errors.Wrap(err, "Failed to get project")
 	}
 
 	updatedProject := nuclioio.NuclioProject{}
 	p.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
 	project.Spec = updatedProject.Spec
+	project.Annotations = updatedProject.Annotations
+	project.Labels = updatedProject.Labels
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
@@ -535,23 +551,20 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 // CreateAPIGateway creates and deploys a new api gateway
 func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
 	newAPIGateway := nuclioio.NuclioAPIGateway{}
-	p.platformAPIGatewayToAPIGateway(&createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
 
-	if err := p.enrichAndValidateAPIGatewayName(&newAPIGateway); err != nil {
+	// enrich
+	p.EnrichAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig)
+
+	// validate
+	if err := p.ValidateAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
 	}
 
-	if err := p.validateAPIGatewayFunctionsHaveNoIngresses(createAPIGatewayOptions); err != nil {
-		return errors.Wrap(err , "Failed to validate api gateway functions have no ingresses")
-	}
+	p.platformAPIGatewayToAPIGateway(createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
 
-	// set state to waiting for provisioning
-	createAPIGatewayOptions.APIGatewayConfig.Status = platform.APIGatewayStatus{
-		State: platform.APIGatewayStateWaitingForProvisioning,
-	}
-
+	// create
 	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		NuclioAPIGateways(createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
+		NuclioAPIGateways(newAPIGateway.Namespace).
 		Create(&newAPIGateway)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create api gateway")
@@ -569,17 +582,17 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 		return errors.Wrap(err, "Failed to get api gateway to update")
 	}
 
-	updatedAPIGateway := nuclioio.NuclioAPIGateway{}
-	p.platformAPIGatewayToAPIGateway(&updateAPIGatewayOptions.APIGatewayConfig, &updatedAPIGateway)
-	apiGateway.Spec = updatedAPIGateway.Spec
+	// enrich
+	p.EnrichAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig)
 
-	if err := p.enrichAndValidateAPIGatewayName(&updatedAPIGateway); err != nil {
+	// validate
+	if err := p.ValidateAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
 	}
 
-	// set api gateway state to "waitingForProvisioning", so the controller will know to update this resource
-	apiGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
+	apiGateway.Spec = updateAPIGatewayOptions.APIGatewayConfig.Spec
 
+	// update
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Update(apiGateway)
@@ -593,6 +606,12 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 // DeleteAPIGateway will delete a previously existing api gateway
 func (p *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
 
+	// validate
+	if err := p.validateAPIGatewayMeta(&deleteAPIGatewayOptions.Meta); err != nil {
+		return errors.Wrap(err, "Failed to validate api gateway meta")
+	}
+
+	// delete
 	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(deleteAPIGatewayOptions.Meta.Namespace).
 		Delete(deleteAPIGatewayOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
@@ -701,6 +720,8 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 	}
 
 	functionEvent.Spec = updatedFunctionEvent.Spec
+	functionEvent.Annotations = updatedFunctionEvent.Annotations
+	functionEvent.Labels = updatedFunctionEvent.Labels
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
@@ -1097,36 +1118,97 @@ func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *p
 	functionEvent.Spec = platformFunctionEvent.Spec // deep copy instead?
 }
 
-func (p *Platform) enrichAndValidateAPIGatewayName(apiGateway *nuclioio.NuclioAPIGateway) error {
-	if apiGateway.Spec.Name == "" {
-		apiGateway.Spec.Name = apiGateway.Name
-	}
-	if apiGateway.Spec.Name != apiGateway.Name {
-		return nuclio.NewErrBadRequest("Api gateway metadata.name must match api gateway spec.name")
+func (p *Platform) EnrichAPIGatewayConfig(platformAPIGateway *platform.APIGatewayConfig) {
+
+	// meta
+	if platformAPIGateway.Meta.Name == "" {
+		platformAPIGateway.Meta.Name = platformAPIGateway.Spec.Name
 	}
 
-	if common.StringInSlice(apiGateway.Spec.Name, p.ResolveReservedResourceNames()) {
-		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("APIGateway name %s is reserved and cannot be used.",
-			apiGateway.Spec.Name))
+	// spec
+	if platformAPIGateway.Spec.Name == "" {
+		platformAPIGateway.Spec.Name = platformAPIGateway.Meta.Name
+	}
+
+	// status
+	// set api gateway state to "waitingForProvisioning", so the controller will know to create/update this resource
+	platformAPIGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
+}
+
+func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGatewayMeta) error {
+	if platformAPIGatewayMeta.Name == "" {
+		return nuclio.NewErrBadRequest("Api gateway name must be provided in metadata")
+	}
+
+	if platformAPIGatewayMeta.Namespace == "" {
+		return nuclio.NewErrBadRequest("Api gateway namespace must be provided in metadata")
 	}
 
 	return nil
 }
 
-func (p *Platform) enrichHTTPTriggersWithServiceType(createFunctionOptions *platform.CreateFunctionOptions) error {
+func (p *Platform) ValidateAPIGatewayConfig(platformAPIGateway *platform.APIGatewayConfig) error {
+
+	// general validations
+	if platformAPIGateway.Spec.Name != platformAPIGateway.Meta.Name {
+		return nuclio.NewErrBadRequest("Api gateway metadata.name must match api gateway spec.name")
+	}
+	if common.StringInSlice(platformAPIGateway.Spec.Name, p.ResolveReservedResourceNames()) {
+		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Api gateway name '%s' is reserved and cannot be used",
+			platformAPIGateway.Spec.Name))
+	}
+
+	// meta
+	if err := p.validateAPIGatewayMeta(&platformAPIGateway.Meta); err != nil {
+		return errors.Wrap(err, "Failed to validate api gateway meta")
+	}
+
+	// spec
+	if err := ValidateAPIGatewaySpec(&platformAPIGateway.Spec); err != nil {
+		return errors.Wrap(err, "Api gateway spec validation failed")
+	}
+
+	if err := p.validateAPIGatewayFunctionsHaveNoIngresses(platformAPIGateway); err != nil {
+		return errors.Wrap(err , "Failed to validate api gateway functions have no ingresses")
+	}
+
+	return nil
+}
+
+func (p *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config) error {
+	if err := p.Platform.ValidateFunctionConfig(functionConfig); err != nil {
+		return err
+	}
+
+	return p.validateFunctionNoIngressAndAPIGateway(functionConfig)
+}
+
+func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfig.Config) error {
+	if err := p.EnrichFunctionConfig(functionConfig); err != nil {
+		return errors.Wrap(err, "Function config enrichment failed")
+	}
+
+	if err := p.ValidateFunctionConfig(functionConfig); err != nil {
+		return errors.Wrap(err, "Function config validation failed")
+	}
+
+	return nil
+}
+
+func (p *Platform) enrichHTTPTriggersWithServiceType(functionConfig *functionconfig.Config) error {
 
 	var err error
 
 	// for backwards compatibility
-	serviceType := createFunctionOptions.FunctionConfig.Spec.ServiceType
+	serviceType := functionConfig.Spec.ServiceType
 	if serviceType == "" {
 		if serviceType, err = p.getDefaultServiceType(); err != nil {
 			return errors.Wrap(err, "Failed getting default service type")
 		}
 	}
 
-	for triggerName, trigger := range functionconfig.GetTriggersByKind(createFunctionOptions.FunctionConfig.Spec.Triggers, "http") {
-		createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName] = p.enrichTriggerWithServiceType(createFunctionOptions,
+	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
+		functionConfig.Spec.Triggers[triggerName] = p.enrichTriggerWithServiceType(functionConfig,
 			trigger,
 			serviceType)
 	}
@@ -1150,7 +1232,7 @@ func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platf
 	return nil
 }
 
-func (p *Platform) enrichTriggerWithServiceType(createFunctionOptions *platform.CreateFunctionOptions,
+func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.Config,
 	trigger functionconfig.Trigger,
 	serviceType v1.ServiceType) functionconfig.Trigger {
 
@@ -1161,7 +1243,7 @@ func (p *Platform) enrichTriggerWithServiceType(createFunctionOptions *platform.
 	if triggerServiceType, serviceTypeExists := trigger.Attributes["serviceType"]; !serviceTypeExists || triggerServiceType == "" {
 
 		p.Logger.DebugWith("Enriching function HTTP trigger with service type",
-			"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
+			"functionName", functionConfig.Meta.Name,
 			"triggerName", trigger.Name,
 			"serviceType", serviceType)
 		trigger.Attributes["serviceType"] = serviceType
@@ -1191,12 +1273,12 @@ func (p *Platform) getDefaultServiceType() (v1.ServiceType, error) {
 	}
 }
 
-func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
+func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(platformAPIGateway *platform.APIGatewayConfig) error {
 
 	// check ingresses on every upstream function
-	for _, upstream := range createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams {
+	for _, upstream := range platformAPIGateway.Spec.Upstreams {
 		function, err := p.GetFunctions(&platform.GetFunctionsOptions{
-			Namespace: createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace,
+			Namespace: platformAPIGateway.Meta.Namespace,
 			Name: upstream.Nucliofunction.Name,
 		})
 		if err != nil {
@@ -1220,14 +1302,14 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(createAPIGatewayOp
 // validate that a function is not exposed inside http triggers, while it is also exposed by an api gateway
 // this is done to prevent the nginx bug, where it is not working properly when the same service is exposed more than once
 // (specifically when it has canary ingresses)
-func (p *Platform) validateFunctionIngresses(createFunctionOptions *platform.CreateFunctionOptions) error {
-	ingresses := functionconfig.GetIngressesFromTriggers(createFunctionOptions.FunctionConfig.Spec.Triggers)
+func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functionconfig.Config) error {
+	ingresses := functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)
 	if len(ingresses) > 0 {
-		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(createFunctionOptions.FunctionConfig.Meta.Namespace)
+		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(functionConfig.Meta.Namespace)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function to api gateways mapping")
 		}
-		if _, found := functionToAPIGateways[createFunctionOptions.FunctionConfig.Meta.Name]; found {
+		if _, found := functionToAPIGateways[functionConfig.Meta.Name]; found {
 			return nuclio.NewErrBadRequest("Function can't expose ingresses while it is being exposed by an api gateway")
 		}
 	}

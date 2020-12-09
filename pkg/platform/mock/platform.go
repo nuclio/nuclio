@@ -2,6 +2,7 @@ package mock
 
 import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -43,6 +44,16 @@ func (mp *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctio
 
 	args := mp.Called(createFunctionOptions)
 	return args.Get(0).(*platform.CreateFunctionResult), args.Error(1)
+}
+
+func (mp *Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) error {
+	args := mp.Called(functionConfig)
+	return args.Error(0)
+}
+
+func (mp *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config) error {
+	args := mp.Called(functionConfig)
+	return args.Error(0)
 }
 
 // UpdateFunction will update a previously deployed function
@@ -252,12 +263,12 @@ func (mp *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Art
 	return map[string]string{}, nil
 }
 
-func (mp *Platform) GetBaseImageRegistry(registry string) string {
-	return "quay.io"
+func (mp *Platform) GetBaseImageRegistry(registry string, runtime runtime.Runtime) (string, error) {
+	return "quay.io", nil
 }
 
-func (mp *Platform) GetOnbuildImageRegistry(registry string) string {
-	return ""
+func (mp *Platform) GetOnbuildImageRegistry(registry string, runtime runtime.Runtime) (string, error) {
+	return "", nil
 }
 
 func (mp *Platform) GetDefaultRegistryCredentialsSecretName() string {

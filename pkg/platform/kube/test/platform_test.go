@@ -29,11 +29,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/errors"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -50,12 +52,10 @@ func (suite *DeployFunctionTestSuite) TestStaleResourceVersion() {
 	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
-		suite.Require().NoError(err)
-		function := functions[0]
 
 		// save resource version
 		resourceVersion = function.GetConfig().Meta.ResourceVersion
@@ -75,13 +75,11 @@ def handler(context, event):
 	afterSecondDeploy := func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
-		suite.Require().NoError(err, "Failed to get functions")
 
-		function := functions[0]
 		suite.Require().NotEqual(resourceVersion,
 			function.GetConfig().Meta.ResourceVersion,
 			"Resource version should be changed between deployments")
@@ -330,6 +328,132 @@ func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways(
 	})
 }
 
+func (suite *DeleteFunctionTestSuite) TestStaleResourceVersion() {
+	var resourceVersion string
+
+	createFunctionOptions := suite.CompileCreateFunctionOptions("delete-resource-schema")
+
+	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
+
+		// get the function
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		// save resource version
+		resourceVersion = function.GetConfig().Meta.ResourceVersion
+		suite.Require().NotEmpty(resourceVersion)
+
+		// ensure using newest resource version on second deploy
+		createFunctionOptions.FunctionConfig.Meta.ResourceVersion = resourceVersion
+
+		// change source code
+		createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
+def handler(context, event):
+  return "darn it!"
+`))
+		return true
+	}
+
+	afterSecondDeploy := func(deployResult *platform.CreateFunctionResult) bool {
+
+		// get the function
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		suite.Require().NotEqual(resourceVersion,
+			function.GetConfig().Meta.ResourceVersion,
+			"Resource version should be changed between deployments")
+
+		deployResult.UpdatedFunctionConfig.Meta.ResourceVersion = resourceVersion
+
+		// expect a failure due to a stale resource version
+		suite.Logger.Info("Deleting function")
+		err := suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+			FunctionConfig: deployResult.UpdatedFunctionConfig,
+		})
+		suite.Require().Error(err)
+
+		deployResult.UpdatedFunctionConfig.Meta.ResourceVersion = function.GetConfig().Meta.ResourceVersion
+
+		// succeeded delete function
+		suite.Logger.Info("Deleting function")
+		err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+			FunctionConfig: deployResult.UpdatedFunctionConfig,
+		})
+		suite.Require().NoError(err)
+		return true
+	}
+
+	suite.DeployFunctionAndRedeploy(createFunctionOptions, afterFirstDeploy, afterSecondDeploy)
+}
+
+type UpdateFunctionTestSuite struct {
+	KubeTestSuite
+}
+
+func (suite *UpdateFunctionTestSuite) TestSanity() {
+	createFunctionOptions := suite.CompileCreateFunctionOptions("update-sanity")
+	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+		"something": "here",
+	}
+	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
+		"annotation-key": "annotation-value",
+	}
+
+	// create a disabled function
+	zero := 0
+	createFunctionOptions.FunctionConfig.Spec.Disable = true
+	createFunctionOptions.FunctionConfig.Spec.Replicas = &zero
+	_, err := suite.Platform.CreateFunction(createFunctionOptions)
+	suite.Require().NoError(err, "Failed to create function")
+
+	// delete leftovers
+	defer func() {
+		err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+			FunctionConfig: createFunctionOptions.FunctionConfig,
+		})
+		suite.Require().NoError(err, "Failed to delete function")
+	}()
+
+	// change annotations
+	createFunctionOptions.FunctionConfig.Meta.Annotations["annotation-key"] = "annotation-value-changed"
+	createFunctionOptions.FunctionConfig.Meta.Annotations["added-annotation"] = "added"
+
+	// update function
+	err = suite.Platform.UpdateFunction(&platform.UpdateFunctionOptions{
+		FunctionMeta: &createFunctionOptions.FunctionConfig.Meta,
+		FunctionSpec: &createFunctionOptions.FunctionConfig.Spec,
+	})
+	suite.Require().NoError(err, "Failed to update function")
+
+	// get function
+	function := suite.GetFunction(&platform.GetFunctionsOptions{
+		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+		Namespace: suite.Namespace,
+	})
+
+	// ensure retrieved function equal to updated
+	suite.Require().
+		Empty(cmp.Diff(
+			createFunctionOptions.FunctionConfig,
+			*function.GetConfig(),
+			cmp.Options{
+				cmpopts.IgnoreFields(createFunctionOptions.FunctionConfig.Meta,
+					"ResourceVersion"), // kubernetes opaque value
+				cmpopts.IgnoreFields(createFunctionOptions.FunctionConfig.Spec,
+					"Image", "ImageHash"), // auto generated during deploy
+
+				// TODO: compare triggers as well
+				// currently block due to serviceType being converted to string during get functions)
+				cmpopts.IgnoreTypes(map[string]functionconfig.Trigger{}),
+			},
+		))
+}
+
 type DeployAPIGatewayTestSuite struct {
 	KubeTestSuite
 }
@@ -398,9 +522,9 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdateFunctionWithIngressWhenHasAPIG
 			}
 
 			// expect the function deployment to fail because it is already being exposed by an api gateway
-			suite.DeployFunctionExpectError(createFunctionOptions,
-				nil,
-				"Function can't expose ingresses while it is being exposed by an api gateway")
+			suite.DeployFunctionExpectError(createFunctionOptions,func (deployResult *platform.CreateFunctionResult) bool {
+				return true
+			}, "Function can't expose ingresses while it is being exposed by an api gateway")
 
 		}, false, "")
 
@@ -442,11 +566,147 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 	})
 }
 
+type ProjectTestSuite struct {
+	KubeTestSuite
+}
+
+func (suite *ProjectTestSuite) TestCreate() {
+	projectConfig := platform.ProjectConfig{
+		Meta: platform.ProjectMeta{
+			Name:      "test-project",
+			Namespace: suite.Namespace,
+			Labels: map[string]string{
+				"label-key": "label-value",
+			},
+			Annotations: map[string]string{
+				"annotation-key": "annotation-value",
+			},
+		},
+		Spec: platform.ProjectSpec{
+			Description: "some description",
+		},
+	}
+
+	// create project
+	err := suite.Platform.CreateProject(&platform.CreateProjectOptions{
+		ProjectConfig: projectConfig,
+	})
+	suite.Require().NoError(err, "Failed to create project")
+	defer func() {
+		err = suite.Platform.DeleteProject(&platform.DeleteProjectOptions{
+			Meta: projectConfig.Meta,
+		})
+		suite.Require().NoError(err, "Failed to delete project")
+	}()
+
+	// get created project
+	projects, err := suite.Platform.GetProjects(&platform.GetProjectsOptions{
+		Meta: projectConfig.Meta,
+	})
+	suite.Require().NoError(err, "Failed to get projects")
+	suite.Require().Equal(len(projects), 1)
+
+	// requested and created project are equal
+	createdProject := projects[0]
+	suite.Require().Equal(projectConfig, *createdProject.GetConfig())
+}
+
+func (suite *ProjectTestSuite) TestUpdate() {
+	projectConfig := platform.ProjectConfig{
+		Meta: platform.ProjectMeta{
+			Name:      "test-project",
+			Namespace: suite.Namespace,
+			Labels: map[string]string{
+				"something": "here",
+			},
+			Annotations: map[string]string{
+				"annotation-key": "annotation-value",
+			},
+		},
+		Spec: platform.ProjectSpec{
+			Description: "Simple description",
+		},
+	}
+
+	// create project
+	err := suite.Platform.CreateProject(&platform.CreateProjectOptions{
+		ProjectConfig: projectConfig,
+	})
+	suite.Require().NoError(err, "Failed to create project")
+
+	// delete leftover
+	defer func() {
+		err = suite.Platform.DeleteProject(&platform.DeleteProjectOptions{
+			Meta: projectConfig.Meta,
+		})
+		suite.Require().NoError(err, "Failed to delete project")
+	}()
+
+	// change project annotations
+	projectConfig.Meta.Annotations["annotation-key"] = "annotation-value-changed"
+	projectConfig.Meta.Annotations["added-annotation"] = "added-annotation-value"
+
+	// change project labels
+	projectConfig.Meta.Labels["label-key"] = "label-value-changed"
+	projectConfig.Meta.Labels["added-label"] = "added-label-value"
+
+	// update project
+	err = suite.Platform.UpdateProject(&platform.UpdateProjectOptions{
+		ProjectConfig: projectConfig,
+	})
+	suite.Require().NoError(err, "Failed to update project")
+
+	// get updated project
+	updatedProject := suite.GetProject(&platform.GetProjectsOptions{
+		Meta: projectConfig.Meta,
+	})
+	suite.Require().Empty(cmp.Diff(projectConfig, *updatedProject.GetConfig()))
+}
+
+func (suite *ProjectTestSuite) TestDelete() {
+	projectConfig := platform.ProjectConfig{
+		Meta: platform.ProjectMeta{
+			Name:      "test-project",
+			Namespace: suite.Namespace,
+			Labels: map[string]string{
+				"something": "here",
+			},
+			Annotations: map[string]string{
+				"annotation-key": "annotation-value",
+			},
+		},
+		Spec: platform.ProjectSpec{
+			Description: "Simple description",
+		},
+	}
+
+	// create project
+	err := suite.Platform.CreateProject(&platform.CreateProjectOptions{
+		ProjectConfig: projectConfig,
+	})
+	suite.Require().NoError(err, "Failed to create project")
+
+	// delete project
+	err = suite.Platform.DeleteProject(&platform.DeleteProjectOptions{
+		Meta: projectConfig.Meta,
+	})
+	suite.Require().NoError(err, "Failed to delete project")
+
+	// ensure project does not exists
+	projects, err := suite.Platform.GetProjects(&platform.GetProjectsOptions{
+		Meta: projectConfig.Meta,
+	})
+	suite.Require().NoError(err, "Failed to get projects")
+	suite.Require().Equal(len(projects), 0)
+}
+
 func TestPlatformTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
 	}
 	suite.Run(t, new(DeployFunctionTestSuite))
-	suite.Run(t, new(DeployAPIGatewayTestSuite))
+	suite.Run(t, new(UpdateFunctionTestSuite))
 	suite.Run(t, new(DeleteFunctionTestSuite))
+	suite.Run(t, new(DeployAPIGatewayTestSuite))
+	suite.Run(t, new(ProjectTestSuite))
 }

@@ -20,19 +20,6 @@ set -o errexit
 # show command before execute
 set -o xtrace
 
-# shared
-python -m pip install -r py/requirements/common.txt
-
-# dev
-python -m pip install -r py/requirements/dev.txt
-
-# determine runtime version and install its packages
-if [[ $(python -V 2>&1) =~ 2\.7 ]]; then
-    python -m pip install -r py/requirements/python2.txt
-else
-    python -m pip install -r py/requirements/python3_6.txt
-fi
-
 # remove python cached
 find ./py \
     -name ".pytest_cache" -type d \

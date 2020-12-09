@@ -23,6 +23,7 @@ import traceback
 
 import msgpack
 import nuclio_sdk
+import nuclio_sdk.helpers
 import nuclio_sdk.json_encoder
 import nuclio_sdk.logger
 
@@ -61,10 +62,8 @@ class Wrapper(object):
         # make a writeable file from processor
         self._processor_sock_wfile = self._processor_sock.makefile('w')
 
-        # since this wrapper is behind the nuclio processor, in which pre-handle the traffic & request
-        # it is not mandatory to provide security over max buffer size.
-        # the request limit should be handled on the processor level.
-        self._unpacker = msgpack.Unpacker(raw=False, max_buffer_size=2 ** 32 - 1)
+        # create msgpack unpacker
+        self._unpacker = self._resolve_unpacker()
 
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
@@ -89,12 +88,19 @@ class Wrapper(object):
         # indicate that we're ready
         self._write_packet_to_processor('s')
 
+        # log deprecation warning
+        if nuclio_sdk.helpers.PYTHON2:
+            self._logger.warn('Python 2.7 runtime is deprecated. '
+                              'Nuclio will drop support for Python 2.7 runtime as of version 1.6.0. '
+                              'Please migrate your code to Python 3.6')
+
     def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
 
         while True:
 
             try:
+
                 # resolve event message length
                 event_message_length = self._resolve_event_message_length()
 
@@ -106,21 +112,23 @@ class Wrapper(object):
 
                 try:
                     self._handle_event(event)
-
                 except BaseException as exc:
-                    self._handle_serving_error('Exception caught in handler "{0}": {1}'.format(exc,
-                                                                                               traceback.format_exc()))
+                    self._on_handle_event_error(exc)
 
             except WrapperFatalException as exc:
-                self._handle_serving_error('Fatal error: "{0}": {1}'.format(exc,
-                                                                            traceback.format_exc()))
+                self._on_serving_error(exc)
 
                 # explode
                 self._shutdown(error_code=1)
 
+            except UnicodeDecodeError as exc:
+
+                # reset unpacker to avoid consecutive errors
+                self._unpacker = self._resolve_unpacker()
+                self._on_serving_error(exc)
+
             except Exception as exc:
-                self._handle_serving_error('Exception caught while serving "{0}": {1}'.format(exc,
-                                                                                              traceback.format_exc()))
+                self._on_serving_error(exc)
 
             # for testing, we can ask wrapper to only read a set number of requests
             if num_requests is not None and num_requests != 0:
@@ -128,6 +136,14 @@ class Wrapper(object):
 
             if num_requests == 0:
                 break
+
+    def _resolve_unpacker(self):
+        """
+        Since this wrapper is behind the nuclio processor, in which pre-handle the traffic & request
+        it is not mandatory to provide security over max buffer size.
+        the request limit should be handled on the processor level.
+        """
+        return msgpack.Unpacker(raw=False, max_buffer_size=2 ** 32 - 1)
 
     def _load_entrypoint_from_handler(self, handler):
         """
@@ -173,15 +189,6 @@ class Wrapper(object):
         self._processor_sock_wfile.write(body + '\n')
         self._processor_sock_wfile.flush()
 
-    def _log_and_encode_exception(self, formatted_exception, log_level='warn'):
-        getattr(self._logger, log_level)(formatted_exception)
-        return self._json_encoder.encode({
-            'body': formatted_exception,
-            'body_encoding': 'text',
-            'content_type': 'text/plain',
-            'status_code': 500,
-        })
-
     def _resolve_event_message_length(self):
 
         # used for the first message, to determine the body size
@@ -218,9 +225,27 @@ class Wrapper(object):
 
         return next(self._unpacker)
 
-    def _handle_serving_error(self, formatted_exception):
+    def _on_serving_error(self, exc):
+        self._log_and_response_error(exc, 'Exception caught while serving')
+
+    def _on_handle_event_error(self, exc):
+        self._log_and_response_error(exc, 'Exception caught in handler')
+
+    def _log_and_response_error(self, exc, error_message):
+        encoded_error_response = '{0} - "{1}": {2}'.format(error_message,
+                                                           exc,
+                                                           traceback.format_exc())
+        self._logger.error_with(error_message, exc=str(exc), traceback=traceback.format_exc())
+        self._write_response_error(encoded_error_response or error_message)
+
+    def _write_response_error(self, body):
         try:
-            encoded_response = self._log_and_encode_exception(formatted_exception)
+            encoded_response = self._json_encoder.encode({
+                'body': body,
+                'body_encoding': 'text',
+                'content_type': 'text/plain',
+                'status_code': 500,
+            })
 
             # try write the formatted exception back to processor
             self._write_packet_to_processor('r' + encoded_response)

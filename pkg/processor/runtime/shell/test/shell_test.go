@@ -17,10 +17,12 @@ limitations under the License.
 package test
 
 import (
+	"fmt"
 	"net/http"
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -59,7 +61,8 @@ func (suite *TestSuite) TestOutputs() {
 		"arguments":       "first second",
 		"responseHeaders": map[string]interface{}{"header1": "value1"},
 	}
-	testRequests := []*httpsuite.Request{
+
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
 			Name:                       "return body",
 			RequestBody:                "return_body",
@@ -96,8 +99,15 @@ func (suite *TestSuite) TestOutputs() {
 			ExpectedResponseBody:       "overridefirst-overridesecond\n",
 			ExpectedResponseStatusCode: &statusOK,
 		},
-	}
-	suite.DeployFunctionAndRequests(createFunctionOptions, testRequests)
+		{
+			Name:        "return body on error",
+			RequestBody: "return_error_with_message",
+			ExpectedResponseBody: fmt.Sprintf(shell.ResponseErrorFormat,
+				"exit status 1",
+				"return_error_with_message\nsome_error\n"),
+			ExpectedResponseStatusCode: &statusInternalError,
+		},
+	})
 }
 
 func (suite *TestSuite) TestStress() {

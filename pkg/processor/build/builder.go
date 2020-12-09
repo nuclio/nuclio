@@ -1005,18 +1005,30 @@ func (b *Builder) cleanupTempDir() error {
 func (b *Builder) buildProcessorImage() (string, error) {
 	buildArgs := b.getBuildArgs()
 
+	// get override base and onbuild image registries from the platform configuration
+
 	// Use dedicated base and onbuild image registries (pull registry) if defined
 	// - An empty baseImageRegistry will result in base images being pulled from the web, each base image according
-	// to it's fully qualified image name (different for each runtime)
+	// to its fully qualified image name (different for each runtime)
 	// - An empty onbuildImageRegistry will result in onbuild images looked for in quay.io
 	baseImageRegistry := b.options.FunctionConfig.Spec.Build.BaseImageRegistry
+	var err error
+
 	if baseImageRegistry == "" {
-		baseImageRegistry = b.platform.GetBaseImageRegistry(b.options.FunctionConfig.Spec.Build.Registry)
+		baseImageRegistry, err = b.platform.GetBaseImageRegistry(b.options.FunctionConfig.Spec.Build.Registry,
+			b.runtime)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to resolve base image docker registry")
+		}
 	}
 
 	onbuildImageRegistry := b.options.FunctionConfig.Spec.Build.BaseImageRegistry
 	if onbuildImageRegistry == "" {
-		onbuildImageRegistry = b.platform.GetOnbuildImageRegistry(b.options.FunctionConfig.Spec.Build.Registry)
+		onbuildImageRegistry, err = b.platform.GetOnbuildImageRegistry(b.options.FunctionConfig.Spec.Build.Registry,
+			b.runtime)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to resolve onbuild image docker registry")
+		}
 	}
 
 	processorDockerfileInfo, err := b.createProcessorDockerfile(baseImageRegistry, onbuildImageRegistry)

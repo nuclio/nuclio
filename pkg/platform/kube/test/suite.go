@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -107,12 +108,34 @@ func (suite *KubeTestSuite) SetupSuite() {
 	}
 }
 
+func (suite *KubeTestSuite) SetupTest() {
+	suite.TestSuite.SetupTest()
+
+	// default project gets deleted during testings, ensure it is being recreated
+	err := factory.EnsureDefaultProjectExistence(suite.Logger, suite.Platform, suite.Namespace)
+	suite.Require().NoError(err, "Failed to ensure default project exists")
+}
+
 func (suite *KubeTestSuite) TearDownTest() {
 	suite.TestSuite.TearDownTest()
 
+	defer func() {
+
+		// delete leftovers if controller was not able to delete them
+		suite.executeKubectl([]string{"delete", "all"}, // nolint: errcheck
+			map[string]string{
+				"selector": "nuclio.io/app",
+			})
+	}()
+
 	// remove nuclio function leftovers
 	var errGroup errgroup.Group
-	for _, resourceKind := range []string{"nucliofunctions", "nuclioapigateways"} {
+	for _, resourceKind := range []string{
+		"nucliofunctions",
+		"nuclioprojects",
+		"nucliofunctionevents",
+		"nuclioapigateways",
+	} {
 		resourceKind := resourceKind
 		errGroup.Go(func() error {
 			return suite.deleteAllResourcesByKind(resourceKind)
@@ -183,6 +206,12 @@ func (suite *KubeTestSuite) GetFunction(getFunctionOptions *platform.GetFunction
 	return functions[0]
 }
 
+func (suite *KubeTestSuite) GetProject(getProjectFunctions *platform.GetProjectsOptions) platform.Project {
+	projects, err := suite.Platform.GetProjects(getProjectFunctions)
+	suite.Require().NoError(err, "Failed to get projects")
+	return projects[0]
+}
+
 func (suite *KubeTestSuite) GetFunctionDeployment(functionName string) *appsv1.Deployment {
 	deploymentInstance := &appsv1.Deployment{}
 	suite.GetResourceAndUnmarshal("deployment",
@@ -237,7 +266,7 @@ func (suite *KubeTestSuite) WaitForFunctionState(getFunctionOptions *platform.Ge
 func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
 	onAfterIngressCreated OnAfterIngressCreated,
 	expectError bool,
-	expectedRootCauseMessage string) {
+	errorRootCauseMessage string) {
 
 	// deploy the api gateway
 	err := suite.Platform.CreateAPIGateway(createAPIGatewayOptions)
@@ -247,8 +276,8 @@ func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.C
 	} else {
 		suite.Require().Error(err)
 
-		if expectedRootCauseMessage != "" {
-			suite.Require().Equal(expectedRootCauseMessage, errors.RootCause(err).Error())
+		if errorRootCauseMessage != "" {
+			suite.Require().Equal(errorRootCauseMessage, errors.RootCause(err).Error())
 		}
 
 		return
@@ -418,7 +447,7 @@ func (suite *KubeTestSuite) compileCreateAPIGatewayOptions(apiGatewayName string
 	functionName string) *platform.CreateAPIGatewayOptions {
 
 	return &platform.CreateAPIGatewayOptions{
-		APIGatewayConfig: platform.APIGatewayConfig{
+		APIGatewayConfig: &platform.APIGatewayConfig{
 			Meta: platform.APIGatewayMeta{
 				Name:      apiGatewayName,
 				Namespace: suite.Namespace,

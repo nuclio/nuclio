@@ -278,7 +278,7 @@ func (i *importProjectCommandeer) importAPIGateway(apiGateway *platform.APIGatew
 
 	// just create. the status is async through polling
 	return i.rootCommandeer.platform.CreateAPIGateway(&platform.CreateAPIGatewayOptions{
-		APIGatewayConfig: platform.APIGatewayConfig{
+		APIGatewayConfig: &platform.APIGatewayConfig{
 			Meta: apiGateway.Meta,
 			Spec: apiGateway.Spec,
 		},

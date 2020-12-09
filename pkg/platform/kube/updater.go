@@ -69,6 +69,12 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 		function.Status = *updateFunctionOptions.FunctionStatus
 	}
 
+	// update annotations
+	function.Annotations = updateFunctionOptions.FunctionMeta.Annotations
+
+	// DO NOT update function labels because >>
+	// https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#label-selector-updates
+
 	// get clientset
 	nuclioClientSet, err := u.consumer.getNuclioClientSet(updateFunctionOptions.AuthConfig)
 	if err != nil {

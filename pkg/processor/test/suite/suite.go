@@ -110,6 +110,10 @@ func (suite *TestSuite) SetupSuite() {
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
 	suite.Require().NoError(err)
 
+	if suite.PlatformConfiguration == nil {
+		suite.PlatformConfiguration, err = platformconfig.NewPlatformConfig("")
+		suite.Require().NoError(err)
+	}
 	suite.Platform, err = factory.CreatePlatform(suite.Logger,
 		suite.PlatformType,
 		suite.PlatformConfiguration,
@@ -221,11 +225,11 @@ func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFun
 
 func (suite *TestSuite) DeployFunctionExpectError(createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterContainerRun OnAfterContainerRun,
-	expectedRootCauseMessage string) *platform.CreateFunctionResult {
+	errorRootCauseMessage string) *platform.CreateFunctionResult {
 	return suite.deployFunctionPopulateMissingFields(createFunctionOptions,
 		onAfterContainerRun,
 		true,
-		expectedRootCauseMessage)
+		errorRootCauseMessage)
 }
 
 func (suite *TestSuite) DeployFunctionAndRedeploy(createFunctionOptions *platform.CreateFunctionOptions,
@@ -421,7 +425,7 @@ func (suite *TestSuite) blastFunction(configuration *BlastConfiguration) (vegeta
 func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterContainerRun OnAfterContainerRun,
 	expectFailure bool,
-	expectedRootCauseMessage string) *platform.CreateFunctionResult {
+	errorRootCauseMessage string) *platform.CreateFunctionResult {
 
 	var deployResult *platform.CreateFunctionResult
 
@@ -444,25 +448,25 @@ func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOption
 			})
 		}
 	}()
-	deployResult = suite.deployFunction(createFunctionOptions, onAfterContainerRun, expectFailure, expectedRootCauseMessage)
+	deployResult = suite.deployFunction(createFunctionOptions, onAfterContainerRun, expectFailure, errorRootCauseMessage)
 	return deployResult
 }
 
 func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterContainerRun OnAfterContainerRun,
-	expectError bool,
-	expectedRootCauseMessage string) *platform.CreateFunctionResult {
+	expectFailure bool,
+	errorRootCauseMessage string) *platform.CreateFunctionResult {
 
 	// deploy the function
 	deployResult, err := suite.Platform.CreateFunction(createFunctionOptions)
 
-	if !expectError {
+	if !expectFailure {
 		suite.Require().NoError(err)
 	} else {
 		suite.Require().Error(err)
 
-		if expectedRootCauseMessage != "" {
-			suite.Require().Equal(expectedRootCauseMessage, errors.RootCause(err).Error())
+		if errorRootCauseMessage != "" {
+			suite.Require().Equal(errorRootCauseMessage, errors.RootCause(err).Error())
 		}
 	}
 

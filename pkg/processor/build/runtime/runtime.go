@@ -65,6 +65,9 @@ type Runtime interface {
 	// GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
 	// directory
 	GetHandlerDirObjectPaths() []string
+
+	// GetOverrideImageRegistryFromMap returns an override image for the runtime from the given map
+	GetOverrideImageRegistryFromMap(map[string]string) string
 }
 
 type Factory interface {
@@ -165,4 +168,24 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 	functionFileName := strings.TrimSuffix(path.Base(functionBuildPath), path.Ext(functionBuildPath))
 
 	return []string{fmt.Sprintf("%s:%s", functionFileName, "handler")}, nil
+}
+
+func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imagesOverrideMap map[string]string) string {
+	runtimeName, runtimeVersion := ar.GetRuntimeNameAndVersion()
+
+	// supports both overrides per runtimeName and per runtimeName + runtimeVersion
+	if runtimeVersion != "" {
+		key := runtimeName + ":" + runtimeVersion
+		if imageOverride, ok := imagesOverrideMap[key]; ok {
+			return imageOverride
+		}
+	}
+
+	// no version-specific override, or no known version for our runtime, try for runtimeName only
+	if imageOverride, ok := imagesOverrideMap[runtimeName]; ok {
+		return imageOverride
+	}
+
+	// no override found
+	return ""
 }

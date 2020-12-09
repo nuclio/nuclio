@@ -327,11 +327,11 @@ type APIGatewayStatus struct {
 }
 
 type CreateAPIGatewayOptions struct {
-	APIGatewayConfig APIGatewayConfig
+	APIGatewayConfig *APIGatewayConfig
 }
 
 type UpdateAPIGatewayOptions struct {
-	APIGatewayConfig APIGatewayConfig
+	APIGatewayConfig *APIGatewayConfig
 }
 
 type DeleteAPIGatewayOptions struct {

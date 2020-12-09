@@ -45,24 +45,19 @@ func (d *Docker) GetKind() string {
 }
 
 func (d *Docker) BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error {
-
-	err := d.gatherArtifactsForSingleStageDockerfile(buildOptions)
-	if err != nil {
+	if err := d.gatherArtifactsForSingleStageDockerfile(buildOptions); err != nil {
 		return errors.Wrap(err, "Failed to build image artifacts")
 	}
 
-	err = d.buildContainerImage(buildOptions)
-	if err != nil {
+	if err := d.buildContainerImage(buildOptions); err != nil {
 		return errors.Wrap(err, "Failed to build docker image")
 	}
 
-	err = d.pushContainerImage(buildOptions.Image, buildOptions.RegistryURL)
-	if err != nil {
+	if err := d.pushContainerImage(buildOptions.Image, buildOptions.RegistryURL); err != nil {
 		return errors.Wrap(err, "Failed to push docker image into registry")
 	}
 
-	err = d.saveContainerImage(buildOptions)
-	if err != nil {
+	if err := d.saveContainerImage(buildOptions); err != nil {
 		return errors.Wrap(err, "Failed to save docker image")
 	}
 
@@ -210,8 +205,7 @@ ARG NUCLIO_ARCH
 `, onbuildImage)
 
 	// generate a simple Dockerfile from the onbuild image
-	err := ioutil.WriteFile(dockerfilePath, []byte(onbuildDockerfileContents), 0644)
-	if err != nil {
+	if err := ioutil.WriteFile(dockerfilePath, []byte(onbuildDockerfileContents), 0644); err != nil {
 		return errors.Wrapf(err, "Failed to write onbuild Dockerfile to %s", dockerfilePath)
 	}
 
@@ -222,13 +216,12 @@ ARG NUCLIO_ARCH
 	onbuildImageName := fmt.Sprintf("nuclio-onbuild-%s", xid.New().String())
 
 	// trigger a build
-	err = d.dockerClient.Build(&dockerclient.BuildOptions{
+	if err := d.dockerClient.Build(&dockerclient.BuildOptions{
 		Image:          onbuildImageName,
 		ContextDir:     contextDir,
 		BuildArgs:      buildArgs,
 		DockerfilePath: dockerfilePath,
-	})
-	if err != nil {
+	}); err != nil {
 		return errors.Wrap(err, "Failed to build onbuild image")
 	}
 

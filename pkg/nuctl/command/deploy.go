@@ -28,6 +28,7 @@ import (
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 
 	"github.com/nuclio/errors"
 	"github.com/spf13/cobra"
@@ -72,6 +73,7 @@ type deployCommandeer struct {
 	runAsUser                       int64
 	runAsGroup                      int64
 	fsGroup                         int64
+	overrideHTTPTriggerServiceType  string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -159,6 +161,14 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			commandeer.functionConfig.Meta.RemoveSkipDeployAnnotation()
 
 			commandeer.rootCommandeer.loggerInstance.DebugWith("Deploying function", "functionConfig", commandeer.functionConfig)
+			if err = rootCommandeer.platform.EnrichFunctionConfig(&commandeer.functionConfig); err != nil {
+				return errors.Wrap(err, "Failed to enrich function config before deployment")
+			}
+
+			if err = commandeer.overrideFunctionConfig(&commandeer.functionConfig); err != nil {
+				return errors.Wrap(err, "Failed to override function config")
+			}
+
 			_, deployErr := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
@@ -204,6 +214,7 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().BoolVar(&commandeer.publish, "publish", false, "Publish the function")
 	cmd.Flags().StringVar(&commandeer.encodedDataBindings, "data-bindings", "", "JSON-encoded data bindings for the function")
 	cmd.Flags().StringVar(&commandeer.encodedTriggers, "triggers", "", "JSON-encoded triggers for the function")
+	cmd.Flags().StringVar(&commandeer.overrideHTTPTriggerServiceType, "http-trigger-service-type", "", "Override the http trigger's service type")
 	cmd.Flags().StringVar(&commandeer.encodedFunctionPlatformConfig, "platform-config", "", "JSON-encoded platform specific configuration")
 	cmd.Flags().StringVar(&commandeer.image, "run-image", "", "Name of an existing image to deploy (default - build a new image to deploy)")
 	cmd.Flags().StringVar(&commandeer.runRegistry, "run-registry", "", "URL of a registry for pulling the image, if differs from -r/--registry (env: NUCTL_RUN_REGISTRY)")
@@ -527,6 +538,39 @@ func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
 			Name:  envNameAndValue[0],
 			Value: envNameAndValue[1],
 		})
+	}
+
+	return nil
+}
+
+func (d *deployCommandeer) overrideFunctionConfig(functionConfig *functionconfig.Config) error {
+
+	// kube platform specific overrides
+	if _, ok := d.rootCommandeer.platform.(*kube.Platform); ok {
+
+		if err := d.overrideHTTPTrigger(functionConfig, v1.ServiceType(d.overrideHTTPTriggerServiceType)); err != nil {
+			return errors.Wrap(err, "Failed overriding function http trigger service type")
+		}
+	}
+
+	return nil
+}
+
+func (d *deployCommandeer) overrideHTTPTrigger(functionConfig *functionconfig.Config, serviceType v1.ServiceType) error {
+
+	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
+		if trigger.Attributes == nil {
+
+			// For sanity - this shouldn't happen as we use this function after enriching the default service type
+			// if it doesn't exist
+			return errors.Errorf("Trigger's service type not populated in function %s, in trigger %s",
+				functionConfig.Meta.Name,
+				trigger.Name)
+		}
+		if serviceType != "" {
+			trigger.Attributes["serviceType"] = serviceType
+			functionConfig.Spec.Triggers[triggerName] = trigger
+		}
 	}
 
 	return nil

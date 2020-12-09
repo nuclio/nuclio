@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -89,6 +90,20 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			functionconfig.FunctionStateError,
 			errors.New("Received unexpected object, expected function"))
 	}
+
+	defer common.CatchAndLogPanicWithOptions(ctx, // nolint: errcheck
+		fo.logger,
+		"nucliofunction.CreateOrUpdate",
+		&common.CatchAndLogPanicOptions{
+			Args: []interface{}{
+				"function", function,
+			},
+			CustomHandler: func(panicError error) {
+				fo.setFunctionError(function, // nolint: errcheck
+					functionconfig.FunctionStateError,
+					errors.Wrap(panicError, "Failed to create/update function"))
+			},
+		})
 
 	// validate function name is according to k8s convention
 	errorMessages := validation.IsQualifiedName(function.Name)
@@ -251,7 +266,8 @@ func (fo *functionOperator) setFunctionError(function *nuclioio.NuclioFunction,
 	return err
 }
 
-func (fo *functionOperator) setFunctionStatus(function *nuclioio.NuclioFunction, status *functionconfig.Status) error {
+func (fo *functionOperator) setFunctionStatus(function *nuclioio.NuclioFunction,
+	status *functionconfig.Status) error {
 
 	fo.logger.DebugWith("Setting function state", "name", function.Name, "status", status)
 

@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/sh
-
 export EVENT_BODY=$(cat)
 
 if [ "${EVENT_BODY}" == "return_body" ]; then
@@ -23,6 +21,10 @@ if [ "${EVENT_BODY}" == "return_body" ]; then
 elif [ "${EVENT_BODY}" == "return_env" ]; then
 	echo ${ENV1}-${ENV2}
 elif [ "${EVENT_BODY}" == "return_error" ]; then
+	exit 1
+elif [ "${EVENT_BODY}" == "return_error_with_message" ]; then
+  echo ${EVENT_BODY}
+  >&2 echo "some_error"
 	exit 1
 elif [ "${EVENT_BODY}" == "return_arguments" ]; then
 	echo $1-$2

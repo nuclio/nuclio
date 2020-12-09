@@ -40,9 +40,11 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const helmChartFilePath = "hack/k8s/helm/nuclio/Chart.yaml"
-const githubAPIURL = "https://api.github.com"
-const travisAPIURL = "https://api.travis-ci.org"
+const (
+	helmChartFilePath = "hack/k8s/helm/nuclio/Chart.yaml"
+	githubAPIURL      = "https://api.github.com"
+	travisAPIURL      = "https://api.travis-ci.org"
+)
 
 type helmChart struct {
 	Version    string `yaml:"version,omitempty"`
@@ -96,12 +98,14 @@ func (r *Release) Run() error {
 	}
 
 	if !r.skipCreateRelease {
-		if err := r.createRelease(); err != nil {
-			return errors.Wrap(err, "Failed to create release")
+		if err := r.runAndRetrySkipIfFailed(r.createRelease,
+			"Waiting for release creation has failed"); err != nil {
+			return errors.Wrap(err, "Failed to wait for release creation")
 		}
 
-		if err := r.waitForReleaseCompleteness(); err != nil {
-			return errors.Wrap(err, "Failed to wait for release")
+		if err := r.runAndRetrySkipIfFailed(r.waitForReleaseCompleteness,
+			"Waiting for release completeness has failed"); err != nil {
+			return errors.Wrap(err, "Failed to wait for release completion")
 		}
 	} else {
 		r.logger.Info("Skipping release creation")
@@ -319,7 +323,8 @@ func (r *Release) getGithubWorkflowsReleaseStatus() (string, error) {
 	}
 	var workflowRunsResponse struct {
 		WorkflowRuns []struct {
-			Status string `json:"status,omitempty"`
+			Status     string `json:"status,omitempty"`
+			Conclusion string `json:"conclusion,omitempty"`
 		} `json:"workflow_runs,omitempty"`
 	}
 	if err := json.Unmarshal(responseBody, &workflowRunsResponse); err != nil {
@@ -327,6 +332,16 @@ func (r *Release) getGithubWorkflowsReleaseStatus() (string, error) {
 	}
 	if len(workflowRunsResponse.WorkflowRuns) == 0 {
 		return "", nil
+	}
+
+	status := workflowRunsResponse.WorkflowRuns[0].Status
+	conclusion := workflowRunsResponse.WorkflowRuns[0].Conclusion
+
+	// https://developer.github.com/v3/actions/workflow-runs/#parameters-1
+	// conclusion is null until status become completed
+	// and then it holds whether it completed successfully or not.
+	if status == "completed" {
+		return conclusion, nil
 	}
 	return workflowRunsResponse.WorkflowRuns[0].Status, nil
 }
@@ -347,19 +362,19 @@ func (r *Release) getTravisReleaseStatus() (string, error) {
 		return "", errors.Wrap(err, "Failed to read all response body")
 	}
 
-	var BuildsResponse []struct {
-		Build struct {
-			Branch string `json:"branch,omitempty"`
-			Status string `json:"status,omitempty"`
-		} `json:"build,omitempty"`
+	type Build struct {
+		Branch string `json:"branch,omitempty"`
+		State  string `json:"state,omitempty"`
 	}
+	var BuildsResponse []Build
 	if err := json.Unmarshal(responseBody, &BuildsResponse); err != nil {
 		return "", errors.Wrap(err, "Failed to unmarshal builds response")
 	}
 	releaseBuildState := ""
 	for _, buildResponse := range BuildsResponse {
-		if buildResponse.Build.Branch == r.targetVersion {
-			releaseBuildState = buildResponse.Build.Status
+		if buildResponse.Branch == r.targetVersion {
+			releaseBuildState = buildResponse.State
+			break
 		}
 	}
 	return releaseBuildState, nil
@@ -464,7 +479,7 @@ func (r *Release) waitForReleaseCompleteness() error {
 			case "1.1.x", "1.3.x":
 				return status == "finished"
 			default:
-				return status == "completed"
+				return status == "success"
 			}
 		})
 }
@@ -540,6 +555,58 @@ func (r *Release) bumpHelmChartVersion() error {
 		}
 	}
 	return nil
+}
+
+func (r *Release) runAndRetrySkipIfFailed(funcToRetry func() error, errorMessage string) error {
+	for {
+		if err := funcToRetry(); err != nil {
+
+			if r.promptForYesNo(fmt.Sprintf("%s. Retry?", errorMessage)) {
+
+				// retry
+				r.logger.Debug("Retrying")
+				continue
+			}
+
+			if r.promptForYesNo(fmt.Sprintf("%s. Skip?", errorMessage)) {
+
+				// do not retry
+				r.logger.Debug("Skipping")
+				break
+			}
+
+			// failure
+			return err
+		}
+
+		// success
+		return nil
+	}
+	return nil
+}
+
+func (r *Release) promptForYesNo(promptMessage string) bool {
+	fmt.Printf("%s ([y] Yes [n] No): ", promptMessage)
+
+	userInput, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		panic("Failed to read input from stdin")
+	}
+
+	switch normalizedResponse := strings.ToLower(strings.TrimSpace(userInput)); normalizedResponse {
+	case "y", "yes":
+		return true
+	case "n", "no":
+		return false
+	default:
+
+		parsed, err := strconv.ParseBool(normalizedResponse)
+		if err != nil {
+			fmt.Printf("Invalid input '%s', retry again", normalizedResponse)
+			return r.promptForYesNo(promptMessage)
+		}
+		return parsed
+	}
 }
 
 func run() error {

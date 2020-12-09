@@ -36,7 +36,7 @@ type Function interface {
 	// GetConfig will return the configuration of the function
 	GetConfig() *functionconfig.Config
 
-	// GetState returns the state of the function
+	// GetStatus returns the state of the function
 	GetStatus() *functionconfig.Status
 
 	// GetInvokeURL returns the URL on which the function can be invoked
@@ -50,6 +50,9 @@ type Function interface {
 
 	// GetVersion returns a string representing the version
 	GetVersion() string
+
+	// GetConfigWithStatus returns configuration and state of the function
+	GetConfigWithStatus() *functionconfig.ConfigWithStatus
 }
 
 type AbstractFunction struct {
@@ -82,6 +85,7 @@ func (af *AbstractFunction) Initialize([]string) error {
 	return nil
 }
 
+// GetConfig will return the configuration of the function
 func (af *AbstractFunction) GetConfig() *functionconfig.Config {
 	return &af.Config
 }
@@ -110,7 +114,7 @@ func (af *AbstractFunction) GetReplicas() (int, int) {
 	return 0, 0
 }
 
-// GetState returns the state of the function
+// GetStatus returns the state of the function
 func (af *AbstractFunction) GetStatus() *functionconfig.Status {
 	return &af.Status
 }

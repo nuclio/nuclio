@@ -2785,18 +2785,6 @@ func (suite *apiGatewayTestSuite) TestCreateSuccessful() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *apiGatewayTestSuite) TestCreateNoMetadata() {
-	suite.sendRequestNoMetadata("POST")
-}
-
-func (suite *apiGatewayTestSuite) TestCreateNoNameInMetadata() {
-	suite.sendRequestNoNameInMetadata("POST")
-}
-
-func (suite *apiGatewayTestSuite) TestCreateNoNamespace() {
-	suite.sendRequestNoNamespace("POST")
-}
-
 func (suite *apiGatewayTestSuite) TestUpdateSuccessful() {
 
 	// verify
@@ -2862,18 +2850,6 @@ func (suite *apiGatewayTestSuite) TestUpdateSuccessful() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *apiGatewayTestSuite) TestUpdateNoMetadata() {
-	suite.sendRequestNoMetadata("PUT")
-}
-
-func (suite *apiGatewayTestSuite) TestUpdateNoNameInMetadata() {
-	suite.sendRequestNoNameInMetadata("PUT")
-}
-
-func (suite *apiGatewayTestSuite) TestUpdateNoNamespace() {
-	suite.sendRequestNoNamespace("PUT")
-}
-
 func (suite *apiGatewayTestSuite) TestDeleteSuccessful() {
 
 	// verify
@@ -2905,48 +2881,6 @@ func (suite *apiGatewayTestSuite) TestDeleteSuccessful() {
 		nil)
 
 	suite.mockPlatform.AssertExpectations(suite.T())
-}
-
-func (suite *apiGatewayTestSuite) TestDeleteNoMetadata() {
-	suite.sendRequestNoMetadata("DELETE")
-}
-
-func (suite *apiGatewayTestSuite) TestDeleteNoName() {
-	suite.sendRequestNoNameInMetadata("DELETE")
-}
-
-func (suite *apiGatewayTestSuite) TestDeleteNoNamespace() {
-	suite.sendRequestNoNamespace("DELETE")
-}
-
-func (suite *apiGatewayTestSuite) sendRequestNoMetadata(method string) {
-	suite.sendRequestWithInvalidBody(method, `{
-	"spec": {
-		"host": "some-host"
-	}
-}`, "Api gateway must be provided with metadata")
-}
-
-func (suite *apiGatewayTestSuite) sendRequestNoNameInMetadata(method string) {
-	suite.sendRequestWithInvalidBody(method, `{
-	"metadata": {
-		"namespace": "some-namespace"
-	},
-	"spec": {
-		"host": "some-host"
-	}
-}`, "Api gateway name and namespace must be provided in metadata")
-}
-
-func (suite *apiGatewayTestSuite) sendRequestNoNamespace(method string) {
-	suite.sendRequestWithInvalidBody(method, `{
-	"metadata": {
-		"name": "agw1"
-	},
-	"spec": {
-		"host": "some-host"
-	}
-}`, "Api gateway name and namespace must be provided in metadata")
 }
 
 func (suite *apiGatewayTestSuite) sendRequestWithInvalidBody(method string, body string, expectedError string) {

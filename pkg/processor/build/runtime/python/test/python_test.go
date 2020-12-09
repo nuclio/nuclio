@@ -25,18 +25,12 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type testSuite struct {
+type TestSuite struct {
 	buildsuite.TestSuite
 	runtime string
 }
 
-func newTestSuite(runtime string) *testSuite {
-	return &testSuite{
-		runtime: runtime,
-	}
-}
-
-func (suite *testSuite) SetupSuite() {
+func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 
 	suite.TestSuite.RuntimeSuite = suite
@@ -44,7 +38,7 @@ func (suite *testSuite) SetupSuite() {
 	suite.Runtime = suite.runtime
 }
 
-func (suite *testSuite) TestBuildPy2() {
+func (suite *TestSuite) TestBuildPy2() {
 	if suite.Runtime != "python:2.7" {
 		suite.T().Skip("This should only run when runtime is python 2.7")
 	}
@@ -63,7 +57,7 @@ func (suite *testSuite) TestBuildPy2() {
 		})
 }
 
-func (suite *testSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
+func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
 	functionInfo := buildsuite.FunctionInfo{
 		Runtime: suite.runtime,
 	}
@@ -103,7 +97,13 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	suite.Run(t, newTestSuite("python"))
-	suite.Run(t, newTestSuite("python:2.7"))
-	suite.Run(t, newTestSuite("python:3.6"))
+	for _, runtime := range []string{
+		"python",
+		"python:2.7",
+		"python:3.6",
+	} {
+		TestSuite := new(TestSuite)
+		TestSuite.runtime = runtime
+		suite.Run(t, TestSuite)
+	}
 }
