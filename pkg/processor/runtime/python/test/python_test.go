@@ -296,7 +296,7 @@ func (suite *testSuite) TestContextInitError() {
 
 	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		return true
-	})
+	}, "")
 }
 
 func (suite *testSuite) TestModifiedRequestBodySize() {

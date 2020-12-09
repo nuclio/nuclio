@@ -1210,7 +1210,7 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(createAPIGatewayOp
 
 		ingresses := functionconfig.GetIngressesFromTriggers(function[0].GetConfig().Spec.Triggers)
 		if len(ingresses) > 0 {
-			return nuclio.NewErrConflict("Api gateway upstream function must not have an ingress")
+			return nuclio.NewErrConflict(fmt.Sprintf("Api gateway upstream function: %s must not have an ingress", upstream.Nucliofunction.Name))
 		}
 	}
 

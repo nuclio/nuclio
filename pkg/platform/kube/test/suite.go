@@ -236,7 +236,8 @@ func (suite *KubeTestSuite) WaitForFunctionState(getFunctionOptions *platform.Ge
 
 func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
 	onAfterIngressCreated OnAfterIngressCreated,
-	expectError bool) {
+	expectError bool,
+	expectedRootCauseMessage string) {
 
 	// deploy the api gateway
 	err := suite.Platform.CreateAPIGateway(createAPIGatewayOptions)
@@ -245,6 +246,12 @@ func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.C
 		suite.Require().NoError(err)
 	} else {
 		suite.Require().Error(err)
+
+		if expectedRootCauseMessage != "" {
+			suite.Require().Equal(expectedRootCauseMessage, errors.RootCause(err).Error())
+		}
+
+		return
 	}
 
 	// delete the api gateway when done

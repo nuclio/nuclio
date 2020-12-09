@@ -157,7 +157,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeDeployOnceNeverBuild() {
 		suite.Require().Nil(deployResult)
 
 		return true
-	})
+	}, "")
 }
 
 func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {

@@ -90,7 +90,7 @@ def handler(context, event):
 		suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 			suite.Require().Nil(deployResult, "Deployment results is nil when creation failed")
 			return true
-		})
+		}, "")
 
 		return true
 	}
@@ -324,7 +324,7 @@ func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways(
 			})
 			suite.Assert().Equal(platform.ErrFunctionIsUsedByAPIGateways, errors.RootCause(err))
 
-		}, false)
+		}, false, "")
 
 		return true
 	})
@@ -332,6 +332,80 @@ func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways(
 
 type DeployAPIGatewayTestSuite struct {
 	KubeTestSuite
+}
+
+// test that api gateway cannot be created if one of its functions have ingresses
+func (suite *DeployAPIGatewayTestSuite) TestAPIGatewayFunctionsHaveNoIngress() {
+	functionName := "some-function-name"
+	apiGatewayName := "some-api-gateway-name"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"some-http-trigger": {
+			Kind:       "http",
+			Attributes: map[string]interface{}{
+				"ingresses": map[string]interface{}{
+					"1": map[string]interface{}{
+						"host": "some-host",
+						"paths": []string{
+							"/some-path",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// deploy a function with an ingress
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		expectedErrorMessage := fmt.Sprintf("Api gateway upstream function: %s must not have an ingress", functionName)
+
+		// try to create api gateway with this function as upstream and expect it to fail
+		suite.deployAPIGateway(createAPIGatewayOptions, nil, true, expectedErrorMessage)
+
+		return true
+	})
+}
+
+// test that a function cannot expose ingresses if it is already being exposed by an api gateway
+func (suite *DeployAPIGatewayTestSuite) TestUpdateFunctionWithIngressWhenHasAPIGateway() {
+	functionName := "some-function-name"
+	apiGatewayName := "some-api-gateway-name"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// deploy a function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		// create an api-gateway with that function as upstream
+		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		suite.deployAPIGateway(createAPIGatewayOptions, func(*extensionsv1beta1.Ingress) {
+
+			// update the function to have ingresses
+			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+				"some-http-trigger": {
+					Kind:       "http",
+					Attributes: map[string]interface{}{
+						"ingresses": map[string]interface{}{
+							"1": map[string]interface{}{
+								"host": "some-host",
+								"paths": []string{
+									"/some-path",
+								},
+							},
+						},
+					},
+				},
+			}
+
+			// expect the function deployment to fail because it is already being exposed by an api gateway
+			suite.DeployFunctionExpectError(createFunctionOptions,
+				nil,
+				"Function can't expose ingresses while it is being exposed by an api gateway")
+
+		}, false, "")
+
+		return true
+	})
 }
 
 func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
@@ -348,7 +422,7 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
 			suite.Assert().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
-		}, false)
+		}, false, "")
 
 		overrideOauth2ProxyURL := "override-oauth2-url"
 		createAPIGatewayOptions = suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
@@ -363,7 +437,7 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)
-		}, false)
+		}, false, "")
 		return true
 	})
 }

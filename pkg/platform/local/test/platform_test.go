@@ -86,7 +86,7 @@ func (suite *TestSuite) TestRunFunctionContainerWithCustomRestartPolicy() {
 			suite.Require().Equal(functionContainerMaximumRetryCount+1, actualTries)
 
 			return true
-		})
+		}, "")
 }
 
 // Test function containers healthiness validation
