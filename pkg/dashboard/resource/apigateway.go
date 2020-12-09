@@ -139,7 +139,7 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 		}, err
 	}
 
-	apiGatewayConfig := platform.APIGatewayConfig{
+	apiGatewayConfig := &platform.APIGatewayConfig{
 		Meta:   *apiGatewayInfo.Meta,
 		Spec:   *apiGatewayInfo.Spec,
 		Status: *apiGatewayInfo.Status,
@@ -216,7 +216,7 @@ func (agr *apiGatewayResource) createAPIGateway(apiGatewayInfoInstance *apiGatew
 	// just deploy. the status is async through polling
 	agr.Logger.DebugWith("Creating api gateway", "newAPIGateway", newAPIGateway)
 	if err = agr.getPlatform().CreateAPIGateway(&platform.CreateAPIGatewayOptions{
-		APIGatewayConfig: *newAPIGateway.GetConfig(),
+		APIGatewayConfig: newAPIGateway.GetConfig(),
 	}); err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "already exists") {
 			err = nuclio.WrapErrConflict(err)
