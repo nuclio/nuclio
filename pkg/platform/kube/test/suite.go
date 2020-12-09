@@ -440,7 +440,7 @@ func (suite *KubeTestSuite) compileCreateAPIGatewayOptions(apiGatewayName string
 	functionName string) *platform.CreateAPIGatewayOptions {
 
 	return &platform.CreateAPIGatewayOptions{
-		APIGatewayConfig: platform.APIGatewayConfig{
+		APIGatewayConfig: &platform.APIGatewayConfig{
 			Meta: platform.APIGatewayMeta{
 				Name:      apiGatewayName,
 				Namespace: suite.Namespace,

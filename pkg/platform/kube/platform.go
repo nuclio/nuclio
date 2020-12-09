@@ -553,14 +553,14 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 	newAPIGateway := nuclioio.NuclioAPIGateway{}
 
 	// enrich
-	p.EnrichAPIGatewayConfig(&createAPIGatewayOptions.APIGatewayConfig)
+	p.EnrichAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig)
 
 	// validate
-	if err := p.ValidateAPIGatewayConfig(&createAPIGatewayOptions.APIGatewayConfig); err != nil {
+	if err := p.ValidateAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
 	}
 
-	p.platformAPIGatewayToAPIGateway(&createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
+	p.platformAPIGatewayToAPIGateway(createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
 
 	// create
 	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
@@ -583,10 +583,10 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	}
 
 	// enrich
-	p.EnrichAPIGatewayConfig(&updateAPIGatewayOptions.APIGatewayConfig)
+	p.EnrichAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig)
 
 	// validate
-	if err := p.ValidateAPIGatewayConfig(&updateAPIGatewayOptions.APIGatewayConfig); err != nil {
+	if err := p.ValidateAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
 	}
 
