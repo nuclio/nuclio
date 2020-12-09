@@ -26,6 +26,7 @@
                 NuclioProjectsDataService.getFrontendSpec()
                     .then(function (response) {
                         lodash.assign(ConfigService.nuclio, {
+                            allowedAuthenticationModes: lodash.get(response, 'allowedAuthenticationModes', []),
                             defaultFunctionConfig: lodash.get(response, 'defaultFunctionConfig', {}),
                             externalIPAddress: lodash.get(response, 'externalIPAddresses[0]', ''),
                             imageNamePrefixTemplate: lodash.get(response, 'imageNamePrefixTemplate', ''),
