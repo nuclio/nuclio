@@ -465,7 +465,7 @@ func (suite *DeployAPIGatewayTestSuite) TestAPIGatewayFunctionsHaveNoIngress() {
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"some-http-trigger": {
-			Kind:       "http",
+			Kind: "http",
 			Attributes: map[string]interface{}{
 				"ingresses": map[string]interface{}{
 					"1": map[string]interface{}{
@@ -507,7 +507,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdateFunctionWithIngressWhenHasAPIG
 			// update the function to have ingresses
 			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 				"some-http-trigger": {
-					Kind:       "http",
+					Kind: "http",
 					Attributes: map[string]interface{}{
 						"ingresses": map[string]interface{}{
 							"1": map[string]interface{}{
@@ -522,7 +522,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdateFunctionWithIngressWhenHasAPIG
 			}
 
 			// expect the function deployment to fail because it is already being exposed by an api gateway
-			suite.DeployFunctionExpectError(createFunctionOptions,func (deployResult *platform.CreateFunctionResult) bool {
+			suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 				return true
 			}, "Function can't expose ingresses while it is being exposed by an api gateway")
 
