@@ -108,6 +108,12 @@ func (rc *RootCommandeer) initialize() error {
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
+	// TODO: accept platform config path as arg
+	rc.platformConfiguration, err = platformconfig.NewPlatformConfig("")
+	if err != nil {
+		return errors.Wrap(err, "Failed to create platform config")
+	}
+
 	rc.platformConfiguration.Kube.KubeConfigPath = rc.KubeconfigPath
 
 	// ask the factory to create the appropriate platform
