@@ -10,6 +10,7 @@
       <env name="NUCTL_REGISTRY" value="localhost:5000" />
       <env name="NUCTL_PLATFORM" value="kube" />
       <env name="NUCTL_EXTERNAL_IP_ADDRESSES" value="localhost" />
+      <env name="NUCTL_DEFAULT_SERVICE_TYPE" value="NodePort" />
     </envs>
     <framework value="gotest" />
     <kind value="PACKAGE" />
