@@ -138,6 +138,9 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			// if the spec was brought from a file or from an already imported function.
 			commandeer.populateDeploymentDefaults()
 
+			// Populate HTTP Service type
+			commandeer.populateHTTPServiceType()
+
 			// Override basic fields from the config
 			commandeer.functionConfig.Meta.Name = commandeer.functionName
 			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
@@ -159,8 +162,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			commandeer.functionConfig.Meta.RemoveSkipBuildAnnotation()
 			commandeer.functionConfig.Meta.RemoveSkipDeployAnnotation()
 
-			commandeer.rootCommandeer.loggerInstance.DebugWith("Deploying function",
-				"functionConfig", commandeer.functionConfig)
+			commandeer.rootCommandeer.loggerInstance.DebugWith("Deploying function", "functionConfig", commandeer.functionConfig)
 			_, deployErr := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
@@ -344,7 +346,9 @@ func (d *deployCommandeer) populateDeploymentDefaults() {
 	if d.functionConfig.Spec.RuntimeAttributes == nil {
 		d.functionConfig.Spec.RuntimeAttributes = map[string]interface{}{}
 	}
+}
 
+func (d *deployCommandeer) populateHTTPServiceType() {
 	overridingHTTPServiceType := v1.ServiceType(common.GetEnvOrDefaultString("NUCTL_DEFAULT_SERVICE_TYPE", ""))
 	if d.overrideHTTPTriggerServiceType != "" {
 		overridingHTTPServiceType = v1.ServiceType(d.overrideHTTPTriggerServiceType)
