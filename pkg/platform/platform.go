@@ -139,10 +139,10 @@ type Platform interface {
 	RenderImageNamePrefixTemplate(projectName string, functionName string) (string, error)
 
 	// GetScaleToZeroConfiguration returns scale to zero configuration
-	GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error)
+	GetScaleToZeroConfiguration() *platformconfig.ScaleToZero
 
 	// GetAllowedAuthenticationModes returns allowed authentication modes
-	GetAllowedAuthenticationModes() ([]string, error)
+	GetAllowedAuthenticationModes() []string
 
 	// GetNamespaces returns all the namespaces in the platform
 	GetNamespaces() ([]string, error)

@@ -100,6 +100,7 @@ type Kubernetes struct {
 }
 
 type PlatformKubeConfig struct {
+	KubeConfigPath string `json:"kube_config_path,omitempty"`
 
 	// TODO: Move IngressConfig here
 	DefaultServiceType corev1.ServiceType `json:"defaultServiceType,omitempty"`

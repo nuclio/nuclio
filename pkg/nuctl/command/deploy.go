@@ -547,8 +547,12 @@ func (d *deployCommandeer) overrideFunctionConfig(functionConfig *functionconfig
 
 	// kube platform specific overrides
 	if _, ok := d.rootCommandeer.platform.(*kube.Platform); ok {
+		overridingHTTPServiceType := v1.ServiceType(common.GetEnvOrDefaultString("NUCTL_DEFAULT_SERVICE_TYPE", ""))
+		if d.overrideHTTPTriggerServiceType != "" {
+			overridingHTTPServiceType = v1.ServiceType(d.overrideHTTPTriggerServiceType)
+		}
 
-		if err := d.overrideHTTPTrigger(functionConfig, v1.ServiceType(d.overrideHTTPTriggerServiceType)); err != nil {
+		if err := d.overrideHTTPTrigger(functionConfig, overridingHTTPServiceType); err != nil {
 			return errors.Wrap(err, "Failed overriding function http trigger service type")
 		}
 	}

@@ -19,24 +19,26 @@ package platformconfig
 import (
 	"os"
 
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/errors"
 )
 
 type Config struct {
-	Kind                     string                       `json:"kind,omitempty"`
-	WebAdmin                 WebServer                    `json:"webAdmin,omitempty"`
-	HealthCheck              WebServer                    `json:"healthCheck,omitempty"`
-	Logger                   Logger                       `json:"logger,omitempty"`
-	Metrics                  Metrics                      `json:"metrics,omitempty"`
-	ScaleToZero              ScaleToZero                  `json:"scaleToZero,omitempty"`
-	AutoScale                AutoScale                    `json:"autoScale,omitempty"`
-	CronTriggerCreationMode  CronTriggerCreationMode      `json:"cronTriggerCreationMode,omitempty"`
-	FunctionAugmentedConfigs []LabelSelectorAndConfig     `json:"functionAugmentedConfigs,omitempty"`
-	IngressConfig            IngressConfig                `json:"ingressConfig,omitempty"`
-	Kube                     PlatformKubeConfig           `json:"kube,omitempty"`
-	ImageRegistryOverrides   ImageRegistryOverridesConfig `json:"imageRegistryOverrides,omitempty"`
+	Kind                          string                       `json:"kind,omitempty"`
+	WebAdmin                      WebServer                    `json:"webAdmin,omitempty"`
+	HealthCheck                   WebServer                    `json:"healthCheck,omitempty"`
+	Logger                        Logger                       `json:"logger,omitempty"`
+	Metrics                       Metrics                      `json:"metrics,omitempty"`
+	ScaleToZero                   ScaleToZero                  `json:"scaleToZero,omitempty"`
+	AutoScale                     AutoScale                    `json:"autoScale,omitempty"`
+	CronTriggerCreationMode       CronTriggerCreationMode      `json:"cronTriggerCreationMode,omitempty"`
+	FunctionAugmentedConfigs      []LabelSelectorAndConfig     `json:"functionAugmentedConfigs,omitempty"`
+	IngressConfig                 IngressConfig                `json:"ingressConfig,omitempty"`
+	Kube                          PlatformKubeConfig           `json:"kube,omitempty"`
+	ImageRegistryOverrides        ImageRegistryOverridesConfig `json:"imageRegistryOverrides,omitempty"`
+	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {
