@@ -28,7 +28,6 @@ import (
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
-	"github.com/nuclio/nuclio/pkg/platform/kube"
 
 	"github.com/nuclio/errors"
 	"github.com/spf13/cobra"
@@ -160,15 +159,8 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			commandeer.functionConfig.Meta.RemoveSkipBuildAnnotation()
 			commandeer.functionConfig.Meta.RemoveSkipDeployAnnotation()
 
-			commandeer.rootCommandeer.loggerInstance.DebugWith("Deploying function", "functionConfig", commandeer.functionConfig)
-			if err = rootCommandeer.platform.EnrichFunctionConfig(&commandeer.functionConfig); err != nil {
-				return errors.Wrap(err, "Failed to enrich function config before deployment")
-			}
-
-			if err = commandeer.overrideFunctionConfig(&commandeer.functionConfig); err != nil {
-				return errors.Wrap(err, "Failed to override function config")
-			}
-
+			commandeer.rootCommandeer.loggerInstance.DebugWith("Deploying function",
+				"functionConfig", commandeer.functionConfig)
 			_, deployErr := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
@@ -351,6 +343,15 @@ func (d *deployCommandeer) populateDeploymentDefaults() {
 	}
 	if d.functionConfig.Spec.RuntimeAttributes == nil {
 		d.functionConfig.Spec.RuntimeAttributes = map[string]interface{}{}
+	}
+
+	overridingHTTPServiceType := v1.ServiceType(common.GetEnvOrDefaultString("NUCTL_DEFAULT_SERVICE_TYPE", ""))
+	if d.overrideHTTPTriggerServiceType != "" {
+		overridingHTTPServiceType = v1.ServiceType(d.overrideHTTPTriggerServiceType)
+	}
+
+	if overridingHTTPServiceType != "" {
+		d.rootCommandeer.platformConfiguration.Kube.DefaultServiceType = overridingHTTPServiceType
 	}
 }
 
@@ -538,43 +539,6 @@ func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
 			Name:  envNameAndValue[0],
 			Value: envNameAndValue[1],
 		})
-	}
-
-	return nil
-}
-
-func (d *deployCommandeer) overrideFunctionConfig(functionConfig *functionconfig.Config) error {
-
-	// kube platform specific overrides
-	if _, ok := d.rootCommandeer.platform.(*kube.Platform); ok {
-		overridingHTTPServiceType := v1.ServiceType(common.GetEnvOrDefaultString("NUCTL_DEFAULT_SERVICE_TYPE", ""))
-		if d.overrideHTTPTriggerServiceType != "" {
-			overridingHTTPServiceType = v1.ServiceType(d.overrideHTTPTriggerServiceType)
-		}
-
-		if err := d.overrideHTTPTrigger(functionConfig, overridingHTTPServiceType); err != nil {
-			return errors.Wrap(err, "Failed overriding function http trigger service type")
-		}
-	}
-
-	return nil
-}
-
-func (d *deployCommandeer) overrideHTTPTrigger(functionConfig *functionconfig.Config, serviceType v1.ServiceType) error {
-
-	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
-		if trigger.Attributes == nil {
-
-			// For sanity - this shouldn't happen as we use this function after enriching the default service type
-			// if it doesn't exist
-			return errors.Errorf("Trigger's service type not populated in function %s, in trigger %s",
-				functionConfig.Meta.Name,
-				trigger.Name)
-		}
-		if serviceType != "" {
-			trigger.Attributes["serviceType"] = serviceType
-			functionConfig.Spec.Triggers[triggerName] = trigger
-		}
 	}
 
 	return nil
