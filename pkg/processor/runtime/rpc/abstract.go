@@ -18,7 +18,6 @@ package rpc
 
 import (
 	"bufio"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -467,13 +466,11 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 
 // waitForProcessTermination will best effort wait few seconds to stop channel, if timeout - assume closed
 func (r *AbstractRuntime) waitForProcessTermination() {
-	ctx, cancel := context.WithDeadline(context.TODO(), time.Now().Add(10*time.Second))
-	defer cancel()
 	for {
 		select {
 		case <-r.stopChan:
 			return
-		case <-ctx.Done():
+		case <-time.After(10 * time.Second):
 			return
 		}
 	}
