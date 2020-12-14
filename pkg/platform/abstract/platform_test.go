@@ -15,6 +15,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/hashicorp/go-uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -76,9 +77,12 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 		Name                    string
 		CreateProjectOptions    *platform.CreateProjectOptions
 		ExpectValidationFailure bool
+		ExpectedProjectName     string
 	}{
+
+		// happy flows
 		{
-			Name: "Happy flow",
+			Name: "Sanity",
 			CreateProjectOptions: &platform.CreateProjectOptions{
 				ProjectConfig: platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
@@ -89,7 +93,42 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 					},
 				},
 			},
+			ExpectedProjectName: "a-name",
 		},
+		{
+			Name: "Transform display name (name is uuid)",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: func() string {
+							generatedUUID, _ := uuid.GenerateUUID()
+							return generatedUUID
+						}(),
+					},
+					Spec: platform.ProjectSpec{
+						DisplayName: "oops",
+					},
+				},
+			},
+			ExpectedProjectName: "oops",
+		},
+		{
+			Name: "Skip deprecated field validations",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "test",
+					},
+					Spec: platform.ProjectSpec{
+						DisplayName: "oops",
+					},
+				},
+				SkipDeprecatedFieldValidations: true,
+			},
+			ExpectedProjectName: "test",
+		},
+
+		// bad flows
 		{
 			Name: "Invalid name",
 			CreateProjectOptions: &platform.CreateProjectOptions{
@@ -102,7 +141,7 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 			ExpectValidationFailure: true,
 		},
 		{
-			Name: "Non empty display name",
+			Name: "Non empty display name (w/o transformation)",
 			CreateProjectOptions: &platform.CreateProjectOptions{
 				ProjectConfig: platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
@@ -112,6 +151,7 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 						DisplayName: "oops",
 					},
 				},
+				SkipTransformDisplayName: true,
 			},
 			ExpectValidationFailure: true,
 		},
@@ -138,6 +178,11 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 				suite.Require().Error(err)
 			} else {
 				suite.Require().NoError(err)
+				suite.Require().Equal(testCase.ExpectedProjectName,
+					testCase.CreateProjectOptions.ProjectConfig.Meta.Name)
+
+				// display name should not be carried on
+				suite.Require().Empty(testCase.CreateProjectOptions.ProjectConfig.Spec.DisplayName)
 			}
 		})
 	}
