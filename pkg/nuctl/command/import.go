@@ -112,7 +112,7 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 	}
 
 	cmd := &cobra.Command{
-		Use:   "functions [<config file>]",
+		Use:      "functions [<config file>]",
 		Aliases: []string{"function", "fn", "fu"},
 		Short:   "(or function) Import functions",
 		Long:    "(or function) Import the configurations of one or more functions

@@ -23,7 +23,7 @@ func newExportCommandeer(rootCommandeer *RootCommandeer) *exportCommandeer {
 	}
 
 	cmd := &cobra.Command{
-        Use:   "export",
+		Use:   "export",
 		Short: "Export functions or projects",
 		Long:  "Export the configuration of a specific function or project or of all functions/projects (default)
 to the standard output, in JSON or YAML format",
@@ -57,7 +57,7 @@ func newExportFunctionCommandeer(exportCommandeer *exportCommandeer) *exportFunc
 	cmd := &cobra.Command{
 		Use:     "functions [<function>]",
 		Aliases: []string{"function", "fn", "fu"},
-        Short:   "(or function) Export functions",
+		Short:   "(or function) Export functions",
 		Long:    "(or function) Export the configuration of a specific function or of all deployed Nuclio functions (default)
 to the standard output, in JSON or YAML format (see -o|--output)
 
@@ -102,7 +102,7 @@ Arguments:
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, 'Output format - "json" or "yaml"')
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
 	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Export all function data, including sensitive and unnecessary data")
 
 	commandeer.cmd = cmd
@@ -145,7 +145,7 @@ func newExportProjectCommandeer(exportCommandeer *exportCommandeer) *exportProje
 	cmd := &cobra.Command{
 		Use:     "projects [<project>]",
 		Aliases: []string{"project", "prj", "proj"},
-        Short:   "(or project) Export projects",
+		Short:   "(or project) Export projects",
 		Long:    "(or project) Export the configuration of a specific project (incuding all
 its functions and function events) or of all projects (default) to the standard output,
 in JSON or YAML format (see -o|--output)
@@ -187,7 +187,7 @@ Arguments:
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, 'Output format - "json" or "yaml"')
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
 
 	commandeer.cmd = cmd
 
