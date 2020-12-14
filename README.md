@@ -60,13 +60,16 @@ docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tm
 
 Browse to http://localhost:8070, create a project, and add a function. When run outside of an orchestration platform (for example, Kubernetes or Swarm), the dashboard will simply deploy to the local Docker daemon.
 
-Assuming you are running Nuclio with Docker, as an example, create a project and deploy the pre-existing template "dates (nodejs)". With `docker ps`, you should see that the function was deployed in its own container. You can then invoke your function with curl; (check that the port number is correct by using `docker ps` or the Nuclio dashboard):
+Assuming you are running Nuclio with Docker, as an example, create a project and deploy the pre-existing template "dates (nodejs)".
+With `docker ps`, you should see that the function was deployed in its own container.
+You can then invoke your function with curl; (check that the port number is correct by using `docker ps` or the Nuclio dashboard):
 
 ```sh
 curl -X POST -H "Content-Type: application/text" -d '{"value":2,"unit":"hours"}' http://localhost:37975
 ```
 
 For a complete step-by-step guide to using Nuclio over Kubernetes, either with the dashboard UI or the Nuclio command-line interface (`nuctl`), explore these learning pathways:
+
 - [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md)
 - [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md)
 - [Getting started with Nuclio on Azure Container Services (AKS)](/docs/setup/aks/getting-started-aks.md)
@@ -111,7 +114,7 @@ The scaler is designed to auto-scale, scale-to-zero, and wake up functions, base
 
 #### Triggers
 
-Functions can be invoked through a variety of event sources that are defined in the function (such as HTTP, RabbitMQ, Kafka, Kinesis, NATS, DynamoDB, Iguazio V3IO, or schedule). Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
+Functions can be invoked through a variety of event sources that are defined in the function (such as HTTP, RabbitMQ, Kafka, Kinesis, NATS, DynamoDB, an Iguazio Data Science Platform stream, or schedule). Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
 
 #### SDK
 
