@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ghodss/yaml"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -214,6 +215,147 @@ func (suite *ReaderTestSuite) TestToDeployOptions() {
 
 	// compare.CompareNoOrder(&createFunctionOptions, &createFunctionOptions)
 	// TODO
+}
+
+func (suite *ReaderTestSuite) TestCodeEntryConfigTriggerMerge() {
+	type TestTrigger struct {
+		Name        string
+		ServiceType string
+	}
+
+	testCases := []struct {
+		name                  string
+		configTrigger         TestTrigger
+		codeEntryTrigger      TestTrigger
+		expectedConfigTrigger TestTrigger
+		expectValidityError   bool
+	}{
+		{
+			name: "bothNamesDefault",
+			configTrigger: TestTrigger{
+				Name:        "default-http",
+				ServiceType: "ClusterIP",
+			},
+			codeEntryTrigger: TestTrigger{
+				Name:        "default-http",
+				ServiceType: "NodePort",
+			},
+			expectedConfigTrigger: TestTrigger{
+				Name:        "default-http",
+				ServiceType: "ClusterIP",
+			},
+			expectValidityError: false,
+		},
+		{
+			name: "codeEntryDefaultNameConfigCustomName",
+			configTrigger: TestTrigger{
+				Name:        "my-trigger",
+				ServiceType: "ClusterIP",
+			},
+			codeEntryTrigger: TestTrigger{
+				Name:        "default-http",
+				ServiceType: "NodePort",
+			},
+			expectedConfigTrigger: TestTrigger{
+				Name:        "my-trigger",
+				ServiceType: "ClusterIP",
+			},
+			expectValidityError: false,
+		},
+		{
+			name: "codeEntryCustomNameConfigDefaultName",
+			configTrigger: TestTrigger{
+				Name:        "default-http",
+				ServiceType: "ClusterIP",
+			},
+			codeEntryTrigger: TestTrigger{
+				Name:        "my-trigger",
+				ServiceType: "NodePort",
+			},
+			expectedConfigTrigger: TestTrigger{
+				Name:        "my-trigger",
+				ServiceType: "NodePort",
+			},
+			expectValidityError: false,
+		},
+		{
+			name: "bothSameCustomNames",
+			configTrigger: TestTrigger{
+				Name:        "my-trigger",
+				ServiceType: "ClusterIP",
+			},
+			codeEntryTrigger: TestTrigger{
+				Name:        "my-trigger",
+				ServiceType: "NodePort",
+			},
+			expectedConfigTrigger: TestTrigger{
+				Name:        "my-trigger",
+				ServiceType: "ClusterIP",
+			},
+			expectValidityError: false,
+		},
+		{
+			name: "differentCustomNames",
+			configTrigger: TestTrigger{
+				Name:        "my-trigger",
+				ServiceType: "ClusterIP",
+			},
+			codeEntryTrigger: TestTrigger{
+				Name:        "not-my-trigger",
+				ServiceType: "NodePort",
+			},
+			expectValidityError: true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.logger.DebugWith("Running test case", "testCase", testCase.name)
+		config := Config{
+			Meta: Meta{
+				Name:      "my_name",
+				Namespace: "my_namespace",
+			},
+			Spec: Spec{
+				Runtime: "python3.7",
+				Handler: "my_handler",
+			},
+		}
+		config.Spec.Triggers = map[string]Trigger{
+			testCase.codeEntryTrigger.Name: {
+				Name:       testCase.codeEntryTrigger.Name,
+				Kind:       "http",
+				Attributes: map[string]interface{}{"serviceType": testCase.codeEntryTrigger.ServiceType},
+			},
+		}
+		configData, err := yaml.Marshal(config)
+		suite.Require().NoError(err, "Can't marshal config")
+
+		config.Spec.Triggers = map[string]Trigger{
+			testCase.configTrigger.Name: {
+				Name:       testCase.configTrigger.Name,
+				Kind:       "http",
+				Attributes: map[string]interface{}{"serviceType": testCase.configTrigger.ServiceType},
+			},
+		}
+
+		reader, err := NewReader(suite.logger)
+		suite.Require().NoError(err)
+
+		err = reader.Read(strings.NewReader(string(configData)), "processor", &config)
+		suite.Require().NoError(err)
+
+		err = reader.validateConfigurationFileFunctionConfig(&config)
+		if testCase.expectValidityError {
+			suite.Require().Error(err)
+		} else {
+			suite.Require().NoError(err)
+			suite.Assert().Equal(1, len(config.Spec.Triggers))
+			suite.Assert().Equal(testCase.expectedConfigTrigger.Name,
+				config.Spec.Triggers[testCase.expectedConfigTrigger.Name].Name)
+			suite.Assert().Equal(testCase.expectedConfigTrigger.ServiceType,
+				config.Spec.Triggers[testCase.expectedConfigTrigger.Name].Attributes["serviceType"])
+		}
+	}
 }
 
 func TestRegistryTestSuite(t *testing.T) {
