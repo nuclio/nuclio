@@ -469,8 +469,14 @@ func (r *AbstractRuntime) waitForProcessTermination() {
 	for {
 		select {
 		case <-r.stopChan:
+			r.Logger.DebugWith("Process terminated",
+				"wid", r.Context.WorkerID,
+				"process", r.wrapperProcess)
 			return
 		case <-time.After(10 * time.Second):
+			r.Logger.DebugWith("Timeout waiting for process termination, assuming closed",
+				"wid", r.Context.WorkerID,
+				"process", r.wrapperProcess)
 			return
 		}
 	}
