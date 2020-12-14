@@ -624,6 +624,11 @@ func (pr *projectResource) processProjectInfo(projectInfoInstance *projectInfo) 
 		return nuclio.NewErrBadRequest("Project name must be provided in metadata")
 	}
 
+	// name must exist
+	if projectInfoInstance.Meta.Namespace == "" {
+		return nuclio.NewErrBadRequest("Project namespace must be provided in metadata")
+	}
+
 	return nil
 }
 

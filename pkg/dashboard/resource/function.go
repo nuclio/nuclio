@@ -404,19 +404,18 @@ func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, funct
 }
 
 func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionInfo, projectName string) (*functionInfo, error) {
-
-	// override namespace if applicable
-	if functionInfoInstance.Meta != nil {
-		functionInfoInstance.Meta.Namespace = fr.getNamespaceOrDefault(functionInfoInstance.Meta.Namespace)
+	if functionInfoInstance.Meta == nil {
+		functionInfoInstance.Meta = &functionconfig.Meta{}
 	}
 
-	// meta must exist
-	if functionInfoInstance.Meta == nil ||
-		functionInfoInstance.Meta.Name == "" ||
-		functionInfoInstance.Meta.Namespace == "" {
-		err := errors.New("Function name must be provided in metadata")
+	functionInfoInstance.Meta.Namespace = fr.getNamespaceOrDefault(functionInfoInstance.Meta.Namespace)
 
-		return nil, nuclio.WrapErrBadRequest(err)
+	if functionInfoInstance.Meta.Name == "" {
+		return nil, nuclio.NewErrBadRequest("Function name must be provided in metadata")
+	}
+
+	if functionInfoInstance.Meta.Namespace == "" {
+		return nil, nuclio.NewErrBadRequest("Function namespace must be provided in metadata")
 	}
 
 	// validate function name is according to k8s convention
