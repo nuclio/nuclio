@@ -119,7 +119,7 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 from a configurations file or from standard input (default)
 
 Note: The command doesn't deploy the imported functions.
-      To deploy an imported function, use the ` + "`deploy`" + ` command.
+      To deploy an imported function, use the 'deploy' command.
 
 Arguments:
   <config file> (string) Path to a function-configurations file in JSON or YAML format (see -o|--output).
@@ -220,7 +220,7 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 project functions and events) from a configurations file or from standard input (default)
 
 Note: The command doesn't deploy the functions in the  imported projects.
-      To deploy an imported function, use the ` + "`deploy`" + ` command.
+      To deploy an imported function, use the 'deploy' command.
 
 Arguments:
   <config file> (string) Path to a project-configurations file in JSON or YAML format (see -o|--output).

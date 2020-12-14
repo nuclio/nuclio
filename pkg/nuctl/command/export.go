@@ -63,7 +63,7 @@ to the standard output, in JSON or YAML format (see -o|--output)
 
 Arguments:
   <function> (string) The name of a function to export, optionally followed by
-                      ` + "`:<version>` to export a specific function version",
+                      ':<version>' to export a specific function version`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
