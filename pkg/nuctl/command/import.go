@@ -24,8 +24,8 @@ func newImportCommandeer(rootCommandeer *RootCommandeer) *importCommandeer {
 	cmd := &cobra.Command{
 		Use:   "import",
 		Short: "Import functions or projects",
-		Long:  "Import the configurations of one or more functions or projects
-from a configuration file or from the standard input (default)",
+		Long: `Import the configurations of one or more functions or projects
+from a configuration file or from the standard input (default)`,
 	}
 
 	importFunctionCommand := newImportFunctionCommandeer(commandeer).cmd
@@ -112,18 +112,18 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 	}
 
 	cmd := &cobra.Command{
-		Use:      "functions [<config file>]",
+		Use:     "functions [<config file>]",
 		Aliases: []string{"function", "fn", "fu"},
 		Short:   "(or function) Import functions",
-		Long:    "(or function) Import the configurations of one or more functions
+		Long: `(or function) Import the configurations of one or more functions
 from a configurations file or from standard input (default)
 
 Note: The command doesn't deploy the imported functions.
-      To deploy an imported function, use the `deploy` command.
+      To deploy an imported function, use the ` + "`deploy`" + ` command.
 
 Arguments:
   <config file> (string) Path to a function-configurations file in JSON or YAML format (see -o|--output).
-                         If not provided, the configuration is imported from standard input (stdin).",
+                         If not provided, the configuration is imported from standard input (stdin).`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// initialize root
@@ -216,15 +216,15 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 		Use:     "projects [<config file>]",
 		Aliases: []string{"project", "prj", "proj"},
 		Short:   "(or project) Import projects (including all their functions and function events)",
-		Long:    "(or project) Import the configurations of one or more projects (including all
+		Long: `(or project) Import the configurations of one or more projects (including all
 project functions and events) from a configurations file or from standard input (default)
 
 Note: The command doesn't deploy the functions in the  imported projects.
-      To deploy an imported function, use the `deploy` command.
+      To deploy an imported function, use the ` + "`deploy`" + ` command.
 
 Arguments:
   <config file> (string) Path to a project-configurations file in JSON or YAML format (see -o|--output).
-                         If not provided, the configuration is imported from standard input (stdin).",
+                         If not provided, the configuration is imported from standard input (stdin).`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// initialize root

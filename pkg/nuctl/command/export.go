@@ -25,8 +25,8 @@ func newExportCommandeer(rootCommandeer *RootCommandeer) *exportCommandeer {
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Export functions or projects",
-		Long:  "Export the configuration of a specific function or project or of all functions/projects (default)
-to the standard output, in JSON or YAML format",
+		Long: `Export the configuration of a specific function or project or of all functions/projects (default)
+to the standard output, in JSON or YAML format`,
 	}
 
 	exportFunctionCommand := newExportFunctionCommandeer(commandeer).cmd
@@ -58,12 +58,12 @@ func newExportFunctionCommandeer(exportCommandeer *exportCommandeer) *exportFunc
 		Use:     "functions [<function>]",
 		Aliases: []string{"function", "fn", "fu"},
 		Short:   "(or function) Export functions",
-		Long:    "(or function) Export the configuration of a specific function or of all deployed Nuclio functions (default)
+		Long: `(or function) Export the configuration of a specific function or of all deployed Nuclio functions (default)
 to the standard output, in JSON or YAML format (see -o|--output)
 
 Arguments:
   <function> (string) The name of a function to export, optionally followed by
-                      `:<version>` to export a specific function version",
+                      ` + "`:<version>` to export a specific function version",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -146,12 +146,12 @@ func newExportProjectCommandeer(exportCommandeer *exportCommandeer) *exportProje
 		Use:     "projects [<project>]",
 		Aliases: []string{"project", "prj", "proj"},
 		Short:   "(or project) Export projects",
-		Long:    "(or project) Export the configuration of a specific project (incuding all
+		Long: `(or project) Export the configuration of a specific project (including all
 its functions and function events) or of all projects (default) to the standard output,
 in JSON or YAML format (see -o|--output)
 
 Arguments:
-  <project> (string) The name of a project to export",
+  <project> (string) The name of a project to export`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
