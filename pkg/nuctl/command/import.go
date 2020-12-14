@@ -23,7 +23,9 @@ func newImportCommandeer(rootCommandeer *RootCommandeer) *importCommandeer {
 
 	cmd := &cobra.Command{
 		Use:   "import",
-		Short: "Import function/project",
+		Short: "Import functions or projects",
+		Long:  "Import the configurations of one or more functions or projects
+from a configuration file or from the standard input (default)",
 	}
 
 	importFunctionCommand := newImportFunctionCommandeer(commandeer).cmd
@@ -110,9 +112,18 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 	}
 
 	cmd := &cobra.Command{
-		Use:     "functions [path-to-exported-function-file]",
-		Aliases: []string{"fu", "fn", "function"},
-		Short:   "(or function) Import function, and by default don't deploy it",
+		Use:   "functions [<config file>]",
+		Aliases: []string{"function", "fn", "fu"},
+		Short:   "(or function) Import functions",
+		Long:    "(or function) Import the configurations of one or more functions
+from a configurations file or from standard input (default)
+
+Note: The command doesn't deploy the imported functions.
+      To deploy an imported function, use the `deploy` command.
+
+Arguments:
+  <config file> (string) Path to a function-configurations file in JSON or YAML format (see -o|--output).
+                         If not provided, the configuration is imported from standard input (stdin).",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// initialize root
@@ -126,19 +137,19 @@ func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunc
 			}
 
 			if len(functionBody) == 0 {
-				return errors.New(`Failed to resolve function body.
-Make sure to provide its content via STDIN / file path.
+				return errors.New(`Failed to resolve the function-configuration body.
+Make sure to provide the content via stdin or a file.
 Use --help for more information`)
 			}
 
 			unmarshalFunc, err := common.GetUnmarshalFunc(functionBody)
 			if err != nil {
-				return errors.Wrap(err, "Failed identifying input format")
+				return errors.Wrap(err, "Failed to identify the input format")
 			}
 
 			functionConfigs, err := commandeer.resolveFunctionImportConfigs(functionBody, unmarshalFunc)
 			if err != nil {
-				return errors.Wrap(err, "Failed to resolve function import configs")
+				return errors.Wrap(err, "Failed to resolve the imported function configuration")
 			}
 
 			// create a platform config without name, allowing them to be imported directly to the default project
@@ -163,21 +174,21 @@ func (i *importFunctionCommandeer) resolveFunctionImportConfigs(functionBody []b
 	// initialize
 	functionConfigs := map[string]*functionconfig.Config{}
 
-	// try single
+	// try parsing a single-project configuration
 	functionConfig := &functionconfig.Config{}
 	if err := unmarshalFunc(functionBody, &functionConfig); err != nil {
-		return nil, errors.Wrap(err, "Failed to parse single project config")
+		return nil, errors.Wrap(err, "Failed to parse a single-project configuration")
 	}
 
-	// no match, try multi
+	// no match; try a multi-project configuration
 	if functionConfig.Meta.Name == "" {
 		if err := unmarshalFunc(functionBody, &functionConfigs); err != nil {
-			return nil, errors.Wrap(err, "Failed to parse multi projects data")
+			return nil, errors.Wrap(err, "Failed to parse a multi-project configuration")
 		}
 
 	} else {
 
-		// successfully parsed a single-project
+		// successfully parsed a single-project configuration
 		functionConfigs[functionConfig.Meta.Name] = functionConfig
 	}
 
@@ -202,9 +213,18 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 	}
 
 	cmd := &cobra.Command{
-		Use:     "projects [path-to-exported-project-file]",
-		Aliases: []string{"proj", "prj", "project"},
-		Short:   "(or project) Import project and all its functions and functionEvents",
+		Use:     "projects [<config file>]",
+		Aliases: []string{"project", "prj", "proj"},
+		Short:   "(or project) Import projects (including all their functions and function events)",
+		Long:    "(or project) Import the configurations of one or more projects (including all
+project functions and events) from a configurations file or from standard input (default)
+
+Note: The command doesn't deploy the functions in the  imported projects.
+      To deploy an imported function, use the `deploy` command.
+
+Arguments:
+  <config file> (string) Path to a project-configurations file in JSON or YAML format (see -o|--output).
+                         If not provided, the configuration is imported from standard input (stdin).",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// initialize root
@@ -218,26 +238,26 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 			}
 
 			if len(projectBody) == 0 {
-				return errors.New(`Failed to resolve project body.
-Make sure to provide its content via STDIN / file path.
+				return errors.New(`Failed to resolve the project-configuration body.
+Make sure to provide the content via stdin or a file.
 Use --help for more information`)
 			}
 
 			unmarshalFunc, err := common.GetUnmarshalFunc(projectBody)
 			if err != nil {
-				return errors.Wrap(err, "Failed identifying input format")
+				return errors.Wrap(err, "Failed to identify the input format")
 			}
 
 			projectImportConfigs, err := commandeer.resolveProjectImportConfigs(projectBody, unmarshalFunc)
 			if err != nil {
-				return errors.Wrap(err, "Failed to resolve project import configs")
+				return errors.Wrap(err, "Failed to resolve the imported project configuration")
 			}
 
 			return commandeer.importProjects(projectImportConfigs)
 		},
 	}
 
-	cmd.Flags().StringSliceVar(&commandeer.skipProjectNames, "skip", []string{}, "Project names to skip (comma separated)")
+	cmd.Flags().StringSliceVar(&commandeer.skipProjectNames, "skip", []string{}, "Names of projects to skip (don't import), as a comma-separated list")
 
 	commandeer.cmd = cmd
 
@@ -253,7 +273,7 @@ func (i *importProjectCommandeer) importFunctionEvent(functionEvent *platform.Fu
 		return errors.Wrap(err, "Failed to check existing functions")
 	}
 	if len(functions) == 0 {
-		return errors.New("Function event's function doesn't exist")
+		return errors.New("The event function's parent function doesn't exist")
 	}
 
 	// generate new name for events to avoid collisions
@@ -262,7 +282,7 @@ func (i *importProjectCommandeer) importFunctionEvent(functionEvent *platform.Fu
 	// populate namespace
 	functionEvent.Meta.Namespace = i.rootCommandeer.namespace
 
-	// just deploy. the status is async through polling
+	// just deploy; the status is async through polling
 	return i.rootCommandeer.platform.CreateFunctionEvent(&platform.CreateFunctionEventOptions{
 		FunctionEventConfig: platform.FunctionEventConfig{
 			Meta: functionEvent.Meta,
@@ -276,7 +296,7 @@ func (i *importProjectCommandeer) importAPIGateway(apiGateway *platform.APIGatew
 	// populate namespace
 	apiGateway.Meta.Namespace = i.rootCommandeer.namespace
 
-	// just create. the status is async through polling
+	// just create; the status is async through polling
 	return i.rootCommandeer.platform.CreateAPIGateway(&platform.CreateAPIGatewayOptions{
 		APIGatewayConfig: &platform.APIGatewayConfig{
 			Meta: apiGateway.Meta,
@@ -344,7 +364,7 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 
 	functionImportErr := i.importFunctions(projectConfig.Functions, projectConfig.Project)
 	if functionImportErr != nil {
-		i.rootCommandeer.loggerInstance.WarnWith("Unable to import all functions",
+		i.rootCommandeer.loggerInstance.WarnWith("Failed to import all project functions",
 			"functionImportErr", functionImportErr)
 
 		// return this error
@@ -353,7 +373,7 @@ func (i *importProjectCommandeer) importProject(projectConfig *ProjectImportConf
 
 	functionEventImportErr := i.importFunctionEvents(projectConfig.FunctionEvents)
 	if functionEventImportErr != nil {
-		i.rootCommandeer.loggerInstance.WarnWith("Unable to import all function events",
+		i.rootCommandeer.loggerInstance.WarnWith("Failed to import all function events",
 			"functionEventImportErr", functionEventImportErr)
 
 		// return this err only if not previously set
@@ -411,21 +431,21 @@ func (i *importProjectCommandeer) resolveProjectImportConfigs(projectBody []byte
 	// initialize
 	projectImportConfigs := map[string]*ProjectImportConfig{}
 
-	// try single
+	// try a single-project configuration
 	projectImportConfig := ProjectImportConfig{}
 	if err := unmarshalFunc(projectBody, &projectImportConfig); err != nil {
-		return nil, errors.Wrap(err, "Failed to parse project config (is project body malformed?)")
+		return nil, errors.Wrap(err, "Failed to parse the project configuration; the project body might be malformed")
 	}
 
-	// no match, try multi
+	// no match; try a multi-project configuration
 	if projectImportConfig.Project == nil {
 		if err := unmarshalFunc(projectBody, &projectImportConfigs); err != nil {
-			return nil, errors.Wrap(err, "Failed to parse project configs (is project body malformed?)")
+			return nil, errors.Wrap(err, "Failed to parse the project configuration; the project body might be malformed")
 		}
 
 	} else {
 
-		// successfully parsed a single-project
+		// successfully parsed a single-project configuration
 		projectImportConfigs[projectImportConfig.Project.Meta.Name] = &projectImportConfig
 	}
 

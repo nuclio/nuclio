@@ -23,8 +23,10 @@ func newExportCommandeer(rootCommandeer *RootCommandeer) *exportCommandeer {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "export",
-		Short: "Export resource to json format",
+        Use:   "export",
+		Short: "Export functions or projects",
+		Long:  "Export the configuration of a specific function or project or of all functions/projects (default)
+to the standard output, in JSON or YAML format",
 	}
 
 	exportFunctionCommand := newExportFunctionCommandeer(commandeer).cmd
@@ -53,9 +55,15 @@ func newExportFunctionCommandeer(exportCommandeer *exportCommandeer) *exportFunc
 	}
 
 	cmd := &cobra.Command{
-		Use:     "functions [name[:version]]",
-		Aliases: []string{"fu", "fn", "function"},
-		Short:   "(or function) Export function to yaml format",
+		Use:     "functions [<function>]",
+		Aliases: []string{"function", "fn", "fu"},
+        Short:   "(or function) Export functions",
+		Long:    "(or function) Export the configuration of a specific function or of all deployed Nuclio functions (default)
+to the standard output, in JSON or YAML format (see -o|--output)
+
+Arguments:
+  <function> (string) The name of a function to export, optionally followed by
+                      `:<version>` to export a specific function version",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -94,8 +102,8 @@ func newExportFunctionCommandeer(exportCommandeer *exportCommandeer) *exportFunc
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, "Output format - \"yaml\", or \"json\"")
-	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Allow function sensitive data to be exported")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, 'Output format - "json" or "yaml"')
+	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Export all function data, including sensitive and unnecessary data")
 
 	commandeer.cmd = cmd
 
@@ -117,7 +125,7 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 		err = renderer(functionConfigs)
 	}
 	if err != nil {
-		return errors.Wrap(err, "Failed to render function config")
+		return errors.Wrap(err, "Failed to render function configuration")
 	}
 
 	return nil
@@ -135,9 +143,15 @@ func newExportProjectCommandeer(exportCommandeer *exportCommandeer) *exportProje
 	}
 
 	cmd := &cobra.Command{
-		Use:     "projects [name]",
-		Aliases: []string{"proj", "prj", "project"},
-		Short:   "(or project) Export project with all it's functions and function events",
+		Use:     "projects [<project>]",
+		Aliases: []string{"project", "prj", "proj"},
+        Short:   "(or project) Export projects",
+		Long:    "(or project) Export the configuration of a specific project (incuding all
+its functions and function events) or of all projects (default) to the standard output,
+in JSON or YAML format (see -o|--output)
+
+Arguments:
+  <project> (string) The name of a project to export",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -173,7 +187,7 @@ func newExportProjectCommandeer(exportCommandeer *exportCommandeer) *exportProje
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, "Output format - \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, 'Output format - "json" or "yaml"')
 
 	commandeer.cmd = cmd
 
@@ -307,7 +321,7 @@ func (e *exportProjectCommandeer) renderProjectConfig(projects []platform.Projec
 	}
 
 	if err != nil {
-		return errors.Wrap(err, "Failed to render function config")
+		return errors.Wrap(err, "Failed to render function configuration")
 	}
 
 	return nil
