@@ -92,20 +92,10 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 		},
 	}
 
-	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.DisplayName, "display-name", "", "Project display name, if different than name")
-	cmd.Flags().MarkDeprecated("display-name", "will be removed on the next major version release") // nolint: errcheck
 	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.Description, "description", "", "Project description")
-
 	commandeer.cmd = cmd
 
 	return commandeer
-}
-
-type createFunctionEventCommandeer struct {
-	*createCommandeer
-	functionEventConfig platform.FunctionEventConfig
-	encodedAttributes   string
-	functionName        string
 }
 
 type createAPIGatewayCommandeer struct {
@@ -239,6 +229,13 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 	commandeer.cmd = cmd
 
 	return commandeer
+}
+
+type createFunctionEventCommandeer struct {
+	*createCommandeer
+	functionEventConfig platform.FunctionEventConfig
+	encodedAttributes   string
+	functionName        string
 }
 
 func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *createFunctionEventCommandeer {

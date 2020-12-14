@@ -36,6 +36,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
+	"github.com/hashicorp/go-uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -405,28 +406,57 @@ func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOp
 // EnrichCreateProjectConfig enrich project configuration with defaults
 func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.CreateProjectOptions) error {
 
-	// TBD
+	if !createProjectOptions.SkipTransformDisplayName {
+
+		if createProjectOptions.ProjectConfig.Spec.DisplayName != "" {
+			ap.Logger.WarnWith("Transforming display name",
+				"displayName", createProjectOptions.ProjectConfig.Spec.DisplayName,
+				"name", createProjectOptions.ProjectConfig.Meta.Name)
+
+			// name is UUID
+			if _, err := uuid.ParseUUID(createProjectOptions.ProjectConfig.Meta.Name); err == nil {
+
+				// trim spaces
+				displayName := strings.TrimSpace(createProjectOptions.ProjectConfig.Spec.DisplayName)
+
+				// lower case
+				displayName = strings.ToLower(displayName)
+
+				// no spaces
+				displayName = strings.ReplaceAll(displayName, " ", "-")
+
+				// no underscores
+				displayName = strings.ReplaceAll(displayName, "_", "-")
+
+				ap.Logger.DebugWith("Name is UUID, overriding with transformed kebab-case display name",
+					"displayName", displayName)
+				createProjectOptions.ProjectConfig.Meta.Name = displayName
+			}
+
+			createProjectOptions.ProjectConfig.Spec.DisplayName = ""
+		}
+	}
+
 	return nil
 }
 
 // ValidateCreateProjectConfig perform validation on a given project config
 func (ap *Platform) ValidateCreateProjectConfig(createProjectOptions *platform.CreateProjectOptions) error {
 	if createProjectOptions.ProjectConfig.Meta.Name == "" {
-		return nuclio.NewErrBadRequest("Project name must not be empty")
+		return nuclio.NewErrBadRequest("Project name cannot be empty")
 	}
 
-	errStrings := validation.IsDNS1035Label(createProjectOptions.ProjectConfig.Meta.Name)
-	if len(errStrings) > 0 {
-		encodedErrString := ""
-		for idx, errString := range errStrings {
-			encodedErrString += fmt.Sprintf("[%d]: %s\n", idx+1, errString)
+	errorMessages := validation.IsQualifiedName(createProjectOptions.ProjectConfig.Meta.Name)
+	if len(errorMessages) != 0 {
+		joinedErrorMessage := strings.Join(errorMessages, ", ")
+		return nuclio.NewErrBadRequest(fmt.Sprintf(`Project name must adhere to Kubernetes the naming conventions. 
+Errors: %s`, joinedErrorMessage))
+	}
+
+	if !createProjectOptions.SkipDeprecatedFieldValidations {
+		if createProjectOptions.ProjectConfig.Spec.DisplayName != "" {
+			return nuclio.NewErrBadRequest("Project display name is deprecated, use name instead.")
 		}
-		errMessage := fmt.Sprintf("Project name must adhere to the naming conventions:\n%s", encodedErrString)
-		return nuclio.NewErrBadRequest(errMessage)
-	}
-
-	if createProjectOptions.ProjectConfig.Spec.DisplayName != "" {
-		return nuclio.NewErrBadRequest("Project display name is deprecated, use name instead.")
 	}
 	return nil
 }

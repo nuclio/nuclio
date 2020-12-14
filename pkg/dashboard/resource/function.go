@@ -146,7 +146,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
-	waitForFunction := request.Header.Get("x-nuclio-wait-function-action") == "true"
+	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
 
 	// validation finished successfully - store and deploy the given function
 	if responseErr = fr.storeAndDeployFunction(functionInfo, authConfig, waitForFunction); responseErr != nil {
@@ -190,7 +190,7 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		return
 	}
 
-	waitForFunction := request.Header.Get("x-nuclio-wait-function-action") == "true"
+	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
 
 	if responseErr = fr.storeAndDeployFunction(functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return

@@ -187,7 +187,7 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "proj", projectName, "--verbose"}, nil, false)
 	suite.Require().NoError(err)
 
-	exportedProjectConfig := &command.ProjectImportConfig{}
+	exportedProjectConfig := &command.ImportProjectConfig{}
 	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &exportedProjectConfig)
 	suite.Require().NoError(err)
 
@@ -374,7 +374,7 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 	file, err := ioutil.ReadFile(configPath)
 	suite.Require().NoError(err)
 
-	projectConfig := &command.ProjectImportConfig{}
+	projectConfig := &command.ImportProjectConfig{}
 	err = yaml.Unmarshal(file, projectConfig)
 	suite.Require().NoError(err)
 

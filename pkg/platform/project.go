@@ -59,10 +59,8 @@ func (ap *AbstractProject) GetConfig() *ProjectConfig {
 	return &ap.ProjectConfig
 }
 
-func (ap *AbstractProject) CreateAndWait() error {
-	if err := ap.Platform.CreateProject(&CreateProjectOptions{
-		ProjectConfig: *ap.GetConfig(),
-	}); err != nil {
+func (ap *AbstractProject) CreateAndWait(createProjectOptions *CreateProjectOptions) error {
+	if err := ap.Platform.CreateProject(createProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to create project")
 	}
 

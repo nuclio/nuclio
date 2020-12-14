@@ -78,3 +78,7 @@ func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthCo
 func (r *resource) getListenAddress() string {
 	return r.GetServer().(*dashboard.Server).ListenAddress
 }
+
+func (r *resource) headerValueIsTrue(request *http.Request, headerName string) bool {
+	return strings.ToLower(request.Header.Get(headerName)) == "true"
+}
