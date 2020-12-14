@@ -26,6 +26,9 @@ To this end, Nuclio leverages Kafka consumer groups. When one or more Nuclio rep
 
 When a Nuclio replica is assigned its set of partitions, it can start using Nuclio workers to read from the partitions and handle them. It's currently guaranteed that a given partition is handled only by one replica and that the messages are processed sequentially; that is, a message will only be read and handled after the handling of the previous message in the partition is completed. During rebalancing, however, the responsibility for a partition may be migrated to another Nuclio replica while still preserving the guarantee of sequential processing (in-order-execution).
 
+- [Workers and Worker Allocation modes](#workers)
+- [Multiple topics](#multiple-topics)
+
 <a id="workers"></a>
 ### Workers and Worker Allocation modes
 
@@ -229,6 +232,10 @@ However, Nuclio might be busy waiting for the user's code to finish processing a
 To prevent this, Nuclio has a hard limit on how long it waits for handlers to complete processing the event ([`maxWaitHandlerDuringRebalance`](#maxWaitHandlerDuringRebalance)). If rebalancing occurs while a handler is still processing an event, Nuclio waits for a duration of `maxWaitHandlerDuringRebalance` before forcefully restarting the worker (in runtimes that support this, such as Python) or the replica (in runtimes that don't support worker restart, such as Golang).
 
 This aggressive termination helps the consumer groups stabilize in a deterministic time frame, at the expense of re-processing the message. To reduce this occurrence, consider setting a high value for the [`rebalanceTimeout`](#rebalanceTimeout) and [`maxWaitHandlerDuringRebalance`](#maxWaitHandlerDuringRebalance) configurations.
+
+- [Rebalancing configuration parameters](#rebalancing-config-params)
+- [Choosing the right configuration for rebalancing](#rebalancing-config-choice)
+- [Rebalancing notes](#rebalancing-notes)
 
 <a id="rebalancing-config-params"></a>
 ### Configuration parameters
