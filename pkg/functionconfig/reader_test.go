@@ -309,52 +309,53 @@ func (suite *ReaderTestSuite) TestCodeEntryConfigTriggerMerge() {
 	}
 
 	for _, testCase := range testCases {
-		suite.logger.DebugWith("Running test case", "testCase", testCase.name)
-		config := Config{
-			Meta: Meta{
-				Name:      "my_name",
-				Namespace: "my_namespace",
-			},
-			Spec: Spec{
-				Runtime: "python3.7",
-				Handler: "my_handler",
-			},
-		}
-		config.Spec.Triggers = map[string]Trigger{
-			testCase.codeEntryTrigger.Name: {
-				Name:       testCase.codeEntryTrigger.Name,
-				Kind:       "http",
-				Attributes: map[string]interface{}{"serviceType": testCase.codeEntryTrigger.ServiceType},
-			},
-		}
-		configData, err := yaml.Marshal(config)
-		suite.Require().NoError(err, "Can't marshal config")
+		suite.Run(testCase.name, func() {
+			config := Config{
+				Meta: Meta{
+					Name:      "my_name",
+					Namespace: "my_namespace",
+				},
+				Spec: Spec{
+					Runtime: "python3.7",
+					Handler: "my_handler",
+				},
+			}
+			config.Spec.Triggers = map[string]Trigger{
+				testCase.codeEntryTrigger.Name: {
+					Name:       testCase.codeEntryTrigger.Name,
+					Kind:       "http",
+					Attributes: map[string]interface{}{"serviceType": testCase.codeEntryTrigger.ServiceType},
+				},
+			}
+			configData, err := yaml.Marshal(config)
+			suite.Require().NoError(err, "Can't marshal config")
 
-		config.Spec.Triggers = map[string]Trigger{
-			testCase.configTrigger.Name: {
-				Name:       testCase.configTrigger.Name,
-				Kind:       "http",
-				Attributes: map[string]interface{}{"serviceType": testCase.configTrigger.ServiceType},
-			},
-		}
+			config.Spec.Triggers = map[string]Trigger{
+				testCase.configTrigger.Name: {
+					Name:       testCase.configTrigger.Name,
+					Kind:       "http",
+					Attributes: map[string]interface{}{"serviceType": testCase.configTrigger.ServiceType},
+				},
+			}
 
-		reader, err := NewReader(suite.logger)
-		suite.Require().NoError(err)
-
-		err = reader.Read(strings.NewReader(string(configData)), "processor", &config)
-		suite.Require().NoError(err)
-
-		err = reader.validateConfigurationFileFunctionConfig(&config)
-		if testCase.expectValidityError {
-			suite.Require().Error(err)
-		} else {
+			reader, err := NewReader(suite.logger)
 			suite.Require().NoError(err)
-			suite.Assert().Equal(1, len(config.Spec.Triggers))
-			suite.Assert().Equal(testCase.expectedConfigTrigger.Name,
-				config.Spec.Triggers[testCase.expectedConfigTrigger.Name].Name)
-			suite.Assert().Equal(testCase.expectedConfigTrigger.ServiceType,
-				config.Spec.Triggers[testCase.expectedConfigTrigger.Name].Attributes["serviceType"])
-		}
+
+			err = reader.Read(strings.NewReader(string(configData)), "processor", &config)
+			suite.Require().NoError(err)
+
+			err = reader.validateConfigurationFileFunctionConfig(&config)
+			if testCase.expectValidityError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+				suite.Assert().Equal(1, len(config.Spec.Triggers))
+				suite.Assert().Equal(testCase.expectedConfigTrigger.Name,
+					config.Spec.Triggers[testCase.expectedConfigTrigger.Name].Name)
+				suite.Assert().Equal(testCase.expectedConfigTrigger.ServiceType,
+					config.Spec.Triggers[testCase.expectedConfigTrigger.Name].Attributes["serviceType"])
+			}
+		})
 	}
 }
 
