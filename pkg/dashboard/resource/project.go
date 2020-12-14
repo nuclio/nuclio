@@ -138,7 +138,7 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 		return pr.importProject(projectImportInfo, authConfig)
 	}
 
-	projectInfo, responseErr := pr.getProjectInfoFromRequest(request, true)
+	projectInfo, responseErr := pr.getProjectInfoFromRequest(request)
 	if responseErr != nil {
 		return
 	}
@@ -292,7 +292,7 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 			"project", projectImportInfoInstance.Project.Meta.Name)
 
 		// process (enrich/validate) projectInfo instance
-		if err := pr.processProjectInfo(projectImportInfoInstance.Project, true); err != nil {
+		if err := pr.processProjectInfo(projectImportInfoInstance.Project); err != nil {
 			return "", nil, errors.Wrap(err, "Failed to process project info")
 		}
 
@@ -308,8 +308,10 @@ func (pr *projectResource) importProject(projectImportInfoInstance *projectImpor
 			return "", nil, nuclio.WrapErrInternalServerError(err)
 		}
 
-		if err = newProject.CreateAndWait(); err != nil {
-			return "", nil, nuclio.WrapErrInternalServerError(err)
+		if err := newProject.CreateAndWait(); err != nil {
+
+			// preserve err - it might contain an informative status code (validation failure, etc)
+			return "", nil, err
 		}
 	}
 
@@ -486,7 +488,7 @@ func (pr *projectResource) importProjectFunctionEvents(projectImportInfoInstance
 func (pr *projectResource) deleteProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	// get project config and status from body
-	projectInfo, err := pr.getProjectInfoFromRequest(request, true)
+	projectInfo, err := pr.getProjectInfoFromRequest(request)
 	if err != nil {
 		pr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
 
@@ -519,7 +521,7 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 	statusCode := http.StatusNoContent
 
 	// get project config and status from body
-	projectInfo, err := pr.getProjectInfoFromRequest(request, true)
+	projectInfo, err := pr.getProjectInfoFromRequest(request)
 	if err != nil {
 		pr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
 
@@ -562,7 +564,7 @@ func (pr *projectResource) getNamespaceFromRequest(request *http.Request) string
 	return pr.getNamespaceOrDefault(request.Header.Get("x-nuclio-project-namespace"))
 }
 
-func (pr *projectResource) getProjectInfoFromRequest(request *http.Request, nameRequired bool) (*projectInfo, error) {
+func (pr *projectResource) getProjectInfoFromRequest(request *http.Request) (*projectInfo, error) {
 
 	// read body
 	body, err := ioutil.ReadAll(request.Body)
@@ -575,7 +577,7 @@ func (pr *projectResource) getProjectInfoFromRequest(request *http.Request, name
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
-	if err := pr.processProjectInfo(&projectInfoInstance, nameRequired); err != nil {
+	if err := pr.processProjectInfo(&projectInfoInstance); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to process project info"))
 	}
 
@@ -595,32 +597,31 @@ func (pr *projectResource) getProjectImportInfoFromRequest(request *http.Request
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
-	if err = pr.processProjectInfo(projectImportInfoInstance.Project, true); err != nil {
+	if err = pr.processProjectInfo(projectImportInfoInstance.Project); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to process project info"))
 	}
 
 	return &projectImportInfoInstance, nil
 }
 
-func (pr *projectResource) processProjectInfo(projectInfoInstance *projectInfo, nameRequired bool) error {
+func (pr *projectResource) processProjectInfo(projectInfoInstance *projectInfo) error {
 
-	// override namespace if applicable
-	if projectInfoInstance.Meta != nil {
-		projectInfoInstance.Meta.Namespace = pr.getNamespaceOrDefault(projectInfoInstance.Meta.Namespace)
+	// ensure meta
+	if projectInfoInstance.Meta == nil {
+		projectInfoInstance.Meta = &platform.ProjectMeta{}
 	}
 
-	// meta must exist
-	if projectInfoInstance.Meta == nil ||
-		(nameRequired && projectInfoInstance.Meta.Name == "") ||
-		projectInfoInstance.Meta.Namespace == "" {
-		err := errors.New("Project name must be provided in metadata")
-
-		return nuclio.WrapErrBadRequest(err)
-	}
-
-	// spec is optional, ensure it exists
+	// ensure spec
 	if projectInfoInstance.Spec == nil {
 		projectInfoInstance.Spec = &platform.ProjectSpec{}
+	}
+
+	// ensure namespace
+	projectInfoInstance.Meta.Namespace = pr.getNamespaceOrDefault(projectInfoInstance.Meta.Namespace)
+
+	// name must exist
+	if projectInfoInstance.Meta.Name == "" {
+		return nuclio.NewErrBadRequest("Project name must be provided in metadata")
 	}
 
 	return nil

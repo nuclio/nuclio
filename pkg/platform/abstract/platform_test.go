@@ -71,6 +71,78 @@ func (suite *AbstractPlatformTestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
 }
 
+func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
+	for _, testCase := range []struct {
+		Name                    string
+		CreateProjectOptions    *platform.CreateProjectOptions
+		ExpectValidationFailure bool
+	}{
+		{
+			Name: "Happy flow",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "a-name",
+					},
+					Spec: platform.ProjectSpec{
+						Description: "just a description",
+					},
+				},
+			},
+		},
+		{
+			Name: "Invalid name",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "invalid name",
+					},
+				},
+			},
+			ExpectValidationFailure: true,
+		},
+		{
+			Name: "Non empty display name",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "test",
+					},
+					Spec: platform.ProjectSpec{
+						DisplayName: "oops",
+					},
+				},
+			},
+			ExpectValidationFailure: true,
+		},
+		{
+			Name: "Empty name",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "",
+					},
+					Spec: platform.ProjectSpec{
+						DisplayName: "oops",
+					},
+				},
+			},
+			ExpectValidationFailure: true,
+		},
+	} {
+		suite.Run(testCase.Name, func() {
+			err := suite.Platform.EnrichCreateProjectConfig(testCase.CreateProjectOptions)
+			suite.Require().NoError(err)
+			err = suite.Platform.ValidateCreateProjectConfig(testCase.CreateProjectOptions)
+			if testCase.ExpectValidationFailure {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
 func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesStructure() {
 	functionConfig := functionconfig.NewConfig()
 	functionConfig.Meta.Name = "f1"

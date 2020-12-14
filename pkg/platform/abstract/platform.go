@@ -40,6 +40,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 //
@@ -399,6 +400,35 @@ func (ap *Platform) GetHealthCheckMode() platform.HealthCheckMode {
 // CreateProject will probably create a new project
 func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
 	return platform.ErrUnsupportedMethod
+}
+
+// EnrichCreateProjectConfig enrich project configuration with defaults
+func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.CreateProjectOptions) error {
+
+	// TBD
+	return nil
+}
+
+// ValidateCreateProjectConfig perform validation on a given project config
+func (ap *Platform) ValidateCreateProjectConfig(createProjectOptions *platform.CreateProjectOptions) error {
+	if createProjectOptions.ProjectConfig.Meta.Name == "" {
+		return nuclio.NewErrBadRequest("Project name must not be empty")
+	}
+
+	errStrings := validation.IsDNS1035Label(createProjectOptions.ProjectConfig.Meta.Name)
+	if len(errStrings) > 0 {
+		encodedErrString := ""
+		for idx, errString := range errStrings {
+			encodedErrString += fmt.Sprintf("[%d]: %s\n", idx+1, errString)
+		}
+		errMessage := fmt.Sprintf("Project name does not comply to naming conventions:\n%s", encodedErrString)
+		return nuclio.NewErrBadRequest(errMessage)
+	}
+
+	if createProjectOptions.ProjectConfig.Spec.DisplayName != "" {
+		return nuclio.NewErrBadRequest("Project display name is deprecated, use name instead.")
+	}
+	return nil
 }
 
 // UpdateProject will update a previously existing project

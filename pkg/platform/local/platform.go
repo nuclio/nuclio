@@ -355,6 +355,18 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 
 // CreateProject will create a new project
 func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
+
+	// enrich
+	if err := p.EnrichCreateProjectConfig(createProjectOptions); err != nil {
+		return errors.Wrap(err, "Failed to enrich project config")
+	}
+
+	// validate
+	if err := p.ValidateCreateProjectConfig(createProjectOptions); err != nil {
+		return errors.Wrap(err, "Failed to validate project config")
+	}
+
+	// create
 	return p.localStore.createOrUpdateProject(&createProjectOptions.ProjectConfig)
 }
 

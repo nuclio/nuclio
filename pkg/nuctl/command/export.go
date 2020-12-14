@@ -125,8 +125,9 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 
 type exportProjectCommandeer struct {
 	*exportCommandeer
-	getProjectsOptions platform.GetProjectsOptions
-	output             string
+	getProjectsOptions     platform.GetProjectsOptions
+	output                 string
+	exportDeprecatedFields bool
 }
 
 func newExportProjectCommandeer(exportCommandeer *exportCommandeer) *exportProjectCommandeer {
@@ -174,7 +175,7 @@ func newExportProjectCommandeer(exportCommandeer *exportCommandeer) *exportProje
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, "Output format - \"yaml\", or \"json\"")
-
+	cmd.PersistentFlags().BoolVar(&commandeer.exportDeprecatedFields, "export-deprecated-fields", false, "Whether to export project deprecated fields")
 	commandeer.cmd = cmd
 
 	return commandeer
@@ -264,6 +265,8 @@ func (e *exportProjectCommandeer) exportProject(projectConfig *platform.ProjectC
 	if err != nil {
 		return nil, err
 	}
+
+	projectConfig.Scrub(!e.exportDeprecatedFields)
 
 	exportedProject := map[string]interface{}{
 		"project":        projectConfig,
