@@ -17,11 +17,11 @@ The HTTP trigger is the only trigger created by default if not configured (by de
 | cors.allowHeaders | list of strings | The allowed HTTP headers, which can be used when accessing the resource (`Access-Control-Allow-Headers` response header); (default: `"Accept, Content-Length, Content-Type, X-nuclio-log-level"`). |
 | cors.allowCredentials | bool | `true` to allow user credentials in the actual request (`Access-Control-Allow-Credentials` response header); (default: `false`). |
 | cors.preflightMaxAgeSeconds | int | The number of seconds in which the results of a preflight request can be cached in a preflight result cache (`Access-Control-Max-Age` response header); (default: `-1` to indicate no preflight results caching). |
-| serviceType | string | (k8s only) ServiceType for the k8s service created for exposing the trigger. **Important Note:** As of nuclio version 1.5.2 the default ServiceType is `ClusterIP` as opposed to `NodePort`. This means by default the function will not be exposed outside the cluster without configuring a proper ingress or manually changing the ServiceType to `NodePort` |
+| serviceType | string | (Kubernetes only) Kubernetes `ServiceType`, used by the Kubernetes service to expose the trigger. The default `ServiceType` is `ClusterIP`, which means that by default the trigger won't be exposed outside of the cluster unless you configure a proper ingress or manually change the `ServiceType` to `NodePort`. |
 
 ### Examples
 
-With 4 workers and maximum body size of 1kb -
+With 4 workers and a maximum body size of 1 KB -
 
 ```yaml
 triggers:
@@ -32,7 +32,7 @@ triggers:
       maxRequestBodySize: 1024
 ```
 
-With predefined port number -
+With a predefined port number -
 
 ```yaml
 triggers:
@@ -63,7 +63,7 @@ triggers:
           - "MyFunctions/{{.Name}}/{{.Version}}"
 ```
 
-with CORS -
+With CORS -
 
 ```yaml
 triggers:
