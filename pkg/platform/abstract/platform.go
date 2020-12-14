@@ -421,7 +421,7 @@ func (ap *Platform) ValidateCreateProjectConfig(createProjectOptions *platform.C
 		for idx, errString := range errStrings {
 			encodedErrString += fmt.Sprintf("[%d]: %s\n", idx+1, errString)
 		}
-		errMessage := fmt.Sprintf("Project name does not comply to naming conventions:\n%s", encodedErrString)
+		errMessage := fmt.Sprintf("Project name must adhere to the naming conventions:\n%s", encodedErrString)
 		return nuclio.NewErrBadRequest(errMessage)
 	}
 
