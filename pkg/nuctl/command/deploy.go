@@ -183,7 +183,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 	}
 
 	addDeployFlags(cmd, commandeer)
-	cmd.Flags().StringVarP(&commandeer.inputImageFile, "<input image file>", "", "", "Path to an input function-image Docker archive file")
+	cmd.Flags().StringVarP(&commandeer.inputImageFile, "input-image-file", "", "", "Path to an input function-image Docker archive file")
 
 	commandeer.cmd = cmd
 
