@@ -112,21 +112,6 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 			},
 			ExpectedProjectName: "oops",
 		},
-		{
-			Name:                "EmptyDisplayNameNoTransform",
-			ExpectedProjectName: "test",
-			CreateProjectOptions: &platform.CreateProjectOptions{
-				ProjectConfig: &platform.ProjectConfig{
-					Meta: platform.ProjectMeta{
-						Name: "test",
-					},
-					Spec: platform.ProjectSpec{
-						DisplayName: "oops",
-					},
-				},
-				SkipTransformDisplayName: true,
-			},
-		},
 
 		// bad flows
 		{
@@ -135,6 +120,21 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
 						Name: "invalid project name ## .. %%",
+					},
+				},
+			},
+			ExpectValidationFailure: true,
+		},
+		{
+			Name:                "DisplayNameNotEmpty",
+			ExpectedProjectName: "test",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "test",
+					},
+					Spec: platform.ProjectSpec{
+						DisplayName: "oops",
 					},
 				},
 			},
@@ -158,7 +158,7 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 		suite.Run(testCase.Name, func() {
 			err := suite.Platform.EnrichCreateProjectConfig(testCase.CreateProjectOptions)
 			suite.Require().NoError(err)
-			err = suite.Platform.ValidateCreateProjectConfig(testCase.CreateProjectOptions)
+			err = suite.Platform.ValidateProjectConfig(testCase.CreateProjectOptions.ProjectConfig)
 			if testCase.ExpectValidationFailure {
 				suite.Require().Error(err)
 			} else {

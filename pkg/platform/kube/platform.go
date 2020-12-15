@@ -431,7 +431,7 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	}
 
 	// validate
-	if err := p.ValidateCreateProjectConfig(createProjectOptions); err != nil {
+	if err := p.ValidateProjectConfig(createProjectOptions.ProjectConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate project config")
 	}
 
@@ -450,6 +450,10 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 
 // UpdateProject updates an existing project
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+	if err := p.ValidateProjectConfig(&updateProjectOptions.ProjectConfig); err != nil {
+		return nuclio.WrapErrBadRequest(err)
+	}
+
 	project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
 		Get(updateProjectOptions.ProjectConfig.Meta.Name, metav1.GetOptions{})

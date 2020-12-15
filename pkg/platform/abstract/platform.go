@@ -415,23 +415,23 @@ func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.Cre
 				ap.transformDisplayNameToName(createProjectOptions.ProjectConfig)
 				ap.Logger.DebugWith("Project name has been transformed",
 					"name", createProjectOptions.ProjectConfig.Meta.Name)
+
+				// transformation is done
+				createProjectOptions.ProjectConfig.Spec.DisplayName = ""
 			}
 		}
 	}
-
-	// Deprecated.
-	createProjectOptions.ProjectConfig.Spec.DisplayName = ""
 	return nil
 }
 
-// ValidateCreateProjectConfig perform validation on a given project config
-func (ap *Platform) ValidateCreateProjectConfig(createProjectOptions *platform.CreateProjectOptions) error {
-	if createProjectOptions.ProjectConfig.Meta.Name == "" {
+// ValidateProjectConfig perform validation on a given project config
+func (ap *Platform) ValidateProjectConfig(projectConfig *platform.ProjectConfig) error {
+	if projectConfig.Meta.Name == "" {
 		return nuclio.NewErrBadRequest("Project name cannot be empty")
 	}
 
 	// project name should adhere Kubernetes label restrictions
-	errorMessages := validation.IsDNS1123Label(createProjectOptions.ProjectConfig.Meta.Name)
+	errorMessages := validation.IsDNS1123Label(projectConfig.Meta.Name)
 	if len(errorMessages) != 0 {
 		joinedErrorMessage := strings.Join(errorMessages, ", ")
 		return nuclio.NewErrBadRequest(
@@ -439,7 +439,7 @@ func (ap *Platform) ValidateCreateProjectConfig(createProjectOptions *platform.C
 				joinedErrorMessage))
 	}
 
-	if createProjectOptions.ProjectConfig.Spec.DisplayName != "" {
+	if projectConfig.Spec.DisplayName != "" {
 		return nuclio.NewErrBadRequest("Project display name is deprecated, use name instead.")
 	}
 	return nil

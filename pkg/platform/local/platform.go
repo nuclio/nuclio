@@ -362,7 +362,7 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	}
 
 	// validate
-	if err := p.ValidateCreateProjectConfig(createProjectOptions); err != nil {
+	if err := p.ValidateProjectConfig(createProjectOptions.ProjectConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate project config")
 	}
 
@@ -372,6 +372,9 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 
 // UpdateProject will update an existing project
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+	if err := p.ValidateProjectConfig(&updateProjectOptions.ProjectConfig); err != nil {
+		return nuclio.WrapErrBadRequest(err)
+	}
 	return p.localStore.createOrUpdateProject(&updateProjectOptions.ProjectConfig)
 }
 
