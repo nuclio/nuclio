@@ -490,7 +490,7 @@ func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFun
 		}
 	}
 
-	return deployResult, err
+	return deployResult, nil
 }
 
 func (suite *TestSuite) probeAndWaitForFunctionReadiness(configuration *BlastConfiguration) error {
