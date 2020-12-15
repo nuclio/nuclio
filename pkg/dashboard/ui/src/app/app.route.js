@@ -259,6 +259,7 @@
             .when('/projects/:id', '/projects/:id/functions')
             .when('/control-panel', '/control-panel/logs')
             .when('/storage-pools/:id', '/storage-pools/:id/overview')
+            .when('/projects/', '/projects')
             .when('/projects/:id', '/projects/:id/functions')
             .when('/projects/:id/functions/:functionId', '/projects/:id/functions/:functionId/code')
 
