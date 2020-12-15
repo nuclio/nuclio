@@ -206,14 +206,14 @@ func (mp *Platform) GetExternalIPAddresses() ([]string, error) {
 	return args.Get(0).([]string), args.Error(1)
 }
 
-func (mp *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error) {
+func (mp *Platform) GetScaleToZeroConfiguration() *platformconfig.ScaleToZero {
 	args := mp.Called()
-	return args.Get(0).(*platformconfig.ScaleToZero), args.Error(1)
+	return args.Get(0).(*platformconfig.ScaleToZero)
 }
 
-func (mp *Platform) GetAllowedAuthenticationModes() ([]string, error) {
+func (mp *Platform) GetAllowedAuthenticationModes() []string {
 	args := mp.Called()
-	return args.Get(0).([]string), args.Error(1)
+	return args.Get(0).([]string)
 }
 
 // GetHealthCheckMode returns the healthcheck mode the platform requires

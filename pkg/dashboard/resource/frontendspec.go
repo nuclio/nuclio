@@ -49,15 +49,9 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 		}
 	}
 
-	scaleToZeroConfiguration, err := fesr.getPlatform().GetScaleToZeroConfiguration()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed getting scale to zero configuration")
-	}
+	scaleToZeroConfiguration := fesr.getPlatform().GetScaleToZeroConfiguration()
 
-	allowedAuthenticationModes, err := fesr.getPlatform().GetAllowedAuthenticationModes()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed getting allowed authentication modes")
-	}
+	allowedAuthenticationModes := fesr.getPlatform().GetAllowedAuthenticationModes()
 
 	scaleToZeroMode := platformconfig.DisabledScaleToZeroMode
 	var inactivityWindowPresets []string
