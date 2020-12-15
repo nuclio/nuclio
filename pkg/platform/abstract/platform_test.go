@@ -84,7 +84,7 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 		{
 			Name: "Sanity",
 			CreateProjectOptions: &platform.CreateProjectOptions{
-				ProjectConfig: platform.ProjectConfig{
+				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
 						Name: "a-name",
 					},
@@ -98,7 +98,7 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 		{
 			Name: "Transform display name (name is uuid)",
 			CreateProjectOptions: &platform.CreateProjectOptions{
-				ProjectConfig: platform.ProjectConfig{
+				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
 						Name: func() string {
 							generatedUUID, _ := uuid.GenerateUUID()
@@ -115,7 +115,7 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 		{
 			Name: "Skip deprecated field validations",
 			CreateProjectOptions: &platform.CreateProjectOptions{
-				ProjectConfig: platform.ProjectConfig{
+				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
 						Name: "test",
 					},
@@ -132,7 +132,7 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 		{
 			Name: "Invalid name",
 			CreateProjectOptions: &platform.CreateProjectOptions{
-				ProjectConfig: platform.ProjectConfig{
+				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
 						Name: "invalid name",
 					},
@@ -143,7 +143,7 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 		{
 			Name: "Non empty display name (w/o transformation)",
 			CreateProjectOptions: &platform.CreateProjectOptions{
-				ProjectConfig: platform.ProjectConfig{
+				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
 						Name: "test",
 					},
@@ -158,7 +158,7 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 		{
 			Name: "Empty name",
 			CreateProjectOptions: &platform.CreateProjectOptions{
-				ProjectConfig: platform.ProjectConfig{
+				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
 						Name: "",
 					},

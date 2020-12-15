@@ -336,8 +336,9 @@ func (i *importProjectCommandeer) importProject(importProjectOptions *ImportProj
 		}
 
 		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
-			ProjectConfig:                  *newProject.GetConfig(),
+			ProjectConfig:                  newProject.GetConfig(),
 			SkipDeprecatedFieldValidations: importProjectOptions.skipDeprecatedFieldValidations,
+			SkipTransformDisplayName:       importProjectOptions.skipTransformDisplayName,
 		}); err != nil {
 			return err
 		}
@@ -384,6 +385,7 @@ func (i *importProjectCommandeer) importProjects(importProjectsOptions map[strin
 	i.rootCommandeer.loggerInstance.DebugWith("Importing projects",
 		"projectsOptions", importProjectsOptions,
 		"skipProjectNames", i.skipProjectNames,
+		"skipTransformDisplayName", i.skipTransformDisplayName,
 		"skipDeprecatedFieldValidations", i.skipDeprecatedFieldValidations)
 
 	// TODO: parallel this with errorGroup, mutex is required due to multi map writers

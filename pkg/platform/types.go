@@ -174,7 +174,7 @@ func (pc *ProjectConfig) Scrub(omitDeprecatedFields bool) {
 }
 
 type CreateProjectOptions struct {
-	ProjectConfig                  ProjectConfig
+	ProjectConfig                  *ProjectConfig
 	SkipDeprecatedFieldValidations bool
 	SkipTransformDisplayName       bool
 }

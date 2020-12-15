@@ -87,7 +87,7 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 			commandeer.projectConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
 
 			return createCommandeer.rootCommandeer.platform.CreateProject(&platform.CreateProjectOptions{
-				ProjectConfig: commandeer.projectConfig,
+				ProjectConfig: &commandeer.projectConfig,
 			})
 		},
 	}

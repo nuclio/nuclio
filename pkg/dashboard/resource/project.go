@@ -268,7 +268,7 @@ func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id s
 	// just deploy. the status is async through polling
 	pr.Logger.DebugWith("Creating project", "newProject", newProject)
 	if err := pr.getPlatform().CreateProject(&platform.CreateProjectOptions{
-		ProjectConfig: *newProject.GetConfig(),
+		ProjectConfig: newProject.GetConfig(),
 	}); err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "already exists") {
 			return "", nil, nuclio.WrapErrConflict(err)
@@ -315,7 +315,7 @@ func (pr *projectResource) importProject(importProjectOptions *ImportProjectOpti
 		}
 
 		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
-			ProjectConfig:                  *newProject.GetConfig(),
+			ProjectConfig:                  newProject.GetConfig(),
 			SkipDeprecatedFieldValidations: importProjectOptions.skipDeprecatedFieldValidations,
 		}); err != nil {
 

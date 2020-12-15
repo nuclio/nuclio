@@ -17,6 +17,7 @@ limitations under the License.
 package test
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -28,6 +29,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/ghodss/yaml"
+	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/go-uuid"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -180,16 +183,7 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 		defer suite.ExecuteNuctl([]string{"delete", "agw", apiGatewayName}, nil) // nolint: errcheck
 	}
 
-	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
-
-	// export the project
-	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "proj", projectName, "--verbose"}, nil, false)
-	suite.Require().NoError(err)
-
-	exportedProjectConfig := &command.ImportProjectConfig{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &exportedProjectConfig)
-	suite.Require().NoError(err)
+	exportedProjectConfig := suite.getExportedProject(projectName, []string{})
 
 	suite.Assert().Equal(exportedProjectConfig.Project.Meta.Name, projectName)
 	suite.Assert().Equal(exportedProjectConfig.Functions[functionName].Meta.Name, functionName)
@@ -200,6 +194,158 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Host, fmt.Sprintf("host-%s", apiGatewayName))
 		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Upstreams[0].Kind, platform.APIGatewayUpstreamKindNuclioFunction)
 		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Upstreams[0].Nucliofunction.Name, functionName)
+	}
+}
+
+func (suite *projectExportImportTestSuite) TestImportProjectWithDisplayName() {
+	exportedProjectTemplate := `%[1]s:
+  apiGateways: {}
+  functionEvents: {}
+  functions: {}
+  project:
+    meta:
+      name: %[1]s
+    spec:
+      displayName: %[2]s`
+
+	for _, testCase := range []struct {
+		name                        string
+		projectName                 string
+		displayName                 string
+		expectedFailure             bool
+		expectedProjectName         string
+		importProjectPositionalArgs []string
+	}{
+		{
+			name:        "import project ignore display name",
+			projectName: "test-project",
+			displayName: "ignore-me",
+		},
+		{
+			name: "transformed display name",
+			projectName: func() string {
+				generatedUUID, _ := uuid.GenerateUUID()
+				return generatedUUID
+			}(),
+			displayName:         "assign me Kebab",
+			expectedProjectName: "assign-me-kebab",
+		},
+		{
+			name: "Skip deprecated field validations",
+			projectName: func() string {
+				generatedUUID, _ := uuid.GenerateUUID()
+				return generatedUUID
+			}(),
+			displayName: "bla bla bla",
+			importProjectPositionalArgs: []string{
+				"--skip-transform-display-name",
+				"--skip-deprecated-field-validations",
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			if testCase.expectedProjectName == "" {
+				testCase.expectedProjectName = testCase.projectName
+			}
+
+			// import project from stdin
+			exportedProject := fmt.Sprintf(exportedProjectTemplate, testCase.projectName, testCase.displayName)
+			suite.inputBuffer = *bytes.NewBufferString(exportedProject)
+
+			// import
+			importProjectPositionalArgs := []string{"import", "project", "--verbose"}
+			if testCase.importProjectPositionalArgs != nil {
+				importProjectPositionalArgs = append(importProjectPositionalArgs,
+					testCase.importProjectPositionalArgs...)
+			}
+			err := suite.ExecuteNuctl(importProjectPositionalArgs, nil)
+
+			// delete leftovers
+			defer suite.ExecuteNuctl([]string{"delete", "project", testCase.expectedProjectName}, nil) // nolint: errcheck
+
+			// assertions
+			if testCase.expectedFailure {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+				suite.assertProjectImported(testCase.expectedProjectName)
+			}
+		})
+	}
+}
+
+func (suite *projectExportImportTestSuite) TestExportProjectWithDisplayName() {
+	importProjectWithDisplayName := func(projectName string) {
+		exportedProjectBody := `%[1]s:
+  apiGateways: {}
+  functionEvents: {}
+  functions: {}
+  project:
+    meta:
+      name: %[1]s
+    spec:
+      description: test-description
+      displayName: test-display-name`
+		suite.inputBuffer = *bytes.NewBufferString(fmt.Sprintf(exportedProjectBody, projectName))
+
+		// import
+		err := suite.ExecuteNuctl([]string{
+			"import",
+			"project",
+			"--verbose",
+			"--skip-transform-display-name",
+			"--skip-deprecated-field-validations",
+		}, nil)
+		suite.Require().NoError(err)
+	}
+
+	for _, testCase := range []struct {
+		name                        string
+		projectName                 string
+		importProjectPositionalArgs []string
+		expectedExportedProject     *platform.ProjectConfig
+	}{
+		{
+			name:        "Omit display name from exported project config",
+			projectName: "test-project",
+			expectedExportedProject: &platform.ProjectConfig{
+				Meta: platform.ProjectMeta{
+					Name:      "test-project",
+					Namespace: suite.namespace,
+				},
+				Spec: platform.ProjectSpec{
+					Description: "test-description",
+				},
+			},
+		},
+		{
+			name:        "exportDeprecatedFields",
+			projectName: "test-project",
+			importProjectPositionalArgs: []string{
+				"--export-deprecated-fields",
+			},
+			expectedExportedProject: &platform.ProjectConfig{
+				Meta: platform.ProjectMeta{
+					Name:      "test-project",
+					Namespace: suite.namespace,
+				},
+				Spec: platform.ProjectSpec{
+					Description: "test-description",
+					DisplayName: "test-display-name",
+				},
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			importProjectWithDisplayName(testCase.projectName)
+
+			// delete leftovers
+			defer suite.ExecuteNuctl([]string{"delete", "project", testCase.projectName}, nil) // nolint: errcheck
+
+			exportedProjectConfig := suite.getExportedProject(testCase.projectName,
+				testCase.importProjectPositionalArgs)
+			suite.Require().Empty(cmp.Diff(exportedProjectConfig.Project, testCase.expectedExportedProject))
+		})
 	}
 }
 
@@ -535,6 +681,27 @@ func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunctio
 	suite.Assert().Equal(functionEventDisplayName, functionEvent.Spec.DisplayName)
 	suite.Assert().Equal(functionName, functionEvent.Meta.Labels["nuclio.io/function-name"])
 	return functionEvent.Meta.Name
+}
+
+func (suite *projectExportImportTestSuite) getExportedProject(projectName string,
+	positionalArgs []string) *command.ImportProjectConfig {
+
+	// reset output buffer for reading the nex output cleanly
+	suite.outputBuffer.Reset()
+
+	// export the project
+	exportProjectPositionalArgs := []string{"export", "project", projectName, "--verbose"}
+	exportProjectPositionalArgs = append(exportProjectPositionalArgs, positionalArgs...)
+	err := suite.RetryExecuteNuctlUntilSuccessful(exportProjectPositionalArgs,
+		nil,
+		false)
+	suite.Require().NoError(err)
+
+	exportedProjectConfig := &command.ImportProjectConfig{}
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &exportedProjectConfig)
+	suite.Require().NoError(err)
+
+	return exportedProjectConfig
 }
 
 func TestProjectTestSuite(t *testing.T) {

@@ -367,7 +367,7 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	}
 
 	// create
-	return p.localStore.createOrUpdateProject(&createProjectOptions.ProjectConfig)
+	return p.localStore.createOrUpdateProject(createProjectOptions.ProjectConfig)
 }
 
 // UpdateProject will update an existing project

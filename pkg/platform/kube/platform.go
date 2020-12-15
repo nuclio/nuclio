@@ -437,7 +437,7 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 
 	// project config -> nuclio project crd instance
 	newProject := nuclioio.NuclioProject{}
-	p.platformProjectToProject(&createProjectOptions.ProjectConfig, &newProject)
+	p.platformProjectToProject(createProjectOptions.ProjectConfig, &newProject)
 
 	// create
 	if _, err := p.consumer.nuclioClientSet.NuclioV1beta1().

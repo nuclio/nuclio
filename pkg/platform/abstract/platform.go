@@ -409,12 +409,12 @@ func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.Cre
 	if !createProjectOptions.SkipTransformDisplayName {
 
 		if createProjectOptions.ProjectConfig.Spec.DisplayName != "" {
-			ap.Logger.WarnWith("Transforming display name",
-				"displayName", createProjectOptions.ProjectConfig.Spec.DisplayName,
-				"name", createProjectOptions.ProjectConfig.Meta.Name)
 
 			// name is UUID
 			if _, err := uuid.ParseUUID(createProjectOptions.ProjectConfig.Meta.Name); err == nil {
+				ap.Logger.WarnWith("Transforming display name",
+					"displayName", createProjectOptions.ProjectConfig.Spec.DisplayName,
+					"name", createProjectOptions.ProjectConfig.Meta.Name)
 
 				// trim spaces
 				displayName := strings.TrimSpace(createProjectOptions.ProjectConfig.Spec.DisplayName)
@@ -432,7 +432,6 @@ func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.Cre
 					"displayName", displayName)
 				createProjectOptions.ProjectConfig.Meta.Name = displayName
 			}
-
 			createProjectOptions.ProjectConfig.Spec.DisplayName = ""
 		}
 	}
@@ -446,11 +445,14 @@ func (ap *Platform) ValidateCreateProjectConfig(createProjectOptions *platform.C
 		return nuclio.NewErrBadRequest("Project name cannot be empty")
 	}
 
-	errorMessages := validation.IsQualifiedName(createProjectOptions.ProjectConfig.Meta.Name)
+	// since project name may exists on function's label - it is required
+	// to adhere Kubernetes label restrictions
+	errorMessages := validation.IsDNS1035Label(createProjectOptions.ProjectConfig.Meta.Name)
 	if len(errorMessages) != 0 {
 		joinedErrorMessage := strings.Join(errorMessages, ", ")
-		return nuclio.NewErrBadRequest(fmt.Sprintf(`Project name must adhere to Kubernetes the naming conventions. 
-Errors: %s`, joinedErrorMessage))
+		return nuclio.NewErrBadRequest(
+			fmt.Sprintf(`Project name must adhere to Kubernetes naming conventions. Errors: %s`,
+				joinedErrorMessage))
 	}
 
 	if !createProjectOptions.SkipDeprecatedFieldValidations {
