@@ -215,7 +215,7 @@ func (suite *Suite) verifyAPIGatewayExists(apiGatewayName, primaryFunctionName s
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "agw", apiGatewayName}, map[string]string{
-		"output": "yaml",
+		"output": nuctlcommon.OutputFormatYAML,
 	}, false)
 	suite.Require().NoError(err)
 
@@ -233,7 +233,7 @@ func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, map[string]string{
-		"output": "yaml",
+		"output": nuctlcommon.OutputFormatYAML,
 	}, false)
 	suite.Require().NoError(err)
 

@@ -466,6 +466,9 @@ func (c *Config) scrubFunctionData() {
 	// scrub namespace from function meta
 	c.Meta.Namespace = ""
 
+	// scrub resource version
+	c.Meta.ResourceVersion = ""
+
 	// remove secrets and passwords from triggers
 	newTriggers := c.Spec.Triggers
 	for triggerName, trigger := range newTriggers {

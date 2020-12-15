@@ -318,7 +318,6 @@ func (i *importProjectCommandeer) importAPIGateways(apiGateways map[string]*plat
 func (i *importProjectCommandeer) importProject(importProjectOptions *ImportProjectOptions) error {
 	var err error
 	projectConfig := importProjectOptions.projectInfo
-	projectName := projectConfig.Project.Meta.Name
 	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
 		Meta: projectConfig.Project.Meta,
 	})
@@ -344,18 +343,14 @@ func (i *importProjectCommandeer) importProject(importProjectOptions *ImportProj
 			return err
 		}
 
-		// if transformed, might changed
-		if newProject.GetConfig().Meta.Name != projectName {
-			i.rootCommandeer.loggerInstance.DebugWith("Project name has changed (Probably transformed)",
-				"newProjectName", newProject.GetConfig().Meta.Name,
-				"previousProjectName", projectName)
-			projectName = newProject.GetConfig().Meta.Name
-		}
+		// reassign created instance, it holds changes made during project creation
+		importProjectOptions.projectInfo.Project = newProject.GetConfig()
 	}
 
-	i.rootCommandeer.loggerInstance.DebugWith("Enriching project resources with project name",
-		"projectName", projectName)
-	i.enrichImportProjectResourcesWithProjectName(projectName, importProjectOptions.projectInfo)
+	i.rootCommandeer.loggerInstance.DebugWith("Enriching project resources",
+		"projectNamespace", projectConfig.Project.Meta.Namespace,
+		"projectName", projectConfig.Project.Meta.Name)
+	i.enrichImportProjectResources(importProjectOptions.projectInfo)
 
 	functionImportErr := i.importFunctions(projectConfig.Functions, projectConfig.Project)
 	if functionImportErr != nil {
@@ -414,6 +409,7 @@ func (i *importProjectCommandeer) importProjects(importProjectsOptions map[strin
 		}
 
 		i.rootCommandeer.loggerInstance.DebugWith("Importing project",
+			"projectNamespace", projectConfig.Project.Meta.Namespace,
 			"projectName", projectName)
 
 		// enrich namespace from arg
@@ -425,6 +421,10 @@ func (i *importProjectCommandeer) importProjects(importProjectsOptions map[strin
 		if err := i.importProject(importProjectOptions); err != nil {
 			return errors.Wrap(err, "Failed to import project")
 		}
+
+		i.rootCommandeer.loggerInstance.InfoWith("Successfully imported project",
+			"projectNamespace", projectConfig.Project.Meta.Namespace,
+			"projectName", projectName)
 	}
 	return nil
 }
@@ -474,24 +474,23 @@ func (i *importProjectCommandeer) shouldSkipProject(projectConfig *ImportProject
 	return false
 }
 
-func (i *importProjectCommandeer) enrichImportProjectResourcesWithProjectName(projectName string,
-	projectInfo *ImportProjectConfig) {
+func (i *importProjectCommandeer) enrichImportProjectResources(projectInfo *ImportProjectConfig) {
 
 	for _, functionConfig := range projectInfo.Functions {
 		if functionConfig.Meta.Labels != nil {
-			functionConfig.Meta.Labels["nuclio.io/project-name"] = projectName
+			functionConfig.Meta.Labels["nuclio.io/project-name"] = projectInfo.Project.Meta.Name
 		}
 	}
 
 	for _, apiGateway := range projectInfo.APIGateways {
 		if apiGateway.Meta.Labels != nil {
-			apiGateway.Meta.Labels["nuclio.io/project-name"] = projectName
+			apiGateway.Meta.Labels["nuclio.io/project-name"] = projectInfo.Project.Meta.Name
 		}
 	}
 
 	for _, functionEvent := range projectInfo.FunctionEvents {
 		if functionEvent.Meta.Labels != nil {
-			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectName
+			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectInfo.Project.Meta.Name
 		}
 	}
 }

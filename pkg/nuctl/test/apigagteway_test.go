@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
 	"github.com/rs/xid"
@@ -66,7 +67,8 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 
 		suite.Require().NoError(err)
 
-		err = suite.ExecuteNuctl([]string{"get", "apigateway", apiGatewayName, "-o", "yaml"}, nil)
+		err = suite.ExecuteNuctl([]string{"get", "apigateway", apiGatewayName, "-o", nuctlcommon.OutputFormatYAML},
+			nil)
 		suite.Require().NoError(err)
 
 		// get all named args values - make sure they're all in the output
@@ -81,7 +83,8 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 		suite.Require().NoError(err)
 
 		// validate deletion
-		err = suite.ExecuteNuctl([]string{"get", "apigateway", apiGatewayName, "-o", "yaml"}, nil)
+		err = suite.ExecuteNuctl([]string{"get", "apigateway", apiGatewayName, "-o", nuctlcommon.OutputFormatYAML},
+			nil)
 		suite.Require().EqualError(err, "No api gateways found")
 	}
 }

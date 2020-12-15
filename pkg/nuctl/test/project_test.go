@@ -26,6 +26,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
+	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/ghodss/yaml"
@@ -201,7 +202,22 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithDisplayName() {
 	exportedProjectTemplate := `%[1]s:
   apiGateways: {}
   functionEvents: {}
-  functions: {}
+  functions:
+    %[3]s:
+      metadata:
+        name: %[3]s
+        annotations:
+          skip-build: "true"
+          skip-deploy: "true"
+        labels:
+          nuclio.io/project-name: %[1]s
+      spec:
+        build:
+          codeEntryType: sourceCode
+          functionSourceCode: ZWNobyAidGVzdDEi
+          noBaseImagesPull: true
+        handler: main.sh
+        runtime: shell
   project:
     meta:
       name: %[1]s
@@ -212,7 +228,6 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithDisplayName() {
 		name                        string
 		projectName                 string
 		displayName                 string
-		expectedFailure             bool
 		expectedProjectName         string
 		importProjectPositionalArgs []string
 	}{
@@ -227,7 +242,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithDisplayName() {
 				generatedUUID, _ := uuid.GenerateUUID()
 				return generatedUUID
 			}(),
-			displayName:         "assign me Kebab",
+			displayName:         "assign me KEBAB",
 			expectedProjectName: "assign-me-kebab",
 		},
 		{
@@ -249,7 +264,11 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithDisplayName() {
 			}
 
 			// import project from stdin
-			exportedProject := fmt.Sprintf(exportedProjectTemplate, testCase.projectName, testCase.displayName)
+			functionName := "import-prof-with-display-name-" + xid.New().String()
+			exportedProject := fmt.Sprintf(exportedProjectTemplate,
+				testCase.projectName,
+				testCase.displayName,
+				functionName)
 			suite.inputBuffer = *bytes.NewBufferString(exportedProject)
 
 			// import
@@ -262,14 +281,17 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithDisplayName() {
 
 			// delete leftovers
 			defer suite.ExecuteNuctl([]string{"delete", "project", testCase.expectedProjectName}, nil) // nolint: errcheck
+			defer suite.ExecuteNuctl([]string{"delete", "function", functionName}, nil)                // nolint: errcheck
 
 			// assertions
-			if testCase.expectedFailure {
-				suite.Require().Error(err)
-			} else {
-				suite.Require().NoError(err)
-				suite.assertProjectImported(testCase.expectedProjectName)
-			}
+			suite.Require().NoError(err)
+			suite.assertProjectImported(testCase.expectedProjectName)
+			suite.assertFunctionImported(functionName, true)
+
+			functionConfigWithStatus, err := suite.getFunctionInFormat(functionName, common.OutputFormatYAML)
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expectedProjectName,
+				functionConfigWithStatus.Meta.Labels["nuclio.io/project-name"])
 		})
 	}
 }
@@ -652,7 +674,7 @@ func (suite *projectExportImportTestSuite) assertProjectImported(projectName str
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "project", projectName}, map[string]string{
-		"output": "yaml",
+		"output": common.OutputFormatYAML,
 	}, false)
 	suite.Require().NoError(err)
 
@@ -669,7 +691,7 @@ func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunctio
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "functionevent"}, map[string]string{
-		"output":   "yaml",
+		"output":   common.OutputFormatYAML,
 		"function": functionName,
 	}, false)
 	suite.Require().NoError(err)
