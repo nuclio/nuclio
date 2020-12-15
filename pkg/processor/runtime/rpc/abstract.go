@@ -65,6 +65,7 @@ type AbstractRuntime struct {
 	functionLogger logger.Logger
 	runtime        Runtime
 	startChan      chan struct{}
+	stopChan       chan struct{}
 	socketType     SocketType
 	processWaiter  *processwaiter.ProcessWaiter
 }
@@ -92,6 +93,7 @@ func NewAbstractRuntime(logger logger.Logger,
 		configuration:   configuration,
 		runtime:         runtimeInstance,
 		startChan:       make(chan struct{}, 1),
+		stopChan:        make(chan struct{}, 1),
 		socketType:      UnixSocket,
 	}
 
@@ -149,12 +151,13 @@ func (r *AbstractRuntime) Stop() error {
 			r.Logger.WarnWith("Failed to cancel process waiting")
 		}
 
-		err := r.wrapperProcess.Kill()
-		if err != nil {
+		if err := r.wrapperProcess.Kill(); err != nil {
 			r.SetStatus(status.Error)
 			return errors.Wrap(err, "Can't kill wrapper process")
 		}
 	}
+
+	r.waitForProcessTermination()
 
 	r.SetStatus(status.Stopped)
 	return nil
@@ -237,7 +240,9 @@ func (r *AbstractRuntime) startWrapper() error {
 		return errors.Wrap(err, "Can't get connection from wrapper")
 	}
 
-	r.Logger.InfoWith("Wrapper connected", "wid", r.Context.WorkerID)
+	r.Logger.InfoWith("Wrapper connected",
+		"wid", r.Context.WorkerID,
+		"pid", r.wrapperProcess.Pid)
 
 	r.eventEncoder = r.runtime.GetEventEncoder(conn)
 	r.resultChan = make(chan *result)
@@ -423,14 +428,19 @@ func (r *AbstractRuntime) newResultChan() {
 func (r *AbstractRuntime) watchWrapperProcess() {
 
 	// whatever happens, clear wrapper process
-	defer func() { r.wrapperProcess = nil }()
+	defer func() {
+		r.wrapperProcess = nil
+		r.stopChan <- struct{}{}
+	}()
 
 	// wait for the process
 	processWaitResult := <-r.processWaiter.Wait(r.wrapperProcess, nil)
 
 	// if we were simply canceled, do nothing
 	if processWaitResult.Err == processwaiter.ErrCancelled {
-		r.Logger.DebugWith("Process watch cancelled. Returning", "wid", r.Context.WorkerID)
+		r.Logger.DebugWith("Process watch cancelled. Returning",
+			"pid", r.wrapperProcess.Pid,
+			"wid", r.Context.WorkerID)
 		return
 	}
 
@@ -452,4 +462,22 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 	}
 
 	panic(fmt.Sprintf("Wrapper process for worker %d exited unexpectedly with: %s", r.Context.WorkerID, panicMessage))
+}
+
+// waitForProcessTermination will best effort wait few seconds to stop channel, if timeout - assume closed
+func (r *AbstractRuntime) waitForProcessTermination() {
+	for {
+		select {
+		case <-r.stopChan:
+			r.Logger.DebugWith("Process terminated",
+				"wid", r.Context.WorkerID,
+				"process", r.wrapperProcess)
+			return
+		case <-time.After(10 * time.Second):
+			r.Logger.DebugWith("Timeout waiting for process termination, assuming closed",
+				"wid", r.Context.WorkerID,
+				"process", r.wrapperProcess)
+			return
+		}
+	}
 }
