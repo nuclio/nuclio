@@ -406,36 +406,21 @@ func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOp
 // EnrichCreateProjectConfig enrich project configuration with defaults
 func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.CreateProjectOptions) error {
 
+	// transform display name if needed
 	if !createProjectOptions.SkipTransformDisplayName {
-
 		if createProjectOptions.ProjectConfig.Spec.DisplayName != "" {
 
 			// name is UUID
 			if _, err := uuid.ParseUUID(createProjectOptions.ProjectConfig.Meta.Name); err == nil {
-				ap.Logger.WarnWith("Transforming display name",
-					"displayName", createProjectOptions.ProjectConfig.Spec.DisplayName,
+				ap.transformDisplayNameToName(createProjectOptions.ProjectConfig)
+				ap.Logger.DebugWith("Project name has been transformed",
 					"name", createProjectOptions.ProjectConfig.Meta.Name)
-
-				// trim spaces
-				displayName := strings.TrimSpace(createProjectOptions.ProjectConfig.Spec.DisplayName)
-
-				// lower case
-				displayName = strings.ToLower(displayName)
-
-				// no spaces
-				displayName = strings.ReplaceAll(displayName, " ", "-")
-
-				// no underscores
-				displayName = strings.ReplaceAll(displayName, "_", "-")
-
-				ap.Logger.DebugWith("Name is UUID, overriding with transformed kebab-case display name",
-					"displayName", displayName)
-				createProjectOptions.ProjectConfig.Meta.Name = displayName
 			}
-			createProjectOptions.ProjectConfig.Spec.DisplayName = ""
 		}
 	}
 
+	// Deprecated.
+	createProjectOptions.ProjectConfig.Spec.DisplayName = ""
 	return nil
 }
 
@@ -445,9 +430,8 @@ func (ap *Platform) ValidateCreateProjectConfig(createProjectOptions *platform.C
 		return nuclio.NewErrBadRequest("Project name cannot be empty")
 	}
 
-	// since project name may exists on function's label - it is required
-	// to adhere Kubernetes label restrictions
-	errorMessages := validation.IsDNS1035Label(createProjectOptions.ProjectConfig.Meta.Name)
+	// project name should adhere Kubernetes label restrictions
+	errorMessages := validation.IsDNS1123Label(createProjectOptions.ProjectConfig.Meta.Name)
 	if len(errorMessages) != 0 {
 		joinedErrorMessage := strings.Join(errorMessages, ", ")
 		return nuclio.NewErrBadRequest(
@@ -455,10 +439,8 @@ func (ap *Platform) ValidateCreateProjectConfig(createProjectOptions *platform.C
 				joinedErrorMessage))
 	}
 
-	if !createProjectOptions.SkipDeprecatedFieldValidations {
-		if createProjectOptions.ProjectConfig.Spec.DisplayName != "" {
-			return nuclio.NewErrBadRequest("Project display name is deprecated, use name instead.")
-		}
+	if createProjectOptions.ProjectConfig.Spec.DisplayName != "" {
+		return nuclio.NewErrBadRequest("Project display name is deprecated, use name instead.")
 	}
 	return nil
 }
@@ -1202,4 +1184,24 @@ func (ap *Platform) getOnbuildImagesOverrides() (map[string]string, error) {
 	default:
 		return nil, errors.New("Not a valid configuration instance")
 	}
+}
+
+func (ap *Platform) transformDisplayNameToName(projectConfig *platform.ProjectConfig) {
+	ap.Logger.WarnWith("Transforming display name",
+		"displayName", projectConfig.Spec.DisplayName,
+		"name", projectConfig.Meta.Name)
+
+	// trim spaces
+	displayName := strings.TrimSpace(projectConfig.Spec.DisplayName)
+
+	// lower case
+	displayName = strings.ToLower(displayName)
+
+	// no spaces
+	displayName = strings.ReplaceAll(displayName, " ", "-")
+
+	// no underscores
+	displayName = strings.ReplaceAll(displayName, "_", "-")
+
+	projectConfig.Meta.Name = displayName
 }

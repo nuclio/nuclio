@@ -31,6 +31,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -231,24 +232,15 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithDisplayName() {
 		importProjectPositionalArgs []string
 	}{
 		{
-			name:        "import project ignore display name",
+			name:        "ImportProjectIgnoreDisplayName",
 			projectName: "test-project",
 			displayName: "ignore-me",
 		},
 		{
-			name:                "transformed display name",
-			projectName:         "a2345678-1234-1234-1234-123456789001",
+			name:                "TransformedDisplayName",
+			projectName:         "12345678-1234-1234-1234-123456789001",
 			displayName:         "assign me KEBAB",
 			expectedProjectName: "assign-me-kebab",
-		},
-		{
-			name:        "Skip deprecated field validations",
-			projectName: "a2345678-1234-1234-1234-123456789000",
-			displayName: "bla bla bla",
-			importProjectPositionalArgs: []string{
-				"--skip-transform-display-name",
-				"--skip-deprecated-field-validations",
-			},
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -290,27 +282,20 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithDisplayName() {
 }
 
 func (suite *projectExportImportTestSuite) TestExportProjectWithDisplayName() {
-	importProjectWithDisplayName := func(projectName string) {
-		exportedProjectBody := `%[1]s:
-  apiGateways: {}
-  functionEvents: {}
-  functions: {}
-  project:
-    meta:
-      name: %[1]s
-    spec:
-      description: test-description
-      displayName: test-display-name`
-		suite.inputBuffer = *bytes.NewBufferString(fmt.Sprintf(exportedProjectBody, projectName))
+	suite.ensureRunningOnPlatform("kube")
 
-		// import
-		err := suite.ExecuteNuctl([]string{
-			"import",
-			"project",
-			"--verbose",
-			"--skip-transform-display-name",
-			"--skip-deprecated-field-validations",
-		}, nil)
+	importProjectWithDisplayName := func(projectName string) {
+		_, err := suite.shellClient.Run(nil, `cat <<EOF | kubectl apply -f -
+apiVersion: nuclio.io/v1beta1
+kind: NuclioProject
+metadata:
+  name: %[1]s
+  namespace: %[2]s
+spec:
+  displayName: test-display-name
+  description: test-description
+EOF
+`, projectName, suite.namespace)
 		suite.Require().NoError(err)
 	}
 
@@ -321,11 +306,10 @@ func (suite *projectExportImportTestSuite) TestExportProjectWithDisplayName() {
 		expectedExportedProject     *platform.ProjectConfig
 	}{
 		{
-			name:        "Omit display name from exported project config",
-			projectName: "test-project",
+			name:        "Omit display name",
+			projectName: "test-project" + xid.New().String(),
 			expectedExportedProject: &platform.ProjectConfig{
 				Meta: platform.ProjectMeta{
-					Name:      "test-project",
 					Namespace: suite.namespace,
 				},
 				Spec: platform.ProjectSpec{
@@ -337,12 +321,19 @@ func (suite *projectExportImportTestSuite) TestExportProjectWithDisplayName() {
 		suite.Run(testCase.name, func() {
 			importProjectWithDisplayName(testCase.projectName)
 
+			// name is dynamically created and should not changed during creating / exporting
+			testCase.expectedExportedProject.Meta.Name = testCase.projectName
+
 			// delete leftovers
 			defer suite.ExecuteNuctl([]string{"delete", "project", testCase.projectName}, nil) // nolint: errcheck
 
 			exportedProjectConfig := suite.getExportedProject(testCase.projectName,
 				testCase.importProjectPositionalArgs)
-			suite.Require().Empty(cmp.Diff(exportedProjectConfig.Project, testCase.expectedExportedProject))
+			suite.Require().Empty(cmp.Diff(testCase.expectedExportedProject, exportedProjectConfig.Project,
+				cmp.Options{
+					cmpopts.IgnoreFields(testCase.expectedExportedProject.Meta, "Annotations"),
+				},
+			))
 		})
 	}
 }

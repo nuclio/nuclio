@@ -46,7 +46,6 @@ type ImportProjectConfig struct {
 }
 
 type ImportProjectOptions struct {
-	projectInfo                    *ImportProjectConfig
-	skipDeprecatedFieldValidations bool
-	skipTransformDisplayName       bool
+	projectInfo              *ImportProjectConfig
+	skipTransformDisplayName bool
 }

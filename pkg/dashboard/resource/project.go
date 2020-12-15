@@ -52,10 +52,9 @@ type importProjectInfo struct {
 }
 
 type ImportProjectOptions struct {
-	projectInfo                    *importProjectInfo
-	authConfig                     *platform.AuthConfig
-	skipDeprecatedFieldValidations bool
-	skipTransformDisplayName       bool
+	projectInfo              *importProjectInfo
+	authConfig               *platform.AuthConfig
+	skipTransformDisplayName bool
 }
 
 // GetAll returns all projects
@@ -320,8 +319,7 @@ func (pr *projectResource) importProject(importProjectOptions *ImportProjectOpti
 		}
 
 		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
-			ProjectConfig:                  newProject.GetConfig(),
-			SkipDeprecatedFieldValidations: importProjectOptions.skipDeprecatedFieldValidations,
+			ProjectConfig: newProject.GetConfig(),
 		}); err != nil {
 
 			// preserve err - it might contain an informative status code (validation failure, etc)
@@ -621,8 +619,6 @@ func (pr *projectResource) getImportProjectOptions(request *http.Request) (*Impo
 
 	return &ImportProjectOptions{
 		projectInfo: &importProjectInfoInstance,
-		skipDeprecatedFieldValidations: pr.headerValueIsTrue(request,
-			"x-nuclio-skip-deprecated-field-validations"),
 		skipTransformDisplayName: pr.headerValueIsTrue(request,
 			"x-nuclio-skip-transform-display-name"),
 	}, nil

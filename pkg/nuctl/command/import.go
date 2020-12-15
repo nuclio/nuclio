@@ -186,9 +186,8 @@ func (i *importFunctionCommandeer) resolveFunctionImportConfigs(functionBody []b
 
 type importProjectCommandeer struct {
 	*importCommandeer
-	skipProjectNames               []string
-	skipDeprecatedFieldValidations bool
-	skipTransformDisplayName       bool
+	skipProjectNames         []string
+	skipTransformDisplayName bool
 }
 
 func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProjectCommandeer {
@@ -233,7 +232,6 @@ Use --help for more information`)
 	}
 
 	cmd.Flags().StringSliceVar(&commandeer.skipProjectNames, "skip", []string{}, "Project names to skip (comma separated)")
-	cmd.Flags().BoolVar(&commandeer.skipDeprecatedFieldValidations, "skip-deprecated-field-validations", false, "Skip deprecated field validations")
 	cmd.Flags().BoolVar(&commandeer.skipTransformDisplayName, "skip-transform-display-name", false, "Skip transforming display name onto metadata name if the latter is missing or in form of UUID")
 	commandeer.cmd = cmd
 
@@ -336,9 +334,8 @@ func (i *importProjectCommandeer) importProject(importProjectOptions *ImportProj
 		}
 
 		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
-			ProjectConfig:                  newProject.GetConfig(),
-			SkipDeprecatedFieldValidations: importProjectOptions.skipDeprecatedFieldValidations,
-			SkipTransformDisplayName:       importProjectOptions.skipTransformDisplayName,
+			ProjectConfig:            newProject.GetConfig(),
+			SkipTransformDisplayName: importProjectOptions.skipTransformDisplayName,
 		}); err != nil {
 			return err
 		}
@@ -393,8 +390,7 @@ func (i *importProjectCommandeer) importProjects(importProjectsOptions map[strin
 	i.rootCommandeer.loggerInstance.DebugWith("Importing projects",
 		"projectsOptions", importProjectsOptions,
 		"skipProjectNames", i.skipProjectNames,
-		"skipTransformDisplayName", i.skipTransformDisplayName,
-		"skipDeprecatedFieldValidations", i.skipDeprecatedFieldValidations)
+		"skipTransformDisplayName", i.skipTransformDisplayName)
 
 	// TODO: parallel this with errorGroup, mutex is required due to multi map writers
 	for projectName, importProjectOptions := range importProjectsOptions {
@@ -457,9 +453,8 @@ func (i *importProjectCommandeer) resolveImportProjectsOptions(projectBody []byt
 
 	for projectName, importProjectConfig := range projectImportConfigs {
 		importProjectOptions[projectName] = &ImportProjectOptions{
-			projectInfo:                    importProjectConfig,
-			skipDeprecatedFieldValidations: i.skipDeprecatedFieldValidations,
-			skipTransformDisplayName:       i.skipTransformDisplayName,
+			projectInfo:              importProjectConfig,
+			skipTransformDisplayName: i.skipTransformDisplayName,
 		}
 	}
 	return importProjectOptions, nil

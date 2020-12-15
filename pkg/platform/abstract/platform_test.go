@@ -15,6 +15,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/hashicorp/go-uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -95,11 +96,14 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 			ExpectedProjectName: "a-name",
 		},
 		{
-			Name: "Transform display name (name is uuid)",
+			Name: "TransformDisplayName",
 			CreateProjectOptions: &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
-						Name: "a2345678-1234-1234-1234-123456789001",
+						Name: func() string {
+							generatedUUID, _ := uuid.GenerateUUID()
+							return generatedUUID
+						}(),
 					},
 					Spec: platform.ProjectSpec{
 						DisplayName: "oops",
@@ -109,35 +113,8 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 			ExpectedProjectName: "oops",
 		},
 		{
-			Name: "Skip deprecated field validations",
-			CreateProjectOptions: &platform.CreateProjectOptions{
-				ProjectConfig: &platform.ProjectConfig{
-					Meta: platform.ProjectMeta{
-						Name: "test",
-					},
-					Spec: platform.ProjectSpec{
-						DisplayName: "oops",
-					},
-				},
-				SkipDeprecatedFieldValidations: true,
-			},
+			Name:                "EmptyDisplayNameNoTransform",
 			ExpectedProjectName: "test",
-		},
-
-		// bad flows
-		{
-			Name: "Invalid name",
-			CreateProjectOptions: &platform.CreateProjectOptions{
-				ProjectConfig: &platform.ProjectConfig{
-					Meta: platform.ProjectMeta{
-						Name: "invalid name",
-					},
-				},
-			},
-			ExpectValidationFailure: true,
-		},
-		{
-			Name: "Non empty display name (w/o transformation)",
 			CreateProjectOptions: &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
@@ -149,10 +126,22 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 				},
 				SkipTransformDisplayName: true,
 			},
+		},
+
+		// bad flows
+		{
+			Name: "InvalidName",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "invalid project name ## .. %%",
+					},
+				},
+			},
 			ExpectValidationFailure: true,
 		},
 		{
-			Name: "Empty name",
+			Name: "EmptyName",
 			CreateProjectOptions: &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
