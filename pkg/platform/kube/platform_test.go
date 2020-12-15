@@ -82,7 +82,7 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 
 	suite.Platform = &Platform{
 		Platform: abstractPlatform,
-		getter: getter,
+		getter:   getter,
 		consumer: consumer,
 	}
 }
@@ -161,7 +161,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 	// return an empty function (specifically with no ingresses, so each test here won't fail on validateAPIGatewayFunctionsHaveNoIngresses)
 	suite.nuclioFunctionInterfaceMock.
 		On("Get", "default-func-name", metav1.GetOptions{}).
-		Return(v1beta1.NuclioFunction{}, &apierrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonNotFound}})
+		Return(&v1beta1.NuclioFunction{}, &apierrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonNotFound}})
 
 	// return empty api gateways list on enrichFunctionsWithAPIGateways (not tested here)
 	suite.nuclioAPIGatewayInterfaceMock.

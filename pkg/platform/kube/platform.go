@@ -1137,7 +1137,7 @@ func (p *Platform) ValidateAPIGatewayConfig(platformAPIGateway *platform.APIGate
 	}
 
 	if err := p.validateAPIGatewayFunctionsHaveNoIngresses(platformAPIGateway); err != nil {
-		return errors.Wrap(err , "Failed to validate api gateway functions have no ingresses")
+		return errors.Wrap(err, "Failed to validate api gateway functions have no ingresses")
 	}
 
 	return nil
