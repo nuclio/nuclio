@@ -79,7 +79,7 @@ cat <function-configurations file> | http post 'http://<Nuclio dashboard URL>/ap
 <a id="projects-export"></a>
 ## Exporting projects
 
-You can use the Nuclio CLI's `export projects` command (or the `export project` alias) to export and save the configurations of Nuclio projects in your environment ("export projects"), including the configuration of all of the projects' functions and function events.
+You can use the Nuclio CLI's `export projects` command (or the `export project` alias) to export and save the configurations of Nuclio projects in your environment ("export projects") &mdash; including the configuration of all of the projects' functions, function events, and API gateways.
 You can save the exported configurations, for example, to a file, and [import](#projects-import) them later on any environment that is running Nuclio.
 
 To export a specific project, set the optional `<project>` argument to the name of the project to export:
@@ -114,7 +114,7 @@ nuctl export projects --namespace nuclio myproject > myproject.yaml
 <a id="projects-import"></a>
 ## Importing projects
 
-You can use the Nuclio CLI's `import projects` command (or the `import project` alias) to import project configurations ("import projects"), including the configurations of all of the projects' functions and function events, typically from previously exported project configurations.
+You can use the Nuclio CLI's `import projects` command (or the `import project` alias) to import project configurations ("import projects") &mdash; including the configurations of all of the projects' functions, function events, and API gateways &mdash; typically from previously exported project configurations.
 > **Note:** The `import projects` command doesn't deploy the functions in the imported projects.
 > See [Deploying imported functions](#imported-functions-deploy).
 
@@ -150,11 +150,11 @@ You can do this, for example, by using the `http` CLI tool; replace `<project-co
 cat <project-configurations file> | http post 'http://<Nuclio dashboard URL>/api/projects/?import=true'
 ```
 
-> **Note**: As indicated, importing a project configuration also involves importing of all of the project's functions and function events.
+> **Note**: As indicated, importing a project configuration also involves importing of all of the project's functions, function events, and API gateways.
 > To allow this flow to run smoothly, if one of the resources fails to import, an error is printed to the standard error (`stderr`), but the command continues to run and attempts to import the other relevant resources.
 >
 > For example, if the imported project contains a function named `myfunction` and a function by this name already exists in another project in the parent namespace, the function (and its function events) won't be imported, because function names in a namespace must be unique.
-> But the project as a whole, including any other functions and function events in the imported configuration, will still be imported.
+> But the project as a whole &mdash; including any other functions, function events, and API gateways in the imported configuration &mdash; will still be imported.
 
 > **Tip:** Run `nuctl help import projects` for full usage instructions. 
 

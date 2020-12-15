@@ -144,10 +144,10 @@ func newExportProjectCommandeer(exportCommandeer *exportCommandeer) *exportProje
 	cmd := &cobra.Command{
 		Use:     "projects [<project>]",
 		Aliases: []string{"project", "prj", "proj"},
-		Short:   "(or project) Export projects",
-		Long: `(or project) Export the configuration of a specific project (including all
-its functions and function events) or of all projects (default) to the standard output,
-in JSON or YAML format (see -o|--output)
+		Short:   "(or project) Export projects (including all functions, function events, and API gateways)",
+		Long: `(or project) Export the configuration of a specific project (including
+all its functions, function events, and API gateways) or of all projects (default)
+to the standard output, in JSON or YAML format (see -o|--output)
 
 Arguments:
   <project> (string) The name of a project to export`,

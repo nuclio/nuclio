@@ -215,9 +215,10 @@ func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProje
 	cmd := &cobra.Command{
 		Use:     "projects [<config file>]",
 		Aliases: []string{"project", "prj", "proj"},
-		Short:   "(or project) Import projects (including all their functions and function events)",
-		Long: `(or project) Import the configurations of one or more projects (including all
-project functions and events) from a configurations file or from standard input (default)
+		Short:   "(or project) Import projects (including all functions, function events, and API gateways)",
+		Long: `(or project) Import the configurations of one or more projects (including
+all project functions, function events, and API gateways) from a configurations file
+or from standard input (default)
 
 Note: The command doesn't deploy the functions in the  imported projects.
       To deploy an imported function, use the 'deploy' command.
