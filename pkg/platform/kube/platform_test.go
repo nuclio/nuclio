@@ -8,6 +8,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/mocks"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -17,14 +19,21 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type KubePlatformTestSuite struct {
 	suite.Suite
-	mockedPlatform     *mock.Platform
-	Logger             logger.Logger
-	Platform           *Platform
-	PlatformKubeConfig *platformconfig.PlatformKubeConfig
+	mockedPlatform                *mock.Platform
+	nuclioioV1beta1InterfaceMock  *mocks.NuclioV1beta1Interface
+	nuclioFunctionInterfaceMock   *mocks.NuclioFunctionInterface
+	nuclioAPIGatewayInterfaceMock *mocks.NuclioAPIGatewayInterface
+	nuclioioInterfaceMock         *mocks.Interface
+	Namespace                     string
+	Logger                        logger.Logger
+	Platform                      *Platform
+	PlatformKubeConfig            *platformconfig.PlatformKubeConfig
 }
 
 func (suite *KubePlatformTestSuite) SetupSuite() {
@@ -32,6 +41,7 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 
 	common.SetVersionFromEnv()
 
+	suite.Namespace = "default-namespace"
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err, "Logger should create successfully")
 
@@ -47,8 +57,33 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 	abstractPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
 	suite.Require().NoError(err)
 
+	// mock nuclioio interface all the way down
+	suite.nuclioioInterfaceMock = &mocks.Interface{}
+	suite.nuclioioV1beta1InterfaceMock = &mocks.NuclioV1beta1Interface{}
+	suite.nuclioFunctionInterfaceMock = &mocks.NuclioFunctionInterface{}
+	suite.nuclioAPIGatewayInterfaceMock = &mocks.NuclioAPIGatewayInterface{}
+
+	suite.nuclioioInterfaceMock.
+		On("NuclioV1beta1").
+		Return(suite.nuclioioV1beta1InterfaceMock)
+	suite.nuclioioV1beta1InterfaceMock.
+		On("NuclioFunctions", suite.Namespace).
+		Return(suite.nuclioFunctionInterfaceMock)
+	suite.nuclioioV1beta1InterfaceMock.
+		On("NuclioAPIGateways", suite.Namespace).
+		Return(suite.nuclioAPIGatewayInterfaceMock)
+
+	consumer := &consumer{
+		nuclioClientSet: suite.nuclioioInterfaceMock,
+	}
+
+	getter, err := newGetter(suite.Logger, suite.Platform)
+	suite.Require().NoError(err)
+
 	suite.Platform = &Platform{
 		Platform: abstractPlatform,
+		getter: getter,
+		consumer: consumer,
 	}
 }
 
@@ -122,6 +157,16 @@ type APIGatewayKubePlatformTestSuite struct {
 }
 
 func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidation() {
+
+	// return an empty function (specifically with no ingresses, so each test here won't fail on validateAPIGatewayFunctionsHaveNoIngresses)
+	suite.nuclioFunctionInterfaceMock.
+		On("Get", "default-func-name", metav1.GetOptions{}).
+		Return(v1beta1.NuclioFunction{}, &apierrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonNotFound}})
+
+	// return empty api gateways list on enrichFunctionsWithAPIGateways (not tested here)
+	suite.nuclioAPIGatewayInterfaceMock.
+		On("List", metav1.ListOptions{}).
+		Return(&v1beta1.NuclioAPIGatewayList{}, nil)
 
 	for _, testCase := range []struct {
 		apiGatewayConfig *platform.APIGatewayConfig
@@ -297,7 +342,7 @@ func (suite *APIGatewayKubePlatformTestSuite) compileAPIGatewayConfig() platform
 	return platform.APIGatewayConfig{
 		Meta: platform.APIGatewayMeta{
 			Name:      "default-name",
-			Namespace: "default-namespace",
+			Namespace: suite.Namespace,
 		},
 		Spec: platform.APIGatewaySpec{
 			Name:               "default-name",

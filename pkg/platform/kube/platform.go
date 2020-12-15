@@ -18,6 +18,7 @@ package kube
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -38,6 +39,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
+	"golang.org/x/sync/errgroup"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1276,32 +1278,38 @@ func (p *Platform) getDefaultServiceType() (v1.ServiceType, error) {
 func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(platformAPIGateway *platform.APIGatewayConfig) error {
 
 	// check ingresses on every upstream function
+	errGroup, _ := errgroup.WithContext(context.TODO())
 	for _, upstream := range platformAPIGateway.Spec.Upstreams {
-		function, err := p.GetFunctions(&platform.GetFunctionsOptions{
-			Namespace: platformAPIGateway.Meta.Namespace,
-			Name: upstream.Nucliofunction.Name,
+		errGroup.Go(func() error {
+			function, err := p.GetFunctions(&platform.GetFunctionsOptions{
+				Namespace: platformAPIGateway.Meta.Namespace,
+				Name:      upstream.Nucliofunction.Name,
+			})
+			if err != nil {
+				return errors.New("Failed to get function")
+			}
+			if len(function) == 0 {
+
+				// if such function doesn't exist, just skip - because it doesn't have ingresses for sure
+				return nil
+			}
+
+			ingresses := functionconfig.GetIngressesFromTriggers(function[0].GetConfig().Spec.Triggers)
+			if len(ingresses) > 0 {
+				return nuclio.NewErrConflict(fmt.Sprintf("Api gateway upstream function: %s must not have an ingress", upstream.Nucliofunction.Name))
+			}
+
+			return nil
 		})
-		if err != nil {
-			return errors.New("Failed to get function")
-		}
-		if len(function) == 0 {
-
-			// if such function doesn't exist, just skip - because it doesn't have ingresses for sure
-			continue
-		}
-
-		ingresses := functionconfig.GetIngressesFromTriggers(function[0].GetConfig().Spec.Triggers)
-		if len(ingresses) > 0 {
-			return nuclio.NewErrConflict(fmt.Sprintf("Api gateway upstream function: %s must not have an ingress", upstream.Nucliofunction.Name))
-		}
 	}
 
-	return nil
+	return errGroup.Wait()
 }
 
 // validate that a function is not exposed inside http triggers, while it is also exposed by an api gateway
 // this is done to prevent the nginx bug, where it is not working properly when the same service is exposed more than once
-// (specifically when it has canary ingresses)
+// (e.g. when a service is exposed by an ingress with host-1.com without canary ingress, and on another api gateway with host-2.com
+// with canary ingress, when sending requests to host-1.com we may get directed to the canary ingress defined by the api gateway)
 func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functionconfig.Config) error {
 	ingresses := functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)
 	if len(ingresses) > 0 {

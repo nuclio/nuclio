@@ -85,10 +85,10 @@ def handler(context, event):
 			"Resource version should be changed between deployments")
 
 		// we expect a failure due to a stale resource version
-		suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool { // nolint: errcheck
 			suite.Require().Nil(deployResult, "Deployment results is nil when creation failed")
 			return true
-		}, "")
+		})
 
 		return true
 	}
@@ -522,10 +522,10 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdateFunctionWithIngressWhenHasAPIG
 			}
 
 			// expect the function deployment to fail because it is already being exposed by an api gateway
-			suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+			_, err := suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 				return true
-			}, "Function can't expose ingresses while it is being exposed by an api gateway")
-
+			})
+			suite.Require().Equal("Function can't expose ingresses while it is being exposed by an api gateway", errors.RootCause(err).Error())
 		}, false, "")
 
 		return true
