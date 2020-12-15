@@ -288,14 +288,19 @@ func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id s
 func (pr *projectResource) importProject(importProjectOptions *ImportProjectOptions) (
 	id string, attributes restful.Attributes, responseErr error) {
 
+	projectName := importProjectOptions.projectInfo.Project.Meta.Name
+	projectNamespace := importProjectOptions.projectInfo.Project.Meta.Namespace
 	pr.Logger.InfoWith("Importing project",
-		"projectName", importProjectOptions.projectInfo.Project.Meta.Name)
+		"projectNamespace", projectNamespace,
+		"projectName", projectName)
+
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: *importProjectOptions.projectInfo.Project.Meta,
 	})
 	if err != nil || len(projects) == 0 {
 		pr.Logger.DebugWith("Project doesn't exist, creating it",
-			"project", importProjectOptions.projectInfo.Project.Meta.Name)
+			"projectNamespace", projectNamespace,
+			"projectName", projectName)
 
 		// process (enrich/validate) projectInfo instance
 		if err := pr.processProjectInfo(importProjectOptions.projectInfo.Project); err != nil {
@@ -322,7 +327,21 @@ func (pr *projectResource) importProject(importProjectOptions *ImportProjectOpti
 			// preserve err - it might contain an informative status code (validation failure, etc)
 			return "", nil, err
 		}
+
+		// if transformed, might changed
+		if newProject.GetConfig().Meta.Name != projectName {
+			pr.Logger.DebugWith("Project name has changed (Probably transformed)",
+				"projectNamespace", projectNamespace,
+				"newProjectName", newProject.GetConfig().Meta.Name,
+				"previousProjectName", projectName)
+			projectName = newProject.GetConfig().Meta.Name
+		}
 	}
+
+	pr.Logger.DebugWith("Enriching project resources with project name",
+		"projectNamespace", projectNamespace,
+		"projectName", projectName)
+	pr.enrichImportProjectResourcesWithProjectName(projectName, importProjectOptions.projectInfo)
 
 	failedFunctions := pr.importProjectFunctions(importProjectOptions.projectInfo, importProjectOptions.authConfig)
 	failedFunctionEvents := pr.importProjectFunctionEvents(importProjectOptions.projectInfo, failedFunctions)
@@ -640,6 +659,28 @@ func (pr *projectResource) processProjectInfo(projectInfoInstance *projectInfo) 
 	}
 
 	return nil
+}
+
+func (pr *projectResource) enrichImportProjectResourcesWithProjectName(projectName string,
+	projectInfo *importProjectInfo) {
+
+	for _, functionConfig := range projectInfo.Functions {
+		if functionConfig.Meta.Labels != nil {
+			functionConfig.Meta.Labels["nuclio.io/project-name"] = projectName
+		}
+	}
+
+	for _, apiGateway := range projectInfo.APIGateways {
+		if apiGateway.Meta.Labels != nil {
+			apiGateway.Meta.Labels["nuclio.io/project-name"] = projectName
+		}
+	}
+
+	for _, functionEvent := range projectInfo.FunctionEvents {
+		if functionEvent.Meta.Labels != nil {
+			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectName
+		}
+	}
 }
 
 // register the resource

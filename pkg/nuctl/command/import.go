@@ -318,6 +318,7 @@ func (i *importProjectCommandeer) importAPIGateways(apiGateways map[string]*plat
 func (i *importProjectCommandeer) importProject(importProjectOptions *ImportProjectOptions) error {
 	var err error
 	projectConfig := importProjectOptions.projectInfo
+	projectName := projectConfig.Project.Meta.Name
 	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
 		Meta: projectConfig.Project.Meta,
 	})
@@ -342,7 +343,19 @@ func (i *importProjectCommandeer) importProject(importProjectOptions *ImportProj
 		}); err != nil {
 			return err
 		}
+
+		// if transformed, might changed
+		if newProject.GetConfig().Meta.Name != projectName {
+			i.rootCommandeer.loggerInstance.DebugWith("Project name has changed (Probably transformed)",
+				"newProjectName", newProject.GetConfig().Meta.Name,
+				"previousProjectName", projectName)
+			projectName = newProject.GetConfig().Meta.Name
+		}
 	}
+
+	i.rootCommandeer.loggerInstance.DebugWith("Enriching project resources with project name",
+		"projectName", projectName)
+	i.enrichImportProjectResourcesWithProjectName(projectName, importProjectOptions.projectInfo)
 
 	functionImportErr := i.importFunctions(projectConfig.Functions, projectConfig.Project)
 	if functionImportErr != nil {
@@ -395,6 +408,7 @@ func (i *importProjectCommandeer) importProjects(importProjectsOptions map[strin
 		// skip project?
 		if i.shouldSkipProject(projectConfig) {
 			i.rootCommandeer.loggerInstance.DebugWith("Skipping import for project",
+				"projectNamespace", projectConfig.Project.Meta.Namespace,
 				"projectName", projectConfig.Project.Meta.Name)
 			continue
 		}
@@ -458,4 +472,26 @@ func (i *importProjectCommandeer) shouldSkipProject(projectConfig *ImportProject
 		}
 	}
 	return false
+}
+
+func (i *importProjectCommandeer) enrichImportProjectResourcesWithProjectName(projectName string,
+	projectInfo *ImportProjectConfig) {
+
+	for _, functionConfig := range projectInfo.Functions {
+		if functionConfig.Meta.Labels != nil {
+			functionConfig.Meta.Labels["nuclio.io/project-name"] = projectName
+		}
+	}
+
+	for _, apiGateway := range projectInfo.APIGateways {
+		if apiGateway.Meta.Labels != nil {
+			apiGateway.Meta.Labels["nuclio.io/project-name"] = projectName
+		}
+	}
+
+	for _, functionEvent := range projectInfo.FunctionEvents {
+		if functionEvent.Meta.Labels != nil {
+			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectName
+		}
+	}
 }
