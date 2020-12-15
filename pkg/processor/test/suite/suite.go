@@ -456,13 +456,8 @@ func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOption
 func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterContainerRun OnAfterContainerRun) (*platform.CreateFunctionResult, error) {
 
-	var err error
-
 	// deploy the function
-	deployResult, err := suite.Platform.CreateFunction(createFunctionOptions)
-	if err != nil {
-		return nil, err
-	}
+	deployResult, deployErr := suite.Platform.CreateFunction(createFunctionOptions)
 
 	// give the container some time - after 10 seconds, give up
 	deadline := time.Now().Add(10 * time.Second)
@@ -471,9 +466,7 @@ func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFun
 
 		// stop after 10 seconds
 		if time.Now().After(deadline) {
-			var dockerLogs string
-
-			dockerLogs, err = suite.DockerClient.GetContainerLogs(deployResult.ContainerID)
+			dockerLogs, err := suite.DockerClient.GetContainerLogs(deployResult.ContainerID)
 			if err == nil {
 				suite.Logger.DebugWith("Processor didn't come up in time", "logs", dockerLogs)
 			}
@@ -490,7 +483,7 @@ func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFun
 		}
 	}
 
-	return deployResult, nil
+	return deployResult, deployErr
 }
 
 func (suite *TestSuite) probeAndWaitForFunctionReadiness(configuration *BlastConfiguration) error {
