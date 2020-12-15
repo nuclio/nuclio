@@ -165,11 +165,12 @@ type ProjectConfig struct {
 	Spec ProjectSpec `json:"spec,omitempty"`
 }
 
-func (pc *ProjectConfig) Scrub(omitDeprecatedFields bool) {
-	if omitDeprecatedFields {
-		if pc.Spec.DisplayName != "" {
-			pc.Spec.DisplayName = ""
-		}
+func (pc *ProjectConfig) Scrub() {
+	pc.Meta.ResourceVersion = ""
+
+	// Deprecated.
+	if pc.Spec.DisplayName != "" {
+		pc.Spec.DisplayName = ""
 	}
 }
 

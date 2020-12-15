@@ -333,23 +333,6 @@ func (suite *projectExportImportTestSuite) TestExportProjectWithDisplayName() {
 				},
 			},
 		},
-		{
-			name:        "exportDeprecatedFields",
-			projectName: "test-project",
-			importProjectPositionalArgs: []string{
-				"--export-deprecated-fields",
-			},
-			expectedExportedProject: &platform.ProjectConfig{
-				Meta: platform.ProjectMeta{
-					Name:      "test-project",
-					Namespace: suite.namespace,
-				},
-				Spec: platform.ProjectSpec{
-					Description: "test-description",
-					DisplayName: "test-display-name",
-				},
-			},
-		},
 	} {
 		suite.Run(testCase.name, func() {
 			importProjectWithDisplayName(testCase.projectName)
