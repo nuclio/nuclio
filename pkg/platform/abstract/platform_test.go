@@ -15,7 +15,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
-	"github.com/hashicorp/go-uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -100,10 +99,7 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 			CreateProjectOptions: &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
-						Name: func() string {
-							generatedUUID, _ := uuid.GenerateUUID()
-							return generatedUUID
-						}(),
+						Name: "a2345678-1234-1234-1234-123456789001",
 					},
 					Spec: platform.ProjectSpec{
 						DisplayName: "oops",

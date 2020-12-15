@@ -31,7 +31,6 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/google/go-cmp/cmp"
-	"github.com/hashicorp/go-uuid"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -237,20 +236,14 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithDisplayName() {
 			displayName: "ignore-me",
 		},
 		{
-			name: "transformed display name",
-			projectName: func() string {
-				generatedUUID, _ := uuid.GenerateUUID()
-				return generatedUUID
-			}(),
+			name:                "transformed display name",
+			projectName:         "a2345678-1234-1234-1234-123456789001",
 			displayName:         "assign me KEBAB",
 			expectedProjectName: "assign-me-kebab",
 		},
 		{
-			name: "Skip deprecated field validations",
-			projectName: func() string {
-				generatedUUID, _ := uuid.GenerateUUID()
-				return generatedUUID
-			}(),
+			name:        "Skip deprecated field validations",
+			projectName: "a2345678-1234-1234-1234-123456789000",
 			displayName: "bla bla bla",
 			importProjectPositionalArgs: []string{
 				"--skip-transform-display-name",
