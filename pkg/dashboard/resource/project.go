@@ -328,20 +328,15 @@ func (pr *projectResource) importProject(importProjectOptions *ImportProjectOpti
 			return "", nil, err
 		}
 
-		// if transformed, might changed
-		if newProject.GetConfig().Meta.Name != projectName {
-			pr.Logger.DebugWith("Project name has changed (Probably transformed)",
-				"projectNamespace", projectNamespace,
-				"newProjectName", newProject.GetConfig().Meta.Name,
-				"previousProjectName", projectName)
-			projectName = newProject.GetConfig().Meta.Name
-		}
+		// reassign created instance, it holds changes made during project creation
+		importProjectOptions.projectInfo.Project.Meta = &newProject.GetConfig().Meta
+		importProjectOptions.projectInfo.Project.Spec = &newProject.GetConfig().Spec
 	}
 
 	pr.Logger.DebugWith("Enriching project resources with project name",
 		"projectNamespace", projectNamespace,
 		"projectName", projectName)
-	pr.enrichImportProjectResourcesWithProjectName(projectName, importProjectOptions.projectInfo)
+	pr.enrichImportProjectResources(importProjectOptions.projectInfo)
 
 	failedFunctions := pr.importProjectFunctions(importProjectOptions.projectInfo, importProjectOptions.authConfig)
 	failedFunctionEvents := pr.importProjectFunctionEvents(importProjectOptions.projectInfo, failedFunctions)
@@ -661,24 +656,23 @@ func (pr *projectResource) processProjectInfo(projectInfoInstance *projectInfo) 
 	return nil
 }
 
-func (pr *projectResource) enrichImportProjectResourcesWithProjectName(projectName string,
-	projectInfo *importProjectInfo) {
+func (pr *projectResource) enrichImportProjectResources(projectInfo *importProjectInfo) {
 
 	for _, functionConfig := range projectInfo.Functions {
 		if functionConfig.Meta.Labels != nil {
-			functionConfig.Meta.Labels["nuclio.io/project-name"] = projectName
+			functionConfig.Meta.Labels["nuclio.io/project-name"] = projectInfo.Project.Meta.Name
 		}
 	}
 
 	for _, apiGateway := range projectInfo.APIGateways {
 		if apiGateway.Meta.Labels != nil {
-			apiGateway.Meta.Labels["nuclio.io/project-name"] = projectName
+			apiGateway.Meta.Labels["nuclio.io/project-name"] = projectInfo.Project.Meta.Name
 		}
 	}
 
 	for _, functionEvent := range projectInfo.FunctionEvents {
 		if functionEvent.Meta.Labels != nil {
-			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectName
+			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectInfo.Project.Meta.Name
 		}
 	}
 }
