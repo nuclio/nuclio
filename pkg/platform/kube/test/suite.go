@@ -206,6 +206,14 @@ func (suite *KubeTestSuite) GetFunction(getFunctionOptions *platform.GetFunction
 	return functions[0]
 }
 
+func (suite *KubeTestSuite) GetAPIGateway(getAPIGatewayOptions *platform.GetAPIGatewaysOptions) platform.APIGateway {
+
+	// get the function
+	apiGateways, err := suite.Platform.GetAPIGateways(getAPIGatewayOptions)
+	suite.Require().NoError(err)
+	return apiGateways[0]
+}
+
 func (suite *KubeTestSuite) GetProject(getProjectFunctions *platform.GetProjectsOptions) platform.Project {
 	projects, err := suite.Platform.GetProjects(getProjectFunctions)
 	suite.Require().NoError(err, "Failed to get projects")
@@ -218,6 +226,14 @@ func (suite *KubeTestSuite) GetFunctionDeployment(functionName string) *appsv1.D
 		kube.DeploymentNameFromFunctionName(functionName),
 		deploymentInstance)
 	return deploymentInstance
+}
+
+func (suite *KubeTestSuite) GetAPIGatewayIngress(apiGatewayName string, canary bool) *extensionsv1beta1.Ingress {
+	ingressInstance := &extensionsv1beta1.Ingress{}
+	suite.GetResourceAndUnmarshal("ingress",
+		kube.IngressNameFromAPIGatewayName(apiGatewayName, canary),
+		ingressInstance)
+	return ingressInstance
 }
 
 func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
@@ -260,7 +276,22 @@ func (suite *KubeTestSuite) WaitForFunctionState(getFunctionOptions *platform.Ge
 			return function.GetStatus().State == desiredFunctionState
 		})
 	suite.Require().NoError(err, "Function did not reach its desired state")
+}
 
+func (suite *KubeTestSuite) WaitForAPIGatewayState(getAPIGatewayOptions *platform.GetAPIGatewaysOptions,
+	desiredAPIGatewayState platform.APIGatewayState,
+	duration time.Duration) {
+
+	err := common.RetryUntilSuccessful(duration,
+		1*time.Second,
+		func() bool {
+			apiGateway := suite.GetAPIGateway(getAPIGatewayOptions)
+			suite.Logger.InfoWith("Waiting for api gateway state",
+				"currentFunctionState", apiGateway.GetConfig().Status.State,
+				"desiredFunctionState", desiredAPIGatewayState)
+			return apiGateway.GetConfig().Status.State == desiredAPIGatewayState
+		})
+	suite.Require().NoError(err, "Api gateway did not reach its desired state")
 }
 
 func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
