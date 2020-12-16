@@ -39,6 +39,8 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 var LettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
@@ -473,6 +475,29 @@ func CatchAndLogPanicWithOptions(ctx context.Context,
 		return asErr
 	}
 	return nil
+}
+
+// MapStringToStringMatchByLabelSelectorStr return whether labelsMap matched by encoded label selector
+// corresponding to https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+//
+// Example:
+//   labelsMap:
+//     a: b
+//     c: d
+//   encodedLabelSelector: a=b
+// returns true
+func MapStringToStringMatchByLabelSelectorStr(labelSelector string,
+	mapStringToString map[string]string) (bool, error) {
+
+	parsedLabelSelector, err := metav1.ParseToLabelSelector(labelSelector)
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to parse label selector")
+	}
+	selector, err := metav1.LabelSelectorAsSelector(parsedLabelSelector)
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to get selector from label selector")
+	}
+	return selector.Matches(labels.Set(mapStringToString)), nil
 }
 
 func logPanic(ctx context.Context,

@@ -353,6 +353,130 @@ func (suite *StripPrefixesTestSuite) TestPositive() {
 	suite.Require().Equal("prefix_something_1", stripped)
 }
 
+type MapStringToStringMatchByLabelSelectorTestSuite struct {
+	suite.Suite
+}
+
+func (suite *MapStringToStringMatchByLabelSelectorTestSuite) Test() {
+	for _, testCase := range []struct {
+		name                 string
+		mapStringToString    map[string]string
+		encodedLabelSelector string
+		matching             bool
+		expectedError        bool
+	}{
+		{
+			name: "SingleLabel",
+			mapStringToString: map[string]string{
+				"c": "d",
+			},
+			encodedLabelSelector: "c=d",
+			matching:             true,
+		},
+		{
+			name: "PartialLabels",
+			mapStringToString: map[string]string{
+				"a": "b",
+				"c": "d",
+			},
+			encodedLabelSelector: "a=b",
+			matching:             true,
+		},
+		{
+			name: "AllLabels",
+			mapStringToString: map[string]string{
+				"a": "b",
+				"c": "d",
+			},
+
+			encodedLabelSelector: "a=b,c=d",
+			matching:             true,
+		},
+		{
+			name: "EmptyEncodedLabel",
+			mapStringToString: map[string]string{
+				"a": "b",
+			},
+
+			encodedLabelSelector: "",
+			matching:             true,
+		},
+		{
+			name:                 "EmptyEncodedLabelEmptyLabels",
+			mapStringToString:    map[string]string{},
+			encodedLabelSelector: "",
+			matching:             true,
+		},
+		{
+			name:              "EmptyEncodedLabelNilLabels",
+			mapStringToString: nil,
+
+			encodedLabelSelector: "",
+			matching:             true,
+		},
+
+		// miss match
+		{
+			name: "EncodedLabelNotInLabels",
+			mapStringToString: map[string]string{
+				"a": "b",
+				"c": "d",
+			},
+
+			encodedLabelSelector: "z=w",
+			matching:             false,
+		},
+		{
+			name:              "EncodedLabelNilLabels",
+			mapStringToString: nil,
+
+			encodedLabelSelector: "a=b",
+			matching:             false,
+		},
+		{
+			name:                 "EncodedLabelNoLabels",
+			mapStringToString:    map[string]string{},
+			encodedLabelSelector: "z=w",
+			matching:             false,
+		},
+		{
+			name: "ValueMatchKeyNot",
+			mapStringToString: map[string]string{
+				"c": "d",
+			},
+			encodedLabelSelector: "a=d",
+			matching:             false,
+		},
+		{
+			name: "KeyMatchValueNot",
+			mapStringToString: map[string]string{
+				"c": "d",
+			},
+			encodedLabelSelector: "c=a",
+			matching:             false,
+		},
+
+		// explode
+		{
+			name:                 "InvalidEncodedLabelSelector",
+			mapStringToString:    nil,
+			encodedLabelSelector: "!@#$",
+			expectedError:        true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			matching, err := MapStringToStringMatchByLabelSelectorStr(testCase.encodedLabelSelector, testCase.mapStringToString)
+			if testCase.expectedError {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.matching, matching)
+		})
+
+	}
+}
+
 func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
 	suite.Run(t, new(RetryUntilSuccessfulOnErrorPatternsTestSuite))
@@ -361,4 +485,5 @@ func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(IsDirTestSuite))
 	suite.Run(t, new(IsFileTestSuite))
 	suite.Run(t, new(StripPrefixesTestSuite))
+	suite.Run(t, new(MapStringToStringMatchByLabelSelectorTestSuite))
 }

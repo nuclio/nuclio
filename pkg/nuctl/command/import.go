@@ -1,8 +1,9 @@
 package command
 
 import (
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/errors"
@@ -46,7 +47,7 @@ func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 	if len(args) >= 1 {
 		filename := args[0]
 		i.rootCommandeer.loggerInstance.DebugWith("Reading from a file", "filename", filename)
-		file, err := common.OpenFile(filename)
+		file, err := nuctlcommon.OpenFile(filename)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to open file")
 		}
@@ -57,7 +58,7 @@ func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 	}
 
 	// read from file if given, fallback to stdin
-	return common.ReadFromInOrStdin(i.cmd.InOrStdin())
+	return nuctlcommon.ReadFromInOrStdin(i.cmd.InOrStdin())
 }
 
 func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config, project *platform.ProjectConfig) error {
@@ -145,7 +146,7 @@ Make sure to provide the content via stdin or a file.
 Use --help for more information`)
 			}
 
-			unmarshalFunc, err := common.GetUnmarshalFunc(functionBody)
+			unmarshalFunc, err := nuctlcommon.GetUnmarshalFunc(functionBody)
 			if err != nil {
 				return errors.Wrap(err, "Failed to identify the input format")
 			}
@@ -200,8 +201,9 @@ func (i *importFunctionCommandeer) resolveFunctionImportConfigs(functionBody []b
 
 type importProjectCommandeer struct {
 	*importCommandeer
-	skipProjectNames         []string
-	skipTransformDisplayName bool
+	skipProjectNames          []string
+	skipProjectLabelSelectors string
+	skipTransformDisplayName  bool
 }
 
 func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProjectCommandeer {
@@ -241,7 +243,7 @@ Make sure to provide the content via stdin or a file.
 Use --help for more information`)
 			}
 
-			unmarshalFunc, err := common.GetUnmarshalFunc(projectBody)
+			unmarshalFunc, err := nuctlcommon.GetUnmarshalFunc(projectBody)
 			if err != nil {
 				return errors.Wrap(err, "Failed to identify the input format")
 			}
@@ -256,6 +258,7 @@ Use --help for more information`)
 	}
 
 	cmd.Flags().StringSliceVar(&commandeer.skipProjectNames, "skip", []string{}, "Names of projects to skip (don't import), as a comma-separated list")
+	cmd.Flags().StringVar(&commandeer.skipProjectLabelSelectors, "skip-labels", "", "Labels of projects to skip (don't import), as a key=value pairs")
 	cmd.Flags().BoolVar(&commandeer.skipTransformDisplayName, "skip-transform-display-name", false, "Skip transforming display name into project name if the latter is missing or in form of UUID")
 	commandeer.cmd = cmd
 
@@ -395,6 +398,7 @@ func (i *importProjectCommandeer) importProject(projectImportOptions *ProjectImp
 func (i *importProjectCommandeer) importProjects(projectsImportOptions map[string]*ProjectImportOptions) error {
 	i.rootCommandeer.loggerInstance.DebugWith("Importing projects",
 		"projectsImportOptions", projectsImportOptions,
+		"skipProjectLabelSelectors", i.skipProjectLabelSelectors,
 		"skipProjectNames", i.skipProjectNames,
 		"skipTransformDisplayName", i.skipTransformDisplayName)
 
@@ -403,7 +407,11 @@ func (i *importProjectCommandeer) importProjects(projectsImportOptions map[strin
 		projectImportConfig := projectImportOptions.projectImportConfig
 
 		// skip project?
-		if i.shouldSkipProject(projectImportConfig) {
+		skipProject, err := i.shouldSkipProject(projectImportConfig)
+		if err != nil {
+			return errors.Wrap(err, "Failed to check whether project needs to be skipped")
+		}
+		if skipProject {
 			i.rootCommandeer.loggerInstance.DebugWith("Skipping import for project",
 				"projectNamespace", projectImportConfig.Project.Meta.Namespace,
 				"projectName", projectImportConfig.Project.Meta.Name)
@@ -467,13 +475,25 @@ func (i *importProjectCommandeer) resolveImportProjectsOptions(projectBody []byt
 	return projectImportOptions, nil
 }
 
-func (i *importProjectCommandeer) shouldSkipProject(projectImportConfig *ProjectImportConfig) bool {
+func (i *importProjectCommandeer) shouldSkipProject(projectImportConfig *ProjectImportConfig) (bool, error) {
 	for _, skipProjectName := range i.skipProjectNames {
 		if skipProjectName == projectImportConfig.Project.Meta.Name {
-			return true
+			return true, nil
 		}
 	}
-	return false
+
+	// empty by default
+	// if we match by empty selectors, it will match all projects and will simply cause to skip all projects
+	if i.skipProjectLabelSelectors != "" {
+		match, err := common.MapStringToStringMatchByLabelSelectorStr(i.skipProjectLabelSelectors,
+			projectImportConfig.Project.Meta.Labels)
+		if err != nil {
+			return false, errors.Wrap(err, "Failed to match project by given label")
+		}
+		return match, nil
+
+	}
+	return false, nil
 }
 
 func (i *importProjectCommandeer) enrichProjectImportConfig(projectImportConfig *ProjectImportConfig) {
