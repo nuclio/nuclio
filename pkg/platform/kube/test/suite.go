@@ -287,8 +287,8 @@ func (suite *KubeTestSuite) WaitForAPIGatewayState(getAPIGatewayOptions *platfor
 		func() bool {
 			apiGateway := suite.GetAPIGateway(getAPIGatewayOptions)
 			suite.Logger.InfoWith("Waiting for api gateway state",
-				"currentFunctionState", apiGateway.GetConfig().Status.State,
-				"desiredFunctionState", desiredAPIGatewayState)
+				"currentAPIGatewayState", apiGateway.GetConfig().Status.State,
+				"desiredAPIGatewayState", desiredAPIGatewayState)
 			return apiGateway.GetConfig().Status.State == desiredAPIGatewayState
 		})
 	suite.Require().NoError(err, "Api gateway did not reach its desired state")
