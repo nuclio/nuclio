@@ -1628,7 +1628,7 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 	suite.mockPlatform.
 		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
 		Return([]platform.Project{&createdProject}, nil).
-		Once()
+		Twice()
 
 	suite.mockPlatform.
 		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
@@ -1813,7 +1813,7 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 	suite.mockPlatform.
 		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
 		Return([]platform.Project{&createdProject}, nil).
-		Once()
+		Twice()
 
 	suite.mockPlatform.
 		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).

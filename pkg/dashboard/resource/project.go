@@ -674,6 +674,12 @@ func (pr *projectResource) processProjectInfo(projectInfoInstance *projectInfo) 
 		return nuclio.NewErrBadRequest("Project name must be provided in metadata")
 	}
 
+	// namespace must exists (sanity)
+	// TODO: is this really possible considering the fact namespace was enriched beforehand?
+	if projectInfoInstance.Meta.Namespace == "" {
+		return nuclio.NewErrBadRequest("Project namespace must be provided in metadata")
+	}
+
 	return nil
 }
 
