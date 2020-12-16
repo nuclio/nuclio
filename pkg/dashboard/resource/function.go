@@ -146,7 +146,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
-	waitForFunction := request.Header.Get("x-nuclio-wait-function-action") == "true"
+	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
 
 	// validation finished successfully - store and deploy the given function
 	if responseErr = fr.storeAndDeployFunction(functionInfo, authConfig, waitForFunction); responseErr != nil {
@@ -190,7 +190,7 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		return
 	}
 
-	waitForFunction := request.Header.Get("x-nuclio-wait-function-action") == "true"
+	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
 
 	if responseErr = fr.storeAndDeployFunction(functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return
@@ -404,19 +404,21 @@ func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, funct
 }
 
 func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionInfo, projectName string) (*functionInfo, error) {
-
-	// override namespace if applicable
-	if functionInfoInstance.Meta != nil {
-		functionInfoInstance.Meta.Namespace = fr.getNamespaceOrDefault(functionInfoInstance.Meta.Namespace)
+	if functionInfoInstance.Meta == nil {
+		functionInfoInstance.Meta = &functionconfig.Meta{}
 	}
 
-	// meta must exist
-	if functionInfoInstance.Meta == nil ||
-		functionInfoInstance.Meta.Name == "" ||
-		functionInfoInstance.Meta.Namespace == "" {
-		err := errors.New("Function name must be provided in metadata")
+	functionInfoInstance.Meta.Namespace = fr.getNamespaceOrDefault(functionInfoInstance.Meta.Namespace)
 
-		return nil, nuclio.WrapErrBadRequest(err)
+	// name must exists
+	if functionInfoInstance.Meta.Name == "" {
+		return nil, nuclio.NewErrBadRequest("Function name must be provided in metadata")
+	}
+
+	// namespace must exists (sanity)
+	// TODO: is this really possible considering the fact namespace was enriched beforehand?
+	if functionInfoInstance.Meta.Namespace == "" {
+		return nil, nuclio.NewErrBadRequest("Function namespace must be provided in metadata")
 	}
 
 	// validate function name is according to k8s convention

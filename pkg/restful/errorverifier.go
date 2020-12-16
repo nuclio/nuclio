@@ -48,22 +48,26 @@ func (ecv *ErrorContainsVerifier) Verify(response map[string]interface{}) bool {
 	}
 
 	// get the "error" key. expect it to be a string
-	reponseError, reponseErrorInterfaceIsString := reponseErrorInterface.(string)
-	if !reponseErrorInterfaceIsString {
+	responseError, responseErrorInterfaceIsString := reponseErrorInterface.(string)
+	if !responseErrorInterfaceIsString {
 		ecv.logger.WarnWith("Response error is not a string")
 
 		return false
 	}
 
-	// iterate over expected strings, look for them
+	return ecv.foundExpectedString(responseError)
+}
+
+func (ecv *ErrorContainsVerifier) foundExpectedString(responseError string) bool {
+
+	// iterate over expected strings, look for one of them
 	for _, expectedString := range ecv.expectedStrings {
-		if !strings.Contains(reponseError, expectedString) {
-			ecv.logger.WarnWith("Expected string not found",
-				"body", reponseError,
-				"expected", expectedString)
-			return false
+		if strings.Contains(responseError, expectedString) {
+			return true
 		}
 	}
 
-	return true
+	ecv.logger.WarnWith("Expected string not found",
+		"responseError", responseError)
+	return false
 }

@@ -16,7 +16,12 @@ limitations under the License.
 
 package command
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform"
+)
 
 type stringSliceFlag []string
 
@@ -31,4 +36,16 @@ func (ssf *stringSliceFlag) Set(value string) error {
 
 func (ssf *stringSliceFlag) Type() string {
 	return "String"
+}
+
+type ProjectImportConfig struct {
+	Project        *platform.ProjectConfig
+	Functions      map[string]*functionconfig.Config
+	FunctionEvents map[string]*platform.FunctionEventConfig
+	APIGateways    map[string]*platform.APIGatewayConfig
+}
+
+type ProjectImportOptions struct {
+	projectImportConfig      *ProjectImportConfig
+	skipTransformDisplayName bool
 }

@@ -232,7 +232,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 
 	// get the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "fu", functionName}, map[string]string{
-		"output": "yaml",
+		"output": nuctlcommon.OutputFormatYAML,
 	}, false)
 	suite.Require().NoError(err)
 
@@ -1328,7 +1328,7 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 
 	// get the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "fu", functionName}, map[string]string{
-		"output": "yaml",
+		"output": nuctlcommon.OutputFormatYAML,
 	}, false)
 	suite.Require().NoError(err)
 
@@ -1340,7 +1340,7 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 
 	// get the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "fu", functionName2}, map[string]string{
-		"output": "yaml",
+		"output": nuctlcommon.OutputFormatYAML,
 	}, false)
 	suite.Require().NoError(err)
 

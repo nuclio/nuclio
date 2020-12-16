@@ -35,10 +35,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
+	"github.com/gobuffalo/flect"
+	"github.com/hashicorp/go-uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 //
@@ -400,6 +403,51 @@ func (ap *Platform) GetHealthCheckMode() platform.HealthCheckMode {
 // CreateProject will probably create a new project
 func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
 	return platform.ErrUnsupportedMethod
+}
+
+// EnrichCreateProjectConfig enrich project configuration with defaults
+func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.CreateProjectOptions) error {
+
+	// transform display name if needed
+	if !createProjectOptions.SkipTransformDisplayName {
+		if createProjectOptions.ProjectConfig.Spec.DisplayName != "" {
+			var nameIsUUID bool
+
+			// name is UUID
+			if _, err := uuid.ParseUUID(createProjectOptions.ProjectConfig.Meta.Name); err == nil {
+				nameIsUUID = true
+			}
+
+			// transform when name is empty or UUID
+			if createProjectOptions.ProjectConfig.Meta.Name == "" || nameIsUUID {
+				ap.transformProjectDisplayNameToName(createProjectOptions.ProjectConfig)
+				ap.Logger.DebugWith("Project name has been transformed",
+					"name", createProjectOptions.ProjectConfig.Meta.Name)
+			}
+		}
+	}
+	return nil
+}
+
+// ValidateProjectConfig perform validation on a given project config
+func (ap *Platform) ValidateProjectConfig(projectConfig *platform.ProjectConfig) error {
+	if projectConfig.Meta.Name == "" {
+		return nuclio.NewErrBadRequest("Project name cannot be empty")
+	}
+
+	// project name should adhere Kubernetes label restrictions
+	errorMessages := validation.IsDNS1123Label(projectConfig.Meta.Name)
+	if len(errorMessages) != 0 {
+		joinedErrorMessage := strings.Join(errorMessages, ", ")
+		return nuclio.NewErrBadRequest(
+			fmt.Sprintf(`Project name must adhere to Kubernetes naming conventions. Errors: %s`,
+				joinedErrorMessage))
+	}
+
+	if projectConfig.Spec.DisplayName != "" {
+		return nuclio.NewErrBadRequest("Project display name is deprecated, use name instead.")
+	}
+	return nil
 }
 
 // UpdateProject will update a previously existing project
@@ -1105,4 +1153,17 @@ func (ap *Platform) getBaseImagesOverrides() map[string]string {
 // returns overrides for base images per runtime
 func (ap *Platform) getOnbuildImagesOverrides() map[string]string {
 	return ap.Config.ImageRegistryOverrides.OnbuildImageRegistries
+}
+
+func (ap *Platform) transformProjectDisplayNameToName(projectConfig *platform.ProjectConfig) {
+	ap.Logger.WarnWith("Transforming display name",
+		"displayName", projectConfig.Spec.DisplayName,
+		"name", projectConfig.Meta.Name)
+
+	// trim spaces
+	displayName := strings.TrimSpace(projectConfig.Spec.DisplayName)
+	projectConfig.Meta.Name = flect.Dasherize(displayName)
+
+	// clean up display name
+	projectConfig.Spec.DisplayName = ""
 }

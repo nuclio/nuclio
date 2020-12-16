@@ -153,17 +153,28 @@ type ProjectMeta struct {
 }
 
 type ProjectSpec struct {
-	DisplayName string `json:"displayName,omitempty"` // Deprecated. Will be removed in the next major version release
+
+	// Deprecated. Will be removed in the next minor (1.6.x) version release
+	// Use ProjectMeta.Name instead
+	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
 }
 
 type ProjectConfig struct {
-	Meta ProjectMeta
-	Spec ProjectSpec
+	Meta ProjectMeta `json:"meta"`
+	Spec ProjectSpec `json:"spec"`
+}
+
+func (pc *ProjectConfig) Scrub() {
+	pc.Meta.ResourceVersion = ""
+
+	// Deprecated.
+	pc.Spec.DisplayName = ""
 }
 
 type CreateProjectOptions struct {
-	ProjectConfig ProjectConfig
+	ProjectConfig            *ProjectConfig
+	SkipTransformDisplayName bool
 }
 
 type UpdateProjectOptions struct {
@@ -205,8 +216,8 @@ type FunctionEventSpec struct {
 }
 
 type FunctionEventConfig struct {
-	Meta FunctionEventMeta
-	Spec FunctionEventSpec
+	Meta FunctionEventMeta `json:"meta"`
+	Spec FunctionEventSpec `json:"spec"`
 }
 
 type CreateFunctionEventOptions struct {

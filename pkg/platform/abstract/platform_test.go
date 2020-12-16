@@ -15,6 +15,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/hashicorp/go-uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -69,6 +70,118 @@ func (suite *AbstractPlatformTestSuite) SetupSuite() {
 
 func (suite *AbstractPlatformTestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
+}
+
+func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
+	for _, testCase := range []struct {
+		Name                    string
+		CreateProjectOptions    *platform.CreateProjectOptions
+		ExpectValidationFailure bool
+		ExpectedProjectName     string
+	}{
+
+		// happy flows
+		{
+			Name: "Sanity",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "a-name",
+					},
+					Spec: platform.ProjectSpec{
+						Description: "just a description",
+					},
+				},
+			},
+			ExpectedProjectName: "a-name",
+		},
+		{
+			Name: "NameUUIDTransformDisplayName",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: func() string {
+							generatedUUID, _ := uuid.GenerateUUID()
+							return generatedUUID
+						}(),
+					},
+					Spec: platform.ProjectSpec{
+						DisplayName: "oops",
+					},
+				},
+			},
+			ExpectedProjectName: "oops",
+		},
+		{
+			Name: "NameEmptyTransformDisplayName",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "",
+					},
+					Spec: platform.ProjectSpec{
+						DisplayName: "oops",
+					},
+				},
+			},
+			ExpectedProjectName: "oops",
+		},
+
+		// bad flows
+		{
+			Name: "InvalidName",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "invalid project name ## .. %%",
+					},
+				},
+			},
+			ExpectValidationFailure: true,
+		},
+		{
+			Name: "EmptyName",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "",
+					},
+				},
+			},
+			ExpectValidationFailure: true,
+		},
+		{
+			Name:                "DisplayNameNotEmpty",
+			ExpectedProjectName: "test",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "test",
+					},
+					Spec: platform.ProjectSpec{
+						DisplayName: "oops",
+					},
+				},
+			},
+			ExpectValidationFailure: true,
+		},
+	} {
+		suite.Run(testCase.Name, func() {
+			err := suite.Platform.EnrichCreateProjectConfig(testCase.CreateProjectOptions)
+			suite.Require().NoError(err)
+			err = suite.Platform.ValidateProjectConfig(testCase.CreateProjectOptions.ProjectConfig)
+			if testCase.ExpectValidationFailure {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().Equal(testCase.ExpectedProjectName,
+					testCase.CreateProjectOptions.ProjectConfig.Meta.Name)
+
+				// display name should not be carried on
+				suite.Require().Empty(testCase.CreateProjectOptions.ProjectConfig.Spec.DisplayName)
+			}
+		})
+	}
 }
 
 func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesStructure() {

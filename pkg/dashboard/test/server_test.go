@@ -871,7 +871,10 @@ func (suite *functionTestSuite) sendRequestWithInvalidBody(method string, body s
 	}
 
 	expectedStatusCode := http.StatusBadRequest
-	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name must be provided in metadata"})
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{
+		"Function name must be provided in metadata",
+		"Function namespace must be provided in metadata",
+	})
 	requestBody := body
 
 	suite.sendRequest(method,
@@ -1625,7 +1628,7 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 	suite.mockPlatform.
 		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
 		Return([]platform.Project{&createdProject}, nil).
-		Once()
+		Twice()
 
 	suite.mockPlatform.
 		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
@@ -1810,7 +1813,7 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 	suite.mockPlatform.
 		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
 		Return([]platform.Project{&createdProject}, nil).
-		Once()
+		Twice()
 
 	suite.mockPlatform.
 		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
@@ -1956,7 +1959,10 @@ func (suite *projectTestSuite) sendRequestNoName(method string) {
 
 func (suite *projectTestSuite) sendRequestWithInvalidBody(method string, body string) {
 	expectedStatusCode := http.StatusBadRequest
-	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Project name must be provided in metadata"})
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{
+		"Project name must be provided in metadata",
+		"Project namespace must be provided in metadata",
+	})
 	requestBody := body
 
 	response, _ := suite.sendRequest(method,

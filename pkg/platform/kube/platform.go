@@ -420,24 +420,38 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 	return platformNodes, nil
 }
 
-// CreateProject will probably create a new project
+// CreateProject creates a new project
 func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
-	newProject := nuclioio.NuclioProject{}
-	p.platformProjectToProject(&createProjectOptions.ProjectConfig, &newProject)
 
-	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		NuclioProjects(createProjectOptions.ProjectConfig.Meta.Namespace).
-		Create(&newProject)
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to create project")
+	// enrich
+	if err := p.EnrichCreateProjectConfig(createProjectOptions); err != nil {
+		return errors.Wrap(err, "Failed to enrich project config")
 	}
 
+	// validate
+	if err := p.ValidateProjectConfig(createProjectOptions.ProjectConfig); err != nil {
+		return errors.Wrap(err, "Failed to validate project config")
+	}
+
+	// project config -> nuclio project crd instance
+	newProject := nuclioio.NuclioProject{}
+	p.platformProjectToProject(createProjectOptions.ProjectConfig, &newProject)
+
+	// create
+	if _, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		NuclioProjects(createProjectOptions.ProjectConfig.Meta.Namespace).
+		Create(&newProject); err != nil {
+		return errors.Wrap(err, "Failed to create project")
+	}
 	return nil
 }
 
-// UpdateProject will update a previously existing project
+// UpdateProject updates an existing project
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+	if err := p.ValidateProjectConfig(&updateProjectOptions.ProjectConfig); err != nil {
+		return nuclio.WrapErrBadRequest(err)
+	}
+
 	project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
 		Get(updateProjectOptions.ProjectConfig.Meta.Name, metav1.GetOptions{})

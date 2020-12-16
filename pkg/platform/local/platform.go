@@ -355,11 +355,26 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 
 // CreateProject will create a new project
 func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
-	return p.localStore.createOrUpdateProject(&createProjectOptions.ProjectConfig)
+
+	// enrich
+	if err := p.EnrichCreateProjectConfig(createProjectOptions); err != nil {
+		return errors.Wrap(err, "Failed to enrich project config")
+	}
+
+	// validate
+	if err := p.ValidateProjectConfig(createProjectOptions.ProjectConfig); err != nil {
+		return errors.Wrap(err, "Failed to validate project config")
+	}
+
+	// create
+	return p.localStore.createOrUpdateProject(createProjectOptions.ProjectConfig)
 }
 
 // UpdateProject will update an existing project
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+	if err := p.ValidateProjectConfig(&updateProjectOptions.ProjectConfig); err != nil {
+		return nuclio.WrapErrBadRequest(err)
+	}
 	return p.localStore.createOrUpdateProject(&updateProjectOptions.ProjectConfig)
 }
 

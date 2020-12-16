@@ -59,15 +59,12 @@ func (ap *AbstractProject) GetConfig() *ProjectConfig {
 	return &ap.ProjectConfig
 }
 
-func (ap *AbstractProject) CreateAndWait() error {
-	err := ap.Platform.CreateProject(&CreateProjectOptions{
-		ProjectConfig: *ap.GetConfig(),
-	})
-	if err != nil {
-		return errors.Wrap(err, "Failed to create a new project")
+func (ap *AbstractProject) CreateAndWait(createProjectOptions *CreateProjectOptions) error {
+	if err := ap.Platform.CreateProject(createProjectOptions); err != nil {
+		return errors.Wrap(err, "Failed to create a project")
 	}
 
-	err = common.RetryUntilSuccessful(ProjectGetUponCreationTimeout, ProjectGetUponCreationRetryInterval, func() bool {
+	if err := common.RetryUntilSuccessful(ProjectGetUponCreationTimeout, ProjectGetUponCreationRetryInterval, func() bool {
 		ap.Logger.DebugWith("Trying to get created project",
 			"projectMeta", ap.GetConfig().Meta,
 			"timeout", ProjectGetUponCreationTimeout,
@@ -76,8 +73,7 @@ func (ap *AbstractProject) CreateAndWait() error {
 			Meta: ap.GetConfig().Meta,
 		})
 		return err == nil && len(projects) > 0
-	})
-	if err != nil {
+	}); err != nil {
 		return nuclio.WrapErrInternalServerError(errors.Wrapf(err,
 			"Failed to wait for a created project %s",
 			ap.GetConfig().Meta.Name))

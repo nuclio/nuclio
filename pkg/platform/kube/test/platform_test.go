@@ -596,7 +596,7 @@ func (suite *ProjectTestSuite) TestCreate() {
 
 	// create project
 	err := suite.Platform.CreateProject(&platform.CreateProjectOptions{
-		ProjectConfig: projectConfig,
+		ProjectConfig: &projectConfig,
 	})
 	suite.Require().NoError(err, "Failed to create project")
 	defer func() {
@@ -637,7 +637,7 @@ func (suite *ProjectTestSuite) TestUpdate() {
 
 	// create project
 	err := suite.Platform.CreateProject(&platform.CreateProjectOptions{
-		ProjectConfig: projectConfig,
+		ProjectConfig: &projectConfig,
 	})
 	suite.Require().NoError(err, "Failed to create project")
 
@@ -689,7 +689,7 @@ func (suite *ProjectTestSuite) TestDelete() {
 
 	// create project
 	err := suite.Platform.CreateProject(&platform.CreateProjectOptions{
-		ProjectConfig: projectConfig,
+		ProjectConfig: &projectConfig,
 	})
 	suite.Require().NoError(err, "Failed to create project")
 

@@ -152,7 +152,7 @@ func RenderProjects(projects []platform.Project,
 
 	switch format {
 	case OutputFormatText, OutputFormatWide:
-		header := []string{"Namespace", "Name", "Display Name"}
+		header := []string{"Namespace", "Name", "Display Name (Deprecated.)"}
 		if format == OutputFormatWide {
 			header = append(header, []string{
 				"Description",

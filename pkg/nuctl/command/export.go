@@ -187,7 +187,6 @@ Arguments:
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
-
 	commandeer.cmd = cmd
 
 	return commandeer
@@ -277,6 +276,8 @@ func (e *exportProjectCommandeer) exportProject(projectConfig *platform.ProjectC
 	if err != nil {
 		return nil, err
 	}
+
+	projectConfig.Scrub()
 
 	exportedProject := map[string]interface{}{
 		"project":        projectConfig,
