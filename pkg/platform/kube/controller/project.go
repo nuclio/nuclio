@@ -71,8 +71,12 @@ func newProjectOperator(parentLogger logger.Logger,
 
 // CreateOrUpdate handles creation/update of an object
 func (po *projectOperator) CreateOrUpdate(ctx context.Context, object runtime.Object) error {
-	po.logger.DebugWith("Created/updated", "object", object)
+	project, objectIsProject := object.(*nuclioio.NuclioProject)
+	if !objectIsProject {
+		return errors.New("Received unexpected object, expected project")
+	}
 
+	po.logger.DebugWith("Created/updated", "projectName", project.Name)
 	return nil
 }
 
