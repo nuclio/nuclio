@@ -58,16 +58,16 @@ The `spec` section contains the requirements and attributes and has the followin
 | **Path** | **Type** | **Description** |
 | :--- | :--- | :--- |
 | description | string | A textual description of the function |
-| handler | string | The entry point to the function, in the form of `package:entrypoint`. Varies slightly between runtimes, see the appropriate runtime documentation for specifics |
-| runtime | string | The name of the language runtime. One of: `golang`, `python`, `shell`, `java`, `nodejs`, `pypy` | 
+| handler | string | The entry point to the function, in the form of `package:entrypoint`; varies slightly between runtimes, see the appropriate runtime documentation for specifics |
+| runtime | string | The name of the language runtime - `golang` \| `python` \| `shell` \| `java` \| `nodejs` \| `pypy` | 
 | <a id="spec.image"></a>image | string | The name of the function's container image &mdash; used for the `image` [code-entry type](#spec.build.codeEntryType); see [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md#code-entry-type-image) |
 | env | map | A name-value environment-variables tuple; it's also possible to reference secrets from the map elements, as demonstrated in the [specifcation example](#spec-example) |
 | volumes | map | A map in an architecture similar to Kubernetes volumes, for Docker deployment |
 | replicas | int | The number of desired instances; 0 for auto-scaling. |
 | minReplicas | int | The minimum number of replicas |
-| platform.attributes.restartPolicy.name | string | Function image container restart policy name (applied for docker platform only) |
-| platform.attributes.restartPolicy.maximumRetryCount | int | Restart maximum counter before exhausted |
-| platform.attributes.processorMountMode | string | The way docker would mount the processor config (options: bind, volume; default: bind) |
+| platform.attributes.restartPolicy.name | string | The name of the restart policy for the function-image container; applicable only to Docker platforms |
+| platform.attributes.restartPolicy.maximumRetryCount | int | The maximum retries for restarting the function-image container; applicable only to Docker platforms |
+| platform.attributes.processorMountMode | string | Processor mount mode, which determines how Docker mounts the processor configuration - `bind` \| `volume` (default: `bind`); applicable only to Docker platforms |
 | maxReplicas | int | The maximum number of replicas |
 | targetCPU | int | Target CPU when auto scaling, as a percentage (default: 75%) |
 | dataBindings | See reference | A map of data sources used by the function ("data bindings") |
@@ -94,9 +94,9 @@ The `spec` section contains the requirements and attributes and has the followin
 | readinessTimeoutSeconds | int | Number of seconds that the controller will wait for the function to become ready before declaring failure (default: 60) |
 | avatar | string | Base64 representation of an icon to be shown in UI for the function |
 | eventTimeout | string | Global event timeout, in the format supported for the `Duration` parameter of the [`time.ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function |
-| securityContext.runAsUser | int | The UID to run the entrypoint of the container process. (k8s only) |
-| securityContext.runAsGroup | int | The GID to run the entrypoint of the container process. (k8s only) |
-| securityContext.fsGroup | int | A supplemental group added to the groups to run the entrypoint of the container process. (k8s only) |
+| securityContext.runAsUser | int | The user ID (UID) for runing the entry point of the container process; applicable only to Kubernetes platforms |
+| securityContext.runAsGroup | int | The group ID (GID) for running the entry point of the container process; applicable only to Kubernetes platforms |
+| securityContext.fsGroup | int | A supplemental group to add and use for running the entry point of the container process; applicable only to Kubernetes platforms |
 
 <a id="spec-example"></a>
 ### Example
@@ -110,14 +110,14 @@ spec:
   platform:
     attributes:
 
-      # docker will retry 3 times to start function image container
-      # more info @ https://docs.docker.com/config/containers/start-containers-automatically
+      # Docker will retry starting the function's image container 3 times.
+      # For more information, see https://docs.docker.com/config/containers/start-containers-automatically.
       restartPolicy:
         name: on-failure
         maximumRetryCount: 3
 
-      # will use `volume` to mount the processor into function
-      # more info @ https://docs.docker.com/storage/volumes
+      # Use `volume` to mount the processor into the function.
+      # For more information, see https://docs.docker.com/storage/volumes.
       processorMountMode: volume
   env:
   - name: SOME_ENV
