@@ -1,6 +1,6 @@
 # mqtt: MQTT Trigger
 
-Reads messages from MQTT topics.
+Reads messages from [MQTT](http://mqtt.org/) topics.
 
 ## Attributes
 

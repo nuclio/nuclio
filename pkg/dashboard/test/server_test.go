@@ -2978,12 +2978,12 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 
 	suite.mockPlatform.
 		On("GetScaleToZeroConfiguration").
-		Return(&scaleToZeroConfiguration, nil).
+		Return(&scaleToZeroConfiguration).
 		Once()
 
 	suite.mockPlatform.
 		On("GetAllowedAuthenticationModes").
-		Return(allowedAuthenticationModes, nil).
+		Return(allowedAuthenticationModes).
 		Once()
 
 	expectedStatusCode := http.StatusOK

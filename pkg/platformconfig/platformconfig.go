@@ -19,6 +19,7 @@ package platformconfig
 import (
 	"os"
 
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/errors"
@@ -37,6 +38,8 @@ type Config struct {
 	IngressConfig            IngressConfig                `json:"ingressConfig,omitempty"`
 	Kube                     PlatformKubeConfig           `json:"kube,omitempty"`
 	ImageRegistryOverrides   ImageRegistryOverridesConfig `json:"imageRegistryOverrides,omitempty"`
+
+	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {

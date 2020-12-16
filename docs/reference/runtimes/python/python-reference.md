@@ -78,3 +78,4 @@ Following are example commands for building and running the latest version of a 
 docker build -t my-function:latest .
 docker run --name my-function --rm -d -p 8090:8080 my-function:latest
 ```
+

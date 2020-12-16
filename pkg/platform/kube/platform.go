@@ -29,7 +29,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
-	"github.com/nuclio/nuclio/pkg/platform/config"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -57,9 +56,7 @@ const Mib = 1048576
 
 // NewPlatform instantiates a new kubernetes platform
 func NewPlatform(parentLogger logger.Logger,
-	kubeconfigPath string,
-	containerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration,
-	platformConfiguration interface{}) (*Platform, error) {
+	platformConfiguration *platformconfig.Config) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
@@ -70,10 +67,10 @@ func NewPlatform(parentLogger logger.Logger,
 
 	// init platform
 	newPlatform.Platform = newAbstractPlatform
-	newPlatform.kubeconfigPath = kubeconfigPath
+	newPlatform.kubeconfigPath = common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath)
 
 	// create consumer
-	newPlatform.consumer, err = newConsumer(newPlatform.Logger, kubeconfigPath)
+	newPlatform.consumer, err = newConsumer(newPlatform.Logger, newPlatform.kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create consumer")
 	}
@@ -103,16 +100,17 @@ func NewPlatform(parentLogger logger.Logger,
 	}
 
 	// create container builder
-	if containerBuilderConfiguration != nil && containerBuilderConfiguration.Kind == "kaniko" {
+	if platformConfiguration.ContainerBuilderConfiguration.Kind == "kaniko" {
 		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewKaniko(newPlatform.Logger,
-			newPlatform.consumer.kubeClientSet, containerBuilderConfiguration)
+			newPlatform.consumer.kubeClientSet, platformConfiguration.ContainerBuilderConfiguration)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create kaniko builder")
 		}
 	} else {
 
 		// Default container image builder
-		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger, containerBuilderConfiguration)
+		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger,
+			platformConfiguration.ContainerBuilderConfiguration)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create docker builder")
 		}
@@ -339,9 +337,7 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 		return err
 	}
 
-	if err := p.enrichHTTPTriggersWithServiceType(functionConfig); err != nil {
-		return errors.Wrap(err, "Failed to enrich HTTP triggers with service type")
-	}
+	p.enrichHTTPTriggersWithServiceType(functionConfig)
 
 	return nil
 }
@@ -932,37 +928,16 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{}, nil
 }
 
-func (p *Platform) GetScaleToZeroConfiguration() (*platformconfig.ScaleToZero, error) {
-	switch configType := p.Config.(type) {
-	case *platformconfig.Config:
-		return &configType.ScaleToZero, nil
-
-	// FIXME: When deploying using nuctl in a kubernetes environment, it will be a kube platform, but the configuration
-	// will be of type *config.Configuration which has no scale to zero configuration
-	// we need to fix the platform config (p.Config) to always be of the same type (*platformconfig.Config) and not
-	// passing interface{} everywhere
-	case *config.Configuration:
-		return nil, nil
-	default:
-		return nil, errors.New("Not a valid configuration instance")
-	}
+func (p *Platform) GetScaleToZeroConfiguration() *platformconfig.ScaleToZero {
+	return &p.Config.ScaleToZero
 }
 
-func (p *Platform) GetAllowedAuthenticationModes() ([]string, error) {
-	switch configType := p.Config.(type) {
-	case *platformconfig.Config:
-		allowedAuthenticationModes := []string{string(ingress.AuthenticationModeNone), string(ingress.AuthenticationModeBasicAuth)}
-		if len(configType.IngressConfig.AllowedAuthenticationModes) > 0 {
-			allowedAuthenticationModes = configType.IngressConfig.AllowedAuthenticationModes
-		}
-		return allowedAuthenticationModes, nil
-
-	// FIXME: see comment in GetScaleToZeroConfiguration
-	case *config.Configuration:
-		return nil, nil
-	default:
-		return nil, errors.New("Not a valid configuration instance")
+func (p *Platform) GetAllowedAuthenticationModes() []string {
+	allowedAuthenticationModes := []string{string(ingress.AuthenticationModeNone), string(ingress.AuthenticationModeBasicAuth)}
+	if len(p.Config.IngressConfig.AllowedAuthenticationModes) > 0 {
+		allowedAuthenticationModes = p.Config.IngressConfig.AllowedAuthenticationModes
 	}
+	return allowedAuthenticationModes
 }
 
 func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
@@ -1044,18 +1019,9 @@ func (p *Platform) setScaleToZeroSpec(functionSpec *functionconfig.Spec) error {
 		return nil
 	}
 
-	scaleToZeroConfiguration, err := p.GetScaleToZeroConfiguration()
-	if err != nil {
-		return errors.Wrap(err, "Failed getting scale to zero configuration")
-	}
-
-	if scaleToZeroConfiguration == nil {
-		return nil
-	}
-
-	if scaleToZeroConfiguration.Mode == platformconfig.EnabledScaleToZeroMode {
+	if p.Config.ScaleToZero.Mode == platformconfig.EnabledScaleToZeroMode {
 		functionSpec.ScaleToZero = &functionconfig.ScaleToZeroSpec{
-			ScaleResources: scaleToZeroConfiguration.ScaleResources,
+			ScaleResources: p.Config.ScaleToZero.ScaleResources,
 		}
 	}
 
@@ -1197,16 +1163,12 @@ func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfi
 	return nil
 }
 
-func (p *Platform) enrichHTTPTriggersWithServiceType(functionConfig *functionconfig.Config) error {
-
-	var err error
+func (p *Platform) enrichHTTPTriggersWithServiceType(functionConfig *functionconfig.Config) {
 
 	// for backwards compatibility
 	serviceType := functionConfig.Spec.ServiceType
 	if serviceType == "" {
-		if serviceType, err = p.getDefaultServiceType(); err != nil {
-			return errors.Wrap(err, "Failed getting default service type")
-		}
+		serviceType = p.Config.Kube.DefaultServiceType
 	}
 
 	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
@@ -1214,8 +1176,6 @@ func (p *Platform) enrichHTTPTriggersWithServiceType(functionConfig *functioncon
 			trigger,
 			serviceType)
 	}
-
-	return nil
 }
 
 func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
@@ -1252,25 +1212,4 @@ func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.C
 	}
 
 	return trigger
-}
-
-func (p *Platform) getDefaultServiceType() (v1.ServiceType, error) {
-	switch configType := p.Config.(type) {
-	case *platformconfig.Config:
-		return configType.Kube.DefaultServiceType, nil
-
-	// FIXME: see comment in GetScaleToZeroConfiguration
-	// for now, if nuctl - return the constant default
-	case *config.Configuration:
-		nuctlDefaultServiceType := v1.ServiceType(
-			common.GetEnvOrDefaultString("NUCTL_DEFAULT_SERVICE_TYPE", ""))
-
-		if nuctlDefaultServiceType == "" {
-			nuctlDefaultServiceType = platformconfig.DefaultServiceType
-		}
-
-		return nuctlDefaultServiceType, nil
-	default:
-		return "", errors.New("Not a valid configuration instance")
-	}
 }

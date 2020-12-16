@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
@@ -62,8 +63,7 @@ const FunctionProcessorContainerDirPath = "/etc/nuclio/config/processor"
 
 // NewPlatform instantiates a new local platform
 func NewPlatform(parentLogger logger.Logger,
-	containerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration,
-	platformConfiguration interface{}) (*Platform, error) {
+	platformConfiguration *platformconfig.Config) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
@@ -86,7 +86,7 @@ func NewPlatform(parentLogger logger.Logger,
 	}
 
 	if newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger,
-		containerBuilderConfiguration); err != nil {
+		platformConfiguration.ContainerBuilderConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to create containerimagebuilderpusher")
 	}
 
