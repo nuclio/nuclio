@@ -8,23 +8,33 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/mocks"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
-	"github.com/nuclio/nuclio/pkg/platform/mock"
+	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type KubePlatformTestSuite struct {
 	suite.Suite
-	mockedPlatform     *mock.Platform
-	Logger             logger.Logger
-	Platform           *Platform
-	PlatformKubeConfig *platformconfig.PlatformKubeConfig
+	mockedPlatform                *mockplatform.Platform
+	nuclioioV1beta1InterfaceMock  *mocks.NuclioV1beta1Interface
+	nuclioFunctionInterfaceMock   *mocks.NuclioFunctionInterface
+	nuclioAPIGatewayInterfaceMock *mocks.NuclioAPIGatewayInterface
+	nuclioioInterfaceMock         *mocks.Interface
+	Namespace                     string
+	Logger                        logger.Logger
+	Platform                      *Platform
+	PlatformKubeConfig            *platformconfig.PlatformKubeConfig
 }
 
 func (suite *KubePlatformTestSuite) SetupSuite() {
@@ -32,13 +42,14 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 
 	common.SetVersionFromEnv()
 
+	suite.Namespace = "default-namespace"
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err, "Logger should create successfully")
 
 	suite.PlatformKubeConfig = &platformconfig.PlatformKubeConfig{
 		DefaultServiceType: v1.ServiceTypeClusterIP,
 	}
-	suite.mockedPlatform = &mock.Platform{}
+	suite.mockedPlatform = &mockplatform.Platform{}
 	abstractPlatform, err := abstract.NewPlatform(suite.Logger, suite.mockedPlatform, &platformconfig.Config{
 		Kube: *suite.PlatformKubeConfig,
 	})
@@ -47,8 +58,33 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 	abstractPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
 	suite.Require().NoError(err)
 
+	// mock nuclioio interface all the way down
+	suite.nuclioioInterfaceMock = &mocks.Interface{}
+	suite.nuclioioV1beta1InterfaceMock = &mocks.NuclioV1beta1Interface{}
+	suite.nuclioFunctionInterfaceMock = &mocks.NuclioFunctionInterface{}
+	suite.nuclioAPIGatewayInterfaceMock = &mocks.NuclioAPIGatewayInterface{}
+
+	suite.nuclioioInterfaceMock.
+		On("NuclioV1beta1").
+		Return(suite.nuclioioV1beta1InterfaceMock)
+	suite.nuclioioV1beta1InterfaceMock.
+		On("NuclioFunctions", suite.Namespace).
+		Return(suite.nuclioFunctionInterfaceMock)
+	suite.nuclioioV1beta1InterfaceMock.
+		On("NuclioAPIGateways", suite.Namespace).
+		Return(suite.nuclioAPIGatewayInterfaceMock)
+
+	consumer := &consumer{
+		nuclioClientSet: suite.nuclioioInterfaceMock,
+	}
+
+	getter, err := newGetter(suite.Logger, suite.Platform)
+	suite.Require().NoError(err)
+
 	suite.Platform = &Platform{
 		Platform: abstractPlatform,
+		getter:   getter,
+		consumer: consumer,
 	}
 }
 
@@ -123,11 +159,20 @@ type APIGatewayKubePlatformTestSuite struct {
 
 func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidation() {
 
+	// return empty api gateways list on enrichFunctionsWithAPIGateways (not tested here)
+	suite.nuclioAPIGatewayInterfaceMock.
+		On("List", metav1.ListOptions{}).
+		Return(&v1beta1.NuclioAPIGatewayList{}, nil)
+
 	for _, testCase := range []struct {
+		name             string
 		apiGatewayConfig *platform.APIGatewayConfig
 
 		// keep empty to skip the enrichment validation
 		expectedEnrichedAPIGateway *platform.APIGatewayConfig
+
+		// the matching api gateway upstream functions
+		upstreamFunctions []*v1beta1.NuclioFunction
 
 		// keep empty when shouldn't fail
 		validationError string
@@ -135,6 +180,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test spec.name enriched from meta.name
 		{
+			name: "SpecNameEnrichedFromMetaName",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Name = ""
@@ -151,6 +197,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test meta.name enriched from spec.name
 		{
+			name: "MetaNameEnrichedFromSpecName",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Name = "spec-name"
@@ -167,6 +214,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test enrichment of waiting for provisioning state
 		{
+			name: "EnrichWaitingForProvisioningState",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Status.State = ""
@@ -181,6 +229,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test namespace existence
 		{
+			name: "ValidateNamespaceExistence",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Namespace = ""
@@ -191,6 +240,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test name existence
 		{
+			name: "ValidateNameExistence",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = ""
@@ -202,6 +252,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test metadata.name == spec.name
 		{
+			name: "ValidateNameEqualsInSpecAndMeta",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = "name1"
@@ -213,6 +264,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test reserved names validation
 		{
+			name: "ValidateNoReservedName",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = "dashboard"
@@ -222,8 +274,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			validationError: "Api gateway name 'dashboard' is reserved and cannot be used",
 		},
 
-		// test len(upstreams) < 2
+		// test len(upstreams) > 2
 		{
+			name: "ValidateNoMoreThanTwoUpstreams",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				upstream := apiGatewayConfig.Spec.Upstreams[0]
@@ -235,6 +288,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test at least one upstream exists
 		{
+			name: "ValidateAtLeastOneUpstream",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{}
@@ -245,6 +299,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test host exists
 		{
+			name: "ValidateHostExistence",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Host = ""
@@ -255,6 +310,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test wrong upstream kind
 		{
+			name: "ValidateUpstreamKind",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Upstreams[0].Kind = "bad-kind"
@@ -263,8 +319,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			validationError: "Unsupported upstream kind: 'bad-kind'. (Currently supporting only nucliofunction)",
 		},
 
-		// test all upstream have same kind
+		// test all upstreams have same kind
 		{
+			name: "ValidateAllUpstreamsHaveSameKind",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				differentKindUpstream := apiGatewayConfig.Spec.Upstreams[0]
@@ -274,22 +331,113 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}(),
 			validationError: "All upstreams must be of the same kind",
 		},
+
+		// test api gateway upstream function has no ingresses
+		{
+			name: "ValidateAPIGatewayFunctionHasNoIngresses",
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				apiGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name = "function-with-ingresses"
+				return &apiGatewayConfig
+			}(),
+			upstreamFunctions: []*v1beta1.NuclioFunction{
+				{
+					Spec: functionconfig.Spec{
+						Triggers: map[string]functionconfig.Trigger{
+							"http-with-ingress": {
+								Kind: "http",
+								Attributes: map[string]interface{}{
+									"ingresses": map[string]interface{}{
+										"0": map[string]interface{}{
+											"host":  "some-host",
+											"paths": []string{"/"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			validationError: "Api gateway upstream function: function-with-ingresses must not have an ingress",
+		},
+
+		// test api gateway canary upstream function has no ingresses
+		{
+			name: "ValidateAPIGatewayCanaryFunctionHasNoIngresses",
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				apiGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name = "function-without-ingresses"
+				apiGatewayConfig.Spec.Upstreams = append(apiGatewayConfig.Spec.Upstreams, platform.APIGatewayUpstreamSpec{
+					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+					Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+						Name: "function-with-ingresses-2",
+					},
+				})
+				return &apiGatewayConfig
+			}(),
+			upstreamFunctions: []*v1beta1.NuclioFunction{
+				{}, // primary upstream function is empty (has no ingresses)
+				{
+					Spec: functionconfig.Spec{
+						Triggers: map[string]functionconfig.Trigger{
+							"http-with-ingress": {
+								Kind: "http",
+								Attributes: map[string]interface{}{
+									"ingresses": map[string]interface{}{
+										"0": map[string]interface{}{
+											"host":  "some-host",
+											"paths": []string{"/"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			validationError: "Api gateway upstream function: function-with-ingresses-2 must not have an ingress",
+		},
 	} {
 
-		// run enrichment
-		suite.Platform.EnrichAPIGatewayConfig(testCase.apiGatewayConfig)
-		if testCase.expectedEnrichedAPIGateway != nil {
-			suite.Equal(testCase.expectedEnrichedAPIGateway, testCase.apiGatewayConfig)
-		}
+		suite.Run(testCase.name, func() {
 
-		// run validation
-		err := suite.Platform.ValidateAPIGatewayConfig(testCase.apiGatewayConfig)
-		if testCase.validationError != "" {
-			suite.Assert().Error(err)
-			suite.Assert().Equal(testCase.validationError, errors.RootCause(err).Error())
-		} else {
-			suite.Assert().NoError(err)
-		}
+			// run enrichment
+			suite.Platform.EnrichAPIGatewayConfig(testCase.apiGatewayConfig)
+			if testCase.expectedEnrichedAPIGateway != nil {
+				suite.Require().Empty(cmp.Diff(testCase.expectedEnrichedAPIGateway, testCase.apiGatewayConfig))
+			}
+
+			// mock Get functions, when iterating over upstreams on validateAPIGatewayFunctionsHaveNoIngresses
+			for idx, upstream := range testCase.apiGatewayConfig.Spec.Upstreams {
+				var upstreamFunction *v1beta1.NuclioFunction
+				var getFunctionsError interface{}
+
+				if len(testCase.upstreamFunctions) > idx {
+					upstreamFunction = testCase.upstreamFunctions[idx]
+					getFunctionsError = nil
+				} else {
+
+					// return no function if not specified (not found)
+					upstreamFunction = &v1beta1.NuclioFunction{}
+					getFunctionsError = &apierrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonNotFound}}
+				}
+
+				suite.nuclioFunctionInterfaceMock.
+					On("Get", upstream.Nucliofunction.Name, metav1.GetOptions{}).
+					Return(upstreamFunction, getFunctionsError).
+					Once()
+			}
+
+			// run validation
+			err := suite.Platform.ValidateAPIGatewayConfig(testCase.apiGatewayConfig)
+			if testCase.validationError != "" {
+				suite.Assert().Error(err)
+				suite.Assert().Equal(testCase.validationError, errors.RootCause(err).Error())
+			} else {
+				suite.Assert().NoError(err)
+			}
+		})
 	}
 }
 
@@ -297,7 +445,7 @@ func (suite *APIGatewayKubePlatformTestSuite) compileAPIGatewayConfig() platform
 	return platform.APIGatewayConfig{
 		Meta: platform.APIGatewayMeta{
 			Name:      "default-name",
-			Namespace: "default-namespace",
+			Namespace: suite.Namespace,
 		},
 		Spec: platform.APIGatewaySpec{
 			Name:               "default-name",
