@@ -16,8 +16,8 @@ The queue name may be a Go template, which may include any of the following fiel
 
 | **Path** | **Type** | **Description** |
 | :--- | :--- | :--- |
-| topic | string | The topic on which to listen |
-| queueName | string | The name of a shared worker queue to join; (defaults to an auto-generated name per trigger) |
+| topic | string | The topic on which to listen. |
+| queueName | string | The name of a shared worker queue to join; (default: an auto-generated name per trigger). |
 
 ### Example
 

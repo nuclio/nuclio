@@ -2,7 +2,7 @@
 
 #### In This Document
 - [Overview](#overview)
-- [Creating a platform configuration in Kubernetes](#creating-a-platform-configuration-in-kubernetes)
+- [Creating a platform configuration in Kubernetes](#k8s-platform-config-create)
 - [Configuration elements](#configuration-elements)
 
 ## Overview
@@ -13,15 +13,18 @@ While this could theoretically be passed in the function configuration, it would
 
 > **Note:** A "platform" could be a cluster or any sub resource of that cluster like a namespace. If, for example, you have a namespace per tenant, you configure logging, metrics, etc. differently for each tenant
 
+<a id="k8s-platform-config-create"></a>
 ## Creating a platform configuration in Kubernetes
 
-In Kubernetes, a platform configuration is stored as a ConfigMap named `platform-config` in the namespace of the function. For example, to create a ConfigMap in the "nuclio" namespace from a local file called `platform.yaml`, run:
+In Kubernetes, a platform configuration is stored as a ConfigMap named `platform-config` in the namespace of the function. For example, to create a ConfigMap in the "nuclio" namespace from a local file called `platform.yaml`, run the following from a command line:
 ```sh
 kubectl create configmap platform-config  --namespace nuclio --from-file platform.yaml
 ```
 
+<a id="config-elements"></a>
 ## Configuration elements
 
+<a id="logger-supported-log-sinks"></a>
 ### Log sinks (`logger`)
 
 Configuring where a function logs to is a two step process. First, you create a named logger sink and provide it with configuration. Then, you reference this logger sink at the desired scope with a given log level. Scopes include the following:
@@ -55,6 +58,7 @@ logger:
 
 First, you declared the two sinks: `myStdoutLogger` and `myAppInsightsLogger`. Then, you bound `system:debug` (which catches all logs at the severity level and higher) to `myStdoutLogger`, and `system:warning`, `functions:debug` to `myAppInsightsLogger`.
 
+<a id="supported-log-sinks"></a>
 #### Supported log sinks
 
 All log sinks support the following fields:
@@ -63,16 +67,19 @@ All log sinks support the following fields:
 - `url`: The URL at which the sink resides
 - `attributes`: Kind specific attributes
 
+<a id="log-sink-stdout"></a>
 ##### Standard output (`stdout`)
 
 The standard output sink currently does not support any specific attributes.
 
+<a id="log-sink-appinsights"></a>
 ##### Azure Application Insights (`appinsights`)
 
 - `attributes.instrumentationKey`: The instrumentation key from Azure
 - `attributes.maxBatchSize`: Max number of records to batch together before sending to Azure (defaults to 1024)
 - `attributes.maxBatchInterval`: Time to wait for maxBatchSize records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever's gathered will be sent towards Azure (defaults to 3s)
 
+<a id="metrics"></a>
 ### Metric sinks (`metrics`)
 
 Metric sinks behave similarly to logger sinks in that first you declare a sink and then bind a scope to it. To illustrate with an example, if you would (for some reason) want all of your system metrics to be pulled by Prometheus whereas all function metrics pushed to a Prometheus push proxy, your `metrics` section in the `platform.yaml` would look like this:
@@ -105,8 +112,9 @@ metrics:
   - myAppInsights
   functions:
   - myPromPush
-``` 
+```
 
+<a id="supported-metric-sinks"></a>
 #### Supported metric sinks
 
 All metric sinks support the following fields:
@@ -115,6 +123,7 @@ All metric sinks support the following fields:
 - `url`: The URL at which the sink resides
 - `attributes`: Kind specific attributes
 
+<a id="metric-sink-prometheusPush"></a>
 ##### Prometheus push (`prometheusPush`)
 
 - `url`: The URL at which the push proxy resides
@@ -122,12 +131,14 @@ All metric sinks support the following fields:
 - `attributes.instanceName`: The Prometheus instance name
 - `attributes.interval`: A string holding the interval to which the push occurs such as "10s", "1h" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"
 
+<a id="metric-sink-prometheusPull"></a>
 ##### Prometheus pull (`prometheusPull`)
 
 - `url`: The URL at which the HTTP listener serves pull requests
 - `attributes.jobName`: The Prometheus job name
 - `attributes.instanceName`: The Prometheus instance name
 
+<a id="metric-sink-appinsights"></a>
 ##### Azure Application Insights (`appinsights`)
 
 - `attributes.interval`: A string holding the interval to which the push occurs such as "10s", "1h" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"
@@ -135,6 +146,7 @@ All metric sinks support the following fields:
 - `attributes.maxBatchSize`: Max number of records to batch together before sending to Azure (defaults to 1024)
 - `attributes.maxBatchInterval`: Time to wait for maxBatchSize records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever's gathered will be sent towards Azure (defaults to 3s)
 
+<a id="webAdmin"></a>
 ### Webadmin (`webAdmin`)
 
 Functions can optionally serve requests to get and update their configuration via HTTP. By default this is enabled at address `:8081` but can be overridden by the configuration:
@@ -149,6 +161,7 @@ webAdmin:
   listenAddress: :10000
 ```
 
+<a id="healthCheck"></a>
 ### Health check (`healthCheck`)
 
 An important part of the function life cycle is to verify its health via HTTP. By default this is enabled at address `:8082` but can be overridden by the configuration:
@@ -163,16 +176,20 @@ healthCheck:
   enabled: false
 ```
 
-### Cron trigger creation mode (`cronTriggerCreationMode`)
+<a id="cronTriggerCreationMode"></a>
+### Cron-trigger creation mode (`cronTriggerCreationMode`)
 
-A function can run cron triggers as k8s CronJobs or creating the cron logic inside the processor.
+The `cronTriggerCreationMode` configuration field determines how to run cron triggers:
 
-For more information - [Cron Trigger](/docs/reference/triggers/cron.md)
+- `"kube"` - run Cron triggers as Kubernetes CronJobs.
+    <br/>
+    This value is applicable only to Kubernetes platforms and must be set on such platforms.
+- `"processor"` (default)] - run Cron triggers within the processor.
 
-- `cronTriggerCreationMode`: Which way to implement cron triggers. ["kube", "processor" (default)]
-
-For example, the following will configure the system to implement cron triggers as k8s CronJobs:
-
+For example, the following configuration implements Cron triggers as Kubernetes CronJobs on a Kubernetes platform:
 ```yaml
 cronTriggerCreationMode: "kube"
 ```
+
+For more information, see the [Cron-trigger reference](/docs/reference/triggers/cron.md).
+
