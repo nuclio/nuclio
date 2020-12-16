@@ -264,16 +264,12 @@ func (suite *KubeTestSuite) WaitForFunctionState(getFunctionOptions *platform.Ge
 }
 
 func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
-	onAfterIngressCreated OnAfterIngressCreated,
-	expectError bool) {
+	onAfterIngressCreated OnAfterIngressCreated) error {
 
 	// deploy the api gateway
 	err := suite.Platform.CreateAPIGateway(createAPIGatewayOptions)
-
-	if !expectError {
-		suite.Require().NoError(err)
-	} else {
-		suite.Require().Error(err)
+	if err != nil {
+		return err
 	}
 
 	// delete the api gateway when done
@@ -294,6 +290,8 @@ func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.C
 	ingressObject := suite.verifyAPIGatewayIngress(createAPIGatewayOptions, true)
 
 	onAfterIngressCreated(ingressObject)
+
+	return nil
 }
 
 func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *platform.CreateAPIGatewayOptions, exist bool) *extensionsv1beta1.Ingress {

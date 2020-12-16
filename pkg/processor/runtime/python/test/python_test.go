@@ -270,7 +270,7 @@ func (suite *TestSuite) TestContextInitError() {
 	createFunctionOptions.FunctionConfig.Spec.Handler = "contextinitfail:handler"
 	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
 
-	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool { // nolint: errcheck
 		return true
 	})
 }
