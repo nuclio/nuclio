@@ -1217,15 +1217,15 @@ func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.C
 	return trigger
 }
 
-func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(platformAPIGateway *platform.APIGatewayConfig) error {
+func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *platform.APIGatewayConfig) error {
 
 	// check ingresses on every upstream function
 	errGroup, _ := errgroup.WithContext(context.TODO())
-	for _, upstream := range platformAPIGateway.Spec.Upstreams {
+	for _, upstream := range apiGatewayConfig.Spec.Upstreams {
 		upstream := upstream
 		errGroup.Go(func() error {
 			function, err := p.GetFunctions(&platform.GetFunctionsOptions{
-				Namespace: platformAPIGateway.Meta.Namespace,
+				Namespace: apiGatewayConfig.Meta.Namespace,
 				Name:      upstream.Nucliofunction.Name,
 			})
 			if err != nil {
