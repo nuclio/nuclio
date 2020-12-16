@@ -293,7 +293,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithDisplayName() {
 	}
 }
 
-func (suite *projectExportImportTestSuite) TestImportProjectSkipByLabel() {
+func (suite *projectExportImportTestSuite) TestImportProjectSkipBySelectors() {
 	for _, testCase := range []struct {
 		name                      string
 		projectImportConfig       *command.ProjectImportConfig
@@ -413,7 +413,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectSkipByLabel() {
 
 			// import
 			err = suite.ExecuteNuctl([]string{"import", "project", "--verbose"}, map[string]string{
-				"skip-labels": testCase.encodedSkipLabelSelectors,
+				"skip-selectors": testCase.encodedSkipLabelSelectors,
 			})
 
 			// delete leftovers
