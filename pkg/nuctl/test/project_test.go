@@ -304,7 +304,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectSkipByLabel() {
 
 		// skip import
 		{
-			name: "SkipImportSanity",
+			name: "SkipImportLabelSelectorsSanity",
 			projectImportConfig: &command.ProjectImportConfig{
 				Project: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
@@ -317,6 +317,22 @@ func (suite *projectExportImportTestSuite) TestImportProjectSkipByLabel() {
 				},
 			},
 			encodedSkipLabelSelectors: "skip=me",
+			skipImportingProject:      true,
+		},
+		{
+			name: "SkipImportInLabelSelectors",
+			projectImportConfig: &command.ProjectImportConfig{
+				Project: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name:      "test-project-" + xid.New().String(),
+						Namespace: suite.namespace,
+						Labels: map[string]string{
+							"skip": "b",
+						},
+					},
+				},
+			},
+			encodedSkipLabelSelectors: "skip in (a,b,c)",
 			skipImportingProject:      true,
 		},
 		{
