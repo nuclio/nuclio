@@ -1,4 +1,4 @@
-# Importing and Exporting Resources
+# Exporting and Importing Resources
 
 This tutorial guides you through the process of using the Nuclio CLI (`nuctl`) to export and import Nuclio functions and projects.
 
