@@ -228,19 +228,28 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithDisplayName() {
 		name                        string
 		projectName                 string
 		displayName                 string
-		expectedProjectName         string
 		importProjectPositionalArgs []string
+		expectedProjectName         string
+		expectedFailure             bool
 	}{
 		{
-			name:        "ImportProjectIgnoreDisplayName",
-			projectName: "test-project",
-			displayName: "ignore-me",
+			name:        "EmptyDisplayName",
+			projectName: "test-project-" + xid.New().String(),
+			displayName: "",
 		},
 		{
 			name:                "TransformedDisplayName",
 			projectName:         "12345678-1234-1234-1234-123456789001",
 			displayName:         "assign me KEBAB",
 			expectedProjectName: "assign-me-kebab",
+		},
+
+		// project name is not transformable
+		{
+			name:            "ImportProjectWithDisplayNameExplode",
+			projectName:     "test-project-" + xid.New().String(),
+			displayName:     "explode",
+			expectedFailure: true,
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -267,6 +276,11 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithDisplayName() {
 			// delete leftovers
 			defer suite.ExecuteNuctl([]string{"delete", "project", testCase.expectedProjectName}, nil) // nolint: errcheck
 			defer suite.ExecuteNuctl([]string{"delete", "function", functionName}, nil)                // nolint: errcheck
+
+			if testCase.expectedFailure {
+				suite.Require().Error(err)
+				return
+			}
 
 			// assertions
 			suite.Require().NoError(err)
