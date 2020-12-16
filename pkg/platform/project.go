@@ -64,7 +64,7 @@ func (ap *AbstractProject) CreateAndWait() error {
 		ProjectConfig: *ap.GetConfig(),
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to create project")
+		return errors.Wrap(err, "Failed to create a new project")
 	}
 
 	err = common.RetryUntilSuccessful(ProjectGetUponCreationTimeout, ProjectGetUponCreationRetryInterval, func() bool {
