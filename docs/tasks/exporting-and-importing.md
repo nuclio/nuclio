@@ -182,5 +182,5 @@ nuctl deploy --namespace nuclio --file myfunction.yaml
 
 > **Tip:** Run `nuctl help deploy` for full usage instructions. 
 
-For more information about deployment of Nuclio functions, see [Deploying Functions](/docs/tasks/deploying-functions.md):
+For more information about deployment of Nuclio functions, see [Deploying Functions](/docs/tasks/deploying-functions.md).
 
