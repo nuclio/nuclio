@@ -313,7 +313,7 @@ func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways(
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		apiGatewayName := "func-apigw"
 		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+		err := suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
 			suite.Assert().Contains(ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServiceName, functionName)
 
 			// try to delete the function while it uses this api gateway
@@ -322,7 +322,8 @@ func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways(
 			})
 			suite.Assert().Equal(platform.ErrFunctionIsUsedByAPIGateways, errors.RootCause(err))
 
-		}, false, "")
+		})
+		suite.Require().NoError(err)
 
 		return true
 	})
@@ -485,7 +486,9 @@ func (suite *DeployAPIGatewayTestSuite) TestAPIGatewayFunctionsHaveNoIngress() {
 		expectedErrorMessage := fmt.Sprintf("Api gateway upstream function: %s must not have an ingress", functionName)
 
 		// try to create api gateway with this function as upstream and expect it to fail
-		suite.deployAPIGateway(createAPIGatewayOptions, nil, true, expectedErrorMessage)
+		err := suite.deployAPIGateway(createAPIGatewayOptions, nil)
+		suite.Require().Error(err)
+		suite.Require().Equal(expectedErrorMessage, errors.RootCause(err).Error())
 
 		return true
 	})
@@ -502,7 +505,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdateFunctionWithIngressWhenHasAPIG
 
 		// create an api-gateway with that function as upstream
 		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		suite.deployAPIGateway(createAPIGatewayOptions, func(*extensionsv1beta1.Ingress) {
+		err := suite.deployAPIGateway(createAPIGatewayOptions, func(*extensionsv1beta1.Ingress) {
 
 			// update the function to have ingresses
 			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
@@ -526,7 +529,8 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdateFunctionWithIngressWhenHasAPIG
 				return true
 			})
 			suite.Require().Equal("Function can't expose ingresses while it is being exposed by an api gateway", errors.RootCause(err).Error())
-		}, false, "")
+		})
+		suite.Require().NoError(err)
 
 		return true
 	})
@@ -543,10 +547,11 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
-		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+		err := suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
 			suite.Assert().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
-		}, false, "")
+		})
+		suite.Require().NoError(err)
 
 		overrideOauth2ProxyURL := "override-oauth2-url"
 		createAPIGatewayOptions = suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
@@ -557,11 +562,13 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 				RedirectUnauthorizedToSignIn: true,
 			},
 		}
-		suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+		err = suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
 			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)
-		}, false, "")
+		})
+		suite.Require().NoError(err)
+
 		return true
 	})
 }

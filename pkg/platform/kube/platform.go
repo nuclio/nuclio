@@ -1219,6 +1219,7 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(platformAPIGateway
 	// check ingresses on every upstream function
 	errGroup, _ := errgroup.WithContext(context.TODO())
 	for _, upstream := range platformAPIGateway.Spec.Upstreams {
+		upstream := upstream
 		errGroup.Go(func() error {
 			function, err := p.GetFunctions(&platform.GetFunctionsOptions{
 				Namespace: platformAPIGateway.Meta.Namespace,
@@ -1252,6 +1253,8 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(platformAPIGateway
 func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functionconfig.Config) error {
 	ingresses := functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)
 	if len(ingresses) > 0 {
+
+		// TODO: when we'll add upstream labels to api gateway, use get api gateways by label to replace this line
 		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(functionConfig.Meta.Namespace)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function to api gateways mapping")
