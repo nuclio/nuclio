@@ -62,7 +62,7 @@ func (suite *TestSuite) TestRunFunctionContainerWithCustomRestartPolicy() {
 		MaximumRetryCount: functionContainerMaximumRetryCount,
 	}
 	containerName := suite.Platform.(*local.Platform).GetContainerNameByCreateFunctionOptions(createFunctionOptions)
-	suite.DeployFunctionExpectError(createFunctionOptions,
+	suite.DeployFunctionExpectError(createFunctionOptions, // nolint: errcheck
 		func(deployResult *platform.CreateFunctionResult) bool {
 
 			// give some time to docker to flush its events
