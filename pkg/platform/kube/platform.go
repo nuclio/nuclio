@@ -590,6 +590,7 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	}
 
 	apiGateway.Annotations = updateAPIGatewayOptions.APIGatewayConfig.Meta.Annotations
+	apiGateway.Labels = updateAPIGatewayOptions.APIGatewayConfig.Meta.Labels
 	apiGateway.Spec = updateAPIGatewayOptions.APIGatewayConfig.Spec
 
 	// set api gateway state to "waitingForProvisioning", so the controller will know to create/update this resource
