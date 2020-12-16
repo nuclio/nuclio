@@ -71,8 +71,12 @@ func newFunctionEventOperator(parentLogger logger.Logger,
 
 // CreateOrUpdate handles creation/update of an object
 func (feo *functionEventOperator) CreateOrUpdate(ctx context.Context, object runtime.Object) error {
-	feo.logger.DebugWith("Created/updated", "object", object)
+	functionEvent, objectIsFunctionEvent := object.(*nuclioio.NuclioFunctionEvent)
+	if !objectIsFunctionEvent {
+		return errors.New("Received unexpected object, expected function event")
+	}
 
+	feo.logger.DebugWith("Created/updated", "functionEventName", functionEvent.Name)
 	return nil
 }
 
