@@ -42,38 +42,36 @@ type projectGetTestSuite struct {
 
 func (suite *projectGetTestSuite) TestGet() {
 	numOfProjects := 3
-	var projectNames []string
+	projectNames := make([]string, numOfProjects)
 
 	// get with nothing created - should pass
 	err := suite.ExecuteNuctl([]string{"get", "project"}, nil)
 	suite.Require().NoError(err)
 
 	for projectIdx := 0; projectIdx < numOfProjects; projectIdx++ {
-		uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), projectIdx)
-
-		projectName := "get-test-project" + uniqueSuffix
+		projectName := fmt.Sprintf("get-test-project-%s-%d", xid.New().String(), projectIdx)
 
 		// add project name to list
-		projectNames = append(projectNames, projectName)
+		projectNames[projectIdx] = projectName
 
 		namedArgs := map[string]string{
 			"description": fmt.Sprintf("description-%d", projectIdx),
 		}
 
+		// create project
 		err := suite.ExecuteNuctl([]string{
 			"create",
 			"project",
 			projectName,
 			"--verbose",
 		}, namedArgs)
-
 		suite.Require().NoError(err)
 
 		// cleanup
 		defer func(projectName string) {
 
 			// use nutctl to delete the project when we're done
-			suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil) // nolint: errcheck
+			suite.ExecuteNuctl([]string{"delete", "project", projectName}, nil) // nolint: errcheck
 
 		}(projectName)
 	}
@@ -85,7 +83,7 @@ func (suite *projectGetTestSuite) TestGet() {
 	suite.findPatternsInOutput(projectNames, nil)
 
 	// delete the second project
-	err = suite.ExecuteNuctl([]string{"delete", "proj", projectNames[1], "--verbose"}, nil)
+	err = suite.ExecuteNuctl([]string{"delete", "project", projectNames[1], "--verbose"}, nil)
 	suite.Require().NoError(err)
 
 	// get again
