@@ -14,6 +14,7 @@ import (
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -404,7 +405,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			// run enrichment
 			suite.Platform.EnrichAPIGatewayConfig(testCase.apiGatewayConfig)
 			if testCase.expectedEnrichedAPIGateway != nil {
-				suite.Equal(testCase.expectedEnrichedAPIGateway, testCase.apiGatewayConfig)
+				suite.Require().Empty(cmp.Diff(testCase.expectedEnrichedAPIGateway, testCase.apiGatewayConfig))
 			}
 
 			// mock Get functions, when iterating over upstreams on validateAPIGatewayFunctionsHaveNoIngresses
