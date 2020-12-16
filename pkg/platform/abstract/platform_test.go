@@ -96,7 +96,7 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 			ExpectedProjectName: "a-name",
 		},
 		{
-			Name: "TransformDisplayName",
+			Name: "NameUUIDTransformDisplayName",
 			CreateProjectOptions: &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
@@ -104,6 +104,20 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 							generatedUUID, _ := uuid.GenerateUUID()
 							return generatedUUID
 						}(),
+					},
+					Spec: platform.ProjectSpec{
+						DisplayName: "oops",
+					},
+				},
+			},
+			ExpectedProjectName: "oops",
+		},
+		{
+			Name: "NameEmptyTransformDisplayName",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "",
 					},
 					Spec: platform.ProjectSpec{
 						DisplayName: "oops",
@@ -126,26 +140,23 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 			ExpectValidationFailure: true,
 		},
 		{
-			Name:                "DisplayNameNotEmpty",
-			ExpectedProjectName: "test",
+			Name: "EmptyName",
 			CreateProjectOptions: &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
-						Name: "test",
-					},
-					Spec: platform.ProjectSpec{
-						DisplayName: "oops",
+						Name: "",
 					},
 				},
 			},
 			ExpectValidationFailure: true,
 		},
 		{
-			Name: "EmptyName",
+			Name:                "DisplayNameNotEmpty",
+			ExpectedProjectName: "test",
 			CreateProjectOptions: &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
-						Name: "",
+						Name: "test",
 					},
 					Spec: platform.ProjectSpec{
 						DisplayName: "oops",
