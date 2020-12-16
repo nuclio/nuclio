@@ -179,7 +179,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test spec.name enriched from meta.name
 		{
-			name: "specNameEnrichedFromMetaName",
+			name: "SpecNameEnrichedFromMetaName",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Name = ""
@@ -196,7 +196,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test meta.name enriched from spec.name
 		{
-			name: "metaNameEnrichedFromSpecName",
+			name: "MetaNameEnrichedFromSpecName",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Name = "spec-name"
@@ -213,7 +213,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test enrichment of waiting for provisioning state
 		{
-			name: "enrichWaitingForProvisioningState",
+			name: "EnrichWaitingForProvisioningState",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Status.State = ""
@@ -228,7 +228,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test namespace existence
 		{
-			name: "validateNamespaceExistence",
+			name: "ValidateNamespaceExistence",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Namespace = ""
@@ -239,7 +239,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test name existence
 		{
-			name: "validateNameExistence",
+			name: "ValidateNameExistence",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = ""
@@ -251,7 +251,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test metadata.name == spec.name
 		{
-			name: "validateNameEqualsInSpecAndMeta",
+			name: "ValidateNameEqualsInSpecAndMeta",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = "name1"
@@ -263,7 +263,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test reserved names validation
 		{
-			name: "validateNoReservedName",
+			name: "ValidateNoReservedName",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Name = "dashboard"
@@ -275,7 +275,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test len(upstreams) > 2
 		{
-			name: "validateNoMoreThanTwoUpstreams",
+			name: "ValidateNoMoreThanTwoUpstreams",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				upstream := apiGatewayConfig.Spec.Upstreams[0]
@@ -287,7 +287,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test at least one upstream exists
 		{
-			name: "validateAtLeastOneUpstream",
+			name: "ValidateAtLeastOneUpstream",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{}
@@ -298,7 +298,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test host exists
 		{
-			name: "validateHostExistence",
+			name: "ValidateHostExistence",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Host = ""
@@ -309,7 +309,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test wrong upstream kind
 		{
-			name: "validateUpstreamKind",
+			name: "ValidateUpstreamKind",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Upstreams[0].Kind = "bad-kind"
@@ -320,7 +320,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test all upstreams have same kind
 		{
-			name: "validateAllUpstreamsHaveSameKind",
+			name: "ValidateAllUpstreamsHaveSameKind",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				differentKindUpstream := apiGatewayConfig.Spec.Upstreams[0]
@@ -333,7 +333,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test api gateway upstream function has no ingresses
 		{
-			name: "validateAPIGatewayFunctionHasNoIngresses",
+			name: "ValidateAPIGatewayFunctionHasNoIngresses",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name = "function-with-ingresses"
@@ -363,7 +363,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// test api gateway canary upstream function has no ingresses
 		{
-			name: "validateAPIGatewayCanaryFunctionHasNoIngresses",
+			name: "ValidateAPIGatewayCanaryFunctionHasNoIngresses",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name = "function-without-ingresses"
