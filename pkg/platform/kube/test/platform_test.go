@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -32,6 +33,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/errors"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -569,6 +571,59 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 		})
 		suite.Require().NoError(err)
 
+		return true
+	})
+}
+
+func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
+	functionName := "function-name-" + xid.New().String()
+	apiGatewayName := "apigw-name-" + xid.New().String()
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		beforeUpdateHostValue := "before-update-host.com"
+		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = beforeUpdateHostValue
+
+		// create
+		err := suite.Platform.CreateAPIGateway(createAPIGatewayOptions)
+		suite.Require().NoError(err)
+
+		// delete leftovers
+		defer suite.Platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{ // nolint: errcheck
+			Meta: createAPIGatewayOptions.APIGatewayConfig.Meta,
+		})
+
+		suite.WaitForAPIGatewayState(&platform.GetAPIGatewaysOptions{
+			Name:      createAPIGatewayOptions.APIGatewayConfig.Meta.Name,
+			Namespace: createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace,
+		}, platform.APIGatewayStateReady, 10*time.Second)
+
+		ingressInstance := suite.GetAPIGatewayIngress(createAPIGatewayOptions.APIGatewayConfig.Meta.Name, false)
+		suite.Require().Equal(beforeUpdateHostValue, ingressInstance.Spec.Rules[0].Host)
+
+		// change host, update
+		afterUpdateHostValue := "after-update-host.com"
+		annotations := map[string]string{
+			"annotation-key": "annotation-value",
+		}
+		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = afterUpdateHostValue
+		createAPIGatewayOptions.APIGatewayConfig.Meta.Annotations = annotations
+		err = suite.Platform.UpdateAPIGateway(&platform.UpdateAPIGatewayOptions{
+			APIGatewayConfig: createAPIGatewayOptions.APIGatewayConfig,
+		})
+		suite.Require().NoError(err)
+
+		getAPIGatewayOptions := &platform.GetAPIGatewaysOptions{
+			Name:      createAPIGatewayOptions.APIGatewayConfig.Meta.Name,
+			Namespace: createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace,
+		}
+		suite.WaitForAPIGatewayState(getAPIGatewayOptions, platform.APIGatewayStateReady, 10*time.Second)
+
+		ingressInstance = suite.GetAPIGatewayIngress(createAPIGatewayOptions.APIGatewayConfig.Meta.Name, false)
+		suite.Require().Equal(afterUpdateHostValue, ingressInstance.Spec.Rules[0].Host)
+
+		apiGateway := suite.GetAPIGateway(getAPIGatewayOptions)
+		suite.Require().Equal(annotations, apiGateway.GetConfig().Meta.Annotations)
 		return true
 	})
 }

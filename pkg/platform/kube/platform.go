@@ -574,6 +574,9 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 
 	p.platformAPIGatewayToAPIGateway(createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
 
+	// set api gateway state to "waitingForProvisioning", so the controller will know to create/update this resource
+	newAPIGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
+
 	// create
 	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(newAPIGateway.Namespace).
@@ -602,13 +605,17 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 		return errors.Wrap(err, "Failed to validate and enrich api gateway name")
 	}
 
+	apiGateway.Annotations = updateAPIGatewayOptions.APIGatewayConfig.Meta.Annotations
+	apiGateway.Labels = updateAPIGatewayOptions.APIGatewayConfig.Meta.Labels
 	apiGateway.Spec = updateAPIGatewayOptions.APIGatewayConfig.Spec
 
+	// set api gateway state to "waitingForProvisioning", so the controller will know to create/update this resource
+	apiGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
+
 	// update
-	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
+	if _, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
-		Update(apiGateway)
-	if err != nil {
+		Update(apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to update api gateway")
 	}
 
@@ -1111,10 +1118,6 @@ func (p *Platform) EnrichAPIGatewayConfig(platformAPIGateway *platform.APIGatewa
 	if platformAPIGateway.Spec.Name == "" {
 		platformAPIGateway.Spec.Name = platformAPIGateway.Meta.Name
 	}
-
-	// status
-	// set api gateway state to "waitingForProvisioning", so the controller will know to create/update this resource
-	platformAPIGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
 }
 
 func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGatewayMeta) error {
@@ -1228,15 +1231,15 @@ func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.C
 	return trigger
 }
 
-func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(platformAPIGateway *platform.APIGatewayConfig) error {
+func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *platform.APIGatewayConfig) error {
 
 	// check ingresses on every upstream function
 	errGroup, _ := errgroup.WithContext(context.TODO())
-	for _, upstream := range platformAPIGateway.Spec.Upstreams {
+	for _, upstream := range apiGatewayConfig.Spec.Upstreams {
 		upstream := upstream
 		errGroup.Go(func() error {
 			function, err := p.GetFunctions(&platform.GetFunctionsOptions{
-				Namespace: platformAPIGateway.Meta.Namespace,
+				Namespace: apiGatewayConfig.Meta.Namespace,
 				Name:      upstream.Nucliofunction.Name,
 			})
 			if err != nil {
