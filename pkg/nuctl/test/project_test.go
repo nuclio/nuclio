@@ -322,7 +322,7 @@ func (suite *projectExportImportTestSuite) TestFailToImportProjectNoInput() {
 	// import project without input
 	err := suite.ExecuteNuctl([]string{"import", "project", "--verbose"}, nil)
 	suite.Require().Error(err)
-	suite.Require().Contains(err.Error(), "Failed to resolve project body")
+	suite.Require().Contains(err.Error(), "Failed to resolve the project-configuration body.")
 }
 
 func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction() {
