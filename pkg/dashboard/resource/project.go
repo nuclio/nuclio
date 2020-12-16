@@ -44,15 +44,15 @@ type projectInfo struct {
 	Spec *platform.ProjectSpec `json:"spec,omitempty"`
 }
 
-type importProjectInfo struct {
+type projectImportInfo struct {
 	Project        *projectInfo
 	Functions      map[string]*functionInfo
 	FunctionEvents map[string]*functionEventInfo
 	APIGateways    map[string]*apiGatewayInfo
 }
 
-type ImportProjectOptions struct {
-	projectInfo              *importProjectInfo
+type ProjectImportOptions struct {
+	projectInfo              *projectImportInfo
 	authConfig               *platform.AuthConfig
 	skipTransformDisplayName bool
 }
@@ -101,21 +101,10 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
-		Meta: platform.ProjectMeta{
-			Name:      id,
-			Namespace: namespace,
-		},
-	})
-
+	project, err := pr.getProjectByName(id, namespace)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get projects")
+		return nil, err
 	}
-
-	if len(projects) == 0 {
-		return nil, nuclio.NewErrNotFound("Project not found")
-	}
-	project := projects[0]
 
 	exportProject := pr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
 	if exportProject {
@@ -136,13 +125,13 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 
 	importProject := pr.GetURLParamBoolOrDefault(request, restful.ParamImport, false)
 	if importProject {
-		importProjectOptions, responseErr := pr.getImportProjectOptions(request)
+		projectImportOptions, responseErr := pr.getProjectImportOptions(request)
 		if responseErr != nil {
 			return "", nil, responseErr
 		}
-		importProjectOptions.authConfig = authConfig
+		projectImportOptions.authConfig = authConfig
 
-		return pr.importProject(importProjectOptions)
+		return pr.importProject(projectImportOptions)
 	}
 
 	projectInfo, responseErr := pr.getProjectInfoFromRequest(request)
@@ -284,75 +273,41 @@ func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id s
 	return
 }
 
-func (pr *projectResource) importProject(importProjectOptions *ImportProjectOptions) (
+func (pr *projectResource) importProject(projectImportOptions *ProjectImportOptions) (
 	id string, attributes restful.Attributes, responseErr error) {
 
-	projectName := importProjectOptions.projectInfo.Project.Meta.Name
-	projectNamespace := importProjectOptions.projectInfo.Project.Meta.Namespace
-	pr.Logger.InfoWith("Importing project",
-		"projectNamespace", projectNamespace,
-		"projectName", projectName)
-
-	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
-		Meta: *importProjectOptions.projectInfo.Project.Meta,
-	})
-	if err != nil || len(projects) == 0 {
-		pr.Logger.DebugWith("Project doesn't exist, creating it",
-			"projectNamespace", projectNamespace,
-			"projectName", projectName)
-
-		// process (enrich/validate) projectInfo instance
-		if err := pr.processProjectInfo(importProjectOptions.projectInfo.Project); err != nil {
-			return "", nil, errors.Wrap(err, "Failed to process project info")
-		}
-
-		// create a project config
-		projectConfig := platform.ProjectConfig{
-			Meta: *importProjectOptions.projectInfo.Project.Meta,
-			Spec: *importProjectOptions.projectInfo.Project.Spec,
-		}
-
-		// create a project
-		newProject, err := platform.NewAbstractProject(pr.Logger, pr.getPlatform(), projectConfig)
-		if err != nil {
-			return "", nil, nuclio.WrapErrInternalServerError(err)
-		}
-
-		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
-			ProjectConfig: newProject.GetConfig(),
-		}); err != nil {
-
-			// preserve err - it might contain an informative status code (validation failure, etc)
-			return "", nil, err
-		}
-
-		// reassign created instance, it holds changes made during project creation
-		importProjectOptions.projectInfo.Project.Meta = &newProject.GetConfig().Meta
-		importProjectOptions.projectInfo.Project.Spec = &newProject.GetConfig().Spec
+	project, err := pr.importProjectIfMissing(projectImportOptions)
+	if err != nil {
+		return "", nil, err
 	}
 
-	pr.Logger.DebugWith("Enriching project resources with project name",
-		"projectNamespace", projectNamespace,
-		"projectName", projectName)
-	pr.enrichImportProjectResources(importProjectOptions.projectInfo)
+	// assign imported project
+	projectImportOptions.projectInfo.Project = &projectInfo{
+		Meta: &project.GetConfig().Meta,
+		Spec: &project.GetConfig().Spec,
+	}
 
-	failedFunctions := pr.importProjectFunctions(importProjectOptions.projectInfo, importProjectOptions.authConfig)
-	failedFunctionEvents := pr.importProjectFunctionEvents(importProjectOptions.projectInfo, failedFunctions)
-	failedAPIGateways := pr.importProjectAPIGateways(importProjectOptions.projectInfo)
+	// enrich
+	pr.enrichProjectImportInfoImportResources(projectImportOptions.projectInfo)
+
+	// import
+	failedFunctions := pr.importProjectFunctions(projectImportOptions.projectInfo, projectImportOptions.authConfig)
+	failedFunctionEvents := pr.importProjectFunctionEvents(projectImportOptions.projectInfo, failedFunctions)
+	failedAPIGateways := pr.importProjectAPIGateways(projectImportOptions.projectInfo)
 
 	attributes = restful.Attributes{
 		"functionImportResult": restful.Attributes{
-			"createdAmount":   len(importProjectOptions.projectInfo.Functions) - len(failedFunctions),
+			"createdAmount":   len(projectImportOptions.projectInfo.Functions) - len(failedFunctions),
 			"failedAmount":    len(failedFunctions),
 			"failedFunctions": failedFunctions,
 		},
 		"functionEventImportResult": restful.Attributes{
-			"createdAmount":        len(importProjectOptions.projectInfo.FunctionEvents) - len(failedFunctionEvents),
+			"createdAmount":        len(projectImportOptions.projectInfo.FunctionEvents) - len(failedFunctionEvents),
 			"failedAmount":         len(failedFunctionEvents),
 			"failedFunctionEvents": failedFunctionEvents,
 		},
 		"apiGatewayImportResult": restful.Attributes{
-			"createdAmount":     len(importProjectOptions.projectInfo.APIGateways) - len(failedAPIGateways),
+			"createdAmount":     len(projectImportOptions.projectInfo.APIGateways) - len(failedAPIGateways),
 			"failedAmount":      len(failedAPIGateways),
 			"failedAPIGateways": failedAPIGateways,
 		},
@@ -361,7 +316,64 @@ func (pr *projectResource) importProject(importProjectOptions *ImportProjectOpti
 	return
 }
 
-func (pr *projectResource) importProjectFunctions(projectImportInfoInstance *importProjectInfo,
+func (pr *projectResource) importProjectIfMissing(projectImportOptions *ProjectImportOptions) (
+	platform.Project, error) {
+
+	projectName := projectImportOptions.projectInfo.Project.Meta.Name
+	projectNamespace := projectImportOptions.projectInfo.Project.Meta.Namespace
+	pr.Logger.InfoWith("Importing project",
+		"projectNamespace", projectNamespace,
+		"projectName", projectName)
+
+	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
+		Meta: *projectImportOptions.projectInfo.Project.Meta,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get projects")
+	}
+
+	// if not exists, create it
+	if len(projects) == 0 {
+		pr.Logger.DebugWith("Project doesn't exist, creating it",
+			"projectNamespace", projectNamespace,
+			"projectName", projectName)
+
+		// process (enrich/validate) projectInfo instance
+		if err := pr.processProjectInfo(projectImportOptions.projectInfo.Project); err != nil {
+			return nil, errors.Wrap(err, "Failed to process project info")
+		}
+
+		projectConfig := platform.ProjectConfig{
+			Meta: *projectImportOptions.projectInfo.Project.Meta,
+			Spec: *projectImportOptions.projectInfo.Project.Spec,
+		}
+
+		// create a project
+		newProject, err := platform.NewAbstractProject(pr.Logger, pr.getPlatform(), projectConfig)
+		if err != nil {
+			return nil, nuclio.WrapErrInternalServerError(err)
+		}
+
+		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
+			ProjectConfig:            newProject.GetConfig(),
+			SkipTransformDisplayName: projectImportOptions.skipTransformDisplayName,
+		}); err != nil {
+
+			// preserve err - it might contain an informative status code (validation failure, etc)
+			return nil, err
+		}
+
+		// reassign created instance, it holds changes made during project creation
+		projectImportOptions.projectInfo.Project.Meta = &newProject.GetConfig().Meta
+		projectImportOptions.projectInfo.Project.Spec = &newProject.GetConfig().Spec
+
+		// get imported project
+		return pr.getProjectByName(newProject.GetConfig().Meta.Name, newProject.GetConfig().Meta.Namespace)
+	}
+	return projects[0], nil
+}
+
+func (pr *projectResource) importProjectFunctions(projectImportInfoInstance *projectImportInfo,
 	authConfig *platform.AuthConfig) []restful.Attributes {
 
 	pr.Logger.InfoWith("Importing project functions", "project", projectImportInfoInstance.Project.Meta.Name)
@@ -425,7 +437,7 @@ func (pr *projectResource) importFunction(function *functionInfo, authConfig *pl
 	return functionResourceInstance.storeAndDeployFunction(function, authConfig, false)
 }
 
-func (pr *projectResource) importProjectAPIGateways(projectImportInfoInstance *importProjectInfo) []restful.Attributes {
+func (pr *projectResource) importProjectAPIGateways(projectImportInfoInstance *projectImportInfo) []restful.Attributes {
 	var failedAPIGateways []restful.Attributes
 
 	if projectImportInfoInstance.APIGateways == nil {
@@ -458,7 +470,7 @@ func (pr *projectResource) importProjectAPIGateways(projectImportInfoInstance *i
 	return failedAPIGateways
 }
 
-func (pr *projectResource) importProjectFunctionEvents(projectImportInfoInstance *importProjectInfo,
+func (pr *projectResource) importProjectFunctionEvents(projectImportInfoInstance *projectImportInfo,
 	failedFunctions []restful.Attributes) []restful.Attributes {
 
 	creationErrorContainsFunction := func(functionName string) bool {
@@ -499,6 +511,24 @@ func (pr *projectResource) importProjectFunctionEvents(projectImportInfoInstance
 		}
 	}
 	return failedFunctionEvents
+}
+
+func (pr *projectResource) getProjectByName(projectName, projectNamespace string) (platform.Project, error) {
+	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta{
+			Name:      projectName,
+			Namespace: projectNamespace,
+		},
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get projects")
+	}
+
+	if len(projects) == 0 {
+		return nil, nuclio.NewErrNotFound("Project not found")
+	}
+	return projects[0], nil
 }
 
 func (pr *projectResource) deleteProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
@@ -600,7 +630,7 @@ func (pr *projectResource) getProjectInfoFromRequest(request *http.Request) (*pr
 	return &projectInfoInstance, nil
 }
 
-func (pr *projectResource) getImportProjectOptions(request *http.Request) (*ImportProjectOptions, error) {
+func (pr *projectResource) getProjectImportOptions(request *http.Request) (*ProjectImportOptions, error) {
 
 	// read body
 	body, err := ioutil.ReadAll(request.Body)
@@ -608,17 +638,17 @@ func (pr *projectResource) getImportProjectOptions(request *http.Request) (*Impo
 		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
 	}
 
-	importProjectInfoInstance := importProjectInfo{}
-	if err = json.Unmarshal(body, &importProjectInfoInstance); err != nil {
+	projectImportInfoInstance := projectImportInfo{}
+	if err = json.Unmarshal(body, &projectImportInfoInstance); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
-	if err = pr.processProjectInfo(importProjectInfoInstance.Project); err != nil {
+	if err = pr.processProjectInfo(projectImportInfoInstance.Project); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to process project info"))
 	}
 
-	return &ImportProjectOptions{
-		projectInfo: &importProjectInfoInstance,
+	return &ProjectImportOptions{
+		projectInfo: &projectImportInfoInstance,
 		skipTransformDisplayName: pr.headerValueIsTrue(request,
 			"x-nuclio-skip-transform-display-name"),
 	}, nil
@@ -644,31 +674,32 @@ func (pr *projectResource) processProjectInfo(projectInfoInstance *projectInfo) 
 		return nuclio.NewErrBadRequest("Project name must be provided in metadata")
 	}
 
-	// name must exist
-	if projectInfoInstance.Meta.Namespace == "" {
-		return nuclio.NewErrBadRequest("Project namespace must be provided in metadata")
-	}
-
 	return nil
 }
 
-func (pr *projectResource) enrichImportProjectResources(projectInfo *importProjectInfo) {
+func (pr *projectResource) enrichProjectImportInfoImportResources(projectImportInfoInstance *projectImportInfo) {
+	projectName := projectImportInfoInstance.Project.Meta.Name
+	projectNamespace := projectImportInfoInstance.Project.Meta.Namespace
 
-	for _, functionConfig := range projectInfo.Functions {
+	pr.Logger.DebugWith("Enriching project resources with project name",
+		"projectNamespace", projectNamespace,
+		"projectName", projectName)
+
+	for _, functionConfig := range projectImportInfoInstance.Functions {
 		if functionConfig.Meta.Labels != nil {
-			functionConfig.Meta.Labels["nuclio.io/project-name"] = projectInfo.Project.Meta.Name
+			functionConfig.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
 		}
 	}
 
-	for _, apiGateway := range projectInfo.APIGateways {
+	for _, apiGateway := range projectImportInfoInstance.APIGateways {
 		if apiGateway.Meta.Labels != nil {
-			apiGateway.Meta.Labels["nuclio.io/project-name"] = projectInfo.Project.Meta.Name
+			apiGateway.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
 		}
 	}
 
-	for _, functionEvent := range projectInfo.FunctionEvents {
+	for _, functionEvent := range projectImportInfoInstance.FunctionEvents {
 		if functionEvent.Meta.Labels != nil {
-			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectInfo.Project.Meta.Name
+			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
 		}
 	}
 }

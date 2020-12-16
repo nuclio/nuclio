@@ -182,7 +182,7 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 		defer suite.ExecuteNuctl([]string{"delete", "agw", apiGatewayName}, nil) // nolint: errcheck
 	}
 
-	exportedProjectConfig := suite.getExportedProject(projectName, []string{})
+	exportedProjectConfig := suite.exportProject(projectName, []string{})
 
 	suite.Assert().Equal(exportedProjectConfig.Project.Meta.Name, projectName)
 	suite.Assert().Equal(exportedProjectConfig.Functions[functionName].Meta.Name, functionName)
@@ -339,7 +339,7 @@ EOF
 			// delete leftovers
 			defer suite.ExecuteNuctl([]string{"delete", "project", testCase.projectName}, nil) // nolint: errcheck
 
-			exportedProjectConfig := suite.getExportedProject(testCase.projectName,
+			exportedProjectConfig := suite.exportProject(testCase.projectName,
 				testCase.importProjectPositionalArgs)
 			suite.Require().Empty(cmp.Diff(testCase.expectedExportedProject, exportedProjectConfig.Project,
 				cmp.Options{
@@ -521,39 +521,39 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 	file, err := ioutil.ReadFile(configPath)
 	suite.Require().NoError(err)
 
-	projectConfig := &command.ImportProjectConfig{}
-	err = yaml.Unmarshal(file, projectConfig)
+	projectImportConfig := &command.ProjectImportConfig{}
+	err = yaml.Unmarshal(file, projectImportConfig)
 	suite.Require().NoError(err)
 
-	projectConfig.Project.Meta.Name = projectConfig.Project.Meta.Name + uniqueSuffix
-	projectConfig.Project.Meta.Namespace = suite.namespace
+	projectImportConfig.Project.Meta.Name = projectImportConfig.Project.Meta.Name + uniqueSuffix
+	projectImportConfig.Project.Meta.Namespace = suite.namespace
 	functions := map[string]*functionconfig.Config{}
 	for _, functionName := range functionNames {
 		functionUniqueName := functionName + uniqueSuffix
-		functions[functionUniqueName] = projectConfig.Functions[functionName]
+		functions[functionUniqueName] = projectImportConfig.Functions[functionName]
 		functions[functionUniqueName].Meta.Name = functionName + uniqueSuffix
 		functions[functionUniqueName].Meta.Namespace = suite.namespace
 		functions[functionUniqueName].Meta.Labels["nuclio.io/project-name"] =
 			functions[functionUniqueName].Meta.Labels["nuclio.io/project-name"] + uniqueSuffix
 	}
-	projectConfig.Functions = functions
+	projectImportConfig.Functions = functions
 
 	functionEvents := map[string]*platform.FunctionEventConfig{}
 	for _, functionEventName := range functionEventNames {
 		functionEventUniqueName := functionEventName + uniqueSuffix
-		functionEvents[functionEventUniqueName] = projectConfig.FunctionEvents[functionEventName]
+		functionEvents[functionEventUniqueName] = projectImportConfig.FunctionEvents[functionEventName]
 		functionEvents[functionEventUniqueName].Spec.DisplayName = functionEventName + uniqueSuffix
 		functionEvents[functionEventUniqueName].Meta.Namespace = suite.namespace
 
 		functionEvents[functionEventUniqueName].Meta.Labels["nuclio.io/function-name"] =
 			functionEvents[functionEventUniqueName].Meta.Labels["nuclio.io/function-name"] + uniqueSuffix
 	}
-	projectConfig.FunctionEvents = functionEvents
+	projectImportConfig.FunctionEvents = functionEvents
 
 	apiGateways := map[string]*platform.APIGatewayConfig{}
 	for index, apiGatwayName := range apiGatewayNames {
 		apiGatewayUniqueName := apiGatwayName + uniqueSuffix
-		apiGateways[apiGatewayUniqueName] = projectConfig.APIGateways[apiGatwayName]
+		apiGateways[apiGatewayUniqueName] = projectImportConfig.APIGateways[apiGatwayName]
 		apiGateways[apiGatewayUniqueName].Meta.Name = apiGatewayUniqueName
 		apiGateways[apiGatewayUniqueName].Meta.Namespace = suite.namespace
 		apiGateways[apiGatewayUniqueName].Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
@@ -565,9 +565,9 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 			},
 		}
 	}
-	projectConfig.APIGateways = apiGateways
+	projectImportConfig.APIGateways = apiGateways
 
-	projectConfigYaml, err := yaml.Marshal(projectConfig)
+	projectConfigYaml, err := yaml.Marshal(projectImportConfig)
 	suite.Require().NoError(err)
 
 	// write exported function config to temp file
@@ -684,8 +684,8 @@ func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunctio
 	return functionEvent.Meta.Name
 }
 
-func (suite *projectExportImportTestSuite) getExportedProject(projectName string,
-	positionalArgs []string) *command.ImportProjectConfig {
+func (suite *projectExportImportTestSuite) exportProject(projectName string,
+	positionalArgs []string) *command.ProjectImportConfig {
 
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
@@ -698,11 +698,11 @@ func (suite *projectExportImportTestSuite) getExportedProject(projectName string
 		false)
 	suite.Require().NoError(err)
 
-	exportedProjectConfig := &command.ImportProjectConfig{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &exportedProjectConfig)
+	projectImportConfig := &command.ProjectImportConfig{}
+	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &projectImportConfig)
 	suite.Require().NoError(err)
 
-	return exportedProjectConfig
+	return projectImportConfig
 }
 
 func TestProjectTestSuite(t *testing.T) {

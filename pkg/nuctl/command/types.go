@@ -38,14 +38,14 @@ func (ssf *stringSliceFlag) Type() string {
 	return "String"
 }
 
-type ImportProjectConfig struct {
+type ProjectImportConfig struct {
 	Project        *platform.ProjectConfig
 	Functions      map[string]*functionconfig.Config
 	FunctionEvents map[string]*platform.FunctionEventConfig
 	APIGateways    map[string]*platform.APIGatewayConfig
 }
 
-type ImportProjectOptions struct {
-	projectInfo              *ImportProjectConfig
+type ProjectImportOptions struct {
+	projectImportConfig      *ProjectImportConfig
 	skipTransformDisplayName bool
 }

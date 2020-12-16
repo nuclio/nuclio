@@ -161,17 +161,15 @@ type ProjectSpec struct {
 }
 
 type ProjectConfig struct {
-	Meta ProjectMeta `json:"meta,omitempty"`
-	Spec ProjectSpec `json:"spec,omitempty"`
+	Meta ProjectMeta `json:"meta"`
+	Spec ProjectSpec `json:"spec"`
 }
 
 func (pc *ProjectConfig) Scrub() {
 	pc.Meta.ResourceVersion = ""
 
 	// Deprecated.
-	if pc.Spec.DisplayName != "" {
-		pc.Spec.DisplayName = ""
-	}
+	pc.Spec.DisplayName = ""
 }
 
 type CreateProjectOptions struct {
@@ -218,8 +216,8 @@ type FunctionEventSpec struct {
 }
 
 type FunctionEventConfig struct {
-	Meta FunctionEventMeta `json:"meta,omitempty"`
-	Spec FunctionEventSpec `json:"spec,omitempty"`
+	Meta FunctionEventMeta `json:"meta"`
+	Spec FunctionEventSpec `json:"spec"`
 }
 
 type CreateFunctionEventOptions struct {

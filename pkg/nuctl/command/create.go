@@ -71,6 +71,8 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 		Use:     "project name",
 		Aliases: []string{"proj", "prj"},
 		Short:   "Create projects",
+		Long: `Create a Nuclio project.
+Note: spec.displayName is deprecated.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments

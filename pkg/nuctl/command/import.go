@@ -6,6 +6,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -80,6 +81,7 @@ func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config,
 		return errors.Errorf("Function with the name: %s already exists", functionConfig.Meta.Name)
 	}
 
+	// create function
 	_, err = i.rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 		Logger:         i.rootCommandeer.loggerInstance,
 		FunctionConfig: *functionConfig,
@@ -88,7 +90,8 @@ func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config,
 	return err
 }
 
-func (i *importCommandeer) importFunctions(functionConfigs map[string]*functionconfig.Config, project *platform.ProjectConfig) error {
+func (i *importCommandeer) importFunctions(functionConfigs map[string]*functionconfig.Config,
+	project *platform.ProjectConfig) error {
 	var errGroup errgroup.Group
 
 	i.rootCommandeer.loggerInstance.DebugWith("Importing functions", "functions", functionConfigs)
@@ -253,7 +256,7 @@ Use --help for more information`)
 	}
 
 	cmd.Flags().StringSliceVar(&commandeer.skipProjectNames, "skip", []string{}, "Names of projects to skip (don't import), as a comma-separated list")
-	cmd.Flags().BoolVar(&commandeer.skipTransformDisplayName, "skip-transform-display-name", false, "Skip transforming display name onto metadata name if the latter is missing or in form of UUID")
+	cmd.Flags().BoolVar(&commandeer.skipTransformDisplayName, "skip-transform-display-name", false, "Skip transforming display name into project name if the latter is missing or in form of UUID")
 	commandeer.cmd = cmd
 
 	return commandeer
@@ -334,43 +337,22 @@ func (i *importProjectCommandeer) importAPIGateways(apiGateways map[string]*plat
 	return errGroup.Wait()
 }
 
-func (i *importProjectCommandeer) importProject(importProjectOptions *ImportProjectOptions) error {
+func (i *importProjectCommandeer) importProject(projectImportOptions *ProjectImportOptions) error {
 	var err error
-	projectConfig := importProjectOptions.projectInfo
-	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
-		Meta: projectConfig.Project.Meta,
-	})
+	project, err := i.importProjectIfMissing(projectImportOptions)
 	if err != nil {
-		return errors.Wrap(err, "Failed to check existing projects")
-	}
-	if len(projects) == 0 {
-		newProject, err := platform.NewAbstractProject(i.rootCommandeer.loggerInstance,
-			i.rootCommandeer.platform,
-			platform.ProjectConfig{
-				Meta: projectConfig.Project.Meta,
-				Spec: projectConfig.Project.Spec,
-			})
-		if err != nil {
-			return err
-		}
-
-		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
-			ProjectConfig:            newProject.GetConfig(),
-			SkipTransformDisplayName: importProjectOptions.skipTransformDisplayName,
-		}); err != nil {
-			return err
-		}
-
-		// reassign created instance, it holds changes made during project creation
-		importProjectOptions.projectInfo.Project = newProject.GetConfig()
+		return err
 	}
 
-	i.rootCommandeer.loggerInstance.DebugWith("Enriching project resources",
-		"projectNamespace", projectConfig.Project.Meta.Namespace,
-		"projectName", projectConfig.Project.Meta.Name)
-	i.enrichImportProjectResources(importProjectOptions.projectInfo)
+	// assign imported project
+	projectImportOptions.projectImportConfig.Project = project.GetConfig()
 
-	functionImportErr := i.importFunctions(projectConfig.Functions, projectConfig.Project)
+	// enrich
+	i.enrichProjectImportConfig(projectImportOptions.projectImportConfig)
+
+	// import functions
+	functionImportErr := i.importFunctions(projectImportOptions.projectImportConfig.Functions,
+		projectImportOptions.projectImportConfig.Project)
 	if functionImportErr != nil {
 		i.rootCommandeer.loggerInstance.WarnWith("Failed to import all project functions",
 			"functionImportErr", functionImportErr)
@@ -379,7 +361,8 @@ func (i *importProjectCommandeer) importProject(importProjectOptions *ImportProj
 		err = functionImportErr
 	}
 
-	functionEventImportErr := i.importFunctionEvents(projectConfig.FunctionEvents)
+	// import function events
+	functionEventImportErr := i.importFunctionEvents(projectImportOptions.projectImportConfig.FunctionEvents)
 	if functionEventImportErr != nil {
 		i.rootCommandeer.loggerInstance.WarnWith("Failed to import all function events",
 			"functionEventImportErr", functionEventImportErr)
@@ -392,7 +375,9 @@ func (i *importProjectCommandeer) importProject(importProjectOptions *ImportProj
 
 	// api gateways are supported only on k8s platform
 	if i.rootCommandeer.platform.GetName() == "kube" {
-		apiGatewaysImportErr := i.importAPIGateways(projectConfig.APIGateways)
+
+		// import api gateways
+		apiGatewaysImportErr := i.importAPIGateways(projectImportOptions.projectImportConfig.APIGateways)
 		if apiGatewaysImportErr != nil {
 			i.rootCommandeer.loggerInstance.WarnWith("Unable to import all api gateways",
 				"apiGatewaysImportErr", apiGatewaysImportErr)
@@ -407,53 +392,54 @@ func (i *importProjectCommandeer) importProject(importProjectOptions *ImportProj
 	return err
 }
 
-func (i *importProjectCommandeer) importProjects(importProjectsOptions map[string]*ImportProjectOptions) error {
+func (i *importProjectCommandeer) importProjects(projectsImportOptions map[string]*ProjectImportOptions) error {
 	i.rootCommandeer.loggerInstance.DebugWith("Importing projects",
-		"projectsOptions", importProjectsOptions,
+		"projectsImportOptions", projectsImportOptions,
 		"skipProjectNames", i.skipProjectNames,
 		"skipTransformDisplayName", i.skipTransformDisplayName)
 
 	// TODO: parallel this with errorGroup, mutex is required due to multi map writers
-	for projectName, importProjectOptions := range importProjectsOptions {
-		projectConfig := importProjectOptions.projectInfo
+	for projectName, projectImportOptions := range projectsImportOptions {
+		projectImportConfig := projectImportOptions.projectImportConfig
 
 		// skip project?
-		if i.shouldSkipProject(projectConfig) {
+		if i.shouldSkipProject(projectImportConfig) {
 			i.rootCommandeer.loggerInstance.DebugWith("Skipping import for project",
-				"projectNamespace", projectConfig.Project.Meta.Namespace,
-				"projectName", projectConfig.Project.Meta.Name)
+				"projectNamespace", projectImportConfig.Project.Meta.Namespace,
+				"projectName", projectImportConfig.Project.Meta.Name)
 			continue
 		}
 
 		i.rootCommandeer.loggerInstance.DebugWith("Importing project",
-			"projectNamespace", projectConfig.Project.Meta.Namespace,
+			"projectNamespace", projectImportConfig.Project.Meta.Namespace,
 			"projectName", projectName)
 
 		// enrich namespace from arg
-		if projectConfig.Project.Meta.Namespace == "" {
-			projectConfig.Project.Meta.Namespace = i.rootCommandeer.namespace
+		if projectImportConfig.Project.Meta.Namespace == "" {
+			projectImportConfig.Project.Meta.Namespace = i.rootCommandeer.namespace
 		}
 
 		// import project
-		if err := i.importProject(importProjectOptions); err != nil {
+		if err := i.importProject(projectImportOptions); err != nil {
 			return errors.Wrap(err, "Failed to import project")
 		}
 
 		i.rootCommandeer.loggerInstance.InfoWith("Successfully imported project",
-			"projectNamespace", projectConfig.Project.Meta.Namespace,
+			"projectNamespace", projectImportConfig.Project.Meta.Namespace,
 			"projectName", projectName)
 	}
 	return nil
 }
 
 func (i *importProjectCommandeer) resolveImportProjectsOptions(projectBody []byte,
-	unmarshalFunc func(data []byte, v interface{}) error) (map[string]*ImportProjectOptions, error) {
-
-	importProjectOptions := map[string]*ImportProjectOptions{}
+	unmarshalFunc func(data []byte, v interface{}) error) (map[string]*ProjectImportOptions, error) {
 
 	// initialize
-	projectImportConfigs := map[string]*ImportProjectConfig{}
-	projectImportConfig := ImportProjectConfig{}
+	projectImportOptions := map[string]*ProjectImportOptions{}
+
+	// for un-marshaling
+	projectImportConfigs := map[string]*ProjectImportConfig{}
+	projectImportConfig := ProjectImportConfig{}
 
 	// try a single-project configuration
 	if err := unmarshalFunc(projectBody, &projectImportConfig); err != nil {
@@ -472,41 +458,102 @@ func (i *importProjectCommandeer) resolveImportProjectsOptions(projectBody []byt
 		projectImportConfigs[projectImportConfig.Project.Meta.Name] = &projectImportConfig
 	}
 
-	for projectName, importProjectConfig := range projectImportConfigs {
-		importProjectOptions[projectName] = &ImportProjectOptions{
-			projectInfo:              importProjectConfig,
+	for projectName, importConfig := range projectImportConfigs {
+		projectImportOptions[projectName] = &ProjectImportOptions{
+			projectImportConfig:      importConfig,
 			skipTransformDisplayName: i.skipTransformDisplayName,
 		}
 	}
-	return importProjectOptions, nil
+	return projectImportOptions, nil
 }
 
-func (i *importProjectCommandeer) shouldSkipProject(projectConfig *ImportProjectConfig) bool {
+func (i *importProjectCommandeer) shouldSkipProject(projectImportConfig *ProjectImportConfig) bool {
 	for _, skipProjectName := range i.skipProjectNames {
-		if skipProjectName == projectConfig.Project.Meta.Name {
+		if skipProjectName == projectImportConfig.Project.Meta.Name {
 			return true
 		}
 	}
 	return false
 }
 
-func (i *importProjectCommandeer) enrichImportProjectResources(projectInfo *ImportProjectConfig) {
+func (i *importProjectCommandeer) enrichProjectImportConfig(projectImportConfig *ProjectImportConfig) {
+	i.rootCommandeer.loggerInstance.DebugWith("Enriching project resources",
+		"projectNamespace", projectImportConfig.Project.Meta.Namespace,
+		"projectName", projectImportConfig.Project.Meta.Name)
 
-	for _, functionConfig := range projectInfo.Functions {
+	for _, functionConfig := range projectImportConfig.Functions {
+		functionConfig.Meta.Namespace = projectImportConfig.Project.Meta.Namespace
 		if functionConfig.Meta.Labels != nil {
-			functionConfig.Meta.Labels["nuclio.io/project-name"] = projectInfo.Project.Meta.Name
+			functionConfig.Meta.Labels["nuclio.io/project-name"] = projectImportConfig.Project.Meta.Name
 		}
 	}
 
-	for _, apiGateway := range projectInfo.APIGateways {
+	for _, apiGateway := range projectImportConfig.APIGateways {
+		apiGateway.Meta.Namespace = projectImportConfig.Project.Meta.Namespace
 		if apiGateway.Meta.Labels != nil {
-			apiGateway.Meta.Labels["nuclio.io/project-name"] = projectInfo.Project.Meta.Name
+			apiGateway.Meta.Labels["nuclio.io/project-name"] = projectImportConfig.Project.Meta.Name
 		}
 	}
 
-	for _, functionEvent := range projectInfo.FunctionEvents {
+	for _, functionEvent := range projectImportConfig.FunctionEvents {
+		functionEvent.Meta.Namespace = projectImportConfig.Project.Meta.Namespace
 		if functionEvent.Meta.Labels != nil {
-			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectInfo.Project.Meta.Name
+			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectImportConfig.Project.Meta.Name
 		}
 	}
+}
+
+func (i *importProjectCommandeer) importProjectIfMissing(projectImportOptions *ProjectImportOptions) (
+	platform.Project, error) {
+
+	projectImportConfig := projectImportOptions.projectImportConfig
+	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
+		Meta: projectImportConfig.Project.Meta,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get projects")
+	}
+
+	// if not exists, create it
+	if len(projects) == 0 {
+		newProject, err := platform.NewAbstractProject(i.rootCommandeer.loggerInstance,
+			i.rootCommandeer.platform,
+			platform.ProjectConfig{
+				Meta: projectImportConfig.Project.Meta,
+				Spec: projectImportConfig.Project.Spec,
+			})
+		if err != nil {
+			return nil, err
+		}
+
+		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
+			ProjectConfig:            newProject.GetConfig(),
+			SkipTransformDisplayName: projectImportOptions.skipTransformDisplayName,
+		}); err != nil {
+			return nil, err
+		}
+
+		// get imported project
+		return i.getProject(newProject.GetConfig().Meta.Name, newProject.GetConfig().Meta.Namespace)
+	}
+	return projects[0], nil
+}
+
+func (i *importProjectCommandeer) getProject(projectName, projectNamespace string) (platform.Project, error) {
+	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta{
+			Name:      projectName,
+			Namespace: projectNamespace,
+		},
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get projects")
+	}
+	if len(projects) == 0 {
+		return nil, nuclio.NewErrNotFound("Failed to find project")
+	} else if len(projects) > 1 {
+		return nil, nuclio.NewErrBadRequest("Found more than one project")
+	}
+
+	return projects[0], nil
 }

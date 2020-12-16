@@ -19,6 +19,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-chi/chi v4.0.2+incompatible
 	github.com/go-chi/cors v1.0.0
+	github.com/gobuffalo/flect v0.2.2
 	github.com/google/go-cmp v0.5.4
 	github.com/hashicorp/go-uuid v1.0.1
 	github.com/heptiolabs/healthcheck v0.0.0-20180807145615-6ff867650f40

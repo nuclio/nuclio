@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
+	"github.com/gobuffalo/flect"
 	"github.com/hashicorp/go-uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -410,15 +411,18 @@ func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.Cre
 	// transform display name if needed
 	if !createProjectOptions.SkipTransformDisplayName {
 		if createProjectOptions.ProjectConfig.Spec.DisplayName != "" {
+			var nameIsUUID bool
 
 			// name is UUID
 			if _, err := uuid.ParseUUID(createProjectOptions.ProjectConfig.Meta.Name); err == nil {
-				ap.transformDisplayNameToName(createProjectOptions.ProjectConfig)
+				nameIsUUID = true
+			}
+
+			// transform when name is empty or UUID
+			if createProjectOptions.ProjectConfig.Meta.Name == "" || nameIsUUID {
+				ap.transformProjectDisplayNameToName(createProjectOptions.ProjectConfig)
 				ap.Logger.DebugWith("Project name has been transformed",
 					"name", createProjectOptions.ProjectConfig.Meta.Name)
-
-				// transformation is done
-				createProjectOptions.ProjectConfig.Spec.DisplayName = ""
 			}
 		}
 	}
@@ -1151,22 +1155,15 @@ func (ap *Platform) getOnbuildImagesOverrides() map[string]string {
 	return ap.Config.ImageRegistryOverrides.OnbuildImageRegistries
 }
 
-func (ap *Platform) transformDisplayNameToName(projectConfig *platform.ProjectConfig) {
+func (ap *Platform) transformProjectDisplayNameToName(projectConfig *platform.ProjectConfig) {
 	ap.Logger.WarnWith("Transforming display name",
 		"displayName", projectConfig.Spec.DisplayName,
 		"name", projectConfig.Meta.Name)
 
 	// trim spaces
 	displayName := strings.TrimSpace(projectConfig.Spec.DisplayName)
+	projectConfig.Meta.Name = flect.Dasherize(displayName)
 
-	// lower case
-	displayName = strings.ToLower(displayName)
-
-	// no spaces
-	displayName = strings.ReplaceAll(displayName, " ", "-")
-
-	// no underscores
-	displayName = strings.ReplaceAll(displayName, "_", "-")
-
-	projectConfig.Meta.Name = displayName
+	// clean up display name
+	projectConfig.Spec.DisplayName = ""
 }

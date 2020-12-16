@@ -414,10 +414,6 @@ func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionIn
 		return nil, nuclio.NewErrBadRequest("Function name must be provided in metadata")
 	}
 
-	if functionInfoInstance.Meta.Namespace == "" {
-		return nil, nuclio.NewErrBadRequest("Function namespace must be provided in metadata")
-	}
-
 	// validate function name is according to k8s convention
 	errorMessages := validation.IsQualifiedName(functionInfoInstance.Meta.Name)
 	if len(errorMessages) != 0 {
