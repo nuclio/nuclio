@@ -63,9 +63,9 @@ First, you declared the two sinks: `myStdoutLogger` and `myAppInsightsLogger`. T
 
 All log sinks support the following fields:
 
-- `kind`: The kind of output
-- `url`: The URL at which the sink resides
-- `attributes`: Kind specific attributes
+- `kind` - The kind of output
+- `url` - The URL at which the sink resides
+- `attributes` - Kind specific attributes
 
 <a id="log-sink-stdout"></a>
 ##### Standard output (`stdout`)
@@ -75,9 +75,9 @@ The standard output sink currently does not support any specific attributes.
 <a id="log-sink-appinsights"></a>
 ##### Azure Application Insights (`appinsights`)
 
-- `attributes.instrumentationKey`: The instrumentation key from Azure
-- `attributes.maxBatchSize`: Max number of records to batch together before sending to Azure (defaults to 1024)
-- `attributes.maxBatchInterval`: Time to wait for maxBatchSize records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever's gathered will be sent towards Azure (defaults to 3s)
+- `attributes.instrumentationKey` - The instrumentation key from Azure
+- `attributes.maxBatchSize` - Max number of records to batch together before sending to Azure (defaults to 1024)
+- `attributes.maxBatchInterval` - Time to wait for maxBatchSize records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever's gathered will be sent towards Azure (defaults to 3s)
 
 <a id="metrics"></a>
 ### Metric sinks (`metrics`)
@@ -119,40 +119,41 @@ metrics:
 
 All metric sinks support the following fields:
 
-- `kind`: The kind of output
-- `url`: The URL at which the sink resides
-- `attributes`: Kind specific attributes
+- `kind` - The kind of output
+- `url` - The URL at which the sink resides
+- `attributes` - Kind specific attributes
 
 <a id="metric-sink-prometheusPush"></a>
 ##### Prometheus push (`prometheusPush`)
 
-- `url`: The URL at which the push proxy resides
-- `attributes.jobName`: The Prometheus job name
-- `attributes.instanceName`: The Prometheus instance name
-- `attributes.interval`: A string holding the interval to which the push occurs such as "10s", "1h" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"
+- `url` - The URL at which the push proxy resides
+- `attributes.jobName` - The Prometheus job name
+- `attributes.instanceName` - The Prometheus instance name
+- `attributes.interval` - A string holding the interval to which the push occurs such as "10s", "1h" or "2h45m".
+    Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"
 
 <a id="metric-sink-prometheusPull"></a>
 ##### Prometheus pull (`prometheusPull`)
 
-- `url`: The URL at which the HTTP listener serves pull requests
-- `attributes.jobName`: The Prometheus job name
-- `attributes.instanceName`: The Prometheus instance name
+- `url` - The URL at which the HTTP listener serves pull requests
+- `attributes.jobName` - The Prometheus job name
+- `attributes.instanceName` - The Prometheus instance name
 
 <a id="metric-sink-appinsights"></a>
 ##### Azure Application Insights (`appinsights`)
 
-- `attributes.interval`: A string holding the interval to which the push occurs such as "10s", "1h" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"
-- `attributes.instrumentationKey`: The instrumentation key from Azure
-- `attributes.maxBatchSize`: Max number of records to batch together before sending to Azure (defaults to 1024)
-- `attributes.maxBatchInterval`: Time to wait for maxBatchSize records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever's gathered will be sent towards Azure (defaults to 3s)
+- `attributes.interval` - A string holding the interval to which the push occurs such as "10s", "1h" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"
+- `attributes.instrumentationKey` - The instrumentation key from Azure
+- `attributes.maxBatchSize` - Max number of records to batch together before sending to Azure (defaults to 1024)
+- `attributes.maxBatchInterval` - Time to wait for maxBatchSize records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever's gathered will be sent towards Azure (defaults to 3s)
 
 <a id="webAdmin"></a>
 ### Webadmin (`webAdmin`)
 
 Functions can optionally serve requests to get and update their configuration via HTTP. By default this is enabled at address `:8081` but can be overridden by the configuration:
 
-- `enabled`: Whether or not to listen to requests. `true`, by default
-- `listenAddress`: The address to listen on. `:8081`, by default
+- `enabled` - Whether or not to listen to requests. `true`, by default
+- `listenAddress` - The address to listen on. `:8081`, by default
 
 For example, the following configuration can be used listen on port `:10000`:
 
@@ -166,8 +167,8 @@ webAdmin:
 
 An important part of the function life cycle is to verify its health via HTTP. By default this is enabled at address `:8082` but can be overridden by the configuration:
 
-- `enabled`: Whether or not to listen to requests. `true`, by default
-- `listenAddress`: The address to listen on. `:8082`, by default
+- `enabled` - Whether or not to listen to requests. `true`, by default
+- `listenAddress` - The address to listen on. `:8082`, by default
 
 For example, the following configuration disables responses to health checks:
 
@@ -181,10 +182,8 @@ healthCheck:
 
 The `cronTriggerCreationMode` configuration field determines how to run cron triggers:
 
-- `"kube"` - run Cron triggers as Kubernetes CronJobs.
-    <br/>
-    This value is applicable only to Kubernetes platforms and must be set on such platforms.
-- `"processor"` (default)] - run Cron triggers within the processor.
+- `"processor"` (default)] - Run Cron triggers from the Nuclio processor.
+- `"kube"` - **[Tech Preview]** Run Cron triggers as Kubernetes CronJobs; applicable only on Kubernetes platforms.
 
 For example, the following configuration implements Cron triggers as Kubernetes CronJobs on a Kubernetes platform:
 ```yaml
