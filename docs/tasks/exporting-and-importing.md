@@ -1,4 +1,4 @@
-# Importing and Exporting Resources
+# Exporting and Importing Resources
 
 This tutorial guides you through the process of using the Nuclio CLI (`nuctl`) to export and import Nuclio functions and projects.
 
@@ -159,7 +159,7 @@ cat <project-configurations file> | http post 'http://<Nuclio dashboard URL>/api
 > **Tip:** Run `nuctl help import projects` for full usage instructions. 
 
 <a id="imported-functions-deploy"></a>
-### Deploying imported functions
+## Deploying imported functions
 
 The `import functions` and `import projects` commands change the status of the imported functions to the `imported` state, but they don't automatically deploy these functions.
 To build and deploy an imported function, you need to use the `deploy` command; replace `<imported function name>` with the name of the imported function to deploy:
@@ -182,5 +182,5 @@ nuctl deploy --namespace nuclio --file myfunction.yaml
 
 > **Tip:** Run `nuctl help deploy` for full usage instructions. 
 
-For more information about deployment of Nuclio functions, see [Deploying Functions](/docs/tasks/deploying-functions.md):
+For more information about deployment of Nuclio functions, see [Deploying Functions](/docs/tasks/deploying-functions.md).
 
