@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -54,6 +55,7 @@ type helmChart struct {
 type Release struct {
 	currentVersion          string
 	targetVersion           string
+	githubToken             string
 	helmChartsTargetVersion string
 	repositoryDirPath       string
 	repositoryOwnerName     string
@@ -312,15 +314,22 @@ func (r *Release) getGithubWorkflowsReleaseStatus() (string, error) {
 		r.githubWorkflowID,
 		r.targetVersion)
 
-	// getting workflow id
-	response, err := http.Get(workflowReleaseRunsURL)
+	// getting workflow status body
+	r.logger.DebugWith("Getting workflow id", "workflowReleaseRunsURL", workflowReleaseRunsURL)
+	request, err := r.resolveGithubActionAPIRequest(http.MethodGet, workflowReleaseRunsURL, nil)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to get workflow runs")
+		return "", err
 	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to perform request")
+	}
+
 	responseBody, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to read all response body")
 	}
+
 	var workflowRunsResponse struct {
 		WorkflowRuns []struct {
 			Status     string `json:"status,omitempty"`
@@ -331,11 +340,17 @@ func (r *Release) getGithubWorkflowsReleaseStatus() (string, error) {
 		return "", errors.Wrap(err, "Failed to unmarshal workflow runs response")
 	}
 	if len(workflowRunsResponse.WorkflowRuns) == 0 {
+		r.logger.WarnWith("No workflow runs were found",
+			"responseBody", responseBody)
 		return "", nil
 	}
 
-	status := workflowRunsResponse.WorkflowRuns[0].Status
-	conclusion := workflowRunsResponse.WorkflowRuns[0].Conclusion
+	workflowRun := workflowRunsResponse.WorkflowRuns[0]
+	r.logger.DebugWith("Received workflow run",
+		"workflowRun", workflowRun)
+
+	status := workflowRun.Status
+	conclusion := workflowRun.Conclusion
 
 	// https://developer.github.com/v3/actions/workflow-runs/#parameters-1
 	// conclusion is null until status become completed
@@ -343,7 +358,7 @@ func (r *Release) getGithubWorkflowsReleaseStatus() (string, error) {
 	if status == "completed" {
 		return conclusion, nil
 	}
-	return workflowRunsResponse.WorkflowRuns[0].Status, nil
+	return status, nil
 }
 
 func (r *Release) getTravisReleaseStatus() (string, error) {
@@ -388,10 +403,23 @@ func (r *Release) populateReleaseWorkflowID() error {
 	if r.githubWorkflowID != "" {
 		return nil
 	}
+
 	workflowName := "Release"
 	workflowID := ""
+	workflowsURL := fmt.Sprintf("%s/actions/workflows", r.compileGithubAPIURL())
 
-	response, err := http.Get(fmt.Sprintf("%s/actions/workflows", r.compileGithubAPIURL()))
+	r.logger.DebugWith("Populating release workflow id",
+		"workflowName", workflowName,
+		"workflowsURL", workflowsURL)
+
+	// prepare request
+	request, err := r.resolveGithubActionAPIRequest(http.MethodGet, workflowsURL, nil)
+	if err != nil {
+		return err
+	}
+
+	// make call
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return errors.Wrap(err, "Failed to make a GET request")
 	}
@@ -416,9 +444,12 @@ func (r *Release) populateReleaseWorkflowID() error {
 		}
 	}
 	if workflowID == "" {
+		r.logger.WarnWith("No workflow were found",
+			"responseBody", responseBody)
 		return errors.New("Failed to find workflow ID")
 	}
 
+	r.logger.InfoWith("Found workflow ID", "workflowID", workflowID)
 	r.githubWorkflowID = workflowID
 	return nil
 }
@@ -609,12 +640,26 @@ func (r *Release) promptForYesNo(promptMessage string) bool {
 	}
 }
 
+func (r *Release) resolveGithubActionAPIRequest(method, url string, body io.Reader) (*http.Request, error) {
+	request, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create new request")
+	}
+	request.Header.Set("Accept", "application/vnd.github.v3+json")
+	if r.githubToken != "" {
+		request.Header.Set("Authorization", fmt.Sprintf("token %s", r.githubToken))
+	}
+
+	return request, nil
+}
+
 func run() error {
 	release, err := NewRelease()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create new release")
 	}
 
+	flag.StringVar(&release.githubToken, "github-token", "", "Github token header to avoid API rate limit")
 	flag.StringVar(&release.targetVersion, "target-version", "", "Release target version")
 	flag.StringVar(&release.currentVersion, "current-version", "", "Current version")
 	flag.StringVar(&release.repositoryOwnerName, "repository-owner-name", "nuclio", "Repository owner name to clone nuclio from (Default: nuclio)")
