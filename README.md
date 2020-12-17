@@ -188,7 +188,6 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
 - [Examples](hack/examples/README.md)
 - Sandbox
     - [Install Nuclio and run functions. Explore and experiment on a free Kubernetes cluster.](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
-- [Roadmap](ROADMAP.md)
 - Contributing
     - [Code conventions](/docs/devel/coding-conventions.md)
     - [Contributing to Nuclio](/docs/devel/contributing.md)
