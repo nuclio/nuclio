@@ -6,22 +6,26 @@ Triggers the function according to a schedule or interval, with an optional body
 
 | **Path** | **Type** | **Description** |
 | :--- | :--- | :--- |
-| schedule | string | A cron-like schedule (for example, `*/5 * * * *`) |
-| interval | string | An interval (for example, `1s`, `30m`) |
-| concurrencyPolicy | string | Concurrency policy [Allow, Forbid, Replace]. (optional, defaults to "Forbid". Relevant only for k8s platform)
-| jobBackoffLimit | int32 | The number of retries before failing a job. (optional, defaults to 2. Relevant only for k8s platform)
-| event.body | string | The body passed in the event |
-| event.headers | map of string/int | The headers passed in the event |
+| <a id="attr-schedule"></a>schedule | string | A cron-like schedule (for example, `*/5 * * * *`). |
+| <a id="attr-interval"></a>interval | string | An interval (for example, `1s`, `30m`). |
+| <a id="attr-concurrencyPolicy"></a>concurrencyPolicy | string | Concurrency policy - `"Allow"`, `"Forbid"`, or `"Replace"`; (default: `"Forbid"`). Applicable only when using CronJobs on Kubernetes platforms (see the [Kubernetes notes](#k8s-notes)). |
+| <a id="attr-jobBackoffLimit"></a>jobBackoffLimit | int32 | The number of retries before failing a job; (default: `2`). Applicable only when using CronJobs on Kubernetes platforms (see the [Kubernetes notes](#k8s-notes)). |
+| event.body | string | The body passed in the event. |
+| event.headers | map of string/int | The headers passed in the event. |
 
+<a id="attr-notes"></a>
 > **Note:**
-> 1. Either `schedule` or `interval` must be passed.
-> 2. The `event.*` attributes are optional.
-> 3. When running on k8s platform, this trigger will be implemented as k8s CronJob. (instead of running inside the processor like a regular trigger)
->    1. The created CronJob uses "wget" to call the default http trigger of the function every interval/schedule. (That means that worker related attributes are irrelevant)
->    2. The "wget" request will be sent with the header "x-nuclio-invoke-trigger"="cron".
+> 1. <a id="schedule-or-interval-attr-set-note"></a>You must set either the [`schedule`](#attr-schedule) or [`interval`](#attr-interval) mutually-exclusive attributes.
+> 2. <a id="event-attrs-note"></a>The `event.*` attributes are optional.
+> 3. <a id="k8s-notes"></a>**[Tech Preview]** On Kubernetes platforms, you can set the `cronTriggerCreationMode` platform-configuration field to `"kube"` to run the triggers as Kubernetes CronJobs instead of the default implementation of running Cron triggers from the Nuclio processor.
+>        For more information, see [Configuring a Platform](/docs/tasks/configuring-a-platform.md#cronTriggerCreationMode).
+>        When running Cron triggers as CronJobs &mdash;
+>    - The created CronJob uses `wget` to call the default HTTP trigger of the function according to the configured interval or schedule.
+>        (This means that worker-related attributes are irrelevant.)
+>    - The `wget` request is sent with the header `"x-nuclio-invoke-trigger: cron"`.
+>    - You can use the [`concurrencyPolicy`](#attr-concurrencyPolicy) and [`jobBackoffLimit`](#attr-jobBackoffLimit) attributes to configure the CronJobs.
 
-### Example
-
+### Examples
 
 ```yaml
 triggers:
@@ -31,7 +35,9 @@ triggers:
       interval: 3s
 ```
 
-On K8s platform (it also requires setting cronTriggerCreationMode=="kube" on platform config, Reference: [Platform Config](/docs/tasks/configuring-a-platform.md)):
+The following example is demonstrates a configuration for running Cron triggers as Kubernetes CronJobs, as it sets the `concurrencyPolicy` and `jobBackoffLimit` attributes.
+Remember that this implementation requires setting the `cronTriggerCreationMode` platform-configuration field to `"kube"`.
+See the [Kubernetes notes](#k8s-notes).
 ```yaml
 triggers:
   myCronTrigger:
@@ -41,3 +47,4 @@ triggers:
       concurrencyPolicy: "Allow"
       jobBackoffLimit: 2
 ```
+
