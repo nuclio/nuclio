@@ -49,10 +49,10 @@ Replace the `<...>` placeholders with your specific values; the Nuclio version n
     | kubectl apply -f -
     ```
 
-4.  Check out the `nuclio` project and install Nuclio from its Helm chart; for a full list of configuration parameters, see the Helm values file ([**values.yaml**](/hack/k8s/helm/nuclio/values.yaml)):
+4.  Clone the `nuclio` project and install Nuclio from its Helm chart; for a full list of configuration parameters, see the Helm values file ([**values.yaml**](/hack/k8s/helm/nuclio/values.yaml)):
 
     ```sh
-    git checkout https://github.com/nuclio/nuclio.git
+    git clone https://github.com/nuclio/nuclio.git
 
     helm install \
         --set registry.secretName=registry-credentials \
