@@ -180,7 +180,7 @@ healthCheck:
 <a id="cronTriggerCreationMode"></a>
 ### Cron-trigger creation mode (`cronTriggerCreationMode`)
 
-The `cronTriggerCreationMode` configuration field determines how to run cron triggers:
+The `cronTriggerCreationMode` configuration field determines how to run Cron triggers:
 
 - `"processor"` (default)] - Run Cron triggers from the Nuclio processor.
 - `"kube"` - **[Tech Preview]** Run Cron triggers as Kubernetes CronJobs; applicable only on Kubernetes platforms.
