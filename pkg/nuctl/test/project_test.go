@@ -293,6 +293,152 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithDisplayName() {
 	}
 }
 
+func (suite *projectExportImportTestSuite) TestImportProjectSkipBySelectors() {
+	for _, testCase := range []struct {
+		name                      string
+		projectImportConfig       *command.ProjectImportConfig
+		encodedSkipLabelSelectors string
+		skipImportingProject      bool
+		expectedFailure           bool
+	}{
+
+		// skip import
+		{
+			name: "SkipImportLabelSelectorsSanity",
+			projectImportConfig: &command.ProjectImportConfig{
+				Project: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name:      "test-project-" + xid.New().String(),
+						Namespace: suite.namespace,
+						Labels: map[string]string{
+							"skip": "me",
+						},
+					},
+				},
+			},
+			encodedSkipLabelSelectors: "skip=me",
+			skipImportingProject:      true,
+		},
+		{
+			name: "SkipImportInLabelSelectors",
+			projectImportConfig: &command.ProjectImportConfig{
+				Project: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name:      "test-project-" + xid.New().String(),
+						Namespace: suite.namespace,
+						Labels: map[string]string{
+							"skip": "b",
+						},
+					},
+				},
+			},
+			encodedSkipLabelSelectors: "skip in (a,b,c)",
+			skipImportingProject:      true,
+		},
+		{
+			name: "ComplexLabelNameValue",
+			projectImportConfig: &command.ProjectImportConfig{
+				Project: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name:      "test-project-" + xid.New().String(),
+						Namespace: suite.namespace,
+						Labels: map[string]string{
+							"app.kubernetes.io/part-of": "nuclio-test",
+						},
+					},
+				},
+			},
+			encodedSkipLabelSelectors: "app.kubernetes.io/part-of=nuclio-test",
+			skipImportingProject:      true,
+		},
+
+		// import
+		{
+			name: "ImportSanity",
+			projectImportConfig: &command.ProjectImportConfig{
+				Project: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name:      "test-project-" + xid.New().String(),
+						Namespace: suite.namespace,
+						Labels: map[string]string{
+							"whatever": "ishere",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "ImportLabelSelectorsMissMatch",
+			projectImportConfig: &command.ProjectImportConfig{
+				Project: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name:      "test-project-" + xid.New().String(),
+						Namespace: suite.namespace,
+						Labels: map[string]string{
+							"donot-skip": "me",
+						},
+					},
+				},
+			},
+			encodedSkipLabelSelectors: "skip=me",
+		},
+
+		// export failure
+		{
+			name: "InvalidLabelSelectorInput",
+			projectImportConfig: &command.ProjectImportConfig{
+				Project: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name:      "test-project-" + xid.New().String(),
+						Namespace: suite.namespace,
+						Labels: map[string]string{
+							"whatever": "ishere",
+						},
+					},
+				},
+			},
+			encodedSkipLabelSelectors: "invalid@label^selector!",
+			expectedFailure:           true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			projectName := testCase.projectImportConfig.Project.Meta.Name
+
+			var encodedProjectImportConfig []byte
+			encodedProjectImportConfig, err := yaml.Marshal(testCase.projectImportConfig)
+			suite.Require().NoError(err)
+
+			// import project from stdin
+			suite.inputBuffer = *bytes.NewBuffer(encodedProjectImportConfig)
+
+			// import
+			err = suite.ExecuteNuctl([]string{"import", "project", "--verbose"}, map[string]string{
+				"skip-label-selectors": testCase.encodedSkipLabelSelectors,
+			})
+
+			// delete leftovers
+			defer suite.ExecuteNuctl([]string{"delete", "project", projectName}, nil) // nolint: errcheck
+
+			if testCase.expectedFailure {
+				suite.Require().Error(err)
+				return
+			}
+
+			// assertions
+			suite.Require().NoError(err)
+
+			if testCase.skipImportingProject {
+				err = suite.ExecuteNuctl([]string{"get", "project", projectName}, nil)
+				suite.Require().Error(err)
+				suite.Require().EqualError(err, "No projects found")
+
+			} else {
+				suite.assertProjectImported(projectName)
+			}
+		})
+	}
+}
+
 func (suite *projectExportImportTestSuite) TestExportProjectWithDisplayName() {
 	suite.ensureRunningOnPlatform("kube")
 

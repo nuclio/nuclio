@@ -353,6 +353,80 @@ func (suite *StripPrefixesTestSuite) TestPositive() {
 	suite.Require().Equal("prefix_something_1", stripped)
 }
 
+type LabelsMapMatcherTestSuite struct {
+	suite.Suite
+}
+
+func (suite *LabelsMapMatcherTestSuite) Test() {
+	for _, testCase := range []struct {
+		name                 string
+		labelsMap            map[string]string
+		encodedLabelSelector string
+		matching             bool
+		expectedError        bool
+	}{
+		{
+			name: "Sanity",
+			labelsMap: map[string]string{
+				"c": "d",
+			},
+			encodedLabelSelector: "c=d",
+			matching:             true,
+		},
+		{
+			name: "EmptyLabelSelectorsMatchAll",
+			labelsMap: map[string]string{
+				"a": "b",
+			},
+			encodedLabelSelector: "",
+			matching:             true,
+		},
+		{
+			name:                 "NillableLabelMaps",
+			labelsMap:            nil,
+			encodedLabelSelector: "",
+			matching:             true,
+		},
+
+		// miss match
+		{
+			name: "EncodedLabelSelectorsNotInLabels",
+			labelsMap: map[string]string{
+				"a": "b",
+				"c": "d",
+			},
+			encodedLabelSelector: "z=w",
+			matching:             false,
+		},
+		{
+			name:      "EncodedLabelSelectorsNilLabels",
+			labelsMap: nil,
+
+			encodedLabelSelector: "a=b",
+			matching:             false,
+		},
+
+		// explode
+		{
+			name:                 "InvalidEncodedLabelSelector",
+			labelsMap:            nil,
+			encodedLabelSelector: "!@#$",
+			expectedError:        true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			matching, err := LabelsMapMatchByLabelSelector(testCase.encodedLabelSelector, testCase.labelsMap)
+			if testCase.expectedError {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.matching, matching)
+		})
+
+	}
+}
+
 func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
 	suite.Run(t, new(RetryUntilSuccessfulOnErrorPatternsTestSuite))
@@ -361,4 +435,5 @@ func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(IsDirTestSuite))
 	suite.Run(t, new(IsFileTestSuite))
 	suite.Run(t, new(StripPrefixesTestSuite))
+	suite.Run(t, new(LabelsMapMatcherTestSuite))
 }
