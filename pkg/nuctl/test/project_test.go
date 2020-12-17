@@ -413,7 +413,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectSkipBySelectors() {
 
 			// import
 			err = suite.ExecuteNuctl([]string{"import", "project", "--verbose"}, map[string]string{
-				"skip-selectors": testCase.encodedSkipLabelSelectors,
+				"skip-label-selectors": testCase.encodedSkipLabelSelectors,
 			})
 
 			// delete leftovers

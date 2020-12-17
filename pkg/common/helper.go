@@ -477,7 +477,7 @@ func CatchAndLogPanicWithOptions(ctx context.Context,
 	return nil
 }
 
-// MapStringToStringMatchByLabelSelectorStr return whether labelsMap matched by encoded label selector
+// LabelsMapMatchByLabelSelector returns whether a labelsMap is matched by an encoded label selector
 // corresponding to https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 //
 // Example:
@@ -486,8 +486,7 @@ func CatchAndLogPanicWithOptions(ctx context.Context,
 //     c: d
 //   encodedLabelSelector: a=b
 // returns true
-func MapStringToStringMatchByLabelSelectorStr(labelSelector string,
-	mapStringToString map[string]string) (bool, error) {
+func LabelsMapMatchByLabelSelector(labelSelector string, labelsMap map[string]string) (bool, error) {
 
 	parsedLabelSelector, err := metav1.ParseToLabelSelector(labelSelector)
 	if err != nil {
@@ -497,7 +496,7 @@ func MapStringToStringMatchByLabelSelectorStr(labelSelector string,
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to get selector from label selector")
 	}
-	return selector.Matches(labels.Set(mapStringToString)), nil
+	return selector.Matches(labels.Set(labelsMap)), nil
 }
 
 func logPanic(ctx context.Context,

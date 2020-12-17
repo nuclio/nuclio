@@ -202,7 +202,7 @@ func (i *importFunctionCommandeer) resolveFunctionImportConfigs(functionBody []b
 type importProjectCommandeer struct {
 	*importCommandeer
 	skipProjectNames         []string
-	skipProjectSelectors     string
+	skipLabelSelectors       string
 	skipTransformDisplayName bool
 }
 
@@ -258,7 +258,7 @@ Use --help for more information`)
 	}
 
 	cmd.Flags().StringSliceVar(&commandeer.skipProjectNames, "skip", []string{}, "Names of projects to skip (don't import), as a comma-separated list")
-	cmd.Flags().StringVar(&commandeer.skipProjectSelectors, "skip-selectors", "", "Selectors (label query) to filter projects on")
+	cmd.Flags().StringVar(&commandeer.skipLabelSelectors, "skip-label-selectors", "", "Label selectors to filter projects on")
 	cmd.Flags().BoolVar(&commandeer.skipTransformDisplayName, "skip-transform-display-name", false, "Skip transforming display name into project name if the latter is missing or in form of UUID")
 	commandeer.cmd = cmd
 
@@ -398,7 +398,7 @@ func (i *importProjectCommandeer) importProject(projectImportOptions *ProjectImp
 func (i *importProjectCommandeer) importProjects(projectsImportOptions map[string]*ProjectImportOptions) error {
 	i.rootCommandeer.loggerInstance.DebugWith("Importing projects",
 		"projectsImportOptions", projectsImportOptions,
-		"skipProjectSelectors", i.skipProjectSelectors,
+		"skipLabelSelectors", i.skipLabelSelectors,
 		"skipProjectNames", i.skipProjectNames,
 		"skipTransformDisplayName", i.skipTransformDisplayName)
 
@@ -484,11 +484,11 @@ func (i *importProjectCommandeer) shouldSkipProject(projectImportConfig *Project
 
 	// empty by default
 	// if we match by empty selectors, it will match all projects and will simply cause to skip all projects
-	if i.skipProjectSelectors != "" {
-		match, err := common.MapStringToStringMatchByLabelSelectorStr(i.skipProjectSelectors,
+	if i.skipLabelSelectors != "" {
+		match, err := common.LabelsMapMatchByLabelSelector(i.skipLabelSelectors,
 			projectImportConfig.Project.Meta.Labels)
 		if err != nil {
-			return false, errors.Wrap(err, "Failed to match project by given label")
+			return false, errors.Wrap(err, "Failed to match project labels")
 		}
 		return match, nil
 
