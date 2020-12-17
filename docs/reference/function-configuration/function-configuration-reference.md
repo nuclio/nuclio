@@ -94,9 +94,9 @@ The `spec` section contains the requirements and attributes and has the followin
 | readinessTimeoutSeconds | int | Number of seconds that the controller will wait for the function to become ready before declaring failure (default: 60) |
 | avatar | string | Base64 representation of an icon to be shown in UI for the function |
 | eventTimeout | string | Global event timeout, in the format supported for the `Duration` parameter of the [`time.ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function |
-| securityContext.runAsUser | int | The user ID (UID) for runing the entry point of the container process; applicable only to Kubernetes and Docker platforms |
-| securityContext.runAsGroup | int | The group ID (GID) for running the entry point of the container process; applicable only to Kubernetes and Docker platforms |
-| securityContext.fsGroup | int | A supplemental group to add and use for running the entry point of the container process; applicable only to Kubernetes and Docker platforms |
+| securityContext.runAsUser | int | The user ID (UID) for runing the entry point of the container process |
+| securityContext.runAsGroup | int | The group ID (GID) for running the entry point of the container process |
+| securityContext.fsGroup | int | A supplemental group to add and use for running the entry point of the container process |
 
 <a id="spec-example"></a>
 ### Example
