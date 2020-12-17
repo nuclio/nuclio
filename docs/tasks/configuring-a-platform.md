@@ -182,7 +182,7 @@ healthCheck:
 
 The `cronTriggerCreationMode` configuration field determines how to run Cron triggers:
 
-- `"processor"` (default)] - Run Cron triggers from the Nuclio processor.
+- `"processor"` (default) - Run Cron triggers from the Nuclio processor.
 - `"kube"` - **[Tech Preview]** Run Cron triggers as Kubernetes CronJobs; applicable only on Kubernetes platforms.
 
 For example, the following configuration implements Cron triggers as Kubernetes CronJobs on a Kubernetes platform:
