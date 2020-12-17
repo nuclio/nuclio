@@ -26,7 +26,10 @@
             var headers = {
                 'Content-Type': 'application/json'
             };
-            var data = lodash.pick(project, ['metadata', 'spec']);
+            var data = lodash.chain(project)
+                .pick(['metadata', 'spec'])
+                .omit('spec.displayName')
+                .value();
             var namespace = NuclioNamespacesDataService.getNamespace();
 
             if (!lodash.isNil(namespace)) {
@@ -109,7 +112,7 @@
             };
             var data = {
                 metadata: project.metadata,
-                spec: project.spec
+                spec: lodash.omit(project.spec, 'displayName')
             };
             var namespace = NuclioNamespacesDataService.getNamespace();
 
