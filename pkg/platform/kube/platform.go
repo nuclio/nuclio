@@ -1174,7 +1174,7 @@ func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfi
 	}
 
 	if err := p.ValidateFunctionConfig(functionConfig); err != nil {
-		return errors.Wrap(err, "Failedto validate a function configuration")
+		return errors.Wrap(err, "Failed to validate a function configuration")
 	}
 
 	return nil
