@@ -142,7 +142,18 @@ For example:
 ```sh
 nuctl import projects --namespace nuclio --skip "myproject1,myproject3"
 ```
-<!-- [IntInfo] `import functions` doesn't have a similar `skip` flag. -->
+Similarly, you can set the `--skip-label-selectors` flag to a Kubernetes label-selectors filter that identifies projects to skip (don't import); replace `<label selectors>` with valid [Kubernetes label selectors](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors) :
+```sh
+nuctl import projects --namespace nuclio --skip-label-selectors <label selectors> [<project-configurations file>]
+```
+For example:
+```sh
+nuctl import projects --namespace nuclio --skip-label-selectors "environment=production,tier=frontend"
+nuctl import projects --namespace nuclio --skip-label-selectors "environment in (production, qa)"
+nuctl import projects --namespace nuclio --skip-label-selectors "environment,environment notin (frontend)"
+```
+<!-- [IntInfo] `import functions` doesn't have a similar `skip` and
+  `skip-label-selectors` flags. -->
 
 You can also import project configurations to an instance of the Nuclio dashboard by using an HTTP `POST` command with an `import=true` query string to send a project-configurations file to the dashboard's projects API endpoint &mdash; `/api/projects/`.
 You can do this, for example, by using the `http` CLI tool; replace `<project-configurations file>` with the path to a Nuclio project-configurations file, and `<Nuclio dashboard URL>` with the IP address or host name of your Nuclio dashboard:
