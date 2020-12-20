@@ -49,7 +49,7 @@ func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 		i.rootCommandeer.loggerInstance.DebugWith("Reading from a file", "filename", filename)
 		file, err := nuctlcommon.OpenFile(filename)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to open file")
+			return nil, errors.Wrap(err, "Failed to open a file")
 		}
 		i.cmd.SetIn(file)
 
@@ -259,7 +259,7 @@ Use --help for more information`)
 
 	cmd.Flags().StringSliceVar(&commandeer.skipProjectNames, "skip", []string{}, "Names of projects to skip (don't import), as a comma-separated list")
 	cmd.Flags().StringVar(&commandeer.skipLabelSelectors, "skip-label-selectors", "", "Label selectors to filter projects on")
-	cmd.Flags().BoolVar(&commandeer.skipTransformDisplayName, "skip-transform-display-name", false, "Skip transforming display name into project name if the latter is missing or in form of UUID")
+	cmd.Flags().BoolVar(&commandeer.skipTransformDisplayName, "skip-transform-display-name", false, "Skip replacing 'spec.displayName' with 'metadata.name' in the imported configuration when 'metadata.name' isn't set or is set as a UUID")
 	commandeer.cmd = cmd
 
 	return commandeer

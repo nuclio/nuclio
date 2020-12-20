@@ -220,7 +220,7 @@ func (e *exportProjectCommandeer) exportAPIGateways(projectConfig *platform.Proj
 	// get all api gateways in the project
 	apiGateways, err := e.rootCommandeer.platform.GetAPIGateways(getAPIGatewaysOptions)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get api gateways")
+		return nil, errors.Wrap(err, "Failed to get API gateways")
 	}
 
 	apiGatewaysMap := map[string]*platform.APIGatewayConfig{}
@@ -250,7 +250,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(projec
 
 	for _, function := range functions {
 		if err := function.Initialize(nil); err != nil {
-			e.rootCommandeer.loggerInstance.DebugWith("Failed to initialize function", "err", err.Error())
+			e.rootCommandeer.loggerInstance.DebugWith("Failed to initialize a function", "err", err.Error())
 		}
 		functionConfig := function.GetConfig()
 
@@ -292,7 +292,7 @@ func (e *exportProjectCommandeer) exportProject(projectConfig *platform.ProjectC
 
 			// in case an error occurred while exporting api gateways - skip this part
 			// (because it may fail when exporting after an upgrade from an older version)
-			e.rootCommandeer.loggerInstance.DebugWith("Failed to export api gateways. Continuing with project export",
+			e.rootCommandeer.loggerInstance.DebugWith("Failed to export API gateways; continuing with project export",
 				"err", err)
 		}
 
@@ -321,7 +321,7 @@ func (e *exportProjectCommandeer) renderProjectConfig(projects []platform.Projec
 	}
 
 	if err != nil {
-		return errors.Wrap(err, "Failed to render function configuration")
+		return errors.Wrap(err, "Failed to render a function configuration")
 	}
 
 	return nil

@@ -70,9 +70,9 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 	cmd := &cobra.Command{
 		Use:     "project name",
 		Aliases: []string{"proj", "prj"},
-		Short:   "Create projects",
-		Long: `Create a Nuclio project.
-Note: spec.displayName is deprecated.`,
+		Short:   "Create a new project",
+		Long: `Create a new Nuclio project.
+Note: The 'spec.displayName' project configuration is deprecated. Use 'metadata.name' instead.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -140,7 +140,7 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 			// decode the JSON attributes
 			if err := json.Unmarshal([]byte(commandeer.encodedAttributes),
 				&commandeer.apiGatewayConfig); err != nil {
-				return errors.Wrap(err, "Failed to decode function event attributes")
+				return errors.Wrap(err, "Failed to decode a function's event attributes")
 			}
 
 			commandeer.apiGatewayConfig.Meta.Name = args[0]
@@ -274,7 +274,7 @@ func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *creat
 			// decode the JSON attributes
 			if err := json.Unmarshal([]byte(commandeer.encodedAttributes),
 				&commandeer.functionEventConfig.Spec.Attributes); err != nil {
-				return errors.Wrap(err, "Failed to decode function event attributes")
+				return errors.Wrap(err, "Failed to decode a function's event attributes")
 			}
 
 			return createCommandeer.rootCommandeer.platform.CreateFunctionEvent(&platform.CreateFunctionEventOptions{
