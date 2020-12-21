@@ -1145,7 +1145,7 @@ func (p *Platform) ValidateAPIGatewayConfig(platformAPIGateway *platform.APIGate
 
 	// meta
 	if err := p.validateAPIGatewayMeta(&platformAPIGateway.Meta); err != nil {
-		return errors.Wrap(err, "Failed to validate api gateway meta")
+		return errors.Wrap(err, "Failed while validating api gateway meta")
 	}
 
 	// spec
@@ -1153,8 +1153,8 @@ func (p *Platform) ValidateAPIGatewayConfig(platformAPIGateway *platform.APIGate
 		return errors.Wrap(err, "Api gateway spec validation failed")
 	}
 
-	if err := p.validateAPIGatewayFunctionsHaveNoIngresses(platformAPIGateway); err != nil {
-		return errors.Wrap(err, "Failed to validate api gateway functions have no ingresses")
+	if err := p.validateAPIGatewayIngresses(platformAPIGateway); err != nil {
+		return err
 	}
 
 	return nil
@@ -1165,7 +1165,7 @@ func (p *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config)
 		return err
 	}
 
-	return p.validateFunctionNoIngressAndAPIGateway(functionConfig)
+	return p.validateFunctionIngresses(functionConfig)
 }
 
 func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfig.Config) error {
@@ -1231,6 +1231,35 @@ func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.C
 	return trigger
 }
 
+func (p *Platform) validateIngressHostIsAvailable(namespace, host string) error {
+	ingresses, err := p.consumer.kubeClientSet.ExtensionsV1beta1().Ingresses(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to list ingresses")
+	}
+
+	for _, ingressInstance := range ingresses.Items {
+		for _, rule := range ingressInstance.Spec.Rules {
+			if host == rule.Host {
+				return nuclio.NewErrConflict("Ingress host is already in use")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *Platform) validateAPIGatewayIngresses(apiGatewayConfig *platform.APIGatewayConfig) error {
+	if err := p.validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig); err != nil {
+		return errors.Wrap(err, "Failed while validating api gateway functions have no ingresses")
+	}
+
+	if err := p.validateIngressHostIsAvailable(apiGatewayConfig.Meta.Namespace, apiGatewayConfig.Spec.Host); err != nil {
+		return errors.Wrap(err, "Failed while validating api gateway host is available")
+	}
+
+	return nil
+}
+
 func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *platform.APIGatewayConfig) error {
 
 	// check ingresses on every upstream function
@@ -1261,6 +1290,20 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *
 	}
 
 	return errGroup.Wait()
+}
+
+func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Config) error {
+	if err := p.validateFunctionNoIngressAndAPIGateway(functionConfig); err != nil {
+		return errors.Wrap(err, "Failed while validating function is not exposed both by internal ingresses and api gateway")
+	}
+
+	for _, ingressInstance := range functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers) {
+		if err := p.validateIngressHostIsAvailable(functionConfig.Meta.Namespace, ingressInstance.Host); err != nil {
+			return errors.Wrapf(err, "Failed while validating function ingress host: %s is available", ingressInstance.Host)
+		}
+	}
+
+	return nil
 }
 
 // validate that a function is not exposed inside http triggers, while it is also exposed by an api gateway
