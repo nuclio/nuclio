@@ -100,7 +100,8 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 
 type deleteProjectCommandeer struct {
 	*deleteCommandeer
-	projectMeta platform.ProjectMeta
+	projectMeta    platform.ProjectMeta
+	deleteStrategy string
 }
 
 func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProjectCommandeer {
@@ -128,11 +129,13 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 			commandeer.projectMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
 			return deleteCommandeer.rootCommandeer.platform.DeleteProject(&platform.DeleteProjectOptions{
-				Meta: commandeer.projectMeta,
+				Meta:     commandeer.projectMeta,
+				Strategy: platform.DeleteProjectStrategy(commandeer.deleteStrategy),
 			})
 		},
 	}
 
+	cmd.Flags().StringVar(&commandeer.deleteStrategy, "strategy", string(platform.DeleteProjectStrategyRestrict), `Project delete strategy; one of "restrict" (default), "cascade"`)
 	commandeer.cmd = cmd
 
 	return commandeer

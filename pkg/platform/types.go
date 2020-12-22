@@ -181,8 +181,22 @@ type UpdateProjectOptions struct {
 	ProjectConfig ProjectConfig
 }
 
+type DeleteProjectStrategy string
+
+const (
+
+	// DeleteProjectStrategyCascade - delete sub resources along with project leave no orphans behind
+	DeleteProjectStrategyCascade DeleteProjectStrategy = "cascade"
+
+	// DeleteProjectStrategyRestrict - avoid deleting when project contains sub resources (e.g.: functions)
+	DeleteProjectStrategyRestrict DeleteProjectStrategy = "restrict"
+
+	// TODO: add mode to delete sub resources prior to project deletion
+)
+
 type DeleteProjectOptions struct {
-	Meta ProjectMeta
+	Meta     ProjectMeta
+	Strategy DeleteProjectStrategy
 }
 
 type GetProjectsOptions struct {
@@ -233,7 +247,8 @@ type DeleteFunctionEventOptions struct {
 }
 
 type GetFunctionEventsOptions struct {
-	Meta FunctionEventMeta
+	Meta          FunctionEventMeta
+	FunctionNames []string
 }
 
 // to appease k8s

@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"sort"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -108,11 +109,17 @@ func (s *store) createOrUpdateFunctionEvent(functionEventConfig *platform.Functi
 	return s.serializeAndWriteFileContents(resourcePath, functionEventConfig)
 }
 
-func (s *store) getFunctionEvents(functionEventMeta *platform.FunctionEventMeta) ([]platform.FunctionEvent, error) {
+func (s *store) getFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
 	var functionEvents []platform.FunctionEvent
 
 	// get function filter
-	functionName := functionEventMeta.Labels["nuclio.io/function-name"]
+	functionName := getFunctionEventsOptions.Meta.Labels["nuclio.io/function-name"]
+	functionNames := getFunctionEventsOptions.FunctionNames
+	if len(functionNames) > 0 {
+
+		// make it easier to find
+		sort.Strings(functionNames)
+	}
 
 	rowHandler := func(row []byte) error {
 		newFunctionEvent := platform.AbstractFunctionEvent{}
@@ -130,12 +137,25 @@ func (s *store) getFunctionEvents(functionEventMeta *platform.FunctionEventMeta)
 			return nil
 		}
 
+		if len(functionNames) > 0 {
+
+			idx := sort.SearchStrings(functionNames, newFunctionEvent.GetConfig().Meta.Name)
+
+			// not in list
+			if idx == len(functionNames) || functionNames[idx] != newFunctionEvent.GetConfig().Meta.Name {
+				return nil
+			}
+		}
+
 		functionEvents = append(functionEvents, &newFunctionEvent)
 
 		return nil
 	}
 
-	err := s.getResources(functionEventsDir, functionEventMeta.Namespace, functionEventMeta.Name, rowHandler)
+	err := s.getResources(functionEventsDir,
+		getFunctionEventsOptions.Meta.Namespace,
+		getFunctionEventsOptions.Meta.Name,
+		rowHandler)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functionEvents")
 	}
@@ -179,8 +199,7 @@ func (s *store) getFunctions(functionMeta *functionconfig.Meta) ([]platform.Func
 		return nil
 	}
 
-	err := s.getResources(functionsDir, functionMeta.Namespace, functionMeta.Name, rowHandler)
-	if err != nil {
+	if err := s.getResources(functionsDir, functionMeta.Namespace, functionMeta.Name, rowHandler); err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 

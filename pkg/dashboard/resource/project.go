@@ -544,11 +544,10 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		}, err
 	}
 
-	deleteProjectOptions := platform.DeleteProjectOptions{}
-	deleteProjectOptions.Meta = *projectInfo.Meta
-
-	err = pr.getPlatform().DeleteProject(&deleteProjectOptions)
-	if err != nil {
+	if err = pr.getPlatform().DeleteProject(&platform.DeleteProjectOptions{
+		Meta:     *projectInfo.Meta,
+		Strategy: pr.resolveProjectDeleteStrategy(request),
+	}); err != nil {
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
 			StatusCode: common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError),
@@ -559,7 +558,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		ResourceType: "project",
 		Single:       true,
 		StatusCode:   http.StatusNoContent,
-	}, err
+	}, nil
 }
 
 func (pr *projectResource) updateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
@@ -708,6 +707,16 @@ func (pr *projectResource) enrichProjectImportInfoImportResources(projectImportI
 			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
 		}
 	}
+}
+
+func (pr *projectResource) resolveProjectDeleteStrategy(request *http.Request) platform.DeleteProjectStrategy {
+	deleteStrategy := request.Header.Get("x-nuclio-delete-project-strategy")
+	if deleteStrategy == "" {
+
+		// default behavior
+		deleteStrategy = string(platform.DeleteProjectStrategyRestrict)
+	}
+	return platform.DeleteProjectStrategy(deleteStrategy)
 }
 
 // register the resource

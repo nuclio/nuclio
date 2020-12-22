@@ -438,6 +438,8 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	p.platformProjectToProject(createProjectOptions.ProjectConfig, &newProject)
 
 	// create
+	p.Logger.InfoWith("Creating project",
+		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
 	if _, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(createProjectOptions.ProjectConfig.Meta.Namespace).
 		Create(&newProject); err != nil {
@@ -491,6 +493,16 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 			deleteProjectOptions.Meta.Namespace)
 	}
 
+	// delete project resources
+	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCascade {
+		go func() {
+			if err := p.DeleteProjectResources(deleteProjectOptions.Meta.Namespace,
+				deleteProjectOptions.Meta.Name); err != nil {
+				p.Logger.WarnWith("Failed to delete project resources",
+					"err", errors.GetErrorStackString(err, 10))
+			}
+		}()
+	}
 	return nil
 }
 
@@ -629,6 +641,8 @@ func (p *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIG
 	if err := p.validateAPIGatewayMeta(&deleteAPIGatewayOptions.Meta); err != nil {
 		return errors.Wrap(err, "Failed to validate api gateway meta")
 	}
+
+	p.Logger.DebugWith("Deleting api gateway", "name", deleteAPIGatewayOptions.Meta.Name)
 
 	// delete
 	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
@@ -801,6 +815,9 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 		// if function name specified, supply it
 		if functionName != "" {
 			labelSelector = fmt.Sprintf("nuclio.io/function-name=%s", functionName)
+		} else if len(getFunctionEventsOptions.FunctionNames) > 0 {
+			encodedFunctionNames := strings.Join(getFunctionEventsOptions.FunctionNames, ",")
+			labelSelector = fmt.Sprintf("nuclio.io/function-name in (%s)", encodedFunctionNames)
 		}
 
 		functionEventInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().

@@ -18,7 +18,9 @@ package abstract
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
+	builtinerrors "errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -40,6 +42,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"golang.org/x/sync/errgroup"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
@@ -337,8 +340,19 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 		return nuclio.NewErrConflict("Cannot delete the default project")
 	}
 
-	if err := ap.validateProjectIsEmpty(deleteProjectOptions.Meta.Namespace, projectName); err != nil {
-		return errors.Wrap(err, "Cannot delete non-empty project")
+	// ensure project have no sub resources
+	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyRestrict {
+
+		// validate project is empty (no related resources such as functions, api gateways, etc)
+		if err := ap.validateProjectIsEmpty(deleteProjectOptions.Meta.Namespace, projectName); err != nil {
+			if builtinerrors.Is(err, platform.ErrProjectContainsAPIGateways) ||
+				builtinerrors.Is(err, platform.ErrProjectContainsFunctions) {
+				ap.Logger.DebugWith("Project contains either functions or api gateways",
+					"projectName", projectName)
+				return nuclio.NewErrPreconditionFailed(err.Error())
+			}
+			return errors.Wrap(err, "Failed to delete project")
+		}
 	}
 
 	return nil
@@ -686,6 +700,85 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 	briefErrorsMessage = strings.Join(*briefErrorsArray, "\n")
 
 	return common.FixEscapeChars(formattedProcessorLogs), common.FixEscapeChars(briefErrorsMessage)
+}
+
+func (ap *Platform) GetProjectFunctions(namespace, projectName string) ([]platform.Function, error) {
+	return ap.platform.GetFunctions(&platform.GetFunctionsOptions{
+		Namespace: namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
+	})
+}
+
+func (ap *Platform) GetProjectAPIGateways(namespace, projectName string) ([]platform.APIGateway, error) {
+	apiGateways, err := ap.platform.GetAPIGateways(&platform.GetAPIGatewaysOptions{
+		Namespace: namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
+	})
+	if err != nil {
+
+		// if api gateways are not supported on this platform, ignore
+		if err == platform.ErrUnsupportedMethod {
+			return nil, nil
+		}
+
+		return nil, errors.Wrap(err, "Failed to get api gateways")
+	}
+	return apiGateways, nil
+}
+
+func (ap *Platform) DeleteProjectResources(namespace string, projectName string) error {
+	// NOTE: functions delete their related function events
+
+	ap.Logger.InfoWith("Deleting project resources",
+		"projectName", projectName,
+		"namespace", namespace)
+
+
+	// get functions
+	functions, err := ap.GetProjectFunctions(namespace, projectName)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get project functions")
+	}
+
+	// get api gateways
+	apiGateways, err := ap.GetProjectAPIGateways(namespace, projectName)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get project api gateways")
+	}
+
+	deleteAPIGatewaysErrGroup, _ := errgroup.WithContext(context.TODO())
+
+	// delete api gateways
+	for _, apiGateway := range apiGateways {
+		apiGateway := apiGateway
+		deleteAPIGatewaysErrGroup.Go(func() error {
+			if err := ap.platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{
+				Meta: apiGateway.GetConfig().Meta,
+			}); err != nil {
+				return errors.Wrapf(err, "Failed to delete api gateway '%s'", apiGateway.GetConfig().Meta.Name)
+			}
+			return nil
+		})
+	}
+	if err := deleteAPIGatewaysErrGroup.Wait(); err != nil {
+		return errors.Wrap(err, "Failed deleting project api gateways")
+	}
+
+	deleteFunctionsErrGroup, _ := errgroup.WithContext(context.TODO())
+
+	// delete functions
+	for _, function := range functions {
+		function := function
+		deleteFunctionsErrGroup.Go(func() error {
+			if err := ap.platform.DeleteFunction(&platform.DeleteFunctionOptions{
+				FunctionConfig: *function.GetConfig(),
+			}); err != nil {
+				return errors.Wrapf(err, "Failed to delete function '%s'", function.GetConfig().Meta.Name)
+			}
+			return nil
+		})
+	}
+	return deleteFunctionsErrGroup.Wait()
 }
 
 func (ap *Platform) aggregateConsecutiveDuplicateMessages(errorMessagesArray []string) []string {
@@ -1083,12 +1176,7 @@ func (ap *Platform) enrichMinMaxReplicas(functionConfig *functionconfig.Config) 
 func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error {
 
 	// validate the project has no functions
-	getFunctionsOptions := &platform.GetFunctionsOptions{
-		Namespace: namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
-	}
-
-	functions, err := ap.platform.GetFunctions(getFunctionsOptions)
+	functions, err := ap.GetProjectFunctions(namespace, projectName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get functions")
 	}
@@ -1098,19 +1186,8 @@ func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error 
 	}
 
 	// validate the project has no api gateways
-	getAPIGatewaysOptions := &platform.GetAPIGatewaysOptions{
-		Namespace: namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
-	}
-
-	apiGateways, err := ap.platform.GetAPIGateways(getAPIGatewaysOptions)
+	apiGateways, err := ap.GetProjectAPIGateways(namespace, projectName)
 	if err != nil {
-
-		// if api gateways are not supported on this platform, just ignore this validation
-		if err == platform.ErrUnsupportedMethod {
-			return nil
-		}
-
 		return errors.Wrap(err, "Failed to get api gateways")
 	}
 

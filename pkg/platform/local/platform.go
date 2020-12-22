@@ -367,6 +367,8 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	}
 
 	// create
+	p.Logger.InfoWith("Creating project",
+		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
 	return p.localStore.createOrUpdateProject(createProjectOptions.ProjectConfig)
 }
 
@@ -383,7 +385,23 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
 		return err
 	}
-	return p.localStore.deleteProject(&deleteProjectOptions.Meta)
+
+	if err := p.localStore.deleteProject(&deleteProjectOptions.Meta); err != nil {
+		return errors.Wrap(err, "Failed to delete project")
+	}
+
+	// delete project resources
+	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCascade {
+		go func() {
+			if err := p.DeleteProjectResources(deleteProjectOptions.Meta.Namespace,
+				deleteProjectOptions.Meta.Name); err != nil {
+				p.Logger.WarnWith("Failed to delete project resources",
+					"err", errors.GetErrorStackString(err, 10))
+			}
+		}()
+	}
+
+	return nil
 }
 
 // GetProjects will list existing projects
@@ -409,7 +427,7 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 
 // GetFunctionEvents will list existing function events
 func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
-	return p.localStore.getFunctionEvents(&getFunctionEventsOptions.Meta)
+	return p.localStore.getFunctionEvents(getFunctionEventsOptions)
 }
 
 // GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
@@ -668,11 +686,13 @@ func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions)
 		p.Logger.WarnWith("Failed to delete function from local store", "err", err.Error())
 	}
 
-	getFunctionEventsOptions := &platform.FunctionEventMeta{
-		Labels: map[string]string{
-			"nuclio.io/function-name": deleteFunctionOptions.FunctionConfig.Meta.Name,
+	getFunctionEventsOptions := &platform.GetFunctionEventsOptions{
+		Meta: platform.FunctionEventMeta{
+			Labels: map[string]string{
+				"nuclio.io/function-name": deleteFunctionOptions.FunctionConfig.Meta.Name,
+			},
+			Namespace: deleteFunctionOptions.FunctionConfig.Meta.Namespace,
 		},
-		Namespace: deleteFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
 	functionEvents, err := p.localStore.getFunctionEvents(getFunctionEventsOptions)
 	if err != nil {
