@@ -288,28 +288,9 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
-	var functions []platform.Function
-
-	// get project filter
-	projectName := common.StringToStringMap(getFunctionsOptions.Labels, "=")["nuclio.io/project-name"]
-
-	// get all the functions in the store. these functions represent both functions that are deployed
-	// and functions that failed to build
-	localStoreFunctions, err := p.localStore.getFunctions(&functionconfig.Meta{
-		Name:      getFunctionsOptions.Name,
-		Namespace: getFunctionsOptions.Namespace,
-	})
-
+	functions, err := p.localStore.getProjectFunctions(getFunctionsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read functions from local store")
-	}
-
-	// filter by project name
-	for _, localStoreFunction := range localStoreFunctions {
-		if projectName != "" && localStoreFunction.GetConfig().Meta.Labels["nuclio.io/project-name"] != projectName {
-			continue
-		}
-		functions = append(functions, localStoreFunction)
 	}
 
 	// enrich with build logs
@@ -384,16 +365,6 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
 		return err
-	}
-
-	// delete project resources
-	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCascading {
-
-		// when WaitForResourcesDeletionCompletion is false, err is always nil
-		if err := p.DeleteProjectResources(&deleteProjectOptions.Meta,
-			deleteProjectOptions.WaitForResourcesDeletionCompletion); err != nil {
-			return errors.Wrap(err, "Failed to delete project resources")
-		}
 	}
 
 	if err := p.localStore.deleteProject(&deleteProjectOptions.Meta); err != nil {

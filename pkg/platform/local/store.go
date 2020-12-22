@@ -18,6 +18,7 @@ package local
 
 import (
 	"bufio"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -25,6 +26,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -32,6 +34,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -95,6 +98,26 @@ func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 }
 
 func (s *store) deleteProject(projectMeta *platform.ProjectMeta) error {
+	functions, err := s.getProjectFunctions(&platform.GetFunctionsOptions{
+		Namespace: projectMeta.Namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get project functions")
+	}
+
+	// NOTE: functions delete their related function events
+	deleteFunctionsErrGroup, _ := errgroup.WithContext(context.TODO())
+	for _, function := range functions {
+		function := function
+		deleteFunctionsErrGroup.Go(func() error {
+			return s.deleteFunction(&function.GetConfig().Meta)
+		})
+	}
+	if err := deleteFunctionsErrGroup.Wait(); err != nil {
+		return errors.Wrap(err, "Failed to delete functions")
+	}
+
 	return s.deleteResource(projectsDir, projectMeta.Namespace, projectMeta.Name)
 }
 
@@ -152,12 +175,11 @@ func (s *store) getFunctionEvents(getFunctionEventsOptions *platform.GetFunction
 		return nil
 	}
 
-	err := s.getResources(functionEventsDir,
+	if err := s.getResources(functionEventsDir,
 		getFunctionEventsOptions.Meta.Namespace,
 		getFunctionEventsOptions.Meta.Name,
-		rowHandler)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get functionEvents")
+		rowHandler); err != nil {
+		return nil, errors.Wrap(err, "Failed to get function events")
 	}
 
 	return functionEvents, nil
@@ -176,6 +198,34 @@ func (s *store) createOrUpdateFunction(functionConfig *functionconfig.ConfigWith
 
 	// write the contents to that file name at the appropriate path
 	return s.serializeAndWriteFileContents(resourcePath, functionConfig)
+}
+
+func (s *store) getProjectFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+	var functions []platform.Function
+
+	// get project filter
+	projectName := common.StringToStringMap(getFunctionsOptions.Labels, "=")["nuclio.io/project-name"]
+
+	// get all the functions in the store. these functions represent both functions that are deployed
+	// and functions that failed to build
+	localStoreFunctions, err := s.getFunctions(&functionconfig.Meta{
+		Name:      getFunctionsOptions.Name,
+		Namespace: getFunctionsOptions.Namespace,
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read functions from local store")
+	}
+
+	// filter by project name
+	for _, localStoreFunction := range localStoreFunctions {
+		if projectName != "" && localStoreFunction.GetConfig().Meta.Labels["nuclio.io/project-name"] != projectName {
+			continue
+		}
+		functions = append(functions, localStoreFunction)
+	}
+
+	return functions, nil
 }
 
 func (s *store) getFunctions(functionMeta *functionconfig.Meta) ([]platform.Function, error) {
@@ -207,6 +257,31 @@ func (s *store) getFunctions(functionMeta *functionconfig.Meta) ([]platform.Func
 }
 
 func (s *store) deleteFunction(functionMeta *functionconfig.Meta) error {
+	functionEvents, err := s.getFunctionEvents(&platform.GetFunctionEventsOptions{
+		Meta: platform.FunctionEventMeta{
+			Labels: map[string]string{
+				"nuclio.io/function-name": functionMeta.Name,
+			},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function events")
+	}
+
+	deleteFunctionEventsErrGroup, _ := errgroup.WithContext(context.TODO())
+	for _, functionEvent := range functionEvents {
+		functionEvent := functionEvent
+		deleteFunctionEventsErrGroup.Go(func() error {
+			return s.deleteFunctionEvent(&functionEvent.GetConfig().Meta)
+		})
+	}
+
+	if err := deleteFunctionEventsErrGroup.Wait(); err != nil {
+		s.logger.WarnWith("Failed to delete function events, deleting function anyway",
+			"err", err)
+		return errors.Wrap(err, "Failed to delete function events")
+	}
+
 	return s.deleteResource(functionsDir, functionMeta.Namespace, functionMeta.Name)
 }
 

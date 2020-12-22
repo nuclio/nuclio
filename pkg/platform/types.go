@@ -207,9 +207,8 @@ type DeleteProjectOptions struct {
 	Meta     ProjectMeta
 	Strategy DeleteProjectStrategy
 
-	// used in conjunction with DeleteProjectStrategyCascading
-	// allowing us to "block" until related resources are (best-effort) removed
-	// allowing testings + clients that requires it (nuctl) to wait for process to complete before terminate
+	// allowing us to "block" until related resources are removed.
+	// used in testings
 	WaitForResourcesDeletionCompletion bool
 }
 

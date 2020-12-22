@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
@@ -484,16 +485,6 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return err
 	}
 
-	// delete project resources
-	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCascading {
-
-		// when WaitForResourcesDeletionCompletion is false, err is always nil
-		if err := p.DeleteProjectResources(&deleteProjectOptions.Meta,
-			deleteProjectOptions.WaitForResourcesDeletionCompletion); err != nil {
-			return errors.Wrap(err, "Failed to delete project resources")
-		}
-	}
-
 	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(deleteProjectOptions.Meta.Namespace).
 		Delete(deleteProjectOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
@@ -501,6 +492,29 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 			"Failed to delete project %s from namespace %s",
 			deleteProjectOptions.Meta.Name,
 			deleteProjectOptions.Meta.Namespace)
+	}
+
+	// run in testings
+	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
+		if err := common.RetryUntilSuccessful(1*time.Minute,
+			5*time.Second,
+			func() bool {
+				functions, APIGateways, err := p.GetProjectResources(&deleteProjectOptions.Meta)
+				if err != nil {
+					p.Platform.Logger.WarnWith("Failed to get project resources",
+						"err", err)
+					return false
+				}
+				if len(functions) > 0 || len(APIGateways) > 0 {
+					p.Platform.Logger.DebugWith("Waiting for project resources to be deleted",
+						"functionsLen", len(functions),
+						"apiGatewayLen", len(APIGateways))
+					return false
+				}
+				return true
+			}); err != nil {
+			return errors.Wrap(err, "Failed waiting for resource deletion, attempts exhausted")
+		}
 	}
 	return nil
 }

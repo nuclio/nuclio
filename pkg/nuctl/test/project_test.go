@@ -159,11 +159,10 @@ func (suite *projectGetTestSuite) TestDeleteWithFunctions() {
 
 func (suite *projectExportImportTestSuite) TestDeleteProject() {
 	for _, testCase := range []struct {
-		name                  string
-		importFunctions       bool
-		strategy              platform.DeleteProjectStrategy
-		expectedError         error
-		assertFunctionDeleted bool
+		name            string
+		importFunctions bool
+		strategy        platform.DeleteProjectStrategy
+		expectedError   error
 	}{
 		{
 			name:     "DeleteProjectCascading",
@@ -213,7 +212,7 @@ func (suite *projectExportImportTestSuite) TestDeleteProject() {
 			}
 
 			// delete project
-			err = suite.ExecuteNuctl([]string{"delete", "project", projectName}, map[string]string{
+			err = suite.ExecuteNuctl([]string{"delete", "project", projectName, "--wait"}, map[string]string{
 				"strategy": string(testCase.strategy),
 			})
 			if testCase.expectedError != nil {
@@ -223,9 +222,9 @@ func (suite *projectExportImportTestSuite) TestDeleteProject() {
 			}
 
 			suite.Require().NoError(err)
-			if testCase.assertFunctionDeleted {
+			if testCase.importFunctions {
 
-				// ensure functions are deleted
+				// ensure functions were deleted
 				for _, functionName := range functionNames {
 					err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, true)
 					suite.Require().NoError(err)

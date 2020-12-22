@@ -18,7 +18,6 @@ package abstract
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	builtinerrors "errors"
 	"fmt"
@@ -42,7 +41,6 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"golang.org/x/sync/errgroup"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
@@ -726,82 +724,23 @@ func (ap *Platform) GetProjectAPIGateways(projectMeta *platform.ProjectMeta) ([]
 	return apiGateways, nil
 }
 
-func (ap *Platform) DeleteProjectResources(projectMeta *platform.ProjectMeta, waitForDeletionCompletion bool) error {
-	ap.Logger.InfoWith("Deleting project resources",
-		"projectName", projectMeta.Name,
-		"namespace", projectMeta.Namespace)
-
-	doneChan := make(chan error, 1)
-	go func() {
-		if err := ap.deleteProjectResources(projectMeta); err != nil {
-
-			// no one waiting, print to log
-			if !waitForDeletionCompletion {
-				ap.Logger.WarnWith("Failed to delete project related resources",
-					"err", errors.GetErrorStackString(err, 10))
-			}
-
-			doneChan <- errors.Wrap(err, "Failed to delete project resources")
-		}
-		doneChan <- nil
-	}()
-
-	// For testing and clients that requires it (nuctl)
-	if waitForDeletionCompletion {
-		return <-doneChan
-	}
-	return nil
-}
-
-func (ap *Platform) deleteProjectResources(projectMeta *platform.ProjectMeta) error {
-	// NOTE: functions delete their related function events
+func (ap *Platform) GetProjectResources(projectMeta *platform.ProjectMeta) ([]platform.Function,
+	[]platform.APIGateway,
+	error) {
 
 	// get functions
 	functions, err := ap.GetProjectFunctions(projectMeta)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get project functions")
+		return nil, nil, errors.Wrap(err, "Failed to get project functions")
 	}
 
 	// get api gateways
 	apiGateways, err := ap.GetProjectAPIGateways(projectMeta)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get project api gateways")
+		return nil, nil, errors.Wrap(err, "Failed to get project api gateways")
 	}
 
-	deleteAPIGatewaysErrGroup, _ := errgroup.WithContext(context.TODO())
-
-	// delete api gateways
-	// TODO: consider removing in batches
-	for _, apiGateway := range apiGateways {
-		apiGateway := apiGateway
-		deleteAPIGatewaysErrGroup.Go(func() error {
-			if err := ap.platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{
-				Meta: apiGateway.GetConfig().Meta,
-			}); err != nil {
-				return errors.Wrapf(err, "Failed to delete api gateway '%s'", apiGateway.GetConfig().Meta.Name)
-			}
-			return nil
-		})
-	}
-	if err := deleteAPIGatewaysErrGroup.Wait(); err != nil {
-		return errors.Wrap(err, "Failed deleting project api gateways")
-	}
-
-	deleteFunctionsErrGroup, _ := errgroup.WithContext(context.TODO())
-
-	// delete functions
-	for _, function := range functions {
-		function := function
-		deleteFunctionsErrGroup.Go(func() error {
-			if err := ap.platform.DeleteFunction(&platform.DeleteFunctionOptions{
-				FunctionConfig: *function.GetConfig(),
-			}); err != nil {
-				return errors.Wrapf(err, "Failed to delete function '%s'", function.GetConfig().Meta.Name)
-			}
-			return nil
-		})
-	}
-	return deleteFunctionsErrGroup.Wait()
+	return functions, apiGateways, nil
 }
 
 func (ap *Platform) aggregateConsecutiveDuplicateMessages(errorMessagesArray []string) []string {

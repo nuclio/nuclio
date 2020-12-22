@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -82,8 +83,46 @@ func (po *projectOperator) CreateOrUpdate(ctx context.Context, object runtime.Ob
 
 // Delete handles delete of an object
 func (po *projectOperator) Delete(ctx context.Context, namespace string, name string) error {
-	po.logger.DebugWith("Deleted", "namespace", namespace, "name", name)
+	po.logger.InfoWith("Deleting project resources", "namespace", namespace, "projectName", name)
 
+	projectNameLabelSelector := fmt.Sprintf("nuclio.io/project-name=%s", name)
+
+	// delete api gateways
+	if err := po.controller.nuclioClientSet.
+		NuclioV1beta1().
+		NuclioAPIGateways(namespace).
+		DeleteCollection(&metav1.DeleteOptions{},
+			metav1.ListOptions{
+				LabelSelector: projectNameLabelSelector,
+			}); err != nil {
+		po.logger.WarnWith("Failed to delete project api gateway",
+			"namespace", namespace,
+			"projectName", name,
+			"err", err)
+		return errors.Wrap(err, "Failed to delete project api gateways")
+	}
+
+	// NOTE: functions delete their related function events
+	// delete nuclio functions
+	if err := po.controller.nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(namespace).
+		DeleteCollection(&metav1.DeleteOptions{},
+			metav1.ListOptions{
+				LabelSelector: projectNameLabelSelector,
+			}); err != nil {
+
+		po.logger.WarnWith("Failed to delete project functions",
+			"namespace", namespace,
+			"projectName", name,
+			"err", err)
+		return errors.Wrap(err, "Failed to delete project functions")
+	}
+
+	// done
+	po.logger.DebugWith("Successfully deleted project resources",
+		"namespace", namespace,
+		"projectName", name)
 	return nil
 }
 
