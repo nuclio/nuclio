@@ -100,8 +100,8 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 
 type deleteProjectCommandeer struct {
 	*deleteCommandeer
-	projectMeta    platform.ProjectMeta
-	deleteStrategy string
+	projectMeta      platform.ProjectMeta
+	deletionStrategy string
 }
 
 func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProjectCommandeer {
@@ -130,7 +130,7 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 
 			return deleteCommandeer.rootCommandeer.platform.DeleteProject(&platform.DeleteProjectOptions{
 				Meta:     commandeer.projectMeta,
-				Strategy: platform.ResolveProjectDeleteStrategyOrRestricted(commandeer.deleteStrategy),
+				Strategy: platform.ResolveProjectDeletionStrategyOrDefault(commandeer.deletionStrategy),
 
 				// if strategy allows it, wait for project resources being deleted
 				WaitForResourcesDeletionCompletion: true,
@@ -138,7 +138,7 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 		},
 	}
 
-	cmd.Flags().StringVar(&commandeer.deleteStrategy, "strategy", string(platform.DeleteProjectStrategyRestricted), `Project delete strategy; one of "restricted" (default), "cascading"`)
+	cmd.Flags().StringVar(&commandeer.deletionStrategy, "strategy", string(platform.DeleteProjectStrategyRestricted), `Project deletion strategy; one of "restricted" (default), "cascading"`)
 	commandeer.cmd = cmd
 
 	return commandeer

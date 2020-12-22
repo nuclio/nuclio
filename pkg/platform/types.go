@@ -185,17 +185,15 @@ type DeleteProjectStrategy string
 
 const (
 
-	// DeleteProjectStrategyCascading - delete sub resources along with project leave no orphans behind
+	// DeleteProjectStrategyCascading - delete sub resources prior to project deletion, leaving no orphans behind
 	DeleteProjectStrategyCascading DeleteProjectStrategy = "cascading"
 
 	// DeleteProjectStrategyRestricted - avoid deleting when project contains related resources (e.g.: functions)
 	DeleteProjectStrategyRestricted DeleteProjectStrategy = "restricted"
-
-	// TODO: add mode to delete sub resources prior to project deletion
 )
 
-func ResolveProjectDeleteStrategyOrRestricted(projectDeleteStrategy string) DeleteProjectStrategy {
-	switch strategy := DeleteProjectStrategy(projectDeleteStrategy); strategy {
+func ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy string) DeleteProjectStrategy {
+	switch strategy := DeleteProjectStrategy(projectDeletionStrategy); strategy {
 	case DeleteProjectStrategyCascading, DeleteProjectStrategyRestricted:
 		return strategy
 	default:

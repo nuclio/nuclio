@@ -386,16 +386,22 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return err
 	}
 
-	if err := p.localStore.deleteProject(&deleteProjectOptions.Meta); err != nil {
-		return errors.Wrap(err, "Failed to delete project")
-	}
-
 	// delete project resources
 	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCascading {
-		return p.DeleteProjectResources(&deleteProjectOptions.Meta,
-			deleteProjectOptions.WaitForResourcesDeletionCompletion)
+
+		// when WaitForResourcesDeletionCompletion is false, err is always nil
+		if err := p.DeleteProjectResources(&deleteProjectOptions.Meta,
+			deleteProjectOptions.WaitForResourcesDeletionCompletion); err != nil {
+			return errors.Wrap(err, "Failed to delete project resources")
+		}
 	}
 
+	if err := p.localStore.deleteProject(&deleteProjectOptions.Meta); err != nil {
+		return errors.Wrapf(err,
+			"Failed to delete project %s from namespace %s",
+			deleteProjectOptions.Meta.Name,
+			deleteProjectOptions.Meta.Namespace)
+	}
 	return nil
 }
 

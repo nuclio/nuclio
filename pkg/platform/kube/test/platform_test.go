@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -783,44 +782,20 @@ func (suite *ProjectTestSuite) TestDeleteCascading() {
 	// create 2 functions (deleted along with `projectToDeleteConfig`)
 
 	// create function A
-	functionToDeleteA := suite.CompileCreateFunctionOptions("func-to-delete-a")
-	functionToDeleteA.FunctionConfig.Meta.Annotations = map[string]string{
-		functionconfig.FunctionAnnotationSkipBuild:  "true",
-		functionconfig.FunctionAnnotationSkipDeploy: "true",
-	}
-	functionToDeleteA.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = projectToDeleteConfig.Meta.Name
-	suite.PopulateDeployOptions(functionToDeleteA)
-	_, err = suite.Platform.CreateFunction(functionToDeleteA)
-	suite.Require().NoError(err)
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
-		FunctionConfig: functionToDeleteA.FunctionConfig,
-	})
-	suite.WaitForFunctionState(&platform.GetFunctionsOptions{
-		Name:      functionToDeleteA.FunctionConfig.Meta.Name,
-		Namespace: suite.Namespace,
-	}, functionconfig.FunctionStateImported, time.Minute)
+	functionToDeleteA := suite.CreateImportedFunction("func-to-delete-a", projectToDeleteConfig.Meta.Name)
+	functionToDeleteB := suite.CreateImportedFunction("func-to-delete-b", projectToDeleteConfig.Meta.Name)
 
-	// create function B
-	functionToDeleteB := suite.CompileCreateFunctionOptions("func-to-delete-b")
-	functionToDeleteB.FunctionConfig.Meta.Annotations = map[string]string{
-		functionconfig.FunctionAnnotationSkipBuild:  "true",
-		functionconfig.FunctionAnnotationSkipDeploy: "true",
-	}
-	functionToDeleteB.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = projectToDeleteConfig.Meta.Name
-	suite.PopulateDeployOptions(functionToDeleteB)
-	_, err = suite.Platform.CreateFunction(functionToDeleteB)
-	suite.Require().NoError(err)
+	// delete leftovers
 	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
-		FunctionConfig: functionToDeleteB.FunctionConfig,
+		FunctionConfig: *functionToDeleteA,
 	})
-	suite.WaitForFunctionState(&platform.GetFunctionsOptions{
-		Name:      functionToDeleteB.FunctionConfig.Meta.Name,
-		Namespace: suite.Namespace,
-	}, functionconfig.FunctionStateImported, time.Minute)
+	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+		FunctionConfig: *functionToDeleteB,
+	})
 
 	// create api gateway for function A (deleted along with `projectToDeleteConfig`)
 	createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions("apigw-to-delete",
-		functionToDeleteA.FunctionConfig.Meta.Name)
+		functionToDeleteA.Meta.Name)
 	createAPIGatewayOptions.APIGatewayConfig.Meta.Labels["nuclio.io/project-name"] = projectToDeleteConfig.Meta.Name
 	err = suite.Platform.CreateAPIGateway(createAPIGatewayOptions)
 	suite.Require().NoError(err)
@@ -834,8 +809,7 @@ func (suite *ProjectTestSuite) TestDeleteCascading() {
 	}, platform.APIGatewayStateReady, 10*time.Second)
 
 	// create 2 function events for function B (deleted along with `projectToDeleteConfig`)
-	functionEventA := suite.CompileCreateFunctionEventOptions("function-event-a",
-		functionToDeleteB.FunctionConfig.Meta.Name)
+	functionEventA := suite.CompileCreateFunctionEventOptions("function-event-a", functionToDeleteB.Meta.Name)
 	err = suite.Platform.CreateFunctionEvent(functionEventA)
 	suite.Require().NoError(err)
 	defer suite.Platform.DeleteFunctionEvent(&platform.DeleteFunctionEventOptions{ // nolint: errcheck
@@ -845,8 +819,7 @@ func (suite *ProjectTestSuite) TestDeleteCascading() {
 		},
 	})
 
-	functionEventB := suite.CompileCreateFunctionEventOptions("function-event-b",
-		functionToDeleteB.FunctionConfig.Meta.Name)
+	functionEventB := suite.CompileCreateFunctionEventOptions("function-event-b", functionToDeleteB.Meta.Name)
 	err = suite.Platform.CreateFunctionEvent(functionEventB)
 	suite.Require().NoError(err)
 	defer suite.Platform.DeleteFunctionEvent(&platform.DeleteFunctionEventOptions{ // nolint: errcheck
@@ -872,7 +845,8 @@ func (suite *ProjectTestSuite) TestDeleteCascading() {
 			Name:      projectToDeleteConfig.Meta.Name,
 			Namespace: suite.Namespace,
 		},
-		Strategy: platform.DeleteProjectStrategyCascading,
+		Strategy:                           platform.DeleteProjectStrategyCascading,
+		WaitForResourcesDeletionCompletion: true,
 	})
 	suite.Require().NoError(err)
 
@@ -889,40 +863,24 @@ func (suite *ProjectTestSuite) TestDeleteCascading() {
 	suite.Logger.InfoWith("Ensuring resources were removed (deletion is being executed in background")
 
 	// ensure api gateway deleted
-	err = common.RetryUntilSuccessful(time.Minute, 3*time.Second, func() bool {
-		apiGateways, err := suite.Platform.GetAPIGateways(&platform.GetAPIGatewaysOptions{
-			Name:      createAPIGatewayOptions.APIGatewayConfig.Meta.Name,
-			Namespace: suite.Namespace,
-		})
-		suite.Require().NoError(err)
-		exists := len(apiGateways) == 0
-		if exists {
-			suite.Logger.DebugWith("Waiting for api gateway to be deleted",
-				"name", createAPIGatewayOptions.APIGatewayConfig.Meta.Name)
-		}
-		return len(apiGateways) == 0
+	apiGateways, err := suite.Platform.GetAPIGateways(&platform.GetAPIGatewaysOptions{
+		Name:      createAPIGatewayOptions.APIGatewayConfig.Meta.Name,
+		Namespace: suite.Namespace,
 	})
 	suite.Require().NoError(err)
+	suite.Require().Len(apiGateways, 0, "Some api gateways were not removed")
 
 	// ensure functions were deleted successfully
 	for _, functionName := range []string{
-		functionToDeleteA.FunctionConfig.Meta.Name,
-		functionToDeleteB.FunctionConfig.Meta.Name,
+		functionToDeleteA.Meta.Name,
+		functionToDeleteB.Meta.Name,
 	} {
-		err = common.RetryUntilSuccessful(time.Minute, 3*time.Second, func() bool {
-			functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
-				Name:      functionName,
-				Namespace: suite.Namespace,
-			})
-			suite.Require().NoError(err)
-			exists := len(functions) == 0
-			if exists {
-				suite.Logger.DebugWith("Waiting for function to be deleted",
-					"name", createAPIGatewayOptions.APIGatewayConfig.Meta.Name)
-			}
-			return len(functions) == 0
+		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+			Name:      functionName,
+			Namespace: suite.Namespace,
 		})
 		suite.Require().NoError(err)
+		suite.Require().Len(functions, 0, "Some functions were not removed")
 	}
 
 	// ensure function events were deleted successfully
@@ -930,22 +888,14 @@ func (suite *ProjectTestSuite) TestDeleteCascading() {
 		functionEventA.FunctionEventConfig.Meta.Name,
 		functionEventB.FunctionEventConfig.Meta.Name,
 	} {
-		err = common.RetryUntilSuccessful(time.Minute, 3*time.Second, func() bool {
-			functionEvents, err := suite.Platform.GetFunctionEvents(&platform.GetFunctionEventsOptions{
-				Meta: platform.FunctionEventMeta{
-					Name:      functionEventName,
-					Namespace: suite.Namespace,
-				},
-			})
-			suite.Require().NoError(err)
-			exists := len(functionEvents) == 0
-			if exists {
-				suite.Logger.DebugWith("Waiting for function event to be deleted",
-					"name", createAPIGatewayOptions.APIGatewayConfig.Meta.Name)
-			}
-			return len(functionEvents) == 0
+		functionEvents, err := suite.Platform.GetFunctionEvents(&platform.GetFunctionEventsOptions{
+			Meta: platform.FunctionEventMeta{
+				Name:      functionEventName,
+				Namespace: suite.Namespace,
+			},
 		})
 		suite.Require().NoError(err)
+		suite.Require().Len(functionEvents, 0, "Some function events were not removed")
 	}
 }
 

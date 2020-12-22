@@ -484,6 +484,16 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return err
 	}
 
+	// delete project resources
+	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCascading {
+
+		// when WaitForResourcesDeletionCompletion is false, err is always nil
+		if err := p.DeleteProjectResources(&deleteProjectOptions.Meta,
+			deleteProjectOptions.WaitForResourcesDeletionCompletion); err != nil {
+			return errors.Wrap(err, "Failed to delete project resources")
+		}
+	}
+
 	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(deleteProjectOptions.Meta.Namespace).
 		Delete(deleteProjectOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
@@ -491,12 +501,6 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 			"Failed to delete project %s from namespace %s",
 			deleteProjectOptions.Meta.Name,
 			deleteProjectOptions.Meta.Namespace)
-	}
-
-	// delete project resources
-	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCascading {
-		return p.DeleteProjectResources(&deleteProjectOptions.Meta,
-			deleteProjectOptions.WaitForResourcesDeletionCompletion)
 	}
 	return nil
 }

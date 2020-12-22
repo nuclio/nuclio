@@ -351,7 +351,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 					"projectName", projectName)
 				return nuclio.NewErrPreconditionFailed(err.Error())
 			}
-			return errors.Wrap(err, "Failed to delete project")
+			return errors.Wrap(err, "Failed to validate whether a project has no related resources")
 		}
 	}
 
@@ -750,7 +750,6 @@ func (ap *Platform) DeleteProjectResources(projectMeta *platform.ProjectMeta, wa
 	if waitForDeletionCompletion {
 		return <-doneChan
 	}
-
 	return nil
 }
 
@@ -772,6 +771,7 @@ func (ap *Platform) deleteProjectResources(projectMeta *platform.ProjectMeta) er
 	deleteAPIGatewaysErrGroup, _ := errgroup.WithContext(context.TODO())
 
 	// delete api gateways
+	// TODO: consider removing in batches
 	for _, apiGateway := range apiGateways {
 		apiGateway := apiGateway
 		deleteAPIGatewaysErrGroup.Go(func() error {

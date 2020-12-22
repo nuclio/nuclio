@@ -272,6 +272,23 @@ func (suite *KubeTestSuite) GetResourceAndUnmarshal(resourceKind, resourceName s
 	suite.Require().NoError(err)
 }
 
+func (suite *KubeTestSuite) CreateImportedFunction(functionName, projectName string) *functionconfig.Config {
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
+		functionconfig.FunctionAnnotationSkipBuild:  "true",
+		functionconfig.FunctionAnnotationSkipDeploy: "true",
+	}
+	createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = projectName
+	suite.PopulateDeployOptions(createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(createFunctionOptions)
+	suite.Require().NoError(err)
+	suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+		Namespace: suite.Namespace,
+	}, functionconfig.FunctionStateImported, time.Minute)
+	return &createFunctionOptions.FunctionConfig
+}
+
 func (suite *KubeTestSuite) WaitForFunctionDeployment(functionName string,
 	duration time.Duration,
 	callback func(*appsv1.Deployment) bool) {
