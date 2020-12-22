@@ -64,16 +64,16 @@ func (ts *IsURLTestSuite) TestGetPathFromLocalFileURL() {
 
 func (ts *IsURLTestSuite) TestNormalizeURLPath() {
 	for inputPath, expectedOutputPath := range map[string]string{
-		"": "/",
-		"/": "/",
-		"//": "/",
-		"/////": "/",
-		"a": "/a/",
-		"/a": "/a/",
-		"/a/b": "/a/b/",
-		"a//b////c": "/a/b/c/",
+		"":                     "/",
+		"/":                    "/",
+		"//":                   "/",
+		"/////":                "/",
+		"a":                    "/a/",
+		"/a":                   "/a/",
+		"/a/b":                 "/a/b/",
+		"a//b////c":            "/a/b/c/",
 		"/////a////bb/////ccc": "/a/bb/ccc/",
-		"a/b/c/////": "/a/b/c/",
+		"a/b/c/////":           "/a/b/c/",
 	} {
 		ts.Assert().Equal(expectedOutputPath, NormalizeURLPath(inputPath))
 	}

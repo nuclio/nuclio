@@ -81,7 +81,7 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 	suite.kubeClientSet = *fake.NewSimpleClientset()
 	consumer := &consumer{
 		nuclioClientSet: suite.nuclioioInterfaceMock,
-		kubeClientSet: &suite.kubeClientSet,
+		kubeClientSet:   &suite.kubeClientSet,
 	}
 
 	getter, err := newGetter(suite.Logger, suite.Platform)
@@ -113,10 +113,10 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 		expectedEnrichedTriggers map[string]functionconfig.Trigger
 
 		// keep empty when no error is expected
-		validationError          string
+		validationError string
 	}{
 		{
-			name: "EnrichWithDefaultHTTPTrigger",
+			name:     "EnrichWithDefaultHTTPTrigger",
 			triggers: nil,
 			expectedEnrichedTriggers: func() map[string]functionconfig.Trigger {
 				defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
@@ -133,8 +133,8 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			setUpFunction: func() error {
 				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:        "some-name",
-						Namespace:   suite.Namespace,
+						Name:      "some-name",
+						Namespace: suite.Namespace,
 					},
 					Spec: extensionsv1beta1.IngressSpec{
 						Rules: []extensionsv1beta1.IngressRule{
@@ -159,7 +159,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 				suite.kubeClientSet = *fake.NewSimpleClientset()
 				return nil
 			},
-			triggers: map[string]functionconfig.Trigger {
+			triggers: map[string]functionconfig.Trigger{
 				"http-with-ingress": {
 					Kind: "http",
 					Attributes: map[string]interface{}{
@@ -178,8 +178,8 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			setUpFunction: func() error {
 				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:        "some-name",
-						Namespace:   suite.Namespace,
+						Name:      "some-name",
+						Namespace: suite.Namespace,
 					},
 					Spec: extensionsv1beta1.IngressSpec{
 						Rules: []extensionsv1beta1.IngressRule{
@@ -204,7 +204,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 				suite.kubeClientSet = *fake.NewSimpleClientset()
 				return nil
 			},
-			triggers: map[string]functionconfig.Trigger {
+			triggers: map[string]functionconfig.Trigger{
 				"http-with-ingress": {
 					Kind: "http",
 					Attributes: map[string]interface{}{
@@ -306,7 +306,6 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// keep empty when shouldn't fail
 		validationError string
-
 	}{
 		{
 			name: "SpecNameEnrichedFromMetaName",
@@ -493,8 +492,8 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			setUpFunction: func() error {
 				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:        "some-name",
-						Namespace:   suite.Namespace,
+						Name:      "some-name",
+						Namespace: suite.Namespace,
 					},
 					Spec: extensionsv1beta1.IngressSpec{
 						Rules: []extensionsv1beta1.IngressRule{
@@ -531,8 +530,8 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			setUpFunction: func() error {
 				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:        "some-name",
-						Namespace:   suite.Namespace,
+						Name:      "some-name",
+						Namespace: suite.Namespace,
 					},
 					Spec: extensionsv1beta1.IngressSpec{
 						Rules: []extensionsv1beta1.IngressRule{
