@@ -343,11 +343,11 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 	// ensure project have no sub resources
 	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyRestricted {
 
-		// validate project is empty (no related resources such as functions, api gateways, etc)
-		if err := ap.validateProjectIsEmpty(deleteProjectOptions.Meta.Namespace, projectName); err != nil {
+		// validate project has no related resources such as functions, api gateways, etc
+		if err := ap.validateProjectHasNoRelatedResources(&deleteProjectOptions.Meta); err != nil {
 			if builtinerrors.Is(err, platform.ErrProjectContainsAPIGateways) ||
 				builtinerrors.Is(err, platform.ErrProjectContainsFunctions) {
-				ap.Logger.DebugWith("The project is not empty",
+				ap.Logger.DebugWith("The project has related resources",
 					"projectName", projectName)
 				return nuclio.NewErrPreconditionFailed(err.Error())
 			}
@@ -702,17 +702,17 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 	return common.FixEscapeChars(formattedProcessorLogs), common.FixEscapeChars(briefErrorsMessage)
 }
 
-func (ap *Platform) GetProjectFunctions(namespace, projectName string) ([]platform.Function, error) {
+func (ap *Platform) GetProjectFunctions(projectMeta *platform.ProjectMeta) ([]platform.Function, error) {
 	return ap.platform.GetFunctions(&platform.GetFunctionsOptions{
-		Namespace: namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
+		Namespace: projectMeta.Namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
 	})
 }
 
-func (ap *Platform) GetProjectAPIGateways(namespace, projectName string) ([]platform.APIGateway, error) {
+func (ap *Platform) GetProjectAPIGateways(projectMeta *platform.ProjectMeta) ([]platform.APIGateway, error) {
 	apiGateways, err := ap.platform.GetAPIGateways(&platform.GetAPIGatewaysOptions{
-		Namespace: namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
+		Namespace: projectMeta.Namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
 	})
 	if err != nil {
 
@@ -726,14 +726,14 @@ func (ap *Platform) GetProjectAPIGateways(namespace, projectName string) ([]plat
 	return apiGateways, nil
 }
 
-func (ap *Platform) DeleteProjectResources(namespace string, projectName string, waitForDeletionCompletion bool) error {
+func (ap *Platform) DeleteProjectResources(projectMeta *platform.ProjectMeta, waitForDeletionCompletion bool) error {
 	ap.Logger.InfoWith("Deleting project resources",
-		"projectName", projectName,
-		"namespace", namespace)
+		"projectName", projectMeta.Name,
+		"namespace", projectMeta.Namespace)
 
 	doneChan := make(chan error, 1)
 	go func() {
-		if err := ap.deleteProjectResources(namespace, projectName); err != nil {
+		if err := ap.deleteProjectResources(projectMeta); err != nil {
 
 			// no one waiting, print to log
 			if !waitForDeletionCompletion {
@@ -754,17 +754,17 @@ func (ap *Platform) DeleteProjectResources(namespace string, projectName string,
 	return nil
 }
 
-func (ap *Platform) deleteProjectResources(namespace, projectName string) error {
+func (ap *Platform) deleteProjectResources(projectMeta *platform.ProjectMeta) error {
 	// NOTE: functions delete their related function events
 
 	// get functions
-	functions, err := ap.GetProjectFunctions(namespace, projectName)
+	functions, err := ap.GetProjectFunctions(projectMeta)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get project functions")
 	}
 
 	// get api gateways
-	apiGateways, err := ap.GetProjectAPIGateways(namespace, projectName)
+	apiGateways, err := ap.GetProjectAPIGateways(projectMeta)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get project api gateways")
 	}
@@ -1196,10 +1196,10 @@ func (ap *Platform) enrichMinMaxReplicas(functionConfig *functionconfig.Config) 
 	}
 }
 
-func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error {
+func (ap *Platform) validateProjectHasNoRelatedResources(projectMeta *platform.ProjectMeta) error {
 
 	// validate the project has no functions
-	functions, err := ap.GetProjectFunctions(namespace, projectName)
+	functions, err := ap.GetProjectFunctions(projectMeta)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get functions")
 	}
@@ -1209,7 +1209,7 @@ func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error 
 	}
 
 	// validate the project has no api gateways
-	apiGateways, err := ap.GetProjectAPIGateways(namespace, projectName)
+	apiGateways, err := ap.GetProjectAPIGateways(projectMeta)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get api gateways")
 	}
