@@ -391,7 +391,7 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 	}
 
 	// delete project resources
-	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCascade {
+	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCascading {
 		return p.DeleteProjectResources(deleteProjectOptions.Meta.Namespace,
 			deleteProjectOptions.Meta.Name,
 			deleteProjectOptions.WaitForResourcesDeletionCompletion)

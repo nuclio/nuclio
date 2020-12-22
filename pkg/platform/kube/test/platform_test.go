@@ -658,7 +658,7 @@ func (suite *ProjectTestSuite) TestCreate() {
 	defer func() {
 		err = suite.Platform.DeleteProject(&platform.DeleteProjectOptions{
 			Meta:     projectConfig.Meta,
-			Strategy: platform.DeleteProjectStrategyRestrict,
+			Strategy: platform.DeleteProjectStrategyRestricted,
 		})
 		suite.Require().NoError(err, "Failed to delete project")
 	}()
@@ -702,7 +702,7 @@ func (suite *ProjectTestSuite) TestUpdate() {
 	defer func() {
 		err = suite.Platform.DeleteProject(&platform.DeleteProjectOptions{
 			Meta:     projectConfig.Meta,
-			Strategy: platform.DeleteProjectStrategyRestrict,
+			Strategy: platform.DeleteProjectStrategyRestricted,
 		})
 		suite.Require().NoError(err, "Failed to delete project")
 	}()
@@ -754,7 +754,7 @@ func (suite *ProjectTestSuite) TestDelete() {
 	// delete project
 	err = suite.Platform.DeleteProject(&platform.DeleteProjectOptions{
 		Meta:     projectConfig.Meta,
-		Strategy: platform.DeleteProjectStrategyRestrict,
+		Strategy: platform.DeleteProjectStrategyRestricted,
 	})
 	suite.Require().NoError(err, "Failed to delete project")
 
@@ -766,7 +766,7 @@ func (suite *ProjectTestSuite) TestDelete() {
 	suite.Require().Equal(len(projects), 0)
 }
 
-func (suite *ProjectTestSuite) TestDeleteCascade() {
+func (suite *ProjectTestSuite) TestDeleteCascading() {
 
 	// create project
 	projectToDeleteConfig := platform.ProjectConfig{
@@ -862,17 +862,17 @@ func (suite *ProjectTestSuite) TestDeleteCascade() {
 			Name:      projectToDeleteConfig.Meta.Name,
 			Namespace: suite.Namespace,
 		},
-		Strategy: platform.DeleteProjectStrategyRestrict,
+		Strategy: platform.DeleteProjectStrategyRestricted,
 	})
 	suite.Require().Error(err)
 
-	// try cascade - expect it succeed
+	// try cascading - expect it succeed
 	err = suite.Platform.DeleteProject(&platform.DeleteProjectOptions{
 		Meta: platform.ProjectMeta{
 			Name:      projectToDeleteConfig.Meta.Name,
 			Namespace: suite.Namespace,
 		},
-		Strategy: platform.DeleteProjectStrategyCascade,
+		Strategy: platform.DeleteProjectStrategyCascading,
 	})
 	suite.Require().NoError(err)
 

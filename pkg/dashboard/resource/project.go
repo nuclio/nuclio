@@ -546,7 +546,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 
 	if err = pr.getPlatform().DeleteProject(&platform.DeleteProjectOptions{
 		Meta:     *projectInfo.Meta,
-		Strategy: platform.ProjectDeleteStrategyOrRestrict(request.Header.Get("x-nuclio-delete-project-strategy")),
+		Strategy: platform.ResolveProjectDeleteStrategyOrRestricted(request.Header.Get("x-nuclio-delete-project-strategy")),
 	}); err != nil {
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,

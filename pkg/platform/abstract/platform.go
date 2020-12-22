@@ -341,7 +341,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 	}
 
 	// ensure project have no sub resources
-	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyRestrict {
+	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyRestricted {
 
 		// validate project is empty (no related resources such as functions, api gateways, etc)
 		if err := ap.validateProjectIsEmpty(deleteProjectOptions.Meta.Namespace, projectName); err != nil {

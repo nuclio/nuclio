@@ -185,23 +185,23 @@ type DeleteProjectStrategy string
 
 const (
 
-	// DeleteProjectStrategyCascade - delete sub resources along with project leave no orphans behind
-	DeleteProjectStrategyCascade DeleteProjectStrategy = "cascade"
+	// DeleteProjectStrategyCascading - delete sub resources along with project leave no orphans behind
+	DeleteProjectStrategyCascading DeleteProjectStrategy = "cascading"
 
-	// DeleteProjectStrategyRestrict - avoid deleting when project contains sub resources (e.g.: functions)
-	DeleteProjectStrategyRestrict DeleteProjectStrategy = "restrict"
+	// DeleteProjectStrategyRestricted - avoid deleting when project contains related resources (e.g.: functions)
+	DeleteProjectStrategyRestricted DeleteProjectStrategy = "restricted"
 
 	// TODO: add mode to delete sub resources prior to project deletion
 )
 
-func ProjectDeleteStrategyOrRestrict(projectDeleteStrategy string) DeleteProjectStrategy {
+func ResolveProjectDeleteStrategyOrRestricted(projectDeleteStrategy string) DeleteProjectStrategy {
 	switch strategy := DeleteProjectStrategy(projectDeleteStrategy); strategy {
-	case DeleteProjectStrategyCascade, DeleteProjectStrategyRestrict:
+	case DeleteProjectStrategyCascading, DeleteProjectStrategyRestricted:
 		return strategy
 	default:
 
 		// default
-		return DeleteProjectStrategyRestrict
+		return DeleteProjectStrategyRestricted
 	}
 }
 
@@ -209,7 +209,7 @@ type DeleteProjectOptions struct {
 	Meta     ProjectMeta
 	Strategy DeleteProjectStrategy
 
-	// used in conjunction with DeleteProjectStrategyCascade
+	// used in conjunction with DeleteProjectStrategyCascading
 	// allowing us to "block" until related resources are (best-effort) removed
 	// allowing testings + clients that requires it (nuctl) to wait for process to complete before terminate
 	WaitForResourcesDeletionCompletion bool

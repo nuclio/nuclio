@@ -166,22 +166,22 @@ func (suite *projectExportImportTestSuite) TestDeleteProject() {
 		assertFunctionDeleted bool
 	}{
 		{
-			name:     "DeleteProjectCascade",
-			strategy: platform.DeleteProjectStrategyCascade,
+			name:     "DeleteProjectCascading",
+			strategy: platform.DeleteProjectStrategyCascading,
 		},
 		{
-			name:     "DeleteProjectRestrict",
-			strategy: platform.DeleteProjectStrategyRestrict,
+			name:     "DeleteProjectRestricted",
+			strategy: platform.DeleteProjectStrategyRestricted,
 		},
 		{
 			name:            "DeleteProjectWithFunctions",
 			importFunctions: true,
-			strategy:        platform.DeleteProjectStrategyCascade,
+			strategy:        platform.DeleteProjectStrategyCascading,
 		},
 		{
 			name:            "FailDeleteProjectWithFunctions",
 			importFunctions: true,
-			strategy:        platform.DeleteProjectStrategyRestrict,
+			strategy:        platform.DeleteProjectStrategyRestricted,
 			expectedError:   nuclio.NewErrPreconditionFailed(platform.ErrProjectContainsFunctions.Error()),
 		},
 	} {
