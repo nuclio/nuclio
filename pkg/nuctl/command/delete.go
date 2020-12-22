@@ -131,6 +131,9 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 			return deleteCommandeer.rootCommandeer.platform.DeleteProject(&platform.DeleteProjectOptions{
 				Meta:     commandeer.projectMeta,
 				Strategy: platform.ProjectDeleteStrategyOrRestrict(commandeer.deleteStrategy),
+
+				// if strategy allows it, wait for project resources being deleted
+				WaitForResourcesDeletionCompletion: true,
 			})
 		},
 	}

@@ -495,13 +495,9 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 
 	// delete project resources
 	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCascade {
-		go func() {
-			if err := p.DeleteProjectResources(deleteProjectOptions.Meta.Namespace,
-				deleteProjectOptions.Meta.Name); err != nil {
-				p.Logger.WarnWith("Failed to delete project resources",
-					"err", errors.GetErrorStackString(err, 10))
-			}
-		}()
+		return p.DeleteProjectResources(deleteProjectOptions.Meta.Namespace,
+			deleteProjectOptions.Meta.Name,
+			deleteProjectOptions.WaitForResourcesDeletionCompletion)
 	}
 	return nil
 }

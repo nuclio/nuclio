@@ -726,13 +726,36 @@ func (ap *Platform) GetProjectAPIGateways(namespace, projectName string) ([]plat
 	return apiGateways, nil
 }
 
-func (ap *Platform) DeleteProjectResources(namespace string, projectName string) error {
-	// NOTE: functions delete their related function events
-
+func (ap *Platform) DeleteProjectResources(namespace string, projectName string, waitForDeletionCompletion bool) error {
 	ap.Logger.InfoWith("Deleting project resources",
 		"projectName", projectName,
 		"namespace", namespace)
 
+	doneChan := make(chan error, 1)
+	go func() {
+		if err := ap.deleteProjectResources(namespace, projectName); err != nil {
+
+			// no one waiting, print to log
+			if !waitForDeletionCompletion {
+				ap.Logger.WarnWith("Failed to delete project related resources",
+					"err", errors.GetErrorStackString(err, 10))
+			}
+
+			doneChan <- errors.Wrap(err, "Failed to delete project resources")
+		}
+		doneChan <- nil
+	}()
+
+	// For testing and clients that requires it (nuctl)
+	if waitForDeletionCompletion {
+		return <-doneChan
+	}
+
+	return nil
+}
+
+func (ap *Platform) deleteProjectResources(namespace, projectName string) error {
+	// NOTE: functions delete their related function events
 
 	// get functions
 	functions, err := ap.GetProjectFunctions(namespace, projectName)

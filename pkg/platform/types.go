@@ -208,6 +208,11 @@ func ProjectDeleteStrategyOrRestrict(projectDeleteStrategy string) DeleteProject
 type DeleteProjectOptions struct {
 	Meta     ProjectMeta
 	Strategy DeleteProjectStrategy
+
+	// used in conjunction with DeleteProjectStrategyCascade
+	// allowing us to "block" until related resources are (best-effort) removed
+	// allowing testings + clients that requires it (nuctl) to wait for process to complete before terminate
+	WaitForResourcesDeletionCompletion bool
 }
 
 type GetProjectsOptions struct {
