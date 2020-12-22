@@ -373,6 +373,12 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 			deleteProjectOptions.Meta.Name,
 			deleteProjectOptions.Meta.Namespace)
 	}
+
+	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
+		return p.Platform.WaitForProjectResourcesDeletion(&deleteProjectOptions.Meta,
+			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration)
+	}
+
 	return nil
 }
 

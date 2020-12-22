@@ -24,7 +24,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
@@ -494,27 +493,9 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 			deleteProjectOptions.Meta.Namespace)
 	}
 
-	// run in testings
 	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
-		if err := common.RetryUntilSuccessful(1*time.Minute,
-			5*time.Second,
-			func() bool {
-				functions, APIGateways, err := p.GetProjectResources(&deleteProjectOptions.Meta)
-				if err != nil {
-					p.Platform.Logger.WarnWith("Failed to get project resources",
-						"err", err)
-					return false
-				}
-				if len(functions) > 0 || len(APIGateways) > 0 {
-					p.Platform.Logger.DebugWith("Waiting for project resources to be deleted",
-						"functionsLen", len(functions),
-						"apiGatewayLen", len(APIGateways))
-					return false
-				}
-				return true
-			}); err != nil {
-			return errors.Wrap(err, "Failed waiting for resource deletion, attempts exhausted")
-		}
+		return p.Platform.WaitForProjectResourcesDeletion(&deleteProjectOptions.Meta,
+			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration)
 	}
 	return nil
 }

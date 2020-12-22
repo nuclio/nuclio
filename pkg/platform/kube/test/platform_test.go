@@ -847,6 +847,7 @@ func (suite *ProjectTestSuite) TestDeleteCascading() {
 		},
 		Strategy:                           platform.DeleteProjectStrategyCascading,
 		WaitForResourcesDeletionCompletion: true,
+		WaitForResourcesDeletionCompletionDuration: 3 * time.Minute,
 	})
 	suite.Require().NoError(err)
 

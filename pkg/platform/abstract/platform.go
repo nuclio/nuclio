@@ -700,6 +700,48 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 	return common.FixEscapeChars(formattedProcessorLogs), common.FixEscapeChars(briefErrorsMessage)
 }
 
+func (ap *Platform) WaitForProjectResourcesDeletion(projectMeta *platform.ProjectMeta, duration time.Duration) error {
+	if err := common.RetryUntilSuccessful(duration,
+		5*time.Second,
+		func() bool {
+			functions, APIGateways, err := ap.GetProjectResources(projectMeta)
+			if err != nil {
+				ap.Logger.WarnWith("Failed to get project resources",
+					"err", err)
+				return false
+			}
+			if len(functions) > 0 || len(APIGateways) > 0 {
+				ap.Logger.DebugWith("Waiting for project resources to be deleted",
+					"functionsLen", len(functions),
+					"apiGatewayLen", len(APIGateways))
+				return false
+			}
+			return true
+		}); err != nil {
+		return errors.Wrap(err, "Failed waiting for resource deletion, attempts exhausted")
+	}
+	return nil
+}
+
+func (ap *Platform) GetProjectResources(projectMeta *platform.ProjectMeta) ([]platform.Function,
+	[]platform.APIGateway,
+	error) {
+
+	// get functions
+	functions, err := ap.GetProjectFunctions(projectMeta)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to get project functions")
+	}
+
+	// get api gateways
+	apiGateways, err := ap.GetProjectAPIGateways(projectMeta)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to get project api gateways")
+	}
+
+	return functions, apiGateways, nil
+}
+
 func (ap *Platform) GetProjectFunctions(projectMeta *platform.ProjectMeta) ([]platform.Function, error) {
 	return ap.platform.GetFunctions(&platform.GetFunctionsOptions{
 		Namespace: projectMeta.Namespace,
@@ -722,25 +764,6 @@ func (ap *Platform) GetProjectAPIGateways(projectMeta *platform.ProjectMeta) ([]
 		return nil, errors.Wrap(err, "Failed to get api gateways")
 	}
 	return apiGateways, nil
-}
-
-func (ap *Platform) GetProjectResources(projectMeta *platform.ProjectMeta) ([]platform.Function,
-	[]platform.APIGateway,
-	error) {
-
-	// get functions
-	functions, err := ap.GetProjectFunctions(projectMeta)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to get project functions")
-	}
-
-	// get api gateways
-	apiGateways, err := ap.GetProjectAPIGateways(projectMeta)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to get project api gateways")
-	}
-
-	return functions, apiGateways, nil
 }
 
 func (ap *Platform) aggregateConsecutiveDuplicateMessages(errorMessagesArray []string) []string {

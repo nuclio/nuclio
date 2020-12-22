@@ -19,6 +19,7 @@ package platform
 // use k8s structure definitions for now. In the future, duplicate them for cleanliness
 import (
 	"net/http"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
@@ -209,7 +210,8 @@ type DeleteProjectOptions struct {
 
 	// allowing us to "block" until related resources are removed.
 	// used in testings
-	WaitForResourcesDeletionCompletion bool
+	WaitForResourcesDeletionCompletion         bool
+	WaitForResourcesDeletionCompletionDuration time.Duration
 }
 
 type GetProjectsOptions struct {
