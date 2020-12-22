@@ -4,21 +4,20 @@
     angular.module('nuclio.app')
         .component('versionDataWrapper', {
             bindings: {
-                containers: '<',
+                project: '<',
                 version: '<'
             },
             templateUrl: 'data-wrappers/version-data-wrapper/version-data-wrapper.tpl.html',
             controller: VersionDataWrapperController
         });
 
-    function VersionDataWrapperController(NuclioFunctionsDataService, NuclioProjectsDataService) {
+    function VersionDataWrapperController(NuclioFunctionsDataService) {
         var ctrl = this;
 
         ctrl.createFunction = createFunction;
         ctrl.deleteFunction = deleteFunction;
         ctrl.getFunction = getFunction;
         ctrl.getFunctions = getFunctions;
-        ctrl.getProject = getProject;
         ctrl.updateFunction = updateFunction;
 
         //
@@ -60,15 +59,6 @@
          */
         function getFunctions(id) {
             return NuclioFunctionsDataService.getFunctions(id);
-        }
-
-        /**
-         * Gets a list of all project
-         * @param {string} id - project ID
-         * @returns {Promise}
-         */
-        function getProject(id) {
-            return NuclioProjectsDataService.getProject(id);
         }
 
         /**

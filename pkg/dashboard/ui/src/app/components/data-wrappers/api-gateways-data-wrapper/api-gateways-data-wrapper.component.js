@@ -3,12 +3,14 @@
 
     angular.module('nuclio.app')
         .component('apiGatewaysDataWrapper', {
+            bindings: {
+                project: '<'
+            },
             templateUrl: 'data-wrappers/api-gateways-data-wrapper/api-gateways-data-wrapper.tpl.html',
             controller: ApiGatewaysDataWrapperController
         });
 
-    function ApiGatewaysDataWrapperController(NuclioApiGatewaysDataService, NuclioFunctionsDataService,
-                                              NuclioProjectsDataService) {
+    function ApiGatewaysDataWrapperController(NuclioApiGatewaysDataService, NuclioFunctionsDataService) {
         var ctrl = this;
 
         ctrl.createApiGateway = createApiGateway;
@@ -16,7 +18,6 @@
         ctrl.getApiGateway = getApiGateway;
         ctrl.getApiGateways = getApiGateways;
         ctrl.getFunctions = getFunctions;
-        ctrl.getProject = getProject;
         ctrl.updateApiGateway = updateApiGateway;
 
         //
@@ -67,15 +68,6 @@
          */
         function getFunctions(projectName) {
             return NuclioFunctionsDataService.getFunctions(projectName);
-        }
-
-        /**
-         * Gets a project
-         * @param {string} projectId
-         * @returns {Promise}
-         */
-        function getProject(projectId) {
-            return NuclioProjectsDataService.getProject(projectId);
         }
 
         /**

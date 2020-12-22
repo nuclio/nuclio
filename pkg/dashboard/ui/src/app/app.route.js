@@ -4,7 +4,7 @@
     angular.module('nuclio.app')
         .config(routes);
 
-    function routes($stateProvider, $urlRouterProvider) {
+    function routes($stateProvider, $urlRouterProvider, lodash) {
         $urlRouterProvider.deferIntercept();
 
         $stateProvider
@@ -89,13 +89,30 @@
                 data: {
                     pageTitle: 'common:FUNCTIONS',
                     mainHeaderTitle: 'common:FUNCTIONS'
+                },
+                resolve: {
+                    project: [
+                        'DialogsService', 'NuclioProjectsDataService', '$i18next', '$state', '$stateParams', 'i18next',
+                        function (DialogsService, NuclioProjectsDataService, $i18next, $state, $stateParams, i18next) {
+                            return NuclioProjectsDataService.getProject($stateParams.projectId)
+                                .catch(function (error) {
+                                    var defaultMsg =
+                                        $i18next.t('functions:ERROR_MSG.GET_PROJECT', { lng: i18next.language });
+
+                                    return DialogsService.alert(lodash.get(error, 'data.error', defaultMsg))
+                                        .then(function () {
+                                            $state.go('app.projects');
+                                        });
+                                });
+                        }
+                    ]
                 }
             })
             .state('app.project.functions', {
                 url: '/functions',
                 views: {
                     project: {
-                        template: '<functions-data-wrapper></functions-data-wrapper>'
+                        template: '<functions-data-wrapper data-project="$resolve.project"></functions-data-wrapper>'
                     }
                 },
                 data: {
@@ -107,7 +124,8 @@
                 url: '/api-gateways',
                 views: {
                     project: {
-                        template: '<api-gateways-data-wrapper></api-gateways-data-wrapper>'
+                        template: '<api-gateways-data-wrapper data-project="$resolve.project"> ' +
+                            '</api-gateways-data-wrapper>'
                     }
                 },
                 data: {
@@ -154,27 +172,28 @@
                 },
                 resolve: {
                     function: [
-                        'FunctionsService', 'NuclioFunctionsDataService', 'NuclioProjectsDataService', '$state', '$stateParams',
-                        function (FunctionsService, NuclioFunctionsDataService, NuclioProjectsDataService, $state, $stateParams) {
-                            return NuclioProjectsDataService.getProject($stateParams.projectId)
-                                .then(function (project) {
-                                    if ($stateParams.isNewFunction) {
-                                        return angular.copy($stateParams.functionData);
-                                    }
+                        'DialogsService', 'FunctionsService', 'NuclioFunctionsDataService', 'project', '$i18next',
+                        '$state', '$stateParams', 'i18next',
+                        function (DialogsService, FunctionsService, NuclioFunctionsDataService, project, $i18next,
+                            $state, $stateParams, i18next) {
+                            if ($stateParams.isNewFunction) {
+                                return angular.copy($stateParams.functionData);
+                            }
 
-                                    var functionMetadata = {
-                                        name: $stateParams.functionId,
-                                        namespace: project.metadata.namespace,
-                                        projectName: project.metadata.name
-                                    };
+                            var functionMetadata = {
+                                name: $stateParams.functionId,
+                                namespace: project.metadata.namespace,
+                                projectName: project.metadata.name
+                            };
 
-                                    return NuclioFunctionsDataService.getFunction(functionMetadata)
-                                        .catch(function () {
-                                            $state.go('app.project.functions', {projectId: $stateParams.projectId});
+                            return NuclioFunctionsDataService.getFunction(functionMetadata)
+                                .catch(function (error) {
+                                    var defaultMsg =
+                                        $i18next.t('functions:ERROR_MSG.GET_FUNCTION', { lng: i18next.language });
+                                    return DialogsService.alert(lodash.get(error, 'data.error', defaultMsg))
+                                        .then(function () {
+                                            $state.go('app.project.functions', { projectId: $stateParams.projectId });
                                         });
-                                })
-                                .catch(function () {
-                                    $state.go('app.projects');
                                 });
                         }
                     ]
@@ -185,8 +204,8 @@
                 url: '',
                 views: {
                     'function': {
-                        template: '<version-data-wrapper data-version="$resolve.function"' +
-                            'data-containers="$resolve.containers"></version-data-wrapper>'
+                        template: '<version-data-wrapper data-project="$resolve.project" ' +
+                            'data-version="$resolve.function"></version-data-wrapper>'
                     }
                 },
                 params: {
@@ -229,8 +248,7 @@
                 url: '/triggers',
                 views: {
                     version: {
-                        template: '<ncl-version-triggers data-version="$ctrl.version"' +
-                            'data-containers="$ctrl.containers"></ncl-version-triggers>'
+                        template: '<ncl-version-triggers data-version="$ctrl.version"></ncl-version-triggers>'
                     }
                 },
                 params: {
@@ -256,12 +274,9 @@
             });
 
         $urlRouterProvider
-            .when('/projects/:id', '/projects/:id/functions')
-            .when('/control-panel', '/control-panel/logs')
-            .when('/storage-pools/:id', '/storage-pools/:id/overview')
-            .when('/projects/', '/projects')
-            .when('/projects/:id', '/projects/:id/functions')
             .when('/projects/:id/functions/:functionId', '/projects/:id/functions/:functionId/code')
+            .when('/projects/:id', '/projects/:id/functions')
+            .when('/projects/', '/projects')
 
             .otherwise(function ($injector) {
                 $injector.get('$state').go('app.projects');
