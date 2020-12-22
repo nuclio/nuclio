@@ -130,7 +130,7 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 
 			return deleteCommandeer.rootCommandeer.platform.DeleteProject(&platform.DeleteProjectOptions{
 				Meta:     commandeer.projectMeta,
-				Strategy: platform.DeleteProjectStrategy(commandeer.deleteStrategy),
+				Strategy: platform.ProjectDeleteStrategyOrRestrict(commandeer.deleteStrategy),
 			})
 		},
 	}

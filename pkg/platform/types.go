@@ -194,6 +194,17 @@ const (
 	// TODO: add mode to delete sub resources prior to project deletion
 )
 
+func ProjectDeleteStrategyOrRestrict(projectDeleteStrategy string) DeleteProjectStrategy {
+	switch strategy := DeleteProjectStrategy(projectDeleteStrategy); strategy {
+	case DeleteProjectStrategyCascade, DeleteProjectStrategyRestrict:
+		return strategy
+	default:
+
+		// default
+		return DeleteProjectStrategyRestrict
+	}
+}
+
 type DeleteProjectOptions struct {
 	Meta     ProjectMeta
 	Strategy DeleteProjectStrategy
