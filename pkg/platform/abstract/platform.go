@@ -347,7 +347,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 		if err := ap.validateProjectIsEmpty(deleteProjectOptions.Meta.Namespace, projectName); err != nil {
 			if builtinerrors.Is(err, platform.ErrProjectContainsAPIGateways) ||
 				builtinerrors.Is(err, platform.ErrProjectContainsFunctions) {
-				ap.Logger.DebugWith("Project contains either functions or api gateways",
+				ap.Logger.DebugWith("The project is not empty",
 					"projectName", projectName)
 				return nuclio.NewErrPreconditionFailed(err.Error())
 			}
