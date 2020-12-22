@@ -199,62 +199,17 @@ func (suite *projectExportImportTestSuite) TestDeleteProject() {
 			suite.Require().NoError(err)
 
 			if testCase.importFunctions {
-				function1Name := "test-function-a-" + uniqueID
-				function2Name := "test-function-b-" + uniqueID
-				functionsToImport := `%[1]s:
-  metadata:
-    labels:
-      nuclio.io/project-name: %[3]s
-    annotations:
-      skip-build: "true"
-      skip-deploy: "true"
-    name: %[1]s
-  spec:
-    build:
-      codeEntryType: sourceCode
-      functionSourceCode: ZWNobyAidGVzdDEi
-      noBaseImagesPull: true
-    handler: main.sh
-    runtime: shell
-%[2]s:
-  metadata:
-    labels:
-      nuclio.io/project-name: %[3]s
-    annotations:
-      skip-build: "true"
-      skip-deploy: "true"
-    name: %[2]s
-  spec:
-    build:
-      codeEntryType: sourceCode
-      functionSourceCode: ZWNobyAidGVzdDEi
-      noBaseImagesPull: true
-    handler: main.sh
-    runtime: shell
-`
-				functionsToImportEncoded := fmt.Sprintf(functionsToImport,
-					function1Name,
-					function2Name,
-					projectName)
-				suite.inputBuffer = *bytes.NewBufferString(functionsToImportEncoded)
+				functionNames = append(functionNames,
+					"test-function-a-"+uniqueID,
+					"test-function-b-"+uniqueID)
+				suite.createImportedFunctions(projectName, functionNames...)
 
 				// ensure deleted
-				defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil) // nolint: errcheck
-				defer suite.ExecuteNuctl([]string{"delete", "fu", function2Name}, nil) // nolint: errcheck
-
-				// import the project
-				err := suite.ExecuteNuctl([]string{
-					"import",
-					"functions",
-					"--verbose",
-				}, nil)
-				suite.Require().NoError(err)
-				functionNames = append(functionNames, function1Name, function2Name)
-
-				// wait for functions to be imported
-				for _, functionName := range functionNames {
-					suite.waitForFunctionState(functionName, functionconfig.FunctionStateImported)
-				}
+				defer func() {
+					for _, functionName := range functionNames {
+						suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+					}
+				}()
 			}
 
 			// delete project
@@ -279,6 +234,48 @@ func (suite *projectExportImportTestSuite) TestDeleteProject() {
 			}
 		})
 	}
+}
+
+func (suite *projectExportImportTestSuite) createImportedFunctions(projectName string, functionNames ...string) {
+	functionToImportTemplate := `%[1]s:
+  metadata:
+    labels:
+      nuclio.io/project-name: %[2]s
+    annotations:
+      skip-build: "true"
+      skip-deploy: "true"
+    name: %[1]s
+  spec:
+    build:
+      codeEntryType: sourceCode
+      functionSourceCode: ZWNobyAidGVzdDEi
+      noBaseImagesPull: true
+    handler: main.sh
+    runtime: shell`
+
+	functionsToImportEncoded := ""
+	for _, functionName := range functionNames {
+		functionToImportEncoded := fmt.Sprintf(functionToImportTemplate, functionName, projectName)
+		functionsToImportEncoded += fmt.Sprintf("\n%s", functionToImportEncoded)
+	}
+	suite.inputBuffer = *bytes.NewBufferString(functionsToImportEncoded)
+
+	// import the project
+	err := suite.ExecuteNuctl([]string{
+		"import",
+		"functions",
+		"--verbose",
+	}, nil)
+	suite.Require().NoError(err)
+
+	// wait for functions to be imported
+	for _, functionName := range functionNames {
+		suite.waitForFunctionState(functionName, functionconfig.FunctionStateImported)
+	}
+
+	// reset buffer
+	suite.inputBuffer.Reset()
+
 }
 
 type projectExportImportTestSuite struct {
