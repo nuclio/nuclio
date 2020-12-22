@@ -62,6 +62,23 @@ func (ts *IsURLTestSuite) TestGetPathFromLocalFileURL() {
 	ts.Require().Equal("/path/to/file", GetPathFromLocalFileURL("file://path/to/file"))
 }
 
+func (ts *IsURLTestSuite) TestNormalizeURLPath() {
+	for inputPath, expectedOutputPath := range map[string]string{
+		"": "/",
+		"/": "/",
+		"//": "/",
+		"/////": "/",
+		"a": "/a/",
+		"/a": "/a/",
+		"/a/b": "/a/b/",
+		"a//b////c": "/a/b/c/",
+		"/////a////bb/////ccc": "/a/bb/ccc/",
+		"a/b/c/////": "/a/b/c/",
+	} {
+		ts.Assert().Equal(expectedOutputPath, NormalizeURLPath(inputPath))
+	}
+}
+
 func (ts *DownloadFileTestSuite) TestDownloadFile() {
 	content := "content"
 	errResult := ts.testDownloadFile(func(req *http.Request) (*http.Response, error) {

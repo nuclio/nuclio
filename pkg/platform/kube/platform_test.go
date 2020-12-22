@@ -21,8 +21,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 type KubePlatformTestSuite struct {
@@ -32,6 +34,7 @@ type KubePlatformTestSuite struct {
 	nuclioFunctionInterfaceMock   *mocks.NuclioFunctionInterface
 	nuclioAPIGatewayInterfaceMock *mocks.NuclioAPIGatewayInterface
 	nuclioioInterfaceMock         *mocks.Interface
+	kubeClientSet                 fake.Clientset
 	Namespace                     string
 	Logger                        logger.Logger
 	Platform                      *Platform
@@ -75,8 +78,10 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 		On("NuclioAPIGateways", suite.Namespace).
 		Return(suite.nuclioAPIGatewayInterfaceMock)
 
+	suite.kubeClientSet = *fake.NewSimpleClientset()
 	consumer := &consumer{
 		nuclioClientSet: suite.nuclioioInterfaceMock,
+		kubeClientSet: &suite.kubeClientSet,
 	}
 
 	getter, err := newGetter(suite.Logger, suite.Platform)
@@ -167,6 +172,8 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 	for _, testCase := range []struct {
 		name             string
+		setUpFunction    func() error
+		tearDownFunction func() error
 		apiGatewayConfig *platform.APIGatewayConfig
 
 		// keep empty to skip the enrichment validation
@@ -177,6 +184,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// keep empty when shouldn't fail
 		validationError string
+
 	}{
 		{
 			name: "SpecNameEnrichedFromMetaName",
@@ -358,8 +366,91 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			},
 			validationError: "Api gateway upstream function: function-with-ingresses-2 must not have an ingress",
 		},
+		{
+			name: "ValidateHostIsAvailableHappyFlow",
+			setUpFunction: func() error {
+				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "some-name",
+						Namespace:   suite.Namespace,
+					},
+					Spec: extensionsv1beta1.IngressSpec{
+						Rules: []extensionsv1beta1.IngressRule{
+							{
+								Host: "this-host-and-path-are-used.com",
+								IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+									HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+										Paths: []extensionsv1beta1.HTTPIngressPath{
+											{
+												Path: "different-path/",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				})
+				return nil
+			},
+			tearDownFunction: func() error {
+				suite.kubeClientSet = *fake.NewSimpleClientset()
+				return nil
+			},
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				apiGatewayConfig.Spec.Host = "this-host-and-path-are-used.com"
+				apiGatewayConfig.Spec.Path = "//same-path"
+				return &apiGatewayConfig
+			}(),
+		},
+		{
+			name: "ValidateHostAndPathAreAlreadyInUse",
+			setUpFunction: func() error {
+				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "some-name",
+						Namespace:   suite.Namespace,
+					},
+					Spec: extensionsv1beta1.IngressSpec{
+						Rules: []extensionsv1beta1.IngressRule{
+							{
+								Host: "this-host-and-path-are-used.com",
+								IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+									HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+										Paths: []extensionsv1beta1.HTTPIngressPath{
+											{
+												Path: "same-path/",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				})
+				return nil
+			},
+			tearDownFunction: func() error {
+				suite.kubeClientSet = *fake.NewSimpleClientset()
+				return nil
+			},
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				apiGatewayConfig.Spec.Host = "this-host-and-path-are-used.com"
+				apiGatewayConfig.Spec.Path = "//same-path"
+				return &apiGatewayConfig
+			}(),
+			validationError: "Ingress host and path are already in use",
+		},
 	} {
 		suite.Run(testCase.name, func() {
+
+			// run test case specific set up function if given
+			if testCase.setUpFunction != nil {
+				err := testCase.setUpFunction()
+				suite.Require().NoError(err)
+			}
 
 			// run enrichment
 			suite.Platform.EnrichAPIGatewayConfig(testCase.apiGatewayConfig)
@@ -395,6 +486,12 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				suite.Assert().Equal(testCase.validationError, errors.RootCause(err).Error())
 			} else {
 				suite.Assert().NoError(err)
+			}
+
+			// run test case specific tear down function if given
+			if testCase.tearDownFunction != nil {
+				err := testCase.tearDownFunction()
+				suite.Require().NoError(err)
 			}
 		})
 	}

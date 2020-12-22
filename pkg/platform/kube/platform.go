@@ -1231,16 +1231,37 @@ func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.C
 	return trigger
 }
 
-func (p *Platform) validateIngressHostIsAvailable(namespace, host string) error {
+func (p *Platform) validateIngressHostAndPathAvailability(namespace, host, path string) error {
+	conflictErr := nuclio.NewErrConflict("Ingress host and path are already in use")
+	normalizedPath := common.NormalizeURLPath(path)
+
+	// get all ingresses on the namespace
 	ingresses, err := p.consumer.kubeClientSet.ExtensionsV1beta1().Ingresses(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to list ingresses")
 	}
 
+	// iterate over all ingresses to see if any of them matches host+path from args
 	for _, ingressInstance := range ingresses.Items {
 		for _, rule := range ingressInstance.Spec.Rules {
 			if host == rule.Host {
-				return nuclio.NewErrConflict("Ingress host is already in use")
+
+				// if rule HTTP struct is nil - return conflict error only if the path is empty
+				if rule.HTTP == nil {
+					if normalizedPath == "/" {
+						return conflictErr
+					}
+
+					// rule host HTTP struct is nil - continue to the next rule
+					continue
+				}
+
+				// check if one of the paths matches our path
+				for _, pathInstance := range rule.HTTP.Paths {
+					if normalizedPath == common.NormalizeURLPath(pathInstance.Path) {
+						return conflictErr
+					}
+				}
 			}
 		}
 	}
@@ -1253,8 +1274,8 @@ func (p *Platform) validateAPIGatewayIngresses(apiGatewayConfig *platform.APIGat
 		return errors.Wrap(err, "Failed while validating api gateway functions have no ingresses")
 	}
 
-	if err := p.validateIngressHostIsAvailable(apiGatewayConfig.Meta.Namespace, apiGatewayConfig.Spec.Host); err != nil {
-		return errors.Wrap(err, "Failed while validating api gateway host is available")
+	if err := p.validateIngressHostAndPathAvailability(apiGatewayConfig.Meta.Namespace, apiGatewayConfig.Spec.Host, apiGatewayConfig.Spec.Path); err != nil {
+		return errors.Wrap(err, "Failed while validating api gateway host and path availability")
 	}
 
 	return nil
@@ -1298,8 +1319,10 @@ func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Conf
 	}
 
 	for _, ingressInstance := range functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers) {
-		if err := p.validateIngressHostIsAvailable(functionConfig.Meta.Namespace, ingressInstance.Host); err != nil {
-			return errors.Wrapf(err, "Failed while validating function ingress host: %s is available", ingressInstance.Host)
+		for _, path := range ingressInstance.Paths {
+			if err := p.validateIngressHostAndPathAvailability(functionConfig.Meta.Namespace, ingressInstance.Host, path); err != nil {
+				return errors.Wrapf(err, "Failed while validating function ingress host and path availability")
+			}
 		}
 	}
 

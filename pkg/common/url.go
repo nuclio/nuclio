@@ -87,3 +87,22 @@ func GetPathFromLocalFileURL(s string) string {
 	}
 	return ""
 }
+
+// Normalizes URL Path
+// examples:
+// "" -> "/"
+// "a" -> "/a/"
+// "//a//b/c/" -> "/a/b/c/"
+func NormalizeURLPath(p string) string {
+
+	splitPath := strings.Split(p,"/")
+
+	// filter empty strings - so we won't get "//" inside the path
+	splitPath = FilterStringArray(splitPath, func(s string) bool {return s != ""})
+	jointPath := strings.Join(splitPath, "/")
+
+	if jointPath == "" {
+		return "/"
+	}
+	return fmt.Sprintf("/%s/", jointPath)
+}
