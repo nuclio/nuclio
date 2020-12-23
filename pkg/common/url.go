@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/valyala/fasthttp"
 )
 
 const (
@@ -94,14 +96,14 @@ func GetPathFromLocalFileURL(s string) string {
 // "a" -> "/a/"
 // "//a//b/c/" -> "/a/b/c/"
 func NormalizeURLPath(p string) string {
-	splitPath := strings.Split(p, "/")
+	uri := fasthttp.URI{}
+	uri.SetPath(p)
+	res := uri.Path()
 
-	// filter empty strings - so we won't get "//" inside the path
-	splitPath = FilterStringArray(splitPath, func(s string) bool { return s != "" })
-	jointPath := strings.Join(splitPath, "/")
-
-	if jointPath == "" {
-		return "/"
+	// always finish with '/' in the end
+	if res[len(res)-1] != '/' {
+		res = append(res, '/')
 	}
-	return fmt.Sprintf("/%s/", jointPath)
+
+	return string(res)
 }

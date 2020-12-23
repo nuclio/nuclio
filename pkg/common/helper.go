@@ -121,15 +121,6 @@ func StringSliceContainsStringCaseInsensitive(slice []string, str string) bool {
 	return false
 }
 
-func FilterStringArray(ss []string, test func(string) bool) (ret []string) {
-	for _, s := range ss {
-		if test(s) {
-			ret = append(ret, s)
-		}
-	}
-	return
-}
-
 // strips out ANSI Colors chars from string
 // example: "\u001b[31mHelloWorld" -> "HelloWorld"
 func RemoveANSIColorsFromString(s string) string {

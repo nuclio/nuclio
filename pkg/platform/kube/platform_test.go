@@ -129,7 +129,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			}(),
 		},
 		{
-			name: "ValidateIngressHostAndPathAvailabilityHappyPath",
+			name: "PathIsAvailable",
 			setUpFunction: func() error {
 				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
@@ -174,7 +174,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			},
 		},
 		{
-			name: "ValidateIngressHostAndPathAvailabilityUnhappyPath",
+			name: "FailPathInUse",
 			setUpFunction: func() error {
 				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
@@ -217,7 +217,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 					},
 				},
 			},
-			validationError: "Ingress host and path are already in use",
+			validationError: platform.ErrIngressHostPathInUse.Error(),
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -252,7 +252,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 				"nuclio.io/project-name": platform.DefaultProjectName,
 			}
 			createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
-			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+			suite.Logger.DebugWith("Enriching and validating function", "functionName", functionName)
 
 			// run enrichment
 			err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
@@ -488,7 +488,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			validationError: "Api gateway upstream function: function-with-ingresses-2 must not have an ingress",
 		},
 		{
-			name: "ValidateHostAndPathAvailabilityHappyPath",
+			name: "PathIsAvailable",
 			setUpFunction: func() error {
 				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
@@ -526,7 +526,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}(),
 		},
 		{
-			name: "ValidateHostAndPathUnhappyPath",
+			name: "FailPathInUse",
 			setUpFunction: func() error {
 				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
@@ -562,7 +562,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				apiGatewayConfig.Spec.Path = "//same-path"
 				return &apiGatewayConfig
 			}(),
-			validationError: "Ingress host and path are already in use",
+			validationError: platform.ErrIngressHostPathInUse.Error(),
 		},
 	} {
 		suite.Run(testCase.name, func() {
