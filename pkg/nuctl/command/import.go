@@ -49,7 +49,7 @@ func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 		i.rootCommandeer.loggerInstance.DebugWith("Reading from a file", "filename", filename)
 		file, err := nuctlcommon.OpenFile(filename)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to open file")
+			return nil, errors.Wrap(err, "Failed to open a file")
 		}
 		i.cmd.SetIn(file)
 
@@ -409,7 +409,7 @@ func (i *importProjectCommandeer) importProjects(projectsImportOptions map[strin
 		// skip project?
 		skipProject, err := i.shouldSkipProject(projectImportConfig)
 		if err != nil {
-			return errors.Wrap(err, "Failed to check whether the project import should be skipped")
+			return errors.Wrap(err, "Failed to check whether project needs to be skipped")
 		}
 		if skipProject {
 			i.rootCommandeer.loggerInstance.DebugWith("Skipping import for project",

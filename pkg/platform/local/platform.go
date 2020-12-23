@@ -67,7 +67,7 @@ func NewPlatform(parentLogger logger.Logger,
 	// create base
 	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform, platformConfiguration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create abstract platform")
+		return nil, errors.Wrap(err, "Failed to create an abstract platform")
 	}
 
 	// init platform
@@ -80,7 +80,7 @@ func NewPlatform(parentLogger logger.Logger,
 
 	// create a command runner
 	if newPlatform.cmdRunner, err = cmdrunner.NewShellRunner(newPlatform.Logger); err != nil {
-		return nil, errors.Wrap(err, "Failed to create command runner")
+		return nil, errors.Wrap(err, "Failed to create a command runner")
 	}
 
 	if newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger,
@@ -90,12 +90,12 @@ func NewPlatform(parentLogger logger.Logger,
 
 	// create a docker client
 	if newPlatform.dockerClient, err = dockerclient.NewShellClient(newPlatform.Logger, nil); err != nil {
-		return nil, errors.Wrap(err, "Failed to create docker client")
+		return nil, errors.Wrap(err, "Failed to create a Docker client")
 	}
 
 	// create a local store for configs and stuff
 	if newPlatform.localStore, err = newStore(parentLogger, newPlatform, newPlatform.dockerClient); err != nil {
-		return nil, errors.Wrap(err, "Failed to create local store")
+		return nil, errors.Wrap(err, "Failed to create a local store")
 	}
 
 	// ignite goroutine to check function container healthiness
@@ -120,7 +120,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create log stream")
+		return nil, errors.Wrap(err, "Failed to create a log stream")
 	}
 
 	// save the log stream for the name
@@ -130,7 +130,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	createFunctionOptions.Logger = logStream.GetLogger()
 
 	if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
-		return nil, errors.Wrap(err, "Failed while enriching and validating function config")
+		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
 	}
 
 	// local currently doesn't support registries of any kind. remove push / run registry
@@ -162,11 +162,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// if function exists, perform some validation with new function create options
 	if err := p.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(existingFunctionConfig,
 		createFunctionOptions); err != nil {
-		return nil, errors.Wrap(err, "Validation against existing function config failed")
+		return nil, errors.Wrap(err, "Failed to validate a function configuration against an existing configuration")
 	}
 
 	reportCreationError := func(creationError error) error {
-		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
+		createFunctionOptions.Logger.WarnWith("Failed to create a function; setting the function status",
 			"err", creationError)
 
 		errorStack := bytes.Buffer{}
@@ -193,7 +193,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 		// enrich and validate again because it may not be valid after config was updated by external code entry type
 		if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
-			return errors.Wrap(err, "Failed while enriching and validating the updated function config")
+			return errors.Wrap(err, "Failed to enrich and validate the updated function configuration")
 		}
 
 		// create the function in the store
@@ -203,7 +203,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 				State: functionconfig.FunctionStateBuilding,
 			},
 		}); err != nil {
-			return errors.Wrap(err, "Failed to create function")
+			return errors.Wrap(err, "Failed to create a function")
 		}
 
 		previousHTTPPort, err = p.deletePreviousContainers(createFunctionOptions)
@@ -264,7 +264,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			Config: createFunctionOptions.FunctionConfig,
 			Status: functionStatus,
 		}); err != nil {
-			return nil, errors.Wrap(err, "Failed to update function with state")
+			return nil, errors.Wrap(err, "Failed to update a function with state")
 		}
 
 		return createFunctionResult, nil
@@ -275,7 +275,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		p.Logger.InfoWith("Loading docker image from archive", "input", createFunctionOptions.InputImageFile)
 		err := p.dockerClient.Load(createFunctionOptions.InputImageFile)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to load docker image from archive")
+			return nil, errors.Wrap(err, "Failed to load a Docker image from an archive")
 		}
 	}
 
@@ -288,7 +288,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	functions, err := p.localStore.getProjectFunctions(getFunctionsOptions)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read functions from local store")
+		return nil, errors.Wrap(err, "Failed to read functions from a local store")
 	}
 
 	// enrich with build logs
@@ -307,7 +307,7 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 
 	// delete function options validation
 	if err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions); err != nil {
-		return errors.Wrap(err, "Failed while validating function deletion options")
+		return errors.Wrap(err, "Failed to validate function-deletion options")
 	}
 
 	// actual function and its resources deletion
@@ -337,12 +337,12 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 
 	// enrich
 	if err := p.EnrichCreateProjectConfig(createProjectOptions); err != nil {
-		return errors.Wrap(err, "Failed to enrich project config")
+		return errors.Wrap(err, "Failed to enrich a project configuration")
 	}
 
 	// validate
 	if err := p.ValidateProjectConfig(createProjectOptions.ProjectConfig); err != nil {
-		return errors.Wrap(err, "Failed to validate project config")
+		return errors.Wrap(err, "Failed to validate a project configuration")
 	}
 
 	// create
@@ -543,7 +543,7 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 
 				// no running containers were found for function, set function unhealthy
 				if err := p.setFunctionUnhealthy(function); err != nil {
-					p.Logger.ErrorWith("Failed to set function unhealthy",
+					p.Logger.ErrorWith("Failed to mark a function as unhealthy",
 						"err", err,
 						"functionName", functionName,
 						"namespace", namespace)
@@ -556,7 +556,7 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 			// check ready function to ensure its container is healthy
 			if functionIsReady {
 				if err := p.checkAndSetFunctionUnhealthy(container.ID, function); err != nil {
-					p.Logger.ErrorWith("Failed to check and set function unhealthy",
+					p.Logger.ErrorWith("Failed to check a function's health and mark it as unhealthy if necessary",
 						"err", err,
 						"functionName", functionName,
 						"namespace", namespace)
@@ -566,7 +566,7 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 			// check unhealthy function to see if its container id is healthy again
 			if functionWasSetAsUnhealthy {
 				if err := p.checkAndSetFunctionHealthy(container.ID, function); err != nil {
-					p.Logger.ErrorWith("Failed to check and set function healthy",
+					p.Logger.ErrorWith("Failed to check a function's health and mark it as unhealthy if necessary",
 						"err", err,
 						"functionName", functionName,
 						"namespace", namespace)
@@ -579,10 +579,10 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
 
-	// get function platform specific configuration
+	// get function platform-specific configuration
 	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&createFunctionOptions.FunctionConfig)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create function platform configuration")
+		return nil, errors.Wrap(err, "Failed to create a function's platform configuration")
 	}
 
 	mountPoints, volumesMap, err := p.resolveAndCreateFunctionMounts(createFunctionOptions,
@@ -597,7 +597,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	// get function port - either from configuration, from the previous deployment or from a free port
 	functionExternalHTTPPort, err := p.getFunctionHTTPPort(createFunctionOptions, previousHTTPPort)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function HTTP port")
+		return nil, errors.Wrap(err, "Failed to get a function's HTTP port")
 	}
 
 	gpus := ""
@@ -631,7 +631,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image,
 		runContainerOptions)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to run docker container")
+		return nil, errors.Wrap(err, "Failed to run a Docker container")
 	}
 
 	timeout := createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds
@@ -641,7 +641,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 
 	functionExternalHTTPPort, err = p.resolveDeployedFunctionHTTPPort(containerID)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to resolve deployed function HTTP port")
+		return nil, errors.Wrap(err, "Failed to resolve a deployed function's HTTP port")
 	}
 
 	return &platform.CreateFunctionResult{
@@ -659,7 +659,7 @@ func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions)
 	// delete the function from the local store
 	err := p.localStore.deleteFunction(&deleteFunctionOptions.FunctionConfig.Meta)
 	if err != nil && err != nuclio.ErrNotFound {
-		p.Logger.WarnWith("Failed to delete function from local store", "err", err.Error())
+		p.Logger.WarnWith("Failed to delete a function from the local store", "err", err.Error())
 	}
 
 	getContainerOptions := &dockerclient.GetContainerOptions{
@@ -686,14 +686,14 @@ func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions)
 	// get function platform specific configuration
 	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&deleteFunctionOptions.FunctionConfig)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create function platform configuration")
+		return errors.Wrap(err, "Failed to create a function's platform configuration")
 	}
 
 	if functionPlatformConfiguration.ProcessorMountMode == ProcessorMountModeVolume {
 
 		// delete function volumes after containers are deleted
 		if err := p.dockerClient.DeleteVolume(p.GetProcessorMountVolumeName(&deleteFunctionOptions.FunctionConfig)); err != nil {
-			return errors.Wrapf(err, "Failed to delete function volume")
+			return errors.Wrapf(err, "Failed to delete a function volume")
 		}
 	}
 
@@ -710,7 +710,7 @@ func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platfor
 	switch processorMountMode {
 	case ProcessorMountModeVolume:
 		if err := p.prepareFunctionVolumeMount(createFunctionOptions); err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to prepare function volume mount")
+			return nil, nil, errors.Wrap(err, "Failed to prepare a function's volume mount")
 		}
 		mountPoints = append(mountPoints, dockerclient.MountPoint{
 			Source:      p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
@@ -724,7 +724,7 @@ func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platfor
 		// create processor configuration at a temporary location unless user specified a configuration
 		localProcessorConfigPath, err := p.createProcessorConfig(createFunctionOptions)
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to create processor configuration")
+			return nil, nil, errors.Wrap(err, "Failed to create a processor configuration")
 		}
 
 		// volumize it
@@ -738,13 +738,13 @@ func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateF
 
 	configWriter, err := processorconfig.NewWriter()
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to create processor configuration writer")
+		return "", errors.Wrap(err, "Failed to create a processor configuration writer")
 	}
 
 	// must specify "/tmp" here so that it's available on docker for mac
 	processorConfigFile, err := ioutil.TempFile("/tmp", "processor-config-")
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to create temporary processor config")
+		return "", errors.Wrap(err, "Failed to create a temporary processor configuration")
 	}
 
 	defer processorConfigFile.Close() // nolint: errcheck
@@ -752,12 +752,12 @@ func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateF
 	if err = configWriter.Write(processorConfigFile, &processor.Configuration{
 		Config: createFunctionOptions.FunctionConfig,
 	}); err != nil {
-		return "", errors.Wrap(err, "Failed to write processor config")
+		return "", errors.Wrap(err, "Failed to write a processor configuration")
 	}
 
 	// make it readable by other users, in case user use different USER directive on function image
 	if err := os.Chmod(processorConfigFile.Name(), 0644); err != nil {
-		return "", errors.Wrap(err, "Failed to change processor config file permission")
+		return "", errors.Wrap(err, "Failed to change a processor's configuration-file permission")
 	}
 
 	p.Logger.DebugWith("Wrote processor configuration", "path", processorConfigFile.Name())
@@ -765,7 +765,7 @@ func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateF
 	// read the file once for logging
 	processorConfigContents, err := ioutil.ReadFile(processorConfigFile.Name())
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to read processor configuration file")
+		return "", errors.Wrap(err, "Failed to read a processor-configuration file")
 	}
 
 	// log
@@ -819,7 +819,7 @@ func (p *Platform) resolveDeployedFunctionHTTPPort(containerID string) (int, err
 		ID: containerID,
 	})
 	if err != nil || len(containers) == 0 {
-		return 0, errors.Wrap(err, "Failed to get container")
+		return 0, errors.Wrap(err, "Failed to get a container")
 	}
 	return p.getContainerHTTPTriggerPort(&containers[0])
 }
@@ -888,11 +888,11 @@ func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.Crea
 				"containerName", container.Name)
 			previousHTTPPort, err = p.getContainerHTTPTriggerPort(&container)
 			if err != nil {
-				return 0, errors.Wrap(err, "Failed to get container http trigger port")
+				return 0, errors.Wrap(err, "Failed to get a container's HTTP-trigger port")
 			}
 
 			if err := p.dockerClient.RemoveContainer(container.Name); err != nil {
-				return 0, errors.Wrap(err, "Failed to delete function container")
+				return 0, errors.Wrap(err, "Failed to delete a function container")
 			}
 		}
 	}
@@ -931,7 +931,7 @@ func (p *Platform) setFunctionUnhealthy(function platform.Function) error {
 func (p *Platform) checkAndSetFunctionHealthy(containerID string, function platform.Function) error {
 	if err := p.dockerClient.AwaitContainerHealth(containerID,
 		&p.functionContainersHealthinessTimeout); err != nil {
-		return errors.Wrapf(err, "Failed to ensure healthiness for container id %s", containerID)
+		return errors.Wrapf(err, "Failed to ensure the health of container ID %s", containerID)
 	}
 	functionStatus := function.GetStatus()
 
@@ -997,7 +997,7 @@ func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.Cr
 	if err := p.dockerClient.CreateVolume(&dockerclient.CreateVolumeOptions{
 		Name: p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
 	}); err != nil {
-		return errors.Wrapf(err, "Failed to create volume for function %s",
+		return errors.Wrapf(err, "Failed to create a volume for function %s",
 			createFunctionOptions.FunctionConfig.Meta.Name)
 	}
 
@@ -1006,7 +1006,7 @@ func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.Cr
 		Config: createFunctionOptions.FunctionConfig,
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to marshal processor configuration")
+		return errors.Wrap(err, "Failed to marshal a processor configuration")
 	}
 
 	// dumping contents to volume's processor path
@@ -1023,7 +1023,7 @@ func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.Cr
 			base64.StdEncoding.EncodeToString(processorConfigBody),
 			path.Join(FunctionProcessorContainerDirPath, "processor.yaml")),
 	}); err != nil {
-		return errors.Wrap(err, "Failed to write processor config to volume")
+		return errors.Wrap(err, "Failed to write a processor configuration to a volume")
 	}
 	return nil
 }
@@ -1057,11 +1057,11 @@ func (p *Platform) compileDeployFunctionLabels(createFunctionOptions *platform.C
 
 func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfig.Config) error {
 	if err := p.EnrichFunctionConfig(functionConfig); err != nil {
-		return errors.Wrap(err, "Function config enrichment failed")
+		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
 
 	if err := p.ValidateFunctionConfig(functionConfig); err != nil {
-		return errors.Wrap(err, "Function config validation failed")
+		return errors.Wrap(err, "Failed to validate a function configuration")
 	}
 
 	return nil

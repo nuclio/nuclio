@@ -140,7 +140,7 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 			// decode the JSON attributes
 			if err := json.Unmarshal([]byte(commandeer.encodedAttributes),
 				&commandeer.apiGatewayConfig); err != nil {
-				return errors.Wrap(err, "Failed to decode function event attributes")
+				return errors.Wrap(err, "Failed to decode a function's event attributes")
 			}
 
 			commandeer.apiGatewayConfig.Meta.Name = args[0]
@@ -274,7 +274,7 @@ func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *creat
 			// decode the JSON attributes
 			if err := json.Unmarshal([]byte(commandeer.encodedAttributes),
 				&commandeer.functionEventConfig.Spec.Attributes); err != nil {
-				return errors.Wrap(err, "Failed to decode function event attributes")
+				return errors.Wrap(err, "Failed to decode a function's event attributes")
 			}
 
 			return createCommandeer.rootCommandeer.platform.CreateFunctionEvent(&platform.CreateFunctionEventOptions{
