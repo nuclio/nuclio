@@ -152,7 +152,7 @@ nuctl import projects --namespace nuclio --skip-transform-display-name [<project
 ```
 For example:
 ```sh
-nuctl import projects --namespace nuclio --skip-transform-display-name "myproject"
+nuctl import projects --namespace nuclio --skip-transform-display-name
 ```
 > **Warning:** Note that the `spec.display` project-configuration field will ultimately be fully deprecated and no longer supported.
 
