@@ -18,7 +18,6 @@ package local
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -44,7 +43,6 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
-	"golang.org/x/sync/errgroup"
 )
 
 type Platform struct {
@@ -662,38 +660,6 @@ func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions)
 	err := p.localStore.deleteFunction(&deleteFunctionOptions.FunctionConfig.Meta)
 	if err != nil && err != nuclio.ErrNotFound {
 		p.Logger.WarnWith("Failed to delete function from local store", "err", err.Error())
-	}
-
-	getFunctionEventsOptions := &platform.GetFunctionEventsOptions{
-		Meta: platform.FunctionEventMeta{
-			Labels: map[string]string{
-				"nuclio.io/function-name": deleteFunctionOptions.FunctionConfig.Meta.Name,
-			},
-			Namespace: deleteFunctionOptions.FunctionConfig.Meta.Namespace,
-		},
-	}
-	functionEvents, err := p.localStore.getFunctionEvents(getFunctionEventsOptions)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get function events")
-	}
-
-	p.Logger.InfoWith("Got function events", "num", len(functionEvents))
-
-	errGroup, _ := errgroup.WithContext(context.TODO())
-	for _, functionEvent := range functionEvents {
-
-		errGroup.Go(func() error {
-			err = p.localStore.deleteFunctionEvent(&functionEvent.GetConfig().Meta)
-			if err != nil {
-				return errors.Wrap(err, "Failed to delete function event")
-			}
-			return nil
-		})
-	}
-
-	// wait for all errgroup goroutines
-	if err := errGroup.Wait(); err != nil {
-		return errors.Wrap(err, "Failed to delete function events")
 	}
 
 	getContainerOptions := &dockerclient.GetContainerOptions{

@@ -259,6 +259,7 @@ func (s *store) getFunctions(functionMeta *functionconfig.Meta) ([]platform.Func
 func (s *store) deleteFunction(functionMeta *functionconfig.Meta) error {
 	functionEvents, err := s.getFunctionEvents(&platform.GetFunctionEventsOptions{
 		Meta: platform.FunctionEventMeta{
+			Namespace: functionMeta.Namespace,
 			Labels: map[string]string{
 				"nuclio.io/function-name": functionMeta.Name,
 			},
