@@ -3,17 +3,18 @@
 
     angular.module('nuclio.app')
         .component('functionsDataWrapper', {
+            bindings: {
+                project: '<'
+            },
             templateUrl: 'data-wrappers/functions-data-wrapper/functions-data-wrapper.tpl.html',
             controller: FunctionsDataWrapperController
         });
 
-    function FunctionsDataWrapperController($q, $i18next, i18next, NuclioProjectsDataService,
-                                            NuclioFunctionsDataService) {
+    function FunctionsDataWrapperController($q, $i18next, i18next, NuclioFunctionsDataService) {
         var ctrl = this;
         var lng = i18next.language;
 
         ctrl.createFunction = createFunction;
-        ctrl.getProject = getProject;
         ctrl.getFunction = getFunction;
         ctrl.getFunctions = getFunctions;
         ctrl.getStatistics = getStatistics;
@@ -32,15 +33,6 @@
          */
         function createFunction(version, projectID) {
             return NuclioFunctionsDataService.createFunction(version, projectID);
-        }
-
-        /**
-         * Gets a project
-         * @param {string} id - project ID
-         * @returns {Promise}
-         */
-        function getProject(id) {
-            return NuclioProjectsDataService.getProject(id);
         }
 
         /**
@@ -66,7 +58,7 @@
          * @returns {Promise}
          */
         function getStatistics() {
-            return $q.reject({msg: $i18next.t('common:N_A', {lng: lng})});
+            return $q.reject({ msg: $i18next.t('common:N_A', { lng: lng }) });
         }
 
         /**
