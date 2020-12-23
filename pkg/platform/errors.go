@@ -26,4 +26,6 @@ var ErrProjectContainsAPIGateways = nuclio.NewErrConflict("Project contains api 
 
 var ErrFunctionIsUsedByAPIGateways = nuclio.NewErrConflict("Function is used by api gateways")
 
+var ErrIngressHostPathInUse = nuclio.NewErrConflict("Ingress host and path are already in use")
+
 var ErrUnsupportedMethod = nuclio.NewErrNotImplemented("Unsupported method")

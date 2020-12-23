@@ -21,8 +21,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 type KubePlatformTestSuite struct {
@@ -32,6 +34,7 @@ type KubePlatformTestSuite struct {
 	nuclioFunctionInterfaceMock   *mocks.NuclioFunctionInterface
 	nuclioAPIGatewayInterfaceMock *mocks.NuclioAPIGatewayInterface
 	nuclioioInterfaceMock         *mocks.Interface
+	kubeClientSet                 fake.Clientset
 	Namespace                     string
 	Logger                        logger.Logger
 	Platform                      *Platform
@@ -75,8 +78,10 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 		On("NuclioAPIGateways", suite.Namespace).
 		Return(suite.nuclioAPIGatewayInterfaceMock)
 
+	suite.kubeClientSet = *fake.NewSimpleClientset()
 	consumer := &consumer{
 		nuclioClientSet: suite.nuclioioInterfaceMock,
+		kubeClientSet:   &suite.kubeClientSet,
 	}
 
 	getter, err := newGetter(suite.Logger, suite.Platform)
@@ -93,15 +98,25 @@ type FunctionKubePlatformTestSuite struct {
 	KubePlatformTestSuite
 }
 
-func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnriched() {
+func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndValidation() {
+
+	// return empty api gateways list on enrichFunctionsWithAPIGateways (not tested here)
+	suite.nuclioAPIGatewayInterfaceMock.
+		On("List", metav1.ListOptions{}).
+		Return(&v1beta1.NuclioAPIGatewayList{}, nil)
+
 	for idx, testCase := range []struct {
+		name                     string
+		setUpFunction            func() error
+		tearDownFunction         func() error
 		triggers                 map[string]functionconfig.Trigger
 		expectedEnrichedTriggers map[string]functionconfig.Trigger
-		shouldFailValidation     bool
-	}{
 
-		// enrich with default http trigger
+		// keep empty when no error is expected
+		validationError string
+	}{
 		{
+			name:     "EnrichWithDefaultHTTPTrigger",
 			triggers: nil,
 			expectedEnrichedTriggers: func() map[string]functionconfig.Trigger {
 				defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
@@ -111,46 +126,158 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnriched() {
 				return map[string]functionconfig.Trigger{
 					defaultHTTPTrigger.Name: defaultHTTPTrigger,
 				}
-
 			}(),
 		},
-	} {
-		suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
-			Meta: platform.ProjectMeta{
-				Name:      platform.DefaultProjectName,
-				Namespace: suite.Platform.ResolveDefaultNamespace(""),
+		{
+			name: "PathIsAvailable",
+			setUpFunction: func() error {
+				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "some-name",
+						Namespace: suite.Namespace,
+					},
+					Spec: extensionsv1beta1.IngressSpec{
+						Rules: []extensionsv1beta1.IngressRule{
+							{
+								Host: "host-and-path-already-in-use.com",
+								IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+									HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+										Paths: []extensionsv1beta1.HTTPIngressPath{
+											{
+												Path: "used-path/",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				})
+				return nil
 			},
-		}).Return([]platform.Project{
-			&platform.AbstractProject{},
-		}, nil).Once()
+			tearDownFunction: func() error {
+				suite.kubeClientSet = *fake.NewSimpleClientset()
+				return nil
+			},
+			triggers: map[string]functionconfig.Trigger{
+				"http-with-ingress": {
+					Kind: "http",
+					Attributes: map[string]interface{}{
+						"ingresses": map[string]interface{}{
+							"0": map[string]interface{}{
+								"host":  "host-and-path-already-in-use.com",
+								"paths": []string{"/unused-path"},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "FailPathInUse",
+			setUpFunction: func() error {
+				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "some-name",
+						Namespace: suite.Namespace,
+					},
+					Spec: extensionsv1beta1.IngressSpec{
+						Rules: []extensionsv1beta1.IngressRule{
+							{
+								Host: "host-and-path-already-in-use.com",
+								IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+									HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+										Paths: []extensionsv1beta1.HTTPIngressPath{
+											{
+												Path: "used-path/",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				})
+				return nil
+			},
+			tearDownFunction: func() error {
+				suite.kubeClientSet = *fake.NewSimpleClientset()
+				return nil
+			},
+			triggers: map[string]functionconfig.Trigger{
+				"http-with-ingress": {
+					Kind: "http",
+					Attributes: map[string]interface{}{
+						"ingresses": map[string]interface{}{
+							"0": map[string]interface{}{
+								"host":  "host-and-path-already-in-use.com",
+								"paths": []string{"/unused-path", "used-path/"},
+							},
+						},
+					},
+				},
+			},
+			validationError: platform.ErrIngressHostPathInUse.Error(),
+		},
+	} {
+		suite.Run(testCase.name, func() {
 
-		// name it with index and shift with 65 to get A as first letter
-		functionName := string(rune(idx + 65))
-		functionConfig := *functionconfig.NewConfig()
+			// run test case specific set up function if given
+			if testCase.setUpFunction != nil {
+				err := testCase.setUpFunction()
+				suite.Require().NoError(err)
+			}
 
-		createFunctionOptions := &platform.CreateFunctionOptions{
-			Logger:         suite.Logger,
-			FunctionConfig: functionConfig,
-		}
-		createFunctionOptions.FunctionConfig.Meta.Name = functionName
-		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-			"nuclio.io/project-name": platform.DefaultProjectName,
-		}
-		createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
-		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+			// mock get projects
+			suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+				Meta: platform.ProjectMeta{
+					Name:      platform.DefaultProjectName,
+					Namespace: suite.Namespace,
+				},
+			}).Return([]platform.Project{
+				&platform.AbstractProject{},
+			}, nil).Once()
 
-		err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
-		suite.Require().NoError(err, "Failed to enrich function")
+			// name it with index and shift with 65 to get A as first letter
+			functionName := string(rune(idx + 65))
+			functionConfig := *functionconfig.NewConfig()
 
-		err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
-		if testCase.shouldFailValidation {
-			suite.Require().Error(err, "Validation passed unexpectedly")
-			continue
-		}
+			createFunctionOptions := &platform.CreateFunctionOptions{
+				Logger:         suite.Logger,
+				FunctionConfig: functionConfig,
+			}
+			createFunctionOptions.FunctionConfig.Meta.Name = functionName
+			createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
+			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
+			suite.Logger.DebugWith("Enriching and validating function", "functionName", functionName)
 
-		suite.Require().NoError(err, "Validation failed unexpectedly")
-		suite.Equal(testCase.expectedEnrichedTriggers,
-			createFunctionOptions.FunctionConfig.Spec.Triggers)
+			// run enrichment
+			err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+			suite.Require().NoError(err, "Failed to enrich function")
+
+			if testCase.expectedEnrichedTriggers != nil {
+				suite.Equal(testCase.expectedEnrichedTriggers,
+					createFunctionOptions.FunctionConfig.Spec.Triggers)
+			}
+
+			// run validation
+			err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			if testCase.validationError != "" {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+				suite.Require().Equal(testCase.validationError, errors.RootCause(err).Error())
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+
+			// run test case specific tear down function if given
+			if testCase.tearDownFunction != nil {
+				err := testCase.tearDownFunction()
+				suite.Require().NoError(err)
+			}
+		})
 	}
 }
 
@@ -167,6 +294,8 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 	for _, testCase := range []struct {
 		name             string
+		setUpFunction    func() error
+		tearDownFunction func() error
 		apiGatewayConfig *platform.APIGatewayConfig
 
 		// keep empty to skip the enrichment validation
@@ -358,8 +487,91 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			},
 			validationError: "Api gateway upstream function: function-with-ingresses-2 must not have an ingress",
 		},
+		{
+			name: "PathIsAvailable",
+			setUpFunction: func() error {
+				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "some-name",
+						Namespace: suite.Namespace,
+					},
+					Spec: extensionsv1beta1.IngressSpec{
+						Rules: []extensionsv1beta1.IngressRule{
+							{
+								Host: "this-host-and-path-are-used.com",
+								IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+									HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+										Paths: []extensionsv1beta1.HTTPIngressPath{
+											{
+												Path: "different-path/",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				})
+				return nil
+			},
+			tearDownFunction: func() error {
+				suite.kubeClientSet = *fake.NewSimpleClientset()
+				return nil
+			},
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				apiGatewayConfig.Spec.Host = "this-host-and-path-are-used.com"
+				apiGatewayConfig.Spec.Path = "//same-path"
+				return &apiGatewayConfig
+			}(),
+		},
+		{
+			name: "FailPathInUse",
+			setUpFunction: func() error {
+				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "some-name",
+						Namespace: suite.Namespace,
+					},
+					Spec: extensionsv1beta1.IngressSpec{
+						Rules: []extensionsv1beta1.IngressRule{
+							{
+								Host: "this-host-and-path-are-used.com",
+								IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+									HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+										Paths: []extensionsv1beta1.HTTPIngressPath{
+											{
+												Path: "same-path/",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				})
+				return nil
+			},
+			tearDownFunction: func() error {
+				suite.kubeClientSet = *fake.NewSimpleClientset()
+				return nil
+			},
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				apiGatewayConfig.Spec.Host = "this-host-and-path-are-used.com"
+				apiGatewayConfig.Spec.Path = "//same-path"
+				return &apiGatewayConfig
+			}(),
+			validationError: platform.ErrIngressHostPathInUse.Error(),
+		},
 	} {
 		suite.Run(testCase.name, func() {
+
+			// run test case specific set up function if given
+			if testCase.setUpFunction != nil {
+				err := testCase.setUpFunction()
+				suite.Require().NoError(err)
+			}
 
 			// run enrichment
 			suite.Platform.EnrichAPIGatewayConfig(testCase.apiGatewayConfig)
@@ -395,6 +607,12 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				suite.Assert().Equal(testCase.validationError, errors.RootCause(err).Error())
 			} else {
 				suite.Assert().NoError(err)
+			}
+
+			// run test case specific tear down function if given
+			if testCase.tearDownFunction != nil {
+				err := testCase.tearDownFunction()
+				suite.Require().NoError(err)
 			}
 		})
 	}

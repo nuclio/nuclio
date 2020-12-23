@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/valyala/fasthttp"
 )
 
 const (
@@ -86,4 +88,22 @@ func GetPathFromLocalFileURL(s string) string {
 		return "/" + strings.TrimPrefix(s, LocalFilePrefix)
 	}
 	return ""
+}
+
+// Normalizes URL Path
+// examples:
+// "" -> "/"
+// "a" -> "/a/"
+// "//a//b/c/" -> "/a/b/c/"
+func NormalizeURLPath(p string) string {
+	uri := fasthttp.URI{}
+	uri.SetPath(p)
+	res := uri.Path()
+
+	// always finish with '/' in the end
+	if res[len(res)-1] != '/' {
+		res = append(res, '/')
+	}
+
+	return string(res)
 }
