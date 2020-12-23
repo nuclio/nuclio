@@ -32,6 +32,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -154,6 +155,126 @@ func (suite *projectGetTestSuite) TestDeleteWithFunctions() {
 	// now delete the project again - should succeed
 	err = suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil)
 	suite.Require().NoError(err)
+}
+
+func (suite *projectExportImportTestSuite) TestDeleteProject() {
+	for _, testCase := range []struct {
+		name            string
+		importFunctions bool
+		strategy        platform.DeleteProjectStrategy
+		expectedError   error
+	}{
+		{
+			name:     "DeleteProjectCascading",
+			strategy: platform.DeleteProjectStrategyCascading,
+		},
+		{
+			name:     "DeleteProjectRestricted",
+			strategy: platform.DeleteProjectStrategyRestricted,
+		},
+		{
+			name:            "DeleteProjectWithFunctions",
+			importFunctions: true,
+			strategy:        platform.DeleteProjectStrategyCascading,
+		},
+		{
+			name:            "FailDeleteProjectWithFunctions",
+			importFunctions: true,
+			strategy:        platform.DeleteProjectStrategyRestricted,
+			expectedError:   nuclio.NewErrPreconditionFailed(platform.ErrProjectContainsFunctions.Error()),
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			var functionNames []string
+			uniqueID := xid.New().String()
+			projectName := "delete-project-test-" + uniqueID
+
+			// create a project
+			err := suite.ExecuteNuctl([]string{
+				"create",
+				"project",
+				projectName,
+			}, nil)
+			suite.Require().NoError(err)
+
+			if testCase.importFunctions {
+				functionNames = append(functionNames,
+					"test-function-a-"+uniqueID,
+					"test-function-b-"+uniqueID)
+				suite.createImportedFunctions(projectName, functionNames...)
+
+				// ensure deleted
+				defer func() {
+					for _, functionName := range functionNames {
+						suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+					}
+				}()
+			}
+
+			// delete project
+			err = suite.ExecuteNuctl([]string{"delete", "project", projectName, "--wait"}, map[string]string{
+				"strategy": string(testCase.strategy),
+			})
+			if testCase.expectedError != nil {
+				suite.Require().EqualError(err, testCase.expectedError.Error())
+				suite.Require().Error(err)
+				return
+			}
+
+			suite.Require().NoError(err)
+			if testCase.importFunctions {
+
+				// ensure functions were deleted
+				for _, functionName := range functionNames {
+					err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, true)
+					suite.Require().NoError(err)
+				}
+
+			}
+		})
+	}
+}
+
+func (suite *projectExportImportTestSuite) createImportedFunctions(projectName string, functionNames ...string) {
+	functionToImportTemplate := `%[1]s:
+  metadata:
+    labels:
+      nuclio.io/project-name: %[2]s
+    annotations:
+      skip-build: "true"
+      skip-deploy: "true"
+    name: %[1]s
+  spec:
+    build:
+      codeEntryType: sourceCode
+      functionSourceCode: ZWNobyAidGVzdDEi
+      noBaseImagesPull: true
+    handler: main.sh
+    runtime: shell`
+
+	functionsToImportEncoded := ""
+	for _, functionName := range functionNames {
+		functionToImportEncoded := fmt.Sprintf(functionToImportTemplate, functionName, projectName)
+		functionsToImportEncoded += fmt.Sprintf("\n%s", functionToImportEncoded)
+	}
+	suite.inputBuffer = *bytes.NewBufferString(functionsToImportEncoded)
+
+	// import the project
+	err := suite.ExecuteNuctl([]string{
+		"import",
+		"functions",
+		"--verbose",
+	}, nil)
+	suite.Require().NoError(err)
+
+	// wait for functions to be imported
+	for _, functionName := range functionNames {
+		suite.waitForFunctionState(functionName, functionconfig.FunctionStateImported)
+	}
+
+	// reset buffer
+	suite.inputBuffer.Reset()
+
 }
 
 type projectExportImportTestSuite struct {

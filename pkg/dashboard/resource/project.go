@@ -544,11 +544,11 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		}, err
 	}
 
-	deleteProjectOptions := platform.DeleteProjectOptions{}
-	deleteProjectOptions.Meta = *projectInfo.Meta
-
-	err = pr.getPlatform().DeleteProject(&deleteProjectOptions)
-	if err != nil {
+	projectDeletionStrategy := request.Header.Get("x-nuclio-delete-project-strategy")
+	if err = pr.getPlatform().DeleteProject(&platform.DeleteProjectOptions{
+		Meta:     *projectInfo.Meta,
+		Strategy: platform.ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy),
+	}); err != nil {
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
 			StatusCode: common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError),
@@ -559,7 +559,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		ResourceType: "project",
 		Single:       true,
 		StatusCode:   http.StatusNoContent,
-	}, err
+	}, nil
 }
 
 func (pr *projectResource) updateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {

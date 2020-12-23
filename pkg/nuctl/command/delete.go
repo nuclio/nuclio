@@ -17,6 +17,8 @@ limitations under the License.
 package command
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -100,7 +102,10 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 
 type deleteProjectCommandeer struct {
 	*deleteCommandeer
-	projectMeta platform.ProjectMeta
+	projectMeta      platform.ProjectMeta
+	deletionStrategy string
+	wait             bool
+	waitTimeout      time.Duration
 }
 
 func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProjectCommandeer {
@@ -128,11 +133,19 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 			commandeer.projectMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
 			return deleteCommandeer.rootCommandeer.platform.DeleteProject(&platform.DeleteProjectOptions{
-				Meta: commandeer.projectMeta,
+				Meta:     commandeer.projectMeta,
+				Strategy: platform.ResolveProjectDeletionStrategyOrDefault(commandeer.deletionStrategy),
+
+				// wait until all project related resources would be removed
+				WaitForResourcesDeletionCompletion:         commandeer.wait,
+				WaitForResourcesDeletionCompletionDuration: commandeer.waitTimeout,
 			})
 		},
 	}
 
+	cmd.Flags().StringVar(&commandeer.deletionStrategy, "strategy", string(platform.DeleteProjectStrategyRestricted), `Project deletion strategy; one of "restricted" (default), "cascading"`)
+	cmd.Flags().BoolVar(&commandeer.wait, "wait", false, `Whether to wait until all project related resources are removed`)
+	cmd.Flags().DurationVar(&commandeer.waitTimeout, "wait-timeout", 3*time.Minute, `Wait timeout until all project related resources are removed (in conjunction with wait, default: 3m)`)
 	commandeer.cmd = cmd
 
 	return commandeer

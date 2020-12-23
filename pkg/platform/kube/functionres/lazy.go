@@ -360,14 +360,12 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		lc.logger.DebugWith("Deleted configMap", "namespace", namespace, "configMapName", configMapName)
 	}
 
-	err = lc.deleteFunctionEvents(ctx, name, namespace)
-	if err != nil {
+	if err = lc.deleteFunctionEvents(ctx, name, namespace); err != nil {
 		return errors.Wrap(err, "Failed to delete function events")
 	}
 
 	if lc.platformConfigurationProvider.GetPlatformConfiguration().CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
-		err = lc.deleteCronJobs(name, namespace)
-		if err != nil {
+		if err = lc.deleteCronJobs(name, namespace); err != nil {
 			return errors.Wrap(err, "Failed to delete function cron jobs")
 		}
 	}

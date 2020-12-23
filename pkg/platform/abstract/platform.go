@@ -19,6 +19,7 @@ package abstract
 import (
 	"bufio"
 	"encoding/json"
+	builtinerrors "errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -337,8 +338,19 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 		return nuclio.NewErrConflict("Cannot delete the default project")
 	}
 
-	if err := ap.validateProjectIsEmpty(deleteProjectOptions.Meta.Namespace, projectName); err != nil {
-		return errors.Wrap(err, "Cannot delete non-empty project")
+	// ensure project have no sub resources
+	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyRestricted {
+
+		// validate project has no related resources such as functions, api gateways, etc
+		if err := ap.validateProjectHasNoRelatedResources(&deleteProjectOptions.Meta); err != nil {
+			if builtinerrors.Is(err, platform.ErrProjectContainsAPIGateways) ||
+				builtinerrors.Is(err, platform.ErrProjectContainsFunctions) {
+				ap.Logger.DebugWith("The project has related resources",
+					"projectName", projectName)
+				return nuclio.NewErrPreconditionFailed(err.Error())
+			}
+			return errors.Wrap(err, "Failed to validate whether a project has no related resources")
+		}
 	}
 
 	return nil
@@ -686,6 +698,72 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 	briefErrorsMessage = strings.Join(*briefErrorsArray, "\n")
 
 	return common.FixEscapeChars(formattedProcessorLogs), common.FixEscapeChars(briefErrorsMessage)
+}
+
+func (ap *Platform) WaitForProjectResourcesDeletion(projectMeta *platform.ProjectMeta, duration time.Duration) error {
+	if err := common.RetryUntilSuccessful(duration,
+		5*time.Second,
+		func() bool {
+			functions, APIGateways, err := ap.GetProjectResources(projectMeta)
+			if err != nil {
+				ap.Logger.WarnWith("Failed to get project resources",
+					"err", err)
+				return false
+			}
+			if len(functions) > 0 || len(APIGateways) > 0 {
+				ap.Logger.DebugWith("Waiting for project resources to be deleted",
+					"functionsLen", len(functions),
+					"apiGatewayLen", len(APIGateways))
+				return false
+			}
+			return true
+		}); err != nil {
+		return errors.Wrap(err, "Failed waiting for resource deletion, attempts exhausted")
+	}
+	return nil
+}
+
+func (ap *Platform) GetProjectResources(projectMeta *platform.ProjectMeta) ([]platform.Function,
+	[]platform.APIGateway,
+	error) {
+
+	// get functions
+	functions, err := ap.GetProjectFunctions(projectMeta)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to get project functions")
+	}
+
+	// get api gateways
+	apiGateways, err := ap.GetProjectAPIGateways(projectMeta)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to get project api gateways")
+	}
+
+	return functions, apiGateways, nil
+}
+
+func (ap *Platform) GetProjectFunctions(projectMeta *platform.ProjectMeta) ([]platform.Function, error) {
+	return ap.platform.GetFunctions(&platform.GetFunctionsOptions{
+		Namespace: projectMeta.Namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
+	})
+}
+
+func (ap *Platform) GetProjectAPIGateways(projectMeta *platform.ProjectMeta) ([]platform.APIGateway, error) {
+	apiGateways, err := ap.platform.GetAPIGateways(&platform.GetAPIGatewaysOptions{
+		Namespace: projectMeta.Namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
+	})
+	if err != nil {
+
+		// if api gateways are not supported on this platform, ignore
+		if err == platform.ErrUnsupportedMethod {
+			return nil, nil
+		}
+
+		return nil, errors.Wrap(err, "Failed to get api gateways")
+	}
+	return apiGateways, nil
 }
 
 func (ap *Platform) aggregateConsecutiveDuplicateMessages(errorMessagesArray []string) []string {
@@ -1080,15 +1158,10 @@ func (ap *Platform) enrichMinMaxReplicas(functionConfig *functionconfig.Config) 
 	}
 }
 
-func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error {
+func (ap *Platform) validateProjectHasNoRelatedResources(projectMeta *platform.ProjectMeta) error {
 
 	// validate the project has no functions
-	getFunctionsOptions := &platform.GetFunctionsOptions{
-		Namespace: namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
-	}
-
-	functions, err := ap.platform.GetFunctions(getFunctionsOptions)
+	functions, err := ap.GetProjectFunctions(projectMeta)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get functions")
 	}
@@ -1098,19 +1171,8 @@ func (ap *Platform) validateProjectIsEmpty(namespace, projectName string) error 
 	}
 
 	// validate the project has no api gateways
-	getAPIGatewaysOptions := &platform.GetAPIGatewaysOptions{
-		Namespace: namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectName),
-	}
-
-	apiGateways, err := ap.platform.GetAPIGateways(getAPIGatewaysOptions)
+	apiGateways, err := ap.GetProjectAPIGateways(projectMeta)
 	if err != nil {
-
-		// if api gateways are not supported on this platform, just ignore this validation
-		if err == platform.ErrUnsupportedMethod {
-			return nil
-		}
-
 		return errors.Wrap(err, "Failed to get api gateways")
 	}
 
