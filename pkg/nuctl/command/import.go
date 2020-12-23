@@ -258,7 +258,7 @@ Use --help for more information`)
 	}
 
 	cmd.Flags().StringSliceVar(&commandeer.skipProjectNames, "skip", []string{}, "Names of projects to skip (don't import), as a comma-separated list")
-	cmd.Flags().StringVar(&commandeer.skipLabelSelectors, "skip-label-selectors", "", "Label selectors to filter projects on")
+	cmd.Flags().StringVar(&commandeer.skipLabelSelectors, "skip-label-selectors", "", "Kubernetes label-selectors filter that identifies projects to skip (don't import)")
 	cmd.Flags().BoolVar(&commandeer.skipTransformDisplayName, "skip-transform-display-name", false, "Skip transforming display name into project name if the latter is missing or in form of UUID")
 	commandeer.cmd = cmd
 
@@ -409,7 +409,7 @@ func (i *importProjectCommandeer) importProjects(projectsImportOptions map[strin
 		// skip project?
 		skipProject, err := i.shouldSkipProject(projectImportConfig)
 		if err != nil {
-			return errors.Wrap(err, "Failed to check whether project needs to be skipped")
+			return errors.Wrap(err, "Failed to check whether the project import should be skipped")
 		}
 		if skipProject {
 			i.rootCommandeer.loggerInstance.DebugWith("Skipping import for project",
@@ -483,7 +483,7 @@ func (i *importProjectCommandeer) shouldSkipProject(projectImportConfig *Project
 	}
 
 	// empty by default
-	// if we match by empty selectors, it will match all projects and will simply cause to skip all projects
+	// if we match by empty label selectors, it will match all projects and will simply cause to skip all projects
 	if i.skipLabelSelectors != "" {
 		match, err := common.LabelsMapMatchByLabelSelector(i.skipLabelSelectors,
 			projectImportConfig.Project.Meta.Labels)
