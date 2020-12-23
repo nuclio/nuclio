@@ -135,7 +135,6 @@ module.exports = {
             'node_modules/angular/angular.js',
             'node_modules/angular-ui-bootstrap/dist/ui-bootstrap-tpls.js',
             'node_modules/@uirouter/angularjs/release/angular-ui-router.min.js',
-            'node_modules/angular-ui-layout/src/ui-layout.js',
             'node_modules/jquery-ui/ui/widget.js',
             'node_modules/jquery-ui/ui/widgets/mouse.js',
             'node_modules/jquery-ui/ui/widgets/sortable.js',
@@ -172,7 +171,6 @@ module.exports = {
         css: [
             'node_modules/jquery-ui/themes/themes/theme.css',
             'node_modules/ng-dialog/css/ngDialog.css',
-            'node_modules/angular-ui-layout/src/ui-layout.css',
             'node_modules/angularjs-slider/dist/rzslider.css',
             'node_modules/angular-cron-jobs/dist/angular-cron-jobs.css'
         ]
