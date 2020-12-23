@@ -362,7 +362,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 			return nil, errors.Wrap(err, "Failed to enrich functions with API gateways")
 		}
 
-		p.Logger.DebugWith("API Gateway CRD is not installed; skipping function api gateways enrichment",
+		p.Logger.DebugWith("Api-gateway crd isn't installed; skipping function api gateways enrichment",
 			"err", err)
 	}
 
