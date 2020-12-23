@@ -142,18 +142,19 @@ For example:
 ```sh
 nuctl import projects --namespace nuclio --skip "myproject1,myproject3"
 ```
-Similarly, you can set the `--skip-label-selectors` flag to a Kubernetes label-selectors filter that identifies projects to skip (don't import); replace `<label selectors>` with valid [Kubernetes label selectors](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors) :
+<!-- [IntInfo] `import functions` doesn't have a similar `skip` flag. -->
+
+The project display-name configuration (`spec.displayName`) is being deprecated in favor of the project metadata-name configuration (`metadata.name`).
+Therefore, by default, when the imported configuration sets `spec.displayName` and doesn't set `metadata.name` or sets it in the form of a UUID, the imported configuration will have a `metadata.name` field with the value of the original `spec.displayName` field and won't have a `spec.displayName` field.
+You can bypass this behavior by using the `--skip-transform-display-name` import flag:
 ```sh
-nuctl import projects --namespace nuclio --skip-label-selectors <label selectors> [<project-configurations file>]
+nuctl import projects --namespace nuclio --skip-transform-display-name [<project-configurations file>]
 ```
 For example:
 ```sh
-nuctl import projects --namespace nuclio --skip-label-selectors "environment=production,tier=frontend"
-nuctl import projects --namespace nuclio --skip-label-selectors "environment in (production, qa)"
-nuctl import projects --namespace nuclio --skip-label-selectors "environment,environment notin (frontend)"
+nuctl import projects --namespace nuclio --skip-transform-display-name
 ```
-<!-- [IntInfo] `import functions` doesn't have a similar `skip` and
-  `skip-label-selectors` flags. -->
+> **Warning:** Note that the `spec.display` project-configuration field will ultimately be fully deprecated and no longer supported.
 
 You can also import project configurations to an instance of the Nuclio dashboard by using an HTTP `POST` command with an `import=true` query string to send a project-configurations file to the dashboard's projects API endpoint &mdash; `/api/projects/`.
 You can do this, for example, by using the `http` CLI tool; replace `<project-configurations file>` with the path to a Nuclio project-configurations file, and `<Nuclio dashboard URL>` with the IP address or host name of your Nuclio dashboard:

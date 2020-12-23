@@ -19,6 +19,7 @@ package test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -38,6 +39,7 @@ import (
 	"github.com/nuclio/nuclio/test/compare"
 
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/mock"
@@ -1530,25 +1532,75 @@ func (suite *projectTestSuite) TestDeleteSuccessful() {
 }
 
 func (suite *projectTestSuite) TestDeleteWithFunctions() {
-	suite.mockPlatform.
-		On("DeleteProject", mock.Anything).
-		Return(platform.ErrProjectContainsFunctions).
-		Once()
+	for _, testCase := range []struct {
+		name                       string
+		expectedStatusCode         int
+		deleteProjectReturnedError error
+		deleteProjectOptions       *platform.DeleteProjectOptions
+		requestHeaders             map[string]string
+	}{
+		{
+			name: "DeleteProjectWithFunctions",
+			deleteProjectOptions: &platform.DeleteProjectOptions{
+				Meta: platform.ProjectMeta{
+					Name:      "p1",
+					Namespace: "p1-namespace",
+				},
+				Strategy: platform.DeleteProjectStrategyCascading,
+			},
+			deleteProjectReturnedError: nil,
+			requestHeaders: map[string]string{
+				"x-nuclio-delete-project-strategy": string(platform.DeleteProjectStrategyCascading),
+			},
+			expectedStatusCode: http.StatusNoContent,
+		},
+		{
+			name: "FailDeleteProjectWithFunctions",
+			deleteProjectOptions: &platform.DeleteProjectOptions{
+				Meta: platform.ProjectMeta{
+					Name:      "p1",
+					Namespace: "p1-namespace",
+				},
+				Strategy: platform.DeleteProjectStrategyRestricted,
+			},
+			requestHeaders: map[string]string{
+				"x-nuclio-delete-project-strategy": string(platform.DeleteProjectStrategyRestricted),
+			},
+			deleteProjectReturnedError: nuclio.NewErrPreconditionFailed("functions exists"),
+			expectedStatusCode:         http.StatusPreconditionFailed,
+		},
+		{
+			name: "DefaultDeleteProjectStrategyToRestricted",
+			deleteProjectOptions: &platform.DeleteProjectOptions{
+				Meta: platform.ProjectMeta{
+					Name:      "p1",
+					Namespace: "p1-namespace",
+				},
+				Strategy: platform.DeleteProjectStrategyRestricted,
+			},
+			requestHeaders:             map[string]string{},
+			deleteProjectReturnedError: nil,
+			expectedStatusCode:         http.StatusNoContent,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockPlatform.
+				On("DeleteProject", testCase.deleteProjectOptions).
+				Return(testCase.deleteProjectReturnedError).
+				Once()
 
-	expectedStatusCode := http.StatusConflict
-	requestBody := `{
-	"metadata": {
-		"name": "p1",
-		"namespace": "p1-namespace"
+			requestBody := fmt.Sprintf(`{"metadata": {"name": "%s", "namespace": "%s"}}`,
+				testCase.deleteProjectOptions.Meta.Name,
+				testCase.deleteProjectOptions.Meta.Namespace)
+
+			suite.sendRequest("DELETE",
+				"/api/projects",
+				testCase.requestHeaders,
+				bytes.NewBufferString(requestBody),
+				&testCase.expectedStatusCode,
+				nil)
+		})
 	}
-}`
-
-	suite.sendRequest("DELETE",
-		"/api/projects",
-		nil,
-		bytes.NewBufferString(requestBody),
-		&expectedStatusCode,
-		nil)
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }

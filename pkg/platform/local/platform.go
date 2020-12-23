@@ -18,7 +18,6 @@ package local
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -44,7 +43,6 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
-	"golang.org/x/sync/errgroup"
 )
 
 type Platform struct {
@@ -288,28 +286,9 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
-	var functions []platform.Function
-
-	// get project filter
-	projectName := common.StringToStringMap(getFunctionsOptions.Labels, "=")["nuclio.io/project-name"]
-
-	// get all the functions in the store. these functions represent both functions that are deployed
-	// and functions that failed to build
-	localStoreFunctions, err := p.localStore.getFunctions(&functionconfig.Meta{
-		Name:      getFunctionsOptions.Name,
-		Namespace: getFunctionsOptions.Namespace,
-	})
-
+	functions, err := p.localStore.getProjectFunctions(getFunctionsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read functions from a local store")
-	}
-
-	// filter by project name
-	for _, localStoreFunction := range localStoreFunctions {
-		if projectName != "" && localStoreFunction.GetConfig().Meta.Labels["nuclio.io/project-name"] != projectName {
-			continue
-		}
-		functions = append(functions, localStoreFunction)
 	}
 
 	// enrich with build logs
@@ -367,6 +346,8 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	}
 
 	// create
+	p.Logger.InfoWith("Creating project",
+		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
 	return p.localStore.createOrUpdateProject(createProjectOptions.ProjectConfig)
 }
 
@@ -383,7 +364,20 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
 		return err
 	}
-	return p.localStore.deleteProject(&deleteProjectOptions.Meta)
+
+	if err := p.localStore.deleteProject(&deleteProjectOptions.Meta); err != nil {
+		return errors.Wrapf(err,
+			"Failed to delete project %s from namespace %s",
+			deleteProjectOptions.Meta.Name,
+			deleteProjectOptions.Meta.Namespace)
+	}
+
+	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
+		return p.Platform.WaitForProjectResourcesDeletion(&deleteProjectOptions.Meta,
+			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration)
+	}
+
+	return nil
 }
 
 // GetProjects will list existing projects
@@ -409,7 +403,7 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 
 // GetFunctionEvents will list existing function events
 func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
-	return p.localStore.getFunctionEvents(&getFunctionEventsOptions.Meta)
+	return p.localStore.getFunctionEvents(getFunctionEventsOptions)
 }
 
 // GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
@@ -666,36 +660,6 @@ func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions)
 	err := p.localStore.deleteFunction(&deleteFunctionOptions.FunctionConfig.Meta)
 	if err != nil && err != nuclio.ErrNotFound {
 		p.Logger.WarnWith("Failed to delete a function from the local store", "err", err.Error())
-	}
-
-	getFunctionEventsOptions := &platform.FunctionEventMeta{
-		Labels: map[string]string{
-			"nuclio.io/function-name": deleteFunctionOptions.FunctionConfig.Meta.Name,
-		},
-		Namespace: deleteFunctionOptions.FunctionConfig.Meta.Namespace,
-	}
-	functionEvents, err := p.localStore.getFunctionEvents(getFunctionEventsOptions)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get function events")
-	}
-
-	p.Logger.InfoWith("Got function events", "num", len(functionEvents))
-
-	errGroup, _ := errgroup.WithContext(context.TODO())
-	for _, functionEvent := range functionEvents {
-
-		errGroup.Go(func() error {
-			err = p.localStore.deleteFunctionEvent(&functionEvent.GetConfig().Meta)
-			if err != nil {
-				return errors.Wrap(err, "Failed to delete a function event")
-			}
-			return nil
-		})
-	}
-
-	// wait for all errgroup goroutines
-	if err := errGroup.Wait(); err != nil {
-		return errors.Wrap(err, "Failed to delete function events")
 	}
 
 	getContainerOptions := &dockerclient.GetContainerOptions{

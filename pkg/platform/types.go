@@ -19,6 +19,7 @@ package platform
 // use k8s structure definitions for now. In the future, duplicate them for cleanliness
 import (
 	"net/http"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
@@ -181,8 +182,36 @@ type UpdateProjectOptions struct {
 	ProjectConfig ProjectConfig
 }
 
+type DeleteProjectStrategy string
+
+const (
+
+	// DeleteProjectStrategyCascading - delete sub resources prior to project deletion, leaving no orphans behind
+	DeleteProjectStrategyCascading DeleteProjectStrategy = "cascading"
+
+	// DeleteProjectStrategyRestricted - avoid deleting when project contains related resources (e.g.: functions)
+	DeleteProjectStrategyRestricted DeleteProjectStrategy = "restricted"
+)
+
+func ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy string) DeleteProjectStrategy {
+	switch strategy := DeleteProjectStrategy(projectDeletionStrategy); strategy {
+	case DeleteProjectStrategyCascading, DeleteProjectStrategyRestricted:
+		return strategy
+	default:
+
+		// default
+		return DeleteProjectStrategyRestricted
+	}
+}
+
 type DeleteProjectOptions struct {
-	Meta ProjectMeta
+	Meta     ProjectMeta
+	Strategy DeleteProjectStrategy
+
+	// allowing us to "block" until related resources are removed.
+	// used in testings
+	WaitForResourcesDeletionCompletion         bool
+	WaitForResourcesDeletionCompletionDuration time.Duration
 }
 
 type GetProjectsOptions struct {
@@ -233,7 +262,8 @@ type DeleteFunctionEventOptions struct {
 }
 
 type GetFunctionEventsOptions struct {
-	Meta FunctionEventMeta
+	Meta          FunctionEventMeta
+	FunctionNames []string
 }
 
 // to appease k8s

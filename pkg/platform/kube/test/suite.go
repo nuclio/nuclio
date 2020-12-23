@@ -39,6 +39,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
+	"github.com/rs/xid"
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
@@ -168,6 +169,7 @@ func (suite *KubeTestSuite) CompileCreateFunctionOptions(functionName string) *p
 			Meta: functionconfig.Meta{
 				Name:      functionName,
 				Namespace: suite.Namespace,
+				Labels:    map[string]string{},
 			},
 			Spec: functionconfig.Spec{
 				Build: functionconfig.Build{
@@ -186,6 +188,25 @@ def handler(context, event):
 	// expose function for testing purposes
 	createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeNodePort
 	return createFunctionOptions
+}
+
+func (suite *KubeTestSuite) CompileCreateFunctionEventOptions(functionEventName, functionName string) *platform.CreateFunctionEventOptions {
+	return &platform.CreateFunctionEventOptions{
+		FunctionEventConfig: platform.FunctionEventConfig{
+			Meta: platform.FunctionEventMeta{
+				Name:      functionEventName,
+				Namespace: suite.Namespace,
+				Labels: map[string]string{
+					"nuclio.io/function-name": functionName,
+				},
+			},
+			Spec: platform.FunctionEventSpec{
+
+				// random body
+				Body: xid.New().String(),
+			},
+		},
+	}
 }
 
 func (suite *KubeTestSuite) GetFunctionAndExpectState(getFunctionOptions *platform.GetFunctionsOptions,
@@ -249,6 +270,23 @@ func (suite *KubeTestSuite) GetResourceAndUnmarshal(resourceKind, resourceName s
 	resourceContent := suite.getResource(resourceKind, resourceName)
 	err := yaml.Unmarshal([]byte(resourceContent), resource)
 	suite.Require().NoError(err)
+}
+
+func (suite *KubeTestSuite) CreateImportedFunction(functionName, projectName string) *functionconfig.Config {
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
+		functionconfig.FunctionAnnotationSkipBuild:  "true",
+		functionconfig.FunctionAnnotationSkipDeploy: "true",
+	}
+	createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = projectName
+	suite.PopulateDeployOptions(createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(createFunctionOptions)
+	suite.Require().NoError(err)
+	suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+		Namespace: suite.Namespace,
+	}, functionconfig.FunctionStateImported, time.Minute)
+	return &createFunctionOptions.FunctionConfig
 }
 
 func (suite *KubeTestSuite) WaitForFunctionDeployment(functionName string,
@@ -473,6 +511,7 @@ func (suite *KubeTestSuite) compileCreateAPIGatewayOptions(apiGatewayName string
 			Meta: platform.APIGatewayMeta{
 				Name:      apiGatewayName,
 				Namespace: suite.Namespace,
+				Labels:    map[string]string{},
 			},
 			Spec: platform.APIGatewaySpec{
 				Host:               "some-host",
