@@ -486,6 +486,8 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
+	p.Logger.DebugWith("Deleting project",
+		"projectMeta", deleteProjectOptions.Meta)
 	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(deleteProjectOptions.Meta.Namespace).
 		Delete(deleteProjectOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {

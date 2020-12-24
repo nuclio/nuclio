@@ -365,6 +365,8 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
+	p.Logger.DebugWith("Deleting project",
+		"projectMeta", deleteProjectOptions.Meta)
 	if err := p.localStore.deleteProject(&deleteProjectOptions.Meta); err != nil {
 		return errors.Wrapf(err,
 			"Failed to delete project %s from namespace %s",
