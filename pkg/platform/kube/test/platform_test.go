@@ -33,6 +33,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
@@ -530,7 +531,8 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdateFunctionWithIngressWhenHasAPIG
 			_, err := suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 				return true
 			})
-			suite.Require().Equal("Function can't expose ingresses while it is being exposed by an api gateway", errors.RootCause(err).Error())
+			suite.Require().Error(err)
+			suite.Require().IsType(&nuclio.ErrBadRequest, errors.RootCause(err))
 		})
 		suite.Require().NoError(err)
 

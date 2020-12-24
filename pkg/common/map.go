@@ -25,8 +25,8 @@ func StringToStringMap(source string, separator string) map[string]string {
 	separatedString := strings.Split(source, ",")
 	result := map[string]string{}
 
-	for _, keyAndValie := range separatedString {
-		kv := strings.Split(keyAndValie, separator)
+	for _, keyAndValue := range separatedString {
+		kv := strings.Split(keyAndValue, separator)
 
 		if len(kv) > 1 {
 			result[kv[0]] = kv[1]
