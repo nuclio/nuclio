@@ -67,10 +67,7 @@ func NewAbstractServer(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create router")
 	}
 
-	// add request-id
-	newServer.Router.Use(middleware.RequestID)
-
-	// install request / response handler
+	// first install request / response handler
 	newServer.Router.Use(newServer.requestResponseLogger())
 
 	// install the middleware
@@ -167,12 +164,7 @@ func (s *AbstractServer) requestResponseLogger() func(next http.Handler) http.Ha
 
 			// when request processing is done, log the request / response
 			defer func() {
-				requestID, ok := request.Context().Value(middleware.RequestIDKey).(int)
-				if !ok {
-					requestID = -1
-				}
 				logVars := []interface{}{
-					"requestID", requestID,
 					"requestMethod", request.Method,
 					"requestPath", request.URL,
 					"requestHeaders", request.Header,
