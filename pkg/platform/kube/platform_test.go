@@ -566,6 +566,12 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 		},
 	} {
 		suite.Run(testCase.name, func() {
+			if testCase.expectedEnrichedAPIGateway != nil {
+				if testCase.expectedEnrichedAPIGateway.Meta.Labels == nil {
+					testCase.expectedEnrichedAPIGateway.Meta.Labels = map[string]string{}
+				}
+				suite.Platform.EnrichLabelsWithProjectName(testCase.expectedEnrichedAPIGateway.Meta.Labels)
+			}
 
 			// run test case specific set up function if given
 			if testCase.setUpFunction != nil {
