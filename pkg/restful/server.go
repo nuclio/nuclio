@@ -164,20 +164,24 @@ func (s *AbstractServer) requestResponseLogger() func(next http.Handler) http.Ha
 
 			// when request processing is done, log the request / response
 			defer func() {
-				if common.StringSliceContainsStringPrefix([]string{
-					"/api/functions",
-					"/api/function_templates",
-				}, strings.TrimSuffix(request.URL.Path, "/")) {
-					return
-				}
-				s.Logger.DebugWith("Handled request",
+				logVars := []interface{}{
 					"requestMethod", request.Method,
 					"requestPath", request.URL,
 					"requestHeaders", request.Header,
 					"requestBody", string(requestBody),
 					"responseStatus", responseWrapper.Status(),
-					"responseBody", responseBodyBuffer.String(),
-					"responseTime", time.Since(requestStartTime))
+					"responseTime", time.Since(requestStartTime),
+				}
+
+				// response body is too spammy
+				if !common.StringSliceContainsStringPrefix([]string{
+					"/api/functions",
+					"/api/function_templates",
+				}, strings.TrimSuffix(request.URL.Path, "/")) {
+					logVars = append(logVars, "responseBody", responseBodyBuffer.String())
+				}
+
+				s.Logger.DebugWith("Handled request", logVars...)
 			}()
 
 			// call next middleware
