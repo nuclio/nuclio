@@ -18,6 +18,7 @@ package abstract
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	builtinerrors "errors"
 	"fmt"
@@ -41,6 +42,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"golang.org/x/sync/errgroup"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
@@ -340,6 +342,21 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 
 	// ensure project have no sub resources
 	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyRestricted {
+
+		// listing project resources might be too excessive
+		// to avoid listing resources for non-existing project, first we ensure it exists
+		projects, err := ap.GetProjects(&platform.GetProjectsOptions{
+			Meta: deleteProjectOptions.Meta,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to get project")
+
+		}
+
+		// project does not exists, stop here
+		if len(projects) == 0 {
+			return nil
+		}
 
 		// validate project has no related resources such as functions, api gateways, etc
 		if err := ap.validateProjectHasNoRelatedResources(&deleteProjectOptions.Meta); err != nil {
@@ -727,43 +744,40 @@ func (ap *Platform) GetProjectResources(projectMeta *platform.ProjectMeta) ([]pl
 	[]platform.APIGateway,
 	error) {
 
-	// get functions
-	functions, err := ap.GetProjectFunctions(projectMeta)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to get project functions")
-	}
+	var err error
+	var functions []platform.Function
+	var apiGateways []platform.APIGateway
+	errGroup, _ := errgroup.WithContext(context.TODO())
 
 	// get api gateways
-	apiGateways, err := ap.GetProjectAPIGateways(projectMeta)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to get project api gateways")
-	}
-
-	return functions, apiGateways, nil
-}
-
-func (ap *Platform) GetProjectFunctions(projectMeta *platform.ProjectMeta) ([]platform.Function, error) {
-	return ap.platform.GetFunctions(&platform.GetFunctionsOptions{
-		Namespace: projectMeta.Namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
-	})
-}
-
-func (ap *Platform) GetProjectAPIGateways(projectMeta *platform.ProjectMeta) ([]platform.APIGateway, error) {
-	apiGateways, err := ap.platform.GetAPIGateways(&platform.GetAPIGatewaysOptions{
-		Namespace: projectMeta.Namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
-	})
-	if err != nil {
-
-		// if api gateways are not supported on this platform, ignore
-		if err == platform.ErrUnsupportedMethod {
-			return nil, nil
+	errGroup.Go(func() error {
+		apiGateways, err = ap.platform.GetAPIGateways(&platform.GetAPIGatewaysOptions{
+			Namespace: projectMeta.Namespace,
+			Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to get project api gateways")
 		}
+		return nil
+	})
 
-		return nil, errors.Wrap(err, "Failed to get api gateways")
+	// get functions
+	errGroup.Go(func() error {
+		functions, err = ap.platform.GetFunctions(&platform.GetFunctionsOptions{
+			Namespace:                projectMeta.Namespace,
+			Labels:                   fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
+			SkipEnrichingAPIGateways: true,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to get project functions")
+		}
+		return nil
+	})
+
+	if err := errGroup.Wait(); err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to get project resources")
 	}
-	return apiGateways, nil
+	return functions, apiGateways, nil
 }
 
 func (ap *Platform) aggregateConsecutiveDuplicateMessages(errorMessagesArray []string) []string {
@@ -1159,27 +1173,15 @@ func (ap *Platform) enrichMinMaxReplicas(functionConfig *functionconfig.Config) 
 }
 
 func (ap *Platform) validateProjectHasNoRelatedResources(projectMeta *platform.ProjectMeta) error {
-
-	// validate the project has no functions
-	functions, err := ap.GetProjectFunctions(projectMeta)
+	functions, apiGateways, err := ap.GetProjectResources(projectMeta)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get functions")
+		return errors.Wrap(err, "Failed to get project resources")
 	}
-
-	if len(functions) != 0 {
+	if len(functions) > 0 {
 		return platform.ErrProjectContainsFunctions
-	}
-
-	// validate the project has no api gateways
-	apiGateways, err := ap.GetProjectAPIGateways(projectMeta)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get api gateways")
-	}
-
-	if len(apiGateways) != 0 {
+	} else if len(apiGateways) > 0 {
 		return platform.ErrProjectContainsAPIGateways
 	}
-
 	return nil
 }
 

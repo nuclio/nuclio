@@ -362,7 +362,7 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 // DeleteProject will delete an existing project
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
-		return err
+		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
 	if err := p.localStore.deleteProject(&deleteProjectOptions.Meta); err != nil {
@@ -404,6 +404,11 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 // GetFunctionEvents will list existing function events
 func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
 	return p.localStore.getFunctionEvents(getFunctionEventsOptions)
+}
+
+// GetAPIGateways not supported on this platform
+func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
+	return nil, nil
 }
 
 // GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".

@@ -353,17 +353,23 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 
 	p.EnrichFunctionsWithDeployLogStream(functions)
 
-	if err = p.enrichFunctionsWithAPIGateways(functions, getFunctionsOptions.Namespace); err != nil {
+	if !getFunctionsOptions.SkipEnrichingAPIGateways {
+		if err = p.enrichFunctionsWithAPIGateways(functions, &platform.GetAPIGatewaysOptions{
+			Name:      getFunctionsOptions.Name,
+			Labels:    getFunctionsOptions.Labels,
+			Namespace: getFunctionsOptions.Namespace,
+		}); err != nil {
 
-		// relevant when upgrading nuclio from a version that didn't have api-gateways to one that has
-		if !strings.Contains(errors.RootCause(err).Error(),
-			"the server could not find the requested resource (get nuclioapigateways.nuclio.io)") {
+			// relevant when upgrading nuclio from a version that didn't have api-gateways to one that has
+			if !strings.Contains(errors.RootCause(err).Error(),
+				"the server could not find the requested resource (get nuclioapigateways.nuclio.io)") {
 
-			return nil, errors.Wrap(err, "Failed to enrich functions with API gateways")
+				return nil, errors.Wrap(err, "Failed to enrich functions with API gateways")
+			}
+
+			p.Logger.DebugWith("Api-gateway crd isn't installed; skipping function api gateways enrichment",
+				"err", err)
 		}
-
-		p.Logger.DebugWith("Api-gateway crd isn't installed; skipping function api gateways enrichment",
-			"err", err)
 	}
 
 	return functions, nil
@@ -481,7 +487,7 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 // DeleteProject will delete a previously existing project
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
-		return err
+		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
 	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
@@ -1366,7 +1372,7 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 			return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
 		}
 		if _, found := functionToAPIGateways[functionConfig.Meta.Name]; found {
-			return nuclio.NewErrBadRequest("Function can't expose ingresses while it is being exposed by an api gateway")
+			return nuclio.NewErrBadRequest("Function can't expose ingresses while it is being exposed by an API gateway")
 		}
 	}
 

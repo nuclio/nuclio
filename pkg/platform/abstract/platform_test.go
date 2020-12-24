@@ -12,14 +12,16 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/mock"
+	mockedplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/go-uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/rs/xid"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -36,7 +38,7 @@ const (
 
 type AbstractPlatformTestSuite struct {
 	suite.Suite
-	mockedPlatform *mock.Platform
+	mockedPlatform *mockedplatform.Platform
 
 	Logger           logger.Logger
 	DockerClient     dockerclient.Client
@@ -60,7 +62,7 @@ func (suite *AbstractPlatformTestSuite) SetupSuite() {
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err, "Logger should create successfully")
 
-	suite.mockedPlatform = &mock.Platform{}
+	suite.mockedPlatform = &mockedplatform.Platform{}
 	suite.Platform, err = NewPlatform(suite.Logger, suite.mockedPlatform, &platformconfig.Config{})
 	suite.Require().NoError(err, "Could not create platform")
 
@@ -378,6 +380,56 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 		} else {
 			suite.Require().NoError(err)
 		}
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestGetProjectResources() {
+	for _, testCase := range []struct {
+		name              string
+		functions         []platform.Function
+		apiGateways       []platform.APIGateway
+		getFunctionsError error
+		expectedFailure   bool
+	}{
+		{
+			name:        "GetProjectResources",
+			functions:   make([]platform.Function, 2),
+			apiGateways: make([]platform.APIGateway, 2),
+		},
+		{
+			name:        "GetProjectResourcesNoResources",
+			functions:   nil,
+			apiGateways: nil,
+		},
+		{
+			name:              "GetProjectResourcesFail",
+			functions:         nil,
+			apiGateways:       nil,
+			getFunctionsError: errors.New("Something bad happened"),
+			expectedFailure:   true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.
+				On("GetAPIGateways", mock.Anything).
+				Return(testCase.apiGateways, nil).Once()
+
+			suite.mockedPlatform.
+				On("GetFunctions", mock.Anything).
+				Return(testCase.functions, testCase.getFunctionsError).Once()
+
+			projectFunctions, projectAPIGateways, err := suite.Platform.GetProjectResources(&platform.ProjectMeta{
+				Namespace: suite.DefaultNamespace,
+				Name:      xid.New().String(),
+			})
+			if testCase.expectedFailure {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+			suite.Require().Empty(cmp.Diff(projectFunctions, testCase.functions))
+			suite.Require().Empty(cmp.Diff(projectAPIGateways, testCase.apiGateways))
+		})
 	}
 }
 
