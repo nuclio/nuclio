@@ -205,10 +205,7 @@ func (ap *Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) 
 	if functionConfig.Meta.Labels == nil {
 		functionConfig.Meta.Labels = map[string]string{}
 	}
-
-	if err := ap.enrichProjectName(functionConfig); err != nil {
-		return errors.Wrap(err, "Failed enriching project name")
-	}
+	ap.EnrichLabelsWithProjectName(functionConfig.Meta.Labels)
 
 	if err := ap.enrichImageName(functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching image name")
@@ -238,6 +235,14 @@ func (ap *Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) 
 	}
 
 	return nil
+}
+
+// Enrich labels with default project name
+func (ap *Platform) EnrichLabelsWithProjectName(labels map[string]string) {
+	if labels["nuclio.io/project-name"] == "" {
+		labels["nuclio.io/project-name"] = platform.DefaultProjectName
+		ap.Logger.Debug("No project name specified. Setting to default")
+	}
 }
 
 func (ap *Platform) enrichDefaultHTTPTrigger(functionConfig *functionconfig.Config) {
@@ -986,18 +991,6 @@ func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage, wo
 	}
 
 	return false
-}
-
-// Function must have project name - if it was not given - set to default project
-func (ap *Platform) enrichProjectName(functionConfig *functionconfig.Config) error {
-
-	// if no project name was given, set it to the default project
-	if functionConfig.Meta.Labels["nuclio.io/project-name"] == "" {
-		functionConfig.Meta.Labels["nuclio.io/project-name"] = platform.DefaultProjectName
-		ap.Logger.Debug("No project name specified. Setting to default")
-	}
-
-	return nil
 }
 
 // If a user specify the image name to be built - add "projectName-functionName-" prefix to it

@@ -1118,17 +1118,23 @@ func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *p
 	functionEvent.Spec = platformFunctionEvent.Spec // deep copy instead?
 }
 
-func (p *Platform) EnrichAPIGatewayConfig(platformAPIGateway *platform.APIGatewayConfig) {
+func (p *Platform) EnrichAPIGatewayConfig(apiGatewayConfig *platform.APIGatewayConfig) {
 
 	// meta
-	if platformAPIGateway.Meta.Name == "" {
-		platformAPIGateway.Meta.Name = platformAPIGateway.Spec.Name
+	if apiGatewayConfig.Meta.Name == "" {
+		apiGatewayConfig.Meta.Name = apiGatewayConfig.Spec.Name
 	}
 
 	// spec
-	if platformAPIGateway.Spec.Name == "" {
-		platformAPIGateway.Spec.Name = platformAPIGateway.Meta.Name
+	if apiGatewayConfig.Spec.Name == "" {
+		apiGatewayConfig.Spec.Name = apiGatewayConfig.Meta.Name
 	}
+
+	if apiGatewayConfig.Meta.Labels == nil {
+		apiGatewayConfig.Meta.Labels = map[string]string{}
+	}
+
+	p.EnrichLabelsWithProjectName(apiGatewayConfig.Meta.Labels)
 }
 
 func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGatewayMeta) error {
