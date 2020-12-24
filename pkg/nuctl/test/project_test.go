@@ -32,7 +32,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -181,7 +181,7 @@ func (suite *projectExportImportTestSuite) TestDeleteProject() {
 			name:            "FailDeleteProjectWithFunctions",
 			importFunctions: true,
 			strategy:        platform.DeleteProjectStrategyRestricted,
-			expectedError:   nuclio.NewErrPreconditionFailed(platform.ErrProjectContainsFunctions.Error()),
+			expectedError:   platform.ErrProjectContainsFunctions,
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -216,7 +216,7 @@ func (suite *projectExportImportTestSuite) TestDeleteProject() {
 				"strategy": string(testCase.strategy),
 			})
 			if testCase.expectedError != nil {
-				suite.Require().EqualError(err, testCase.expectedError.Error())
+				suite.Require().EqualError(errors.RootCause(err), testCase.expectedError.Error())
 				suite.Require().Error(err)
 				return
 			}

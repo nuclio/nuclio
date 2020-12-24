@@ -2,6 +2,7 @@ package abstract
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -380,6 +381,131 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 		} else {
 			suite.Require().NoError(err)
 		}
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidateDeleteProjectOptions() {
+	for _, testCase := range []struct {
+		name                 string
+		deleteProjectOptions *platform.DeleteProjectOptions
+		existingProjects     []platform.Project
+		existingFunctions    []platform.Function
+		existingAPIGateway   []platform.APIGateway
+		expectedFailure      bool
+	}{
+		{
+			name: "Delete",
+			deleteProjectOptions: &platform.DeleteProjectOptions{
+				Meta: platform.ProjectMeta{
+					Name:      "something",
+					Namespace: suite.DefaultNamespace,
+				},
+			},
+			existingProjects: make([]platform.Project, 1),
+		},
+		{
+			name: "DeleteCascading",
+			deleteProjectOptions: &platform.DeleteProjectOptions{
+				Meta: platform.ProjectMeta{
+					Name:      "something",
+					Namespace: suite.DefaultNamespace,
+				},
+				Strategy: platform.DeleteProjectStrategyCascading,
+			},
+			existingProjects: make([]platform.Project, 1),
+		},
+		{
+			name: "DeleteNonExistingProjectIdempotency",
+			deleteProjectOptions: &platform.DeleteProjectOptions{
+				Meta: platform.ProjectMeta{
+					Name:      "something",
+					Namespace: suite.DefaultNamespace,
+				},
+			},
+		},
+
+		// bad flows
+		{
+			name: "ProjectNameEmptyFail",
+			deleteProjectOptions: &platform.DeleteProjectOptions{
+				Meta: platform.ProjectMeta{
+					Namespace: suite.DefaultNamespace,
+					Name:      "",
+				},
+			},
+			expectedFailure: true,
+		},
+		{
+			name: "FailDeletingDefaultProject",
+			deleteProjectOptions: &platform.DeleteProjectOptions{
+				Meta: platform.ProjectMeta{
+					Namespace: suite.DefaultNamespace,
+					Name:      platform.DefaultProjectName,
+				},
+			},
+			expectedFailure: true,
+		},
+		{
+			name: "FailDeletingProjectWithFunctions",
+			deleteProjectOptions: &platform.DeleteProjectOptions{
+				Meta: platform.ProjectMeta{
+					Name:      "something",
+					Namespace: suite.DefaultNamespace,
+				},
+			},
+			existingProjects:  make([]platform.Project, 1),
+			existingFunctions: make([]platform.Function, 1),
+		},
+		{
+			name: "FailDeletingProjectWithAPIGateways",
+			deleteProjectOptions: &platform.DeleteProjectOptions{
+				Meta: platform.ProjectMeta{
+					Name:      "something",
+					Namespace: suite.DefaultNamespace,
+				},
+			},
+			existingProjects:   make([]platform.Project, 1),
+			existingAPIGateway: make([]platform.APIGateway, 1),
+		},
+	} {
+
+		suite.Run(testCase.name, func() {
+
+			suite.mockedPlatform.
+				On("GetProjects", mock.Anything).
+				Return(testCase.existingProjects, nil).
+				Once()
+
+			if testCase.deleteProjectOptions.Strategy == "" {
+				testCase.deleteProjectOptions.Strategy = platform.DeleteProjectStrategyRestricted
+			}
+
+			if len(testCase.existingProjects) > 0 {
+				suite.mockedPlatform.
+					On("GetFunctions", &platform.GetFunctionsOptions{
+						Namespace:                suite.DefaultNamespace,
+						Labels:                   fmt.Sprintf("nuclio.io/project-name=%s", testCase.deleteProjectOptions.Meta.Name),
+						SkipEnrichingAPIGateways: true,
+					}).
+					Return(testCase.existingFunctions, nil).
+					Once()
+
+				suite.mockedPlatform.
+					On("GetAPIGateways", &platform.GetAPIGatewaysOptions{
+						Namespace: suite.DefaultNamespace,
+						Labels:    fmt.Sprintf("nuclio.io/project-name=%s", testCase.deleteProjectOptions.Meta.Name),
+					}).
+					Return(testCase.existingAPIGateway, nil).
+					Once()
+			}
+
+			err := suite.Platform.ValidateDeleteProjectOptions(testCase.deleteProjectOptions)
+			if testCase.expectedFailure {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+		})
 	}
 }
 

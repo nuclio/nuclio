@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	builtinerrors "errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -336,8 +335,11 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	projectName := deleteProjectOptions.Meta.Name
 
-	if projectName == platform.DefaultProjectName {
+	switch projectName {
+	case platform.DefaultProjectName:
 		return nuclio.NewErrConflict("Cannot delete the default project")
+	case "":
+		return nuclio.NewErrBadRequest("Project name cannot be empty")
 	}
 
 	// ensure project have no sub resources
@@ -345,7 +347,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 
 		// listing project resources might be too excessive
 		// to avoid listing resources for non-existing project, first we ensure it exists
-		projects, err := ap.GetProjects(&platform.GetProjectsOptions{
+		projects, err := ap.platform.GetProjects(&platform.GetProjectsOptions{
 			Meta: deleteProjectOptions.Meta,
 		})
 		if err != nil {
@@ -360,16 +362,9 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 
 		// validate project has no related resources such as functions, api gateways, etc
 		if err := ap.validateProjectHasNoRelatedResources(&deleteProjectOptions.Meta); err != nil {
-			if builtinerrors.Is(err, platform.ErrProjectContainsAPIGateways) ||
-				builtinerrors.Is(err, platform.ErrProjectContainsFunctions) {
-				ap.Logger.DebugWith("The project has related resources",
-					"projectName", projectName)
-				return nuclio.NewErrPreconditionFailed(err.Error())
-			}
 			return errors.Wrap(err, "Failed to validate whether a project has no related resources")
 		}
 	}
-
 	return nil
 }
 
