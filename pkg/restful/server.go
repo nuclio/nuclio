@@ -168,8 +168,8 @@ func (s *AbstractServer) requestResponseLogger() func(next http.Handler) http.Ha
 					"requestMethod", request.Method,
 					"requestPath", request.URL,
 					"requestHeaders", request.Header,
-					"responseStatus", responseWrapper.Status(),
 					"requestBody", string(requestBody),
+					"responseStatus", responseWrapper.Status(),
 					"responseTime", time.Since(requestStartTime),
 				}
 
