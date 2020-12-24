@@ -354,11 +354,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 	p.EnrichFunctionsWithDeployLogStream(functions)
 
 	if !getFunctionsOptions.SkipEnrichingAPIGateways {
-		if err = p.enrichFunctionsWithAPIGateways(functions, &platform.GetAPIGatewaysOptions{
-			Name:      getFunctionsOptions.Name,
-			Labels:    getFunctionsOptions.Labels,
-			Namespace: getFunctionsOptions.Namespace,
-		}); err != nil {
+		if err = p.enrichFunctionsWithAPIGateways(functions, getFunctionsOptions.Namespace); err != nil {
 
 			// relevant when upgrading nuclio from a version that didn't have api-gateways to one that has
 			if !strings.Contains(errors.RootCause(err).Error(),
