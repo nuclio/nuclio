@@ -62,17 +62,21 @@ func (suite *AbstractPlatformTestSuite) SetupSuite() {
 
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err, "Logger should create successfully")
+	suite.initializeMockedPlatform()
+}
 
+func (suite *AbstractPlatformTestSuite) SetupTest() {
+	suite.TestID = xid.New().String()
+}
+
+func (suite *AbstractPlatformTestSuite) initializeMockedPlatform() {
+	var err error
 	suite.mockedPlatform = &mockedplatform.Platform{}
 	suite.Platform, err = NewPlatform(suite.Logger, suite.mockedPlatform, &platformconfig.Config{})
 	suite.Require().NoError(err, "Could not create platform")
 
 	suite.Platform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
 	suite.Require().NoError(err)
-}
-
-func (suite *AbstractPlatformTestSuite) SetupTest() {
-	suite.TestID = xid.New().String()
 }
 
 func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
@@ -170,6 +174,9 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 		},
 	} {
 		suite.Run(testCase.Name, func() {
+			defer func() {
+				suite.initializeMockedPlatform()
+			}()
 			err := suite.Platform.EnrichCreateProjectConfig(testCase.CreateProjectOptions)
 			suite.Require().NoError(err)
 			err = suite.Platform.ValidateProjectConfig(testCase.CreateProjectOptions.ProjectConfig)
@@ -415,7 +422,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteProjectOptions() {
 			existingProjects: make([]platform.Project, 1),
 		},
 		{
-			name: "DeleteNonExistingProjectIdempotency",
+			name: "DeleteNonExistingProject",
 			deleteProjectOptions: &platform.DeleteProjectOptions{
 				Meta: platform.ProjectMeta{
 					Name:      "something",
@@ -455,6 +462,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteProjectOptions() {
 			},
 			existingProjects:  make([]platform.Project, 1),
 			existingFunctions: make([]platform.Function, 1),
+			expectedFailure:   true,
 		},
 		{
 			name: "FailDeletingProjectWithAPIGateways",
@@ -466,10 +474,14 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteProjectOptions() {
 			},
 			existingProjects:   make([]platform.Project, 1),
 			existingAPIGateway: make([]platform.APIGateway, 1),
+			expectedFailure:    true,
 		},
 	} {
 
 		suite.Run(testCase.name, func() {
+			defer func() {
+				suite.initializeMockedPlatform()
+			}()
 
 			suite.mockedPlatform.
 				On("GetProjects", mock.Anything).
@@ -497,6 +509,11 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteProjectOptions() {
 					}).
 					Return(testCase.existingAPIGateway, nil).
 					Once()
+			} else {
+
+				// do not get validations if project does not exists
+				suite.mockedPlatform.AssertNotCalled(suite.T(), "GetFunctions", mock.Anything)
+				suite.mockedPlatform.AssertNotCalled(suite.T(), "GetAPIGateways", mock.Anything)
 			}
 
 			err := suite.Platform.ValidateDeleteProjectOptions(testCase.deleteProjectOptions)
@@ -536,6 +553,10 @@ func (suite *AbstractPlatformTestSuite) TestGetProjectResources() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
+			defer func() {
+				suite.initializeMockedPlatform()
+			}()
+
 			suite.mockedPlatform.
 				On("GetAPIGateways", mock.Anything).
 				Return(testCase.apiGateways, nil).Once()

@@ -489,6 +489,10 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(deleteProjectOptions.Meta.Namespace).
 		Delete(deleteProjectOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
+
+		if apierrors.IsNotFound(err) {
+			return nuclio.NewErrNotFound(fmt.Sprintf("Project %s not found", deleteProjectOptions.Meta.Name))
+		}
 		return errors.Wrapf(err,
 			"Failed to delete project %s from namespace %s",
 			deleteProjectOptions.Meta.Name,
