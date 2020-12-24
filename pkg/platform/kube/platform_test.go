@@ -102,7 +102,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 
 	// return empty api gateways list on enrichFunctionsWithAPIGateways (not tested here)
 	suite.nuclioAPIGatewayInterfaceMock.
-		On("List", metav1.ListOptions{}).
+		On("List", mock.Anything).
 		Return(&v1beta1.NuclioAPIGatewayList{}, nil)
 
 	for idx, testCase := range []struct {

@@ -354,7 +354,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 	p.EnrichFunctionsWithDeployLogStream(functions)
 
 	if getFunctionsOptions.EnrichWithAPIGateways {
-		if err = p.enrichFunctionsWithAPIGateways(functions, getFunctionsOptions.Namespace); err != nil {
+		if err = p.enrichFunctionsWithAPIGateways(functions, getFunctionsOptions); err != nil {
 
 			// relevant when upgrading nuclio from a version that didn't have api-gateways to one that has
 			if !strings.Contains(errors.RootCause(err).Error(),
@@ -988,38 +988,52 @@ func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error 
 	})
 }
 
-func (p *Platform) generateFunctionToAPIGatewaysMapping(namespace string) (map[string][]string, error) {
+func (p *Platform) generateFunctionToAPIGatewaysMapping(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) (
+	map[string][]string, error) {
+
 	functionToAPIGateways := map[string][]string{}
 
 	// get all api gateways in the namespace
-	apiGateways, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		NuclioAPIGateways(namespace).
-		List(metav1.ListOptions{})
+	apiGateways, err := p.GetAPIGateways(getAPIGatewaysOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list API gateways")
 	}
 
 	// iterate over all api gateways
-	for _, apiGateway := range apiGateways.Items {
+	for _, apiGateway := range apiGateways {
 
 		// iterate over all upstreams(functions) of the api gateway
-		for _, upstream := range apiGateway.Spec.Upstreams {
+		for _, upstream := range apiGateway.GetConfig().Spec.Upstreams {
 
 			// append the current api gateway to the function's api gateways list
 			functionToAPIGateways[upstream.Nucliofunction.Name] =
-				append(functionToAPIGateways[upstream.Nucliofunction.Name], apiGateway.Name)
+				append(functionToAPIGateways[upstream.Nucliofunction.Name], apiGateway.GetConfig().Meta.Name)
 		}
 	}
 
 	return functionToAPIGateways, nil
 }
 
-func (p *Platform) enrichFunctionsWithAPIGateways(functions []platform.Function, namespace string) error {
-	var err error
-	var functionToAPIGateways map[string][]string
+func (p *Platform) enrichFunctionsWithAPIGateways(functions []platform.Function,
+	getFunctionsOptions *platform.GetFunctionsOptions) error {
+
+	labelsMap, err := getFunctionsOptions.LabelsToMapStringToString()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get labels as map string")
+	}
+
+	getAPIGatewayProjectName := ""
+	projectName, ok := labelsMap["nuclio.io/project-name"]
+	if ok {
+		getAPIGatewayProjectName = fmt.Sprintf("nuclio.io/project-name=%s", projectName)
+	}
 
 	// generate function to api gateways mapping
-	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(namespace); err != nil {
+	functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(&platform.GetAPIGatewaysOptions{
+		Namespace: getFunctionsOptions.Namespace,
+		Labels:    getAPIGatewayProjectName,
+	})
+	if err != nil {
 		return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
 	}
 
@@ -1225,7 +1239,10 @@ func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platf
 	var err error
 
 	// generate function to api gateways mapping
-	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(deleteFunctionOptions.FunctionConfig.Meta.Namespace); err != nil {
+	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(&platform.GetAPIGatewaysOptions{
+		Namespace: deleteFunctionOptions.FunctionConfig.Meta.Namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", deleteFunctionOptions.FunctionConfig.GetProjectName()),
+	}); err != nil {
 		return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
 	}
 
@@ -1402,7 +1419,10 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 	if len(ingresses) > 0 {
 
 		// TODO: when we'll add upstream labels to api gateway, use get api gateways by label to replace this line
-		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(functionConfig.Meta.Namespace)
+		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(&platform.GetAPIGatewaysOptions{
+			Namespace: functionConfig.Meta.Namespace,
+			Labels:    fmt.Sprintf("nuclio.io/project-name=%s", functionConfig.GetProjectName()),
+		})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
 		}

@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -94,6 +95,14 @@ type GetFunctionsOptions struct {
 
 	// Enrich functions with their api gateways
 	EnrichWithAPIGateways bool
+}
+
+func (gfo *GetFunctionsOptions) LabelsToMapStringToString() (map[string]string, error) {
+	parsedLabelSelector, err := metav1.ParseToLabelSelector(gfo.Labels)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse labels")
+	}
+	return metav1.LabelSelectorAsMap(parsedLabelSelector)
 }
 
 // InvokeViaType defines via which mechanism the function will be invoked
