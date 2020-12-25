@@ -213,6 +213,31 @@ func (suite *TestSuite) TearDownTest() {
 	}
 }
 
+// GetFunction will return the first function it finds
+func (suite *TestSuite) GetFunction(getFunctionOptions *platform.GetFunctionsOptions) platform.Function {
+	functions, err := suite.Platform.GetFunctions(getFunctionOptions)
+	suite.Require().NoError(err, "Failed to get functions")
+	suite.Len(functions, 1, "Expected to find one function")
+	return functions[0]
+}
+
+// WaitForFunctionState will wait for function to reach the desired state within a specific period of time
+func (suite *TestSuite) WaitForFunctionState(getFunctionOptions *platform.GetFunctionsOptions,
+	desiredFunctionState functionconfig.FunctionState,
+	duration time.Duration) {
+
+	err := common.RetryUntilSuccessful(duration,
+		1*time.Second,
+		func() bool {
+			function := suite.GetFunction(getFunctionOptions)
+			suite.Logger.InfoWith("Waiting for function state",
+				"currentFunctionState", function.GetStatus().State,
+				"desiredFunctionState", desiredFunctionState)
+			return function.GetStatus().State == desiredFunctionState
+		})
+	suite.Require().NoError(err, "Function did not reach its desired state")
+}
+
 // CreateFunction builds a docker image, runs a container from it and then
 // runs onAfterContainerRun
 func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFunctionOptions,

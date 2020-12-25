@@ -97,31 +97,36 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 		func(deployResult *platform.CreateFunctionResult) bool {
 			functionName := deployResult.UpdatedFunctionConfig.Meta.Name
 
-			// Check its state is ready
-			function := suite.getFunction(functionName)
-			suite.Require().Equal(functionconfig.FunctionStateReady, function.GetStatus().State)
+			// Ensure function state is ready
+			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+				Name:      functionName,
+				Namespace: suite.namespace,
+			}, functionconfig.FunctionStateReady, time.Second)
 
 			// Stop the container
 			err := suite.DockerClient.StopContainer(deployResult.ContainerID)
 			suite.Require().NoError(err, "Could not stop container")
 
 			// Trigger function containers healthiness validation
-			suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness()
+			go suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness()
 
-			// Now the function state should be error
-			function = suite.getFunction(functionName)
-			suite.Require().Equal(functionconfig.FunctionStateError, function.GetStatus().State)
+			// Wait for function to get into error state
+			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+				Name:      functionName,
+				Namespace: suite.namespace,
+			}, functionconfig.FunctionStateError, time.Minute)
 
 			// Start the container
 			err = suite.DockerClient.StartContainer(deployResult.ContainerID)
 			suite.Require().NoError(err, "Failed to start container")
 
 			// Trigger function containers healthiness validation
-			suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness()
+			go suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness()
 
-			// Function is healthy again
-			function = suite.getFunction(functionName)
-			suite.Require().Equal(functionconfig.FunctionStateReady, function.GetStatus().State)
+			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+				Name:      functionName,
+				Namespace: suite.namespace,
+			}, functionconfig.FunctionStateReady, time.Minute)
 
 			return true
 		})
@@ -140,12 +145,17 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 		func(deployResult *platform.CreateFunctionResult) bool {
 			functionName := deployResult.UpdatedFunctionConfig.Meta.Name
 
-			// Check its state is ready
-			function := suite.getFunction(functionName)
-			functionConfig := function.GetConfig()
+			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+				Name:      deployResult.UpdatedFunctionConfig.Meta.Name,
+				Namespace: suite.namespace,
+			}, functionconfig.FunctionStateImported, time.Second)
 
-			// Check its state is imported and not deployed
-			suite.Require().Equal(function.GetStatus().State, functionconfig.FunctionStateImported)
+			// Check its state is ready
+			function := suite.GetFunction(&platform.GetFunctionsOptions{
+				Name:      functionName,
+				Namespace: suite.namespace,
+			})
+			functionConfig := function.GetConfig()
 
 			// Check that the annotations have been removed
 			_, skipBuildExists := functionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipBuild]
@@ -158,13 +168,10 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 			return true
 		},
 		func(deployResult *platform.CreateFunctionResult) bool {
-			functionName := deployResult.UpdatedFunctionConfig.Meta.Name
-
-			// Get the redeployed function
-			function := suite.getFunction(functionName)
-
-			// Check its state is ready
-			suite.Equal(function.GetStatus().State, functionconfig.FunctionStateReady)
+			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+				Name:      deployResult.UpdatedFunctionConfig.Meta.Name,
+				Namespace: suite.namespace,
+			}, functionconfig.FunctionStateReady, time.Second)
 			return true
 		})
 }
@@ -203,16 +210,6 @@ func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFu
 	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 	return createFunctionOptions
 
-}
-
-func (suite *TestSuite) getFunction(functionName string) platform.Function {
-	functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
-		Name:      functionName,
-		Namespace: suite.namespace,
-	})
-	suite.Require().NoError(err, "Failed to get functions")
-	suite.Len(functions, 1, "Expected to find one function")
-	return functions[0]
 }
 
 func TestProjectTestSuite(t *testing.T) {
