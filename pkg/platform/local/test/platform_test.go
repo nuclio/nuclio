@@ -145,15 +145,17 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 		func(deployResult *platform.CreateFunctionResult) bool {
 			functionName := deployResult.UpdatedFunctionConfig.Meta.Name
 
+			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+				Name:      deployResult.UpdatedFunctionConfig.Meta.Name,
+				Namespace: suite.namespace,
+			}, functionconfig.FunctionStateImported, time.Second)
+
 			// Check its state is ready
 			function := suite.GetFunction(&platform.GetFunctionsOptions{
 				Name:      functionName,
 				Namespace: suite.namespace,
 			})
 			functionConfig := function.GetConfig()
-
-			// Check its state is imported and not deployed
-			suite.Require().Equal(function.GetStatus().State, functionconfig.FunctionStateImported)
 
 			// Check that the annotations have been removed
 			_, skipBuildExists := functionConfig.Meta.Annotations[functionconfig.FunctionAnnotationSkipBuild]
@@ -166,16 +168,10 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 			return true
 		},
 		func(deployResult *platform.CreateFunctionResult) bool {
-			functionName := deployResult.UpdatedFunctionConfig.Meta.Name
-
-			// Get the redeployed function
-			function := suite.GetFunction(&platform.GetFunctionsOptions{
-				Name:      functionName,
+			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+				Name:      deployResult.UpdatedFunctionConfig.Meta.Name,
 				Namespace: suite.namespace,
-			})
-
-			// Check its state is ready
-			suite.Equal(function.GetStatus().State, functionconfig.FunctionStateReady)
+			}, functionconfig.FunctionStateReady, time.Second)
 			return true
 		})
 }
