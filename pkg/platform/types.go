@@ -105,6 +105,19 @@ func (gfo *GetFunctionsOptions) LabelsToMapStringToString() (map[string]string, 
 	return metav1.LabelSelectorAsMap(parsedLabelSelector)
 }
 
+func (gfo *GetFunctionsOptions) ResolveProjectName() (string, error) {
+	labelsMap, err := gfo.LabelsToMapStringToString()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get labels as map string")
+	}
+
+	if projectName, ok := labelsMap["nuclio.io/project-name"]; ok {
+		return projectName, nil
+	}
+
+	return "", nil
+}
+
 // InvokeViaType defines via which mechanism the function will be invoked
 type InvokeViaType int
 

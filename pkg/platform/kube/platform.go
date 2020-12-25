@@ -354,7 +354,20 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 	p.EnrichFunctionsWithDeployLogStream(functions)
 
 	if getFunctionsOptions.EnrichWithAPIGateways {
-		if err = p.enrichFunctionsWithAPIGateways(functions, getFunctionsOptions); err != nil {
+		projectName, err := getFunctionsOptions.ResolveProjectName()
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to resolve project name")
+		}
+
+		var getAPIGatewayProjectName string
+		if projectName != "" {
+			getAPIGatewayProjectName = fmt.Sprintf("nuclio.io/project-name=%s", projectName)
+		}
+
+		if err = p.enrichFunctionsWithAPIGateways(functions, &platform.GetAPIGatewaysOptions{
+			Namespace: getFunctionsOptions.Namespace,
+			Labels:    getAPIGatewayProjectName,
+		}); err != nil {
 
 			// relevant when upgrading nuclio from a version that didn't have api-gateways to one that has
 			if !strings.Contains(errors.RootCause(err).Error(),
@@ -1015,24 +1028,10 @@ func (p *Platform) generateFunctionToAPIGatewaysMapping(getAPIGatewaysOptions *p
 }
 
 func (p *Platform) enrichFunctionsWithAPIGateways(functions []platform.Function,
-	getFunctionsOptions *platform.GetFunctionsOptions) error {
-
-	labelsMap, err := getFunctionsOptions.LabelsToMapStringToString()
-	if err != nil {
-		return errors.Wrap(err, "Failed to get labels as map string")
-	}
-
-	getAPIGatewayProjectName := ""
-	projectName, ok := labelsMap["nuclio.io/project-name"]
-	if ok {
-		getAPIGatewayProjectName = fmt.Sprintf("nuclio.io/project-name=%s", projectName)
-	}
+	getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) error {
 
 	// generate function to api gateways mapping
-	functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(&platform.GetAPIGatewaysOptions{
-		Namespace: getFunctionsOptions.Namespace,
-		Labels:    getAPIGatewayProjectName,
-	})
+	functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(getAPIGatewaysOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
 	}
