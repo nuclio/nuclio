@@ -1238,10 +1238,17 @@ func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platf
 	var functionToAPIGateways map[string][]string
 	var err error
 
+	// TODO: enrich with default project if missing
+	getAPIGatewayLabels := ""
+	projectName := deleteFunctionOptions.FunctionConfig.GetProjectName()
+	if projectName != "" {
+		getAPIGatewayLabels = fmt.Sprintf("nuclio.io/project-name=%s", projectName)
+	}
+
 	// generate function to api gateways mapping
 	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(&platform.GetAPIGatewaysOptions{
 		Namespace: deleteFunctionOptions.FunctionConfig.Meta.Namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", deleteFunctionOptions.FunctionConfig.GetProjectName()),
+		Labels:    getAPIGatewayLabels,
 	}); err != nil {
 		return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
 	}
