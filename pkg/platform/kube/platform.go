@@ -1237,17 +1237,12 @@ func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platf
 	var functionToAPIGateways map[string][]string
 	var err error
 
-	// TODO: enrich with default project if missing
-	getAPIGatewayLabels := ""
-	projectName := deleteFunctionOptions.FunctionConfig.GetProjectName()
-	if projectName != "" {
-		getAPIGatewayLabels = fmt.Sprintf("nuclio.io/project-name=%s", projectName)
-	}
-
-	// generate function to api gateways mapping
+	// we use project label selector, as function name is a project related resource.
+	// that means, if function has an api gateway, it must be within the same project.
 	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(&platform.GetAPIGatewaysOptions{
 		Namespace: deleteFunctionOptions.FunctionConfig.Meta.Namespace,
-		Labels:    getAPIGatewayLabels,
+		Labels: fmt.Sprintf("nuclio.io/project-name=%s",
+			deleteFunctionOptions.FunctionConfig.GetProjectNameOrDefault()),
 	}); err != nil {
 		return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
 	}
@@ -1424,10 +1419,12 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 	ingresses := functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)
 	if len(ingresses) > 0 {
 
-		// TODO: when we'll add upstream labels to api gateway, use get api gateways by label to replace this line
+		// TODO: when we'll add upstream annotations to api gateway, use get api gateways by label to replace this line
+		// we use project label selector, as function name is a project related resource.
+		// that means, if function has an api gateway, it must be within the same project.
 		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(&platform.GetAPIGatewaysOptions{
 			Namespace: functionConfig.Meta.Namespace,
-			Labels:    fmt.Sprintf("nuclio.io/project-name=%s", functionConfig.GetProjectName()),
+			Labels:    fmt.Sprintf("nuclio.io/project-name=%s", functionConfig.GetProjectNameOrDefault()),
 		})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get a function to API-gateways mapping")

@@ -271,7 +271,7 @@ func (b *Builder) GetFunctionPath() string {
 
 // GetProjectName returns the name of the project
 func (b *Builder) GetProjectName() string {
-	return b.options.FunctionConfig.Meta.Labels["nuclio.io/project-name"]
+	return b.options.FunctionConfig.GetProjectNameOrDefault()
 }
 
 // GetFunctionName returns the name of the function

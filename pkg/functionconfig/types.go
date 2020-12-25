@@ -432,11 +432,14 @@ func NewConfig() *Config {
 	}
 }
 
-func (c *Config) GetProjectName() string {
+func (c *Config) GetProjectNameOrDefault() string {
+
+	// TODO: use platform.DefaultProjectName
+	defaultProjectName := "default"
 	if c.Meta.Labels == nil {
 
-		// not initialized yet
-		return ""
+		// not initialized yet, return default
+		return defaultProjectName
 	}
 
 	projectNameLabel, ok := c.Meta.Labels["nuclio.io/project-name"]
@@ -444,8 +447,7 @@ func (c *Config) GetProjectName() string {
 		return projectNameLabel
 	}
 
-	// not set yet
-	return ""
+	return defaultProjectName
 }
 
 func (c *Config) CleanFunctionSpec() {
