@@ -92,8 +92,8 @@ type GetFunctionsOptions struct {
 	Labels     string
 	AuthConfig *AuthConfig
 
-	// allow skipping getting api gateways for the returned functions list
-	SkipEnrichingAPIGateways bool
+	// Enrich functions with their api gateways
+	EnrichWithAPIGateways bool
 }
 
 // InvokeViaType defines via which mechanism the function will be invoked

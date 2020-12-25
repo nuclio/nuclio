@@ -764,9 +764,8 @@ func (ap *Platform) GetProjectResources(projectMeta *platform.ProjectMeta) ([]pl
 	// get functions
 	errGroup.Go(func() error {
 		functions, err = ap.platform.GetFunctions(&platform.GetFunctionsOptions{
-			Namespace:                projectMeta.Namespace,
-			Labels:                   fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
-			SkipEnrichingAPIGateways: true,
+			Namespace: projectMeta.Namespace,
+			Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
 		})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get project functions")

@@ -56,9 +56,11 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
+	// TODO: enrich with api gateways only if given by header
 	getFunctionsOptions := &platform.GetFunctionsOptions{
-		Name:      request.Header.Get("x-nuclio-function-name"),
-		Namespace: fr.getNamespaceFromRequest(request),
+		Name:                  request.Header.Get("x-nuclio-function-name"),
+		Namespace:             fr.getNamespaceFromRequest(request),
+		EnrichWithAPIGateways: true,
 	}
 
 	// if the user wants to filter by project, do that
@@ -68,7 +70,6 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	}
 
 	functions, err := fr.getPlatform().GetFunctions(getFunctionsOptions)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
@@ -96,9 +97,11 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
+	// TODO: enrich with api gateways only if given by header
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Namespace: fr.getNamespaceFromRequest(request),
-		Name:      id,
+		Namespace:             fr.getNamespaceFromRequest(request),
+		Name:                  id,
+		EnrichWithAPIGateways: true,
 	})
 
 	if err != nil {

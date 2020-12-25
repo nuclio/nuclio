@@ -219,14 +219,6 @@ func (suite *KubeTestSuite) GetFunctionAndExpectState(getFunctionOptions *platfo
 	return function
 }
 
-func (suite *KubeTestSuite) GetFunction(getFunctionOptions *platform.GetFunctionsOptions) platform.Function {
-
-	// get the function
-	functions, err := suite.Platform.GetFunctions(getFunctionOptions)
-	suite.Require().NoError(err)
-	return functions[0]
-}
-
 func (suite *KubeTestSuite) GetAPIGateway(getAPIGatewayOptions *platform.GetAPIGatewaysOptions) platform.APIGateway {
 
 	// get the function
@@ -298,22 +290,6 @@ func (suite *KubeTestSuite) WaitForFunctionDeployment(functionName string,
 			return callback(suite.GetFunctionDeployment(functionName))
 		})
 	suite.Require().NoError(err, "Failed to wait on deployment callback")
-}
-
-func (suite *KubeTestSuite) WaitForFunctionState(getFunctionOptions *platform.GetFunctionsOptions,
-	desiredFunctionState functionconfig.FunctionState,
-	duration time.Duration) {
-
-	err := common.RetryUntilSuccessful(duration,
-		1*time.Second,
-		func() bool {
-			function := suite.GetFunction(getFunctionOptions)
-			suite.Logger.InfoWith("Waiting for function state",
-				"currentFunctionState", function.GetStatus().State,
-				"desiredFunctionState", desiredFunctionState)
-			return function.GetStatus().State == desiredFunctionState
-		})
-	suite.Require().NoError(err, "Function did not reach its desired state")
 }
 
 func (suite *KubeTestSuite) WaitForAPIGatewayState(getAPIGatewayOptions *platform.GetAPIGatewaysOptions,

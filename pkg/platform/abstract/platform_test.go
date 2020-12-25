@@ -495,9 +495,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteProjectOptions() {
 			if len(testCase.existingProjects) > 0 {
 				suite.mockedPlatform.
 					On("GetFunctions", &platform.GetFunctionsOptions{
-						Namespace:                suite.DefaultNamespace,
-						Labels:                   fmt.Sprintf("nuclio.io/project-name=%s", testCase.deleteProjectOptions.Meta.Name),
-						SkipEnrichingAPIGateways: true,
+						Namespace: suite.DefaultNamespace,
+						Labels:    fmt.Sprintf("nuclio.io/project-name=%s", testCase.deleteProjectOptions.Meta.Name),
 					}).
 					Return(testCase.existingFunctions, nil).
 					Once()
