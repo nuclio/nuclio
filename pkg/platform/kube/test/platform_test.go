@@ -583,7 +583,6 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 	apiGatewayName := "apigw-name-" + xid.New().String()
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 
-
 	// create project
 	err := suite.Platform.CreateProject(&platform.CreateProjectOptions{
 		ProjectConfig: &platform.ProjectConfig{
