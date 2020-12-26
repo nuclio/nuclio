@@ -24,8 +24,8 @@ import (
 var ErrProjectContainsFunctions = nuclio.NewErrPreconditionFailed("Project contains functions")
 var ErrProjectContainsAPIGateways = nuclio.NewErrPreconditionFailed("Project contains api gateways")
 
-var ErrFunctionIsUsedByAPIGateways = nuclio.NewErrConflict("Function is used by api gateways")
+var ErrFunctionIsUsedByAPIGateways = nuclio.NewErrPreconditionFailed("Function is used by api gateways")
 
-var ErrIngressHostPathInUse = nuclio.NewErrConflict("Ingress host and path are already in use")
+var ErrIngressHostPathInUse = nuclio.NewErrPreconditionFailed("Ingress host and path are already in use")
 
 var ErrUnsupportedMethod = nuclio.NewErrNotImplemented("Unsupported method")

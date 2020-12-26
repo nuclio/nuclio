@@ -342,7 +342,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 
 	switch projectName {
 	case platform.DefaultProjectName:
-		return nuclio.NewErrConflict("Cannot delete the default project")
+		return nuclio.NewErrPreconditionFailed("Cannot delete the default project")
 	case "":
 		return nuclio.NewErrBadRequest("Project name cannot be empty")
 	}
