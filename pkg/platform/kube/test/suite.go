@@ -249,6 +249,14 @@ func (suite *KubeTestSuite) GetAPIGatewayIngress(apiGatewayName string, canary b
 	return ingressInstance
 }
 
+func (suite *KubeTestSuite) GetFunctionIngress(functionName string) *extensionsv1beta1.Ingress {
+	ingressInstance := &extensionsv1beta1.Ingress{}
+	suite.GetResourceAndUnmarshal("ingress",
+		kube.IngressNameFromFunctionName(functionName),
+		ingressInstance)
+	return ingressInstance
+}
+
 func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
 	pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),

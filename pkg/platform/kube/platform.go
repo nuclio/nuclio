@@ -1268,19 +1268,58 @@ func (p *Platform) validateAPIGatewayIngresses(apiGatewayConfig *platform.APIGat
 			Paths: []string{apiGatewayConfig.Spec.Path},
 		},
 	}
-	if err := p.validateIngressHostAndPathAvailability(apiGatewayConfig.Meta.Namespace, apiGatewayIngresses); err != nil {
+
+	ingressName := IngressNameFromAPIGatewayName(apiGatewayConfig.Meta.Name, false)
+	ingressNameWithCanary := IngressNameFromAPIGatewayName(apiGatewayConfig.Meta.Name, true)
+	listIngressesOptions := metav1.ListOptions{
+
+		// validate ingresses not created by this api gateway (whether it has canary deployment or not)
+		FieldSelector: fmt.Sprintf("metadata.name!=%s,metadata.name!=%s", ingressName, ingressNameWithCanary),
+	}
+
+	if err := p.validateIngressHostAndPathAvailability(listIngressesOptions,
+		apiGatewayConfig.Meta.Namespace,
+		apiGatewayIngresses); err != nil {
 		return errors.Wrap(err, "Failed to validate the API-gateway host and path availability")
 	}
 
 	return nil
 }
 
-func (p *Platform) validateIngressHostAndPathAvailability(namespace string, ingresses map[string]functionconfig.Ingress) error {
+func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Config) error {
+	if err := p.validateFunctionNoIngressAndAPIGateway(functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to validate: the function isn't exposed by an internal ingresses or an API gateway")
+	}
+
+	listIngressesOptions := metav1.ListOptions{
+
+		// validate ingresses not created by this function
+		FieldSelector: fmt.Sprintf("metadata.name!=%s", IngressNameFromFunctionName(functionConfig.Meta.Name)),
+	}
+	if err := p.validateIngressHostAndPathAvailability(listIngressesOptions,
+		functionConfig.Meta.Namespace,
+		functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)); err != nil {
+		return errors.Wrapf(err, "Failed to validate the function-ingress host and path availability")
+	}
+
+	return nil
+}
+
+func (p *Platform) validateIngressHostAndPathAvailability(listIngressesOptions metav1.ListOptions,
+	namespace string,
+	ingresses map[string]functionconfig.Ingress) error {
 
 	// get all ingresses on the namespace
-	existingIngresses, err := p.consumer.kubeClientSet.ExtensionsV1beta1().Ingresses(namespace).List(metav1.ListOptions{})
+	existingIngresses, err := p.consumer.kubeClientSet.
+		ExtensionsV1beta1().
+		Ingresses(namespace).
+		List(listIngressesOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to list ingresses")
+	}
+
+	if len(existingIngresses.Items) == 0 {
+		return nil
 	}
 
 	// iterate over all ingress instances to validate
@@ -1352,18 +1391,6 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *
 	}
 
 	return errGroup.Wait()
-}
-
-func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Config) error {
-	if err := p.validateFunctionNoIngressAndAPIGateway(functionConfig); err != nil {
-		return errors.Wrap(err, "Failed to validate: the function isn't exposed by an internal ingresses or an API gateway")
-	}
-
-	if err := p.validateIngressHostAndPathAvailability(functionConfig.Meta.Namespace, functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)); err != nil {
-		return errors.Wrapf(err, "Failed to validate the function-ingress host and path availability")
-	}
-
-	return nil
 }
 
 // validate that a function is not exposed inside http triggers, while it is also exposed by an api gateway
