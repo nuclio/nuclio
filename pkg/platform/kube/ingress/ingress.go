@@ -68,6 +68,7 @@ func (m *Manager) GenerateResources(ctx context.Context,
 			Name:        spec.Name,
 			Namespace:   spec.Namespace,
 			Annotations: ingressAnnotations,
+			Labels:      map[string]string{},
 		},
 		Spec: v1beta1.IngressSpec{
 			Rules: []v1beta1.IngressRule{
@@ -90,6 +91,8 @@ func (m *Manager) GenerateResources(ctx context.Context,
 			},
 		},
 	}
+
+	m.enrichLabels(spec, ingress.Labels)
 
 	// if no specific TLS secret was given - set it to be system's TLS secret
 	tlsSecret := spec.TLSSecret
@@ -273,8 +276,7 @@ func (m *Manager) DeleteByName(ingressName string, namespace string, deleteAuthS
 	return nil
 }
 
-func (m *Manager) compileAnnotations(ctx context.Context,
-	spec Spec) (map[string]string, *v1.Secret, error) {
+func (m *Manager) compileAnnotations(ctx context.Context, spec Spec) (map[string]string, *v1.Secret, error) {
 
 	var err error
 	var basicAuthSecret *v1.Secret
@@ -464,12 +466,21 @@ func (m *Manager) compileBasicAuthAnnotationsAndSecret(ctx context.Context, spec
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      authSecretName,
 			Namespace: spec.Namespace,
+			Labels:    map[string]string{},
 		},
 		Type: v1.SecretType("Opaque"),
 		Data: map[string][]byte{
 			"auth": htpasswdContents,
 		},
 	}
+	m.enrichLabels(spec, secret.Labels)
 
 	return ingressAnnotations, secret, nil
+}
+
+func (m *Manager) enrichLabels(spec Spec, labels map[string]string) {
+	labels["nuclio.io/class"] = "apigateway"
+	labels["nuclio.io/app"] = "ingress-manager"
+	labels["nuclio.io/apigateway-name"] = spec.APIGatewayName
+	labels["nuclio.io/project-name"] = spec.ProjectName
 }
