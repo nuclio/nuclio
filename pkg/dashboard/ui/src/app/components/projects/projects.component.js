@@ -153,14 +153,18 @@
                         }
                     })
                     .catch(function (errorMessage) {
-                        errorMessages.push(projectName + ': ' + errorMessage);
+                        errorMessages.push({ name: projectName, message: errorMessage });
                     });
             });
 
             return $q.all(promises)
                 .then(function () {
                     if (lodash.isNonEmpty(errorMessages)) {
-                        return DialogsService.alert(errorMessages);
+                        var messages = errorMessages.length === 1 ? errorMessages[0].message :
+                            _.map(errorMessages, function (errorMessage) {
+                                return errorMessage.name + ': ' + errorMessage.message;
+                            });
+                        return DialogsService.alert(messages);
                     }
                 });
         }
