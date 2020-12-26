@@ -161,7 +161,7 @@
                 .then(function () {
                     if (lodash.isNonEmpty(errorMessages)) {
                         var messages = errorMessages.length === 1 ? errorMessages[0].message :
-                            _.map(errorMessages, function (errorMessage) {
+                            lodash.map(errorMessages, function (errorMessage) {
                                 return errorMessage.name + ': ' + errorMessage.message;
                             });
                         return DialogsService.alert(messages);
