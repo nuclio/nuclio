@@ -95,7 +95,7 @@ func (po *projectOperator) Delete(ctx context.Context, namespace string, name st
 			metav1.ListOptions{
 				LabelSelector: projectNameLabelSelector,
 			}); err != nil {
-		po.logger.WarnWith("Failed to delete project api gateway",
+		po.logger.WarnWith("Failed to delete project api gateways",
 			"namespace", namespace,
 			"projectName", name,
 			"err", err)

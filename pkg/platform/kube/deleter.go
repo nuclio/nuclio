@@ -54,13 +54,12 @@ func (d *deleter) delete(consumer *consumer, deleteFunctionOptions *platform.Del
 		return errors.Wrap(err, "Failed to get nuclio clientset")
 	}
 
-	// get specific function CR
-	err = nuclioClientSet.
+	// delete specific function
+	if err := nuclioClientSet.
 		NuclioV1beta1().
 		NuclioFunctions(deleteFunctionOptions.FunctionConfig.Meta.Namespace).
-		Delete(resourceName, &metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return errors.Wrap(err, "Failed to delete function CR")
+		Delete(resourceName, &metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return errors.Wrap(err, "Failed to delete function")
 	}
 
 	d.logger.InfoWith("Function deleted", "name", resourceName)

@@ -373,6 +373,17 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 	return nil
 }
 
+func (ap *Platform) EnrichDeleteFunctionOptions(deleteFunctionOptions *platform.DeleteFunctionOptions) {
+	if deleteFunctionOptions.FunctionConfig.Meta.Labels != nil {
+		deleteFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{}
+	}
+
+	// enrich project name if missing
+	if _, ok := deleteFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"]; !ok {
+		deleteFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = platform.DefaultProjectName
+	}
+}
+
 // Validation and enforcement of required function deletion logic
 func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	functionName := deleteFunctionOptions.FunctionConfig.Meta.Name

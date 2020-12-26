@@ -394,6 +394,9 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 	p.Logger.DebugWith("Deleting function",
 		"functionConfig", deleteFunctionOptions.FunctionConfig)
 
+	// enrich
+	p.EnrichDeleteFunctionOptions(deleteFunctionOptions)
+
 	// pre delete validation
 	if err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate function-deletion options")
@@ -1242,7 +1245,7 @@ func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platf
 	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(&platform.GetAPIGatewaysOptions{
 		Namespace: deleteFunctionOptions.FunctionConfig.Meta.Namespace,
 		Labels: fmt.Sprintf("nuclio.io/project-name=%s",
-			deleteFunctionOptions.FunctionConfig.GetProjectNameOrDefault()),
+			deleteFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"]),
 	}); err != nil {
 		return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
 	}
@@ -1424,7 +1427,8 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 		// that means, if function has an api gateway, it must be within the same project.
 		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(&platform.GetAPIGatewaysOptions{
 			Namespace: functionConfig.Meta.Namespace,
-			Labels:    fmt.Sprintf("nuclio.io/project-name=%s", functionConfig.GetProjectNameOrDefault()),
+			Labels: fmt.Sprintf("nuclio.io/project-name=%s",
+				functionConfig.Meta.Labels["nuclio.io/project-name"]),
 		})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
