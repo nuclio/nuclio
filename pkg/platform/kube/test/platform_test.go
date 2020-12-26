@@ -619,13 +619,28 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 }
 
 func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
+	projectName := "some-project-" + xid.New().String()
 	functionName := "function-name-" + xid.New().String()
 	apiGatewayName := "apigw-name-" + xid.New().String()
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// create project
+	err := suite.Platform.CreateProject(&platform.CreateProjectOptions{
+		ProjectConfig: &platform.ProjectConfig{
+			Meta: platform.ProjectMeta{
+				Name:      projectName,
+				Namespace: suite.Namespace,
+			},
+		},
+	})
+	suite.Require().NoError(err, "Failed to create project")
+	createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = projectName
+
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		beforeUpdateHostValue := "before-update-host.com"
 		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = beforeUpdateHostValue
+		createAPIGatewayOptions.APIGatewayConfig.Meta.Labels["nuclio.io/project-name"] = projectName
 
 		// create
 		err := suite.Platform.CreateAPIGateway(createAPIGatewayOptions)
@@ -643,6 +658,12 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 
 		ingressInstance := suite.GetAPIGatewayIngress(createAPIGatewayOptions.APIGatewayConfig.Meta.Name, false)
 		suite.Require().Equal(beforeUpdateHostValue, ingressInstance.Spec.Rules[0].Host)
+
+		// ensure ingress labels were created correctly
+		suite.Require().Equal("apigateway", ingressInstance.Labels["nuclio.io/class"])
+		suite.Require().Equal("ingress-manager", ingressInstance.Labels["nuclio.io/app"])
+		suite.Require().Equal(apiGatewayName, ingressInstance.Labels["nuclio.io/apigateway-name"])
+		suite.Require().Equal(projectName, ingressInstance.Labels["nuclio.io/project-name"])
 
 		// change host, update
 		afterUpdateHostValue := "after-update-host.com"

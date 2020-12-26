@@ -242,12 +242,14 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 	}
 
 	commonIngressSpec := ingress.Spec{
-		Namespace:     apiGateway.Namespace,
-		Host:          apiGateway.Spec.Host,
-		Path:          apiGateway.Spec.Path,
-		ServiceName:   serviceName,
-		ServicePort:   servicePort,
-		RewriteTarget: upstream.RewriteTarget,
+		APIGatewayName: apiGateway.Name,
+		Namespace:      apiGateway.Namespace,
+		ProjectName:    apiGateway.Labels["nuclio.io/project-name"],
+		Host:           apiGateway.Spec.Host,
+		Path:           apiGateway.Spec.Path,
+		ServiceName:    serviceName,
+		ServicePort:    servicePort,
+		RewriteTarget:  upstream.RewriteTarget,
 	}
 
 	switch apiGateway.Spec.AuthenticationMode {
@@ -296,7 +298,7 @@ func (lc *lazyClient) getServiceNameAndPort(upstream platform.APIGatewayUpstream
 	case platform.APIGatewayUpstreamKindNuclioFunction:
 		return lc.getNuclioFunctionServiceNameAndPort(upstream, namespace)
 	default:
-		return "", 0, fmt.Errorf("Unsupported api gateway upstream kind: %s", upstream.Kind)
+		return "", 0, errors.Errorf("Unsupported API gateway upstream kind: %s", upstream.Kind)
 	}
 }
 

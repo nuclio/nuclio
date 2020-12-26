@@ -3,6 +3,8 @@ package ingress
 type Spec struct {
 	Name                 string
 	Namespace            string
+	ProjectName          string
+	APIGatewayName       string
 	Host                 string
 	Path                 string
 	ServiceName          string
