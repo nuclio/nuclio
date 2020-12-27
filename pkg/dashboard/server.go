@@ -218,7 +218,9 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 			"X-nuclio-project-namespace",
 			"X-nuclio-function-event-name",
 			"X-nuclio-function-event-namespace",
+			"x-nuclio-function-enrich-apigateways",
 			"X-nuclio-path",
+			"X-nuclio-delete-project-strategy",
 		},
 		ExposedHeaders: []string{
 			"Content-Length",
