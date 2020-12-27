@@ -374,7 +374,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 }
 
 func (ap *Platform) EnrichDeleteFunctionOptions(deleteFunctionOptions *platform.DeleteFunctionOptions) {
-	if deleteFunctionOptions.FunctionConfig.Meta.Labels != nil {
+	if deleteFunctionOptions.FunctionConfig.Meta.Labels == nil {
 		deleteFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{}
 	}
 
