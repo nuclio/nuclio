@@ -39,7 +39,7 @@
 
         /**
          * Gets all namespace
-         * @returns {string}
+         * @returns {?string}
          */
         function getNamespace() {
             var namespace = localStorage.getItem('namespace');
@@ -107,7 +107,7 @@
                         return;
                     }
 
-                    DialogsService.alert($i18next.t('functions:ERROR_MSG.GET_NAMESPACES', {lng: i18next.language}));
+                    DialogsService.alert($i18next.t('functions:ERROR_MSG.GET_NAMESPACES', { lng: i18next.language }));
                 });
         }
     }

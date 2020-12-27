@@ -64,12 +64,14 @@
 
         /**
          * Gets API Gateway
+         * @param {string} projectName - the name of the project
          * @param {string} apiGatewayName - the name of the API Gateways
          * @returns {Promise}
          */
-        function getApiGateway(apiGatewayName) {
+        function getApiGateway(projectName, apiGatewayName) {
             var headers = {
                 'Content-Type': 'application/json',
+                'x-nuclio-project-name': projectName
             };
 
             lodash.assign(headers, NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-api-gateway-namespace'));

@@ -9,7 +9,7 @@
         var service = {
             buildUrlWithPath: buildUrlWithPath,
             makeRequest: makeRequest,
-            isLoading: {value: false}
+            isLoading: { value: false }
         };
 
         return service;
