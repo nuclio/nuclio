@@ -60,7 +60,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Name:                  request.Header.Get("x-nuclio-function-name"),
 		Namespace:             fr.getNamespaceFromRequest(request),
-		EnrichWithAPIGateways: true,
+		EnrichWithAPIGateways: fr.headerValueIsTrue(request, "x-nuclio-function-enrich-apigateways"),
 	}
 
 	// if the user wants to filter by project, do that
@@ -101,7 +101,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Namespace:             fr.getNamespaceFromRequest(request),
 		Name:                  id,
-		EnrichWithAPIGateways: true,
+		EnrichWithAPIGateways: fr.headerValueIsTrue(request, "x-nuclio-function-enrich-apigateways"),
 	})
 
 	if err != nil {
