@@ -210,7 +210,7 @@
             if (item.id === 'exportProjects') {
                 ExportService.exportProjects(ctrl.projects, NuclioFunctionsDataService.getFunctions);
             } else if (item.id === 'importProject') {
-                angular.element($element.find('.project-import-input'))[0].click();
+                $element.find('.project-import-input').click();
             }
         }
 

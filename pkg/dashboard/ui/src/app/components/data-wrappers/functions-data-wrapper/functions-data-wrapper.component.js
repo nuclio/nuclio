@@ -28,11 +28,11 @@
         /**
          * Deploys version
          * @param {Object} version
-         * @param {string} projectID
+         * @param {string} projectId
          * @returns {Promise}
          */
-        function createFunction(version, projectID) {
-            return NuclioFunctionsDataService.createFunction(version, projectID);
+        function createFunction(version, projectId) {
+            return NuclioFunctionsDataService.createFunction(version, projectId);
         }
 
         /**
@@ -47,10 +47,11 @@
         /**
          * Gets functions list
          * @param {string} id
+         * @param {boolean} enrichApiGateways
          * @returns {Promise}
          */
-        function getFunctions(id) {
-            return NuclioFunctionsDataService.getFunctions(id);
+        function getFunctions(id, enrichApiGateways) {
+            return NuclioFunctionsDataService.getFunctions(id, enrichApiGateways);
         }
 
         /**
@@ -73,11 +74,11 @@
         /**
          * Updates function
          * @param functionData
-         * @param projectID
+         * @param projectId
          * @returns {*|Promise}
          */
-        function updateFunction(functionData, projectID) {
-            return NuclioFunctionsDataService.updateFunction(functionData, projectID);
+        function updateFunction(functionData, projectId) {
+            return NuclioFunctionsDataService.updateFunction(functionData, projectId);
         }
     }
 }());

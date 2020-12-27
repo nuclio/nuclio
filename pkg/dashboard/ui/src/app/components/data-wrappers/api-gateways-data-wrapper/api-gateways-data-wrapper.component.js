@@ -45,11 +45,12 @@
 
         /**
          * Gets Api Gateway
+         * @param {string} projectName
          * @param {string} apiGatewayName
          * @returns {Promise}
          */
-        function getApiGateway(apiGatewayName) {
-            return NuclioApiGatewaysDataService.getApiGateway(apiGatewayName);
+        function getApiGateway(projectName, apiGatewayName) {
+            return NuclioApiGatewaysDataService.getApiGateway(projectName, apiGatewayName);
         }
 
         /**
@@ -64,10 +65,11 @@
         /**
          * Gets functions list
          * @param {string} projectName
+         * @param {boolean} enrichApiGateways
          * @returns {Promise}
          */
-        function getFunctions(projectName) {
-            return NuclioFunctionsDataService.getFunctions(projectName);
+        function getFunctions(projectName, enrichApiGateways) {
+            return NuclioFunctionsDataService.getFunctions(projectName, enrichApiGateways);
         }
 
         /**

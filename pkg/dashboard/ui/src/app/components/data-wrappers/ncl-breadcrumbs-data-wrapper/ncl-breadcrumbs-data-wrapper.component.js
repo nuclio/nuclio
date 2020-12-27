@@ -28,10 +28,11 @@
         /**
          * Gets a list of functions
          * @param {string} id - project ID
+         * @param {boolean} enrichApiGateways - determines whether to enrich functions with their related API gateways
          * @returns {Promise}
          */
-        function getFunctions(id) {
-            return NuclioFunctionsDataService.getFunctions(id);
+        function getFunctions(id, enrichApiGateways) {
+            return NuclioFunctionsDataService.getFunctions(id, enrichApiGateways);
         }
     }
 }());

@@ -123,7 +123,7 @@
                     return projectId;
                 })
                 .catch(function (error) {
-                    var defaultMsg = $i18next.t('functions:ERROR_MSG.DELETE_PROJECT', {lng: lng});
+                    var defaultMsg = $i18next.t('functions:ERROR_MSG.DELETE_PROJECT', { lng: lng });
 
                     return $q.reject(lodash.get(error, 'data.error', defaultMsg));
                 });
@@ -148,7 +148,7 @@
                     }
                 })
                 .catch(function () {
-                    return $q.reject($i18next.t('functions:ERROR_MSG.UPDATE_PROJECT', {lng: lng}));
+                    return $q.reject($i18next.t('functions:ERROR_MSG.UPDATE_PROJECT', { lng: lng }));
                 });
         }
 
@@ -168,10 +168,10 @@
         function initProjectActions() {
             ctrl.projectActions = angular.copy(ProjectsService.initProjectActions());
 
-            var deleteAction = lodash.find(ctrl.projectActions, {'id': 'delete'});
+            var deleteAction = lodash.find(ctrl.projectActions, { id: 'delete' });
 
             if (!lodash.isNil(deleteAction)) {
-                deleteAction.confirm.message = $i18next.t('functions:DELETE_PROJECT', {lng: lng}) + ' “' +
+                deleteAction.confirm.message = $i18next.t('functions:DELETE_PROJECT', { lng: lng }) + ' “' +
                     lodash.defaultTo(ctrl.project.spec.displayName, ctrl.project.metadata.name) + '“?'
             }
         }
