@@ -47,6 +47,69 @@ type DeployFunctionTestSuite struct {
 	KubeTestSuite
 }
 
+func (suite *DeployFunctionTestSuite) TestVolumeOnceMountTwice() {
+	functionName := "volume-once-mount-twice"
+	volumeName := "some-volume"
+	configMapName := "some-configmap"
+	configMapData := xid.New().String()
+	mountPaths := []string{"/etc/path/1", "/etc/path/2"}
+	configMap, err := suite.KubeClientSet.
+		CoreV1().
+		ConfigMaps(suite.Namespace).
+		Create(&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      configMapName,
+				Namespace: suite.Namespace,
+			},
+			Data: map[string]string{
+				"key": configMapData,
+			},
+		})
+	suite.Require().NoError(err)
+
+	// delete leftovers
+	defer suite.KubeClientSet.
+		CoreV1().
+		ConfigMaps(suite.Namespace).
+		Delete(configMap.Name, &metav1.DeleteOptions{}) // nolint: errcheck
+
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{}
+	for _, mountPath := range mountPaths {
+		createFunctionOptions.FunctionConfig.Spec.Volumes = append(createFunctionOptions.FunctionConfig.Spec.Volumes, functionconfig.Volume{
+			Volume: v1.Volume{
+				Name: volumeName,
+				VolumeSource: v1.VolumeSource{
+					ConfigMap: &v1.ConfigMapVolumeSource{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: configMap.GetName(),
+						},
+					},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      volumeName,
+				MountPath: mountPath,
+			},
+		})
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		podName := fmt.Sprintf("deployment/%s", kube.DeploymentNameFromFunctionName(functionName))
+		for _, mountPath := range mountPaths {
+			results, err := suite.executeKubectl([]string{
+				"exec",
+				podName,
+				"--",
+				fmt.Sprintf("cat %s/key", mountPath),
+			}, nil)
+			suite.Require().NoError(err)
+			suite.Require().Equal(configMapData, results.Output)
+		}
+		return true
+	})
+}
+
 func (suite *DeployFunctionTestSuite) TestStaleResourceVersion() {
 	var resourceVersion string
 
