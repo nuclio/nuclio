@@ -432,24 +432,6 @@ func NewConfig() *Config {
 	}
 }
 
-func (c *Config) GetProjectNameOrDefault() string {
-
-	// TODO: use platform.DefaultProjectName
-	defaultProjectName := "default"
-	if c.Meta.Labels == nil {
-
-		// not initialized yet, return default
-		return defaultProjectName
-	}
-
-	projectNameLabel, ok := c.Meta.Labels["nuclio.io/project-name"]
-	if ok {
-		return projectNameLabel
-	}
-
-	return defaultProjectName
-}
-
 func (c *Config) CleanFunctionSpec() {
 
 	// artifacts are created unique to the cluster not needed to be returned to any client of nuclio REST API

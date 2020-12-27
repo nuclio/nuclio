@@ -354,6 +354,8 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 	p.EnrichFunctionsWithDeployLogStream(functions)
 
 	if getFunctionsOptions.EnrichWithAPIGateways {
+
+		// TODO: fallback to `platform.DefaultProjectName` if no project name was given
 		projectName, err := getFunctionsOptions.ResolveProjectName()
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to resolve project name")
@@ -1434,7 +1436,7 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 			return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
 		}
 		if _, found := functionToAPIGateways[functionConfig.Meta.Name]; found {
-			return nuclio.NewErrBadRequest("Function can't expose ingresses while it is being exposed by an API gateway")
+			return nuclio.NewErrPreconditionFailed("Function can't expose ingresses while it is being exposed by an API gateway")
 		}
 	}
 
