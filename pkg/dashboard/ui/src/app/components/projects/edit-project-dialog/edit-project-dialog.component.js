@@ -22,7 +22,7 @@
         ctrl.nameValidationRules = [];
         ctrl.serverError = '';
         ctrl.validationRules = {
-            projectName: ValidationService.getValidationRules('k8s.dns1035Label')
+            projectName: ValidationService.getValidationRules('k8s.dns1123Label')
         };
 
         ctrl.$onInit = onInit;
