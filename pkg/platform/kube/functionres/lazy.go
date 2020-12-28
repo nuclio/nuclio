@@ -1898,6 +1898,11 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 	var volumes []v1.Volume
 	var volumeMounts []v1.VolumeMount
 
+	// using maps to eliminate duplicates where user use the same volume to be mounted by multiple volume mounts
+	// e.g.: volume config-map X, mount it twice to different paths
+	volumeNameToVolume := map[string]v1.Volume{}
+	volumeNameToVolumeMounts := map[string][]v1.VolumeMount{}
+
 	for _, configVolume := range configVolumes {
 		if configVolume.Volume.FlexVolume != nil && configVolume.Volume.FlexVolume.Driver == "v3io/fuse" {
 
@@ -1921,10 +1926,23 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 
 		lc.logger.DebugWith("Adding volume", "configVolume", configVolume)
 
-		volumes = append(volumes, configVolume.Volume)
-		volumeMounts = append(volumeMounts, configVolume.VolumeMount)
+		// volume name is unique per its volume instance
+		volumeNameToVolume[configVolume.Volume.Name] = configVolume.Volume
+
+		// same volume name can be shared by n volume mounts
+		volumeNameToVolumeMounts[configVolume.Volume.Name] = append(volumeNameToVolumeMounts[configVolume.Volume.Name],
+			configVolume.VolumeMount)
 	}
 
+	for _, volume := range volumeNameToVolume {
+		volumes = append(volumes, volume)
+	}
+
+	for _, volumeVolumeMounts := range volumeNameToVolumeMounts {
+		volumeMounts = append(volumeMounts, volumeVolumeMounts...)
+	}
+
+	// flatten and return as list of instances
 	return volumes, volumeMounts
 }
 
