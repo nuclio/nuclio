@@ -72,7 +72,8 @@
                     }
 
                     // use data from dialog to create a new project
-                    NuclioProjectsDataService.createProject(ctrl.data)
+                    var projectData = lodash.omit(ctrl.data, 'spec.displayName');
+                    NuclioProjectsDataService.createProject(projectData)
                         .then(function () {
                             ctrl.closeDialog({ project: ctrl.data });
                         })
