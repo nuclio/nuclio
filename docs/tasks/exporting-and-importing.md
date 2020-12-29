@@ -154,7 +154,7 @@ For example:
 ```sh
 nuctl import projects --namespace nuclio --skip-transform-display-name
 ```
-> **Warning:** Note that the `spec.display` project-configuration field will ultimately be fully deprecated and no longer supported.
+> **Warning:** Note that the `spec.displayName` project-configuration field will ultimately be fully deprecated and no longer supported.
 
 You can also import project configurations to an instance of the Nuclio dashboard by using an HTTP `POST` command with an `import=true` query string to send a project-configurations file to the dashboard's projects API endpoint &mdash; `/api/projects/`.
 You can do this, for example, by using the `http` CLI tool; replace `<project-configurations file>` with the path to a Nuclio project-configurations file, and `<Nuclio dashboard URL>` with the IP address or host name of your Nuclio dashboard:
