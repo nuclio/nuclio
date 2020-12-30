@@ -346,7 +346,7 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	}
 
 	// create
-	p.Logger.InfoWith("Creating project",
+	p.Logger.DebugWith("Creating project",
 		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
 	return p.localStore.createOrUpdateProject(createProjectOptions.ProjectConfig)
 }
