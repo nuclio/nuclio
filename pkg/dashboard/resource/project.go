@@ -261,8 +261,7 @@ func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id s
 		if strings.Contains(errors.Cause(err).Error(), "already exists") {
 			return "", nil, nuclio.WrapErrConflict(err)
 		}
-
-		return "", nil, nuclio.WrapErrInternalServerError(err)
+		return "", nil, err
 	}
 
 	// set attributes
