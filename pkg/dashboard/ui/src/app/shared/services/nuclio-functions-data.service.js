@@ -23,10 +23,10 @@
          * Update existing function with new data
          * @param {Object} functionDetails
          * @param {string} projectName - the name of the project containing the function
-         * @param {boolean} importProcess - "true" if importing process
+         * @param {boolean} [importProcess=null] - `true` if importing process
          * @returns {Promise}
          */
-        function createFunction(functionDetails, projectName, importProcess = false) {
+        function createFunction(functionDetails, projectName, importProcess) {
             var headers = {
                 'Content-Type': 'application/json',
                 'x-nuclio-project-name': projectName
@@ -41,7 +41,10 @@
 
             var config = {
                 method: 'post',
-                url: NuclioClientService.buildUrlWithPath('functions', importProcess ? '?import=true' : ''),
+                url: NuclioClientService.buildUrlWithPath('functions'),
+                params: {
+                    import: lodash.defaultTo(importProcess, null)
+                },
                 headers: headers,
                 data: functionDetails,
                 withCredentials: false

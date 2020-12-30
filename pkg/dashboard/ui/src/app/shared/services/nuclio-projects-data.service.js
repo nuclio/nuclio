@@ -21,9 +21,9 @@
         /**
          * Creates a new project
          * @param {Promise} project - the project to create
-         * @param {boolean} importProcess - "true" if importing process
+         * @param {boolean} [importProcess=null] - `true` if importing process
          */
-        function createProject(project, importProcess = false) {
+        function createProject(project, importProcess) {
             var headers = {
                 'Content-Type': 'application/json'
             };
@@ -36,7 +36,10 @@
 
             return NuclioClientService.makeRequest({
                 method: 'POST',
-                url: NuclioClientService.buildUrlWithPath('projects', importProcess ? '?import=true' : ''),
+                url: NuclioClientService.buildUrlWithPath('projects'),
+                params: {
+                    import: lodash.defaultTo(importProcess, null)
+                },
                 headers: headers,
                 data: data,
                 withCredentials: false
