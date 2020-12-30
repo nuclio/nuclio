@@ -440,7 +440,7 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	p.platformProjectToProject(createProjectOptions.ProjectConfig, &newProject)
 
 	// create
-	p.Logger.InfoWith("Creating project",
+	p.Logger.DebugWith("Creating project",
 		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
 	if _, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		NuclioProjects(createProjectOptions.ProjectConfig.Meta.Namespace).
