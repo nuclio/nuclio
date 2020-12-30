@@ -661,6 +661,8 @@ func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string, cacheO
 		// when one of the underlying image is gone (from cache)
 		"^No such image: sha256:",
 		"^unknown parent image ID sha256:",
+		"^failed to set parent sha256:",
+		"^failed to export image:",
 
 		// when overlay image is gone (from disk)
 		"^failed to get digest sha256:",
