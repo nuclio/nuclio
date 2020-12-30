@@ -23,7 +23,7 @@
          * Update existing function with new data
          * @param {Object} functionDetails
          * @param {string} projectName - the name of the project containing the function
-         * @param {boolean} [importProcess=null] - `true` if importing process
+         * @param {boolean} [importProcess] - `true` if importing process
          * @returns {Promise}
          */
         function createFunction(functionDetails, projectName, importProcess) {
@@ -43,7 +43,7 @@
                 method: 'post',
                 url: NuclioClientService.buildUrlWithPath('functions'),
                 params: {
-                    import: lodash.defaultTo(importProcess, null)
+                    import: importProcess
                 },
                 headers: headers,
                 data: functionDetails,
