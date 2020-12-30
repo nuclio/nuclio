@@ -84,8 +84,9 @@
          */
         function importProject(project, onFailure) {
             var projectData = lodash.omit(project, 'spec.functions');
+            var importProcess = true;
 
-            return NuclioProjectsDataService.createProject(projectData)
+            return NuclioProjectsDataService.createProject(projectData, importProcess)
                 .catch(function (error) {
 
                     // swallow "409 Conflict" errors
@@ -103,7 +104,7 @@
                     var functions = lodash.get(project, 'spec.functions');
 
                     var checkedFunctionList = lodash.map(functions, function (func) {
-                        return NuclioFunctionsDataService.createFunction(func, projectName)
+                        return NuclioFunctionsDataService.createFunction(func, projectName, importProcess)
                             .catch(function (error) {
                                 if (error.status === 409) {
                                     if (lodash.has(conflictProjectsData, projectName)) {

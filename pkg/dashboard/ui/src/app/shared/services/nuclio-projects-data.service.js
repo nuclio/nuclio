@@ -21,15 +21,13 @@
         /**
          * Creates a new project
          * @param {Promise} project - the project to create
+         * @param {boolean} [importProcess] - `true` if importing process
          */
-        function createProject(project) {
+        function createProject(project, importProcess) {
             var headers = {
                 'Content-Type': 'application/json'
             };
-            var data = lodash.chain(project)
-                .pick(['metadata', 'spec'])
-                .omit('spec.displayName')
-                .value();
+            var data = lodash.pick(project, ['metadata', 'spec']);
             var namespace = NuclioNamespacesDataService.getNamespace();
 
             if (!lodash.isNil(namespace)) {
@@ -38,7 +36,10 @@
 
             return NuclioClientService.makeRequest({
                 method: 'POST',
-                url: NuclioClientService.buildUrlWithPath('projects', ''),
+                url: NuclioClientService.buildUrlWithPath('projects'),
+                params: {
+                    import: importProcess
+                },
                 headers: headers,
                 data: data,
                 withCredentials: false
