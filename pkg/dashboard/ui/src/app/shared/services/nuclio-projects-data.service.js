@@ -54,6 +54,9 @@
             var headers = {
                 'Content-Type': 'application/json'
             };
+            if (lodash.has(project, 'ui.forceDelete')) {
+                lodash.set(headers, 'x-nuclio-delete-project-strategy', 'cascading');
+            }
             var data = {
                 metadata: project.metadata
             };

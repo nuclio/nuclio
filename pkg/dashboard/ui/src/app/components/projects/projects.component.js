@@ -129,7 +129,8 @@
          * @returns {Promise}
          */
         function handleProjectAction(actionType, projects) {
-            var errorMessages = [];
+            var messagesArray = [];
+            var notEmptyMessagesArray = [];
             var promises = lodash.map(projects, function (project) {
                 var projectName = getName(project);
                 return lodash.result(project, 'ui.' + actionType)
@@ -153,18 +154,40 @@
                         }
                     })
                     .catch(function (errorMessage) {
-                        errorMessages.push({ name: projectName, message: errorMessage });
+                        var messageData = { name: projectName, message: errorMessage.errorText,
+                            status: errorMessage.errorStatus }
+                        if (messageData.status === 412) {
+                            notEmptyMessagesArray.push(messageData);
+                        } else {
+                            messagesArray.push(messageData);
+                        }
                     });
             });
 
             return $q.all(promises)
                 .then(function () {
-                    if (lodash.isNonEmpty(errorMessages)) {
-                        var messages = errorMessages.length === 1 ? errorMessages[0].message :
-                            lodash.map(errorMessages, function (errorMessage) {
-                                return errorMessage.name + ': ' + errorMessage.message;
-                            });
-                        return DialogsService.alert(messages);
+                    if (lodash.isNonEmpty(messagesArray) || lodash.isNonEmpty(notEmptyMessagesArray)) {
+                        var messages = formatMessage(messagesArray);
+                        var notEmptyMessages = formatMessage(notEmptyMessagesArray);
+                        var promise = lodash.isEmpty(messages) ? $q.resolve() : DialogsService.alert(messages);
+
+                        if (lodash.isNonEmpty(notEmptyMessagesArray)) {
+                            return promise.then(function () {
+                                confirmDelete(notEmptyMessages).then(function () {
+                                    var notEmptyProjects = lodash.chain(ctrl.projects)
+                                        .filter(function (project) {
+                                            return lodash.includes(lodash.map(notEmptyMessagesArray, 'name'),
+                                                                   project.metadata.name)
+                                        })
+                                        .map(function (project) {
+                                            return lodash.set(project, 'ui.forceDelete', true)
+                                        })
+                                        .value()
+
+                                    return handleProjectAction('delete', notEmptyProjects)
+                                })
+                            })
+                        }
                     }
                 });
         }
@@ -294,6 +317,40 @@
         //
 
         /**
+         * Returns pop-up dialog
+         * @param {string} confirmMessage
+         * @returns {string}
+         */
+        function confirmDelete(confirmMessage) {
+            var template = '<div class="close-button igz-icon-close" data-ng-click="closeThisDialog()"></div>' +
+                '<div class="nuclio-alert-icon"></div>' + '<div class="notification-text title">' + confirmMessage +
+                '</div>' + '<div class="buttons" >' +
+                '<button class="igz-button-just-text" tabindex="0" data-ng-click="confirm(1)">' +
+                $i18next.t('common:DELETE', { lng: i18next.language }) +
+                '</button>' + '<button class="igz-button-primary" tabindex="0"  data-ng-click="closeThisDialog(0)" >' +
+                $i18next.t('common:CANCEL', { lng: i18next.language }) + '</button>' + '</div>';
+
+            return ngDialog.openConfirm({
+                template: template,
+                plain: true,
+                name: 'confirm',
+                className: 'ngdialog-theme-nuclio'
+            });
+        }
+
+        /**
+         * Formats error messages to be displayed
+         * @param {array} errorMessages
+         * @returns {string|array}
+         */
+        function formatMessage(errorMessages) {
+            return  errorMessages.length === 1 ? errorMessages[0].message :
+                lodash.map(errorMessages, function (errorMessage) {
+                    return errorMessage.name + ': ' + errorMessage.message;
+                });
+        }
+
+        /**
          * Returns correct project name
          * @param {Object} project
          * @returns {string}
@@ -338,7 +395,6 @@
          */
         function onFireAction(event, data) {
             ctrl.handleProjectAction(data.action, lodash.filter(ctrl.projects, 'ui.checked'));
-
         }
 
         /**
