@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -35,12 +34,6 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/apimachinery/pkg/util/validation"
-)
-
-const (
-
-	// covers both full image refs and registries / repo prefixes
-	validDockerImagePattern = `^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])(:[0-9]+\/)?(?:[0-9a-z-]+[/@])?(?:([0-9a-z-]+))[/@]?(?:([0-9a-z-]+))?(?::[a-z0-9\.-]+)?$`
 )
 
 type functionResource struct {
@@ -467,9 +460,6 @@ func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionIn
 // to sanitize potential malicious fields we focus on string fields
 func (fr *functionResource) sanitizeFunctionInfo(functionInfoInstance *functionInfo) error {
 
-	// images must match valid image regex
-	dockerImageRegex := regexp.MustCompile(validDockerImagePattern)
-
 	if functionInfoInstance.Spec != nil {
 
 		for fieldName, fieldValue := range map[string]*string{
@@ -480,7 +470,7 @@ func (fr *functionResource) sanitizeFunctionInfo(functionInfoInstance *functionI
 			"Spec.Build.Registry":          &functionInfoInstance.Spec.Build.Registry,
 			"Spec.Build.BaseImageRegistry": &functionInfoInstance.Spec.Build.BaseImageRegistry,
 		} {
-			if *fieldValue != "" && !dockerImageRegex.MatchString(*fieldValue) {
+			if *fieldValue != "" && !common.ValidateDockerImageString(*fieldValue) {
 
 				fr.Logger.WarnWith("Invalid docker image ref passed in spec field - this may be malicious",
 					"fieldName", fieldName,
@@ -493,6 +483,8 @@ func (fr *functionResource) sanitizeFunctionInfo(functionInfoInstance *functionI
 			}
 		}
 	}
+
+	// TODO: verify volumes?
 
 	return nil
 }

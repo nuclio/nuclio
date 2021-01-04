@@ -459,7 +459,7 @@ func (suite *functionTestSuite) TestSanitizeFunctionInfo() {
 
 		// negative cases
 		"image/tag:v1.0.0 || nc 127.0.0.1 8000 -e /bin/sh ls": http.StatusBadRequest,
-		"123.123.123.123:123/tag:v1.0.0 | echo something":    http.StatusBadRequest,
+		"123.123.123.123:123/tag:v1.0.0 | echo something":     http.StatusBadRequest,
 		"repo/image:v1.0.0;xyz&netstat":                       http.StatusBadRequest,
 		"repo/image:v1.0.0;ls|cp&rm":                          http.StatusBadRequest,
 		"image\" cp something":                                http.StatusBadRequest,
