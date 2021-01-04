@@ -226,6 +226,54 @@ func (suite *ShellClientTestSuite) TestBuildRetryOnErrors() {
 	suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 4)
 }
 
+func (suite *ShellClientTestSuite) TestBuildFailValidation() {
+
+	for _, buildOptions := range []BuildOptions{
+		{Image: "notValid:1.2.3 | bash 'hi'"},
+		{Image: "repo/image:v1.0.0;xyz&netstat"},
+		{Image: "repo/image:v1.0.0", BuildArgs: map[string]string{"mm m": "value"}},
+	} {
+		suite.mockedCmdRunner.
+			On("Run",
+				mock.Anything,
+				mock.MatchedBy(func(command string) bool {
+					return strings.Contains(command, "docker build %s")
+				}),
+				mock.Anything).
+			Panic("command should not have been executed")
+
+		err := suite.shellClient.Build(&buildOptions)
+		suite.logger.DebugWith("Command expectedly failed", "err", err)
+		suite.Require().Error(err)
+		suite.Require().True(strings.Contains(err.Error(), "Invalid build options"))
+		suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 1)
+	}
+}
+
+func (suite *ShellClientTestSuite) TestRunFailValidation() {
+
+	for imageName, runOptions := range map[string]RunOptions{
+		"someImage": {ContainerName: "invalid|%#$"},
+		"image":     {ContainerName: "cont", Env: map[string]string{"sdfsd=sdf": "val"}},
+		"bad|name%": {ContainerName: "cont"},
+	} {
+		suite.mockedCmdRunner.
+			On("Run",
+				mock.Anything,
+				mock.MatchedBy(func(command string) bool {
+					return strings.Contains(command, "docker run %s")
+				}),
+				mock.Anything).
+			Panic("command should not have been executed")
+
+		_, err := suite.shellClient.RunContainer(imageName, &runOptions)
+		suite.logger.DebugWith("Command expectedly failed", "err", err)
+		suite.Require().Error(err)
+		suite.Require().True(strings.Contains(err.Error(), "Invalid run options"))
+		suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 1)
+	}
+}
+
 func TestShellRunnerTestSuite(t *testing.T) {
 	suite.Run(t, new(ShellClientTestSuite))
 }

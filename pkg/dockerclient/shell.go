@@ -41,8 +41,8 @@ var restrictedNameRegex = regexp.MustCompile(`^/?` + restrictedNameChars + `+$`)
 var containerIDRegex = regexp.MustCompile(`^[\w+-\.]+$`)
 
 // loose regexes, today just prohibit whitespaces
-var restrictedBuildArgRegex = regexp.MustCompile(`[^\W]+`)
-var volumeNameRegex = regexp.MustCompile(`[^\W]+`)
+var restrictedBuildArgRegex = regexp.MustCompile(`^[^\W]+$`)
+var volumeNameRegex = regexp.MustCompile(`^[^\W]+$`)
 
 // this is an open issue https://github.com/kubernetes/kubernetes/issues/53201#issuecomment-534647130
 // taking the loose approach,
@@ -907,14 +907,14 @@ func (c *ShellClient) validateExecOptions(execOptions *ExecOptions) error {
 }
 
 func (c *ShellClient) validateCreateNetworkOptions(options *CreateNetworkOptions) error {
-	if !envVarNameRegex.MatchString(options.Name) {
+	if !restrictedNameRegex.MatchString(options.Name) {
 		return errors.New("Invalid network name in network creation options")
 	}
 	return nil
 }
 
 func (c *ShellClient) validateCreateVolumeOptions(options *CreateVolumeOptions) error {
-	if !envVarNameRegex.MatchString(options.Name) {
+	if !restrictedNameRegex.MatchString(options.Name) {
 		return errors.New("Invalid volume name in volume creation options")
 	}
 	return nil
