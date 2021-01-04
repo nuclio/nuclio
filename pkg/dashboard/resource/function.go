@@ -472,18 +472,23 @@ func (fr *functionResource) sanitizeFunctionInfo(functionInfoInstance *functionI
 
 	if functionInfoInstance.Spec != nil {
 
-		for fieldName, fieldValue := range map[string]string{
-			"Spec.Image":                   functionInfoInstance.Spec.Image,
-			"Spec.RunRegistry":             functionInfoInstance.Spec.RunRegistry,
-			"Spec.Build.Image":             functionInfoInstance.Spec.Build.Image,
-			"Spec.Build.OnbuildImage":      functionInfoInstance.Spec.Build.OnbuildImage,
-			"Spec.Build.Registry":          functionInfoInstance.Spec.Build.Registry,
-			"Spec.Build.BaseImageRegistry": functionInfoInstance.Spec.Build.BaseImageRegistry,
+		for fieldName, fieldValue := range map[string]*string{
+			"Spec.Image":                   &functionInfoInstance.Spec.Image,
+			"Spec.RunRegistry":             &functionInfoInstance.Spec.RunRegistry,
+			"Spec.Build.Image":             &functionInfoInstance.Spec.Build.Image,
+			"Spec.Build.OnbuildImage":      &functionInfoInstance.Spec.Build.OnbuildImage,
+			"Spec.Build.Registry":          &functionInfoInstance.Spec.Build.Registry,
+			"Spec.Build.BaseImageRegistry": &functionInfoInstance.Spec.Build.BaseImageRegistry,
 		} {
-			if !dockerImageRegex.MatchString(functionInfoInstance.Spec.Build.Image) {
+			if *fieldValue != "" && !dockerImageRegex.MatchString(*fieldValue) {
+
 				fr.Logger.WarnWith("Invalid docker image ref passed in spec field - this may be malicious",
 					"fieldName", fieldName,
 					"fieldValue", fieldValue)
+
+				// if this is invalid it might also ruin the response serialization - clean out the offending field
+				*fieldValue = ""
+
 				return errors.Errorf("Invalid %s passed", fieldName)
 			}
 		}

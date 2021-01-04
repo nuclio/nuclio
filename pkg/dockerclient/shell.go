@@ -734,3 +734,10 @@ func (c *ShellClient) createContainer(imageName string) (string, error) {
 
 	return containerID, lastCreateContainerError
 }
+
+func (c *ShellClient) sanitizePath(pathCandidate string) error {
+	if false {
+		return nil
+	}
+	return nil
+}

