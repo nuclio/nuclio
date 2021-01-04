@@ -882,10 +882,10 @@ func (c *ShellClient) validateRunOptions(runOptions *RunOptions) error {
 	}
 
 	for volumeHostPath, volumeContainerPath := range runOptions.Volumes {
-		if !restrictedNameRegex.MatchString(volumeHostPath) {
+		if !volumeNameRegex.MatchString(volumeHostPath) {
 			return errors.New("Invalid volume host path in run options")
 		}
-		if !restrictedNameRegex.MatchString(volumeContainerPath) {
+		if !volumeNameRegex.MatchString(volumeContainerPath) {
 			return errors.New("Invalid volume container path in run options")
 		}
 	}
