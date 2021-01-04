@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -34,6 +35,12 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/apimachinery/pkg/util/validation"
+)
+
+const (
+
+	// covers both full image refs and registries / repo prefixes
+	validDockerImagePattern = `^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])(:[0-9]+\/)?(?:[0-9a-z-]+[/@])?(?:([0-9a-z-]+))[/@]?(?:([0-9a-z-]+))?(?::[a-z0-9\.-]+)?$`
 )
 
 type functionResource struct {
@@ -382,7 +389,6 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	if err := json.Unmarshal(body, &functionInfoInstance); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
-
 	return fr.processFunctionInfo(&functionInfoInstance, request.Header.Get("x-nuclio-project-name"))
 }
 
@@ -406,12 +412,30 @@ func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, funct
 	return nil
 }
 
-func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionInfo, projectName string) (*functionInfo, error) {
+func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionInfo, projectName string) (
+	*functionInfo, error) {
+
+	//
+	// enrichment
+	//
 	if functionInfoInstance.Meta == nil {
 		functionInfoInstance.Meta = &functionconfig.Meta{}
 	}
 
 	functionInfoInstance.Meta.Namespace = fr.getNamespaceOrDefault(functionInfoInstance.Meta.Namespace)
+
+	// add project name label if given via header
+	if projectName != "" {
+		if functionInfoInstance.Meta.Labels == nil {
+			functionInfoInstance.Meta.Labels = map[string]string{}
+		}
+
+		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
+	}
+
+	//
+	// validate for missing / malformed fields
+	//
 
 	// name must exists
 	if functionInfoInstance.Meta.Name == "" {
@@ -428,19 +452,44 @@ func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionIn
 	errorMessages := validation.IsQualifiedName(functionInfoInstance.Meta.Name)
 	if len(errorMessages) != 0 {
 		joinedErrorMessage := strings.Join(errorMessages, ", ")
-		return nil, nuclio.NewErrBadRequest("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
+		return nil, nuclio.NewErrBadRequest("Function name doesn't conform to k8s naming convention. Errors: " +
+			joinedErrorMessage)
 	}
 
-	// add project name label if given via header
-	if projectName != "" {
-		if functionInfoInstance.Meta.Labels == nil {
-			functionInfoInstance.Meta.Labels = map[string]string{}
-		}
-
-		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
+	// sanitize request for possible malicious contents
+	if err := fr.sanitizeFunctionInfo(functionInfoInstance); err != nil {
+		return nil, nuclio.WrapErrBadRequest(err)
 	}
 
 	return functionInfoInstance, nil
+}
+
+// to sanitize potential malicious fields we focus on string fields
+func (fr *functionResource) sanitizeFunctionInfo(functionInfoInstance *functionInfo) error {
+
+	// images must match valid image regex
+	dockerImageRegex := regexp.MustCompile(validDockerImagePattern)
+
+	if functionInfoInstance.Spec != nil {
+
+		for fieldName, fieldValue := range map[string]string{
+			"Spec.Image":                   functionInfoInstance.Spec.Image,
+			"Spec.RunRegistry":             functionInfoInstance.Spec.RunRegistry,
+			"Spec.Build.Image":             functionInfoInstance.Spec.Build.Image,
+			"Spec.Build.OnbuildImage":      functionInfoInstance.Spec.Build.OnbuildImage,
+			"Spec.Build.Registry":          functionInfoInstance.Spec.Build.Registry,
+			"Spec.Build.BaseImageRegistry": functionInfoInstance.Spec.Build.BaseImageRegistry,
+		} {
+			if !dockerImageRegex.MatchString(functionInfoInstance.Spec.Build.Image) {
+				fr.Logger.WarnWith("Invalid docker image ref passed in spec field - this may be malicious",
+					"fieldName", fieldName,
+					"fieldValue", fieldValue)
+				return errors.Errorf("Invalid %s passed", fieldName)
+			}
+		}
+	}
+
+	return nil
 }
 
 // register the resource

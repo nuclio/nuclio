@@ -51,7 +51,7 @@ func NewShellClient(parentLogger logger.Logger, runner cmdrunner.CmdRunner) (*Sh
 		buildRetryInterval: 3 * time.Second,
 	}
 
-	// set cmdrunner
+	// set cmd runner
 	if newClient.cmdRunner == nil {
 		newClient.cmdRunner, err = cmdrunner.NewShellRunner(newClient.logger)
 		if err != nil {

