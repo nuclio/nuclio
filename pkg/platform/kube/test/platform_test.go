@@ -47,6 +47,69 @@ type DeployFunctionTestSuite struct {
 	KubeTestSuite
 }
 
+// Test that we get the expected error logs on deployment failure
+func (suite *DeployFunctionTestSuite) TestDeployErrorLogs() {
+	platformConfigConfigmap := suite.createPlatformConfigmapWithJSONLogger()
+
+	// delete that configmap when this test is over
+	defer suite.KubeClientSet.
+		CoreV1().
+		ConfigMaps(suite.Namespace).
+		Delete(platformConfigConfigmap.Name, &metav1.DeleteOptions{}) // nolint: errcheck
+
+	for _, testCase := range []struct {
+		Name                               string
+		CreateFunctionOptions              *platform.CreateFunctionOptions
+		ExpectedBriefErrorsMessageContents string
+	}{
+		{
+			Name: "GoWithCallStack",
+			CreateFunctionOptions: func() *platform.CreateFunctionOptions {
+				createFunctionOptions := suite.CompileCreateFunctionOptions("fail-func-go-with-call-stack")
+				createFunctionOptions.FunctionConfig.Spec.Runtime = "golang"
+				createFunctionOptions.FunctionConfig.Spec.Handler = "main:ExpectedHandler"
+				functionSourceCode := `package main
+
+import (
+    "github.com/nuclio/nuclio-sdk-go"
+)
+
+func NotExpectedHandler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+    return nil, nil
+}
+`
+				createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+
+				return createFunctionOptions
+			}(),
+			ExpectedBriefErrorsMessageContents: "ExpectedHandler not found in plugin",
+		},
+	} {
+		suite.Run(testCase.Name, func() {
+			_, err := suite.DeployFunctionExpectError(testCase.CreateFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+				// get the function
+				functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+					Name:      testCase.CreateFunctionOptions.FunctionConfig.Meta.Name,
+					Namespace: testCase.CreateFunctionOptions.FunctionConfig.Meta.Namespace,
+				})
+				suite.Require().NoError(err)
+
+				message := functions[0].GetStatus().Message
+
+				// validate the brief error message contains the expected message
+				suite.Require().Contains(message, testCase.ExpectedBriefErrorsMessageContents)
+
+				return true
+			})
+			suite.Require().Error(err)
+
+			err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{FunctionConfig: testCase.CreateFunctionOptions.FunctionConfig})
+			suite.Require().NoError(err)
+		})
+	}
+}
+
 func (suite *DeployFunctionTestSuite) TestVolumeOnceMountTwice() {
 	functionName := "volume-once-mount-twice"
 	volumeName := "some-volume"
@@ -367,6 +430,39 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
 		return true
 	})
+}
+
+func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v1.ConfigMap {
+	// create a platform config configmap with a json logger sink (this is how it is on production)
+	platformConfigConfigmap, err := suite.KubeClientSet.
+		CoreV1().
+		ConfigMaps(suite.Namespace).
+		Create(&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "nuclio-platform-config",
+				Namespace: suite.Namespace,
+			},
+			Data: map[string]string{
+				"platform.yaml": `logger:
+  functions:
+  - level: debug
+    sink: myStdoutLoggerSink
+  sinks:
+    myStdoutLoggerSink:
+      attributes:
+        encoding: json
+        timeFieldEncoding: iso8601
+        timeFieldName: time
+        varGroupName: more
+      kind: stdout
+  system:
+  - level: debug
+    sink: myStdoutLoggerSink`,
+			},
+		})
+	suite.Require().NoError(err)
+
+	return platformConfigConfigmap
 }
 
 func (suite *DeployFunctionTestSuite) TestCreateFunctionWithIngress() {
