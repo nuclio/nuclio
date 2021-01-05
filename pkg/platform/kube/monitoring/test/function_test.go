@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/monitoring"
@@ -237,17 +236,17 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		suite.Require().NoError(err, "Failed to set nodes schedulable")
 
 		// wait for function pods to run, meaning its deployment is available
-		err = common.RetryUntilSuccessful(functionMonitoringSleepTimeout,
-			1*time.Second,
-			func() bool {
-				pod = suite.GetFunctionPods(functionName)[0]
-				suite.Logger.InfoWith("Waiting for function pod",
-					"podName", pod.Name,
-					"currentPodPhase", pod.Status.Phase,
-					"expectedPodPhase", v1.PodRunning)
-				return pod.Status.Phase == v1.PodRunning
-			})
-		suite.Require().NoError(err, "Failed to ensure function pod is running again")
+		suite.WaitForFunctionPods(functionName, time.Minute, func(pods []v1.Pod) bool {
+			suite.Logger.InfoWith("Waiting for function pods",
+				"pods", pods,
+				"expectedPodPhase", v1.PodRunning)
+			for _, pod := range pods {
+				if pod.Status.Phase != v1.PodRunning {
+					return false
+				}
+			}
+			return true
+		})
 
 		// wait for function state to become ready again
 		suite.WaitForFunctionState(getFunctionOptions,

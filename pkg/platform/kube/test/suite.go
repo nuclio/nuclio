@@ -300,6 +300,17 @@ func (suite *KubeTestSuite) WaitForFunctionDeployment(functionName string,
 	suite.Require().NoError(err, "Failed to wait on deployment callback")
 }
 
+func (suite *KubeTestSuite) WaitForFunctionPods(functionName string,
+	duration time.Duration,
+	callback func(pods []v1.Pod) bool) {
+	err := common.RetryUntilSuccessful(duration,
+		time.Second,
+		func() bool {
+			return callback(suite.GetFunctionPods(functionName))
+		})
+	suite.Require().NoError(err, "Failed to wait on function pods callback")
+}
+
 func (suite *KubeTestSuite) WaitForAPIGatewayState(getAPIGatewayOptions *platform.GetAPIGatewaysOptions,
 	desiredAPIGatewayState platform.APIGatewayState,
 	duration time.Duration) {
