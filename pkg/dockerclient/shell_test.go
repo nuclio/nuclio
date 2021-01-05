@@ -275,11 +275,6 @@ func (suite *ShellClientTestSuite) TestRunFailValidation() {
 			runOptions: RunOptions{ContainerName: "cont", Env: map[string]string{"sdfsd=sdf": "val"}},
 		},
 		{
-			name:       "InvalidLabel",
-			imageName:  "image",
-			runOptions: RunOptions{ContainerName: "cont", Labels: map[string]string{"only/one/slash": "val"}},
-		},
-		{
 			name:       "InvalidImageName",
 			imageName:  "bad|name%",
 			runOptions: RunOptions{ContainerName: "cont"},

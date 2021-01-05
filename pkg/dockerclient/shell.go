@@ -29,9 +29,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/util/json"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 // RestrictedNameChars collects the characters allowed to represent a network or endpoint name.
@@ -888,10 +886,6 @@ func (c *ShellClient) validateRunOptions(imageName string, runOptions *RunOption
 		if !envVarNameRegex.MatchString(envVarName) {
 			return errors.New("Invalid env var name in run options")
 		}
-	}
-
-	if errs := validation.ValidateLabels(runOptions.Labels, field.NewPath("labels")); len(errs) > 0 {
-		return errors.New("Invalid labels in run options")
 	}
 
 	for volumeHostPath, volumeContainerPath := range runOptions.Volumes {
