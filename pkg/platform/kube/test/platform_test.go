@@ -19,11 +19,11 @@ package test
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/common"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
