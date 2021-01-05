@@ -180,6 +180,59 @@ func (suite *TestAbstractSuite) TestGetProcessorLogsOnGoWithCallStack() {
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsWithSpecialSubstrings() {
 	suite.testGetProcessorLogs(SpecialSubstringsFunctionLogsFilePath)
+
+func (suite *TestAbstractSuite) TestValidateFunctionConfigDockerImagesFields() {
+
+	// we do our docker image test coverage on functionConfig.Spec.Build.Image but other fields, like
+	// functionConfig.Spec.Image are going through the same validation
+	for _, testCase := range []struct {
+		buildImage string
+		valid      bool
+	}{
+		// positive cases
+		{"repo/image:v1.0.0", true},
+		{"123.123.123.123:123/image/tag:v1.0.0", true},
+		{"some-domain.com/image/tag", true},
+		{"some-domain.com/image/tag:v1.1.1-patch1", true},
+		{"image/tag", true},
+		{"image", true},
+		{"image:v1.1.1-patch", true},
+		{"ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2", true},
+
+		// negative cases
+		{"image/tag:v1.0.0 || nc 127.0.0.1 8000 -e /bin/sh ls", false},
+		{"123.123.123.123:123/tag:v1.0.0 | echo something", false},
+		{"repo/image:v1.0.0;xyz&netstat", false},
+		{"repo/image:v1.0.0;ls|cp&rm", false},
+		{"image\" cp something", false},
+		{"image\\\" cp something", false},
+	} {
+
+		functionConfig := *functionconfig.NewConfig()
+		functionConfig.Spec.Build.Image = testCase.buildImage
+
+		suite.Logger.InfoWith("Running function spec sanitization case",
+			"functionConfig", functionConfig,
+			"valid", testCase.valid)
+
+		suite.mockedPlatform.
+			On("GetProjects", &platform.GetProjectsOptions{
+				Meta: platform.ProjectMeta{Namespace: "default"},
+			}).
+			Return([]platform.Project{&platform.AbstractProject{}}, nil).
+			Once()
+
+		err := suite.Platform.ValidateFunctionConfig(&functionConfig)
+		if !testCase.valid {
+			suite.Require().Error(err, "Validation passed unexpectedly")
+			return
+		}
+		suite.Require().NoError(err)
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsOnMultiWorker() {
+	suite.testGetProcessorLogsTestFromFile(MultiWorkerFunctionLogsFilePath)
 }
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsWithConsecutiveDuplicateMessages() {

@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"regexp"
 	"strings"
 	"time"
 
@@ -31,6 +32,23 @@ import (
 	"github.com/nuclio/logger"
 	"k8s.io/apimachinery/pkg/util/json"
 )
+
+// RestrictedNameChars collects the characters allowed to represent a network or endpoint name.
+const restrictedNameChars = `[a-zA-Z0-9][a-zA-Z0-9_.-]`
+
+// RestrictedNamePattern is a regular expression to validate names against the collection of restricted characters.
+// taken from moby and used to validate names (network, container, labels, endpoints)
+var restrictedNameRegex = regexp.MustCompile(`^/?` + restrictedNameChars + `+$`)
+
+var containerIDRegex = regexp.MustCompile(`^[\w+-\.]+$`)
+
+// loose regexes, today just prohibit whitespaces
+var restrictedBuildArgRegex = regexp.MustCompile(`^[\S]+$`)
+var volumeNameRegex = regexp.MustCompile(`^[\S]+$`)
+
+// this is an open issue https://github.com/kubernetes/kubernetes/issues/53201#issuecomment-534647130
+// taking the loose approach,
+var envVarNameRegex = regexp.MustCompile(`^[^=]+$`)
 
 // ShellClient is a docker client that uses the shell to communicate with docker
 type ShellClient struct {
@@ -48,7 +66,7 @@ func NewShellClient(parentLogger logger.Logger, runner cmdrunner.CmdRunner) (*Sh
 		cmdRunner: runner,
 	}
 
-	// set cmdrunner
+	// set cmd runner
 	if newClient.cmdRunner == nil {
 		newClient.cmdRunner, err = cmdrunner.NewShellRunner(newClient.logger)
 		if err != nil {
@@ -68,6 +86,10 @@ func NewShellClient(parentLogger logger.Logger, runner cmdrunner.CmdRunner) (*Sh
 // Build will build a docker image, given build options
 func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 	c.logger.DebugWith("Building image", "image", buildOptions.Image)
+
+	if err := c.validateBuildOptions(buildOptions); err != nil {
+		return errors.Wrap(err, "Invalid build options passed")
+	}
 
 	// if context dir is not passed, use the dir containing the dockerfile
 	if buildOptions.ContextDir == "" && buildOptions.DockerfilePath != "" {
@@ -147,6 +169,14 @@ func (c *ShellClient) PushImage(imageName string, registryURL string) error {
 
 	c.logger.InfoWith("Pushing image", "from", imageName, "to", taggedImage)
 
+	if !common.ValidateDockerImageString(imageName) {
+		return errors.New("Invalid image name to tag/push")
+	}
+
+	if !common.ValidateDockerImageString(taggedImage) {
+		return errors.New("Invalid tagged image name to tag/push")
+	}
+
 	_, err := c.runCommand(nil, "docker tag %s %s", imageName, taggedImage)
 	if err != nil {
 		return errors.Wrap(err, "Failed to tag image")
@@ -164,18 +194,35 @@ func (c *ShellClient) PushImage(imageName string, registryURL string) error {
 func (c *ShellClient) PullImage(imageURL string) error {
 	c.logger.InfoWith("Pulling image", "imageName", imageURL)
 
+	if !common.ValidateDockerImageString(imageURL) {
+		return errors.New("Invalid image URL to pull")
+	}
+
 	_, err := c.runCommand(nil, "docker pull %s", imageURL)
 	return err
 }
 
 // RemoveImage will remove (delete) a local image
 func (c *ShellClient) RemoveImage(imageName string) error {
+	c.logger.DebugWith("Removing image", "imageName", imageName)
+
+	if !common.ValidateDockerImageString(imageName) {
+		return errors.New("Invalid image name to remove")
+	}
+
 	_, err := c.runCommand(nil, "docker rmi -f %s", imageName)
 	return err
 }
 
 // RunContainer will run a container based on an image and run options
 func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (string, error) {
+	c.logger.DebugWith("Running container", "imageName", imageName, "runOptions", runOptions)
+
+	// validate the given run options against malicious contents
+	if err := c.validateRunOptions(imageName, runOptions); err != nil {
+		return "", errors.Wrap(err, "Invalid run options passed")
+	}
+
 	portsArgument := ""
 
 	for localPort, dockerPort := range runOptions.Ports {
@@ -278,6 +325,12 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 
 // ExecInContainer will run a command in a container
 func (c *ShellClient) ExecInContainer(containerID string, execOptions *ExecOptions) error {
+	c.logger.DebugWith("Executing in container", "containerID", containerID, "execOptions", execOptions)
+
+	// validate the given run options against malicious contents
+	if err := c.validateExecOptions(containerID, execOptions); err != nil {
+		return errors.Wrap(err, "Invalid exec options passed")
+	}
 
 	envArgument := ""
 	if execOptions.Env != nil {
@@ -316,6 +369,13 @@ func (c *ShellClient) ExecInContainer(containerID string, execOptions *ExecOptio
 
 // RemoveContainer removes a container given a container ID
 func (c *ShellClient) RemoveContainer(containerID string) error {
+	c.logger.DebugWith("Removing container", "containerID", containerID)
+
+	// containerID is ID or name
+	if !containerIDRegex.MatchString(containerID) && !restrictedNameRegex.MatchString(containerID) {
+		return errors.New("Invalid container ID name in remove container")
+	}
+
 	_, err := c.runCommand(nil, "docker rm -f %s", containerID)
 	return err
 }
@@ -323,6 +383,13 @@ func (c *ShellClient) RemoveContainer(containerID string) error {
 // GetContainerLogs returns raw logs from a given container ID
 // Concatenating stdout and stderr since there's no way to re-interlace them
 func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
+	c.logger.DebugWith("Getting container logs", "containerID", containerID)
+
+	// containerID is ID or name
+	if !containerIDRegex.MatchString(containerID) && !restrictedNameRegex.MatchString(containerID) {
+		return "", errors.New("Invalid container ID to get logs from")
+	}
+
 	runOptions := &cmdrunner.RunOptions{
 		CaptureOutputMode: cmdrunner.CaptureOutputModeCombined,
 	}
@@ -333,6 +400,12 @@ func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
 
 // AwaitContainerHealth blocks until the given container is healthy or the timeout passes
 func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Duration) error {
+	c.logger.DebugWith("Awaiting container health", "containerID", containerID, "timeout", timeout)
+
+	if !containerIDRegex.MatchString(containerID) && !restrictedNameRegex.MatchString(containerID) {
+		return errors.New("Invalid container ID to await health for")
+	}
+
 	timedOut := false
 
 	containerHealthy := make(chan error, 1)
@@ -402,6 +475,10 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, error) {
 	c.logger.DebugWith("Getting containers", "options", options)
 
+	if err := c.validateGetContainerOptions(options); err != nil {
+		return nil, errors.Wrap(err, "Invalid get container options passed")
+	}
+
 	stoppedContainersArgument := ""
 	if options.Stopped {
 		stoppedContainersArgument = "--all "
@@ -455,6 +532,10 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 
 // LogIn allows docker client to access secured registries
 func (c *ShellClient) LogIn(options *LogInOptions) error {
+
+	// TODO: validate login URL
+	c.logger.DebugWith("Performing docker login", "URL", options.URL)
+
 	c.redactedValues = append(c.redactedValues, options.Password)
 
 	_, err := c.runCommand(nil, `docker login -u %s -p '%s' %s`,
@@ -467,6 +548,13 @@ func (c *ShellClient) LogIn(options *LogInOptions) error {
 
 // CreateNetwork creates a docker network
 func (c *ShellClient) CreateNetwork(options *CreateNetworkOptions) error {
+	c.logger.DebugWith("Creating docker network", "options", options)
+
+	// validate the given create network options against malicious contents
+	if err := c.validateCreateNetworkOptions(options); err != nil {
+		return errors.Wrap(err, "Invalid network creation options passed")
+	}
+
 	_, err := c.runCommand(nil, `docker network create %s`, options.Name)
 
 	return err
@@ -474,18 +562,29 @@ func (c *ShellClient) CreateNetwork(options *CreateNetworkOptions) error {
 
 // DeleteNetwork deletes a docker network
 func (c *ShellClient) DeleteNetwork(networkName string) error {
+	c.logger.DebugWith("Deleting docker network", "networkName", networkName)
+	if !restrictedNameRegex.MatchString(networkName) {
+		return errors.New("Invalid network name to delete")
+	}
+
 	_, err := c.runCommand(nil, `docker network rm %s`, networkName)
 
 	return err
 }
 
 func (c *ShellClient) Save(imageName string, outPath string) error {
+	c.logger.DebugWith("Docker saving to path", "outPath", outPath, "imageName", imageName)
+	if !common.ValidateDockerImageString(imageName) {
+		return errors.New("Invalid image name to save")
+	}
+
 	_, err := c.runCommand(nil, `docker save --output %s %s`, outPath, imageName)
 
 	return err
 }
 
 func (c *ShellClient) Load(inPath string) error {
+	c.logger.DebugWith("Docker loading from path", "inPath", inPath)
 	_, err := c.runCommand(nil, `docker load --input %s`, inPath)
 
 	return err
@@ -536,4 +635,98 @@ func (c *ShellClient) getLastNonEmptyLine(lines []string, offset int) string {
 
 func (c *ShellClient) replaceSingleQuotes(input string) string {
 	return strings.Replace(input, "'", "’", -1)
+}
+
+func (c *ShellClient) validateBuildOptions(buildOptions *BuildOptions) error {
+	if !common.ValidateDockerImageString(buildOptions.Image) {
+		return errors.New("Invalid image name in build options")
+	}
+
+	for buildArgName, buildArgValue := range buildOptions.BuildArgs {
+		if !restrictedBuildArgRegex.MatchString(buildArgName) {
+			message := "Invalid build arg name supplied"
+			c.logger.WarnWith(message, "buildArgName", buildArgName)
+			return errors.New(message)
+		}
+		if !restrictedBuildArgRegex.MatchString(buildArgValue) {
+			message := "Invalid build arg value supplied"
+			c.logger.WarnWith(message, "buildArgValue", buildArgValue)
+			return errors.New(message)
+		}
+	}
+	return nil
+}
+
+func (c *ShellClient) validateRunOptions(imageName string, runOptions *RunOptions) error {
+
+	if !common.ValidateDockerImageString(imageName) {
+		return errors.New("Invalid image name passed to run command")
+	}
+
+	// container name can't be empty
+	if runOptions.ContainerName != "" && !restrictedNameRegex.MatchString(runOptions.ContainerName) {
+		return errors.New("Invalid container name in build options")
+	}
+
+	for envVarName := range runOptions.Env {
+		if !envVarNameRegex.MatchString(envVarName) {
+			return errors.New("Invalid env var name in run options")
+		}
+	}
+
+	for volumeHostPath, volumeContainerPath := range runOptions.Volumes {
+		if !volumeNameRegex.MatchString(volumeHostPath) {
+			return errors.New("Invalid volume host path in run options")
+		}
+		if !volumeNameRegex.MatchString(volumeContainerPath) {
+			return errors.New("Invalid volume container path in run options")
+		}
+	}
+
+	if runOptions.Network != "" && !restrictedNameRegex.MatchString(runOptions.Network) {
+		return errors.New("Invalid network name in run options")
+	}
+
+	return nil
+}
+
+func (c *ShellClient) validateExecOptions(containerID string, execOptions *ExecOptions) error {
+
+	// containerID is ID or name
+	if !containerIDRegex.MatchString(containerID) && !restrictedNameRegex.MatchString(containerID) {
+		return errors.New("Invalid container ID name in container exec")
+	}
+
+	for envVarName := range execOptions.Env {
+		if !envVarNameRegex.MatchString(envVarName) {
+			return errors.New("Invalid env var name in exec options")
+		}
+	}
+	return nil
+}
+
+func (c *ShellClient) validateCreateNetworkOptions(options *CreateNetworkOptions) error {
+	if !restrictedNameRegex.MatchString(options.Name) {
+		return errors.New("Invalid network name in network creation options")
+	}
+	return nil
+}
+
+func (c *ShellClient) validateCreateVolumeOptions(options *CreateVolumeOptions) error {
+	if !restrictedNameRegex.MatchString(options.Name) {
+		return errors.New("Invalid volume name in volume creation options")
+	}
+	return nil
+}
+
+func (c *ShellClient) validateGetContainerOptions(options *GetContainerOptions) error {
+	if options.Name != "" && !restrictedNameRegex.MatchString(options.Name) {
+		return errors.New("Invalid container name in get container options")
+	}
+
+	if options.ID != "" && !containerIDRegex.MatchString(options.ID) {
+		return errors.New("Invalid container ID in get container options")
+	}
+
+	return nil
 }
