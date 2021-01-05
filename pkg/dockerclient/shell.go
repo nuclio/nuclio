@@ -200,7 +200,7 @@ func (c *ShellClient) RemoveImage(imageName string) error {
 
 // RunContainer will run a container based on an image and run options
 func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (string, error) {
-	c.logger.InfoWith("Running container", "imageName", imageName, "runOptions", runOptions)
+	c.logger.DebugWith("Running container", "imageName", imageName, "runOptions", runOptions)
 
 	// validate the given run options against malicious contents
 	if err := c.validateRunOptions(imageName, runOptions); err != nil {
@@ -351,6 +351,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 
 // ExecInContainer will run a command in a container
 func (c *ShellClient) ExecInContainer(containerID string, execOptions *ExecOptions) error {
+	c.logger.DebugWith("Executing in container", "containerID", containerID, "execOptions", execOptions)
 
 	// validate the given run options against malicious contents
 	if err := c.validateExecOptions(execOptions); err != nil {
@@ -394,7 +395,7 @@ func (c *ShellClient) ExecInContainer(containerID string, execOptions *ExecOptio
 
 // RemoveContainer removes a container given a container ID
 func (c *ShellClient) RemoveContainer(containerID string) error {
-	c.logger.InfoWith("Removing container", "containerID", containerID)
+	c.logger.DebugWith("Removing container", "containerID", containerID)
 
 	if !containerIDRegex.MatchString(containerID) {
 		return errors.New("Invalid container ID to remove")
@@ -406,7 +407,7 @@ func (c *ShellClient) RemoveContainer(containerID string) error {
 
 // StopContainer stops a container given a container ID
 func (c *ShellClient) StopContainer(containerID string) error {
-	c.logger.InfoWith("Stopping container", "containerID", containerID)
+	c.logger.DebugWith("Stopping container", "containerID", containerID)
 
 	if !containerIDRegex.MatchString(containerID) {
 		return errors.New("Invalid container ID to stop")
@@ -418,7 +419,7 @@ func (c *ShellClient) StopContainer(containerID string) error {
 
 // StartContainer stops a container given a container ID
 func (c *ShellClient) StartContainer(containerID string) error {
-	c.logger.InfoWith("Starting container", "containerID", containerID)
+	c.logger.DebugWith("Starting container", "containerID", containerID)
 
 	if !containerIDRegex.MatchString(containerID) {
 		return errors.New("Invalid container ID to start")
@@ -431,7 +432,7 @@ func (c *ShellClient) StartContainer(containerID string) error {
 // GetContainerLogs returns raw logs from a given container ID
 // Concatenating stdout and stderr since there's no way to re-interlace them
 func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
-	c.logger.InfoWith("Getting container logs", "containerID", containerID)
+	c.logger.DebugWith("Getting container logs", "containerID", containerID)
 
 	if !containerIDRegex.MatchString(containerID) {
 		return "", errors.New("Invalid container ID to get logs from")
@@ -446,6 +447,8 @@ func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
 
 // AwaitContainerHealth blocks until the given container is healthy or the timeout passes
 func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Duration) error {
+	c.logger.DebugWith("Awaiting container health", "containerID", containerID, "timeout", timeout)
+
 	if !containerIDRegex.MatchString(containerID) {
 		return errors.New("Invalid container ID to await health for")
 	}
@@ -627,7 +630,7 @@ func (c *ShellClient) LogIn(options *LogInOptions) error {
 
 // CreateNetwork creates a docker network
 func (c *ShellClient) CreateNetwork(options *CreateNetworkOptions) error {
-	c.logger.InfoWith("Creating docker network", "options", options)
+	c.logger.DebugWith("Creating docker network", "options", options)
 
 	// validate the given create network options against malicious contents
 	if err := c.validateCreateNetworkOptions(options); err != nil {
@@ -641,7 +644,7 @@ func (c *ShellClient) CreateNetwork(options *CreateNetworkOptions) error {
 
 // DeleteNetwork deletes a docker network
 func (c *ShellClient) DeleteNetwork(networkName string) error {
-	c.logger.InfoWith("Deleting docker network", "networkName", networkName)
+	c.logger.DebugWith("Deleting docker network", "networkName", networkName)
 	if !restrictedNameRegex.MatchString(networkName) {
 		return errors.New("Invalid network name to delete")
 	}
@@ -653,7 +656,7 @@ func (c *ShellClient) DeleteNetwork(networkName string) error {
 
 // CreateVolume creates a docker volume
 func (c *ShellClient) CreateVolume(options *CreateVolumeOptions) error {
-	c.logger.InfoWith("Creating docker volume", "options", options)
+	c.logger.DebugWith("Creating docker volume", "options", options)
 
 	// validate the given create network options against malicious contents
 	if err := c.validateCreateVolumeOptions(options); err != nil {
@@ -667,7 +670,7 @@ func (c *ShellClient) CreateVolume(options *CreateVolumeOptions) error {
 
 // DeleteVolume deletes a docker volume
 func (c *ShellClient) DeleteVolume(volumeName string) error {
-	c.logger.InfoWith("Deleting docker volume", "volumeName", volumeName)
+	c.logger.DebugWith("Deleting docker volume", "volumeName", volumeName)
 	if !volumeNameRegex.MatchString(volumeName) {
 		return errors.New("Invalid volume name to delete")
 	}
@@ -678,7 +681,7 @@ func (c *ShellClient) DeleteVolume(volumeName string) error {
 }
 
 func (c *ShellClient) Save(imageName string, outPath string) error {
-	c.logger.InfoWith("Docker saving to path", "outPath", outPath, "imageName", imageName)
+	c.logger.DebugWith("Docker saving to path", "outPath", outPath, "imageName", imageName)
 	if !common.ValidateDockerImageString(imageName) {
 		return errors.New("Invalid image name to save")
 	}
@@ -689,6 +692,7 @@ func (c *ShellClient) Save(imageName string, outPath string) error {
 }
 
 func (c *ShellClient) Load(inPath string) error {
+	c.logger.DebugWith("Docker loading from path", "inPath", inPath)
 	_, err := c.runCommand(nil, `docker load --input %s`, inPath)
 
 	return err
