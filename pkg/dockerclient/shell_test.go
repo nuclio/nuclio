@@ -247,7 +247,7 @@ func (suite *ShellClientTestSuite) TestBuildFailValidation() {
 					return strings.Contains(command, "docker build %s")
 				}),
 				mock.Anything).
-			Panic("command should not have been executed")
+			Return(cmdrunner.RunResult{}, nil)
 
 		err := suite.shellClient.Build(&buildOptions)
 		suite.logger.DebugWith("Command expectedly failed", "err", err)
@@ -275,6 +275,11 @@ func (suite *ShellClientTestSuite) TestRunFailValidation() {
 			runOptions: RunOptions{ContainerName: "cont", Env: map[string]string{"sdfsd=sdf": "val"}},
 		},
 		{
+			name:       "InvalidLabel",
+			imageName:  "image",
+			runOptions: RunOptions{ContainerName: "cont", Labels: map[string]string{"only/one/slash": "val"}},
+		},
+		{
 			name:       "InvalidImageName",
 			imageName:  "bad|name%",
 			runOptions: RunOptions{ContainerName: "cont"},
@@ -288,7 +293,7 @@ func (suite *ShellClientTestSuite) TestRunFailValidation() {
 						return strings.Contains(command, "docker run %s")
 					}),
 					mock.Anything).
-				Panic("command should not have been executed")
+				Return(cmdrunner.RunResult{}, nil)
 
 			_, err := suite.shellClient.RunContainer(testCase.imageName, &testCase.runOptions)
 			suite.logger.DebugWith("Command expectedly failed", "err", err)

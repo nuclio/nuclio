@@ -29,7 +29,9 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 // RestrictedNameChars collects the characters allowed to represent a network or endpoint name.
@@ -38,8 +40,8 @@ const restrictedNameChars = `[a-zA-Z0-9][a-zA-Z0-9_.-]`
 // RestrictedNamePattern is a regular expression to validate names against the collection of restricted characters.
 // taken from moby and used to validate names (network, container, labels, endpoints)
 var restrictedNameRegex = regexp.MustCompile(`^/?` + restrictedNameChars + `+$`)
+
 var containerIDRegex = regexp.MustCompile(`^[\w+-\.]+$`)
-var labelRegex = regexp.MustCompile(`'[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'`)
 
 // loose regexes, today just prohibit whitespaces
 var restrictedBuildArgRegex = regexp.MustCompile(`^[\S]+$`)
@@ -887,10 +889,9 @@ func (c *ShellClient) validateRunOptions(imageName string, runOptions *RunOption
 			return errors.New("Invalid env var name in run options")
 		}
 	}
-	for labelName := range runOptions.Labels {
-		if !labelRegex.MatchString(labelName) {
-			return errors.New("Invalid label name in run options")
-		}
+
+	if errs := validation.ValidateLabels(runOptions.Labels, field.NewPath("labels")); len(errs) > 0 {
+		return errors.New("Invalid labels in run options")
 	}
 
 	for volumeHostPath, volumeContainerPath := range runOptions.Volumes {
