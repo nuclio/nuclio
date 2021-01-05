@@ -368,7 +368,6 @@ func (d *deployer) getFunctionPodWarningEvents(namespace string, podName string)
 		}
 	}
 
-	// separate each warning by a new line, and add another new line in the end
 	res := strings.Join(podWarningEvents, "\n")
 	res = res + "\n"
 

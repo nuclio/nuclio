@@ -19,6 +19,7 @@ package test
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/common"
 	"strings"
 	"testing"
 	"time"
@@ -48,7 +49,7 @@ type DeployFunctionTestSuite struct {
 	KubeTestSuite
 }
 
-// Test that we get the expected error logs on deployment failure
+// Test that we get the expected brief error message on function deployment failure
 func (suite *DeployFunctionTestSuite) TestDeployFailureBriefErrorMessage() {
 	platformConfigConfigmap := suite.createPlatformConfigmapWithJSONLogger()
 
@@ -96,12 +97,21 @@ Error - plugin: symbol ExpectedHandler not found in plugin github.com/nuclio/nuc
 				createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
 				return createFunctionOptions
 			}(),
-			ExpectedBriefErrorsMessage: "Handler not found [handler=\"main:expected_handler\" || worker_id=\"0\"]\nCaught unhandled exception while initializing [err=\"module 'main' has no attribute 'expected_handler'\" || traceback=\"Traceback (most recent call last):\n  File \"/opt/nuclio/_nuclio_wrapper.py\", line 325, in run_wrapper\n    args.trigger_name)\n  File \"/opt/nuclio/_nuclio_wrapper.py\", line 56, in __init__\n    self._entrypoint = self._load_entrypoint_from_handler(handler)\n  File \"/opt/nuclio/_nuclio_wrapper.py\", line 148, in _load_entrypoint_from_handler\n    entrypoint_address = getattr(module, entrypoint)\nAttributeError: module 'main' has no attribute 'expected_handler'\n\" || worker_id=\"0\"]",
+			ExpectedBriefErrorsMessage: `Handler not found [handler="main:expected_handler" || worker_id="0"]
+Caught unhandled exception while initializing [err="module 'main' has no attribute 'expected_handler'" || traceback="Traceback (most recent call last):
+  File "/opt/nuclio/_nuclio_wrapper.py", line 325, in run_wrapper
+    args.trigger_name)
+  File "/opt/nuclio/_nuclio_wrapper.py", line 56, in __init__
+    self._entrypoint = self._load_entrypoint_from_handler(handler)
+  File "/opt/nuclio/_nuclio_wrapper.py", line 148, in _load_entrypoint_from_handler
+    entrypoint_address = getattr(module, entrypoint)
+AttributeError: module 'main' has no attribute 'expected_handler'
+" || worker_id="0"]`,
 		},
 		{
 			Name: "InsufficientGPU",
 			CreateFunctionOptions: func() *platform.CreateFunctionOptions {
-				createFunctionOptions := suite.CompileCreateFunctionOptions("fail-func-go-with-call-stack")
+				createFunctionOptions := suite.CompileCreateFunctionOptions("fail-func-insufficient-gpu")
 				createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 				createFunctionOptions.FunctionConfig.Spec.Handler = "main:expected_handler"
 				functionSourceCode := `def not_expected_handler(context, event):
@@ -128,8 +138,10 @@ Error - plugin: symbol ExpectedHandler not found in plugin github.com/nuclio/nuc
 
 				message := functions[0].GetStatus().Message
 
-				// validate the brief error message in function status is as expected
-				suite.Require().Equal(testCase.ExpectedBriefErrorsMessage, message)
+				// validate the brief error message in function status is at least 95% close to the expected brief error message
+				// keep it flexible for close enough messages in case small changes occur (e.g. line numbers on stack trace)
+				briefErrorMessageDiff := common.CompareTwoStrings(testCase.ExpectedBriefErrorsMessage, message)
+				suite.Require().GreaterOrEqual(briefErrorMessageDiff, 0.95)
 
 				return true
 			})
@@ -464,6 +476,7 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 }
 
 func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v1.ConfigMap {
+
 	// create a platform config configmap with a json logger sink (this is how it is on production)
 	platformConfigConfigmap, err := suite.KubeClientSet.
 		CoreV1().
