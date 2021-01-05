@@ -39,6 +39,7 @@ const restrictedNameChars = `[a-zA-Z0-9][a-zA-Z0-9_.-]`
 // taken from moby and used to validate names (network, container, labels, endpoints)
 var restrictedNameRegex = regexp.MustCompile(`^/?` + restrictedNameChars + `+$`)
 var containerIDRegex = regexp.MustCompile(`^[\w+-\.]+$`)
+var labelRegex = regexp.MustCompile(`'[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'`)
 
 // loose regexes, today just prohibit whitespaces
 var restrictedBuildArgRegex = regexp.MustCompile(`^[\S]+$`)
@@ -887,7 +888,7 @@ func (c *ShellClient) validateRunOptions(imageName string, runOptions *RunOption
 		}
 	}
 	for labelName := range runOptions.Labels {
-		if !restrictedNameRegex.MatchString(labelName) {
+		if !labelRegex.MatchString(labelName) {
 			return errors.New("Invalid label name in run options")
 		}
 	}
