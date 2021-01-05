@@ -41,8 +41,8 @@ var restrictedNameRegex = regexp.MustCompile(`^/?` + restrictedNameChars + `+$`)
 var containerIDRegex = regexp.MustCompile(`^[\w+-\.]+$`)
 
 // loose regexes, today just prohibit whitespaces
-var restrictedBuildArgRegex = regexp.MustCompile(`^[^\W]+$`)
-var volumeNameRegex = regexp.MustCompile(`^[^\W]+$`)
+var restrictedBuildArgRegex = regexp.MustCompile(`^[\S]+$`)
+var volumeNameRegex = regexp.MustCompile(`^[\S]+$`)
 
 // this is an open issue https://github.com/kubernetes/kubernetes/issues/53201#issuecomment-534647130
 // taking the loose approach,

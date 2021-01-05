@@ -449,44 +449,7 @@ func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionIn
 			joinedErrorMessage)
 	}
 
-	// sanitize request for possible malicious contents
-	if err := fr.sanitizeFunctionInfo(functionInfoInstance); err != nil {
-		return nil, nuclio.WrapErrBadRequest(err)
-	}
-
 	return functionInfoInstance, nil
-}
-
-// to sanitize potential malicious fields we focus on string fields
-func (fr *functionResource) sanitizeFunctionInfo(functionInfoInstance *functionInfo) error {
-
-	if functionInfoInstance.Spec != nil {
-
-		for fieldName, fieldValue := range map[string]*string{
-			"Spec.Image":                   &functionInfoInstance.Spec.Image,
-			"Spec.RunRegistry":             &functionInfoInstance.Spec.RunRegistry,
-			"Spec.Build.Image":             &functionInfoInstance.Spec.Build.Image,
-			"Spec.Build.OnbuildImage":      &functionInfoInstance.Spec.Build.OnbuildImage,
-			"Spec.Build.Registry":          &functionInfoInstance.Spec.Build.Registry,
-			"Spec.Build.BaseImageRegistry": &functionInfoInstance.Spec.Build.BaseImageRegistry,
-		} {
-			if *fieldValue != "" && !common.ValidateDockerImageString(*fieldValue) {
-
-				fr.Logger.WarnWith("Invalid docker image ref passed in spec field - this may be malicious",
-					"fieldName", fieldName,
-					"fieldValue", fieldValue)
-
-				// if this is invalid it might also ruin the response serialization - clean out the offending field
-				*fieldValue = ""
-
-				return errors.Errorf("Invalid %s passed", fieldName)
-			}
-		}
-	}
-
-	// TODO: verify volumes?
-
-	return nil
 }
 
 // register the resource
