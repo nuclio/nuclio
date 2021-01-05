@@ -252,32 +252,50 @@ func (suite *ShellClientTestSuite) TestBuildFailValidation() {
 		err := suite.shellClient.Build(&buildOptions)
 		suite.logger.DebugWith("Command expectedly failed", "err", err)
 		suite.Require().Error(err)
-		suite.Require().True(strings.Contains(err.Error(), "Invalid build options"))
+		suite.Require().Contains(err.Error(), "Invalid build options")
 		suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 1)
 	}
 }
 
 func (suite *ShellClientTestSuite) TestRunFailValidation() {
 
-	for imageName, runOptions := range map[string]RunOptions{
-		"someImage": {ContainerName: "invalid|%#$"},
-		"image":     {ContainerName: "cont", Env: map[string]string{"sdfsd=sdf": "val"}},
-		"bad|name%": {ContainerName: "cont"},
+	for _, testCase := range []struct {
+		name       string
+		imageName  string
+		runOptions RunOptions
+	}{
+		{
+			name:       "InvalidContainerName",
+			imageName:  "someImage",
+			runOptions: RunOptions{ContainerName: "invalid|%#$"},
+		},
+		{
+			name:       "InvalidEnv",
+			imageName:  "image",
+			runOptions: RunOptions{ContainerName: "cont", Env: map[string]string{"sdfsd=sdf": "val"}},
+		},
+		{
+			name:       "InvalidImageName",
+			imageName:  "bad|name%",
+			runOptions: RunOptions{ContainerName: "cont"},
+		},
 	} {
-		suite.mockedCmdRunner.
-			On("Run",
-				mock.Anything,
-				mock.MatchedBy(func(command string) bool {
-					return strings.Contains(command, "docker run %s")
-				}),
-				mock.Anything).
-			Panic("command should not have been executed")
+		suite.Run(testCase.name, func() {
+			suite.mockedCmdRunner.
+				On("Run",
+					mock.Anything,
+					mock.MatchedBy(func(command string) bool {
+						return strings.Contains(command, "docker run %s")
+					}),
+					mock.Anything).
+				Panic("command should not have been executed")
 
-		_, err := suite.shellClient.RunContainer(imageName, &runOptions)
-		suite.logger.DebugWith("Command expectedly failed", "err", err)
-		suite.Require().Error(err)
-		suite.Require().True(strings.Contains(err.Error(), "Invalid run options"))
-		suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 1)
+			_, err := suite.shellClient.RunContainer(testCase.imageName, &testCase.runOptions)
+			suite.logger.DebugWith("Command expectedly failed", "err", err)
+			suite.Require().Error(err)
+			suite.Require().True(strings.Contains(err.Error(), "Invalid run options"))
+			suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 1)
+		})
 	}
 }
 

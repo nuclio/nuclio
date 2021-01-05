@@ -158,7 +158,7 @@ func (c *ShellClient) PushImage(imageName string, registryURL string) error {
 	}
 
 	if !common.ValidateDockerImageString(taggedImage) {
-		return errors.New("Invalid image name to tag/push")
+		return errors.New("Invalid tagged image name to tag/push")
 	}
 
 	_, err := c.runCommand(nil, "docker tag %s %s", imageName, taggedImage)

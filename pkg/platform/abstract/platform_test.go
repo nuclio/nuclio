@@ -818,7 +818,9 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigForMaliciousIn
 		err := suite.Platform.ValidateFunctionConfig(&functionConfig)
 		if !testCase.valid {
 			suite.Require().Error(err, "Validation passed unexpectedly")
+			return
 		}
+		suite.Require().NoError(err)
 	}
 }
 
