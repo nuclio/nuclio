@@ -271,7 +271,7 @@ func (suite *ShellClientTestSuite) TestRunFailValidation() {
 		},
 		{
 			name:       "InvalidContainerName2",
-			imageName: "image",
+			imageName:  "image",
 			runOptions: RunOptions{ContainerName: "/nuclio/nuclio-port-change-bvpv1hm0inddvfped4ag"},
 		},
 		{
