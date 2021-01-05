@@ -956,11 +956,11 @@ func (c *ShellClient) validateCreateVolumeOptions(options *CreateVolumeOptions) 
 }
 
 func (c *ShellClient) validateGetContainerOptions(options *GetContainerOptions) error {
-	if !restrictedNameRegex.MatchString(options.Name) {
+	if options.Name != "" && !restrictedNameRegex.MatchString(options.Name) {
 		return errors.New("Invalid container name in get container options")
 	}
 
-	if !containerIDRegex.MatchString(options.ID) {
+	if options.ID != "" && !containerIDRegex.MatchString(options.ID) {
 		return errors.New("Invalid container ID in get container options")
 	}
 
