@@ -69,7 +69,8 @@ func (suite *ShellClientTestSuite) TestShellClientRunContainerReturnsStdout() {
 		Once()
 	output, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
-			Ports: map[int]int{7779: 7779},
+			ContainerName: "somename",
+			Ports:         map[int]int{7779: 7779},
 		})
 	suite.Require().NoError(err)
 
@@ -91,7 +92,8 @@ andthisistheid
 
 	containerID, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
-			Ports: map[int]int{7779: 7779},
+			ContainerName: "somename",
+			Ports:         map[int]int{7779: 7779},
 		})
 
 	suite.Require().NoError(err)
@@ -107,7 +109,8 @@ func (suite *ShellClientTestSuite) TestShellClientRunContainerReturnsStderr() {
 		Once()
 	_, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
-			Ports: map[int]int{7779: 7779},
+			ContainerName: "somename",
+			Ports:         map[int]int{7779: 7779},
 		})
 
 	suite.Require().NoError(err)
@@ -147,6 +150,7 @@ and this a line informing a new version of alpine was pulled. with a space`,
 
 	containerID, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
+			ContainerName:    "somename",
 			Ports:            map[int]int{7779: 7779},
 			ImageMayNotExist: true,
 		})
@@ -166,7 +170,8 @@ func (suite *ShellClientTestSuite) TestShellClientRunContainerRedactsOutput() {
 	suite.shellClient.redactedValues = append(suite.shellClient.redactedValues, "secret")
 	output, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
-			Ports: map[int]int{7779: 7779},
+			ContainerName: "cont",
+			Ports:         map[int]int{7779: 7779},
 		})
 
 	suite.Require().NoError(err)
@@ -189,6 +194,7 @@ func (suite *ShellClientTestSuite) TestBuildBailOnUnknownError() {
 		Once()
 
 	err := suite.shellClient.Build(&BuildOptions{
+		Image:      "image",
 		ContextDir: "",
 	})
 	suite.Require().Error(err)
@@ -218,12 +224,84 @@ func (suite *ShellClientTestSuite) TestBuildRetryOnErrors() {
 		Return(cmdrunner.RunResult{}, nil)
 
 	err := suite.shellClient.Build(&BuildOptions{
+		Image:      "nuclio-onbuild-someid:sometag",
 		ContextDir: "",
 	})
 	suite.Require().Nil(err)
 
 	// 1 for docker version + 2 failing builds + 1 success build
 	suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 4)
+}
+
+func (suite *ShellClientTestSuite) TestBuildFailValidation() {
+
+	for _, buildOptions := range []BuildOptions{
+		{Image: "notValid:1.2.3 | bash 'hi'"},
+		{Image: "repo/image:v1.0.0;xyz&netstat"},
+		{Image: "repo/image:v1.0.0", BuildArgs: map[string]string{"mm m": "value"}},
+	} {
+		suite.mockedCmdRunner.
+			On("Run",
+				mock.Anything,
+				mock.MatchedBy(func(command string) bool {
+					return strings.Contains(command, "docker build %s")
+				}),
+				mock.Anything).
+			Return(cmdrunner.RunResult{}, nil)
+
+		err := suite.shellClient.Build(&buildOptions)
+		suite.logger.DebugWith("Command expectedly failed", "err", err)
+		suite.Require().Error(err)
+		suite.Require().Contains(err.Error(), "Invalid build options")
+		suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 1)
+	}
+}
+
+func (suite *ShellClientTestSuite) TestRunFailValidation() {
+
+	for _, testCase := range []struct {
+		name       string
+		imageName  string
+		runOptions RunOptions
+	}{
+		{
+			name:       "InvalidContainerName",
+			imageName:  "someImage",
+			runOptions: RunOptions{ContainerName: "invalid|%#$"},
+		},
+		{
+			name:       "InvalidContainerName2",
+			imageName:  "image",
+			runOptions: RunOptions{ContainerName: "/nuclio/nuclio-port-change-bvpv1hm0inddvfped4ag"},
+		},
+		{
+			name:       "InvalidEnv",
+			imageName:  "image",
+			runOptions: RunOptions{ContainerName: "cont", Env: map[string]string{"sdfsd=sdf": "val"}},
+		},
+		{
+			name:       "InvalidImageName",
+			imageName:  "bad|name%",
+			runOptions: RunOptions{ContainerName: "cont"},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedCmdRunner.
+				On("Run",
+					mock.Anything,
+					mock.MatchedBy(func(command string) bool {
+						return strings.Contains(command, "docker run %s")
+					}),
+					mock.Anything).
+				Return(cmdrunner.RunResult{}, nil)
+
+			_, err := suite.shellClient.RunContainer(testCase.imageName, &testCase.runOptions)
+			suite.logger.DebugWith("Command expectedly failed", "err", err)
+			suite.Require().Error(err)
+			suite.Require().True(strings.Contains(err.Error(), "Invalid run options"))
+			suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 1)
+		})
+	}
 }
 
 func TestShellRunnerTestSuite(t *testing.T) {

@@ -43,6 +43,14 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
+const (
+
+	// covers both full image refs and registries / repo prefixes
+	// notice we're allowing for trailing / for registries/repos
+	validDockerImagePattern = `^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])(:[0-9]+\/)?(?:[0-9a-z-]+[/@])?(?:([0-9a-z-]+))[/@]?(?:([0-9a-z-]+))?(?::[a-z0-9\.-]+)?/?$`
+)
+
+var dockerImageRegex = regexp.MustCompile(validDockerImagePattern)
 var LettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
 var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -497,6 +505,12 @@ func LabelsMapMatchByLabelSelector(labelSelector string, labelsMap map[string]st
 		return false, errors.Wrap(err, "Failed to get selector from label selector")
 	}
 	return selector.Matches(labels.Set(labelsMap)), nil
+}
+
+func ValidateDockerImageString(image string) bool {
+
+	// images must match valid image regex
+	return dockerImageRegex.MatchString(image)
 }
 
 func logPanic(ctx context.Context,

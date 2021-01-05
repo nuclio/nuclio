@@ -321,6 +321,11 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 			functionConfig.Meta.Name))
 	}
 
+	// check function config for possible malicious content
+	if err := ap.validateDockerImageFields(functionConfig); err != nil {
+		return errors.Wrap(err, "Triggers validation failed")
+	}
+
 	if err := ap.validateTriggers(functionConfig); err != nil {
 		return errors.Wrap(err, "Triggers validation failed")
 	}
@@ -1217,4 +1222,31 @@ func (ap *Platform) transformProjectDisplayNameToName(projectConfig *platform.Pr
 
 	// clean up display name
 	projectConfig.Spec.DisplayName = ""
+}
+
+func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Config) error {
+
+	// here we sanitize registry/image fields for malformed or potentially malicious inputs
+	for fieldName, fieldValue := range map[string]*string{
+		"Spec.Image":                   &functionConfig.Spec.Image,
+		"Spec.RunRegistry":             &functionConfig.Spec.RunRegistry,
+		"Spec.Build.Image":             &functionConfig.Spec.Build.Image,
+		"Spec.Build.OnbuildImage":      &functionConfig.Spec.Build.OnbuildImage,
+		"Spec.Build.Registry":          &functionConfig.Spec.Build.Registry,
+		"Spec.Build.BaseImageRegistry": &functionConfig.Spec.Build.BaseImageRegistry,
+	} {
+		if *fieldValue != "" && !common.ValidateDockerImageString(*fieldValue) {
+
+			ap.Logger.WarnWith("Invalid docker image ref passed in spec field - this may be malicious",
+				"fieldName", fieldName,
+				"fieldValue", fieldValue)
+
+			// if this is invalid it might also ruin the response serialization - clean out the offending field
+			*fieldValue = ""
+
+			return errors.Errorf("Invalid %s passed", fieldName)
+		}
+	}
+
+	return nil
 }

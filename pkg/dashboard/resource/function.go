@@ -382,7 +382,6 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	if err := json.Unmarshal(body, &functionInfoInstance); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
-
 	return fr.processFunctionInfo(&functionInfoInstance, request.Header.Get("x-nuclio-project-name"))
 }
 
@@ -406,12 +405,30 @@ func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, funct
 	return nil
 }
 
-func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionInfo, projectName string) (*functionInfo, error) {
+func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionInfo, projectName string) (
+	*functionInfo, error) {
+
+	//
+	// enrichment
+	//
 	if functionInfoInstance.Meta == nil {
 		functionInfoInstance.Meta = &functionconfig.Meta{}
 	}
 
 	functionInfoInstance.Meta.Namespace = fr.getNamespaceOrDefault(functionInfoInstance.Meta.Namespace)
+
+	// add project name label if given via header
+	if projectName != "" {
+		if functionInfoInstance.Meta.Labels == nil {
+			functionInfoInstance.Meta.Labels = map[string]string{}
+		}
+
+		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
+	}
+
+	//
+	// validate for missing / malformed fields
+	//
 
 	// name must exists
 	if functionInfoInstance.Meta.Name == "" {
@@ -428,16 +445,8 @@ func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionIn
 	errorMessages := validation.IsQualifiedName(functionInfoInstance.Meta.Name)
 	if len(errorMessages) != 0 {
 		joinedErrorMessage := strings.Join(errorMessages, ", ")
-		return nil, nuclio.NewErrBadRequest("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
-	}
-
-	// add project name label if given via header
-	if projectName != "" {
-		if functionInfoInstance.Meta.Labels == nil {
-			functionInfoInstance.Meta.Labels = map[string]string{}
-		}
-
-		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
+		return nil, nuclio.NewErrBadRequest("Function name doesn't conform to k8s naming convention. Errors: " +
+			joinedErrorMessage)
 	}
 
 	return functionInfoInstance, nil
