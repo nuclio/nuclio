@@ -20,13 +20,25 @@ import (
 
 type FunctionMonitoringTestSuite struct {
 	kubetest.KubeTestSuite
+	oldPostDeploymentMonitoringBlockingInterval time.Duration
 }
 
 func (suite *FunctionMonitoringTestSuite) SetupSuite() {
 	suite.KubeTestSuite.SetupSuite()
 
+	// keep it for suite teardown
+	suite.oldPostDeploymentMonitoringBlockingInterval = monitoring.PostDeploymentMonitoringBlockingInterval
+}
+
+func (suite *FunctionMonitoringTestSuite) TearDownSuite() {
+	monitoring.PostDeploymentMonitoringBlockingInterval = suite.oldPostDeploymentMonitoringBlockingInterval
+}
+
+func (suite *FunctionMonitoringTestSuite) SetupTest() {
+
 	// decrease blocking interval, to make test run faster
-	monitoring.PostDeploymentMonitoringBlockingInterval = time.Second
+	// give it ~10 seconds to recently deployed functions to stabilize, avoid transients
+	monitoring.PostDeploymentMonitoringBlockingInterval = 10 * time.Second
 }
 
 func (suite *FunctionMonitoringTestSuite) TestNoRecoveryAfterBuildError() {
