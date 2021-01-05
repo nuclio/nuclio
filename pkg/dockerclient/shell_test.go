@@ -270,6 +270,11 @@ func (suite *ShellClientTestSuite) TestRunFailValidation() {
 			runOptions: RunOptions{ContainerName: "invalid|%#$"},
 		},
 		{
+			name:       "InvalidContainerName2",
+			imageName: "image",
+			runOptions: RunOptions{ContainerName: "/nuclio/nuclio-port-change-bvpv1hm0inddvfped4ag"},
+		},
+		{
 			name:       "InvalidEnv",
 			imageName:  "image",
 			runOptions: RunOptions{ContainerName: "cont", Env: map[string]string{"sdfsd=sdf": "val"}},

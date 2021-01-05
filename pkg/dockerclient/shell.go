@@ -355,7 +355,7 @@ func (c *ShellClient) ExecInContainer(containerID string, execOptions *ExecOptio
 	c.logger.DebugWith("Executing in container", "containerID", containerID, "execOptions", execOptions)
 
 	// validate the given run options against malicious contents
-	if err := c.validateExecOptions(execOptions); err != nil {
+	if err := c.validateExecOptions(containerID, execOptions); err != nil {
 		return errors.Wrap(err, "Invalid exec options passed")
 	}
 
@@ -398,8 +398,9 @@ func (c *ShellClient) ExecInContainer(containerID string, execOptions *ExecOptio
 func (c *ShellClient) RemoveContainer(containerID string) error {
 	c.logger.DebugWith("Removing container", "containerID", containerID)
 
-	if !containerIDRegex.MatchString(containerID) {
-		return errors.New("Invalid container ID to remove")
+	// containerID is ID or name
+	if !containerIDRegex.MatchString(containerID) && !restrictedNameRegex.MatchString(containerID) {
+		return errors.New("Invalid container ID name in remove container")
 	}
 
 	_, err := c.runCommand(nil, "docker rm -f %s", containerID)
@@ -410,7 +411,8 @@ func (c *ShellClient) RemoveContainer(containerID string) error {
 func (c *ShellClient) StopContainer(containerID string) error {
 	c.logger.DebugWith("Stopping container", "containerID", containerID)
 
-	if !containerIDRegex.MatchString(containerID) {
+	// containerID is ID or name
+	if !containerIDRegex.MatchString(containerID) && !restrictedNameRegex.MatchString(containerID) {
 		return errors.New("Invalid container ID to stop")
 	}
 
@@ -422,7 +424,8 @@ func (c *ShellClient) StopContainer(containerID string) error {
 func (c *ShellClient) StartContainer(containerID string) error {
 	c.logger.DebugWith("Starting container", "containerID", containerID)
 
-	if !containerIDRegex.MatchString(containerID) {
+	// containerID is ID or name
+	if !containerIDRegex.MatchString(containerID) && !restrictedNameRegex.MatchString(containerID) {
 		return errors.New("Invalid container ID to start")
 	}
 
@@ -435,9 +438,11 @@ func (c *ShellClient) StartContainer(containerID string) error {
 func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
 	c.logger.DebugWith("Getting container logs", "containerID", containerID)
 
-	if !containerIDRegex.MatchString(containerID) {
+	// containerID is ID or name
+	if !containerIDRegex.MatchString(containerID) && !restrictedNameRegex.MatchString(containerID) {
 		return "", errors.New("Invalid container ID to get logs from")
 	}
+
 	runOptions := &cmdrunner.RunOptions{
 		CaptureOutputMode: cmdrunner.CaptureOutputModeCombined,
 	}
@@ -450,7 +455,7 @@ func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
 func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Duration) error {
 	c.logger.DebugWith("Awaiting container health", "containerID", containerID, "timeout", timeout)
 
-	if !containerIDRegex.MatchString(containerID) {
+	if !containerIDRegex.MatchString(containerID) && !restrictedNameRegex.MatchString(containerID) {
 		return errors.New("Invalid container ID to await health for")
 	}
 
@@ -548,6 +553,10 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, error) {
 	c.logger.DebugWith("Getting containers", "options", options)
 
+	if err := c.validateGetContainerOptions(options); err != nil {
+		return nil, errors.Wrap(err, "Invalid get container options passed")
+	}
+
 	stoppedContainersArgument := ""
 	if options.Stopped {
 		stoppedContainersArgument = "--all "
@@ -607,6 +616,15 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 
 // GetContainerEvents returns a list of container events which occurred within a time range
 func (c *ShellClient) GetContainerEvents(containerName string, since string, until string) ([]string, error) {
+	c.logger.DebugWith("Getting container events",
+		"containerName", containerName,
+		"since", since,
+		"until", until)
+
+	if !restrictedNameRegex.MatchString(containerName) {
+		return nil, errors.New("Invalid container name to get events for")
+	}
+
 	runResults, err := c.runCommand(nil, "docker events --filter container=%s --since %s --until %s",
 		containerName,
 		since,
@@ -619,6 +637,10 @@ func (c *ShellClient) GetContainerEvents(containerName string, since string, unt
 
 // LogIn allows docker client to access secured registries
 func (c *ShellClient) LogIn(options *LogInOptions) error {
+
+	// TODO: validate login URL
+	c.logger.DebugWith("Performing docker login", "URL", options.URL)
+
 	c.redactedValues = append(c.redactedValues, options.Password)
 
 	_, err := c.runCommand(nil, `docker login -u %s -p '%s' %s`,
@@ -904,7 +926,13 @@ func (c *ShellClient) validateRunOptions(imageName string, runOptions *RunOption
 	return nil
 }
 
-func (c *ShellClient) validateExecOptions(execOptions *ExecOptions) error {
+func (c *ShellClient) validateExecOptions(containerID string, execOptions *ExecOptions) error {
+
+	// containerID is ID or name
+	if !containerIDRegex.MatchString(containerID) && !restrictedNameRegex.MatchString(containerID) {
+		return errors.New("Invalid container ID name in container exec")
+	}
+
 	for envVarName := range execOptions.Env {
 		if !envVarNameRegex.MatchString(envVarName) {
 			return errors.New("Invalid env var name in exec options")
@@ -924,5 +952,17 @@ func (c *ShellClient) validateCreateVolumeOptions(options *CreateVolumeOptions) 
 	if !restrictedNameRegex.MatchString(options.Name) {
 		return errors.New("Invalid volume name in volume creation options")
 	}
+	return nil
+}
+
+func (c *ShellClient) validateGetContainerOptions(options *GetContainerOptions) error {
+	if !restrictedNameRegex.MatchString(options.Name) {
+		return errors.New("Invalid container name in get container options")
+	}
+
+	if !containerIDRegex.MatchString(options.ID) {
+		return errors.New("Invalid container ID in get container options")
+	}
+
 	return nil
 }
