@@ -69,7 +69,8 @@ func (suite *ShellClientTestSuite) TestShellClientRunContainerReturnsStdout() {
 		Once()
 	output, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
-			Ports: map[int]int{7779: 7779},
+			ContainerName: "somename",
+			Ports:         map[int]int{7779: 7779},
 		})
 	suite.Require().NoError(err)
 
@@ -91,7 +92,8 @@ andthisistheid
 
 	containerID, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
-			Ports: map[int]int{7779: 7779},
+			ContainerName: "somename",
+			Ports:         map[int]int{7779: 7779},
 		})
 
 	suite.Require().NoError(err)
@@ -107,7 +109,8 @@ func (suite *ShellClientTestSuite) TestShellClientRunContainerReturnsStderr() {
 		Once()
 	_, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
-			Ports: map[int]int{7779: 7779},
+			ContainerName: "somename",
+			Ports:         map[int]int{7779: 7779},
 		})
 
 	suite.Require().NoError(err)
@@ -147,6 +150,7 @@ and this a line informing a new version of alpine was pulled. with a space`,
 
 	containerID, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
+			ContainerName:    "somename",
 			Ports:            map[int]int{7779: 7779},
 			ImageMayNotExist: true,
 		})
@@ -166,7 +170,8 @@ func (suite *ShellClientTestSuite) TestShellClientRunContainerRedactsOutput() {
 	suite.shellClient.redactedValues = append(suite.shellClient.redactedValues, "secret")
 	output, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
-			Ports: map[int]int{7779: 7779},
+			ContainerName: "cont",
+			Ports:         map[int]int{7779: 7779},
 		})
 
 	suite.Require().NoError(err)
@@ -189,6 +194,7 @@ func (suite *ShellClientTestSuite) TestBuildBailOnUnknownError() {
 		Once()
 
 	err := suite.shellClient.Build(&BuildOptions{
+		Image:      "image",
 		ContextDir: "",
 	})
 	suite.Require().Error(err)
@@ -218,6 +224,7 @@ func (suite *ShellClientTestSuite) TestBuildRetryOnErrors() {
 		Return(cmdrunner.RunResult{}, nil)
 
 	err := suite.shellClient.Build(&BuildOptions{
+		Image:      "nuclio-onbuild-someid:sometag",
 		ContextDir: "",
 	})
 	suite.Require().Nil(err)

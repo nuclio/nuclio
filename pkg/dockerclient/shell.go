@@ -46,7 +46,7 @@ var volumeNameRegex = regexp.MustCompile(`^[\S]+$`)
 
 // this is an open issue https://github.com/kubernetes/kubernetes/issues/53201#issuecomment-534647130
 // taking the loose approach,
-var envVarNameRegex = regexp.MustCompile(`[^=]+`)
+var envVarNameRegex = regexp.MustCompile(`^[^=]+$`)
 
 // ShellClient is a docker client that uses the shell to communicate with docker
 type ShellClient struct {
@@ -200,9 +200,10 @@ func (c *ShellClient) RemoveImage(imageName string) error {
 
 // RunContainer will run a container based on an image and run options
 func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (string, error) {
+	c.logger.InfoWith("Running container", "imageName", imageName, "runOptions", runOptions)
 
 	// validate the given run options against malicious contents
-	if err := c.validateRunOptions(runOptions); err != nil {
+	if err := c.validateRunOptions(imageName, runOptions); err != nil {
 		return "", errors.Wrap(err, "Invalid run options passed")
 	}
 
@@ -865,9 +866,15 @@ func (c *ShellClient) validateBuildOptions(buildOptions *BuildOptions) error {
 	return nil
 }
 
-func (c *ShellClient) validateRunOptions(runOptions *RunOptions) error {
+func (c *ShellClient) validateRunOptions(imageName string, runOptions *RunOptions) error {
+
+	if !common.ValidateDockerImageString(imageName) {
+		return errors.New("Invalid image name passed to run command")
+	}
+
+	// container name can't be empty
 	if !restrictedNameRegex.MatchString(runOptions.ContainerName) {
-		return errors.New("Invalid image name in build options")
+		return errors.New("Invalid container name in build options")
 	}
 
 	for envVarName := range runOptions.Env {
@@ -890,7 +897,7 @@ func (c *ShellClient) validateRunOptions(runOptions *RunOptions) error {
 		}
 	}
 
-	if !restrictedNameRegex.MatchString(runOptions.Network) {
+	if runOptions.Network != "" && !restrictedNameRegex.MatchString(runOptions.Network) {
 		return errors.New("Invalid network name in run options")
 	}
 
