@@ -898,7 +898,7 @@ func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.Crea
 				return 0, errors.Wrap(err, "Failed to get a container's HTTP-trigger port")
 			}
 
-			if err := p.dockerClient.RemoveContainer(container.Name); err != nil {
+			if err := p.dockerClient.RemoveContainer(container.ID); err != nil {
 				return 0, errors.Wrap(err, "Failed to delete a function container")
 			}
 		}
