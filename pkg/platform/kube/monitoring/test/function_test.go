@@ -35,6 +35,7 @@ func (suite *FunctionMonitoringTestSuite) TearDownSuite() {
 }
 
 func (suite *FunctionMonitoringTestSuite) SetupTest() {
+	suite.KubeTestSuite.SetupTest()
 
 	// decrease blocking interval, to make test run faster
 	// give it ~10 seconds to recently deployed functions to stabilize, avoid transients
