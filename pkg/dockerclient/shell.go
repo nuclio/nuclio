@@ -900,7 +900,7 @@ func (c *ShellClient) validateRunOptions(imageName string, runOptions *RunOption
 	}
 
 	// container name can't be empty
-	if !restrictedNameRegex.MatchString(runOptions.ContainerName) {
+	if runOptions.ContainerName != "" && !restrictedNameRegex.MatchString(runOptions.ContainerName) {
 		return errors.New("Invalid container name in build options")
 	}
 
