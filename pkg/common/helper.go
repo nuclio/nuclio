@@ -46,7 +46,8 @@ import (
 const (
 
 	// covers both full image refs and registries / repo prefixes
-	validDockerImagePattern = `^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])(:[0-9]+\/)?(?:[0-9a-z-]+[/@])?(?:([0-9a-z-]+))[/@]?(?:([0-9a-z-]+))?(?::[a-z0-9\.-]+)?$`
+	// notice we're allowing for trailing / for registries/repos
+	validDockerImagePattern = `^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])(:[0-9]+\/)?(?:[0-9a-z-]+[/@])?(?:([0-9a-z-]+))[/@]?(?:([0-9a-z-]+))?(?::[a-z0-9\.-]+)?/?$`
 )
 
 var dockerImageRegex = regexp.MustCompile(validDockerImagePattern)
