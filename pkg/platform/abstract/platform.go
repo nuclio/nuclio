@@ -322,7 +322,7 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 	}
 
 	// check function config for possible malicious content
-	if err := ap.validateFunctionConfigForMaliciousInput(functionConfig); err != nil {
+	if err := ap.validateDockerImageFields(functionConfig); err != nil {
 		return errors.Wrap(err, "Triggers validation failed")
 	}
 
@@ -1224,9 +1224,9 @@ func (ap *Platform) transformProjectDisplayNameToName(projectConfig *platform.Pr
 	projectConfig.Spec.DisplayName = ""
 }
 
-// to sanitize potential malicious fields we focus on string fields
-func (ap *Platform) validateFunctionConfigForMaliciousInput(functionConfig *functionconfig.Config) error {
+func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Config) error {
 
+	// here we sanitize registry/image fields for malformed or potentially malicious inputs
 	for fieldName, fieldValue := range map[string]*string{
 		"Spec.Image":                   &functionConfig.Spec.Image,
 		"Spec.RunRegistry":             &functionConfig.Spec.RunRegistry,
@@ -1247,8 +1247,6 @@ func (ap *Platform) validateFunctionConfigForMaliciousInput(functionConfig *func
 			return errors.Errorf("Invalid %s passed", fieldName)
 		}
 	}
-
-	// TODO: verify volumes?
 
 	return nil
 }

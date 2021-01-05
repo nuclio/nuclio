@@ -774,7 +774,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 	}
 }
 
-func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigForMaliciousInput() {
+func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFields() {
 
 	// we do our docker image test coverage on functionConfig.Spec.Build.Image but other fields, like
 	// functionConfig.Spec.Image are going through the same validation
