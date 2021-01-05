@@ -40,6 +40,7 @@ import (
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -48,41 +49,71 @@ type DeployFunctionTestSuite struct {
 }
 
 // Test that we get the expected error logs on deployment failure
-func (suite *DeployFunctionTestSuite) TestDeployErrorLogs() {
+func (suite *DeployFunctionTestSuite) TestDeployFailureBriefErrorMessage() {
 	platformConfigConfigmap := suite.createPlatformConfigmapWithJSONLogger()
 
-	// delete that configmap when this test is over
+	// delete the platform config config map when this test is over
 	defer suite.KubeClientSet.
 		CoreV1().
 		ConfigMaps(suite.Namespace).
 		Delete(platformConfigConfigmap.Name, &metav1.DeleteOptions{}) // nolint: errcheck
 
 	for _, testCase := range []struct {
-		Name                               string
-		CreateFunctionOptions              *platform.CreateFunctionOptions
-		ExpectedBriefErrorsMessageContents string
+		Name                       string
+		CreateFunctionOptions      *platform.CreateFunctionOptions
+		ExpectedBriefErrorsMessage string
 	}{
 		{
-			Name: "GoWithCallStack",
+			Name: "GoBadHandler",
 			CreateFunctionOptions: func() *platform.CreateFunctionOptions {
-				createFunctionOptions := suite.CompileCreateFunctionOptions("fail-func-go-with-call-stack")
+				createFunctionOptions := suite.CompileCreateFunctionOptions("fail-func-go-bad-handler")
 				createFunctionOptions.FunctionConfig.Spec.Runtime = "golang"
 				createFunctionOptions.FunctionConfig.Spec.Handler = "main:ExpectedHandler"
 				functionSourceCode := `package main
-
 import (
-    "github.com/nuclio/nuclio-sdk-go"
+  "github.com/nuclio/nuclio-sdk-go"
 )
-
 func NotExpectedHandler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-    return nil, nil
-}
-`
+  return nil, nil
+}`
 				createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
-
 				return createFunctionOptions
 			}(),
-			ExpectedBriefErrorsMessageContents: "ExpectedHandler not found in plugin",
+			ExpectedBriefErrorsMessage: `
+Error - plugin: symbol ExpectedHandler not found in plugin github.com/nuclio/nuclio
+    .../pkg/processor/runtime/golang/pluginloader.go:58
+`,
+		},
+		{
+			Name: "PythonBadHandler",
+			CreateFunctionOptions: func() *platform.CreateFunctionOptions {
+				createFunctionOptions := suite.CompileCreateFunctionOptions("fail-func-python-bad-handler")
+				createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
+				createFunctionOptions.FunctionConfig.Spec.Handler = "main:expected_handler"
+				functionSourceCode := `def not_expected_handler(context, event):
+   return ""
+`
+				createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+				return createFunctionOptions
+			}(),
+			ExpectedBriefErrorsMessage: "Handler not found [handler=\"main:expected_handler\" || worker_id=\"0\"]\nCaught unhandled exception while initializing [err=\"module 'main' has no attribute 'expected_handler'\" || traceback=\"Traceback (most recent call last):\n  File \"/opt/nuclio/_nuclio_wrapper.py\", line 325, in run_wrapper\n    args.trigger_name)\n  File \"/opt/nuclio/_nuclio_wrapper.py\", line 56, in __init__\n    self._entrypoint = self._load_entrypoint_from_handler(handler)\n  File \"/opt/nuclio/_nuclio_wrapper.py\", line 148, in _load_entrypoint_from_handler\n    entrypoint_address = getattr(module, entrypoint)\nAttributeError: module 'main' has no attribute 'expected_handler'\n\" || worker_id=\"0\"]",
+		},
+		{
+			Name: "InsufficientGPU",
+			CreateFunctionOptions: func() *platform.CreateFunctionOptions {
+				createFunctionOptions := suite.CompileCreateFunctionOptions("fail-func-go-with-call-stack")
+				createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
+				createFunctionOptions.FunctionConfig.Spec.Handler = "main:expected_handler"
+				functionSourceCode := `def not_expected_handler(context, event):
+  return ""
+`
+				createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+				createFunctionOptions.FunctionConfig.Spec.Resources.Limits = map[v1.ResourceName]resource.Quantity{
+					functionconfig.NvidiaGPUResourceName: resource.MustParse("99"),
+				}
+				return createFunctionOptions
+			}(),
+			ExpectedBriefErrorsMessage: "0/1 nodes are available: 1 Insufficient nvidia.com/gpu.\n",
 		},
 	} {
 		suite.Run(testCase.Name, func() {
@@ -97,8 +128,8 @@ func NotExpectedHandler(context *nuclio.Context, event nuclio.Event) (interface{
 
 				message := functions[0].GetStatus().Message
 
-				// validate the brief error message contains the expected message
-				suite.Require().Contains(message, testCase.ExpectedBriefErrorsMessageContents)
+				// validate the brief error message in function status is as expected
+				suite.Require().Equal(testCase.ExpectedBriefErrorsMessage, message)
 
 				return true
 			})
