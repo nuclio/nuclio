@@ -130,7 +130,7 @@ func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 	//    name:tag (e.g. foo:latest) and we need to prepend run registry
 
 	// if, for some reason, the run registry is specified, prepend that
-	if functionConfig.Spec.RunRegistry != "" {
+	if functionConfig.Spec.RunRegistry != "" && functionInstance.Spec.Image != "" {
 
 		// check if the run registry is part of the image already first
 		if !strings.HasPrefix(functionInstance.Spec.Image, fmt.Sprintf("%s/", functionConfig.Spec.RunRegistry)) {
