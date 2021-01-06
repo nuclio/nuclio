@@ -5,11 +5,6 @@ on:
     types:
     - created
 
-  # Run Release on push to development for unstable
-  push:
-    branches:
-    - development
-
 env:
   GO_VERSION: 1.12.x
   GO111MODULE: off
@@ -19,6 +14,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+
     if: github.repository == 'nuclio/nuclio'
     steps:
     - name: Dump github context
@@ -34,21 +30,9 @@ jobs:
     - name: Dump github ref
       run: echo "$GITHUB_REF"
 
-    - name: Extract ref info
-      id: release_info
-      run: |
-        echo ::set-output name=REF_BRANCH::${GITHUB_REF#refs/heads/}
-        echo ::set-output name=REF_TAG::${GITHUB_REF#refs/tags/}
-
-    - name: Set NUCLIO_LABEL to unstable
-      if: github.event_name == 'push' && steps.release_info.outputs.REF_BRANCH == 'development'
-      run: |
-        echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
-
     - name: Set NUCLIO_LABEL to release tag
-      if: github.event_name == 'release'
       run: |
-        echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
+        echo "NUCLIO_LABEL=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
     - uses: actions/checkout@v2
 
@@ -78,14 +62,6 @@ jobs:
       env:
         NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
 
-    - name: Tag and push stable images
-      if: env.NUCLIO_LABEL != 'unstable'
-      run: |
-        docker tag "$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-amd64" "$NUCLIO_DOCKER_REPO/dashboard:stable-amd64"
-        docker push "$NUCLIO_DOCKER_REPO/dashboard:stable-amd64"
-      env:
-        NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
-
     - name: Build binaries
       run: |
         NUCLIO_OS=linux NUCLIO_ARCH=amd64 make tools
@@ -97,5 +73,5 @@ jobs:
     - name: Upload binaries
       uses: AButler/upload-release-assets@v2.0
       with:
-        files: '/home/runner/go/bin/nuctl-*'
+        files: '/home/runner/work/nuclio/nuclio/go/bin/nuctl-*'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
