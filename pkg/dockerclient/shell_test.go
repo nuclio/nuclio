@@ -17,6 +17,7 @@ limitations under the License.
 package dockerclient
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -77,7 +78,8 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsStdout() {
 
 	output, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
-			Ports: map[int]int{7779: 7779},
+			ContainerName: "somename",
+			Ports:         map[int]int{7779: 7779},
 		})
 	suite.Require().NoError(err)
 
@@ -94,7 +96,8 @@ andthisistheid
 
 	containerID, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
-			Ports: map[int]int{7779: 7779},
+			ContainerName: "somename",
+			Ports:         map[int]int{7779: 7779},
 		})
 
 	suite.Require().NoError(err)
@@ -106,7 +109,8 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsStderr() {
 
 	_, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
-			Ports: map[int]int{7779: 7779},
+			ContainerName: "somename",
+			Ports:         map[int]int{7779: 7779},
 		})
 
 	suite.Require().NoError(err)
@@ -137,6 +141,7 @@ and this a line informing a new version of alpine was pulled. with a space`
 
 	containerID, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
+			ContainerName:    "somename",
 			Ports:            map[int]int{7779: 7779},
 			ImageMayNotExist: true,
 		})
@@ -150,11 +155,79 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerRedactsOutput() {
 	suite.shellClient.redactedValues = append(suite.shellClient.redactedValues, "secret")
 	output, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
-			Ports: map[int]int{7779: 7779},
+			ContainerName: "cont",
+			Ports:         map[int]int{7779: 7779},
 		})
 
 	suite.Require().NoError(err)
 	suite.Require().Equal("helloworld[redacted]", output)
+}
+
+func (suite *CmdClientTestSuite) TestBuildFailValidation() {
+
+	for _, buildOptions := range []BuildOptions{
+		{Image: "notValid:1.2.3 | bash 'hi'"},
+		{Image: "repo/image:v1.0.0;xyz&netstat"},
+		{Image: "repo/image:v1.0.0", BuildArgs: map[string]string{"mm m": "value"}},
+	} {
+		suite.shellClient.cmdRunner.(*mockCmdRunner).
+			On("Run",
+				mock.Anything,
+				mock.MatchedBy(func(command string) bool {
+					return strings.Contains(command, "docker build %s")
+				}),
+				mock.Anything).
+			Return(cmdrunner.RunResult{}, nil)
+
+		err := suite.shellClient.Build(&buildOptions)
+		suite.logger.DebugWith("Command expectedly failed", "err", err)
+		suite.Require().Error(err)
+		suite.Require().Contains(err.Error(), "Invalid build options")
+	}
+}
+
+func (suite *CmdClientTestSuite) TestRunFailValidation() {
+
+	for _, testCase := range []struct {
+		name       string
+		imageName  string
+		runOptions RunOptions
+	}{
+		{
+			name:       "InvalidContainerName",
+			imageName:  "someImage",
+			runOptions: RunOptions{ContainerName: "invalid|%#$"},
+		},
+		{
+			name:       "InvalidContainerName2",
+			imageName:  "image",
+			runOptions: RunOptions{ContainerName: "/nuclio/nuclio-port-change-bvpv1hm0inddvfped4ag"},
+		},
+		{
+			name:       "InvalidEnv",
+			imageName:  "image",
+			runOptions: RunOptions{ContainerName: "cont", Env: map[string]string{"sdfsd=sdf": "val"}},
+		},
+		{
+			name:       "InvalidImageName",
+			imageName:  "bad|name%",
+			runOptions: RunOptions{ContainerName: "cont"},
+		},
+	} {
+		suite.shellClient.cmdRunner.(*mockCmdRunner).
+			On("Run",
+				mock.Anything,
+				mock.MatchedBy(func(command string) bool {
+					return strings.Contains(command, "docker run %s")
+				}),
+				mock.Anything).
+			Return(cmdrunner.RunResult{}, nil)
+
+		_, err := suite.shellClient.RunContainer(testCase.imageName, &testCase.runOptions)
+		suite.logger.DebugWith("Command expectedly failed", "err", err)
+		suite.Require().Error(err)
+		suite.Require().True(strings.Contains(err.Error(), "Invalid run options"))
+	}
 }
 
 func TestCmdRunnerTestSuite(t *testing.T) {

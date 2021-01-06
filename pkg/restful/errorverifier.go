@@ -40,7 +40,7 @@ func NewErrorContainsVerifier(logger logger.Logger, expectedStrings []string) *E
 func (ecv *ErrorContainsVerifier) Verify(response map[string]interface{}) bool {
 
 	// get the "error" key. expect it to be a string
-	reponseErrorInterface, found := response["error"]
+	responseErrorInterface, found := response["error"]
 	if !found {
 		ecv.logger.WarnWith("Response does not contain an error key", "response", response)
 
@@ -48,8 +48,8 @@ func (ecv *ErrorContainsVerifier) Verify(response map[string]interface{}) bool {
 	}
 
 	// get the "error" key. expect it to be a string
-	reponseError, reponseErrorInterfaceIsString := reponseErrorInterface.(string)
-	if !reponseErrorInterfaceIsString {
+	responseError, responseErrorInterfaceIsString := responseErrorInterface.(string)
+	if !responseErrorInterfaceIsString {
 		ecv.logger.WarnWith("Response error is not a string")
 
 		return false
@@ -57,9 +57,9 @@ func (ecv *ErrorContainsVerifier) Verify(response map[string]interface{}) bool {
 
 	// iterate over expected strings, look for them
 	for _, expectedString := range ecv.expectedStrings {
-		if !strings.Contains(reponseError, expectedString) {
+		if !strings.Contains(responseError, expectedString) {
 			ecv.logger.WarnWith("Expected string not found",
-				"body", reponseError,
+				"body", responseError,
 				"expected", expectedString)
 			return false
 		}
