@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strconv"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -712,20 +712,9 @@ func (c *ShellClient) validateCreateNetworkOptions(options *CreateNetworkOptions
 	return nil
 }
 
-func (c *ShellClient) validateCreateVolumeOptions(options *CreateVolumeOptions) error {
-	if !restrictedNameRegex.MatchString(options.Name) {
-		return errors.New("Invalid volume name in volume creation options")
-	}
-	return nil
-}
-
 func (c *ShellClient) validateGetContainerOptions(options *GetContainerOptions) error {
 	if options.Name != "" && !restrictedNameRegex.MatchString(options.Name) {
 		return errors.New("Invalid container name in get container options")
-	}
-
-	if options.ID != "" && !containerIDRegex.MatchString(options.ID) {
-		return errors.New("Invalid container ID in get container options")
 	}
 
 	return nil
