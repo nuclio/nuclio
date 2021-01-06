@@ -156,7 +156,7 @@
                     .catch(function (errorMessage) {
                         var messageData = { name: projectName, message: errorMessage.errorText,
                             status: errorMessage.errorStatus }
-                        if (errorMessage.errorStatus === 412 || lodash.startsWith(errorMessage.errorMessage,
+                        if (errorMessage.errorStatus === 412 && lodash.startsWith(errorMessage.errorMessage,
                                                                                   'Project contains')) {
                             notEmptyMessagesArray.push(messageData);
                         } else {

@@ -123,7 +123,7 @@
                     return projectId;
                 })
                 .catch(function (error) {
-                    var errorText = lodash.get(error, 'status') === 412     ||
+                    var errorText = lodash.get(error, 'status') === 412     &&
                     lodash.startsWith(error.data.error, 'Project contains') ?
                         $i18next.t('functions:ERROR_MSG.DELETE_NOT_EMPTY_PROJECT', { lng: lng }) :
                         lodash.get(error, 'data.error', $i18next.t('functions:ERROR_MSG.DELETE_PROJECT', { lng: lng }));
