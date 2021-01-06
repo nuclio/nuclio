@@ -57,9 +57,9 @@ func (ecv *ErrorContainsVerifier) Verify(response map[string]interface{}) bool {
 
 	// iterate over expected strings, look for them
 	for _, expectedString := range ecv.expectedStrings {
-		if !strings.Contains(reponseError, expectedString) {
+		if !strings.Contains(responseError, expectedString) {
 			ecv.logger.WarnWith("Expected string not found",
-				"body", reponseError,
+				"body", responseError,
 				"expected", expectedString)
 			return false
 		}
