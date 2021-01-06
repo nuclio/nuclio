@@ -180,6 +180,7 @@ func (suite *TestAbstractSuite) TestGetProcessorLogsOnGoWithCallStack() {
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsWithSpecialSubstrings() {
 	suite.testGetProcessorLogs(SpecialSubstringsFunctionLogsFilePath)
+}
 
 func (suite *TestAbstractSuite) TestValidateFunctionConfigDockerImagesFields() {
 
@@ -208,31 +209,21 @@ func (suite *TestAbstractSuite) TestValidateFunctionConfigDockerImagesFields() {
 		{"image\\\" cp something", false},
 	} {
 
-		functionConfig := *functionconfig.NewConfig()
-		functionConfig.Spec.Build.Image = testCase.buildImage
+		createFunctionOptions := platform.CreateFunctionOptions{}
+		createFunctionOptions.FunctionConfig = *functionconfig.NewConfig()
+		createFunctionOptions.FunctionConfig.Spec.Build.Image = testCase.buildImage
 
 		suite.Logger.InfoWith("Running function spec sanitization case",
-			"functionConfig", functionConfig,
+			"createFunctionOptions", createFunctionOptions,
 			"valid", testCase.valid)
 
-		suite.mockedPlatform.
-			On("GetProjects", &platform.GetProjectsOptions{
-				Meta: platform.ProjectMeta{Namespace: "default"},
-			}).
-			Return([]platform.Project{&platform.AbstractProject{}}, nil).
-			Once()
-
-		err := suite.Platform.ValidateFunctionConfig(&functionConfig)
+		err := suite.Platform.ValidateCreateFunctionOptions(&createFunctionOptions)
 		if !testCase.valid {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			return
 		}
 		suite.Require().NoError(err)
 	}
-}
-
-func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsOnMultiWorker() {
-	suite.testGetProcessorLogsTestFromFile(MultiWorkerFunctionLogsFilePath)
 }
 
 func (suite *TestAbstractSuite) TestGetProcessorLogsWithConsecutiveDuplicateMessages() {

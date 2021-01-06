@@ -17,7 +17,6 @@ limitations under the License.
 package dockerclient
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
@@ -164,61 +163,6 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerRedactsOutput() {
 	suite.Require().Equal("helloworld[redacted]", output)
 }
 
-func (suite *CmdClientTestSuite) TestBuildBailOnUnknownError() {
-
-	// mock failing
-	suite.mockedCmdRunner.
-		On("Run",
-			mock.Anything,
-			mock.MatchedBy(func(command string) bool {
-				return strings.Contains(command, "docker build %s")
-			}),
-			mock.Anything).
-		Return(cmdrunner.RunResult{
-			Stderr: `some bad happened`,
-		}, errors.New("unexpected error")).
-		Once()
-
-	err := suite.shellClient.Build(&BuildOptions{
-		Image:      "image",
-		ContextDir: "",
-	})
-	suite.Require().Error(err)
-
-	// 1 for docker version + 1 unknown build error
-	suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 2)
-}
-
-func (suite *CmdClientTestSuite) TestBuildRetryOnErrors() {
-
-	// mock failing
-	suite.mockedCmdRunner.
-		On("Run",
-			mock.Anything,
-			mock.MatchedBy(func(command string) bool {
-				return strings.Contains(command, "docker build %s")
-			}),
-			mock.Anything).
-		Return(cmdrunner.RunResult{
-			Stderr: `Unable to find image 'nuclio-onbuild-someid:sometag' locally`,
-		}, errors.New("execution error")).
-		Twice()
-
-	// success build
-	suite.mockedCmdRunner.
-		On("Run", mock.Anything, mock.Anything, mock.Anything).
-		Return(cmdrunner.RunResult{}, nil)
-
-	err := suite.shellClient.Build(&BuildOptions{
-		Image:      "nuclio-onbuild-someid:sometag",
-		ContextDir: "",
-	})
-	suite.Require().Nil(err)
-
-	// 1 for docker version + 2 failing builds + 1 success build
-	suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 4)
-}
-
 func (suite *CmdClientTestSuite) TestBuildFailValidation() {
 
 	for _, buildOptions := range []BuildOptions{
@@ -226,7 +170,7 @@ func (suite *CmdClientTestSuite) TestBuildFailValidation() {
 		{Image: "repo/image:v1.0.0;xyz&netstat"},
 		{Image: "repo/image:v1.0.0", BuildArgs: map[string]string{"mm m": "value"}},
 	} {
-		suite.mockedCmdRunner.
+		suite.shellClient.cmdRunner.(*mockCmdRunner).
 			On("Run",
 				mock.Anything,
 				mock.MatchedBy(func(command string) bool {
@@ -239,7 +183,6 @@ func (suite *CmdClientTestSuite) TestBuildFailValidation() {
 		suite.logger.DebugWith("Command expectedly failed", "err", err)
 		suite.Require().Error(err)
 		suite.Require().Contains(err.Error(), "Invalid build options")
-		suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 1)
 	}
 }
 
@@ -271,22 +214,19 @@ func (suite *CmdClientTestSuite) TestRunFailValidation() {
 			runOptions: RunOptions{ContainerName: "cont"},
 		},
 	} {
-		suite.Run(testCase.name, func() {
-			suite.mockedCmdRunner.
-				On("Run",
-					mock.Anything,
-					mock.MatchedBy(func(command string) bool {
-						return strings.Contains(command, "docker run %s")
-					}),
-					mock.Anything).
-				Return(cmdrunner.RunResult{}, nil)
+		suite.shellClient.cmdRunner.(*mockCmdRunner).
+			On("Run",
+				mock.Anything,
+				mock.MatchedBy(func(command string) bool {
+					return strings.Contains(command, "docker run %s")
+				}),
+				mock.Anything).
+			Return(cmdrunner.RunResult{}, nil)
 
-			_, err := suite.shellClient.RunContainer(testCase.imageName, &testCase.runOptions)
-			suite.logger.DebugWith("Command expectedly failed", "err", err)
-			suite.Require().Error(err)
-			suite.Require().True(strings.Contains(err.Error(), "Invalid run options"))
-			suite.mockedCmdRunner.AssertNumberOfCalls(suite.T(), "Run", 1)
-		})
+		_, err := suite.shellClient.RunContainer(testCase.imageName, &testCase.runOptions)
+		suite.logger.DebugWith("Command expectedly failed", "err", err)
+		suite.Require().Error(err)
+		suite.Require().True(strings.Contains(err.Error(), "Invalid run options"))
 	}
 }
 

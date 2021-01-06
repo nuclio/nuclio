@@ -224,7 +224,7 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 func (ap *Platform) ValidateCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) error {
 
 	// check function config for possible malicious content
-	if err := ap.validateDockerImageFields(createFunctionOptions.functionConfig); err != nil {
+	if err := ap.validateDockerImageFields(&createFunctionOptions.FunctionConfig); err != nil {
 		return errors.Wrap(err, "Triggers validation failed")
 	}
 
