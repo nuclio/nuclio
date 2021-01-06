@@ -130,18 +130,15 @@ AttributeError: module 'main' has no attribute 'expected_handler'
 			_, err := suite.DeployFunctionExpectError(testCase.CreateFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 				// get the function
-				functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+				function := suite.GetFunction(&platform.GetFunctionsOptions{
 					Name:      testCase.CreateFunctionOptions.FunctionConfig.Meta.Name,
 					Namespace: testCase.CreateFunctionOptions.FunctionConfig.Meta.Namespace,
 				})
-				suite.Require().NoError(err)
-
-				message := functions[0].GetStatus().Message
 
 				// validate the brief error message in function status is at least 95% close to the expected brief error message
 				// keep it flexible for close enough messages in case small changes occur (e.g. line numbers on stack trace)
-				briefErrorMessageDiff := common.CompareTwoStrings(testCase.ExpectedBriefErrorsMessage, message)
-				suite.Require().GreaterOrEqual(briefErrorMessageDiff, 0.95)
+				briefErrorMessageDiff := common.CompareTwoStrings(testCase.ExpectedBriefErrorsMessage, function.GetStatus().Message)
+				suite.Require().GreaterOrEqual(briefErrorMessageDiff, float32(0.95))
 
 				return true
 			})

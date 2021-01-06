@@ -76,8 +76,8 @@ func CompareTwoStrings(stringOne, stringTwo string) float32 {
 }
 
 func removeSpaces(stringOne, stringTwo *string) {
-	*stringOne = strings.Replace(*stringOne, " ", "", -1)
-	*stringTwo = strings.Replace(*stringTwo, " ", "", -1)
+	*stringOne = strings.ReplaceAll(*stringOne, " ", "")
+	*stringTwo = strings.ReplaceAll(*stringTwo, " ", "")
 }
 
 func returnEarlyIfPossible(stringOne, stringTwo string) float32 {

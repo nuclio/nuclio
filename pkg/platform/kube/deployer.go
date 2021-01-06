@@ -368,8 +368,5 @@ func (d *deployer) getFunctionPodWarningEvents(namespace string, podName string)
 		}
 	}
 
-	res := strings.Join(podWarningEvents, "\n")
-	res = res + "\n"
-
-	return res, nil
+	return fmt.Sprintf("%s\n", strings.Join(podWarningEvents, "\n")), nil
 }
