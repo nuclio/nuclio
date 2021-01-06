@@ -6,6 +6,8 @@ on:
     - created
 
 env:
+  REPO: quay.io
+  REPO_NAME: nuclio
   GO_VERSION: 1.12.x
   GO111MODULE: off
   GOPATH: /home/runner/work/nuclio/nuclio/go
