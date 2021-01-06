@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -358,12 +359,14 @@ func (d *deployer) getFunctionPodWarningEvents(namespace string, podName string)
 		return "", err
 	}
 
-	var podWarningEvents string
+	var podWarningEvents []string
 	for _, event := range eventList.Items {
 		if event.InvolvedObject.Name == podName && event.Type == "Warning" {
-			podWarningEvents += event.Message + "\n"
+			if !common.StringInSlice(event.Message, podWarningEvents) {
+				podWarningEvents = append(podWarningEvents, event.Message)
+			}
 		}
 	}
 
-	return podWarningEvents, nil
+	return fmt.Sprintf("%s\n", strings.Join(podWarningEvents, "\n")), nil
 }
