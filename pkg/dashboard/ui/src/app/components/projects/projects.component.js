@@ -156,7 +156,8 @@
                     .catch(function (errorMessage) {
                         var messageData = { name: projectName, message: errorMessage.errorText,
                             status: errorMessage.errorStatus }
-                        if (messageData.status === 412) {
+                        if (errorMessage.errorStatus === 412 || lodash.startsWith(errorMessage.errorMessage,
+                                                                                  'Project contains')) {
                             notEmptyMessagesArray.push(messageData);
                         } else {
                             messagesArray.push(messageData);
@@ -169,7 +170,7 @@
                     if (lodash.isNonEmpty(messagesArray) || lodash.isNonEmpty(notEmptyMessagesArray)) {
                         var messages = formatMessage(messagesArray);
                         var notEmptyMessages = formatMessage(notEmptyMessagesArray);
-                        var promise = lodash.isEmpty(messages) ? $q.resolve() : DialogsService.alert(messages);
+                        var promise = lodash.isEmpty(messages) ? $q.when() : DialogsService.alert(messages);
 
                         if (lodash.isNonEmpty(notEmptyMessagesArray)) {
                             return promise.then(function () {
@@ -324,11 +325,12 @@
         function confirmDelete(confirmMessage) {
             var template = '<div class="close-button igz-icon-close" data-ng-click="closeThisDialog()"></div>' +
                 '<div class="nuclio-alert-icon"></div>' + '<div class="notification-text title">' + confirmMessage +
-                '</div>' + '<div class="buttons" >' +
-                '<button class="igz-button-just-text" tabindex="0" data-ng-click="confirm(1)">' +
+                '</div>' + '<div class="buttons" >'  +
+                '<button class="igz-button-just-text" tabindex="0"  data-ng-click="closeThisDialog(0)" >' +
+                $i18next.t('common:CANCEL', { lng: i18next.language }) +
+                '<button class="igz-button-primary" tabindex="0" data-ng-click="confirm(1)">' +
                 $i18next.t('common:DELETE', { lng: i18next.language }) +
-                '</button>' + '<button class="igz-button-primary" tabindex="0"  data-ng-click="closeThisDialog(0)" >' +
-                $i18next.t('common:CANCEL', { lng: i18next.language }) + '</button>' + '</div>';
+                '</button>' + '</button>' + '</div>';
 
             return ngDialog.openConfirm({
                 template: template,
@@ -341,13 +343,20 @@
         /**
          * Formats error messages to be displayed
          * @param {array} errorMessages
-         * @returns {string|array}
+         * @returns {string}
          */
         function formatMessage(errorMessages) {
-            return  errorMessages.length === 1 ? errorMessages[0].message :
-                lodash.map(errorMessages, function (errorMessage) {
-                    return errorMessage.name + ': ' + errorMessage.message;
-                });
+            var formattedErrorMessage = '';
+            if (errorMessages.length === 1) {
+                formattedErrorMessage = errorMessages[0].message;
+            } else {
+                lodash.each(errorMessages, function (errorMessage) {
+                    formattedErrorMessage = formattedErrorMessage +
+                        errorMessage.name + ': ' + errorMessage.message + '<br />';
+                })
+            }
+
+            return formattedErrorMessage;
         }
 
         /**
