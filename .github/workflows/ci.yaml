@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - 1.1.x
+
+env:
+  GO_VERSION: 1.12.x
+  GO111MODULE: off
+  GOPATH: /home/runner/work/nuclio/nuclio/go
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump github context
+        run: echo "$GITHUB_CONTEXT"
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+
+      - name: Dump runner context
+        run: echo "$RUNNER_CONTEXT"
+        env:
+          RUNNER_CONTEXT: ${{ toJson(runner) }}
+
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+          path: go/src/github.com/nuclio/nuclio
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Lint
+        run: |
+          go get github.com/v3io/v3io-go-http
+          go get github.com/nuclio/logger
+          go get github.com/nuclio/nuclio-sdk-go \
+              && cd $GOPATH/src/github.com/nuclio/nuclio-sdk-go \
+              && git checkout v0.0.1 \
+              && cd $GOPATH/src/github.com/nuclio/nuclio
+          go get github.com/nuclio/amqp
+          go get -d golang.org/x/net/...
+          go get github.com/v3io/scaler-types \
+              && cd $GOPATH/src/github.com/v3io/scaler-types \
+              && git checkout v1.6.0 \
+              && cd $GOPATH/src/github.com/nuclio/nuclio
+          make lint
+
+
+  test_short:
+    name: Test short
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+          path: go/src/github.com/nuclio/nuclio
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run short test
+        run: |
+          go get github.com/v3io/v3io-go-http
+          go get github.com/nuclio/logger
+          go get github.com/nuclio/nuclio-sdk-go \
+              && cd $GOPATH/src/github.com/nuclio/nuclio-sdk-go \
+              && git checkout v0.0.1 \
+              && cd $GOPATH/src/github.com/nuclio/nuclio
+          go get github.com/nuclio/amqp
+          go get -d golang.org/x/net/...
+          go get github.com/v3io/scaler-types \
+              && cd $GOPATH/src/github.com/v3io/scaler-types \
+              && git checkout v1.6.0 \
+              && cd $GOPATH/src/github.com/nuclio/nuclio
+          make test-short
