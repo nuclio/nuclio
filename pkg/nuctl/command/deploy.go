@@ -208,7 +208,7 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().BoolVar(&commandeer.publish, "publish", false, "Publish the function")
 	cmd.Flags().StringVar(&commandeer.encodedDataBindings, "data-bindings", "", "JSON-encoded data bindings for the function")
 	cmd.Flags().StringVar(&commandeer.encodedTriggers, "triggers", "", "JSON-encoded triggers for the function")
-	cmd.Flags().StringVar(&commandeer.overrideHTTPTriggerServiceType, "http-trigger-service-type", "", "Override the http trigger's service type")
+	cmd.Flags().StringVar(&commandeer.overrideHTTPTriggerServiceType, "http-trigger-service-type", "", "A Kubernetes ServiceType to apply to the HTTP trigger")
 	cmd.Flags().StringVar(&commandeer.encodedFunctionPlatformConfig, "platform-config", "", "JSON-encoded platform specific configuration")
 	cmd.Flags().StringVar(&commandeer.image, "run-image", "", "Name of an existing image to deploy (default - build a new image to deploy)")
 	cmd.Flags().StringVar(&commandeer.runRegistry, "run-registry", "", "URL of a registry for pulling the image, if differs from -r/--registry (env: NUCTL_RUN_REGISTRY)")
