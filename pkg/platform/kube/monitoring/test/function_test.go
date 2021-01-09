@@ -72,10 +72,10 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverFromPodsHardLimit() {
 		suite.Require().NoError(err)
 
 		// clean leftovers
-		defer suite.KubeClientSet. // nolint: errcheck
-						CoreV1().
-						ResourceQuotas(suite.Namespace).
-						Delete(resourceQuota.Name, &metav1.DeleteOptions{})
+		defer suite.KubeClientSet.
+			CoreV1().
+			ResourceQuotas(suite.Namespace).
+			Delete(resourceQuota.Name, &metav1.DeleteOptions{}) // nolint: errcheck
 
 		// delete function single pod
 		pods := suite.GetFunctionPods(getFunctionOptions.Name)
