@@ -14,6 +14,7 @@ import (
 	"github.com/nuclio/logger"
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -176,8 +177,36 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 
 // consider function deployment available when all pods are available
 func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
+
+	// require at least one replica
 	atLeastOneReplicasRequested := deployment.Spec.Replicas != nil && *deployment.Spec.Replicas > 0
-	return atLeastOneReplicasRequested && deployment.Status.UnavailableReplicas == 0
+	if !atLeastOneReplicasRequested {
+		return false
+	}
+
+	for _, condition := range deployment.Status.Conditions {
+
+		// minimum replicas unavailable
+		if condition.Type == appsv1.DeploymentAvailable &&
+			condition.Status == v1.ConditionFalse &&
+			condition.Reason == "MinimumReplicasUnavailable" {
+			return false
+		}
+
+		// check for a replica failure
+		if condition.Type == appsv1.DeploymentReplicaFailure {
+			return false
+		}
+
+		// deployment fail to progress
+		// https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#failed-deployment
+		if condition.Type == appsv1.DeploymentProgressing && condition.Status == v1.ConditionFalse {
+			return false
+		}
+	}
+
+	// at this stage, all conditions are not a failure as they are either available or progressing
+	return true
 }
 
 // We monitor functions that meet the following conditions:

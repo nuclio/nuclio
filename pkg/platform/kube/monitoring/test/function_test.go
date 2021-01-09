@@ -3,6 +3,7 @@ package test
 import (
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -27,18 +29,85 @@ func (suite *FunctionMonitoringTestSuite) SetupSuite() {
 
 	// keep it for suite teardown
 	suite.oldPostDeploymentMonitoringBlockingInterval = monitoring.PostDeploymentMonitoringBlockingInterval
+
+	// decrease blocking interval, to make test run faster
+	// give it ~10 seconds to recently deployed functions to stabilize, avoid transients
+	monitoring.PostDeploymentMonitoringBlockingInterval = 10 * time.Second
 }
 
 func (suite *FunctionMonitoringTestSuite) TearDownSuite() {
 	monitoring.PostDeploymentMonitoringBlockingInterval = suite.oldPostDeploymentMonitoringBlockingInterval
 }
 
-func (suite *FunctionMonitoringTestSuite) SetupTest() {
-	suite.KubeTestSuite.SetupTest()
+func (suite *FunctionMonitoringTestSuite) TestRecoverFromPodsHardLimit() {
+	functionName := "function-pods-hard-limit"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	getFunctionOptions := &platform.GetFunctionsOptions{
+		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+	}
+	one := 1
+	three := 3
+	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
+	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &three
 
-	// decrease blocking interval, to make test run faster
-	// give it ~10 seconds to recently deployed functions to stabilize, avoid transients
-	monitoring.PostDeploymentMonitoringBlockingInterval = 10 * time.Second
+	_ = suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		// limit pod to one
+		resourceQuota, err := suite.KubeClientSet.
+			CoreV1().
+			ResourceQuotas(suite.Namespace).
+			Create(&v1.ResourceQuota{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nuclio-test-rq",
+					Namespace: suite.Namespace,
+				},
+				Spec: v1.ResourceQuotaSpec{
+					Hard: v1.ResourceList{
+						v1.ResourcePods: resource.MustParse(strconv.Itoa(one)),
+					},
+				},
+				Status: v1.ResourceQuotaStatus{},
+			})
+		suite.Require().NoError(err)
+
+		// clean leftovers
+		defer suite.KubeClientSet. // nolint: errcheck
+						CoreV1().
+						ResourceQuotas(suite.Namespace).
+						Delete(resourceQuota.Name, &metav1.DeleteOptions{})
+
+		// delete function single pod
+		pods := suite.GetFunctionPods(getFunctionOptions.Name)
+		err = suite.KubeClientSet.
+			CoreV1().
+			Pods(suite.Namespace).
+			Delete(pods[0].Name, metav1.NewDeleteOptions(0))
+		suite.Require().NoError(err)
+
+		// function becomes unhealthy, due to exceeding pods deployment hard limit
+		suite.WaitForFunctionState(getFunctionOptions,
+			functionconfig.FunctionStateUnhealthy,
+			3*suite.Controller.GetFunctionMonitoringInterval())
+
+		// increase hard limit, allowing the function reach its potential replicas
+		resourceQuota.Spec.Hard = v1.ResourceList{
+			v1.ResourcePods: resource.MustParse(strconv.Itoa(three)),
+		}
+
+		// remove to allow updating
+		resourceQuota.ResourceVersion = ""
+		suite.Logger.InfoWith("Updating resource quota",
+			"podsResourceQuota", resourceQuota.Spec.Hard.Pods())
+		_, err = suite.KubeClientSet.CoreV1().ResourceQuotas(suite.Namespace).Update(resourceQuota)
+		suite.Require().NoError(err)
+
+		// wait for function to become healthy again
+		suite.WaitForFunctionState(getFunctionOptions,
+			functionconfig.FunctionStateReady,
+			2*time.Minute)
+		return true
+	})
 }
 
 func (suite *FunctionMonitoringTestSuite) TestNoRecoveryAfterBuildError() {
