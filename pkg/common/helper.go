@@ -32,9 +32,6 @@ import (
 	"github.com/nuclio/errors"
 )
 
-var LettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
-var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
-
 // IsFile returns true if the object @ path is a file
 func IsFile(path string) bool {
 	info, err := os.Stat(path)
