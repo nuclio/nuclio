@@ -121,7 +121,7 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 				return false
 			}
 
-			err = json.Unmarshal([]byte(marshalledResponseBody), &events)
+			err = json.Unmarshal(marshalledResponseBody, &events)
 			if err != nil {
 				suite.Require().NoError(err, "Failed to unmarshal events")
 			}
