@@ -32,14 +32,8 @@ import (
 	"github.com/nuclio/errors"
 )
 
-const (
-
-	// covers both full image refs and registries / repo prefixes
-	// notice we're allowing for trailing / for registries/repos
-	validDockerImagePattern = `^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])(:[0-9]+\/)?(?:[0-9a-z-]+[/@])?(?:([0-9a-z-]+))[/@]?(?:([0-9a-z-]+))?(?::[a-z0-9\.-]+)?/?$`
-)
-
-var dockerImageRegex = regexp.MustCompile(validDockerImagePattern)
+var LettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
+var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 // IsFile returns true if the object @ path is a file
 func IsFile(path string) bool {
@@ -285,10 +279,4 @@ func GetDurationOrInfinite(timeout *time.Duration) time.Duration {
 
 	// essentially infinite
 	return 100 * 365 * 24 * time.Hour
-}
-
-func ValidateDockerImageString(image string) bool {
-
-	// images must match valid image regex
-	return dockerImageRegex.MatchString(image)
 }
