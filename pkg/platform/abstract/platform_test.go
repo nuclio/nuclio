@@ -783,6 +783,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 		valid      bool
 	}{
 		// positive cases
+		{"just_image-name", true},
+		{"image-name-with:tag-333", true},
 		{"repo/image:v1.0.0", true},
 		{"123.123.123.123:123/image/tag:v1.0.0", true},
 		{"some-domain.com/image/tag", true},
@@ -822,7 +824,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 		if !testCase.valid {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			suite.Logger.InfoWith("Expected error received", "err", err, "functionConfig", functionConfig)
-			return
+			continue
 		}
 		suite.Require().NoError(err)
 	}
