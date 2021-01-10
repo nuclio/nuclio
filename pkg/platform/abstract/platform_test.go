@@ -230,7 +230,9 @@ func (suite *TestAbstractSuite) TestValidateFunctionConfigDockerImagesFields() {
 		err := suite.Platform.ValidateCreateFunctionOptions(&createFunctionOptions)
 		if !testCase.valid {
 			suite.Require().Error(err, "Validation passed unexpectedly")
-			suite.Logger.InfoWith("Expected error received", "err", err, "functionConfig", functionConfig)
+			suite.Logger.InfoWith("Expected error received",
+				"err", err,
+				"functionConfig", &createFunctionOptions.FunctionConfig)
 			continue
 		}
 		suite.Require().NoError(err)
