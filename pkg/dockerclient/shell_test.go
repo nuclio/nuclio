@@ -266,7 +266,7 @@ func (suite *ShellClientTestSuite) TestRunFailValidation() {
 	}{
 		{
 			name:       "InvalidContainerName",
-			imageName:  "someImage",
+			imageName:  "someimage",
 			runOptions: RunOptions{ContainerName: "invalid|%#$"},
 		},
 		{

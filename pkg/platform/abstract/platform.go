@@ -36,6 +36,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
+	"github.com/docker/distribution/reference"
 	"github.com/gobuffalo/flect"
 	"github.com/hashicorp/go-uuid"
 	"github.com/nuclio/errors"
@@ -323,7 +324,7 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 
 	// check function config for possible malicious content
 	if err := ap.validateDockerImageFields(functionConfig); err != nil {
-		return errors.Wrap(err, "Triggers validation failed")
+		return errors.Wrap(err, "Docker image fields validation failed")
 	}
 
 	if err := ap.validateTriggers(functionConfig); err != nil {
@@ -1235,16 +1236,17 @@ func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Con
 		"Spec.Build.Registry":          &functionConfig.Spec.Build.Registry,
 		"Spec.Build.BaseImageRegistry": &functionConfig.Spec.Build.BaseImageRegistry,
 	} {
-		if *fieldValue != "" && !common.ValidateDockerImageString(*fieldValue) {
+		if *fieldValue != "" {
+			if _, err := reference.Parse(*fieldValue); err != nil {
+				ap.Logger.WarnWith("Invalid docker image ref passed in spec field - this may be malicious",
+					"fieldName", fieldName,
+					"fieldValue", fieldValue)
 
-			ap.Logger.WarnWith("Invalid docker image ref passed in spec field - this may be malicious",
-				"fieldName", fieldName,
-				"fieldValue", fieldValue)
+				// if this is invalid it might also ruin the response serialization - clean out the offending field
+				*fieldValue = ""
 
-			// if this is invalid it might also ruin the response serialization - clean out the offending field
-			*fieldValue = ""
-
-			return errors.Errorf("Invalid %s passed", fieldName)
+				return errors.Wrapf(err, "Invalid %s passed", fieldName)
+			}
 		}
 	}
 
