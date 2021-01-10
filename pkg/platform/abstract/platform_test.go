@@ -798,6 +798,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 		{"repo/image_with__two-underscores:v1.0.0", true},
 		{"repo/underscored_repo__yes/name.with.dot:v1.0.0", true},
 		{"underscored_repo__allowed/with/name.with.dot:v1.0.0", true},
+		{"localhost:5000/", true}, // HACK: some tests use this so we allow this
 
 		// negative cases
 		{"image/tag:v1.0.0 || nc 127.0.0.1 8000 -e /bin/sh ls", false},
