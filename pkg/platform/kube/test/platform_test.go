@@ -18,17 +18,23 @@ package test
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"path"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -45,6 +51,98 @@ import (
 
 type DeployFunctionTestSuite struct {
 	KubeTestSuite
+}
+
+func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody() {
+
+	// create an event-recorder function
+	functionPath := path.Join(suite.GetTestFunctionsDir(), "common", "event-recorder", "python", "event_recorder.py")
+	functionName := fmt.Sprintf("event-recorder-%s", xid.New().String())
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// get function source code
+	functionSourceCode, err := ioutil.ReadFile(functionPath)
+	suite.Require().NoError(err)
+
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "event_recorder:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(functionSourceCode)
+
+	// set a JSON cron trigger event body
+	type myEventBody struct {
+		KeyA bool     `json:"key_a"`
+		KeyB []string `json:"key_b"`
+	}
+	cronTriggerEventBody := myEventBody{
+		KeyA: true,
+		KeyB: []string{
+			"value_1",
+			"value_2",
+		},
+	}
+	marshalledCronTriggerEventBody, err := json.Marshal(cronTriggerEventBody)
+	suite.Require().NoError(err)
+
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"crontrig": {
+			Kind: "cron",
+			Attributes: map[string]interface{}{
+				"interval": "5s",
+				"event": map[string]interface{}{
+					"body": string(marshalledCronTriggerEventBody),
+					"headers": map[string]interface{}{
+						"Extra-Header-1": "value1",
+						"Extra-Header-2": "value2",
+					},
+				},
+			},
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		var events []triggertest.Event
+
+		err = common.RetryUntilSuccessful(60*time.Second, 2*time.Second, func() bool {
+
+			// set http request url of the function
+			url := fmt.Sprintf("http://%s:%d", suite.GetTestHost(), deployResult.Port)
+
+			suite.Logger.DebugWith("Trying to get events", "url", url)
+			httpResponse, err := http.Get(url)
+			if err != nil {
+				suite.Logger.WarnWith("Failed to get events from: %s; err: %v", url, err)
+				return false
+			}
+
+			marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
+			if err != nil {
+				suite.Logger.WarnWith("Failed to read response body")
+				return false
+			}
+
+			err = json.Unmarshal([]byte(marshalledResponseBody), &events)
+			if err != nil {
+				suite.Require().NoError(err, "Failed to unmarshal events")
+			}
+
+			// move on when at least 1 job ran
+			return len(events) > 0
+		})
+		suite.Require().NoError(err)
+
+		// validate the json event body was sent properly
+		var actualEventBodyJSON myEventBody
+		err = json.Unmarshal([]byte(events[0].Body), &actualEventBodyJSON)
+		suite.Require().NoError(err)
+		suite.Require().Empty(cmp.Diff(cronTriggerEventBody, actualEventBodyJSON))
+
+		// validate headers were attached properly
+		suite.Require().Contains(events[0].Headers, "X-Nuclio-Invoke-Trigger")
+		suite.Require().Contains(events[0].Headers, "Extra-Header-1")
+		suite.Require().Contains(events[0].Headers, "Extra-Header-2")
+
+		return true
+	})
 }
 
 func (suite *DeployFunctionTestSuite) TestVolumeOnceMountTwice() {

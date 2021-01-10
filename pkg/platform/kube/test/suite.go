@@ -78,6 +78,9 @@ func (suite *KubeTestSuite) SetupSuite() {
 
 	suite.PlatformConfiguration.Kind = suite.PlatformType
 
+	// set cron trigger creation mode to "kube"
+	suite.PlatformConfiguration.CronTriggerCreationMode = platformconfig.KubeCronTriggerCreationMode
+
 	// only set up parent AFTER we set platform's type
 	suite.TestSuite.SetupSuite()
 
