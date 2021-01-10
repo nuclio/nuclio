@@ -35,8 +35,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/docker/distribution/reference"
-	"github.com/gobuffalo/flect"
-	"github.com/hashicorp/go-uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
