@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"runtime"
 	"strconv"
@@ -62,28 +63,22 @@ type Release struct {
 	repositoryScheme        string
 	developmentBranch       string
 	releaseBranch           string
-	publishHelmCharts       bool
+	skipPublishHelmCharts   bool
+	skipBumpHelmChart       bool
 	skipCreateRelease       bool
 
-	logger      logger.Logger
-	shellRunner *cmdrunner.ShellRunner
+	logger    logger.Logger
+	cmdRunner cmdrunner.CmdRunner
 
 	githubWorkflowID string
 	helmChartConfig  helmChart
 }
 
-func NewRelease() (*Release, error) {
-	var err error
-	release := &Release{}
-	release.logger, err = nucliozap.NewNuclioZapCmd("releaser", nucliozap.DebugLevel)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create logger")
+func NewRelease(cmdRunner cmdrunner.CmdRunner, logger logger.Logger) *Release {
+	return &Release{
+		logger:    logger,
+		cmdRunner: cmdRunner,
 	}
-	release.shellRunner, err = cmdrunner.NewShellRunner(release.logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create command runner")
-	}
-	return release, nil
 }
 
 func (r *Release) Run() error {
@@ -113,8 +108,12 @@ func (r *Release) Run() error {
 		r.logger.Info("Skipping release creation")
 	}
 
-	if err := r.bumpHelmChartVersion(); err != nil {
-		return errors.Wrap(err, "Failed to bump helm chart version")
+	if !r.skipBumpHelmChart {
+		if err := r.bumpHelmChartVersion(); err != nil {
+			return errors.Wrap(err, "Failed to bump helm chart version")
+		}
+	} else {
+		r.logger.Info("Skipping bump helm chart")
 	}
 
 	return nil
@@ -141,7 +140,7 @@ func (r *Release) prepareRepository() error {
 			"repositoryOwnerName", r.repositoryOwnerName,
 			"repositoryURL", repositoryURL)
 
-		if _, err = r.shellRunner.Run(&cmdrunner.RunOptions{
+		if _, err = r.cmdRunner.Run(&cmdrunner.RunOptions{
 			WorkingDir: &workDir,
 		},
 			`git clone %s.git .`,
@@ -171,13 +170,13 @@ func (r *Release) prepareRepository() error {
 		// should be last, we release the version from it
 		r.releaseBranch,
 	} {
-		if _, err := r.shellRunner.Run(runOptions, `git checkout %s`, branchName); err != nil {
+		if _, err := r.cmdRunner.Run(runOptions, `git checkout %s`, branchName); err != nil {
 			return errors.Wrap(err, "Failed to ensure branch exists")
 		}
 	}
 
 	// get all tags
-	if _, err := r.shellRunner.Run(runOptions, `git fetch --tags`); err != nil {
+	if _, err := r.cmdRunner.Run(runOptions, `git fetch --tags`); err != nil {
 		return errors.Wrap(err, "Failed to fetch tags")
 	}
 
@@ -212,7 +211,7 @@ func (r *Release) populateCurrentAndTargetVersions() error {
 	if r.currentVersion == "" {
 
 		// nuclio binaries & images version
-		results, err := r.shellRunner.Run(runOptions, `git describe --abbrev=0 --tags`)
+		results, err := r.cmdRunner.Run(runOptions, `git describe --abbrev=0 --tags`)
 		if err != nil {
 			return errors.Wrap(err, "Failed to describe tags")
 		}
@@ -251,11 +250,16 @@ func (r *Release) populateCurrentAndTargetVersions() error {
 			return errors.New("Found an empty version, bailing")
 		}
 	}
+
+	r.logger.InfoWith("Successfully populated versions",
+		"currentVersion", r.currentVersion,
+		"targetVersion", r.targetVersion,
+		"helmChartsTargetVersion", r.helmChartsTargetVersion)
 	return nil
 }
 
 func (r *Release) compileReleaseNotes() (string, error) {
-	results, err := r.shellRunner.Run(&cmdrunner.RunOptions{
+	results, err := r.cmdRunner.Run(&cmdrunner.RunOptions{
 		WorkingDir: &r.repositoryDirPath,
 	},
 		`git log --pretty=format:'%%h %%s' %s...%s`,
@@ -278,17 +282,17 @@ func (r *Release) mergeAndPush(branch string, branchToMerge string) error {
 	runOptions := &cmdrunner.RunOptions{
 		WorkingDir: &r.repositoryDirPath,
 	}
-	_, err := r.shellRunner.Run(runOptions, `git checkout %s`, branch)
+	_, err := r.cmdRunner.Run(runOptions, `git checkout %s`, branch)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to checkout to branch %s", branch)
 	}
 
-	_, err = r.shellRunner.Run(runOptions, `git merge %s`, branchToMerge)
+	_, err = r.cmdRunner.Run(runOptions, `git merge %s`, branchToMerge)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to merge branch %s", branchToMerge)
 	}
 
-	_, err = r.shellRunner.Run(runOptions, `git push`)
+	_, err = r.cmdRunner.Run(runOptions, `git push`)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to push")
 	}
@@ -297,7 +301,7 @@ func (r *Release) mergeAndPush(branch string, branchToMerge string) error {
 
 func (r *Release) getReleaseStatus() (string, error) {
 	switch r.releaseBranch {
-	case "1.1.x", "1.3.x":
+	case "1.1.x":
 		return r.getTravisReleaseStatus()
 	default:
 		return r.getGithubWorkflowsReleaseStatus()
@@ -454,6 +458,28 @@ func (r *Release) populateReleaseWorkflowID() error {
 	return nil
 }
 
+func (r *Release) writeToClipboard(s string) error {
+	var err error
+	pbcopy := exec.Command("pbcopy")
+	stdin, err := pbcopy.StdinPipe()
+	if err != nil {
+		return errors.Wrap(err, "Failed to open stdin to clipboard")
+	}
+
+	if err = pbcopy.Start(); err != nil {
+		return errors.Wrap(err, "Failed to start pbcopy")
+	}
+
+	if _, err = stdin.Write([]byte(s)); err != nil {
+		return errors.Wrap(err, "Failed to write to clipboard")
+	}
+
+	if err = stdin.Close(); err != nil {
+		return errors.Wrap(err, "Failed to close stdin pipe")
+	}
+	return pbcopy.Wait()
+}
+
 func (r *Release) createRelease() error {
 	releaseNotes, err := r.compileReleaseNotes()
 	if err != nil {
@@ -463,9 +489,19 @@ func (r *Release) createRelease() error {
 	switch runtimeName := runtime.GOOS; runtimeName {
 	case "darwin":
 		if len(releaseNotes) > 2000 {
-			releaseNotes = releaseNotes[:2000]
+			r.logger.InfoWith("Release notes is too long, trying to copy to clipboard")
+			if err := r.writeToClipboard(releaseNotes); err == nil {
+				r.logger.InfoWith(`Successfully copied to clipboard. Paste it to the release notes body on the opened window`)
+			} else {
+				r.logger.Warn(`Failed to copy to clipboard, printing to log. Manually parse its \\n and copy to opened window)`,
+					"releaseNotes", releaseNotes,
+					"err", err)
+			}
+
+			// empty out
+			releaseNotes = ""
 		}
-		if _, err = r.shellRunner.Run(nil,
+		if _, err = r.cmdRunner.Run(nil,
 			`open "%s/releases/new?target=%s&tag=%s&title=%s&body=%s"`,
 			r.compileRepositoryURL("https"),
 			url.QueryEscape(r.releaseBranch),
@@ -507,9 +543,16 @@ func (r *Release) waitForReleaseCompleteness() error {
 
 			r.logger.DebugWith("Waiting for release completeness", "status", status)
 			switch r.releaseBranch {
-			case "1.1.x", "1.3.x":
+			case "1.1.x":
 				return status == "finished"
 			default:
+				if status == "failure" {
+					r.logger.Warn(`Release job has failed, checkout its job status from 
+https://github.com/nuclio/nuclio/actions?query=workflow%3ARelease
+Once re-run, it will catch up here.`)
+				}
+
+				// TODO: handle failure/cancelled from here? or let it run as suggested above
 				return status == "success"
 			}
 		})
@@ -521,7 +564,7 @@ func (r *Release) bumpHelmChartVersion() error {
 	}
 
 	// bump & release helm charts is being done from the release branch
-	if _, err := r.shellRunner.Run(runOptions,
+	if _, err := r.cmdRunner.Run(runOptions,
 		`git checkout %s`,
 		r.releaseBranch); err != nil {
 		return errors.Wrap(err, "Failed to checkout to release branch")
@@ -532,7 +575,7 @@ func (r *Release) bumpHelmChartVersion() error {
 		"aks",
 	}
 	for _, chartDir := range ChartDirs {
-		if _, err := r.shellRunner.Run(runOptions,
+		if _, err := r.cmdRunner.Run(runOptions,
 			`git grep -lF "%s" %s | grep yaml | xargs sed -i '' -e "s/%s/%s/g"`,
 			r.helmChartConfig.AppVersion,
 			path.Join("hack", chartDir),
@@ -543,14 +586,14 @@ func (r *Release) bumpHelmChartVersion() error {
 	}
 
 	// explicitly bump the app version
-	if _, err := r.shellRunner.Run(runOptions,
+	if _, err := r.cmdRunner.Run(runOptions,
 		`sed -i '' -e "s/^\(appVersion: \).*$/\1%s/g" %s`,
 		r.targetVersion,
 		r.resolveHelmChartFullPath()); err != nil {
 		return errors.Wrap(err, "Failed to write helm chart target version")
 	}
 
-	if _, err := r.shellRunner.Run(runOptions,
+	if _, err := r.cmdRunner.Run(runOptions,
 		`sed -i '' -e "s/^\(version: \).*$/\1%s/g" %s`,
 		r.helmChartsTargetVersion,
 		r.resolveHelmChartFullPath()); err != nil {
@@ -559,11 +602,11 @@ func (r *Release) bumpHelmChartVersion() error {
 
 	// commit & push changes
 	commitMessage := fmt.Sprintf("Bump to %s", r.targetVersion)
-	if _, err := r.shellRunner.Run(runOptions, `git commit -am "%s"`, commitMessage); err != nil {
+	if _, err := r.cmdRunner.Run(runOptions, `git commit -am "%s"`, commitMessage); err != nil {
 		return errors.Wrap(err, "Failed to checkout to release branch")
 	}
 
-	if _, err := r.shellRunner.Run(runOptions, `git push`); err != nil {
+	if _, err := r.cmdRunner.Run(runOptions, `git push`); err != nil {
 		return errors.Wrap(err, "Failed to checkout to release branch")
 	}
 
@@ -573,13 +616,14 @@ func (r *Release) bumpHelmChartVersion() error {
 		}
 	}
 
-	if r.publishHelmCharts {
-		if _, err := r.shellRunner.Run(runOptions,
+	if !r.skipPublishHelmCharts {
+		r.logger.Debug("Publishing helm charts")
+		if _, err := r.cmdRunner.Run(runOptions,
 			`git checkout %s`,
 			r.releaseBranch); err != nil {
 			return errors.Wrap(err, "Failed to checkout to release branch")
 		}
-		if _, err := r.shellRunner.Run(&cmdrunner.RunOptions{
+		if _, err := r.cmdRunner.Run(&cmdrunner.RunOptions{
 			WorkingDir: &r.repositoryDirPath,
 		}, `make helm-publish`); err != nil {
 			return errors.Wrap(err, "Failed to publish helm charts")
@@ -654,12 +698,18 @@ func (r *Release) resolveGithubActionAPIRequest(method, url string, body io.Read
 }
 
 func run() error {
-	release, err := NewRelease()
+	loggerInstance, err := nucliozap.NewNuclioZapCmd("releaser", nucliozap.DebugLevel)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create new release")
+		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	flag.StringVar(&release.githubToken, "github-token", "", "Github token header to avoid API rate limit")
+	shellRunner, err := cmdrunner.NewShellRunner(loggerInstance)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create command runner")
+	}
+
+	release := NewRelease(shellRunner, loggerInstance)
+	flag.StringVar(&release.githubToken, "github-token", "", "A scope-less Github token header to avoid API rate limit")
 	flag.StringVar(&release.targetVersion, "target-version", "", "Release target version")
 	flag.StringVar(&release.currentVersion, "current-version", "", "Current version")
 	flag.StringVar(&release.repositoryOwnerName, "repository-owner-name", "nuclio", "Repository owner name to clone nuclio from (Default: nuclio)")
@@ -667,8 +717,9 @@ func run() error {
 	flag.StringVar(&release.developmentBranch, "development-branch", "development", "Development branch (e.g.: development, 1.3.x")
 	flag.StringVar(&release.releaseBranch, "release-branch", "master", "Release branch (e.g.: master, 1.3.x, ...)")
 	flag.BoolVar(&release.skipCreateRelease, "skip-create-release", false, "Skip build & release flow (useful when publishing helm charts only)")
+	flag.BoolVar(&release.skipBumpHelmChart, "skip-bump-helm-chart", false, "Skip bump helm chart")
 	flag.StringVar(&release.helmChartsTargetVersion, "helm-charts-release-version", "", "Helm charts release target version")
-	flag.BoolVar(&release.publishHelmCharts, "publish-helm-charts", true, "Whether to publish helm charts")
+	flag.BoolVar(&release.skipPublishHelmCharts, "skip-publish-helm-charts", false, "Whether to skip publishing helm charts")
 	flag.Parse()
 
 	release.logger.InfoWith("Running release",
@@ -679,7 +730,7 @@ func run() error {
 		"developmentBranch", release.developmentBranch,
 		"releaseBranch", release.releaseBranch,
 		"helmChartsTargetVersion", release.helmChartsTargetVersion,
-		"publishHelmCharts", release.publishHelmCharts,
+		"skipPublishHelmCharts", release.skipPublishHelmCharts,
 		"skipCreateRelease", release.skipCreateRelease)
 	return release.Run()
 }

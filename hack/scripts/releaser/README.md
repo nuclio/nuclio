@@ -5,7 +5,7 @@ A dev-internal go-based tool to create nuclio releases
 Releaser flow
 
 1. Clone nuclio to a temp dir
-2. Merge your dev branch changes onto your release branch (if there any)
+2. Merge your dev branch changes onto your release branch (if there is any)
 3. Create a Github release out of your release branch
 4. Wait for the Build + Push nuclio images to finish
 6. Bump + release helm charts with the target version
@@ -21,7 +21,7 @@ Releaser flow
     4. `echo "use-agent" > gpg.conf`
     5. `killall gpg-agent`
     6. now gnupg would use macOS keychain to prompt for a password and releaser would be able to use your git commands
-4. use github token to avoid API rate limiting
+4. use a scope-less github token to avoid API rate limiting
 
 ### Use cases
 
