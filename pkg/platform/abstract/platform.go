@@ -836,7 +836,9 @@ func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Con
 		"Spec.Build.BaseImageRegistry": &functionConfig.Spec.Build.BaseImageRegistry,
 	} {
 		if *fieldValue != "" {
-			if _, err := reference.Parse(*fieldValue); err != nil {
+			// HACK: cleanup possible trailing /
+			valueToValidate := strings.TrimSuffix(*fieldValue, "/")
+			if _, err := reference.Parse(valueToValidate); err != nil {
 				ap.Logger.WarnWith("Invalid docker image ref passed in spec field - this may be malicious",
 					"fieldName", fieldName,
 					"fieldValue", fieldValue)
