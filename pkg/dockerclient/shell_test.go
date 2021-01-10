@@ -195,7 +195,7 @@ func (suite *CmdClientTestSuite) TestRunFailValidation() {
 	}{
 		{
 			name:       "InvalidContainerName",
-			imageName:  "someImage",
+			imageName:  "someimage",
 			runOptions: RunOptions{ContainerName: "invalid|%#$"},
 		},
 		{
