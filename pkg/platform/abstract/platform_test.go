@@ -795,11 +795,15 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 		{"ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2", true},
 		{"iguaziodocker/cloud_demo_functions", true},
 		{"ghaanvkoqi-snilhltidtkmncpufnhdmpwngszj-naip_test_img", true},
+		{"repo/image_with__two-underscores:v1.0.0", true},
+		{"repo/underscored_repo__yes/name.with.dot:v1.0.0", true},
+		{"underscored_repo__allowed/with/name.with.dot:v1.0.0", true},
 
 		// negative cases
 		{"image/tag:v1.0.0 || nc 127.0.0.1 8000 -e /bin/sh ls", false},
 		{"123.123.123.123:123/tag:v1.0.0 | echo something", false},
 		{"123.123_123.123:123/tag:v1.0.0", false},
+		{"gcr_nope.io:80/repo_w_underscore_is_ok/tag:v1.0.0", false},
 		{"repo/image:v1.0.0;xyz&netstat", false},
 		{"repo/image:v1.0.0;ls|cp&rm", false},
 		{"image\" cp something", false},
