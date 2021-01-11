@@ -24,6 +24,7 @@ import (
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -31,6 +32,7 @@ import (
 	"k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 type mockedPlatformConfigurationProvider struct {
@@ -54,6 +56,57 @@ type lazyTestSuite struct {
 func (suite *lazyTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.client.logger = suite.logger
+
+	// use a fake kube client
+	suite.client.kubeClientSet = fake.NewSimpleClientset()
+
+	// use the default platform configuration
+	defaultPlatformConfiguration, err := platformconfig.NewPlatformConfig("")
+	suite.Require().NoError(err)
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: defaultPlatformConfiguration,
+	})
+}
+
+func (suite *lazyTestSuite) TestNoChanges() {
+	one := 1
+	function := nuclioio.NuclioFunction{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-function",
+			Namespace: "test-namespace",
+		},
+		Spec: functionconfig.Spec{
+			Replicas: &one,
+		},
+	}
+	functionLabels := suite.client.getFunctionLabels(&function)
+	functionLabels["nuclio.io/function-name"] = function.Name
+
+	// logs are spammy, let them
+	prevLevel := suite.client.logger.(*nucliozap.NuclioZap).GetLevel()
+	suite.client.logger.(*nucliozap.NuclioZap).SetLevel(nucliozap.InfoLevel)
+	defer suite.client.logger.(*nucliozap.NuclioZap).SetLevel(prevLevel)
+
+	// "create" the deployment
+	deploymentInstance, err := suite.client.createOrUpdateDeployment(functionLabels,
+		"image-pull-secret-str",
+		&function)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(deploymentInstance)
+
+	// make sure no changes were applied for 1000 times of re-apply deployment.
+	for i := 0; i < 1000; i++ {
+
+		// "update" the deployment
+		updatedDeploymentInstance, err := suite.client.createOrUpdateDeployment(functionLabels,
+			"image-pull-secret-str",
+			&function)
+		suite.Require().NoError(err)
+		suite.Require().NotNil(deploymentInstance)
+
+		// ensure no changes
+		suite.Require().Empty(cmp.Diff(deploymentInstance, updatedDeploymentInstance))
+	}
 }
 
 func (suite *lazyTestSuite) TestNoTriggers() {

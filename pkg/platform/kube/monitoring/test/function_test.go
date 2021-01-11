@@ -31,8 +31,8 @@ func (suite *FunctionMonitoringTestSuite) SetupSuite() {
 	suite.oldPostDeploymentMonitoringBlockingInterval = monitoring.PostDeploymentMonitoringBlockingInterval
 
 	// decrease blocking interval, to make test run faster
-	// give it ~10 seconds to recently deployed functions to stabilize, avoid transients
-	monitoring.PostDeploymentMonitoringBlockingInterval = 10 * time.Second
+	// give it ~5 seconds to recently deployed functions to stabilize, avoid transients
+	monitoring.PostDeploymentMonitoringBlockingInterval = 5 * time.Second
 }
 
 func (suite *FunctionMonitoringTestSuite) TearDownSuite() {
@@ -46,11 +46,9 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverFromPodsHardLimit() {
 		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
-	one := 1
+	two := 2
 	three := 3
-	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
-	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &three
-
+	createFunctionOptions.FunctionConfig.Spec.Replicas = &three
 	_ = suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// limit pod to one
@@ -64,7 +62,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverFromPodsHardLimit() {
 				},
 				Spec: v1.ResourceQuotaSpec{
 					Hard: v1.ResourceList{
-						v1.ResourcePods: resource.MustParse(strconv.Itoa(one)),
+						v1.ResourcePods: resource.MustParse(strconv.Itoa(two)),
 					},
 				},
 				Status: v1.ResourceQuotaStatus{},
@@ -248,7 +246,8 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
 
-	functionMonitoringSleepTimeout := 2 * suite.Controller.GetFunctionMonitoringInterval()
+	functionMonitoringSleepTimeout := 2*suite.Controller.GetFunctionMonitoringInterval() +
+		monitoring.PostDeploymentMonitoringBlockingInterval
 	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
 
 		// get the function
