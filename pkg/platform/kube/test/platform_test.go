@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"path"
 	"strings"
 	"testing"
@@ -103,31 +102,21 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		var events []triggertest.Event
 
-		// wait for function readiness
-		suite.WaitForFunctionState(&platform.GetFunctionsOptions{
-			Name:      functionName,
-			Namespace: suite.Namespace,
-		}, functionconfig.FunctionStateReady, 1 * time.Minute + 30 * time.Second)
-
 		err = common.RetryUntilSuccessful(60*time.Second, 2*time.Second, func() bool {
 
 			// set http request url of the function
-			url := fmt.Sprintf("http://%s:%d", suite.GetTestHost(), deployResult.Port)
-
-			suite.Logger.DebugWith("Trying to get events", "url", url)
-			httpResponse, err := http.Get(url)
+			suite.Logger.DebugWith("Trying to get events")
+			res, err := suite.Platform.CreateFunctionInvocation(&platform.CreateFunctionInvocationOptions{
+				Namespace: suite.Namespace,
+				Name: functionName,
+				Method: "GET",
+			})
 			if err != nil {
-				suite.Logger.WarnWith("Failed to get events from: %s; err: %v", url, err)
+				suite.Logger.WarnWith("Failed to get events")
 				return false
 			}
 
-			marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
-			if err != nil {
-				suite.Logger.WarnWith("Failed to read response body")
-				return false
-			}
-
-			err = json.Unmarshal(marshalledResponseBody, &events)
+			err = json.Unmarshal(res.Body, &events)
 			if err != nil {
 				suite.Require().NoError(err, "Failed to unmarshal events")
 			}
@@ -136,6 +125,7 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 			return len(events) > 0
 		})
 		suite.Require().NoError(err)
+		suite.Logger.DebugWith("Got events from event_recorder", "events", events)
 
 		// validate the json event body was sent properly
 		var actualEventBodyJSON myEventBody
