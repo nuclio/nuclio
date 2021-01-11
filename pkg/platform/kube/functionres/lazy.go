@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -1941,6 +1942,15 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 	for _, volumeVolumeMounts := range volumeNameToVolumeMounts {
 		volumeMounts = append(volumeMounts, volumeVolumeMounts...)
 	}
+
+	// kubernetes is sensitive to list order.
+	// avoid deployment from being re-applied by order volumes and volume mounts by name
+	sort.Slice(volumes, func(i, j int) bool {
+		return volumes[i].Name < volumes[j].Name
+	})
+	sort.Slice(volumeMounts, func(i, j int) bool {
+		return volumeMounts[i].Name < volumeMounts[j].Name
+	})
 
 	// flatten and return as list of instances
 	return volumes, volumeMounts
