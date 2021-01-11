@@ -783,6 +783,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 		valid      bool
 	}{
 		// positive cases
+		{"just_image-name", true},
+		{"image-name-with:tag-333", true},
 		{"repo/image:v1.0.0", true},
 		{"123.123.123.123:123/image/tag:v1.0.0", true},
 		{"some-domain.com/image/tag", true},
@@ -791,10 +793,18 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 		{"image", true},
 		{"image:v1.1.1-patch", true},
 		{"ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2", true},
+		{"iguaziodocker/cloud_demo_functions", true},
+		{"ghaanvkoqi-snilhltidtkmncpufnhdmpwngszj-naip_test_img", true},
+		{"repo/image_with__two-underscores:v1.0.0", true},
+		{"repo/underscored_repo__yes/name.with.dot:v1.0.0", true},
+		{"underscored_repo__allowed/with/name.with.dot:v1.0.0", true},
+		{"localhost:5000/", true}, // HACK: some tests use this so we allow this
 
 		// negative cases
 		{"image/tag:v1.0.0 || nc 127.0.0.1 8000 -e /bin/sh ls", false},
 		{"123.123.123.123:123/tag:v1.0.0 | echo something", false},
+		{"123.123_123.123:123/tag:v1.0.0", false},
+		{"gcr_nope.io:80/repo_w_underscore_is_ok/tag:v1.0.0", false},
 		{"repo/image:v1.0.0;xyz&netstat", false},
 		{"repo/image:v1.0.0;ls|cp&rm", false},
 		{"image\" cp something", false},
@@ -818,7 +828,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 		err := suite.Platform.ValidateFunctionConfig(&functionConfig)
 		if !testCase.valid {
 			suite.Require().Error(err, "Validation passed unexpectedly")
-			return
+			suite.Logger.InfoWith("Expected error received", "err", err, "functionConfig", functionConfig)
+			continue
 		}
 		suite.Require().NoError(err)
 	}

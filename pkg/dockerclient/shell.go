@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 
+	"github.com/docker/distribution/reference"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/apimachinery/pkg/util/json"
@@ -154,12 +155,12 @@ func (c *ShellClient) PushImage(imageName string, registryURL string) error {
 
 	c.logger.InfoWith("Pushing image", "from", imageName, "to", taggedImage)
 
-	if !common.ValidateDockerImageString(imageName) {
-		return errors.New("Invalid image name to tag/push")
+	if _, err := reference.Parse(imageName); err != nil {
+		return errors.Wrap(err, "Invalid image name to tag/push")
 	}
 
-	if !common.ValidateDockerImageString(taggedImage) {
-		return errors.New("Invalid tagged image name to tag/push")
+	if _, err := reference.Parse(taggedImage); err != nil {
+		return errors.Wrap(err, "Invalid tagged image name to tag/push")
 	}
 
 	_, err := c.runCommand(nil, "docker tag %s %s", imageName, taggedImage)
@@ -179,8 +180,8 @@ func (c *ShellClient) PushImage(imageName string, registryURL string) error {
 func (c *ShellClient) PullImage(imageURL string) error {
 	c.logger.InfoWith("Pulling image", "imageName", imageURL)
 
-	if !common.ValidateDockerImageString(imageURL) {
-		return errors.New("Invalid image URL to pull")
+	if _, err := reference.Parse(imageURL); err != nil {
+		return errors.Wrap(err, "Invalid image URL to pull")
 	}
 
 	_, err := c.runCommand(nil, "docker pull %s", imageURL)
@@ -191,8 +192,8 @@ func (c *ShellClient) PullImage(imageURL string) error {
 func (c *ShellClient) RemoveImage(imageName string) error {
 	c.logger.DebugWith("Removing image", "imageName", imageName)
 
-	if !common.ValidateDockerImageString(imageName) {
-		return errors.New("Invalid image name to remove")
+	if _, err := reference.Parse(imageName); err != nil {
+		return errors.Wrap(err, "Invalid image name to remove")
 	}
 
 	_, err := c.runCommand(nil, "docker rmi -f %s", imageName)
@@ -705,8 +706,8 @@ func (c *ShellClient) DeleteVolume(volumeName string) error {
 
 func (c *ShellClient) Save(imageName string, outPath string) error {
 	c.logger.DebugWith("Docker saving to path", "outPath", outPath, "imageName", imageName)
-	if !common.ValidateDockerImageString(imageName) {
-		return errors.New("Invalid image name to save")
+	if _, err := reference.Parse(imageName); err != nil {
+		return errors.Wrap(err, "Invalid image name to save")
 	}
 
 	_, err := c.runCommand(nil, `docker save --output %s %s`, outPath, imageName)
@@ -839,8 +840,8 @@ func (c *ShellClient) createContainer(imageName string) (string, error) {
 	var lastCreateContainerError error
 	var containerID string
 
-	if !common.ValidateDockerImageString(imageName) {
-		return "", errors.New("Invalid image name to create container from")
+	if _, err := reference.Parse(imageName); err != nil {
+		return "", errors.Wrap(err, "Invalid image name to create container from")
 	}
 
 	retryOnErrorMessages := []string{
@@ -874,8 +875,8 @@ func (c *ShellClient) createContainer(imageName string) (string, error) {
 	return containerID, lastCreateContainerError
 }
 func (c *ShellClient) validateBuildOptions(buildOptions *BuildOptions) error {
-	if !common.ValidateDockerImageString(buildOptions.Image) {
-		return errors.New("Invalid image name in build options")
+	if _, err := reference.Parse(buildOptions.Image); err != nil {
+		return errors.Wrap(err, "Invalid image name in build options")
 	}
 
 	for buildArgName, buildArgValue := range buildOptions.BuildArgs {
@@ -894,9 +895,8 @@ func (c *ShellClient) validateBuildOptions(buildOptions *BuildOptions) error {
 }
 
 func (c *ShellClient) validateRunOptions(imageName string, runOptions *RunOptions) error {
-
-	if !common.ValidateDockerImageString(imageName) {
-		return errors.New("Invalid image name passed to run command")
+	if _, err := reference.Parse(imageName); err != nil {
+		return errors.Wrap(err, "Invalid image name passed to run command")
 	}
 
 	// container name can't be empty
