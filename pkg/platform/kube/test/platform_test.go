@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"path"
 	"strings"
 	"testing"
@@ -97,6 +98,19 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 				},
 			},
 		},
+
+		// create http trigger with ingress, so we can invoke the function using it later (for testing on minikube)
+		"httptrig": {
+			Kind: "http",
+			Attributes: map[string]interface{}{
+				"ingresses": map[string]interface{}{
+					"0": map[string]interface{}{
+						"host":  suite.GetDefaultIngressHost(),
+						"paths": []string{"/"},
+					},
+				},
+			},
+		},
 	}
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
@@ -105,18 +119,15 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 		err = common.RetryUntilSuccessful(60*time.Second, 2*time.Second, func() bool {
 
 			// set http request url of the function
-			suite.Logger.DebugWith("Trying to get events")
-			res, err := suite.Platform.CreateFunctionInvocation(&platform.CreateFunctionInvocationOptions{
-				Namespace: suite.Namespace,
-				Name: functionName,
-				Method: "GET",
-			})
-			if err != nil {
-				suite.Logger.WarnWith("Failed to get events")
-				return false
-			}
+			url := fmt.Sprintf("http://%s", suite.GetDefaultIngressHost())
 
-			err = json.Unmarshal(res.Body, &events)
+			suite.Logger.DebugWith("Trying to get events", "url", url)
+			httpResponse, err := http.Get(url)
+			suite.Require().NoError(err, "Failed to get events from function: %s; err: %v", url, err)
+			marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
+			suite.Require().NoError(err, "Failed to read response body")
+
+			err = json.Unmarshal(marshalledResponseBody, &events)
 			if err != nil {
 				suite.Require().NoError(err, "Failed to unmarshal events")
 			}

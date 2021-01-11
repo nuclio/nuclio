@@ -330,6 +330,16 @@ func (suite *KubeTestSuite) WaitForAPIGatewayState(getAPIGatewayOptions *platfor
 	suite.Require().NoError(err, "Api gateway did not reach its desired state")
 }
 
+func (suite *KubeTestSuite) GetDefaultIngressHost() string {
+
+	// select host address according to system's kubernetes runner (minikGetDefaultIngressHostube / docker-for-mac)
+	if common.GetEnvOrDefaultString("MINIKUBE_HOME", "") != "" {
+		return "host.minikube.internal"
+	}
+
+	return "kubernetes.docker.internal"
+}
+
 func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
 	onAfterIngressCreated OnAfterIngressCreated) error {
 
