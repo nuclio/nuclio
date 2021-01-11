@@ -31,8 +31,8 @@ func (suite *FunctionMonitoringTestSuite) SetupSuite() {
 	suite.oldPostDeploymentMonitoringBlockingInterval = monitoring.PostDeploymentMonitoringBlockingInterval
 
 	// decrease blocking interval, to make test run faster
-	// give it ~10 seconds to recently deployed functions to stabilize, avoid transients
-	monitoring.PostDeploymentMonitoringBlockingInterval = 10 * time.Second
+	// give it ~5 seconds to recently deployed functions to stabilize, avoid transients
+	monitoring.PostDeploymentMonitoringBlockingInterval = 5 * time.Second
 }
 
 func (suite *FunctionMonitoringTestSuite) TearDownSuite() {
@@ -246,7 +246,8 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
 
-	functionMonitoringSleepTimeout := 2 * suite.Controller.GetFunctionMonitoringInterval()
+	functionMonitoringSleepTimeout := 2*suite.Controller.GetFunctionMonitoringInterval() +
+		monitoring.PostDeploymentMonitoringBlockingInterval
 	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
 
 		// get the function
