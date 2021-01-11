@@ -14,6 +14,7 @@ import (
 	"github.com/nuclio/logger"
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -174,10 +175,52 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 	return nil
 }
 
-// consider function deployment available when all pods are available
 func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
+
+	// require at least one replica
 	atLeastOneReplicasRequested := deployment.Spec.Replicas != nil && *deployment.Spec.Replicas > 0
-	return atLeastOneReplicasRequested && deployment.Status.UnavailableReplicas == 0
+	if !atLeastOneReplicasRequested {
+		return false
+	}
+
+	// Since we considered function as ready when it reaches its minimum replicas available (see pkg/platform/kube/functionres/lazy.go:240
+	// WaitAvailable() for more information.), we might hit a situation where a "ready" function is still in progress,
+	// as it reaches its "minimum available replicas" condition from a previous deploy, while still deploying a new replica,
+	// and hence we cannot resolve this condition as a failure but rather let it run until the recently
+	// deployed replica-set hits a failure (as suggested by the failures below).
+	//
+	// Iterate over function deployment conditions and "cherry-pick" conditions in which we know the function is no longer available.
+	for _, condition := range deployment.Status.Conditions {
+
+		// The errors below are considered errors in which may occur during
+		// - nth deployment (n >= 2)
+		// - function lifetime
+
+		// - deployment available and status is false - usually when no minimum replica is available
+		//   - may occur during function lifetime, at any point
+		//   > e.g.: when evicting all pods from a single node
+		if condition.Type == appsv1.DeploymentAvailable && condition.Status == v1.ConditionFalse {
+			return false
+		}
+
+		// - replica failure - usually when failed to populate deployment spec
+		//   - may occur during/past 2nd deployment while old replica is still considered as the "minimum available"
+		//   > e.g.: failed to find a specific resource specified on deployment spec (configmap / service account, etc)
+		if condition.Type == appsv1.DeploymentReplicaFailure {
+			return false
+		}
+
+		// - deployment is in progress and status is false - insufficient quota / image pull errors, etc
+		//   - may occur during/past 2nd deployment or function lifetime
+		//   > e.g.: when failing to fulfill function CPU request due to CPU quota limit or image does not exists on registry
+		// https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#failed-deployment
+		if condition.Type == appsv1.DeploymentProgressing && condition.Status == v1.ConditionFalse {
+			return false
+		}
+	}
+
+	// at this stage, all conditions are not a failure as they are either available or progressing
+	return true
 }
 
 // We monitor functions that meet the following conditions:
