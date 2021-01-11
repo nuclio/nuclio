@@ -88,6 +88,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 	suite.client.logger.(*nucliozap.NuclioZap).SetLevel(nucliozap.InfoLevel)
 	defer suite.client.logger.(*nucliozap.NuclioZap).SetLevel(prevLevel)
 
+	// "create" the deployment
 	deploymentInstance, err := suite.client.createOrUpdateDeployment(functionLabels,
 		"image-pull-secret-str",
 		&function)
@@ -96,12 +97,15 @@ func (suite *lazyTestSuite) TestNoChanges() {
 
 	// make sure no changes were applied for 1000 times of re-apply deployment.
 	for i := 0; i < 1000; i++ {
+
+		// "update" the deployment
 		updatedDeploymentInstance, err := suite.client.createOrUpdateDeployment(functionLabels,
 			"image-pull-secret-str",
 			&function)
 		suite.Require().NoError(err)
 		suite.Require().NotNil(deploymentInstance)
 
+		// ensure no changes
 		suite.Require().Empty(cmp.Diff(deploymentInstance, updatedDeploymentInstance))
 	}
 }
