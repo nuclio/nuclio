@@ -103,6 +103,12 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		var events []triggertest.Event
 
+		// wait for function readiness
+		suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+			Name:      functionName,
+			Namespace: suite.Namespace,
+		}, functionconfig.FunctionStateReady, 1 * time.Minute + 30 * time.Second)
+
 		err = common.RetryUntilSuccessful(60*time.Second, 2*time.Second, func() bool {
 
 			// set http request url of the function
