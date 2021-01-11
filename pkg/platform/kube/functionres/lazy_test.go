@@ -49,9 +49,8 @@ func (c *mockedPlatformConfigurationProvider) GetPlatformConfiguration() *platfo
 
 type lazyTestSuite struct {
 	suite.Suite
-	logger        logger.Logger
-	client        lazyClient
-	kubeClientSet *fake.Clientset
+	logger logger.Logger
+	client lazyClient
 }
 
 func (suite *lazyTestSuite) SetupTest() {
