@@ -579,6 +579,91 @@ func (suite *AbstractPlatformTestSuite) TestGetProjectResources() {
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsAgainstExistingFunctionConfig() {
+	for _, testCase := range []struct {
+		name                    string
+		existingFunction        *functionconfig.ConfigWithStatus
+		createFunctionOptions   *platform.CreateFunctionOptions
+		expectValidationFailure bool
+	}{
+		{
+			name:             "sanityCreate",
+			existingFunction: nil,
+			createFunctionOptions: &platform.CreateFunctionOptions{
+				FunctionConfig: functionconfig.Config{},
+			},
+		},
+		{
+			name:             "sanityUpdate",
+			existingFunction: &functionconfig.ConfigWithStatus{},
+			createFunctionOptions: &platform.CreateFunctionOptions{
+				FunctionConfig: functionconfig.Config{},
+			},
+		},
+
+		// bad flows
+		{
+			name:             "mustBuildWhenCreatingFunction",
+			existingFunction: nil,
+			createFunctionOptions: &platform.CreateFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Spec: functionconfig.Spec{
+						Build: functionconfig.Build{
+							Mode: functionconfig.NeverBuild,
+						},
+					},
+				},
+			},
+			expectValidationFailure: true,
+		},
+		{
+			name: "staleResourceVersion",
+			existingFunction: &functionconfig.ConfigWithStatus{
+				Config: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						ResourceVersion: "1",
+					},
+				},
+			},
+			createFunctionOptions: &platform.CreateFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						ResourceVersion: "2",
+					},
+				},
+			},
+			expectValidationFailure: true,
+		},
+		{
+			name: "disablingFunctionWithAPIGateways",
+			existingFunction: &functionconfig.ConfigWithStatus{
+				Config: functionconfig.Config{},
+				Status: functionconfig.Status{
+					APIGateways: []string{"x", "y", "z"},
+				},
+			},
+			createFunctionOptions: &platform.CreateFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Spec: functionconfig.Spec{
+						Disable: true,
+					},
+				},
+			},
+			expectValidationFailure: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			err := suite.Platform.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(testCase.existingFunction,
+				testCase.createFunctionOptions)
+			if testCase.expectValidationFailure {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+		})
+	}
+}
+
 // Test function with invalid min max replicas
 func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 	zero := 0
