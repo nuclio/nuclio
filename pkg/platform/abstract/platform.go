@@ -275,6 +275,16 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
 	if err := ap.ValidateResourceVersion(existingFunctionConfig, &createFunctionOptions.FunctionConfig); err != nil {
 		return nuclio.WrapErrConflict(err)
 	}
+
+	// do not allow disabling a function being used by an api gateway
+	if existingFunctionConfig != nil &&
+		len(existingFunctionConfig.Status.APIGateways) > 0 &&
+		createFunctionOptions.FunctionConfig.Spec.Disable {
+		ap.Logger.WarnWith("Disabling function with assigned api gateway validation failed",
+			"functionName", existingFunctionConfig.Meta.Name,
+			"apiGateways", existingFunctionConfig.Status.APIGateways)
+		return nuclio.NewErrBadRequest("Cannot disable function while used by an API gateway")
+	}
 	return nil
 }
 
