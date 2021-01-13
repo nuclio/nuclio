@@ -24,6 +24,7 @@ import (
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -35,6 +36,7 @@ type KubePlatformTestSuite struct {
 	nuclioAPIGatewayInterfaceMock *mocks.NuclioAPIGatewayInterface
 	nuclioioInterfaceMock         *mocks.Interface
 	kubeClientSet                 fake.Clientset
+	abstractPlatform              *abstract.Platform
 	Namespace                     string
 	Logger                        logger.Logger
 	Platform                      *Platform
@@ -61,8 +63,15 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 
 	abstractPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
 	suite.Require().NoError(err)
+	suite.abstractPlatform = abstractPlatform
+	suite.kubeClientSet = *fake.NewSimpleClientset()
+}
 
-	// mock nuclioio interface all the way down
+func (suite *KubePlatformTestSuite) SetupTest() {
+	suite.resetCRDMocks()
+}
+
+func (suite *KubePlatformTestSuite) resetCRDMocks() {
 	suite.nuclioioInterfaceMock = &mocks.Interface{}
 	suite.nuclioioV1beta1InterfaceMock = &mocks.NuclioV1beta1Interface{}
 	suite.nuclioFunctionInterfaceMock = &mocks.NuclioFunctionInterface{}
@@ -78,19 +87,16 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 		On("NuclioAPIGateways", suite.Namespace).
 		Return(suite.nuclioAPIGatewayInterfaceMock)
 
-	suite.kubeClientSet = *fake.NewSimpleClientset()
-	consumer := &consumer{
-		nuclioClientSet: suite.nuclioioInterfaceMock,
-		kubeClientSet:   &suite.kubeClientSet,
-	}
-
-	getter, err := newGetter(suite.Logger, suite.Platform)
-	suite.Require().NoError(err)
-
 	suite.Platform = &Platform{
-		Platform: abstractPlatform,
-		getter:   getter,
-		consumer: consumer,
+		Platform: suite.abstractPlatform,
+		getter: &getter{
+			logger:   suite.Logger,
+			platform: suite.Platform,
+		},
+		consumer: &consumer{
+			nuclioClientSet: suite.nuclioioInterfaceMock,
+			kubeClientSet:   &suite.kubeClientSet,
+		},
 	}
 }
 
@@ -276,6 +282,115 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			if testCase.tearDownFunction != nil {
 				err := testCase.tearDownFunction()
 				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestGetFunctionInstanceAndConfig() {
+	for _, testCase := range []struct {
+		name                    string
+		functionName            string
+		hasAPIGateways          bool
+		apiGateWayName          string
+		expectValidationFailure bool
+		functionExists          bool
+	}{
+		{
+			name:         "functionNotFound",
+			functionName: "not-found",
+		},
+		{
+			name:           "functionFound",
+			functionName:   "found-me",
+			functionExists: true,
+		},
+		{
+			name:           "functionFoundEnrichedWithAPIGateways",
+			functionName:   "found-me",
+			hasAPIGateways: true,
+			apiGateWayName: "api-gw-name",
+			functionExists: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			var getFunctionResponseErr error
+			var getFunctionResponse *v1beta1.NuclioFunction
+			listAPIGatewayResponse := v1beta1.NuclioAPIGatewayList{Items: []v1beta1.NuclioAPIGateway{}}
+
+			// prepare mock responses
+			if !testCase.functionExists {
+				getFunctionResponseErr = apierrors.NewNotFound(schema.GroupResource{}, "asd")
+			} else {
+				getFunctionResponse = &v1beta1.NuclioFunction{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: suite.Namespace,
+						Name:      testCase.functionName,
+					},
+				}
+			}
+
+			if testCase.hasAPIGateways {
+				listAPIGatewayResponse.Items = append(listAPIGatewayResponse.Items,
+					v1beta1.NuclioAPIGateway{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: testCase.apiGateWayName,
+						},
+						Spec: platform.APIGatewaySpec{
+							Upstreams: []platform.APIGatewayUpstreamSpec{
+								{
+									Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+									Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+										Name: testCase.functionName,
+									},
+								},
+							},
+						},
+					})
+			}
+
+			suite.nuclioFunctionInterfaceMock.
+				On("Get", testCase.functionName, metav1.GetOptions{}).
+				Return(getFunctionResponse, getFunctionResponseErr).
+				Once()
+			defer suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
+
+			if testCase.functionExists {
+				suite.nuclioAPIGatewayInterfaceMock.
+					On("List", metav1.ListOptions{}).
+					Return(&listAPIGatewayResponse, nil).
+					Once()
+				defer suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
+			}
+
+			functionInstance, functionConfigAndStatus, err := suite.Platform.
+				getFunctionInstanceAndConfig(suite.Namespace,
+					testCase.functionName,
+					true)
+
+			if testCase.expectValidationFailure {
+				suite.Require().Error(err)
+				return
+			}
+
+			// no error
+			suite.Require().NoError(err)
+
+			// response might be nil, if function was not found
+			if !testCase.functionExists {
+				suite.Require().Nil(functionInstance)
+				suite.Require().Nil(functionConfigAndStatus)
+				return
+			}
+
+			// ensure found function matches its function name input
+			suite.Require().Equal(functionInstance.Name, testCase.functionName)
+			suite.Require().Equal(functionConfigAndStatus.Meta.Name, testCase.functionName)
+			suite.Require().Empty(cmp.Diff(functionInstance.Spec, functionConfigAndStatus.Spec))
+			suite.Require().Empty(cmp.Diff(functionInstance.Status, functionConfigAndStatus.Status))
+
+			if testCase.hasAPIGateways {
+				suite.Require().Contains(functionConfigAndStatus.Status.APIGateways, testCase.apiGateWayName)
 			}
 		})
 	}

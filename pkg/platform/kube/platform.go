@@ -153,7 +153,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		createFunctionOptions.FunctionConfig.Meta.Name != "" {
 		existingFunctionInstance, existingFunctionConfig, err =
 			p.getFunctionInstanceAndConfig(createFunctionOptions.FunctionConfig.Meta.Namespace,
-				createFunctionOptions.FunctionConfig.Meta.Name)
+				createFunctionOptions.FunctionConfig.Meta.Name,
+				true)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get an existing function configuration")
 		}
@@ -1018,6 +1019,11 @@ func (p *Platform) enrichFunctionsWithAPIGateways(functions []platform.Function,
 	var err error
 	var functionToAPIGateways map[string][]string
 
+	// no functions to enrich
+	if len(functions) == 0 {
+		return nil
+	}
+
 	// generate function to api gateways mapping
 	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(namespace); err != nil {
 		return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
@@ -1083,8 +1089,8 @@ func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction
 	return function, nil
 }
 
-func (p *Platform) getFunctionInstanceAndConfig(namespace, name string) (*nuclioio.NuclioFunction,
-	*functionconfig.ConfigWithStatus, error) {
+func (p *Platform) getFunctionInstanceAndConfig(namespace string,
+	name string, enrichWithAPIGateway bool) (*nuclioio.NuclioFunction, *functionconfig.ConfigWithStatus, error) {
 	functionInstance, err := p.getFunction(namespace, name)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to get a function")
@@ -1095,6 +1101,13 @@ func (p *Platform) getFunctionInstanceAndConfig(namespace, name string) (*nuclio
 		initializedFunctionInstance, err := newFunction(p.Logger, p, functionInstance, p.consumer)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to create a new function instance")
+		}
+		if enrichWithAPIGateway {
+			if err := p.enrichFunctionsWithAPIGateways([]platform.Function{initializedFunctionInstance},
+				namespace); err != nil {
+				return nil, nil, errors.Wrap(err, "Failed to enrich function with api gateway")
+			}
+			functionInstance.Status.APIGateways = initializedFunctionInstance.GetConfigWithStatus().Status.APIGateways
 		}
 		return functionInstance, initializedFunctionInstance.GetConfigWithStatus(), nil
 	}
