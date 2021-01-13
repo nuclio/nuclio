@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+	testk8s "github.com/nuclio/nuclio/test/k8s"
 
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
@@ -140,7 +141,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 
 	apiGatewayName := "get-test-apigateway" + uniqueSuffix
 
-	apiGatewayHost := suite.getAPIGatewayDefaultHost()
+	apiGatewayHost := testk8s.GetDefaultIngressHost()
 	apiGatewayPath := "/some-path"
 	basicAuthUsername := "basic-username"
 	basicAuthPassword := "basic-password"
@@ -213,20 +214,6 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 		// expect it to fail due to unauthorized request
 		suite.Require().Equal(statusCode, http.StatusUnauthorized)
 	}
-}
-
-func (suite *apiGatewayInvokeTestSuite) getAPIGatewayDefaultHost() string {
-	defaultTestAPIGatewayHost := common.GetEnvOrDefaultString("NUCTL_TEST_DEFAULT_APIGATEWAY_HOST", "")
-	if defaultTestAPIGatewayHost != "" {
-		return defaultTestAPIGatewayHost
-	}
-
-	// select host address according to system's kubernetes runner (minikube / docker-for-mac)
-	if common.GetEnvOrDefaultString("MINIKUBE_HOME", "") != "" {
-		return "host.minikube.internal"
-	}
-
-	return "kubernetes.docker.internal"
 }
 
 func (suite *apiGatewayInvokeTestSuite) deployFunction() string {

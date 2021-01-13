@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
+	testk8s "github.com/nuclio/nuclio/test/k8s"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -105,7 +106,7 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 			Attributes: map[string]interface{}{
 				"ingresses": map[string]interface{}{
 					"0": map[string]interface{}{
-						"host":  suite.GetDefaultIngressHost(),
+						"host":  testk8s.GetDefaultIngressHost(),
 						"paths": []string{"/"},
 					},
 				},
@@ -119,13 +120,18 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 		err = common.RetryUntilSuccessful(60*time.Second, 2*time.Second, func() bool {
 
 			// set http request url of the function
-			url := fmt.Sprintf("http://%s", suite.GetDefaultIngressHost())
+			url := fmt.Sprintf("http://%s", testk8s.GetDefaultIngressHost())
 
 			suite.Logger.DebugWith("Trying to get events", "url", url)
 			httpResponse, err := http.Get(url)
-			suite.Require().NoError(err, "Failed to get events from function: %s; err: %v", url, err)
+			if err != nil {
+				suite.Logger.WarnWith("Failed to get events from function", "url", url, "err", err)
+				return false
+			}
 			marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
-			suite.Require().NoError(err, "Failed to read response body")
+			if err != nil {
+				suite.Logger.WarnWith("Failed to read response body", "err", err)
+			}
 
 			err = json.Unmarshal(marshalledResponseBody, &events)
 			if err != nil {
