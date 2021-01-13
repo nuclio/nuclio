@@ -61,6 +61,10 @@ spec:
         - name: platform-config
           mountPath: /etc/nuclio/config/platform
         {{- end }}
+        {{- if .Values.dashboard.resources }}
+        resources:
+          {{ toYaml .Values.dashboard.resources | nindent 11 }}
+        {{- end }}
         env:
         - name: NUCLIO_DASHBOARD_REGISTRY_URL
           valueFrom:

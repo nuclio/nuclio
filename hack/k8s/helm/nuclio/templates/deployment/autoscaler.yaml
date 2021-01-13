@@ -43,6 +43,10 @@ spec:
       - name: {{ template "nuclio.scalerName" . }}
         image: {{ .Values.autoscaler.image.repository }}:{{ .Values.autoscaler.image.tag }}
         imagePullPolicy: {{ .Values.autoscaler.image.pullPolicy }}
+        {{- if .Values.autoscaler.resources }}
+        resources:
+          {{ toYaml .Values.autoscaler.resources | nindent 11 }}
+        {{- end }}
         env:
         {{- if .Values.autoscaler.namespace }}
         - name: NUCLIO_SCALER_NAMESPACE
