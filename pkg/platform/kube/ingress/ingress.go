@@ -425,7 +425,6 @@ func (m *Manager) compileIguazioSessionVerificationAnnotations() (map[string]str
 		"nginx.ingress.kubernetes.io/auth-method":           "POST",
 		"nginx.ingress.kubernetes.io/auth-response-headers": "X-Remote-User,X-V3io-Session-Key",
 		"nginx.ingress.kubernetes.io/auth-url":              m.platformConfiguration.IngressConfig.IguazioAuthURL,
-		"nginx.ingress.kubernetes.io/auth-signin":           m.platformConfiguration.IngressConfig.IguazioSignInURL,
 		"nginx.ingress.kubernetes.io/configuration-snippet": "proxy_set_header authorization \"\";",
 	}, nil
 }
