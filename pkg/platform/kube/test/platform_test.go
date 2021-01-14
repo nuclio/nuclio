@@ -85,6 +85,7 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 	marshalledCronTriggerEventBody, err := json.Marshal(cronTriggerEventBody)
 	suite.Require().NoError(err)
 
+	createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeClusterIP
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"crontrig": {
 			Kind: "cron",
@@ -131,11 +132,15 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 			marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
 			if err != nil {
 				suite.Logger.WarnWith("Failed to read response body", "err", err)
+				return false
 			}
 
 			err = json.Unmarshal(marshalledResponseBody, &events)
 			if err != nil {
-				suite.Require().NoError(err, "Failed to unmarshal events")
+				suite.Logger.WarnWith("Failed to unmarshal response body",
+					"marshalledResponseBody", marshalledResponseBody,
+					"err", err)
+				return false
 			}
 
 			// move on when at least 1 job ran
