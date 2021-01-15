@@ -12,6 +12,7 @@ controller:
     repository: quay.io/nuclio/controller
     tag: 1.5.14-amd64
     pullPolicy: IfNotPresent  
+  resources: {}
 
   # Uncomment to have the controller to listen only the namespace's events, 
   # change to listen on other specific namespace
@@ -45,6 +46,7 @@ dashboard:
     repository: quay.io/nuclio/dashboard
     tag: 1.5.14-amd64
     pullPolicy: IfNotPresent
+  resources: {}
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
   httpIngressHostTemplate: ""
@@ -97,6 +99,7 @@ autoscaler:
     repository: quay.io/nuclio/autoscaler
     tag: 1.5.14-amd64
     pullPolicy: IfNotPresent
+  resources: {}
 
 dlx:
   enabled: false
@@ -105,6 +108,7 @@ dlx:
     repository: quay.io/nuclio/dlx
     tag: 1.5.14-amd64
     pullPolicy: IfNotPresent
+  resources: {}
 
 registry:
 

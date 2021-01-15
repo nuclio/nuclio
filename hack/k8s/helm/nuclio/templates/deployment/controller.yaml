@@ -43,6 +43,10 @@ spec:
       - name: {{ template "nuclio.controllerName" . }}
         image: {{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}
         imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
+        {{- if .Values.controller.resources }}
+        resources:
+          {{ toYaml .Values.controller.resources | nindent 11 }}
+        {{- end }}
         env:
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
           value: {{ template "nuclio.registry.credentialsSecretName" . }}

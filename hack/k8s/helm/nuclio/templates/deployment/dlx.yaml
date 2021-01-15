@@ -43,6 +43,10 @@ spec:
       - name: {{ template "nuclio.dlxName" . }}
         image: {{ .Values.dlx.image.repository }}:{{ .Values.dlx.image.tag }}
         imagePullPolicy: {{ .Values.dlx.image.pullPolicy }}
+        {{- if .Values.dlx.resources }}
+        resources:
+          {{ toYaml .Values.dlx.resources | nindent 11 }}
+        {{- end }}
         env:
         {{- if .Values.dlx.namespace }}
         - name: NUCLIO_SCALER_NAMESPACE
