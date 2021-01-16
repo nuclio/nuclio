@@ -87,5 +87,5 @@ type Client interface {
 	Load(inPath string) error
 
 	// GetVersion returns docker client and engine versions
-	GetVersion() (string, error)
+	GetVersion(quiet bool) (string, error)
 }

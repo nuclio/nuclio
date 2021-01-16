@@ -51,7 +51,10 @@ func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interf
 	// format the command
 	formattedCommand := fmt.Sprintf(format, vars...)
 	redactedCommand := common.Redact(runOptions.LogRedactions, formattedCommand)
-	sr.logger.DebugWith("Executing", "command", redactedCommand)
+
+	if !runOptions.SkipLoggingBeforeAfterExecute {
+		sr.logger.DebugWith("Executing", "command", redactedCommand)
+	}
 
 	// create a command
 	cmd := exec.Command(sr.shell, "-c", formattedCommand)
@@ -74,9 +77,7 @@ func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interf
 		ExitCode: 0,
 	}
 
-	err := sr.runAndCaptureOutput(cmd, runOptions, &runResult)
-
-	if err != nil {
+	if err := sr.runAndCaptureOutput(cmd, runOptions, &runResult); err != nil {
 		var exitCode int
 
 		// Did the command fail because of an unsuccessful exit code
@@ -92,15 +93,15 @@ func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interf
 			"exitCode", runResult.ExitCode,
 			"err", err)
 
-		err = errors.Wrapf(err, "stdout:\n%s\nstderr:\n%s", runResult.Output, runResult.Stderr)
-
-		return runResult, err
+		return runResult, errors.Wrapf(err, "stdout:\n%s\nstderr:\n%s", runResult.Output, runResult.Stderr)
 	}
 
-	sr.logger.DebugWith("Command executed successfully",
-		"output", runResult.Output,
-		"stderr", runResult.Stderr,
-		"exitCode", runResult.ExitCode)
+	if !runOptions.SkipLoggingBeforeAfterExecute {
+		sr.logger.DebugWith("Command executed successfully",
+			"output", runResult.Output,
+			"stderr", runResult.Stderr,
+			"exitCode", runResult.ExitCode)
+	}
 
 	return runResult, nil
 }

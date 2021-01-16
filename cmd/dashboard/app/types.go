@@ -56,7 +56,8 @@ func (d *Dashboard) MonitorDockerConnectivity(interval time.Duration,
 				continue
 			}
 
-			if _, err := dockerClient.GetVersion(); err == nil {
+			// get version quietly
+			if _, err := dockerClient.GetVersion(true); err == nil {
 				consecutiveErrors = maxConsecutiveErrors
 				continue
 			}

@@ -79,8 +79,7 @@ func NewShellClient(parentLogger logger.Logger, runner cmdrunner.CmdRunner) (*Sh
 	}
 
 	// verify
-	_, err = newClient.cmdRunner.Run(nil, "docker version")
-	if err != nil {
+	if _, err := newClient.GetVersion(false); err != nil {
 		return nil, errors.Wrap(err, "No docker client found")
 	}
 
@@ -722,8 +721,11 @@ func (c *ShellClient) Load(inPath string) error {
 	return err
 }
 
-func (c *ShellClient) GetVersion() (string, error) {
-	output, err := c.runCommand(nil, `docker version --format "{{json .}}"`)
+func (c *ShellClient) GetVersion(quiet bool) (string, error) {
+	runOptions := &cmdrunner.RunOptions{
+		SkipLoggingBeforeAfterExecute: quiet,
+	}
+	output, err := c.runCommand(runOptions, `docker version --format "{{json .}}"`)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get docker version")
 	}
