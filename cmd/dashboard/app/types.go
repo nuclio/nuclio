@@ -5,6 +5,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common/healthcheck"
 	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -33,48 +35,65 @@ func (d *Dashboard) SetStatus(status statusprovider.Status) {
 }
 
 func (d *Dashboard) MonitorDockerConnectivity(interval time.Duration,
-	maxConsecutiveErrors int) {
-	// TODO: uncomment
-	//consecutiveErrors := maxConsecutiveErrors
-	//dockerConnectivityTicker := time.NewTicker(interval)
-	//for range dockerConnectivityTicker.C {
-	//	if _, err := d.dockerClient.GetVersion(); err != nil {
-	//		consecutiveErrors--
-	//	} else {
-	//		consecutiveErrors = maxConsecutiveErrors
-	//		continue
-	//	}
-	//	if consecutiveErrors == 0 {
-	//		d.SetStatus(statusprovider.Error)
-	//		d.logger.Error("Failed to resolve docker version, connection might be unhealthy")
-	//		break
-	//	}
-	//}
+	maxConsecutiveErrors int,
+	dockerClient dockerclient.Client,
+	stopChan <-chan struct{}) {
+
+	consecutiveErrors := maxConsecutiveErrors
+	dockerConnectivityTicker := time.NewTicker(interval)
+
+	for {
+		select {
+		case <-stopChan:
+			dockerConnectivityTicker.Stop()
+			d.logger.DebugWith("Stopping docker connectivity monitor")
+			return
+		case <-dockerConnectivityTicker.C:
+			if d.GetStatus().OneOf(statusprovider.Error) {
+
+				// do not monitor while status is error
+				// let the kubelet / dockerd / user restart the process
+				continue
+			}
+
+			if _, err := dockerClient.GetVersion(); err == nil {
+				consecutiveErrors = maxConsecutiveErrors
+				continue
+			}
+			consecutiveErrors--
+			if consecutiveErrors == 0 {
+				d.SetStatus(statusprovider.Error)
+				d.logger.Error("Failed to resolve docker version, connection might be unhealthy.")
+			}
+		}
+	}
 }
 
 type CreateDashboardServerOptions struct {
 	logger                logger.Logger
 	platformConfiguration *platformconfig.Config
+	platformInstance      platform.Platform
 
-	ListenAddress                    string
-	DockerKeyDir                     string
-	DefaultRegistryURL               string
-	DefaultRunRegistryURL            string
-	PlatformType                     string
-	NoPullBaseImages                 bool
-	DefaultCredRefreshIntervalString string
-	ExternalIPAddresses              string
-	DefaultNamespace                 string
-	Offline                          bool
-	PlatformConfigurationPath        string
-	TemplatesGitRepository           string
-	TemplatesGitRef                  string
-	TemplatesArchiveAddress          string
-	TemplatesGitUsername             string
-	TemplatesGitPassword             string
-	TemplatesGithubAccessToken       string
-	DefaultHTTPIngressHostTemplate   string
-	ImageNamePrefixTemplate          string
-	PlatformAuthorizationMode        string
-	DependantImageRegistryURL        string
+	// arguments
+	listenAddress                    string
+	dockerKeyDir                     string
+	defaultRegistryURL               string
+	defaultRunRegistryURL            string
+	platformType                     string
+	noPullBaseImages                 bool
+	defaultCredRefreshIntervalString string
+	externalIPAddresses              string
+	defaultNamespace                 string
+	offline                          bool
+	platformConfigurationPath        string
+	templatesGitRepository           string
+	templatesGitRef                  string
+	templatesArchiveAddress          string
+	templatesGitUsername             string
+	templatesGitPassword             string
+	templatesGithubAccessToken       string
+	defaultHTTPIngressHostTemplate   string
+	imageNamePrefixTemplate          string
+	platformAuthorizationMode        string
+	dependantImageRegistryURL        string
 }

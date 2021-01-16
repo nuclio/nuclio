@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dashboard/healthcheck"
+	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -83,37 +84,59 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to create and start health check server")
 	}
 
+	// create a platform
+	platformInstance, err := factory.CreatePlatform(rootLogger,
+		platformType,
+		platformConfiguration,
+		defaultNamespace)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create platform")
+	}
+
 	dashboardInstance.server, err = newDashboardServer(&CreateDashboardServerOptions{
 		logger:                dashboardInstance.logger,
 		platformConfiguration: platformConfiguration,
+		platformInstance:      platformInstance,
 
-		ListenAddress:                    listenAddress,
-		DockerKeyDir:                     dockerKeyDir,
-		DefaultRegistryURL:               defaultRegistryURL,
-		DefaultRunRegistryURL:            defaultRunRegistryURL,
-		PlatformType:                     platformType,
-		NoPullBaseImages:                 noPullBaseImages,
-		DefaultCredRefreshIntervalString: defaultCredRefreshIntervalString,
-		ExternalIPAddresses:              externalIPAddresses,
-		DefaultNamespace:                 defaultNamespace,
-		Offline:                          offline,
-		TemplatesGitRepository:           templatesGitRepository,
-		TemplatesGitRef:                  templatesGitRef,
-		TemplatesArchiveAddress:          templatesArchiveAddress,
-		TemplatesGitUsername:             templatesGitUsername,
-		TemplatesGitPassword:             templatesGitPassword,
-		TemplatesGithubAccessToken:       templatesGithubAccessToken,
-		DefaultHTTPIngressHostTemplate:   defaultHTTPIngressHostTemplate,
-		ImageNamePrefixTemplate:          imageNamePrefixTemplate,
-		PlatformAuthorizationMode:        platformAuthorizationMode,
-		DependantImageRegistryURL:        dependantImageRegistryURL,
+		// arguments
+		listenAddress:                    listenAddress,
+		dockerKeyDir:                     dockerKeyDir,
+		defaultRegistryURL:               defaultRegistryURL,
+		defaultRunRegistryURL:            defaultRunRegistryURL,
+		platformType:                     platformType,
+		noPullBaseImages:                 noPullBaseImages,
+		defaultCredRefreshIntervalString: defaultCredRefreshIntervalString,
+		externalIPAddresses:              externalIPAddresses,
+		defaultNamespace:                 defaultNamespace,
+		offline:                          offline,
+		templatesGitRepository:           templatesGitRepository,
+		templatesGitRef:                  templatesGitRef,
+		templatesArchiveAddress:          templatesArchiveAddress,
+		templatesGitUsername:             templatesGitUsername,
+		templatesGitPassword:             templatesGitPassword,
+		templatesGithubAccessToken:       templatesGithubAccessToken,
+		defaultHTTPIngressHostTemplate:   defaultHTTPIngressHostTemplate,
+		imageNamePrefixTemplate:          imageNamePrefixTemplate,
+		platformAuthorizationMode:        platformAuthorizationMode,
+		dependantImageRegistryURL:        dependantImageRegistryURL,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to create new dashboard")
 	}
 
+	// create docker client
+	dockerClient, err := dockerclient.NewShellClient(rootLogger, nil)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create docker shell client")
+	}
+
 	// TODO: receive from function args
-	go dashboardInstance.MonitorDockerConnectivity(10*time.Second, 5)
+	stopChannel := make(chan struct{})
+	go dashboardInstance.MonitorDockerConnectivity(5*time.Second, 5, dockerClient, stopChannel)
+	defer func() {
+		stopChannel <- struct{}{}
+		close(stopChannel)
+	}()
 
 	if err := dashboardInstance.server.Start(); err != nil {
 		return errors.Wrap(err, "Failed to start server")
@@ -125,48 +148,43 @@ func Run(listenAddress string,
 
 func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptions) (restful.Server, error) {
 	rootLogger := createDashboardServerOptions.logger
+	var err error
 	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
 	var functionZipTemplateFetcher *functiontemplates.ZipFunctionTemplateFetcher
 
-	// create a platform
-	platformInstance, err := factory.CreatePlatform(rootLogger,
-		createDashboardServerOptions.PlatformType,
-		createDashboardServerOptions.platformConfiguration,
-		createDashboardServerOptions.DefaultNamespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform")
-	}
+	// shorter
+	platformInstance := createDashboardServerOptions.platformInstance
 
 	// create git fetcher
-	if createDashboardServerOptions.TemplatesGitRepository != "" &&
-		createDashboardServerOptions.TemplatesGitRef != "" {
+	if createDashboardServerOptions.templatesGitRepository != "" &&
+		createDashboardServerOptions.templatesGitRef != "" {
 		rootLogger.DebugWith("Fetching function templates from git repository",
-			"templatesGitRepository", createDashboardServerOptions.TemplatesGitRepository,
-			"templatesGitRef", createDashboardServerOptions.TemplatesGitRef)
+			"templatesGitRepository", createDashboardServerOptions.templatesGitRepository,
+			"templatesGitRef", createDashboardServerOptions.templatesGitRef)
 
 		// attach credentials if given
 		templatesGitRepository := attachCredentialsToGitRepository(createDashboardServerOptions.logger,
-			createDashboardServerOptions.TemplatesGitRepository,
-			createDashboardServerOptions.TemplatesGitUsername,
-			createDashboardServerOptions.TemplatesGitPassword,
-			createDashboardServerOptions.TemplatesGithubAccessToken)
+			createDashboardServerOptions.templatesGitRepository,
+			createDashboardServerOptions.templatesGitUsername,
+			createDashboardServerOptions.templatesGitPassword,
+			createDashboardServerOptions.templatesGithubAccessToken)
 
 		functionGitTemplateFetcher, err = functiontemplates.NewGitFunctionTemplateFetcher(rootLogger,
 			templatesGitRepository,
-			createDashboardServerOptions.TemplatesGitRef)
+			createDashboardServerOptions.templatesGitRef)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create git fetcher")
 		}
 	} else {
 		rootLogger.DebugWith("Missing git fetcher configuration, templates from git won't be fetched",
-			"gitTemplateRepository", createDashboardServerOptions.TemplatesGitRepository,
-			"templatesGitRef", createDashboardServerOptions.TemplatesGitRef)
+			"gitTemplateRepository", createDashboardServerOptions.templatesGitRepository,
+			"templatesGitRef", createDashboardServerOptions.templatesGitRef)
 	}
 
 	// create zip fetcher
-	if createDashboardServerOptions.TemplatesArchiveAddress != "" {
+	if createDashboardServerOptions.templatesArchiveAddress != "" {
 		functionZipTemplateFetcher, err = functiontemplates.NewZipFunctionTemplateFetcher(rootLogger,
-			createDashboardServerOptions.TemplatesArchiveAddress)
+			createDashboardServerOptions.templatesArchiveAddress)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create zip template fetcher")
 		}
@@ -196,7 +214,7 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 
 	// set external ip addresses based if user passed overriding values or not
 	var splitExternalIPAddresses []string
-	if createDashboardServerOptions.ExternalIPAddresses == "" {
+	if createDashboardServerOptions.externalIPAddresses == "" {
 		splitExternalIPAddresses, err = platformInstance.GetDefaultInvokeIPAddresses()
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get default invoke ip addresses")
@@ -204,27 +222,27 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 	} else {
 
 		// "10.0.0.1,10.0.0.2" -> ["10.0.0.1", "10.0.0.2"]
-		splitExternalIPAddresses = strings.Split(createDashboardServerOptions.ExternalIPAddresses, ",")
+		splitExternalIPAddresses = strings.Split(createDashboardServerOptions.externalIPAddresses, ",")
 	}
 
 	if err := platformInstance.SetExternalIPAddresses(splitExternalIPAddresses); err != nil {
 		return nil, errors.Wrap(err, "Failed to set external ip addresses")
 	}
 
-	if createDashboardServerOptions.DefaultHTTPIngressHostTemplate != "" {
-		platformInstance.SetDefaultHTTPIngressHostTemplate(createDashboardServerOptions.DefaultHTTPIngressHostTemplate)
+	if createDashboardServerOptions.defaultHTTPIngressHostTemplate != "" {
+		platformInstance.SetDefaultHTTPIngressHostTemplate(createDashboardServerOptions.defaultHTTPIngressHostTemplate)
 	}
 
-	if createDashboardServerOptions.ImageNamePrefixTemplate != "" {
-		platformInstance.SetImageNamePrefixTemplate(createDashboardServerOptions.ImageNamePrefixTemplate)
+	if createDashboardServerOptions.imageNamePrefixTemplate != "" {
+		platformInstance.SetImageNamePrefixTemplate(createDashboardServerOptions.imageNamePrefixTemplate)
 	}
 
 	createDashboardServerOptions.logger.InfoWith("Starting dashboard",
 		"name", platformInstance.GetName(),
-		"noPull", createDashboardServerOptions.NoPullBaseImages,
-		"offline", createDashboardServerOptions.Offline,
-		"defaultCredRefreshInterval", createDashboardServerOptions.DefaultCredRefreshIntervalString,
-		"defaultNamespace", createDashboardServerOptions.DefaultNamespace,
+		"noPull", createDashboardServerOptions.noPullBaseImages,
+		"offline", createDashboardServerOptions.offline,
+		"defaultCredRefreshInterval", createDashboardServerOptions.defaultCredRefreshIntervalString,
+		"defaultNamespace", createDashboardServerOptions.defaultNamespace,
 		"version", version.Get(),
 		"platformConfiguration", createDashboardServerOptions.platformConfiguration,
 		"containerBuilderKind", platformInstance.GetContainerBuilderKind())
@@ -233,27 +251,27 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 	trueValue := true
 	webServerConfiguration := &platformconfig.WebServer{
 		Enabled:       &trueValue,
-		ListenAddress: createDashboardServerOptions.ListenAddress,
+		ListenAddress: createDashboardServerOptions.listenAddress,
 	}
 
 	dashboardServer, err := dashboard.NewServer(rootLogger,
 		platformInstance.GetContainerBuilderKind(),
-		createDashboardServerOptions.DockerKeyDir,
-		createDashboardServerOptions.DefaultRegistryURL,
-		createDashboardServerOptions.DefaultRunRegistryURL,
+		createDashboardServerOptions.dockerKeyDir,
+		createDashboardServerOptions.defaultRegistryURL,
+		createDashboardServerOptions.defaultRunRegistryURL,
 		platformInstance,
-		createDashboardServerOptions.NoPullBaseImages,
+		createDashboardServerOptions.noPullBaseImages,
 		webServerConfiguration,
-		getDefaultCredRefreshInterval(rootLogger, createDashboardServerOptions.DefaultCredRefreshIntervalString),
+		getDefaultCredRefreshInterval(rootLogger, createDashboardServerOptions.defaultCredRefreshIntervalString),
 		splitExternalIPAddresses,
-		platformInstance.ResolveDefaultNamespace(createDashboardServerOptions.DefaultNamespace),
-		createDashboardServerOptions.Offline,
+		platformInstance.ResolveDefaultNamespace(createDashboardServerOptions.defaultNamespace),
+		createDashboardServerOptions.offline,
 		functionTemplatesRepository,
 		createDashboardServerOptions.platformConfiguration,
-		createDashboardServerOptions.DefaultHTTPIngressHostTemplate,
-		createDashboardServerOptions.ImageNamePrefixTemplate,
-		createDashboardServerOptions.PlatformAuthorizationMode,
-		createDashboardServerOptions.DependantImageRegistryURL)
+		createDashboardServerOptions.defaultHTTPIngressHostTemplate,
+		createDashboardServerOptions.imageNamePrefixTemplate,
+		createDashboardServerOptions.platformAuthorizationMode,
+		createDashboardServerOptions.dependantImageRegistryURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create server")
 	}
