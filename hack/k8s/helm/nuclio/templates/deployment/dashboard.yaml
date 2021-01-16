@@ -47,6 +47,27 @@ spec:
         imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
         ports:
         - containerPort: 8070
+        - name: liveness-port
+          containerPort: 8082
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: liveness-port
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: liveness-port
+          failureThreshold: 1
+          periodSeconds: 15
+          timeoutSeconds: 5
+        startupProbe:
+          httpGet:
+            path: /live
+            port: liveness-port
+          failureThreshold: 4
+          periodSeconds: 15
         volumeMounts:
         {{- if eq .Values.dashboard.containerBuilderKind "docker" }}
         - mountPath: /var/run/docker.sock
