@@ -17,55 +17,41 @@ limitations under the License.
 package healthcheck
 
 import (
-	"net/http"
-
-	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"github.com/nuclio/nuclio/pkg/processor/status"
-
-	"github.com/heptiolabs/healthcheck"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio/pkg/common/healthcheck"
+	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 )
 
-type Server struct {
-	Enabled       bool
-	ListenAddress string
-	logger        logger.Logger
-	processor     status.Provider
-	handler       healthcheck.Handler
+type ProcessorServer struct {
+	*healthcheck.AbstractServer
 }
 
-func NewServer(logger logger.Logger, processor status.Provider, configuration *platformconfig.WebServer) (*Server, error) {
-	if configuration.Enabled == nil {
-		return nil, errors.New("Enabled must carry a value")
+func NewProcessorServer(logger logger.Logger,
+	statusProvider statusprovider.Provider,
+	configuration *platformconfig.WebServer) (*ProcessorServer, error) {
+	var err error
+
+	newServer := &ProcessorServer{}
+	newServer.AbstractServer, err = healthcheck.NewAbstractServer(logger, statusProvider, configuration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create new abstract server")
 	}
-
-	newServer := &Server{
-		Enabled:       *configuration.Enabled,
-		ListenAddress: configuration.ListenAddress,
-		logger:        logger.GetChild("healthcheck.server"),
-		processor:     processor,
-	}
-
-	// create the healthcheck handler
-	newServer.handler = healthcheck.NewHandler()
-
-	// return the server
 	return newServer, nil
 }
 
-func (s *Server) Start() error {
+func (s *ProcessorServer) Start() error {
 
 	// if we're disabled, simply log and do nothing
 	if !s.Enabled {
-		s.logger.Debug("Disabled, not listening")
-
+		s.Logger.Debug("Disabled, not listening")
 		return nil
 	}
 
 	// register the processor's status check as its readiness check
-	s.handler.AddReadinessCheck("processor_readiness", func() error {
-		if s.processor.GetStatus() != status.Ready {
+	s.Handler.AddReadinessCheck("processor_readiness", func() error {
+		if s.StatusProvider.GetStatus() != statusprovider.Ready {
 			return errors.New("Processor not ready yet")
 		}
 
@@ -73,14 +59,13 @@ func (s *Server) Start() error {
 	})
 
 	// register an always-healthy liveness check until we have a better design for detecting handler deaths
-	s.handler.AddLivenessCheck("processor_liveness", func() error {
+	s.Handler.AddLivenessCheck("processor_liveness", func() error {
 		return nil
 	})
 
-	// start listening
-	go http.ListenAndServe(s.ListenAddress, s.handler) // nolint: errcheck
-
-	s.logger.InfoWith("Listening", "listenAddress", s.ListenAddress)
+	if err := s.AbstractServer.Start(); err != nil {
+		return errors.Wrap(err, "Failed to start healthcheck server")
+	}
 
 	return nil
 }
