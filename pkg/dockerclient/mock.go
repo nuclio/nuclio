@@ -146,3 +146,8 @@ func (mdc *MockDockerClient) Load(inPath string) error {
 	args := mdc.Called(inPath)
 	return args.Error(0)
 }
+
+func (mdc *MockDockerClient) GetVersion() (string, error) {
+	args := mdc.Called()
+	return args.String(0), args.Error(1)
+}

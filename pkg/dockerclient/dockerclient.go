@@ -85,4 +85,7 @@ type Client interface {
 
 	// Load loads a docker image from tar as cached image
 	Load(inPath string) error
+
+	// GetVersion returns docker client and engine versions
+	GetVersion() (string, error)
 }

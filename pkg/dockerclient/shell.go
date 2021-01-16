@@ -722,6 +722,14 @@ func (c *ShellClient) Load(inPath string) error {
 	return err
 }
 
+func (c *ShellClient) GetVersion() (string, error) {
+	output, err := c.runCommand(nil, `docker version --format "{{json .}}"`)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get docker version")
+	}
+	return output.Output, nil
+}
+
 func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string, vars ...interface{}) (cmdrunner.RunResult, error) {
 
 	// if user
