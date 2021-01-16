@@ -17,6 +17,7 @@ limitations under the License.
 package app
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -126,7 +127,6 @@ func Run(listenAddress string,
 
 	// monitor docker connectivity to quickly populate any issue while connecting to docker daemon
 	if platformInstance.GetContainerBuilderKind() == "docker" {
-		stopChannel := make(chan struct{})
 
 		// create docker client
 		dockerClient, err := dockerclient.NewShellClient(rootLogger, nil)
@@ -135,11 +135,12 @@ func Run(listenAddress string,
 		}
 
 		// TODO: receive from function args
-		go dashboardInstance.MonitorDockerConnectivity(5*time.Second, 5, dockerClient, stopChannel)
-		defer func() {
-			stopChannel <- struct{}{}
-			close(stopChannel)
-		}()
+		ctx, cancel := context.WithCancel(context.Background())
+		go dashboardInstance.MonitorDockerConnectivity(ctx,
+			5*time.Second,
+			5,
+			dockerClient)
+		defer cancel()
 	}
 
 	if err := dashboardInstance.server.Start(); err != nil {

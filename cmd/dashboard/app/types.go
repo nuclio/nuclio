@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common/healthcheck"
@@ -34,17 +35,17 @@ func (d *Dashboard) SetStatus(status statusprovider.Status) {
 	d.status = status
 }
 
-func (d *Dashboard) MonitorDockerConnectivity(interval time.Duration,
+func (d *Dashboard) MonitorDockerConnectivity(ctx context.Context,
+	interval time.Duration,
 	maxConsecutiveErrors int,
-	dockerClient dockerclient.Client,
-	stopChan <-chan struct{}) {
+	dockerClient dockerclient.Client) {
 
 	consecutiveErrors := maxConsecutiveErrors
 	dockerConnectivityTicker := time.NewTicker(interval)
 
 	for {
 		select {
-		case <-stopChan:
+		case <-ctx.Done():
 			dockerConnectivityTicker.Stop()
 			d.logger.DebugWith("Stopping docker connectivity monitor")
 			return

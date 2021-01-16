@@ -17,6 +17,7 @@ limitations under the License.
 package app
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -33,8 +34,10 @@ import (
 
 type DashboardTestSuite struct {
 	suite.Suite
-	logger    logger.Logger
-	dashboard *Dashboard
+	ctx          context.Context
+	logger       logger.Logger
+	dashboard    *Dashboard
+	dockerClient *dockerclient.MockDockerClient
 }
 
 func (suite *DashboardTestSuite) SetupSuite() {
@@ -42,28 +45,31 @@ func (suite *DashboardTestSuite) SetupSuite() {
 }
 
 func (suite *DashboardTestSuite) SetupTest() {
+	suite.ctx = context.TODO()
 	suite.dashboard = &Dashboard{
 		logger: suite.logger,
 		status: statusprovider.Initializing,
 	}
+	suite.dockerClient = dockerclient.NewMockDockerClient()
+}
+
+func (suite *DashboardTestSuite) TearDownTest() {
+	suite.dockerClient.AssertExpectations(suite.T())
 }
 
 func (suite *DashboardTestSuite) TestDashboardStatusFailed() {
-	stopChan := make(chan struct{})
-	defer close(stopChan)
 	maxConsecutiveErrors := 5
 	interval := 100 * time.Millisecond
-	dockerClient := dockerclient.NewMockDockerClient()
-	dockerClient.
+	suite.dockerClient.
 		On("GetVersion", true).
 		Return("", errors.New("Something bad happened")).
 		Times(maxConsecutiveErrors)
 
 	// run in the background
-	go suite.dashboard.MonitorDockerConnectivity(interval,
+	go suite.dashboard.MonitorDockerConnectivity(suite.ctx,
+		interval,
 		maxConsecutiveErrors,
-		dockerClient,
-		stopChan)
+		suite.dockerClient)
 
 	err := common.RetryUntilSuccessful(3*time.Second,
 		interval,
@@ -71,67 +77,59 @@ func (suite *DashboardTestSuite) TestDashboardStatusFailed() {
 			return suite.dashboard.GetStatus().OneOf(statusprovider.Error)
 		})
 	suite.Require().NoError(err, "Exhausted waiting for dashboard status to change")
-	dockerClient.AssertExpectations(suite.T())
 }
 
 func (suite *DashboardTestSuite) TestNoMonitorWhenDashboardStatusFailed() {
-	stopChan := make(chan struct{})
-	defer close(stopChan)
 	interval := 50 * time.Millisecond
 	suite.dashboard.SetStatus(statusprovider.Error)
-	dockerClient := dockerclient.NewMockDockerClient()
 
 	// run in the background
-	go suite.dashboard.MonitorDockerConnectivity(interval,
+	go suite.dashboard.MonitorDockerConnectivity(suite.ctx,
+		interval,
 		5,
-		dockerClient,
-		stopChan)
+		suite.dockerClient)
 
-	// sleep for a bit
+	// wait few intervals, let the routine runs for a while
 	time.Sleep(time.Duration(10) * interval)
 
-	// shutdown monitor
-	stopChan <- struct{}{}
-
-	dockerClient.AssertNotCalled(suite.T(), "GetVersion", mock.Anything)
-	dockerClient.AssertExpectations(suite.T())
+	suite.dockerClient.AssertNotCalled(suite.T(), "GetVersion", mock.Anything)
 }
 
 func (suite *DashboardTestSuite) TestStayReadyOnTransientFailures() {
-	stopChan := make(chan struct{})
-	defer close(stopChan)
+	ctx, cancel := context.WithCancel(suite.ctx)
 	maxConsecutiveErrors := 3
 	interval := 100 * time.Millisecond
-	dockerClient := dockerclient.NewMockDockerClient()
 
-	// return OK, error, error, OK, ...
-	dockerClient.
+	// return OK, error, error, OK, OK, OK, ...
+	suite.dockerClient.
 		On("GetVersion", true).
 		Return("1", nil).
 		Once()
-	dockerClient.
+	suite.dockerClient.
 		On("GetVersion", true).
 		Return("", errors.New("Something bad happened")).
 		Twice()
-	dockerClient.
+	suite.dockerClient.
 		On("GetVersion", true).
-		Return("2", nil).
-		Once()
+		Return("2", nil)
 
-	// run in the background
-	go suite.dashboard.MonitorDockerConnectivity(interval,
-		maxConsecutiveErrors,
-		dockerClient,
-		stopChan)
+	go func() {
+		err := common.RetryUntilSuccessful(3*time.Second,
+			interval,
+			func() bool {
+				return len(suite.dockerClient.Calls) >= 4
+			})
+		suite.Require().NoError(err, "Exhausted waiting for docker client to perform healthcheck validation")
 
-	err := common.RetryUntilSuccessful(3*time.Second,
+		// we got the calls we needed, stop routine
+		cancel()
+	}()
+
+	// run in foreground
+	suite.dashboard.MonitorDockerConnectivity(ctx,
 		interval,
-		func() bool {
-			return len(dockerClient.Calls) >= 4
-		})
-	suite.Require().NoError(err, "Exhausted waiting for docker client to perform healthcheck validation")
-	dockerClient.AssertExpectations(suite.T())
-
+		maxConsecutiveErrors,
+		suite.dockerClient)
 }
 
 func TestDashboardTestSuite(t *testing.T) {
