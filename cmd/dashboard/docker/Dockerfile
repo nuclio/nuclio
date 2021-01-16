@@ -77,4 +77,9 @@ COPY --from=build-static /home/nuclio/dashboard/src/dist /etc/nginx/static/
 # copy dashboard binary from build binary stage
 COPY --from=build-binary /nuclio/dashboard /usr/local/bin
 
+# copy a lightweight http client
+COPY --from=quay.io/nuclio/uhttpc:0.0.1-amd64 /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+
 CMD ["sh",  "-c", "./runner.sh"]
