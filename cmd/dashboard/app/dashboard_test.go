@@ -17,15 +17,16 @@ limitations under the License.
 package app
 
 import (
-	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/statusprovider"
-	"github.com/nuclio/nuclio/pkg/dockerclient"
-	nucliozap "github.com/nuclio/zap"
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/dockerclient"
+
+	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 

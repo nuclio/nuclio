@@ -37,10 +37,11 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
+
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/nuclio/nuclio/pkg/processor/runtime"
 )
 
 var (

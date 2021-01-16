@@ -85,7 +85,6 @@ type CreateDashboardServerOptions struct {
 	externalIPAddresses              string
 	defaultNamespace                 string
 	offline                          bool
-	platformConfigurationPath        string
 	templatesGitRepository           string
 	templatesGitRef                  string
 	templatesArchiveAddress          string

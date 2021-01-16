@@ -17,11 +17,12 @@ limitations under the License.
 package healthcheck
 
 import (
-	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/common/healthcheck"
 	"github.com/nuclio/nuclio/pkg/common/statusprovider"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+
+	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 )
 
 type ProcessorServer struct {

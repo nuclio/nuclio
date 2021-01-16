@@ -281,7 +281,7 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 
 func createAndStartHealthCheckServer(platformConfiguration *platformconfig.Config,
 	loggerInstance logger.Logger,
-	dashboardInstance *Dashboard) (commonhealthcheck.Server, error) {
+	dashboardStatusProvider statusprovider.Provider) (commonhealthcheck.Server, error) {
 
 	// if enabled not passed, default to true
 	if platformConfiguration.HealthCheck.Enabled == nil {
@@ -294,7 +294,7 @@ func createAndStartHealthCheckServer(platformConfiguration *platformconfig.Confi
 	}
 
 	// create the server
-	server, err := healthcheck.NewDashboardServer(loggerInstance, dashboardInstance, &platformConfiguration.HealthCheck)
+	server, err := healthcheck.NewDashboardServer(loggerInstance, dashboardStatusProvider, &platformConfiguration.HealthCheck)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create health check server")
 	}
