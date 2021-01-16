@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -54,7 +55,7 @@ func (suite *DashboardTestSuite) TestDashboardStatusFailed() {
 	interval := 100 * time.Millisecond
 	dockerClient := dockerclient.NewMockDockerClient()
 	dockerClient.
-		On("GetVersion").
+		On("GetVersion", true).
 		Return("", errors.New("Something bad happened")).
 		Times(maxConsecutiveErrors)
 
@@ -92,7 +93,7 @@ func (suite *DashboardTestSuite) TestNoMonitorWhenDashboardStatusFailed() {
 	// shutdown monitor
 	stopChan <- struct{}{}
 
-	dockerClient.AssertNotCalled(suite.T(), "GetVersion")
+	dockerClient.AssertNotCalled(suite.T(), "GetVersion", mock.Anything)
 	dockerClient.AssertExpectations(suite.T())
 }
 
@@ -105,15 +106,15 @@ func (suite *DashboardTestSuite) TestStayReadyOnTransientFailures() {
 
 	// return OK, error, error, OK, ...
 	dockerClient.
-		On("GetVersion").
+		On("GetVersion", true).
 		Return("1", nil).
 		Once()
 	dockerClient.
-		On("GetVersion").
+		On("GetVersion", true).
 		Return("", errors.New("Something bad happened")).
 		Twice()
 	dockerClient.
-		On("GetVersion").
+		On("GetVersion", true).
 		Return("2", nil).
 		Once()
 
