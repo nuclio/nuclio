@@ -59,7 +59,8 @@ func Run(listenAddress string,
 	defaultHTTPIngressHostTemplate string,
 	imageNamePrefixTemplate string,
 	platformAuthorizationMode string,
-	dependantImageRegistryURL string) error {
+	dependantImageRegistryURL string,
+	monitorDockerDeamon bool) error {
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
@@ -126,7 +127,7 @@ func Run(listenAddress string,
 	}
 
 	// monitor docker connectivity to quickly populate any issue while connecting to docker daemon
-	if platformInstance.GetContainerBuilderKind() == "docker" {
+	if monitorDockerDeamon && platformInstance.GetContainerBuilderKind() == "docker" {
 
 		// create docker client
 		dockerClient, err := dockerclient.NewShellClient(rootLogger, nil)

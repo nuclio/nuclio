@@ -139,6 +139,8 @@ spec:
         - name: NUCLIO_TEMPLATES_GIT_REF
           value: "nil"
         {{- end }}
+        - name: NUCLIO_MONITOR_DOCKER_DAEMON
+          value: {{ .Values.dashboard.monitorDockerDeamon | quote }}
         - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
           value: {{ template "nuclio.registry.credentialsSecretName" . }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES

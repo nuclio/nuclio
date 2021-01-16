@@ -42,7 +42,9 @@ func (d *Dashboard) MonitorDockerConnectivity(ctx context.Context,
 
 	consecutiveErrors := maxConsecutiveErrors
 	dockerConnectivityTicker := time.NewTicker(interval)
-
+	d.logger.DebugWith("Monitoring docker connectivity",
+		"interval", interval,
+		"maxConsecutiveErrors", maxConsecutiveErrors)
 	for {
 		select {
 		case <-ctx.Done():

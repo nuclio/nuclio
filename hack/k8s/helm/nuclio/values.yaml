@@ -53,6 +53,9 @@ dashboard:
   # Supported container builders: "kaniko", "docker"
   containerBuilderKind: "docker"
 
+  # Monitor docker deamon connectivity, in conjunction with container builder kind "docker"
+  monitorDockerDeamon: true
+
   kaniko:
 
     #  Set this flag to specify a remote repository for storing cached layers
