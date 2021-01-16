@@ -1,0 +1,22 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="(test:integ) processor/trigger/rabbitmq" type="GoTestRunConfiguration" factoryName="Go Test">
+    <module name="nuclio" />
+    <working_directory value="$PROJECT_DIR$/pkg/processor/trigger/rabbitmq/test" />
+    <EXTENSION ID="net.ashald.envfile">
+      <option name="IS_ENABLED" value="false" />
+      <option name="IS_SUBST" value="false" />
+      <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
+      <option name="IS_IGNORE_MISSING_FILES" value="false" />
+      <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
+      <ENTRIES>
+        <ENTRY IS_ENABLED="true" PARSER="runconfig" />
+      </ENTRIES>
+    </EXTENSION>
+    <framework value="gotest" />
+    <kind value="PACKAGE" />
+    <package value="github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq/test" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$" />
+    <method v="2" />
+  </configuration>
+</component>
