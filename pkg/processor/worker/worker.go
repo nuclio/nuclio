@@ -21,9 +21,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common/statusprovider"
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/status"
 	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 
 	"github.com/nuclio/logger"
@@ -103,7 +103,7 @@ func (w *Worker) GetRuntime() runtime.Runtime {
 }
 
 // GetStatus returns the status of the worker, as updated by the runtime
-func (w *Worker) GetStatus() status.Status {
+func (w *Worker) GetStatus() statusprovider.Status {
 	return w.runtime.GetStatus()
 }
 

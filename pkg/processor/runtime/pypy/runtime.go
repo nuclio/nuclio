@@ -37,12 +37,10 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/status"
-
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 )
 
 var (
@@ -94,7 +92,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		return nil, errors.Wrap(err, "Failed to initialize pypy runtime")
 	}
 
-	newPyPyRuntime.SetStatus(status.Ready)
+	newPyPyRuntime.SetStatus(statusprovider.Ready)
 
 	return newPyPyRuntime, nil
 }

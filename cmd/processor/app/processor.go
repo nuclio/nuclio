@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/statusprovider"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -38,7 +39,6 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/ruby"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
-	"github.com/nuclio/nuclio/pkg/processor/status"
 	"github.com/nuclio/nuclio/pkg/processor/timeout"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all triggers
@@ -228,23 +228,23 @@ func (p *Processor) GetWorkers() []*worker.Worker {
 }
 
 // GetStatus returns the processor's status based on its workers' readiness
-func (p *Processor) GetStatus() status.Status {
+func (p *Processor) GetStatus() statusprovider.Status {
 	workers := p.GetWorkers()
 
 	// if no workers exist yet, return initializing
 	if !p.startComplete {
-		return status.Initializing
+		return statusprovider.Initializing
 	}
 
 	// if any worker isn't ready yet, return initializing
-	for _, worker := range workers {
-		if worker.GetStatus() != status.Ready {
-			return status.Initializing
+	for _, workerInstance := range workers {
+		if workerInstance.GetStatus() != statusprovider.Ready {
+			return statusprovider.Initializing
 		}
 	}
 
 	// otherwise we're ready
-	return status.Ready
+	return statusprovider.Ready
 }
 
 // Stop stops the processor

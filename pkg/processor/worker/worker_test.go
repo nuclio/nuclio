@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/status"
+	"github.com/nuclio/nuclio/pkg/common/statusprovider"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -50,11 +50,11 @@ func (mr *MockRuntime) GetConfiguration() *runtime.Configuration {
 	return nil
 }
 
-func (mr *MockRuntime) SetStatus(newStatus status.Status) {
+func (mr *MockRuntime) SetStatus(newStatus statusprovider.Status) {
 }
 
-func (mr *MockRuntime) GetStatus() status.Status {
-	return status.Ready
+func (mr *MockRuntime) GetStatus() statusprovider.Status {
+	return statusprovider.Ready
 }
 
 func (mr *MockRuntime) Start() error {

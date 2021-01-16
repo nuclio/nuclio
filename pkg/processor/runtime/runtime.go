@@ -19,8 +19,8 @@ package runtime
 import (
 	"os"
 
+	"github.com/nuclio/nuclio/pkg/common/statusprovider"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
-	"github.com/nuclio/nuclio/pkg/processor/status"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -43,10 +43,10 @@ type Runtime interface {
 	GetConfiguration() *Configuration
 
 	// SetStatus sets the runtime's reported status
-	SetStatus(newStatus status.Status)
+	SetStatus(newStatus statusprovider.Status)
 
 	// GetStatus returns the runtime's reported status
-	GetStatus() status.Status
+	GetStatus() statusprovider.Status
 
 	// Start starts the runtime, or does nothing if the runtime does not require starting (e.g. Go and shell runtimes)
 	Start() error
@@ -69,7 +69,7 @@ type AbstractRuntime struct {
 	Statistics     Statistics
 	databindings   map[string]databinding.DataBinding
 	configuration  *Configuration
-	status         status.Status
+	status         statusprovider.Status
 }
 
 // NewAbstractRuntime creates a new abstract runtime
@@ -102,7 +102,7 @@ func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) (*Ab
 	}
 
 	// set the initial status
-	newAbstractRuntime.status = status.Initializing
+	newAbstractRuntime.status = statusprovider.Initializing
 
 	return &newAbstractRuntime, nil
 }
@@ -123,12 +123,12 @@ func (ar *AbstractRuntime) GetStatistics() *Statistics {
 }
 
 // SetStatus sets the runtime's reported status
-func (ar *AbstractRuntime) SetStatus(newStatus status.Status) {
+func (ar *AbstractRuntime) SetStatus(newStatus statusprovider.Status) {
 	ar.status = newStatus
 }
 
 // GetStatus returns the runtime's reported status
-func (ar *AbstractRuntime) GetStatus() status.Status {
+func (ar *AbstractRuntime) GetStatus() statusprovider.Status {
 	return ar.status
 }
 
@@ -221,6 +221,6 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 
 // Stop stops the runtime
 func (ar *AbstractRuntime) Stop() error {
-	ar.SetStatus(status.Stopped)
+	ar.SetStatus(statusprovider.Stopped)
 	return nil
 }

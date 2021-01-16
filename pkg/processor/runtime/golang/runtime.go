@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/status"
+	"github.com/nuclio/nuclio/pkg/common/statusprovider"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -71,7 +71,7 @@ func NewRuntime(parentLogger logger.Logger,
 		}
 	}
 
-	newGoRuntime.SetStatus(status.Ready)
+	newGoRuntime.SetStatus(statusprovider.Ready)
 
 	return newGoRuntime, nil
 }
