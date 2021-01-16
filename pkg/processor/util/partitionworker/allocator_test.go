@@ -88,6 +88,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestAllocationBlocking() {
 func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorAllocations() {
 
 	for _, testCase := range []struct {
+		name string
 
 		// number of workers to shove into pool
 		numWorkers int
@@ -99,6 +100,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorAllocations()
 		expectedWorkerID map[string][]int
 	}{
 		{
+			name:       "CyclicTwoWorkersAssignment",
 			numWorkers: 2,
 			topicPartitionIDs: map[string][]int{
 				"t1": {0},
@@ -110,6 +112,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorAllocations()
 			},
 		},
 		{
+			name:       "CyclicFourWorkersAssignment",
 			numWorkers: 4,
 			topicPartitionIDs: map[string][]int{
 				"t1": {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
@@ -119,6 +122,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorAllocations()
 			},
 		},
 		{
+			name:       "Sanity",
 			numWorkers: 4,
 			topicPartitionIDs: map[string][]int{
 				"t1": {0},
@@ -130,28 +134,31 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorAllocations()
 			},
 		},
 	} {
-		workerAllocator, err := worker.NewFixedPoolWorkerAllocator(suite.logger,
-			suite.createWorkers(testCase.numWorkers))
-		suite.Require().NoError(err)
+		suite.Run(testCase.name, func() {
+			suite.T().Parallel()
+			workerAllocator, err := worker.NewFixedPoolWorkerAllocator(suite.logger,
+				suite.createWorkers(testCase.numWorkers))
+			suite.Require().NoError(err)
 
-		partitionWorkerAllocator, err := NewStaticWorkerAllocator(suite.logger, workerAllocator, testCase.topicPartitionIDs)
-		suite.Require().NoError(err)
+			partitionWorkerAllocator, err := NewStaticWorkerAllocator(suite.logger,
+				workerAllocator,
+				testCase.topicPartitionIDs)
+			suite.Require().NoError(err)
 
-		for repititions := 0; repititions < 100000; repititions++ {
+			for repetitions := 0; repetitions < 100000; repetitions++ {
+				for topic, partitionIDs := range testCase.topicPartitionIDs {
+					for partitionIndex, partitionID := range partitionIDs {
+						workerInstance, cookie, err := partitionWorkerAllocator.AllocateWorker(topic, partitionID, nil)
+						suite.Require().NoError(err)
+						suite.Require().NotNil(workerInstance)
+						suite.Require().NotNil(cookie)
+						suite.Require().Equal(testCase.expectedWorkerID[topic][partitionIndex], workerInstance.GetIndex())
 
-			for topic, partitionIDs := range testCase.topicPartitionIDs {
-				for partitionIndex, partitionID := range partitionIDs {
-
-					workerInstance, cookie, err := partitionWorkerAllocator.AllocateWorker(topic, partitionID, nil)
-					suite.Require().NoError(err)
-					suite.Require().NotNil(workerInstance)
-					suite.Require().NotNil(cookie)
-					suite.Require().Equal(testCase.expectedWorkerID[topic][partitionIndex], workerInstance.GetIndex())
-
-					partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance) // nolint: errcheck
+						partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance) // nolint: errcheck
+					}
 				}
 			}
-		}
+		})
 	}
 }
 
