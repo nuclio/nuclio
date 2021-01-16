@@ -124,19 +124,23 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to create new dashboard")
 	}
 
-	// create docker client
-	dockerClient, err := dockerclient.NewShellClient(rootLogger, nil)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create docker shell client")
-	}
+	// monitor docker connectivity to quickly populate any issue while connecting to docker daemon
+	if platformInstance.GetContainerBuilderKind() == "docker" {
+		stopChannel := make(chan struct{})
 
-	// TODO: receive from function args
-	stopChannel := make(chan struct{})
-	go dashboardInstance.MonitorDockerConnectivity(5*time.Second, 5, dockerClient, stopChannel)
-	defer func() {
-		stopChannel <- struct{}{}
-		close(stopChannel)
-	}()
+		// create docker client
+		dockerClient, err := dockerclient.NewShellClient(rootLogger, nil)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create docker shell client")
+		}
+
+		// TODO: receive from function args
+		go dashboardInstance.MonitorDockerConnectivity(5*time.Second, 5, dockerClient, stopChannel)
+		defer func() {
+			stopChannel <- struct{}{}
+			close(stopChannel)
+		}()
+	}
 
 	if err := dashboardInstance.server.Start(); err != nil {
 		return errors.Wrap(err, "Failed to start server")
