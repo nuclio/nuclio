@@ -18,9 +18,11 @@ FROM nuclio-base:$NUCLIO_LABEL
 
 ARG DOCKER_CLI_VERSION="19.03.12"
 ARG KUBECTL_CLI_VERSION="v1.17.9"
+ARG NUCLIO_DOCKER_ARCH=x86_64
+ARG NUCLIO_KUBECTL_ARCH=amd64
 
-ENV DOCKER_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/x86_64/docker-$DOCKER_CLI_VERSION.tgz"
-ENV KUBECTL_DOWNLOAD_URL="https://storage.googleapis.com/kubernetes-release/release/$KUBECTL_CLI_VERSION/bin/linux/amd64/kubectl"
+ENV DOCKER_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$NUCLIO_DOCKER_ARCH/docker-$DOCKER_CLI_VERSION.tgz"
+ENV KUBECTL_DOWNLOAD_URL="https://storage.googleapis.com/kubernetes-release/release/$KUBECTL_CLI_VERSION/bin/linux/$NUCLIO_KUBECTL_ARCH/kubectl"
 
 # download docker client to /usr/bin/docker
 RUN curl $DOCKER_DOWNLOAD_URL > /tmp/docker.tgz \

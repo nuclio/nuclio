@@ -65,9 +65,6 @@ GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) \
 	-X github.com/v3io/version-go.label=$(NUCLIO_LABEL) \
 	-X github.com/v3io/version-go.arch=$(NUCLIO_ARCH)
 
-# Docker client version to be used
-DOCKER_CLI_VERSION := 19.03.12
-
 # Nuclio test timeout
 NUCLIO_GO_TEST_TIMEOUT ?= "30m"
 
@@ -419,10 +416,17 @@ fmt:
 
 .PHONY: build-test
 build-test: ensure-gopath build-base
+	$(eval NUCLIO_TEST_DOCKER_CLI_VERSION ?= 19.03.12)
+	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.17.9)
+	$(eval NUCLIO_TEST_KUBECTL_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),amd64,arm64))
+	$(eval NUCLIO_TEST_DOCKER_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),x86_64,aarm64))
 	docker build \
         --build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
+		--build-arg DOCKER_CLI_VERSION=$(NUCLIO_TEST_DOCKER_CLI_VERSION) \
+		--build-arg KUBECTL_CLI_VERSION=$(NUCLIO_TEST_KUBECTL_CLI_VERSION) \
+		--build-arg NUCLIO_DOCKER_ARCH=$(NUCLIO_TEST_DOCKER_ARCH) \
+		--build-arg NUCLIO_KUBECTL_ARCH=$(NUCLIO_TEST_KUBECTL_ARCH) \
 		--file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
 		--tag $(NUCLIO_DOCKER_TEST_TAG) .
 
