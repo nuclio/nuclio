@@ -138,6 +138,12 @@ push-docker-images:
 	done
 	@echo Done.
 
+save-docker-images:
+	docker save $(IMAGES_TO_PUSH) | pigz --fast > nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
+
+load-docker-images:
+	docker load -i nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
+
 print-docker-images:
 	for image in $(IMAGES_TO_PUSH); do \
 		echo $$image ; \
@@ -199,7 +205,7 @@ endif
 dashboard: ensure-gopath build-base
 	docker build \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
-		--build-arg NGINX_IMAGE=$(NUCLIO_DOCKER_DASHBOARD_NGINX_IMAGE_NAME) \
+		--build-arg NGINX_IMAGE=$(NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
