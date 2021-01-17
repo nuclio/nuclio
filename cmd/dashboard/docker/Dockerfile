@@ -15,6 +15,7 @@
 #
 # Build assets stage: builds the dashboard assets (js, html, css, etc)
 #
+ARG NGINX_IMAGE=nginx
 ARG NUCLIO_LABEL
 
 FROM node:10.21.0 as build-static
@@ -36,9 +37,11 @@ RUN npm install -g gulp \
 FROM nuclio-base:$NUCLIO_LABEL as build-binary
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
+ARG GOOS=linux
+ARG GOARCH=amd64
 
 # build the dashboard
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+RUN GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
@@ -48,7 +51,7 @@ RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
 # Output stage: Creates version file, copies binary and assets to an alpine image
 #
 
-FROM nginx:stable-alpine
+FROM $NGINX_IMAGE:stable-alpine
 
 ARG DOCKER_CLI_VERSION="19.03.12"
 

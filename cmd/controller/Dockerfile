@@ -22,8 +22,11 @@ FROM nuclio-base:$NUCLIO_LABEL as build-controller
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
+ARG GOOS=linux
+ARG GOARCH=amd64
+
 # build the controller
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+RUN GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \

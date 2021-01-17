@@ -19,9 +19,11 @@ FROM nuclio-builder:$NUCLIO_LABEL as builder
 
 FROM golang:1.14.3
 
-ENV GOOS=linux
+ARG GOOS=linux
+ARG GOARCH=amd64
 
-ENV GOARCH=amd64
+ENV GOOS $GOOS
+ENV GOARCH $GOARCH
 
 COPY --from=builder $GOPATH/pkg/mod $GOPATH/pkg/mod
 
