@@ -17,6 +17,7 @@
 #
 
 ARG NUCLIO_LABEL
+ARG ALPINE_IMAGE=alpine:3.11
 
 FROM nuclio-base:$NUCLIO_LABEL as build-autoscaler
 
@@ -32,7 +33,7 @@ RUN GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
     -o autoscaler cmd/autoscaler/main.go
 
-FROM alpine:3.11
+FROM $ALPINE_IMAGE
 
 RUN apk add --no-cache ca-certificates
 

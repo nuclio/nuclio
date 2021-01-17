@@ -17,6 +17,7 @@
 #
 
 ARG NUCLIO_LABEL
+ARG ALPINE_IMAGE=alpine:3.11
 
 FROM nuclio-base:$NUCLIO_LABEL as build-controller
 
@@ -36,7 +37,7 @@ RUN GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build \
 # Output stage: Creates version file, copies binary to an alpine based image
 #
 
-FROM alpine:3.11
+FROM $ALPINE_IMAGE
 
 # install apache2-utils for htpasswd
 RUN apk add --no-cache ca-certificates apache2-utils

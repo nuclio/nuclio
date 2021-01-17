@@ -68,6 +68,15 @@ GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) \
 # Nuclio test timeout
 NUCLIO_GO_TEST_TIMEOUT ?= "30m"
 
+# alpine is commonly used by controller / dlx / autoscaler
+ifeq ($(NUCLIO_ARCH), armhf)
+	NUCLIO_DOCKER_ALPINE_IMAGE ?= arm32v7/alpine:3.11
+else ifeq ($(NUCLIO_ARCH), arm64)
+	NUCLIO_DOCKER_ALPINE_IMAGE ?= arm64v8/alpine:3.11
+else
+	NUCLIO_DOCKER_ALPINE_IMAGE ?= alpine:3.11
+endif
+
 #
 #  Must be first target
 #
@@ -183,6 +192,7 @@ NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/controller:$(NUCLIO_DO
 
 controller: ensure-gopath build-base
 	docker build \
+		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
@@ -220,6 +230,7 @@ NUCLIO_DOCKER_SCALER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/autoscaler:$(NUCLIO_DOCKER
 
 autoscaler: ensure-gopath build-base
 	docker build \
+		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
@@ -234,6 +245,7 @@ NUCLIO_DOCKER_DLX_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_TAG
 
 dlx: ensure-gopath build-base
 	docker build \
+		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
