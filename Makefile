@@ -22,7 +22,13 @@ NUCLIO_DOCKER_REPO ?= quay.io/nuclio
 
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
-NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
+ifeq ($(GOARCH), arm)
+	NUCLIO_DEFAULT_ARCH := armhf
+else ifeq ($(GOARCH), arm64)
+	NUCLIO_DEFAULT_ARCH := arm64
+else
+	NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
+endif
 
 ifeq ($(OS_NAME), Linux)
 	NUCLIO_DEFAULT_TEST_HOST := $(shell docker network inspect bridge | grep "Gateway" | grep -o '"[^"]*"$$')
@@ -185,9 +191,12 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
 
 # Dashboard
 NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
-NUCLIO_DOCKER_DASHBOARD_NGINX_IMAGE_NAME=nginx
-ifeq ($(NUCLIO_ARCH), arm64)
-	NUCLIO_DOCKER_DASHBOARD_NGINX_IMAGE_NAME=arm64v8/nginx
+ifeq ($(NUCLIO_ARCH), armhf)
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE ?= arm32v7/nginx:stable-alpine
+else ifeq ($(NUCLIO_ARCH), arm64)
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE ?= arm64v8/nginx:stable-alpine
+else
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE ?= nginx:stable-alpine
 endif
 
 dashboard: ensure-gopath build-base

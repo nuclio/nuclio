@@ -51,18 +51,9 @@ RUN GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build \
 # Output stage: Creates version file, copies binary and assets to an alpine image
 #
 
-FROM $NGINX_IMAGE:stable-alpine
+FROM $NGINX_IMAGE
 
-ARG DOCKER_CLI_VERSION="19.03.12"
-
-ENV DOWNLOAD_URL="https://download.docker.com/linux/static/stable/x86_64/docker-$DOCKER_CLI_VERSION.tgz"
-
-RUN apk --update --no-cache add ca-certificates git curl parallel \
-    && mkdir -p /tmp/download \
-    && curl -L $DOWNLOAD_URL | tar -xz -C /tmp/download \
-    && mv /tmp/download/docker/docker /usr/local/bin/ \
-    && rm -rf /tmp/download \
-    && apk del curl
+RUN apk --update --no-cache add ca-certificates git parallel docker-cli
 
 # copy runners
 COPY cmd/dashboard/docker/runners /runners
