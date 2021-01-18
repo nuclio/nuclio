@@ -950,7 +950,7 @@ func (p *Platform) setFunctionUnhealthy(function platform.Function) error {
 	functionStatus := function.GetStatus()
 
 	// set function state to error
-	functionStatus.State = functionconfig.FunctionStateError
+	functionStatus.State = functionconfig.FunctionStateUnhealthy
 
 	// set unhealthy error message
 	functionStatus.Message = common.FunctionStateMessageUnhealthy
