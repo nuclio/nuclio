@@ -180,7 +180,7 @@ func (suite *TestSuite) TestDeployFunctionVolumeMount() {
 	createFunctionOptions := suite.getDeployOptions("volume-mount")
 	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
 	createFunctionOptions.FunctionConfig.Spec.Platform.Attributes = map[string]interface{}{
-		"processorMountMode": local.ProcessorMountModeVolume,
+		"mountMode": local.FunctionMountModeVolume,
 	}
 	localPlatform := suite.Platform.(*local.Platform)
 	suite.DeployFunctionAndRedeploy(createFunctionOptions,
@@ -192,11 +192,11 @@ func (suite *TestSuite) TestDeployFunctionVolumeMount() {
 			})
 			suite.Require().NoError(err, "Failed to get containers")
 
-			containerProcessorMount := containers[0].Mounts[0]
-			suite.Require().Equal(string(local.ProcessorMountModeVolume), containerProcessorMount.Type)
-			suite.Require().Equal(localPlatform.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig), containerProcessorMount.Name)
-			suite.Require().Equal(local.FunctionProcessorContainerDirPath, containerProcessorMount.Destination)
-			suite.Require().Equal(false, containerProcessorMount.RW)
+			containerMount := containers[0].Mounts[0]
+			suite.Require().Equal(string(local.FunctionMountModeVolume), containerMount.Type)
+			suite.Require().Equal(localPlatform.GetFunctionMountVolumeName(&createFunctionOptions.FunctionConfig), containerMount.Name)
+			suite.Require().Equal(local.FunctionProcessorContainerDirPath, containerMount.Destination)
+			suite.Require().Equal(false, containerMount.RW)
 			return true
 		},
 		func(deployResult *platform.CreateFunctionResult) bool {
