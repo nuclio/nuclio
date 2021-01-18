@@ -18,7 +18,7 @@ package healthcheck
 
 import (
 	"github.com/nuclio/nuclio/pkg/common/healthcheck"
-	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -30,7 +30,7 @@ type ProcessorServer struct {
 }
 
 func NewProcessorServer(logger logger.Logger,
-	statusProvider statusprovider.Provider,
+	statusProvider status.Provider,
 	configuration *platformconfig.WebServer) (*ProcessorServer, error) {
 	var err error
 
@@ -52,7 +52,7 @@ func (s *ProcessorServer) Start() error {
 
 	// register the processor's status check as its readiness check
 	s.Handler.AddReadinessCheck("processor_readiness", func() error {
-		if s.StatusProvider.GetStatus() != statusprovider.Ready {
+		if s.StatusProvider.GetStatus() != status.Ready {
 			return errors.New("Processor not ready yet")
 		}
 

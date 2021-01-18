@@ -52,7 +52,7 @@ func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interf
 	formattedCommand := fmt.Sprintf(format, vars...)
 	redactedCommand := common.Redact(runOptions.LogRedactions, formattedCommand)
 
-	if !runOptions.SkipLoggingBeforeAfterExecute {
+	if !runOptions.LogOnlyOnFailure {
 		sr.logger.DebugWith("Executing", "command", redactedCommand)
 	}
 
@@ -96,7 +96,7 @@ func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interf
 		return runResult, errors.Wrapf(err, "stdout:\n%s\nstderr:\n%s", runResult.Output, runResult.Stderr)
 	}
 
-	if !runOptions.SkipLoggingBeforeAfterExecute {
+	if !runOptions.LogOnlyOnFailure {
 		sr.logger.DebugWith("Command executed successfully",
 			"output", runResult.Output,
 			"stderr", runResult.Stderr,

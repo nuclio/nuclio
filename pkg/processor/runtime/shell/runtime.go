@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
@@ -82,7 +82,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 		return nil, errors.Wrap(err, "Failed checking if command is in PATH")
 	}
 
-	newShellRuntime.SetStatus(statusprovider.Ready)
+	newShellRuntime.SetStatus(status.Ready)
 
 	return newShellRuntime, nil
 }
@@ -278,7 +278,7 @@ func (s *shell) Restart() error {
 }
 
 func (s *shell) Start() error {
-	s.SetStatus(statusprovider.Ready)
+	s.SetStatus(status.Ready)
 	return nil
 }
 

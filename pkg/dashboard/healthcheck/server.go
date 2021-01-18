@@ -18,7 +18,7 @@ package healthcheck
 
 import (
 	"github.com/nuclio/nuclio/pkg/common/healthcheck"
-	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -30,7 +30,7 @@ type DashboardServer struct {
 }
 
 func NewDashboardServer(logger logger.Logger,
-	statusProvider statusprovider.Provider,
+	statusProvider status.Provider,
 	configuration *platformconfig.WebServer) (*DashboardServer, error) {
 	var err error
 
@@ -52,7 +52,7 @@ func (s *DashboardServer) Start() error {
 
 	// ready for incoming traffic
 	s.Handler.AddReadinessCheck("dashboard_readiness", func() error {
-		if s.StatusProvider.GetStatus() != statusprovider.Ready {
+		if s.StatusProvider.GetStatus() != status.Ready {
 			return errors.New("Dashboard is not ready yet")
 		}
 		return nil
@@ -60,8 +60,8 @@ func (s *DashboardServer) Start() error {
 
 	// application is functioning correctly
 	s.Handler.AddLivenessCheck("dashboard_liveness", func() error {
-		if s.StatusProvider.GetStatus().OneOf(statusprovider.Error, statusprovider.Stopped) {
-			return errors.New("Dashboard is not alive or dysfunctional")
+		if s.StatusProvider.GetStatus().OneOf(status.Error, status.Stopped) {
+			return errors.New("Dashboard is unhealthy")
 		}
 		return nil
 	})

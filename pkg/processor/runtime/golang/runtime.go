@@ -21,7 +21,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/errors"
@@ -71,7 +71,7 @@ func NewRuntime(parentLogger logger.Logger,
 		}
 	}
 
-	newGoRuntime.SetStatus(statusprovider.Ready)
+	newGoRuntime.SetStatus(status.Ready)
 
 	return newGoRuntime, nil
 }

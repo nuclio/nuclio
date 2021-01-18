@@ -723,7 +723,7 @@ func (c *ShellClient) Load(inPath string) error {
 
 func (c *ShellClient) GetVersion(quiet bool) (string, error) {
 	runOptions := &cmdrunner.RunOptions{
-		SkipLoggingBeforeAfterExecute: quiet,
+		LogOnlyOnFailure: quiet,
 	}
 	output, err := c.runCommand(runOptions, `docker version --format "{{json .}}"`)
 	if err != nil {

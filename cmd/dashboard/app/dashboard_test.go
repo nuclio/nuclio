@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 
 	"github.com/nuclio/errors"
@@ -48,7 +48,7 @@ func (suite *DashboardTestSuite) SetupTest() {
 	suite.ctx = context.TODO()
 	suite.dashboard = &Dashboard{
 		logger: suite.logger,
-		status: statusprovider.Initializing,
+		status: status.Initializing,
 	}
 	suite.dockerClient = dockerclient.NewMockDockerClient()
 }
@@ -74,14 +74,14 @@ func (suite *DashboardTestSuite) TestDashboardStatusFailed() {
 	err := common.RetryUntilSuccessful(3*time.Second,
 		interval,
 		func() bool {
-			return suite.dashboard.GetStatus().OneOf(statusprovider.Error)
+			return suite.dashboard.GetStatus().OneOf(status.Error)
 		})
 	suite.Require().NoError(err, "Exhausted waiting for dashboard status to change")
 }
 
 func (suite *DashboardTestSuite) TestNoMonitorWhenDashboardStatusFailed() {
 	interval := 50 * time.Millisecond
-	suite.dashboard.SetStatus(statusprovider.Error)
+	suite.dashboard.SetStatus(status.Error)
 
 	// run in the background
 	go suite.dashboard.MonitorDockerConnectivity(suite.ctx,

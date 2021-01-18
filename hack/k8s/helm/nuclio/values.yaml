@@ -54,7 +54,10 @@ dashboard:
   containerBuilderKind: "docker"
 
   # Monitor docker deamon connectivity, in conjunction with container builder kind "docker"
-  monitorDockerDeamon: true
+  monitorDockerDeamon:
+    enabled: true
+    interval: 5s
+    maxConsecutiveErrors: 5
 
   kaniko:
 

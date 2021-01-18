@@ -23,7 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	commonhealthcheck "github.com/nuclio/nuclio/pkg/common/healthcheck"
-	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -229,23 +229,23 @@ func (p *Processor) GetWorkers() []*worker.Worker {
 }
 
 // GetStatus returns the processor's status based on its workers' readiness
-func (p *Processor) GetStatus() statusprovider.Status {
+func (p *Processor) GetStatus() status.Status {
 	workers := p.GetWorkers()
 
 	// if no workers exist yet, return initializing
 	if !p.startComplete {
-		return statusprovider.Initializing
+		return status.Initializing
 	}
 
 	// if any worker isn't ready yet, return initializing
 	for _, workerInstance := range workers {
-		if workerInstance.GetStatus() != statusprovider.Ready {
-			return statusprovider.Initializing
+		if workerInstance.GetStatus() != status.Ready {
+			return status.Initializing
 		}
 	}
 
 	// otherwise we're ready
-	return statusprovider.Ready
+	return status.Ready
 }
 
 // Stop stops the processor

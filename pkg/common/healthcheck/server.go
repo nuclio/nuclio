@@ -19,7 +19,7 @@ package healthcheck
 import (
 	"net/http"
 
-	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/heptiolabs/healthcheck"
@@ -37,12 +37,12 @@ type AbstractServer struct {
 	Enabled        bool
 	ListenAddress  string
 	Logger         logger.Logger
-	StatusProvider statusprovider.Provider
+	StatusProvider status.Provider
 	Handler        healthcheck.Handler
 }
 
 func NewAbstractServer(logger logger.Logger,
-	statusProvider statusprovider.Provider,
+	statusProvider status.Provider,
 	configuration *platformconfig.WebServer) (*AbstractServer, error) {
 	if configuration.Enabled == nil {
 		return nil, errors.New("Enabled must carry a value")

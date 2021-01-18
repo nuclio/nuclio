@@ -18,11 +18,12 @@ package app
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
 	commonhealthcheck "github.com/nuclio/nuclio/pkg/common/healthcheck"
-	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dashboard/healthcheck"
@@ -38,6 +39,68 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/v3io/version-go"
 )
+
+type Dashboard struct {
+	server            restful.Server
+	healthCheckServer commonhealthcheck.Server
+	logger            logger.Logger
+
+	status status.Status
+}
+
+func (d *Dashboard) GetStatus() status.Status {
+	return d.status
+}
+
+func (d *Dashboard) SetStatus(status status.Status) {
+	if d.status != status {
+		d.logger.InfoWith("Updating server healthiness",
+			"currentStatus", d.status,
+			"desiredStatus", status)
+	}
+	d.status = status
+}
+
+func (d *Dashboard) MonitorDockerConnectivity(ctx context.Context,
+	interval time.Duration,
+	maxConsecutiveErrors int,
+	dockerClient dockerclient.Client) {
+
+	d.logger.DebugWith("Monitoring docker connectivity",
+		"interval", interval,
+		"maxConsecutiveErrors", maxConsecutiveErrors)
+
+	consecutiveErrors := 0
+	dockerConnectivityTicker := time.NewTicker(interval)
+	for {
+		select {
+		case <-ctx.Done():
+			dockerConnectivityTicker.Stop()
+			d.logger.DebugWith("Stopping docker connectivity monitor")
+			return
+		case <-dockerConnectivityTicker.C:
+			if d.GetStatus().OneOf(status.Error) {
+
+				// do not monitor while status is error
+				// let the kubelet / dockerd / user restart the process
+				continue
+			}
+
+			// get version quietly, avoid execution spamming stdout
+			if _, err := dockerClient.GetVersion(true); err == nil {
+
+				// reset counter
+				consecutiveErrors = 0
+				continue
+			}
+			consecutiveErrors++
+			if consecutiveErrors == maxConsecutiveErrors {
+				d.SetStatus(status.Error)
+				d.logger.Error("Failed to resolve docker version, connection might be unhealthy.")
+			}
+		}
+	}
+}
 
 func Run(listenAddress string,
 	dockerKeyDir string,
@@ -60,7 +123,9 @@ func Run(listenAddress string,
 	imageNamePrefixTemplate string,
 	platformAuthorizationMode string,
 	dependantImageRegistryURL string,
-	monitorDockerDeamon bool) error {
+	monitorDockerDeamon bool,
+	monitorDockerDeamonIntervalStr string,
+	monitorDockerDeamonMaxConsecutiveErrorsStr string) error {
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
@@ -76,7 +141,7 @@ func Run(listenAddress string,
 
 	dashboardInstance := &Dashboard{
 		logger: rootLogger,
-		status: statusprovider.Initializing,
+		status: status.Initializing,
 	}
 
 	dashboardInstance.healthCheckServer, err = createAndStartHealthCheckServer(platformConfiguration,
@@ -129,17 +194,28 @@ func Run(listenAddress string,
 	// monitor docker connectivity to quickly populate any issue while connecting to docker daemon
 	if monitorDockerDeamon && platformInstance.GetContainerBuilderKind() == "docker" {
 
+		// parse docker deamon monitor max consecutive errors
+		monitorDockerDeamonMaxConsecutiveErrors, err := strconv.Atoi(monitorDockerDeamonMaxConsecutiveErrorsStr)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to parse string '%s' to integer", monitorDockerDeamonMaxConsecutiveErrorsStr)
+		}
+
+		// parse docker deamon monitor interval
+		monitorDockerDeamonInterval, err := time.ParseDuration(monitorDockerDeamonIntervalStr)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to parse string '%s' to duration", monitorDockerDeamonIntervalStr)
+		}
+
 		// create docker client
 		dockerClient, err := dockerclient.NewShellClient(rootLogger, nil)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create docker shell client")
 		}
 
-		// TODO: receive from function args
 		ctx, cancel := context.WithCancel(context.Background())
 		go dashboardInstance.MonitorDockerConnectivity(ctx,
-			5*time.Second,
-			5,
+			monitorDockerDeamonInterval,
+			monitorDockerDeamonMaxConsecutiveErrors,
 			dockerClient)
 		defer cancel()
 	}
@@ -148,7 +224,7 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to start server")
 	}
 
-	dashboardInstance.status = statusprovider.Ready
+	dashboardInstance.status = status.Ready
 	select {}
 }
 
@@ -287,7 +363,7 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 
 func createAndStartHealthCheckServer(platformConfiguration *platformconfig.Config,
 	loggerInstance logger.Logger,
-	dashboardStatusProvider statusprovider.Provider) (commonhealthcheck.Server, error) {
+	statusProvider status.Provider) (commonhealthcheck.Server, error) {
 
 	// if enabled not passed, default to true
 	if platformConfiguration.HealthCheck.Enabled == nil {
@@ -300,7 +376,7 @@ func createAndStartHealthCheckServer(platformConfiguration *platformconfig.Confi
 	}
 
 	// create the server
-	server, err := healthcheck.NewDashboardServer(loggerInstance, dashboardStatusProvider, &platformConfiguration.HealthCheck)
+	server, err := healthcheck.NewDashboardServer(loggerInstance, statusProvider, &platformConfiguration.HealthCheck)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create health check server")
 	}

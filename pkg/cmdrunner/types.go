@@ -31,7 +31,7 @@ type RunOptions struct {
 	LogRedactions     []string
 	CaptureOutputMode CaptureOutputMode
 
-	SkipLoggingBeforeAfterExecute bool
+	LogOnlyOnFailure bool
 }
 
 // RunResult holds command execution returned values

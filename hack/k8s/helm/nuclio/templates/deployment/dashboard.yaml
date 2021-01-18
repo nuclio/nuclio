@@ -140,7 +140,11 @@ spec:
           value: "nil"
         {{- end }}
         - name: NUCLIO_MONITOR_DOCKER_DAEMON
-          value: {{ .Values.dashboard.monitorDockerDeamon | quote }}
+          value: {{ .Values.dashboard.monitorDockerDeamon.enabled | quote }}
+        - name: NUCLIO_MONITOR_DOCKER_DAEMON_INTERVAL
+          value: {{ .Values.dashboard.monitorDockerDeamon.interval | quote }}
+        - name: NUCLIO_MONITOR_DOCKER_DAEMON_MAX_CONSECUTIVE_ERRORS
+          value: {{ .Values.dashboard.monitorDockerDeamon.maxConsecutiveErrors | quote }}
         - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
           value: {{ template "nuclio.registry.credentialsSecretName" . }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES

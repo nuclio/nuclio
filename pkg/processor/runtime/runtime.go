@@ -19,7 +19,7 @@ package runtime
 import (
 	"os"
 
-	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
 	"github.com/nuclio/errors"
@@ -43,10 +43,10 @@ type Runtime interface {
 	GetConfiguration() *Configuration
 
 	// SetStatus sets the runtime's reported status
-	SetStatus(newStatus statusprovider.Status)
+	SetStatus(newStatus status.Status)
 
 	// GetStatus returns the runtime's reported status
-	GetStatus() statusprovider.Status
+	GetStatus() status.Status
 
 	// Start starts the runtime, or does nothing if the runtime does not require starting (e.g. Go and shell runtimes)
 	Start() error
@@ -69,7 +69,7 @@ type AbstractRuntime struct {
 	Statistics     Statistics
 	databindings   map[string]databinding.DataBinding
 	configuration  *Configuration
-	status         statusprovider.Status
+	status         status.Status
 }
 
 // NewAbstractRuntime creates a new abstract runtime
@@ -102,7 +102,7 @@ func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) (*Ab
 	}
 
 	// set the initial status
-	newAbstractRuntime.status = statusprovider.Initializing
+	newAbstractRuntime.status = status.Initializing
 
 	return &newAbstractRuntime, nil
 }
@@ -123,12 +123,12 @@ func (ar *AbstractRuntime) GetStatistics() *Statistics {
 }
 
 // SetStatus sets the runtime's reported status
-func (ar *AbstractRuntime) SetStatus(newStatus statusprovider.Status) {
+func (ar *AbstractRuntime) SetStatus(newStatus status.Status) {
 	ar.status = newStatus
 }
 
 // GetStatus returns the runtime's reported status
-func (ar *AbstractRuntime) GetStatus() statusprovider.Status {
+func (ar *AbstractRuntime) GetStatus() status.Status {
 	return ar.status
 }
 
@@ -221,6 +221,6 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 
 // Stop stops the runtime
 func (ar *AbstractRuntime) Stop() error {
-	ar.SetStatus(statusprovider.Stopped)
+	ar.SetStatus(status.Stopped)
 	return nil
 }

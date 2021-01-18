@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
@@ -47,7 +47,7 @@ type http struct {
 	configuration    *Configuration
 	events           []Event
 	bufferLoggerPool *nucliozap.BufferLoggerPool
-	status           statusprovider.Status
+	status           status.Status
 	activeContexts   []*fasthttp.RequestCtx
 	timeouts         []uint64 // flag of worker is in timeout
 	answering        []uint64 // flag the worker is answering
@@ -88,7 +88,7 @@ func newTrigger(logger logger.Logger,
 		AbstractTrigger:  abstractTrigger,
 		configuration:    configuration,
 		bufferLoggerPool: bufferLoggerPool,
-		status:           statusprovider.Initializing,
+		status:           status.Initializing,
 		activeContexts:   make([]*fasthttp.RequestCtx, numWorkers),
 		timeouts:         make([]uint64, numWorkers),
 		answering:        make([]uint64, numWorkers),
@@ -116,14 +116,14 @@ func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 	// start listening
 	go h.server.ListenAndServe(h.configuration.URL) // nolint: errcheck
 
-	h.status = statusprovider.Ready
+	h.status = status.Ready
 	return nil
 }
 
 func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
 	h.Logger.Debug("Shutting down")
 
-	h.status = statusprovider.Stopped
+	h.status = status.Stopped
 
 	if h.server != nil {
 		err := h.server.Shutdown()
@@ -330,7 +330,7 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
 
 	// ensure server is running
-	if h.status != statusprovider.Ready {
+	if h.status != status.Ready {
 		ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
 		msg := map[string]interface{}{
 			"error":  "Server not ready",

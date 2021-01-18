@@ -22,7 +22,7 @@ import (
 	nethttp "net/http"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/cors"
@@ -133,7 +133,7 @@ func (suite *TestSuite) TestCORS() {
 		suite.trigger.Statistics.EventsHandledFailureTotal = 0
 
 		// ensure trigger is ready
-		suite.trigger.status = statusprovider.Ready
+		suite.trigger.status = status.Ready
 
 		// create request, use OPTIONS to trigger preflight flow
 		request, err := nethttp.NewRequest(fasthttp.MethodOptions, "http://foo.bar/", nil)

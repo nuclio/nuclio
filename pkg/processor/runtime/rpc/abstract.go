@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/statusprovider"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processwaiter"
 
@@ -102,17 +102,17 @@ func NewAbstractRuntime(logger logger.Logger,
 
 func (r *AbstractRuntime) Start() error {
 	if err := r.startWrapper(); err != nil {
-		r.SetStatus(statusprovider.Error)
+		r.SetStatus(status.Error)
 		return errors.Wrap(err, "Failed to run wrapper")
 	}
 
-	r.SetStatus(statusprovider.Ready)
+	r.SetStatus(status.Ready)
 	return nil
 }
 
 // ProcessEvent processes an event
 func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-	if currentStatus := r.GetStatus(); currentStatus != statusprovider.Ready {
+	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
 		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
 	}
 
@@ -129,7 +129,7 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 	if !ok {
 		msg := "Client disconnected"
 		r.Logger.Error(msg)
-		r.SetStatus(statusprovider.Error)
+		r.SetStatus(status.Error)
 		r.functionLogger = nil
 		return nil, errors.New(msg)
 	}
@@ -152,14 +152,14 @@ func (r *AbstractRuntime) Stop() error {
 		}
 
 		if err := r.wrapperProcess.Kill(); err != nil {
-			r.SetStatus(statusprovider.Error)
+			r.SetStatus(status.Error)
 			return errors.Wrap(err, "Can't kill wrapper process")
 		}
 	}
 
 	r.waitForProcessTermination()
 
-	r.SetStatus(statusprovider.Stopped)
+	r.SetStatus(status.Stopped)
 	return nil
 }
 
@@ -182,11 +182,11 @@ func (r *AbstractRuntime) Restart() error {
 
 	close(r.resultChan)
 	if err := r.startWrapper(); err != nil {
-		r.SetStatus(statusprovider.Error)
+		r.SetStatus(status.Error)
 		return errors.Wrap(err, "Can't start wrapper process")
 	}
 
-	r.SetStatus(statusprovider.Ready)
+	r.SetStatus(status.Ready)
 	return nil
 }
 
