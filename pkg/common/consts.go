@@ -15,5 +15,6 @@ const (
 	FunctionStateMessageUnhealthy = "Function is not healthy"
 
 	// TODO: deprecated. (used by local platform)
+	// TODO: remove on >= 1.6.0
 	DeprecatedFunctionStateMessage = "Container is not healthy (detected by nuclio platform)"
 )

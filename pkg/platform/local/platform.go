@@ -53,10 +53,10 @@ type Platform struct {
 	checkFunctionContainersHealthiness    bool
 	functionContainersHealthinessTimeout  time.Duration
 	functionContainersHealthinessInterval time.Duration
+	defaultFunctionProcessorMountMode     ProcessorMountMode
 }
 
 const Mib = 1048576
-const UnhealthyContainerErrorMessage = "Container is not healthy (detected by nuclio platform)"
 const FunctionProcessorContainerDirPath = "/etc/nuclio/config/processor"
 
 // NewPlatform instantiates a new local platform
@@ -108,6 +108,14 @@ func NewPlatform(parentLogger logger.Logger,
 			}
 		}(newPlatform)
 	}
+
+	// TODO: use ProcessorMountModeVolume on >= 1.6.x by default
+	// this will allow us to remote the dependency of requiring the user to volumize host `tmp` folder
+	// to create a function
+	FunctionProcessorMountModeStr := common.GetEnvOrDefaultString(
+		"NUCLIO_DASHBOARD_DEFAULT_PROCESSOR_MOUNT_MODE", string(ProcessorMountModeBind))
+	newPlatform.defaultFunctionProcessorMountMode = ProcessorMountMode(FunctionProcessorMountModeStr)
+
 	return newPlatform, nil
 }
 
@@ -592,8 +600,12 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Failed to create a function's platform configuration")
 	}
 
-	mountPoints, volumesMap, err := p.resolveAndCreateFunctionMounts(createFunctionOptions,
-		functionPlatformConfiguration.ProcessorMountMode)
+	processorMountMode, err := p.resolveFunctionProcessorMountMode(functionPlatformConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve processor mount mode")
+	}
+
+	mountPoints, volumesMap, err := p.resolveAndCreateFunctionMounts(createFunctionOptions, processorMountMode)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve and create function mounts")
 	}
@@ -692,11 +704,14 @@ func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions)
 
 	// get function platform specific configuration
 	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&deleteFunctionOptions.FunctionConfig)
+
+	// get function processor mount mode
+	processorMountMode, err := p.resolveFunctionProcessorMountMode(functionPlatformConfiguration)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create a function's platform configuration")
+		return errors.Wrap(err, "Failed to resolve processor mount mode")
 	}
 
-	if functionPlatformConfiguration.ProcessorMountMode == ProcessorMountModeVolume {
+	if processorMountMode == ProcessorMountModeVolume {
 
 		// delete function volumes after containers are deleted
 		if err := p.dockerClient.DeleteVolume(p.GetProcessorMountVolumeName(&deleteFunctionOptions.FunctionConfig)); err != nil {
@@ -704,8 +719,21 @@ func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions)
 		}
 	}
 
-	p.Logger.InfoWith("Function deleted", "name", deleteFunctionOptions.FunctionConfig.Meta.Name)
+	p.Logger.InfoWith("Successfully deleted function",
+		"name", deleteFunctionOptions.FunctionConfig.Meta.Name)
 	return nil
+}
+
+func (p *Platform) resolveFunctionProcessorMountMode(functionPlatformConfiguration *functionPlatformConfiguration) (
+	ProcessorMountMode, error) {
+
+	// if set, return value from function platform configuration
+	if functionPlatformConfiguration.ProcessorMountMode != "" {
+		return functionPlatformConfiguration.ProcessorMountMode, nil
+	}
+
+	// use platform defaults
+	return p.defaultFunctionProcessorMountMode, nil
 }
 
 func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platform.CreateFunctionOptions,
@@ -922,7 +950,7 @@ func (p *Platform) setFunctionUnhealthy(function platform.Function) error {
 	functionStatus.State = functionconfig.FunctionStateError
 
 	// set unhealthy error message
-	functionStatus.Message = UnhealthyContainerErrorMessage
+	functionStatus.Message = common.FunctionStateMessageUnhealthy
 
 	p.Logger.WarnWith("Setting function state as unhealthy",
 		"functionName", function.GetConfig().Meta.Name,
