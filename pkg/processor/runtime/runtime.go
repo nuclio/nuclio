@@ -19,8 +19,8 @@ package runtime
 import (
 	"os"
 
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
-	"github.com/nuclio/nuclio/pkg/processor/status"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"

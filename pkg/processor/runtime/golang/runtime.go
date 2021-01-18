@@ -21,8 +21,8 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/status"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"

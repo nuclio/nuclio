@@ -76,6 +76,9 @@ func main() {
 	imageNamePrefixTemplate := flag.String("image-name-prefix-template", os.Getenv("NUCLIO_DASHBOARD_IMAGE_NAME_PREFIX_TEMPLATE"), "Go template for the image names prefix")
 	platformAuthorizationMode := flag.String("platform-authorization-mode", defaultPlatformAuthorizationMode, "One of service-account (default) / authorization-header-oidc")
 	dependantImageRegistryURL := flag.String("dependant-image-registry", os.Getenv("NUCLIO_DASHBOARD_DEPENDANT_IMAGE_REGISTRY_URL"), "If passed, replaces base/on-build registry URLs with this value")
+	monitorDockerDeamon := flag.Bool("monitor-docker-deamon", common.GetEnvOrDefaultBool("NUCLIO_MONITOR_DOCKER_DAEMON", true), "Monitor connectivity to docker deamon (in conjunction to 'docker' as container builder kind")
+	monitorDockerDeamonIntervalStr := flag.String("monitor-docker-deamon-interval", common.GetEnvOrDefaultString("NUCLIO_MONITOR_DOCKER_DAEMON_INTERVAL", "5s"), "Docker deamon connectivity monitor interval (used in conjunction with 'monitor-docker-deamon')")
+	monitorDockerDeamonMaxConsecutiveErrorsStr := flag.String("monitor-docker-deamon-max-consecutive-errors", common.GetEnvOrDefaultString("NUCLIO_MONITOR_DOCKER_DAEMON_MAX_CONSECUTIVE_ERRORS", "5"), "Docker deamon connectivity monitor max consecutive errors before declaring docker connection is unhealthy (used in conjunction with 'monitor-docker-deamon')")
 
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)
@@ -102,7 +105,10 @@ func main() {
 		*defaultHTTPIngressHostTemplate,
 		*imageNamePrefixTemplate,
 		*platformAuthorizationMode,
-		*dependantImageRegistryURL); err != nil {
+		*dependantImageRegistryURL,
+		*monitorDockerDeamon,
+		*monitorDockerDeamonIntervalStr,
+		*monitorDockerDeamonMaxConsecutiveErrorsStr); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 

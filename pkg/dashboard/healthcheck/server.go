@@ -25,16 +25,16 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type ProcessorServer struct {
+type DashboardServer struct {
 	*healthcheck.AbstractServer
 }
 
-func NewProcessorServer(logger logger.Logger,
+func NewDashboardServer(logger logger.Logger,
 	statusProvider status.Provider,
-	configuration *platformconfig.WebServer) (*ProcessorServer, error) {
+	configuration *platformconfig.WebServer) (*DashboardServer, error) {
 	var err error
 
-	newServer := &ProcessorServer{}
+	newServer := &DashboardServer{}
 	newServer.AbstractServer, err = healthcheck.NewAbstractServer(logger, statusProvider, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create new abstract server")
@@ -42,7 +42,7 @@ func NewProcessorServer(logger logger.Logger,
 	return newServer, nil
 }
 
-func (s *ProcessorServer) Start() error {
+func (s *DashboardServer) Start() error {
 
 	// if we're disabled, simply log and do nothing
 	if !s.Enabled {
@@ -50,17 +50,19 @@ func (s *ProcessorServer) Start() error {
 		return nil
 	}
 
-	// register the processor's status check as its readiness check
-	s.Handler.AddReadinessCheck("processor_readiness", func() error {
+	// ready for incoming traffic
+	s.Handler.AddReadinessCheck("dashboard_readiness", func() error {
 		if s.StatusProvider.GetStatus() != status.Ready {
-			return errors.New("Processor not ready yet")
+			return errors.New("Dashboard is not ready yet")
 		}
-
 		return nil
 	})
 
-	// register an always-healthy liveness check until we have a better design for detecting handler deaths
-	s.Handler.AddLivenessCheck("processor_liveness", func() error {
+	// application is functioning correctly
+	s.Handler.AddLivenessCheck("dashboard_liveness", func() error {
+		if s.StatusProvider.GetStatus().OneOf(status.Error, status.Stopped) {
+			return errors.New("Dashboard is unhealthy")
+		}
 		return nil
 	})
 

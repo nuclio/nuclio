@@ -47,6 +47,27 @@ spec:
         imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
         ports:
         - containerPort: 8070
+        - name: liveness-port
+          containerPort: 8082
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: liveness-port
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: liveness-port
+          failureThreshold: 1
+          periodSeconds: 15
+          timeoutSeconds: 5
+        startupProbe:
+          httpGet:
+            path: /live
+            port: liveness-port
+          failureThreshold: 4
+          periodSeconds: 15
         volumeMounts:
         {{- if eq .Values.dashboard.containerBuilderKind "docker" }}
         - mountPath: /var/run/docker.sock
@@ -122,6 +143,12 @@ spec:
         - name: NUCLIO_TEMPLATES_GIT_REF
           value: "nil"
         {{- end }}
+        - name: NUCLIO_MONITOR_DOCKER_DAEMON
+          value: {{ .Values.dashboard.monitorDockerDeamon.enabled | quote }}
+        - name: NUCLIO_MONITOR_DOCKER_DAEMON_INTERVAL
+          value: {{ .Values.dashboard.monitorDockerDeamon.interval | quote }}
+        - name: NUCLIO_MONITOR_DOCKER_DAEMON_MAX_CONSECUTIVE_ERRORS
+          value: {{ .Values.dashboard.monitorDockerDeamon.maxConsecutiveErrors | quote }}
         - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
           value: {{ template "nuclio.registry.credentialsSecretName" . }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES

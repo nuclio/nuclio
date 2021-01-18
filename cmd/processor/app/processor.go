@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	commonhealthcheck "github.com/nuclio/nuclio/pkg/common/healthcheck"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -38,7 +40,6 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/ruby"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
-	"github.com/nuclio/nuclio/pkg/processor/status"
 	"github.com/nuclio/nuclio/pkg/processor/timeout"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all triggers
@@ -73,7 +74,7 @@ type Processor struct {
 	functionLogger        logger.Logger
 	triggers              []trigger.Trigger
 	webAdminServer        *webadmin.Server
-	healthCheckServer     *healthcheck.Server
+	healthCheckServer     commonhealthcheck.Server
 	metricSinks           []metricsink.MetricSink
 	namedWorkerAllocators map[string]worker.Allocator
 	eventTimeoutWatcher   *timeout.EventTimeoutWatcher
@@ -237,8 +238,8 @@ func (p *Processor) GetStatus() status.Status {
 	}
 
 	// if any worker isn't ready yet, return initializing
-	for _, worker := range workers {
-		if worker.GetStatus() != status.Ready {
+	for _, workerInstance := range workers {
+		if workerInstance.GetStatus() != status.Ready {
 			return status.Initializing
 		}
 	}
@@ -375,7 +376,8 @@ func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.C
 	return webadmin.NewServer(p.logger, p, &platformConfiguration.WebAdmin)
 }
 
-func (p *Processor) createAndStartHealthCheckServer(platformConfiguration *platformconfig.Config) (*healthcheck.Server, error) {
+func (p *Processor) createAndStartHealthCheckServer(platformConfiguration *platformconfig.Config) (
+	commonhealthcheck.Server, error) {
 
 	// if enabled not passed, default to true
 	if platformConfiguration.HealthCheck.Enabled == nil {
@@ -388,7 +390,7 @@ func (p *Processor) createAndStartHealthCheckServer(platformConfiguration *platf
 	}
 
 	// create the server
-	server, err := healthcheck.NewServer(p.logger, p, &platformConfiguration.HealthCheck)
+	server, err := healthcheck.NewProcessorServer(p.logger, p, &platformConfiguration.HealthCheck)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create health check server")
 	}

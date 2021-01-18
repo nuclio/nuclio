@@ -38,6 +38,9 @@ type Server interface {
 
 	// InstallMiddleware installs middlewares on a router
 	InstallMiddleware(router chi.Router) error
+
+	// Start running the server
+	Start() error
 }
 
 type AbstractServer struct {

@@ -30,6 +30,8 @@ type RunOptions struct {
 	Env               map[string]string
 	LogRedactions     []string
 	CaptureOutputMode CaptureOutputMode
+
+	LogOnlyOnFailure bool
 }
 
 // RunResult holds command execution returned values

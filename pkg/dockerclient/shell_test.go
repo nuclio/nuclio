@@ -47,7 +47,7 @@ func (suite *ShellClientTestSuite) SetupTest() {
 	// create mocked cmd runner
 	suite.mockedCmdRunner = cmdrunner.NewMockRunner()
 	suite.mockedCmdRunner.
-		On("Run", mock.Anything, "docker version", mock.Anything).
+		On("Run", mock.Anything, `docker version --format "{{json .}}"`, mock.Anything).
 		Return(cmdrunner.RunResult{
 			Output: "test",
 		}, nil)

@@ -22,7 +22,7 @@ import (
 	nethttp "net/http"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/processor/status"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/cors"

@@ -16,9 +16,7 @@ limitations under the License.
 
 package status
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // Provider is an interface for entities that have a reportable status
 type Provider interface {
@@ -51,4 +49,13 @@ func (s Status) String() string {
 	}
 
 	return fmt.Sprintf("Unknown status - %d", s)
+}
+
+func (s Status) OneOf(statuses ...Status) bool {
+	for _, status := range statuses {
+		if s == status {
+			return true
+		}
+	}
+	return false
 }
