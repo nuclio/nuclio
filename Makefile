@@ -150,9 +150,6 @@ push-docker-images:
 save-docker-images:
 	docker save $(IMAGES_TO_PUSH) | pigz --fast > nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
 
-load-docker-images:
-	docker load -i nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
-
 print-docker-images:
 	for image in $(IMAGES_TO_PUSH); do \
 		echo $$image ; \
