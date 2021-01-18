@@ -704,6 +704,9 @@ func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions)
 
 	// get function platform specific configuration
 	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&deleteFunctionOptions.FunctionConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create a function's platform configuration")
+	}
 
 	// get function processor mount mode
 	functionMountMode, err := p.resolveFunctionMountMode(functionPlatformConfiguration)
