@@ -1260,7 +1260,7 @@ func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Con
 
 				// do not return "err" itself as root cause, to avoid confusion when returning the error to the user
 				// note: err is being logged above.
-				return nuclio.NewErrBadRequest("Invalid %s passed")
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Invalid %s passed", fieldName))
 			}
 		}
 	}
