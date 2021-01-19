@@ -46,10 +46,11 @@
         /**
          * Gets a function
          * @param {Object} metadata
+         * @param {boolean} enrichApiGateways
          * @returns {Promise}
          */
-        function getFunction(metadata) {
-            return NuclioFunctionsDataService.getFunction(metadata);
+        function getFunction(metadata, enrichApiGateways) {
+            return NuclioFunctionsDataService.getFunction(metadata, enrichApiGateways);
         }
 
         /**
