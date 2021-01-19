@@ -110,11 +110,11 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 			// Trigger function containers healthiness validation
 			go suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness()
 
-			// Wait for function to get into error state
+			// Wait for function to become unhealthy
 			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
 				Name:      functionName,
 				Namespace: suite.namespace,
-			}, functionconfig.FunctionStateError, time.Minute)
+			}, functionconfig.FunctionStateUnhealthy, time.Minute)
 
 			// Start the container
 			err = suite.DockerClient.StartContainer(deployResult.ContainerID)
