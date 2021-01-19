@@ -17,6 +17,7 @@
 #
 ARG NGINX_IMAGE=nginx
 ARG NUCLIO_LABEL
+ARG UHTTPC_ARCH=amd64
 
 FROM node:10.21.0 as build-static
 
@@ -47,13 +48,26 @@ RUN GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
     -o dashboard cmd/dashboard/main.go
 
+
+FROM quay.io/nuclio/uhttpc:0.0.1-$UHTTPC_ARCH AS uhttpc
+
 #
 # Output stage: Creates version file, copies binary and assets to an alpine image
 #
 
 FROM $NGINX_IMAGE
 
-RUN apk --update --no-cache add ca-certificates git parallel docker-cli
+# docker client
+ARG DOCKER_CLI_ARCH=x86_64
+ARG DOCKER_CLI_VERSION="19.03.14"
+ENV DOCKER_CLI_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$DOCKER_CLI_ARCH/docker-$DOCKER_CLI_VERSION.tgz"
+
+RUN apk --update --no-cache add ca-certificates git parallel curl \
+    && mkdir -p /tmp/download \
+    && curl -L $DOCKER_CLI_DOWNLOAD_URL | tar -xz -C /tmp/download \
+    && mv /tmp/download/docker/docker /usr/local/bin/ \
+    && rm -rf /tmp/download \
+    && apk del curl
 
 # copy runners
 COPY cmd/dashboard/docker/runners /runners
@@ -72,7 +86,7 @@ COPY --from=build-static /home/nuclio/dashboard/src/dist /etc/nginx/static/
 COPY --from=build-binary /nuclio/dashboard /usr/local/bin
 
 # copy a lightweight http client
-COPY --from=quay.io/nuclio/uhttpc:0.0.1-amd64 /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 
 HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 

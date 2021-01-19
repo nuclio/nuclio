@@ -68,6 +68,16 @@ GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) \
 # Nuclio test timeout
 NUCLIO_GO_TEST_TIMEOUT ?= "30m"
 
+# Docker client cli to be used
+NUCLIO_DOCKER_CLIENT_VERSION ?= 19.03.14
+ifeq ($(NUCLIO_ARCH), armhf)
+	NUCLIO_DOCKER_CLIENT_ARCH ?= armhf
+else ifeq ($(NUCLIO_ARCH), arm64)
+	NUCLIO_DOCKER_CLIENT_ARCH ?= aarch64
+else
+	NUCLIO_DOCKER_CLIENT_ARCH ?= x86_64
+endif
+
 # alpine is commonly used by controller / dlx / autoscaler
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_ALPINE_IMAGE ?= arm32v7/alpine:3.11
@@ -200,21 +210,25 @@ controller: ensure-gopath build-base
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
 
 # Dashboard
-NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME    = $(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH  ?= $(NUCLIO_ARCH)
+
 ifeq ($(NUCLIO_ARCH), armhf)
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE ?= arm32v7/nginx:stable-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= arm32v7/nginx:stable-alpine
 else ifeq ($(NUCLIO_ARCH), arm64)
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE ?= arm64v8/nginx:stable-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= arm64v8/nginx:stable-alpine
 else
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE ?= nginx:stable-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= nginx:stable-alpine
 endif
 
 dashboard: ensure-gopath build-base
 	docker build \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
+		--build-arg DOCKER_CLI_ARCH=$(NUCLIO_DOCKER_CLIENT_ARCH) \
+		--build-arg DOCKER_CLI_VERSION=$(NUCLIO_DOCKER_CLIENT_VERSION) \
+		--build-arg UHTTPC_ARCH=$(NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH) \
 		--build-arg NGINX_IMAGE=$(NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
-		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/dashboard/docker/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
@@ -431,17 +445,15 @@ fmt:
 
 .PHONY: build-test
 build-test: ensure-gopath build-base
-	$(eval NUCLIO_TEST_DOCKER_CLI_VERSION ?= 19.03.12)
 	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.17.9)
-	$(eval NUCLIO_TEST_KUBECTL_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),amd64,arm64))
-	$(eval NUCLIO_TEST_DOCKER_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),x86_64,aarm64))
+	$(eval NUCLIO_TEST_KUBECTL_CLI_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),amd64,arm64))
 	docker build \
         --build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--build-arg DOCKER_CLI_VERSION=$(NUCLIO_TEST_DOCKER_CLI_VERSION) \
+		--build-arg DOCKER_CLI_ARCH=$(NUCLIO_DOCKER_CLIENT_ARCH) \
+		--build-arg DOCKER_CLI_VERSION=$(NUCLIO_DOCKER_CLIENT_VERSION) \
+		--build-arg KUBECTL_CLI_ARCH=$(NUCLIO_TEST_KUBECTL_CLI_ARCH) \
 		--build-arg KUBECTL_CLI_VERSION=$(NUCLIO_TEST_KUBECTL_CLI_VERSION) \
-		--build-arg NUCLIO_DOCKER_ARCH=$(NUCLIO_TEST_DOCKER_ARCH) \
-		--build-arg NUCLIO_KUBECTL_ARCH=$(NUCLIO_TEST_KUBECTL_ARCH) \
 		--file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
 		--tag $(NUCLIO_DOCKER_TEST_TAG) .
 
