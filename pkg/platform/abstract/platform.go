@@ -1251,12 +1251,16 @@ func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Con
 			valueToValidate := strings.TrimSuffix(*fieldValue, "/")
 			if _, err := reference.Parse(valueToValidate); err != nil {
 				ap.Logger.WarnWith("Invalid docker image ref passed in spec field - this may be malicious",
+					"err", err,
 					"fieldName", fieldName,
 					"fieldValue", fieldValue)
 
 				// if this is invalid it might also ruin the response serialization - clean out the offending field
 				*fieldValue = ""
-				return nuclio.WrapErrBadRequest(errors.Wrapf(err, "Invalid %s passed", fieldName))
+
+				// do not return "err" itself as root cause, to avoid confusion when returning the error to the user
+				// note: err is being logged above.
+				return nuclio.NewErrBadRequest("Invalid %s passed")
 			}
 		}
 	}
