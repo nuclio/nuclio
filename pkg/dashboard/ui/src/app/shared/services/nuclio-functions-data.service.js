@@ -56,12 +56,14 @@
         /**
          * Gets function details
          * @param {Object} functionData
+         * @param {boolean} enrichApiGateways - determines whether to enrich functions with their related API gateways
          * @returns {Promise}
          */
-        function getFunction(functionData) {
+        function getFunction(functionData, enrichApiGateways) {
             var headers = {
                 'Content-Type': 'application/json',
-                'x-nuclio-project-name': functionData.projectName
+                'x-nuclio-project-name': functionData.projectName,
+                'x-nuclio-function-enrich-apigateways': enrichApiGateways
             };
 
             lodash.assign(headers, NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-function-namespace'));

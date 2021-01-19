@@ -186,7 +186,7 @@
                                 projectName: project.metadata.name
                             };
 
-                            return NuclioFunctionsDataService.getFunction(functionMetadata)
+                            return NuclioFunctionsDataService.getFunction(functionMetadata, true)
                                 .catch(function (error) {
                                     var defaultMsg =
                                         $i18next.t('functions:ERROR_MSG.GET_FUNCTION', { lng: i18next.language });
