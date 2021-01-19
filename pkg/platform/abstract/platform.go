@@ -1059,14 +1059,14 @@ func (ap *Platform) validateMinMaxReplicas(functionConfig *functionconfig.Config
 
 	if minReplicas != nil {
 		if maxReplicas == nil && *minReplicas == 0 {
-			return nuclio.WrapErrBadRequest(errors.New("Max replicas must be set when min replicas is zero"))
+			return nuclio.NewErrBadRequest("Max replicas must be set when min replicas is zero")
 		}
 		if maxReplicas != nil && *minReplicas > *maxReplicas {
-			return nuclio.WrapErrBadRequest(errors.New("Min replicas must be less than or equal to max replicas"))
+			return nuclio.NewErrBadRequest("Min replicas must be less than or equal to max replicas")
 		}
 	}
 	if maxReplicas != nil && *maxReplicas == 0 {
-		return nuclio.WrapErrBadRequest(errors.New("Max replicas must be greater than zero"))
+		return nuclio.NewErrBadRequest("Max replicas must be greater than zero")
 	}
 
 	return nil
@@ -1087,7 +1087,7 @@ func (ap *Platform) validateProjectExists(functionConfig *functionconfig.Config)
 	}
 
 	if len(projects) == 0 {
-		return nuclio.WrapErrPreconditionFailed(errors.New("Project does not exist"))
+		return nuclio.NewErrPreconditionFailed("Project does not exist")
 	}
 	return nil
 }
@@ -1143,14 +1143,14 @@ func (ap *Platform) validateIngresses(triggers map[string]functionconfig.Trigger
 			// validate ingresses structure
 			encodedIngresses, validStructure := encodedIngresses.(map[string]interface{})
 			if !validStructure {
-				return nuclio.WrapErrBadRequest(errors.Errorf("Malformed structure for ingresses in trigger '%s' (expects a map)", triggerName))
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Malformed structure for ingresses in trigger '%s' (expects a map)", triggerName))
 			}
 
 			for encodedIngressName, encodedIngress := range encodedIngresses {
 
 				// validate each ingress structure
 				if _, validStructure := encodedIngress.(map[string]interface{}); !validStructure {
-					return nuclio.WrapErrBadRequest(errors.Errorf("Malformed structure for ingress '%s' in trigger '%s'", encodedIngressName, triggerName))
+					return nuclio.NewErrBadRequest(fmt.Sprintf("Malformed structure for ingress '%s' in trigger '%s'", encodedIngressName, triggerName))
 				}
 			}
 		}
