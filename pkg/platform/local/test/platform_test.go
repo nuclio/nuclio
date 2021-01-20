@@ -176,6 +176,7 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 		})
 }
 
+// Test deploying a function using volume mount
 func (suite *TestSuite) TestDeployFunctionVolumeMount() {
 	createFunctionOptions := suite.getDeployOptions("volume-mount")
 	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
@@ -194,12 +195,52 @@ func (suite *TestSuite) TestDeployFunctionVolumeMount() {
 
 			containerMount := containers[0].Mounts[0]
 			suite.Require().Equal(string(local.FunctionMountModeVolume), containerMount.Type)
-			suite.Require().Equal(localPlatform.GetFunctionMountVolumeName(&createFunctionOptions.FunctionConfig), containerMount.Name)
+			suite.Require().Equal(localPlatform.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig), containerMount.Name)
 			suite.Require().Equal(local.FunctionProcessorContainerDirPath, containerMount.Destination)
 			suite.Require().Equal(false, containerMount.RW)
 			return true
 		},
+
+		// Re-deploy to ensure even if its volume mount exists - it would be used.
 		func(deployResult *platform.CreateFunctionResult) bool {
+			return true
+		})
+}
+
+// Test deleting a function while its volume mount is missing
+func (suite *TestSuite) TestDeleteFunctionMissingVolumeMount() {
+	createFunctionOptions := suite.getDeployOptions("missing-volume-mount")
+	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
+	createFunctionOptions.FunctionConfig.Spec.Platform.Attributes = map[string]interface{}{
+		"mountMode": local.FunctionMountModeVolume,
+	}
+	localPlatform := suite.Platform.(*local.Platform)
+	suite.DeployFunction(createFunctionOptions,
+
+		// sanity
+		func(deployResult *platform.CreateFunctionResult) bool {
+			containers, err := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
+				Name: localPlatform.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
+			})
+			suite.Require().NoError(err, "Failed to get containers")
+
+			functionVolumeMountName := localPlatform.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig)
+
+			// stop container
+			err = suite.DockerClient.RemoveContainer(containers[0].ID)
+			suite.Require().NoError(err)
+
+			// delete its volume
+			err = suite.DockerClient.DeleteVolume(functionVolumeMountName)
+			suite.Require().NoError(err)
+
+			// ensure delete function succeeded
+			err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Meta: createFunctionOptions.FunctionConfig.Meta,
+				},
+			})
+			suite.Require().NoError(err)
 			return true
 		})
 }
