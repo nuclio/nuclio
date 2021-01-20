@@ -751,7 +751,7 @@ func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platfor
 			return nil, nil, errors.Wrap(err, "Failed to prepare a function's volume mount")
 		}
 		mountPoints = append(mountPoints, dockerclient.MountPoint{
-			Source:      p.GetFunctionMountVolumeName(&createFunctionOptions.FunctionConfig),
+			Source:      p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
 			Destination: FunctionProcessorContainerDirPath,
 
 			// read only mode
@@ -846,7 +846,7 @@ func (p *Platform) GetContainerNameByCreateFunctionOptions(createFunctionOptions
 		createFunctionOptions.FunctionConfig.Meta.Name)
 }
 
-func (p *Platform) GetFunctionMountVolumeName(functionConfig *functionconfig.Config) string {
+func (p *Platform) GetFunctionVolumeMountName(functionConfig *functionconfig.Config) string {
 	return fmt.Sprintf("nuclio-%s-%s",
 		functionConfig.Meta.Namespace,
 		functionConfig.Meta.Name)
@@ -1033,7 +1033,7 @@ func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.Cr
 
 	// create docker volume
 	if err := p.dockerClient.CreateVolume(&dockerclient.CreateVolumeOptions{
-		Name: p.GetFunctionMountVolumeName(&createFunctionOptions.FunctionConfig),
+		Name: p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
 	}); err != nil {
 		return errors.Wrapf(err, "Failed to create a volume for function %s",
 			createFunctionOptions.FunctionConfig.Meta.Name)
@@ -1052,7 +1052,7 @@ func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.Cr
 		Remove: true,
 		MountPoints: []dockerclient.MountPoint{
 			{
-				Source:      p.GetFunctionMountVolumeName(&createFunctionOptions.FunctionConfig),
+				Source:      p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
 				Destination: FunctionProcessorContainerDirPath,
 				RW:          true,
 			},
