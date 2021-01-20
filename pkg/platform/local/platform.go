@@ -702,24 +702,10 @@ func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions)
 		}
 	}
 
-	// get function platform specific configuration
-	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&deleteFunctionOptions.FunctionConfig)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create a function's platform configuration")
-	}
-
-	// get function processor mount mode
-	functionMountMode, err := p.resolveFunctionMountMode(functionPlatformConfiguration)
-	if err != nil {
-		return errors.Wrap(err, "Failed to resolve processor mount mode")
-	}
-
-	if functionMountMode == FunctionMountModeVolume {
-
-		// delete function volumes after containers are deleted
-		if err := p.dockerClient.DeleteVolume(p.GetFunctionMountVolumeName(&deleteFunctionOptions.FunctionConfig)); err != nil {
-			return errors.Wrapf(err, "Failed to delete a function volume")
-		}
+	// delete function volume mount after containers are deleted
+	functionVolumeMountName := p.GetFunctionVolumeMountName(&deleteFunctionOptions.FunctionConfig)
+	if err := p.dockerClient.DeleteVolume(functionVolumeMountName); err != nil {
+		return errors.Wrapf(err, "Failed to delete a function volume")
 	}
 
 	p.Logger.InfoWith("Successfully deleted function",
