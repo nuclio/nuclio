@@ -15,7 +15,9 @@
 #
 # Build assets stage: builds the dashboard assets (js, html, css, etc)
 #
+ARG NGINX_IMAGE=nginx
 ARG NUCLIO_LABEL
+ARG UHTTPC_ARCH=amd64
 
 FROM node:10.21.0 as build-static
 
@@ -36,27 +38,33 @@ RUN npm install -g gulp \
 FROM nuclio-base:$NUCLIO_LABEL as build-binary
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
+ARG GOOS=linux
+ARG GOARCH=amd64
 
 # build the dashboard
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+RUN GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
     -o dashboard cmd/dashboard/main.go
 
+
+FROM quay.io/nuclio/uhttpc:0.0.1-$UHTTPC_ARCH AS uhttpc
+
 #
 # Output stage: Creates version file, copies binary and assets to an alpine image
 #
 
-FROM nginx:stable-alpine
+FROM $NGINX_IMAGE
 
-ARG DOCKER_CLI_VERSION="19.03.12"
+# docker client
+ARG DOCKER_CLI_ARCH=x86_64
+ARG DOCKER_CLI_VERSION="19.03.14"
+ENV DOCKER_CLI_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$DOCKER_CLI_ARCH/docker-$DOCKER_CLI_VERSION.tgz"
 
-ENV DOWNLOAD_URL="https://download.docker.com/linux/static/stable/x86_64/docker-$DOCKER_CLI_VERSION.tgz"
-
-RUN apk --update --no-cache add ca-certificates git curl parallel \
+RUN apk --update --no-cache add ca-certificates git parallel curl \
     && mkdir -p /tmp/download \
-    && curl -L $DOWNLOAD_URL | tar -xz -C /tmp/download \
+    && curl -L $DOCKER_CLI_DOWNLOAD_URL | tar -xz -C /tmp/download \
     && mv /tmp/download/docker/docker /usr/local/bin/ \
     && rm -rf /tmp/download \
     && apk del curl
@@ -78,7 +86,7 @@ COPY --from=build-static /home/nuclio/dashboard/src/dist /etc/nginx/static/
 COPY --from=build-binary /nuclio/dashboard /usr/local/bin
 
 # copy a lightweight http client
-COPY --from=quay.io/nuclio/uhttpc:0.0.1-amd64 /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 
 HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 

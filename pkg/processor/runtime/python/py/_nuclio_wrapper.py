@@ -53,6 +53,9 @@ class Wrapper(object):
         self._processor_sock = None
         self._platform = nuclio_sdk.Platform(platform_kind, namespace=namespace)
 
+        # 1gb
+        self._max_buffer_size = 1024 * 1024 * 1024
+
         # holds the function that will be called
         self._entrypoint = self._load_entrypoint_from_handler(handler)
 
@@ -143,7 +146,7 @@ class Wrapper(object):
         it is not mandatory to provide security over max buffer size.
         the request limit should be handled on the processor level.
         """
-        return msgpack.Unpacker(raw=False, max_buffer_size=2 ** 32 - 1)
+        return msgpack.Unpacker(raw=False, max_buffer_size=self._max_buffer_size)
 
     def _load_entrypoint_from_handler(self, handler):
         """

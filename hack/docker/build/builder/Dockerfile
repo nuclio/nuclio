@@ -15,8 +15,11 @@
 
 FROM golang:1.14.3
 
-ENV GOOS=linux
-ENV GOARCH=amd64
+ARG GOOS=linux
+ARG GOARCH=amd64
+
+ENV GOOS $GOOS
+ENV GOARCH $GOARCH
 
 WORKDIR /nuclio
 
