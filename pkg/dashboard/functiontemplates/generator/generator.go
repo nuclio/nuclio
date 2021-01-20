@@ -461,11 +461,6 @@ func newGenerator(logger logger.Logger, examplesDir string, outputPath string) (
 		},
 		{
 			InlineParser:  poundParser,
-			FileExtension: ".py",
-			Name:          "pypy",
-		},
-		{
-			InlineParser:  poundParser,
 			FileExtension: ".sh",
 			Name:          "shell",
 		},
