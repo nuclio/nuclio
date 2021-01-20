@@ -110,11 +110,11 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 			// Trigger function containers healthiness validation
 			go suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness()
 
-			// Wait for function to get into error state
+			// Wait for function to become unhealthy
 			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
 				Name:      functionName,
 				Namespace: suite.namespace,
-			}, functionconfig.FunctionStateError, time.Minute)
+			}, functionconfig.FunctionStateUnhealthy, time.Minute)
 
 			// Start the container
 			err = suite.DockerClient.StartContainer(deployResult.ContainerID)
@@ -176,11 +176,12 @@ func (suite *TestSuite) TestImportFunctionFlow() {
 		})
 }
 
+// Test deploying a function using volume mount
 func (suite *TestSuite) TestDeployFunctionVolumeMount() {
 	createFunctionOptions := suite.getDeployOptions("volume-mount")
 	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
 	createFunctionOptions.FunctionConfig.Spec.Platform.Attributes = map[string]interface{}{
-		"processorMountMode": local.ProcessorMountModeVolume,
+		"mountMode": local.FunctionMountModeVolume,
 	}
 	localPlatform := suite.Platform.(*local.Platform)
 	suite.DeployFunctionAndRedeploy(createFunctionOptions,
@@ -192,14 +193,54 @@ func (suite *TestSuite) TestDeployFunctionVolumeMount() {
 			})
 			suite.Require().NoError(err, "Failed to get containers")
 
-			containerProcessorMount := containers[0].Mounts[0]
-			suite.Require().Equal(string(local.ProcessorMountModeVolume), containerProcessorMount.Type)
-			suite.Require().Equal(localPlatform.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig), containerProcessorMount.Name)
-			suite.Require().Equal(local.FunctionProcessorContainerDirPath, containerProcessorMount.Destination)
-			suite.Require().Equal(false, containerProcessorMount.RW)
+			containerMount := containers[0].Mounts[0]
+			suite.Require().Equal(string(local.FunctionMountModeVolume), containerMount.Type)
+			suite.Require().Equal(localPlatform.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig), containerMount.Name)
+			suite.Require().Equal(local.FunctionProcessorContainerDirPath, containerMount.Destination)
+			suite.Require().Equal(false, containerMount.RW)
 			return true
 		},
+
+		// Re-deploy to ensure even if its volume mount exists - it would be used.
 		func(deployResult *platform.CreateFunctionResult) bool {
+			return true
+		})
+}
+
+// Test deleting a function while its volume mount is missing
+func (suite *TestSuite) TestDeleteFunctionMissingVolumeMount() {
+	createFunctionOptions := suite.getDeployOptions("missing-volume-mount")
+	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
+	createFunctionOptions.FunctionConfig.Spec.Platform.Attributes = map[string]interface{}{
+		"mountMode": local.FunctionMountModeVolume,
+	}
+	localPlatform := suite.Platform.(*local.Platform)
+	suite.DeployFunction(createFunctionOptions,
+
+		// sanity
+		func(deployResult *platform.CreateFunctionResult) bool {
+			containers, err := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
+				Name: localPlatform.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
+			})
+			suite.Require().NoError(err, "Failed to get containers")
+
+			functionVolumeMountName := localPlatform.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig)
+
+			// stop container
+			err = suite.DockerClient.RemoveContainer(containers[0].ID)
+			suite.Require().NoError(err)
+
+			// delete its volume
+			err = suite.DockerClient.DeleteVolume(functionVolumeMountName)
+			suite.Require().NoError(err)
+
+			// ensure delete function succeeded
+			err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Meta: createFunctionOptions.FunctionConfig.Meta,
+				},
+			})
+			suite.Require().NoError(err)
 			return true
 		})
 }
