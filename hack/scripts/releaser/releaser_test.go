@@ -90,8 +90,8 @@ func (suite *ReleaserTestSuite) TestCreateReleaseCopyToClipboard() {
 }
 
 func (suite *ReleaserTestSuite) TestBumpHelmChartVersion() {
-	suite.releaser.releaseBranch = "blabla"
-	suite.releaser.developmentBranch = "blabla"
+	suite.releaser.releaseBranch = "x.y.z"
+	suite.releaser.developmentBranch = "x.y.z"
 	suite.releaser.skipPublishHelmCharts = true
 
 	// checkout to release branch
@@ -161,6 +161,7 @@ func (suite *ReleaserTestSuite) TestBumpHelmChartVersion() {
 }
 
 func (suite *ReleaserTestSuite) TestResolveDesiredPatchVersions() {
+	suite.releaser.bumpPatch = true
 	suite.releaser.helmChartConfig = helmChart{
 		Version: semver.Version{
 			Patch: 1,
@@ -169,7 +170,7 @@ func (suite *ReleaserTestSuite) TestResolveDesiredPatchVersions() {
 			Patch: 2,
 		},
 	}
-	err := suite.releaser.resolveDesiredPatchVersion()
+	err := suite.releaser.populateBumpedVersions()
 	suite.Require().NoError(err)
 
 	suite.Require().Equal(suite.releaser.helmChartConfig.AppVersion.Patch+1,

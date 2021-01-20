@@ -68,6 +68,8 @@ type Release struct {
 	skipBumpHelmChart       bool
 	skipCreateRelease       bool
 	bumpPatch               bool
+	bumpMinor               bool
+	bumpMajor               bool
 
 	logger    logger.Logger
 	cmdRunner cmdrunner.CmdRunner
@@ -91,13 +93,6 @@ func NewRelease(cmdRunner cmdrunner.CmdRunner, logger logger.Logger) *Release {
 func (r *Release) Run() error {
 	if err := r.prepareRepository(); err != nil {
 		return errors.Wrap(err, "Failed to ensure repository")
-	}
-
-	// bumping patch, resolve desired versions now
-	if r.bumpPatch {
-		if err := r.resolveDesiredPatchVersion(); err != nil {
-			return errors.Wrap(err, "Failed to resolve desired patch version")
-		}
 	}
 
 	if err := r.populateCurrentAndTargetVersions(); err != nil {
@@ -219,6 +214,11 @@ func (r *Release) resolveHelmChartFullPath() string {
 func (r *Release) populateCurrentAndTargetVersions() error {
 	runOptions := &cmdrunner.RunOptions{
 		WorkingDir: &r.repositoryDirPath,
+	}
+
+	// try populate bumped versions
+	if err := r.populateBumpedVersions(); err != nil {
+		return errors.Wrap(err, "Failed to resolve desired patch version")
 	}
 
 	// current version is empty, infer from tags
@@ -705,7 +705,11 @@ func (r *Release) resolveGithubActionAPIRequest(method, url string, body io.Read
 	return request, nil
 }
 
-func (r *Release) resolveDesiredPatchVersion() error {
+func (r *Release) populateBumpedVersions() error {
+	if !(r.bumpPatch || r.bumpMinor || r.bumpMajor) {
+		return nil
+	}
+
 	if err := r.targetVersion.Set(r.helmChartConfig.AppVersion.String()); err != nil {
 		return errors.Wrap(err, "Failed to set target version")
 	}
@@ -719,11 +723,20 @@ func (r *Release) resolveDesiredPatchVersion() error {
 	}
 
 	// bump targets
-	r.targetVersion.BumpPatch()
-	r.helmChartsTargetVersion.BumpPatch()
+	if r.bumpPatch {
+		r.targetVersion.BumpPatch()
+		r.helmChartsTargetVersion.BumpPatch()
+	} else if r.bumpMinor {
+		r.targetVersion.BumpMinor()
+		r.helmChartsTargetVersion.BumpMinor()
+	} else if r.bumpMajor {
+		r.targetVersion.BumpMajor()
+		r.helmChartsTargetVersion.BumpMajor()
+	}
 
 	r.logger.DebugWith("Successfully bumped patch versions",
 		"currentVersion", r.currentVersion,
+		"currentHelmChartsVersion", r.helmChartConfig.Version,
 		"targetVersion", r.targetVersion,
 		"helmChartsTargetVersion", r.helmChartsTargetVersion)
 	return nil
@@ -761,6 +774,8 @@ func run() error {
 	flag.BoolVar(&release.skipBumpHelmChart, "skip-bump-helm-chart", false, "Skip bump helm chart")
 	flag.BoolVar(&release.skipPublishHelmCharts, "skip-publish-helm-charts", false, "Whether to skip publishing helm charts")
 	flag.BoolVar(&release.bumpPatch, "bump-patch", false, "Resolve chart version and bump both Nuclio and Chart patch version")
+	flag.BoolVar(&release.bumpMinor, "bump-minor", false, "Resolve chart version and bump both Nuclio and Chart minor version")
+	flag.BoolVar(&release.bumpMajor, "bump-minor", false, "Resolve chart version and bump both Nuclio and Chart major version")
 	flag.Parse()
 
 	release.logger.InfoWith("Running release",
