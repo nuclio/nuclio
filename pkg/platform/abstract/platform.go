@@ -1059,14 +1059,14 @@ func (ap *Platform) validateMinMaxReplicas(functionConfig *functionconfig.Config
 
 	if minReplicas != nil {
 		if maxReplicas == nil && *minReplicas == 0 {
-			return errors.New("Max replicas must be set when min replicas is zero")
+			return nuclio.NewErrBadRequest("Max replicas must be set when min replicas is zero")
 		}
 		if maxReplicas != nil && *minReplicas > *maxReplicas {
-			return errors.New("Min replicas must be less than or equal to max replicas")
+			return nuclio.NewErrBadRequest("Min replicas must be less than or equal to max replicas")
 		}
 	}
 	if maxReplicas != nil && *maxReplicas == 0 {
-		return errors.New("Max replicas must be greater than zero")
+		return nuclio.NewErrBadRequest("Max replicas must be greater than zero")
 	}
 
 	return nil
@@ -1083,11 +1083,11 @@ func (ap *Platform) validateProjectExists(functionConfig *functionconfig.Config)
 	}
 	projects, err := ap.platform.GetProjects(getProjectsOptions)
 	if err != nil {
-		return errors.Wrap(err, "Failed getting projects")
+		return errors.Wrap(err, "Failed to get projects")
 	}
 
 	if len(projects) == 0 {
-		return errors.New("Project does not exist")
+		return nuclio.NewErrPreconditionFailed("Project does not exist")
 	}
 	return nil
 }
@@ -1143,15 +1143,14 @@ func (ap *Platform) validateIngresses(triggers map[string]functionconfig.Trigger
 			// validate ingresses structure
 			encodedIngresses, validStructure := encodedIngresses.(map[string]interface{})
 			if !validStructure {
-				return errors.Errorf("Malformed structure for ingresses in trigger '%s' (expects a map)", triggerName)
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Malformed structure for ingresses in trigger '%s' (expects a map)", triggerName))
 			}
 
 			for encodedIngressName, encodedIngress := range encodedIngresses {
 
 				// validate each ingress structure
-				_, validStructure := encodedIngress.(map[string]interface{})
-				if !validStructure {
-					return errors.Errorf("Malformed structure for ingress '%s' in trigger '%s'", encodedIngressName, triggerName)
+				if _, validStructure := encodedIngress.(map[string]interface{}); !validStructure {
+					return nuclio.NewErrBadRequest(fmt.Sprintf("Malformed structure for ingress '%s' in trigger '%s'", encodedIngressName, triggerName))
 				}
 			}
 		}
@@ -1247,17 +1246,21 @@ func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Con
 		"Spec.Build.BaseImageRegistry": &functionConfig.Spec.Build.BaseImageRegistry,
 	} {
 		if *fieldValue != "" {
+
 			// HACK: cleanup possible trailing /
 			valueToValidate := strings.TrimSuffix(*fieldValue, "/")
 			if _, err := reference.Parse(valueToValidate); err != nil {
 				ap.Logger.WarnWith("Invalid docker image ref passed in spec field - this may be malicious",
+					"err", err,
 					"fieldName", fieldName,
 					"fieldValue", fieldValue)
 
 				// if this is invalid it might also ruin the response serialization - clean out the offending field
 				*fieldValue = ""
 
-				return errors.Wrapf(err, "Invalid %s passed", fieldName)
+				// do not return "err" itself as root cause, to avoid confusion when returning the error to the user
+				// note: err is being logged above.
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Invalid %s passed", fieldName))
 			}
 		}
 	}
