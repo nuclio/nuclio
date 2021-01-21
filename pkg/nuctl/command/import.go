@@ -201,8 +201,10 @@ func (i *importFunctionCommandeer) resolveFunctionImportConfigs(functionBody []b
 
 type importProjectCommandeer struct {
 	*importCommandeer
-	skipProjectNames         []string
-	skipLabelSelectors       string
+	skipProjectNames   []string
+	skipLabelSelectors string
+
+	// Deprecated.
 	skipTransformDisplayName bool
 }
 
@@ -259,7 +261,11 @@ Use --help for more information`)
 
 	cmd.Flags().StringSliceVar(&commandeer.skipProjectNames, "skip", []string{}, "Names of projects to skip (don't import), as a comma-separated list")
 	cmd.Flags().StringVar(&commandeer.skipLabelSelectors, "skip-label-selectors", "", "Kubernetes label-selectors filter that identifies projects to skip (don't import)")
+
+	// Deprecated. display name is longer a project's property.
 	cmd.Flags().BoolVar(&commandeer.skipTransformDisplayName, "skip-transform-display-name", false, "Skip replacing 'spec.displayName' with 'metadata.name' in the imported configuration when 'metadata.name' isn't set or is set as a UUID")
+	cmd.Flags().MarkDeprecated("skip-transform-display-name", "Display name has been deprecated on versions < 1.6.0, use nuctl at version 1.5.16 to transform project with display name") // // nolint: errcheck
+
 	commandeer.cmd = cmd
 
 	return commandeer
@@ -399,8 +405,7 @@ func (i *importProjectCommandeer) importProjects(projectsImportOptions map[strin
 	i.rootCommandeer.loggerInstance.DebugWith("Importing projects",
 		"projectsImportOptions", projectsImportOptions,
 		"skipLabelSelectors", i.skipLabelSelectors,
-		"skipProjectNames", i.skipProjectNames,
-		"skipTransformDisplayName", i.skipTransformDisplayName)
+		"skipProjectNames", i.skipProjectNames)
 
 	// TODO: parallel this with errorGroup, mutex is required due to multi map writers
 	for projectName, projectImportOptions := range projectsImportOptions {
@@ -468,8 +473,7 @@ func (i *importProjectCommandeer) resolveImportProjectsOptions(projectBody []byt
 
 	for projectName, importConfig := range projectImportConfigs {
 		projectImportOptions[projectName] = &ProjectImportOptions{
-			projectImportConfig:      importConfig,
-			skipTransformDisplayName: i.skipTransformDisplayName,
+			projectImportConfig: importConfig,
 		}
 	}
 	return projectImportOptions, nil
@@ -547,8 +551,7 @@ func (i *importProjectCommandeer) importProjectIfMissing(projectImportOptions *P
 		}
 
 		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
-			ProjectConfig:            newProject.GetConfig(),
-			SkipTransformDisplayName: projectImportOptions.skipTransformDisplayName,
+			ProjectConfig: newProject.GetConfig(),
 		}); err != nil {
 			return nil, err
 		}

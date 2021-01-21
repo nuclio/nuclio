@@ -157,10 +157,6 @@ type ProjectMeta struct {
 }
 
 type ProjectSpec struct {
-
-	// Deprecated. Will be removed in the next minor (1.6.x) version release
-	// Use ProjectMeta.Name instead
-	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
 }
 
@@ -171,14 +167,10 @@ type ProjectConfig struct {
 
 func (pc *ProjectConfig) Scrub() {
 	pc.Meta.ResourceVersion = ""
-
-	// Deprecated.
-	pc.Spec.DisplayName = ""
 }
 
 type CreateProjectOptions struct {
-	ProjectConfig            *ProjectConfig
-	SkipTransformDisplayName bool
+	ProjectConfig *ProjectConfig
 }
 
 type UpdateProjectOptions struct {

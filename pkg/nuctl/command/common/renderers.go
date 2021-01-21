@@ -152,7 +152,7 @@ func RenderProjects(projects []platform.Project,
 
 	switch format {
 	case OutputFormatText, OutputFormatWide:
-		header := []string{"Namespace", "Name", "Display Name (Deprecated.)"}
+		header := []string{"Namespace", "Name"}
 		if format == OutputFormatWide {
 			header = append(header, []string{
 				"Description",
@@ -168,7 +168,6 @@ func RenderProjects(projects []platform.Project,
 			projectFields := []string{
 				project.GetConfig().Meta.Namespace,
 				project.GetConfig().Meta.Name,
-				project.GetConfig().Spec.DisplayName,
 			}
 
 			// add fields for wide view
