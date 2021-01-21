@@ -69,6 +69,17 @@ jobs:
         username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
         password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
 
+    # for none x86_64 platforms
+    - name: Install QEMU
+      if: matrix.arch != 'amd64'
+      run: |
+
+        # install os packages
+        sudo apt update -qqy && sudo apt -qqy install qemu qemu-user-static
+
+        # enabled non arm64 docker containers executables
+        docker run --rm --privileged multiarch/qemu-user-static:latest --reset -p yes
+
     - name: Build
       run: make docker-images
       env:
@@ -106,6 +117,7 @@ jobs:
 
     - name: Upload binaries
       uses: AButler/upload-release-assets@v2.0
+      if: github.event_name == 'release'
       with:
         files: '/home/runner/go/bin/nuctl-*'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
