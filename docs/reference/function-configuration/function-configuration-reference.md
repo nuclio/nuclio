@@ -67,7 +67,6 @@ The `spec` section contains the requirements and attributes and has the followin
 | minReplicas | int | The minimum number of replicas |
 | platform.attributes.restartPolicy.name | string | The name of the restart policy for the function-image container; applicable only to Docker platforms |
 | platform.attributes.restartPolicy.maximumRetryCount | int | The maximum retries for restarting the function-image container; applicable only to Docker platforms |
-| platform.attributes.processorMountMode | string | (DEPRECATED, use MountMode instead)
 | platform.attributes.mountMode | string | Function mount mode, which determines how Docker mounts the function configurations - `bind` \| `volume` (default: `bind`); applicable only to Docker platforms |
 | maxReplicas | int | The maximum number of replicas |
 | targetCPU | int | Target CPU when auto scaling, as a percentage (default: 75%) |
