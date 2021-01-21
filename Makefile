@@ -132,7 +132,7 @@ GO_BUILD_NUCTL = docker run \
 build: docker-images tools
 	@echo Done.
 
-DOCKER_IMAGES_RULES = \
+DOCKER_IMAGES_RULES ?= \
 	controller \
 	dashboard \
 	processor \
@@ -151,17 +151,18 @@ docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
 tools: ensure-gopath nuctl
 	@echo Done.
 
-push-docker-images:
-	for image in $(IMAGES_TO_PUSH); do \
-		docker push $$image ; \
-	done
+push-docker-images: print-docker-images
+	@echo "Pushing images concurrently"
+	@echo $(IMAGES_TO_PUSH) | xargs -n 1 -P 5 docker push
 	@echo Done.
 
-save-docker-images:
+save-docker-images: print-docker-images
+	@echo "Saving Nuclio docker images"
 	docker save $(IMAGES_TO_PUSH) | pigz --fast > nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
 
 print-docker-images:
-	for image in $(IMAGES_TO_PUSH); do \
+	@echo "Nuclio Docker images:"
+	@for image in $(IMAGES_TO_PUSH); do \
 		echo $$image ; \
 	done
 
@@ -188,7 +189,9 @@ processor: ensure-gopath build-base
 		--file cmd/processor/Dockerfile \
 		--tag $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG)
+ifneq ($(filter processor,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG))
+endif
 
 #
 # Dockerized services
@@ -207,7 +210,9 @@ controller: ensure-gopath build-base
 		--tag $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
+ifneq ($(filter controller,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME))
+endif
 
 # Dashboard
 NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME    = $(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
@@ -234,7 +239,9 @@ dashboard: ensure-gopath build-base
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME)
+ifneq ($(filter dashboard,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME))
+endif
 
 # Scaler
 NUCLIO_DOCKER_SCALER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/autoscaler:$(NUCLIO_DOCKER_IMAGE_TAG)
@@ -249,7 +256,9 @@ autoscaler: ensure-gopath build-base
 		--tag $(NUCLIO_DOCKER_SCALER_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_SCALER_IMAGE_NAME)
+ifneq ($(filter autoscaler,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_SCALER_IMAGE_NAME))
+endif
 
 # Dlx
 NUCLIO_DOCKER_DLX_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_TAG)
@@ -264,7 +273,9 @@ dlx: ensure-gopath build-base
 		--tag $(NUCLIO_DOCKER_DLX_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DLX_IMAGE_NAME)
+ifneq ($(filter dlx,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DLX_IMAGE_NAME))
+endif
 
 #
 # Onbuild images
@@ -283,7 +294,9 @@ handler-builder-python-onbuild:
 		--file pkg/processor/build/runtime/python/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME)
+ifneq ($(filter handler-builder-python-onbuild,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME))
+endif
 
 # Go
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=\
@@ -308,8 +321,10 @@ handler-builder-golang-onbuild: build-base handler-builder-golang-onbuild-alpine
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) \
-	$(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME)
+ifneq ($(filter handler-builder-golang-onbuild,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME))
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME))
+endif
 
 # NodeJS
 NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME=\
@@ -322,7 +337,9 @@ handler-builder-nodejs-onbuild:
 		--file pkg/processor/build/runtime/nodejs/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME)
+ifneq ($(filter handler-builder-nodejs-onbuild,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME))
+endif
 
 # Ruby
 NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME=\
@@ -335,7 +352,9 @@ handler-builder-ruby-onbuild:
 		--file pkg/processor/build/runtime/ruby/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME)
+ifneq ($(filter handler-builder-ruby-onbuild,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME))
+endif
 
 
 # dotnet core
@@ -349,7 +368,9 @@ handler-builder-dotnetcore-onbuild: processor
 		-f $(NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH) \
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME)
+ifneq ($(filter handler-builder-dotnetcore-onbuild,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME))
+endif
 
 # java
 NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME=\
@@ -362,7 +383,9 @@ handler-builder-java-onbuild:
 		--file pkg/processor/build/runtime/java/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME)
+ifneq ($(filter handler-builder-java-onbuild,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME))
+endif
 
 .PHONY: modules
 modules: ensure-gopath
