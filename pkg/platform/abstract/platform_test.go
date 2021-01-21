@@ -17,7 +17,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/hashicorp/go-uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -102,37 +101,6 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 			},
 			ExpectedProjectName: "a-name",
 		},
-		{
-			Name: "NameUUIDTransformDisplayName",
-			CreateProjectOptions: &platform.CreateProjectOptions{
-				ProjectConfig: &platform.ProjectConfig{
-					Meta: platform.ProjectMeta{
-						Name: func() string {
-							generatedUUID, _ := uuid.GenerateUUID()
-							return generatedUUID
-						}(),
-					},
-					Spec: platform.ProjectSpec{
-						DisplayName: "oops",
-					},
-				},
-			},
-			ExpectedProjectName: "oops",
-		},
-		{
-			Name: "NameEmptyTransformDisplayName",
-			CreateProjectOptions: &platform.CreateProjectOptions{
-				ProjectConfig: &platform.ProjectConfig{
-					Meta: platform.ProjectMeta{
-						Name: "",
-					},
-					Spec: platform.ProjectSpec{
-						DisplayName: "oops",
-					},
-				},
-			},
-			ExpectedProjectName: "oops",
-		},
 
 		// bad flows
 		{
@@ -157,21 +125,6 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 			},
 			ExpectValidationFailure: true,
 		},
-		{
-			Name:                "DisplayNameNotEmpty",
-			ExpectedProjectName: "test",
-			CreateProjectOptions: &platform.CreateProjectOptions{
-				ProjectConfig: &platform.ProjectConfig{
-					Meta: platform.ProjectMeta{
-						Name: "test",
-					},
-					Spec: platform.ProjectSpec{
-						DisplayName: "oops",
-					},
-				},
-			},
-			ExpectValidationFailure: true,
-		},
 	} {
 		suite.Run(testCase.Name, func() {
 			defer func() {
@@ -186,9 +139,6 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 				suite.Require().NoError(err)
 				suite.Require().Equal(testCase.ExpectedProjectName,
 					testCase.CreateProjectOptions.ProjectConfig.Meta.Name)
-
-				// display name should not be carried on
-				suite.Require().Empty(testCase.CreateProjectOptions.ProjectConfig.Spec.DisplayName)
 			}
 		})
 	}

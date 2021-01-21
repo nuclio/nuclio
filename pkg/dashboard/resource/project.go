@@ -54,7 +54,6 @@ type projectImportInfo struct {
 type ProjectImportOptions struct {
 	projectInfo              *projectImportInfo
 	authConfig               *platform.AuthConfig
-	skipTransformDisplayName bool
 }
 
 // GetAll returns all projects
@@ -355,7 +354,6 @@ func (pr *projectResource) importProjectIfMissing(projectImportOptions *ProjectI
 
 		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
 			ProjectConfig:            newProject.GetConfig(),
-			SkipTransformDisplayName: projectImportOptions.skipTransformDisplayName,
 		}); err != nil {
 
 			// preserve err - it might contain an informative status code (validation failure, etc)
@@ -648,8 +646,6 @@ func (pr *projectResource) getProjectImportOptions(request *http.Request) (*Proj
 
 	return &ProjectImportOptions{
 		projectInfo: &projectImportInfoInstance,
-		skipTransformDisplayName: pr.headerValueIsTrue(request,
-			"x-nuclio-skip-transform-display-name"),
 	}, nil
 }
 

@@ -47,5 +47,4 @@ type ProjectImportConfig struct {
 
 type ProjectImportOptions struct {
 	projectImportConfig      *ProjectImportConfig
-	skipTransformDisplayName bool
 }
