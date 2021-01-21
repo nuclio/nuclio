@@ -520,10 +520,7 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 				[]functionconfig.FunctionState{
 					functionconfig.FunctionStateError,
 					functionconfig.FunctionStateUnhealthy,
-				}) && common.StringInSlice(functionStatus.Message, []string{
-				common.FunctionStateMessageUnhealthy,
-				common.DeprecatedFunctionStateMessage,
-			})
+				}) && functionStatus.Message == string(common.FunctionStateMessageUnhealthy)
 
 			if !(functionIsReady || functionWasSetAsUnhealthy) {
 
@@ -939,7 +936,7 @@ func (p *Platform) setFunctionUnhealthy(function platform.Function) error {
 	functionStatus.State = functionconfig.FunctionStateUnhealthy
 
 	// set unhealthy error message
-	functionStatus.Message = common.FunctionStateMessageUnhealthy
+	functionStatus.Message = string(common.FunctionStateMessageUnhealthy)
 
 	p.Logger.WarnWith("Setting function state as unhealthy",
 		"functionName", function.GetConfig().Meta.Name,
