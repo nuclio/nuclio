@@ -1484,6 +1484,30 @@ func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.Ser
 	return to
 }
 
+func (lc *lazyClient) GetCronTriggerInvocationURL(function *nuclioio.NuclioFunction,
+	resources Resources,
+	namespace string) (string, error) {
+
+	// if an ingress exists, use it
+	for _, ingress := range functionconfig.GetIngressesFromTriggers(function.Spec.Triggers) {
+		path := "/"
+		if len(ingress.Paths) > 0 {
+			path = ingress.Paths[0]
+		}
+
+		return fmt.Sprintf("%s%s", ingress.Host, common.NormalizeURLPath(path)), nil
+	}
+
+	// otherwise, use domain name invocation URL
+	functionService, err := resources.Service()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get function service")
+	}
+	host, port := kube.GetDomainNameInvokeURL(functionService.Name, namespace)
+
+	return fmt.Sprintf("%s:%d", host, port), nil
+}
+
 func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	resources Resources,
@@ -1526,13 +1550,10 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	// add default header
 	headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, "x-nuclio-invoke-trigger", "cron")
 
-	// get the function http trigger address from the service
-	functionService, err := resources.Service()
+	functionAddress, err := lc.GetCronTriggerInvocationURL(function, resources, function.Namespace)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function service")
+		return nil, errors.Wrap(err, "Failed to get cron trigger invocation URL")
 	}
-	host, port := kube.GetDomainNameInvokeURL(functionService.Name, function.Namespace)
-	functionAddress := fmt.Sprintf("%s:%d", host, port)
 
 	// generate the curl command to be run by the CronJob to invoke the function
 	// invoke the function (retry for 10 seconds)
