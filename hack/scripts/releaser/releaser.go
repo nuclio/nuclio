@@ -36,6 +36,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 
+	"github.com/coreos/go-semver/semver"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -49,15 +50,15 @@ const (
 )
 
 type helmChart struct {
-	Version    string `yaml:"version,omitempty"`
-	AppVersion string `yaml:"appVersion,omitempty"`
+	Version    semver.Version `yaml:"version,omitempty"`
+	AppVersion semver.Version `yaml:"appVersion,omitempty"`
 }
 
 type Release struct {
-	currentVersion          string
-	targetVersion           string
+	currentVersion          *semver.Version
+	targetVersion           *semver.Version
+	helmChartsTargetVersion *semver.Version
 	githubToken             string
-	helmChartsTargetVersion string
 	repositoryDirPath       string
 	repositoryOwnerName     string
 	repositoryScheme        string
@@ -66,6 +67,9 @@ type Release struct {
 	skipPublishHelmCharts   bool
 	skipBumpHelmChart       bool
 	skipCreateRelease       bool
+	bumpPatch               bool
+	bumpMinor               bool
+	bumpMajor               bool
 
 	logger    logger.Logger
 	cmdRunner cmdrunner.CmdRunner
@@ -78,6 +82,11 @@ func NewRelease(cmdRunner cmdrunner.CmdRunner, logger logger.Logger) *Release {
 	return &Release{
 		logger:    logger,
 		cmdRunner: cmdRunner,
+
+		// initialize with empty versions
+		currentVersion:          &semver.Version{},
+		targetVersion:           &semver.Version{},
+		helmChartsTargetVersion: &semver.Version{},
 	}
 }
 
@@ -86,12 +95,12 @@ func (r *Release) Run() error {
 		return errors.Wrap(err, "Failed to ensure repository")
 	}
 
-	if err := r.mergeAndPush(r.releaseBranch, r.developmentBranch); err != nil {
-		return errors.Wrap(err, "Failed to sync release and development branches")
-	}
-
 	if err := r.populateCurrentAndTargetVersions(); err != nil {
 		return errors.Wrap(err, "Failed to populate current and target versions")
+	}
+
+	if err := r.mergeAndPush(r.releaseBranch, r.developmentBranch); err != nil {
+		return errors.Wrap(err, "Failed to sync release and development branches")
 	}
 
 	if !r.skipCreateRelease {
@@ -203,50 +212,57 @@ func (r *Release) resolveHelmChartFullPath() string {
 }
 
 func (r *Release) populateCurrentAndTargetVersions() error {
-	var err error
 	runOptions := &cmdrunner.RunOptions{
 		WorkingDir: &r.repositoryDirPath,
 	}
 
-	if r.currentVersion == "" {
+	// try populate bumped versions
+	if err := r.populateBumpedVersions(); err != nil {
+		return errors.Wrap(err, "Failed to resolve desired patch version")
+	}
+
+	// current version is empty, infer from tags
+	if r.currentVersion.Equal(semver.Version{}) {
 
 		// nuclio binaries & images version
 		results, err := r.cmdRunner.Run(runOptions, `git describe --abbrev=0 --tags`)
 		if err != nil {
 			return errors.Wrap(err, "Failed to describe tags")
 		}
-		r.currentVersion = strings.TrimSpace(results.Output)
+		r.currentVersion = semver.New(strings.TrimSpace(results.Output))
 	}
 
-	if r.targetVersion == "" {
+	// target version is empty, prompt user for an input
+	if r.targetVersion.Equal(semver.Version{}) {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Printf("Target version (Current version: %s, Press enter to continue): ",
 			r.currentVersion)
-		r.targetVersion, err = reader.ReadString('\n')
+		targetVersion, err := reader.ReadString('\n')
 		if err != nil {
 			return errors.Wrap(err, "Failed to read target version from stdin")
 		}
+		r.targetVersion = semver.New(strings.TrimSpace(targetVersion))
 	}
-	r.targetVersion = strings.TrimSpace(r.targetVersion)
 
-	if r.helmChartsTargetVersion == "" {
+	// helm charts target version is empty, prompt user for an input
+	if r.helmChartsTargetVersion.Equal(semver.Version{}) {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Printf("Helm chart target version (Current version: %s, Press enter to continue): ",
 			r.helmChartConfig.Version)
-		r.helmChartsTargetVersion, err = reader.ReadString('\n')
+		helmChartsTargetVersionStr, err := reader.ReadString('\n')
 		if err != nil {
 			return errors.Wrap(err, "Failed to read helm chart target version from stdin")
 		}
+		r.helmChartsTargetVersion = semver.New(strings.TrimSpace(helmChartsTargetVersionStr))
 	}
-	r.helmChartsTargetVersion = strings.TrimSpace(r.helmChartsTargetVersion)
 
 	// sanity
-	for _, version := range []string{
+	for _, version := range []*semver.Version{
 		r.currentVersion,
 		r.targetVersion,
 		r.helmChartsTargetVersion,
 	} {
-		if version == "" {
+		if version == nil || version.Equal(semver.Version{}) {
 			return errors.New("Found an empty version, bailing")
 		}
 	}
@@ -268,8 +284,7 @@ func (r *Release) compileReleaseNotes() (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to describe tags")
 	}
-	releaseNotes := strings.TrimSpace(results.Output)
-	return releaseNotes, nil
+	return strings.TrimSpace(results.Output), nil
 }
 
 func (r *Release) mergeAndPush(branch string, branchToMerge string) error {
@@ -282,20 +297,18 @@ func (r *Release) mergeAndPush(branch string, branchToMerge string) error {
 	runOptions := &cmdrunner.RunOptions{
 		WorkingDir: &r.repositoryDirPath,
 	}
-	_, err := r.cmdRunner.Run(runOptions, `git checkout %s`, branch)
-	if err != nil {
+	if _, err := r.cmdRunner.Run(runOptions, `git checkout %s`, branch); err != nil {
 		return errors.Wrapf(err, "Failed to checkout to branch %s", branch)
 	}
 
-	_, err = r.cmdRunner.Run(runOptions, `git merge %s`, branchToMerge)
-	if err != nil {
+	if _, err := r.cmdRunner.Run(runOptions, `git merge %s`, branchToMerge); err != nil {
 		return errors.Wrapf(err, "Failed to merge branch %s", branchToMerge)
 	}
 
-	_, err = r.cmdRunner.Run(runOptions, `git push`)
-	if err != nil {
+	if _, err := r.cmdRunner.Run(runOptions, `git push`); err != nil {
 		return errors.Wrapf(err, "Failed to push")
 	}
+
 	return nil
 }
 
@@ -391,7 +404,7 @@ func (r *Release) getTravisReleaseStatus() (string, error) {
 	}
 	releaseBuildState := ""
 	for _, buildResponse := range BuildsResponse {
-		if buildResponse.Branch == r.targetVersion {
+		if buildResponse.Branch == r.targetVersion.String() {
 			releaseBuildState = buildResponse.State
 			break
 		}
@@ -505,8 +518,8 @@ func (r *Release) createRelease() error {
 			`open "%s/releases/new?target=%s&tag=%s&title=%s&body=%s"`,
 			r.compileRepositoryURL("https"),
 			url.QueryEscape(r.releaseBranch),
-			url.QueryEscape(r.targetVersion),
-			url.QueryEscape(r.targetVersion),
+			url.QueryEscape(r.targetVersion.String()),
+			url.QueryEscape(r.targetVersion.String()),
 			url.QueryEscape(releaseNotes)); err != nil {
 			return errors.Wrap(err, "Failed to open release in browser")
 		}
@@ -569,12 +582,7 @@ func (r *Release) bumpHelmChartVersion() error {
 		r.releaseBranch); err != nil {
 		return errors.Wrap(err, "Failed to checkout to release branch")
 	}
-	ChartDirs := []string{
-		"k8s",
-		"gke",
-		"aks",
-	}
-	for _, chartDir := range ChartDirs {
+	for _, chartDir := range r.resolveSupportedChartDirs() {
 		if _, err := r.cmdRunner.Run(runOptions,
 			`git grep -lF "%s" %s | grep yaml | xargs sed -i '' -e "s/%s/%s/g"`,
 			r.helmChartConfig.AppVersion,
@@ -697,6 +705,51 @@ func (r *Release) resolveGithubActionAPIRequest(method, url string, body io.Read
 	return request, nil
 }
 
+func (r *Release) populateBumpedVersions() error {
+	if !(r.bumpPatch || r.bumpMinor || r.bumpMajor) {
+		return nil
+	}
+
+	if err := r.targetVersion.Set(r.helmChartConfig.AppVersion.String()); err != nil {
+		return errors.Wrap(err, "Failed to set target version")
+	}
+
+	if err := r.helmChartsTargetVersion.Set(r.helmChartConfig.Version.String()); err != nil {
+		return errors.Wrap(err, "Failed to set helm charts target version")
+	}
+
+	if err := r.currentVersion.Set(r.helmChartConfig.AppVersion.String()); err != nil {
+		return errors.Wrap(err, "Failed to set current version")
+	}
+
+	// bump targets
+	if r.bumpPatch {
+		r.targetVersion.BumpPatch()
+		r.helmChartsTargetVersion.BumpPatch()
+	} else if r.bumpMinor {
+		r.targetVersion.BumpMinor()
+		r.helmChartsTargetVersion.BumpMinor()
+	} else if r.bumpMajor {
+		r.targetVersion.BumpMajor()
+		r.helmChartsTargetVersion.BumpMajor()
+	}
+
+	r.logger.DebugWith("Successfully bumped patch versions",
+		"currentVersion", r.currentVersion,
+		"currentHelmChartsVersion", r.helmChartConfig.Version,
+		"targetVersion", r.targetVersion,
+		"helmChartsTargetVersion", r.helmChartsTargetVersion)
+	return nil
+}
+
+func (r *Release) resolveSupportedChartDirs() []string {
+	return []string{
+		"k8s",
+		"gke",
+		"aks",
+	}
+}
+
 func run() error {
 	loggerInstance, err := nucliozap.NewNuclioZapCmd("releaser", nucliozap.DebugLevel)
 	if err != nil {
@@ -709,17 +762,20 @@ func run() error {
 	}
 
 	release := NewRelease(shellRunner, loggerInstance)
+	flag.Var(release.targetVersion, "target-version", "Release target version")
+	flag.Var(release.currentVersion, "current-version", "Current version")
+	flag.Var(release.helmChartsTargetVersion, "helm-charts-release-version", "Helm charts release target version")
 	flag.StringVar(&release.githubToken, "github-token", "", "A scope-less Github token header to avoid API rate limit")
-	flag.StringVar(&release.targetVersion, "target-version", "", "Release target version")
-	flag.StringVar(&release.currentVersion, "current-version", "", "Current version")
 	flag.StringVar(&release.repositoryOwnerName, "repository-owner-name", "nuclio", "Repository owner name to clone nuclio from (Default: nuclio)")
 	flag.StringVar(&release.repositoryScheme, "repository-scheme", "https", "Scheme to use when cloning nuclio repository")
 	flag.StringVar(&release.developmentBranch, "development-branch", "development", "Development branch (e.g.: development, 1.3.x")
 	flag.StringVar(&release.releaseBranch, "release-branch", "master", "Release branch (e.g.: master, 1.3.x, ...)")
 	flag.BoolVar(&release.skipCreateRelease, "skip-create-release", false, "Skip build & release flow (useful when publishing helm charts only)")
 	flag.BoolVar(&release.skipBumpHelmChart, "skip-bump-helm-chart", false, "Skip bump helm chart")
-	flag.StringVar(&release.helmChartsTargetVersion, "helm-charts-release-version", "", "Helm charts release target version")
 	flag.BoolVar(&release.skipPublishHelmCharts, "skip-publish-helm-charts", false, "Whether to skip publishing helm charts")
+	flag.BoolVar(&release.bumpPatch, "bump-patch", false, "Resolve chart version and bump both Nuclio and Chart patch version")
+	flag.BoolVar(&release.bumpMinor, "bump-minor", false, "Resolve chart version and bump both Nuclio and Chart minor version")
+	flag.BoolVar(&release.bumpMajor, "bump-minor", false, "Resolve chart version and bump both Nuclio and Chart major version")
 	flag.Parse()
 
 	release.logger.InfoWith("Running release",
