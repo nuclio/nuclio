@@ -155,12 +155,6 @@ func (py *python) getPythonExePath() (string, error) {
 
 	baseName := "python3"
 
-	_, runtimeVersion := py.configuration.Spec.GetRuntimeNameAndVersion()
-
-	if strings.HasPrefix(runtimeVersion, "2") {
-		baseName = "python2"
-	}
-
 	exePath, err := exec.LookPath(baseName)
 	if err == nil {
 		return exePath, nil

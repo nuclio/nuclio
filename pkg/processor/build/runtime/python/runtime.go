@@ -36,19 +36,12 @@ func (p *python) GetName() string {
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
-	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
+	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{
+		BaseImage: "python:3.6",
+	}
 	pythonCommonModules := []string{
 		"nuclio-sdk",
 		"msgpack",
-	}
-
-	if p.FunctionConfig.Spec.Runtime == "python:2.7" {
-		p.Logger.Warn("Python 2.7 runtime is deprecated. " +
-			"Nuclio will drop support for Python 2.7 runtime as of version 1.6.0. " +
-			"Please migrate your code to Python 3.6")
-		processorDockerfileInfo.BaseImage = "python:2.7-alpine"
-	} else {
-		processorDockerfileInfo.BaseImage = "python:3.6"
 	}
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{

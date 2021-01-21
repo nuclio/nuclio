@@ -20,8 +20,6 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
-
 	"github.com/stretchr/testify/suite"
 )
 
@@ -36,25 +34,6 @@ func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.RuntimeSuite = suite
 	suite.TestSuite.ArchivePattern = "python"
 	suite.Runtime = suite.runtime
-}
-
-func (suite *TestSuite) TestBuildPy2() {
-	if suite.Runtime != "python:2.7" {
-		suite.T().Skip("This should only run when runtime is python 2.7")
-	}
-
-	createFunctionOptions := suite.GetDeployOptions("printer",
-		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "python", "py2-printer"))
-
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:2.7"
-	createFunctionOptions.FunctionConfig.Spec.Handler = "printer:handler"
-
-	suite.DeployFunctionAndRequest(createFunctionOptions,
-		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "",
-			ExpectedResponseBody: "printed",
-		})
 }
 
 func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
@@ -99,7 +78,6 @@ func TestIntegrationSuite(t *testing.T) {
 
 	for _, runtime := range []string{
 		"python",
-		"python:2.7",
 		"python:3.6",
 	} {
 		TestSuite := new(TestSuite)

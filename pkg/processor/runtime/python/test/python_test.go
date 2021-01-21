@@ -337,7 +337,6 @@ func TestIntegrationSuite(t *testing.T) {
 
 	for _, runtime := range []string{
 		"python",
-		"python:2.7",
 		"python:3.6",
 	} {
 		testSuite := new(TestSuite)
