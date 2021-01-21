@@ -28,9 +28,6 @@ type functionPlatformConfiguration struct {
 	Network       string
 	RestartPolicy *dockerclient.RestartPolicy
 	MountMode     FunctionMountMode
-
-	// Deprecated. Will be removed in the next minor (1.6.x) version release
-	ProcessorMountMode FunctionMountMode
 }
 
 func newFunctionPlatformConfiguration(functionConfig *functionconfig.Config) (*functionPlatformConfiguration, error) {
@@ -40,14 +37,6 @@ func newFunctionPlatformConfiguration(functionConfig *functionconfig.Config) (*f
 	if err := mapstructure.Decode(functionConfig.Spec.Platform.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
-
-	// if mount mode field is not set, shove deprecated field value to it, it might contain a value
-	if newConfiguration.MountMode == "" {
-		newConfiguration.MountMode = newConfiguration.ProcessorMountMode
-	}
-
-	// anyway, empty out value
-	newConfiguration.ProcessorMountMode = ""
 
 	return &newConfiguration, nil
 }

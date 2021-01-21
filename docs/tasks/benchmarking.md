@@ -6,7 +6,6 @@ This guide walks through a few steps to benchmark Nuclio from scratch.
 - [Setting up a benchmark system](#setting-up-a-benchmark-system)
 - [Benchmark Golang (Go)](#benchmark-golang-go)
 - [Benchmark Python 3.6](#benchmark-python-36)
-- [Benchmark PyPy](#benchmark-pypy)
 - [Benchmark .NET Core](#benchmark-net-core)
 - [Benchmark Java](#benchmark-java)
 - [Benchmark NodeJS](#benchmark-nodejs)
@@ -58,27 +57,6 @@ Running 10s test @ http://172.17.0.1:31466
   570730 requests in 10.10s, 63.68MB read
 Requests/sec:  56509.00
 Transfer/sec:      6.31MB
-```
-
-## Benchmark PyPy
-
-Deploy an empty Python function with 36 workers:
-```sh
-nuctl deploy helloworld-py -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/development/hack/examples/python/empty/empty.py --platform local --triggers '{"mh": {"kind": "http", "maxWorkers": 36}}' --runtime pypy --handler empty:handler
-```
-
-Run the benchmark:
-```sh
-wrk -c 36 -t 36 -d 10 http://172.17.0.1:36724
-Running 10s test @ http://172.17.0.1:36724
-  36 threads and 36 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     1.68ms    4.08ms 111.06ms   94.24%
-    Req/Sec     1.80k   632.74    12.83k    87.67%
-  646945 requests in 10.10s, 56.14MB read
-  Socket errors: connect 0, read 2, write 0, timeout 0
-Requests/sec:  64056.55
-Transfer/sec:      5.56MB
 ```
 
 ## Benchmark .NET Core

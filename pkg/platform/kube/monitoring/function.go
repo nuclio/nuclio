@@ -147,7 +147,7 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 		stateChanged = true
 	} else if !functionIsAvailable && function.Status.State == functionconfig.FunctionStateReady {
 		function.Status.State = functionconfig.FunctionStateUnhealthy
-		function.Status.Message = common.FunctionStateMessageUnhealthy
+		function.Status.Message = string(common.FunctionStateMessageUnhealthy)
 		stateChanged = true
 	}
 

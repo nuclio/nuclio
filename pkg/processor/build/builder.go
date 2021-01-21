@@ -42,7 +42,6 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
-	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/ruby"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
@@ -404,7 +403,6 @@ func (b *Builder) initializeSupportedRuntimes() {
 
 	b.runtimeInfo["shell"] = runtimeInfo{"sh", poundParser, 0}
 	b.runtimeInfo["golang"] = runtimeInfo{"go", slashSlashParser, 0}
-	b.runtimeInfo["pypy"] = runtimeInfo{"py", poundParser, 0}
 	b.runtimeInfo["python"] = runtimeInfo{"py", poundParser, 10}
 	b.runtimeInfo["python:3.6"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["nodejs"] = runtimeInfo{"js", slashSlashParser, 0}
