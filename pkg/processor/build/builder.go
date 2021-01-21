@@ -57,7 +57,7 @@ import (
 
 const (
 	FunctionConfigFileName = "function.yaml"
-	uhttpcImage            = "quay.io/nuclio/uhttpc:0.0.1-amd64"
+	uhttpcImage            = "quay.io/nuclio/uhttpc:0.0.1-%s"
 	GithubEntryType        = "github"
 	ArchiveEntryType       = "archive"
 	S3EntryType            = "s3"
@@ -1271,7 +1271,7 @@ func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
 	if b.platform.GetHealthCheckMode() == platform.HealthCheckModeInternalClient {
 		artifact := runtime.Artifact{
 			Name:          "uhttpc",
-			Image:         uhttpcImage,
+			Image:         fmt.Sprintf(uhttpcImage, b.versionInfo.Arch),
 			ExternalImage: true,
 			Paths: map[string]string{
 				"/home/nuclio/bin/uhttpc": "/usr/local/bin/uhttpc",

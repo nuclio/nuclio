@@ -22,7 +22,13 @@ NUCLIO_DOCKER_REPO ?= quay.io/nuclio
 
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
-NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
+ifeq ($(GOARCH), arm)
+	NUCLIO_DEFAULT_ARCH := armhf
+else ifeq ($(GOARCH), arm64)
+	NUCLIO_DEFAULT_ARCH := arm64
+else
+	NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
+endif
 
 ifeq ($(OS_NAME), Linux)
 	NUCLIO_DEFAULT_TEST_HOST := $(shell docker network inspect bridge | grep "Gateway" | grep -o '"[^"]*"$$')
@@ -56,13 +62,30 @@ NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_LABEL)-$(NUCLIO_ARCH)
 GO_LINK_FLAGS ?= -s -w
 GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) \
 	-X github.com/v3io/version-go.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
-	-X github.com/v3io/version-go.label=$(NUCLIO_LABEL)
-
-# Docker client version to be used
-DOCKER_CLI_VERSION := 19.03.12
+	-X github.com/v3io/version-go.label=$(NUCLIO_LABEL) \
+	-X github.com/v3io/version-go.arch=$(NUCLIO_ARCH)
 
 # Nuclio test timeout
 NUCLIO_GO_TEST_TIMEOUT ?= "30m"
+
+# Docker client cli to be used
+NUCLIO_DOCKER_CLIENT_VERSION ?= 19.03.14
+ifeq ($(NUCLIO_ARCH), armhf)
+	NUCLIO_DOCKER_CLIENT_ARCH ?= armhf
+else ifeq ($(NUCLIO_ARCH), arm64)
+	NUCLIO_DOCKER_CLIENT_ARCH ?= aarch64
+else
+	NUCLIO_DOCKER_CLIENT_ARCH ?= x86_64
+endif
+
+# alpine is commonly used by controller / dlx / autoscaler
+ifeq ($(NUCLIO_ARCH), armhf)
+	NUCLIO_DOCKER_ALPINE_IMAGE ?= arm32v7/alpine:3.11
+else ifeq ($(NUCLIO_ARCH), arm64)
+	NUCLIO_DOCKER_ALPINE_IMAGE ?= arm64v8/alpine:3.11
+else
+	NUCLIO_DOCKER_ALPINE_IMAGE ?= alpine:3.11
+endif
 
 #
 #  Must be first target
@@ -134,6 +157,9 @@ push-docker-images:
 	done
 	@echo Done.
 
+save-docker-images:
+	docker save $(IMAGES_TO_PUSH) | pigz --fast > nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
+
 print-docker-images:
 	for image in $(IMAGES_TO_PUSH); do \
 		echo $$image ; \
@@ -156,6 +182,7 @@ endif
 
 processor: ensure-gopath build-base
 	docker build \
+		--build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/processor/Dockerfile \
@@ -172,6 +199,8 @@ NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/controller:$(NUCLIO_DO
 
 controller: ensure-gopath build-base
 	docker build \
+		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
+		--build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/controller/Dockerfile \
@@ -181,12 +210,25 @@ controller: ensure-gopath build-base
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
 
 # Dashboard
-NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME    = $(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH  ?= $(NUCLIO_ARCH)
+
+ifeq ($(NUCLIO_ARCH), armhf)
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= arm32v7/nginx:stable-alpine
+else ifeq ($(NUCLIO_ARCH), arm64)
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= arm64v8/nginx:stable-alpine
+else
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= nginx:stable-alpine
+endif
 
 dashboard: ensure-gopath build-base
 	docker build \
+		--build-arg GOARCH=$(NUCLIO_ARCH) \
+		--build-arg DOCKER_CLI_ARCH=$(NUCLIO_DOCKER_CLIENT_ARCH) \
+		--build-arg DOCKER_CLI_VERSION=$(NUCLIO_DOCKER_CLIENT_VERSION) \
+		--build-arg UHTTPC_ARCH=$(NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH) \
+		--build-arg NGINX_IMAGE=$(NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
-		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/dashboard/docker/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
@@ -199,6 +241,8 @@ NUCLIO_DOCKER_SCALER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/autoscaler:$(NUCLIO_DOCKER
 
 autoscaler: ensure-gopath build-base
 	docker build \
+		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
+		--build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/autoscaler/Dockerfile \
@@ -212,6 +256,8 @@ NUCLIO_DOCKER_DLX_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_TAG
 
 dlx: ensure-gopath build-base
 	docker build \
+		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
+		--build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/dlx/Dockerfile \
@@ -376,9 +422,15 @@ fmt:
 
 .PHONY: build-test
 build-test: ensure-gopath build-base
+	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.17.9)
+	$(eval NUCLIO_TEST_KUBECTL_CLI_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),amd64,arm64))
 	docker build \
+        --build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
+		--build-arg DOCKER_CLI_ARCH=$(NUCLIO_DOCKER_CLIENT_ARCH) \
+		--build-arg DOCKER_CLI_VERSION=$(NUCLIO_DOCKER_CLIENT_VERSION) \
+		--build-arg KUBECTL_CLI_ARCH=$(NUCLIO_TEST_KUBECTL_CLI_ARCH) \
+		--build-arg KUBECTL_CLI_VERSION=$(NUCLIO_TEST_KUBECTL_CLI_VERSION) \
 		--file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
 		--tag $(NUCLIO_DOCKER_TEST_TAG) .
 
@@ -500,17 +552,21 @@ test-docker-nuctl:
 .PHONY: build-base
 build-base: build-builder
 	docker build \
+		--build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file hack/docker/build/base/Dockerfile \
 		--tag nuclio-base:$(NUCLIO_LABEL) .
 	docker build \
+		--build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file hack/docker/build/base-alpine/Dockerfile \
 		--tag nuclio-base-alpine:$(NUCLIO_LABEL) .
 
 .PHONY: build-builder
 build-builder:
-	docker build -f hack/docker/build/builder/Dockerfile -t nuclio-builder:$(NUCLIO_LABEL) .
+	docker build \
+		--file hack/docker/build/builder/Dockerfile \
+		--tag nuclio-builder:$(NUCLIO_LABEL) .
 
 .PHONY: ensure-gopath
 ensure-gopath:

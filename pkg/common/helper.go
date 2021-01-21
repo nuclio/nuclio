@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"path"
@@ -344,18 +343,6 @@ func renderTemplate(templateToRender *template.Template, data map[string]interfa
 	}
 
 	return templateToRenderBuffer.String(), nil
-}
-
-func MaxIntInSlice(values []int) int {
-	maxValue := math.MinInt64
-
-	for _, value := range values {
-		if value > maxValue {
-			maxValue = value
-		}
-	}
-
-	return maxValue
 }
 
 func GetDurationOrInfinite(timeout *time.Duration) time.Duration {

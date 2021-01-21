@@ -18,6 +18,7 @@ package cron
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/nuclio/nuclio-sdk-go"
 )
@@ -60,4 +61,8 @@ func (e *Event) GetHeaderString(key string) string {
 
 func (e *Event) GetHeaders() map[string]interface{} {
 	return e.Headers
+}
+
+func (e *Event) GetTimestamp() time.Time {
+	return time.Unix(0, 0)
 }

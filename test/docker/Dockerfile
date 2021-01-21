@@ -16,19 +16,23 @@ ARG NUCLIO_LABEL
 
 FROM nuclio-base:$NUCLIO_LABEL
 
-ARG DOCKER_CLI_VERSION="19.03.12"
-ARG KUBECTL_CLI_VERSION="v1.17.9"
+# docker
+ARG DOCKER_CLI_ARCH=x86_64
+ARG DOCKER_CLI_VERSION="19.03.14"
+ENV DOCKER_CLI_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$DOCKER_CLI_ARCH/docker-$DOCKER_CLI_VERSION.tgz"
 
-ENV DOCKER_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/x86_64/docker-$DOCKER_CLI_VERSION.tgz"
-ENV KUBECTL_DOWNLOAD_URL="https://storage.googleapis.com/kubernetes-release/release/$KUBECTL_CLI_VERSION/bin/linux/amd64/kubectl"
+# kubectl
+ARG KUBECTL_CLI_ARCH=amd64
+ARG KUBECTL_CLI_VERSION="v1.17.9"
+ENV KUBECTL_CLI_DOWNLOAD_URL="https://storage.googleapis.com/kubernetes-release/release/$KUBECTL_CLI_VERSION/bin/linux/$KUBECTL_CLI_ARCH/kubectl"
 
 # download docker client to /usr/bin/docker
-RUN curl $DOCKER_DOWNLOAD_URL > /tmp/docker.tgz \
+RUN curl $DOCKER_CLI_DOWNLOAD_URL > /tmp/docker.tgz \
      && tar zxf /tmp/docker.tgz --strip=1 -C /usr/bin docker/docker \
      && rm /tmp/docker.tgz
 
 # download docker client to /usr/bin/docker
-RUN curl -LO $KUBECTL_DOWNLOAD_URL \
+RUN curl -LO $KUBECTL_CLI_DOWNLOAD_URL \
      && sync \
      && chmod +x ./kubectl \
      && mv ./kubectl /usr/local/bin/kubectl

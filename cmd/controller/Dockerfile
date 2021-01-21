@@ -17,13 +17,17 @@
 #
 
 ARG NUCLIO_LABEL
+ARG ALPINE_IMAGE=alpine:3.11
 
 FROM nuclio-base:$NUCLIO_LABEL as build-controller
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
+ARG GOOS=linux
+ARG GOARCH=amd64
+
 # build the controller
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+RUN GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
@@ -33,7 +37,7 @@ RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
 # Output stage: Creates version file, copies binary to an alpine based image
 #
 
-FROM alpine:3.11
+FROM $ALPINE_IMAGE
 
 # install apache2-utils for htpasswd
 RUN apk add --no-cache ca-certificates apache2-utils

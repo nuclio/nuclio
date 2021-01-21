@@ -32,10 +32,13 @@ import (
 
 // Worker holds all the required state and context to handle a single request
 type Worker struct {
+
+	// accessed atomically, keep as first field for alignment
+	statistics Statistics
+
 	logger               logger.Logger
 	index                int
 	runtime              runtime.Runtime
-	statistics           Statistics
 	structuredCloudEvent cloudevent.Structured
 	binaryCloudEvent     cloudevent.Binary
 	eventTime            *time.Time

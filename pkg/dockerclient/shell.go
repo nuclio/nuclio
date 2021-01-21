@@ -698,8 +698,7 @@ func (c *ShellClient) DeleteVolume(volumeName string) error {
 		return errors.New("Invalid volume name to delete")
 	}
 
-	_, err := c.runCommand(nil, `docker volume rm %s`, volumeName)
-
+	_, err := c.runCommand(nil, `docker volume rm --force %s`, volumeName)
 	return err
 }
 

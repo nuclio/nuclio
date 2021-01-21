@@ -25,15 +25,24 @@ Releaser flow
 
 ### Use cases
 
-1. Release from development
+- Release from development, bump patch version
+
+```shell
+ go run releaser \
+  --bump-patch \
+  --github-token <my-scopeless-token>
+```
+
+- Release from development, explicit target versions
 
 ```shell script
  go run releaser \
   --target-version 1.5.0 \
   --helm-charts-release-version 0.7.3
+  --github-token <my-scopeless-token>
 ```
 
-2. Release from a 1.x.y branch
+- Release from a 1.x.y branch
 
 ```shell script
 go run releaser \
@@ -43,7 +52,7 @@ go run releaser \
   --helm-charts-release-version 0.6.19
 ```
 
-3. Bump + publish helm charts only
+- Bump + publish helm charts only
 
 ```shell script
 go run releaser \

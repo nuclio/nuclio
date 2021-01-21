@@ -50,13 +50,13 @@ type Platform struct {
 	cmdRunner                             cmdrunner.CmdRunner
 	dockerClient                          dockerclient.Client
 	localStore                            *store
-	checkFunctionContainersHealthiness    bool
+	defaultFunctionMountMode              FunctionMountMode
+	functionContainersHealthinessEnabled  bool
 	functionContainersHealthinessTimeout  time.Duration
 	functionContainersHealthinessInterval time.Duration
 }
 
 const Mib = 1048576
-const UnhealthyContainerErrorMessage = "Container is not healthy (detected by nuclio platform)"
 const FunctionProcessorContainerDirPath = "/etc/nuclio/config/processor"
 
 // NewPlatform instantiates a new local platform
@@ -74,7 +74,7 @@ func NewPlatform(parentLogger logger.Logger,
 	newPlatform.Platform = newAbstractPlatform
 
 	// function containers healthiness check is disabled by default
-	newPlatform.checkFunctionContainersHealthiness = common.GetEnvOrDefaultBool("NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS", false)
+	newPlatform.functionContainersHealthinessEnabled = common.GetEnvOrDefaultBool("NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS", false)
 	newPlatform.functionContainersHealthinessTimeout = time.Second * 5
 	newPlatform.functionContainersHealthinessInterval = time.Second * 30
 
@@ -99,7 +99,7 @@ func NewPlatform(parentLogger logger.Logger,
 	}
 
 	// ignite goroutine to check function container healthiness
-	if newPlatform.checkFunctionContainersHealthiness {
+	if newPlatform.functionContainersHealthinessEnabled {
 		newPlatform.Logger.DebugWith("Igniting container healthiness validator")
 		go func(newPlatform *Platform) {
 			uptimeTicker := time.NewTicker(newPlatform.functionContainersHealthinessInterval)
@@ -108,6 +108,14 @@ func NewPlatform(parentLogger logger.Logger,
 			}
 		}(newPlatform)
 	}
+
+	// TODO: use FunctionMountModeVolume on >= 1.6.x by default
+	// this will allow us to remote the dependency of requiring the user to volumize host `tmp` folder
+	// to create a function
+	newPlatform.defaultFunctionMountMode = FunctionMountMode(
+		common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_MOUNT_MODE", string(FunctionMountModeBind)),
+	)
+
 	return newPlatform, nil
 }
 
@@ -592,8 +600,12 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Failed to create a function's platform configuration")
 	}
 
-	mountPoints, volumesMap, err := p.resolveAndCreateFunctionMounts(createFunctionOptions,
-		functionPlatformConfiguration.ProcessorMountMode)
+	functionMountMode, err := p.resolveFunctionMountMode(functionPlatformConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve processor mount mode")
+	}
+
+	mountPoints, volumesMap, err := p.resolveAndCreateFunctionMounts(createFunctionOptions, functionMountMode)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve and create function mounts")
 	}
@@ -690,37 +702,42 @@ func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions)
 		}
 	}
 
-	// get function platform specific configuration
-	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&deleteFunctionOptions.FunctionConfig)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create a function's platform configuration")
+	// delete function volume mount after containers are deleted
+	functionVolumeMountName := p.GetFunctionVolumeMountName(&deleteFunctionOptions.FunctionConfig)
+	if err := p.dockerClient.DeleteVolume(functionVolumeMountName); err != nil {
+		return errors.Wrapf(err, "Failed to delete a function volume")
 	}
 
-	if functionPlatformConfiguration.ProcessorMountMode == ProcessorMountModeVolume {
-
-		// delete function volumes after containers are deleted
-		if err := p.dockerClient.DeleteVolume(p.GetProcessorMountVolumeName(&deleteFunctionOptions.FunctionConfig)); err != nil {
-			return errors.Wrapf(err, "Failed to delete a function volume")
-		}
-	}
-
-	p.Logger.InfoWith("Function deleted", "name", deleteFunctionOptions.FunctionConfig.Meta.Name)
+	p.Logger.InfoWith("Successfully deleted function",
+		"name", deleteFunctionOptions.FunctionConfig.Meta.Name)
 	return nil
 }
 
+func (p *Platform) resolveFunctionMountMode(functionPlatformConfiguration *functionPlatformConfiguration) (
+	FunctionMountMode, error) {
+
+	// if set, return value from function platform configuration
+	if functionPlatformConfiguration.MountMode != "" {
+		return functionPlatformConfiguration.MountMode, nil
+	}
+
+	// use platform defaults
+	return p.defaultFunctionMountMode, nil
+}
+
 func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platform.CreateFunctionOptions,
-	processorMountMode ProcessorMountMode) ([]dockerclient.MountPoint, map[string]string, error) {
+	functionMountMode FunctionMountMode) ([]dockerclient.MountPoint, map[string]string, error) {
 
 	var mountPoints []dockerclient.MountPoint
 	volumesMap := p.compileDeployFunctionVolumesMap(createFunctionOptions)
 
-	switch processorMountMode {
-	case ProcessorMountModeVolume:
+	switch functionMountMode {
+	case FunctionMountModeVolume:
 		if err := p.prepareFunctionVolumeMount(createFunctionOptions); err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to prepare a function's volume mount")
 		}
 		mountPoints = append(mountPoints, dockerclient.MountPoint{
-			Source:      p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
+			Source:      p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
 			Destination: FunctionProcessorContainerDirPath,
 
 			// read only mode
@@ -815,7 +832,7 @@ func (p *Platform) GetContainerNameByCreateFunctionOptions(createFunctionOptions
 		createFunctionOptions.FunctionConfig.Meta.Name)
 }
 
-func (p *Platform) GetProcessorMountVolumeName(functionConfig *functionconfig.Config) string {
+func (p *Platform) GetFunctionVolumeMountName(functionConfig *functionconfig.Config) string {
 	return fmt.Sprintf("nuclio-%s-%s",
 		functionConfig.Meta.Namespace,
 		functionConfig.Meta.Name)
@@ -919,10 +936,10 @@ func (p *Platform) setFunctionUnhealthy(function platform.Function) error {
 	functionStatus := function.GetStatus()
 
 	// set function state to error
-	functionStatus.State = functionconfig.FunctionStateError
+	functionStatus.State = functionconfig.FunctionStateUnhealthy
 
 	// set unhealthy error message
-	functionStatus.Message = UnhealthyContainerErrorMessage
+	functionStatus.Message = common.FunctionStateMessageUnhealthy
 
 	p.Logger.WarnWith("Setting function state as unhealthy",
 		"functionName", function.GetConfig().Meta.Name,
@@ -1002,7 +1019,7 @@ func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.Cr
 
 	// create docker volume
 	if err := p.dockerClient.CreateVolume(&dockerclient.CreateVolumeOptions{
-		Name: p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
+		Name: p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
 	}); err != nil {
 		return errors.Wrapf(err, "Failed to create a volume for function %s",
 			createFunctionOptions.FunctionConfig.Meta.Name)
@@ -1021,7 +1038,7 @@ func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.Cr
 		Remove: true,
 		MountPoints: []dockerclient.MountPoint{
 			{
-				Source:      p.GetProcessorMountVolumeName(&createFunctionOptions.FunctionConfig),
+				Source:      p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
 				Destination: FunctionProcessorContainerDirPath,
 				RW:          true,
 			},
