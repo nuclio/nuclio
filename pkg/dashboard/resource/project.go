@@ -52,8 +52,8 @@ type projectImportInfo struct {
 }
 
 type ProjectImportOptions struct {
-	projectInfo              *projectImportInfo
-	authConfig               *platform.AuthConfig
+	projectInfo *projectImportInfo
+	authConfig  *platform.AuthConfig
 }
 
 // GetAll returns all projects
@@ -353,7 +353,7 @@ func (pr *projectResource) importProjectIfMissing(projectImportOptions *ProjectI
 		}
 
 		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
-			ProjectConfig:            newProject.GetConfig(),
+			ProjectConfig: newProject.GetConfig(),
 		}); err != nil {
 
 			// preserve err - it might contain an informative status code (validation failure, etc)

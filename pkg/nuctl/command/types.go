@@ -46,5 +46,5 @@ type ProjectImportConfig struct {
 }
 
 type ProjectImportOptions struct {
-	projectImportConfig      *ProjectImportConfig
+	projectImportConfig *ProjectImportConfig
 }

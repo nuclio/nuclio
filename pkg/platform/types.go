@@ -170,7 +170,7 @@ func (pc *ProjectConfig) Scrub() {
 }
 
 type CreateProjectOptions struct {
-	ProjectConfig            *ProjectConfig
+	ProjectConfig *ProjectConfig
 }
 
 type UpdateProjectOptions struct {
