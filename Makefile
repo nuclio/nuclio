@@ -443,6 +443,10 @@ test-k8s-undockerized: ensure-gopath
 fmt:
 	gofmt -s -w .
 
+benchmarking:
+	$(eval NUCLIO_BENCHMARKING_RUNTIMES ?= all)
+	@python3 hack/scripts/benchmark/benchmark.py --nuctl-platform local --runtimes $(NUCLIO_BENCHMARKING_RUNTIMES)
+
 .PHONY: build-test
 build-test: ensure-gopath build-base
 	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.17.9)
