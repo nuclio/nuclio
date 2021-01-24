@@ -13,8 +13,9 @@ on:
         required: true
 
 env:
-  FINISH_LABEL: "benchmarked"
+  FINISH_LABEL: benchmarked
   ADD_REMOVE_LABELS_SCRIPT_PATH: hack/scripts/ci/add-remove-labels.js
+  NUCLIO_LABEL: bm-${{ GITHUB_RUN_ID }}
 
 jobs:
   benchmark:
