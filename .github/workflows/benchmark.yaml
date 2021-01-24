@@ -93,7 +93,7 @@ jobs:
         run: |
 
           # copy nuctl and give it +x mod
-          cp /home/runner/go/bin/nuctl-latest-linux-amd64 ./nuctl
+          cp /home/runner/go/bin/nuctl-$NUCLIO_LABEL-linux-amd64 ./nuctl
           chmod +x nuctl
           sudo -EH install nuctl /usr/local/bin
 
