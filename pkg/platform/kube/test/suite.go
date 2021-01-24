@@ -18,7 +18,10 @@ package test
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"strings"
 	"time"
 
@@ -36,6 +39,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
@@ -78,7 +82,7 @@ func (suite *KubeTestSuite) SetupSuite() {
 
 	suite.PlatformConfiguration.Kind = suite.PlatformType
 
-	// set cron trigger creation mode to "kube"
+	// use Kubernetes cron job to invoke nuclio functions with cron triggers
 	suite.PlatformConfiguration.CronTriggerCreationMode = platformconfig.KubeCronTriggerCreationMode
 
 	// only set up parent AFTER we set platform's type
@@ -220,6 +224,43 @@ func (suite *KubeTestSuite) GetFunctionAndExpectState(getFunctionOptions *platfo
 		"Function is in unexpected state. Expected: %s, Existing: %s",
 		expectedState, function.GetStatus().State)
 	return function
+}
+
+func (suite *KubeTestSuite) InvokeEventRecorderFunctionAndUnmarshalBody(address string, retryDuration time.Duration) []triggertest.Event {
+	var events []triggertest.Event
+
+	err := common.RetryUntilSuccessful(retryDuration, 2*time.Second, func() bool {
+
+		// set http request url of the function
+		url := fmt.Sprintf("http://%s", address)
+
+		suite.Logger.DebugWith("Trying to get events", "url", url)
+		httpResponse, err := http.Get(url)
+		if err != nil {
+			suite.Logger.WarnWith("Failed to get events from function", "url", url, "err", err)
+			return false
+		}
+		marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
+		if err != nil {
+			suite.Logger.WarnWith("Failed to read response body", "err", err)
+			return false
+		}
+
+		if err = json.Unmarshal(marshalledResponseBody, &events); err != nil {
+			suite.Logger.WarnWith("Failed to unmarshal response body",
+				"marshalledResponseBody", marshalledResponseBody,
+				"err", err)
+			return false
+		}
+
+		// move on when at least 1 job ran
+		return len(events) > 0
+	})
+	suite.Require().NoError(err)
+
+	suite.Logger.DebugWith("Got events from event recorder function", "events", events)
+
+	return events
 }
 
 func (suite *KubeTestSuite) GetAPIGateway(getAPIGatewayOptions *platform.GetAPIGatewaysOptions) platform.APIGateway {

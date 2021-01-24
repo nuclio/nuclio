@@ -1484,21 +1484,7 @@ func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.Ser
 	return to
 }
 
-func (lc *lazyClient) GetCronTriggerInvocationURL(function *nuclioio.NuclioFunction,
-	resources Resources,
-	namespace string) (string, error) {
-
-	// if an ingress exists, use it
-	for _, ingress := range functionconfig.GetIngressesFromTriggers(function.Spec.Triggers) {
-		path := "/"
-		if len(ingress.Paths) > 0 {
-			path = ingress.Paths[0]
-		}
-
-		return fmt.Sprintf("%s%s", ingress.Host, common.NormalizeURLPath(path)), nil
-	}
-
-	// otherwise, use domain name invocation URL
+func (lc *lazyClient) getCronTriggerInvocationURL(resources Resources, namespace string) (string, error) {
 	functionService, err := resources.Service()
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get function service")
@@ -1550,7 +1536,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	// add default header
 	headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, "x-nuclio-invoke-trigger", "cron")
 
-	functionAddress, err := lc.GetCronTriggerInvocationURL(function, resources, function.Namespace)
+	functionAddress, err := lc.getCronTriggerInvocationURL(resources, function.Namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get cron trigger invocation URL")
 	}
@@ -1576,8 +1562,8 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 			eventBody = eventBodyAsCompactedJSON.String()
 		}
 
-		curlCommand = fmt.Sprintf("echo '%s' > %s && %s %s",
-			eventBody,
+		curlCommand = fmt.Sprintf("echo %s > %s && %s %s",
+			strconv.Quote(eventBody),
 			eventBodyFilePath,
 			curlCommand,
 			eventBodyCurlArg)

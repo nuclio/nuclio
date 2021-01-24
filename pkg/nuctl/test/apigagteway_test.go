@@ -28,7 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
-	testk8s "github.com/nuclio/nuclio/test/k8s"
+	testk8s "github.com/nuclio/nuclio/test/common/k8s"
 
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
