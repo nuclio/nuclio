@@ -15,7 +15,6 @@ on:
 env:
   FINISH_LABEL: benchmarked
   ADD_REMOVE_LABELS_SCRIPT_PATH: hack/scripts/ci/add-remove-labels.js
-  NUCLIO_LABEL: bm-${{ GITHUB_RUN_ID }}
 
 jobs:
   benchmark:
@@ -66,6 +65,7 @@ jobs:
 
           # only build what is needed to make nuclio functions (processor + onbuilds)
           echo "DOCKER_IMAGES_RULES=$(printf "%s " "${DOCKER_IMAGES_RULES[@]}")" >> $GITHUB_ENV
+          echo "NUCLIO_LABEL=bm-$GITHUB_RUN_ID" >> $GITHUB_ENV
 
       - name: Install python
         uses: actions/setup-python@v2
