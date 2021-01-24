@@ -148,7 +148,7 @@ class Nuctl(object):
                path,
                triggers):
         deploy_cmd = f"deploy {function_name}"
-        if self._logger.level < logging.INFO:
+        if self._logger.getEffectiveLevel() < logging.INFO:
             deploy_cmd += " --verbose"
         deploy_cmd += f" --runtime {runtime}"
         deploy_cmd += f" --platform {self._platform}"
