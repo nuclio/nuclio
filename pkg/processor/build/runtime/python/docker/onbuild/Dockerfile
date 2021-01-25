@@ -15,16 +15,6 @@
 ARG NUCLIO_LABEL=latest
 ARG NUCLIO_ARCH=amd64
 
-# Supplies python 2 wheels
-FROM python:2 as python2-builder
-
-COPY pkg/processor/runtime/python/py/requirements /requirements
-
-RUN pip download \
-        -d /whl \
-        --exists-action i \
-        -r /requirements/python2.txt
-
 # Supplies python 3.6 & common wheels
 FROM python:3.6 as python36-builder
 
@@ -55,5 +45,4 @@ COPY pkg/processor/runtime/python/py /home/nuclio/bin/py
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
 # Copy wheels
-COPY --from=python2-builder /whl /home/nuclio/bin/py/whl
 COPY --from=python36-builder /whl /home/nuclio/bin/py/whl

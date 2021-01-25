@@ -548,7 +548,7 @@ test-nodejs:
 
 .PHONY: test-python
 test-python:
-	@$(eval PYTHON_IMAGE_TAGS ?= 3.9 3.8 3.7 3.6 2.7)
+	@$(eval PYTHON_IMAGE_TAGS ?= 3.9 3.8 3.7 3.6)
 	@$(eval TEST_BUILD_COMMANDS := $(foreach PYTHON_IMAGE_TAG,$(PYTHON_IMAGE_TAGS), docker build \
 	  --build-arg PYTHON_IMAGE_TAG=$(PYTHON_IMAGE_TAG) \
 	  --build-arg CACHEBUST=$(shell date +%s) \

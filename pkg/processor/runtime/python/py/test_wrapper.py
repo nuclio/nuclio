@@ -24,21 +24,14 @@ import sys
 import tempfile
 import threading
 import time
-import unittest
+import unittest.mock
+import http.client
+import socketserver
 
 import _nuclio_wrapper as wrapper
 import msgpack
 import nuclio_sdk
 import nuclio_sdk.helpers
-
-if nuclio_sdk.helpers.PYTHON3:
-    from socketserver import UnixStreamServer, BaseRequestHandler
-    from unittest import mock
-    import http.client as httpclient
-else:
-    from SocketServer import UnixStreamServer, BaseRequestHandler
-    import mock
-    import httplib as httpclient
 
 
 class TestSubmitEvents(unittest.TestCase):
@@ -92,7 +85,6 @@ class TestSubmitEvents(unittest.TestCase):
         t.join()
 
         # processor start
-        # if python 2 then: deprecation note
         # duration
         # function response
         # malformed log line (wrapper)
@@ -100,17 +92,15 @@ class TestSubmitEvents(unittest.TestCase):
         # duration
         # function response
         expected_messages = 7
-        if nuclio_sdk.helpers.PYTHON2:
-            expected_messages += 1
 
         self._wait_until_received_messages(expected_messages)
 
         malformed_response = self._unix_stream_server._messages[-3]['body']
-        self.assertEqual(httpclient.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
+        self.assertEqual(http.client.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
 
         # ensure messages coming after malformed request are still valid
         last_function_response = self._unix_stream_server._messages[-1]['body']
-        self.assertEqual(httpclient.OK, last_function_response['status_code'])
+        self.assertEqual(http.client.OK, last_function_response['status_code'])
         self.assertEqual(events[-1]['body'], last_function_response['body'])
 
     def test_bad_function_code(self):
@@ -142,7 +132,7 @@ class TestSubmitEvents(unittest.TestCase):
         t = threading.Thread(target=_send_illegal_message_size)
         t.start()
 
-        self._wrapper._entrypoint = mock.MagicMock()
+        self._wrapper._entrypoint = unittest.mock.MagicMock()
         self._wrapper._entrypoint.assert_not_called()
         with self.assertRaises(SystemExit):
             self._wrapper.serve_requests(num_requests=1)
@@ -331,16 +321,16 @@ def handler(ctx, event):
         return handler_path
 
 
-class _SingleConnectionUnixStreamServer(UnixStreamServer):
+class _SingleConnectionUnixStreamServer(socketserver.UnixStreamServer):
 
     def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
-        UnixStreamServer.__init__(self, server_address, RequestHandlerClass, bind_and_activate)
+        socketserver.UnixStreamServer.__init__(self, server_address, RequestHandlerClass, bind_and_activate)
 
         self._connection_socket = None  # type: socket.socket
         self._messages = []
 
 
-class _Connection(BaseRequestHandler):
+class _Connection(socketserver.BaseRequestHandler):
 
     def handle(self):
         self.request.settimeout(1)
@@ -374,7 +364,7 @@ class TestCallFunction(unittest.TestCase):
 
     def setUp(self):
         # provided by _connection_provider
-        self._mockConnection = mock.MagicMock()
+        self._mockConnection = unittest.mock.MagicMock()
 
     def test_call_json_body(self):
         self._platform = nuclio_sdk.Platform('local', 'somens', self._connection_provider)
@@ -383,12 +373,12 @@ class TestCallFunction(unittest.TestCase):
         event = nuclio_sdk.Event(method='GET', path='path', body={'a': 'some_body'})
 
         # prepare a responder
-        connection_response = mock.MagicMock()
-        connection_response.status = httpclient.NO_CONTENT
+        connection_response = unittest.mock.MagicMock()
+        connection_response.status = http.client.NO_CONTENT
         connection_response.getheaders = lambda: [('Content-Type', 'application/json')]
-        connection_response.read = mock.MagicMock(return_value='{"b": "some_response"}')
+        connection_response.read = unittest.mock.MagicMock(return_value='{"b": "some_response"}')
 
-        self._mockConnection.getresponse = mock.MagicMock(return_value=connection_response)
+        self._mockConnection.getresponse = unittest.mock.MagicMock(return_value=connection_response)
 
         # send the event
         response = self._platform.call_function('function-name', event)
@@ -404,7 +394,7 @@ class TestCallFunction(unittest.TestCase):
 
         self.assertEqual({'b': 'some_response'}, response.body)
         self.assertEqual('application/json', response.content_type)
-        self.assertEqual(httpclient.NO_CONTENT, response.status_code)
+        self.assertEqual(http.client.NO_CONTENT, response.status_code)
 
     def test_get_function_url(self):
         self.assertEqual(nuclio_sdk.Platform('local', 'ns')._get_function_url('function-name'),

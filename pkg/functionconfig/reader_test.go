@@ -102,7 +102,7 @@ spec:
 			Namespace: "my_namespace",
 		},
 		Spec: Spec{
-			Runtime: "python2.7",
+			Runtime: "python3.6",
 			Handler: "my_handler",
 		},
 	}
@@ -142,7 +142,7 @@ spec:
 			Labels:    map[string]string{}, // empty map
 		},
 		Spec: Spec{
-			Runtime:   "python2.7",
+			Runtime:   "python3.6",
 			Handler:   "my_handler",
 			Env:       []v1.EnvVar{{Name: "env_var", Value: "my_env_val"}},
 			TargetCPU: 51,
@@ -163,7 +163,7 @@ spec:
 	suite.Require().Equal(expectedEnvVariables, config.Spec.Env, "Bad env vars")
 
 	suite.Require().Equal("my_handler", config.Spec.Handler, "Bad handler")
-	suite.Require().Equal("python2.7", config.Spec.Runtime, "Bad runtime")
+	suite.Require().Equal("python3.6", config.Spec.Runtime, "Bad runtime")
 	suite.Require().Equal([]string{"pip install code_entry_package"}, config.Spec.Build.Commands, "Bad commands")
 	suite.Require().Equal(map[string]string{"label_key": "label_val"}, config.Meta.Labels, "Bad labels")
 	suite.Require().Equal(51, config.Spec.TargetCPU, "Bad target cpu")
