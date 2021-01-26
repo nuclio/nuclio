@@ -59,13 +59,17 @@ func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runti
 	_, runtimeVersion := p.GetRuntimeNameAndVersion()
 
 	switch runtimeVersion {
-	case "3.8":
+	case "3.8", "3.7":
 
 		// use specific wheel files path
 		srcOnbuildWheelsPath = fmt.Sprintf("/home/nuclio/bin/py%s-whl", runtimeVersion)
 
 		// dont require special privileges
-		pipInstallArgs = append(pipInstallArgs, "--user")
+		// TODO: enable when provide USER directive pre copying artifacts
+		// since the build user is root, while running container user might be different
+		// and hence the packages wont be available to the running user.
+		// to overcome it, suggest to add `PYTHONUSERBASE=/some/path` with the running container user access
+		// pipInstallArgs = append(pipInstallArgs, "--user")
 
 		// ensure pip is installed on python interpreter
 		installPipCommand := fmt.Sprintf("python %[1]s/$(basename %[1]s/pip-*.whl)/pip install pip %[2]s",

@@ -80,6 +80,7 @@ func TestIntegrationSuite(t *testing.T) {
 	for _, runtime := range []string{
 		"python",
 		"python:3.6",
+		"python:3.7",
 		"python:3.8",
 	} {
 		TestSuite := new(TestSuite)
