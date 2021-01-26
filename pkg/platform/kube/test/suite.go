@@ -69,6 +69,8 @@ func (suite *KubeTestSuite) SetupSuite() {
 		suite.T().Skip("Test can only run when `NUCLIO_K8S_TESTS_ENABLED` environ is enabled")
 	}
 	var err error
+
+	common.SetVersionFromEnv()
 	suite.Namespace = common.GetEnvOrDefaultString("NUCLIO_TEST_NAMESPACE", "default")
 	suite.PlatformType = "kube"
 
@@ -187,6 +189,9 @@ def handler(context, event):
 
 	// expose function for testing purposes
 	createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeNodePort
+
+	// don't explicitly pull base images before building
+	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 	return createFunctionOptions
 }
 
