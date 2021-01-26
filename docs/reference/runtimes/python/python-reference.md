@@ -12,8 +12,11 @@ This document describes the specific Python build and deploy configurations.
 ## Function and handler
 
 ```python
-def handler(context, event):
-    return ""
+import nuclio_sdk
+
+def handler(context: nuclio_sdk.Context, event: nuclio_sdk.Event):
+    context.logger.info_with('Invoked', method=event.method)
+    return "Hello from Nuclio :-)"
 ```
 
 The `handler` field is of the form `<package>:<entrypoint>`, where `<package>` is a dot (`.`) separated path (for example, `foo.bar` equates to `foo/bar.py`) and `<entrypoint>` is the function name. In the example above, the handler is `main:handler`, assuming the file is named `main.py`.
@@ -25,9 +28,9 @@ Following is sample Dockerfile code for deploying a Python function. For more in
 > **Note:** Make sure to replace `my-function-code` and `my-function.yaml` in the following example with the names of your function and function-configuration file.
 
 ```
-ARG NUCLIO_LABEL=1.1.18
+ARG NUCLIO_LABEL=1.6.0
 ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_BASE_IMAGE=python:3.6-jessie
+ARG NUCLIO_BASE_IMAGE=python:3.8
 ARG NUCLIO_ONBUILD_IMAGE=quay.io/nuclio/handler-builder-python-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck
@@ -42,17 +45,17 @@ FROM ${NUCLIO_BASE_IMAGE}
 # Copy required objects from the suppliers
 COPY --from=processor /home/nuclio/bin/processor /usr/local/bin/processor
 COPY --from=processor /home/nuclio/bin/py /opt/nuclio/
+COPY --from=processor /home/nuclio/bin/py*-whl/* /opt/nuclio/whl/
 COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 
-RUN pip install nuclio-sdk msgpack --no-index --find-links /opt/nuclio/whl
+RUN python /opt/nuclio/whl/$(basename /opt/nuclio/whl/pip-*.whl)/pip install pip --no-index --find-links /opt/nuclio/whl --user \
+ && python -m pip install nuclio-sdk msgpack --no-index --find-links /opt/nuclio/whl --user
 
 # Readiness probe
 HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 
-# USER CONTENT
-ADD ./my-function-code /opt/nuclio
-ADD ./my-function.yaml /etc/nuclio/config/processor/processor.yaml
-# END OF USER CONTENT
+# Copy the function code, including the handler directory to /opt/nuclio
+COPY . /opt/nuclio
 
 # Run processor with configuration and platform configuration
 CMD [ "processor" ]
@@ -64,9 +67,16 @@ CMD [ "processor" ]
 Your function-configuration file (for example, **my-function.yaml** for the [example Dockerfile](#dockerfile)) must include the name of your handler function and Python runtime. For more information, see the [function-configuration reference](/docs/reference/function-configuration/function-configuration-reference.md). For example:
 
 ```yaml
+meta:
+  name: "my-function"
 spec:
   handler: main:handler
-  runtime: python:3.6
+  runtime: python:3.8
+  triggers:
+    myHttpTrigger:
+      maxWorkers: 1
+      kind: "http"
+
 ```
 
 <a id="build-and-execution"></a>
@@ -75,7 +85,13 @@ spec:
 Following are example commands for building and running the latest version of a `my-function` function that's listening on port 8090; replace the function name and version and the port number, as needed:
 
 ```sh
-docker build -t my-function:latest .
-docker run --name my-function --rm -d -p 8090:8080 my-function:latest
-```
+docker build --tag my-function:latest .
 
+docker run \
+  --rm \
+  --detach \
+  --volume /path/to/function.yaml:/etc/nuclio/config/processor/processor.yaml \
+  --name my-function \
+  --publish 8090:8080 \
+  my-function:latest
+```

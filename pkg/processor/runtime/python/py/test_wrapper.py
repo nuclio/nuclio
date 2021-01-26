@@ -157,11 +157,6 @@ class TestSubmitEvents(unittest.TestCase):
                         for message in self._unix_stream_server._messages
                         if message['type'] == 'r')
         response_body = response['body'][::-1]
-
-        # blame is on nuclio_sdk/event.py:80
-        if sys.version_info[:2] < (3, 0):
-            response_body = base64.b64decode(response_body)
-
         self.assertEqual(reverse_text, response_body)
 
     def test_blast_events(self):
@@ -304,7 +299,9 @@ class TestSubmitEvents(unittest.TestCase):
 
 def handler(ctx, event):
     """Return reversed body as string"""
-    body = event.body.decode('utf-8')
+    body = event.body
+    if isinstance(event.body, bytes):
+        body = event.body.decode('utf-8')
     ctx.logger.warn('the end is nigh')
     return body[::-1]
 '''
