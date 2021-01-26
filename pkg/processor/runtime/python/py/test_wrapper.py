@@ -302,13 +302,9 @@ class TestSubmitEvents(unittest.TestCase):
     def _write_handler(self, temp_path):
         handler_code = '''import sys
 
-is_py2 = sys.version_info[:2] < (3, 0)
-
 def handler(ctx, event):
     """Return reversed body as string"""
-    body = event.body
-    if not is_py2 and isinstance(body, bytes):
-        body = body.decode('utf-8')
+    body = event.body.decode('utf-8')
     ctx.logger.warn('the end is nigh')
     return body[::-1]
 '''

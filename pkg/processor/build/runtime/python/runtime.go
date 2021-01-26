@@ -35,9 +35,12 @@ func (p *python) GetName() string {
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+	var installSDKDependenciesCommand string
+	var srcOnbuildWheelsPath string
 
+	destOnbuildWheelsPath := "/opt/nuclio/whl"
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{
-		BaseImage: "python:3.6",
+		BaseImage: p.FunctionConfig.Spec.Runtime,
 	}
 	pythonCommonModules := []string{
 		"nuclio-sdk",
@@ -48,27 +51,64 @@ func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runti
 		"handler": "/opt/nuclio",
 	}
 
+	pipInstallArgs := []string{
+		"--no-index",
+		"--find-links", destOnbuildWheelsPath,
+	}
+
+	_, runtimeVersion := p.GetRuntimeNameAndVersion()
+
+	switch runtimeVersion {
+	case "3.8":
+
+		// use specific wheel files path
+		srcOnbuildWheelsPath = fmt.Sprintf("/home/nuclio/bin/py%s-whl", runtimeVersion)
+
+		// dont require special privileges
+		pipInstallArgs = append(pipInstallArgs, "--user")
+
+		// ensure pip is installed on python interpreter
+		installPipCommand := fmt.Sprintf("python %[1]s/$(basename %[1]s/pip-*.whl)/pip install pip %[2]s",
+			destOnbuildWheelsPath,
+			strings.Join(pipInstallArgs, " "))
+
+		// run pip from the python interpreter
+		installSDKDependenciesCommand = fmt.Sprintf("%s && python -m pip install %s %s",
+			installPipCommand,
+			strings.Join(pythonCommonModules, " "),
+			strings.Join(pipInstallArgs, " "))
+
+	default:
+
+		// true for python & python:3.6
+		srcOnbuildWheelsPath = fmt.Sprintf("/home/nuclio/bin/py-whl")
+		installSDKDependenciesCommand = fmt.Sprintf("pip install %s %s",
+			strings.Join(pythonCommonModules, " "),
+			strings.Join(pipInstallArgs, " "),
+		)
+	}
+
 	// fill onbuild artifact
-	artifact := runtime.Artifact{
-		Name: "python-onbuild",
-		Image: fmt.Sprintf("%s/nuclio/handler-builder-python-onbuild:%s-%s",
-			onbuildImageRegistry,
-			p.VersionInfo.Label,
-			p.VersionInfo.Arch),
-		Paths: map[string]string{
-			"/home/nuclio/bin/processor": "/usr/local/bin/processor",
-			"/home/nuclio/bin/py":        "/opt/nuclio/",
+	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{
+		{
+			Name: "python-onbuild",
+			Image: fmt.Sprintf("%s/nuclio/handler-builder-python-onbuild:%s-%s",
+				onbuildImageRegistry,
+				p.VersionInfo.Label,
+				p.VersionInfo.Arch),
+			Paths: map[string]string{
+				"/home/nuclio/bin/processor": "/usr/local/bin/processor",
+				"/home/nuclio/bin/py":        "/opt/nuclio/",
+				srcOnbuildWheelsPath:         destOnbuildWheelsPath,
+			},
 		},
 	}
-	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
 		"postCopy": {
 			{
-				Kind: "RUN",
-				Value: fmt.Sprintf(
-					"pip install %s --no-index --find-links /opt/nuclio/whl",
-					strings.Join(pythonCommonModules, " ")),
+				Kind:  "RUN",
+				Value: installSDKDependenciesCommand,
 			},
 		},
 	}

@@ -23,15 +23,33 @@ COPY pkg/processor/runtime/python/py/requirements /requirements
 # Common wheels
 RUN pip download \
         --no-binary msgpack \
-        -d /whl \
+        --dest /whl \
         --exists-action i \
-        -r /requirements/common.txt
+        --requirement /requirements/common.txt
 
 # Python 3.6 wheels
 RUN pip download \
-        -d /whl \
+        --dest /whl \
         --exists-action i \
-        -r /requirements/python3_6.txt
+        --requirement /requirements/python3_6.txt
+
+# Supplies python 3.8 & common wheels
+FROM python:3.8 as python38-builder
+
+COPY pkg/processor/runtime/python/py/requirements /requirements
+
+# Common wheels
+RUN pip download \
+        --no-binary msgpack \
+        --dest /whl \
+        --exists-action i \
+        --requirement /requirements/common.txt
+
+# Python 3.8 wheels
+RUN pip download \
+        --dest /whl \
+        --exists-action i \
+        --requirement /requirements/python3_8.txt
 
 # Supplies processor
 FROM quay.io/nuclio/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
@@ -45,4 +63,5 @@ COPY pkg/processor/runtime/python/py /home/nuclio/bin/py
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
 # Copy wheels
-COPY --from=python36-builder /whl /home/nuclio/bin/py/whl
+COPY --from=python36-builder /whl /home/nuclio/bin/py-whl
+COPY --from=python38-builder /whl /home/nuclio/bin/py3.8-whl
