@@ -189,6 +189,9 @@ def handler(context, event):
 
 	// expose function for testing purposes
 	createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeNodePort
+
+	// don't explicitly pull base images before building
+	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 	return createFunctionOptions
 }
 
