@@ -48,17 +48,22 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
 	"github.com/mholt/archiver/v3"
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/version-go"
+	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
+	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/yaml.v2"
 )
 
 const (
 	FunctionConfigFileName = "function.yaml"
 	uhttpcImage            = "quay.io/nuclio/uhttpc:0.0.1-%s"
-	GithubEntryType        = "github"
+	GitEntryType           = "git"
+	GithubEntryType        = "github" // legacy
 	ArchiveEntryType       = "archive"
 	S3EntryType            = "s3"
 	ImageEntryType         = "image"
@@ -1523,6 +1528,8 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 		switch codeEntryType {
 		case S3EntryType:
 			err = b.downloadFunctionFromS3(tempFile)
+		case GitEntryType:
+			err = b.downloadFunctionFromGit(tempDir, functionPath)
 		default:
 			err = b.downloadFunctionFromURL(tempFile, functionPath, codeEntryType)
 		}
@@ -1548,6 +1555,62 @@ func (b *Builder) getS3FunctionItemKey() (string, error) {
 	}
 
 	return s3Attributes["s3ItemKey"], nil
+}
+
+func (b *Builder) parseFunctionGitAuthorization() (*githttp.BasicAuth, error) {
+	cetGitAuthorization := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitAuthorization"]
+
+	if cetGitAuthorization != nil {
+		type GitAuthorization struct {
+			Username    string `json:"username,omitempty"`
+			Password    string `json:"password,omitempty"`
+			AccessToken string `json:"accessToken,omitempty"`
+		}
+		var gitAuthorization GitAuthorization
+
+		if err := mapstructure.Decode(cetGitAuthorization, &gitAuthorization); err != nil {
+			return nil, errors.Wrap(err, "Failed to decode git authorization map")
+		}
+		if gitAuthorization.AccessToken != "" {
+			return &githttp.BasicAuth{
+				Username: "notempty", // anything but empty (token is what matters)
+				Password: gitAuthorization.AccessToken,
+			}, nil
+		} else if gitAuthorization.Username != "" && gitAuthorization.Password != "" {
+			return &githttp.BasicAuth{
+				Username: gitAuthorization.Username,
+				Password: gitAuthorization.Password,
+			}, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func (b *Builder) downloadFunctionFromGit(tempDir, functionPath string) error {
+	var branchRef string
+	var gitAuth *githttp.BasicAuth
+	var err error
+
+	// get branch ref and authorization when given
+	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes != nil {
+		branchRef, _ = b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["branch"].(string)
+		if gitAuth, err = b.parseFunctionGitAuthorization(); err != nil {
+			return errors.Wrap(err, "Failed to parse function git authorization")
+		}
+	}
+
+	if _, err = git.PlainClone(tempDir, false, &git.CloneOptions{
+		URL:           functionPath,
+		ReferenceName: plumbing.ReferenceName(branchRef),
+		Depth:         1,
+		Auth:          gitAuth,
+		Tags:          git.NoTags,
+	}); err != nil {
+		return errors.Wrap(err, "Failed to clone git repository")
+	}
+
+	return nil
 }
 
 func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {
