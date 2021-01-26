@@ -19,7 +19,6 @@ package functionconfig
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/v3io/scaler-types"
@@ -286,20 +285,6 @@ func (s *Spec) DeepCopyInto(out *Spec) {
 
 	// TODO: proper deep copy
 	*out = *s
-}
-
-// GetRuntimeNameAndVersion return runtime and version
-func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
-	runtimeAndVersion := strings.Split(s.Runtime, ":")
-
-	switch len(runtimeAndVersion) {
-	case 1:
-		return runtimeAndVersion[0], ""
-	case 2:
-		return runtimeAndVersion[0], runtimeAndVersion[1]
-	default:
-		return "", ""
-	}
 }
 
 // GetHTTPPort returns the HTTP port
