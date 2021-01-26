@@ -69,6 +69,8 @@ func (suite *KubeTestSuite) SetupSuite() {
 		suite.T().Skip("Test can only run when `NUCLIO_K8S_TESTS_ENABLED` environ is enabled")
 	}
 	var err error
+
+	common.SetVersionFromEnv()
 	suite.Namespace = common.GetEnvOrDefaultString("NUCLIO_TEST_NAMESPACE", "default")
 	suite.PlatformType = "kube"
 
