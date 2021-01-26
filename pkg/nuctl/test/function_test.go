@@ -39,6 +39,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/ghodss/yaml"
+	"github.com/gobuffalo/flect"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
@@ -97,38 +98,87 @@ type functionDeployTestSuite struct {
 }
 
 func (suite *functionDeployTestSuite) TestDeploy() {
-	uniqueSuffix := "-" + xid.New().String()
-	functionName := "deploy-reverser" + uniqueSuffix
-	imageName := "nuclio/processor-" + functionName
-
-	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-		"runtime": "golang",
-		"handler": "main:Reverse",
-	}
-
-	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
-
-	suite.Require().NoError(err)
-
-	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
-
-	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
-
-	// try a few times to invoke, until it succeeds
-	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
-		map[string]string{
-			"method": "POST",
-			"body":   "-reverse this string+",
-			"via":    "external-ip",
+	for _, runtimeInfo := range []struct {
+		runtime  string
+		handler  string
+		filename string
+	}{
+		{
+			runtime:  "golang",
+			handler:  "empty:Handler",
+			filename: "empty.go",
 		},
-		false)
-	suite.Require().NoError(err)
+		{
+			runtime:  "java",
+			handler:  "EmptyHandler",
+			filename: "EmptyHandler.java",
+		},
+		{
+			runtime:  "nodejs",
+			handler:  "empty:handler",
+			filename: "empty.js",
+		},
+		{
+			runtime:  "dotnetcore",
+			handler:  "nuclio:empty",
+			filename: "empty.cs",
+		},
+		{
+			runtime:  "python:3.6",
+			handler:  "empty:handler",
+			filename: "empty.py",
+		},
+		{
+			runtime:  "ruby",
+			handler:  "empty:main",
+			filename: "empty.rb",
+		},
+		{
+			runtime:  "shell",
+			handler:  "empty.sh:main",
+			filename: "empty.sh",
+		},
+		// TODO: Enable when python 3.7 + 3.8 merged
+		//{
+		//	runtime:  "python:3.7",
+		//	handler:  "empty:handler",
+		//	filename: "empty.py",
+		//},
+		//{
+		//	runtime:  "python:3.8",
+		//	handler:  "empty:handler",
+		//	filename: "empty.py",
+		//},
+	} {
+		suite.Run(runtimeInfo.runtime, func() {
+			runtimeName, _ := common.GetRuntimeNameAndVersion(runtimeInfo.runtime)
+			functionName := fmt.Sprintf("test-%s-%s",
+				flect.Dasherize(runtimeInfo.runtime),
+				xid.New().String())
+			namedArgs := map[string]string{
+				"path":    path.Join(suite.GetExamples(), runtimeName, "empty", runtimeInfo.filename),
+				"runtime": runtimeInfo.runtime,
+				"handler": runtimeInfo.handler,
+			}
+			suite.logger.DebugWith("Deploying function",
+				"functionName", functionName,
+				"namedArgs", namedArgs,
+			)
+			err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+			suite.Require().NoError(err)
 
-	// make sure reverser worked
-	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+			// use nutctl to delete the function when we're done
+			defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+			// try a few times to invoke, until it succeeds
+			err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
+				map[string]string{
+					"via": "external-ip",
+				},
+				false)
+			suite.Require().NoError(err)
+		})
+	}
 }
 
 func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {

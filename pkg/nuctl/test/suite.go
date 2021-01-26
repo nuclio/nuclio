@@ -51,7 +51,6 @@ type Suite struct {
 	suite.Suite
 	origPlatformKind    string
 	logger              logger.Logger
-	rootCommandeer      *command.RootCommandeer
 	dockerClient        dockerclient.Client
 	shellClient         *cmdrunner.ShellRunner
 	outputBuffer        bytes.Buffer
@@ -110,13 +109,13 @@ func (suite *Suite) TearDownSuite() {
 func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 	namedArgs map[string]string) error {
 
-	suite.rootCommandeer = command.NewRootCommandeer()
+	rootCommandeer := command.NewRootCommandeer()
 
 	// set the output so we can capture it (but also output to stdout)
-	suite.rootCommandeer.GetCmd().SetOut(io.MultiWriter(os.Stdout, &suite.outputBuffer))
+	rootCommandeer.GetCmd().SetOut(io.MultiWriter(os.Stdout, &suite.outputBuffer))
 
 	// set the input so we can write to stdin
-	suite.rootCommandeer.GetCmd().SetIn(&suite.inputBuffer)
+	rootCommandeer.GetCmd().SetIn(&suite.inputBuffer)
 
 	// since args[0] is the executable name, just shove something there
 	argsStringSlice := []string{
@@ -136,7 +135,7 @@ func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 	suite.logger.DebugWith("Executing nuctl", "args", argsStringSlice)
 
 	// execute
-	return suite.rootCommandeer.Execute()
+	return rootCommandeer.Execute()
 }
 
 // RetryExecuteNuctlUntilSuccessful executes nuctl until expectFailure is met
@@ -169,6 +168,10 @@ func (suite *Suite) GetFunctionsDir() string {
 
 func (suite *Suite) GetFunctionConfigsDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "test", "_function_configs")
+}
+
+func (suite *Suite) GetExamples() string {
+	return path.Join(suite.GetNuclioSourceDir(), "hack", "examples")
 }
 
 func (suite *Suite) GetImportsDir() string {
