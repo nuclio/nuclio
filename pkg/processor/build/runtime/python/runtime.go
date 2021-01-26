@@ -36,8 +36,8 @@ func (p *python) GetName() string {
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 	var installSDKDependenciesCommand string
-	var srcOnbuildWheelsPath string
 
+	srcOnbuildWheelsPath := "/home/nuclio/bin/py-whl"
 	destOnbuildWheelsPath := "/opt/nuclio/whl"
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{
 		BaseImage: p.FunctionConfig.Spec.Runtime,
@@ -81,7 +81,6 @@ func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runti
 	default:
 
 		// true for python & python:3.6
-		srcOnbuildWheelsPath = fmt.Sprintf("/home/nuclio/bin/py-whl")
 		installSDKDependenciesCommand = fmt.Sprintf("pip install %s %s",
 			strings.Join(pythonCommonModules, " "),
 			strings.Join(pipInstallArgs, " "),
