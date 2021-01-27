@@ -48,7 +48,8 @@ import (
 )
 
 //
-// Test suite
+// Unit test suite
+// cannot reside with server.go because of dependency cycle by "github.com/nuclio/nuclio/pkg/dashboard/resource"
 //
 
 type dashboardTestSuite struct {

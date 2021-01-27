@@ -11,7 +11,7 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the Licensg.
+limitations under the License.
 */
 
 package build
@@ -667,12 +667,6 @@ func (suite *testSuite) TestImageNameConfigurationEnrichment() {
 		suite.builder.processorImage.imageName = ""
 		suite.builder.processorImage.imageTag = ""
 	}
-}
-
-func (suite *testSuite) mergeDirectivesAndVerify(first map[string][]functionconfig.Directive,
-	second map[string][]functionconfig.Directive,
-	merged map[string][]functionconfig.Directive) {
-
 }
 
 func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension string) {

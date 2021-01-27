@@ -14,10 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package functiontemplates
+package test
 
 import (
 	"testing"
+
+	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -30,11 +32,13 @@ type GitFetcherTestSuite struct {
 }
 
 func (suite *GitFetcherTestSuite) SetupSuite() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	var err error
+	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
 }
 
 func (suite *GitFetcherTestSuite) TestFetch() {
-	templateFetcher, err := NewGitFunctionTemplateFetcher(suite.logger,
+	templateFetcher, err := functiontemplates.NewGitFunctionTemplateFetcher(suite.logger,
 		"https://github.com/nuclio/nuclio-templates.git",
 		"refs/heads/master")
 	suite.Require().NoError(err)
@@ -59,11 +63,13 @@ type ZipFetcherTestSuite struct {
 }
 
 func (suite *ZipFetcherTestSuite) SetupSuite() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	var err error
+	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
 }
 
 func (suite *ZipFetcherTestSuite) TestFetch() {
-	templateFetcher, err := NewZipFunctionTemplateFetcher(suite.logger,
+	templateFetcher, err := functiontemplates.NewZipFunctionTemplateFetcher(suite.logger,
 		"https://github.com/nuclio/nuclio-templates/archive/master.zip")
 
 	suite.Require().NoError(err)

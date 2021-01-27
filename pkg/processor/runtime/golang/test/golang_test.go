@@ -39,8 +39,8 @@ import (
 
 type TestSuite struct {
 	httpsuite.TestSuite
-	cloudevents.CloudEventsTestSuite
-	callfunction.CallFunctionTestSuite
+	CloudEventsTestSuite  cloudevents.TestSuite
+	CallFunctionTestSuite callfunction.TestSuite
 }
 
 func (suite *TestSuite) SetupTest() {

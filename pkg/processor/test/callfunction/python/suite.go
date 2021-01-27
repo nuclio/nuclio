@@ -29,12 +29,12 @@ import (
 
 // CallFunctionTestSuite tests calling functions from within a function using context.platform.call_function
 // or equivalent
-type CallFunctionTestSuite struct { // nolint
+type TestSuite struct { // nolint
 	HTTPSuite *httpsuite.TestSuite
 }
 
 // TestCallFunction tests a call function in Python
-func (suite *CallFunctionTestSuite) TestCallFunction() {
+func (suite *TestSuite) TestCallFunction() {
 	networkName := "test-network-" + suite.HTTPSuite.TestID
 
 	// create a docker network so that the functions can communicate

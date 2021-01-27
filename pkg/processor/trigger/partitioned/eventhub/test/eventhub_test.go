@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 	"github.com/nuclio/nuclio/pkg/processor/util/eventhub"
 
+	"github.com/stretchr/testify/suite"
 	"pack.ag/amqp"
 )
 
@@ -37,7 +38,7 @@ type testSuite struct {
 	eventhubName         string
 }
 
-func newTestSuite() *testSuite { // nolint: deadcode
+func newTestSuite() *testSuite {
 	newTestSuite := &testSuite{
 		namespace:            os.Getenv("NUCLIO_EVENTHUB_TEST_NAMESPACE"),
 		sharedAccessKeyName:  os.Getenv("NUCLIO_EVENTHUB_TEST_SHARED_ACCESS_KEY_NAME"),
@@ -94,10 +95,10 @@ func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
 
 func TestIntegrationSuite(t *testing.T) {
 
-	//// don't run this suite unless commented (requires an Iguazio system)
-	//if testing.Short() {
-	//	return
-	//}
-	//
-	//suite.Run(t, newTestSuite())
+	if testing.Short() {
+		return
+	}
+
+	// requires an Iguazio system
+	suite.Run(t, newTestSuite())
 }

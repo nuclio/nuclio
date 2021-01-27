@@ -29,13 +29,13 @@ import (
 
 // CloudEventsTestSuite has common functions for cloudevents testing
 // Other suites should embed this suite and in SetupSuite set HTTPSuite
-type CloudEventsTestSuite struct { // nolint
+type TestSuite struct {
 	HTTPSuite          *httpsuite.TestSuite
 	CloudEventsHandler string
 }
 
 // TestStructuredCloudEvent tests a structured cloud event
-func (suite *CloudEventsTestSuite) TestStructuredCloudEvent() {
+func (suite *TestSuite) TestStructuredCloudEvent() {
 	createFunctionOptions := suite.getCreateOptions()
 	now := time.Now().UTC().Format(time.RFC3339)
 
@@ -82,7 +82,7 @@ func (suite *CloudEventsTestSuite) TestStructuredCloudEvent() {
 }
 
 // TestBinaryCloudEvent tests a binary cloudsevents
-func (suite *CloudEventsTestSuite) TestBinaryCloudEvent() {
+func (suite *TestSuite) TestBinaryCloudEvent() {
 	createFunctionOptions := suite.getCreateOptions()
 	now := time.Now().UTC().Format(time.RFC3339)
 
@@ -125,7 +125,7 @@ func (suite *CloudEventsTestSuite) TestBinaryCloudEvent() {
 	})
 }
 
-func (suite *CloudEventsTestSuite) getCreateOptions() *platform.CreateFunctionOptions {
+func (suite *TestSuite) getCreateOptions() *platform.CreateFunctionOptions {
 	options := suite.HTTPSuite.GetDeployOptions(
 		"event-returner",
 		path.Join(
@@ -143,7 +143,7 @@ func (suite *CloudEventsTestSuite) getCreateOptions() *platform.CreateFunctionOp
 	return options
 }
 
-func (suite *CloudEventsTestSuite) decodeResponse(body []byte) *httpsuite.EventFields {
+func (suite *TestSuite) decodeResponse(body []byte) *httpsuite.EventFields {
 	unmarshalledBody := &httpsuite.EventFields{}
 	// read the body JSON
 	err := json.Unmarshal(body, unmarshalledBody)

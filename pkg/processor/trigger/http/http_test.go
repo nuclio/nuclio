@@ -175,8 +175,7 @@ func (suite *TestSuite) TestCORS() {
 func (suite *TestSuite) serveDummyHTTPServer(handler fasthttp.RequestHandler) {
 	go func() {
 		suite.fastDummyHTTPServerStarted = true
-		err := fasthttp.Serve(suite.fastDummyHTTPServer, handler)
-		if err != nil {
+		if err := fasthttp.Serve(suite.fastDummyHTTPServer, handler); err != nil {
 			suite.Require().NoError(err, "Failed to serve")
 		}
 	}()
