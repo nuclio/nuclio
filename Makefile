@@ -496,6 +496,7 @@ test-k8s: build-test
 		--env MINIKUBE_HOME=$(MINIKUBE_HOME) \
 		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
 		--env KUBECONFIG=/kubeconfig \
+		--env NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=$(NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST) \
 		$(NUCLIO_DOCKER_TEST_TAG) \
 		/bin/bash -c "make test-k8s-undockerized"
 

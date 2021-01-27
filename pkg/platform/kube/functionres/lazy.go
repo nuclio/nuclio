@@ -1485,6 +1485,16 @@ func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.Ser
 	return to
 }
 
+func (lc *lazyClient) getCronTriggerInvocationURL(resources Resources, namespace string) (string, error) {
+	functionService, err := resources.Service()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get function service")
+	}
+	host, port := kube.GetDomainNameInvokeURL(functionService.Name, namespace)
+
+	return fmt.Sprintf("%s:%d", host, port), nil
+}
+
 func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	resources Resources,
@@ -1527,13 +1537,10 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	// add default header
 	headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, "x-nuclio-invoke-trigger", "cron")
 
-	// get the function http trigger address from the service
-	functionService, err := resources.Service()
+	functionAddress, err := lc.getCronTriggerInvocationURL(resources, function.Namespace)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function service")
+		return nil, errors.Wrap(err, "Failed to get cron trigger invocation URL")
 	}
-	host, port := kube.GetDomainNameInvokeURL(functionService.Name, function.Namespace)
-	functionAddress := fmt.Sprintf("%s:%d", host, port)
 
 	// generate the curl command to be run by the CronJob to invoke the function
 	// invoke the function (retry for 10 seconds)
@@ -1548,14 +1555,16 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 		eventBodyFilePath := "/tmp/eventbody.out"
 		eventBodyCurlArg := fmt.Sprintf("--data '@%s'", eventBodyFilePath)
 
-		// if body is a valid JSON parse it accordingly
-		eventBodyAsJSON, err := json.Marshal(eventBody)
-		if err == nil {
-			eventBody = string(eventBodyAsJSON)
+		// try compact as JSON (will fail if it's not a valid JSON)
+		eventBodyAsCompactedJSON := bytes.NewBuffer([]byte{})
+		if err := json.Compact(eventBodyAsCompactedJSON, []byte(eventBody)); err == nil {
+
+			// set the compacted JSON as event body
+			eventBody = eventBodyAsCompactedJSON.String()
 		}
 
 		curlCommand = fmt.Sprintf("echo %s > %s && %s %s",
-			eventBody,
+			strconv.Quote(eventBody),
 			eventBodyFilePath,
 			curlCommand,
 			eventBodyCurlArg)
