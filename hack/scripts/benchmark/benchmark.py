@@ -19,8 +19,7 @@ import os
 import pathlib
 import shlex
 import subprocess
-
-logging.basicConfig(level=logging.INFO)
+import time
 
 """
 benchmark.py provides a simple yet quick way to run  HTTP load benchmarking tests against Nuclio function runtimes,
@@ -54,13 +53,15 @@ class Runtimes(object):
     java = "java"
     nodejs = "nodejs"
     dotnetcore = "dotnetcore"
+    shell = "shell"
+    ruby = "ruby"
+
+    # TODO: uncomment once python 37 / 38 are merged
+    # python37 = "python:3.7"
+    # python38 = "python:3.8"
 
     # NOTE: python is just a reference to python3.6
     python = "python"
-
-    # TODO: support benchmarking - add "empty function'
-    # shell = "shell"
-    # ruby = "ruby"
 
     @staticmethod
     def runtime_to_bm_function_handler(name, runtime):
@@ -68,10 +69,14 @@ class Runtimes(object):
             "empty": {
                 Runtimes.python: "empty:handler",
                 Runtimes.python36: "empty:handler",
+                # Runtimes.python37: "empty:handler",
+                # Runtimes.python38: "empty:handler",
                 Runtimes.golang: "empty:Handler",
                 Runtimes.java: "EmptyHandler",
                 Runtimes.nodejs: "empty:handler",
                 Runtimes.dotnetcore: "nuclio:empty",
+                Runtimes.shell: "empty.sh:main",
+                Runtimes.ruby: "empty:main",
             }
         }[name][runtime]
 
@@ -81,10 +86,14 @@ class Runtimes(object):
             "empty": {
                 Runtimes.python: "empty.py",
                 Runtimes.python36: "empty.py",
+                # Runtimes.python37: "empty.py",
+                # Runtimes.python38: "empty.py",
                 Runtimes.golang: "empty.go",
                 Runtimes.java: "EmptyHandler.java",
                 Runtimes.nodejs: "empty.js",
                 Runtimes.dotnetcore: "empty.cs",
+                Runtimes.shell: "empty.sh",
+                Runtimes.ruby: "empty.rb",
             }
         }[name][runtime]
 
@@ -93,9 +102,13 @@ class Runtimes(object):
         return [
             Runtimes.golang,
             Runtimes.python36,
+            # Runtimes.python37,
+            # Runtimes.python38,
             Runtimes.java,
             Runtimes.nodejs,
             Runtimes.dotnetcore,
+            Runtimes.shell,
+            Runtimes.ruby,
         ]
 
 
@@ -219,12 +232,48 @@ class Function(object):
         return pathlib.Path(self._project_dir) / runtime_example_dir / source_function_name
 
 
+class LoggingFormatter(logging.Formatter):
+    class Colors(object):
+        reset = "\u001b[0m"
+        white = "\u001b[37m"
+        cyan = "\u001b[36m"
+        blue = "\u001b[34m"
+        red = "\u001b[31m"
+        green = "\u001b[32m"
+
+    def format(self, record):
+
+        def short_color(level):
+            if level == logging.NOTSET:
+                return 'V', LoggingFormatter.Colors.white
+            if level == logging.DEBUG:
+                return 'D', LoggingFormatter.Colors.cyan
+            if level == logging.INFO:
+                return 'I', LoggingFormatter.Colors.blue
+            if level == logging.WARNING:
+                return 'W', LoggingFormatter.Colors.red
+            return 'E', LoggingFormatter.Colors.red
+
+        def format_level(level):
+            short, color = short_color(level)
+            return color + '(%s)' % short + LoggingFormatter.Colors.reset
+
+        output = {
+            'time': time.strftime("%y.%m.%d %H:%M:%S", time.localtime(record.created)),
+            'name': record.name,
+            'level': format_level(record.levelno),
+            'message': record.getMessage(),
+        }
+        return f"%(time)s " \
+               f"{LoggingFormatter.Colors.green}%(name)29s{LoggingFormatter.Colors.reset} " \
+               f"%(level)s " \
+               f"%(message)s" % output
+
+
 def run(args):
     function_names = []
     os.makedirs(args.workdir, exist_ok=True)
-    logger = logging.getLogger("benchmark")
-    if args.verbose:
-        logger.setLevel(logging.DEBUG)
+    logger = _get_logger(args.verbose)
 
     project_dir = _get_nuclio_project_dir()
     if not project_dir:
@@ -275,8 +324,20 @@ def _populate_runtime_names(runtimes):
     return encoded_runtimes.split(",")
 
 
+def _get_logger(verbose: bool):
+    logger = logging.getLogger("benchmark")
+    logger.setLevel(logging.INFO if not verbose else logging.NOTSET)
+    sh = logging.StreamHandler()
+    sh.setFormatter(LoggingFormatter())
+    logger.addHandler(sh)
+    return logger
+
+
 def _parse_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='Benchmark',
+                                     usage="Use \"%(prog)s --help\" for more information",
+                                     formatter_class=argparse.RawTextHelpFormatter)
+    all_runtimes = ",".join(_populate_runtime_names("all"))
     parser.add_argument("--verbose",
                         help="Verbose output",
                         action="store_true")
@@ -284,7 +345,8 @@ def _parse_args():
                         help="Whether to deploy functions first (Default: False)",
                         action="store_true")
     parser.add_argument("--runtimes",
-                        help=f"A comma delimited (,) list of Nuclio runtimes to benchmark (Default: all)",
+                        help=f"A comma delimited (,) list of Nuclio runtimes to benchmark or \"all\" for all runtimes "
+                             f"(Default: {all_runtimes})",
                         default="all")
     parser.add_argument("--workdir",
                         help=f"Workdir to store benchmarking artifacts (Default: {Constants.default_workdir})",
