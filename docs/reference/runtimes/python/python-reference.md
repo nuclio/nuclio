@@ -16,7 +16,7 @@ import nuclio_sdk
 
 def handler(context: nuclio_sdk.Context, event: nuclio_sdk.Event):
     context.logger.info_with('Invoked', method=event.method)
-    return "Hello from Nuclio :-)"
+    return "Hello, from Nuclio :]"
 ```
 
 The `handler` field is of the form `<package>:<entrypoint>`, where `<package>` is a dot (`.`) separated path (for example, `foo.bar` equates to `foo/bar.py`) and `<entrypoint>` is the function name. In the example above, the handler is `main:handler`, assuming the file is named `main.py`.
@@ -48,6 +48,9 @@ COPY --from=processor /home/nuclio/bin/py /opt/nuclio/
 COPY --from=processor /home/nuclio/bin/py*-whl/* /opt/nuclio/whl/
 COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 
+# Install pip (if missing) + nuclio python sdk and its dependencies
+# Using "python -m" to ensure the given interpreter has all dependencies installed in cases
+# .. where there is more than one python interpreter and global pip is attached to the other interpreter
 RUN python /opt/nuclio/whl/$(basename /opt/nuclio/whl/pip-*.whl)/pip install pip --no-index --find-links /opt/nuclio/whl \
  && python -m pip install nuclio-sdk msgpack --no-index --find-links /opt/nuclio/whl
 
@@ -82,7 +85,9 @@ spec:
 <a id="build-and-execution"></a>
 ## Build and execution
 
-Following are example commands for building and running the latest version of a `my-function` function that's listening on port 8090; replace the function name and version and the port number, as needed:
+Following are example commands for building and running the latest version of a `my-function` function that's listening on port 8090.
+
+You may replace the function name, and the published port number, as needed:
 
 ```sh
 docker build --tag my-function:latest .
@@ -95,3 +100,21 @@ docker run \
   --publish 8090:8080 \
   my-function:latest
 ```
+
+## Portable execution
+
+If you have baked in your function configuration (aka `function.yaml`) onto the function container image, 
+you *do not* have to volumize it during execution, but rather explicitly overriding the function configuration path; e.g.:
+
+```sh
+docker run \
+  --rm \
+  --detach \
+  --name my-function \
+  --publish 8090:8080 \
+  my-function:latest \
+  processor --config /opt/nuclio/function.yaml
+```
+
+That way, you can build your function once, deploy it as much as desired, 
+without being needed to volumize the function configuration upon each deployment.
