@@ -48,8 +48,8 @@ COPY --from=processor /home/nuclio/bin/py /opt/nuclio/
 COPY --from=processor /home/nuclio/bin/py*-whl/* /opt/nuclio/whl/
 COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 
-RUN python /opt/nuclio/whl/$(basename /opt/nuclio/whl/pip-*.whl)/pip install pip --no-index --find-links /opt/nuclio/whl --user \
- && python -m pip install nuclio-sdk msgpack --no-index --find-links /opt/nuclio/whl --user
+RUN python /opt/nuclio/whl/$(basename /opt/nuclio/whl/pip-*.whl)/pip install pip --no-index --find-links /opt/nuclio/whl \
+ && python -m pip install nuclio-sdk msgpack --no-index --find-links /opt/nuclio/whl
 
 # Readiness probe
 HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
