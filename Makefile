@@ -424,20 +424,36 @@ lint: modules
 
 .PHONY: test-undockerized
 test-undockerized: ensure-gopath
-	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./cmd/... ./pkg/...
+	go test \
+		-v \
+		-p 1 \
+		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
+		./cmd/... ./pkg/...
 
 .PHONY: test-kafka-undockerized
 test-kafka-undockerized: ensure-gopath
-	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./pkg/processor/trigger/kafka/...
+	go test \
+		-v \
+		-p 1 \
+		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
+		./pkg/processor/trigger/kafka/...
 
 # This is to work around hostname resolution issues for sarama and kafka in CI
 .PHONY: test-periodic-undockerized
 test-periodic-undockerized: ensure-gopath
-	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) $(shell go list ./cmd/... ./pkg/... | grep -v trigger/kafka)
+	go test \
+		-v \
+		-p 1 \
+		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
+		$(shell go list ./cmd/... ./pkg/... | grep -v trigger/kafka)
 
 .PHONY: test-k8s-undockerized
 test-k8s-undockerized: ensure-gopath
-	NUCLIO_K8S_TESTS_ENABLED=true go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./pkg/platform/kube/...
+	go test \
+ 		-v \
+ 		-p 1 \
+ 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
+ 		./pkg/platform/kube/...
 
 .PHONY: fmt
 fmt:
