@@ -134,23 +134,6 @@ func (ar *AbstractRuntime) GetFunctionDir() string {
 	return path.Dir(ar.FunctionConfig.Spec.Build.Path)
 }
 
-// GetRuntimeNameAndVersion returns name and version of runtime from runtime.
-// e.g. go:1.8 -> go, 1.8
-func (ar *AbstractRuntime) GetRuntimeNameAndVersion() (string, string) {
-	nameAndVersion := strings.Split(ar.FunctionConfig.Spec.Runtime, ":")
-
-	switch len(nameAndVersion) {
-
-	// if both are passed (e.g. python:3.6) - return them both
-	case 2:
-		return nameAndVersion[0], nameAndVersion[1]
-
-	// otherwise - return the first element (e.g. go -> go)
-	default:
-		return nameAndVersion[0], ""
-	}
-}
-
 // GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
 // directory
 func (ar *AbstractRuntime) GetHandlerDirObjectPaths() []string {
@@ -171,7 +154,7 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 }
 
 func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imagesOverrideMap map[string]string) string {
-	runtimeName, runtimeVersion := ar.GetRuntimeNameAndVersion()
+	runtimeName, runtimeVersion := common.GetRuntimeNameAndVersion(ar.FunctionConfig.Spec.Runtime)
 
 	// supports both overrides per runtimeName and per runtimeName + runtimeVersion
 	if runtimeVersion != "" {
