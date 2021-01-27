@@ -19,6 +19,7 @@ pkg/processor/runtime/python/py/whl
 .vagrant
 .vscode
 .testoutputs
+.benchmarking
 __pycache__
 test/http-bench/out/
 .DS_Store
