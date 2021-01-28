@@ -1515,6 +1515,16 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
 		}
 
+		// in case this is git entry type - clone folder into tempDir
+		if codeEntryType == GitEntryType {
+			err = b.downloadFunctionFromGit(tempDir, functionPath)
+			if err != nil {
+				return "", errors.Wrap(err, "Failed to download function from git")
+			}
+
+			return tempDir, nil
+		}
+
 		tempFile, err := b.getFunctionTempFile(tempDir, functionPath, isArchive, codeEntryType)
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to get function temporary file")
@@ -1528,8 +1538,6 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 		switch codeEntryType {
 		case S3EntryType:
 			err = b.downloadFunctionFromS3(tempFile)
-		case GitEntryType:
-			err = b.downloadFunctionFromGit(tempDir, functionPath)
 		default:
 			err = b.downloadFunctionFromURL(tempFile, functionPath, codeEntryType)
 		}
