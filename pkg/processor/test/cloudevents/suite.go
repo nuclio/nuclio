@@ -1,3 +1,6 @@
+// +build integration
+// +build local
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -27,7 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 )
 
-// CloudEventsTestSuite has common functions for cloudevents testing
+// TestSuite has common functions for cloudevents testing
 // Other suites should embed this suite and in SetupSuite set HTTPSuite
 type TestSuite struct {
 	HTTPSuite          *httpsuite.TestSuite

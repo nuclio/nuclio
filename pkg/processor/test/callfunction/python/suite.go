@@ -1,3 +1,6 @@
+// +build integration
+// +build local
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -27,7 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 )
 
-// CallFunctionTestSuite tests calling functions from within a function using context.platform.call_function
+// TestSuite tests calling functions from within a function using context.platform.call_function
 // or equivalent
 type TestSuite struct { // nolint
 	HTTPSuite *httpsuite.TestSuite
