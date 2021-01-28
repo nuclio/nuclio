@@ -1571,12 +1571,22 @@ func (b *Builder) parseFunctionGitAuthorization() (*githttp.BasicAuth, error) {
 		if err := mapstructure.Decode(cetGitAuthorization, &gitAuthorization); err != nil {
 			return nil, errors.Wrap(err, "Failed to decode git authorization map")
 		}
+
+		// use access token if given
 		if gitAuthorization.AccessToken != "" {
+			username := "notempty" // if not given use anything but empty (for github - must provide non empty username)
+			if gitAuthorization.Username != "" {
+				username = gitAuthorization.Username
+			}
+
 			return &githttp.BasicAuth{
-				Username: "notempty", // anything but empty (token is what matters)
+				Username: username,
 				Password: gitAuthorization.AccessToken,
 			}, nil
+
+		// otherwise, use username and password authentication if given
 		} else if gitAuthorization.Username != "" && gitAuthorization.Password != "" {
+
 			return &githttp.BasicAuth{
 				Username: gitAuthorization.Username,
 				Password: gitAuthorization.Password,
