@@ -480,6 +480,16 @@ test-undockerized: ensure-gopath
 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
 		./cmd/... ./pkg/...
 
+.PHONY: test-k8s-undockerized
+test-k8s-undockerized: ensure-gopath
+	@# nuctl is running by "test-k8s-nuctl" target and requires specific set of env
+	go test \
+		-tags="integration,kube" \
+ 		-v \
+ 		-p 1 \
+ 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
+ 		$(shell go list -tags="integration,kube" ./cmd/... ./pkg/... | grep -v nuctl)
+
 .PHONY: test-broken-undockerized
 test-broken-undockerized: ensure-gopath
 	go test \
@@ -488,14 +498,6 @@ test-broken-undockerized: ensure-gopath
 		-p 1 \
 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
 		./cmd/... ./pkg/...
-
-.PHONY: test-k8s-undockerized
-test-k8s-undockerized: ensure-gopath
-	go test \
- 		-v \
- 		-p 1 \
- 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
- 		./pkg/platform/kube/...
 
 .PHONY: test
 test: build-test
