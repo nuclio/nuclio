@@ -23,6 +23,11 @@ run:
 
   # timeout for analysis
   timeout: 5m
+  build-tags:
+    - integration
+    - kube
+    - platform
+    - iguazio
 
   skip-dirs:
     - docs
