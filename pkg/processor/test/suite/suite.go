@@ -126,6 +126,9 @@ func (suite *TestSuite) SetupSuite() {
 // SetupTest is called before each test in the suite
 func (suite *TestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
+	suite.Logger.InfoWith("Running test",
+		"name", suite.T().Name(),
+		"id", suite.TestID)
 }
 
 // BlastHTTP is a stress test suite

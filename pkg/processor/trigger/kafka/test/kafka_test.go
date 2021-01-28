@@ -1,5 +1,5 @@
 // +build integration
-// +build local
+// +build broken
 
 /*
 Copyright 2018 The Nuclio Authors.
