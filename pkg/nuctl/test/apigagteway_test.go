@@ -42,9 +42,7 @@ type apiGatewayCreateGetAndDeleteTestSuite struct {
 }
 
 func (suite *apiGatewayCreateGetAndDeleteTestSuite) SetupSuite() {
-
-	// TODO: set platform kind from here
-	suite.ensureRunningOnPlatform("kube")
+	suite.platformKindOverride = "kube"
 	suite.Suite.SetupSuite()
 }
 
@@ -129,9 +127,7 @@ type apiGatewayInvokeTestSuite struct {
 }
 
 func (suite *apiGatewayInvokeTestSuite) SetupSuite() {
-
-	// TODO: set platform kind from here
-	suite.ensureRunningOnPlatform("kube")
+	suite.platformKindOverride = "kube"
 	suite.Suite.SetupSuite()
 }
 

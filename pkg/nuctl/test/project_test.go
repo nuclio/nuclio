@@ -1,4 +1,5 @@
-// +build integration kube local
+// +build integration
+// +build kube local
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -32,8 +33,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/ghodss/yaml"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
@@ -461,63 +460,6 @@ func (suite *projectExportImportTestSuite) TestImportProjectSkipBySelectors() {
 			} else {
 				suite.assertProjectImported(projectName)
 			}
-		})
-	}
-}
-
-func (suite *projectExportImportTestSuite) TestExportProjectWithDisplayName() {
-	suite.ensureRunningOnPlatform("kube")
-
-	importProjectWithDisplayName := func(projectName string) {
-		_, err := suite.shellClient.Run(nil, `cat <<EOF | kubectl apply -f -
-apiVersion: nuclio.io/v1beta1
-kind: NuclioProject
-metadata:
-  name: %[1]s
-  namespace: %[2]s
-spec:
-  displayName: test-display-name
-  description: test-description
-EOF
-`, projectName, suite.namespace)
-		suite.Require().NoError(err)
-	}
-
-	for _, testCase := range []struct {
-		name                        string
-		projectName                 string
-		importProjectPositionalArgs []string
-		expectedExportedProject     *platform.ProjectConfig
-	}{
-		{
-			name:        "Omit display name",
-			projectName: "test-project" + xid.New().String(),
-			expectedExportedProject: &platform.ProjectConfig{
-				Meta: platform.ProjectMeta{
-					Namespace: suite.namespace,
-				},
-				Spec: platform.ProjectSpec{
-					Description: "test-description",
-				},
-			},
-		},
-	} {
-		suite.Run(testCase.name, func() {
-			importProjectWithDisplayName(testCase.projectName)
-
-			// name is dynamically created and should not changed during creating / exporting
-			testCase.expectedExportedProject.Meta.Name = testCase.projectName
-
-			// delete leftovers
-			defer suite.ExecuteNuctl([]string{"delete", "project", testCase.projectName}, nil) // nolint: errcheck
-
-			exportedProjectConfig := suite.exportProject(testCase.projectName,
-				testCase.importProjectPositionalArgs)
-			suite.Require().Empty(cmp.Diff(testCase.expectedExportedProject, exportedProjectConfig.Project,
-				cmp.Options{
-					cmpopts.IgnoreFields(testCase.expectedExportedProject.Meta, "Annotations"),
-				},
-			))
 		})
 	}
 }

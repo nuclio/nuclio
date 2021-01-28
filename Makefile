@@ -464,11 +464,12 @@ test-k8s-nuctl:
 		NUCTL_RUN_REGISTRY=$(NUCTL_REGISTRY) \
 		NUCTL_PLATFORM=kube \
 		NUCTL_NAMESPACE=$(if $(NUCTL_NAMESPACE),$(NUCTL_NAMESPACE),"default") \
-		go test -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+		go test -tags="integration,kube" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
 
 .PHONY: test-docker-nuctl
 test-docker-nuctl:
-	NUCTL_PLATFORM=local go test -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+	NUCTL_PLATFORM=local \
+		go test -tags="integration,local" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
 
 .PHONY: test-undockerized
 test-undockerized: ensure-gopath

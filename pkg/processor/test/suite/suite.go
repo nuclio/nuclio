@@ -1,4 +1,4 @@
-// +build unit integration local kube
+// +build unit integration kube local
 
 /*
 Copyright 2017 The Nuclio Authors.
