@@ -2,6 +2,7 @@
   <configuration default="false" name="(test:integ) processor/trigger/cron" type="GoTestRunConfiguration" factoryName="Go Test">
     <module name="nuclio" />
     <working_directory value="$PROJECT_DIR$/pkg/processor/trigger/cron/test" />
+    <go_parameters value="-tags integration,local" />
     <EXTENSION ID="net.ashald.envfile">
       <option name="IS_ENABLED" value="false" />
       <option name="IS_SUBST" value="false" />

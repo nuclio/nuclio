@@ -2,10 +2,7 @@
   <configuration default="false" name="(test:kube) platform/kube" type="GoTestRunConfiguration" factoryName="Go Test">
     <module name="nuclio" />
     <working_directory value="$PROJECT_DIR$/pkg/platform/kube/test" />
-    <go_parameters value="-ldflags=&quot;-X github.com/v3io/version-go.label=latest&quot;" />
-    <envs>
-      <env name="NUCLIO_K8S_TESTS_ENABLED" value="true" />
-    </envs>
+    <go_parameters value="-tags integration,kube" />
     <EXTENSION ID="net.ashald.envfile">
       <option name="IS_ENABLED" value="false" />
       <option name="IS_SUBST" value="false" />
