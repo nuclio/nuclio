@@ -1,3 +1,6 @@
+// +build integration
+// +build local
+
 /*
 Copyright 2018 The Nuclio Authors.
 
