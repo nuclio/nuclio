@@ -502,7 +502,7 @@ test-broken-undockerized: ensure-gopath
 .PHONY: test
 test: build-test
 	$(eval NUCLIO_TEST_MAKE_TARGET ?= $(if $(NUCLIO_TEST_BROKEN),"test-broken-undockerized","test-undockerized"))
-	@echo docker run \
+	@docker run \
 		--rm \
 		--volume /var/run/docker.sock:/var/run/docker.sock \
 		--volume $(GOPATH)/bin:/go/bin \
