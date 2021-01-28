@@ -35,5 +35,5 @@ jobs:
       env:
         NUCLIO_NUCTL_CREATE_SYMLINK: false
 
-    - name: Test periodic
-      run: make test-periodic
+    - name: Test
+      run: make test-test

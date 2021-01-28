@@ -474,27 +474,20 @@ test-docker-nuctl:
 .PHONY: test-undockerized
 test-undockerized: ensure-gopath
 	go test \
+		-tags="integration,local" \
 		-v \
 		-p 1 \
 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
 		./cmd/... ./pkg/...
 
-.PHONY: test-kafka-undockerized
-test-kafka-undockerized: ensure-gopath
+.PHONY: test-broken-undockerized
+test-broken-undockerized: ensure-gopath
 	go test \
+		-tags="integration,broken" \
 		-v \
 		-p 1 \
 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
-		./pkg/processor/trigger/kafka/...
-
-# This is to work around hostname resolution issues for sarama and kafka in CI
-.PHONY: test-periodic-undockerized
-test-periodic-undockerized: ensure-gopath
-	go test \
-		-v \
-		-p 1 \
-		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
-		$(shell go list ./cmd/... ./pkg/... | grep -v trigger/kafka)
+		./cmd/... ./pkg/...
 
 .PHONY: test-k8s-undockerized
 test-k8s-undockerized: ensure-gopath
@@ -506,7 +499,8 @@ test-k8s-undockerized: ensure-gopath
 
 .PHONY: test
 test: build-test
-	docker run \
+	$(eval NUCLIO_TEST_MAKE_TARGET ?= $(if $(NUCLIO_TEST_BROKEN),"test-broken-undockerized","test-undockerized"))
+	@echo docker run \
 		--rm \
 		--volume /var/run/docker.sock:/var/run/docker.sock \
 		--volume $(GOPATH)/bin:/go/bin \
@@ -520,7 +514,7 @@ test: build-test
 		--env NUCLIO_OS=$(NUCLIO_OS) \
 		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
 		$(NUCLIO_DOCKER_TEST_TAG) \
-		/bin/bash -c "make test-undockerized"
+		/bin/bash -c "make $(NUCLIO_TEST_MAKE_TARGET)"
 
 .PHONY: test-k8s
 test-k8s: build-test
@@ -546,42 +540,6 @@ test-k8s: build-test
 		--env NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=$(NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST) \
 		$(NUCLIO_DOCKER_TEST_TAG) \
 		/bin/bash -c "make test-k8s-undockerized"
-
-.PHONY: test-periodic
-test-periodic: build-test
-	docker run \
-		--rm \
-		--volume /var/run/docker.sock:/var/run/docker.sock \
-		--volume $(GOPATH)/bin:/go/bin \
-		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
-		--volume /tmp:/tmp \
-		--workdir $(GO_BUILD_TOOL_WORKDIR) \
-		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
-		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
-		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
-		--env NUCLIO_OS=$(NUCLIO_OS) \
-		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
-		$(NUCLIO_DOCKER_TEST_TAG) \
-		/bin/bash -c "make test-periodic-undockerized"
-
-.PHONY: test-kafka
-test-kafka: build-test
-	docker run \
-		--rm \
-		--volume /var/run/docker.sock:/var/run/docker.sock \
-		--volume $(GOPATH)/bin:/go/bin \
-		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
-		--volume /tmp:/tmp \
-		--workdir $(GO_BUILD_TOOL_WORKDIR) \
-		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
-		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
-		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
-		--env NUCLIO_OS=$(NUCLIO_OS) \
-		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
-		$(NUCLIO_DOCKER_TEST_TAG) \
-		/bin/bash -c "make test-kafka-undockerized"
 
 .PHONY: build-test
 build-test: ensure-gopath build-base
