@@ -31,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/python"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
+	"github.com/nuclio/nuclio/pkg/processor/test/offline"
 	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -42,6 +43,7 @@ type TestSuite struct {
 	httpsuite.TestSuite
 	CloudEventsTestSuite  cloudevents.TestSuite
 	CallFunctionTestSuite callfunction.TestSuite
+	OfflineTestSuite      offline.TestSuite
 	runtime               string
 }
 
@@ -51,9 +53,18 @@ func (suite *TestSuite) SetupTest() {
 	suite.Runtime = suite.runtime
 	suite.RuntimeDir = "python"
 	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "python", "test")
+
+	// cloud events suite
 	suite.CloudEventsTestSuite.HTTPSuite = &suite.TestSuite
 	suite.CloudEventsTestSuite.CloudEventsHandler = "eventreturner:handler"
+
+	// call function suite
 	suite.CallFunctionTestSuite.HTTPSuite = &suite.TestSuite
+
+	// offline suite
+	suite.OfflineTestSuite.HTTPSuite = &suite.TestSuite
+	suite.OfflineTestSuite.FunctionHandler = "reverser:handler"
+
 }
 
 func (suite *TestSuite) TestStress() {
