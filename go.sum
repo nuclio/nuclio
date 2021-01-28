@@ -199,8 +199,6 @@ github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpO
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/icza/dyno v0.0.0-20180601094105-0c96289f9585 h1:kWQPgPrzV4M6ntaGzqU/tI9/OdntSFA9Y9ft/wlDpy0=
 github.com/icza/dyno v0.0.0-20180601094105-0c96289f9585/go.mod h1:FOWDLyFiAsx5UmipjsBYguvps42mgph4nRPwuci95qM=
-github.com/iguazio/sarama v1.25.1-0.20200331135945-d92101249c96 h1:T3XVy28QjbzNGLrFbxmEeBqvSGtqwVwrFqYaMXESxvc=
-github.com/iguazio/sarama v1.25.1-0.20200331135945-d92101249c96/go.mod h1:uRUzu48+BJQtvF1JpZVjl+lOsWCROjYGDwxEwfIuHuA=
 github.com/iguazio/sarama v1.25.1-0.20201117150928-15517d41c014 h1:ilYqDr+LZuNJ6BTEEkQo+oWqZdRYEDyg5JFxdFneWWk=
 github.com/iguazio/sarama v1.25.1-0.20201117150928-15517d41c014/go.mod h1:uRUzu48+BJQtvF1JpZVjl+lOsWCROjYGDwxEwfIuHuA=
 github.com/imdario/mergo v0.3.5/go.mod h1:2EnlNZ0deacrJVfApfmtdGgDfMuh/nq6Ok1EcJh5FfA=
@@ -306,8 +304,6 @@ github.com/onsi/gomega v0.0.0-20190113212917-5533ce8a0da3 h1:EooPXg51Tn+xmWPXJUG
 github.com/onsi/gomega v0.0.0-20190113212917-5533ce8a0da3/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
 github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
-github.com/opencontainers/image-spec v1.0.1 h1:JMemWkRwHx4Zj+fVxWoMCFm/8sYGGrUVojFA6h/TRcI=
-github.com/opencontainers/image-spec v1.0.1/go.mod h1:BtxoFyWECRxE4U/7sNtV5W15zMzWCbyJoFRP3s7yZA0=
 github.com/pavius/zap v1.4.2-0.20180228181622-8d52692529b8 h1:WqLgmr/wj9TO5Sc6oYPQRAJBxuHE0NTeuVeFnT+FZVo=
 github.com/pavius/zap v1.4.2-0.20180228181622-8d52692529b8/go.mod h1:6FWOCx06uh50GClv8S2cfk3asqTJs3qq3ZNRtLZE77I=
 github.com/pelletier/go-buffruneio v0.2.0/go.mod h1:JkE26KsDizTr40EUHkXVtNPvgGtbSNq5BcowyYOWdKo=
