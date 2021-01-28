@@ -751,7 +751,7 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 		}
 	}
 
-	return b.resolveUserSpecifiedArchiveWorkdir(decompressDir)
+	return b.resolveUserSpecifiedWorkdir(decompressDir)
 }
 
 func (b *Builder) resolveGithubArchiveWorkDir(decompressDir string) (string, error) {
@@ -772,7 +772,7 @@ func (b *Builder) resolveGithubArchiveWorkDir(decompressDir string) (string, err
 	return decompressDir, nil
 }
 
-func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (string, error) {
+func (b *Builder) resolveUserSpecifiedWorkdir(mainDir string) (string, error) {
 	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
 
 	if found {
@@ -780,13 +780,13 @@ func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (stri
 		if !ok {
 			return "", nuclio.NewErrBadRequest(string(common.WorkDirectoryExpectedBeString))
 		}
-		decompressDir = filepath.Join(decompressDir, userSpecifiedWorkDirectory)
-		if !common.FileExists(decompressDir) {
+		mainDir = filepath.Join(mainDir, userSpecifiedWorkDirectory)
+		if !common.FileExists(mainDir) {
 			return "", nuclio.NewErrBadRequest(string(common.WorkDirectoryDoesNotExist))
 		}
 	}
 
-	return decompressDir, nil
+	return mainDir, nil
 }
 
 func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
@@ -1522,7 +1522,7 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 				return "", errors.Wrap(err, "Failed to download function from git")
 			}
 
-			return tempDir, nil
+			return b.resolveUserSpecifiedWorkdir(tempDir)
 		}
 
 		tempFile, err := b.getFunctionTempFile(tempDir, functionPath, isArchive, codeEntryType)
