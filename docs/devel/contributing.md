@@ -45,7 +45,7 @@ make build
 You should now have quite a few `nuclio/<something>` images tagged as `latest-amd64`, along with `nuctl-latest-<os>-amd64` with a `nuctl` symbolic link under `$GOPATH/bin`. Now, run a few tests:
 
 ```sh
-make lint test-short
+make lint test-unit
 ```
 
 This is a short test suite, and requires only Docker.

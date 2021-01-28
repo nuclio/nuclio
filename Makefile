@@ -454,9 +454,9 @@ benchmarking:
 	$(eval NUCLIO_BENCHMARKING_RUNTIMES ?= all)
 	@python3 hack/scripts/benchmark/benchmark.py --nuctl-platform local --runtimes $(NUCLIO_BENCHMARKING_RUNTIMES)
 
-.PHONY: test-short
-test-short: modules ensure-gopath
-	go test -v ./cmd/... ./pkg/... -short
+.PHONY: test-unit
+test-unit: modules ensure-gopath
+	go test -tags=unit -v ./cmd/... ./pkg/... -short
 
 .PHONY: test-k8s-nuctl
 test-k8s-nuctl:
