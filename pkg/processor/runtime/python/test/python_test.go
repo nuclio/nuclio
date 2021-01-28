@@ -64,7 +64,6 @@ func (suite *TestSuite) SetupTest() {
 	// offline suite
 	suite.OfflineTestSuite.HTTPSuite = &suite.TestSuite
 	suite.OfflineTestSuite.FunctionHandler = "reverser:handler"
-
 }
 
 func (suite *TestSuite) TestStress() {
