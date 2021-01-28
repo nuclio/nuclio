@@ -49,16 +49,14 @@ class Constants(object):
 
 class Runtimes(object):
     golang = "golang"
-    python36 = "python:3.6"
     java = "java"
     nodejs = "nodejs"
     dotnetcore = "dotnetcore"
     shell = "shell"
     ruby = "ruby"
-
-    # TODO: uncomment once python 37 / 38 are merged
-    # python37 = "python:3.7"
-    # python38 = "python:3.8"
+    python36 = "python:3.6"
+    python37 = "python:3.7"
+    python38 = "python:3.8"
 
     # NOTE: python is just a reference to python3.6
     python = "python"
@@ -69,8 +67,8 @@ class Runtimes(object):
             "empty": {
                 Runtimes.python: "empty:handler",
                 Runtimes.python36: "empty:handler",
-                # Runtimes.python37: "empty:handler",
-                # Runtimes.python38: "empty:handler",
+                Runtimes.python37: "empty:handler",
+                Runtimes.python38: "empty:handler",
                 Runtimes.golang: "empty:Handler",
                 Runtimes.java: "EmptyHandler",
                 Runtimes.nodejs: "empty:handler",
@@ -86,8 +84,8 @@ class Runtimes(object):
             "empty": {
                 Runtimes.python: "empty.py",
                 Runtimes.python36: "empty.py",
-                # Runtimes.python37: "empty.py",
-                # Runtimes.python38: "empty.py",
+                Runtimes.python37: "empty.py",
+                Runtimes.python38: "empty.py",
                 Runtimes.golang: "empty.go",
                 Runtimes.java: "EmptyHandler.java",
                 Runtimes.nodejs: "empty.js",
@@ -102,8 +100,8 @@ class Runtimes(object):
         return [
             Runtimes.golang,
             Runtimes.python36,
-            # Runtimes.python37,
-            # Runtimes.python38,
+            Runtimes.python37,
+            Runtimes.python38,
             Runtimes.java,
             Runtimes.nodejs,
             Runtimes.dotnetcore,
@@ -188,7 +186,8 @@ class Function(object):
                  workdir,
                  project_dir,
                  function_http_max_workers,
-                 runtime_name):
+                 runtime_name,
+                 base_url):
         self._nuctl_client = nuctl_client
         self._runtime_name = runtime_name
         self._stripped_runtime_name = self._runtime_name.split(":")[0]
@@ -196,6 +195,10 @@ class Function(object):
         self._project_dir = project_dir
         self._function_http_max_workers = function_http_max_workers
         self._logger = logger.getChild(f"{self.name}")
+        self._base_url = base_url
+
+        # lazy
+        self._port = None
 
     @property
     def name(self):
@@ -205,6 +208,16 @@ class Function(object):
     @property
     def runtime_name(self):
         return self._runtime_name
+
+    @property
+    def port(self):
+        if not self._port:
+            self._port = self._nuctl_client.get_function_port(self.name)
+        return self._port
+
+    @property
+    def url(self):
+        return f"http://{self._base_url}:{self.port}"
 
     def deploy(self):
         source_function_name = "empty"
@@ -219,9 +232,6 @@ class Function(object):
 
     def _compile_function_http_trigger(self):
         return {"benchmark": {"kind": "http", "maxWorkers": self._function_http_max_workers}}
-
-    def get_function_port(self):
-        return self._nuctl_client.get_function_port(self.name)
 
     def _resolve_function_path(self, source_function_name):
         runtime_example_dir = os.path.join(Constants.function_examples_dir, self._stripped_runtime_name)
@@ -264,14 +274,13 @@ class LoggingFormatter(logging.Formatter):
             'level': format_level(record.levelno),
             'message': record.getMessage(),
         }
-        return f"%(time)s " \
+        return f"{LoggingFormatter.Colors.white}%(time)s{LoggingFormatter.Colors.reset} " \
                f"{LoggingFormatter.Colors.green}%(name)29s{LoggingFormatter.Colors.reset} " \
                f"%(level)s " \
-               f"%(message)s" % output
+               f"{LoggingFormatter.Colors.white}%(message)s{LoggingFormatter.Colors.reset}" % output
 
 
 def run(args):
-    function_names = []
     os.makedirs(args.workdir, exist_ok=True)
     logger = _get_logger(args.verbose)
 
@@ -286,24 +295,25 @@ def run(args):
                  args.workdir,
                  project_dir,
                  args.function_http_max_workers,
-                 runtime_name)
+                 runtime_name,
+                 args.function_url)
         for runtime_name in _populate_runtime_names(args.runtimes)
     ]
-    for function in functions:
-        logger.info(f"Benchmarking runtime function - {function.name}")
-        if not args.skip_deploy:
+    function_names = [function.name for function in functions]
+    encoded_function_names = ', '.join(function_names)
+
+    if not args.skip_deploy:
+        logger.info(f"Deploying functions - {encoded_function_names}")
+        for function in functions:
             function.deploy()
 
-        # resolve function url
-        function_port = function.get_function_port()
-        function_url = f"http://{args.function_url}:{function_port}"
-
-        logger.info(f"Benchmarking function {function.name} @ {function_url}")
-        vegeta_client.attack(function.name, function_url, args.function_http_max_workers)
+    for function in functions:
+        logger.info(f"Benchmarking function - {function.name} @ {function.url}")
+        vegeta_client.attack(function.name, function.url, args.function_http_max_workers)
         vegeta_client.report(function.name)
-        function_names.append(function.name)
+        logger.info(f"Successfully benchmarked function - {function.name}")
 
-    logger.info(f"Plotting {function_names}")
+    logger.info(f"Plotting benchmarking results for functions: {encoded_function_names}")
     vegeta_client.plot(function_names)
     logger.info(f"Finished benchmarking.")
 
