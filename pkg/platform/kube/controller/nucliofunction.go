@@ -174,22 +174,6 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			errors.Wrap(err, "Failed to wait for function resources to be available"))
 	}
 
-	var httpPort int
-
-	service, err := resources.Service()
-	if err != nil {
-		return errors.Wrap(err, "Failed to get service")
-	}
-
-	if service != nil && len(service.Spec.Ports) != 0 {
-		for _, port := range service.Spec.Ports {
-			if port.Name == "http" {
-				httpPort = int(port.NodePort)
-				break
-			}
-		}
-	}
-
 	waitingStates := []functionconfig.FunctionState{
 		functionconfig.FunctionStateWaitingForResourceConfiguration,
 		functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
@@ -212,6 +196,14 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			finalState = functionconfig.FunctionStateReady
 		}
 
+		// get function http port
+		httpPort, err := fo.getFunctionHTTPPort(resources)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get function http port")
+		}
+
+		// NOTE: this reconstructs function status and hence omits all other function status fields
+		// ... such as message and logs.
 		functionStatus := &functionconfig.Status{
 			State:    finalState,
 			HTTPPort: httpPort,
@@ -299,4 +291,23 @@ func (fo *functionOperator) getListWatcher(namespace string) cache.ListerWatcher
 			return fo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Watch(options)
 		},
 	}
+}
+
+func (fo *functionOperator) getFunctionHTTPPort(functionResources functionres.Resources) (int, error) {
+	var httpPort int
+
+	service, err := functionResources.Service()
+	if err != nil {
+		return 0, errors.Wrap(err, "Failed to get function service")
+	}
+
+	if service != nil && len(service.Spec.Ports) != 0 {
+		for _, port := range service.Spec.Ports {
+			if port.Name == functionres.ContainerHTTPPortName {
+				httpPort = int(port.NodePort)
+				break
+			}
+		}
+	}
+	return httpPort, nil
 }

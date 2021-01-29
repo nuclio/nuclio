@@ -269,7 +269,7 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 	// ensure metric port
 	toServicePorts := suite.client.ensureServicePortsExist([]v1.ServicePort{
 		{
-			Name:     containerHTTPPortName,
+			Name:     ContainerHTTPPortName,
 			Port:     int32(abstract.FunctionContainerHTTPPort),
 			NodePort: 12345,
 		},
@@ -285,7 +285,7 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 
 	toServicePorts = suite.client.ensureServicePortsExist([]v1.ServicePort{
 		{
-			Name:     containerHTTPPortName,
+			Name:     ContainerHTTPPortName,
 			Port:     int32(abstract.FunctionContainerHTTPPort),
 			NodePort: 12345,
 		},

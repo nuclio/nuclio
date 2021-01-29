@@ -63,7 +63,7 @@ import (
 )
 
 const (
-	containerHTTPPortName         = "http"
+	ContainerHTTPPortName         = "http"
 	containerMetricPort           = 8090
 	containerMetricPortName       = "metrics"
 	nginxIngressUpdateGracePeriod = 5 * time.Second
@@ -1408,7 +1408,7 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 
 		spec.Ports = []v1.ServicePort{
 			{
-				Name: containerHTTPPortName,
+				Name: ContainerHTTPPortName,
 				Port: int32(abstract.FunctionContainerHTTPPort),
 			},
 		}
@@ -1730,7 +1730,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 				ServiceName: kube.ServiceNameFromFunctionName(function.Name),
 				ServicePort: intstr.IntOrString{
 					Type:   intstr.String,
-					StrVal: containerHTTPPortName,
+					StrVal: ContainerHTTPPortName,
 				},
 			},
 		}
@@ -1772,7 +1772,7 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 	container.Env = lc.getFunctionEnvironment(functionLabels, function)
 	container.Ports = []v1.ContainerPort{
 		{
-			Name:          containerHTTPPortName,
+			Name:          ContainerHTTPPortName,
 			ContainerPort: abstract.FunctionContainerHTTPPort,
 			Protocol:      "TCP",
 		},
