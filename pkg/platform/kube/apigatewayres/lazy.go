@@ -17,7 +17,6 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -313,16 +312,6 @@ func (lc *lazyClient) getNuclioFunctionServiceNameAndPort(upstream platform.APIG
 
 	// use default port
 	return serviceName, abstract.FunctionContainerHTTPPort, nil
-}
-
-func (lc *lazyClient) getServiceHTTPPort(service v1.Service) (int, error) {
-	for _, portSpec := range service.Spec.Ports {
-		if portSpec.Name == "http" {
-			return int(portSpec.Port), nil
-		}
-	}
-
-	return 0, errors.New("Service has no http port")
 }
 
 func (lc *lazyClient) resolveCommonAnnotations(canaryDeployment bool, upstreamPercentage int) map[string]string {
