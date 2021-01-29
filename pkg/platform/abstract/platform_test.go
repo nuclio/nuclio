@@ -15,6 +15,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	mockedplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/nuclio/errors"
@@ -697,6 +698,99 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 			suite.Assert().Nil(functionConfigSpec.MaxReplicas)
 		}
 		suite.Logger.DebugWith("Validation passed successfully", "functionName", functionName)
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestEnrichCodeEntryType() {
+	suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta{
+			Name:      platform.DefaultProjectName,
+			Namespace: "default",
+		},
+	}).Return([]platform.Project{
+		&platform.AbstractProject{},
+	}, nil)
+
+	generateGithubCETConfig := func() functionconfig.Config {
+		config := functionconfig.Config{}
+		config.Spec.Build.CodeEntryType = build.GithubEntryType
+		return config
+	}
+
+	for _, testCase := range []struct {
+		Name               string
+		FunctionConfig     functionconfig.Config
+		ValidationFunction func(functionconfig.Config) bool
+	}{
+		{
+			Name: "ChangeGithubToGitCET",
+			FunctionConfig: func() functionconfig.Config {
+				config := generateGithubCETConfig()
+				return config
+			}(),
+			ValidationFunction: func(config functionconfig.Config) bool {
+				return config.Spec.Build.CodeEntryType == build.GitEntryType
+			},
+		},
+		{
+			Name: "BuildPathWithoutDotGit",
+			FunctionConfig: func() functionconfig.Config {
+				config := generateGithubCETConfig()
+				config.Spec.Build.Path = "https://github.com/x/y"
+				return config
+			}(),
+			ValidationFunction: func(config functionconfig.Config) bool {
+				return config.Spec.Build.Path == "https://github.com/x/y.git"
+			},
+		},
+		{
+			Name: "BuildPathWithGit",
+			FunctionConfig: func() functionconfig.Config {
+				config := generateGithubCETConfig()
+				config.Spec.Build.Path = "https://github.com/x/y.git"
+				return config
+			}(),
+			ValidationFunction: func(config functionconfig.Config) bool {
+				return config.Spec.Build.Path == "https://github.com/x/y.git"
+			},
+		},
+		{
+			Name: "UpdateAuthorization",
+			FunctionConfig: func() functionconfig.Config {
+				config := generateGithubCETConfig()
+				config.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+					"headers": map[string]interface{}{
+						"Authorization": "my-auth",
+					},
+				}
+				return config
+			}(),
+			ValidationFunction: func(config functionconfig.Config) bool {
+				headers, _ := config.Spec.Build.CodeEntryAttributes["headers"].(map[string]interface{})
+				gitAuthorization, _ := config.Spec.Build.CodeEntryAttributes["gitAuthorization"].(map[string]interface{})
+				return headers["Authorization"] == nil && gitAuthorization["accessToken"] == "my-auth"
+			},
+		},
+		{
+			Name: "UpdateBranch",
+			FunctionConfig: func() functionconfig.Config {
+				config := generateGithubCETConfig()
+				config.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+					"branch": "my-branch",
+				}
+				return config
+			}(),
+			ValidationFunction: func(config functionconfig.Config) bool {
+				return config.Spec.Build.CodeEntryAttributes["branch"] == "refs/heads/my-branch"
+			},
+		},
+	} {
+		suite.Run(testCase.Name, func() {
+			err := suite.Platform.EnrichFunctionConfig(&testCase.FunctionConfig)
+			suite.Require().NoError(err, "Failed to enrich function")
+
+			suite.Require().True(testCase.ValidationFunction(testCase.FunctionConfig))
+		})
 	}
 }
 

@@ -129,7 +129,8 @@ spec:
 
 Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to one of the following code-entry types to download the function code from the respective external source:
 
-- `github` &mdash; download the code from a GitHub repository. See [GitHub code-entry type (`github`)](#code-entry-type-github).
+- `git` &mdash; download the code from a Git repository. See [Git code-entry type (`git`)](#code-entry-type-git).
+- `github` &mdash; download the code from a GitHub repository. See [GitHub code-entry type (`github`)](#code-entry-type-github). [Deprecated]
 - `archive` &mdash; download the code as an archive file from an Iguazio Data Science Platform data container (authenticated) or from any URL that doesn't require download authentication. See [Archive-file code-entry type (`archive`)](#code-entry-type-archive).
 - `s3` &mdash; download the code as an archive file from an AWS S3 bucket. See [AWS S3 code-entry type (`s3`)](#code-entry-type-s3).
 
@@ -140,7 +141,7 @@ Additional information for performing the download &mdash; such as the download 
 > - <a id="archive-file-formats"></a>The `archive` and `s3` code-entry types support the following archive-file formats: **\*.jar**, **\*.rar**, **\*.tar**, **\*.tar.bz2**, **\*.tar.lz4**, **\*.tar.gz**, **\*.tar.sz**, **\*.tar.xz**, **\*.zip**
 > - The downloaded code files are saved and can be used by the function handler.
 
-> **Dashboard Note:** To configure an external function-code source from the dashboard, select the relevant code-entry type &mdash; `Archive`, `GitHub`, or `S3` &mdash; from the **Code entry type** list.
+> **Dashboard Note:** To configure an external function-code source from the dashboard, select the relevant code-entry type &mdash; `Archive`, `Git`, `GitHub`, or `S3` &mdash; from the **Code entry type** list.
 
 The downloaded function code can optionally contain a **function.yaml** file with function configuration for enriching the original configuration (in the configuration file that sets the code-entry type) according to the following merge strategy:
 
@@ -148,15 +149,50 @@ The downloaded function code can optionally contain a **function.yaml** file wit
 - List and map field values &mdash; such as `meta.labels` and `spec.env` &mdash;are merged by adding any values that are set only in the downloaded configuration to the values that are set in the original configuration.
 - In case of a conflict &mdash; i.e., if the original and downloaded configurations set different values for the same element &mdash; the original configuration takes precedence and the value in the downloaded configuration is ignored.
 
+<a id="code-entry-type-git"></a>
+### Git code-entry type (`git`)
+
+Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `git` (dashboard: **Code entry type** = `Git`) to download the function code from a Git repository. The following configuration fields provide additional information for performing the download:
+
+- `spec.build` &mdash;
+  - `path` (dashboard: **URL**) (Required) &mdash; the URL of the Git repository that contains the function code.
+  - `codeEntryAttributes` &mdash;
+      - `branch` (dashboard: **Branch**) (Required) &mdash; the Git repository branch from which to download the function code.
+      - `gitAuthorization` (Optional) &mdash; a Git authorization for the download, when required.
+        - `accessToken` (dashboard: **Token**) (Optional) Git access key
+        - `username` (dashboard: **Username**) (Optional) Git username
+        - `password` (dashboard: **Password**) (Optional) Git password
+      - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository branch.
+      The default work directory is the root directory of the Git repository (`"/"`).
+
+<a id="code-entry-type-git-example"></a>
+#### Example
+
+```yaml
+spec:
+  description: my Go function
+  handler: main:Handler
+  runtime: golang
+  build:
+    codeEntryType: "git"
+    path: "https://git.com/my-organization/my-repository.git"
+    codeEntryAttributes:
+      branch: "my-branch"
+      gitAuthorization:
+        accessKey: "myaccesskey"
+        username: "myusername"
+      workDir: "/go/myfunc"
+```
+
 <a id="code-entry-type-github"></a>
-### GitHub code-entry type (`github`)
+### GitHub code-entry type (`github`) [Deprecated]
 
 Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `github` (dashboard: **Code entry type** = `GitHub`) to download the function code from a GitHub repository. The following configuration fields provide additional information for performing the download:
 
 - `spec.build` &mdash;
   - `path` (dashboard: **URL**) (Required) &mdash; the URL of the GitHub repository that contains the function code.
   - `codeEntryAttributes` &mdash;
-      -  `branch` (dashboard: **Branch**) (Required) &mdash; the GitHub repository branch from which to download the function code.
+      - `branch` (dashboard: **Branch**) (Required) &mdash; the GitHub repository branch from which to download the function code.
       - `headers.Authorization` (dashboard: **Token**) (Optional) &mdash; a GitHub access token for download authentication.
       - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository branch.
       The default work directory is the root directory of the GitHub repository (`"/"`).

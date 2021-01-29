@@ -234,6 +234,9 @@ func (ap *Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) 
 		functionConfig.Spec.SecurityContext = &v1.PodSecurityContext{}
 	}
 
+	// update code entry type in case needed
+	ap.enrichCodeEntryType(functionConfig)
+
 	return nil
 }
 
@@ -1160,6 +1163,47 @@ func (ap *Platform) validateProjectHasNoRelatedResources(projectMeta *platform.P
 		return platform.ErrProjectContainsAPIGateways
 	}
 	return nil
+}
+
+func (ap *Platform) enrichCodeEntryType(functionConfig *functionconfig.Config) {
+
+	// update Github CET to Git (for backwards compatibility
+	if functionConfig.Spec.Build.CodeEntryType == build.GithubEntryType {
+
+		// update CET
+		functionConfig.Spec.Build.CodeEntryType = build.GitEntryType
+
+		// create code entry attributes if it's nil
+		if functionConfig.Spec.Build.CodeEntryAttributes == nil {
+			functionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{}
+		}
+
+		// add .git in the end if it's not there (https://github.com/x/y -> https://github.com/x/y.git)
+		splitPath := strings.Split(functionConfig.Spec.Build.Path, ".")
+		if len(splitPath) > 0 && splitPath[len(splitPath)-1] != "git" {
+			functionConfig.Spec.Build.Path = fmt.Sprintf("%s.git", functionConfig.Spec.Build.Path)
+		}
+
+		// update authorization (when given)
+		if functionConfig.Spec.Build.CodeEntryAttributes["headers"] != nil {
+			headers, _ := functionConfig.Spec.Build.CodeEntryAttributes["headers"].(map[string]interface{})
+			accessToken, _ := headers["Authorization"].(string)
+			if accessToken != "" {
+				functionConfig.Spec.Build.CodeEntryAttributes["gitAuthorization"] = map[string]interface{}{
+					"accessToken": accessToken,
+				}
+
+				// set old Authorization to nil, so it won't override in the future
+				functionConfig.Spec.Build.CodeEntryAttributes["headers"] = nil
+			}
+		}
+
+		// update branch to reference
+		if functionConfig.Spec.Build.CodeEntryAttributes["branch"] != nil {
+			branch := functionConfig.Spec.Build.CodeEntryAttributes["branch"]
+			functionConfig.Spec.Build.CodeEntryAttributes["branch"] = fmt.Sprintf("refs/heads/%s", branch)
+		}
+	}
 }
 
 func (ap *Platform) enrichTriggers(functionConfig *functionconfig.Config) error {
