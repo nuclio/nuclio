@@ -767,8 +767,8 @@ func (suite *AbstractPlatformTestSuite) TestEnrichCodeEntryType() {
 			}(),
 			ValidationFunction: func(config functionconfig.Config) bool {
 				headers, _ := config.Spec.Build.CodeEntryAttributes["headers"].(map[string]interface{})
-				gitAuthorization, _ := config.Spec.Build.CodeEntryAttributes["gitAuthorization"].(map[string]interface{})
-				return headers["Authorization"] == nil && gitAuthorization["accessToken"] == "my-auth"
+				gitCredentials, _ := config.Spec.Build.CodeEntryAttributes["gitCredentials"].(map[string]interface{})
+				return headers["Authorization"] == nil && gitCredentials["accessToken"] == "my-auth"
 			},
 		},
 		{

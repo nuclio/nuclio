@@ -1189,7 +1189,7 @@ func (ap *Platform) enrichCodeEntryType(functionConfig *functionconfig.Config) {
 			headers, _ := functionConfig.Spec.Build.CodeEntryAttributes["headers"].(map[string]interface{})
 			accessToken, _ := headers["Authorization"].(string)
 			if accessToken != "" {
-				functionConfig.Spec.Build.CodeEntryAttributes["gitAuthorization"] = map[string]interface{}{
+				functionConfig.Spec.Build.CodeEntryAttributes["gitCredentials"] = map[string]interface{}{
 					"accessToken": accessToken,
 				}
 

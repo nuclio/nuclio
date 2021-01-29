@@ -567,19 +567,6 @@ func (suite *testSuite) TestResolveFunctionPathNonStringWorkDir() {
 	suite.testResolveFunctionPathArchiveBadWorkDir(buildConfiguration, archiveFileURL, string(common.WorkDirectoryExpectedBeString))
 }
 
-func (suite *testSuite) TestResolveFunctionPathGithubCodeEntry() {
-	archiveFileURL := "https://github.com/nuclio/my-func/archive/master.zip"
-	buildConfiguration := functionconfig.Build{
-		CodeEntryType: GithubEntryType,
-		Path:          "https://github.com/nuclio/my-func",
-		CodeEntryAttributes: map[string]interface{}{
-			"branch":  "master",
-			"workDir": "/my-python-func",
-		},
-	}
-	suite.testResolveFunctionPathArchive(buildConfiguration, archiveFileURL)
-}
-
 func (suite *testSuite) TestResolveFunctionPathS3CodeEntry() {
 
 	// validate values passed to the mocked function
@@ -745,11 +732,7 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 	suite.Require().NoError(err)
 
 	// make sure the path is set to the work dir inside the decompressed folder
-	if buildConfiguration.CodeEntryType == GithubEntryType {
-		destinationWorkDir = filepath.Join("/funcs", buildConfiguration.CodeEntryAttributes["workDir"].(string))
-	} else {
-		destinationWorkDir = buildConfiguration.CodeEntryAttributes["workDir"].(string)
-	}
+	destinationWorkDir = buildConfiguration.CodeEntryAttributes["workDir"].(string)
 	suite.Equal(suite.builder.tempDir+"/decompress"+destinationWorkDir, path)
 
 	// make sure our test python file is inside the decompress folder

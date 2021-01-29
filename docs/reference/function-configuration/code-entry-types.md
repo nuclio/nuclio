@@ -158,7 +158,7 @@ Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#s
   - `path` (dashboard: **URL**) (Required) &mdash; the URL of the Git repository that contains the function code.
   - `codeEntryAttributes` &mdash;
       - `branch` (dashboard: **Branch**) (Required) &mdash; the Git repository branch from which to download the function code.
-      - `gitAuthorization` (Optional) &mdash; a Git authorization for the download, when required.
+      - `gitCredentials` (Optional) &mdash; Git credentials for the download, when required.
         - `accessToken` (dashboard: **Token**) (Optional) Git access key
         - `username` (dashboard: **Username**) (Optional) Git username
         - `password` (dashboard: **Password**) (Optional) Git password
@@ -178,7 +178,7 @@ spec:
     path: "https://git.com/my-organization/my-repository.git"
     codeEntryAttributes:
       branch: "my-branch"
-      gitAuthorization:
+      gitCredentials:
         accessKey: "myaccesskey"
         username: "myusername"
       workDir: "/go/myfunc"

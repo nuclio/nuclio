@@ -63,7 +63,7 @@ const (
 	FunctionConfigFileName = "function.yaml"
 	uhttpcImage            = "quay.io/nuclio/uhttpc:0.0.1-%s"
 	GitEntryType           = "git"
-	GithubEntryType        = "github" // legacy
+	GithubEntryType        = "github" // deprecated
 	ArchiveEntryType       = "archive"
 	S3EntryType            = "s3"
 	ImageEntryType         = "image"
@@ -647,13 +647,13 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, string, erro
 		}
 	}
 
-	// user has to provide valid url when code entry type is github or archive
+	// user has to provide valid url when code entry type is archive
 	isURL := common.IsURL(functionPath)
-	if !isURL && (codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) {
-		return "", "", errors.New("Must provide valid URL when code entry type is github or archive")
+	if !isURL && codeEntryType == ArchiveEntryType {
+		return "", "", errors.New("Must provide valid URL when code entry type is archive")
 	}
 
-	// if the function path is a URL, type is Github or S3 - first download the file
+	// if the function path is a URL and the type is S3 - first download the file
 	// for backwards compatibility, don't check for entry type url specifically
 	if functionPath, err = b.resolveFunctionPathFromURL(functionPath, codeEntryType); err != nil {
 		return "", "", errors.Wrap(err, "Failed to download function from the given URL")
@@ -714,17 +714,6 @@ func (b *Builder) validateAndParseS3Attributes(attributes map[string]interface{}
 	return parsedAttributes, nil
 }
 
-func (b *Builder) getFunctionPathFromGithubURL(functionPath string) (string, error) {
-	if branch, ok := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["branch"]; ok {
-		functionPath = fmt.Sprintf("%s/archive/%s.zip",
-			strings.TrimRight(functionPath, "/"),
-			branch)
-	} else {
-		return "", errors.New("If code entry type is github, branch must be provided")
-	}
-	return functionPath, nil
-}
-
 func (b *Builder) decompressFunctionArchive(functionPath string) (string, error) {
 
 	// create a staging directory
@@ -743,33 +732,7 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 		return "", errors.Wrapf(err, "Failed to decompress file %s", functionPath)
 	}
 
-	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
-	if codeEntryType == GithubEntryType {
-		decompressDir, err = b.resolveGithubArchiveWorkDir(decompressDir)
-		if err != nil {
-			return "", errors.Wrap(err, "Failed to get decompressed directory of entry type github")
-		}
-	}
-
 	return b.resolveUserSpecifiedWorkdir(decompressDir)
-}
-
-func (b *Builder) resolveGithubArchiveWorkDir(decompressDir string) (string, error) {
-	directories, err := ioutil.ReadDir(decompressDir)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to list decompressed directory tree")
-	}
-
-	// when code entry type is github assume only one directory under root
-	directory := directories[0]
-
-	if directory.IsDir() {
-		decompressDir = filepath.Join(decompressDir, directory.Name())
-	} else {
-		return "", errors.New("Unexpected non directory found with entry code type github")
-	}
-
-	return decompressDir, nil
 }
 
 func (b *Builder) resolveUserSpecifiedWorkdir(mainDir string) (string, error) {
@@ -1493,19 +1456,9 @@ func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegist
 }
 
 func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType string) (string, error) {
-	var err error
-
 	if common.IsURL(functionPath) || codeEntryType == S3EntryType {
-		if codeEntryType == GithubEntryType {
-			functionPath, err = b.getFunctionPathFromGithubURL(functionPath)
-			if err != nil {
-				return "", errors.Wrapf(err, "Failed to infer function path of github entry type")
-			}
-		}
 
-		isArchive := codeEntryType == S3EntryType ||
-			codeEntryType == GithubEntryType ||
-			codeEntryType == ArchiveEntryType
+		isArchive := codeEntryType == S3EntryType || codeEntryType == ArchiveEntryType
 
 		// jar is an exception - we want it to remain compressed, as our java runtime processor expects to get it
 		isArchive = isArchive && !util.IsJar(functionPath)
@@ -1565,39 +1518,39 @@ func (b *Builder) getS3FunctionItemKey() (string, error) {
 	return s3Attributes["s3ItemKey"], nil
 }
 
-func (b *Builder) parseFunctionGitAuthorization() (*githttp.BasicAuth, error) {
-	cetGitAuthorization := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitAuthorization"]
+func (b *Builder) parseFunctionGitCredentials() (*githttp.BasicAuth, error) {
+	cetGitCredentials := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitCredentials"]
 
-	if cetGitAuthorization != nil {
-		type GitAuthorization struct {
+	if cetGitCredentials != nil {
+		type GitCredentials struct {
 			Username    string `json:"username,omitempty"`
 			Password    string `json:"password,omitempty"`
 			AccessToken string `json:"accessToken,omitempty"`
 		}
-		var gitAuthorization GitAuthorization
+		var gitCredentials GitCredentials
 
-		if err := mapstructure.Decode(cetGitAuthorization, &gitAuthorization); err != nil {
-			return nil, errors.Wrap(err, "Failed to decode git authorization map")
+		if err := mapstructure.Decode(cetGitCredentials, &gitCredentials); err != nil {
+			return nil, errors.Wrap(err, "Failed to decode git credentials map")
 		}
 
 		// use access token if given
-		if gitAuthorization.AccessToken != "" {
+		if gitCredentials.AccessToken != "" {
 			username := "notempty" // if not given use anything but empty (for github - must provide non empty username)
-			if gitAuthorization.Username != "" {
-				username = gitAuthorization.Username
+			if gitCredentials.Username != "" {
+				username = gitCredentials.Username
 			}
 
 			return &githttp.BasicAuth{
 				Username: username,
-				Password: gitAuthorization.AccessToken,
+				Password: gitCredentials.AccessToken,
 			}, nil
 
-		// otherwise, use username and password authentication if given
-		} else if gitAuthorization.Username != "" && gitAuthorization.Password != "" {
+			// otherwise, use username and password authentication if given
+		} else if gitCredentials.Username != "" && gitCredentials.Password != "" {
 
 			return &githttp.BasicAuth{
-				Username: gitAuthorization.Username,
-				Password: gitAuthorization.Password,
+				Username: gitCredentials.Username,
+				Password: gitCredentials.Password,
 			}, nil
 		}
 	}
@@ -1613,8 +1566,8 @@ func (b *Builder) downloadFunctionFromGit(tempDir, functionPath string) error {
 	// get branch ref and authorization when given
 	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes != nil {
 		branchRef, _ = b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["branch"].(string)
-		if gitAuth, err = b.parseFunctionGitAuthorization(); err != nil {
-			return errors.Wrap(err, "Failed to parse function git authorization")
+		if gitAuth, err = b.parseFunctionGitCredentials(); err != nil {
+			return errors.Wrap(err, "Failed to parse function git credentials")
 		}
 	}
 
