@@ -115,10 +115,16 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	// ready functions as part of controller resyncs, where we verify that a given function CRD has its resources
 	// properly configured
 	statesToRespond := []functionconfig.FunctionState{
+
+		// monitor provisioning states, we need to create / update function resources
 		functionconfig.FunctionStateWaitingForResourceConfiguration,
 		functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
 		functionconfig.FunctionStateWaitingForScaleResourcesToZero,
+
+		// to know when to scale a function to zero
 		functionconfig.FunctionStateReady,
+
+		// to know when to scale a function from zero
 		functionconfig.FunctionStateScaledToZero,
 	}
 	if !functionconfig.FunctionStateInSlice(function.Status.State, statesToRespond) {
@@ -130,6 +136,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return nil
 	}
 
+	// imported functions have skip deploy annotation, set its state and bail
 	if functionconfig.ShouldSkipDeploy(function.Annotations) {
 		fo.logger.InfoWith("Skipping function deploy",
 			"name", function.Name,
@@ -140,6 +147,10 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		})
 	}
 
+	fo.logger.DebugWith("Ensuring function resources",
+		"functionMeta", function.GetObjectMeta())
+
+	// ensure function resources (deployment, ingress, configmap, etc ...)
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
 	if err != nil {
 		return fo.setFunctionError(function,
@@ -147,7 +158,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			errors.Wrap(err, "Failed to create/update function"))
 	}
 
-	// wait for up to 60 seconds or whatever was set in the spec
+	// wait for up to the default readiness timeout or whatever was set in the spec
 	readinessTimeout := function.Spec.ReadinessTimeoutSeconds
 	if readinessTimeout == 0 {
 		readinessTimeout = abstract.DefaultReadinessTimeoutSeconds
