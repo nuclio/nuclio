@@ -197,44 +197,41 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 	}
 
 	// create or update the applicable configMap
-	resources.configMap, err = lc.createOrUpdateConfigMap(function)
-	if err != nil {
+	if resources.configMap, err = lc.createOrUpdateConfigMap(function); err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update configMap")
 	}
 
 	// create or update the applicable service
-	resources.service, err = lc.createOrUpdateService(functionLabels, function)
-	if err != nil {
+	if resources.service, err = lc.createOrUpdateService(functionLabels, function); err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update service")
 	}
 
 	// create or update the applicable deployment
-	resources.deployment, err = lc.createOrUpdateDeployment(functionLabels, imagePullSecrets, function)
-	if err != nil {
+	if resources.deployment, err = lc.createOrUpdateDeployment(functionLabels,
+		imagePullSecrets,
+		function);  err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update deployment")
 	}
 
 	// create or update the HPA
-	resources.horizontalPodAutoscaler, err = lc.createOrUpdateHorizontalPodAutoscaler(functionLabels, function)
-	if err != nil {
+	if resources.horizontalPodAutoscaler, err = lc.createOrUpdateHorizontalPodAutoscaler(functionLabels,
+		function); err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update HPA")
 	}
 
 	// create or update ingress
-	resources.ingress, err = lc.createOrUpdateIngress(functionLabels, function)
-	if err != nil {
+	if resources.ingress, err = lc.createOrUpdateIngress(functionLabels, function); err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update ingress")
 	}
 
+	// whether to use kubernetes cron job to invoke nuclio function cron trigger
 	if lc.platformConfigurationProvider.GetPlatformConfiguration().CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
-		resources.cronJobs, err = lc.createOrUpdateCronJobs(functionLabels, function, &resources)
-		if err != nil {
+		if resources.cronJobs, err = lc.createOrUpdateCronJobs(functionLabels, function, &resources); err != nil {
 			return nil, errors.Wrap(err, "Failed to create cron jobs from cron triggers")
 		}
 	}
 
-	lc.logger.Debug("Successfully created/updated resources")
-
+	lc.logger.DebugWith("Successfully created/updated resources", "functionName", function.Name)
 	return &resources, nil
 }
 
@@ -699,9 +696,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 
 	replicas := function.GetComputedReplicas()
 	if replicas != nil {
-		lc.logger.DebugWith("Got replicas", "replicas", *replicas)
-	} else {
-		lc.logger.DebugWith("Got nil replicas")
+		lc.logger.DebugWith("Got replicas", "replicas", *replicas, "functionName", function.Name)
 	}
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
@@ -784,6 +779,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 			minReplicas := function.GetComputedMinReplicas()
 			maxReplicas := function.GetComputedMaxReplicas()
 			lc.logger.DebugWith("Verifying current replicas not lower than minReplicas or higher than max",
+				"functionName", function.Name,
 				"maxReplicas", maxReplicas,
 				"minReplicas", minReplicas,
 				"currentReplicas", deployment.Status.Replicas)
@@ -929,7 +925,10 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 
 	minReplicas := function.GetComputedMinReplicas()
 	maxReplicas := function.GetComputedMaxReplicas()
-	lc.logger.DebugWith("Create/Update hpa", "minReplicas", minReplicas, "maxReplicas", maxReplicas)
+	lc.logger.DebugWith("Create/Update hpa",
+		"functionName", function.Name,
+		"minReplicas", minReplicas,
+		"maxReplicas", maxReplicas)
 
 	// hpa min replicas must be equal or greater than 1
 	if minReplicas < 1 {
@@ -1008,6 +1007,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 			}
 
 			lc.logger.DebugWith("Deleting hpa - min replicas and max replicas are equal",
+				"functionName", function.Name,
 				"name", hpa.Name)
 
 			err := lc.kubeClientSet.AutoscalingV2beta1().
@@ -1273,7 +1273,7 @@ func (lc *lazyClient) waitForNginxIngressToStabilize(ingressMeta metav1.ObjectMe
 		"nginxIngressUpdateGracePeriod", nginxIngressUpdateGracePeriod,
 		"ingressMeta", ingressMeta.GetObjectMeta())
 	time.Sleep(nginxIngressUpdateGracePeriod)
-	lc.logger.Debug("Finished waiting for nginx ingress to stabilize",
+	lc.logger.DebugWith("Finished waiting for nginx ingress to stabilize",
 		"ingressMeta", ingressMeta.GetObjectMeta())
 }
 
@@ -1634,8 +1634,6 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 	spec *extv1beta1.IngressSpec) error {
 	meta.Annotations = make(map[string]string)
 
-	lc.logger.DebugWith("Preparing ingress")
-
 	// get the first HTTP trigger and look for annotations that we shove to the ingress
 	// there should only be 0 or 1. if there are more, just take the first
 	for _, httpTrigger := range functionconfig.GetTriggersByKind(function.Spec.Triggers, "http") {
@@ -1704,7 +1702,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 	spec *extv1beta1.IngressSpec) error {
 
 	lc.logger.DebugWith("Adding ingress",
-		"function", function.Name,
+		"functionName", function.Name,
 		"ingressName", kube.IngressNameFromFunctionName(function.Name),
 		"labels", functionLabels,
 		"host", ingress.Host,
@@ -1936,7 +1934,9 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 			}
 		}
 
-		lc.logger.DebugWith("Adding volume", "configVolume", configVolume)
+		lc.logger.DebugWith("Adding volume",
+			"configVolume", configVolume,
+			"functionName", function.Name)
 
 		// volume name is unique per its volume instance
 		volumeNameToVolume[configVolume.Volume.Name] = configVolume.Volume
