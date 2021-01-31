@@ -1,5 +1,5 @@
-// +build integration
-// +build local
+// +build test_integration
+// +build test_local
 
 /*
 Copyright 2017 The Nuclio Authors.

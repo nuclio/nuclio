@@ -1,5 +1,5 @@
-// +build integration
-// +build broken
+// +build test_integration
+// +build test_broken
 
 /*
 Copyright 2018 The Nuclio Authors.

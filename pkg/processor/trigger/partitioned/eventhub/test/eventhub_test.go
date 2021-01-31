@@ -1,5 +1,5 @@
-// +build integration
-// +build iguazio
+// +build test_integration
+// +build test_iguazio
 
 /*
 Copyright 2017 The Nuclio Authors.

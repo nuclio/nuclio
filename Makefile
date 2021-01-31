@@ -452,7 +452,7 @@ ensure-test-files-annotated: modules
 	@if [[ -n "$(test_files_missing_build_annotations)" ]]; then \
 		echo "Found go test files without build annotations: "; \
 		echo $(test_files_missing_build_annotations); \
-		echo "!!! Go test files must be annotated with +build <x> !!!"; \
+		echo "!!! Go test files must be annotated with '// +build test_<x>' !!!"; \
 		exit 1; \
 	fi
 	@echo "All go test file have build annotations"
@@ -467,7 +467,7 @@ benchmarking:
 
 .PHONY: test-unit
 test-unit: modules ensure-gopath
-	go test -tags=unit -v ./cmd/... ./pkg/... -short
+	go test -tags=test_unit -v ./cmd/... ./pkg/... -short
 
 .PHONY: test-k8s-nuctl
 test-k8s-nuctl:
@@ -475,17 +475,17 @@ test-k8s-nuctl:
 		NUCTL_RUN_REGISTRY=$(NUCTL_REGISTRY) \
 		NUCTL_PLATFORM=kube \
 		NUCTL_NAMESPACE=$(if $(NUCTL_NAMESPACE),$(NUCTL_NAMESPACE),"default") \
-		go test -tags="integration,kube" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+		go test -tags="test_integration,test_kube" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
 
 .PHONY: test-docker-nuctl
 test-docker-nuctl:
 	NUCTL_PLATFORM=local \
-		go test -tags="integration,local" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+		go test -tags="test_integration,test_local" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
 
 .PHONY: test-undockerized
 test-undockerized: ensure-gopath
 	go test \
-		-tags="integration,local" \
+		-tags="test_integration,test_local" \
 		-v \
 		-p 1 \
 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
@@ -495,16 +495,16 @@ test-undockerized: ensure-gopath
 test-k8s-undockerized: ensure-gopath
 	@# nuctl is running by "test-k8s-nuctl" target and requires specific set of env
 	go test \
-		-tags="integration,kube" \
+		-tags="test_integration,test_kube" \
  		-v \
  		-p 1 \
  		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
- 		$(shell go list -tags="integration,kube" ./cmd/... ./pkg/... | grep -v nuctl)
+ 		$(shell go list -tags="test_integration,test_kube" ./cmd/... ./pkg/... | grep -v nuctl)
 
 .PHONY: test-broken-undockerized
 test-broken-undockerized: ensure-gopath
 	go test \
-		-tags="integration,broken" \
+		-tags="test_integration,test_broken" \
 		-v \
 		-p 1 \
 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \

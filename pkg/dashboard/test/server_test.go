@@ -1,4 +1,4 @@
-// +build unit
+// +build test_unit
 
 //
 // cannot reside with server.go because of dependency cycle by "github.com/nuclio/nuclio/pkg/dashboard/resource"

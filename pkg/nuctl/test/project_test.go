@@ -1,5 +1,5 @@
-// +build integration
-// +build kube local
+// +build test_integration
+// +build test_kube test_local
 
 /*
 Copyright 2017 The Nuclio Authors.
