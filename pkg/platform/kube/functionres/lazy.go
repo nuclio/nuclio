@@ -209,7 +209,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 	// create or update the applicable deployment
 	if resources.deployment, err = lc.createOrUpdateDeployment(functionLabels,
 		imagePullSecrets,
-		function);  err != nil {
+		function); err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update deployment")
 	}
 
