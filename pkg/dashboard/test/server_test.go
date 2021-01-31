@@ -1,3 +1,9 @@
+// +build unit
+
+//
+// cannot reside with server.go because of dependency cycle by "github.com/nuclio/nuclio/pkg/dashboard/resource"
+//
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -46,11 +52,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
 )
-
-//
-// Unit test suite
-// cannot reside with server.go because of dependency cycle by "github.com/nuclio/nuclio/pkg/dashboard/resource"
-//
 
 type dashboardTestSuite struct {
 	suite.Suite

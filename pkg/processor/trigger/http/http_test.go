@@ -1,3 +1,5 @@
+// +build unit
+
 /*
 Copyright 2018 The Nuclio Authors.
 
