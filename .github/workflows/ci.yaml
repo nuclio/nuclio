@@ -46,6 +46,10 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
+    - name: Ensure go test files are build annotated
+      run: |
+        make ensure-test-files-annotated
+
     - name: Lint
       run: make lint
 
