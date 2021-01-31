@@ -43,7 +43,6 @@ require (
 	github.com/nuclio/zap v0.0.4
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/prometheus/client_golang v1.1.0
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/robfig/cron v1.2.0
@@ -74,4 +73,4 @@ require (
 	pack.ag/amqp v0.12.5
 )
 
-replace github.com/Shopify/sarama => github.com/iguazio/sarama v1.25.1-0.20200331135945-d92101249c96
+replace github.com/Shopify/sarama => github.com/iguazio/sarama v1.25.1-0.20201117150928-15517d41c014
