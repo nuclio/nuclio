@@ -36,4 +36,4 @@ jobs:
         NUCLIO_NUCTL_CREATE_SYMLINK: false
 
     - name: Test
-      run: make test-test
+      run: make test
