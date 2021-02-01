@@ -46,6 +46,7 @@ NUCLIO_ARCH := $(if $(NUCLIO_ARCH),$(NUCLIO_ARCH),$(NUCLIO_DEFAULT_ARCH))
 NUCLIO_LABEL := $(if $(NUCLIO_LABEL),$(NUCLIO_LABEL),latest)
 NUCLIO_TEST_HOST := $(if $(NUCLIO_TEST_HOST),$(NUCLIO_TEST_HOST),$(NUCLIO_DEFAULT_TEST_HOST))
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
+NUCLIO_PATH ?= $(shell pwd)
 
 NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\", \"label\": \"$(NUCLIO_LABEL)\"}
 
@@ -116,14 +117,7 @@ helm-publish:
 
 # tools get built with the specified OS/arch and inject version
 GO_BUILD_TOOL_WORKDIR = /nuclio
-GO_BUILD_NUCTL = docker run \
-	--volume $(GOPATH)/bin:/go/bin \
-	--env GOOS=$(NUCLIO_OS) \
-	--env GOARCH=$(NUCLIO_ARCH) \
-	nuclio-base:$(NUCLIO_LABEL) \
-	go build -a \
-	-installsuffix cgo \
-	-ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
+GO_BUILD_NUCTL = go build -a -installsuffix cgo -ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
 
 #
 # Rules
@@ -176,11 +170,19 @@ NUCTL_TARGET = $(GOPATH)/bin/nuctl
 
 # Nuctl
 nuctl: ensure-gopath build-base
-	$(GO_BUILD_NUCTL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
-	@rm -f $(NUCTL_TARGET)
+	docker run \
+    	--volume $(GOPATH)/bin:/go/bin \
+    	--env GOOS=$(NUCLIO_OS) \
+    	--env GOARCH=$(NUCLIO_ARCH) \
+    	nuclio-base:$(NUCLIO_LABEL) \
+    	$(GO_BUILD_NUCTL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 ifeq ($(NUCLIO_NUCTL_CREATE_SYMLINK), true)
+	@rm -f $(NUCTL_TARGET)
 	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
 endif
+
+nuctl-bin: ensure-gopath
+	CGO_ENABLED=0 $(GO_BUILD_NUCTL) -o $(NUCLIO_PATH)/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 
 # Processor
 processor: ensure-gopath build-base
@@ -517,7 +519,7 @@ test: build-test
 		--rm \
 		--volume /var/run/docker.sock:/var/run/docker.sock \
 		--volume $(GOPATH)/bin:/go/bin \
-		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
+		--volume $(NUCLIO_PATH):$(GO_BUILD_TOOL_WORKDIR) \
 		--volume /tmp:/tmp \
 		--workdir $(GO_BUILD_TOOL_WORKDIR) \
 		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
@@ -537,7 +539,7 @@ test-k8s: build-test
 		--network host \
 		--volume /var/run/docker.sock:/var/run/docker.sock \
 		--volume $(GOPATH)/bin:/go/bin \
-		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
+		--volume $(NUCLIO_PATH):$(GO_BUILD_TOOL_WORKDIR) \
 		--volume /tmp:/tmp \
 		--volume $(NUCLIO_TEST_KUBECONFIG)/:/kubeconfig \
 		--workdir $(GO_BUILD_TOOL_WORKDIR) \
@@ -576,8 +578,8 @@ build-test: ensure-gopath build-base
 test-nodejs:
 	docker run \
 	 --rm \
-	 --volume $(shell pwd)/pkg/processor/runtime/nodejs/js:/nuclio/nodejs \
-	 --volume $(shell pwd)/test:/nuclio/test \
+	 --volume $(NUCLIO_PATH)/pkg/processor/runtime/nodejs/js:/nuclio/nodejs \
+	 --volume $(NUCLIO_PATH)/test:/nuclio/test \
 	 --workdir /nuclio/nodejs \
 	 --env RUN_MODE=CI \
 	 node:10.20-alpine \

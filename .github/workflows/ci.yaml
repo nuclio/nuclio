@@ -86,9 +86,11 @@ jobs:
 
     - name: Build
       run: |
-        make nuctl
-      env:
-        NUCLIO_NUCTL_CREATE_SYMLINK: false
+        make nuctl-bin
+
+    - name: Ensure version
+      run: |
+        ./nuctl-$NUCLIO_LABEL-linux-amd64 version
 
   build_docker_images:
     name: Build docker images
