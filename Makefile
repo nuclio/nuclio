@@ -171,11 +171,11 @@ NUCTL_TARGET = $(GOPATH)/bin/nuctl
 # Nuctl
 nuctl: ensure-gopath build-base
 	docker run \
-    	--volume $(GOPATH)/bin:/go/bin \
-    	--env GOOS=$(NUCLIO_OS) \
-    	--env GOARCH=$(NUCLIO_ARCH) \
-    	nuclio-base:$(NUCLIO_LABEL) \
-    	$(GO_BUILD_NUCTL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
+		--volume $(GOPATH)/bin:/go/bin \
+		--env GOOS=$(NUCLIO_OS) \
+		--env GOARCH=$(NUCLIO_ARCH) \
+		nuclio-base:$(NUCLIO_LABEL) \
+		$(GO_BUILD_NUCTL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 ifeq ($(NUCLIO_NUCTL_CREATE_SYMLINK), true)
 	@rm -f $(NUCTL_TARGET)
 	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
