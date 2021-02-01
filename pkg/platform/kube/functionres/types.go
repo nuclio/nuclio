@@ -30,7 +30,7 @@ type Client interface {
 	// Get returns the resources named by name, populating the "deployment" sub-resource
 	Get(context.Context, string, string) (Resources, error)
 
-	// CreateOrUpdate creates or updates exisisting resources
+	// CreateOrUpdate creates or updates existing resources
 	CreateOrUpdate(context.Context, *nuclioio.NuclioFunction, string) (Resources, error)
 
 	// WaitAvailable waits until the resources are ready
