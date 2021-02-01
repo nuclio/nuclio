@@ -23,6 +23,13 @@ run:
 
   # timeout for analysis
   timeout: 5m
+  build-tags:
+    - test_unit
+    - test_integration
+    - test_kube
+    - test_local
+    - test_iguazio
+    - test_broken
 
   skip-dirs:
     - docs

@@ -46,6 +46,10 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
+    - name: Ensure go test files are build annotated
+      run: |
+        make ensure-test-files-annotated
+
     - name: Lint
       run: make lint
 
@@ -66,9 +70,9 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
-    - name: Run short test
+    - name: Run unit test
       run: |
-        make test-short
+        make test-unit
 
   build_nuctl:
     name: Build nuctl

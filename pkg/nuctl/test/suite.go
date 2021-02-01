@@ -1,3 +1,6 @@
+// +build test_integration
+// +build test_kube test_local
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -49,15 +52,16 @@ const (
 
 type Suite struct {
 	suite.Suite
-	origPlatformKind    string
-	logger              logger.Logger
-	dockerClient        dockerclient.Client
-	shellClient         *cmdrunner.ShellRunner
-	outputBuffer        bytes.Buffer
-	inputBuffer         bytes.Buffer
-	defaultWaitDuration time.Duration
-	defaultWaitInterval time.Duration
-	namespace           string
+	platformKindOverride string
+	origPlatformKind     string
+	logger               logger.Logger
+	dockerClient         dockerclient.Client
+	shellClient          *cmdrunner.ShellRunner
+	outputBuffer         bytes.Buffer
+	inputBuffer          bytes.Buffer
+	defaultWaitDuration  time.Duration
+	defaultWaitInterval  time.Duration
+	namespace            string
 }
 
 func (suite *Suite) SetupSuite() {
@@ -85,6 +89,13 @@ func (suite *Suite) SetupSuite() {
 	suite.defaultWaitInterval = 5 * time.Second
 
 	suite.namespace = common.GetEnvOrDefaultString("NUCTL_NAMESPACE", "nuclio")
+
+	// platform kind has been overridden - use it
+	if suite.platformKindOverride != "" {
+		suite.logger.DebugWith("Overriding platform kind",
+			"platformKindOverride", suite.platformKindOverride)
+		suite.origPlatformKind = suite.platformKindOverride
+	}
 
 	// default to local platform if platform isn't set
 	if os.Getenv(nuctlPlatformEnvVarName) == "" {

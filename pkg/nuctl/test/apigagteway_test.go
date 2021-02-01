@@ -1,3 +1,6 @@
+// +build test_integration
+// +build test_kube
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -38,9 +41,12 @@ type apiGatewayCreateGetAndDeleteTestSuite struct {
 	Suite
 }
 
-func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
-	suite.ensureRunningOnPlatform("kube")
+func (suite *apiGatewayCreateGetAndDeleteTestSuite) SetupSuite() {
+	suite.platformKindOverride = "kube"
+	suite.Suite.SetupSuite()
+}
 
+func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 	numOfAPIGateways := 3
 
 	for apiGatewayIdx := 0; apiGatewayIdx < numOfAPIGateways; apiGatewayIdx++ {
@@ -91,7 +97,6 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 }
 
 func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateFailsOnReservedResourceName() {
-	suite.ensureRunningOnPlatform("kube")
 	apiGatewayName := "dashboard"
 
 	namedArgs := map[string]string{
@@ -121,6 +126,11 @@ type apiGatewayInvokeTestSuite struct {
 	Suite
 }
 
+func (suite *apiGatewayInvokeTestSuite) SetupSuite() {
+	suite.platformKindOverride = "kube"
+	suite.Suite.SetupSuite()
+}
+
 func (suite *apiGatewayInvokeTestSuite) TestInvokeAuthenticationModeBasicAuth() {
 	suite.testInvoke(ingress.AuthenticationModeBasicAuth)
 }
@@ -130,8 +140,6 @@ func (suite *apiGatewayInvokeTestSuite) TestInvokeAuthenticationModeNone() {
 }
 
 func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.AuthenticationMode) {
-	suite.ensureRunningOnPlatform("kube")
-
 	functionName := suite.deployFunction()
 
 	// use nutctl to delete the function when we're done

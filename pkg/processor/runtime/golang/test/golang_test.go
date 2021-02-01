@@ -1,3 +1,6 @@
+// +build test_integration
+// +build test_local
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -39,8 +42,11 @@ import (
 
 type TestSuite struct {
 	httpsuite.TestSuite
-	cloudevents.CloudEventsTestSuite
-	callfunction.CallFunctionTestSuite
+	CloudEventsTestSuite  cloudevents.TestSuite
+	CallFunctionTestSuite callfunction.TestSuite
+
+	// TODO: enable once we are being able to pass go mod cache from processor to function plugin
+	//OfflineTestSuite      offline.TestSuite
 }
 
 func (suite *TestSuite) SetupTest() {
@@ -51,6 +57,10 @@ func (suite *TestSuite) SetupTest() {
 	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "golang", "test")
 	suite.CloudEventsTestSuite.HTTPSuite = &suite.TestSuite
 	suite.CallFunctionTestSuite.HTTPSuite = &suite.TestSuite
+
+	// TODO: see comment below above TestSuite
+	//suite.OfflineTestSuite.HTTPSuite = &suite.TestSuite
+	//suite.OfflineTestSuite.FunctionHandler = "reverser:Reverse"
 }
 
 func (suite *TestSuite) TestOutputs() {

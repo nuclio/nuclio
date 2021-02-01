@@ -1,3 +1,5 @@
+// +build test_unit
+
 /*
 Copyright 2017 The Nuclio Authors.
 

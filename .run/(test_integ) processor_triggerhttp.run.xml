@@ -1,7 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="(test:integ) processor/triggerhttp" type="GoTestRunConfiguration" factoryName="Go Test">
+  <configuration default="false" name="(test:integ) processor/trigger/http" type="GoTestRunConfiguration" factoryName="Go Test">
     <module name="nuclio" />
     <working_directory value="$PROJECT_DIR$/pkg/processor/trigger/http/test/suite" />
+    <go_parameters value="-tags test_integration,test_local" />
     <EXTENSION ID="net.ashald.envfile">
       <option name="IS_ENABLED" value="false" />
       <option name="IS_SUBST" value="false" />

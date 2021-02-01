@@ -1,3 +1,6 @@
+// +build test_integration
+// +build test_local
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -27,13 +30,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 )
 
-// CallFunctionTestSuite tests calling functions from within a function using ctx.Platform.CallFunction
-type CallFunctionTestSuite struct { // nolint
+// TestSuite tests calling functions from within a function using ctx.Platform.CallFunction
+type TestSuite struct { // nolint
 	HTTPSuite *httpsuite.TestSuite
 }
 
 // TestCallFunction tests a call function in Go
-func (suite *CallFunctionTestSuite) TestCallFunction() {
+func (suite *TestSuite) TestCallFunction() {
 	networkName := "test-network-" + suite.HTTPSuite.TestID
 
 	// create a docker network so that the functions can communicate

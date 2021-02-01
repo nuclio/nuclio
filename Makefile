@@ -174,6 +174,7 @@ NUCLIO_NUCTL_CREATE_SYMLINK := $(if $(NUCLIO_NUCTL_CREATE_SYMLINK),$(NUCLIO_NUCT
 NUCTL_BIN_NAME = nuctl-$(NUCLIO_LABEL)-$(NUCLIO_OS)-$(NUCLIO_ARCH)
 NUCTL_TARGET = $(GOPATH)/bin/nuctl
 
+# Nuctl
 nuctl: ensure-gopath build-base
 	$(GO_BUILD_NUCTL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 	@rm -f $(NUCTL_TARGET)
@@ -181,6 +182,7 @@ ifeq ($(NUCLIO_NUCTL_CREATE_SYMLINK), true)
 	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
 endif
 
+# Processor
 processor: ensure-gopath build-base
 	docker build \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
@@ -283,7 +285,7 @@ endif
 
 # Python
 NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME=\
-$(NUCLIO_DOCKER_REPO)/handler-builder-python-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+ $(NUCLIO_DOCKER_REPO)/handler-builder-python-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 PIP_REQUIRE_VIRTUALENV=false
 
@@ -328,7 +330,7 @@ endif
 
 # NodeJS
 NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME=\
-$(NUCLIO_DOCKER_REPO)/handler-builder-nodejs-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+ $(NUCLIO_DOCKER_REPO)/handler-builder-nodejs-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 handler-builder-nodejs-onbuild:
 	docker build \
@@ -343,7 +345,7 @@ endif
 
 # Ruby
 NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME=\
-$(NUCLIO_DOCKER_REPO)/handler-builder-ruby-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+ $(NUCLIO_DOCKER_REPO)/handler-builder-ruby-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 handler-builder-ruby-onbuild:
 	docker build \
@@ -357,8 +359,9 @@ $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME
 endif
 
 
-# dotnet core
-NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/handler-builder-dotnetcore-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+# .NetCore
+NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=\
+ $(NUCLIO_DOCKER_REPO)/handler-builder-dotnetcore-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH = pkg/processor/build/runtime/dotnetcore/docker/onbuild/Dockerfile
 
 handler-builder-dotnetcore-onbuild: processor
@@ -372,9 +375,9 @@ ifneq ($(filter handler-builder-dotnetcore-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME))
 endif
 
-# java
+# Java
 NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME=\
-$(NUCLIO_DOCKER_REPO)/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+ $(NUCLIO_DOCKER_REPO)/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 handler-builder-java-onbuild:
 	docker build \
@@ -387,14 +390,35 @@ ifneq ($(filter handler-builder-java-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME))
 endif
 
-.PHONY: modules
-modules: ensure-gopath
-	@echo Getting go modules
-	@go mod download
+
+.PHONY: build-base
+build-base: build-builder
+	docker build \
+		--build-arg GOARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--file hack/docker/build/base/Dockerfile \
+		--tag nuclio-base:$(NUCLIO_LABEL) .
+	docker build \
+		--build-arg GOARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--file hack/docker/build/base-alpine/Dockerfile \
+		--tag nuclio-base-alpine:$(NUCLIO_LABEL) .
+
+.PHONY: build-builder
+build-builder:
+	docker build \
+		--file hack/docker/build/builder/Dockerfile \
+		--tag nuclio-builder:$(NUCLIO_LABEL) .
+
 
 #
-# Testing
+# Misc
 #
+
+.PHONY: fmt
+fmt:
+	gofmt -s -w .
+
 .PHONY: lint
 lint: modules
 	@echo Installing linters...
@@ -422,48 +446,74 @@ lint: modules
 	$(GOPATH)/bin/golangci-lint run -v
 	@echo Done.
 
-.PHONY: test-undockerized
-test-undockerized: ensure-gopath
-	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./cmd/... ./pkg/...
+.PHONY: ensure-test-files-annotated
+ensure-test-files-annotated: modules
+	$(eval test_files_missing_build_annotations=$(strip $(shell find . -type f -name '*_test.go' -exec bash -c "grep -m 1 -L '// +build' {} | grep go" \;)))
+	@if [[ -n "$(test_files_missing_build_annotations)" ]]; then \
+		echo "Found go test files without build annotations: "; \
+		echo $(test_files_missing_build_annotations); \
+		echo "!!! Go test files must be annotated with '// +build test_<x>' !!!"; \
+		exit 1; \
+	fi
+	@echo "All go test file have build annotations"
 
-.PHONY: test-kafka-undockerized
-test-kafka-undockerized: ensure-gopath
-	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./pkg/processor/trigger/kafka/...
-
-# This is to work around hostname resolution issues for sarama and kafka in CI
-.PHONY: test-periodic-undockerized
-test-periodic-undockerized: ensure-gopath
-	go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) $(shell go list ./cmd/... ./pkg/... | grep -v trigger/kafka)
-
-.PHONY: test-k8s-undockerized
-test-k8s-undockerized: ensure-gopath
-	NUCLIO_K8S_TESTS_ENABLED=true go test -v -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT) ./pkg/platform/kube/...
-
-.PHONY: fmt
-fmt:
-	gofmt -s -w .
+#
+# Testing
+#
 
 benchmarking:
 	$(eval NUCLIO_BENCHMARKING_RUNTIMES ?= all)
 	@python3 hack/scripts/benchmark/benchmark.py --nuctl-platform local --runtimes $(NUCLIO_BENCHMARKING_RUNTIMES)
 
-.PHONY: build-test
-build-test: ensure-gopath build-base
-	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.17.9)
-	$(eval NUCLIO_TEST_KUBECTL_CLI_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),amd64,arm64))
-	docker build \
-        --build-arg GOARCH=$(NUCLIO_ARCH) \
-		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--build-arg DOCKER_CLI_ARCH=$(NUCLIO_DOCKER_CLIENT_ARCH) \
-		--build-arg DOCKER_CLI_VERSION=$(NUCLIO_DOCKER_CLIENT_VERSION) \
-		--build-arg KUBECTL_CLI_ARCH=$(NUCLIO_TEST_KUBECTL_CLI_ARCH) \
-		--build-arg KUBECTL_CLI_VERSION=$(NUCLIO_TEST_KUBECTL_CLI_VERSION) \
-		--file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
-		--tag $(NUCLIO_DOCKER_TEST_TAG) .
+.PHONY: test-unit
+test-unit: modules ensure-gopath
+	go test -tags=test_unit -v ./cmd/... ./pkg/... -short
+
+.PHONY: test-k8s-nuctl
+test-k8s-nuctl:
+	NUCTL_EXTERNAL_IP_ADDRESSES=$(if $(NUCTL_EXTERNAL_IP_ADDRESSES),$(NUCTL_EXTERNAL_IP_ADDRESSES),"localhost") \
+		NUCTL_RUN_REGISTRY=$(NUCTL_REGISTRY) \
+		NUCTL_PLATFORM=kube \
+		NUCTL_NAMESPACE=$(if $(NUCTL_NAMESPACE),$(NUCTL_NAMESPACE),"default") \
+		go test -tags="test_integration,test_kube" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+
+.PHONY: test-docker-nuctl
+test-docker-nuctl:
+	NUCTL_PLATFORM=local \
+		go test -tags="test_integration,test_local" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+
+.PHONY: test-undockerized
+test-undockerized: ensure-gopath
+	go test \
+		-tags="test_integration,test_local" \
+		-v \
+		-p 1 \
+		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
+		./cmd/... ./pkg/...
+
+.PHONY: test-k8s-undockerized
+test-k8s-undockerized: ensure-gopath
+	@# nuctl is running by "test-k8s-nuctl" target and requires specific set of env
+	go test \
+		-tags="test_integration,test_kube" \
+ 		-v \
+ 		-p 1 \
+ 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
+ 		$(shell go list -tags="test_integration,test_kube" ./cmd/... ./pkg/... | grep -v nuctl)
+
+.PHONY: test-broken-undockerized
+test-broken-undockerized: ensure-gopath
+	go test \
+		-tags="test_integration,test_broken" \
+		-v \
+		-p 1 \
+		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
+		./cmd/... ./pkg/...
 
 .PHONY: test
 test: build-test
-	docker run \
+	$(eval NUCLIO_TEST_MAKE_TARGET ?= $(if $(NUCLIO_TEST_BROKEN),"test-broken-undockerized","test-undockerized"))
+	@docker run \
 		--rm \
 		--volume /var/run/docker.sock:/var/run/docker.sock \
 		--volume $(GOPATH)/bin:/go/bin \
@@ -477,7 +527,7 @@ test: build-test
 		--env NUCLIO_OS=$(NUCLIO_OS) \
 		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
 		$(NUCLIO_DOCKER_TEST_TAG) \
-		/bin/bash -c "make test-undockerized"
+		/bin/bash -c "make $(NUCLIO_TEST_MAKE_TARGET)"
 
 .PHONY: test-k8s
 test-k8s: build-test
@@ -504,41 +554,23 @@ test-k8s: build-test
 		$(NUCLIO_DOCKER_TEST_TAG) \
 		/bin/bash -c "make test-k8s-undockerized"
 
-.PHONY: test-periodic
-test-periodic: build-test
-	docker run \
-		--rm \
-		--volume /var/run/docker.sock:/var/run/docker.sock \
-		--volume $(GOPATH)/bin:/go/bin \
-		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
-		--volume /tmp:/tmp \
-		--workdir $(GO_BUILD_TOOL_WORKDIR) \
-		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
-		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
-		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
-		--env NUCLIO_OS=$(NUCLIO_OS) \
-		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
-		$(NUCLIO_DOCKER_TEST_TAG) \
-		/bin/bash -c "make test-periodic-undockerized"
+.PHONY: build-test
+build-test: ensure-gopath build-base
+	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.17.9)
+	$(eval NUCLIO_TEST_KUBECTL_CLI_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),amd64,arm64))
+	docker build \
+        --build-arg GOARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--build-arg DOCKER_CLI_ARCH=$(NUCLIO_DOCKER_CLIENT_ARCH) \
+		--build-arg DOCKER_CLI_VERSION=$(NUCLIO_DOCKER_CLIENT_VERSION) \
+		--build-arg KUBECTL_CLI_ARCH=$(NUCLIO_TEST_KUBECTL_CLI_ARCH) \
+		--build-arg KUBECTL_CLI_VERSION=$(NUCLIO_TEST_KUBECTL_CLI_VERSION) \
+		--file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
+		--tag $(NUCLIO_DOCKER_TEST_TAG) .
 
-.PHONY: test-kafka
-test-kafka: build-test
-	docker run \
-		--rm \
-		--volume /var/run/docker.sock:/var/run/docker.sock \
-		--volume $(GOPATH)/bin:/go/bin \
-		--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
-		--volume /tmp:/tmp \
-		--workdir $(GO_BUILD_TOOL_WORKDIR) \
-		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
-		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
-		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
-		--env NUCLIO_OS=$(NUCLIO_OS) \
-		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
-		$(NUCLIO_DOCKER_TEST_TAG) \
-		/bin/bash -c "make test-kafka-undockerized"
+#
+# Test runtime wrappers
+#
 
 .PHONY: test-nodejs
 test-nodejs:
@@ -561,40 +593,10 @@ test-python:
 	  .;))
 	@$(foreach TEST_BUILD_COMMAND,$(TEST_BUILD_COMMANDS), $(TEST_BUILD_COMMAND))
 
-.PHONY: test-short
-test-short: modules ensure-gopath
-	go test -v ./cmd/... ./pkg/... -short
 
-.PHONY: test-k8s-nuctl
-test-k8s-nuctl:
-	NUCTL_EXTERNAL_IP_ADDRESSES=$(if $(NUCTL_EXTERNAL_IP_ADDRESSES),$(NUCTL_EXTERNAL_IP_ADDRESSES),"localhost") \
-		NUCTL_RUN_REGISTRY=$(NUCTL_REGISTRY) \
-		NUCTL_PLATFORM=kube \
-		NUCTL_NAMESPACE=$(if $(NUCTL_NAMESPACE),$(NUCTL_NAMESPACE),"default") \
-		go test -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
-
-.PHONY: test-docker-nuctl
-test-docker-nuctl:
-	NUCTL_PLATFORM=local go test -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
-
-.PHONY: build-base
-build-base: build-builder
-	docker build \
-		--build-arg GOARCH=$(NUCLIO_ARCH) \
-		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--file hack/docker/build/base/Dockerfile \
-		--tag nuclio-base:$(NUCLIO_LABEL) .
-	docker build \
-		--build-arg GOARCH=$(NUCLIO_ARCH) \
-		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--file hack/docker/build/base-alpine/Dockerfile \
-		--tag nuclio-base-alpine:$(NUCLIO_LABEL) .
-
-.PHONY: build-builder
-build-builder:
-	docker build \
-		--file hack/docker/build/builder/Dockerfile \
-		--tag nuclio-builder:$(NUCLIO_LABEL) .
+#
+# Go env
+#
 
 .PHONY: ensure-gopath
 ensure-gopath:
@@ -602,6 +604,11 @@ ifndef GOPATH
 	$(error GOPATH must be set)
 endif
 
+.PHONY: modules
+modules: ensure-gopath
+	@echo Getting go modules
+	@go mod download
+
 .PHONY: targets
 targets:
-	awk -F: '/^[^ \t="]+:/ && !/PHONY/ {print $$1}' Makefile | sort -u
+	@awk -F: '/^[^ \t="]+:/ && !/PHONY/ {print $$1}' Makefile | sort -u

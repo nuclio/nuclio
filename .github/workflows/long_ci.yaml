@@ -57,9 +57,8 @@ jobs:
         env:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
 
-      # TODO: use `make test` once kafka integration test is fixed
       - name: Test
-        run: make test-periodic
+        run: make test
 
       - if: ${{ success() }}
         run: echo "LONG_CI_FINISH_LABEL=${{ env.SUCCESS_LABEL }}" >> $GITHUB_ENV
