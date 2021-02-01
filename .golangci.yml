@@ -24,12 +24,12 @@ run:
   # timeout for analysis
   timeout: 5m
   build-tags:
-    - unit
-    - integration
-    - kube
-    - local
-    - iguazio
-    - broken
+    - test_unit
+    - test_integration
+    - test_kube
+    - test_local
+    - test_iguazio
+    - test_broken
 
   skip-dirs:
     - docs
