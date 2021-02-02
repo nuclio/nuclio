@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"path"
 	"regexp"
+	"runtime"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -341,6 +342,47 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 			RequestMethod: http.MethodGet,
 		},
 	})
+}
+
+// TestStableSDKThroughput compares runtime SDK between stable (released tag) and unstable (development branch)
+// and ensure a throughput margin
+func (suite *TestSuite) TestStableSDKThroughput() {
+	allowedThroughputMarginPercentage := float64(10)
+	numWorkers := runtime.NumCPU()
+
+	// blast unchanged sdk python function
+	stableCreateFunctionOptions := suite.getEmptyFunctionCreateOptions("stable-sdk-py", numWorkers)
+
+	// blast changed sdk python function
+	unstableCreateFunctionOptions := suite.getEmptyFunctionCreateOptions("unstable-sdk-py", numWorkers)
+	branch := "development"
+	githubUsername := "nuclio"
+	pythonSDKUpstreamURL := fmt.Sprintf("https://github.com/%s/nuclio-sdk-py.git@%s", githubUsername, branch)
+	unstableCreateFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+		"@nuclio.postCopy",
+		fmt.Sprintf("python -m pip install git+%s", pythonSDKUpstreamURL),
+	}
+
+	suite.BlastHTTPThroughput(stableCreateFunctionOptions,
+		unstableCreateFunctionOptions,
+		allowedThroughputMarginPercentage,
+		numWorkers)
+}
+
+func (suite *TestSuite) getEmptyFunctionCreateOptions(functionName string,
+	numWorkers int) *platform.CreateFunctionOptions {
+	createFunctionOptions := suite.GetDeployOptions(functionName,
+		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
+	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
+
+	// add http trigger
+	httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+	httpTrigger.MaxWorkers = numWorkers
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		httpTrigger.Name: httpTrigger,
+	}
+	return createFunctionOptions
 }
 
 func TestIntegrationSuite(t *testing.T) {
