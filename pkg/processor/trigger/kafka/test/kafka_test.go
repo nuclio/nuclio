@@ -1,5 +1,5 @@
 // +build test_integration
-// +build test_broken
+// +build test_local
 
 /*
 Copyright 2018 The Nuclio Authors.
@@ -33,98 +33,157 @@ import (
 
 type testSuite struct {
 	*triggertest.AbstractBrokerSuite
-	broker        *sarama.Broker
-	producer      sarama.SyncProducer
-	brokerURL     string
+
+	// kafka clients
+	broker   *sarama.Broker
+	producer sarama.SyncProducer
+
+	// messaging
 	topic         string
 	consumerGroup string
 	initialOffset string
 	NumPartitions int32
-}
 
-func newTestSuite() *testSuite {
-	newTestSuite := &testSuite{
-		topic:         "myTopic",
-		consumerGroup: "myConsumerGroup",
-		initialOffset: "earliest",
-		NumPartitions: 4,
-	}
+	// kafka cluster
+	brokerURL              string
+	dockerNetworkName      string
+	brokerContainerName    string
+	zooKeeperContainerName string
 
-	newTestSuite.AbstractBrokerSuite = triggertest.NewAbstractBrokerSuite(newTestSuite)
-
-	return newTestSuite
+	// for cleanup
+	zooKeeperContainerID string
 }
 
 func (suite *testSuite) SetupSuite() {
+	var err error
+
+	// messaging
+	suite.topic = "myTopic"
+	suite.consumerGroup = "myConsumerGroup"
+	suite.initialOffset = "earliest"
+	suite.NumPartitions = 4
+
+	// kafka cluster
+	suite.dockerNetworkName = "kafka"
+	suite.brokerContainerName = "kafka-broker"
+	suite.zooKeeperContainerName = "zookeeper"
+	suite.brokerURL = fmt.Sprintf("%s:9092", suite.BrokerHost)
+
+	// start broker and zookeeper containers explicitly
+	suite.AbstractBrokerSuite.SkipStartBrokerContainer = true
 	suite.AbstractBrokerSuite.SetupSuite()
 
-	suite.brokerURL = fmt.Sprintf("%s:9092", suite.BrokerHost)
-	suite.Logger.InfoWith("Creating broker resources", "brokerURL", suite.brokerURL)
+	// start zoo keeper container
+	suite.zooKeeperContainerID = suite.EnsureNetworkAndRunContainer(suite.getKafkaZooKeeperContainerRunInfo())
+
+	// start broker container
+	suite.StartBrokerContainer(suite.GetContainerRunInfo())
+
+	suite.Logger.InfoWith("Creating broker resources",
+		"brokerHost", suite.BrokerHost)
 
 	// create broker
 	suite.broker = sarama.NewBroker(suite.brokerURL)
 
 	brokerConfig := sarama.NewConfig()
-	brokerConfig.Version = sarama.V0_10_1_0
+	brokerConfig.Version = sarama.V0_11_0_2
 
 	// connect to the broker
-	err := suite.broker.Open(brokerConfig)
+	err = suite.broker.Open(brokerConfig)
 	suite.Require().NoError(err, "Failed to open broker")
 
-	// init a create topic request
-	createTopicsRequest := sarama.CreateTopicsRequest{}
-	createTopicsRequest.TopicDetails = map[string]*sarama.TopicDetail{
-		suite.topic: {
-			NumPartitions:     suite.NumPartitions,
-			ReplicationFactor: 1,
-		},
-	}
-
 	// create topic
-	response, err := suite.broker.CreateTopics(&createTopicsRequest)
+	createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
+		TopicDetails: map[string]*sarama.TopicDetail{
+			suite.topic: {
+				NumPartitions:     suite.NumPartitions,
+				ReplicationFactor: 1,
+			},
+		},
+	})
 	suite.Require().NoError(err, "Failed to create topic")
 
-	suite.Logger.InfoWith("Created topic", "topic", suite.topic, "response", response)
+	suite.Logger.InfoWith("Created topic",
+		"topic", suite.topic,
+		"createTopicResponse", createTopicsResponse)
 
 	// create a sync producer
 	suite.producer, err = sarama.NewSyncProducer([]string{suite.brokerURL}, nil)
 	suite.Require().NoError(err, "Failed to create sync producer")
 }
 
+func (suite *testSuite) TearDownSuite() {
+	if suite.zooKeeperContainerID != "" {
+		err := suite.DockerClient.RemoveContainer(suite.zooKeeperContainerID)
+		suite.NoError(err)
+	}
+
+	suite.AbstractBrokerSuite.TearDownSuite()
+}
+
 func (suite *testSuite) TestReceiveRecords() {
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
-	createFunctionOptions.FunctionConfig.Spec.Triggers["http"] = functionconfig.Trigger{
-		Kind:       "http",
-		MaxWorkers: 1,
-		URL:        ":8080",
+	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
 		Attributes: map[string]interface{}{
-			"port": 8080,
+			"network": suite.dockerNetworkName,
 		},
 	}
-	createFunctionOptions.FunctionConfig.Spec.Triggers["my-kafka"] = functionconfig.Trigger{
-		Kind: "kafka-cluster",
-		URL:  suite.brokerURL,
-		Attributes: map[string]interface{}{
-			"topics":        []string{suite.topic},
-			"consumerGroup": suite.consumerGroup,
-			"initialOffset": suite.initialOffset,
+
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"my-kafka": {
+			Kind: "kafka-cluster",
+			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+			Attributes: map[string]interface{}{
+				"topics":        []string{suite.topic},
+				"consumerGroup": suite.consumerGroup,
+				"initialOffset": suite.initialOffset,
+			},
 		},
 	}
 
 	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
 		suite.BrokerHost,
 		createFunctionOptions,
-		map[string]triggertest.TopicMessages{suite.topic: {NumMessages: int(suite.NumPartitions)}},
+		map[string]triggertest.TopicMessages{
+			suite.topic: {
+				NumMessages: int(suite.NumPartitions),
+			},
+		},
 		nil,
 		suite.publishMessageToTopic)
 }
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
-	return "spotify/kafka", &dockerclient.RunOptions{
-		Ports: map[int]int{2181: 2181, 9092: 9092},
-		Env:   map[string]string{"ADVERTISED_HOST": suite.BrokerHost, "ADVERTISED_PORT": "9092"},
+	return "wurstmeister/kafka", &dockerclient.RunOptions{
+		ContainerName: suite.brokerContainerName,
+		Network:       suite.dockerNetworkName,
+		Remove:        true,
+		Ports: map[int]int{
+
+			// broker
+			9092: 9092,
+		},
+		Env: map[string]string{
+			"KAFKA_ZOOKEEPER_CONNECT":              fmt.Sprintf("%s:2181", suite.zooKeeperContainerName),
+			"KAFKA_LISTENERS":                      "INTERNAL://:9090,EXTERNAL://:9092",
+			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT",
+			"KAFKA_INTER_BROKER_LISTENER_NAME":     "INTERNAL",
+			"KAFKA_ADVERTISED_LISTENERS": fmt.Sprintf(
+				"INTERNAL://%s:9090,EXTERNAL://%s:9092", suite.brokerContainerName, suite.BrokerHost,
+			),
+		},
+	}
+}
+
+func (suite *testSuite) getKafkaZooKeeperContainerRunInfo() (string, *dockerclient.RunOptions) {
+	return "wurstmeister/zookeeper", &dockerclient.RunOptions{
+		ContainerName: suite.zooKeeperContainerName,
+		Network:       suite.dockerNetworkName,
+		Remove:        true,
+		Ports: map[int]int{
+			dockerclient.RunOptionsNoPort: 2181,
+		},
 	}
 }
 
@@ -135,7 +194,7 @@ func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
 		Value: sarama.StringEncoder(body),
 	}
 
-	suite.Logger.InfoWith("Producing")
+	suite.Logger.InfoWith("Producing", "topic", topic, "body", body)
 
 	partition, offset, err := suite.producer.SendMessage(&producerMessage)
 	suite.Require().NoError(err, "Failed to publish to queue")
@@ -150,5 +209,7 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	suite.Run(t, newTestSuite())
+	testSuiteInstance := &testSuite{}
+	testSuiteInstance.AbstractBrokerSuite = triggertest.NewAbstractBrokerSuite(testSuiteInstance)
+	suite.Run(t, testSuiteInstance)
 }

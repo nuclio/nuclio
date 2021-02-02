@@ -40,11 +40,12 @@ type BrokerSuite interface {
 type AbstractBrokerSuite struct {
 	processorsuite.TestSuite
 	brokerSuite       BrokerSuite
-	brokerContainerID string
 	brokerNetworkName string
 
-	BrokerHost    string
-	FunctionPaths map[string]string
+	BrokerHost               string
+	FunctionPaths            map[string]string
+	BrokerContainerID        string
+	SkipStartBrokerContainer bool
 }
 
 func NewAbstractBrokerSuite(brokerSuite BrokerSuite) *AbstractBrokerSuite {
@@ -66,7 +67,6 @@ func NewAbstractBrokerSuite(brokerSuite BrokerSuite) *AbstractBrokerSuite {
 }
 
 func (suite *AbstractBrokerSuite) SetupSuite() {
-	var err error
 
 	// call parent
 	suite.TestSuite.SetupSuite()
@@ -74,19 +74,12 @@ func (suite *AbstractBrokerSuite) SetupSuite() {
 	// get container information
 	imageName, runOptions := suite.brokerSuite.GetContainerRunInfo()
 
-	suite.Logger.InfoWith("Starting broker", "imageName", imageName, "BrokerHost", suite.BrokerHost)
-
 	// start the broker
-	if imageName != "" {
-		err = suite.ensureBrokerNetworkExisting(runOptions.Network)
-		suite.Require().NoError(err)
-
-		suite.brokerContainerID, err = suite.DockerClient.RunContainer(imageName, runOptions)
-		suite.Require().NoError(err, "Failed to start broker container")
-
-		// wait for the broker to be ready
-		err = suite.brokerSuite.WaitForBroker()
-		suite.Require().NoError(err, "Error waiting for broker to be ready")
+	if imageName != "" && !suite.SkipStartBrokerContainer {
+		suite.Logger.InfoWith("Starting broker container",
+			"imageName", imageName,
+			"BrokerHost", suite.BrokerHost)
+		suite.StartBrokerContainer(imageName, runOptions)
 	}
 }
 
@@ -94,8 +87,8 @@ func (suite *AbstractBrokerSuite) TearDownSuite() {
 	suite.TestSuite.TearDownTest()
 
 	// if we weren't successful starting, nothing to do
-	if suite.brokerContainerID != "" {
-		err := suite.DockerClient.RemoveContainer(suite.brokerContainerID)
+	if suite.BrokerContainerID != "" {
+		err := suite.DockerClient.RemoveContainer(suite.BrokerContainerID)
 		suite.NoError(err)
 	}
 
@@ -103,6 +96,27 @@ func (suite *AbstractBrokerSuite) TearDownSuite() {
 		err := suite.DockerClient.DeleteNetwork(suite.brokerNetworkName)
 		suite.NoError(err)
 	}
+}
+
+func (suite *AbstractBrokerSuite) StartBrokerContainer(imageName string,
+	runOptions *dockerclient.RunOptions) {
+	var err error
+	suite.BrokerContainerID = suite.EnsureNetworkAndRunContainer(imageName, runOptions)
+
+	// wait for the broker to be ready
+	err = suite.brokerSuite.WaitForBroker()
+	suite.Require().NoError(err, "Error waiting for broker to be ready")
+}
+
+func (suite *AbstractBrokerSuite) EnsureNetworkAndRunContainer(imageName string,
+	runOptions *dockerclient.RunOptions) string {
+	var err error
+	err = suite.EnsureNetworkExisting(runOptions.Network)
+	suite.Require().NoError(err)
+
+	containerID, err := suite.DockerClient.RunContainer(imageName, runOptions)
+	suite.Require().NoError(err, "Failed to start broker container")
+	return containerID
 }
 
 // WaitForBroker waits until the broker is ready
@@ -116,7 +130,7 @@ func (suite *AbstractBrokerSuite) GetContainerRunInfo() (string, *dockerclient.R
 	return "", nil
 }
 
-func (suite *AbstractBrokerSuite) ensureBrokerNetworkExisting(dockerNetwork string) error {
+func (suite *AbstractBrokerSuite) EnsureNetworkExisting(dockerNetwork string) error {
 
 	// nothing to do here
 	if dockerNetwork == "" {
@@ -128,20 +142,19 @@ func (suite *AbstractBrokerSuite) ensureBrokerNetworkExisting(dockerNetwork stri
 		return nil
 	}
 
-	err := suite.DockerClient.CreateNetwork(&dockerclient.CreateNetworkOptions{
+	if err := suite.DockerClient.CreateNetwork(&dockerclient.CreateNetworkOptions{
 		Name: dockerNetwork,
-	})
-	if err == nil {
-
-		// store only when created, so suite would delete that
-		suite.brokerNetworkName = dockerNetwork
+	}); err != nil {
+		if !common.MatchStringPatterns([]string{
+			`is a pre-defined network`,
+			`already exists`,
+		}, err.Error()) {
+			return errors.Wrapf(err, "Failed to create network %s", dockerNetwork)
+		}
 		return nil
 	}
-	if !common.MatchStringPatterns([]string{
-		`is a pre-defined network`,
-		`already exists`,
-	}, err.Error()) {
-		return errors.Wrapf(err, "Failed to create network %s", dockerNetwork)
-	}
+
+	// store only when created, so suite would delete that
+	suite.brokerNetworkName = dockerNetwork
 	return nil
 }
