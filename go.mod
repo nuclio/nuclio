@@ -52,10 +52,9 @@ require (
 	github.com/sendgridlabs/go-kinesis v0.0.0-20190306160747-8de9069567f6
 	github.com/spf13/cobra v0.0.5
 	github.com/streadway/amqp v0.0.0-20190815230801-eade30b20f1d
-	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/tedsuo/ifrit v0.0.0-20191009134036-9a97d0632f00 // indirect
-	github.com/tsenart/vegeta v6.3.0+incompatible
+	github.com/tsenart/vegeta/v12 v12.8.4
 	github.com/v3io/scaler v0.4.0
 	github.com/v3io/scaler-types v1.7.0
 	github.com/v3io/v3io-go v0.2.3
