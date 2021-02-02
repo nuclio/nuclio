@@ -517,6 +517,7 @@ test: build-test
 	$(eval NUCLIO_TEST_MAKE_TARGET ?= $(if $(NUCLIO_TEST_BROKEN),"test-broken-undockerized","test-undockerized"))
 	@docker run \
 		--rm \
+		--network host \
 		--volume /var/run/docker.sock:/var/run/docker.sock \
 		--volume $(GOPATH)/bin:/go/bin \
 		--volume $(NUCLIO_PATH):$(GO_BUILD_TOOL_WORKDIR) \
