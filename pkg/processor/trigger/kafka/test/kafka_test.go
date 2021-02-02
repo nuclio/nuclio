@@ -167,9 +167,11 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 		Env: map[string]string{
 			"KAFKA_ZOOKEEPER_CONNECT":              fmt.Sprintf("%s:2181", suite.zooKeeperContainerName),
 			"KAFKA_LISTENERS":                      "INTERNAL://:9090,EXTERNAL://:9092",
-			"KAFKA_ADVERTISED_LISTENERS":           fmt.Sprintf("INTERNAL://%s:9090,EXTERNAL://localhost:9092", suite.brokerContainerName),
 			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT",
 			"KAFKA_INTER_BROKER_LISTENER_NAME":     "INTERNAL",
+			"KAFKA_ADVERTISED_LISTENERS": fmt.Sprintf(
+				"INTERNAL://%s:9090,EXTERNAL://%s:9092", suite.brokerContainerName, suite.BrokerHost,
+			),
 		},
 	}
 }
