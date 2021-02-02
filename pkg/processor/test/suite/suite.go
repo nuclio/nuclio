@@ -143,7 +143,7 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	// deploy the function and blast with http
 	totalResults := suite.DeployFunctionAndBlastHTTP(configuration,
 		createFunctionOptions,
-		suite.blastFunction)
+		suite.blastFunctionHTTP)
 
 	// debug with test results
 	suite.Logger.DebugWith("BlastHTTP results",
@@ -152,6 +152,49 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
 	// totalResults.Success is the success percentage in float64 (0.9 -> 90%), require that it's above a threshold
 	suite.Require().GreaterOrEqual(totalResults.Success, 0.95, "Success rate should be higher")
+}
+
+// BlastThroughput is a throughput test suite
+func (suite *TestSuite) BlastHTTPThroughput(firstCreateFunctionOptions *platform.CreateFunctionOptions,
+	secondCreateFunctionOptions *platform.CreateFunctionOptions,
+	allowedThroughputMarginPercentage float64,
+	numWorkers int) {
+
+	blastConfiguration := BlastConfiguration{
+		Duration: 10 * time.Second,
+		Method:   http.MethodGet,
+		Workers:  numWorkers,
+	}
+
+	suite.Logger.InfoWith("Blasting functions", "blastConfiguration", blastConfiguration)
+
+	// blast first function
+	firstBlastResults := suite.DeployFunctionAndBlastHTTP(blastConfiguration,
+		firstCreateFunctionOptions,
+		suite.blastFunctionThroughput)
+	suite.Logger.InfoWith("Successfully blasted first function",
+		"requests", firstBlastResults.Requests,
+		"success", firstBlastResults.Success,
+		"blastResults", firstBlastResults)
+
+	// let machine cooling down
+	sleepTimeout := 10 * time.Second
+	suite.Logger.InfoWith("Letting system to cool down", "sleepTimeout", sleepTimeout)
+	time.Sleep(sleepTimeout)
+
+	// blast second function
+	secondBlastResults := suite.DeployFunctionAndBlastHTTP(blastConfiguration,
+		secondCreateFunctionOptions,
+		suite.blastFunctionThroughput)
+	suite.Logger.InfoWith("Successfully blasted second function",
+		"requests", secondBlastResults.Requests,
+		"success", secondBlastResults.Success,
+		"blastResults", secondBlastResults)
+
+	// second blast results should be AT LEAST x % of first blast results
+	// where x is 1 - allowed margin
+	suite.Require().GreaterOrEqual(secondBlastResults.Throughput,
+		firstBlastResults.Throughput*(1-allowedThroughputMarginPercentage/100))
 }
 
 // NewBlastConfiguration populates BlastRequest struct with default values
@@ -434,7 +477,7 @@ func (suite *TestSuite) blastConfigurationToDeployOptions(request *BlastConfigur
 }
 
 // Blast function using vegeta's attacker & given BlastConfiguration
-func (suite *TestSuite) blastFunction(configuration *BlastConfiguration) *vegeta.Metrics {
+func (suite *TestSuite) blastFunctionHTTP(configuration *BlastConfiguration) *vegeta.Metrics {
 
 	// The variable that will store connection result
 	totalResults := &vegeta.Metrics{}
@@ -465,6 +508,33 @@ func (suite *TestSuite) blastFunction(configuration *BlastConfiguration) *vegeta
 	suite.Logger.InfoWith("Attacking results",
 		"requests", totalResults.Requests,
 		"throughput", totalResults.Throughput)
+	return totalResults
+}
+
+func (suite *TestSuite) blastFunctionThroughput(configuration *BlastConfiguration) *vegeta.Metrics {
+	totalResults := &vegeta.Metrics{}
+	defer totalResults.Close()
+
+	target := vegeta.NewStaticTargeter(vegeta.Target{
+		Method: configuration.Method,
+		URL:    configuration.URL,
+	})
+
+	// Initialize attacker
+	attacker := vegeta.NewAttacker(vegeta.MaxConnections(configuration.Workers),
+		vegeta.Workers(uint64(configuration.Workers)),
+		vegeta.MaxWorkers(uint64(configuration.Workers)))
+
+	// Attack
+	for res := range attacker.Attack(target,
+		vegeta.ConstantPacer{
+			Freq: 0,
+		},
+		configuration.Duration,
+		configuration.FunctionName) {
+		totalResults.Add(res)
+	}
+
 	return totalResults
 }
 
