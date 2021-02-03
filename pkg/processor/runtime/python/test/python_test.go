@@ -370,9 +370,11 @@ func (suite *TestSuite) TestStableSDKThroughput() {
 	stableResults := results[0]
 	unstableResults := results[1]
 
+	throughputImprovement := (unstableResults.Throughput - stableResults.Throughput) / stableResults.Throughput
 	suite.Logger.InfoWith("Successfully blasted functions",
 		"stableResultsThroughput", stableResults.Throughput,
-		"unstableResultsThroughput", unstableResults.Throughput)
+		"unstableResultsThroughput", unstableResults.Throughput,
+		"throughputImprovementPercentage", throughputImprovement*100)
 }
 
 func (suite *TestSuite) getEmptyFunctionCreateOptions(functionName string,
