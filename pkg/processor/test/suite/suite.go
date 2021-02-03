@@ -217,9 +217,7 @@ func (suite *TestSuite) DeployFunctionAndBlastHTTP(blastConfiguration BlastConfi
 	var totalResults *vegeta.Metrics
 
 	// deploy the function
-	_, err := suite.deployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		suite.containerID = deployResult.ContainerID
-
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		blastConfiguration.URL = fmt.Sprintf("http://%s:%d", suite.GetTestHost(), deployResult.Port)
 
 		err := suite.probeAndWaitForFunctionReadiness(&blastConfiguration)
@@ -229,7 +227,6 @@ func (suite *TestSuite) DeployFunctionAndBlastHTTP(blastConfiguration BlastConfi
 		totalResults = blastFunc(&blastConfiguration)
 		return true
 	})
-	suite.Require().NoError(err)
 	return totalResults
 }
 
