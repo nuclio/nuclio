@@ -158,7 +158,9 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 func (suite *TestSuite) BlastHTTPThroughput(firstCreateFunctionOptions *platform.CreateFunctionOptions,
 	secondCreateFunctionOptions *platform.CreateFunctionOptions,
 	allowedThroughputMarginPercentage float64,
-	numWorkers int) {
+	numWorkers int) []*vegeta.Metrics {
+
+	var results []*vegeta.Metrics
 
 	blastConfiguration := BlastConfiguration{
 		Duration: 10 * time.Second,
@@ -176,6 +178,7 @@ func (suite *TestSuite) BlastHTTPThroughput(firstCreateFunctionOptions *platform
 		"requests", firstBlastResults.Requests,
 		"success", firstBlastResults.Success,
 		"blastResults", firstBlastResults)
+	results = append(results, firstBlastResults)
 
 	// let machine cooling down
 	sleepTimeout := 10 * time.Second
@@ -190,11 +193,14 @@ func (suite *TestSuite) BlastHTTPThroughput(firstCreateFunctionOptions *platform
 		"requests", secondBlastResults.Requests,
 		"success", secondBlastResults.Success,
 		"blastResults", secondBlastResults)
+	results = append(results, secondBlastResults)
 
 	// second blast results should be AT LEAST x % of first blast results
 	// where x is 1 - allowed margin
 	suite.Require().GreaterOrEqual(secondBlastResults.Throughput,
 		firstBlastResults.Throughput*(1-allowedThroughputMarginPercentage/100))
+
+	return results
 }
 
 // NewBlastConfiguration populates BlastRequest struct with default values
