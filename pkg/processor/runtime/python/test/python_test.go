@@ -347,6 +347,8 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 // TestStableSDKThroughput compares runtime SDK between stable (released tag) and unstable (development branch)
 // and ensure a throughput margin
 func (suite *TestSuite) TestStableSDKThroughput() {
+
+	// NOTE: Change it to a smaller number (~3) to ensure no harm has done.
 	allowedThroughputMarginPercentage := float64(10)
 	numWorkers := runtime.NumCPU()
 	branch := "development"
