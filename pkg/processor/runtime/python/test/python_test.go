@@ -349,24 +349,30 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 func (suite *TestSuite) TestStableSDKThroughput() {
 	allowedThroughputMarginPercentage := float64(10)
 	numWorkers := runtime.NumCPU()
+	branch := "development"
+	githubUsername := "nuclio"
+	pythonSDKUpstreamURL := fmt.Sprintf("https://github.com/%s/nuclio-sdk-py.git@%s", githubUsername, branch)
 
 	// blast unchanged sdk python function
 	stableCreateFunctionOptions := suite.getEmptyFunctionCreateOptions("stable-sdk-py", numWorkers)
 
 	// blast changed sdk python function
 	unstableCreateFunctionOptions := suite.getEmptyFunctionCreateOptions("unstable-sdk-py", numWorkers)
-	branch := "development"
-	githubUsername := "nuclio"
-	pythonSDKUpstreamURL := fmt.Sprintf("https://github.com/%s/nuclio-sdk-py.git@%s", githubUsername, branch)
 	unstableCreateFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
 		"@nuclio.postCopy",
 		fmt.Sprintf("python -m pip install git+%s", pythonSDKUpstreamURL),
 	}
 
-	suite.BlastHTTPThroughput(stableCreateFunctionOptions,
+	results := suite.BlastHTTPThroughput(stableCreateFunctionOptions,
 		unstableCreateFunctionOptions,
 		allowedThroughputMarginPercentage,
 		numWorkers)
+	stableResults := results[0]
+	unstableResults := results[1]
+
+	suite.Logger.InfoWith("Successfully blasted functions",
+		"stableResultsThroughput", stableResults.Throughput,
+		"unstableResultsThroughput", unstableResults.Throughput)
 }
 
 func (suite *TestSuite) getEmptyFunctionCreateOptions(functionName string,
