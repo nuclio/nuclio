@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"path"
 	"regexp"
+	"runtime"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -343,19 +344,69 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 	})
 }
 
+// TestStableSDKThroughput compares runtime SDK between stable (released tag) and unstable (development branch)
+// and ensure a throughput margin
+func (suite *TestSuite) TestStableSDKThroughput() {
+
+	// NOTE: Change it to a smaller number (~3) to ensure no harm has done.
+	allowedThroughputMarginPercentage := float64(10)
+	numWorkers := runtime.NumCPU()
+	branch := "development"
+	githubUsername := "nuclio"
+	pythonSDKUpstreamURL := fmt.Sprintf("https://github.com/%s/nuclio-sdk-py.git@%s", githubUsername, branch)
+
+	// blast unchanged sdk python function
+	stableCreateFunctionOptions := suite.getEmptyFunctionCreateOptions("stable-sdk-py", numWorkers)
+
+	// blast changed sdk python function
+	unstableCreateFunctionOptions := suite.getEmptyFunctionCreateOptions("unstable-sdk-py", numWorkers)
+	unstableCreateFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+		"@nuclio.postCopy",
+		fmt.Sprintf("python -m pip install git+%s", pythonSDKUpstreamURL),
+	}
+
+	results := suite.BlastHTTPThroughput(stableCreateFunctionOptions,
+		unstableCreateFunctionOptions,
+		allowedThroughputMarginPercentage,
+		numWorkers)
+	stableResults := results[0]
+	unstableResults := results[1]
+
+	throughputImprovement := (unstableResults.Throughput - stableResults.Throughput) / stableResults.Throughput
+	suite.Logger.InfoWith("Successfully blasted functions",
+		"stableResultsThroughput", stableResults.Throughput,
+		"unstableResultsThroughput", unstableResults.Throughput,
+		"throughputImprovementPercentage", throughputImprovement*100)
+}
+
+func (suite *TestSuite) getEmptyFunctionCreateOptions(functionName string,
+	numWorkers int) *platform.CreateFunctionOptions {
+	createFunctionOptions := suite.GetDeployOptions(functionName,
+		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
+	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
+
+	// add http trigger
+	httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+	httpTrigger.MaxWorkers = numWorkers
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		httpTrigger.Name: httpTrigger,
+	}
+	return createFunctionOptions
+}
+
 func TestIntegrationSuite(t *testing.T) {
 	if testing.Short() {
 		return
 	}
 
-	for _, runtime := range []string{
-		"python",
+	for _, runtimeName := range []string{
 		"python:3.6",
 		"python:3.7",
 		"python:3.8",
 	} {
 		testSuite := new(TestSuite)
-		testSuite.runtime = runtime
+		testSuite.runtime = runtimeName
 		suite.Run(t, testSuite)
 	}
 }

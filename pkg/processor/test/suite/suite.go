@@ -38,7 +38,7 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
-	"github.com/tsenart/vegeta/lib"
+	"github.com/tsenart/vegeta/v12/lib"
 )
 
 const (
@@ -48,6 +48,8 @@ const (
 type RunOptions struct {
 	dockerclient.RunOptions
 }
+
+type BlastFunctionHTTPFunc func(configuration *BlastConfiguration) *vegeta.Metrics
 
 type OnAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool
 
@@ -133,33 +135,15 @@ func (suite *TestSuite) SetupTest() {
 
 // BlastHTTP is a stress test suite
 func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
-	var totalResults vegeta.Metrics
 
 	// get createFunctionOptions from given blastConfiguration
 	createFunctionOptions, err := suite.blastConfigurationToDeployOptions(&configuration)
 	suite.Require().NoError(err)
 
-	// deploy the function
-	_, err = suite.deployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		configuration.URL = fmt.Sprintf("http://%s:%d", suite.GetTestHost(), deployResult.Port)
-
-		err := suite.probeAndWaitForFunctionReadiness(&configuration)
-		suite.Require().NoError(err, "Failed to probe and wait for function readiness")
-
-		// blast the function
-		totalResults, err = suite.blastFunction(&configuration)
-		suite.Require().NoError(err)
-		return true
-	})
-	suite.Require().NoError(err)
-
-	// delete the function
-	if os.Getenv(keepDockerEnvKey) == "" {
-		err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
-			FunctionConfig: createFunctionOptions.FunctionConfig,
-		})
-		suite.Require().NoError(err)
-	}
+	// deploy the function and blast with http
+	totalResults := suite.DeployFunctionAndBlastHTTP(configuration,
+		createFunctionOptions,
+		suite.blastFunctionHTTP)
 
 	// debug with test results
 	suite.Logger.DebugWith("BlastHTTP results",
@@ -167,7 +151,56 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 		"totalResults.Errors", totalResults.Errors)
 
 	// totalResults.Success is the success percentage in float64 (0.9 -> 90%), require that it's above a threshold
-	suite.Require().True(totalResults.Success >= 0.95)
+	suite.Require().GreaterOrEqual(totalResults.Success, 0.95, "Success rate should be higher")
+}
+
+// BlastThroughput is a throughput test suite
+func (suite *TestSuite) BlastHTTPThroughput(firstCreateFunctionOptions *platform.CreateFunctionOptions,
+	secondCreateFunctionOptions *platform.CreateFunctionOptions,
+	allowedThroughputMarginPercentage float64,
+	numWorkers int) []*vegeta.Metrics {
+
+	var results []*vegeta.Metrics
+
+	blastConfiguration := BlastConfiguration{
+		Duration: 10 * time.Second,
+		Method:   http.MethodGet,
+		Workers:  numWorkers,
+	}
+
+	suite.Logger.InfoWith("Blasting functions", "blastConfiguration", blastConfiguration)
+
+	// blast first function
+	firstBlastResults := suite.DeployFunctionAndBlastHTTP(blastConfiguration,
+		firstCreateFunctionOptions,
+		suite.blastFunctionThroughput)
+	suite.Logger.InfoWith("Successfully blasted first function",
+		"requests", firstBlastResults.Requests,
+		"success", firstBlastResults.Success,
+		"blastResults", firstBlastResults)
+	results = append(results, firstBlastResults)
+
+	// let machine cooling down
+	sleepTimeout := 10 * time.Second
+	suite.Logger.InfoWith("Letting system to cool down", "sleepTimeout", sleepTimeout)
+	time.Sleep(sleepTimeout)
+
+	// blast second function
+	secondBlastResults := suite.DeployFunctionAndBlastHTTP(blastConfiguration,
+		secondCreateFunctionOptions,
+		suite.blastFunctionThroughput)
+	suite.Logger.InfoWith("Successfully blasted second function",
+		"requests", secondBlastResults.Requests,
+		"success", secondBlastResults.Success,
+		"blastResults", secondBlastResults)
+	results = append(results, secondBlastResults)
+
+	// second blast results should be AT LEAST x % of first blast results
+	// where x is 1 - allowed margin
+	suite.Require().GreaterOrEqual(secondBlastResults.Throughput,
+		firstBlastResults.Throughput*(1-allowedThroughputMarginPercentage/100))
+
+	return results
 }
 
 // NewBlastConfiguration populates BlastRequest struct with default values
@@ -182,6 +215,25 @@ func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
 		FunctionPath:  "outputter",
 		TimeOut:       600 * time.Second,
 	}
+}
+
+func (suite *TestSuite) DeployFunctionAndBlastHTTP(blastConfiguration BlastConfiguration,
+	createFunctionOptions *platform.CreateFunctionOptions,
+	blastFunc BlastFunctionHTTPFunc) *vegeta.Metrics {
+	var totalResults *vegeta.Metrics
+
+	// deploy the function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		blastConfiguration.URL = fmt.Sprintf("http://%s:%d", suite.GetTestHost(), deployResult.Port)
+
+		err := suite.probeAndWaitForFunctionReadiness(&blastConfiguration)
+		suite.Require().NoError(err, "Failed to probe and wait for function readiness")
+
+		// blast the function
+		totalResults = blastFunc(&blastConfiguration)
+		return true
+	})
+	return totalResults
 }
 
 // TearDownTest is called after each test in the suite
@@ -428,10 +480,10 @@ func (suite *TestSuite) blastConfigurationToDeployOptions(request *BlastConfigur
 }
 
 // Blast function using vegeta's attacker & given BlastConfiguration
-func (suite *TestSuite) blastFunction(configuration *BlastConfiguration) (vegeta.Metrics, error) {
+func (suite *TestSuite) blastFunctionHTTP(configuration *BlastConfiguration) *vegeta.Metrics {
 
 	// The variable that will store connection result
-	totalResults := vegeta.Metrics{}
+	totalResults := &vegeta.Metrics{}
 
 	// Initialize target according to request
 	target := vegeta.NewStaticTargeter(vegeta.Target{
@@ -443,16 +495,50 @@ func (suite *TestSuite) blastFunction(configuration *BlastConfiguration) (vegeta
 	attacker := vegeta.NewAttacker(vegeta.Workers(uint64(configuration.Workers)), vegeta.Timeout(configuration.TimeOut))
 
 	// Attack + add connection result to results, make rate -> rate by worker by multiplication
-	for res := range attacker.Attack(target, uint64(configuration.Workers*configuration.RatePerWorker), configuration.Duration) {
+	for res := range attacker.Attack(target,
+		vegeta.ConstantPacer{
+			Freq: configuration.RatePerWorker * configuration.Workers,
+			Per:  time.Second,
+		},
+		configuration.Duration,
+		configuration.FunctionName) {
 		totalResults.Add(res)
 	}
 
 	// Close vegeta's metrics, no longer needed
 	totalResults.Close()
 
-	suite.Logger.InfoWith("attack results", "results", totalResults.Errors, "target", target)
+	suite.Logger.InfoWith("Attacking results",
+		"requests", totalResults.Requests,
+		"throughput", totalResults.Throughput)
+	return totalResults
+}
 
-	return totalResults, nil
+func (suite *TestSuite) blastFunctionThroughput(configuration *BlastConfiguration) *vegeta.Metrics {
+	totalResults := &vegeta.Metrics{}
+	defer totalResults.Close()
+
+	target := vegeta.NewStaticTargeter(vegeta.Target{
+		Method: configuration.Method,
+		URL:    configuration.URL,
+	})
+
+	// Initialize attacker
+	attacker := vegeta.NewAttacker(vegeta.MaxConnections(configuration.Workers),
+		vegeta.Workers(uint64(configuration.Workers)),
+		vegeta.MaxWorkers(uint64(configuration.Workers)))
+
+	// Attack
+	for res := range attacker.Attack(target,
+		vegeta.ConstantPacer{
+			Freq: 0,
+		},
+		configuration.Duration,
+		configuration.FunctionName) {
+		totalResults.Add(res)
+	}
+
+	return totalResults
 }
 
 func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOptions *platform.CreateFunctionOptions,
@@ -466,18 +552,18 @@ func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOption
 	// delete the function when done
 	defer func() {
 
-		// if we didnt deploy yet, try remove what is created
-		if deployResult == nil {
-			suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
-				FunctionConfig: createFunctionOptions.FunctionConfig,
-			})
-		} else {
+		// use create function options to delete function
+		functionConfig := createFunctionOptions.FunctionConfig
 
-			// if we did deploy, remove what was deployed
-			suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
-				FunctionConfig: deployResult.UpdatedFunctionConfig,
-			})
+		// if deployed successfully, used deployed func configuration
+		if deployResult != nil {
+			functionConfig = deployResult.UpdatedFunctionConfig
+
 		}
+
+		suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+			FunctionConfig: functionConfig,
+		})
 	}()
 
 	return suite.deployFunction(createFunctionOptions, onAfterContainerRun)
