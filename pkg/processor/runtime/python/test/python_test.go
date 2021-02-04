@@ -28,6 +28,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/python"
@@ -318,28 +319,36 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 	createFunctionOptions := suite.GetDeployOptions("non-utf8-headers",
 		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
 	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
+	internalServerErrorStatus := http.StatusInternalServerError
+	okStatus := http.StatusOK
 
 	nonUTF8String := string([]byte{192, 175})
-	internalServerErrorStatus := http.StatusInternalServerError
+
+	nonUTF8RequestResponse := &httpsuite.Request{
+		RequestBody:   "testBody",
+		RequestMethod: http.MethodPost,
+		RequestHeaders: map[string]interface{}{
+			"nonUTFHeader": nonUTF8String,
+		},
+		ExpectedResponseStatusCode: &okStatus,
+	}
+
+	if _, runtimeVersion := common.GetRuntimeNameAndVersion(suite.Runtime); runtimeVersion == "3.6" {
+		nonUTF8RequestResponse.ExpectedResponseStatusCode = &internalServerErrorStatus
+	}
+
 	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
-			RequestMethod: http.MethodPost,
-			RequestBody:   nonUTF8String,
+			RequestMethod:              http.MethodPost,
+			RequestBody:                nonUTF8String,
+			ExpectedResponseStatusCode: &okStatus,
 		},
-		{
-
-			// failed, non utf8 headers can not be parsed
-			RequestBody:   "testBody",
-			RequestMethod: http.MethodPost,
-			RequestHeaders: map[string]interface{}{
-				"nonUTFHeader": nonUTF8String,
-			},
-			ExpectedResponseStatusCode: &internalServerErrorStatus,
-		},
+		nonUTF8RequestResponse,
 		{
 
 			// everything is back to normal
-			RequestMethod: http.MethodGet,
+			RequestMethod:              http.MethodGet,
+			ExpectedResponseStatusCode: &okStatus,
 		},
 	})
 }
