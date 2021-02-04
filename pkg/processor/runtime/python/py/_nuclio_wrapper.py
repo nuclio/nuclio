@@ -42,6 +42,7 @@ class Wrapper(object):
                  handler,
                  socket_path,
                  platform_kind,
+                 runtime_version,
                  namespace=None,
                  worker_id=None,
                  trigger_kind=None,
@@ -52,6 +53,7 @@ class Wrapper(object):
         self._entrypoint = None
         self._processor_sock = None
         self._platform = nuclio_sdk.Platform(platform_kind, namespace=namespace)
+        self._runtime_version = runtime_version
 
         # 1gb
         self._max_buffer_size = 1024 * 1024 * 1024
@@ -292,6 +294,11 @@ def create_logger(level):
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
 
+    parser.add_argument('--runtime-version',
+                        choices=['3.6', '3.7', '3.8'],
+                        default='3.6',
+                        help='Indicating the runtime version used by processor to run this wrapper')
+
     parser.add_argument('--handler',
                         help='handler (module.sub:handler)',
                         required=True)
@@ -341,6 +348,7 @@ def run_wrapper():
                                    args.handler,
                                    args.socket_path,
                                    args.platform_kind,
+                                   args.runtime_version,
                                    args.namespace,
                                    args.worker_id,
                                    args.trigger_kind,
