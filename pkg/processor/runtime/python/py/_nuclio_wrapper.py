@@ -141,8 +141,13 @@ class Wrapper(object):
         Since this wrapper is behind the nuclio processor, in which pre-handle the traffic & request
         it is not mandatory to provide security over max buffer size.
         the request limit should be handled on the processor level.
+
+        use raw to unpack event contents to python bytes without decoding to utf8.
         """
-        return msgpack.Unpacker(raw=False, max_buffer_size=self._max_buffer_size)
+
+        # on runtime python 3.6 we use raw = False
+        raw = self._runtime_version != '3.6'
+        return msgpack.Unpacker(raw=raw, max_buffer_size=self._max_buffer_size)
 
     def _load_entrypoint_from_handler(self, handler):
         """
