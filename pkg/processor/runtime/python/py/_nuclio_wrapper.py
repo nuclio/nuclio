@@ -70,6 +70,9 @@ class Wrapper(object):
         # create msgpack unpacker
         self._unpacker = self._resolve_unpacker()
 
+        # event serializer
+        self._event_serializer = nuclio_sdk.EventSerializerFactory.create('msgpack', self._runtime_version)
+
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
 
@@ -107,7 +110,7 @@ class Wrapper(object):
                 event_message = self._resolve_event(event_message_length)
 
                 # instantiate event message
-                event = nuclio_sdk.Event.from_msgpack(event_message)
+                event = self._event_serializer.serialize(event_message)
 
                 try:
                     self._handle_event(event)

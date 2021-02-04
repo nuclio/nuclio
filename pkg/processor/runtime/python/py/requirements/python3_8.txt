@@ -1,3 +1,2 @@
 pip==21.0
 msgpack==1.0.2
-nuclio-sdk==0.3.0
