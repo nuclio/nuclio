@@ -1,3 +1,4 @@
 pytest
 matplotlib
 memory_profiler
+six

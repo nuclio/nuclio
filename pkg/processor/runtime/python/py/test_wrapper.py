@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import base64
 import functools
 import json
 import logging
@@ -27,6 +26,7 @@ import time
 import unittest.mock
 import http.client
 import socketserver
+import six
 
 import _nuclio_wrapper as wrapper
 import msgpack
@@ -55,8 +55,15 @@ class TestSubmitEvents(unittest.TestCase):
         self._logger = nuclio_sdk.Logger(logging.DEBUG)
         self._logger.set_handler('test-default', sys.stdout, nuclio_sdk.logger.HumanReadableFormatter())
 
+        # runtime version set by the function config
+        self._runtime_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+
         # create a wrapper
-        self._wrapper = wrapper.Wrapper(self._logger, 'reverser:handler', self._socket_path, 'test')
+        self._wrapper = wrapper.Wrapper(self._logger,
+                                        'reverser:handler',
+                                        self._socket_path,
+                                        'test',
+                                        self._runtime_version)
 
     def tearDown(self):
         sys.path.remove(self._temp_path)
@@ -67,7 +74,7 @@ class TestSubmitEvents(unittest.TestCase):
 
     def test_non_utf8_headers(self):
         self._wait_for_socket_creation()
-        self._wrapper._entrypoint = lambda context, event: event.body
+        self._wrapper._entrypoint = lambda context, event: six.ensure_str(event.body)
 
         events = [
             json.loads(nuclio_sdk.Event(_id=str(i), body='e{0}'.format(i)).to_json())
@@ -75,7 +82,8 @@ class TestSubmitEvents(unittest.TestCase):
         ]
 
         # middle event is malformed
-        events[len(events) // 2]['headers']['x-nuclio'] = b'\xda'
+        malformed_event_index = len(events) // 2
+        events[malformed_event_index]['headers']['x-nuclio'] = b'\xda'
 
         # send events
         t = threading.Thread(target=self._send_events, args=(events,))
@@ -96,7 +104,14 @@ class TestSubmitEvents(unittest.TestCase):
         self._wait_until_received_messages(expected_messages)
 
         malformed_response = self._unix_stream_server._messages[-3]['body']
-        self.assertEqual(http.client.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
+
+        # when using raw, the "malformed" is actually considered valid, as msgpack
+        # being able to deserialize non utf-8 event messages
+        if self._runtime_version == '3.6':
+            self.assertEqual(http.client.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
+        else:
+            self.assertEqual(http.client.OK, malformed_response['status_code'])
+            self.assertEqual(events[malformed_event_index]['body'], malformed_response['body'])
 
         # ensure messages coming after malformed request are still valid
         last_function_response = self._unix_stream_server._messages[-1]['body']
@@ -203,19 +218,13 @@ class TestSubmitEvents(unittest.TestCase):
 
         for recorded_event_index, recorded_event in enumerate(sorted(recorded_events, key=operator.attrgetter('id'))):
             self.assertEqual(recorded_event_index, recorded_event.id)
-            response_body = recorded_event.body
+            self.assertEqual('e{}'.format(recorded_event_index), six.ensure_str(recorded_event.body))
 
-            if sys.version_info[:2] < (3, 0):
-                # blame is on nuclio_sdk/event.py:80
-                response_body = base64.b64decode(response_body)
-
-            self.assertEqual('e{}'.format(recorded_event_index), response_body)
-
-    # # to run memory profiling test, uncomment the test below
-    # # and from terminal run with
-    # # > mprof run python -m py.test test_wrapper.py::TestSubmitEvents::test_memory_profiling_100_<num>
-    # # and to get its plot use:
-    # # > mprof plot --backend agg --output <filename>.png
+    # to run memory profiling test, uncomment the tests below
+    # and from terminal run with
+    # > mprof run python -m py.test test_wrapper.py::TestSubmitEvents::test_memory_profiling_<num> --full-trace
+    # and to get its plot use:
+    # > mprof plot --backend agg --output <filename>.png
     # def test_memory_profiling_100(self):
     #     self._run_memory_profiling(100)
     #
@@ -229,9 +238,15 @@ class TestSubmitEvents(unittest.TestCase):
     #     self._run_memory_profiling(100000)
     #
     # def _run_memory_profiling(self, num_of_events):
-    #     self._wrapper._entrypoint = mock.MagicMock()
+    #     import memory_profiler
+    #     self._wait_for_socket_creation()
+    #     self._wrapper._entrypoint = unittest.mock.MagicMock()
     #     self._wrapper._entrypoint.return_value = {}
-    #     threading.Thread(target=self._send_events, args=(num_of_events,)).start()
+    #     events = (
+    #         json.loads(nuclio_sdk.Event(_id=str(i), body='e{0}'.format(i)).to_json())
+    #         for i in range(num_of_events)
+    #     )
+    #     threading.Thread(target=self._send_events, args=(events,)).start()
     #     with open('test_memory_profiling_{0}.txt'.format(num_of_events), 'w') as f:
     #         profiled_serve_requests_func = memory_profiler.profile(self._wrapper.serve_requests,
     #                                                                precision=4,
