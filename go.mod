@@ -61,7 +61,7 @@ require (
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
 	github.com/valyala/fasthttp v1.14.0
-	github.com/vmihailenco/msgpack/v5 v5.2.0
+	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1
