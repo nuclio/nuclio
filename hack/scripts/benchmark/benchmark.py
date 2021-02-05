@@ -304,7 +304,7 @@ def run(args):
 
     project_dir = _get_nuclio_project_dir()
     if not project_dir:
-        logger.debug("Failed to determine git repository top level, assuming not in a nuclio project cloned dir")
+        logger.debug("Failed to determine Nuclio git repository top level, assuming not in a nuclio project cloned dir")
 
     body_sizes = args.body_sizes.split(",")
     parsed_body_sizes = list(map(_parse_body_size, body_sizes))
@@ -385,7 +385,7 @@ def _parse_args():
                                      formatter_class=argparse.RawTextHelpFormatter)
     all_runtimes = ",".join(_populate_runtime_names("all"))
     parser.add_argument("--verbose",
-                        help="Verbose output.",
+                        help="Verbose output. (Default: False)",
                         action="store_true")
     parser.add_argument("--skip-deploy",
                         help="Whether to deploy functions first. (Default: False)",
@@ -398,12 +398,12 @@ def _parse_args():
                         help=f"Workdir to store benchmarking artifacts (Default: {Constants.default_workdir})",
                         default=Constants.default_workdir)
     parser.add_argument("--body-sizes",
-                        help=f"A comma delimited (,) of body sizes to use during benchmarking. "
+                        help=f"A comma delimited (,) list of body sizes to use during benchmarking. "
                              f"Units are B, KB, MB."
-                             f"(e.g.: example: 10K is 10*1024, default: 0K - empty file.)",
+                             f"(e.g.: example: 10K is 10*1024. Default: 0K - empty file.)",
                         default="0kb")
     parser.add_argument("--sleep-after-attack-seconds",
-                        help="Sleep timeout after a single attack (Default 3 seconds)",
+                        help="Sleep timeout after a single attack (Default: 3 seconds)",
                         type=int,
                         default=3)
 
