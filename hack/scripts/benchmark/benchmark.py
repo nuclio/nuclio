@@ -20,7 +20,6 @@ import pathlib
 import re
 import shlex
 import subprocess
-
 import time
 
 """
@@ -66,7 +65,7 @@ class Runtimes(object):
     python37 = "python:3.7"
     python38 = "python:3.8"
 
-    # NOTE: python is just a reference to python3.6
+    # NOTE: python is just an alias to python3.6
     python = "python"
 
     @staticmethod
