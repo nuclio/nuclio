@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import pathlib
+import re
 import shlex
 import subprocess
 import time
@@ -39,6 +40,12 @@ Usage: `python benchmark.py --help`
 Or remotely: `wget -qO- \
  https://raw.githubusercontent.com/nuclio/nuclio/development/hack/scripts/benchmark/benchmark.py \
  | python3 /dev/stdin --help`
+
+
+TODO: 
+ - Structured logs
+ - Add README
+ - Update Benchmarking.md
 """
 
 
@@ -58,7 +65,7 @@ class Runtimes(object):
     python37 = "python:3.7"
     python38 = "python:3.8"
 
-    # NOTE: python is just a reference to python3.6
+    # NOTE: python is just an alias to python3.6
     python = "python"
 
     @staticmethod
@@ -115,35 +122,46 @@ class Vegeta(object):
         self._workdir = pathlib.Path(workdir)
         self._logger = logger.getChild("vegeta_client")
 
-    def attack(self, function_name, function_url, concurrent_requests):
+    def attack(self, function_name, function_url, concurrent_requests, body_size):
+        body_size_filename = f"{function_name}_{body_size}"
+        with open(self._workdir / body_size_filename, 'w') as f:
+            f.truncate(body_size)
+
         vegeta_cmd = "vegeta attack" \
                      f" -name {function_name}" \
                      " -duration 10s" \
                      " -rate 0" \
+                     f" -body {body_size_filename}" \
                      f" -connections {concurrent_requests}" \
                      f" -workers {concurrent_requests}" \
                      f" -max-workers {concurrent_requests}" \
-                     f" -output {function_name}.bin"
-
+                     f" -output {self._resolve_bin_name(function_name, body_size)}"
         self._logger.debug(f"Attacking command - {vegeta_cmd}")
-        subprocess.run(shlex.split(vegeta_cmd),
-                       cwd=self._workdir,
-                       check=True,
-                       stdout=subprocess.PIPE,
-                       input=f"GET {function_url}".encode(),
-                       timeout=30)
+        try:
+            subprocess.run(shlex.split(vegeta_cmd),
+                           cwd=self._workdir,
+                           check=True,
+                           stdout=subprocess.PIPE,
+                           input=f"POST {function_url}".encode(),
+                           timeout=30)
+        finally:
+            os.remove(path=self._workdir / body_size_filename)
 
-    def plot(self, bin_names):
-        encoded_bin_names = " ".join(f"{bin_name}.bin" for bin_name in bin_names)
+    def plot(self, function_names, body_size):
+        encoded_bin_names = " ".join(f"{self._resolve_bin_name(function_name, body_size)}"
+                                     for function_name in function_names)
         plot_cmd = f"vegeta plot --title 'Nuclio functions benchmarking' {encoded_bin_names}"
         self._logger.debug(f"Plotting command - {plot_cmd}")
         with open(self._workdir / "plot.html", "w") as outfile:
             subprocess.run(shlex.split(plot_cmd), cwd=self._workdir, check=True, stdout=outfile)
 
-    def report(self, bin_name):
-        report_cmd = f"vegeta report {bin_name}.bin"
+    def report(self, function_name, body_size):
+        report_cmd = f"vegeta report {self._resolve_bin_name(function_name, body_size)}"
         self._logger.debug(f"Reporting command - {report_cmd}")
         subprocess.run(shlex.split(report_cmd), cwd=self._workdir, check=True)
+
+    def _resolve_bin_name(self, function_name, body_size):
+        return f"{function_name}_{body_size}.bin"
 
 
 class Nuctl(object):
@@ -255,24 +273,24 @@ class LoggingFormatter(logging.Formatter):
 
         def short_color(level):
             if level == logging.NOTSET:
-                return 'V', LoggingFormatter.Colors.white
+                return "V", LoggingFormatter.Colors.white
             if level == logging.DEBUG:
-                return 'D', LoggingFormatter.Colors.cyan
+                return "D", LoggingFormatter.Colors.cyan
             if level == logging.INFO:
-                return 'I', LoggingFormatter.Colors.blue
+                return "I", LoggingFormatter.Colors.blue
             if level == logging.WARNING:
-                return 'W', LoggingFormatter.Colors.red
-            return 'E', LoggingFormatter.Colors.red
+                return "W", LoggingFormatter.Colors.red
+            return "E", LoggingFormatter.Colors.red
 
         def format_level(level):
             short, color = short_color(level)
-            return color + '(%s)' % short + LoggingFormatter.Colors.reset
+            return color + " (%s) " % short + LoggingFormatter.Colors.reset
 
         output = {
-            'time': time.strftime("%y.%m.%d %H:%M:%S", time.localtime(record.created)),
-            'name': record.name,
-            'level': format_level(record.levelno),
-            'message': record.getMessage(),
+            "time": time.strftime("%y.%m.%d %H:%M:%S", time.localtime(record.created)),
+            "name": record.name,
+            "level": format_level(record.levelno),
+            "message": record.getMessage(),
         }
         return f"{LoggingFormatter.Colors.white}%(time)s{LoggingFormatter.Colors.reset} " \
                f"{LoggingFormatter.Colors.green}%(name)29s{LoggingFormatter.Colors.reset} " \
@@ -286,7 +304,10 @@ def run(args):
 
     project_dir = _get_nuclio_project_dir()
     if not project_dir:
-        logger.debug("Failed to determine git repository top level, assuming not in a nuclio project cloned dir")
+        logger.debug("Failed to determine Nuclio git repository top level, assuming not in a nuclio project cloned dir")
+
+    body_sizes = args.body_sizes.split(",")
+    parsed_body_sizes = list(map(_parse_body_size, body_sizes))
     vegeta_client = Vegeta(logger, args.workdir)
     nuctl_client = Nuctl(logger, args.nuctl_path, args.nuctl_platform)
     functions = [
@@ -300,7 +321,7 @@ def run(args):
         for runtime_name in _populate_runtime_names(args.runtimes)
     ]
     function_names = [function.name for function in functions]
-    encoded_function_names = ', '.join(function_names)
+    encoded_function_names = ", ".join(function_names)
 
     if not args.skip_deploy:
         logger.info(f"Deploying functions - {encoded_function_names}")
@@ -308,13 +329,20 @@ def run(args):
             function.deploy()
 
     for function in functions:
-        logger.info(f"Benchmarking function - {function.name} @ {function.url}")
-        vegeta_client.attack(function.name, function.url, args.function_http_max_workers)
-        vegeta_client.report(function.name)
+        for index, parsed_body_size in enumerate(parsed_body_sizes):
+            logger.info(f"Benchmarking function - {function.name} @ {function.url}, size: {body_sizes[index]}")
+            vegeta_client.attack(function.name,
+                                 function.url,
+                                 args.function_http_max_workers,
+                                 parsed_body_size)
+            vegeta_client.report(function.name, parsed_body_size)
+            logger.info(f"Sleeping for {args.sleep_after_attack_seconds} seconds")
+            time.sleep(args.sleep_after_attack_seconds)
         logger.info(f"Successfully benchmarked function - {function.name}")
 
     logger.info(f"Plotting benchmarking results for functions: {encoded_function_names}")
-    vegeta_client.plot(function_names)
+    for parsed_body_size in parsed_body_sizes:
+        vegeta_client.plot(function_names, parsed_body_size)
     logger.info(f"Finished benchmarking.")
 
 
@@ -343,28 +371,45 @@ def _get_logger(verbose: bool):
     return logger
 
 
+def _parse_body_size(body_size_str):
+    """Can be one of 1K or 1KB or 0M or 100MB"""
+    units = {"B": 1, "KB": 2 ** 10, "MB": 2 ** 20}
+    number, unit = re.search(r"(\d+)(\w+)", body_size_str).groups()
+    number = int(number)
+    return units[unit.upper()] * number
+
+
 def _parse_args():
-    parser = argparse.ArgumentParser(description='Benchmark',
+    parser = argparse.ArgumentParser(description="Benchmark",
                                      usage="Use \"%(prog)s --help\" for more information",
                                      formatter_class=argparse.RawTextHelpFormatter)
     all_runtimes = ",".join(_populate_runtime_names("all"))
     parser.add_argument("--verbose",
-                        help="Verbose output",
+                        help="Verbose output. (Default: False)",
                         action="store_true")
     parser.add_argument("--skip-deploy",
-                        help="Whether to deploy functions first (Default: False)",
+                        help="Whether to deploy functions first. (Default: False)",
                         action="store_true")
     parser.add_argument("--runtimes",
-                        help=f"A comma delimited (,) list of Nuclio runtimes to benchmark or \"all\" for all runtimes "
+                        help=f"A comma delimited (,) list of Nuclio runtimes to benchmark or \"all\" for all runtimes. "
                              f"(Default: {all_runtimes})",
                         default="all")
     parser.add_argument("--workdir",
                         help=f"Workdir to store benchmarking artifacts (Default: {Constants.default_workdir})",
                         default=Constants.default_workdir)
+    parser.add_argument("--body-sizes",
+                        help=f"A comma delimited (,) list of body sizes to use during benchmarking. "
+                             f"Units are B, KB, MB."
+                             f"(e.g.: example: 10K is 10*1024. Default: 0K - empty file.)",
+                        default="0kb")
+    parser.add_argument("--sleep-after-attack-seconds",
+                        help="Sleep timeout after a single attack (Default: 3 seconds)",
+                        type=int,
+                        default=3)
 
     # function
     parser.add_argument("--function-url",
-                        help="Function url to use for HTTP requests (Default: localhost)",
+                        help="Function url to use for HTTP requests. (Default: localhost)",
                         default="localhost")
     parser.add_argument("--function-http-max-workers",
                         help=f"Number of function http trigger workers. (Default: # CPUs - {os.cpu_count()})",
@@ -372,7 +417,7 @@ def _parse_args():
 
     # nuctl
     parser.add_argument("--nuctl-path",
-                        help=f"Nuclio CLI ('nuctl') path (Default: nuctl from $PATH)",
+                        help=f"Nuclio CLI ('nuctl') path. (Default: nuctl from $PATH)",
                         default="nuctl")
     parser.add_argument("--nuctl-platform",
                         help="Platform to deploy and benchmark on. (Default: local)",
@@ -381,6 +426,6 @@ def _parse_args():
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parsed_args = _parse_args()
     run(parsed_args)
