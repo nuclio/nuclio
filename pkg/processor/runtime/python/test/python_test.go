@@ -347,6 +347,8 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 // TestStableSDKThroughput compares runtime SDK between stable (released tag) and unstable (development branch)
 // and ensure a throughput margin
 func (suite *TestSuite) TestStableSDKThroughput() {
+	suite.T().Skip("This test is made to be run manually or as a standalone test since running it during" +
+		"CI has bad impact on throughput")
 
 	// NOTE: Change it to a smaller number (~3) to ensure no harm has done.
 	allowedThroughputMarginPercentage := float64(10)
