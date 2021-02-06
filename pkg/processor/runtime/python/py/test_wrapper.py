@@ -113,10 +113,7 @@ class TestSubmitEvents(unittest.TestCase):
 
         # when using raw, the "malformed" is actually considered valid, as msgpack
         # being able to deserialize non utf-8 event messages.
-        # TODO: this is true for runtime:3.6 since it uses msgpack 0.6.1
-        # while it has been fixed for 1.0.2 being used on msgpack 1.0.2
-        if self._decode_incoming_event_messages and \
-                pkg_resources.get_distribution('msgpack').version.startswith('0.6'):
+        if self._decode_incoming_event_messages:
             self.assertEqual(http.client.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
         else:
             self.assertEqual(http.client.OK, malformed_response['status_code'])
@@ -267,8 +264,13 @@ class TestSubmitEvents(unittest.TestCase):
         if not isinstance(event, dict):
             event = self._event_to_dict(event)
 
+        # on python 3.6, msgpack 0.6.1 default `use_bin_type` to False.
+        # on python > 3.6, msgpack 1.0.2 default `use_bin_type` to True.
+        # to be as close to the processor when it comes to sending events, we need `use_bin_type` to be False
+        packer = msgpack.Packer(use_bin_type=False)
+
         # pack exactly as processor or wrapper explodes
-        body = msgpack.Packer().pack(event)
+        body = packer.pack(event)
 
         # big endian body len
         body_len = struct.pack(">I", len(body))
