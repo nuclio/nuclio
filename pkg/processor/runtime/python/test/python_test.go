@@ -28,7 +28,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/python"
@@ -39,6 +38,7 @@ import (
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 type TestSuite struct {
@@ -285,9 +285,10 @@ func (suite *TestSuite) TestContextInitError() {
 	createFunctionOptions.FunctionConfig.Spec.Handler = "contextinitfail:handler"
 	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
 
-	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool { // nolint: errcheck
-		return true
-	})
+	suite.DeployFunctionExpectError(createFunctionOptions, // nolint: errcheck
+		func(deployResult *platform.CreateFunctionResult) bool {
+			return true
+		})
 }
 
 func (suite *TestSuite) TestModifiedRequestBodySize() {
@@ -324,29 +325,49 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 
 	nonUTF8String := string([]byte{192, 175})
 
-	nonUTF8RequestResponse := &httpsuite.Request{
-		RequestBody:   "testBody",
-		RequestMethod: http.MethodPost,
-		RequestHeaders: map[string]interface{}{
-			"nonUTFHeader": nonUTF8String,
-		},
-		ExpectedResponseStatusCode: &okStatus,
-	}
-
-	if _, runtimeVersion := common.GetRuntimeNameAndVersion(suite.Runtime); runtimeVersion == "3.6" {
-		nonUTF8RequestResponse.ExpectedResponseStatusCode = &internalServerErrorStatus
-	}
-
 	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
 			RequestMethod:              http.MethodPost,
 			RequestBody:                nonUTF8String,
 			ExpectedResponseStatusCode: &okStatus,
 		},
-		nonUTF8RequestResponse,
+		{
+			RequestBody:   "testBody",
+			RequestMethod: http.MethodPost,
+			RequestHeaders: map[string]interface{}{
+				"nonUTFHeader": nonUTF8String,
+			},
+			ExpectedResponseStatusCode: &internalServerErrorStatus,
+		},
 		{
 
 			// everything is back to normal
+			RequestMethod:              http.MethodGet,
+			ExpectedResponseStatusCode: &okStatus,
+		},
+	})
+
+	// do not decode to utf8, allow incoming event messages to be byte string and not utf8 encoded.
+	createFunctionOptions.FunctionConfig.Spec.Env = append(createFunctionOptions.FunctionConfig.Spec.Env,
+		v1.EnvVar{
+			Name:  "NUCLIO_PYTHON_SKIP_DECODING_INCOMING_EVENT_MESSAGES",
+			Value: "true",
+		})
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+		{
+			RequestMethod:              http.MethodPost,
+			RequestBody:                nonUTF8String,
+			ExpectedResponseStatusCode: &okStatus,
+		},
+		{
+			RequestBody:   "testBody",
+			RequestMethod: http.MethodPost,
+			RequestHeaders: map[string]interface{}{
+				"nonUTFHeader": nonUTF8String,
+			},
+			ExpectedResponseStatusCode: &okStatus,
+		},
+		{
 			RequestMethod:              http.MethodGet,
 			ExpectedResponseStatusCode: &okStatus,
 		},

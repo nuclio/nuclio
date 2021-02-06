@@ -42,18 +42,18 @@ class Wrapper(object):
                  handler,
                  socket_path,
                  platform_kind,
-                 runtime_version,
                  namespace=None,
                  worker_id=None,
                  trigger_kind=None,
-                 trigger_name=None):
+                 trigger_name=None,
+                 decode_incoming_event_messages=True):
         self._logger = logger
         self._socket_path = socket_path
         self._json_encoder = nuclio_sdk.json_encoder.Encoder()
         self._entrypoint = None
         self._processor_sock = None
         self._platform = nuclio_sdk.Platform(platform_kind, namespace=namespace)
-        self._runtime_version = runtime_version
+        self._decode_incoming_event_messages = decode_incoming_event_messages
 
         # 1gb
         self._max_buffer_size = 1024 * 1024 * 1024
@@ -71,7 +71,7 @@ class Wrapper(object):
         self._unpacker = self._resolve_unpacker()
 
         # event serializer
-        self._event_serializer = nuclio_sdk.EventSerializerFactory.create('msgpack', self._runtime_version)
+        self._event_serializer = self._resolve_event_serializer()
 
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
@@ -145,12 +145,16 @@ class Wrapper(object):
         it is not mandatory to provide security over max buffer size.
         the request limit should be handled on the processor level.
 
-        use raw to unpack event contents to python bytes without decoding to utf8.
+        unpacker raw determines whether an incoming message would be decoded to utf8
         """
+        return msgpack.Unpacker(raw=not self._decode_incoming_event_messages, max_buffer_size=self._max_buffer_size)
 
-        # on runtime python 3.6 we use raw = False
-        raw = self._runtime_version != '3.6'
-        return msgpack.Unpacker(raw=raw, max_buffer_size=self._max_buffer_size)
+    def _resolve_event_serializer(self):
+        """
+        Event serializer to use when serializing incoming events
+        """
+        serializer = 'msgpack' if self._decode_incoming_event_messages else 'msgpack_raw'
+        return nuclio_sdk.EventSerializerFactory.create(serializer)
 
     def _load_entrypoint_from_handler(self, handler):
         """
@@ -302,11 +306,6 @@ def create_logger(level):
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
 
-    parser.add_argument('--runtime-version',
-                        choices=['3.6', '3.7', '3.8'],
-                        default='3.6',
-                        help='Indicating the runtime version used by processor to run this wrapper')
-
     parser.add_argument('--handler',
                         help='handler (module.sub:handler)',
                         required=True)
@@ -330,6 +329,11 @@ def parse_args():
     parser.add_argument('--trigger-name')
 
     parser.add_argument('--worker-id')
+
+    parser.add_argument('--skip-decoding-incoming-event-messages',
+                        action='store_true',
+                        help='Whether to skip decoding incoming event message contents to utf8'
+                             ' (Decoding is done via msgpack, Default: False)')
 
     return parser.parse_args()
 
@@ -356,11 +360,11 @@ def run_wrapper():
                                    args.handler,
                                    args.socket_path,
                                    args.platform_kind,
-                                   args.runtime_version,
                                    args.namespace,
                                    args.worker_id,
                                    args.trigger_kind,
-                                   args.trigger_name)
+                                   args.trigger_name,
+                                   not args.skip_decoding_incoming_event_messages)
 
     except BaseException as exc:
         root_logger.error_with('Caught unhandled exception while initializing',

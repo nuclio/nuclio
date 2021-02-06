@@ -13,28 +13,34 @@
 # limitations under the License.
 
 import functools
+import http.client
 import json
 import logging
 import operator
 import os
 import socket
+import socketserver
 import struct
 import sys
 import tempfile
 import threading
 import time
 import unittest.mock
-import http.client
-import socketserver
-import six
 
-import _nuclio_wrapper as wrapper
 import msgpack
 import nuclio_sdk
 import nuclio_sdk.helpers
+import pkg_resources
+import six
+
+import _nuclio_wrapper as wrapper
 
 
 class TestSubmitEvents(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls._decode_incoming_event_messages = False
 
     def setUp(self):
         self._temp_path = tempfile.mkdtemp(prefix='nuclio-test-py-wrapper')
@@ -55,15 +61,15 @@ class TestSubmitEvents(unittest.TestCase):
         self._logger = nuclio_sdk.Logger(logging.DEBUG)
         self._logger.set_handler('test-default', sys.stdout, nuclio_sdk.logger.HumanReadableFormatter())
 
-        # runtime version set by the function config
-        self._runtime_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+        self._platform_kind = 'test'
+        self._default_test_handler = 'reverser:handler'
 
         # create a wrapper
         self._wrapper = wrapper.Wrapper(self._logger,
-                                        'reverser:handler',
+                                        self._default_test_handler,
                                         self._socket_path,
-                                        'test',
-                                        self._runtime_version)
+                                        self._platform_kind,
+                                        decode_incoming_event_messages=self._decode_incoming_event_messages)
 
     def tearDown(self):
         sys.path.remove(self._temp_path)
@@ -106,8 +112,11 @@ class TestSubmitEvents(unittest.TestCase):
         malformed_response = self._unix_stream_server._messages[-3]['body']
 
         # when using raw, the "malformed" is actually considered valid, as msgpack
-        # being able to deserialize non utf-8 event messages
-        if self._runtime_version == '3.6':
+        # being able to deserialize non utf-8 event messages.
+        # TODO: this is true for runtime:3.6 since it uses msgpack 0.6.1
+        # while it has been fixed for 1.0.2 being used on msgpack 1.0.2
+        if self._decode_incoming_event_messages and \
+                pkg_resources.get_distribution('msgpack').version.startswith('0.6'):
             self.assertEqual(http.client.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
         else:
             self.assertEqual(http.client.OK, malformed_response['status_code'])
@@ -327,6 +336,13 @@ def handler(ctx, event):
             out.write(handler_code)
 
         return handler_path
+
+
+class TestSubmitEventsDecoded(TestSubmitEvents):
+    @classmethod
+    def setUpClass(cls):
+        super(TestSubmitEventsDecoded, cls).setUpClass()
+        cls._decode_incoming_event_messages = True
 
 
 class _SingleConnectionUnixStreamServer(socketserver.UnixStreamServer):

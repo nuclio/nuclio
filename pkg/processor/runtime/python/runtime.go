@@ -82,13 +82,6 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 	py.Logger.DebugWith("Setting PYTHONPATH", "value", envPath)
 	env = append(env, envPath)
 
-	// explicitly state runtime version
-	// to provide runtime version features oriented, it is required to explicitly
-	// pass the version as argument rather than inferring it from the interpreter.
-	// reason: some python:3.6 functions out there using python 3.7 as a base image,
-	// to avoid non-backward compatibility changes, we explicitly pass the runtime version.
-	_, runtimeVersion := common.GetRuntimeNameAndVersion(py.configuration.Config.Spec.Runtime)
-
 	args := []string{
 		pythonExePath, "-u", wrapperScriptPath,
 		"--handler", handler,
@@ -98,7 +91,10 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 		"--worker-id", strconv.Itoa(py.configuration.WorkerID),
 		"--trigger-kind", py.configuration.TriggerKind,
 		"--trigger-name", py.configuration.TriggerName,
-		"--runtime-version", runtimeVersion,
+	}
+
+	if common.GetEnvOrDefaultBool("NUCLIO_PYTHON_SKIP_DECODING_INCOMING_EVENT_MESSAGES", false) {
+		args = append(args, "--skip-decoding-incoming-event-messages")
 	}
 
 	py.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
