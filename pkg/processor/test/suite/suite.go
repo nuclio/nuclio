@@ -626,9 +626,9 @@ func (suite *TestSuite) probeAndWaitForFunctionReadiness(configuration *BlastCon
 				// https://github.com/golang/go/issues/19943#issuecomment-355607646
 				// tl;dr: we should actively retry on such errors, because Go won't as request might not be idempotent
 				"server closed idle connection",
-			}, err.Error()) {
+			}, responseErr.Error()) {
 				suite.Logger.DebugWith("Function is not ready yet, retrying",
-					"err", err.Error())
+					"err", responseErr.Error())
 				return false
 			}
 
