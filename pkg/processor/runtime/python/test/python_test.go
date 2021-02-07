@@ -350,8 +350,8 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 	// do not decode to utf8, allow incoming event messages to be byte string and not utf8 encoded.
 	createFunctionOptions.FunctionConfig.Spec.Env = append(createFunctionOptions.FunctionConfig.Spec.Env,
 		v1.EnvVar{
-			Name:  "NUCLIO_PYTHON_SKIP_DECODING_INCOMING_EVENT_MESSAGES",
-			Value: "true",
+			Name:  "NUCLIO_PYTHON_DECODE_EVENTS",
+			Value: "false",
 		})
 	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
