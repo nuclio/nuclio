@@ -93,8 +93,9 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 		"--trigger-name", py.configuration.TriggerName,
 	}
 
-	if common.GetEnvOrDefaultBool("NUCLIO_PYTHON_SKIP_DECODING_INCOMING_EVENT_MESSAGES", false) {
-		args = append(args, "--skip-decoding-incoming-event-messages")
+	// whether to decode incoming event messages
+	if py.resolveDecodeEvents() {
+		args = append(args, "--decode-events")
 	}
 
 	py.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
@@ -177,4 +178,23 @@ func (py *python) getPythonExePath() (string, error) {
 
 func (py *python) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
 	return rpc.NewEventMsgPackEncoder(py.Logger, writer)
+}
+
+func (py *python) resolveDecodeEvents() bool {
+	var decodeIncomingEventMessages bool
+	switch _, runtimeVersion := common.GetRuntimeNameAndVersion(py.configuration.Spec.Runtime); runtimeVersion {
+
+	// python is an alias to 3.6 and hence, versionless runtime is currently considered python3.6
+	case "", "3.6":
+
+		// backwards compatibility
+		decodeIncomingEventMessages = true
+	default:
+
+		// events are byte strings, allow overriding using env
+		if common.GetEnvOrDefaultBool("NUCLIO_PYTHON_DECODE_EVENTS", false) {
+			decodeIncomingEventMessages = true
+		}
+	}
+	return decodeIncomingEventMessages
 }

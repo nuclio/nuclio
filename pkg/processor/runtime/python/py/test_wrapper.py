@@ -40,7 +40,7 @@ class TestSubmitEvents(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls._decode_incoming_event_messages = False
+        cls._decode_events = False
 
     def setUp(self):
         self._temp_path = tempfile.mkdtemp(prefix='nuclio-test-py-wrapper')
@@ -69,7 +69,7 @@ class TestSubmitEvents(unittest.TestCase):
                                         self._default_test_handler,
                                         self._socket_path,
                                         self._platform_kind,
-                                        decode_incoming_event_messages=self._decode_incoming_event_messages)
+                                        decode_events=self._decode_events)
 
     def tearDown(self):
         sys.path.remove(self._temp_path)
@@ -113,7 +113,7 @@ class TestSubmitEvents(unittest.TestCase):
 
         # when using raw, the "malformed" is actually considered valid, as msgpack
         # being able to deserialize non utf-8 event messages.
-        if self._decode_incoming_event_messages:
+        if self._decode_events:
             self.assertEqual(http.client.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
         else:
             self.assertEqual(http.client.OK, malformed_response['status_code'])

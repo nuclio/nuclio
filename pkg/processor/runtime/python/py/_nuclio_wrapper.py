@@ -46,14 +46,14 @@ class Wrapper(object):
                  worker_id=None,
                  trigger_kind=None,
                  trigger_name=None,
-                 decode_incoming_event_messages=True):
+                 decode_events=True):
         self._logger = logger
         self._socket_path = socket_path
         self._json_encoder = nuclio_sdk.json_encoder.Encoder()
         self._entrypoint = None
         self._processor_sock = None
         self._platform = nuclio_sdk.Platform(platform_kind, namespace=namespace)
-        self._decode_incoming_event_messages = decode_incoming_event_messages
+        self._decode_events = decode_events
 
         # 1gb
         self._max_buffer_size = 1024 * 1024 * 1024
@@ -147,13 +147,13 @@ class Wrapper(object):
 
         unpacker raw determines whether an incoming message would be decoded to utf8
         """
-        return msgpack.Unpacker(raw=not self._decode_incoming_event_messages, max_buffer_size=self._max_buffer_size)
+        return msgpack.Unpacker(raw=not self._decode_events, max_buffer_size=self._max_buffer_size)
 
     def _resolve_event_serializer(self):
         """
         Event serializer to use when serializing incoming events
         """
-        serializer = 'msgpack' if self._decode_incoming_event_messages else 'msgpack_raw'
+        serializer = 'msgpack' if self._decode_events else 'msgpack_raw'
         return nuclio_sdk.EventSerializerFactory.create(serializer)
 
     def _load_entrypoint_from_handler(self, handler):
@@ -330,10 +330,9 @@ def parse_args():
 
     parser.add_argument('--worker-id')
 
-    parser.add_argument('--skip-decoding-incoming-event-messages',
+    parser.add_argument('--decode-events',
                         action='store_true',
-                        help='Whether to skip decoding incoming event message contents to utf8'
-                             ' (Decoding is done via msgpack, Default: False)')
+                        help='Decode events to utf8 (Decoding is done via msgpack, Default: False)')
 
     return parser.parse_args()
 
@@ -364,7 +363,7 @@ def run_wrapper():
                                    args.worker_id,
                                    args.trigger_kind,
                                    args.trigger_name,
-                                   not args.skip_decoding_incoming_event_messages)
+                                   args.decode_events)
 
     except BaseException as exc:
         root_logger.error_with('Caught unhandled exception while initializing',
