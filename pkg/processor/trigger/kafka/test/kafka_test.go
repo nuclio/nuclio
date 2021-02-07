@@ -45,8 +45,8 @@ type testSuite struct {
 	NumPartitions int32
 
 	// kafka cluster
+	brokerPort             int
 	brokerURL              string
-	dockerNetworkName      string
 	brokerContainerName    string
 	zooKeeperContainerName string
 
@@ -64,17 +64,18 @@ func (suite *testSuite) SetupSuite() {
 	suite.NumPartitions = 4
 
 	// kafka cluster
-	suite.dockerNetworkName = "kafka"
-	suite.brokerContainerName = "kafka-broker"
-	suite.zooKeeperContainerName = "zookeeper"
-	suite.brokerURL = fmt.Sprintf("%s:9092", suite.BrokerHost)
+	suite.brokerPort = 9092
+	suite.brokerContainerName = "nuclio-kafka-broker"
+	suite.zooKeeperContainerName = "nuclio-kafka-zookeeper"
+	suite.brokerURL = fmt.Sprintf("%s:%d", suite.BrokerHost, suite.brokerPort)
 
 	// start broker and zookeeper containers explicitly
 	suite.AbstractBrokerSuite.SkipStartBrokerContainer = true
+	suite.AbstractBrokerSuite.BrokerContainerNetworkName = "nuclio-kafka-test"
 	suite.AbstractBrokerSuite.SetupSuite()
 
 	// start zoo keeper container
-	suite.zooKeeperContainerID = suite.EnsureNetworkAndRunContainer(suite.getKafkaZooKeeperContainerRunInfo())
+	suite.zooKeeperContainerID = suite.RunContainer(suite.getKafkaZooKeeperContainerRunInfo())
 
 	// start broker container
 	suite.StartBrokerContainer(suite.GetContainerRunInfo())
@@ -125,7 +126,7 @@ func (suite *testSuite) TestReceiveRecords() {
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
 		Attributes: map[string]interface{}{
-			"network": suite.dockerNetworkName,
+			"network": suite.BrokerContainerNetworkName,
 		},
 	}
 
@@ -157,20 +158,24 @@ func (suite *testSuite) TestReceiveRecords() {
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
 	return "wurstmeister/kafka", &dockerclient.RunOptions{
 		ContainerName: suite.brokerContainerName,
-		Network:       suite.dockerNetworkName,
+		Network:       suite.BrokerContainerNetworkName,
 		Remove:        true,
 		Ports: map[int]int{
 
 			// broker
-			9092: 9092,
+			suite.brokerPort: suite.brokerPort,
 		},
 		Env: map[string]string{
 			"KAFKA_ZOOKEEPER_CONNECT":              fmt.Sprintf("%s:2181", suite.zooKeeperContainerName),
-			"KAFKA_LISTENERS":                      "INTERNAL://:9090,EXTERNAL://:9092",
 			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT",
 			"KAFKA_INTER_BROKER_LISTENER_NAME":     "INTERNAL",
+			"KAFKA_LISTENERS": fmt.Sprintf("INTERNAL://:9090,EXTERNAL://:%d",
+				suite.brokerPort),
 			"KAFKA_ADVERTISED_LISTENERS": fmt.Sprintf(
-				"INTERNAL://%s:9090,EXTERNAL://%s:9092", suite.brokerContainerName, suite.BrokerHost,
+				"INTERNAL://%s:9090,EXTERNAL://%s:%d",
+				suite.brokerContainerName,
+				suite.BrokerHost,
+				suite.brokerPort,
 			),
 		},
 	}
@@ -179,7 +184,7 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 func (suite *testSuite) getKafkaZooKeeperContainerRunInfo() (string, *dockerclient.RunOptions) {
 	return "wurstmeister/zookeeper", &dockerclient.RunOptions{
 		ContainerName: suite.zooKeeperContainerName,
-		Network:       suite.dockerNetworkName,
+		Network:       suite.BrokerContainerNetworkName,
 		Remove:        true,
 		Ports: map[int]int{
 			dockerclient.RunOptionsNoPort: 2181,
