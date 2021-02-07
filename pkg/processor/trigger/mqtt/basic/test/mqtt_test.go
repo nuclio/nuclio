@@ -46,8 +46,8 @@ type testSuite struct {
 
 func (suite *testSuite) SetupSuite() {
 	suite.brokerPort = 1883
-	suite.containerName = "mqtt-mosquitto"
-	suite.BrokerContainerNetworkName = "nuclio-mosquitto-test"
+	suite.containerName = "mqtt-mosquitto"                     // nolint: misspell
+	suite.BrokerContainerNetworkName = "nuclio-mosquitto-test" // nolint: misspell
 
 	suite.brokerURL = fmt.Sprintf("tcp://%s:%d", suite.BrokerHost, suite.brokerPort)
 
@@ -63,8 +63,11 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 		Network:       suite.BrokerContainerNetworkName,
 		Remove:        true,
 		Volumes: map[string]string{
-			path.Join(suite.GetNuclioSourceDir(), "test", "mqtt", "artifacts", "mosquitto.conf"):
-			"/mosquitto/config/mosquitto.conf",
+			path.Join(suite.GetNuclioSourceDir(),
+				"test",
+				"mqtt",
+				"artifacts",
+				"mosquitto.conf"): "/mosquitto/config/mosquitto.conf", // nolint: misspell
 		},
 		Ports: map[int]int{
 			suite.brokerPort: suite.brokerPort,
