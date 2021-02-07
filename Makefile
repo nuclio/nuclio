@@ -528,6 +528,7 @@ test: build-test
 		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--env NUCLIO_OS=$(NUCLIO_OS) \
 		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
+		--env NUCLIO_TEST_HOST_PATH=$(NUCLIO_PATH) \
 		$(NUCLIO_DOCKER_TEST_TAG) \
 		/bin/bash -c "make $(NUCLIO_TEST_MAKE_TARGET)"
 

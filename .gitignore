@@ -22,8 +22,6 @@ pkg/processor/runtime/python/py/whl
 .benchmarking
 __pycache__
 test/http-bench/out/
-.DS_Store
-*.log
 venv/
 venv-py38/
 
@@ -80,7 +78,6 @@ BenchmarkDotNet.Artifacts/
 # .NET Core
 project.lock.json
 project.fragment.lock.json
-artifacts/
 **/Properties/launchSettings.json
 
 # StyleCop
@@ -104,7 +101,6 @@ StyleCopReport.xml
 *.tlh
 *.tmp
 *.tmp_proj
-*.log
 *.vspscc
 *.vssscc
 .builds
@@ -352,4 +348,3 @@ ASALocalRun/
 
 pkg/temp/
 debug.test
-

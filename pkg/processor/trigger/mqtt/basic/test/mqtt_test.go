@@ -21,6 +21,7 @@ package test
 
 import (
 	"fmt"
+	"path"
 	"testing"
 	"time"
 
@@ -37,47 +38,51 @@ import (
 
 type testSuite struct {
 	*triggertest.AbstractBrokerSuite
-	brokerPort int
-	mqttClient mqttclient.Client
+	brokerPort    int
+	brokerURL     string
+	containerName string
+	mqttClient    mqttclient.Client
 }
 
-func newTestSuite() *testSuite {
-	newTestSuite := &testSuite{
-		brokerPort: 1883,
-	}
+func (suite *testSuite) SetupSuite() {
+	suite.brokerPort = 1883
+	suite.containerName = "mqtt-mosquitto"                     // nolint: misspell
+	suite.BrokerContainerNetworkName = "nuclio-mosquitto-test" // nolint: misspell
 
-	newTestSuite.AbstractBrokerSuite = triggertest.NewAbstractBrokerSuite(newTestSuite)
+	suite.brokerURL = fmt.Sprintf("tcp://%s:%d", suite.BrokerHost, suite.brokerPort)
 
-	return newTestSuite
-}
-
-func (suite *testSuite) TearDownTest() {
-	suite.TestSuite.TearDownTest()
+	// create client
+	suite.mqttClient = mqttclient.NewClient(mqttclient.NewClientOptions().AddBroker(suite.brokerURL))
+	suite.AbstractBrokerSuite.SetupSuite()
 }
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
 	return "eclipse-mosquitto:latest", &dockerclient.RunOptions{ // nolint: misspell
+		ContainerName: suite.containerName,
+		Network:       suite.BrokerContainerNetworkName,
+		Remove:        true,
+		Volumes: map[string]string{
+			path.Join(suite.GetNuclioHostSourceDir(),
+				"test",
+				"mqtt",
+				"artifacts",
+				"mosquitto.conf"): "/mosquitto/config/mosquitto.conf", // nolint: misspell
+		},
 		Ports: map[int]int{
 			suite.brokerPort: suite.brokerPort,
-			9001:             9001,
 		},
 	}
 }
 
 // WaitForBroker waits until the broker is ready
 func (suite *testSuite) WaitForBroker() error {
+
+	// retry to connect
 	err := common.RetryUntilSuccessful(30*time.Second, 1*time.Second, func() bool {
-		brokerURL := fmt.Sprintf("tcp://%s:%d", suite.BrokerHost, suite.brokerPort)
-
-		// create client
-		suite.mqttClient = mqttclient.NewClient(mqttclient.NewClientOptions().AddBroker(brokerURL))
-
-		// try to connect
 		if token := suite.mqttClient.Connect(); token.Wait() && token.Error() != nil {
 			return false
 		}
-
 		return true
 	})
 
@@ -86,7 +91,7 @@ func (suite *testSuite) WaitForBroker() error {
 	return nil
 }
 
-func (suite *testSuite) TestMulitpleTopics() {
+func (suite *testSuite) TestMultipleTopics() {
 	triggerConfiguration := suite.getTriggerConfiguration([]mqtt.Subscription{
 		{Topic: "a1/b1/c1", QOS: 0},
 		{Topic: "a1/b1", QOS: 1},
@@ -108,7 +113,11 @@ func (suite *testSuite) TestMulitpleTopics() {
 
 func (suite *testSuite) getCreateFunctionOptionsWithMQTTTrigger(triggerConfig functionconfig.Trigger) *platform.CreateFunctionOptions {
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", "")
-
+	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+		Attributes: map[string]interface{}{
+			"network": suite.BrokerContainerNetworkName,
+		},
+	}
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Meta.Name = "event-recorder"
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = suite.FunctionPaths["python"]
@@ -122,7 +131,7 @@ func (suite *testSuite) getCreateFunctionOptionsWithMQTTTrigger(triggerConfig fu
 func (suite *testSuite) getTriggerConfiguration(subscriptions []mqtt.Subscription) functionconfig.Trigger {
 	return functionconfig.Trigger{
 		Kind: "mqtt",
-		URL:  fmt.Sprintf("tcp://172.17.0.1:%d", suite.brokerPort),
+		URL:  fmt.Sprintf("tcp://%s:%d", suite.containerName, suite.brokerPort),
 		Attributes: map[string]interface{}{
 			"subscriptions": subscriptions,
 		},
@@ -145,5 +154,7 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	suite.Run(t, newTestSuite())
+	newTestSuite := &testSuite{}
+	newTestSuite.AbstractBrokerSuite = triggertest.NewAbstractBrokerSuite(newTestSuite)
+	suite.Run(t, newTestSuite)
 }

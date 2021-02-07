@@ -24,7 +24,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -367,6 +366,12 @@ func (suite *TestSuite) GetNuclioSourceDir() string {
 	return common.GetSourceDir()
 }
 
+// GetNuclioHostSourceDir returns host path to nuclio source directory
+// NOTE: some tests are running from within a docker container
+func (suite *TestSuite) GetNuclioHostSourceDir() string {
+	return common.GetEnvOrDefaultString("NUCLIO_TEST_HOST_PATH", suite.GetNuclioSourceDir())
+}
+
 // GetTestFunctionsDir returns the test function dir
 func (suite *TestSuite) GetTestFunctionsDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "test", "_functions")
@@ -618,17 +623,23 @@ func (suite *TestSuite) probeAndWaitForFunctionReadiness(configuration *BlastCon
 
 		// if we fail to connect, fail
 		if responseErr != nil {
-			if strings.Contains(responseErr.Error(), "EOF") ||
-				strings.Contains(responseErr.Error(), "connection reset by peer") {
+			if common.MatchStringPatterns([]string{
 
-				// function isn't ready yet, give it another try
-				suite.Logger.DebugWith("Function is not ready yet, retrying")
+				// function is not up yet
+				"EOF",
+				"connection reset by peer",
+
+				// https://github.com/golang/go/issues/19943#issuecomment-355607646
+				// tl;dr: we should actively retry on such errors, because Go won't as request might not be idempotent
+				"server closed idle connection",
+			}, responseErr.Error()) {
+				suite.Logger.DebugWith("Function is not ready yet, retrying",
+					"err", responseErr.Error())
 				return false
 			}
 
 			// if we got here, we failed on something more fatal, fail test
-			suite.Fail("Function probing failed",
-				"responseErr", responseErr)
+			suite.Fail("Function probing failed", "responseErr", responseErr)
 		}
 
 		// we need at least one good answer in the range of [200, 500)
