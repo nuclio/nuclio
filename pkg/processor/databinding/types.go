@@ -23,10 +23,10 @@ type Configuration struct {
 	ID string
 }
 
-func NewConfiguration(ID string, databindingConfiguration *functionconfig.DataBinding) *Configuration {
+func NewConfiguration(id string, databindingConfiguration *functionconfig.DataBinding) *Configuration {
 	configuration := &Configuration{
 		DataBinding: *databindingConfiguration,
-		ID:          ID,
+		ID:          id,
 	}
 
 	return configuration

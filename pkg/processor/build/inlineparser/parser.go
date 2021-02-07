@@ -103,7 +103,7 @@ func (p *InlineParser) Parse(path string) (map[string]Block, error) {
 }
 
 func (p *InlineParser) lookingForStartBlockStateHandleLine(line string) error {
-	spacelessLine := strings.Replace(line, " ", "", -1)
+	spacelessLine := strings.ReplaceAll(line, " ", "")
 
 	// if the string starts with <commandChar><space>@nuclio. - we found a match
 	if strings.HasPrefix(spacelessLine, p.startBlockPattern) {
@@ -151,7 +151,7 @@ func (p *InlineParser) readingBlockStateHandleLine(line string) error {
 	line = line[len(p.currentCommentChar):]
 
 	// if there's more contents, skip the first space (since space must follow character)
-	if len(line) != 0 {
+	if line != "" {
 		line = line[1:]
 	}
 

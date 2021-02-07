@@ -38,10 +38,7 @@ func NewKaniko(logger logger.Logger, kubeClientSet kubernetes.Interface,
 
 	// Valid job name is composed from a DNS-1123 subdomains which in turn must contain only lower case
 	// alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com')
-	jobNameRegex, err := regexp.Compile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
-	if err != nil {
-		return nil, errors.New("Failed to compile job name regex")
-	}
+	jobNameRegex := regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
 
 	kanikoBuilder := &Kaniko{
 		logger:               logger,
@@ -154,8 +151,8 @@ func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tem
 
 	k.logger.DebugWith("Created tar dir", "dir", buildContainerBundleDir)
 
-	tarFilename := fmt.Sprintf("%s.tar.gz", strings.Replace(image, "/", "_", -1))
-	tarFilename = strings.Replace(tarFilename, ":", "_", -1)
+	tarFilename := fmt.Sprintf("%s.tar.gz", strings.ReplaceAll(image, "/", "_"))
+	tarFilename = strings.ReplaceAll(tarFilename, ":", "_")
 	tarFilePath := path.Join(buildContainerBundleDir, tarFilename)
 
 	k.logger.DebugWith("Compressing build bundle", "tarFilePath", tarFilePath)
@@ -310,9 +307,9 @@ func (k *Kaniko) compileKanikoJobSpec(namespace string,
 
 func (k *Kaniko) compileJobName(image string) string {
 
-	functionName := strings.Replace(image, "/", "", -1)
-	functionName = strings.Replace(functionName, ":", "", -1)
-	functionName = strings.Replace(functionName, "-", "", -1)
+	functionName := strings.ReplaceAll(image, "/", "")
+	functionName = strings.ReplaceAll(functionName, ":", "")
+	functionName = strings.ReplaceAll(functionName, "-", "")
 	timestamp := fmt.Sprintf("%d", time.Now().Unix())
 
 	// Truncate function name so the job name won't exceed k8s limit of 63

@@ -40,13 +40,13 @@ type Configuration struct {
 	CORS               *cors.CORS
 }
 
-func NewConfiguration(ID string,
+func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	newConfiguration.Configuration = *trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
@@ -71,34 +71,34 @@ func NewConfiguration(ID string,
 	return &newConfiguration, nil
 }
 
-func createCORSConfiguration(CORSConfiguration *cors.CORS) *cors.CORS {
+func createCORSConfiguration(corsConfiguration *cors.CORS) *cors.CORS {
 
 	// take defaults
 	corsInstance := cors.NewCORS()
 
 	// override with custom configuration if provided
-	if len(CORSConfiguration.AllowHeaders) > 0 {
-		corsInstance.AllowHeaders = CORSConfiguration.AllowHeaders
+	if len(corsConfiguration.AllowHeaders) > 0 {
+		corsInstance.AllowHeaders = corsConfiguration.AllowHeaders
 	}
 
-	if len(CORSConfiguration.AllowMethods) > 0 {
-		corsInstance.AllowMethods = CORSConfiguration.AllowMethods
+	if len(corsConfiguration.AllowMethods) > 0 {
+		corsInstance.AllowMethods = corsConfiguration.AllowMethods
 	}
 
-	if len(CORSConfiguration.AllowOrigins) > 0 {
-		corsInstance.AllowOrigins = CORSConfiguration.AllowOrigins
+	if len(corsConfiguration.AllowOrigins) > 0 {
+		corsInstance.AllowOrigins = corsConfiguration.AllowOrigins
 	}
 
-	if len(CORSConfiguration.ExposeHeaders) > 0 {
-		corsInstance.ExposeHeaders = CORSConfiguration.ExposeHeaders
+	if len(corsConfiguration.ExposeHeaders) > 0 {
+		corsInstance.ExposeHeaders = corsConfiguration.ExposeHeaders
 	}
 
-	if CORSConfiguration.AllowCredentials {
-		corsInstance.AllowCredentials = CORSConfiguration.AllowCredentials
+	if corsConfiguration.AllowCredentials {
+		corsInstance.AllowCredentials = corsConfiguration.AllowCredentials
 	}
 
-	if CORSConfiguration.PreflightMaxAgeSeconds != nil {
-		corsInstance.PreflightMaxAgeSeconds = CORSConfiguration.PreflightMaxAgeSeconds
+	if corsConfiguration.PreflightMaxAgeSeconds != nil {
+		corsInstance.PreflightMaxAgeSeconds = corsConfiguration.PreflightMaxAgeSeconds
 	}
 
 	return corsInstance

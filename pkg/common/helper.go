@@ -280,7 +280,7 @@ func FixEscapeChars(s string) string {
 	}
 
 	for oldChar, newChar := range escapeCharsMap {
-		s = strings.Replace(s, oldChar, newChar, -1)
+		s = strings.ReplaceAll(s, oldChar, newChar)
 	}
 
 	return s

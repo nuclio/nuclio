@@ -31,12 +31,12 @@ type AbstractAPIGateway struct {
 
 func NewAbstractAPIGateway(parentLogger logger.Logger,
 	parentPlatform Platform,
-	APIGatewayConfig APIGatewayConfig) (*AbstractAPIGateway, error) {
+	apiGatewayConfig APIGatewayConfig) (*AbstractAPIGateway, error) {
 
 	return &AbstractAPIGateway{
 		Logger:           parentLogger.GetChild("api gateway"),
 		Platform:         parentPlatform,
-		APIGatewayConfig: APIGatewayConfig,
+		APIGatewayConfig: apiGatewayConfig,
 	}, nil
 }
 

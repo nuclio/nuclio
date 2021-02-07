@@ -40,13 +40,13 @@ type Configuration struct {
 	TotalShards    int
 }
 
-func NewConfiguration(ID string,
+func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
-	pollerConfiguration, err := poller.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	pollerConfiguration, err := poller.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read poller configuration")
 	}

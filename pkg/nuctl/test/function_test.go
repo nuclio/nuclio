@@ -777,7 +777,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	suite.Require().NoError(err)
 
 	// name uniqueness
-	functionConfig.Meta.Name = functionConfig.Meta.Name + uniqueSuffix
+	functionConfig.Meta.Name += uniqueSuffix
 
 	// ensure no resource version
 	functionConfig.Meta.ResourceVersion = ""

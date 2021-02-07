@@ -778,22 +778,25 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		if replicas == nil {
 			minReplicas := function.GetComputedMinReplicas()
 			maxReplicas := function.GetComputedMaxReplicas()
+			deploymentReplicas := deployment.Status.Replicas
 			lc.logger.DebugWith("Verifying current replicas not lower than minReplicas or higher than max",
 				"functionName", function.Name,
 				"maxReplicas", maxReplicas,
 				"minReplicas", minReplicas,
-				"currentReplicas", deployment.Status.Replicas)
-			if deployment.Status.Replicas > maxReplicas {
+				"deploymentReplicas", deploymentReplicas)
+			switch {
+			case deploymentReplicas > maxReplicas:
 				replicas = &maxReplicas
-			} else if deployment.Status.Replicas < minReplicas {
+			case deploymentReplicas < minReplicas:
 				replicas = &minReplicas
-			} else {
+			default:
 
 				// if we're within the valid range - and want to leave as is (since replicas == nil) - use current value
 				// NOTE: since we're using the existing deployment (given by our get function) ResourceVersion is set
 				// meaning the update will fail with conflict if something has changed in the meanwhile (e.g. HPA
 				// changed the replicas count) - retry is handled by the createOrUpdateResource wrapper
-				replicas = &deployment.Status.Replicas
+				replicas = &deploymentReplicas
+
 			}
 		}
 

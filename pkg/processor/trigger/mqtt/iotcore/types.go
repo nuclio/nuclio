@@ -39,13 +39,13 @@ type Configuration struct {
 	jwtRefreshInterval time.Duration
 }
 
-func NewConfiguration(ID string,
+func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
-	mqttConfiguration, err := mqtt.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	mqttConfiguration, err := mqtt.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read MQTT configuration")
 	}

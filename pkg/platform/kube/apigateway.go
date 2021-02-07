@@ -11,11 +11,14 @@ import (
 func ValidateAPIGatewaySpec(apiGatewaySpec *platform.APIGatewaySpec) error {
 	upstreams := apiGatewaySpec.Upstreams
 
-	if len(upstreams) > 2 {
-		return nuclio.NewErrBadRequest("Received more than 2 upstreams. Currently not supported")
-	} else if len(upstreams) == 0 {
+	switch upstreamsLength := len(upstreams); {
+	case upstreamsLength == 0:
 		return nuclio.NewErrBadRequest("One or more upstreams must be provided in spec")
-	} else if apiGatewaySpec.Host == "" {
+	case upstreamsLength > 2:
+		return nuclio.NewErrBadRequest("Received more than 2 upstreams. Currently not supported")
+	}
+
+	if apiGatewaySpec.Host == "" {
 		return nuclio.NewErrBadRequest("Host must be provided in spec")
 	}
 

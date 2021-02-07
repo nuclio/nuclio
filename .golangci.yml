@@ -18,6 +18,7 @@ linters:
     - govet
     - structcheck
     - typecheck
+    - gocritic
 
 run:
 
@@ -34,13 +35,17 @@ run:
   skip-dirs:
     - docs
 
+linters-settings:
+  gocritic:
+    disabled-checks:
+      - commentFormatting # we dont want to enforce space before the comment text
+
 issues:
 
   # List of regexps of issue texts to exclude
   exclude:
     - "comment on"
     - "error should be the last"
-    - "should have comment"
 
   exclude-rules:
 

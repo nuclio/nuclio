@@ -49,8 +49,7 @@ func CompareTwoStrings(stringOne, stringTwo string) float32 {
 		firstBigrams[bigram] = count
 	}
 
-	var intersectionSize float32
-	intersectionSize = 0
+	var intersectionSize float32 = 0
 
 	for i := 0; i < len(stringTwo)-1; i++ {
 		a := fmt.Sprintf("%c", stringTwo[i])
@@ -68,7 +67,7 @@ func CompareTwoStrings(stringOne, stringTwo string) float32 {
 
 		if count > 0 {
 			firstBigrams[bigram] = count - 1
-			intersectionSize = intersectionSize + 1
+			intersectionSize++
 		}
 	}
 

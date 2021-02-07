@@ -88,13 +88,14 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.N
 		var baseUpstream platform.APIGatewayUpstreamSpec
 
 		// determine which upstream is the canary one
-		if upstreams[0].Percentage != 0 {
+		switch {
+		case upstreams[0].Percentage != 0:
 			baseUpstream = upstreams[1]
 			canaryUpstream = upstreams[0]
-		} else if upstreams[1].Percentage != 0 {
+		case upstreams[1].Percentage != 0:
 			baseUpstream = upstreams[0]
 			canaryUpstream = upstreams[1]
-		} else {
+		default:
 			return nil, errors.New("Percentage must be set on one of the upstreams (canary)")
 		}
 
