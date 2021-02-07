@@ -366,6 +366,12 @@ func (suite *TestSuite) GetNuclioSourceDir() string {
 	return common.GetSourceDir()
 }
 
+// GetNuclioHostSourceDir returns host path to nuclio source directory
+// NOTE: some tests are running from within a docker container
+func (suite *TestSuite) GetNuclioHostSourceDir() string {
+	return common.GetEnvOrDefaultString("NUCLIO_TEST_HOST_PATH", suite.GetNuclioSourceDir())
+}
+
 // GetTestFunctionsDir returns the test function dir
 func (suite *TestSuite) GetTestFunctionsDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "test", "_functions")

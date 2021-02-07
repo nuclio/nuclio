@@ -63,7 +63,7 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 		Network:       suite.BrokerContainerNetworkName,
 		Remove:        true,
 		Volumes: map[string]string{
-			path.Join(suite.GetNuclioSourceDir(),
+			path.Join(suite.GetNuclioHostSourceDir(),
 				"test",
 				"mqtt",
 				"artifacts",
