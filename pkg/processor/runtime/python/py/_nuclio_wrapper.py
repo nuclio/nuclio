@@ -70,8 +70,8 @@ class Wrapper(object):
         # create msgpack unpacker
         self._unpacker = self._resolve_unpacker()
 
-        # event serializer
-        self._event_serializer = self._resolve_event_serializer()
+        # event deserializer (event message to event instance)
+        self._event_deserializer = self._resolve_event_deserializer()
 
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
@@ -110,7 +110,7 @@ class Wrapper(object):
                 event_message = self._resolve_event(event_message_length)
 
                 # instantiate event message
-                event = self._event_serializer.serialize(event_message)
+                event = self._event_deserializer.deserialize(event_message)
 
                 try:
                     self._handle_event(event)
@@ -149,12 +149,12 @@ class Wrapper(object):
         """
         return msgpack.Unpacker(raw=not self._decode_events, max_buffer_size=self._max_buffer_size)
 
-    def _resolve_event_serializer(self):
+    def _resolve_event_deserializer(self):
         """
         Event serializer to use when serializing incoming events
         """
-        serializer = 'msgpack' if self._decode_events else 'msgpack_raw'
-        return nuclio_sdk.EventSerializerFactory.create(serializer)
+        deserializer_kind = 'msgpack' if self._decode_events else 'msgpack_raw'
+        return nuclio_sdk.EventDeserializerFactory.create(deserializer_kind)
 
     def _load_entrypoint_from_handler(self, handler):
         """
