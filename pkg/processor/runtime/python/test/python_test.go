@@ -97,6 +97,11 @@ func (suite *TestSuite) TestOutputs() {
 		suite.GetFunctionPath("outputter"))
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter:handler"
+	createFunctionOptions.FunctionConfig.Spec.Env = append(createFunctionOptions.FunctionConfig.Spec.Env,
+		v1.EnvVar{
+			Value: "true",
+			Name:  "NUCLIO_PYTHON_DECODE_EVENTS",
+		})
 
 	testRequests := []*httpsuite.Request{
 		{
@@ -325,6 +330,9 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 
 	nonUTF8String := string([]byte{192, 175})
 
+	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+		{Name: "NUCLIO_PYTHON_DECODE_EVENTS", Value: "true"},
+	}
 	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
 			RequestMethod:              http.MethodPost,
@@ -348,11 +356,9 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 	})
 
 	// do not decode to utf8, allow incoming event messages to be byte string and not utf8 encoded.
-	createFunctionOptions.FunctionConfig.Spec.Env = append(createFunctionOptions.FunctionConfig.Spec.Env,
-		v1.EnvVar{
-			Name:  "NUCLIO_PYTHON_DECODE_EVENTS",
-			Value: "false",
-		})
+	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+		{Name: "NUCLIO_PYTHON_DECODE_EVENTS", Value: "false"},
+	}
 	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
 			RequestMethod:              http.MethodPost,
@@ -437,8 +443,10 @@ func TestIntegrationSuite(t *testing.T) {
 		"python:3.7",
 		"python:3.8",
 	} {
-		testSuite := new(TestSuite)
-		testSuite.runtime = runtimeName
-		suite.Run(t, testSuite)
+		t.Run(runtimeName, func(t *testing.T) {
+			testSuite := new(TestSuite)
+			testSuite.runtime = runtimeName
+			suite.Run(t, testSuite)
+		})
 	}
 }

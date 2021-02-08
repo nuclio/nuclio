@@ -14,32 +14,35 @@
 
 import datetime
 import json
+import tempfile
 
-events_log_file_path = '/tmp/events.json'
 
 def handler(context, event):
     """post event to the request recorder"""
 
-    if event.trigger.kind != 'http' or event.get_header('x-nuclio-invoke-trigger') == 'cron':
+    if _ensure_str(event.trigger.kind) != 'http' or _invoked_by_cron(event):
         body = event.body.decode('utf-8')
         context.logger.info('Received event body: {0}'.format(body))
 
         # serialized record
         serialized_record = json.dumps({
             'body': body,
-            'headers': dict(event.headers),
+            'headers': {
+                _ensure_str(header): _ensure_str(value)
+                for header, value in event.headers.items()
+            },
             'timestamp': datetime.datetime.utcnow().isoformat(),
         })
 
         # store in log file
-        with open(events_log_file_path, 'a') as events_log_file:
+        with open(context.user_data['events_log_file_path'], 'a') as events_log_file:
             events_log_file.write(serialized_record + ', ')
 
     else:
 
         # read the log file
         try:
-            with open(events_log_file_path, 'r') as events_log_file:
+            with open(context.user_data['events_log_file_path'], 'r') as events_log_file:
                 events_log_file_contents = events_log_file.read()
         except IOError:
             events_log_file_contents = ''
@@ -51,3 +54,22 @@ def handler(context, event):
 
         # return json.loads(encoded_event_log)
         return encoded_event_log
+
+
+def init_context(context):
+    context.user_data = {
+        'events_log_file_path': tempfile.mktemp(suffix='.json'),
+    }
+
+
+def _invoked_by_cron(event):
+    return event.get_header('x-nuclio-invoke-trigger') == _ensure_str('cron') \
+           or event.get_header(b'x-nuclio-invoke-trigger') == _ensure_str('cron')
+
+
+def _ensure_str(s):
+    if type(s) is str:
+        return s
+    if isinstance(s, bytes):
+        return s.decode()
+    return s

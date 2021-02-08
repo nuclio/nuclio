@@ -80,14 +80,15 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	for _, runtime := range []string{
-		"python",
+	for _, runtimeName := range []string{
 		"python:3.6",
 		"python:3.7",
 		"python:3.8",
 	} {
-		TestSuite := new(TestSuite)
-		TestSuite.runtime = runtime
-		suite.Run(t, TestSuite)
+		t.Run(runtimeName, func(t *testing.T) {
+			testSuite := new(TestSuite)
+			testSuite.runtime = runtimeName
+			suite.Run(t, testSuite)
+		})
 	}
 }

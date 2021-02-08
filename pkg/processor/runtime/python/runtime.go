@@ -181,20 +181,25 @@ func (py *python) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
 }
 
 func (py *python) resolveDecodeEvents() bool {
-	var decodeIncomingEventMessages bool
+
+	// switch case for explicitness
+	// do not resolve empty or null-able values as false/true for forward/backwards compatibility
+	switch os.Getenv("NUCLIO_PYTHON_DECODE_EVENTS") {
+	case "true":
+		return true
+	case "false":
+		return false
+	}
+
+	// resolve by runtime version
 	switch _, runtimeVersion := common.GetRuntimeNameAndVersion(py.configuration.Spec.Runtime); runtimeVersion {
 
 	// python is an alias to 3.6 and hence, versionless runtime is currently considered python3.6
 	case "", "3.6":
 
 		// backwards compatibility
-		decodeIncomingEventMessages = true
+		return true
 	default:
-
-		// events are byte strings, allow overriding using env
-		if common.GetEnvOrDefaultBool("NUCLIO_PYTHON_DECODE_EVENTS", false) {
-			decodeIncomingEventMessages = true
-		}
+		return false
 	}
-	return decodeIncomingEventMessages
 }
