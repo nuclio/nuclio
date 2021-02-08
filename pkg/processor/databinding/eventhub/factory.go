@@ -27,13 +27,13 @@ import (
 type factory struct{}
 
 func (f *factory) Create(parentLogger logger.Logger,
-	ID string,
+	id string,
 	databindingConfiguration *functionconfig.DataBinding) (databinding.DataBinding, error) {
 
 	// create logger parent
 	eventhubLogger := parentLogger.GetChild("eventhub")
 
-	configuration, err := NewConfiguration(ID, databindingConfiguration)
+	configuration, err := NewConfiguration(id, databindingConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}

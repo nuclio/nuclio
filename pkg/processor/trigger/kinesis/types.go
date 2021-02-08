@@ -39,14 +39,14 @@ type Configuration struct {
 	pollingPeriodDuration time.Duration
 }
 
-func NewConfiguration(ID string,
+func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 	var err error
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	newConfiguration.Configuration = *trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {

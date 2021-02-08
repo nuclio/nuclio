@@ -31,7 +31,7 @@ type factory struct {
 }
 
 func (f *factory) Create(parentLogger logger.Logger,
-	ID string,
+	id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration,
 	namedWorkerAllocators map[string]worker.Allocator) (trigger.Trigger, error) {
@@ -39,7 +39,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	// create logger parent
 	triggerLogger := parentLogger.GetChild(triggerConfiguration.Kind)
 
-	configuration, err := NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	configuration, err := NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}

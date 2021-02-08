@@ -26,13 +26,13 @@ type Configuration struct {
 	trigger.Configuration
 }
 
-func NewConfiguration(ID string,
+func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) *Configuration {
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	newConfiguration.Configuration = *trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 
 	return &newConfiguration
 }

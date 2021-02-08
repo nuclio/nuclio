@@ -171,54 +171,6 @@ spec:
 	suite.Require().Equal(51, config.Spec.TargetCPU, "Bad target cpu")
 }
 
-func (suite *ReaderTestSuite) TestToDeployOptions() {
-	suite.T().Skip("TODO")
-	//	flatConfigurationContents := `
-	//
-	//name: function-name
-	//namespace: function-namespace
-	//runtime: golang
-	//handler: some.module:handler
-	//triggers:
-	//
-	//  http:
-	//    maxWorkers: 4
-	//    kind: http
-	//
-	//  rmq:
-	//    kind: rabbit-mq
-	//    url: amqp://guest:guest@34.224.60.166:5672
-	//    attributes:
-	//      exchangeName: functions
-	//      queueName: functions
-	//
-	//dataBindings:
-	//  db0:
-	//    class: v3io
-	//    secret: something
-	//    url: http://192.168.51.240:8081/1024
-	//
-	//build:
-	//  commands:
-	//  - command1
-	//  - command2
-	//  - command3
-	//  baseImage: someBaseImage
-	//`
-
-	//createFunctionOptions := platform.NewDeployOptions(nil)
-	//
-	//err := suite.reader.Read(bytes.NewBufferString(flatConfigurationContents), "yaml")
-	//suite.Require().NoError(err)
-	//
-	//err = suite.reader.ToDeployOptions(createFunctionOptions)
-	//suite.Require().NoError(err)
-	//
-
-	// compare.CompareNoOrder(&createFunctionOptions, &createFunctionOptions)
-	// TODO
-}
-
 func (suite *ReaderTestSuite) TestCodeEntryConfigTriggerMerge() {
 	type TestTrigger struct {
 		Name        string

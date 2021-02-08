@@ -340,7 +340,7 @@ func (s *Spec) GetEventTimeout() (time.Duration, error) {
 	return timeout, err
 }
 
-//PositiveGPUResourceLimit returns whether gpu is assigned
+// PositiveGPUResourceLimit returns whether gpu is assigned
 func (s *Spec) PositiveGPUResourceLimit() bool {
 	if gpuResourceLimit, found := s.Resources.Limits[NvidiaGPUResourceName]; found {
 		return !gpuResourceLimit.IsZero()

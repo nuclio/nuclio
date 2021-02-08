@@ -34,12 +34,12 @@ type AbstractFunctionEvent struct {
 
 func NewAbstractFunctionEvent(parentLogger logger.Logger,
 	parentPlatform Platform,
-	FunctionEventConfig FunctionEventConfig) (*AbstractFunctionEvent, error) {
+	functionEventConfig FunctionEventConfig) (*AbstractFunctionEvent, error) {
 
 	return &AbstractFunctionEvent{
 		Logger:              parentLogger.GetChild("function_event"),
 		Platform:            parentPlatform,
-		FunctionEventConfig: FunctionEventConfig,
+		FunctionEventConfig: functionEventConfig,
 	}, nil
 }
 

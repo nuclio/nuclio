@@ -225,11 +225,12 @@ func (p *pubsub) getSubscriptionID(subscriptionConfig *Subscription) string {
 func (p *pubsub) getAckDeadline(subscriptionConfig *Subscription) (time.Duration, error) {
 	var ackDeadlineString string
 
-	if subscriptionConfig.AckDeadline != "" {
+	switch {
+	case subscriptionConfig.AckDeadline != "":
 		ackDeadlineString = subscriptionConfig.AckDeadline
-	} else if p.configuration.AckDeadline != "" {
+	case p.configuration.AckDeadline != "":
 		ackDeadlineString = p.configuration.AckDeadline
-	} else {
+	default:
 		ackDeadlineString = "10s"
 	}
 

@@ -350,7 +350,7 @@ func (m *Manager) compileAuthAnnotations(ctx context.Context, spec Spec) (map[st
 
 	switch spec.AuthenticationMode {
 	case AuthenticationModeNone:
-		//do nothing
+		// do nothing
 	case AuthenticationModeBasicAuth:
 		authIngressAnnotations, basicAuthSecret, err = m.compileBasicAuthAnnotationsAndSecret(ctx, spec)
 		if err != nil {

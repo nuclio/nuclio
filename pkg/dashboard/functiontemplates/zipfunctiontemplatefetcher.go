@@ -130,13 +130,12 @@ func (zftf *ZipFunctionTemplateFetcher) parseFiles(zipReader *zip.Reader) map[st
 		}
 		fs := functionTemplateFileContents[functionName]
 
-		if strings.Contains(fileNameWithoutPath, ".values") {
+		switch {
+		case strings.Contains(fileNameWithoutPath, ".values"):
 			fs.Values = fileContents
-
-		} else if strings.Contains(fileNameWithoutPath, ".template") {
+		case strings.Contains(fileNameWithoutPath, ".template"):
 			fs.Template = fileContents
-
-		} else {
+		default:
 			fs.Code = fileContents
 		}
 	}

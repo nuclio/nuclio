@@ -356,8 +356,7 @@ func (fr *functionResource) functionToAttributes(function platform.Function) res
 		"spec":     functionConfig.Spec,
 	}
 
-	status := function.GetStatus()
-	if status != nil {
+	if status := function.GetStatus(); status != nil {
 		attributes["status"] = status
 	}
 

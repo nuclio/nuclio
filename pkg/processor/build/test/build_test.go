@@ -74,7 +74,7 @@ func (suite *testSuite) TestBuildFuncFromSourceWithWindowsCarriage() {
 	functionSourceCode := `#!/bin/sh
 echo 'test'`
 
-	functionSourceCode = strings.Replace(functionSourceCode, "\n", "\r\n", -1)
+	functionSourceCode = strings.ReplaceAll(functionSourceCode, "\n", "\r\n")
 	suite.createShellFunctionFromSourceCode("test-windows-carriage", functionSourceCode, &httpsuite.Request{
 		RequestMethod:        "POST",
 		RequestBody:          "",

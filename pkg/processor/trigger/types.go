@@ -51,14 +51,14 @@ type Configuration struct {
 	ID string
 }
 
-func NewConfiguration(ID string,
+func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) *Configuration {
 
 	configuration := &Configuration{
 		Trigger:              *triggerConfiguration,
 		RuntimeConfiguration: runtimeConfiguration,
-		ID:                   ID,
+		ID:                   id,
 	}
 
 	// set defaults

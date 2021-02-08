@@ -172,7 +172,7 @@ func (suite *resourceTestSuite) sendRequest(method string,
 // remove tabs and newlines
 func (suite *resourceTestSuite) cleanJSONstring(input string) string {
 	for _, char := range []string{"\n", "\t"} {
-		input = strings.Replace(input, char, "", -1)
+		input = strings.ReplaceAll(input, char, "")
 	}
 
 	return input

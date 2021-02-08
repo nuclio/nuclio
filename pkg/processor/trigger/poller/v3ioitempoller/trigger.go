@@ -145,7 +145,7 @@ func (vip *v3ioItemPoller) GetConfig() map[string]interface{} {
 
 func (vip *v3ioItemPoller) getItems(path string,
 	eventsChan chan nuclio.Event) error {
-	//
+
 	//vip.Logger.DebugWith("Getting items", "path", path)
 	//
 	//// to get the first page of items, the marker must be clear

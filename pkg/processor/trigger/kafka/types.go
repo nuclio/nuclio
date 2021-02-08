@@ -75,13 +75,13 @@ type Configuration struct {
 	maxWaitHandlerDuringRebalance time.Duration
 }
 
-func NewConfiguration(ID string,
+func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	newConfiguration.Configuration = *trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 
 	workerAllocationModeValue := ""
 
@@ -231,11 +231,12 @@ func (c *Configuration) resolveInitialOffset(initialOffset string) (int64, error
 	if initialOffset == "" {
 		return sarama.OffsetNewest, nil
 	}
-	if lower := strings.ToLower(initialOffset); lower == "earliest" {
+	switch lower := strings.ToLower(initialOffset); lower {
+	case "earliest":
 		return sarama.OffsetOldest, nil
-	} else if lower == "latest" {
+	case "latest":
 		return sarama.OffsetNewest, nil
-	} else {
+	default:
 		return 0, errors.Errorf("InitialOffset must be either 'earliest' or 'latest', not '%s'", initialOffset)
 	}
 }
@@ -261,7 +262,7 @@ func (c *Configuration) unflattenCertificate(certificate string) string {
 
 	// in this mode, the user replaces newlines with "@"
 	if strings.Contains(certificate, "@") {
-		return strings.Replace(certificate, "@", "\n", -1)
+		return strings.ReplaceAll(certificate, "@", "\n")
 	}
 
 	//
@@ -277,21 +278,19 @@ func (c *Configuration) unflattenCertificate(certificate string) string {
 
 	// headers have spaces... remove them temporarily
 	for _, spacedHeader := range headers {
-		certificate = strings.Replace(certificate,
+		certificate = strings.ReplaceAll(certificate,
 			spacedHeader,
-			strings.Replace(spacedHeader, " ", "-", -1),
-			-1)
+			strings.ReplaceAll(spacedHeader, " ", "-"))
 	}
 
 	// now replace all spaces with newline
-	certificate = strings.Replace(certificate, " ", "\n", -1)
+	certificate = strings.ReplaceAll(certificate, " ", "\n")
 
 	// and revert header
 	for _, spacedHeader := range headers {
-		certificate = strings.Replace(certificate,
-			strings.Replace(spacedHeader, " ", "-", -1),
-			spacedHeader,
-			-1)
+		certificate = strings.ReplaceAll(certificate,
+			strings.ReplaceAll(spacedHeader, " ", "-"),
+			spacedHeader)
 	}
 
 	return certificate

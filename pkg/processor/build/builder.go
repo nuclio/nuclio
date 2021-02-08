@@ -1378,7 +1378,7 @@ func (b *Builder) commandsToDirectives(commands []string) (map[string][]function
 		aggregatedCommand := ""
 		for {
 
-			if strings.TrimSpace(command) == "@nuclio.postCopy" {
+			if strings.TrimSpace(command) == "@nuclio.postCopy" { // nolint: gocritic
 				currentDirective = "postCopy"
 				break
 
