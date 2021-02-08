@@ -14,7 +14,8 @@
 
 import datetime
 import json
-import tempfile
+
+events_log_file_path = '/tmp/events.json'
 
 
 def handler(context, event):
@@ -35,14 +36,14 @@ def handler(context, event):
         })
 
         # store in log file
-        with open(context.user_data['events_log_file_path'], 'a') as events_log_file:
+        with open(events_log_file_path, 'a') as events_log_file:
             events_log_file.write(serialized_record + ', ')
 
     else:
 
         # read the log file
         try:
-            with open(context.user_data['events_log_file_path'], 'r') as events_log_file:
+            with open(events_log_file_path, 'r') as events_log_file:
                 events_log_file_contents = events_log_file.read()
         except IOError:
             events_log_file_contents = ''
@@ -56,15 +57,9 @@ def handler(context, event):
         return encoded_event_log
 
 
-def init_context(context):
-    context.user_data = {
-        'events_log_file_path': tempfile.mktemp(suffix='.json'),
-    }
-
-
 def _invoked_by_cron(event):
-    return event.get_header('x-nuclio-invoke-trigger') == _ensure_str('cron') \
-           or event.get_header(b'x-nuclio-invoke-trigger') == _ensure_str('cron')
+    return event.get_header('x-nuclio-invoke-trigger') == 'cron' \
+           or event.get_header(b'x-nuclio-invoke-trigger') == b'cron'
 
 
 def _ensure_str(s):
