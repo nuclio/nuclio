@@ -38,7 +38,7 @@ class TestSubmitEvents(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls._decode_events = False
+        cls._decode_event_strings = False
 
     def setUp(self):
         self._temp_path = tempfile.mkdtemp(prefix='nuclio-test-py-wrapper')
@@ -67,7 +67,7 @@ class TestSubmitEvents(unittest.TestCase):
                                         self._default_test_handler,
                                         self._socket_path,
                                         self._platform_kind,
-                                        decode_events=self._decode_events)
+                                        decode_event_strings=self._decode_event_strings)
 
     def tearDown(self):
         sys.path.remove(self._temp_path)
@@ -115,8 +115,9 @@ class TestSubmitEvents(unittest.TestCase):
 
         malformed_response = self._unix_stream_server._messages[-3]['body']
 
-        # when trying to decode, an error status code is expected
-        if self._decode_events:
+        if self._decode_event_strings:
+
+            # msgpack would fail decoding a non utf8 string when deserializing the event
             self.assertEqual(http.client.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
         else:
             self.assertEqual(http.client.OK, malformed_response['status_code'])
