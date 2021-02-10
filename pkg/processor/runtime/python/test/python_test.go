@@ -97,11 +97,12 @@ func (suite *TestSuite) TestOutputs() {
 		suite.GetFunctionPath("outputter"))
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter:handler"
-	createFunctionOptions.FunctionConfig.Spec.Env = append(createFunctionOptions.FunctionConfig.Spec.Env,
-		v1.EnvVar{
-			Value: "true",
+	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+		{
 			Name:  "NUCLIO_PYTHON_DECODE_EVENTS",
-		})
+			Value: "true",
+		},
+	}
 
 	testRequests := []*httpsuite.Request{
 		{
@@ -335,6 +336,9 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 	}
 	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
+
+			// event body is []bytes and hence would always be a python bytestring
+			// and hence no utf8 decoding is applied by msgpack
 			RequestMethod:              http.MethodPost,
 			RequestBody:                nonUTF8String,
 			ExpectedResponseStatusCode: &okStatus,

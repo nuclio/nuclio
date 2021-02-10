@@ -184,7 +184,7 @@ func (py *python) resolveDecodeEvents() bool {
 
 	// switch case for explicitness
 	// do not resolve empty or null-able values as false/true for forward/backwards compatibility
-	switch os.Getenv("NUCLIO_PYTHON_DECODE_EVENTS") {
+	switch strings.ToLower(os.Getenv("NUCLIO_PYTHON_DECODE_EVENTS")) {
 	case "true":
 		return true
 	case "false":
@@ -194,7 +194,7 @@ func (py *python) resolveDecodeEvents() bool {
 	// resolve by runtime version
 	switch _, runtimeVersion := common.GetRuntimeNameAndVersion(py.configuration.Spec.Runtime); runtimeVersion {
 
-	// python is an alias to 3.6 and hence, versionless runtime is currently considered python3.6
+	// python is an alias to 3.6 and hence, versionless runtime is assumed to be python3.6
 	case "", "3.6":
 
 		// backwards compatibility

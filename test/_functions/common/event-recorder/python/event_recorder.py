@@ -62,9 +62,11 @@ def _invoked_by_cron(event):
            or event.get_header(b'x-nuclio-invoke-trigger') == b'cron'
 
 
-def _ensure_str(s):
+def _ensure_str(s, encoding='utf-8', errors='strict'):
+
+    # Optimization: Fast return for the common case.
     if type(s) is str:
         return s
     if isinstance(s, bytes):
-        return s.decode()
-    return s
+        return s.decode(encoding, errors)
+    raise TypeError(f"not expecting type '{type(s)}'")

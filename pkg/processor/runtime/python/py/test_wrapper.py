@@ -30,8 +30,6 @@ import unittest.mock
 import msgpack
 import nuclio_sdk
 import nuclio_sdk.helpers
-import pkg_resources
-import six
 
 import _nuclio_wrapper as wrapper
 
@@ -79,8 +77,14 @@ class TestSubmitEvents(unittest.TestCase):
         self._unix_stream_server_thread.join()
 
     def test_non_utf8_headers(self):
+        """
+        This test validates the expected behavior for a non-utf8 event field contents
+        It sends 3 events, whereas the middle one has non-utf8 contents.
+        Should allow non-utf8 when NOT decoding utf8 and throw exception when trying to decode it
+        :return:
+        """
         self._wait_for_socket_creation()
-        self._wrapper._entrypoint = lambda context, event: six.ensure_str(event.body)
+        self._wrapper._entrypoint = lambda context, event: self._ensure_str(event.body)
 
         events = [
             json.loads(nuclio_sdk.Event(_id=str(i), body='e{0}'.format(i)).to_json())
@@ -111,8 +115,7 @@ class TestSubmitEvents(unittest.TestCase):
 
         malformed_response = self._unix_stream_server._messages[-3]['body']
 
-        # when using raw, the "malformed" is actually considered valid, as msgpack
-        # being able to deserialize non utf-8 event messages.
+        # when trying to decode, an error status code is expected
         if self._decode_events:
             self.assertEqual(http.client.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
         else:
@@ -224,7 +227,7 @@ class TestSubmitEvents(unittest.TestCase):
 
         for recorded_event_index, recorded_event in enumerate(sorted(recorded_events, key=operator.attrgetter('id'))):
             self.assertEqual(recorded_event_index, recorded_event.id)
-            self.assertEqual('e{}'.format(recorded_event_index), six.ensure_str(recorded_event.body))
+            self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
 
     # to run memory profiling test, uncomment the tests below
     # and from terminal run with
@@ -260,17 +263,17 @@ class TestSubmitEvents(unittest.TestCase):
     #         profiled_serve_requests_func(num_requests=num_of_events)
     #     self.assertEqual(num_of_events, self._wrapper._entrypoint.call_count, 'Received unexpected number of events')
 
+    def _send_events(self, events):
+        self._wait_for_socket_creation()
+        for event in events:
+            self._send_event(event)
+
     def _send_event(self, event):
         if not isinstance(event, dict):
             event = self._event_to_dict(event)
 
-        # on python 3.6, msgpack 0.6.1 default `use_bin_type` to False.
-        # on python > 3.6, msgpack 1.0.2 default `use_bin_type` to True.
-        # to be as close to the processor when it comes to sending events, we need `use_bin_type` to be False
-        packer = msgpack.Packer(use_bin_type=False)
-
-        # pack exactly as processor or wrapper explodes
-        body = packer.pack(event)
+        # event to a msgpack body message
+        body = msgpack.Packer().pack(event)
 
         # big endian body len
         body_len = struct.pack(">I", len(body))
@@ -286,11 +289,6 @@ class TestSubmitEvents(unittest.TestCase):
 
     def _event_to_dict(self, event):
         return json.loads(event.to_json())
-
-    def _send_events(self, events):
-        self._wait_for_socket_creation()
-        for event in events:
-            self._send_event(event)
 
     def _wait_for_socket_creation(self, timeout=10, interval=0.1):
 
@@ -319,6 +317,15 @@ class TestSubmitEvents(unittest.TestCase):
         self._unix_stream_server_thread.daemon = True
         self._unix_stream_server_thread.start()
         return unix_stream_server
+
+    def _ensure_str(self, s, encoding='utf-8', errors='strict'):
+
+        # Optimization: Fast return for the common case.
+        if type(s) is str:
+            return s
+        if isinstance(s, bytes):
+            return s.decode(encoding, errors)
+        raise TypeError(f"not expecting type '{type(s)}'")
 
     def _write_handler(self, temp_path):
         handler_code = '''import sys

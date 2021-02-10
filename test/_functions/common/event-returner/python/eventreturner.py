@@ -41,12 +41,20 @@ def handler(context, event):
         'typeVersion': event.type_version,
         'version': event.version,
         'body': body
-    }, default=_ensure_str)
+    }, default=_json_default)
 
 
-def _ensure_str(s):
+def _json_default(s):
+    if type(s) is bytes:
+        return _ensure_str(s)
+    return s
+
+
+def _ensure_str(s, encoding='utf-8', errors='strict'):
+
+    # Optimization: Fast return for the common case.
     if type(s) is str:
         return s
     if isinstance(s, bytes):
-        return s.decode()
-    return s
+        return s.decode(encoding, errors)
+    raise TypeError(f"not expecting type '{type(s)}'")
