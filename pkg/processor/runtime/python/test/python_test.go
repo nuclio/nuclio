@@ -99,7 +99,7 @@ func (suite *TestSuite) TestOutputs() {
 	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter:handler"
 	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
 		{
-			Name:  "NUCLIO_PYTHON_DECODE_EVENTS",
+			Name:  "NUCLIO_PYTHON_DECODE_EVENT_STRINGS",
 			Value: "true",
 		},
 	}
@@ -332,7 +332,7 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 	nonUTF8String := string([]byte{192, 175})
 
 	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
-		{Name: "NUCLIO_PYTHON_DECODE_EVENTS", Value: "true"},
+		{Name: "NUCLIO_PYTHON_DECODE_EVENT_STRINGS", Value: "true"},
 	}
 	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
@@ -361,7 +361,7 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 
 	// do not decode to utf8, allow incoming event messages to be byte string and not utf8 encoded.
 	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
-		{Name: "NUCLIO_PYTHON_DECODE_EVENTS", Value: "false"},
+		{Name: "NUCLIO_PYTHON_DECODE_EVENT_STRINGS", Value: "false"},
 	}
 	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
@@ -442,14 +442,16 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	for _, runtimeName := range []string{
-		"python:3.6",
-		"python:3.7",
-		"python:3.8",
+	for _, testCase := range []struct {
+		runtimeVersion string
+	}{
+		{runtimeVersion: "3.6"},
+		{runtimeVersion: "3.7"},
+		{runtimeVersion: "3.8"},
 	} {
-		t.Run(runtimeName, func(t *testing.T) {
+		t.Run(fmt.Sprintf("python:%s", testCase.runtimeVersion), func(t *testing.T) {
 			testSuite := new(TestSuite)
-			testSuite.runtime = runtimeName
+			testSuite.runtime = testCase.runtimeVersion
 			suite.Run(t, testSuite)
 		})
 	}

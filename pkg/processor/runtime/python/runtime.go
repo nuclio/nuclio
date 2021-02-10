@@ -95,7 +95,7 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 
 	// whether to decode incoming event messages
 	if py.resolveDecodeEvents() {
-		args = append(args, "--decode-events")
+		args = append(args, "--decode-event-strings")
 	}
 
 	py.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
@@ -184,7 +184,7 @@ func (py *python) resolveDecodeEvents() bool {
 
 	// switch case for explicitness
 	// do not resolve empty or null-able values as false/true for forward/backwards compatibility
-	switch strings.ToLower(os.Getenv("NUCLIO_PYTHON_DECODE_EVENTS")) {
+	switch strings.ToLower(os.Getenv("NUCLIO_PYTHON_DECODE_EVENT_STRINGS")) {
 	case "true":
 		return true
 	case "false":
