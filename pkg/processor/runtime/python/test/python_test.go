@@ -443,15 +443,15 @@ func TestIntegrationSuite(t *testing.T) {
 	}
 
 	for _, testCase := range []struct {
-		runtimeVersion string
+		runtimeName string
 	}{
-		{runtimeVersion: "3.6"},
-		{runtimeVersion: "3.7"},
-		{runtimeVersion: "3.8"},
+		{runtimeName: "python:3.6"},
+		{runtimeName: "python:3.7"},
+		{runtimeName: "python:3.8"},
 	} {
-		t.Run(fmt.Sprintf("python:%s", testCase.runtimeVersion), func(t *testing.T) {
+		t.Run(testCase.runtimeName, func(t *testing.T) {
 			testSuite := new(TestSuite)
-			testSuite.runtime = testCase.runtimeVersion
+			testSuite.runtime = testCase.runtimeName
 			suite.Run(t, testSuite)
 		})
 	}
