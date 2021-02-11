@@ -82,6 +82,9 @@ class Wrapper(object):
                                            worker_id,
                                            nuclio_sdk.TriggerInfo(trigger_kind, trigger_name))
 
+        # replace the default output with the process socket
+        self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
+
         # call init context
         if hasattr(entrypoint_module, 'init_context'):
             try:
@@ -89,9 +92,6 @@ class Wrapper(object):
             except:
                 self._logger.error('Exception raised while running init_context')
                 raise
-
-        # replace the default output with the process socket
-        self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
 
         # indicate that we're ready
         self._write_packet_to_processor('s')
