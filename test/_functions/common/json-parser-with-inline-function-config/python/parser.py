@@ -25,6 +25,7 @@
 
 import simplejson
 
+
 def handler(context, event):
     """Return a field from within a json"""
 

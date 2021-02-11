@@ -93,6 +93,11 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 		"--trigger-name", py.configuration.TriggerName,
 	}
 
+	// whether to decode incoming event messages
+	if py.resolveDecodeEvents() {
+		args = append(args, "--decode-event-strings")
+	}
+
 	py.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
 
 	cmd := exec.Command(args[0], args[1:]...)
@@ -173,4 +178,28 @@ func (py *python) getPythonExePath() (string, error) {
 
 func (py *python) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
 	return rpc.NewEventMsgPackEncoder(py.Logger, writer)
+}
+
+func (py *python) resolveDecodeEvents() bool {
+
+	// switch case for explicitness
+	// do not resolve empty or null-able values as false/true for forward/backwards compatibility
+	switch strings.ToLower(os.Getenv("NUCLIO_PYTHON_DECODE_EVENT_STRINGS")) {
+	case "true":
+		return true
+	case "false":
+		return false
+	}
+
+	// resolve by runtime version
+	switch _, runtimeVersion := common.GetRuntimeNameAndVersion(py.configuration.Spec.Runtime); runtimeVersion {
+
+	// python is an alias to 3.6 and hence, versionless runtime is assumed to be python3.6
+	case "", "3.6":
+
+		// backwards compatibility
+		return true
+	default:
+		return false
+	}
 }

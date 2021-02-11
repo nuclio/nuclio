@@ -14,6 +14,7 @@
 
 import json
 
+
 def handler(context, event):
 
     # for object bodies, just take it as is. otherwise decode
@@ -22,11 +23,16 @@ def handler(context, event):
     else:
         body = event.body
 
+    headers = {
+        _ensure_str(header): _ensure_str(value)
+        for header, value in event.headers.items()
+    }
+
     return json.dumps({
         'id': event.id,
         'eventType': event.trigger.kind,
         'contentType': event.content_type,
-        'headers': dict(event.headers),
+        'headers': headers,
         'timestamp': event.timestamp.isoformat('T') + 'Z',
         'path': event.path,
         'url': event.url,
@@ -35,4 +41,20 @@ def handler(context, event):
         'typeVersion': event.type_version,
         'version': event.version,
         'body': body
-    })
+    }, default=_json_default)
+
+
+def _json_default(s):
+    if type(s) is bytes:
+        return _ensure_str(s)
+    return s
+
+
+def _ensure_str(s, encoding='utf-8', errors='strict'):
+
+    # Optimization: Fast return for the common case.
+    if type(s) is str:
+        return s
+    if isinstance(s, bytes):
+        return s.decode(encoding, errors)
+    raise TypeError(f"not expecting type '{type(s)}'")

@@ -17,17 +17,21 @@ import json
 
 events_log_file_path = '/tmp/events.json'
 
+
 def handler(context, event):
     """post event to the request recorder"""
 
-    if event.trigger.kind != 'http' or event.get_header('x-nuclio-invoke-trigger') == 'cron':
+    if _ensure_str(event.trigger.kind) != 'http' or _invoked_by_cron(event):
         body = event.body.decode('utf-8')
         context.logger.info('Received event body: {0}'.format(body))
 
         # serialized record
         serialized_record = json.dumps({
             'body': body,
-            'headers': dict(event.headers),
+            'headers': {
+                _ensure_str(header): _ensure_str(value)
+                for header, value in event.headers.items()
+            },
             'timestamp': datetime.datetime.utcnow().isoformat(),
         })
 
@@ -51,3 +55,18 @@ def handler(context, event):
 
         # return json.loads(encoded_event_log)
         return encoded_event_log
+
+
+def _invoked_by_cron(event):
+    return event.get_header('x-nuclio-invoke-trigger') == 'cron' \
+           or event.get_header(b'x-nuclio-invoke-trigger') == b'cron'
+
+
+def _ensure_str(s, encoding='utf-8', errors='strict'):
+
+    # Optimization: Fast return for the common case.
+    if type(s) is str:
+        return s
+    if isinstance(s, bytes):
+        return s.decode(encoding, errors)
+    raise TypeError(f"not expecting type '{type(s)}'")

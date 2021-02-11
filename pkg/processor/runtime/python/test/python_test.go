@@ -38,6 +38,7 @@ import (
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 type TestSuite struct {
@@ -96,6 +97,12 @@ func (suite *TestSuite) TestOutputs() {
 		suite.GetFunctionPath("outputter"))
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter:handler"
+	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+		{
+			Name:  "NUCLIO_PYTHON_DECODE_EVENT_STRINGS",
+			Value: "true",
+		},
+	}
 
 	testRequests := []*httpsuite.Request{
 		{
@@ -284,9 +291,10 @@ func (suite *TestSuite) TestContextInitError() {
 	createFunctionOptions.FunctionConfig.Spec.Handler = "contextinitfail:handler"
 	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
 
-	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool { // nolint: errcheck
-		return true
-	})
+	suite.DeployFunctionExpectError(createFunctionOptions, // nolint: errcheck
+		func(deployResult *platform.CreateFunctionResult) bool {
+			return true
+		})
 }
 
 func (suite *TestSuite) TestModifiedRequestBodySize() {
@@ -318,17 +326,24 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 	createFunctionOptions := suite.GetDeployOptions("non-utf8-headers",
 		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
 	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
+	internalServerErrorStatus := http.StatusInternalServerError
+	okStatus := http.StatusOK
 
 	nonUTF8String := string([]byte{192, 175})
-	internalServerErrorStatus := http.StatusInternalServerError
+
+	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+		{Name: "NUCLIO_PYTHON_DECODE_EVENT_STRINGS", Value: "true"},
+	}
 	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
-			RequestMethod: http.MethodPost,
-			RequestBody:   nonUTF8String,
+
+			// event body is []bytes and hence would always be a python bytestring
+			// and hence no utf8 decoding is applied by msgpack
+			RequestMethod:              http.MethodPost,
+			RequestBody:                nonUTF8String,
+			ExpectedResponseStatusCode: &okStatus,
 		},
 		{
-
-			// failed, non utf8 headers can not be parsed
 			RequestBody:   "testBody",
 			RequestMethod: http.MethodPost,
 			RequestHeaders: map[string]interface{}{
@@ -339,7 +354,32 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 		{
 
 			// everything is back to normal
-			RequestMethod: http.MethodGet,
+			RequestMethod:              http.MethodGet,
+			ExpectedResponseStatusCode: &okStatus,
+		},
+	})
+
+	// do not decode to utf8, allow incoming event messages to be byte string and not utf8 encoded.
+	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+		{Name: "NUCLIO_PYTHON_DECODE_EVENT_STRINGS", Value: "false"},
+	}
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+		{
+			RequestMethod:              http.MethodPost,
+			RequestBody:                nonUTF8String,
+			ExpectedResponseStatusCode: &okStatus,
+		},
+		{
+			RequestBody:   "testBody",
+			RequestMethod: http.MethodPost,
+			RequestHeaders: map[string]interface{}{
+				"nonUTFHeader": nonUTF8String,
+			},
+			ExpectedResponseStatusCode: &okStatus,
+		},
+		{
+			RequestMethod:              http.MethodGet,
+			ExpectedResponseStatusCode: &okStatus,
 		},
 	})
 }
@@ -402,13 +442,17 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	for _, runtimeName := range []string{
-		"python:3.6",
-		"python:3.7",
-		"python:3.8",
+	for _, testCase := range []struct {
+		runtimeVersion string
+	}{
+		{runtimeVersion: "3.6"},
+		{runtimeVersion: "3.7"},
+		{runtimeVersion: "3.8"},
 	} {
-		testSuite := new(TestSuite)
-		testSuite.runtime = runtimeName
-		suite.Run(t, testSuite)
+		t.Run(fmt.Sprintf("python:%s", testCase.runtimeVersion), func(t *testing.T) {
+			testSuite := new(TestSuite)
+			testSuite.runtime = testCase.runtimeVersion
+			suite.Run(t, testSuite)
+		})
 	}
 }

@@ -20,6 +20,7 @@ limitations under the License.
 package test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
@@ -80,14 +81,17 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	for _, runtime := range []string{
-		"python",
-		"python:3.6",
-		"python:3.7",
-		"python:3.8",
+	for _, testCase := range []struct {
+		runtimeVersion string
+	}{
+		{runtimeVersion: "3.6"},
+		{runtimeVersion: "3.7"},
+		{runtimeVersion: "3.8"},
 	} {
-		TestSuite := new(TestSuite)
-		TestSuite.runtime = runtime
-		suite.Run(t, TestSuite)
+		t.Run(fmt.Sprintf("python:%s", testCase.runtimeVersion), func(t *testing.T) {
+			testSuite := new(TestSuite)
+			testSuite.runtime = testCase.runtimeVersion
+			suite.Run(t, testSuite)
+		})
 	}
 }
