@@ -38,6 +38,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	// load runtimes so that they register to runtime registry
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/deno"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
@@ -408,6 +409,7 @@ func (b *Builder) initializeSupportedRuntimes() {
 	b.runtimeInfo["python:3.7"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["python:3.8"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["nodejs"] = runtimeInfo{"js", slashSlashParser, 0}
+	b.runtimeInfo["deno"] = runtimeInfo{"ts", slashSlashParser, 0}
 	b.runtimeInfo["java"] = runtimeInfo{"java", slashSlashParser, 0}
 	b.runtimeInfo["ruby"] = runtimeInfo{"rb", poundParser, 0}
 	b.runtimeInfo["dotnetcore"] = runtimeInfo{"cs", slashSlashParser, 0}

@@ -137,7 +137,8 @@ DOCKER_IMAGES_RULES ?= \
 	handler-builder-ruby-onbuild \
 	handler-builder-python-onbuild \
 	handler-builder-dotnetcore-onbuild \
-	handler-builder-nodejs-onbuild
+	handler-builder-nodejs-onbuild \
+	handler-builder-deno-onbuild
 
 docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
 	@echo Done.
@@ -344,6 +345,20 @@ handler-builder-nodejs-onbuild:
 ifneq ($(filter handler-builder-nodejs-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME))
 endif
+
+
+# Deno
+NUCLIO_DOCKER_HANDLER_BUILDER_DENO_ONBUILD_IMAGE_NAME=\
+$(NUCLIO_DOCKER_REPO)/handler-builder-deno-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+
+handler-builder-deno-onbuild:
+	docker build \
+		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--file pkg/processor/build/runtime/deno/docker/onbuild/Dockerfile \
+		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_DENO_ONBUILD_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_DENO_ONBUILD_IMAGE_NAME)
 
 # Ruby
 NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME=\
