@@ -82,9 +82,12 @@ endif
 # alpine is commonly used by controller / dlx / autoscaler
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_ALPINE_IMAGE ?= arm32v7/alpine:3.11
+	NUCLIO_ONBUILD_PYTHON_IMAGE ?= arm32v7/python
 else ifeq ($(NUCLIO_ARCH), arm64)
 	NUCLIO_DOCKER_ALPINE_IMAGE ?= arm64v8/alpine:3.11
+	NUCLIO_ONBUILD_PYTHON_IMAGE ?= arm64v8/python
 else
+	NUCLIO_ONBUILD_PYTHON_IMAGE ?= python
 	NUCLIO_DOCKER_ALPINE_IMAGE ?= alpine:3.11
 endif
 
@@ -293,6 +296,7 @@ PIP_REQUIRE_VIRTUALENV=false
 
 handler-builder-python-onbuild:
 	docker build \
+		--build-arg NUCLIO_ONBUILD_PYTHON_IMAGE=$(NUCLIO_ONBUILD_PYTHON_IMAGE) \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/python/docker/onbuild/Dockerfile \
