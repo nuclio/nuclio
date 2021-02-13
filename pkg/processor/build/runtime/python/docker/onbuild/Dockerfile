@@ -21,13 +21,6 @@ FROM $NUCLIO_ONBUILD_PYTHON_IMAGE:3.6 as python36-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
-# Common wheels
-RUN pip download \
-        --no-binary msgpack \
-        --dest /whl \
-        --exists-action i \
-        --requirement /requirements/common.txt
-
 # Python 3.6 wheels
 RUN pip download \
         --dest /whl \
@@ -39,13 +32,6 @@ FROM $NUCLIO_ONBUILD_PYTHON_IMAGE:3.7 as python37-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
-# Common wheels
-RUN pip download \
-        --no-binary msgpack \
-        --dest /whl \
-        --exists-action i \
-        --requirement /requirements/common.txt
-
 # Python 3.7 wheels
 RUN pip download \
         --dest /whl \
@@ -56,13 +42,6 @@ RUN pip download \
 FROM $NUCLIO_ONBUILD_PYTHON_IMAGE:3.8 as python38-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
-
-# Common wheels
-RUN pip download \
-        --no-binary msgpack \
-        --dest /whl \
-        --exists-action i \
-        --requirement /requirements/common.txt
 
 # Python 3.8 wheels
 RUN pip download \
