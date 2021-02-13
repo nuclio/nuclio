@@ -14,10 +14,9 @@
 
 ARG NUCLIO_LABEL=latest
 ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_ONBUILD_PYTHON_IMAGE=python
 
 # Supplies python 3.6 & common wheels
-FROM $NUCLIO_ONBUILD_PYTHON_IMAGE:3.6 as python36-builder
+FROM python:3.6 as python36-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
@@ -28,7 +27,7 @@ RUN pip download \
         --requirement /requirements/python3_6.txt
 
 # Supplies python 3.7 & common wheels
-FROM $NUCLIO_ONBUILD_PYTHON_IMAGE:3.7 as python37-builder
+FROM python:3.7 as python37-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
@@ -39,7 +38,7 @@ RUN pip download \
         --requirement /requirements/python3_7.txt
 
 # Supplies python 3.8 & common wheels
-FROM $NUCLIO_ONBUILD_PYTHON_IMAGE:3.8 as python38-builder
+FROM python:3.8 as python38-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 

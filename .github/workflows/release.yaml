@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'nuclio/nuclio'
     strategy:
+      fail-fast: false
       matrix:
         arch: [ arm64, amd64 ]
     steps:
