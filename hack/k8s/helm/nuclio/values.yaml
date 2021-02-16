@@ -225,6 +225,10 @@ platform: {}
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:
+  externalHostAddress:
   registry:
     url:
     secretName:
+  nuclio:
+    dashboard:
+      nodePort:
