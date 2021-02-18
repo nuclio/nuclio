@@ -116,20 +116,24 @@ func (suite *DeployFunctionTestSuite) TestDeployFromGit() {
 		// invoke the function - make sure it works properly
 		url := fmt.Sprintf("http://%s", functionIngressHost)
 
-		suite.Logger.DebugWith("Invoking the function", "url", url)
-		httpResponse, err := http.Post(url, "application/text", bytes.NewBuffer([]byte("siht-esrever")))
-		if err != nil {
-			suite.Logger.WarnWith("Failed to invoke the function", "url", url, "err", err)
-			return false
-		}
+		err = common.RetryUntilSuccessful(1*time.Minute, 3*time.Second, func() bool {
+			suite.Logger.DebugWith("Invoking the function", "url", url)
 
-		responseBody, err := ioutil.ReadAll(httpResponse.Body)
-		if err != nil {
-			suite.Logger.WarnWith("Failed to read response body", "err", err)
-			return false
-		}
+			httpResponse, err := http.Post(url, "application/text", bytes.NewBuffer([]byte("siht-esrever")))
+			if err != nil {
+				suite.Logger.WarnWith("Failed to invoke the function", "url", url, "err", err)
+				return false
+			}
 
-		suite.Require().Equal(string(responseBody), "reverse-this")
+			responseBody, err := ioutil.ReadAll(httpResponse.Body)
+			if err != nil {
+				suite.Logger.WarnWith("Failed to read response body", "err", err)
+				return false
+			}
+
+			return string(responseBody) == "reverse-this"
+		})
+		suite.Require().NoError(err)
 
 		return true
 	})
