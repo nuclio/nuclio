@@ -108,6 +108,10 @@ func (mp *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
+func (mp *Platform) GetBuildArgs(runtime runtime.Runtime) map[string]string {
+	return map[string]string{}
+}
+
 //
 // API Gateway
 //
