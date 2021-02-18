@@ -20,6 +20,7 @@ limitations under the License.
 package test
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -35,11 +36,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
+	testk8s "github.com/nuclio/nuclio/test/common/k8s"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 	"github.com/sosedoff/gitkit"
 	"github.com/stretchr/testify/suite"
@@ -58,12 +59,15 @@ type DeployFunctionTestSuite struct {
 func (suite *DeployFunctionTestSuite) TestDeployFromGit() {
 	branch := "refs/heads/test-deploy-from-git"
 
+	functionIngressHost := testk8s.GetDefaultIngressHost()
+
 	createFunctionOptions := suite.CompileCreateFunctionOptions("reverser-from-git")
+	createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeClusterIP
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = "" // empty source code so it'll build from git
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = "http://localhost:5050/org/repo.git"
 	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = build.GitEntryType
 	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
-		"branch": branch,
+		"branch":  branch,
 		"workDir": "common/reverser/python",
 		"gitCredentials": map[string]interface{}{
 			"accessToken": "goodAccessToken",
@@ -71,6 +75,21 @@ func (suite *DeployFunctionTestSuite) TestDeployFromGit() {
 	}
 	createFunctionOptions.FunctionConfig.Spec.Handler = "reverser:handler"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+
+		// create http trigger with ingress, so we can invoke the function using it later (for testing on minikube)
+		"httptrig": {
+			Kind: "http",
+			Attributes: map[string]interface{}{
+				"ingresses": map[string]interface{}{
+					"0": map[string]interface{}{
+						"host":  functionIngressHost,
+						"paths": []string{"/"},
+					},
+				},
+			},
+		},
+	}
 
 	service := gitkit.New(gitkit.Config{
 		Dir:        suite.GetTestGitReposDir(),
@@ -92,7 +111,24 @@ func (suite *DeployFunctionTestSuite) TestDeployFromGit() {
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
-		// TODO: add here a test that the function is indeed running and reversing
+		// invoke the function - make sure it works properly
+		url := fmt.Sprintf("http://%s", functionIngressHost)
+
+		suite.Logger.DebugWith("Invoking the function", "url", url)
+		httpResponse, err := http.Post(url, "application/text", bytes.NewBuffer([]byte("siht-esrever")))
+		if err != nil {
+			suite.Logger.WarnWith("Failed to invoke the function", "url", url, "err", err)
+			return false
+		}
+
+		responseBody, err := ioutil.ReadAll(httpResponse.Body)
+		if err != nil {
+			suite.Logger.WarnWith("Failed to read response body", "err", err)
+			return false
+		}
+
+		suite.Require().Equals(string(responseBody), "reverse-this")
+
 		return true
 	})
 }
