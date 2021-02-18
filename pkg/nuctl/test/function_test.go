@@ -1,3 +1,6 @@
+// +build test_integration
+// +build test_kube test_local
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -26,8 +29,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -36,9 +37,9 @@ import (
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/processor/build"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/ghodss/yaml"
+	"github.com/gobuffalo/flect"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
@@ -97,38 +98,86 @@ type functionDeployTestSuite struct {
 }
 
 func (suite *functionDeployTestSuite) TestDeploy() {
-	uniqueSuffix := "-" + xid.New().String()
-	functionName := "deploy-reverser" + uniqueSuffix
-	imageName := "nuclio/processor-" + functionName
-
-	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-		"runtime": "golang",
-		"handler": "main:Reverse",
-	}
-
-	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
-
-	suite.Require().NoError(err)
-
-	// make sure to clean up after the test
-	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
-
-	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
-
-	// try a few times to invoke, until it succeeds
-	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
-		map[string]string{
-			"method": "POST",
-			"body":   "-reverse this string+",
-			"via":    "external-ip",
+	for _, runtimeInfo := range []struct {
+		runtime  string
+		handler  string
+		filename string
+	}{
+		{
+			runtime:  "golang",
+			handler:  "empty:Handler",
+			filename: "empty.go",
 		},
-		false)
-	suite.Require().NoError(err)
+		{
+			runtime:  "java",
+			handler:  "EmptyHandler",
+			filename: "EmptyHandler.java",
+		},
+		{
+			runtime:  "nodejs",
+			handler:  "empty:handler",
+			filename: "empty.js",
+		},
+		{
+			runtime:  "dotnetcore",
+			handler:  "nuclio:empty",
+			filename: "empty.cs",
+		},
+		{
+			runtime:  "python:3.6",
+			handler:  "empty:handler",
+			filename: "empty.py",
+		},
+		{
+			runtime:  "python:3.7",
+			handler:  "empty:handler",
+			filename: "empty.py",
+		},
+		{
+			runtime:  "python:3.8",
+			handler:  "empty:handler",
+			filename: "empty.py",
+		},
+		{
+			runtime:  "ruby",
+			handler:  "empty:main",
+			filename: "empty.rb",
+		},
+		{
+			runtime:  "shell",
+			handler:  "empty.sh:main",
+			filename: "empty.sh",
+		},
+	} {
+		suite.Run(runtimeInfo.runtime, func() {
+			runtimeName, _ := common.GetRuntimeNameAndVersion(runtimeInfo.runtime)
+			functionName := fmt.Sprintf("test-%s-%s",
+				flect.Dasherize(runtimeInfo.runtime),
+				xid.New().String())
+			namedArgs := map[string]string{
+				"path":    path.Join(suite.GetExamples(), runtimeName, "empty", runtimeInfo.filename),
+				"runtime": runtimeInfo.runtime,
+				"handler": runtimeInfo.handler,
+			}
+			suite.logger.DebugWith("Deploying function",
+				"functionName", functionName,
+				"namedArgs", namedArgs,
+			)
+			err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+			suite.Require().NoError(err)
 
-	// make sure reverser worked
-	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+			// use nutctl to delete the function when we're done
+			defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+			// try a few times to invoke, until it succeeds
+			err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
+				map[string]string{
+					"via": "external-ip",
+				},
+				false)
+			suite.Require().NoError(err)
+		})
+	}
 }
 
 func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
@@ -728,7 +777,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	suite.Require().NoError(err)
 
 	// name uniqueness
-	functionConfig.Meta.Name = functionConfig.Meta.Name + uniqueSuffix
+	functionConfig.Meta.Name += uniqueSuffix
 
 	// ensure no resource version
 	functionConfig.Meta.ResourceVersion = ""
@@ -948,7 +997,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-			"runtime": "python:3.6",
+			"runtime": "python:3.8",
 			"handler": "reverser:handler",
 		})
 	suite.Require().NoError(err)
@@ -1009,118 +1058,6 @@ func (suite *functionDeployTestSuite) TestDeployWaitReadinessTimeoutBeforeFailur
 
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
-}
-
-// TODO: un-comment when cron triggers are implemented by default as k8s cron jobs or there's k8s testing infra
-//func (suite *functionDeployTestSuite) TestDeployCronTriggersK8s() {
-//
-//	suite.ensureRunningOnPlatform("kube")
-//
-//	uniqueSuffix := "-" + xid.New().String()
-//	functionName := "event-recorder" + uniqueSuffix
-//	imageName := "nuclio/processor-" + functionName
-//
-//	namedArgs := map[string]string{
-//		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
-//		"runtime": "python",
-//		"handler": "event_recorder:handler",
-//		"triggers": `{
-//    "crontrig": {
-//        "kind": "cron",
-//        "attributes": {
-//            "interval": "3s",
-//            "event": {
-//                "body": "somebody",
-//                "headers": {
-//                    "Extra-Header-1": "value1",
-//                    "Extra-Header-2": "value2"
-//                }
-//            }
-//        }
-//    }
-//}`,
-//	}
-//
-//	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
-//	suite.Require().NoError(err)
-//
-//	// use nutctl to delete the function when we're done
-//	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
-//
-//	// make sure to clean up after the test
-//	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
-//
-//	// try a few times to invoke, until it succeeds (validate function deployment finished)
-//	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
-//		map[string]string{
-//			"method": "POST",
-//			"via":    "external-ip",
-//		},
-//		false)
-//	suite.Require().NoError(err)
-//
-//	// wait 15 seconds so at least 1 interval will pass
-//	suite.logger.InfoWith("Sleeping for 15 sec (so at least 1 interval will pass)")
-//	time.Sleep(15 * time.Second)
-//	suite.logger.InfoWith("Done sleeping")
-//
-//	suite.outputBuffer.Reset()
-//
-//	// try a few times to invoke, until it succeeds
-//	// the output buffer should contain a response body with the function's called events from the cron trigger
-//	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
-//		map[string]string{
-//			"method": "POST",
-//			"via":    "external-ip",
-//		},
-//		false)
-//	suite.Require().NoError(err)
-//
-//	events := suite.parseEventsRecorderOutput(suite.outputBuffer.String())
-//
-//	// validate at least 1 cron job ran
-//	suite.Require().GreaterOrEqual(len(events), 1)
-//
-//	// validate the body was sent
-//	suite.Require().Equal(events[0].Body, "somebody")
-//
-//	// validate headers were attached properly
-//	suite.Require().Contains(events[0].Headers, "X-Nuclio-Invoke-Trigger")
-//	suite.Require().Contains(events[0].Headers, "Extra-Header-1")
-//	suite.Require().Contains(events[0].Headers, "Extra-Header-2")
-//}
-
-func (suite *functionDeployTestSuite) parseEventsRecorderOutput(outputBufferString string) []triggertest.Event {
-	var foundResponseBody bool
-	var responseBody string
-	var events []triggertest.Event
-
-	suite.logger.InfoWith("Parsing event recorder output", "outputBufferString", outputBufferString)
-
-	// try unquote response from output buffer (continue normally if it's not a quoted string)
-	response, err := strconv.Unquote(outputBufferString)
-	if err != nil {
-		response = outputBufferString
-	}
-
-	// find the response body in the output buffer
-	responseLines := strings.Split(response, "\n")
-	for _, line := range responseLines {
-		if foundResponseBody {
-			responseBody = line
-			break
-		}
-		if strings.Contains(line, "Response body") {
-			foundResponseBody = true
-			continue
-		}
-	}
-
-	suite.logger.InfoWith("Parsing events from response body", "responseBody", responseBody)
-	err = json.Unmarshal([]byte(responseBody), &events)
-	suite.Require().NoError(err)
-
-	return events
 }
 
 func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {

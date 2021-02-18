@@ -1,3 +1,6 @@
+// +build test_integration
+// +build test_local
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -77,12 +80,17 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	for _, runtime := range []string{
-		"python",
-		"python:3.6",
+	for _, testCase := range []struct {
+		runtimeName string
+	}{
+		{runtimeName: "python:3.6"},
+		{runtimeName: "python:3.7"},
+		{runtimeName: "python:3.8"},
 	} {
-		TestSuite := new(TestSuite)
-		TestSuite.runtime = runtime
-		suite.Run(t, TestSuite)
+		t.Run(testCase.runtimeName, func(t *testing.T) {
+			testSuite := new(TestSuite)
+			testSuite.runtime = testCase.runtimeName
+			suite.Run(t, testSuite)
+		})
 	}
 }

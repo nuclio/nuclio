@@ -18,14 +18,27 @@ linters:
     - govet
     - structcheck
     - typecheck
+    - gocritic
 
 run:
 
   # timeout for analysis
   timeout: 5m
+  build-tags:
+    - test_unit
+    - test_integration
+    - test_kube
+    - test_local
+    - test_iguazio
+    - test_broken
 
   skip-dirs:
     - docs
+
+linters-settings:
+  gocritic:
+    disabled-checks:
+      - commentFormatting # we dont want to enforce space before the comment text
 
 issues:
 
@@ -33,7 +46,6 @@ issues:
   exclude:
     - "comment on"
     - "error should be the last"
-    - "should have comment"
 
   exclude-rules:
 

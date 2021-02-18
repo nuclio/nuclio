@@ -1,3 +1,6 @@
+// +build test_integration
+// +build test_kube
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -28,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+	testk8s "github.com/nuclio/nuclio/test/common/k8s"
 
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
@@ -37,9 +41,12 @@ type apiGatewayCreateGetAndDeleteTestSuite struct {
 	Suite
 }
 
-func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
-	suite.ensureRunningOnPlatform("kube")
+func (suite *apiGatewayCreateGetAndDeleteTestSuite) SetupSuite() {
+	suite.platformKindOverride = "kube"
+	suite.Suite.SetupSuite()
+}
 
+func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 	numOfAPIGateways := 3
 
 	for apiGatewayIdx := 0; apiGatewayIdx < numOfAPIGateways; apiGatewayIdx++ {
@@ -90,7 +97,6 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 }
 
 func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateFailsOnReservedResourceName() {
-	suite.ensureRunningOnPlatform("kube")
 	apiGatewayName := "dashboard"
 
 	namedArgs := map[string]string{
@@ -120,6 +126,11 @@ type apiGatewayInvokeTestSuite struct {
 	Suite
 }
 
+func (suite *apiGatewayInvokeTestSuite) SetupSuite() {
+	suite.platformKindOverride = "kube"
+	suite.Suite.SetupSuite()
+}
+
 func (suite *apiGatewayInvokeTestSuite) TestInvokeAuthenticationModeBasicAuth() {
 	suite.testInvoke(ingress.AuthenticationModeBasicAuth)
 }
@@ -129,8 +140,6 @@ func (suite *apiGatewayInvokeTestSuite) TestInvokeAuthenticationModeNone() {
 }
 
 func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.AuthenticationMode) {
-	suite.ensureRunningOnPlatform("kube")
-
 	functionName := suite.deployFunction()
 
 	// use nutctl to delete the function when we're done
@@ -140,7 +149,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 
 	apiGatewayName := "get-test-apigateway" + uniqueSuffix
 
-	apiGatewayHost := suite.getAPIGatewayDefaultHost()
+	apiGatewayHost := testk8s.GetDefaultIngressHost()
 	apiGatewayPath := "/some-path"
 	basicAuthUsername := "basic-username"
 	basicAuthPassword := "basic-password"
@@ -213,20 +222,6 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 		// expect it to fail due to unauthorized request
 		suite.Require().Equal(statusCode, http.StatusUnauthorized)
 	}
-}
-
-func (suite *apiGatewayInvokeTestSuite) getAPIGatewayDefaultHost() string {
-	defaultTestAPIGatewayHost := common.GetEnvOrDefaultString("NUCTL_TEST_DEFAULT_APIGATEWAY_HOST", "")
-	if defaultTestAPIGatewayHost != "" {
-		return defaultTestAPIGatewayHost
-	}
-
-	// select host address according to system's kubernetes runner (minikube / docker-for-mac)
-	if common.GetEnvOrDefaultString("MINIKUBE_HOME", "") != "" {
-		return "host.minikube.internal"
-	}
-
-	return "kubernetes.docker.internal"
 }
 
 func (suite *apiGatewayInvokeTestSuite) deployFunction() string {

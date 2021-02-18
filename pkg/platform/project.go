@@ -45,12 +45,12 @@ type AbstractProject struct {
 
 func NewAbstractProject(parentLogger logger.Logger,
 	parentPlatform Platform,
-	ProjectConfig ProjectConfig) (*AbstractProject, error) {
+	projectConfig ProjectConfig) (*AbstractProject, error) {
 
 	return &AbstractProject{
 		Logger:        parentLogger.GetChild("project"),
 		Platform:      parentPlatform,
-		ProjectConfig: ProjectConfig,
+		ProjectConfig: projectConfig,
 	}, nil
 }
 

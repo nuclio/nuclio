@@ -31,11 +31,11 @@ type Configuration struct {
 	Password   string
 }
 
-func NewConfiguration(ID string, databindingConfiguration *functionconfig.DataBinding) (*Configuration, error) {
+func NewConfiguration(id string, databindingConfiguration *functionconfig.DataBinding) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *databinding.NewConfiguration(ID, databindingConfiguration)
+	newConfiguration.Configuration = *databinding.NewConfiguration(id, databindingConfiguration)
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {

@@ -80,10 +80,11 @@ func (config *Config) GetSystemLoggerSinks() (map[string]LoggerSinkWithLevel, er
 
 func (config *Config) GetFunctionLoggerSinks(functionConfig *functionconfig.Config) (map[string]LoggerSinkWithLevel, error) {
 	var loggerSinkBindings []LoggerSinkBinding
+	switch {
 
 	// if user specified only one logger sink and did not specify its name, this is the way to specify the level
 	// and use platform configuration
-	if len(functionConfig.Spec.LoggerSinks) == 1 && functionConfig.Spec.LoggerSinks[0].Sink == "" {
+	case len(functionConfig.Spec.LoggerSinks) == 1 && functionConfig.Spec.LoggerSinks[0].Sink == "":
 		for _, loggerSinkBinding := range config.Logger.Functions {
 			loggerSinkBindings = append(loggerSinkBindings, LoggerSinkBinding{
 				Sink:  loggerSinkBinding.Sink,
@@ -91,15 +92,15 @@ func (config *Config) GetFunctionLoggerSinks(functionConfig *functionconfig.Conf
 			})
 		}
 
-		// if the function specifies logger sinks, use that. otherwise use the default platform-specified logger sinks
-	} else if len(functionConfig.Spec.LoggerSinks) > 0 {
+	// if the function specifies logger sinks, use that. otherwise use the default platform-specified logger sinks
+	case len(functionConfig.Spec.LoggerSinks) > 0:
 		for _, loggerSink := range functionConfig.Spec.LoggerSinks {
 			loggerSinkBindings = append(loggerSinkBindings, LoggerSinkBinding{
 				Level: loggerSink.Level,
 				Sink:  loggerSink.Sink,
 			})
 		}
-	} else {
+	default:
 		loggerSinkBindings = config.Logger.Functions
 	}
 

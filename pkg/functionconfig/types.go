@@ -19,7 +19,6 @@ package functionconfig
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/v3io/scaler-types"
@@ -288,20 +287,6 @@ func (s *Spec) DeepCopyInto(out *Spec) {
 	*out = *s
 }
 
-// GetRuntimeNameAndVersion return runtime and version
-func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
-	runtimeAndVersion := strings.Split(s.Runtime, ":")
-
-	switch len(runtimeAndVersion) {
-	case 1:
-		return runtimeAndVersion[0], ""
-	case 2:
-		return runtimeAndVersion[0], runtimeAndVersion[1]
-	default:
-		return "", ""
-	}
-}
-
 // GetHTTPPort returns the HTTP port
 func (s *Spec) GetHTTPPort() int {
 	if s.Triggers == nil {
@@ -355,7 +340,7 @@ func (s *Spec) GetEventTimeout() (time.Duration, error) {
 	return timeout, err
 }
 
-//PositiveGPUResourceLimit returns whether gpu is assigned
+// PositiveGPUResourceLimit returns whether gpu is assigned
 func (s *Spec) PositiveGPUResourceLimit() bool {
 	if gpuResourceLimit, found := s.Resources.Limits[NvidiaGPUResourceName]; found {
 		return !gpuResourceLimit.IsZero()

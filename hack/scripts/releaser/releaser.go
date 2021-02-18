@@ -723,18 +723,22 @@ func (r *Release) populateBumpedVersions() error {
 	}
 
 	// bump targets
-	if r.bumpPatch {
+	switch {
+	case r.bumpPatch:
+		r.logger.Info("Bumping patch version")
 		r.targetVersion.BumpPatch()
 		r.helmChartsTargetVersion.BumpPatch()
-	} else if r.bumpMinor {
+	case r.bumpMinor:
+		r.logger.Info("Bumping minor version")
 		r.targetVersion.BumpMinor()
 		r.helmChartsTargetVersion.BumpMinor()
-	} else if r.bumpMajor {
+	case r.bumpMajor:
+		r.logger.Info("Bumping major version")
 		r.targetVersion.BumpMajor()
 		r.helmChartsTargetVersion.BumpMajor()
 	}
 
-	r.logger.DebugWith("Successfully bumped patch versions",
+	r.logger.DebugWith("Successfully bumped version",
 		"currentVersion", r.currentVersion,
 		"currentHelmChartsVersion", r.helmChartConfig.Version,
 		"targetVersion", r.targetVersion,

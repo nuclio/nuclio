@@ -35,8 +35,7 @@ func ResolveErrorStatusCodeOrDefault(err error, defaultStatusCode int) int {
 		currentErr = cause
 	}
 
-	switch err.(type) {
-	case *errors.Error:
+	if _, ok := err.(*errors.Error); ok {
 		return http.StatusInternalServerError
 	}
 

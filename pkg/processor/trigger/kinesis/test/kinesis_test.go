@@ -1,3 +1,6 @@
+// +build test_integration
+// +build test_local
+
 /*
 Copyright 2018 The Nuclio Authors.
 
@@ -37,12 +40,11 @@ type testSuite struct {
 	shards          []string
 	useDummyKinesis bool
 
-	brokerContainerNetwork string
-	brokerContainerPort    int
-	brokerContainerName    string
-	brokerSecretAccessKey  string
-	brokerAccessKeyID      string
-	brokerRegionName       string
+	brokerContainerPort   int
+	brokerContainerName   string
+	brokerSecretAccessKey string
+	brokerAccessKeyID     string
+	brokerRegionName      string
 }
 
 func newTestSuite() *testSuite {
@@ -65,7 +67,7 @@ func (suite *testSuite) SetupSuite() {
 	// kineses test & function clients configuration
 	suite.brokerContainerPort = 4567
 	suite.brokerContainerName = "nuclio-kinesis"
-	suite.brokerContainerNetwork = "nuclio-kinesis-network"
+	suite.BrokerContainerNetworkName = "nuclio-kinesis-network"
 
 	// setup parent
 	suite.AbstractBrokerSuite.SetupSuite()
@@ -102,7 +104,7 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 	return "instructure/kinesalite", &dockerclient.RunOptions{
 		ContainerName: suite.brokerContainerName,
 		Ports:         map[int]int{suite.brokerContainerPort: suite.brokerContainerPort},
-		Network:       suite.brokerContainerNetwork,
+		Network:       suite.BrokerContainerNetworkName,
 	}
 }
 
@@ -112,7 +114,7 @@ func (suite *testSuite) getDeployOptions(functionName string) *platform.CreateFu
 	if suite.useDummyKinesis {
 		// function must be within the same network of broker to allow communication
 		createFunctionOptions.FunctionConfig.Spec.Platform.Attributes = map[string]interface{}{
-			"network": suite.brokerContainerNetwork,
+			"network": suite.BrokerContainerNetworkName,
 		}
 	}
 

@@ -44,7 +44,6 @@ require (
 	github.com/nuclio/zap v0.0.4
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/prometheus/client_golang v1.1.0
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/robfig/cron v1.2.0
@@ -54,17 +53,16 @@ require (
 	github.com/sosedoff/gitkit v0.2.0
 	github.com/spf13/cobra v0.0.5
 	github.com/streadway/amqp v0.0.0-20190815230801-eade30b20f1d
-	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/tedsuo/ifrit v0.0.0-20191009134036-9a97d0632f00 // indirect
-	github.com/tsenart/vegeta v6.3.0+incompatible
+	github.com/tsenart/vegeta/v12 v12.8.4
 	github.com/v3io/scaler v0.4.0
 	github.com/v3io/scaler-types v1.7.0
 	github.com/v3io/v3io-go v0.2.3
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
 	github.com/valyala/fasthttp v1.14.0
-	github.com/vmihailenco/msgpack v4.0.4+incompatible
+	github.com/vmihailenco/msgpack/v4 v4.3.12
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1
@@ -76,4 +74,4 @@ require (
 	pack.ag/amqp v0.12.5
 )
 
-replace github.com/Shopify/sarama => github.com/iguazio/sarama v1.25.1-0.20200331135945-d92101249c96
+replace github.com/Shopify/sarama => github.com/iguazio/sarama v1.25.1-0.20201117150928-15517d41c014

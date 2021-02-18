@@ -45,13 +45,15 @@ class Wrapper(object):
                  namespace=None,
                  worker_id=None,
                  trigger_kind=None,
-                 trigger_name=None):
+                 trigger_name=None,
+                 decode_event_strings=True):
         self._logger = logger
         self._socket_path = socket_path
         self._json_encoder = nuclio_sdk.json_encoder.Encoder()
         self._entrypoint = None
         self._processor_sock = None
         self._platform = nuclio_sdk.Platform(platform_kind, namespace=namespace)
+        self._decode_event_strings = decode_event_strings
 
         # 1gb
         self._max_buffer_size = 1024 * 1024 * 1024
@@ -68,6 +70,9 @@ class Wrapper(object):
         # create msgpack unpacker
         self._unpacker = self._resolve_unpacker()
 
+        # event deserializer kind (e.g.: msgpack_raw / json)
+        self._event_deserializer_kind = self._resolve_event_deserializer_kind()
+
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
 
@@ -77,6 +82,9 @@ class Wrapper(object):
                                            worker_id,
                                            nuclio_sdk.TriggerInfo(trigger_kind, trigger_name))
 
+        # replace the default output with the process socket
+        self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
+
         # call init context
         if hasattr(entrypoint_module, 'init_context'):
             try:
@@ -84,9 +92,6 @@ class Wrapper(object):
             except:
                 self._logger.error('Exception raised while running init_context')
                 raise
-
-        # replace the default output with the process socket
-        self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
 
         # indicate that we're ready
         self._write_packet_to_processor('s')
@@ -105,7 +110,7 @@ class Wrapper(object):
                 event_message = self._resolve_event(event_message_length)
 
                 # instantiate event message
-                event = nuclio_sdk.Event.from_msgpack(event_message)
+                event = nuclio_sdk.Event.deserialize(event_message, kind=self._event_deserializer_kind)
 
                 try:
                     self._handle_event(event)
@@ -139,8 +144,18 @@ class Wrapper(object):
         Since this wrapper is behind the nuclio processor, in which pre-handle the traffic & request
         it is not mandatory to provide security over max buffer size.
         the request limit should be handled on the processor level.
+
+        unpacker raw determines whether an incoming message would be decoded to utf8
         """
-        return msgpack.Unpacker(raw=False, max_buffer_size=self._max_buffer_size)
+        return msgpack.Unpacker(raw=not self._decode_event_strings, max_buffer_size=self._max_buffer_size)
+
+    def _resolve_event_deserializer_kind(self):
+        """
+        Event deserializer kind to use when deserializing incoming event messages
+        """
+        if self._decode_event_strings:
+            return nuclio_sdk.event.EventDeserializerKinds.msgpack
+        return nuclio_sdk.event.EventDeserializerKinds.msgpack_raw
 
     def _load_entrypoint_from_handler(self, handler):
         """
@@ -316,6 +331,10 @@ def parse_args():
 
     parser.add_argument('--worker-id')
 
+    parser.add_argument('--decode-event-strings',
+                        action='store_true',
+                        help='Decode event strings to utf8 (Decoding is done via msgpack, Default: False)')
+
     return parser.parse_args()
 
 
@@ -344,7 +363,8 @@ def run_wrapper():
                                    args.namespace,
                                    args.worker_id,
                                    args.trigger_kind,
-                                   args.trigger_name)
+                                   args.trigger_name,
+                                   args.decode_event_strings)
 
     except BaseException as exc:
         root_logger.error_with('Caught unhandled exception while initializing',

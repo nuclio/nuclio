@@ -597,7 +597,7 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 
 	runResult, err = c.runCommand(nil,
 		"docker inspect %s",
-		strings.Replace(containerIDsAsString, "\n", " ", -1))
+		strings.ReplaceAll(containerIDsAsString, "\n", " "))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to inspect containers")
 	}
@@ -776,7 +776,7 @@ func (c *ShellClient) getLastNonEmptyLine(lines []string, offset int) string {
 }
 
 func (c *ShellClient) replaceSingleQuotes(input string) string {
-	return strings.Replace(input, "'", "’", -1)
+	return strings.ReplaceAll(input, "'", "’")
 }
 
 func (c *ShellClient) resolveDockerBuildNetwork() string {

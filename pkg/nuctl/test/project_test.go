@@ -1,3 +1,6 @@
+// +build test_integration
+// +build test_kube test_local
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -30,8 +33,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/ghodss/yaml"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
@@ -463,63 +464,6 @@ func (suite *projectExportImportTestSuite) TestImportProjectSkipBySelectors() {
 	}
 }
 
-func (suite *projectExportImportTestSuite) TestExportProjectWithDisplayName() {
-	suite.ensureRunningOnPlatform("kube")
-
-	importProjectWithDisplayName := func(projectName string) {
-		_, err := suite.shellClient.Run(nil, `cat <<EOF | kubectl apply -f -
-apiVersion: nuclio.io/v1beta1
-kind: NuclioProject
-metadata:
-  name: %[1]s
-  namespace: %[2]s
-spec:
-  displayName: test-display-name
-  description: test-description
-EOF
-`, projectName, suite.namespace)
-		suite.Require().NoError(err)
-	}
-
-	for _, testCase := range []struct {
-		name                        string
-		projectName                 string
-		importProjectPositionalArgs []string
-		expectedExportedProject     *platform.ProjectConfig
-	}{
-		{
-			name:        "Omit display name",
-			projectName: "test-project" + xid.New().String(),
-			expectedExportedProject: &platform.ProjectConfig{
-				Meta: platform.ProjectMeta{
-					Namespace: suite.namespace,
-				},
-				Spec: platform.ProjectSpec{
-					Description: "test-description",
-				},
-			},
-		},
-	} {
-		suite.Run(testCase.name, func() {
-			importProjectWithDisplayName(testCase.projectName)
-
-			// name is dynamically created and should not changed during creating / exporting
-			testCase.expectedExportedProject.Meta.Name = testCase.projectName
-
-			// delete leftovers
-			defer suite.ExecuteNuctl([]string{"delete", "project", testCase.projectName}, nil) // nolint: errcheck
-
-			exportedProjectConfig := suite.exportProject(testCase.projectName,
-				testCase.importProjectPositionalArgs)
-			suite.Require().Empty(cmp.Diff(testCase.expectedExportedProject, exportedProjectConfig.Project,
-				cmp.Options{
-					cmpopts.IgnoreFields(testCase.expectedExportedProject.Meta, "Annotations"),
-				},
-			))
-		})
-	}
-}
-
 func (suite *projectExportImportTestSuite) TestImportProjects() {
 	apiGatewaysEnabled := suite.origPlatformKind == "kube"
 
@@ -598,12 +542,12 @@ func (suite *projectExportImportTestSuite) TestImportProject() {
 		[]string{apiGateway1Name, apiGateway2Name})
 	defer os.Remove(uniqueProjectConfigPath) // nolint: errcheck
 
-	function1Name = function1Name + uniqueSuffix
-	function2Name = function2Name + uniqueSuffix
-	function1EventDisplayName = function1EventDisplayName + uniqueSuffix
-	function2EventDisplayName = function2EventDisplayName + uniqueSuffix
-	apiGateway1Name = apiGateway1Name + uniqueSuffix
-	apiGateway2Name = apiGateway2Name + uniqueSuffix
+	function1Name += uniqueSuffix
+	function2Name += uniqueSuffix
+	function1EventDisplayName += uniqueSuffix
+	function2EventDisplayName += uniqueSuffix
+	apiGateway1Name += uniqueSuffix
+	apiGateway2Name += uniqueSuffix
 
 	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil) // nolint: errcheck
 	defer suite.ExecuteNuctl([]string{"delete", "fu", function1Name}, nil) // nolint: errcheck
@@ -658,10 +602,10 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction
 		nil)
 	defer os.Remove(uniqueProjectConfigPath) // nolint: errcheck
 
-	function1Name = function1Name + uniqueSuffix
-	function2Name = function2Name + uniqueSuffix
-	function1EventDisplayName = function1EventDisplayName + uniqueSuffix
-	function2EventDisplayName = function2EventDisplayName + uniqueSuffix
+	function1Name += uniqueSuffix
+	function2Name += uniqueSuffix
+	function1EventDisplayName += uniqueSuffix
+	function2EventDisplayName += uniqueSuffix
 
 	suite.createProject(projectName)
 	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil) // nolint: errcheck
@@ -695,7 +639,7 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 	err = yaml.Unmarshal(file, projectImportConfig)
 	suite.Require().NoError(err)
 
-	projectImportConfig.Project.Meta.Name = projectImportConfig.Project.Meta.Name + uniqueSuffix
+	projectImportConfig.Project.Meta.Name += uniqueSuffix
 	projectImportConfig.Project.Meta.Namespace = suite.namespace
 	functions := map[string]*functionconfig.Config{}
 	for _, functionName := range functionNames {
@@ -703,8 +647,7 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 		functions[functionUniqueName] = projectImportConfig.Functions[functionName]
 		functions[functionUniqueName].Meta.Name = functionName + uniqueSuffix
 		functions[functionUniqueName].Meta.Namespace = suite.namespace
-		functions[functionUniqueName].Meta.Labels["nuclio.io/project-name"] =
-			functions[functionUniqueName].Meta.Labels["nuclio.io/project-name"] + uniqueSuffix
+		functions[functionUniqueName].Meta.Labels["nuclio.io/project-name"] += uniqueSuffix
 	}
 	projectImportConfig.Functions = functions
 
@@ -714,9 +657,7 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 		functionEvents[functionEventUniqueName] = projectImportConfig.FunctionEvents[functionEventName]
 		functionEvents[functionEventUniqueName].Spec.DisplayName = functionEventName + uniqueSuffix
 		functionEvents[functionEventUniqueName].Meta.Namespace = suite.namespace
-
-		functionEvents[functionEventUniqueName].Meta.Labels["nuclio.io/function-name"] =
-			functionEvents[functionEventUniqueName].Meta.Labels["nuclio.io/function-name"] + uniqueSuffix
+		functionEvents[functionEventUniqueName].Meta.Labels["nuclio.io/function-name"] += uniqueSuffix
 	}
 	projectImportConfig.FunctionEvents = functionEvents
 

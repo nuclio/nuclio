@@ -1,3 +1,22 @@
+// +build test_integration
+// +build test_kube
+
+/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package test
 
 import (
@@ -46,12 +65,12 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverFromPodsHardLimit() {
 		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
+	zero := 0
 	two := 2
-	three := 3
-	createFunctionOptions.FunctionConfig.Spec.Replicas = &three
+	createFunctionOptions.FunctionConfig.Spec.Replicas = &two
 	_ = suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
-		// limit pod to one
+		// limit pod to zero
 		resourceQuota, err := suite.KubeClientSet.
 			CoreV1().
 			ResourceQuotas(suite.Namespace).
@@ -62,7 +81,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverFromPodsHardLimit() {
 				},
 				Spec: v1.ResourceQuotaSpec{
 					Hard: v1.ResourceList{
-						v1.ResourcePods: resource.MustParse(strconv.Itoa(two)),
+						v1.ResourcePods: resource.MustParse(strconv.Itoa(zero)),
 					},
 				},
 				Status: v1.ResourceQuotaStatus{},
@@ -75,13 +94,8 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverFromPodsHardLimit() {
 			ResourceQuotas(suite.Namespace).
 			Delete(resourceQuota.Name, &metav1.DeleteOptions{}) // nolint: errcheck
 
-		// delete function single pod
-		pods := suite.GetFunctionPods(getFunctionOptions.Name)
-		err = suite.KubeClientSet.
-			CoreV1().
-			Pods(suite.Namespace).
-			Delete(pods[0].Name, metav1.NewDeleteOptions(0))
-		suite.Require().NoError(err)
+		// delete function pods
+		suite.DeleteFunctionPods(functionName)
 
 		// function becomes unhealthy, due to exceeding pods deployment hard limit
 		suite.WaitForFunctionState(getFunctionOptions,
@@ -90,7 +104,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverFromPodsHardLimit() {
 
 		// increase hard limit, allowing the function reach its potential replicas
 		resourceQuota.Spec.Hard = v1.ResourceList{
-			v1.ResourcePods: resource.MustParse(strconv.Itoa(three)),
+			v1.ResourcePods: resource.MustParse(strconv.Itoa(two)),
 		}
 
 		// remove to allow updating

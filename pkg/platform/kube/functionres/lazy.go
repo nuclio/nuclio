@@ -63,7 +63,7 @@ import (
 )
 
 const (
-	containerHTTPPortName         = "http"
+	ContainerHTTPPortName         = "http"
 	containerMetricPort           = 8090
 	containerMetricPortName       = "metrics"
 	nginxIngressUpdateGracePeriod = 5 * time.Second
@@ -197,44 +197,41 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 	}
 
 	// create or update the applicable configMap
-	resources.configMap, err = lc.createOrUpdateConfigMap(function)
-	if err != nil {
+	if resources.configMap, err = lc.createOrUpdateConfigMap(function); err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update configMap")
 	}
 
 	// create or update the applicable service
-	resources.service, err = lc.createOrUpdateService(functionLabels, function)
-	if err != nil {
+	if resources.service, err = lc.createOrUpdateService(functionLabels, function); err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update service")
 	}
 
 	// create or update the applicable deployment
-	resources.deployment, err = lc.createOrUpdateDeployment(functionLabels, imagePullSecrets, function)
-	if err != nil {
+	if resources.deployment, err = lc.createOrUpdateDeployment(functionLabels,
+		imagePullSecrets,
+		function); err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update deployment")
 	}
 
 	// create or update the HPA
-	resources.horizontalPodAutoscaler, err = lc.createOrUpdateHorizontalPodAutoscaler(functionLabels, function)
-	if err != nil {
+	if resources.horizontalPodAutoscaler, err = lc.createOrUpdateHorizontalPodAutoscaler(functionLabels,
+		function); err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update HPA")
 	}
 
 	// create or update ingress
-	resources.ingress, err = lc.createOrUpdateIngress(functionLabels, function)
-	if err != nil {
+	if resources.ingress, err = lc.createOrUpdateIngress(functionLabels, function); err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update ingress")
 	}
 
+	// whether to use kubernetes cron job to invoke nuclio function cron trigger
 	if lc.platformConfigurationProvider.GetPlatformConfiguration().CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
-		resources.cronJobs, err = lc.createOrUpdateCronJobs(functionLabels, function, &resources)
-		if err != nil {
+		if resources.cronJobs, err = lc.createOrUpdateCronJobs(functionLabels, function, &resources); err != nil {
 			return nil, errors.Wrap(err, "Failed to create cron jobs from cron triggers")
 		}
 	}
 
-	lc.logger.Debug("Successfully created/updated resources")
-
+	lc.logger.DebugWith("Successfully created/updated resources", "functionName", function.Name)
 	return &resources, nil
 }
 
@@ -699,9 +696,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 
 	replicas := function.GetComputedReplicas()
 	if replicas != nil {
-		lc.logger.DebugWith("Got replicas", "replicas", *replicas)
-	} else {
-		lc.logger.DebugWith("Got nil replicas")
+		lc.logger.DebugWith("Got replicas", "replicas", *replicas, "functionName", function.Name)
 	}
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
@@ -783,21 +778,25 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		if replicas == nil {
 			minReplicas := function.GetComputedMinReplicas()
 			maxReplicas := function.GetComputedMaxReplicas()
+			deploymentReplicas := deployment.Status.Replicas
 			lc.logger.DebugWith("Verifying current replicas not lower than minReplicas or higher than max",
+				"functionName", function.Name,
 				"maxReplicas", maxReplicas,
 				"minReplicas", minReplicas,
-				"currentReplicas", deployment.Status.Replicas)
-			if deployment.Status.Replicas > maxReplicas {
+				"deploymentReplicas", deploymentReplicas)
+			switch {
+			case deploymentReplicas > maxReplicas:
 				replicas = &maxReplicas
-			} else if deployment.Status.Replicas < minReplicas {
+			case deploymentReplicas < minReplicas:
 				replicas = &minReplicas
-			} else {
+			default:
 
 				// if we're within the valid range - and want to leave as is (since replicas == nil) - use current value
 				// NOTE: since we're using the existing deployment (given by our get function) ResourceVersion is set
 				// meaning the update will fail with conflict if something has changed in the meanwhile (e.g. HPA
 				// changed the replicas count) - retry is handled by the createOrUpdateResource wrapper
-				replicas = &deployment.Status.Replicas
+				replicas = &deploymentReplicas
+
 			}
 		}
 
@@ -929,7 +928,10 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 
 	minReplicas := function.GetComputedMinReplicas()
 	maxReplicas := function.GetComputedMaxReplicas()
-	lc.logger.DebugWith("Create/Update hpa", "minReplicas", minReplicas, "maxReplicas", maxReplicas)
+	lc.logger.DebugWith("Create/Update hpa",
+		"functionName", function.Name,
+		"minReplicas", minReplicas,
+		"maxReplicas", maxReplicas)
 
 	// hpa min replicas must be equal or greater than 1
 	if minReplicas < 1 {
@@ -1008,6 +1010,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 			}
 
 			lc.logger.DebugWith("Deleting hpa - min replicas and max replicas are equal",
+				"functionName", function.Name,
 				"name", hpa.Name)
 
 			err := lc.kubeClientSet.AutoscalingV2beta1().
@@ -1071,7 +1074,7 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 				Spec:       ingressSpec,
 			})
 		if err == nil {
-			lc.waitForNginxIngressToStabilize()
+			lc.waitForNginxIngressToStabilize(resultIngress)
 		}
 
 		return resultIngress, err
@@ -1109,7 +1112,7 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 
 		resultIngress, err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
 		if err == nil {
-			lc.waitForNginxIngressToStabilize()
+			lc.waitForNginxIngressToStabilize(ingress)
 		}
 
 		return resultIngress, err
@@ -1268,11 +1271,13 @@ func (lc *lazyClient) compileCronTriggerNotInSliceLabels(slice []string) (string
 }
 
 // nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
-func (lc *lazyClient) waitForNginxIngressToStabilize() {
+func (lc *lazyClient) waitForNginxIngressToStabilize(ingressMeta metav1.ObjectMetaAccessor) {
 	lc.logger.DebugWith("Waiting for nginx ingress to stabilize",
-		"nginxIngressUpdateGracePeriod", nginxIngressUpdateGracePeriod)
+		"nginxIngressUpdateGracePeriod", nginxIngressUpdateGracePeriod,
+		"ingressMeta", ingressMeta.GetObjectMeta())
 	time.Sleep(nginxIngressUpdateGracePeriod)
-	lc.logger.Debug("Finished waiting for nginx ingress to stabilize")
+	lc.logger.DebugWith("Finished waiting for nginx ingress to stabilize",
+		"ingressMeta", ingressMeta.GetObjectMeta())
 }
 
 func (lc *lazyClient) initClassLabels() {
@@ -1406,7 +1411,7 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 
 		spec.Ports = []v1.ServicePort{
 			{
-				Name: containerHTTPPortName,
+				Name: ContainerHTTPPortName,
 				Port: int32(abstract.FunctionContainerHTTPPort),
 			},
 		}
@@ -1485,6 +1490,16 @@ func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.Ser
 	return to
 }
 
+func (lc *lazyClient) getCronTriggerInvocationURL(resources Resources, namespace string) (string, error) {
+	functionService, err := resources.Service()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get function service")
+	}
+	host, port := kube.GetDomainNameInvokeURL(functionService.Name, namespace)
+
+	return fmt.Sprintf("%s:%d", host, port), nil
+}
+
 func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	resources Resources,
@@ -1527,13 +1542,10 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	// add default header
 	headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, "x-nuclio-invoke-trigger", "cron")
 
-	// get the function http trigger address from the service
-	functionService, err := resources.Service()
+	functionAddress, err := lc.getCronTriggerInvocationURL(resources, function.Namespace)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function service")
+		return nil, errors.Wrap(err, "Failed to get cron trigger invocation URL")
 	}
-	host, port := kube.GetDomainNameInvokeURL(functionService.Name, function.Namespace)
-	functionAddress := fmt.Sprintf("%s:%d", host, port)
 
 	// generate the curl command to be run by the CronJob to invoke the function
 	// invoke the function (retry for 10 seconds)
@@ -1548,14 +1560,16 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 		eventBodyFilePath := "/tmp/eventbody.out"
 		eventBodyCurlArg := fmt.Sprintf("--data '@%s'", eventBodyFilePath)
 
-		// if body is a valid JSON parse it accordingly
-		eventBodyAsJSON, err := json.Marshal(eventBody)
-		if err == nil {
-			eventBody = string(eventBodyAsJSON)
+		// try compact as JSON (will fail if it's not a valid JSON)
+		eventBodyAsCompactedJSON := bytes.NewBuffer([]byte{})
+		if err := json.Compact(eventBodyAsCompactedJSON, []byte(eventBody)); err == nil {
+
+			// set the compacted JSON as event body
+			eventBody = eventBodyAsCompactedJSON.String()
 		}
 
 		curlCommand = fmt.Sprintf("echo %s > %s && %s %s",
-			eventBody,
+			strconv.Quote(eventBody),
 			eventBodyFilePath,
 			curlCommand,
 			eventBodyCurlArg)
@@ -1622,8 +1636,6 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 	meta *metav1.ObjectMeta,
 	spec *extv1beta1.IngressSpec) error {
 	meta.Annotations = make(map[string]string)
-
-	lc.logger.DebugWith("Preparing ingress")
 
 	// get the first HTTP trigger and look for annotations that we shove to the ingress
 	// there should only be 0 or 1. if there are more, just take the first
@@ -1693,7 +1705,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 	spec *extv1beta1.IngressSpec) error {
 
 	lc.logger.DebugWith("Adding ingress",
-		"function", function.Name,
+		"functionName", function.Name,
 		"ingressName", kube.IngressNameFromFunctionName(function.Name),
 		"labels", functionLabels,
 		"host", ingress.Host,
@@ -1719,7 +1731,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 				ServiceName: kube.ServiceNameFromFunctionName(function.Name),
 				ServicePort: intstr.IntOrString{
 					Type:   intstr.String,
-					StrVal: containerHTTPPortName,
+					StrVal: ContainerHTTPPortName,
 				},
 			},
 		}
@@ -1761,7 +1773,7 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 	container.Env = lc.getFunctionEnvironment(functionLabels, function)
 	container.Ports = []v1.ContainerPort{
 		{
-			Name:          containerHTTPPortName,
+			Name:          ContainerHTTPPortName,
 			ContainerPort: abstract.FunctionContainerHTTPPort,
 			Protocol:      "TCP",
 		},
@@ -1925,7 +1937,9 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 			}
 		}
 
-		lc.logger.DebugWith("Adding volume", "configVolume", configVolume)
+		lc.logger.DebugWith("Adding volume",
+			"configVolume", configVolume,
+			"functionName", function.Name)
 
 		// volume name is unique per its volume instance
 		volumeNameToVolume[configVolume.Volume.Name] = configVolume.Volume

@@ -1,3 +1,6 @@
+// +build test_integration
+// +build test_kube
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -17,8 +20,12 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"strings"
 	"time"
 
@@ -36,6 +43,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
@@ -60,15 +68,13 @@ type KubeTestSuite struct {
 }
 
 // To run this test suite you should:
-// - set NUCLIO_K8S_TESTS_ENABLED env to true
 // - have Nuclio CRDs installed (you can install them by running "test/k8s/ci_assets/install_nuclio_crds.sh")
 // - have docker registry running (you can run docker registry by running "docker run --rm -d -p 5000:5000 registry:2")
 // - use "(kube) - platform test" run configuration via GoLand to run your test
 func (suite *KubeTestSuite) SetupSuite() {
-	if !common.GetEnvOrDefaultBool("NUCLIO_K8S_TESTS_ENABLED", false) {
-		suite.T().Skip("Test can only run when `NUCLIO_K8S_TESTS_ENABLED` environ is enabled")
-	}
 	var err error
+
+	common.SetVersionFromEnv()
 	suite.Namespace = common.GetEnvOrDefaultString("NUCLIO_TEST_NAMESPACE", "default")
 	suite.PlatformType = "kube"
 
@@ -77,6 +83,9 @@ func (suite *KubeTestSuite) SetupSuite() {
 	}
 
 	suite.PlatformConfiguration.Kind = suite.PlatformType
+
+	// use Kubernetes cron job to invoke nuclio functions with cron triggers
+	suite.PlatformConfiguration.CronTriggerCreationMode = platformconfig.KubeCronTriggerCreationMode
 
 	// only set up parent AFTER we set platform's type
 	suite.TestSuite.SetupSuite()
@@ -179,7 +188,7 @@ func (suite *KubeTestSuite) CompileCreateFunctionOptions(functionName string) *p
 		},
 	}
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.8"
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
 def handler(context, event):
   return "hello world"
@@ -187,6 +196,9 @@ def handler(context, event):
 
 	// expose function for testing purposes
 	createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeNodePort
+
+	// don't explicitly pull base images before building
+	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 	return createFunctionOptions
 }
 
@@ -217,6 +229,43 @@ func (suite *KubeTestSuite) GetFunctionAndExpectState(getFunctionOptions *platfo
 		"Function is in unexpected state. Expected: %s, Existing: %s",
 		expectedState, function.GetStatus().State)
 	return function
+}
+
+func (suite *KubeTestSuite) InvokeEventRecorderFunctionAndUnmarshalBody(address string, retryDuration time.Duration) []triggertest.Event {
+	var events []triggertest.Event
+
+	err := common.RetryUntilSuccessful(retryDuration, 2*time.Second, func() bool {
+
+		// set http request url of the function
+		url := fmt.Sprintf("http://%s", address)
+
+		suite.Logger.DebugWith("Trying to get events", "url", url)
+		httpResponse, err := http.Get(url)
+		if err != nil {
+			suite.Logger.WarnWith("Failed to get events from function", "url", url, "err", err)
+			return false
+		}
+		marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
+		if err != nil {
+			suite.Logger.WarnWith("Failed to read response body", "err", err)
+			return false
+		}
+
+		if err = json.Unmarshal(marshalledResponseBody, &events); err != nil {
+			suite.Logger.WarnWith("Failed to unmarshal response body",
+				"marshalledResponseBody", marshalledResponseBody,
+				"err", err)
+			return false
+		}
+
+		// move on when at least 1 job ran
+		return len(events) > 0
+	})
+	suite.Require().NoError(err)
+
+	suite.Logger.DebugWith("Got events from event recorder function", "events", events)
+
+	return events
 }
 
 func (suite *KubeTestSuite) GetAPIGateway(getAPIGatewayOptions *platform.GetAPIGatewaysOptions) platform.APIGateway {
@@ -264,6 +313,21 @@ func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
 
 	suite.Require().NoError(err, "Failed to list function pods")
 	return pods.Items
+}
+
+func (suite *KubeTestSuite) DeleteFunctionPods(functionName string) {
+	errGroup, _ := errgroup.WithContext(context.TODO())
+	for _, pod := range suite.GetFunctionPods(functionName) {
+		pod := pod
+		errGroup.Go(func() error {
+			suite.Logger.DebugWith("Deleting function pod", "podName", pod.Name)
+			return suite.KubeClientSet.
+				CoreV1().
+				Pods(suite.Namespace).
+				Delete(pod.Name, metav1.NewDeleteOptions(0))
+		})
+	}
+	suite.Require().NoError(errGroup.Wait(), "Failed to delete function pods")
 }
 
 func (suite *KubeTestSuite) GetResourceAndUnmarshal(resourceKind, resourceName string, resource interface{}) {

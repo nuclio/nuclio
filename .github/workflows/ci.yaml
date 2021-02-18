@@ -46,6 +46,10 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
+    - name: Ensure go test files are build annotated
+      run: |
+        make ensure-test-files-annotated
+
     - name: Lint
       run: make lint
 
@@ -66,9 +70,9 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
-    - name: Run short test
+    - name: Run unit test
       run: |
-        make test-short
+        make test-unit
 
   build_nuctl:
     name: Build nuctl
@@ -82,9 +86,11 @@ jobs:
 
     - name: Build
       run: |
-        make nuctl
-      env:
-        NUCLIO_NUCTL_CREATE_SYMLINK: false
+        make nuctl-bin
+
+    - name: Ensure version
+      run: |
+        ./nuctl-$NUCLIO_LABEL-linux-amd64 version
 
   build_docker_images:
     name: Build docker images
@@ -196,7 +202,7 @@ jobs:
         echo "NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL=$REPO" >> $GITHUB_ENV
         echo "NUCTL_NAMESPACE=$NAMESPACE" >> $GITHUB_ENV
         echo "KUBECONFIG=$(pwd)/kubeconfig_flatten" >> $GITHUB_ENV
-        echo "NUCTL_TEST_DEFAULT_APIGATEWAY_HOST=nuclio-test-function-host.info" >> $GITHUB_ENV
+        echo "NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=nuclio-test-function-host.info" >> $GITHUB_ENV
         echo "NUCTL_DEFAULT_SERVICE_TYPE=NodePort" >> $GITHUB_ENV
 
     - name: Install nuclio helm chart
@@ -210,7 +216,7 @@ jobs:
       run: |
 
         # write function host to /etc/hosts
-        echo "${NUCTL_EXTERNAL_IP_ADDRESSES} ${NUCTL_TEST_DEFAULT_APIGATEWAY_HOST}" | sudo tee -a /etc/hosts
+        echo "${NUCTL_EXTERNAL_IP_ADDRESSES} ${NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST}" | sudo tee -a /etc/hosts
 
         # run test
         make test-k8s-nuctl
@@ -293,6 +299,7 @@ jobs:
           echo "NUCTL_EXTERNAL_IP_ADDRESSES=$(minikube ip)" >> $GITHUB_ENV
           echo "NUCLIO_TEST_REGISTRY_URL=localhost:5000" >> $GITHUB_ENV
           echo "NUCLIO_TEST_KUBECONFIG=$(pwd)/kubeconfig_flatten" >> $GITHUB_ENV
+          echo "NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=nuclio-test-function-host.info" >> $GITHUB_ENV
 
       - name: Install nuclio helm chart
         run: |
@@ -305,6 +312,10 @@ jobs:
 
       - name: Run k8s tests
         run: |
+
+          # write function host to /etc/hosts
+          echo "${NUCTL_EXTERNAL_IP_ADDRESSES} ${NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST}" | sudo tee -a /etc/hosts
+
           make test-k8s
 
   test_python:

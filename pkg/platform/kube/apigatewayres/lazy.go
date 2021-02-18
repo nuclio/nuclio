@@ -17,7 +17,6 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -89,13 +88,14 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.N
 		var baseUpstream platform.APIGatewayUpstreamSpec
 
 		// determine which upstream is the canary one
-		if upstreams[0].Percentage != 0 {
+		switch {
+		case upstreams[0].Percentage != 0:
 			baseUpstream = upstreams[1]
 			canaryUpstream = upstreams[0]
-		} else if upstreams[1].Percentage != 0 {
+		case upstreams[1].Percentage != 0:
 			baseUpstream = upstreams[0]
 			canaryUpstream = upstreams[1]
-		} else {
+		default:
 			return nil, errors.New("Percentage must be set on one of the upstreams (canary)")
 		}
 
@@ -313,16 +313,6 @@ func (lc *lazyClient) getNuclioFunctionServiceNameAndPort(upstream platform.APIG
 
 	// use default port
 	return serviceName, abstract.FunctionContainerHTTPPort, nil
-}
-
-func (lc *lazyClient) getServiceHTTPPort(service v1.Service) (int, error) {
-	for _, portSpec := range service.Spec.Ports {
-		if portSpec.Name == "http" {
-			return int(portSpec.Port), nil
-		}
-	}
-
-	return 0, errors.New("Service has no http port")
 }
 
 func (lc *lazyClient) resolveCommonAnnotations(canaryDeployment bool, upstreamPercentage int) map[string]string {

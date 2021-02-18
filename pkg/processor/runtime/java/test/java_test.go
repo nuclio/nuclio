@@ -1,3 +1,6 @@
+// +build test_integration
+// +build test_local
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -23,6 +26,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/processor/test/offline"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -30,10 +34,13 @@ import (
 
 type TestSuite struct {
 	httpsuite.TestSuite
+	OfflineTestSuite offline.TestSuite
 }
 
 func (suite *TestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
+	suite.OfflineTestSuite.HTTPSuite = &suite.TestSuite
+	suite.OfflineTestSuite.FunctionHandler = "Reverser"
 
 	suite.Runtime = "java"
 	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "java", "test")

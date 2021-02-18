@@ -25,7 +25,8 @@ find ./py \
     -name ".pytest_cache" -type d \
     -o -name "*.pyc" \
     -o -name "__pycache__" -type d \
-    | xargs rm -rf
+    -print0 \
+    | xargs --null rm -rf
 
 # run tests
 python -m pytest -v .

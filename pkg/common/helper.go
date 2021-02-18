@@ -280,7 +280,7 @@ func FixEscapeChars(s string) string {
 	}
 
 	for oldChar, newChar := range escapeCharsMap {
-		s = strings.Replace(s, oldChar, newChar, -1)
+		s = strings.ReplaceAll(s, oldChar, newChar)
 	}
 
 	return s
@@ -484,6 +484,23 @@ func LabelsMapMatchByLabelSelector(labelSelector string, labelsMap map[string]st
 		return false, errors.Wrap(err, "Failed to get selector from label selector")
 	}
 	return selector.Matches(labels.Set(labelsMap)), nil
+}
+
+// GetRuntimeNameAndVersion return runtime name and version.
+// e.g. go:1.8 -> go, 1.8
+func GetRuntimeNameAndVersion(runtime string) (string, string) {
+
+	switch runtimeAndVersion := strings.Split(runtime, ":"); len(runtimeAndVersion) {
+
+	// if both are passed (e.g. python:3.6) - return them both
+	case 2:
+		return runtimeAndVersion[0], runtimeAndVersion[1]
+
+	// otherwise - return the first element (e.g. go -> go)
+	default:
+		return runtimeAndVersion[0], ""
+	}
+
 }
 
 func logPanic(ctx context.Context,

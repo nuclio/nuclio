@@ -1,3 +1,5 @@
+// +build test_unit
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -11,7 +13,7 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the Licensg.
+limitations under the License.
 */
 
 package java
@@ -37,9 +39,5 @@ func (suite *testSuite) TestSuccessfulParseDependencies() {
 }
 
 func TestBuilderSuite(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-
 	suite.Run(t, new(testSuite))
 }

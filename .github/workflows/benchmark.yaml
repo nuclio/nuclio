@@ -1,0 +1,126 @@
+name: Function HTTP Load Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to run benchmarking on'
+        default: ''
+        required: false
+      runtimes:
+        description: 'Comma delimited list of runtimes (e.g.: java,golang,python:3.6, default: all)'
+        default: 'all'
+        required: true
+
+env:
+  FINISH_LABEL: benchmarked
+  ADD_REMOVE_LABELS_SCRIPT_PATH: hack/scripts/ci/add-remove-labels.js
+
+jobs:
+  benchmark:
+    name: Function HTTP Load Benchmarking
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump github context
+        run: echo "$GITHUB_CONTEXT"
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+
+      - name: Dump runner context
+        run: echo "$RUNNER_CONTEXT"
+        env:
+          RUNNER_CONTEXT: ${{ toJson(runner) }}
+
+      # checkout from development
+      - uses: actions/checkout@v2
+        if: github.event.inputs.pr_number == ''
+
+      # checkout from PR
+      - uses: actions/checkout@v2
+        if: github.event.inputs.pr_number != ''
+        with:
+          fetch-depth: 0
+          ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
+
+      - name: Prepare env
+        run: |
+
+          # map runtimes to desired onbuild-targets
+          # golang,python:3.6 -> golang python
+          if [ "${{ github.event.inputs.runtimes }}" == "all" ]; then\
+            RUNTIMES=(golang java python dotnetcore nodejs);\
+          else\
+            RUNTIMES=();\
+            while IFS=',' read -ra INPUT_RUNTIMES; do\
+              for i in "${INPUT_RUNTIMES[@]}"; do\
+                RUNTIMES+=("$(echo "$i" | cut -d":" -f1)");\
+              done\
+            done <<<"${{ github.event.inputs.runtimes }}";\
+          fi;
+
+          DOCKER_IMAGES_RULES=processor;\
+          for runtime in "${RUNTIMES[@]}"; do\
+            DOCKER_IMAGES_RULES+=("handler-builder-$runtime-onbuild");\
+          done;
+
+          # only build what is needed to make nuclio functions (processor + onbuilds)
+          echo "DOCKER_IMAGES_RULES=$(printf "%s " "${DOCKER_IMAGES_RULES[@]}")" >> $GITHUB_ENV
+          echo "NUCLIO_LABEL=bm-$GITHUB_RUN_ID" >> $GITHUB_ENV
+
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: Install vegeta
+        run: |
+
+          # download and install
+          wget https://github.com/tsenart/vegeta/releases/download/v12.8.4/vegeta_12.8.4_linux_amd64.tar.gz
+          tar -zxvf vegeta_12.8.4_linux_amd64.tar.gz
+          chmod +x vegeta
+          sudo -EH install vegeta /usr/local/bin
+
+          # sanity
+          vegeta --version
+
+      - name: Build
+        run: make build
+        env:
+          NUCLIO_NUCTL_CREATE_SYMLINK: false
+
+      - name: Prepare nuctl
+        run: |
+
+          # copy nuctl and give it +x mod
+          cp /home/runner/go/bin/nuctl-$NUCLIO_LABEL-linux-amd64 ./nuctl
+          chmod +x nuctl
+          sudo -EH install nuctl /usr/local/bin
+
+          # print version for sanity
+          nuctl version
+
+      - name: Benchmark
+        run: make benchmarking
+        env:
+          NUCLIO_BENCHMARKING_RUNTIMES: ${{ github.event.inputs.runtimes }}
+
+      - name: Set labels
+        if: always() && github.event.inputs.pr_number != ''
+        uses: actions/github-script@v3
+        env:
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = process.env.PR_NUMBER
+            const labelsToAdd = [ process.env.FINISH_LABEL ]
+            const labelsToRemove = []
+            const script = require(`${ process.env.GITHUB_WORKSPACE }/${ process.env.ADD_REMOVE_LABELS_SCRIPT_PATH }`)
+            await script({ github, context, prNumber, labelsToAdd, labelsToRemove })
+
+      - name: Upload benchmarking results
+        uses: actions/upload-artifact@v2
+        with:
+          name: benchmarking
+          path: ./.benchmarking

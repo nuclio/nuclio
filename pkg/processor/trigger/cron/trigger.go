@@ -63,41 +63,16 @@ func newTrigger(logger logger.Logger,
 		stop:            make(chan int),
 	}
 
-	if configuration.Interval != "" {
-		newTrigger.tickMethod = tickMethodInterval
-
-		var intervalLength time.Duration
-		intervalLength, err = time.ParseDuration(configuration.Interval)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to parse interval from cron trigger configuration: %+v", configuration.Interval)
+	switch {
+	case configuration.Interval != "":
+		if err = newTrigger.setInterval(configuration.Interval); err != nil {
+			return nil, errors.Wrap(err, "Failed to set cron interval")
 		}
-
-		newTrigger.schedule = cronlib.ConstantDelaySchedule{
-			Delay: intervalLength,
+	case configuration.Schedule != "":
+		if err = newTrigger.setSchedule(configuration.Schedule); err != nil {
+			return nil, errors.Wrap(err, "Failed to set cron schedule")
 		}
-
-		newTrigger.Logger.InfoWith("Creating new cron trigger with interval",
-			"interval", intervalLength)
-
-	} else if configuration.Schedule != "" {
-		newTrigger.tickMethod = tickMethodSchedule
-
-		// prevent the user from using * as Seconds
-		splitSchedule := strings.Split(configuration.Schedule, " ")
-		if splitSchedule[0] == "*" {
-			splitSchedule[0] = "0"
-		}
-		normalizedSchedule := strings.Join(splitSchedule, " ")
-
-		newTrigger.schedule, err = cronlib.Parse(normalizedSchedule)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to parse schedule from cron trigger configuration: %+v", configuration.Schedule)
-		}
-
-		newTrigger.Logger.InfoWith("Creating new cron trigger with schedule",
-			"schedule", newTrigger.schedule)
-
-	} else {
+	default:
 		return nil, errors.New("Cron trigger configuration must contain either interval or schedule")
 	}
 
@@ -204,4 +179,44 @@ func (c *cron) handleTick() {
 		&c.configuration.Event,
 		c.Logger,
 		10*time.Second)
+}
+
+func (c *cron) setInterval(encodedInterval string) error {
+	var err error
+	var intervalLength time.Duration
+
+	c.tickMethod = tickMethodInterval
+	intervalLength, err = time.ParseDuration(encodedInterval)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to parse interval from cron trigger configuration: %+v", encodedInterval)
+	}
+
+	c.schedule = cronlib.ConstantDelaySchedule{
+		Delay: intervalLength,
+	}
+
+	c.Logger.InfoWith("Set cron trigger interval",
+		"interval", intervalLength)
+	return nil
+}
+
+func (c *cron) setSchedule(encodedSchedule string) error {
+	var err error
+	c.tickMethod = tickMethodSchedule
+
+	// prevent the user from using * as Seconds
+	splitSchedule := strings.Split(encodedSchedule, " ")
+	if splitSchedule[0] == "*" {
+		splitSchedule[0] = "0"
+	}
+	normalizedSchedule := strings.Join(splitSchedule, " ")
+
+	c.schedule, err = cronlib.Parse(normalizedSchedule)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to parse schedule from cron trigger configuration: %+v", encodedSchedule)
+	}
+
+	c.Logger.InfoWith("Set cron trigger schedule",
+		"schedule", c.schedule)
+	return nil
 }

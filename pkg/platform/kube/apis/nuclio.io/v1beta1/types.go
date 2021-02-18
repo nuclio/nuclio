@@ -36,24 +36,23 @@ func (nf *NuclioFunction) GetComputedReplicas() *int32 {
 		}
 		replicas := int32(*nf.Spec.Replicas)
 		return &replicas
-	} else {
-
-		// The user hasn't specified desired replicas
-		// If the function doesn't have resources yet (creating/scaling up from zero) - base on the MinReplicas or default to 1
-		if nf.Status.State == functionconfig.FunctionStateWaitingForResourceConfiguration ||
-			nf.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero {
-			minReplicas := nf.GetComputedMinReplicas()
-
-			if minReplicas > 0 {
-				return &minReplicas
-			}
-			return &one
-		}
-
-		// Should get here only in case of update of an existing deployment,
-		// sending nil meaning leave the existing replicas as is
-		return nil
 	}
+
+	// The user hasn't specified desired replicas
+	// If the function doesn't have resources yet (creating/scaling up from zero) - base on the MinReplicas or default to 1
+	if nf.Status.State == functionconfig.FunctionStateWaitingForResourceConfiguration ||
+		nf.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero {
+		minReplicas := nf.GetComputedMinReplicas()
+
+		if minReplicas > 0 {
+			return &minReplicas
+		}
+		return &one
+	}
+
+	// Should get here only in case of update of an existing deployment,
+	// sending nil meaning leave the existing replicas as is
+	return nil
 }
 
 func (nf *NuclioFunction) GetComputedMinReplicas() int32 {

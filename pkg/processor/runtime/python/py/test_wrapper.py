@@ -12,29 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import base64
 import functools
+import http.client
 import json
 import logging
 import operator
 import os
 import socket
+import socketserver
 import struct
 import sys
 import tempfile
 import threading
 import time
 import unittest.mock
-import http.client
-import socketserver
 
-import _nuclio_wrapper as wrapper
 import msgpack
 import nuclio_sdk
 import nuclio_sdk.helpers
 
+import _nuclio_wrapper as wrapper
+
 
 class TestSubmitEvents(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls._decode_event_strings = False
 
     def setUp(self):
         self._temp_path = tempfile.mkdtemp(prefix='nuclio-test-py-wrapper')
@@ -55,8 +59,15 @@ class TestSubmitEvents(unittest.TestCase):
         self._logger = nuclio_sdk.Logger(logging.DEBUG)
         self._logger.set_handler('test-default', sys.stdout, nuclio_sdk.logger.HumanReadableFormatter())
 
+        self._platform_kind = 'test'
+        self._default_test_handler = 'reverser:handler'
+
         # create a wrapper
-        self._wrapper = wrapper.Wrapper(self._logger, 'reverser:handler', self._socket_path, 'test')
+        self._wrapper = wrapper.Wrapper(self._logger,
+                                        self._default_test_handler,
+                                        self._socket_path,
+                                        self._platform_kind,
+                                        decode_event_strings=self._decode_event_strings)
 
     def tearDown(self):
         sys.path.remove(self._temp_path)
@@ -66,8 +77,14 @@ class TestSubmitEvents(unittest.TestCase):
         self._unix_stream_server_thread.join()
 
     def test_non_utf8_headers(self):
+        """
+        This test validates the expected behavior for a non-utf8 event field contents
+        It sends 3 events, whereas the middle one has non-utf8 contents.
+        Should allow non-utf8 when NOT decoding utf8 and throw exception when trying to decode it
+        :return:
+        """
         self._wait_for_socket_creation()
-        self._wrapper._entrypoint = lambda context, event: event.body
+        self._wrapper._entrypoint = lambda context, event: self._ensure_str(event.body)
 
         events = [
             json.loads(nuclio_sdk.Event(_id=str(i), body='e{0}'.format(i)).to_json())
@@ -75,7 +92,8 @@ class TestSubmitEvents(unittest.TestCase):
         ]
 
         # middle event is malformed
-        events[len(events) // 2]['headers']['x-nuclio'] = b'\xda'
+        malformed_event_index = len(events) // 2
+        events[malformed_event_index]['headers']['x-nuclio'] = b'\xda'
 
         # send events
         t = threading.Thread(target=self._send_events, args=(events,))
@@ -96,7 +114,14 @@ class TestSubmitEvents(unittest.TestCase):
         self._wait_until_received_messages(expected_messages)
 
         malformed_response = self._unix_stream_server._messages[-3]['body']
-        self.assertEqual(http.client.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
+
+        if self._decode_event_strings:
+
+            # msgpack would fail decoding a non utf8 string when deserializing the event
+            self.assertEqual(http.client.INTERNAL_SERVER_ERROR, malformed_response['status_code'])
+        else:
+            self.assertEqual(http.client.OK, malformed_response['status_code'])
+            self.assertEqual(events[malformed_event_index]['body'], malformed_response['body'])
 
         # ensure messages coming after malformed request are still valid
         last_function_response = self._unix_stream_server._messages[-1]['body']
@@ -157,11 +182,6 @@ class TestSubmitEvents(unittest.TestCase):
                         for message in self._unix_stream_server._messages
                         if message['type'] == 'r')
         response_body = response['body'][::-1]
-
-        # blame is on nuclio_sdk/event.py:80
-        if sys.version_info[:2] < (3, 0):
-            response_body = base64.b64decode(response_body)
-
         self.assertEqual(reverse_text, response_body)
 
     def test_blast_events(self):
@@ -208,19 +228,13 @@ class TestSubmitEvents(unittest.TestCase):
 
         for recorded_event_index, recorded_event in enumerate(sorted(recorded_events, key=operator.attrgetter('id'))):
             self.assertEqual(recorded_event_index, recorded_event.id)
-            response_body = recorded_event.body
+            self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
 
-            if sys.version_info[:2] < (3, 0):
-                # blame is on nuclio_sdk/event.py:80
-                response_body = base64.b64decode(response_body)
-
-            self.assertEqual('e{}'.format(recorded_event_index), response_body)
-
-    # # to run memory profiling test, uncomment the test below
-    # # and from terminal run with
-    # # > mprof run python -m py.test test_wrapper.py::TestSubmitEvents::test_memory_profiling_100_<num>
-    # # and to get its plot use:
-    # # > mprof plot --backend agg --output <filename>.png
+    # to run memory profiling test, uncomment the tests below
+    # and from terminal run with
+    # > mprof run python -m py.test test_wrapper.py::TestSubmitEvents::test_memory_profiling_<num> --full-trace
+    # and to get its plot use:
+    # > mprof plot --backend agg --output <filename>.png
     # def test_memory_profiling_100(self):
     #     self._run_memory_profiling(100)
     #
@@ -234,9 +248,15 @@ class TestSubmitEvents(unittest.TestCase):
     #     self._run_memory_profiling(100000)
     #
     # def _run_memory_profiling(self, num_of_events):
-    #     self._wrapper._entrypoint = mock.MagicMock()
+    #     import memory_profiler
+    #     self._wait_for_socket_creation()
+    #     self._wrapper._entrypoint = unittest.mock.MagicMock()
     #     self._wrapper._entrypoint.return_value = {}
-    #     threading.Thread(target=self._send_events, args=(num_of_events,)).start()
+    #     events = (
+    #         json.loads(nuclio_sdk.Event(_id=str(i), body='e{0}'.format(i)).to_json())
+    #         for i in range(num_of_events)
+    #     )
+    #     threading.Thread(target=self._send_events, args=(events,)).start()
     #     with open('test_memory_profiling_{0}.txt'.format(num_of_events), 'w') as f:
     #         profiled_serve_requests_func = memory_profiler.profile(self._wrapper.serve_requests,
     #                                                                precision=4,
@@ -244,11 +264,16 @@ class TestSubmitEvents(unittest.TestCase):
     #         profiled_serve_requests_func(num_requests=num_of_events)
     #     self.assertEqual(num_of_events, self._wrapper._entrypoint.call_count, 'Received unexpected number of events')
 
+    def _send_events(self, events):
+        self._wait_for_socket_creation()
+        for event in events:
+            self._send_event(event)
+
     def _send_event(self, event):
         if not isinstance(event, dict):
             event = self._event_to_dict(event)
 
-        # pack exactly as processor or wrapper explodes
+        # event to a msgpack body message
         body = msgpack.Packer().pack(event)
 
         # big endian body len
@@ -265,11 +290,6 @@ class TestSubmitEvents(unittest.TestCase):
 
     def _event_to_dict(self, event):
         return json.loads(event.to_json())
-
-    def _send_events(self, events):
-        self._wait_for_socket_creation()
-        for event in events:
-            self._send_event(event)
 
     def _wait_for_socket_creation(self, timeout=10, interval=0.1):
 
@@ -299,16 +319,23 @@ class TestSubmitEvents(unittest.TestCase):
         self._unix_stream_server_thread.start()
         return unix_stream_server
 
+    def _ensure_str(self, s, encoding='utf-8', errors='strict'):
+
+        # Optimization: Fast return for the common case.
+        if type(s) is str:
+            return s
+        if isinstance(s, bytes):
+            return s.decode(encoding, errors)
+        raise TypeError(f"not expecting type '{type(s)}'")
+
     def _write_handler(self, temp_path):
         handler_code = '''import sys
-
-is_py2 = sys.version_info[:2] < (3, 0)
 
 def handler(ctx, event):
     """Return reversed body as string"""
     body = event.body
-    if not is_py2 and isinstance(body, bytes):
-        body = body.decode('utf-8')
+    if isinstance(event.body, bytes):
+        body = event.body.decode('utf-8')
     ctx.logger.warn('the end is nigh')
     return body[::-1]
 '''
@@ -319,6 +346,13 @@ def handler(ctx, event):
             out.write(handler_code)
 
         return handler_path
+
+
+class TestSubmitEventsDecoded(TestSubmitEvents):
+    @classmethod
+    def setUpClass(cls):
+        super(TestSubmitEventsDecoded, cls).setUpClass()
+        cls._decode_incoming_event_messages = True
 
 
 class _SingleConnectionUnixStreamServer(socketserver.UnixStreamServer):

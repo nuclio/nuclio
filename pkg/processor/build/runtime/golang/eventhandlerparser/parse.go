@@ -85,27 +85,23 @@ func (ehp *EventHandlerParser) ParseEventHandlers(eventHandlerPath string) ([]st
 }
 
 func (ehp *EventHandlerParser) fieldType(field *ast.Field) string {
-	switch field.Type.(type) {
+	switch fieldType := field.Type.(type) {
 	case *ast.StarExpr: // *nuclio.Context
-		ptr := field.Type.(*ast.StarExpr)
-		sel, ok := ptr.X.(*ast.SelectorExpr)
+		sel, ok := fieldType.X.(*ast.SelectorExpr)
 		if !ok {
 			return ""
 		}
 		return sel.Sel.Name
 	case *ast.SelectorExpr: // nuclio.Event
-		sel := field.Type.(*ast.SelectorExpr)
-		return sel.Sel.Name
+		return fieldType.Sel.Name
 	case *ast.InterfaceType: // interface{}
-		ifc := field.Type.(*ast.InterfaceType)
-		if ifc.Methods.NumFields() == 0 {
+		if fieldType.Methods.NumFields() == 0 {
 			return "interface{}"
 		}
 		// TODO: How to get interface name?
 		return ""
 	case *ast.Ident: // error
-		idt := field.Type.(*ast.Ident)
-		return idt.Name
+		return fieldType.Name
 	}
 	return ""
 }

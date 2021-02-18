@@ -482,18 +482,18 @@ func (pr *projectResource) importProjectFunctionEvents(projectImportInfoInstance
 	var failedFunctionEvents []restful.Attributes
 
 	for _, functionEvent := range projectImportInfoInstance.FunctionEvents {
-		functionName, ok := functionEvent.Meta.Labels["nuclio.io/function-name"]
-		if !ok {
+		switch functionName, found := functionEvent.Meta.Labels["nuclio.io/function-name"]; {
+		case !found:
 			failedFunctionEvents = append(failedFunctionEvents, restful.Attributes{
 				"functionEvent": functionEvent.Spec.DisplayName,
 				"error":         "Event doesn't belong to any function",
 			})
-		} else if creationErrorContainsFunction(functionName) {
+		case creationErrorContainsFunction(functionName):
 			failedFunctionEvents = append(failedFunctionEvents, restful.Attributes{
 				"functionEvent": functionEvent.Spec.DisplayName,
 				"error":         fmt.Sprintf("Event belongs to function that failed import: %s", functionName),
 			})
-		} else {
+		default:
 
 			// generate new name for events to avoid collisions
 			functionEvent.Meta.Name = uuid.NewV4().String()

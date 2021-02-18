@@ -1,3 +1,6 @@
+// +build test_integration
+// +build test_local
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -22,24 +25,28 @@ import (
 	"net/http"
 	"path"
 	"regexp"
+	"runtime"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/python"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
+	"github.com/nuclio/nuclio/pkg/processor/test/offline"
 	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 type TestSuite struct {
 	httpsuite.TestSuite
-	cloudevents.CloudEventsTestSuite
-	callfunction.CallFunctionTestSuite
-	runtime string
+	CloudEventsTestSuite  cloudevents.TestSuite
+	CallFunctionTestSuite callfunction.TestSuite
+	OfflineTestSuite      offline.TestSuite
+	runtime               string
 }
 
 func (suite *TestSuite) SetupTest() {
@@ -48,9 +55,17 @@ func (suite *TestSuite) SetupTest() {
 	suite.Runtime = suite.runtime
 	suite.RuntimeDir = "python"
 	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "python", "test")
+
+	// cloud events suite
 	suite.CloudEventsTestSuite.HTTPSuite = &suite.TestSuite
 	suite.CloudEventsTestSuite.CloudEventsHandler = "eventreturner:handler"
+
+	// call function suite
 	suite.CallFunctionTestSuite.HTTPSuite = &suite.TestSuite
+
+	// offline suite
+	suite.OfflineTestSuite.HTTPSuite = &suite.TestSuite
+	suite.OfflineTestSuite.FunctionHandler = "reverser:handler"
 }
 
 func (suite *TestSuite) TestStress() {
@@ -82,6 +97,12 @@ func (suite *TestSuite) TestOutputs() {
 		suite.GetFunctionPath("outputter"))
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter:handler"
+	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+		{
+			Name:  "NUCLIO_PYTHON_DECODE_EVENT_STRINGS",
+			Value: "true",
+		},
+	}
 
 	testRequests := []*httpsuite.Request{
 		{
@@ -270,9 +291,10 @@ func (suite *TestSuite) TestContextInitError() {
 	createFunctionOptions.FunctionConfig.Spec.Handler = "contextinitfail:handler"
 	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
 
-	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool { // nolint: errcheck
-		return true
-	})
+	suite.DeployFunctionExpectError(createFunctionOptions, // nolint: errcheck
+		func(deployResult *platform.CreateFunctionResult) bool {
+			return true
+		})
 }
 
 func (suite *TestSuite) TestModifiedRequestBodySize() {
@@ -304,17 +326,24 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 	createFunctionOptions := suite.GetDeployOptions("non-utf8-headers",
 		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
 	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
+	internalServerErrorStatus := http.StatusInternalServerError
+	okStatus := http.StatusOK
 
 	nonUTF8String := string([]byte{192, 175})
-	internalServerErrorStatus := http.StatusInternalServerError
+
+	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+		{Name: "NUCLIO_PYTHON_DECODE_EVENT_STRINGS", Value: "true"},
+	}
 	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
-			RequestMethod: http.MethodPost,
-			RequestBody:   nonUTF8String,
+
+			// event body is []bytes and hence would always be a python bytestring
+			// and hence no utf8 decoding is applied by msgpack
+			RequestMethod:              http.MethodPost,
+			RequestBody:                nonUTF8String,
+			ExpectedResponseStatusCode: &okStatus,
 		},
 		{
-
-			// failed, non utf8 headers can not be parsed
 			RequestBody:   "testBody",
 			RequestMethod: http.MethodPost,
 			RequestHeaders: map[string]interface{}{
@@ -325,9 +354,87 @@ func (suite *TestSuite) TestNonUTF8Headers() {
 		{
 
 			// everything is back to normal
-			RequestMethod: http.MethodGet,
+			RequestMethod:              http.MethodGet,
+			ExpectedResponseStatusCode: &okStatus,
 		},
 	})
+
+	// do not decode to utf8, allow incoming event messages to be byte string and not utf8 encoded.
+	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+		{Name: "NUCLIO_PYTHON_DECODE_EVENT_STRINGS", Value: "false"},
+	}
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+		{
+			RequestMethod:              http.MethodPost,
+			RequestBody:                nonUTF8String,
+			ExpectedResponseStatusCode: &okStatus,
+		},
+		{
+			RequestBody:   "testBody",
+			RequestMethod: http.MethodPost,
+			RequestHeaders: map[string]interface{}{
+				"nonUTFHeader": nonUTF8String,
+			},
+			ExpectedResponseStatusCode: &okStatus,
+		},
+		{
+			RequestMethod:              http.MethodGet,
+			ExpectedResponseStatusCode: &okStatus,
+		},
+	})
+}
+
+// TestStableSDKThroughput compares runtime SDK between stable (released tag) and unstable (development branch)
+// and ensure a throughput margin
+func (suite *TestSuite) TestStableSDKThroughput() {
+	suite.T().Skip("This test is made to be run manually or as a standalone test since running it during" +
+		"CI has bad impact on throughput")
+
+	// NOTE: Change it to a smaller number (~3) to ensure no harm has done.
+	allowedThroughputMarginPercentage := float64(10)
+	numWorkers := runtime.NumCPU()
+	branch := "development"
+	githubUsername := "nuclio"
+	pythonSDKUpstreamURL := fmt.Sprintf("https://github.com/%s/nuclio-sdk-py.git@%s", githubUsername, branch)
+
+	// blast unchanged sdk python function
+	stableCreateFunctionOptions := suite.getEmptyFunctionCreateOptions("stable-sdk-py", numWorkers)
+
+	// blast changed sdk python function
+	unstableCreateFunctionOptions := suite.getEmptyFunctionCreateOptions("unstable-sdk-py", numWorkers)
+	unstableCreateFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+		"@nuclio.postCopy",
+		fmt.Sprintf("python -m pip install git+%s", pythonSDKUpstreamURL),
+	}
+
+	results := suite.BlastHTTPThroughput(stableCreateFunctionOptions,
+		unstableCreateFunctionOptions,
+		allowedThroughputMarginPercentage,
+		numWorkers)
+	stableResults := results[0]
+	unstableResults := results[1]
+
+	throughputImprovement := (unstableResults.Throughput - stableResults.Throughput) / stableResults.Throughput
+	suite.Logger.InfoWith("Successfully blasted functions",
+		"stableResultsThroughput", stableResults.Throughput,
+		"unstableResultsThroughput", unstableResults.Throughput,
+		"throughputImprovementPercentage", throughputImprovement*100)
+}
+
+func (suite *TestSuite) getEmptyFunctionCreateOptions(functionName string,
+	numWorkers int) *platform.CreateFunctionOptions {
+	createFunctionOptions := suite.GetDeployOptions(functionName,
+		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
+	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
+
+	// add http trigger
+	httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+	httpTrigger.MaxWorkers = numWorkers
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		httpTrigger.Name: httpTrigger,
+	}
+	return createFunctionOptions
 }
 
 func TestIntegrationSuite(t *testing.T) {
@@ -335,12 +442,17 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	for _, runtime := range []string{
-		"python",
-		"python:3.6",
+	for _, testCase := range []struct {
+		runtimeName string
+	}{
+		{runtimeName: "python:3.6"},
+		{runtimeName: "python:3.7"},
+		{runtimeName: "python:3.8"},
 	} {
-		testSuite := new(TestSuite)
-		testSuite.runtime = runtime
-		suite.Run(t, testSuite)
+		t.Run(testCase.runtimeName, func(t *testing.T) {
+			testSuite := new(TestSuite)
+			testSuite.runtime = testCase.runtimeName
+			suite.Run(t, testSuite)
+		})
 	}
 }
