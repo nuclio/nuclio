@@ -76,8 +76,8 @@
                 }
             })
             .state('app.project', {
-                abstract: true,
                 url: 'projects/:projectId',
+                redirectTo: 'app.project.functions',
                 views: {
                     main: {
                         template: '<ncl-project></ncl-project>'
