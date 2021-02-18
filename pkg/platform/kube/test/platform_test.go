@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -41,6 +42,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 	"github.com/sosedoff/gitkit"
 	"github.com/stretchr/testify/suite"
@@ -127,7 +129,7 @@ func (suite *DeployFunctionTestSuite) TestDeployFromGit() {
 			return false
 		}
 
-		suite.Require().Equals(string(responseBody), "reverse-this")
+		suite.Require().Equal(string(responseBody), "reverse-this")
 
 		return true
 	})
