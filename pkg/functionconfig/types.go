@@ -82,14 +82,6 @@ type Trigger struct {
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
-type Runtime struct {
-	Python *Python `json:"python,omitempty"`
-}
-
-type Python struct {
-	BuildArgs map[string]string `json:"buildArgs,omitempty"`
-}
-
 // GetTriggersByKind returns a map of triggers by their kind
 func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trigger {
 	matchingTrigger := map[string]Trigger{}
@@ -230,6 +222,7 @@ type Build struct {
 	Timestamp           int64                  `json:"timestamp,omitempty"`
 	BuildTimeoutSeconds *int64                 `json:"buildTimeoutSeconds,omitempty"`
 	Mode                BuildMode              `json:"mode,omitempty"`
+	Args                map[string]string      `json:"args,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration

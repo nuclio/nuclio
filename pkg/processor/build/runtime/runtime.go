@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/runtimeconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -71,7 +72,7 @@ type Runtime interface {
 	GetOverrideImageRegistryFromMap(map[string]string) string
 
 	// GetBuildArgs returns building arguments
-	GetBuildArgs(runtimeConfig *functionconfig.Runtime) map[string]string
+	GetBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string
 }
 
 type Factory interface {
@@ -194,6 +195,6 @@ func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imagesOverrideMap map
 	return ""
 }
 
-func (ar *AbstractRuntime) GetBuildArgs(runtimeConfig *functionconfig.Runtime) map[string]string {
+func (ar *AbstractRuntime) GetBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
 	return map[string]string{}
 }

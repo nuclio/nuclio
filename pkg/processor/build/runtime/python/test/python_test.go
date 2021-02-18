@@ -20,9 +20,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
+	"github.com/nuclio/nuclio/pkg/runtimeconfig"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -54,8 +54,8 @@ func (suite *TestSuite) TestBuildWithBuildArgs() {
 	suite.DeployFunctionAndExpectError(createFunctionOptions, "Failed to deploy function")
 
 	// Configure custom pypi repository and re-deploy (should succeed)
-	suite.PlatformConfiguration.Runtime = &functionconfig.Runtime{
-		Python: &functionconfig.Python{
+	suite.PlatformConfiguration.Runtime = &runtimeconfig.Config{
+		Python: &runtimeconfig.Python{
 			BuildArgs: map[string]string{
 				"PIP_INDEX_URL": "https://test.pypi.org/simple",
 			},
