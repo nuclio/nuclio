@@ -38,6 +38,7 @@ type ProcessorDockerfileInfo struct {
 	Directives         map[string][]functionconfig.Directive
 	DockerfileContents string
 	DockerfilePath     string
+	BuildArgs          map[string]string
 }
 
 type Artifact struct {
@@ -68,6 +69,9 @@ type Runtime interface {
 
 	// GetOverrideImageRegistryFromMap returns an override image for the runtime from the given map
 	GetOverrideImageRegistryFromMap(map[string]string) string
+
+	// GetBuildArgs returns building arguments
+	GetBuildArgs(runtimeConfig *functionconfig.Runtime) map[string]string
 }
 
 type Factory interface {
@@ -188,4 +192,8 @@ func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imagesOverrideMap map
 
 	// no override found
 	return ""
+}
+
+func (ar *AbstractRuntime) GetBuildArgs(runtimeConfig *functionconfig.Runtime) map[string]string {
+	return map[string]string{}
 }

@@ -858,7 +858,8 @@ func (suite *testSuite) generateDockerfileAndVerify(builder *build.Builder,
 		dockerfileInfo.OnbuildArtifacts,
 		dockerfileInfo.ImageArtifactPaths,
 		dockerfileInfo.Directives,
-		healthCheckRequired)
+		healthCheckRequired,
+		dockerfileInfo.BuildArgs)
 
 	dockerfileContents = common.RemoveEmptyLines(dockerfileContents)
 

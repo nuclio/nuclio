@@ -17,6 +17,8 @@ limitations under the License.
 package test
 
 import (
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"net/http"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
@@ -36,6 +38,36 @@ func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.RuntimeSuite = suite
 	suite.TestSuite.ArchivePattern = "python"
 	suite.Runtime = suite.runtime
+}
+
+func (suite *TestSuite) TestBuildWithBuildArgs() {
+
+	createFunctionOptions := suite.GetDeployOptions("func-with-build-args",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "empty", "python"))
+	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install adbuzdugan"}
+
+	// Create a copy of function options since it's modified during deployment
+	createFunctionOptionsOriginal := *createFunctionOptions
+
+	// Sanity, verify deployment attempt without custom pypi repository fails
+	suite.DeployFunctionAndExpectError(createFunctionOptions, "Failed to deploy function")
+
+	// Configure custom pypi repository and re-deploy (should succeed)
+	suite.PlatformConfiguration.Runtime = &functionconfig.Runtime{
+		Python: &functionconfig.Python{
+			BuildArgs: map[string]string{
+				"PIP_INDEX_URL": "https://test.pypi.org/simple",
+			},
+		},
+	}
+
+	returnStatusCode := http.StatusOK
+	suite.DeployFunctionAndRequest(&createFunctionOptionsOriginal,
+		&httpsuite.Request{
+			RequestMethod:              "POST",
+			ExpectedResponseStatusCode: &returnStatusCode,
+		})
 }
 
 func (suite *TestSuite) TestBuildPy2() {

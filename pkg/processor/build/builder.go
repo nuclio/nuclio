@@ -311,7 +311,8 @@ func (b *Builder) GenerateDockerfileContents(baseImage string,
 	onbuildArtifacts []runtime.Artifact,
 	imageArtifactPaths map[string]string,
 	directives map[string][]functionconfig.Directive,
-	healthCheckRequired bool) (string, error) {
+	healthCheckRequired bool,
+	buildArgs map[string]string) (string, error) {
 
 	// now that all artifacts are in the artifacts directory, we can craft a Dockerfile
 	dockerfileTemplateContents := `# Multistage builds
@@ -322,6 +323,10 @@ func (b *Builder) GenerateDockerfileContents(baseImage string,
 
 # From the base image
 FROM {{ .BaseImage }}
+
+{{ range $key, $value := .BuildArgs }}
+ARG {{ $key }}={{ $value }}
+{{ end }}
 
 # Old(er) Docker support - must use all build args
 ARG NUCLIO_LABEL
@@ -384,6 +389,7 @@ CMD [ "processor" ]
 		"PreCopyDirectives":    directives["preCopy"],
 		"PostCopyDirectives":   directives["postCopy"],
 		"HealthcheckRequired":  healthCheckRequired,
+		"BuildArgs":            buildArgs,
 	})
 
 	if err != nil {
@@ -1198,6 +1204,9 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, on
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
 
+	// get building arguments
+	processorDockerfileInfo.BuildArgs = b.platform.GetBuildArgs(b.runtime)
+
 	// get directives
 	directives := b.options.FunctionConfig.Spec.Build.Directives
 
@@ -1221,7 +1230,8 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, on
 		processorDockerfileInfo.OnbuildArtifacts,
 		processorDockerfileInfo.ImageArtifactPaths,
 		directives,
-		b.platform.GetHealthCheckMode() == platform.HealthCheckModeInternalClient)
+		b.platform.GetHealthCheckMode() == platform.HealthCheckModeInternalClient,
+		processorDockerfileInfo.BuildArgs)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to generate docker file content")

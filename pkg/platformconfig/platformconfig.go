@@ -38,6 +38,7 @@ type Config struct {
 	IngressConfig            IngressConfig                `json:"ingressConfig,omitempty"`
 	Kube                     PlatformKubeConfig           `json:"kube,omitempty"`
 	ImageRegistryOverrides   ImageRegistryOverridesConfig `json:"imageRegistryOverrides,omitempty"`
+	Runtime                  *functionconfig.Runtime      `json:"runtime,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 }
