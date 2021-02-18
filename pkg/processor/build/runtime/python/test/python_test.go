@@ -17,10 +17,10 @@ limitations under the License.
 package test
 
 import (
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"net/http"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
