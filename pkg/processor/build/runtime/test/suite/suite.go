@@ -164,10 +164,6 @@ func (suite *TestSuite) TestBuildArchiveFromURLWithCustomDir() {
 	}
 }
 
-//func (suite *TestSuite) TestBuildArchiveFromGit() {
-//	suite.deployFunctionFromGit()
-//}
-
 func (suite *TestSuite) TestBuildFuncFromFunctionSourceCode() {
 
 	// Java "source" is a jar file, and it it'll be a .java file it must be named in the same name as the class
@@ -345,49 +341,6 @@ func (suite *TestSuite) compressAndDeployFunctionFromURLWithCustomDir(archiveExt
 
 	suite.compressAndDeployFunctionWithCodeEntryOptions(archivePath, createFunctionOptions)
 }
-
-//
-//func (suite *TestSuite) deployFunctionFromGit() error {
-//
-//	branch := "refs/heads/my-branch"
-//	createFunctionOptions := suite.getDeployOptionsDir("reverser")
-//
-//	// get the parent directory, and archive it just like github does
-//	parentPath := filepath.Dir(createFunctionOptions.FunctionConfig.Spec.Build.Path)
-//	archivePath := suite.createFunctionArchive(parentPath,
-//		archiveExtension,
-//		suite.ArchivePattern,
-//		compressor)
-//	defer os.Remove(archivePath) // nolint: errcheck
-//
-//	// create a path like it would have been created by github
-//	pathToFunction := "/some/repo"
-//
-//	// start an HTTP server to serve the reverser py
-//	httpServer, err := httpsrv.NewServer("", []httpsrv.ServedFile{
-//		{
-//			LocalPath: archivePath,
-//			Pattern:   fmt.Sprintf("%s/archive/%s.zip", pathToFunction, branch),
-//		},
-//	}, nil)
-//
-//	suite.Require().NoError(err)
-//	defer httpServer.Stop() // nolint: errcheck
-//
-//	createFunctionOptions.FunctionConfig.Spec.Build.Path = fmt.Sprintf("http://%s%s",
-//		httpServer.Addr,
-//		pathToFunction)
-//
-//	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = build.GithubEntryType
-//	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{"branch": branch}
-//
-//	suite.DeployFunctionAndRequest(createFunctionOptions,
-//		&httpsuite.Request{
-//			RequestMethod:        "POST",
-//			RequestBody:          "abcdef",
-//			ExpectedResponseBody: "fedcba",
-//		})
-//}
 
 func (suite *TestSuite) compressAndDeployFunctionWithCodeEntryOptions(archivePath string,
 	createFunctionOptions *platform.CreateFunctionOptions) {

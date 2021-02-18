@@ -19,6 +19,7 @@ package test
 import (
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -30,12 +31,14 @@ import (
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
+	"github.com/sosedoff/gitkit"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -47,6 +50,48 @@ import (
 
 type DeployFunctionTestSuite struct {
 	KubeTestSuite
+}
+
+func (suite *DeployFunctionTestSuite) TestDeployFromGit() {
+	branch := "refs/heads/test-deploy-from-git"
+
+	createFunctionOptions := suite.CompileCreateFunctionOptions("reverser-from-git")
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = "" // empty source code so it'll build from git
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = "http://localhost:5050/org/repo.git"
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = build.GitEntryType
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+		"branch": branch,
+		"workDir": "common/reverser/python",
+		"gitCredentials": map[string]interface{}{
+			"accessToken": "goodAccessToken",
+		},
+	}
+	createFunctionOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
+
+	service := gitkit.New(gitkit.Config{
+		Dir:        suite.GetTestGitReposDir(),
+		AutoCreate: true,
+		Auth:       true,
+	})
+
+	// Here's the user-defined authentication function.
+	// If return value is false or error is set, user's request will be rejected.
+	// You can hook up your database/redis/cache for authentication purposes.
+	service.AuthFunc = func(cred gitkit.Credential, req *gitkit.Request) (bool, error) {
+		return req.RepoName == "org/repo.git" && cred.Password == "goodAccessToken", nil
+	}
+	err := service.Setup()
+	suite.Require().NoError(err)
+
+	http.Handle("/", service)
+	go http.ListenAndServe(":5050", nil) // nolint: errcheck
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		// TODO: add here a test that the function is indeed running and reversing
+		return true
+	})
 }
 
 // Test that we get the expected brief error message on function deployment failure

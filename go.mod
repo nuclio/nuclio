@@ -51,6 +51,7 @@ require (
 	github.com/rs/xid v1.2.1
 	github.com/satori/go.uuid v1.2.0
 	github.com/sendgridlabs/go-kinesis v0.0.0-20190306160747-8de9069567f6
+	github.com/sosedoff/gitkit v0.2.0
 	github.com/spf13/cobra v0.0.5
 	github.com/streadway/amqp v0.0.0-20190815230801-eade30b20f1d
 	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25 // indirect

@@ -315,6 +315,11 @@ func (suite *TestSuite) GetTestFunctionsDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "test", "_functions")
 }
 
+// GetTestGitReposDir returns the test git repos dir (used by gitkit)
+func (suite *TestSuite) GetTestGitReposDir() string {
+	return path.Join(suite.GetNuclioSourceDir(), "test", "git_repos")
+}
+
 // GetTestHost returns the host on which a remote testing entity resides (e.g. brokers, functions)
 func (suite *TestSuite) GetTestHost() string {
 
