@@ -74,7 +74,7 @@ func NewPlatform(parentLogger logger.Logger,
 	newPlatform.Platform = newAbstractPlatform
 
 	// function containers healthiness check is disabled by default
-	newPlatform.functionContainersHealthinessEnabled = common.GetEnvOrDefaultBool("NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS", false)
+	newPlatform.functionContainersHealthinessEnabled = common.GetEnvOrDefaultBool("NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS", true)
 	newPlatform.functionContainersHealthinessTimeout = time.Second * 5
 	newPlatform.functionContainersHealthinessInterval = time.Second * 30
 
