@@ -49,6 +49,9 @@ func (r *Reader) ReadFileOrDefault(configurationPath string) (*Config, error) {
 		return r.GetDefaultConfiguration(), nil
 	}
 
+	// close after
+	defer platformConfigurationFile.Close() // nolint: errcheck
+
 	if err := r.Read(platformConfigurationFile, "yaml", &platformConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to read configuration file")
 	}

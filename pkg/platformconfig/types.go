@@ -17,6 +17,8 @@ limitations under the License.
 package platformconfig
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -104,6 +106,12 @@ type PlatformKubeConfig struct {
 
 	// TODO: Move IngressConfig here
 	DefaultServiceType corev1.ServiceType `json:"defaultServiceType,omitempty"`
+}
+
+type PlatformLocalConfig struct {
+	FunctionContainersHealthinessEnabled  bool
+	FunctionContainersHealthinessTimeout  time.Duration
+	FunctionContainersHealthinessInterval time.Duration
 }
 
 type ImageRegistryOverridesConfig struct {
