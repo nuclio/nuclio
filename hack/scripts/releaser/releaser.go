@@ -779,7 +779,7 @@ func run() error {
 	flag.BoolVar(&release.skipPublishHelmCharts, "skip-publish-helm-charts", false, "Whether to skip publishing helm charts")
 	flag.BoolVar(&release.bumpPatch, "bump-patch", false, "Resolve chart version and bump both Nuclio and Chart patch version")
 	flag.BoolVar(&release.bumpMinor, "bump-minor", false, "Resolve chart version and bump both Nuclio and Chart minor version")
-	flag.BoolVar(&release.bumpMajor, "bump-minor", false, "Resolve chart version and bump both Nuclio and Chart major version")
+	flag.BoolVar(&release.bumpMajor, "bump-major", false, "Resolve chart version and bump both Nuclio and Chart major version")
 	flag.Parse()
 
 	release.logger.InfoWith("Running release",
