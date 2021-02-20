@@ -21,7 +21,6 @@ package test
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -36,6 +35,7 @@ import (
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 	testk8s "github.com/nuclio/nuclio/test/common/k8s"
 
 	"github.com/google/go-cmp/cmp"
@@ -72,6 +72,7 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(functionSourceCode)
 
 	functionIngressHost := testk8s.GetDefaultIngressHost()
+	functionIngressPath := "/" + functionName
 
 	// compile http trigger with an ingress, so we can invoke the function using it later (for testing on minikube)
 	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
@@ -79,17 +80,17 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 		"ingresses": map[string]interface{}{
 			"0": map[string]interface{}{
 				"host":  functionIngressHost,
-				"paths": []string{"/"},
+				"paths": []string{functionIngressPath},
 			},
 		},
 	}
 
 	// compile cron trigger
-	cronTriggerEvent := nuclio.MemoryEvent{
-		Body: []byte(`{
-					"key_a": true,
-					"key_b": ["value_1", "value_2"]
-				}`),
+	cronTriggerEvent := cron.Event{
+		Body: `{
+			"key_a": true,
+			"key_b": ["value_1", "value_2"]
+		}`,
 		Headers: map[string]interface{}{
 			"Extra-Header-1": "value1",
 			"Extra-Header-2": "value2",
@@ -114,15 +115,13 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 
 		// try get function recorded events for 60 seconds
 		// we expect the function to record and return all cron triggers events
-		events := suite.TryGetFunctionRecordedEvents(functionIngressHost, 60*time.Second)
+		functionInvocationURL := fmt.Sprintf("http://%s%s", functionIngressHost, functionIngressPath)
+		var events []cron.Event
+		suite.TryGetAndUnmarshalFunctionRecordedEvents(functionInvocationURL, 60*time.Second, &events)
 		firstEvent := events[0]
 
-		var eventBody map[string]interface{}
-		err = json.Unmarshal([]byte(firstEvent.Body), &eventBody)
-		suite.Require().NoError(err)
-
 		// ensure recorded event
-		suite.Require().Empty(cmp.Diff(cronTriggerEvent.Body, eventBody))
+		suite.Require().Empty(cmp.Diff(cronTriggerEvent.Body, firstEvent.Body))
 		suite.Require().Empty(cmp.Diff(cronTriggerEvent.Headers, firstEvent.Headers))
 		return true
 	})
