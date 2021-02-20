@@ -231,7 +231,7 @@ func (suite *KubeTestSuite) GetFunctionAndExpectState(getFunctionOptions *platfo
 	return function
 }
 
-func (suite *KubeTestSuite) InvokeEventRecorderFunctionAndUnmarshalBody(address string, retryDuration time.Duration) []triggertest.Event {
+func (suite *KubeTestSuite) TryGetFunctionRecordedEvents(address string, retryDuration time.Duration) []triggertest.Event {
 	var events []triggertest.Event
 
 	err := common.RetryUntilSuccessful(retryDuration, 2*time.Second, func() bool {
