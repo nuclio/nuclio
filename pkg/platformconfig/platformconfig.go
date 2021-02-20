@@ -18,7 +18,6 @@ package platformconfig
 
 import (
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -166,16 +165,6 @@ func (config *Config) enrichLocalPlatform() {
 	case "false":
 		config.Local.FunctionContainersHealthinessEnabled = false
 	case "true":
-		config.Local.FunctionContainersHealthinessEnabled = true
-	}
-
-	// if set via envvar, override given configuration
-	switch value := strings.ToLower(os.Getenv("NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS")); value {
-	case "false", "true":
-		config.Local.FunctionContainersHealthinessEnabled, _ = strconv.ParseBool(value)
-	default:
-
-		// enable by default
 		config.Local.FunctionContainersHealthinessEnabled = true
 	}
 
