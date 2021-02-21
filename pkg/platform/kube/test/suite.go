@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
@@ -231,7 +232,7 @@ func (suite *KubeTestSuite) GetFunctionAndExpectState(getFunctionOptions *platfo
 
 func (suite *KubeTestSuite) TryGetAndUnmarshalFunctionRecordedEvents(functionURL string,
 	retryDuration time.Duration,
-	eventsToUnmarshal interface{}) {
+	events interface{}) {
 	err := common.RetryUntilSuccessful(retryDuration,
 		2*time.Second,
 		func() bool {
@@ -254,20 +255,34 @@ func (suite *KubeTestSuite) TryGetAndUnmarshalFunctionRecordedEvents(functionURL
 			}
 
 			// unmarshal recorded events
-			if err = json.Unmarshal(responseBody, &eventsToUnmarshal); err != nil {
+			if err = json.Unmarshal(responseBody, &events); err != nil {
 				suite.Logger.WarnWith("Failed to unmarshal response body",
 					"responseBody", responseBody,
 					"err", err)
 				return false
 			}
 
-			// we have succeeded to unarmshal at least one event
-			return eventsToUnmarshal != nil
+			// events has not been unmarshalled yet, responseBody might be empty
+			if events == nil {
+				return false
+			}
+
+			// a bit hacky, but:
+			// this is how you can determine whether an `interface{}` is a slice
+			// we do it because the invoked functions returns a list of "unknown" events.
+			// here, we simply want to know the list has been initialized and its length is greater than zero.
+			switch kind := reflect.TypeOf(events).Kind(); kind {
+			case reflect.Slice, reflect.Ptr:
+				return reflect.Indirect(reflect.ValueOf(events)).Len() > 0
+			default:
+				suite.Require().FailNow("Expected a list", "receivedKind", kind)
+				return false
+			}
 		})
 
 	suite.Require().NoError(err)
 	suite.Logger.DebugWith("Got events from event recorder function",
-		"eventsToUnmarshal", eventsToUnmarshal)
+		"events", events)
 }
 
 func (suite *KubeTestSuite) GetAPIGateway(getAPIGatewayOptions *platform.GetAPIGatewaysOptions) platform.APIGateway {
