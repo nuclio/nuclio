@@ -69,6 +69,7 @@ spec:
         sharedAccessKeyValue: < your value here >
       class: ""
       kind: eventhub
+      name: ""
 `),
 		SourceCode: `/*
 Copyright 2017 The Nuclio Authors.
@@ -369,6 +370,7 @@ spec:
         queueName: queue-name
       class: ""
       kind: rabbit-mq
+      name: ""
       url: amqp://user:password@rabbitmq-host:5672
 `),
 		SourceCode: `/*
