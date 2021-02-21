@@ -33,6 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 
 	"github.com/ghodss/yaml"
@@ -216,7 +217,7 @@ func (g *Generator) isFunctionDir(runtime *Runtime, functionDirFiles []os.FileIn
 	for _, file := range functionDirFiles {
 
 		// directory has at least one file related to function's runtime or a function.yaml
-		if strings.HasSuffix(file.Name(), runtime.FileExtension) || file.Name() == "function.yaml" {
+		if strings.HasSuffix(file.Name(), runtime.FileExtension) || file.Name() == build.FunctionConfigFileName {
 			return true
 		}
 	}
@@ -288,7 +289,7 @@ func (g *Generator) getFunctionConfigAndSource(functionDir string) (*functioncon
 	configFileExists := false
 
 	// first, look for a function.yaml file. parse it if found
-	configPath := filepath.Join(functionDir, "function.yaml")
+	configPath := filepath.Join(functionDir, build.FunctionConfigFileName)
 
 	if common.IsFile(configPath) {
 		configFileExists = true
@@ -311,7 +312,7 @@ func (g *Generator) getFunctionConfigAndSource(functionDir string) (*functioncon
 	}
 
 	for _, file := range files {
-		if file.Name() != "function.yaml" {
+		if file.Name() != build.FunctionConfigFileName {
 
 			// we found our source code, read it
 			sourcePath := filepath.Join(functionDir, file.Name())
@@ -330,8 +331,7 @@ func (g *Generator) getFunctionConfigAndSource(functionDir string) (*functioncon
 			// if there was no function.yaml, parse the inline config from the source code
 			// TODO: delete it from source too
 			if !configFileExists {
-				err = g.parseInlineConfiguration(sourcePath, &configuration, runtime)
-				if err != nil {
+				if err := g.parseInlineConfiguration(sourcePath, &configuration, runtime); err != nil {
 					return nil, "", errors.Wrapf(err,
 						"Failed to parse inline configuration from source at %s",
 						sourcePath)
@@ -372,7 +372,7 @@ func (g *Generator) parseInlineConfiguration(sourcePath string,
 		return nil
 	}
 
-	unmarshalledInlineConfigYAML, found := configureBlock.Contents["function.yaml"]
+	unmarshalledInlineConfigYAML, found := configureBlock.Contents[build.FunctionConfigFileName]
 	if !found {
 		return errors.Errorf("No function.yaml file found inside configure block at %s", sourcePath)
 	}
