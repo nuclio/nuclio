@@ -22,7 +22,7 @@ import (
 
 var GeneratedFunctionTemplates = []*generatedFunctionTemplate{
 	{
-		Name: "eventhub:3dc2fc71-92cf-4ee0-ab1a-c8e6be5ec940",
+		Name: "eventhub:golang",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -194,7 +194,7 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 `,
 	},
 	{
-		Name: "helloworld:c22b2b9b-d0fc-4e0e-a891-6b0ab89865b0",
+		Name: "helloworld:golang",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -241,7 +241,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "image:1fda4adf-c9ac-4040-abc3-d506b5eaff8a",
+		Name: "image:golang",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -349,7 +349,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "rabbitmq:3f66665c-f5b9-4d4f-89ea-daf671bef2b0",
+		Name: "rabbitmq:golang",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -461,7 +461,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "regexscan:f4e94a9a-a33b-4c58-a72b-eae501e95036",
+		Name: "regexscan:golang",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -543,7 +543,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "dates:606538a5-0404-4adf-b8be-120751d124e3",
+		Name: "dates:nodejs",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -605,7 +605,7 @@ exports.handler = function(context, event) {
 `,
 	},
 	{
-		Name: "helloworld:63484c5a-0db2-415c-afed-793571819197",
+		Name: "helloworld:dotnetcore",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -652,7 +652,7 @@ public class nuclio
 `,
 	},
 	{
-		Name: "reverser:b7120d99-8fc1-4839-bbe4-ef130583c438",
+		Name: "reverser:dotnetcore",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -695,7 +695,7 @@ public class nuclio
 `,
 	},
 	{
-		Name: "encrypt:7937244f-f637-4ce1-9031-a6e72d0ac873",
+		Name: "encrypt:python",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -755,7 +755,7 @@ def encrypt(context, event):
 `,
 	},
 	{
-		Name: "facerecognizer:dfec0a3a-ea04-4055-a20b-879dbf9a2178",
+		Name: "facerecognizer:python",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -898,7 +898,7 @@ def _build_response(context, body, status_code):
 `,
 	},
 	{
-		Name: "helloworld:4043f7bf-0940-437d-badc-4cc9714dcad0",
+		Name: "helloworld:python",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -936,7 +936,7 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "sentiments:f995f716-44e2-404c-9ba3-fcc9a21885f6",
+		Name: "sentiments:python",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -981,7 +981,7 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "tensorflow:fdb23977-7834-4a4b-9476-6350098912d9",
+		Name: "tensorflow:python",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1376,7 +1376,7 @@ t.start()
 `,
 	},
 	{
-		Name: "img-convert:638ea5f8-098b-4c3c-b873-09adb6395ef4",
+		Name: "img-convert:shell",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
