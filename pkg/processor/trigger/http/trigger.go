@@ -544,7 +544,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		}
 
 	case []byte:
-		ctx.Write(typedResponse) // nolint: errcheck
+		ctx.Response.SetBodyRaw(typedResponse)
 
 	case string:
 		ctx.WriteString(typedResponse) // nolint: errcheck
