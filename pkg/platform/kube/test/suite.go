@@ -26,9 +26,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
+	"github.com/ghodss/yaml"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -43,10 +46,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
-
-	"github.com/ghodss/yaml"
-	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
@@ -231,41 +230,59 @@ func (suite *KubeTestSuite) GetFunctionAndExpectState(getFunctionOptions *platfo
 	return function
 }
 
-func (suite *KubeTestSuite) InvokeEventRecorderFunctionAndUnmarshalBody(address string, retryDuration time.Duration) []triggertest.Event {
-	var events []triggertest.Event
+func (suite *KubeTestSuite) TryGetAndUnmarshalFunctionRecordedEvents(functionURL string,
+	retryDuration time.Duration,
+	events interface{}) {
+	err := common.RetryUntilSuccessful(retryDuration,
+		2*time.Second,
+		func() bool {
+			suite.Logger.DebugWith("Trying to get recorded events", "functionURL", functionURL)
 
-	err := common.RetryUntilSuccessful(retryDuration, 2*time.Second, func() bool {
+			// invoke function
+			httpResponse, err := http.Get(functionURL)
+			if err != nil {
+				suite.Logger.WarnWith("Failed to get function recorded events",
+					"functionURL", functionURL,
+					"err", err)
+				return false
+			}
 
-		// set http request url of the function
-		url := fmt.Sprintf("http://%s", address)
+			// read response body
+			responseBody, err := ioutil.ReadAll(httpResponse.Body)
+			if err != nil {
+				suite.Logger.WarnWith("Failed to read response body", "err", err)
+				return false
+			}
 
-		suite.Logger.DebugWith("Trying to get events", "url", url)
-		httpResponse, err := http.Get(url)
-		if err != nil {
-			suite.Logger.WarnWith("Failed to get events from function", "url", url, "err", err)
-			return false
-		}
-		marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
-		if err != nil {
-			suite.Logger.WarnWith("Failed to read response body", "err", err)
-			return false
-		}
+			// unmarshal recorded events
+			if err = json.Unmarshal(responseBody, &events); err != nil {
+				suite.Logger.WarnWith("Failed to unmarshal response body",
+					"responseBody", responseBody,
+					"err", err)
+				return false
+			}
 
-		if err = json.Unmarshal(marshalledResponseBody, &events); err != nil {
-			suite.Logger.WarnWith("Failed to unmarshal response body",
-				"marshalledResponseBody", marshalledResponseBody,
-				"err", err)
-			return false
-		}
+			// events has not been unmarshalled yet, responseBody might be empty
+			if events == nil {
+				return false
+			}
 
-		// move on when at least 1 job ran
-		return len(events) > 0
-	})
+			// a bit hacky, but:
+			// this is how you can determine whether an `interface{}` is a slice
+			// we do it because the invoked functions returns a list of "unknown" events.
+			// here, we simply want to know the list has been initialized and its length is greater than zero.
+			switch kind := reflect.TypeOf(events).Kind(); kind {
+			case reflect.Slice, reflect.Ptr:
+				return reflect.Indirect(reflect.ValueOf(events)).Len() > 0
+			default:
+				suite.Require().FailNow("Expected a list", "receivedKind", kind)
+				return false
+			}
+		})
+
 	suite.Require().NoError(err)
-
-	suite.Logger.DebugWith("Got events from event recorder function", "events", events)
-
-	return events
+	suite.Logger.DebugWith("Got events from event recorder function",
+		"events", events)
 }
 
 func (suite *KubeTestSuite) GetAPIGateway(getAPIGatewayOptions *platform.GetAPIGatewaysOptions) platform.APIGateway {

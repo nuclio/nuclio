@@ -22,6 +22,8 @@ package test
 import (
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -33,6 +35,8 @@ import (
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
+	testk8s "github.com/nuclio/nuclio/test/common/k8s"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -52,87 +56,76 @@ type DeployFunctionTestSuite struct {
 	KubeTestSuite
 }
 
-// TODO: commented out as it doesn't work on minikube CI. The function is invoked well using the ingress, the problem
-//       is that the "curl ..." command inside the k8s cron job pod fail to resolve the function address
-//
-//func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody() {
-//
-//	// create an event-recorder function
-//	functionPath := path.Join(suite.GetTestFunctionsDir(), "common", "event-recorder", "python", "event_recorder.py")
-//	functionName := fmt.Sprintf("event-recorder-%s", xid.New().String())
-//	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
-//
-//	// get function source code
-//	functionSourceCode, err := ioutil.ReadFile(functionPath)
-//	suite.Require().NoError(err)
-//
-//	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
-//	createFunctionOptions.FunctionConfig.Spec.Handler = "event_recorder:handler"
-//	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(functionSourceCode)
-//
-//	// set a JSON cron trigger event body
-//	type myEventBody struct {
-//		KeyA bool     `json:"key_a"`
-//		KeyB []string `json:"key_b"`
-//	}
-//	cronTriggerEventBody := myEventBody{
-//		KeyA: true,
-//		KeyB: []string{
-//			"value_1",
-//			"value_2",
-//		},
-//	}
-//	marshalledCronTriggerEventBody, err := json.Marshal(cronTriggerEventBody)
-//	suite.Require().NoError(err)
-//
-//	functionIngressHost := testk8s.GetDefaultIngressHost()
-//	createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeClusterIP
-//	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-//		"crontrig": {
-//			Kind: "cron",
-//			Attributes: map[string]interface{}{
-//				"interval": "5s",
-//				"event": map[string]interface{}{
-//					"body": string(marshalledCronTriggerEventBody),
-//					"headers": map[string]interface{}{
-//						"Extra-Header-1": "value1",
-//						"Extra-Header-2": "value2",
-//					},
-//				},
-//			},
-//		},
-//
-//		// create http trigger with ingress, so we can invoke the function using it later (for testing on minikube)
-//		"httptrig": {
-//			Kind: "http",
-//			Attributes: map[string]interface{}{
-//				"ingresses": map[string]interface{}{
-//					"0": map[string]interface{}{
-//						"host":  functionIngressHost,
-//						"paths": []string{"/"},
-//					},
-//				},
-//			},
-//		},
-//	}
-//
-//	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-//		events := suite.InvokeEventRecorderFunctionAndUnmarshalBody(functionIngressHost, 60*time.Second)
-//
-//		// validate the json event body was sent properly
-//		var actualEventBodyJSON myEventBody
-//		err = json.Unmarshal([]byte(events[0].Body), &actualEventBodyJSON)
-//		suite.Require().NoError(err)
-//		suite.Require().Empty(cmp.Diff(cronTriggerEventBody, actualEventBodyJSON))
-//
-//		// validate headers were attached properly
-//		suite.Require().Contains(events[0].Headers, "X-Nuclio-Invoke-Trigger")
-//		suite.Require().Contains(events[0].Headers, "Extra-Header-1")
-//		suite.Require().Contains(events[0].Headers, "Extra-Header-2")
-//
-//		return true
-//	})
-//}
+func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody() {
+
+	// create an event-recorder function
+	functionPath := path.Join(suite.GetTestFunctionsDir(), "common", "event-recorder", "python", "event_recorder.py")
+	functionName := fmt.Sprintf("event-recorder-%s", xid.New().String())
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// get function source code
+	functionSourceCode, err := ioutil.ReadFile(functionPath)
+	suite.Require().NoError(err)
+
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "event_recorder:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(functionSourceCode)
+
+	functionIngressHost := testk8s.GetDefaultIngressHost()
+	functionIngressPath := "/" + functionName
+
+	// compile http trigger with an ingress, so we can invoke the function using it later (for testing on minikube)
+	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+	defaultHTTPTrigger.Attributes = map[string]interface{}{
+		"ingresses": map[string]interface{}{
+			"0": map[string]interface{}{
+				"host":  functionIngressHost,
+				"paths": []string{functionIngressPath},
+			},
+		},
+	}
+
+	// compile cron trigger
+	cronTriggerEvent := cron.Event{
+		Body: `{
+			"key_a": true,
+			"key_b": ["value_1", "value_2"]
+		}`,
+		Headers: map[string]interface{}{
+			"Extra-Header-1": "value1",
+			"Extra-Header-2": "value2",
+		},
+	}
+	cronTrigger := functionconfig.Trigger{
+		Name: "cronTrigger",
+		Kind: "cron",
+		Attributes: map[string]interface{}{
+			"interval": "5s",
+			"event":    cronTriggerEvent,
+		},
+	}
+	createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeClusterIP
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		cronTrigger.Name:        cronTrigger,
+		defaultHTTPTrigger.Name: defaultHTTPTrigger,
+	}
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		// try get function recorded events for 60 seconds
+		// we expect the function to record and return all cron triggers events
+		functionInvocationURL := fmt.Sprintf("http://%s%s", functionIngressHost, functionIngressPath)
+		var events []cron.Event
+		suite.TryGetAndUnmarshalFunctionRecordedEvents(functionInvocationURL, 60*time.Second, &events)
+		firstEvent := events[0]
+
+		// ensure recorded event
+		suite.Require().Empty(cmp.Diff(cronTriggerEvent.Body, firstEvent.Body))
+		suite.Require().Empty(cmp.Diff(cronTriggerEvent.Headers, firstEvent.Headers))
+		return true
+	})
+}
 
 // Test that we get the expected brief error message on function deployment failure
 func (suite *DeployFunctionTestSuite) TestDeployFailureBriefErrorMessage() {
