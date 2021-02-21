@@ -1,4 +1,4 @@
-// +build ignore
+// +build function_templates_generator
 
 /*
 Copyright 2017 The Nuclio Authors.
