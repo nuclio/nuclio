@@ -62,11 +62,11 @@ func (suite *TestSuite) TestBuildWithBuildArgs() {
 		},
 	}
 
-	returnStatusCode := http.StatusOK
+	expectedStatusCode := http.StatusOK
 	suite.DeployFunctionAndRequest(&createFunctionOptionsOriginal,
 		&httpsuite.Request{
 			RequestMethod:              "POST",
-			ExpectedResponseStatusCode: &returnStatusCode,
+			ExpectedResponseStatusCode: &expectedStatusCode,
 		})
 }
 

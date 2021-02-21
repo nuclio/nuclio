@@ -183,6 +183,6 @@ type Platform interface {
 	// GetContainerBuilderKind returns the container-builder kind
 	GetContainerBuilderKind() string
 
-	// GetBuildArgs returns the runtime specific build arguments
-	GetBuildArgs(runtime runtime.Runtime) map[string]string
+	// GetRuntimeBuildArgs returns the runtime specific build arguments
+	GetRuntimeBuildArgs(runtime runtime.Runtime) map[string]string
 }

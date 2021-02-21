@@ -1355,7 +1355,7 @@ func (b *Builder) getProcessorDockerfileOnbuildImage(runtimeDefaultOnbuildImage 
 func (b *Builder) getDockerFileBuildArgs() map[string]string {
 
 	// Get platform build args for our runtime
-	buildArgs := b.platform.GetBuildArgs(b.runtime)
+	buildArgs := b.platform.GetRuntimeBuildArgs(b.runtime)
 
 	// Enrich build args with function specific args
 	for key, value := range b.options.FunctionConfig.Spec.Build.Args {

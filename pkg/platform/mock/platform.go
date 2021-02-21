@@ -108,8 +108,9 @@ func (mp *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
-func (mp *Platform) GetBuildArgs(runtime runtime.Runtime) map[string]string {
-	return map[string]string{}
+func (mp *Platform) GetRuntimeBuildArgs(runtime runtime.Runtime) map[string]string {
+	args := mp.Called()
+	return args.Get(0).(map[string]string)
 }
 
 //

@@ -85,9 +85,9 @@ func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runti
 }
 
 // GetBuildArgs returns building arguments
-func (p *python) GetBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
+func (p *python) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
 	if runtimeConfig != nil && runtimeConfig.Python != nil {
 		return runtimeConfig.Python.BuildArgs
 	}
-	return map[string]string{}
+	return p.AbstractRuntime.GetRuntimeBuildArgs(runtimeConfig)
 }

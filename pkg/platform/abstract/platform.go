@@ -658,9 +658,9 @@ func (ap *Platform) GetContainerBuilderKind() string {
 	return ap.ContainerBuilder.GetKind()
 }
 
-// GetBuildArgs returns the runtime specific build arguments
-func (ap *Platform) GetBuildArgs(runtime runtime.Runtime) map[string]string {
-	return runtime.GetBuildArgs(ap.Config.Runtime)
+// GetRuntimeBuildArgs returns the runtime specific build arguments
+func (ap *Platform) GetRuntimeBuildArgs(runtime runtime.Runtime) map[string]string {
+	return runtime.GetRuntimeBuildArgs(ap.Config.Runtime)
 }
 
 func (ap *Platform) functionBuildRequired(functionConfig *functionconfig.Config) (bool, error) {

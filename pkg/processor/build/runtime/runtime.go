@@ -71,8 +71,8 @@ type Runtime interface {
 	// GetOverrideImageRegistryFromMap returns an override image for the runtime from the given map
 	GetOverrideImageRegistryFromMap(map[string]string) string
 
-	// GetBuildArgs returns building arguments
-	GetBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string
+	// GetRuntimeBuildArgs returns building arguments
+	GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string
 }
 
 type Factory interface {
@@ -195,6 +195,6 @@ func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imagesOverrideMap map
 	return ""
 }
 
-func (ar *AbstractRuntime) GetBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
+func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
 	return map[string]string{}
 }
