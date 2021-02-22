@@ -94,7 +94,6 @@ import (
 	"encoding/json"
 
 	"github.com/nuclio/nuclio-sdk-go"
-
 	"pack.ag/amqp"
 )
 
