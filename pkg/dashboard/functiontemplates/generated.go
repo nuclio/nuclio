@@ -22,7 +22,7 @@ import (
 
 var GeneratedFunctionTemplates = []*generatedFunctionTemplate{
 	{
-		Name: "eventhub:3dc2fc71-92cf-4ee0-ab1a-c8e6be5ec940",
+		Name: "eventhub:golang",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -69,6 +69,7 @@ spec:
         sharedAccessKeyValue: < your value here >
       class: ""
       kind: eventhub
+      name: ""
 `),
 		SourceCode: `/*
 Copyright 2017 The Nuclio Authors.
@@ -93,7 +94,6 @@ import (
 	"encoding/json"
 
 	"github.com/nuclio/nuclio-sdk-go"
-
 	"pack.ag/amqp"
 )
 
@@ -194,7 +194,7 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 `,
 	},
 	{
-		Name: "helloworld:c22b2b9b-d0fc-4e0e-a891-6b0ab89865b0",
+		Name: "helloworld:golang",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -241,7 +241,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "image:1fda4adf-c9ac-4040-abc3-d506b5eaff8a",
+		Name: "image:golang",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -349,7 +349,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "rabbitmq:3f66665c-f5b9-4d4f-89ea-daf671bef2b0",
+		Name: "rabbitmq:golang",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -369,6 +369,7 @@ spec:
         queueName: queue-name
       class: ""
       kind: rabbit-mq
+      name: ""
       url: amqp://user:password@rabbitmq-host:5672
 `),
 		SourceCode: `/*
@@ -461,7 +462,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "regexscan:f4e94a9a-a33b-4c58-a72b-eae501e95036",
+		Name: "regexscan:golang",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -543,7 +544,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "dates:606538a5-0404-4adf-b8be-120751d124e3",
+		Name: "dates:nodejs",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -605,7 +606,7 @@ exports.handler = function(context, event) {
 `,
 	},
 	{
-		Name: "helloworld:63484c5a-0db2-415c-afed-793571819197",
+		Name: "helloworld:dotnetcore",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -652,7 +653,7 @@ public class nuclio
 `,
 	},
 	{
-		Name: "reverser:b7120d99-8fc1-4839-bbe4-ef130583c438",
+		Name: "reverser:dotnetcore",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -695,7 +696,7 @@ public class nuclio
 `,
 	},
 	{
-		Name: "encrypt:7937244f-f637-4ce1-9031-a6e72d0ac873",
+		Name: "encrypt:python-36",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -755,7 +756,7 @@ def encrypt(context, event):
 `,
 	},
 	{
-		Name: "facerecognizer:dfec0a3a-ea04-4055-a20b-879dbf9a2178",
+		Name: "facerecognizer:python-36",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -898,7 +899,7 @@ def _build_response(context, body, status_code):
 `,
 	},
 	{
-		Name: "helloworld:4043f7bf-0940-437d-badc-4cc9714dcad0",
+		Name: "helloworld:python-36",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -936,7 +937,83 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "sentiments:f995f716-44e2-404c-9ba3-fcc9a21885f6",
+		Name: "helloworld:python-37",
+		Configuration: unmarshalConfig(`metadata: {}
+spec:
+  build: {}
+  description: Showcases unstructured logging and a structured response.
+  eventTimeout: ""
+  handler: helloworld:handler
+  maxReplicas: 1
+  minReplicas: 1
+  platform: {}
+  resources: {}
+  runtime: python:3.7
+`),
+		SourceCode: `# Copyright 2017 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+def handler(context, event):
+    context.logger.info('This is an unstructured log')
+
+    return context.Response(body='Hello, from nuclio :]',
+                            headers={},
+                            content_type='text/plain',
+                            status_code=200)
+`,
+	},
+	{
+		Name: "helloworld:python-38",
+		Configuration: unmarshalConfig(`metadata: {}
+spec:
+  build: {}
+  description: Showcases unstructured logging and a structured response.
+  eventTimeout: ""
+  handler: helloworld:handler
+  maxReplicas: 1
+  minReplicas: 1
+  platform: {}
+  resources: {}
+  runtime: python:3.8
+`),
+		SourceCode: `# Copyright 2017 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+def handler(context, event):
+    context.logger.info('This is an unstructured log')
+
+    return context.Response(body='Hello, from nuclio :]',
+                            headers={},
+                            content_type='text/plain',
+                            status_code=200)
+`,
+	},
+	{
+		Name: "sentiments:python-36",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -981,7 +1058,7 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "tensorflow:fdb23977-7834-4a4b-9476-6350098912d9",
+		Name: "tensorflow:python-36",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1376,7 +1453,7 @@ t.start()
 `,
 	},
 	{
-		Name: "img-convert:638ea5f8-098b-4c3c-b873-09adb6395ef4",
+		Name: "img-convert:shell",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:

@@ -463,9 +463,14 @@ ensure-test-files-annotated: modules
 # Testing
 #
 
+.PHONY: benchmarking
 benchmarking:
 	$(eval NUCLIO_BENCHMARKING_RUNTIMES ?= all)
 	@python3 hack/scripts/benchmark/benchmark.py --nuctl-platform local --runtimes $(NUCLIO_BENCHMARKING_RUNTIMES)
+
+.PHONY: functiontemplates
+functiontemplates:
+	go run -tags=function_templates_generator pkg/dashboard/functiontemplates/generator/generator.go
 
 .PHONY: test-unit
 test-unit: modules ensure-gopath
