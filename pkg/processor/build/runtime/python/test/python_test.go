@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 	"github.com/nuclio/nuclio/pkg/runtimeconfig"
@@ -49,6 +50,7 @@ func (suite *TestSuite) TestBuildWithBuildArgs() {
 
 	// Configure custom pypi repository
 	pypiRepositoryURL := "https://test.pypi.org/simple"
+	runtimePlatformConfigurationCopy := suite.PlatformConfiguration.Runtime
 	suite.PlatformConfiguration.Runtime = &runtimeconfig.Config{
 		Python: &runtimeconfig.Python{
 			BuildArgs: map[string]string{
@@ -56,6 +58,13 @@ func (suite *TestSuite) TestBuildWithBuildArgs() {
 			},
 		},
 	}
+	defer func() {
+
+		// HACK - reset runtime platform configuration
+		// to avoid platform configuration effecting following tests
+		// NOTE: on >= 1.6.0 platform configuration would be re-initiated per test case and not per suite.
+		suite.PlatformConfiguration.Runtime = runtimePlatformConfigurationCopy
+	}()
 
 	// Try to deploy some non-existing package.
 	// The deployment will fail but if custom PyPI configuration is successful
@@ -64,6 +73,11 @@ func (suite *TestSuite) TestBuildWithBuildArgs() {
 	suite.PopulateDeployOptions(createFunctionOptions)
 	_, err := suite.Platform.CreateFunction(createFunctionOptions)
 	suite.Assert().NotNil(err)
+
+	// delete leftovers
+	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+		FunctionConfig: createFunctionOptions.FunctionConfig,
+	})
 	stackTrace := errors.GetErrorStackString(err, 10)
 	suite.Assert().Contains(stackTrace, fmt.Sprintf("Looking in indexes: %s", pypiRepositoryURL))
 }
@@ -85,6 +99,7 @@ func (suite *TestSuite) TestBuildWithBuildArgsPython3_6() {
 	suite.DeployFunctionAndExpectError(createFunctionOptions, "Failed to deploy function")
 
 	// Configure custom pypi repository and re-deploy (should succeed)
+	runtimePlatformConfigurationCopy := suite.PlatformConfiguration.Runtime
 	suite.PlatformConfiguration.Runtime = &runtimeconfig.Config{
 		Python: &runtimeconfig.Python{
 			BuildArgs: map[string]string{
@@ -92,6 +107,14 @@ func (suite *TestSuite) TestBuildWithBuildArgsPython3_6() {
 			},
 		},
 	}
+
+	defer func() {
+
+		// HACK - reset runtime platform configuration
+		// to avoid platform configuration effecting following tests
+		// NOTE: on >= 1.6.0 platform configuration would be re-initiated per test case and not per suite.
+		suite.PlatformConfiguration.Runtime = runtimePlatformConfigurationCopy
+	}()
 
 	expectedStatusCode := http.StatusOK
 	suite.DeployFunctionAndRequest(&createFunctionOptionsOriginal,
