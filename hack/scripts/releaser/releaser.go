@@ -710,32 +710,40 @@ func (r *Release) populateBumpedVersions() error {
 		return nil
 	}
 
-	if err := r.targetVersion.Set(r.helmChartConfig.AppVersion.String()); err != nil {
-		return errors.Wrap(err, "Failed to set target version")
+	var bumpAppVersion bool
+	var bumpChartVersion bool
+
+	// if not set, fill target version from helm chart app version
+	// NOTE: this can be overridden via CLI
+	if r.targetVersion.Equal(semver.Version{}) {
+		if err := r.targetVersion.Set(r.helmChartConfig.AppVersion.String()); err != nil {
+			return errors.Wrap(err, "Failed to set target version")
+		}
+		bumpAppVersion = true
 	}
 
-	if err := r.helmChartsTargetVersion.Set(r.helmChartConfig.Version.String()); err != nil {
-		return errors.Wrap(err, "Failed to set helm charts target version")
+	// if not set, fill helm chart target version from helm chart
+	// NOTE: this can be overridden via CLI
+	if r.helmChartsTargetVersion.Equal(semver.Version{}) {
+		if err := r.helmChartsTargetVersion.Set(r.helmChartConfig.Version.String()); err != nil {
+			return errors.Wrap(err, "Failed to set helm charts target version")
+		}
+		bumpChartVersion = true
 	}
 
-	if err := r.currentVersion.Set(r.helmChartConfig.AppVersion.String()); err != nil {
-		return errors.Wrap(err, "Failed to set current version")
+	// fill current version from helm chart
+	if r.currentVersion.Equal(semver.Version{}) {
+		if err := r.currentVersion.Set(r.helmChartConfig.AppVersion.String()); err != nil {
+			return errors.Wrap(err, "Failed to set current version")
+		}
 	}
 
-	// bump targets
-	switch {
-	case r.bumpPatch:
-		r.logger.Info("Bumping patch version")
-		r.targetVersion.BumpPatch()
-		r.helmChartsTargetVersion.BumpPatch()
-	case r.bumpMinor:
-		r.logger.Info("Bumping minor version")
-		r.targetVersion.BumpMinor()
-		r.helmChartsTargetVersion.BumpMinor()
-	case r.bumpMajor:
-		r.logger.Info("Bumping major version")
-		r.targetVersion.BumpMajor()
-		r.helmChartsTargetVersion.BumpMajor()
+	if bumpAppVersion {
+		r.bumpVersion(r.targetVersion)
+	}
+
+	if bumpChartVersion {
+		r.bumpVersion(r.helmChartsTargetVersion)
 	}
 
 	r.logger.DebugWith("Successfully bumped version",
@@ -744,6 +752,20 @@ func (r *Release) populateBumpedVersions() error {
 		"targetVersion", r.targetVersion,
 		"helmChartsTargetVersion", r.helmChartsTargetVersion)
 	return nil
+}
+
+func (r *Release) bumpVersion(version *semver.Version) {
+	switch {
+	case r.bumpPatch:
+		r.logger.Info("Bumping app patch version")
+		version.BumpPatch()
+	case r.bumpMinor:
+		r.logger.Info("Bumping app minor version")
+		version.BumpMinor()
+	case r.bumpMajor:
+		r.logger.Info("Bumping app major version")
+		version.BumpMajor()
+	}
 }
 
 func (r *Release) resolveSupportedChartDirs() []string {
