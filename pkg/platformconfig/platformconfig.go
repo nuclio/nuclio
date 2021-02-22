@@ -18,6 +18,8 @@ package platformconfig
 
 import (
 	"os"
+	"strings"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -37,6 +39,7 @@ type Config struct {
 	FunctionAugmentedConfigs []LabelSelectorAndConfig     `json:"functionAugmentedConfigs,omitempty"`
 	IngressConfig            IngressConfig                `json:"ingressConfig,omitempty"`
 	Kube                     PlatformKubeConfig           `json:"kube,omitempty"`
+	Local                    PlatformLocalConfig          `json:"local,omitempty"`
 	ImageRegistryOverrides   ImageRegistryOverridesConfig `json:"imageRegistryOverrides,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
@@ -62,7 +65,11 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.Kind = "local"
 	}
 
+	// enrich local platform configuration
+	config.enrichLocalPlatform()
+
 	// default cron trigger creation mode to processor
+	// TODO: move under `config.Kube`
 	if config.CronTriggerCreationMode == "" {
 		config.CronTriggerCreationMode = ProcessorCronTriggerCreationMode
 	}
@@ -149,4 +156,23 @@ func (config *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBin
 	}
 
 	return result, nil
+}
+
+func (config *Config) enrichLocalPlatform() {
+
+	// if set via envvar, override given configuration
+	switch strings.ToLower(os.Getenv("NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS")) {
+	case "false":
+		config.Local.FunctionContainersHealthinessEnabled = false
+	case "true":
+		config.Local.FunctionContainersHealthinessEnabled = true
+	}
+
+	if config.Local.FunctionContainersHealthinessInterval == 0 {
+		config.Local.FunctionContainersHealthinessInterval = time.Second * 30
+	}
+
+	if config.Local.FunctionContainersHealthinessTimeout == 0 {
+		config.Local.FunctionContainersHealthinessTimeout = time.Second * 5
+	}
 }

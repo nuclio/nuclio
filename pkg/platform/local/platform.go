@@ -47,13 +47,10 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	cmdRunner                             cmdrunner.CmdRunner
-	dockerClient                          dockerclient.Client
-	localStore                            *store
-	defaultFunctionMountMode              FunctionMountMode
-	functionContainersHealthinessEnabled  bool
-	functionContainersHealthinessTimeout  time.Duration
-	functionContainersHealthinessInterval time.Duration
+	cmdRunner                cmdrunner.CmdRunner
+	dockerClient             dockerclient.Client
+	localStore               *store
+	defaultFunctionMountMode FunctionMountMode
 }
 
 const Mib = 1048576
@@ -72,11 +69,6 @@ func NewPlatform(parentLogger logger.Logger,
 
 	// init platform
 	newPlatform.Platform = newAbstractPlatform
-
-	// function containers healthiness check is disabled by default
-	newPlatform.functionContainersHealthinessEnabled = common.GetEnvOrDefaultBool("NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS", false)
-	newPlatform.functionContainersHealthinessTimeout = time.Second * 5
-	newPlatform.functionContainersHealthinessInterval = time.Second * 30
 
 	// create a command runner
 	if newPlatform.cmdRunner, err = cmdrunner.NewShellRunner(newPlatform.Logger); err != nil {
@@ -99,10 +91,10 @@ func NewPlatform(parentLogger logger.Logger,
 	}
 
 	// ignite goroutine to check function container healthiness
-	if newPlatform.functionContainersHealthinessEnabled {
+	if newPlatform.Config.Local.FunctionContainersHealthinessEnabled {
 		newPlatform.Logger.DebugWith("Igniting container healthiness validator")
 		go func(newPlatform *Platform) {
-			uptimeTicker := time.NewTicker(newPlatform.functionContainersHealthinessInterval)
+			uptimeTicker := time.NewTicker(newPlatform.Config.Local.FunctionContainersHealthinessInterval)
 			for range uptimeTicker.C {
 				newPlatform.ValidateFunctionContainersHealthiness()
 			}
@@ -923,7 +915,7 @@ func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.Crea
 
 func (p *Platform) checkAndSetFunctionUnhealthy(containerID string, function platform.Function) error {
 	if err := p.dockerClient.AwaitContainerHealth(containerID,
-		&p.functionContainersHealthinessTimeout); err != nil {
+		&p.Config.Local.FunctionContainersHealthinessTimeout); err != nil {
 		return p.setFunctionUnhealthy(function)
 	}
 	return nil
@@ -951,7 +943,7 @@ func (p *Platform) setFunctionUnhealthy(function platform.Function) error {
 
 func (p *Platform) checkAndSetFunctionHealthy(containerID string, function platform.Function) error {
 	if err := p.dockerClient.AwaitContainerHealth(containerID,
-		&p.functionContainersHealthinessTimeout); err != nil {
+		&p.Config.Local.FunctionContainersHealthinessTimeout); err != nil {
 		return errors.Wrapf(err, "Failed to ensure the health of container ID %s", containerID)
 	}
 	functionStatus := function.GetStatus()

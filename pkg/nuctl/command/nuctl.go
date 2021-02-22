@@ -116,6 +116,10 @@ func (rc *RootCommandeer) initialize() error {
 
 	rc.platformConfiguration.Kube.KubeConfigPath = rc.KubeconfigPath
 
+	// do not let nuctl monitor function containers
+	// nuctl is a CLI tool, to enable function container healthiness, use Nuclio dashboard
+	rc.platformConfiguration.Local.FunctionContainersHealthinessEnabled = false
+
 	// ask the factory to create the appropriate platform
 	// TODO: as more platforms are supported, i imagine the last argument will be to some
 	// sort of configuration provider interface
