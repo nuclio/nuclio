@@ -192,3 +192,14 @@ cronTriggerCreationMode: "kube"
 
 For more information, see the [Cron-trigger reference](/docs/reference/triggers/cron.md).
 
+<a id="runtime"></a>
+### Runtime (`runtime`)
+
+The `runtime` sections allows you to configure various runtime related parameters. 
+For example to define custom PyPI repository, add the following section:
+```yaml
+  runtime:
+    python:
+      buildArgs:
+        PIP_INDEX_URL: "https://test.pypi.org/simple"
+```

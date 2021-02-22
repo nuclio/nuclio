@@ -129,6 +129,7 @@ func (suite *TestSuite) DeployFunctionAndRequests(createFunctionOptions *platfor
 	requests []*Request) *platform.CreateFunctionResult {
 
 	return suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
 		for _, request := range requests {
 			request.Enrich(deployResult)
 			if !suite.SendRequestVerifyResponse(request) {

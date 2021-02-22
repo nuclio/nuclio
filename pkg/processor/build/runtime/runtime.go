@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/runtimeconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -38,6 +39,7 @@ type ProcessorDockerfileInfo struct {
 	Directives         map[string][]functionconfig.Directive
 	DockerfileContents string
 	DockerfilePath     string
+	BuildArgs          map[string]string
 }
 
 type Artifact struct {
@@ -68,6 +70,9 @@ type Runtime interface {
 
 	// GetOverrideImageRegistryFromMap returns an override image for the runtime from the given map
 	GetOverrideImageRegistryFromMap(map[string]string) string
+
+	// GetRuntimeBuildArgs returns building arguments
+	GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string
 }
 
 type Factory interface {
@@ -188,4 +193,8 @@ func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imagesOverrideMap map
 
 	// no override found
 	return ""
+}
+
+func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
+	return map[string]string{}
 }

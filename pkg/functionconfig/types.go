@@ -222,6 +222,7 @@ type Build struct {
 	Timestamp           int64                  `json:"timestamp,omitempty"`
 	BuildTimeoutSeconds *int64                 `json:"buildTimeoutSeconds,omitempty"`
 	Mode                BuildMode              `json:"mode,omitempty"`
+	Args                map[string]string      `json:"args,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration

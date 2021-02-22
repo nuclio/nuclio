@@ -22,6 +22,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/runtimeconfig"
 )
 
 type python struct {
@@ -81,4 +82,12 @@ func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runti
 	}
 
 	return &processorDockerfileInfo, nil
+}
+
+// GetBuildArgs returns building arguments
+func (p *python) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
+	if runtimeConfig != nil && runtimeConfig.Python != nil {
+		return runtimeConfig.Python.BuildArgs
+	}
+	return p.AbstractRuntime.GetRuntimeBuildArgs(runtimeConfig)
 }
