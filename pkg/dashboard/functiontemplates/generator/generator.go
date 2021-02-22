@@ -251,16 +251,32 @@ func (g *Generator) buildFunctionTemplates(functionDirs []string) ([]*functionte
 			continue
 		}
 
-		functionTemplate := functiontemplates.FunctionTemplate{
-			FunctionConfig: configuration,
-			Name:           fmt.Sprintf("%s:%s", functionName, flect.Dasherize(runtime.Name)),
-			SourceCode:     sourceCode,
-		}
+		functionTemplate := g.createFunctionTemplate(configuration, functionName, sourceCode)
 
 		g.logger.InfoWith("Appending function template",
 			"functionName", functionName,
-			"runtime", runtime.Name)
-		functionTemplates = append(functionTemplates, &functionTemplate)
+			"runtime", configuration.Spec.Runtime)
+		functionTemplates = append(functionTemplates, functionTemplate)
+
+		// HACK: allow python 3.6, 3.7, 3.8 share the same functions to avoid specific examples per runtime version
+		runtimeName, runtimeVersion := common.GetRuntimeNameAndVersion(configuration.Spec.Runtime)
+		if runtimeName == "python" &&
+			runtimeVersion == "3.6" &&
+			functionName == "helloworld" {
+
+			// add helloworld function example to python 3.7 and 3.8
+			for _, runtimeCopy := range []string{"python:3.7", "python:3.8"} {
+				configurationCopy := *configuration
+				configurationCopy.Spec.Runtime = runtimeCopy
+
+				g.logger.InfoWith("Appending function template",
+					"functionName", functionName,
+					"runtime", configurationCopy.Spec.Runtime)
+				functionTemplates = append(functionTemplates, g.createFunctionTemplate(&configurationCopy,
+					functionName,
+					sourceCode))
+			}
+		}
 		g.functions[runtime.Name] = append(g.functions[runtime.Name], functionName)
 	}
 
@@ -274,6 +290,19 @@ func (g *Generator) resolveFunctionRuntimeByFunctionPath(path string) *Runtime {
 		}
 	}
 	return nil
+}
+
+func (g *Generator) createFunctionTemplate(functionConfiguration *functionconfig.Config,
+	functionName string,
+	functionSourceCode string) *functiontemplates.FunctionTemplate {
+	return &functiontemplates.FunctionTemplate{
+		FunctionConfig: functionConfiguration,
+		SourceCode:     functionSourceCode,
+		Name: fmt.Sprintf("%s:%s",
+			functionName,
+			flect.Dasherize(functionConfiguration.Spec.Runtime)),
+	}
+
 }
 
 func (g *Generator) getFunctionConfigAndSource(functionDir string) (*functionconfig.Config, string, error) {
