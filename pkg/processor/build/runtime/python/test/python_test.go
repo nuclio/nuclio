@@ -17,6 +17,7 @@ limitations under the License.
 package test
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 	"github.com/nuclio/nuclio/pkg/runtimeconfig"
 
+	"github.com/nuclio/errors"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -41,6 +43,35 @@ func (suite *TestSuite) SetupSuite() {
 }
 
 func (suite *TestSuite) TestBuildWithBuildArgs() {
+	createFunctionOptions := suite.GetDeployOptions("func-with-build-args",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "empty", "python"))
+	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
+
+	// Configure custom pypi repository
+	pypiRepositoryURL := "https://test.pypi.org/simple"
+	suite.PlatformConfiguration.Runtime = &runtimeconfig.Config{
+		Python: &runtimeconfig.Python{
+			BuildArgs: map[string]string{
+				"PIP_INDEX_URL": pypiRepositoryURL,
+			},
+		},
+	}
+
+	// Try to deploy some non-existing package.
+	// The deployment will fail but if custom PyPI configuration is successful
+	// we should see "Looking in indexes: XXX" message in the logs
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install non-existing-package"}
+	suite.PopulateDeployOptions(createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(createFunctionOptions)
+	suite.Assert().NotNil(err)
+	stackTrace := errors.GetErrorStackString(err, 10)
+	suite.Assert().Contains(stackTrace, fmt.Sprintf("Looking in indexes: %s", pypiRepositoryURL))
+}
+
+func (suite *TestSuite) TestBuildWithBuildArgsPython3_6() {
+	if suite.Runtime != "python:3.6" {
+		suite.T().Skip("This should only run when runtime is python 3.6")
+	}
 
 	createFunctionOptions := suite.GetDeployOptions("func-with-build-args",
 		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "empty", "python"))
