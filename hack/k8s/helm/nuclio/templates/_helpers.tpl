@@ -89,3 +89,13 @@ NOTE: make sure to not quote here, because an empty string is false, but a quote
 {{- define "nuclio.platformConfigName" -}}
 {{- printf "%s-platform-config" (include "nuclio.fullName" .) | trunc 63 -}}
 {{- end -}}
+
+{{- define "nuclio.dashboard.nodePort" -}}
+{{- if .Values.dashboard.nodePort -}}
+{{- .Values.dashboard.nodePort -}}
+{{- else if .Values.global.nuclio.dashboard.nodePort -}}
+{{- .Values.global.nuclio.dashboard.nodePort -}}
+{{- else -}}
+{{- print "" -}}
+{{- end -}}
+{{- end -}}
