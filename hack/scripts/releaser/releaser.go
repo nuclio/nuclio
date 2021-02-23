@@ -757,13 +757,13 @@ func (r *Release) populateBumpedVersions() error {
 func (r *Release) bumpVersion(version *semver.Version) {
 	switch {
 	case r.bumpPatch:
-		r.logger.Info("Bumping app patch version")
+		r.logger.Info("Bumping patch version")
 		version.BumpPatch()
 	case r.bumpMinor:
-		r.logger.Info("Bumping app minor version")
+		r.logger.Info("Bumping minor version")
 		version.BumpMinor()
 	case r.bumpMajor:
-		r.logger.Info("Bumping app major version")
+		r.logger.Info("Bumping major version")
 		version.BumpMajor()
 	}
 }
