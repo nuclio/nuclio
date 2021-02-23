@@ -195,6 +195,10 @@ crd:
   create: true
 
 platform: {}
+#  runtime:
+#    python:
+#      buildArgs:
+#        PIP_INDEX_URL: "https://test.pypi.org/simple"
 #   logger:
 #     sinks:
 #       myHumanReadableStdout:
