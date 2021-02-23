@@ -530,7 +530,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 			ctx.Response.SetBodyStream(fileResponse, -1)
 		} else {
 			// set body
-			ctx.Response.SetBody(typedResponse.Body)
+			ctx.Response.SetBodyRaw(typedResponse.Body)
 		}
 
 		// set content type if set
@@ -544,7 +544,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		}
 
 	case []byte:
-		ctx.Write(typedResponse) // nolint: errcheck
+		ctx.Response.SetBodyRaw(typedResponse)
 
 	case string:
 		ctx.WriteString(typedResponse) // nolint: errcheck
