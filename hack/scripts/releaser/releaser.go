@@ -739,14 +739,16 @@ func (r *Release) populateBumpedVersions() error {
 	}
 
 	if bumpAppVersion {
+		r.logger.DebugWith("Bumping app version", "version", r.targetVersion)
 		r.bumpVersion(r.targetVersion)
 	}
 
 	if bumpChartVersion {
+		r.logger.DebugWith("Bumping chart version", "version", r.helmChartsTargetVersion)
 		r.bumpVersion(r.helmChartsTargetVersion)
 	}
 
-	r.logger.DebugWith("Successfully bumped version",
+	r.logger.DebugWith("Successfully populated bumped version",
 		"currentVersion", r.currentVersion,
 		"currentHelmChartsVersion", r.helmChartConfig.Version,
 		"targetVersion", r.targetVersion,
