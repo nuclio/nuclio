@@ -20,13 +20,13 @@ import (
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	// load authentication modes
@@ -35,13 +35,17 @@ import (
 )
 
 type RootCommandeer struct {
-	loggerInstance logger.Logger
-	cmd            *cobra.Command
-	platformName   string
-	platform       platform.Platform
-	namespace      string
-	verbose        bool
-	KubeconfigPath string
+	loggerInstance          logger.Logger
+	cmd                     *cobra.Command
+	platformName            string
+	platform                platform.Platform
+	namespace               string
+	verbose                 bool
+	noColor                 bool
+	loggerFormatterKind     string
+	loggerFileFormatterKind string
+	loggerFilePath          string
+	KubeconfigPath          string
 
 	platformConfiguration *platformconfig.Config
 }
@@ -59,12 +63,13 @@ func NewRootCommandeer() *RootCommandeer {
 	defaultPlatformType := common.GetEnvOrDefaultString("NUCTL_PLATFORM", "auto")
 	defaultNamespace := os.Getenv("NUCTL_NAMESPACE")
 
+	cmd.PersistentFlags().StringVar(&commandeer.loggerFilePath, "logger-file-path", "", "If passed, logger outputs to a file as well")
+	cmd.PersistentFlags().BoolVar(&commandeer.noColor, "logger-no-color", false, "If passed, logger does not output with colors")
+	cmd.PersistentFlags().StringVar(&commandeer.loggerFormatterKind, "logger-formatter-kind", "text", `Log formatter to use - "text" or "json" (Default: text)`)
+	cmd.PersistentFlags().StringVar(&commandeer.loggerFileFormatterKind, "logger-file-formatter-kind", "json", `Log formatter to use - "text" or "json" (Default: json, used in conjunction with 'logger-file-path')`)
 	cmd.PersistentFlags().BoolVarP(&commandeer.verbose, "verbose", "v", false, "Verbose output")
 	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "Platform identifier - \"kube\", \"local\", or \"auto\"")
 	cmd.PersistentFlags().StringVarP(&commandeer.namespace, "namespace", "n", defaultNamespace, "Namespace")
-
-	// platform specific
-	cmd.PersistentFlags().StringVarP(&commandeer.KubeconfigPath, "kubeconfig", "k", "", "Path to a Kubernetes configuration file (admin.conf)")
 
 	// add children
 	cmd.AddCommand(
@@ -138,18 +143,37 @@ func (rc *RootCommandeer) initialize() error {
 }
 
 func (rc *RootCommandeer) createLogger() (logger.Logger, error) {
-	var loggerLevel nucliozap.Level
+	var loggers []logger.Logger
+	var loggerLevel logger.Level
 
 	if rc.verbose {
-		loggerLevel = nucliozap.DebugLevel
+		loggerLevel = logger.LevelDebug
 	} else {
-		loggerLevel = nucliozap.InfoLevel
+		loggerLevel = logger.LevelInfo
 	}
 
-	loggerInstance, err := nucliozap.NewNuclioZapCmd("nuctl", loggerLevel)
+	loggerInstance, err := loggerus.CreateStdoutLogger("nuctl",
+		loggerLevel,
+		loggerus.LoggerFormatterKind(rc.loggerFormatterKind),
+		rc.noColor)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create logger")
+		return nil, errors.Wrap(err, "Failed to create stdout logger")
 	}
 
-	return loggerInstance, nil
+	loggers = append(loggers, loggerInstance)
+
+	if rc.loggerFilePath != "" {
+		fileLoggerInstance, err := loggerus.CreateFileLogger("nuctl",
+			loggerLevel,
+			loggerus.LoggerFormatterKind(rc.loggerFileFormatterKind),
+			rc.loggerFilePath,
+			rc.noColor)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create file logger")
+		}
+
+		loggers = append(loggers, fileLoggerInstance)
+	}
+
+	return loggerus.MuxLoggers(loggers...)
 }
