@@ -118,6 +118,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
 	// wrap logger
+	// TODO: convert to a loggerus-kinda logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a log stream")

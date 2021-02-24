@@ -28,8 +28,10 @@ import (
 )
 
 type LogStream struct {
+
+	// TODO: convert to a loggerus-kinda logger
 	bufferLogger *nucliozap.BufferLogger
-	muxLogger    *nucliozap.MuxLogger
+	muxLogger    logger.Logger
 }
 
 // NewLogStream returns a new log stream

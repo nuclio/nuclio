@@ -45,8 +45,10 @@ var (
 
 type http struct {
 	trigger.AbstractTrigger
-	configuration    *Configuration
-	events           []Event
+	configuration *Configuration
+	events        []Event
+
+	// TODO: convert to a loggerus-kinda logger
 	bufferLoggerPool *nucliozap.BufferLoggerPool
 	status           status.Status
 	activeContexts   []*fasthttp.RequestCtx
