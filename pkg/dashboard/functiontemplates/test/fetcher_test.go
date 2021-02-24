@@ -23,9 +23,9 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -36,7 +36,7 @@ type GitFetcherTestSuite struct {
 
 func (suite *GitFetcherTestSuite) SetupSuite() {
 	var err error
-	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.logger, err = loggerus.CreateTestLogger("test")
 	suite.Require().NoError(err)
 }
 
@@ -67,7 +67,7 @@ type ZipFetcherTestSuite struct {
 
 func (suite *ZipFetcherTestSuite) SetupSuite() {
 	var err error
-	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.logger, err = loggerus.CreateTestLogger("test")
 	suite.Require().NoError(err)
 }
 

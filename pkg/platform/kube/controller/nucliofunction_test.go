@@ -24,12 +24,12 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/mocks"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 
 	"github.com/nuclio/logger"
-	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -49,7 +49,7 @@ func (suite *NuclioFunctionTestSuite) SetupTest() {
 	var err error
 	resyncInterval := 1 * time.Hour
 
-	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.logger, err = loggerus.CreateTestLogger("test")
 	suite.Require().NoError(err)
 
 	suite.functionresClientMock = &functionres.MockedFunctionRes{}

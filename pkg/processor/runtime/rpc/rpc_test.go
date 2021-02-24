@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -30,12 +29,12 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -47,19 +46,23 @@ func (suite *RPCSuite) TestLogBeforeEvent() {
 	suite.T().Skip()
 
 	var sink bytes.Buffer
-	var errSink bytes.Buffer
-	logger, err := nucliozap.NewNuclioZap("RPCTest", "json", nil, &sink, &errSink, nucliozap.DebugLevel)
+	loggerInstance, err := loggerus.CreateCustomOutputLogger("resource-scaler",
+		logger.LevelDebug,
+		loggerus.LoggerFormatterKindJSON,
+		&sink,
+		true,
+		false)
 	suite.Require().NoError(err, "Can't create logger")
 
-	var conn net.Conn
+	var conn bytes.Buffer
 
-	_, err = NewAbstractRuntime(logger, suite.runtimeConfiguration(logger), nil)
+	_, err = NewAbstractRuntime(loggerInstance, suite.runtimeConfiguration(loggerInstance), nil)
 	suite.Require().NoError(err, "Can't create RPC runtime")
 
 	message := "testing log before"
-	suite.emitLog(message, conn)
-	time.Sleep(time.Millisecond) // Give TCP time to move bits around
-	logger.Flush()
+	suite.emitLog(message, &conn)
+	time.Sleep(time.Second) // Give TCP time to move bits around
+	loggerInstance.Flush()
 	suite.True(strings.Contains(sink.String(), message), "Didn't get log")
 }
 

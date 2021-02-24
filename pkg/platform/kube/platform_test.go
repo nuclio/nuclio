@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -35,7 +36,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
@@ -67,7 +67,7 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 	common.SetVersionFromEnv()
 
 	suite.Namespace = "default-namespace"
-	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Logger, err = loggerus.CreateTestLogger("test")
 	suite.Require().NoError(err, "Logger should create successfully")
 
 	suite.PlatformKubeConfig = &platformconfig.PlatformKubeConfig{

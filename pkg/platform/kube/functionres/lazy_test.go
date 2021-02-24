@@ -22,13 +22,14 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
+	nucliologgerus "github.com/nuclio/loggerus"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
@@ -56,7 +57,7 @@ type lazyTestSuite struct {
 }
 
 func (suite *lazyTestSuite) SetupTest() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.logger, _ = loggerus.CreateTestLogger("test")
 	suite.client.logger = suite.logger
 
 	// use a fake kube client
@@ -85,9 +86,10 @@ func (suite *lazyTestSuite) TestNoChanges() {
 	functionLabels["nuclio.io/function-name"] = function.Name
 
 	// logs are spammy, let them
-	prevLevel := suite.client.logger.(*nucliozap.NuclioZap).GetLevel()
-	suite.client.logger.(*nucliozap.NuclioZap).SetLevel(nucliozap.InfoLevel)
-	defer suite.client.logger.(*nucliozap.NuclioZap).SetLevel(prevLevel)
+	loggerusLogger := suite.client.logger.(*nucliologgerus.Loggerus).GetLogrus()
+	prevLevel := loggerusLogger.GetLevel()
+	loggerusLogger.SetLevel(loggerus.LoggerLevelToLogrusLevel(logger.LevelInfo))
+	defer loggerusLogger.SetLevel(prevLevel)
 
 	// "create" the deployment
 	deploymentInstance, err := suite.client.createOrUpdateDeployment(functionLabels,

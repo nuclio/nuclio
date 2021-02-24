@@ -21,7 +21,8 @@ package golang
 import (
 	"testing"
 
-	"github.com/nuclio/zap"
+	"github.com/nuclio/nuclio/pkg/loggerus"
+
 	"github.com/stretchr/testify/suite"
 )
 
@@ -31,7 +32,7 @@ type handlerTestSuite struct {
 }
 
 func (suite *handlerTestSuite) SetupTest() {
-	loggerInstance, _ := nucliozap.NewNuclioZapTest("test")
+	loggerInstance, _ := loggerus.CreateTestLogger("test")
 
 	suite.handler = abstractHandler{
 		logger: loggerInstance,

@@ -24,10 +24,10 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/test/compare"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,7 +40,7 @@ type PlatformConfigTestSuite struct {
 }
 
 func (suite *PlatformConfigTestSuite) SetupTest() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.logger, _ = loggerus.CreateTestLogger("test")
 	suite.reader, _ = NewReader()
 }
 

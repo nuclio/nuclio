@@ -27,7 +27,8 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/nuclio/zap"
+	"github.com/nuclio/nuclio/pkg/loggerus"
+
 	"github.com/stretchr/testify/suite"
 )
 
@@ -81,7 +82,7 @@ type ParseSuite struct {
 }
 
 func (suite *ParseSuite) SetupSuite() {
-	zap, err := nucliozap.NewNuclioZapTest("parsereventhandler-test")
+	zap, err := loggerus.CreateTestLogger("parsereventhandler-test")
 	suite.Require().NoError(err, "Can't create logger")
 	suite.parser = NewEventHandlerParser(zap)
 }

@@ -24,13 +24,13 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -110,7 +110,7 @@ func (suite *RuntimeSuite) TearDownTest() {
 }
 
 func (suite *RuntimeSuite) createLogger() logger.Logger {
-	loggerInstance, err := nucliozap.NewNuclioZapTest("rpc-runtime-test")
+	loggerInstance, err := loggerus.CreateTestLogger("rpc-runtime-test")
 	suite.Require().NoError(err, "Can't create logger")
 
 	return loggerInstance

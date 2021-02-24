@@ -24,8 +24,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/loggerus"
+
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/nuclio/zap"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/suite"
 )
@@ -164,7 +165,7 @@ type EventJSONEncoderSuite struct {
 
 func (suite *EventJSONEncoderSuite) TestEncode() {
 	require := suite.Require()
-	logger, err := nucliozap.NewNuclioZapTest("test")
+	logger, err := loggerus.CreateTestLogger("test")
 	require.NoError(err, "Can't create logger")
 
 	var buf bytes.Buffer

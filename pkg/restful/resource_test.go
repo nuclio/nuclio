@@ -28,11 +28,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/loggerus"
+
 	"github.com/go-chi/chi"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -84,7 +85,7 @@ type resourceTestSuite struct {
 }
 
 func (suite *resourceTestSuite) SetupTest() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.logger, _ = loggerus.CreateTestLogger("test")
 
 	// root router
 	suite.router = chi.NewRouter()

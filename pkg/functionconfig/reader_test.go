@@ -22,9 +22,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/loggerus"
+
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
 )
@@ -36,7 +37,7 @@ type ReaderTestSuite struct {
 }
 
 func (suite *ReaderTestSuite) SetupTest() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.logger, _ = loggerus.CreateTestLogger("test")
 	suite.reader, _ = NewReader(suite.logger)
 }
 

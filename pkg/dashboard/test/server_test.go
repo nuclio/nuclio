@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
@@ -46,7 +47,6 @@ import (
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/nuclio/zap"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -65,7 +65,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 	var err error
 	trueValue := true
 
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.logger, _ = loggerus.CreateTestLogger("test")
 	suite.mockPlatform = &mockplatform.Platform{}
 
 	templateRepository, err := functiontemplates.NewRepository(suite.logger, []functiontemplates.FunctionTemplateFetcher{})

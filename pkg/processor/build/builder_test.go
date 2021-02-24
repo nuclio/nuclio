@@ -30,13 +30,13 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/platform"
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 
 	"github.com/jarcoal/httpmock"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -76,7 +76,7 @@ func (msc *mockS3Client) Download(file *os.File, bucket, itemKey, region, access
 func (suite *testSuite) SetupSuite() {
 	var err error
 
-	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.logger, err = loggerus.CreateTestLogger("test")
 	suite.Require().NoError(err)
 
 	suite.mockS3Client = &mockS3Client{}

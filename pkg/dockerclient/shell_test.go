@@ -24,10 +24,10 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -43,7 +43,7 @@ func (suite *ShellClientTestSuite) SetupTest() {
 	var err error
 
 	// create logger
-	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.logger, err = loggerus.CreateTestLogger("test")
 	suite.Require().NoError(err, "Failed to create logger")
 
 	// create mocked cmd runner

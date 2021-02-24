@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/platform"
 	mockedplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -37,7 +38,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -77,7 +77,7 @@ func (suite *AbstractPlatformTestSuite) SetupSuite() {
 
 	suite.DefaultNamespace = "nuclio"
 
-	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Logger, err = loggerus.CreateTestLogger("test")
 	suite.Require().NoError(err, "Logger should create successfully")
 	suite.initializeMockedPlatform()
 }

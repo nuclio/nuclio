@@ -24,8 +24,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/loggerus"
+
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -38,7 +39,7 @@ type ShellRunnerTestSuite struct {
 
 func (suite *ShellRunnerTestSuite) SetupTest() {
 
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.logger, _ = loggerus.CreateTestLogger("test")
 	newShellRunner, err := NewShellRunner(suite.logger)
 	if err != nil {
 		panic("Failed to create command runner")

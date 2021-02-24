@@ -24,8 +24,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/loggerus"
+
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -38,7 +39,7 @@ type CmdRunnerTestSuite struct {
 func (suite *CmdRunnerTestSuite) SetupTest() {
 	var err error
 
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.logger, _ = loggerus.CreateTestLogger("test")
 	suite.commandRunner, err = NewShellRunner(suite.logger)
 	if err != nil {
 		panic("Failed to create command runner")

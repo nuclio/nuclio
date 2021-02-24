@@ -27,10 +27,10 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/test/compare"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -44,7 +44,7 @@ type DockerCredsTestSuite struct {
 func (suite *DockerCredsTestSuite) SetupTest() {
 	var err error
 
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.logger, _ = loggerus.CreateTestLogger("test")
 	suite.mockDockerClient = dockerclient.NewMockDockerClient()
 	suite.dockerCreds, err = NewDockerCreds(suite.logger, suite.mockDockerClient, nil)
 	suite.Require().NoError(err)

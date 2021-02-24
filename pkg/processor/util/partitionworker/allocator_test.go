@@ -23,10 +23,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
-	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -38,7 +38,7 @@ type partitionWorkerAllocatorTestSuite struct {
 func (suite *partitionWorkerAllocatorTestSuite) SetupSuite() {
 	var err error
 
-	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.logger, err = loggerus.CreateTestLogger("test")
 	suite.Require().NoError(err)
 }
 

@@ -22,8 +22,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/loggerus"
+
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -33,7 +34,7 @@ type AllocatorTestSuite struct {
 }
 
 func (suite *AllocatorTestSuite) SetupSuite() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.logger, _ = loggerus.CreateTestLogger("test")
 }
 
 func (suite *AllocatorTestSuite) TestSingletonAllocator() {

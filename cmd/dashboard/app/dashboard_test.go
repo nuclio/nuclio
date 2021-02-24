@@ -26,10 +26,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -43,7 +43,7 @@ type DashboardTestSuite struct {
 }
 
 func (suite *DashboardTestSuite) SetupSuite() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.logger, _ = loggerus.CreateTestLogger("test")
 }
 
 func (suite *DashboardTestSuite) SetupTest() {

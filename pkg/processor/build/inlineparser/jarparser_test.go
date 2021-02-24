@@ -24,7 +24,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nuclio/zap"
+	"github.com/nuclio/nuclio/pkg/loggerus"
+
 	"github.com/stretchr/testify/suite"
 )
 
@@ -64,7 +65,7 @@ func (suite *JarParserTestSuite) createJar() string {
 }
 
 func (suite *JarParserTestSuite) TestJarParser() {
-	logger, err := nucliozap.NewNuclioZapTest("test")
+	logger, err := loggerus.CreateTestLogger("test")
 	suite.Require().NoError(err)
 
 	jarPath := suite.createJar()

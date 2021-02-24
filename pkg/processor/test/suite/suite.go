@@ -29,12 +29,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	"github.com/tsenart/vegeta/v12/lib"
@@ -106,7 +106,7 @@ func (suite *TestSuite) SetupSuite() {
 	// this will preserve the current behavior where function names are renamed to be unique upon deployment
 	suite.FunctionNameUniquify = true
 
-	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Logger, err = loggerus.CreateTestLogger("test")
 	suite.Require().NoError(err)
 
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)

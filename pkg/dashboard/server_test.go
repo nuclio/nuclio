@@ -22,9 +22,9 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/dockercreds"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 
 	"github.com/nuclio/logger"
-	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -36,7 +36,7 @@ type DashboardServerTestSuite struct {
 
 func (suite *DashboardServerTestSuite) SetupTest() {
 	var err error
-	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Logger, err = loggerus.CreateTestLogger("test")
 	suite.Require().NoError(err)
 }
 

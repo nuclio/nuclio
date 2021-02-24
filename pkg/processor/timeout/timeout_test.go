@@ -23,10 +23,10 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -72,7 +72,7 @@ type eventTimeoutSuite struct {
 }
 
 func (suite *eventTimeoutSuite) TestWatcher() {
-	logger, err := nucliozap.NewNuclioZapTest("EventTimeout")
+	logger, err := loggerus.CreateTestLogger("EventTimeout")
 	suite.Require().NoError(err, "Can't create logger")
 
 	mockTrigger := &mockTestTrigger{

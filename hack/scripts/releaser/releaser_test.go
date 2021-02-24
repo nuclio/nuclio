@@ -29,10 +29,10 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 
 	"github.com/coreos/go-semver/semver"
 	"github.com/nuclio/logger"
-	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -57,7 +57,7 @@ type ReleaserTestSuite struct {
 
 func (suite *ReleaserTestSuite) SetupSuite() {
 	var err error
-	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.logger, err = loggerus.CreateTestLogger("test")
 	suite.Require().NoError(err)
 	suite.cmdRunner = cmdrunner.NewMockRunner()
 }

@@ -23,9 +23,9 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -35,7 +35,7 @@ type repositoryTestSuite struct {
 }
 
 func (suite *repositoryTestSuite) SetupSuite() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.logger, _ = loggerus.CreateTestLogger("test")
 }
 
 func (suite *repositoryTestSuite) TestFilteredGet() {

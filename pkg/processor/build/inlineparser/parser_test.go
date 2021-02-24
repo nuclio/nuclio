@@ -23,8 +23,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/loggerus"
+
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -35,7 +36,7 @@ type InlineParserTestSuite struct {
 }
 
 func (suite *InlineParserTestSuite) SetupTest() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.logger, _ = loggerus.CreateTestLogger("test")
 	suite.parser = NewParser(suite.logger, "#")
 }
 

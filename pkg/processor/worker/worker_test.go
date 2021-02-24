@@ -22,11 +22,11 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -81,7 +81,7 @@ type WorkerTestSuite struct {
 }
 
 func (suite *WorkerTestSuite) SetupSuite() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.logger, _ = loggerus.CreateTestLogger("test")
 }
 
 func (suite *WorkerTestSuite) TestProcessEvent() {
