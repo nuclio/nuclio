@@ -503,6 +503,20 @@ func GetRuntimeNameAndVersion(runtime string) (string, string) {
 
 }
 
+// EnsureOpenFile returns a file while ensuring its dir exists
+func EnsureOpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
+
+	// ensure dir exists
+	if filepath.Dir(path) != "" {
+		if err := os.MkdirAll(filepath.Dir(path), os.ModePerm); err != nil {
+			return nil, errors.Wrap(err, "Failed to ensure file path")
+		}
+	}
+
+	// open the file
+	return os.OpenFile(path, flag, perm)
+}
+
 func logPanic(ctx context.Context,
 	loggerInstance logger.Logger,
 	actionName string,

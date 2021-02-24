@@ -40,6 +40,7 @@ require (
 	github.com/nuclio/errors v0.0.3
 	github.com/nuclio/logger v0.0.1
 	github.com/nuclio/logger-appinsights v0.0.1
+	github.com/nuclio/loggerus v0.0.3
 	github.com/nuclio/nuclio-sdk-go v0.2.0
 	github.com/nuclio/zap v0.0.4
 	github.com/olekukonko/tablewriter v0.0.1
@@ -50,9 +51,10 @@ require (
 	github.com/rs/xid v1.2.1
 	github.com/satori/go.uuid v1.2.0
 	github.com/sendgridlabs/go-kinesis v0.0.0-20190306160747-8de9069567f6
+	github.com/sirupsen/logrus v1.8.0
 	github.com/spf13/cobra v0.0.5
 	github.com/streadway/amqp v0.0.0-20190815230801-eade30b20f1d
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/tedsuo/ifrit v0.0.0-20191009134036-9a97d0632f00 // indirect
 	github.com/tsenart/vegeta/v12 v12.8.4
 	github.com/v3io/scaler v0.4.0
@@ -74,3 +76,6 @@ require (
 )
 
 replace github.com/Shopify/sarama => github.com/iguazio/sarama v1.25.1-0.20201117150928-15517d41c014
+
+// TODO: remove once https://github.com/nuclio/loggerus/pull/4 is merged and v0.0.4 is released
+replace github.com/nuclio/loggerus v0.0.3 => github.com/nuclio/loggerus v0.0.4-0.20210224025007-1a268b9b60ba
