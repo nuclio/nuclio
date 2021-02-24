@@ -20,6 +20,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/loggerus"
+
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -45,7 +47,7 @@ func NewLogStream(name string, level nucliozap.Level, loggers ...logger.Logger) 
 	loggers = append(loggers, newLogStream.bufferLogger.Logger)
 
 	// wrap a mux logger
-	newLogStream.muxLogger, err = nucliozap.NewMuxLogger(loggers...)
+	newLogStream.muxLogger, err = loggerus.MuxLoggers(loggers...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create mux logger")
 	}

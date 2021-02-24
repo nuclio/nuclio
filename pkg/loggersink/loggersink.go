@@ -18,11 +18,11 @@ package loggersink
 
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 )
 
 // CreateSystemLogger returns the system loggers
@@ -80,6 +80,6 @@ func createLoggers(name string,
 	default:
 
 		// if there's more than one logger, create a mux logger (as it does carry _some_ overhead over a single logger)
-		return nucliozap.NewMuxLogger(loggers...)
+		return loggerus.MuxLoggers(loggers...)
 	}
 }

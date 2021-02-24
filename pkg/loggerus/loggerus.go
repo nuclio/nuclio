@@ -32,6 +32,10 @@ func MuxLoggers(loggers ...logger.Logger) (*loggerus.MuxLogger, error) {
 	return loggerus.NewMuxLogger(loggers...)
 }
 
+func CreateTestLogger(name string) (logger.Logger, error) {
+	return loggerus.NewLoggerusForTests(name)
+}
+
 func CreateStdoutLogger(loggerName string,
 	loggerLevel logger.Level,
 	loggerFormatterKind LoggerFormatterKind,
@@ -42,6 +46,10 @@ func CreateStdoutLogger(loggerName string,
 		os.Stdout,
 		true,
 		noColor)
+}
+
+func CreateCmdLogger(loggerName string, loggerLevel logger.Level) (logger.Logger, error) {
+	return CreateStdoutLogger(loggerName, loggerLevel, LoggerFormatterKindText, false)
 }
 
 func CreateFileLogger(loggerName string,
@@ -72,20 +80,20 @@ func CreateCustomOutputLogger(loggerName string,
 	switch loggerFormatterKindText {
 	case LoggerFormatterKindText:
 		return loggerus.NewTextLoggerus(loggerName,
-			toLogrusLevel(loggerLevel),
+			LoggerLevelToLogrusLevel(loggerLevel),
 			common.GetRedactorInstance(output),
 			enrichWhoField,
 			!noColor)
 	case LoggerFormatterKindJSON:
 		return loggerus.NewJSONLoggerus(loggerName,
-			toLogrusLevel(loggerLevel),
+			LoggerLevelToLogrusLevel(loggerLevel),
 			common.GetRedactorInstance(output))
 	default:
 		return nil, errors.Errorf("Unexpected logger formatter kind %s", loggerFormatterKindText)
 	}
 }
 
-func toLogrusLevel(level logger.Level) logrus.Level {
+func LoggerLevelToLogrusLevel(level logger.Level) logrus.Level {
 	switch level {
 	case logger.LevelInfo:
 		return logrus.InfoLevel

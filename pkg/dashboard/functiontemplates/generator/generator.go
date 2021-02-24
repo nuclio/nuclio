@@ -33,6 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 
@@ -40,7 +41,6 @@ import (
 	"github.com/gobuffalo/flect"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	yamlv2 "gopkg.in/yaml.v2"
 )
 
@@ -503,7 +503,7 @@ func main() {
 	flag.Parse()
 
 	if err := func() error {
-		loggerInstance, err := nucliozap.NewNuclioZapCmd("generator", nucliozap.DebugLevel)
+		loggerInstance, err := loggerus.CreateCmdLogger("generator", logger.LevelDebug)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create logger")
 		}

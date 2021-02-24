@@ -27,13 +27,13 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/mgutz/ansi"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/spf13/cobra"
 )
 
@@ -259,12 +259,11 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunct
 
 	// create a logger whose name is that of the function and whose severity was chosen by command line
 	// arguments during invocation
-	functionLogger, err := nucliozap.NewNuclioZap(i.createFunctionInvocationOptions.Name,
-		"console",
-		nil,
-		writer,
-		writer,
-		nucliozap.DebugLevel)
+	functionLogger, err := loggerus.CreateCustomOutputLogger(i.createFunctionInvocationOptions.Name,
+		logger.LevelDebug,
+		loggerus.LoggerFormatterKindText, writer,
+		true,
+		false)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to create function logger")

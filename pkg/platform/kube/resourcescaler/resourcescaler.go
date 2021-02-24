@@ -1,10 +1,10 @@
 package resourcescaler
 
 import (
-	"os"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
@@ -12,7 +12,6 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/v3io/scaler-types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -39,12 +38,7 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 		return nil, errors.Wrap(err, "Failed to get platform configuration")
 	}
 
-	resourceScalerLogger, err := nucliozap.NewNuclioZap("resource-scaler",
-		"console",
-		nil,
-		os.Stdout,
-		os.Stderr,
-		nucliozap.DebugLevel)
+	resourceScalerLogger, err := loggerus.CreateCmdLogger("resource-scaler", logger.LevelDebug)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating a new logger")
 	}

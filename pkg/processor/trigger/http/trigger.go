@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -405,7 +406,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		bufferLogger.Buffer.Write([]byte("["))
 
 		// set the function logger to that of the chosen buffer logger
-		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
+		functionLogger, _ = loggerus.MuxLoggers(bufferLogger.Logger, h.Logger)
 	}
 
 	response, timedOut, submitError, processError := h.AllocateWorkerAndSubmitEvent(ctx,

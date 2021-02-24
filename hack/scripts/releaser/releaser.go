@@ -35,11 +35,11 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 
 	"github.com/coreos/go-semver/semver"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"gopkg.in/yaml.v2"
 )
 
@@ -779,7 +779,7 @@ func (r *Release) resolveSupportedChartDirs() []string {
 }
 
 func run() error {
-	loggerInstance, err := nucliozap.NewNuclioZapCmd("releaser", nucliozap.DebugLevel)
+	loggerInstance, err := loggerus.CreateCmdLogger("releaser", logger.LevelDebug)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
 	}
