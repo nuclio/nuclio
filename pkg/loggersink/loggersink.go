@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/zap"
 )
 
-// CreateSystemLoggers returns the system loggers
+// CreateSystemLogger returns the system loggers
 func CreateSystemLogger(name string, platformConfiguration *platformconfig.Config) (logger.Logger, error) {
 
 	// get system loggers
@@ -37,7 +37,7 @@ func CreateSystemLogger(name string, platformConfiguration *platformconfig.Confi
 	return createLoggers(name, systemLoggerSinksByName)
 }
 
-// returns the processor logger and the function logger. For now, they are one of the same
+// CreateFunctionLogger returns the processor logger and the function logger. For now, they are one of the same
 func CreateFunctionLogger(name string,
 	functionConfiguration *functionconfig.Config,
 	platformConfiguration *platformconfig.Config) (logger.Logger, error) {
@@ -52,19 +52,15 @@ func CreateFunctionLogger(name string,
 }
 
 // returns the processor logger and the function logger. For now, they are one of the same
-func createLoggers(name string, loggerSinksWithLevel map[string]platformconfig.LoggerSinkWithLevel) (logger.Logger, error) {
+func createLoggers(name string,
+	loggerSinksWithLevel map[string]platformconfig.LoggerSinkWithLevel) (logger.Logger, error) {
 	var loggers []logger.Logger
-	var loggerInstance logger.Logger
-	var err error
 
 	// get system logger sinks
 	for _, loggerSinkConfiguration := range loggerSinksWithLevel {
-		var loggerInstance logger.Logger
-
-		loggerInstance, err = RegistrySingleton.NewLoggerSink(loggerSinkConfiguration.Sink.Kind,
+		loggerInstance, err := RegistrySingleton.NewLoggerSink(loggerSinkConfiguration.Sink.Kind,
 			name,
 			&loggerSinkConfiguration)
-
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create logger")
 		}
@@ -73,22 +69,17 @@ func createLoggers(name string, loggerSinksWithLevel map[string]platformconfig.L
 		loggers = append(loggers, loggerInstance)
 	}
 
-	// if there's more than one logger, create a mux logger (as it does carry _some_ overhead over a single logger)
-	if len(loggers) > 1 {
-
-		// create system logger
-		loggerInstance, err = nucliozap.NewMuxLogger(loggers...)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to created system mux logger")
-		}
-
-	} else {
-		if len(loggers) == 0 {
-			return nil, errors.New("Must configure at least one logger")
-		}
-
-		loggerInstance = loggers[0]
+	if len(loggers) == 0 {
+		return nil, errors.New("Must configure at least one logger")
 	}
 
-	return loggerInstance, nil
+	switch loggersLen := len(loggers); {
+	case loggersLen == 1:
+		return loggers[0], nil
+
+	default:
+
+		// if there's more than one logger, create a mux logger (as it does carry _some_ overhead over a single logger)
+		return nucliozap.NewMuxLogger(loggers...)
+	}
 }

@@ -18,6 +18,7 @@ package stdout
 
 import (
 	"github.com/nuclio/nuclio/pkg/loggersink"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/mitchellh/mapstructure"
@@ -26,10 +27,8 @@ import (
 
 type Configuration struct {
 	loggersink.Configuration
-	Encoding          string
-	VarGroupName      string
-	TimeFieldName     string
-	TimeFieldEncoding string
+	FormatterKind loggerus.LoggerFormatterKind
+	NoColor       bool
 }
 
 func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) (*Configuration, error) {
@@ -43,16 +42,8 @@ func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.Logge
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
-	if newConfiguration.Encoding == "" {
-		newConfiguration.Encoding = "console"
-	}
-
-	if newConfiguration.TimeFieldName == "" {
-		newConfiguration.TimeFieldName = "time"
-	}
-
-	if newConfiguration.TimeFieldEncoding == "" {
-		newConfiguration.TimeFieldEncoding = "epoch-millis"
+	if newConfiguration.FormatterKind == "" {
+		newConfiguration.FormatterKind = loggerus.LoggerFormatterKindText
 	}
 
 	return &newConfiguration, nil

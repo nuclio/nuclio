@@ -17,14 +17,12 @@ limitations under the License.
 package stdout
 
 import (
-	"os"
-
 	"github.com/nuclio/nuclio/pkg/loggersink"
+	"github.com/nuclio/nuclio/pkg/loggerus"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 )
 
 type factory struct{}
@@ -37,32 +35,7 @@ func (f *factory) Create(name string,
 		return nil, errors.Wrap(err, "Failed to create prometheus pull configuration")
 	}
 
-	var level nucliozap.Level
-
-	switch configuration.Level {
-	case logger.LevelInfo:
-		level = nucliozap.InfoLevel
-	case logger.LevelWarn:
-		level = nucliozap.WarnLevel
-	case logger.LevelError:
-		level = nucliozap.ErrorLevel
-	default:
-		level = nucliozap.DebugLevel
-	}
-
-	// get the default encoding and override line ending to newline
-	encoderConfig := nucliozap.NewEncoderConfig()
-	encoderConfig.JSON.LineEnding = "\n"
-	encoderConfig.JSON.VarGroupName = configuration.VarGroupName
-	encoderConfig.JSON.TimeFieldName = configuration.TimeFieldName
-	encoderConfig.JSON.TimeFieldEncoding = configuration.TimeFieldEncoding
-
-	return nucliozap.NewNuclioZap(name,
-		configuration.Encoding,
-		encoderConfig,
-		os.Stdout,
-		os.Stdout,
-		level)
+	return loggerus.CreateStdoutLogger(name, configuration.Level, configuration.FormatterKind, configuration.NoColor)
 }
 
 // register factory
