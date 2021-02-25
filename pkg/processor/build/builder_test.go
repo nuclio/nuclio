@@ -614,7 +614,7 @@ func (suite *testSuite) TestResolveFunctionPathS3CodeEntry() {
 	suite.testResolveFunctionPathArchive(buildConfiguration, "")
 }
 
-func (suite *testSuite) TestResolveFurnctionPathGitCodeEntry() {
+func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 	for _, testCase := range []struct {
 		Name string
 		BuildConfiguration functionconfig.Build
@@ -660,7 +660,7 @@ func (suite *testSuite) TestResolveFurnctionPathGitCodeEntry() {
 			Name: "BitBucketBranch",
 			BuildConfiguration: functionconfig.Build{
 				CodeEntryType: GitEntryType,
-				Path:          "https://github.com/sahare92/test-nuclio-cet.git",
+				Path:          "https://bitbucket.org/saharel/test-nuclio-cet.git",
 				CodeEntryAttributes: map[string]interface{}{
 					"workDir":   "go-function",
 					"gitBranch": "go-func",
@@ -671,7 +671,7 @@ func (suite *testSuite) TestResolveFurnctionPathGitCodeEntry() {
 			Name: "BitBucketTag",
 			BuildConfiguration: functionconfig.Build{
 				CodeEntryType: GitEntryType,
-				Path:          "https://github.com/sahare92/test-nuclio-cet.git",
+				Path:          "https://bitbucket.org/saharel/test-nuclio-cet.git",
 				CodeEntryAttributes: map[string]interface{}{
 					"workDir": "go-function",
 					"gitTag":  "0.0.1",

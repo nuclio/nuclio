@@ -1509,7 +1509,6 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
 		}
 
-		// in case this is git entry type - clone folder into tempDir
 		if codeEntryType == GitEntryType {
 			if err = b.cloneFunctionFromGit(tempDir, functionPath); err != nil {
 				return "", errors.Wrap(err, "Failed to download function from git")
