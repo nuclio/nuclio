@@ -37,7 +37,7 @@ jobs:
 
     - uses: actions/setup-go@v2
       with:
-        go-version: "^1.14.0"
+        go-version: "1.14"
 
     - uses: actions/cache@v2
       with:
@@ -61,7 +61,7 @@ jobs:
 
     - uses: actions/setup-go@v2
       with:
-        go-version: "^1.14.0"
+        go-version: "1.14"
 
     - uses: actions/cache@v2
       with:
@@ -82,7 +82,7 @@ jobs:
 
     - uses: actions/setup-go@v2
       with:
-        go-version: "^1.14.0"
+        go-version: "1.14"
 
     - name: Build
       run: |
