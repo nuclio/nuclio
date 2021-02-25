@@ -52,12 +52,16 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/version-go"
+	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
+	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/yaml.v2"
 )
 
 const (
 	FunctionConfigFileName = "function.yaml"
 	uhttpcImage            = "quay.io/nuclio/uhttpc:0.0.1-%s"
+	GitEntryType           = "git"
 	GithubEntryType        = "github"
 	ArchiveEntryType       = "archive"
 	S3EntryType            = "s3"
@@ -748,7 +752,7 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 		}
 	}
 
-	return b.resolveUserSpecifiedArchiveWorkdir(decompressDir)
+	return b.resolveUserSpecifiedWorkdir(decompressDir)
 }
 
 func (b *Builder) resolveGithubArchiveWorkDir(decompressDir string) (string, error) {
@@ -769,7 +773,7 @@ func (b *Builder) resolveGithubArchiveWorkDir(decompressDir string) (string, err
 	return decompressDir, nil
 }
 
-func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (string, error) {
+func (b *Builder) resolveUserSpecifiedWorkdir(mainDir string) (string, error) {
 	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
 
 	if found {
@@ -777,13 +781,13 @@ func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (stri
 		if !ok {
 			return "", nuclio.NewErrBadRequest(string(common.WorkDirectoryExpectedBeString))
 		}
-		decompressDir = filepath.Join(decompressDir, userSpecifiedWorkDirectory)
-		if !common.FileExists(decompressDir) {
+		mainDir = filepath.Join(mainDir, userSpecifiedWorkDirectory)
+		if !common.FileExists(mainDir) {
 			return "", nuclio.NewErrBadRequest(string(common.WorkDirectoryDoesNotExist))
 		}
 	}
 
-	return decompressDir, nil
+	return mainDir, nil
 }
 
 func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
@@ -1500,17 +1504,26 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 			}
 		}
 
-		isArchive := codeEntryType == S3EntryType ||
-			codeEntryType == GithubEntryType ||
-			codeEntryType == ArchiveEntryType
-
-		// jar is an exception - we want it to remain compressed, as our java runtime processor expects to get it
-		isArchive = isArchive && !util.IsJar(functionPath)
-
 		tempDir, err := b.mkDirUnderTemp("download")
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
 		}
+
+		// in case this is git entry type - clone folder into tempDir
+		if codeEntryType == GitEntryType {
+			if err = b.cloneFunctionFromGit(tempDir, functionPath); err != nil {
+				return "", errors.Wrap(err, "Failed to download function from git")
+			}
+
+			return b.resolveUserSpecifiedWorkdir(tempDir)
+		}
+
+		isArchive := codeEntryType == S3EntryType ||
+		codeEntryType == GithubEntryType ||
+		codeEntryType == ArchiveEntryType
+
+		// jar is an exception - we want it to remain compressed, as our java runtime processor expects to get it
+		isArchive = isArchive && !util.IsJar(functionPath)
 
 		tempFile, err := b.getFunctionTempFile(tempDir, functionPath, isArchive, codeEntryType)
 		if err != nil {
@@ -1550,6 +1563,71 @@ func (b *Builder) getS3FunctionItemKey() (string, error) {
 	}
 
 	return s3Attributes["s3ItemKey"], nil
+}
+
+func (b *Builder) resolveGitReference() (string, error) {
+	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitBranch"] != "" {
+		return fmt.Sprintf("refs/heads/%s", b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitBranch"]), nil
+	}
+	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitTag"] != "" {
+		return fmt.Sprintf("refs/tags/%s", b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitTag"]), nil
+	}
+	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitReference"] != "" {
+		return b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitReference"].(string), nil
+	}
+
+	return "", errors.New("No git reference was specified. (must specify gitBranch/gitTag/gitReference)")
+}
+
+func (b *Builder) parseFunctionGitCredentials() *githttp.BasicAuth {
+	var username, password string
+
+	_, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitUsername"]
+	if found {
+		username = b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitUsername"].(string)
+	}
+
+	_, found = b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitPassword"]
+	if found {
+		password = b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitPassword"].(string)
+	}
+
+	if username != "" || password != "" {
+		return &githttp.BasicAuth{
+			Username: username,
+			Password: password,
+		}
+	}
+
+	return nil
+}
+
+func (b *Builder) cloneFunctionFromGit(tempDir, functionPath string) error {
+	var gitReference string
+	var gitAuth *githttp.BasicAuth
+	var err error
+
+	// get branch ref and authorization when given
+	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes != nil {
+		gitReference, err = b.resolveGitReference()
+		if err != nil {
+			return errors.Wrap(err, "Failed to resolve git reference")
+		}
+
+		gitAuth = b.parseFunctionGitCredentials()
+	}
+
+	// TODO: handle azure devops differently here
+	if _, err = git.PlainClone(tempDir, false, &git.CloneOptions{
+		URL:           functionPath,
+		ReferenceName: plumbing.ReferenceName(gitReference),
+		Depth:         1,
+		Auth:          gitAuth,
+	}); err != nil {
+		return errors.Wrap(err, "Failed to clone git repository")
+	}
+
+	return nil
 }
 
 func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {
