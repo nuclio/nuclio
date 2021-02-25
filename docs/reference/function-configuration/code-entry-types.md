@@ -158,12 +158,12 @@ Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration/func
   - `codeEntryAttributes` &mdash;
 
       // must use one of the following as git reference
-      - `gitBranch` (dashboard: **Branch**) &mdash; the Git repository branch from which to download the function code.
-      - `gitTag` (dashboard: **Tag**) &mdash; the Git repository tag from which to download the function code.
-      - `gitReference` (dashboard: **Reference**) &mdash; the Git repository reference from which to download the function code.
+      - `branch` (dashboard: **Branch**) &mdash; the Git repository branch from which to download the function code.
+      - `tag` (dashboard: **Tag**) &mdash; the Git repository tag from which to download the function code.
+      - `reference` (dashboard: **Reference**) &mdash; the Git repository reference from which to download the function code.
 
-      - `gitUsername` (dashboard: **Username**) (Optional) Git username
-      - `gitPassword` (dashboard: **Password**) (Optional) Git password
+      - `username` (dashboard: **Username**) (Optional) Git username
+      - `password` (dashboard: **Password**) (Optional) Git password
       - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository.
       The default work directory is the root directory of the git repository (`"/"`).
 
@@ -178,16 +178,15 @@ spec:
   runtime: golang
   build:
     codeEntryType: "git"
-    path: "https://bitbucket.org/saharel/test-nuclio-cet.git"
+    path: "https://bitbucket.org/<my-user>/<my-repo>"
     codeEntryAttributes:
       workDir: "/go-function"
-      gitBranch: "go-func"
+      branch: "go-func"
 
       # Uncomment in case of a private repository
       #
-      # gitCredentials:
-      #  accessKey: "myaccesskey"
       #  username: "myusername"
+      #  password: "mypassword"
 ```
 
 Using Tag:
@@ -198,10 +197,10 @@ spec:
   runtime: golang
   build:
     codeEntryType: "git"
-    path: "https://bitbucket.org/saharel/test-nuclio-cet.git"
+    path: "https://bitbucket.org/<my-user>/<my-repo>"
     codeEntryAttributes:
       workDir: "/go-function"
-      gitTag: "0.0.1"
+      tag: "0.0.1"
 ```
 
 Using Full Reference:
@@ -212,10 +211,10 @@ spec:
   runtime: golang
   build:
     codeEntryType: "git"
-    path: "https://bitbucket.org/saharel/test-nuclio-cet.git"
+    path: "https://bitbucket.org/<my-user>/<my-repo>"
     codeEntryAttributes:
       workDir: "/go-function"
-      gitReference: "refs/heads/go-func"
+      reference: "refs/heads/go-func"
 ```
 
 <a id="code-entry-type-github"></a>

@@ -627,8 +627,8 @@ func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 				CodeEntryType: GitEntryType,
 				Path:          "https://github.com/sahare92/test-nuclio-cet.git",
 				CodeEntryAttributes: map[string]interface{}{
-					"workDir":   "go-function",
-					"gitBranch": "go-func",
+					"workDir": "go-function",
+					"branch":  "go-func",
 				},
 			},
 		},
@@ -639,7 +639,7 @@ func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 				Path:          "https://github.com/sahare92/test-nuclio-cet.git",
 				CodeEntryAttributes: map[string]interface{}{
 					"workDir": "go-function",
-					"gitTag":  "0.0.1",
+					"tag":     "0.0.1",
 				},
 			},
 		},
@@ -649,8 +649,8 @@ func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 				CodeEntryType: GitEntryType,
 				Path:          "https://github.com/sahare92/test-nuclio-cet.git",
 				CodeEntryAttributes: map[string]interface{}{
-					"workDir":      "go-function",
-					"gitReference": "refs/heads/go-func",
+					"workDir":   "go-function",
+					"reference": "refs/heads/go-func",
 				},
 			},
 		},
@@ -662,8 +662,8 @@ func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 				CodeEntryType: GitEntryType,
 				Path:          "https://bitbucket.org/saharel/test-nuclio-cet.git",
 				CodeEntryAttributes: map[string]interface{}{
-					"workDir":   "go-function",
-					"gitBranch": "go-func",
+					"workDir": "go-function",
+					"branch":  "go-func",
 				},
 			},
 		},
@@ -674,10 +674,12 @@ func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 				Path:          "https://bitbucket.org/saharel/test-nuclio-cet.git",
 				CodeEntryAttributes: map[string]interface{}{
 					"workDir": "go-function",
-					"gitTag":  "0.0.1",
+					"tag":     "0.0.1",
 				},
 			},
 		},
+
+		// TODO: add a test for azure-devops when it's added
 	} {
 		suite.Run(testCase.Name, func() {
 			err := suite.builder.createTempDir()

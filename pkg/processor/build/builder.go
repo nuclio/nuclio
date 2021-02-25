@@ -1510,7 +1510,7 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 		}
 
 		if codeEntryType == GitEntryType {
-			if err = b.cloneFunctionFromGit(tempDir, functionPath); err != nil {
+			if err := b.cloneFunctionFromGit(tempDir, functionPath); err != nil {
 				return "", errors.Wrap(err, "Failed to download function from git")
 			}
 
@@ -1565,31 +1565,37 @@ func (b *Builder) getS3FunctionItemKey() (string, error) {
 }
 
 func (b *Builder) resolveGitReference() (string, error) {
-	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitBranch"] != nil {
-		return fmt.Sprintf("refs/heads/%s", b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitBranch"]), nil
+	if ref := b.resolveCodeEntryAttributeAsString("branch"); ref != "" {
+		return fmt.Sprintf("refs/heads/%s", ref), nil
 	}
-	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitTag"] != nil {
-		return fmt.Sprintf("refs/tags/%s", b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitTag"]), nil
+	if ref := b.resolveCodeEntryAttributeAsString("tag"); ref != "" {
+		return fmt.Sprintf("refs/tags/%s", ref), nil
 	}
-	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitReference"] != nil {
-		return b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitReference"].(string), nil
+	if ref := b.resolveCodeEntryAttributeAsString("reference"); ref != "" {
+		return ref, nil
 	}
 
-	return "", errors.New("No git reference was specified. (must specify gitBranch/gitTag/gitReference)")
+	return "", errors.New("No git reference was specified. (must specify branch/tag/reference)")
+}
+
+func (b *Builder) resolveCodeEntryAttributeAsString(attribute string) string {
+	if value, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes[attribute]; found {
+		switch value.(type) {
+		case string:
+			return value.(string)
+		case int, int8, int16, int32, int64:
+			return fmt.Sprintf("%d", value)
+		case float64, float32:
+			return fmt.Sprintf("%f", value)
+		}
+	}
+
+	return ""
 }
 
 func (b *Builder) parseFunctionGitCredentials() *githttp.BasicAuth {
-	var username, password string
-
-	_, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitUsername"]
-	if found {
-		username = b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitUsername"].(string)
-	}
-
-	_, found = b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitPassword"]
-	if found {
-		password = b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitPassword"].(string)
-	}
+	username := b.resolveCodeEntryAttributeAsString("username")
+	password := b.resolveCodeEntryAttributeAsString("password")
 
 	if username != "" || password != "" {
 		return &githttp.BasicAuth{
@@ -1606,7 +1612,7 @@ func (b *Builder) cloneFunctionFromGit(tempDir, functionPath string) error {
 	var gitAuth *githttp.BasicAuth
 	var err error
 
-	// get branch ref and authorization when given
+	// get branch reference and authorization when given
 	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes != nil {
 		gitReference, err = b.resolveGitReference()
 		if err != nil {
