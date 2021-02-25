@@ -1566,13 +1566,13 @@ func (b *Builder) getS3FunctionItemKey() (string, error) {
 }
 
 func (b *Builder) resolveGitReference() (string, error) {
-	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitBranch"] != "" {
+	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitBranch"] != nil {
 		return fmt.Sprintf("refs/heads/%s", b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitBranch"]), nil
 	}
-	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitTag"] != "" {
+	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitTag"] != nil {
 		return fmt.Sprintf("refs/tags/%s", b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitTag"]), nil
 	}
-	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitReference"] != "" {
+	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitReference"] != nil {
 		return b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["gitReference"].(string), nil
 	}
 
