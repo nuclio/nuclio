@@ -77,7 +77,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | triggers.(name).annotations | list of strings | Annotations to be assigned to the trigger, if applicable |
 | triggers.(name).workerAvailabilityTimeoutMilliseconds | int | The number of milliseconds to wait for a worker if one is not available. 0 = never wait (default: 10000, which is 10 seconds)|
 | triggers.(name).attributes | See [reference](/docs/reference/triggers) | The per-trigger attributes |
-| <a id="spec.build.path"></a>build.path | string | The URL of a GitHub repository or an archive-file that contains the function code &mdash; for the `github` or `archive` [code-entry type](#spec.build.codeEntryType) &mdash; or the URL of a function source-code file; see [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md) |
+| <a id="spec.build.path"></a>build.path | string | The URL of a GitHub repository or an archive-file that contains the function code &mdash; for the `git`, `github` or `archive` [code-entry type](#spec.build.codeEntryType) &mdash; or the URL of a function source-code file; see [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md) |
 | <a id="spec.build.functionSourceCode"></a>build.functionSourceCode | string | Base-64 encoded function source code for the `sourceCode` [code-entry type](#spec.build.codeEntryType); see [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md#code-entry-type-sourcecode) |
 | build.registry | string | The container image repository to which the built image will be pushed |
 | build.noBaseImagePull | string | Do not pull any base images when building, use local images only |
@@ -86,7 +86,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | build.Commands | list of string | Commands run opaquely as part of container image build |
 | build.onbuildImage | string | The name of an "onbuild" container image from which to build the function's processor image; the name can include `{{ .Label }}` and `{{ .Arch }}` for formatting |
 | build.image | string | The name of the built container image (default: the function name) |
-| <a id="spec.build.codeEntryType"></a>build.codeEntryType | string | The function's code-entry type - `archive` \| `github` \| `image` \| `s3` \| `sourceCode`; see [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md) |
+| <a id="spec.build.codeEntryType"></a>build.codeEntryType | string | The function's code-entry type - `archive` \| `git` \| `github` \| `image` \| `s3` \| `sourceCode`; see [Code-Entry Types](/docs/reference/function-configuration/code-entry-types.md) |
 | <a id="spec.build.codeEntryAttributes"></a>build.codeEntryAttributes | See [reference](/docs/reference/function-configuration/code-entry-types.md#external-func-code-entry-types) | Code-entry attributes, which provide information for downloading the function when using the `github`, `s3`, or `archive` [code-entry type](#spec.build.codeEntryType) |
 | runRegistry | string | The container image repository from which the platform will pull the image |
 | runtimeAttributes | See [reference](/docs/reference/runtimes/) | Runtime-specific attributes |
