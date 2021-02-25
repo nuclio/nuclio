@@ -56,6 +56,7 @@ type deployCommandeer struct {
 	encodedDataBindings             string
 	encodedTriggers                 string
 	encodedLabels                   string
+	encodedAnnotations              string
 	encodedRuntimeAttributes        string
 	projectName                     string
 	resourceLimits                  stringSliceFlag
@@ -196,6 +197,7 @@ func addDeployFlags(cmd *cobra.Command,
 
 	cmd.Flags().StringVar(&commandeer.description, "desc", "", "Function description")
 	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")
+	cmd.Flags().StringVar(&commandeer.encodedAnnotations, "annotations", "", "Additional function annotations (ant1=val1[,ant2=val2,...])")
 	cmd.Flags().VarP(&commandeer.encodedEnv, "env", "e", "Environment variables env1=val1")
 	cmd.Flags().BoolVarP(&commandeer.disable, "disable", "d", false, "Start the function as disabled (don't run yet)")
 	cmd.Flags().IntVarP(&commandeer.replicas, "replicas", "", -1, "Set to any non-negative integer to use a static number of replicas")
@@ -516,6 +518,14 @@ func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
 			&d.functionConfig.Spec.Build.CodeEntryAttributes); err != nil {
 			return errors.Wrap(err, "Failed to decode code entry attributes")
 		}
+	}
+
+	// decode annotations
+	if d.functionConfig.Meta.Annotations == nil {
+		d.functionConfig.Meta.Annotations = map[string]string{}
+	}
+	for annotation, annotationValue := range common.StringToStringMap(d.encodedAnnotations, "=") {
+		d.functionConfig.Meta.Annotations[annotation] = annotationValue
 	}
 
 	// decode labels

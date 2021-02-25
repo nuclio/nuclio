@@ -223,11 +223,12 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":    path.Join(suite.GetFunctionsDir(), "common", "envprinter", "python"),
-			"env":     "FIRST_ENV=11223344,SECOND_ENV=0099887766",
-			"labels":  "label1=first,label2=second",
-			"runtime": "python",
-			"handler": "envprinter:handler",
+			"path":        path.Join(suite.GetFunctionsDir(), "common", "envprinter", "python"),
+			"env":         "FIRST_ENV=11223344,SECOND_ENV=0099887766",
+			"labels":      "label1=first,label2=second",
+			"annotations": "annotation1=third,annotation2=fourth",
+			"runtime":     "python",
+			"handler":     "envprinter:handler",
 		})
 
 	suite.Require().NoError(err)
@@ -241,8 +242,7 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
-			"method": "POST",
-			"body":   "-reverse this string+",
+			"method": http.MethodPost,
 			"via":    "external-ip",
 		},
 		false)
