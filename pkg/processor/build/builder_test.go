@@ -616,7 +616,7 @@ func (suite *testSuite) TestResolveFunctionPathS3CodeEntry() {
 
 func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 	for _, testCase := range []struct {
-		Name string
+		Name               string
 		BuildConfiguration functionconfig.Build
 	}{
 
@@ -649,8 +649,8 @@ func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 				CodeEntryType: GitEntryType,
 				Path:          "https://github.com/sahare92/test-nuclio-cet.git",
 				CodeEntryAttributes: map[string]interface{}{
-					"workDir": "go-function",
-					"gitReference":  "refs/heads/go-func",
+					"workDir":      "go-function",
+					"gitReference": "refs/heads/go-func",
 				},
 			},
 		},

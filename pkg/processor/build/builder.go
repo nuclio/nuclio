@@ -1518,8 +1518,8 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 		}
 
 		isArchive := codeEntryType == S3EntryType ||
-		codeEntryType == GithubEntryType ||
-		codeEntryType == ArchiveEntryType
+			codeEntryType == GithubEntryType ||
+			codeEntryType == ArchiveEntryType
 
 		// jar is an exception - we want it to remain compressed, as our java runtime processor expects to get it
 		isArchive = isArchive && !util.IsJar(functionPath)
