@@ -14,6 +14,7 @@
   - [Rebalancing notes](#rebalancing-notes)
 - [Configuration example](#config-example)
 
+<a id="overview"></a>
 ## Overview
 
 The Nuclio Kafka trigger allows users to process messages sent to Kafka. To simplify, you send messages to a Kafka stream (across topics and partitions), tell Nuclio to read from this stream, and your function handler is then called once for every stream message.

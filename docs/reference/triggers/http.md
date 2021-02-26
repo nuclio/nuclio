@@ -1,13 +1,24 @@
 # http: HTTP Trigger
 
-The HTTP trigger is the only trigger created by default if not configured (by default, it has 1 worker). This trigger handles incoming HTTP requests at container port 8080, assigning workers to incoming requests. If a worker is not available, a `503` error is returned.
+**In This Document**
+- [Overview](#overview)
+- [Attributes](#attributes)
+- [Examples](#examples)
 
+<a id="overview"></a>
+## Overview
+
+The HTTP trigger is the only trigger created by default if not configured (by default, it has 1 worker).
+This trigger handles incoming HTTP requests at container port 8080, assigning workers to incoming requests.
+If a worker is not available, a `503` error is returned.
+
+<a id="attributes"></a>
 ## Attributes
 
 | **Path** | **Type** | **Description** |
 | :--- | :--- | :--- |
 | port | int | The NodePort (or equivalent) on which the function will serve HTTP requests. If empty, chooses a random port within the platform range. |
-| ingresses.(name).host | string | The host to which the ingress maps. |
+| <a id="attributes.ingresses"></a>ingresses.(name).host | string | The host to which the ingress maps. |
 | ingresses.(name).paths | list of strings | The paths that the ingress handles. Variables of the form `{{.<NAME>}}` can be specified using `.Name`, `.Namespace`, and `.Version`. For example, `/{{.Namespace}}-{{.Name}}/{{.Version}}` will result in a default ingress of `/namespace-name/version`. |
 | readBufferSize | int | Per-connection buffer size for reading requests. |
 | maxRequestBodySize | int | Maximum request body size. |
@@ -17,9 +28,10 @@ The HTTP trigger is the only trigger created by default if not configured (by de
 | cors.allowHeaders | list of strings | The allowed HTTP headers, which can be used when accessing the resource (`Access-Control-Allow-Headers` response header); (default: `"Accept, Content-Length, Content-Type, X-nuclio-log-level"`). |
 | cors.allowCredentials | bool | `true` to allow user credentials in the actual request (`Access-Control-Allow-Credentials` response header); (default: `false`). |
 | cors.preflightMaxAgeSeconds | int | The number of seconds in which the results of a preflight request can be cached in a preflight result cache (`Access-Control-Max-Age` response header); (default: `-1` to indicate no preflight results caching). |
-| <a id="attribues.serviceType"></a>serviceType | string | (Kubernetes only) Kubernetes `ServiceType`, used by the Kubernetes service to expose the trigger. The default `ServiceType` is `ClusterIP`, which means that by default the trigger won't be exposed outside of the cluster unless you configure a proper ingress or manually change the `ServiceType` to `NodePort`. |
+| <a id="attributes.serviceType"></a>serviceType | string | (Kubernetes only) Kubernetes `ServiceType`, used by the Kubernetes service to expose the trigger. The default `ServiceType` is `ClusterIP`, which means that by default the trigger won't be exposed outside of the cluster unless you configure a proper ingress or manually change the `ServiceType` to `NodePort`. |
 
-### Examples
+<a id="examples"></a>
+## Examples
 
 With 4 workers and a maximum body size of 1 KB -
 
@@ -42,7 +54,7 @@ triggers:
       port: 32001
 ```
 
-With ingresseses -
+With ingresses -
 
 ```yaml
 triggers:

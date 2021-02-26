@@ -61,3 +61,14 @@ When running on Kubernetes, `nuctl` requires a running registry on your Kubernet
 
 For an example of function deployment using `nuctl` against a Kubernetes cluster, see the Nuclio [Kubernetes getting-started guide](/docs/setup/k8s/getting-started-k8s.md#deploy-a-function-with-the-nuclio-cli).
 
+#### Invoking a function using nuctl on Kubernetes
+
+While in most cases using `nuctl` on the [Local Docker](#docker) platform enables you to invoke your function by running the
+`nuctl invoke` command on the host, in Kubernetes platform this is a bit trickier - and will most likely not work
+by default for some configurations. This means, for example, that `nuctl invoke` command will not be able to work
+unless your function is explicitly exposed or reachable from wherever you run `nuctl invoke`.
+
+See [Exposing a function](/docs/tasks/deploying-functions.md#exposing-a-function) for more details.
+
+For your convenience, when deploying a function using `nuctl`, exposing it via a `NodePort` can be easily done by using the
+CLI arg `--http-trigger-service-type=nodePort`.
