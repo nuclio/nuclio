@@ -92,7 +92,8 @@ kubectl create namespace nuclio
 **Create a Kubernetes Docker-registry secret** from service-key file that you created as part of the [Kubernetes cluster setup](#set-up-a-kubernetes-cluster-and-a-local-environment), and delete this file:
 
 ```sh
-kubectl create secret docker-registry registry-credentials --namespace nuclio \
+kubectl create secret docker-registry registry-credentials \
+    --namespace nuclio \
     --docker-username _json_key \
     --docker-password "$(cat credentials.json)" \
     --docker-server gcr.io \
@@ -114,7 +115,7 @@ kubectl create configmap --namespace nuclio nuclio-registry --from-literal=regis
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
 ```
 
-**Deploy Nuclio to the cluster:** the cluster. The following command deploys the Nuclio controller and dashboard, among other resources:
+**Deploy Nuclio to the cluster:** The following command deploys the Nuclio controller and dashboard, among other resources:
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/gke/resources/nuclio.yaml
@@ -144,25 +145,38 @@ Replace the `<URL>` placeholder with the URL of your Docker registry.
 If you're using Docker Hub, the URL should include your username - `docker.io/<username>` - and you might also need to log into your Docker Hub account (`docker login`) on the installation machine before running the deployment command.
 You can add the `--verbose` flag if you want to peek under the hood.
 ```sh
-nuctl deploy helloworld -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry <URL>
+nuctl deploy helloworld \
+    --namespace nuclio \
+    --path https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go \
+    --http-trigger-service-type nodePort \
+    --registry <URL>
 ```
+>**Note:** The command above exposes the function externally using a `nodePort`. This is done for demonstration
+> purposes only. Please read more [about exposing your function](/docs/tasks/deploying-functions.md#exposing-a-function)
+> for more information
 
 When the function deployment completes, you can get the function information by running the following CLI command:
+
 ```sh
 nuctl get function helloworld
 ```
+
 Sample output -
+
 ```sh
   NAMESPACE | NAME        | PROJECT | STATE | NODE PORT | REPLICAS  
   nuclio    | helloworld  | default | ready |     42089 | 1/1   
 ```
 You can see from the sample output that the deployed function `helloworld` is running and using port `42089`.
 
-Run the following CLI command to invoke the function:
+Since the function is exposed using a `nodePort`, you can run the following CLI command to invoke it:
+
 ```sh
 nuctl invoke helloworld --method POST --body '{"hello":"world"}' --content-type "application/json"
 ```
+
 Sample output -
+
 ```sh
 > Response headers:
 Server = nuclio
