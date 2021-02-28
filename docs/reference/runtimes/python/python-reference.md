@@ -89,8 +89,8 @@ Key differences and changes:
 - Python 3.8 is 5%-8% faster than Python 3.6 for small sized event messages.
 - Python 3.7 and 3.8 base images are `python:3.7` and `python:3.8`, respectively.
 - Events metadata, such as headers, path, method, etc are now byte-strings. This may incur changes in your code to refer
-  to the various (now) byte-string event properties correctly in the new runtimes.
-  e.g.: Simple code snipped which worked on python 2.7 and 3.6, using some event metadata, such as `event.path` -
+  to the various (now) byte-string event properties correctly in the new runtimes. e.g.: Simple code snipped which
+  worked on python 2.7 and 3.6, using some event metadata, such as `event.path` -
 
   ```python
   def handler(context, event):
@@ -107,9 +107,9 @@ Key differences and changes:
       return "I'm doing something..."
   ```
 
-  > Note: To decode all incoming event byte-strings automatically by the nuclio python wrapper, set the function 
-  > environment variable: `NUCLIO_PYTHON_DECODE_EVENT_STRINGS=true`. Enabling event strings decoding the Nuclio python 
-  > wrapper might fail to handle events with non-utf8 metadata contents. Part of the motivation for the change was 
+  > Note: To decode all incoming event byte-strings automatically by the nuclio python wrapper, set the function
+  > environment variable: `NUCLIO_PYTHON_DECODE_EVENT_STRINGS=true`. Enabling event strings decoding the Nuclio python
+  > wrapper might fail to handle events with non-utf8 metadata contents. Part of the motivation for the change was
   > to gain robustness against such cases and transfer the encoding task to user-code.
 
 > Note: Python 3.6 runtimes is left unchanged.
