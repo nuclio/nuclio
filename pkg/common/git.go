@@ -28,13 +28,14 @@ type GitClient interface {
 type AbstractGitClient struct {
 	GitClient
 
+	logger    logger.Logger
 	cmdRunner cmdrunner.CmdRunner
 }
 
 func NewGitClient(parentLogger logger.Logger) (GitClient, error) {
 	var err error
 
-	abstractGitClient := AbstractGitClient{}
+	abstractGitClient := AbstractGitClient{logger: parentLogger.GetChild("git-client")}
 
 	// create cmd runner
 	abstractGitClient.cmdRunner, err = cmdrunner.NewShellRunner(parentLogger)
@@ -73,7 +74,29 @@ func (agc AbstractGitClient) Clone(outputDir, repositoryURL string, gitAttribute
 		return errors.Wrap(err, "Failed to clone git repository")
 	}
 
+	agc.printCurrentCommitSHA(outputDir, repositoryURL, referenceName)
+
 	return nil
+}
+
+func (agc AbstractGitClient) printCurrentCommitSHA(gitDir, referenceName, repositoryURL string) {
+	res, err := agc.cmdRunner.Run(nil, fmt.Sprintf("cd %s;git rev-parse HEAD", Quote(gitDir)))
+	if err != nil || res.ExitCode != 0 {
+		agc.logger.WarnWith("Failed to get commit SHA", "err", err)
+		return
+	}
+	if res.ExitCode != 0 {
+		agc.logger.WarnWith("Failed to get commit SHA (non-zero exit code)", "output", res.Output)
+		return
+	}
+
+	// remove automatic new line from end of res.Output
+	commitSHA := strings.TrimSuffix(res.Output, "\n")
+
+	agc.logger.InfoWith("Printing current commit SHA",
+		"repositoryURL", repositoryURL,
+		"referenceName", referenceName,
+		"commitSHA", commitSHA)
 }
 
 func (agc AbstractGitClient) cloneFromAzureDevops(outputDir string,
@@ -111,6 +134,8 @@ func (agc AbstractGitClient) cloneFromAzureDevops(outputDir string,
 	if res.ExitCode != 0 {
 		return errors.Errorf("Failed to clone azure devops git repository. Reason: %s", res.Output)
 	}
+
+	agc.printCurrentCommitSHA(outputDir, repositoryURL, referenceName)
 
 	return nil
 }
