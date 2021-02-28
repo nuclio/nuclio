@@ -6,6 +6,8 @@ This document describes the specific Python build and deploy configurations.
 
 - [Function and handler](#function-and-handler)
 - [Dockerfile](#dockerfile)
+- [Python runtime 2.7 EOF](#python-runtime-27-eol)
+- [Introducing Python runtime 3.7 and 3.8](#introducing-python-runtime-37-and-38)
 - [Function configuration](#function-configuration)
 - [Build and execution](#build-and-execution)
 
@@ -63,6 +65,40 @@ COPY . /opt/nuclio
 # Run processor with configuration and platform configuration
 CMD [ "processor" ]
 ```
+
+<a id="27-eol"></a>
+## Python runtime 2.7 EOL
+
+Official Python 2.7 is no longer maintained, and it has reached its Nuclio End of life due date.
+That means, starting from Nuclio >= 1.6.0 you would  not be able to deploy any Nuclio function using Python 2.7 runtime.
+
+To reach better throughput and high performance, I suggest reading [Introducing Python runtime 3.7 and 3.8](#introducing-python-runtime-37-and-38), 
+and migrate your function to Python 3.8
+
+
+<a id="introducing-37-and-38"></a>
+## Introducing Python runtime 3.7 and 3.8
+
+Nuclio is now officially support python 3.7 and python 3.8 along with good-old python 3.6.
+
+Key changes and differences:
+
+- Python 3.7 and 3.8 base images are `python:3.7` and `python:3.8`, respectively.
+- Events metadata, such as headers, path, method, etc are now byte-string.
+  e.g.: if your code used event metadata, such as `event.path` -
+
+    ```python
+    def handler(context, event):
+      if event.path == "/do_something":
+        something()
+    ```
+  then now you should ensure the matching is against a byte-string, such as `b"/do_something"`.
+  > Note: To decode all incoming event strings, set function env `NUCLIO_PYTHON_DECODE_EVENT_STRINGS=true`. Do know that
+  > when enabling event strings decoding, you would not be able to handle events with non utf8 metadata contents.
+
+- Python 3.8 is 5%-8% faster than Python 3.6 for small sized event messages.
+
+> Note: Python 3.6 runtimes is left unchanged.
 
 <a id="function-configuration"></a>
 ## Function configuration
