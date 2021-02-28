@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 
+	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
