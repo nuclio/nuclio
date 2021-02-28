@@ -23,8 +23,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/nuclio/nuclio/pkg/common"
-
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
@@ -50,7 +48,7 @@ func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interf
 
 	// format the command
 	formattedCommand := fmt.Sprintf(format, vars...)
-	redactedCommand := common.Redact(runOptions.LogRedactions, formattedCommand)
+	redactedCommand := Redact(runOptions.LogRedactions, formattedCommand)
 
 	if !runOptions.LogOnlyOnFailure {
 		sr.logger.DebugWith("Executing", "command", redactedCommand)
@@ -128,7 +126,7 @@ func (sr *ShellRunner) runAndCaptureOutput(cmd *exec.Cmd,
 
 	case CaptureOutputModeCombined:
 		stdoutAndStderr, err := cmd.CombinedOutput()
-		runResult.Output = common.Redact(runOptions.LogRedactions, string(stdoutAndStderr))
+		runResult.Output = Redact(runOptions.LogRedactions, string(stdoutAndStderr))
 		return err
 
 	case CaptureOutputModeStdout:
@@ -138,11 +136,26 @@ func (sr *ShellRunner) runAndCaptureOutput(cmd *exec.Cmd,
 
 		err := cmd.Run()
 
-		runResult.Output = common.Redact(runOptions.LogRedactions, stdOut.String())
-		runResult.Stderr = common.Redact(runOptions.LogRedactions, stdErr.String())
+		runResult.Output = Redact(runOptions.LogRedactions, stdOut.String())
+		runResult.Stderr = Redact(runOptions.LogRedactions, stdErr.String())
 
 		return err
 	}
 
 	return fmt.Errorf("Invalid output capture mode: %d", runOptions.CaptureOutputMode)
+}
+
+func Redact(redactions []string, runOutput string) string {
+	if redactions == nil {
+		return runOutput
+	}
+
+	var replacements []string
+
+	for _, redactionField := range redactions {
+		replacements = append(replacements, redactionField, "[redacted]")
+	}
+
+	replacer := strings.NewReplacer(replacements...)
+	return replacer.Replace(runOutput)
 }

@@ -17,8 +17,6 @@ limitations under the License.
 package cmdrunner
 
 import (
-	"github.com/nuclio/nuclio/pkg/common"
-
 	"github.com/stretchr/testify/mock"
 )
 
@@ -30,8 +28,8 @@ func (m *MockRunner) Run(runOptions *RunOptions, format string, vars ...interfac
 	args := m.Called(runOptions, format, vars)
 	runResults, ok := args.Get(0).(RunResult)
 	if ok && runOptions != nil {
-		runResults.Stderr = common.Redact(runOptions.LogRedactions, runResults.Stderr)
-		runResults.Output = common.Redact(runOptions.LogRedactions, runResults.Output)
+		runResults.Stderr = Redact(runOptions.LogRedactions, runResults.Stderr)
+		runResults.Output = Redact(runOptions.LogRedactions, runResults.Output)
 	}
 	return runResults, args.Error(1)
 }

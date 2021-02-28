@@ -31,7 +31,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -49,13 +48,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
 	"github.com/mholt/archiver/v3"
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/version-go"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/yaml.v2"
 )
 
@@ -124,7 +121,7 @@ type Builder struct {
 
 	versionInfo *version.Info
 
-	cmdRunner cmdrunner.CmdRunner
+	gitClient common.GitClient
 }
 
 // NewBuilder returns a new builder
@@ -140,10 +137,9 @@ func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client
 
 	newBuilder.initializeSupportedRuntimes()
 
-	// create cmd runner
-	newBuilder.cmdRunner, err = cmdrunner.NewShellRunner(newBuilder.logger)
+	newBuilder.gitClient, err = common.NewGitClient(newBuilder.logger)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create cmd runner")
+		return nil, errors.Wrap(err, "Failed to create git client")
 	}
 
 	return newBuilder, nil
@@ -1605,33 +1601,6 @@ func (b *Builder) getS3FunctionItemKey() (string, error) {
 	return s3Attributes["s3ItemKey"], nil
 }
 
-func (b *Builder) resolveGitReference(repositoryURL string) (string, error) {
-	addReferencePrefix := !b.isAzureDevopsRepositoryURL(repositoryURL)
-
-	// branch
-	if ref := b.resolveCodeEntryAttributeAsString("branch"); ref != "" {
-		if addReferencePrefix {
-			ref = fmt.Sprintf("refs/heads/%s", ref)
-		}
-		return ref, nil
-	}
-
-	// tag
-	if ref := b.resolveCodeEntryAttributeAsString("tag"); ref != "" {
-		if addReferencePrefix {
-			ref = fmt.Sprintf("refs/tags/%s", ref)
-		}
-		return ref, nil
-	}
-
-	// reference
-	if ref := b.resolveCodeEntryAttributeAsString("reference"); ref != "" {
-		return ref, nil
-	}
-
-	return "", errors.New("No git reference was specified. (must specify branch/tag/reference)")
-}
-
 func (b *Builder) resolveCodeEntryAttributeAsString(attribute string) string {
 	if value, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes[attribute]; found {
 		switch typedValue := value.(type) {
@@ -1647,95 +1616,28 @@ func (b *Builder) resolveCodeEntryAttributeAsString(attribute string) string {
 	return ""
 }
 
-func (b *Builder) parseFunctionGitCredentials() *githttp.BasicAuth {
-	username := b.resolveCodeEntryAttributeAsString("username")
-	password := b.resolveCodeEntryAttributeAsString("password")
+func (b *Builder) parseGitAttributes() (*common.GitAttributes, error) {
+	var gitAttributes common.GitAttributes
 
-	if username != "" || password != "" {
-
-		// username must not be empty when password is given (doesn't matter what's the user as long as it's not empty)
-		if username == "" {
-			username = "defaultuser"
-		}
-
-		return &githttp.BasicAuth{
-			Username: username,
-			Password: password,
-		}
+	// get branch reference and authorization when given
+	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes == nil {
+		return nil, errors.New("Git code entry attributes must exist when cloning function from git")
 	}
 
-	return nil
-}
-
-func (b *Builder) isAzureDevopsRepositoryURL(repositoryURL string) bool {
-	return strings.Contains(repositoryURL, "dev.azure.com")
-}
-
-func (b *Builder) cloneFromAzureDevops(outputDir, repositoryURL, gitReference string, gitAuth *githttp.BasicAuth) error {
-
-	// if auth is passed, transplant username:password into repository URL
-	if gitAuth != nil {
-		splitFunctionPath := strings.Split(repositoryURL, "://")
-		repositoryURL = fmt.Sprintf("%s://%s:%s@%s",
-			splitFunctionPath[0],
-			gitAuth.Username,
-			gitAuth.Password,
-			splitFunctionPath[1])
+	if err := mapstructure.Decode(b.options.FunctionConfig.Spec.Build.CodeEntryAttributes, &gitAttributes); err != nil {
+		return nil, errors.Wrap(err, "Failed to decode code entry attributes")
 	}
 
-	// generate a git clone command
-	cloneCommand := fmt.Sprintf("git clone %s --depth 1 -q %s",
-		common.Quote(repositoryURL),
-		outputDir)
-
-	// attach git reference when given (use - as it works both for branch/tag)
-	if gitReference != "" {
-		cloneCommand = fmt.Sprintf("%s -b %s", cloneCommand, gitReference)
-	}
-
-	// run the above git clone command
-	res, err := b.cmdRunner.Run(nil, cloneCommand)
-	if err != nil {
-		return errors.Wrap(err, "Failed to run clone command on azure repository")
-	}
-
-	if res.ExitCode != 0 {
-		return errors.Errorf("Failed to clone azure devops git repository. Reason: %s", res.Output)
-	}
-
-	return nil
+	return &gitAttributes, nil
 }
 
 func (b *Builder) cloneFunctionFromGit(outputDir, repositoryURL string) error {
-	var gitReference string
-	var gitAuth *githttp.BasicAuth
-	var err error
-
-	// get branch reference and authorization when given
-	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes != nil {
-		gitReference, err = b.resolveGitReference(repositoryURL)
-		if err != nil {
-			return errors.Wrap(err, "Failed to resolve git reference")
-		}
-
-		gitAuth = b.parseFunctionGitCredentials()
+	gitAttributes, err := b.parseGitAttributes()
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse git attributes")
 	}
 
-	// if it's Azure Devops repo - clone differently (the normal go-git client doesn't support it yet)
-	if b.isAzureDevopsRepositoryURL(repositoryURL) {
-		return b.cloneFromAzureDevops(outputDir, repositoryURL, gitReference, gitAuth)
-	}
-
-	if _, err = git.PlainClone(outputDir, false, &git.CloneOptions{
-		URL:           repositoryURL,
-		ReferenceName: plumbing.ReferenceName(gitReference),
-		Depth:         1,
-		Auth:          gitAuth,
-	}); err != nil {
-		return errors.Wrap(err, "Failed to clone git repository")
-	}
-
-	return nil
+	return b.gitClient.Clone(outputDir, repositoryURL, gitAttributes)
 }
 
 func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {

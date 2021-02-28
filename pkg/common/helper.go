@@ -198,21 +198,6 @@ func RunningInContainer() bool {
 	return FileExists("/.dockerenv")
 }
 
-func Redact(redactions []string, runOutput string) string {
-	if redactions == nil {
-		return runOutput
-	}
-
-	var replacements []string
-
-	for _, redactionField := range redactions {
-		replacements = append(replacements, redactionField, "[redacted]")
-	}
-
-	replacer := strings.NewReplacer(replacements...)
-	return replacer.Replace(runOutput)
-}
-
 func StripPrefixes(input string, prefixes []string) string {
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(input, prefix) {

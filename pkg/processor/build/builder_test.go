@@ -717,7 +717,9 @@ func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 			suite.Require().Equal(suite.builder.tempDir+destinationWorkDir, path)
 
 			// get git reference as it was planted on the code inside the remote git repository
-			referenceName, err := suite.builder.resolveGitReference(testCase.BuildConfiguration.Path)
+			gitAttributes, err := suite.builder.parseGitAttributes()
+			suite.Require().NoError(err)
+			referenceName, err := common.ResolveGitReference(suite.builder.options.FunctionConfig.Spec.Build.Path, gitAttributes)
 			suite.Require().NoError(err)
 
 			// make sure our test file was downloaded correctly
