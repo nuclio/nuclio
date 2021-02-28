@@ -79,7 +79,7 @@ func (agc AbstractGitClient) Clone(outputDir, repositoryURL string, gitAttribute
 	return nil
 }
 
-func (agc AbstractGitClient) printCurrentCommitSHA(gitDir, referenceName, repositoryURL string) {
+func (agc AbstractGitClient) printCurrentCommitSHA(gitDir, repositoryURL, referenceName string) {
 	res, err := agc.cmdRunner.Run(nil, fmt.Sprintf("cd %s;git rev-parse HEAD", Quote(gitDir)))
 	if err != nil || res.ExitCode != 0 {
 		agc.logger.WarnWith("Failed to get commit SHA", "err", err)
