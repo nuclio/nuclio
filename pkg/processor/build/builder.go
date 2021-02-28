@@ -1580,13 +1580,13 @@ func (b *Builder) resolveGitReference() (string, error) {
 
 func (b *Builder) resolveCodeEntryAttributeAsString(attribute string) string {
 	if value, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes[attribute]; found {
-		switch value.(type) {
+		switch typedValue := value.(type) {
 		case string:
-			return value.(string)
+			return typedValue
 		case int, int8, int16, int32, int64:
-			return fmt.Sprintf("%d", value)
-		case float64, float32:
-			return fmt.Sprintf("%f", value)
+			return fmt.Sprintf("%d", typedValue)
+		case float32, float64:
+			return fmt.Sprintf("%f", typedValue)
 		}
 	}
 
