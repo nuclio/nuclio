@@ -188,13 +188,13 @@ With `nuctl`, you simply pass `--env` and a JSON encoding of the trigger configu
 ```sh
 nuctl deploy my-function \
     --namespace nuclio \
-	--path /tmp/nuclio/my_function.py \
-	--runtime python \
-	--handler my_function:my_entry_point \
-	--http-trigger-service-type nodePort \
-	--registry $(minikube ip):5000 --run-registry localhost:5000 \
-	--env MY_ENV_VALUE='my value' \
-	--triggers '{"periodic": {"kind": "cron", "attributes": {"interval": "3s"}}}'
+    --path /tmp/nuclio/my_function.py \
+    --runtime python \
+    --handler my_function:my_entry_point \
+    --http-trigger-service-type nodePort \
+    --registry $(minikube ip):5000 --run-registry localhost:5000 \
+    --env MY_ENV_VALUE='my value' \
+    --triggers '{"periodic": {"kind": "cron", "attributes": {"interval": "3s"}}}'
 ```
 
 ### Providing configuration via function.yaml
@@ -230,8 +230,8 @@ With all the information in the `function.yaml`, you can pass the _directory_ of
 ```sh
 nuctl deploy \
     --path /tmp/nuclio \
-	--registry $(minikube ip):5000 \
-	--run-registry localhost:5000
+    --registry $(minikube ip):5000 \
+    --run-registry localhost:5000
 ```
 
 ### Providing configuration via inline configuration
