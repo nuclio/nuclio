@@ -614,6 +614,110 @@ func (suite *testSuite) TestResolveFunctionPathS3CodeEntry() {
 	suite.testResolveFunctionPathArchive(buildConfiguration, "")
 }
 
+func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
+	for _, testCase := range []struct {
+		Name               string
+		BuildConfiguration functionconfig.Build
+	}{
+
+		// Github
+		{
+			Name: "GithubBranch",
+			BuildConfiguration: functionconfig.Build{
+				CodeEntryType: GitEntryType,
+				Path:          "https://github.com/sahare92/test-nuclio-cet.git",
+				CodeEntryAttributes: map[string]interface{}{
+					"workDir": "go-function",
+					"branch":  "go-func",
+				},
+			},
+		},
+		{
+			Name: "GithubTag",
+			BuildConfiguration: functionconfig.Build{
+				CodeEntryType: GitEntryType,
+				Path:          "https://github.com/sahare92/test-nuclio-cet.git",
+				CodeEntryAttributes: map[string]interface{}{
+					"workDir": "go-function",
+					"tag":     "0.0.1",
+				},
+			},
+		},
+		{
+			Name: "GithubReference",
+			BuildConfiguration: functionconfig.Build{
+				CodeEntryType: GitEntryType,
+				Path:          "https://github.com/sahare92/test-nuclio-cet.git",
+				CodeEntryAttributes: map[string]interface{}{
+					"workDir":   "go-function",
+					"reference": "refs/heads/go-func",
+				},
+			},
+		},
+
+		// BitBucket
+		{
+			Name: "BitBucketBranch",
+			BuildConfiguration: functionconfig.Build{
+				CodeEntryType: GitEntryType,
+				Path:          "https://bitbucket.org/saharel/test-nuclio-cet.git",
+				CodeEntryAttributes: map[string]interface{}{
+					"workDir": "go-function",
+					"branch":  "go-func",
+				},
+			},
+		},
+		{
+			Name: "BitBucketTag",
+			BuildConfiguration: functionconfig.Build{
+				CodeEntryType: GitEntryType,
+				Path:          "https://bitbucket.org/saharel/test-nuclio-cet.git",
+				CodeEntryAttributes: map[string]interface{}{
+					"workDir": "go-function",
+					"tag":     "0.0.1",
+				},
+			},
+		},
+
+		// TODO: add a test for azure-devops when it's added
+	} {
+		suite.Run(testCase.Name, func() {
+			err := suite.builder.createTempDir()
+			suite.Require().NoError(err)
+
+			suite.builder.options.FunctionConfig.Spec.Build = testCase.BuildConfiguration
+
+			path, _, err := suite.builder.resolveFunctionPath(testCase.BuildConfiguration.Path)
+			suite.Require().NoError(err)
+
+			// make sure the path is set to the work dir inside the downloaded folder
+			destinationWorkDir := filepath.Join("/download", testCase.BuildConfiguration.CodeEntryAttributes["workDir"].(string))
+			suite.Require().Equal(suite.builder.tempDir+destinationWorkDir, path)
+
+			// get git reference as it was planted on the code inside the remote git repository
+			referenceName, err := suite.builder.resolveGitReference()
+			suite.Require().NoError(err)
+
+			// make sure our test file was downloaded correctly
+			handlerFileContents, err := ioutil.ReadFile(filepath.Join(path, "/main.go"))
+			suite.Require().Equal(fmt.Sprintf(`package main
+
+import (
+    "github.com/nuclio/nuclio-sdk-go"
+)
+
+func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+    return "Hello from reference: %s", nil
+}
+
+`, referenceName), string(handlerFileContents))
+			suite.Require().NoError(err)
+
+			suite.builder.cleanupTempDir() // nolint: errcheck
+		})
+	}
+}
+
 // test that when `spec.build.image` is given, it is enriched correctly
 func (suite *testSuite) TestImageNameConfigurationEnrichment() {
 	suite.builder.options.FunctionConfig.Meta.Name = "name"

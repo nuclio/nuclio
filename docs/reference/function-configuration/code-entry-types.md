@@ -43,7 +43,7 @@ The code-entry type is determined by using the following processing logic:
 
 2. If [`spec.build.functionSourceCode`](/docs/reference/function-configuration.md#spec.build.functionSourceCode) is set (and `spec.image` isn't set), the implied code-entry type is [encoded source-code string](#code-entry-type-sourcecode) (`sourceCode`) and the function is built from the configured source code. The `spec.build.codeEntryType` and `spec.build.path` fields are ignored.
 
-3. If [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) is set (and `spec.image` and `spec.build.functionSourceCode` aren't set), the value of the code-entry field determines the [external function-code code-entry type](#external-func-code-entry-types) (`archive`, `github`, or `s3`).
+3. If [`spec.build.codeEntryType`](/docs/reference/function-configuration/function-configuration-reference.md#spec.build.codeEntryType) is set (and `spec.image` and `spec.build.functionSourceCode` aren't set), the value of the code-entry field determines the [external function-code code-entry type](#external-func-code-entry-types) (`archive`, `github`, or `s3`).
 
 4. If [`spec.build.path`](/docs/reference/function-configuration.md#spec.build.path) is set (and `spec.image`, `spec.build.functionSourceCode`, and `spec.build.codeEntryType` aren't set), the implied code-entry type is [source-code-file](#code-entry-type-codefile) and the function is built from the configured source code.
 
@@ -127,7 +127,7 @@ spec:
 <a id="external-func-code-entry-types"></a>
 ## External function-code entry types
 
-Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to one of the following code-entry types to download the function code from the respective external source:
+Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration/function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to one of the following code-entry types to download the function code from the respective external source:
 
 - `github` &mdash; download the code from a GitHub repository. See [GitHub code-entry type (`github`)](#code-entry-type-github).
 - `archive` &mdash; download the code as an archive file from an Iguazio Data Science Platform data container (authenticated) or from any URL that doesn't require download authentication. See [Archive-file code-entry type (`archive`)](#code-entry-type-archive).
@@ -140,7 +140,7 @@ Additional information for performing the download &mdash; such as the download 
 > - <a id="archive-file-formats"></a>The `archive` and `s3` code-entry types support the following archive-file formats: **\*.jar**, **\*.rar**, **\*.tar**, **\*.tar.bz2**, **\*.tar.lz4**, **\*.tar.gz**, **\*.tar.sz**, **\*.tar.xz**, **\*.zip**
 > - The downloaded code files are saved and can be used by the function handler.
 
-> **Dashboard Note:** To configure an external function-code source from the dashboard, select the relevant code-entry type &mdash; `Archive`, `GitHub`, or `S3` &mdash; from the **Code entry type** list.
+> **Dashboard Note:** To configure an external function-code source from the dashboard, select the relevant code-entry type &mdash; `Archive`, `Git`, `GitHub`, or `S3` &mdash; from the **Code entry type** list.
 
 The downloaded function code can optionally contain a **function.yaml** file with function configuration for enriching the original configuration (in the configuration file that sets the code-entry type) according to the following merge strategy:
 
@@ -148,15 +148,84 @@ The downloaded function code can optionally contain a **function.yaml** file wit
 - List and map field values &mdash; such as `meta.labels` and `spec.env` &mdash;are merged by adding any values that are set only in the downloaded configuration to the values that are set in the original configuration.
 - In case of a conflict &mdash; i.e., if the original and downloaded configurations set different values for the same element &mdash; the original configuration takes precedence and the value in the downloaded configuration is ignored.
 
+<a id="code-entry-type-git"></a>
+### Git code-entry type (`git`)
+
+Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration/function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to `git` (dashboard: **Code entry type** = `Git`) to clone the function code from a Git repository. The following configuration fields provide additional information for performing the cloning:
+
+- `spec.build` &mdash;
+  - `path` (dashboard: **URL**) (Required) &mdash; the URL of the Git repository that contains the function code.
+  - `codeEntryAttributes` &mdash;
+
+      // must use one of the following as git reference
+      - `branch` (dashboard: **Branch**) &mdash; the Git repository branch from which to download the function code.
+      - `tag` (dashboard: **Tag**) &mdash; the Git repository tag from which to download the function code.
+      - `reference` (dashboard: **Reference**) &mdash; the Git repository reference from which to download the function code.
+
+      - `username` (dashboard: **Username**) (Optional) Git username
+      - `password` (dashboard: **Password**) (Optional) Git password
+      - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository.
+      The default work directory is the root directory of the git repository (`"/"`).
+
+<a id="code-entry-type-git-example"></a>
+#### Examples
+
+Using Branch:
+```yaml
+spec:
+  description: my Go function
+  handler: main:Handler
+  runtime: golang
+  build:
+    codeEntryType: "git"
+    path: "https://bitbucket.org/<my-user>/<my-repo>"
+    codeEntryAttributes:
+      workDir: "/go-function"
+      branch: "go-func"
+
+      # Uncomment in case of a private repository
+      #
+      #  username: "myusername"
+      #  password: "mypassword"
+```
+
+Using Tag:
+```yaml
+spec:
+  description: my Go function
+  handler: main:Handler
+  runtime: golang
+  build:
+    codeEntryType: "git"
+    path: "https://bitbucket.org/<my-user>/<my-repo>"
+    codeEntryAttributes:
+      workDir: "/go-function"
+      tag: "0.0.1"
+```
+
+Using Full Reference:
+```yaml
+spec:
+  description: my Go function
+  handler: main:Handler
+  runtime: golang
+  build:
+    codeEntryType: "git"
+    path: "https://bitbucket.org/<my-user>/<my-repo>"
+    codeEntryAttributes:
+      workDir: "/go-function"
+      reference: "refs/heads/go-func"
+```
+
 <a id="code-entry-type-github"></a>
 ### GitHub code-entry type (`github`)
 
-Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `github` (dashboard: **Code entry type** = `GitHub`) to download the function code from a GitHub repository. The following configuration fields provide additional information for performing the download:
+Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration/function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to `github` (dashboard: **Code entry type** = `GitHub`) to download the function code from a GitHub repository. The following configuration fields provide additional information for performing the download:
 
 - `spec.build` &mdash;
   - `path` (dashboard: **URL**) (Required) &mdash; the URL of the GitHub repository that contains the function code.
   - `codeEntryAttributes` &mdash;
-      -  `branch` (dashboard: **Branch**) (Required) &mdash; the GitHub repository branch from which to download the function code.
+      - `branch` (dashboard: **Branch**) (Required) &mdash; the GitHub repository branch from which to download the function code.
       - `headers.Authorization` (dashboard: **Token**) (Optional) &mdash; a GitHub access token for download authentication.
       - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository branch.
       The default work directory is the root directory of the GitHub repository (`"/"`).
@@ -182,7 +251,7 @@ spec:
 <a id="code-entry-type-archive"></a>
 ### Archive-file code-entry type (`archive`)
 
-Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `archive` (dashboard: **Code entry type** = `Archive`) to download [an archive file](#archive-file-formats) of the function code from one of the following sources:
+Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration/function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to `archive` (dashboard: **Code entry type** = `Archive`) to download [an archive file](#archive-file-formats) of the function code from one of the following sources:
 
 - An [Iguazio Data Science Platform](https://www.iguazio.com) ("platform") data container. Downloads from this source require user authentication.
 - Any URL that doesn't require user authentication to perform the download.
@@ -217,7 +286,7 @@ spec:
 <a id="code-entry-type-s3"></a>
 ### AWS S3 code-entry type (`s3`)
 
-Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration.md#spec.build.codeEntryType) function-configuration field to `s3` (dashboard: **Code entry type** = `S3`) to download [an archive file](#archive-file-formats) of the function code from an Amazon Simple Storage Service (AWS S3) bucket. The following configuration fields provide additional information for performing the download:
+Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration/function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to `s3` (dashboard: **Code entry type** = `S3`) to download [an archive file](#archive-file-formats) of the function code from an Amazon Simple Storage Service (AWS S3) bucket. The following configuration fields provide additional information for performing the download:
 
 - `spec.build.codeEntryAttributes` &mdash;
   - `s3Bucket` (dashboard: **Bucket**) (Required) &mdash; the name of the S3 bucket that contains the archive file.
