@@ -87,9 +87,18 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 			commandeer.projectConfig.Meta.Name = args[0]
 			commandeer.projectConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
 
-			return createCommandeer.rootCommandeer.platform.CreateProject(&platform.CreateProjectOptions{
+			if err := createCommandeer.rootCommandeer.platform.CreateProject(&platform.CreateProjectOptions{
 				ProjectConfig: &commandeer.projectConfig,
-			})
+			}); err != nil {
+				return err
+			}
+
+			commandeer.rootCommandeer.loggerInstance.InfoWith("Project created",
+				"Name",
+				commandeer.projectConfig.Meta.Name,
+				"Namespace",
+				commandeer.projectConfig.Meta.Namespace)
+			return nil
 		},
 	}
 
@@ -209,9 +218,18 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 
 			commandeer.apiGatewayConfig.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
-			return createCommandeer.rootCommandeer.platform.CreateAPIGateway(&platform.CreateAPIGatewayOptions{
+			if err := createCommandeer.rootCommandeer.platform.CreateAPIGateway(&platform.CreateAPIGatewayOptions{
 				APIGatewayConfig: &commandeer.apiGatewayConfig,
-			})
+			}); err != nil {
+				return err
+			}
+
+			commandeer.rootCommandeer.loggerInstance.InfoWith("API gateway created",
+				"Name",
+				commandeer.apiGatewayConfig.Meta.Name,
+				"Namespace",
+				commandeer.apiGatewayConfig.Meta.Namespace)
+			return nil
 		},
 	}
 
@@ -276,9 +294,18 @@ func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *creat
 				return errors.Wrap(err, "Failed to decode a function's event attributes")
 			}
 
-			return createCommandeer.rootCommandeer.platform.CreateFunctionEvent(&platform.CreateFunctionEventOptions{
+			if err := createCommandeer.rootCommandeer.platform.CreateFunctionEvent(&platform.CreateFunctionEventOptions{
 				FunctionEventConfig: commandeer.functionEventConfig,
-			})
+			}); err != nil {
+				return err
+			}
+
+			commandeer.rootCommandeer.loggerInstance.InfoWith("Function event created",
+				"Name",
+				commandeer.functionEventConfig.Meta.Name,
+				"Namespace",
+				commandeer.functionEventConfig.Meta.Namespace)
+			return nil
 		},
 	}
 
