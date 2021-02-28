@@ -679,7 +679,29 @@ func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 			},
 		},
 
-		// TODO: add a test for azure-devops when it's added
+		// Azure Devops
+		{
+			Name: "AzureDevopsBranch",
+			BuildConfiguration: functionconfig.Build{
+				CodeEntryType: GitEntryType,
+				Path:          "https://dev.azure.com/sahar920089/test-nuclio-cet/_git/test-nuclio-cet",
+				CodeEntryAttributes: map[string]interface{}{
+					"workDir": "go-function",
+					"branch":  "go-func",
+				},
+			},
+		},
+		{
+			Name: "AzureDevopsTag",
+			BuildConfiguration: functionconfig.Build{
+				CodeEntryType: GitEntryType,
+				Path:          "https://dev.azure.com/sahar920089/test-nuclio-cet/_git/test-nuclio-cet",
+				CodeEntryAttributes: map[string]interface{}{
+					"workDir": "go-function",
+					"tag":     "0.0.1",
+				},
+			},
+		},
 	} {
 		suite.Run(testCase.Name, func() {
 			err := suite.builder.createTempDir()
@@ -695,7 +717,7 @@ func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 			suite.Require().Equal(suite.builder.tempDir+destinationWorkDir, path)
 
 			// get git reference as it was planted on the code inside the remote git repository
-			referenceName, err := suite.builder.resolveGitReference()
+			referenceName, err := suite.builder.resolveGitReference(testCase.BuildConfiguration.Path)
 			suite.Require().NoError(err)
 
 			// make sure our test file was downloaded correctly
