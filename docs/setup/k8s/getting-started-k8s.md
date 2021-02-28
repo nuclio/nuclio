@@ -98,8 +98,9 @@ nuctl deploy helloworld \
     --registry <URL>
 ```
 >**Note:** The command above exposes the function externally using a `nodePort`. This is done for demonstration
-> purposes only. Please read more [about exposing your function](/docs/tasks/deploying-functions.md#exposing-a-function)
-> for more information
+> purposes only. Please read more about [exposing your function](/docs/tasks/deploying-functions.md#exposing-a-function)
+> for more information.
+
 When the function deployment completes, you can get the function information by running the following CLI command:
 
 ```sh

@@ -119,8 +119,8 @@ nuctl deploy helloworld \
     --run-registry localhost:5000
 ```
 >**Note:** The command above exposes the function externally using a `nodePort`. This is done for demonstration
-> purposes only. Please read more [about exposing your function](/docs/tasks/deploying-functions.md#exposing-a-function)
-> for more information
+> purposes only. Please read more about [exposing your function](/docs/tasks/deploying-functions.md#exposing-a-function)
+> for more information.
 
 >**Note:** The difference between the two registries specified in this command, and the reason for their addresses being different is as follows:
 >

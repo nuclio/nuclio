@@ -82,8 +82,8 @@ nuctl deploy my-function \
 > **Notes:**
 > 1. `--path` can also hold a URL.
 > 2. See the applicable setup guide to get registry information.
-> 3. Notice we used a `nodePort` to Expose the function and make it reachable externally. This
-> is for demonstration purposes only! See [Exposing a function](#exposing-a-function) to learn more about why this is here. 
+> 3. Notice we used a `nodePort` to expose the function and make it reachable externally. This
+> is for demonstration purposes only. See [exposing a function](#exposing-a-function) to learn more about why this is here.
 
 Once the function deploys, you should see `Function deploy complete` and an HTTP port through which you can invoke it. If there's a problem, invoke the above with `--verbose` and try to understand what went wrong. You can see your function through `nuctl get`:
 
@@ -316,11 +316,11 @@ reachable from your client unless you're running the client from inside a pod in
 If you wish to expose your function externally, for example, to be able to run `nuctl invoke` from outside the
 Kubernetes network, you can do so in one of 2 ways during deployment, both controlled via the [HTTP trigger spec](/docs/reference/triggers/http.md):
 1. Configure the function with a reachable [HTTP ingress](/docs/reference/triggers/http.md#attributes.ingresses). For
-   this to work you'll need to install an ingress controller on your cluster. See [function ingress doc](/docs/concepts/k8s/function-ingress.md)
+   this to work you'll need to install an ingress controller on your cluster. See [function ingress document](/docs/concepts/k8s/function-ingress.md)
    for more details.
 2. Configure the function to use [serviceType](/docs/reference/triggers/http.md#attributes.serviceType) of type `nodePort`.
 
-If you are deploying the function using [nuctl](/docs/reference/nuctl/nuctl.md) CLI, you can also configure a `NodePort` easily by using the
+If you are deploying the function using [nuctl](/docs/reference/nuctl/nuctl.md) CLI, you can also configure a `nodePort` easily by using the
 `--http-trigger-service-type=nodePort` CLI arg.
 
 <a id="whats-next"></a>

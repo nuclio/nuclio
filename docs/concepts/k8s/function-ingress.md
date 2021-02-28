@@ -13,8 +13,8 @@ If you followed the [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/
 By default, each function deployed to Kubernetes declares a [Kubernetes service](https://kubernetes.io/docs/concepts/services-networking/service/) that is responsible for routing requests to the functions' HTTP trigger port.
 To invoke the function externally, using `nuctl`, you probably exposed your function by using a [NodePort](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport), which is a unique cluster-wide port that is assigned to the function.
 
-This means that, if your function's HTTP trigger is configured with a [NodePort](/docs/referece/triggers/http.md#attributes.serviceType), any underlying HTTP client can call `http://<your cluster IP>:<some unique port>` to reach it.
-You can try this out yourself: first, find out the NodePort assigned to your function, by using the `nuctl get function` command of the `nuctl` CLI or the `kubectl get svc` command of the Kubernetes CLI. Then, use curl to send an HTTP request to this port.
+This means that if your function's HTTP trigger is configured with a `NodePort`, any underlying HTTP client can call `http://<your cluster IP>:<some unique port>` to reach it.
+You can try this out yourself: first, find out the NodePort assigned to your function, by using the `nuctl get function` command of the `nuctl` CLI or the `kubectl get svc` command of the Kubernetes CLI. Then, use `curl` to send an HTTP request to this port.
 
 In addition to configuring a service, Nuclio can create a [Kubernetes ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) for your function's HTTP trigger, with the path specified as `<function name>/latest`.
 However, without an ingress controller running on your cluster, this will have no effect. An Ingress controller will listen for changed ingresses and reconfigure some type of reverse proxy to route requests based on rules specified in the ingress resource.
