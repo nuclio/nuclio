@@ -4,6 +4,8 @@ pkg/processor/runtime/python/py/whl
 # act files (https://github.com/nektos/act)
 .github/act
 
+vendor
+
 # general
 *.class
 *.iml
