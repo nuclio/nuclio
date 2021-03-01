@@ -27,30 +27,32 @@ import (
 	"github.com/nuclio/errors"
 )
 
-func getNamespace(namespaceArgument string) string {
-
-	// if the namespace was passed in the arguments, use that
-	if namespaceArgument != "" {
-		return namespaceArgument
-	}
-
-	// if the namespace exists in env, use that
-	if namespaceEnv := os.Getenv("NUCLIO_CONTROLLER_NAMESPACE"); namespaceEnv != "" {
-		return namespaceEnv
-	}
-
-	// if nothing was passed, listen on all namespaces
-	return "*"
-}
-
 func main() {
+	var defaultResyncIntervalStr string
+
+	if valueFromEnv := os.Getenv("NUCLIO_CONTROLLER_FUNCTION_OPERATOR_RESYNC_INTERVAL"); valueFromEnv != "" {
+		defaultResyncIntervalStr = valueFromEnv
+	} else {
+		defaultResyncIntervalStr = common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_RESYNC_INTERVAL", "10m")
+	}
+
 	kubeconfigPath := flag.String("kubeconfig-path", os.Getenv("KUBECONFIG"), "Path of kubeconfig file")
 	namespace := flag.String("namespace", "", "Namespace to listen on, or * for all")
 	imagePullSecrets := flag.String("image-pull-secrets", os.Getenv("NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS"), "Optional secret name to use for pull")
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
 	platformConfigurationName := flag.String("platform-config-name", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PLATFORM_CONFIGURATION_NAME", "nuclio-platform-config"), "Platform configuration resource name")
 	functionOperatorNumWorkersStr := flag.String("function-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_OPERATOR_NUM_WORKERS", "4"), "Set number of workers for the function operator (optional)")
-	functionOperatorResyncIntervalStr := flag.String("function-operator-resync-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_OPERATOR_RESYNC_INTERVAL", "10m"), "Set resync interval for the function operator (optional)")
+
+	resyncIntervalStr := flag.String("resync-interval", defaultResyncIntervalStr, "Set resync interval for the function operator (optional)")
+
+	// Deprecated: resync interval is commonly used by functions and api gateways
+	deprecatedResyncIntervalStr := flag.String("function-operator-resync-interval", "", "Deprecated. Use --resync-interval instread")
+	if deprecatedResyncIntervalStr != nil && *deprecatedResyncIntervalStr != "" {
+
+		// ignore value, write deprecation note to stderr
+		os.Stderr.WriteString("--function-operator-resync-interval has been deprecated in favor of --resync-interval.") // nolint: errcheck
+	}
+
 	functionMonitorIntervalStr := flag.String("function-monitor-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_MONITOR_INTERVAL", "3m"), "Set function monitor interval (optional)")
 	cronJobStaleResourcesCleanupIntervalStr := flag.String("cron-job-stale-resources-cleanup-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_JOB_STALE_RESOURCES_CLEANUP_INTERVAL", "1m"), "Set interval for the cleanup of stale cron job resources (optional)")
 	functionEventOperatorNumWorkersStr := flag.String("function-event-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_EVENT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function event operator (optional)")
@@ -77,7 +79,7 @@ func main() {
 		*platformConfigurationPath,
 		*platformConfigurationName,
 		*functionOperatorNumWorkersStr,
-		*functionOperatorResyncIntervalStr,
+		*resyncIntervalStr,
 		*functionMonitorIntervalStr,
 		*cronJobStaleResourcesCleanupIntervalStr,
 		*functionEventOperatorNumWorkersStr,
@@ -87,4 +89,20 @@ func main() {
 
 		os.Exit(1)
 	}
+}
+
+func getNamespace(namespaceArgument string) string {
+
+	// if the namespace was passed in the arguments, use that
+	if namespaceArgument != "" {
+		return namespaceArgument
+	}
+
+	// if the namespace exists in env, use that
+	if namespaceEnv := os.Getenv("NUCLIO_CONTROLLER_NAMESPACE"); namespaceEnv != "" {
+		return namespaceEnv
+	}
+
+	// if nothing was passed, listen on all namespaces
+	return "*"
 }
