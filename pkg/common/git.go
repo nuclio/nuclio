@@ -60,12 +60,17 @@ func (agc AbstractGitClient) Clone(outputDir, repositoryURL string, gitAttribute
 	// resolve git credentials when given
 	gitAuth = agc.parseFunctionGitCredentials(gitAttributes)
 
-	// if it's Azure Devops repo - clone differently (the normal go-git client doesn't support it yet)
+	// HACK: if it's Azure Devops repo - clone differently (the normal go-git client doesn't support it yet)
+	// TODO: remove when the issue is resolved - https://github.com/go-git/go-git/issues/64
 	if isAzureDevopsRepositoryURL(repositoryURL) {
 		return agc.cloneFromAzureDevops(outputDir, repositoryURL, referenceName, gitAuth, agc.cmdRunner)
 	}
 
-	if _, err = git.PlainClone(outputDir, false, &git.CloneOptions{
+	return agc.clone(outputDir, repositoryURL, referenceName, gitAuth)
+}
+
+func (agc AbstractGitClient) clone(outputDir, repositoryURL, referenceName string, gitAuth *githttp.BasicAuth) error {
+	if _, err := git.PlainClone(outputDir, false, &git.CloneOptions{
 		URL:           repositoryURL,
 		ReferenceName: plumbing.ReferenceName(referenceName),
 		Depth:         1,
@@ -74,12 +79,12 @@ func (agc AbstractGitClient) Clone(outputDir, repositoryURL string, gitAttribute
 		return errors.Wrap(err, "Failed to clone git repository")
 	}
 
-	agc.printCurrentCommitSHA(outputDir, repositoryURL, referenceName)
+	agc.logCurrentCommitSHA(outputDir, repositoryURL, referenceName)
 
 	return nil
 }
 
-func (agc AbstractGitClient) printCurrentCommitSHA(gitDir, repositoryURL, referenceName string) {
+func (agc AbstractGitClient) logCurrentCommitSHA(gitDir, repositoryURL, referenceName string) {
 	res, err := agc.cmdRunner.Run(nil, fmt.Sprintf("cd %s;git rev-parse HEAD", Quote(gitDir)))
 	if err != nil || res.ExitCode != 0 {
 		agc.logger.WarnWith("Failed to get commit SHA", "err", err)
@@ -93,7 +98,7 @@ func (agc AbstractGitClient) printCurrentCommitSHA(gitDir, repositoryURL, refere
 	// remove automatic new line from end of res.Output
 	commitSHA := strings.TrimSuffix(res.Output, "\n")
 
-	agc.logger.InfoWith("Printing current commit SHA",
+	agc.logger.InfoWith("Logging current commit SHA",
 		"repositoryURL", repositoryURL,
 		"referenceName", referenceName,
 		"commitSHA", commitSHA)
@@ -105,7 +110,7 @@ func (agc AbstractGitClient) cloneFromAzureDevops(outputDir string,
 	gitAuth *githttp.BasicAuth,
 	cmdRunner cmdrunner.CmdRunner) error {
 
-	// if auth is passed, transplant username:password into repository URL
+	// compile repository URL with git auth credentials
 	if gitAuth != nil {
 		splitFunctionPath := strings.Split(repositoryURL, "://")
 		repositoryURL = fmt.Sprintf("%s://%s:%s@%s",
@@ -135,7 +140,7 @@ func (agc AbstractGitClient) cloneFromAzureDevops(outputDir string,
 		return errors.Errorf("Failed to clone azure devops git repository. Reason: %s", res.Output)
 	}
 
-	agc.printCurrentCommitSHA(outputDir, repositoryURL, referenceName)
+	agc.logCurrentCommitSHA(outputDir, repositoryURL, referenceName)
 
 	return nil
 }
