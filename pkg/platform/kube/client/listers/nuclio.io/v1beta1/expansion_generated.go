@@ -18,6 +18,14 @@ limitations under the License.
 
 package v1beta1
 
+// NuclioAPIGatewayListerExpansion allows custom methods to be added to
+// NuclioAPIGatewayLister.
+type NuclioAPIGatewayListerExpansion interface{}
+
+// NuclioAPIGatewayNamespaceListerExpansion allows custom methods to be added to
+// NuclioAPIGatewayNamespaceLister.
+type NuclioAPIGatewayNamespaceListerExpansion interface{}
+
 // NuclioFunctionListerExpansion allows custom methods to be added to
 // NuclioFunctionLister.
 type NuclioFunctionListerExpansion interface{}
@@ -41,11 +49,3 @@ type NuclioProjectListerExpansion interface{}
 // NuclioProjectNamespaceListerExpansion allows custom methods to be added to
 // NuclioProjectNamespaceLister.
 type NuclioProjectNamespaceListerExpansion interface{}
-
-// NuclioAPIGatewayListerExpansion allows custom methods to be added to
-// NuclioAPIGatewayLister.
-type NuclioAPIGatewayListerExpansion interface{}
-
-// NuclioAPIGatewayNamespaceListerExpansion allows custom methods to be added to
-// NuclioAPIGatewayNamespaceLister.
-type NuclioAPIGatewayNamespaceListerExpansion interface{}
