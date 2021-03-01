@@ -41,5 +41,3 @@ rsync --remove-source-files --ignore-times "${PROJECT_ROOT}/github.com/nuclio/nu
 
 # delete generated code
 rm -rf "${PROJECT_ROOT}/github.com"
-
-rm -rf "${PROJECT_ROOT}/vendor"
