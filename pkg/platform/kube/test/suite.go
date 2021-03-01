@@ -543,7 +543,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 		nuclioClientSet,
 		functionresClient,
 		apigatewayresClient,
-		0,  // disable resync interval
+		0,              // disable resync interval
 		time.Second*5,  // monitor interval
 		time.Second*30, // cronjob stale duration
 		suite.PlatformConfiguration,
