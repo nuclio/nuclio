@@ -6,8 +6,10 @@ This tutorial guides you through the process of deploying functions and specifyi
 - [Writing a simple function](#writing-a-simple-function)
 - [Deploying a simple function](#deploying-a-simple-function)
 - [Providing function configuration](#providing-function-configuration)
+- [Exposing a function](#exposing-a-function)
 - [What's next](#whats-next)
 
+<a id="writing-a-simple-function"></a>
 ## Writing a simple function
 
 After successfully installing Nuclio, you can start writing functions and deploying them to your cluster. All supported runtimes (such as Go, Python, or NodeJS) have an entry point that receives two arguments:
@@ -46,16 +48,18 @@ def my_entry_point(context, event):
 		# return a response
 		return 'A string response'
 ```
-
+<a id="deploying-a-simple-function"></a>
 ## Deploying a simple function
 
-To convert source code to a running function, you must first _deploy_ the function. A deploy process has three stages:
+To convert source code to a running function, you must first _deploy_ the function. A deployment process has three stages:
 
 1. The source code is built to a container image and pushed to a Docker registry
 2. A function object is created in Nuclio (i.e., in Kubernetes, this is a function CRD)
 3. A controller creates the appropriate function resources on the cluster (i.e., in Kubernetes this is the deployment, service, ingress, etc.)
 
-This process can be triggered through `nuctl deploy` which you will use throughout this tutorial. You will now write the function that you wrote in the previous step to a `/tmp/nuclio/my_function.py` file. Before you do anything, verify with `nuctl` that everything is properly configured by getting all functions deployed in the "nuclio" namespace:
+This process can be triggered through `nuctl deploy` which you will use throughout this tutorial. You will now write
+the function that you wrote in the previous step to a `/tmp/nuclio/my_function.py` file. Before you do anything,
+verify with `nuctl` that everything is properly configured by getting all functions deployed in the "nuclio" namespace:
 
 ```sh
 nuctl get function --namespace nuclio
@@ -67,16 +71,19 @@ Now deploy your function, specifying the function name, the path, the "nuclio" n
 
 ```sh
 nuctl deploy my-function \
+	--namespace nuclio \
 	--path /tmp/nuclio/my_function.py \
 	--runtime python \
 	--handler my_function:my_entry_point \
-	--namespace nuclio \
+	--http-trigger-service-type nodePort \
 	--registry $(minikube ip):5000 --run-registry localhost:5000
 ```
 
-> **Note:**
-> 1. `--path` can also hold a URL
-> 2. See the applicable setup guide to get registry informatiom
+> **Notes:**
+> 1. `--path` can also hold a URL.
+> 2. See the applicable setup guide to get registry information.
+> 3. Notice we used a `nodePort` to expose the function and make it reachable externally. This
+> is for demonstration purposes only. See [exposing a function](#exposing-a-function) to learn more about why this is here.
 
 Once the function deploys, you should see `Function deploy complete` and an HTTP port through which you can invoke it. If there's a problem, invoke the above with `--verbose` and try to understand what went wrong. You can see your function through `nuctl get`:
 
@@ -88,7 +95,8 @@ nuctl get function --namespace nuclio
 
 ```
 
-To illustrate that the function is indeed accessible via HTTP, you'll use [httpie](https://httpie.org) to invoke the function at the port specified by the deploy log:
+To illustrate that the function is indeed accessible via HTTP, you'll use [httpie](https://httpie.org) to invoke
+the function at the port specified by the deployment log:
 
 ```sh
 http $(minikube ip):<port from log>
@@ -123,6 +131,7 @@ Content-Length = 17
 A string response
 ```
 
+<a id="providing-function-configuration"></a>
 ## Providing function configuration
 
 There are often cases in which providing code is not enough to deploy a function. For example, if
@@ -178,13 +187,14 @@ With `nuctl`, you simply pass `--env` and a JSON encoding of the trigger configu
 
 ```sh
 nuctl deploy my-function \
-	--path /tmp/nuclio/my_function.py \
-	--runtime python \
-	--handler my_function:my_entry_point \
-	--namespace nuclio \
-	--registry $(minikube ip):5000 --run-registry localhost:5000 \
-	--env MY_ENV_VALUE='my value' \
-	--triggers '{"periodic": {"kind": "cron", "attributes": {"interval": "3s"}}}'
+    --namespace nuclio \
+    --path /tmp/nuclio/my_function.py \
+    --runtime python \
+    --handler my_function:my_entry_point \
+    --http-trigger-service-type nodePort \
+    --registry $(minikube ip):5000 --run-registry localhost:5000 \
+    --env MY_ENV_VALUE='my value' \
+    --triggers '{"periodic": {"kind": "cron", "attributes": {"interval": "3s"}}}'
 ```
 
 ### Providing configuration via function.yaml
@@ -204,6 +214,10 @@ spec:
   handler: my_function:my_entry_point
   runtime: python
   triggers:
+    http:
+      kind: http
+      attributes:
+        serviceType: NodePort
     periodic:
       attributes:
         interval: 3s
@@ -214,8 +228,10 @@ spec:
 With all the information in the `function.yaml`, you can pass the _directory_ of the source and configuration to `nuctl`. The name, namespace, trigger, env are all taken from the configuration file:
 
 ```sh
-nuctl deploy --path /tmp/nuclio \
-	--registry $(minikube ip):5000 --run-registry localhost:5000
+nuctl deploy \
+    --path /tmp/nuclio \
+    --registry $(minikube ip):5000 \
+    --run-registry localhost:5000
 ```
 
 ### Providing configuration via inline configuration
@@ -241,6 +257,10 @@ import os
 #     handler: my_function_with_config:my_entry_point
 #     runtime: python
 #     triggers:
+#       http:
+#         kind: http
+#         attributes:
+#           serviceType: NodePort
 #       periodic:
 #         attributes:
 #           interval: 3s
@@ -270,10 +290,40 @@ def my_entry_point(context, event):
 Now deploy this function:
 
 ```sh
-nuctl deploy --path /tmp/nuclio/my_function_with_config.py \
-        --registry $(minikube ip):5000 --run-registry localhost:5000
+nuctl deploy \
+    --path /tmp/nuclio/my_function_with_config.py \
+    --registry $(minikube ip):5000 \
+    --run-registry localhost:5000
 ```
 
+<a id="exposing-a-function"></a>
+## Exposing a function
+
+>**Security note:** Exposing your functions outside your Kubernetes cluster network has dire security implications.
+> Please make sure you understand the risks involved before deciding to expose any function externally. Always control
+> on which networks your functions are exposed, and use proper authentication to protect them, as well as the rest of your pipeline and data.
+
+When deploying a function on a Kubernetes cluster, the function is not exposed by default for external communication,
+but only on the kubernetes cluster network, using a `ClusterIP` [Service Type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types).
+In most network topologies this makes the function only available inside the cluster network, and [Kubernetes network policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
+can be used to further limit and control communications. The function will be unavailable for invocations
+over HTTP from entities running outside the cluster, like `nuctl`, `curl` or any other HTTP client.
+
+To understand whether a function is reachable to your HTTP client (this can be `curl`, `httpie`, `nuctl invoke` or any
+other HTTP client), consider where it is running from and the network path. An unexposed (default) function will not be
+reachable from your client unless you're running the client from inside a pod in your cluster.
+
+If you wish to expose your function externally, for example, to be able to run `nuctl invoke` from outside the
+Kubernetes network, you can do so in one of 2 ways during deployment, both controlled via the [HTTP trigger spec](/docs/reference/triggers/http.md):
+1. Configure the function with a reachable [HTTP ingress](/docs/reference/triggers/http.md#attributes.ingresses). For
+   this to work you'll need to install an ingress controller on your cluster. See [function ingress document](/docs/concepts/k8s/function-ingress.md)
+   for more details.
+2. Configure the function to use [serviceType](/docs/reference/triggers/http.md#attributes.serviceType) of type `nodePort`.
+
+If you are deploying the function using [nuctl](/docs/reference/nuctl/nuctl.md) CLI, you can also configure a `nodePort` easily by using the
+`--http-trigger-service-type=nodePort` CLI arg.
+
+<a id="whats-next"></a>
 ## What's next?
 
 - Check out how to [build functions once and deploy them many times](/docs/tasks/deploying-pre-built-functions.md).
