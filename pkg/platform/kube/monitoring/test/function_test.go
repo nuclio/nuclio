@@ -100,7 +100,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverFromPodsHardLimit() {
 		// function becomes unhealthy, due to exceeding pods deployment hard limit
 		suite.WaitForFunctionState(getFunctionOptions,
 			functionconfig.FunctionStateUnhealthy,
-			3*suite.Controller.GetFunctionMonitoringInterval())
+			3*time.Minute)
 
 		// increase hard limit, allowing the function reach its potential replicas
 		resourceQuota.Spec.Hard = v1.ResourceList{
@@ -117,7 +117,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverFromPodsHardLimit() {
 		// wait for function to become healthy again
 		suite.WaitForFunctionState(getFunctionOptions,
 			functionconfig.FunctionStateReady,
-			2*time.Minute)
+			3*time.Minute)
 		return true
 	})
 }

@@ -72,6 +72,8 @@ spec:
           value: {{ .Values.controller.operator.project.numWorkers | quote }}
         - name: NUCLIO_CONTROLLER_API_GATEWAY_OPERATOR_NUM_WORKERS
           value: {{ .Values.controller.operator.apiGateway.numWorkers | quote }}
+        - name: NUCLIO_CONTROLLER_RESYNC_INTERVAL
+          value: {{ .Values.controller.resyncInterval | quote }}
         {{- if .Values.platform }}
         volumeMounts:
         - name: platform-config

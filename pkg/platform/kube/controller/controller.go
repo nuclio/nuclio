@@ -160,39 +160,20 @@ func NewController(parentLogger logger.Logger,
 }
 
 func (c *Controller) Start() error {
-	c.logger.InfoWith("Starting", "namespace", c.namespace)
+	c.logger.InfoWith("Starting controller",
+		"namespace", c.namespace)
 
-	// start the function operator
-	if err := c.functionOperator.start(); err != nil {
-		return errors.Wrap(err, "Failed to start function operator")
+	// start operators
+	if err := c.startOperators(); err != nil {
+		return err
 	}
 
-	// start the project operator
-	if err := c.projectOperator.start(); err != nil {
-		return errors.Wrap(err, "Failed to start project operator")
+	// start monitors
+	if err := c.startMonitors(); err != nil {
+		return err
 	}
 
-	// start the function event operator
-	if err := c.functionEventOperator.start(); err != nil {
-		return errors.Wrap(err, "Failed to start function event operator")
-	}
-
-	// start the api gateway operator
-	if err := c.apiGatewayOperator.start(); err != nil {
-		return errors.Wrap(err, "Failed to start api gateway operator")
-	}
-
-	// start function monitor
-	if err := c.functionMonitoring.Start(); err != nil {
-		return errors.Wrap(err, "Failed to start function monitor")
-	}
-
-	if c.cronJobMonitoring != nil {
-
-		// start cron job monitoring
-		c.cronJobMonitoring.start()
-	}
-
+	c.logger.InfoWith("Controller has successfully started", "namespace", c.namespace)
 	return nil
 }
 
@@ -231,4 +212,45 @@ func (c *Controller) SetFunctionMonitoringInterval(interval time.Duration) {
 
 func (c *Controller) GetFunctionMonitoring() *monitoring.FunctionMonitor {
 	return c.functionMonitoring
+}
+
+func (c *Controller) startOperators() error {
+
+	// start the function operator
+	if err := c.functionOperator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start function operator")
+	}
+
+	// start the project operator
+	if err := c.projectOperator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start project operator")
+	}
+
+	// start the function event operator
+	if err := c.functionEventOperator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start function event operator")
+	}
+
+	// start the api gateway operator
+	if err := c.apiGatewayOperator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start api gateway operator")
+	}
+
+	return nil
+}
+
+func (c *Controller) startMonitors() error {
+
+	// start function monitor
+	if err := c.functionMonitoring.Start(); err != nil {
+		return errors.Wrap(err, "Failed to start function monitor")
+	}
+
+	if c.cronJobMonitoring != nil {
+
+		// start cron job monitoring
+		c.cronJobMonitoring.start()
+	}
+
+	return nil
 }

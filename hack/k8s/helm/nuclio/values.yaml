@@ -18,6 +18,11 @@ controller:
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
 
+  # Resync interval defines how often the Controller goes thru all functions in its cache and fires
+  # update again.
+  # Note: Changing to 0s means cancel resync mechanism completely.
+  resyncInterval: 10m
+
   operator:
     function:
       numWorkers: 4
