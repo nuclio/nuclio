@@ -18,10 +18,10 @@ limitations under the License.
 
 package v1beta1
 
+type NuclioAPIGatewayExpansion interface{}
+
 type NuclioFunctionExpansion interface{}
 
 type NuclioFunctionEventExpansion interface{}
 
 type NuclioProjectExpansion interface{}
-
-type NuclioAPIGatewayExpansion interface{}

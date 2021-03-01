@@ -21,21 +21,24 @@ package v1beta1
 import (
 	v1beta1 "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned/scheme"
-	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	rest "k8s.io/client-go/rest"
 )
 
 type NuclioV1beta1Interface interface {
 	RESTClient() rest.Interface
+	NuclioAPIGatewaysGetter
 	NuclioFunctionsGetter
 	NuclioFunctionEventsGetter
 	NuclioProjectsGetter
-	NuclioAPIGatewaysGetter
 }
 
 // NuclioV1beta1Client is used to interact with features provided by the nuclio.io group.
 type NuclioV1beta1Client struct {
 	restClient rest.Interface
+}
+
+func (c *NuclioV1beta1Client) NuclioAPIGateways(namespace string) NuclioAPIGatewayInterface {
+	return newNuclioAPIGateways(c, namespace)
 }
 
 func (c *NuclioV1beta1Client) NuclioFunctions(namespace string) NuclioFunctionInterface {
@@ -48,10 +51,6 @@ func (c *NuclioV1beta1Client) NuclioFunctionEvents(namespace string) NuclioFunct
 
 func (c *NuclioV1beta1Client) NuclioProjects(namespace string) NuclioProjectInterface {
 	return newNuclioProjects(c, namespace)
-}
-
-func (c *NuclioV1beta1Client) NuclioAPIGateways(namespace string) NuclioAPIGatewayInterface {
-	return newNuclioAPIGateways(c, namespace)
 }
 
 // NewForConfig creates a new NuclioV1beta1Client for the given config.
@@ -86,7 +85,7 @@ func setConfigDefaults(config *rest.Config) error {
 	gv := v1beta1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
-	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 
 	if config.UserAgent == "" {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()

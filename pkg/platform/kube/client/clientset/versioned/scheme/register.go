@@ -20,10 +20,11 @@ package scheme
 
 import (
 	nucliov1beta1 "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
+	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 )
 
 var Scheme = runtime.NewScheme()
@@ -51,5 +52,5 @@ var AddToScheme = localSchemeBuilder.AddToScheme
 
 func init() {
 	v1.AddToGroupVersion(Scheme, schema.GroupVersion{Version: "v1"})
-	AddToScheme(Scheme)
+	utilruntime.Must(AddToScheme(Scheme))
 }
