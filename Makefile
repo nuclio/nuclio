@@ -469,8 +469,12 @@ benchmarking:
 	@python3 hack/scripts/benchmark/benchmark.py --nuctl-platform local --runtimes $(NUCLIO_BENCHMARKING_RUNTIMES)
 
 .PHONY: functiontemplates
-functiontemplates:
+functiontemplates: modules ensure-gopath
 	go run -tags=function_templates_generator pkg/dashboard/functiontemplates/generator/generator.go
+
+.PHONY: generate-crds
+generate-crds: modules ensure-gopath
+	@./hack/scripts/generate-crds/update-codegen.sh
 
 .PHONY: test-unit
 test-unit: modules ensure-gopath
