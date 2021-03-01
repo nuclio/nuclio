@@ -148,7 +148,8 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	}
 
 	fo.logger.DebugWith("Ensuring function resources",
-		"functionMeta", function.GetObjectMeta())
+		"functionNamespace", function.Namespace,
+		"functionName", function.Name)
 
 	// ensure function resources (deployment, ingress, configmap, etc ...)
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)

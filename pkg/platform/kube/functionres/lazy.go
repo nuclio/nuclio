@@ -1271,13 +1271,15 @@ func (lc *lazyClient) compileCronTriggerNotInSliceLabels(slice []string) (string
 }
 
 // nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
-func (lc *lazyClient) waitForNginxIngressToStabilize(ingressMeta metav1.ObjectMetaAccessor) {
+func (lc *lazyClient) waitForNginxIngressToStabilize(ingress *extv1beta1.Ingress) {
 	lc.logger.DebugWith("Waiting for nginx ingress to stabilize",
 		"nginxIngressUpdateGracePeriod", nginxIngressUpdateGracePeriod,
-		"ingressMeta", ingressMeta.GetObjectMeta())
+		"ingressNamespace", ingress.Namespace,
+		"ingressName", ingress.Name)
 	time.Sleep(nginxIngressUpdateGracePeriod)
 	lc.logger.DebugWith("Finished waiting for nginx ingress to stabilize",
-		"ingressMeta", ingressMeta.GetObjectMeta())
+		"ingressNamespace", ingress.Namespace,
+		"ingressName", ingress.Name)
 }
 
 func (lc *lazyClient) initClassLabels() {
