@@ -110,6 +110,8 @@ func (agc AbstractGitClient) cloneFromAzureDevops(outputDir string,
 	gitAuth *githttp.BasicAuth,
 	cmdRunner cmdrunner.CmdRunner) error {
 
+	var runOptions *cmdrunner.RunOptions
+
 	// compile repository URL with git auth credentials
 	if gitAuth != nil {
 		splitFunctionPath := strings.Split(repositoryURL, "://")
@@ -118,20 +120,25 @@ func (agc AbstractGitClient) cloneFromAzureDevops(outputDir string,
 			gitAuth.Username,
 			gitAuth.Password,
 			splitFunctionPath[1])
+
+		// redact username and password (so it won't be logged)
+		runOptions = &cmdrunner.RunOptions{
+			LogRedactions: []string{gitAuth.Username, gitAuth.Password},
+		}
 	}
 
 	// generate a git clone command
 	cloneCommand := fmt.Sprintf("git clone %s --depth 1 -q %s",
 		Quote(repositoryURL),
-		outputDir)
+		Quote(outputDir))
 
-	// attach git reference name when given (use - as it works both for branch/tag)
+	// attach git reference name when given (use -b as it works both for branch/tag)
 	if referenceName != "" {
 		cloneCommand = fmt.Sprintf("%s -b %s", cloneCommand, Quote(referenceName))
 	}
 
 	// run the above git clone command
-	res, err := cmdRunner.Run(nil, cloneCommand)
+	res, err := cmdRunner.Run(runOptions, cloneCommand)
 	if err != nil {
 		return errors.Wrap(err, "Failed to run clone command on azure repository")
 	}
