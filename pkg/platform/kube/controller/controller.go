@@ -165,12 +165,12 @@ func (c *Controller) Start() error {
 
 	// start operators
 	if err := c.startOperators(); err != nil {
-		return err
+		return errors.Wrap(err, "Failed to start operators")
 	}
 
 	// start monitors
 	if err := c.startMonitors(); err != nil {
-		return err
+		return errors.Wrap(err, "Failed to start monitors")
 	}
 
 	c.logger.InfoWith("Controller has successfully started", "namespace", c.namespace)

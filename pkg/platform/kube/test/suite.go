@@ -60,13 +60,18 @@ type OnAfterIngressCreated func(*extensionsv1beta1.Ingress)
 
 type KubeTestSuite struct {
 	processorsuite.TestSuite
-	CmdRunner     cmdrunner.CmdRunner
-	RegistryURL   string
-	Controller    *controller.Controller
-	KubeClientSet *kubernetes.Clientset
+	CmdRunner         cmdrunner.CmdRunner
+	RegistryURL       string
+	Controller        *controller.Controller
+	KubeClientSet     *kubernetes.Clientset
+	FunctionClientSet *nuclioioclient.Clientset
+	FunctionClient    functionres.Client
+
+	DisableControllerStart bool
 }
 
 // To run this test suite you should:
+// - Kubernetes for Mac: Ingress controller installed (you can install it by running "test/k8s/ci_assets/install_nginx_ingress_controller.sh")
 // - have Nuclio CRDs installed (you can install them by running "test/k8s/ci_assets/install_nuclio_crds.sh")
 // - have docker registry running (you can run docker registry by running "docker run --rm -d -p 5000:5000 registry:2")
 // - use "(kube) - platform test" run configuration via GoLand to run your test
@@ -111,9 +116,12 @@ func (suite *KubeTestSuite) SetupSuite() {
 	// create controller instance
 	suite.Controller = suite.createController()
 
-	// start controller
-	if err := suite.Controller.Start(); err != nil {
-		suite.Require().NoError(err, "Failed to start controller")
+	if !suite.DisableControllerStart {
+
+		// start controller
+		if err := suite.Controller.Start(); err != nil {
+			suite.Require().NoError(err, "Failed to start controller")
+		}
 	}
 }
 
@@ -518,11 +526,11 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	restConfig, err := common.GetClientConfig(common.GetKubeconfigPath(""))
 	suite.Require().NoError(err)
 
-	nuclioClientSet, err := nuclioioclient.NewForConfig(restConfig)
+	suite.FunctionClientSet, err = nuclioioclient.NewForConfig(restConfig)
 	suite.Require().NoError(err)
 
 	// create a client for function deployments
-	functionresClient, err := functionres.NewLazyClient(suite.Logger, suite.KubeClientSet, nuclioClientSet)
+	suite.FunctionClient, err = functionres.NewLazyClient(suite.Logger, suite.KubeClientSet, suite.FunctionClientSet)
 	suite.Require().NoError(err)
 
 	// create ingress manager
@@ -532,7 +540,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	// create api-gateway provisioner
 	apigatewayresClient, err := apigatewayres.NewLazyClient(suite.Logger,
 		suite.KubeClientSet,
-		nuclioClientSet,
+		suite.FunctionClientSet,
 		ingressManager)
 	suite.Require().NoError(err)
 
@@ -540,8 +548,8 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 		suite.Namespace,
 		"",
 		suite.KubeClientSet,
-		nuclioClientSet,
-		functionresClient,
+		suite.FunctionClientSet,
+		suite.FunctionClient,
 		apigatewayresClient,
 		0,              // disable resync interval
 		time.Second*5,  // monitor interval

@@ -25,59 +25,64 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	"github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/mocks"
+	"github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned/fake"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/apimachinery/pkg/runtime"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 type NuclioFunctionTestSuite struct {
 	suite.Suite
-	logger                       logger.Logger
-	namespace                    string
-	nuclioioV1beta1InterfaceMock *mocks.NuclioV1beta1Interface
-	nuclioFunctionInterfaceMock  *mocks.NuclioFunctionInterface
-	nuclioioInterfaceMock        *mocks.Interface
-	functionresClientMock        *functionres.MockedFunctionRes
-	functionOperatorInstance     *functionOperator
+	logger            logger.Logger
+	namespace         string
+	functionClientSet *fake.Clientset
+	k8sClientSet      *k8sfake.Clientset
+	controller        *Controller
 }
 
 func (suite *NuclioFunctionTestSuite) SetupTest() {
 	var err error
-	resyncInterval := 1 * time.Hour
+	resyncInterval := 0 * time.Second
+	functionMonitoringInterval := 10 * time.Second
+	cronJobInterval := 10 * time.Second
+	defaultNumWorkers := 1
 
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
 
-	suite.functionresClientMock = &functionres.MockedFunctionRes{}
-
-	suite.functionOperatorInstance, err = newFunctionOperator(suite.logger,
-		&Controller{
-			namespace: suite.namespace,
-		},
-		&resyncInterval,
-		"",
-		suite.functionresClientMock,
-		0)
+	platformConfig, err := platformconfig.NewPlatformConfig("")
 	suite.Require().NoError(err)
 
-	// mock it all the way down
-	suite.nuclioioInterfaceMock = &mocks.Interface{}
-	suite.nuclioioV1beta1InterfaceMock = &mocks.NuclioV1beta1Interface{}
-	suite.nuclioFunctionInterfaceMock = &mocks.NuclioFunctionInterface{}
+	suite.k8sClientSet = k8sfake.NewSimpleClientset()
+	suite.functionClientSet = fake.NewSimpleClientset()
 
-	suite.nuclioioInterfaceMock.
-		On("NuclioV1beta1").
-		Return(suite.nuclioioV1beta1InterfaceMock)
+	functionresClient, err := functionres.NewLazyClient(suite.logger,
+		suite.k8sClientSet,
+		suite.functionClientSet)
+	suite.Require().NoError(err)
 
-	suite.nuclioioV1beta1InterfaceMock.
-		On("NuclioFunctions", suite.namespace).
-		Return(suite.nuclioFunctionInterfaceMock)
-
-	suite.functionOperatorInstance.controller.nuclioClientSet = suite.nuclioioInterfaceMock
+	suite.controller, err = NewController(suite.logger, suite.namespace,
+		"",
+		suite.k8sClientSet,
+		suite.functionClientSet,
+		functionresClient,
+		nil,
+		resyncInterval,
+		functionMonitoringInterval,
+		cronJobInterval,
+		platformConfig,
+		"configuration-name",
+		defaultNumWorkers,
+		defaultNumWorkers,
+		defaultNumWorkers,
+		defaultNumWorkers)
+	suite.Require().NoError(err)
 }
 
 func (suite *NuclioFunctionTestSuite) TestRecoverFromPanic() {
@@ -85,16 +90,15 @@ func (suite *NuclioFunctionTestSuite) TestRecoverFromPanic() {
 	functionInstance.Name = "func-name"
 	functionInstance.Status.State = functionconfig.FunctionStateReady
 
-	suite.functionresClientMock.
-		On("CreateOrUpdate", mock.Anything, functionInstance, mock.Anything).
-		Panic("something bad happened")
+	suite.k8sClientSet.PrependReactor("create",
+		"configmaps",
+		func(action k8stesting.Action) (bool, runtime.Object, error) {
 
-	suite.nuclioFunctionInterfaceMock.
-		On("Update", functionInstance).
-		Return(nil, nil).
-		Once()
+			// simulating a panic being thrown during function creation
+			panic("Oh nooo")
+		})
 
-	err := suite.functionOperatorInstance.CreateOrUpdate(context.TODO(), functionInstance)
+	err := suite.controller.functionOperator.CreateOrUpdate(context.TODO(), functionInstance)
 	suite.Require().NoError(err)
 
 	// function state must be change to error after panicking during its create/update

@@ -37,7 +37,10 @@ bash "${CODEGEN_PKG}"/generate-groups.sh \
   --go-header-file "${SCRIPT_ROOT}"/boilerplate.go.txt
 
 # merge outputs with current source code
-rsync --remove-source-files --ignore-times "${PROJECT_ROOT}/github.com/nuclio/nuclio/pkg" "${PROJECT_ROOT}"
+rsync --recursive \
+ --remove-source-files \
+ --ignore-times \
+ "${PROJECT_ROOT}/github.com/nuclio/nuclio/pkg" "${PROJECT_ROOT}"
 
 # delete generated code
 rm -rf "${PROJECT_ROOT}/github.com"
