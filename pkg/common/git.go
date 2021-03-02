@@ -127,7 +127,7 @@ func (agc AbstractGitClient) cloneFromAzureDevops(outputDir string,
 
 	// attach git reference name when given (use - as it works both for branch/tag)
 	if referenceName != "" {
-		cloneCommand = fmt.Sprintf("%s -b %s", cloneCommand, referenceName)
+		cloneCommand = fmt.Sprintf("%s -b %s", cloneCommand, Quote(referenceName))
 	}
 
 	// run the above git clone command
