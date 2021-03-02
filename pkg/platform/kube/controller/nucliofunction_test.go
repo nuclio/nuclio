@@ -65,6 +65,7 @@ func (suite *NuclioFunctionTestSuite) SetupTest() {
 	functionresClient, err := functionres.NewLazyClient(suite.logger,
 		suite.k8sClientSet,
 		suite.functionClientSet)
+	suite.Require().NoError(err)
 
 	suite.controller, err = NewController(suite.logger, suite.namespace,
 		"",
