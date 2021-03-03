@@ -10,6 +10,7 @@ import (
 	"github.com/nuclio/logger"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 )
 
@@ -43,10 +44,10 @@ func NewGitClient(parentLogger logger.Logger) (GitClient, error) {
 		return nil, errors.Wrap(err, "Failed to create cmd runner")
 	}
 
-	return abstractGitClient, nil
+	return &abstractGitClient, nil
 }
 
-func (agc AbstractGitClient) Clone(outputDir, repositoryURL string, gitAttributes *GitAttributes) error {
+func (agc *AbstractGitClient) Clone(outputDir, repositoryURL string, gitAttributes *GitAttributes) error {
 	var referenceName string
 	var gitAuth *githttp.BasicAuth
 	var err error
@@ -69,7 +70,7 @@ func (agc AbstractGitClient) Clone(outputDir, repositoryURL string, gitAttribute
 	return agc.clone(outputDir, repositoryURL, referenceName, gitAuth)
 }
 
-func (agc AbstractGitClient) clone(outputDir, repositoryURL, referenceName string, gitAuth *githttp.BasicAuth) error {
+func (agc *AbstractGitClient) clone(outputDir, repositoryURL, referenceName string, gitAuth transport.AuthMethod) error {
 	if _, err := git.PlainClone(outputDir, false, &git.CloneOptions{
 		URL:           repositoryURL,
 		ReferenceName: plumbing.ReferenceName(referenceName),
@@ -84,7 +85,7 @@ func (agc AbstractGitClient) clone(outputDir, repositoryURL, referenceName strin
 	return nil
 }
 
-func (agc AbstractGitClient) logCurrentCommitSHA(gitDir, repositoryURL, referenceName string) {
+func (agc *AbstractGitClient) logCurrentCommitSHA(gitDir, repositoryURL, referenceName string) {
 	res, err := agc.cmdRunner.Run(nil, fmt.Sprintf("cd %s;git rev-parse HEAD", Quote(gitDir)))
 	if err != nil || res.ExitCode != 0 {
 		agc.logger.WarnWith("Failed to get commit SHA", "err", err)
@@ -104,7 +105,7 @@ func (agc AbstractGitClient) logCurrentCommitSHA(gitDir, repositoryURL, referenc
 		"commitSHA", commitSHA)
 }
 
-func (agc AbstractGitClient) cloneFromAzureDevops(outputDir string,
+func (agc *AbstractGitClient) cloneFromAzureDevops(outputDir string,
 	repositoryURL string,
 	referenceName string,
 	gitAuth *githttp.BasicAuth,
@@ -152,7 +153,7 @@ func (agc AbstractGitClient) cloneFromAzureDevops(outputDir string,
 	return nil
 }
 
-func (agc AbstractGitClient) parseFunctionGitCredentials(gitAttributes *GitAttributes) *githttp.BasicAuth {
+func (agc *AbstractGitClient) parseFunctionGitCredentials(gitAttributes *GitAttributes) *githttp.BasicAuth {
 	username := gitAttributes.Username
 	password := gitAttributes.Password
 
