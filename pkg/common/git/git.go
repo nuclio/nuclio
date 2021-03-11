@@ -15,7 +15,6 @@ import (
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 )
 
-
 type Client interface {
 	Clone(outputDir, repositoryURL string, attributes *Attributes) error
 }
