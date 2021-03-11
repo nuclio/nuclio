@@ -29,6 +29,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	gitcommon "github.com/nuclio/nuclio/pkg/common/git"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
@@ -719,7 +720,7 @@ func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 			// get git reference as it was planted on the code inside the remote git repository
 			gitAttributes, err := suite.builder.parseGitAttributes()
 			suite.Require().NoError(err)
-			referenceName, err := common.ResolveGitReference(suite.builder.options.FunctionConfig.Spec.Build.Path, gitAttributes)
+			referenceName, err := gitcommon.ResolveReference(suite.builder.options.FunctionConfig.Spec.Build.Path, gitAttributes)
 			suite.Require().NoError(err)
 
 			// make sure our test file was downloaded correctly

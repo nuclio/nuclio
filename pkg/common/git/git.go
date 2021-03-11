@@ -1,10 +1,11 @@
-package common
+package git
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -14,52 +15,45 @@ import (
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 )
 
-type GitAttributes struct {
-	Branch    string `json:"branch,omitempty"`
-	Tag       string `json:"tag,omitempty"`
-	Reference string `json:"reference,omitempty"`
-	Username  string `json:"username,omitempty"`
-	Password  string `json:"password,omitempty"`
+
+type Client interface {
+	Clone(outputDir, repositoryURL string, attributes *Attributes) error
 }
 
-type GitClient interface {
-	Clone(outputDir, repositoryURL string, gitAttributes *GitAttributes) error
-}
-
-type AbstractGitClient struct {
-	GitClient
+type AbstractClient struct {
+	Client
 
 	logger    logger.Logger
 	cmdRunner cmdrunner.CmdRunner
 }
 
-func NewGitClient(parentLogger logger.Logger) (GitClient, error) {
+func NewClient(parentLogger logger.Logger) (Client, error) {
 	var err error
 
-	abstractGitClient := AbstractGitClient{logger: parentLogger.GetChild("git-client")}
+	abstractClient := AbstractClient{logger: parentLogger.GetChild("git-client")}
 
 	// create cmd runner
-	abstractGitClient.cmdRunner, err = cmdrunner.NewShellRunner(parentLogger)
+	abstractClient.cmdRunner, err = cmdrunner.NewShellRunner(parentLogger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create cmd runner")
 	}
 
-	return &abstractGitClient, nil
+	return &abstractClient, nil
 }
 
-func (agc *AbstractGitClient) Clone(outputDir, repositoryURL string, gitAttributes *GitAttributes) error {
+func (agc *AbstractClient) Clone(outputDir, repositoryURL string, attributes *Attributes) error {
 	var referenceName string
 	var gitAuth *githttp.BasicAuth
 	var err error
 
 	// resolve full git reference name
-	referenceName, err = ResolveGitReference(repositoryURL, gitAttributes)
+	referenceName, err = ResolveReference(repositoryURL, attributes)
 	if err != nil {
 		return errors.Wrap(err, "Failed to resolve git reference")
 	}
 
 	// resolve git credentials when given
-	gitAuth = agc.parseFunctionGitCredentials(gitAttributes)
+	gitAuth = agc.parseCredentials(attributes)
 
 	// HACK: if it's Azure Devops repo - clone differently (the normal go-git client doesn't support it yet)
 	// TODO: remove when the issue is resolved - https://github.com/go-git/go-git/issues/64
@@ -70,7 +64,7 @@ func (agc *AbstractGitClient) Clone(outputDir, repositoryURL string, gitAttribut
 	return agc.clone(outputDir, repositoryURL, referenceName, gitAuth)
 }
 
-func (agc *AbstractGitClient) clone(outputDir, repositoryURL, referenceName string, gitAuth transport.AuthMethod) error {
+func (agc *AbstractClient) clone(outputDir, repositoryURL, referenceName string, gitAuth transport.AuthMethod) error {
 	if _, err := git.PlainClone(outputDir, false, &git.CloneOptions{
 		URL:           repositoryURL,
 		ReferenceName: plumbing.ReferenceName(referenceName),
@@ -85,8 +79,8 @@ func (agc *AbstractGitClient) clone(outputDir, repositoryURL, referenceName stri
 	return nil
 }
 
-func (agc *AbstractGitClient) logCurrentCommitSHA(gitDir, repositoryURL, referenceName string) {
-	res, err := agc.cmdRunner.Run(nil, fmt.Sprintf("cd %s;git rev-parse HEAD", Quote(gitDir)))
+func (agc *AbstractClient) logCurrentCommitSHA(gitDir, repositoryURL, referenceName string) {
+	res, err := agc.cmdRunner.Run(nil, fmt.Sprintf("cd %s;git rev-parse HEAD", common.Quote(gitDir)))
 	if err != nil || res.ExitCode != 0 {
 		agc.logger.WarnWith("Failed to get commit SHA", "err", err)
 		return
@@ -105,7 +99,7 @@ func (agc *AbstractGitClient) logCurrentCommitSHA(gitDir, repositoryURL, referen
 		"commitSHA", commitSHA)
 }
 
-func (agc *AbstractGitClient) cloneFromAzureDevops(outputDir string,
+func (agc *AbstractClient) cloneFromAzureDevops(outputDir string,
 	repositoryURL string,
 	referenceName string,
 	gitAuth *githttp.BasicAuth,
@@ -130,12 +124,12 @@ func (agc *AbstractGitClient) cloneFromAzureDevops(outputDir string,
 
 	// generate a git clone command
 	cloneCommand := fmt.Sprintf("git clone %s --depth 1 -q %s",
-		Quote(repositoryURL),
-		Quote(outputDir))
+		common.Quote(repositoryURL),
+		common.Quote(outputDir))
 
 	// attach git reference name when given (use -b as it works both for branch/tag)
 	if referenceName != "" {
-		cloneCommand = fmt.Sprintf("%s -b %s", cloneCommand, Quote(referenceName))
+		cloneCommand = fmt.Sprintf("%s -b %s", cloneCommand, common.Quote(referenceName))
 	}
 
 	// run the above git clone command
@@ -153,9 +147,9 @@ func (agc *AbstractGitClient) cloneFromAzureDevops(outputDir string,
 	return nil
 }
 
-func (agc *AbstractGitClient) parseFunctionGitCredentials(gitAttributes *GitAttributes) *githttp.BasicAuth {
-	username := gitAttributes.Username
-	password := gitAttributes.Password
+func (agc *AbstractClient) parseCredentials(attributes *Attributes) *githttp.BasicAuth {
+	username := attributes.Username
+	password := attributes.Password
 
 	if username != "" || password != "" {
 
@@ -173,11 +167,11 @@ func (agc *AbstractGitClient) parseFunctionGitCredentials(gitAttributes *GitAttr
 	return nil
 }
 
-func ResolveGitReference(repositoryURL string, gitAttributes *GitAttributes) (string, error) {
+func ResolveReference(repositoryURL string, attributes *Attributes) (string, error) {
 	addReferencePrefix := !isAzureDevopsRepositoryURL(repositoryURL)
 
 	// branch
-	if ref := gitAttributes.Branch; ref != "" {
+	if ref := attributes.Branch; ref != "" {
 		if addReferencePrefix {
 			ref = fmt.Sprintf("refs/heads/%s", ref)
 		}
@@ -185,7 +179,7 @@ func ResolveGitReference(repositoryURL string, gitAttributes *GitAttributes) (st
 	}
 
 	// tag
-	if ref := gitAttributes.Tag; ref != "" {
+	if ref := attributes.Tag; ref != "" {
 		if addReferencePrefix {
 			ref = fmt.Sprintf("refs/tags/%s", ref)
 		}
@@ -193,7 +187,7 @@ func ResolveGitReference(repositoryURL string, gitAttributes *GitAttributes) (st
 	}
 
 	// reference
-	if ref := gitAttributes.Reference; ref != "" {
+	if ref := attributes.Reference; ref != "" {
 		return ref, nil
 	}
 

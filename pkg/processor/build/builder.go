@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	gitcommon "github.com/nuclio/nuclio/pkg/common/git"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -121,7 +122,7 @@ type Builder struct {
 
 	versionInfo *version.Info
 
-	gitClient common.GitClient
+	gitClient gitcommon.Client
 }
 
 // NewBuilder returns a new builder
@@ -137,7 +138,7 @@ func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client
 
 	newBuilder.initializeSupportedRuntimes()
 
-	newBuilder.gitClient, err = common.NewGitClient(newBuilder.logger)
+	newBuilder.gitClient, err = gitcommon.NewClient(newBuilder.logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create git client")
 	}
@@ -1616,8 +1617,8 @@ func (b *Builder) resolveCodeEntryAttributeAsString(attribute string) string {
 	return ""
 }
 
-func (b *Builder) parseGitAttributes() (*common.GitAttributes, error) {
-	var gitAttributes common.GitAttributes
+func (b *Builder) parseGitAttributes() (*gitcommon.Attributes, error) {
+	var gitAttributes gitcommon.Attributes
 
 	// get branch reference and authorization when given
 	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes == nil {
