@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	gitcommon "github.com/nuclio/nuclio/pkg/common/git"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -48,13 +49,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
 	"github.com/mholt/archiver/v3"
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/version-go"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/yaml.v2"
 )
 
@@ -122,10 +121,14 @@ type Builder struct {
 	s3Client common.S3Client
 
 	versionInfo *version.Info
+
+	gitClient gitcommon.Client
 }
 
 // NewBuilder returns a new builder
 func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client common.S3Client) (*Builder, error) {
+	var err error
+
 	newBuilder := &Builder{
 		logger:      parentLogger,
 		platform:    platform,
@@ -134,6 +137,12 @@ func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client
 	}
 
 	newBuilder.initializeSupportedRuntimes()
+
+	newBuilder.gitClient, err = gitcommon.NewClient(newBuilder.logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create git client")
+	}
+
 	return newBuilder, nil
 }
 
@@ -1593,20 +1602,6 @@ func (b *Builder) getS3FunctionItemKey() (string, error) {
 	return s3Attributes["s3ItemKey"], nil
 }
 
-func (b *Builder) resolveGitReference() (string, error) {
-	if ref := b.resolveCodeEntryAttributeAsString("branch"); ref != "" {
-		return fmt.Sprintf("refs/heads/%s", ref), nil
-	}
-	if ref := b.resolveCodeEntryAttributeAsString("tag"); ref != "" {
-		return fmt.Sprintf("refs/tags/%s", ref), nil
-	}
-	if ref := b.resolveCodeEntryAttributeAsString("reference"); ref != "" {
-		return ref, nil
-	}
-
-	return "", errors.New("No git reference was specified. (must specify branch/tag/reference)")
-}
-
 func (b *Builder) resolveCodeEntryAttributeAsString(attribute string) string {
 	if value, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes[attribute]; found {
 		switch typedValue := value.(type) {
@@ -1622,46 +1617,28 @@ func (b *Builder) resolveCodeEntryAttributeAsString(attribute string) string {
 	return ""
 }
 
-func (b *Builder) parseFunctionGitCredentials() *githttp.BasicAuth {
-	username := b.resolveCodeEntryAttributeAsString("username")
-	password := b.resolveCodeEntryAttributeAsString("password")
-
-	if username != "" || password != "" {
-		return &githttp.BasicAuth{
-			Username: username,
-			Password: password,
-		}
-	}
-
-	return nil
-}
-
-func (b *Builder) cloneFunctionFromGit(tempDir, functionPath string) error {
-	var gitReference string
-	var gitAuth *githttp.BasicAuth
-	var err error
+func (b *Builder) parseGitAttributes() (*gitcommon.Attributes, error) {
+	var gitAttributes gitcommon.Attributes
 
 	// get branch reference and authorization when given
-	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes != nil {
-		gitReference, err = b.resolveGitReference()
-		if err != nil {
-			return errors.Wrap(err, "Failed to resolve git reference")
-		}
-
-		gitAuth = b.parseFunctionGitCredentials()
+	if b.options.FunctionConfig.Spec.Build.CodeEntryAttributes == nil {
+		return nil, errors.New("Git code entry attributes must exist when cloning function from git")
 	}
 
-	// TODO: handle azure devops differently here
-	if _, err = git.PlainClone(tempDir, false, &git.CloneOptions{
-		URL:           functionPath,
-		ReferenceName: plumbing.ReferenceName(gitReference),
-		Depth:         1,
-		Auth:          gitAuth,
-	}); err != nil {
-		return errors.Wrap(err, "Failed to clone git repository")
+	if err := mapstructure.Decode(b.options.FunctionConfig.Spec.Build.CodeEntryAttributes, &gitAttributes); err != nil {
+		return nil, errors.Wrap(err, "Failed to decode code entry attributes")
 	}
 
-	return nil
+	return &gitAttributes, nil
+}
+
+func (b *Builder) cloneFunctionFromGit(outputDir, repositoryURL string) error {
+	gitAttributes, err := b.parseGitAttributes()
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse git attributes")
+	}
+
+	return b.gitClient.Clone(outputDir, repositoryURL, gitAttributes)
 }
 
 func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {
