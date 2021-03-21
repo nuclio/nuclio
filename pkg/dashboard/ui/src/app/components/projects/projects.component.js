@@ -365,7 +365,7 @@
          * @returns {string}
          */
         function getName(project) {
-            return lodash.defaultTo(project.spec.displayName, project.metadata.name);
+            return project.metadata.name;
         }
 
         /**
