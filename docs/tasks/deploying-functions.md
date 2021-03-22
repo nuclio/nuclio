@@ -51,15 +51,16 @@ def my_entry_point(context, event):
 <a id="deploying-a-simple-function"></a>
 ## Deploying a simple function
 
-To convert source code to a running function, you must first _deploy_ the function. A deployment process has three stages:
+To convert source code to a running function, you must first _deploy_ the function.
+A deployment process has three stages:
 
-1. The source code is built to a container image and pushed to a Docker registry
-2. A function object is created in Nuclio (i.e., in Kubernetes, this is a function CRD)
-3. A controller creates the appropriate function resources on the cluster (i.e., in Kubernetes this is the deployment, service, ingress, etc.)
+1. The source code is built to a container image and pushed to a Docker Registry.
+2. A function object is created in Nuclio; (in Kubernetes, this is a function CRD).
+3. A controller creates the appropriate function resources on the cluster; (in Kubernetes, this is the deployment, service, ingress, etc.).
 
-This process can be triggered through `nuctl deploy` which you will use throughout this tutorial. You will now write
-the function that you wrote in the previous step to a `/tmp/nuclio/my_function.py` file. Before you do anything,
-verify with `nuctl` that everything is properly configured by getting all functions deployed in the "nuclio" namespace:
+This process can be triggered through `nuctl deploy`, which you'll use throughout this tutorial.
+You'll now write the function that you wrote in the previous step to a **/tmp/nuclio/my_function.py** file.
+Before you do anything, use `nuctl` to verify that everything is configured properly by getting all functions deployed in the "nuclio" namespace:
 
 ```sh
 nuctl get function --namespace nuclio
@@ -67,7 +68,8 @@ nuctl get function --namespace nuclio
 No functions found
 ```
 
-Now deploy your function, specifying the function name, the path, the "nuclio" namespace to which all setup guides expect functions to go to and applicable registry information:
+Now, deploy your function.
+Specify the function's namespace ("nuclio" in all the setup tutorials), path, runtime, handler function, and applicable registry information, and optionally set additional flags:
 
 ```sh
 nuctl deploy my-function \
@@ -79,11 +81,12 @@ nuctl deploy my-function \
 	--registry $(minikube ip):5000 --run-registry localhost:5000
 ```
 
-> **Notes:**
-> 1. `--path` can also hold a URL.
-> 2. See the applicable setup guide to get registry information.
-> 3. Notice we used a `nodePort` to expose the function and make it reachable externally. This
-> is for demonstration purposes only. See [exposing a function](#exposing-a-function) to learn more about why this is here.
+> **Note:**
+> 1. `--path` can also be set to a URL.
+> 2. See the applicable setup tutorial for registry information.
+> 3. Note the use of the `nodePort` HTTP-trigger service type, which exposes the function and makes it reachable externally.
+>   This is done for demonstration purposes only.
+>   For more information, see the [Exposing a function](#exposing-a-function) section in this tutorial.
 
 Once the function deploys, you should see `Function deploy complete` and an HTTP port through which you can invoke it. If there's a problem, invoke the above with `--verbose` and try to understand what went wrong. You can see your function through `nuctl get`:
 
@@ -95,8 +98,7 @@ nuctl get function --namespace nuclio
 
 ```
 
-To illustrate that the function is indeed accessible via HTTP, you'll use [httpie](https://httpie.org) to invoke
-the function at the port specified by the deployment log:
+To illustrate that the function is indeed accessible via HTTP, you'll use [httpie](https://httpie.org) to invoke the function at the port specified by the deployment log:
 
 ```sh
 http $(minikube ip):<port from log>
