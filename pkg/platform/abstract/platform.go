@@ -65,11 +65,13 @@ type Platform struct {
 	ContainerBuilder               containerimagebuilderpusher.BuilderPusher
 	DefaultHTTPIngressHostTemplate string
 	ImageNamePrefixTemplate        string
+	DefaultNamespace               string
 }
 
 func NewPlatform(parentLogger logger.Logger,
 	platform platform.Platform,
-	platformConfiguration *platformconfig.Config) (*Platform, error) {
+	platformConfiguration *platformconfig.Config,
+	defaultNamespace string) (*Platform, error) {
 	var err error
 
 	newPlatform := &Platform{
@@ -84,6 +86,8 @@ func NewPlatform(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create invoker")
 	}
+
+	newPlatform.DefaultNamespace = defaultNamespace
 
 	return newPlatform, nil
 }
@@ -638,36 +642,6 @@ func (ap *Platform) GetRuntimeBuildArgs(runtime runtime.Runtime) map[string]stri
 	return runtime.GetRuntimeBuildArgs(ap.Config.Runtime)
 }
 
-func (ap *Platform) functionBuildRequired(functionConfig *functionconfig.Config) (bool, error) {
-
-	// if neverBuild was passed explicitly don't build
-	if functionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
-		return false, nil
-	}
-
-	// if the function contains source code, an image name or a path somewhere - we need to rebuild. the shell
-	// runtime supports a case where user just tells image name and we build around the handler without a need
-	// for a path
-	if functionConfig.Spec.Build.FunctionSourceCode != "" ||
-		functionConfig.Spec.Build.Path != "" ||
-		functionConfig.Spec.Build.Image != "" {
-		return true, nil
-	}
-
-	if functionConfig.Spec.Build.CodeEntryType == build.S3EntryType {
-		return true, nil
-	}
-
-	// if user didn't give any of the above but _did_ specify an image to run from, just dont build
-	if functionConfig.Spec.Image != "" {
-		return false, nil
-	}
-
-	// should not get here - we should either be able to build an image or have one specified for us
-	return false, errors.New("Function must have either spec.build.path," +
-		"spec.build.functionSourceCode, spec.build.image or spec.image set in order to create")
-}
-
 func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (string, string) {
 	var formattedProcessorLogs, briefErrorsMessage string
 	var stopWritingRawLinesToBriefErrorsMessage bool
@@ -773,6 +747,77 @@ func (ap *Platform) GetProjectResources(projectMeta *platform.ProjectMeta) ([]pl
 		return nil, nil, errors.Wrap(err, "Failed to get project resources")
 	}
 	return functions, apiGateways, nil
+}
+
+func (ap *Platform) EnsureDefaultProjectExistence() error {
+	resolvedNamespace := ap.platform.ResolveDefaultNamespace(ap.DefaultNamespace)
+
+	projects, err := ap.GetProjects(&platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta{
+			Name:      platform.DefaultProjectName,
+			Namespace: resolvedNamespace,
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get projects")
+	}
+
+	if len(projects) == 0 {
+
+		// if we're here the default project doesn't exist. create it
+		projectConfig := platform.ProjectConfig{
+			Meta: platform.ProjectMeta{
+				Name:      platform.DefaultProjectName,
+				Namespace: resolvedNamespace,
+			},
+			Spec: platform.ProjectSpec{},
+		}
+		newProject, err := platform.NewAbstractProject(ap.Logger, ap.platform, projectConfig)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create abstract default project")
+		}
+
+		if err := ap.CreateProject(&platform.CreateProjectOptions{
+			ProjectConfig: newProject.GetConfig(),
+		}); err != nil {
+			return errors.Wrap(err, "Failed to create default project")
+		}
+
+	} else if len(projects) > 1 {
+		return errors.New("Something went wrong. There's more than one default project")
+	}
+
+	return nil
+}
+
+func (ap *Platform) functionBuildRequired(functionConfig *functionconfig.Config) (bool, error) {
+
+	// if neverBuild was passed explicitly don't build
+	if functionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
+		return false, nil
+	}
+
+	// if the function contains source code, an image name or a path somewhere - we need to rebuild. the shell
+	// runtime supports a case where user just tells image name and we build around the handler without a need
+	// for a path
+	if functionConfig.Spec.Build.FunctionSourceCode != "" ||
+		functionConfig.Spec.Build.Path != "" ||
+		functionConfig.Spec.Build.Image != "" {
+		return true, nil
+	}
+
+	if functionConfig.Spec.Build.CodeEntryType == build.S3EntryType {
+		return true, nil
+	}
+
+	// if user didn't give any of the above but _did_ specify an image to run from, just dont build
+	if functionConfig.Spec.Image != "" {
+		return false, nil
+	}
+
+	// should not get here - we should either be able to build an image or have one specified for us
+	return false, errors.New("Function must have either spec.build.path," +
+		"spec.build.functionSourceCode, spec.build.image or spec.image set in order to create")
 }
 
 func (ap *Platform) aggregateConsecutiveDuplicateMessages(errorMessagesArray []string) []string {

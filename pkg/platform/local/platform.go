@@ -58,11 +58,12 @@ const FunctionProcessorContainerDirPath = "/etc/nuclio/config/processor"
 
 // NewPlatform instantiates a new local platform
 func NewPlatform(parentLogger logger.Logger,
-	platformConfiguration *platformconfig.Config) (*Platform, error) {
+	platformConfiguration *platformconfig.Config,
+	defaultNamespace string) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform, platformConfiguration)
+	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform, platformConfiguration, defaultNamespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create an abstract platform")
 	}
@@ -109,6 +110,10 @@ func NewPlatform(parentLogger logger.Logger,
 	)
 
 	return newPlatform, nil
+}
+
+func (p *Platform) Initialize() error {
+	return p.EnsureDefaultProjectExistence()
 }
 
 // CreateFunction will simply run a docker image

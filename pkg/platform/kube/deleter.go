@@ -40,7 +40,7 @@ func newDeleter(parentLogger logger.Logger, platform platform.Platform) (*delete
 	return newdeleter, nil
 }
 
-func (d *deleter) delete(consumer *consumer, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+func (d *deleter) delete(consumer *Consumer, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	var err error
 
 	resourceName, _, err := nuctl.ParseResourceIdentifier(deleteFunctionOptions.FunctionConfig.Meta.Name)

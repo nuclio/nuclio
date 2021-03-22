@@ -42,10 +42,10 @@ func CreatePlatform(parentLogger logger.Logger,
 
 	switch platformType {
 	case "local":
-		newPlatform, err = local.NewPlatform(parentLogger, platformConfiguration)
+		newPlatform, err = local.NewPlatform(parentLogger, platformConfiguration, defaultNamespace)
 
 	case "kube":
-		newPlatform, err = kube.NewPlatform(parentLogger, platformConfiguration)
+		newPlatform, err = kube.NewPlatform(parentLogger, platformConfiguration, defaultNamespace)
 
 	case "auto":
 
@@ -69,50 +69,9 @@ func CreatePlatform(parentLogger logger.Logger,
 		return nil, errors.Wrapf(err, "Failed to create %s platform", platformType)
 	}
 
-	if err = EnsureDefaultProjectExistence(parentLogger, newPlatform, defaultNamespace); err != nil {
-		return nil, errors.Wrap(err, "Failed to ensure default project existence")
+	if err = newPlatform.Initialize(); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize new platform")
 	}
 
 	return newPlatform, nil
-}
-
-func EnsureDefaultProjectExistence(parentLogger logger.Logger, p platform.Platform, defaultNamespace string) error {
-	resolvedNamespace := p.ResolveDefaultNamespace(defaultNamespace)
-
-	projects, err := p.GetProjects(&platform.GetProjectsOptions{
-		Meta: platform.ProjectMeta{
-			Name:      platform.DefaultProjectName,
-			Namespace: resolvedNamespace,
-		},
-	})
-	if err != nil {
-		return errors.Wrap(err, "Failed to get projects")
-	}
-
-	if len(projects) == 0 {
-
-		// if we're here the default project doesn't exist. create it
-		projectConfig := platform.ProjectConfig{
-			Meta: platform.ProjectMeta{
-				Name:      platform.DefaultProjectName,
-				Namespace: resolvedNamespace,
-			},
-			Spec: platform.ProjectSpec{},
-		}
-		newProject, err := platform.NewAbstractProject(parentLogger, p, projectConfig)
-		if err != nil {
-			return errors.Wrap(err, "Failed to create abstract default project")
-		}
-
-		if err := p.CreateProject(&platform.CreateProjectOptions{
-			ProjectConfig: newProject.GetConfig(),
-		}); err != nil {
-			return errors.Wrap(err, "Failed to create default project")
-		}
-
-	} else if len(projects) > 1 {
-		return errors.New("Something went wrong. There's more than one default project")
-	}
-
-	return nil
 }

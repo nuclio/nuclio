@@ -32,6 +32,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+	"github.com/nuclio/nuclio/pkg/platform/kube/project"
+	externalproject "github.com/nuclio/nuclio/pkg/platform/kube/project/external"
+	kubeproject "github.com/nuclio/nuclio/pkg/platform/kube/project/kube"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -51,18 +54,20 @@ type Platform struct {
 	updater        *updater
 	deleter        *deleter
 	kubeconfigPath string
-	consumer       *consumer
+	consumer       *Consumer
+	projectsClient project.Client
 }
 
 const Mib = 1048576
 
 // NewPlatform instantiates a new kubernetes platform
 func NewPlatform(parentLogger logger.Logger,
-	platformConfiguration *platformconfig.Config) (*Platform, error) {
+	platformConfiguration *platformconfig.Config,
+	defaultNamespace string) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform, platformConfiguration)
+	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform, platformConfiguration, defaultNamespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create an abstract platform")
 	}
@@ -101,6 +106,12 @@ func NewPlatform(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create an updater")
 	}
 
+	// create projects client
+	newPlatform.projectsClient, err = newProjectsClient(newPlatform.Logger, newPlatform.consumer, platformConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create projects client")
+	}
+
 	// create container builder
 	if platformConfiguration.ContainerBuilderConfiguration.Kind == "kaniko" {
 		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewKaniko(newPlatform.Logger,
@@ -119,6 +130,14 @@ func NewPlatform(parentLogger logger.Logger,
 	}
 
 	return newPlatform, nil
+}
+
+func (p *Platform) Initialize() error {
+	if err := p.projectsClient.Initialize(p); err != nil {
+		return errors.Wrap(err, "Failed to initialize projects client")
+	}
+
+	return nil
 }
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
@@ -433,7 +452,7 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 
 	// validate
 	if err := p.ValidateProjectConfig(createProjectOptions.ProjectConfig); err != nil {
-		return errors.Wrap(err, "Failed to validate a project confiuration")
+		return errors.Wrap(err, "Failed to validate a project configuration")
 	}
 
 	// project config -> nuclio project crd instance
@@ -441,13 +460,11 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	p.platformProjectToProject(createProjectOptions.ProjectConfig, &newProject)
 
 	// create
-	p.Logger.DebugWith("Creating project",
-		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
-	if _, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		NuclioProjects(createProjectOptions.ProjectConfig.Meta.Namespace).
-		Create(&newProject); err != nil {
+	p.Logger.DebugWith("Creating project", "projectName", createProjectOptions.ProjectConfig.Meta.Name)
+	if _, err := p.projectsClient.Create(&newProject); err != nil {
 		return errors.Wrap(err, "Failed to create a project")
 	}
+
 	return nil
 }
 
@@ -457,7 +474,7 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 		return nuclio.WrapErrBadRequest(err)
 	}
 
-	project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	project, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
 		Get(updateProjectOptions.ProjectConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
@@ -470,11 +487,7 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 	project.Annotations = updatedProject.Annotations
 	project.Labels = updatedProject.Labels
 
-	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
-		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
-		Update(project)
-
-	if err != nil {
+	if _, err := p.projectsClient.Update(project); err != nil {
 		return errors.Wrap(err, "Failed to update a project")
 	}
 
@@ -487,19 +500,9 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
-	p.Logger.DebugWith("Deleting project",
-		"projectMeta", deleteProjectOptions.Meta)
-	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		NuclioProjects(deleteProjectOptions.Meta.Namespace).
-		Delete(deleteProjectOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
-
-		if apierrors.IsNotFound(err) {
-			return nuclio.NewErrNotFound(fmt.Sprintf("Project %s not found", deleteProjectOptions.Meta.Name))
-		}
-		return errors.Wrapf(err,
-			"Failed to delete project %s from namespace %s",
-			deleteProjectOptions.Meta.Name,
-			deleteProjectOptions.Meta.Namespace)
+	p.Logger.DebugWith("Deleting project", "projectMeta", deleteProjectOptions.Meta)
+	if err := p.projectsClient.Delete(deleteProjectOptions); err != nil {
+		return errors.Wrap(err, "Failed to delete project")
 	}
 
 	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
@@ -512,40 +515,10 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 // GetProjects will list existing projects
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	var platformProjects []platform.Project
-	var projects []nuclioio.NuclioProject
 
-	// if identifier specified, we need to get a single NuclioProject
-	if getProjectsOptions.Meta.Name != "" {
-
-		// get specific NuclioProject CR
-		Project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-			NuclioProjects(getProjectsOptions.Meta.Namespace).
-			Get(getProjectsOptions.Meta.Name, metav1.GetOptions{})
-
-		if err != nil {
-
-			// if we didn't find the NuclioProject, return an empty slice
-			if apierrors.IsNotFound(err) {
-				return platformProjects, nil
-			}
-
-			return nil, errors.Wrap(err, "Failed to get a project")
-		}
-
-		projects = append(projects, *Project)
-
-	} else {
-
-		projectInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-			NuclioProjects(getProjectsOptions.Meta.Namespace).
-			List(metav1.ListOptions{LabelSelector: ""})
-
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to list projects")
-		}
-
-		// convert []NuclioProject to []*NuclioProject
-		projects = projectInstanceList.Items
+	projects, err := p.projectsClient.Get(getProjectsOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get projects")
 	}
 
 	// convert []nuclioio.NuclioProject -> NuclioProject
@@ -593,7 +566,7 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 	newAPIGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
 	// create
-	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	_, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(newAPIGateway.Namespace).
 		Create(&newAPIGateway)
 	if err != nil {
@@ -605,7 +578,7 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 
 // UpdateAPIGateway will update a previously existing api gateway
 func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
-	apiGateway, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	apiGateway, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Get(updateAPIGatewayOptions.APIGatewayConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
@@ -628,7 +601,7 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	apiGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
 	// update
-	if _, err = p.consumer.nuclioClientSet.NuclioV1beta1().
+	if _, err = p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Update(apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to update an API gateway")
@@ -648,7 +621,7 @@ func (p *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIG
 	p.Logger.DebugWith("Deleting api gateway", "name", deleteAPIGatewayOptions.Meta.Name)
 
 	// delete
-	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	if err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(deleteAPIGatewayOptions.Meta.Namespace).
 		Delete(deleteAPIGatewayOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
 
@@ -670,7 +643,7 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 	if getAPIGatewaysOptions.Name != "" {
 
 		// get specific NuclioAPIGateway CR
-		apiGateway, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		apiGateway, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
 			Get(getAPIGatewaysOptions.Name, metav1.GetOptions{})
 		if err != nil {
@@ -687,7 +660,7 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 
 	} else {
 
-		apiGatewayInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		apiGatewayInstanceList, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
 			List(metav1.ListOptions{LabelSelector: getAPIGatewaysOptions.Labels})
 		if err != nil {
@@ -731,7 +704,7 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 	newFunctionEvent := nuclioio.NuclioFunctionEvent{}
 	p.platformFunctionEventToFunctionEvent(&createFunctionEventOptions.FunctionEventConfig, &newFunctionEvent)
 
-	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	_, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(createFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
 		Create(&newFunctionEvent)
 
@@ -747,7 +720,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 	updatedFunctionEvent := nuclioio.NuclioFunctionEvent{}
 	p.platformFunctionEventToFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig, &updatedFunctionEvent)
 
-	functionEvent, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	functionEvent, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
 		Get(updateFunctionEventOptions.FunctionEventConfig.Meta.Name, metav1.GetOptions{})
 
@@ -759,7 +732,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 	functionEvent.Annotations = updatedFunctionEvent.Annotations
 	functionEvent.Labels = updatedFunctionEvent.Labels
 
-	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
+	_, err = p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
 		Update(functionEvent)
 
@@ -772,7 +745,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 
 // DeleteFunctionEvent will delete a previously existing function event
 func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
-	err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
 		Delete(deleteFunctionEventOptions.Meta.Name, &metav1.DeleteOptions{})
 
@@ -795,7 +768,7 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 	if getFunctionEventsOptions.Meta.Name != "" {
 
 		// get specific function event CR
-		functionEvent, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		functionEvent, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioFunctionEvents(getFunctionEventsOptions.Meta.Namespace).
 			Get(getFunctionEventsOptions.Meta.Name, metav1.GetOptions{})
 
@@ -823,7 +796,7 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 			labelSelector = fmt.Sprintf("nuclio.io/function-name in (%s)", encodedFunctionNames)
 		}
 
-		functionEventInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		functionEventInstanceList, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioFunctionEvents(getFunctionEventsOptions.Meta.Namespace).
 			List(metav1.ListOptions{LabelSelector: labelSelector})
 
@@ -993,7 +966,7 @@ func (p *Platform) generateFunctionToAPIGatewaysMapping(namespace string) (map[s
 	functionToAPIGateways := map[string][]string{}
 
 	// get all api gateways in the namespace
-	apiGateways, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	apiGateways, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(namespace).
 		List(metav1.ListOptions{})
 	if err != nil {
@@ -1068,7 +1041,7 @@ func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction
 		"name", name)
 
 	// get specific function CR
-	function, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	function, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctions(namespace).
 		Get(name, metav1.GetOptions{})
 	if err != nil {
@@ -1425,4 +1398,15 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 	}
 
 	return nil
+}
+
+func newProjectsClient(parentLogger logger.Logger,
+	consumer *Consumer,
+	platformConfiguration *platformconfig.Config) (project.Client, error) {
+
+	if platformConfiguration.Kube.ProjectsLeaderAddress != "" {
+		return externalproject.NewClient(parentLogger)
+	}
+
+	return kubeproject.NewClient(parentLogger, consumer)
 }

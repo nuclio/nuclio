@@ -36,6 +36,10 @@ const (
 // Platform defines the interface that any underlying function platform must provide for nuclio
 // to run over it
 type Platform interface {
+
+	// Initializes the platform
+	Initialize() error
+
 	//
 	// Function
 	//
@@ -82,6 +86,9 @@ type Platform interface {
 
 	// GetProjects will list existing projects
 	GetProjects(getProjectsOptions *GetProjectsOptions) ([]Project, error)
+
+	// Ensures default project exists, creates it otherwise
+	EnsureDefaultProjectExistence() error
 
 	//
 	// Function event

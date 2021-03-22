@@ -30,17 +30,17 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-type consumer struct {
+type Consumer struct {
+	NuclioClientSet nuclioioclient.Interface
 	kubeClientSet   kubernetes.Interface
-	nuclioClientSet nuclioioclient.Interface
 	kubeHost        string
 	kubeconfigPath  string
 }
 
-func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error) {
+func newConsumer(logger logger.Logger, kubeconfigPath string) (*Consumer, error) {
 	logger.DebugWith("Using kubeconfig", "kubeconfigPath", kubeconfigPath)
 
-	newConsumer := consumer{
+	newConsumer := Consumer{
 		kubeconfigPath: kubeconfigPath,
 	}
 
@@ -66,7 +66,7 @@ func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error)
 	}
 
 	// create a client for function custom resources
-	newConsumer.nuclioClientSet, err = nuclioioclient.NewForConfig(restConfig)
+	newConsumer.NuclioClientSet, err = nuclioioclient.NewForConfig(restConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function custom resource client")
 	}
@@ -74,11 +74,11 @@ func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error)
 	return &newConsumer, nil
 }
 
-func (c *consumer) getNuclioClientSet(authConfig *platform.AuthConfig) (nuclioioclient.Interface, error) {
+func (c *Consumer) getNuclioClientSet(authConfig *platform.AuthConfig) (nuclioioclient.Interface, error) {
 
 	// if no authentication was passed, can use the generic client. otherwise must create
 	if authConfig == nil {
-		return c.nuclioClientSet, nil
+		return c.NuclioClientSet, nil
 	}
 
 	// create REST config

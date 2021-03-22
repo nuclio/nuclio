@@ -39,11 +39,11 @@ const MaxLogLines = 100
 
 type deployer struct {
 	logger   logger.Logger
-	consumer *consumer
+	consumer *Consumer
 	platform *Platform
 }
 
-func newDeployer(parentLogger logger.Logger, consumer *consumer, platform *Platform) (*deployer, error) {
+func newDeployer(parentLogger logger.Logger, consumer *Consumer, platform *Platform) (*deployer, error) {
 	newdeployer := &deployer{
 		logger:   parentLogger.GetChild("deployer"),
 		platform: platform,
@@ -183,7 +183,7 @@ func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
 	}, updatedFunctionInstance, "", nil
 }
 
-func isFunctionDeploymentFailed(consumer *consumer,
+func isFunctionDeploymentFailed(consumer *Consumer,
 	namespace string,
 	name string,
 	functionCreateOrUpdateTimestamp time.Time) (bool, error) {
@@ -240,7 +240,7 @@ func compileListFunctionPodsLabelSelector(functionName string) string {
 }
 
 func waitForFunctionReadiness(loggerInstance logger.Logger,
-	consumer *consumer,
+	consumer *Consumer,
 	namespace string,
 	name string,
 	functionCreateOrUpdateTimestamp time.Time) (*nuclioio.NuclioFunction, error) {
@@ -251,7 +251,7 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 	conditionFunc := func() (bool, error) {
 
 		// get the appropriate function CR
-		function, err = consumer.nuclioClientSet.NuclioV1beta1().
+		function, err = consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioFunctions(namespace).
 			Get(name, metav1.GetOptions{})
 		if err != nil {

@@ -30,10 +30,10 @@ import (
 type updater struct {
 	logger   logger.Logger
 	platform platform.Platform
-	consumer *consumer
+	consumer *Consumer
 }
 
-func newUpdater(parentLogger logger.Logger, consumer *consumer, platform platform.Platform) (*updater, error) {
+func newUpdater(parentLogger logger.Logger, consumer *Consumer, platform platform.Platform) (*updater, error) {
 	newupdater := &updater{
 		logger:   parentLogger.GetChild("updater"),
 		platform: platform,
@@ -47,7 +47,7 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	u.logger.InfoWith("Updating function", "name", updateFunctionOptions.FunctionMeta.Name)
 
 	// get specific function CR
-	function, err := u.consumer.nuclioClientSet.NuclioV1beta1().
+	function, err := u.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
 		Get(updateFunctionOptions.FunctionMeta.Name, metav1.GetOptions{})
 
