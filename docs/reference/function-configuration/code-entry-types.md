@@ -19,7 +19,7 @@ This document describes the Nuclio function code-entry types and related configu
 
 ## Overview
 
-As part of the [function specification](/docs/reference/function-configuration.md#specification) (`spec`), you must configure one of the following code-entry types and related information that points either to a pre-built function image or to code from which to build such an image:
+As part of the [function specification](/docs/reference/function-configuration/function-configuration-reference.md#specification) (`spec`), you must configure one of the following code-entry types and related information that points either to a pre-built function image or to code from which to build such an image:
 
 - Function image (`image`) &mdash; set the `spec.image` configuration field to the name of a function container image. See [Function-image code-entry type (`image`)](#code-entry-type-image).
 
@@ -37,15 +37,15 @@ As part of the [function specification](/docs/reference/function-configuration.m
 
 The code-entry type is determined by using the following processing logic:
 
-1. If [`spec.image`](/docs/reference/function-configuration.md#spec.image) is set, the implied code-entry type is [function image](#code-entry-type-image) (`image`) and the configured function image is used. The `spec.build.codeEntryType`, `spec.build.functionSourceCode`, and `spec.build.path` fields are ignored.
+1. If [`spec.image`](/docs/reference/function-configuration/function-configuration-reference.md#spec.image) is set, the implied code-entry type is [function image](#code-entry-type-image) (`image`) and the configured function image is used. The `spec.build.codeEntryType`, `spec.build.functionSourceCode`, and `spec.build.path` fields are ignored.
 
    > **Note:** When you build and deploy a Nuclio function, the `spec.image` field is automatically updated to the name of the function's container image, so to use a different code-entry type for a redeployed function you must first reset the `spec.image` configuration field. This is handled implicitly when deploying a function from the Nuclio dashboard.
 
-2. If [`spec.build.functionSourceCode`](/docs/reference/function-configuration.md#spec.build.functionSourceCode) is set (and `spec.image` isn't set), the implied code-entry type is [encoded source-code string](#code-entry-type-sourcecode) (`sourceCode`) and the function is built from the configured source code. The `spec.build.codeEntryType` and `spec.build.path` fields are ignored.
+2. If [`spec.build.functionSourceCode`](/docs/reference/function-configuration/function-configuration-reference.md#spec.build.functionSourceCode) is set (and `spec.image` isn't set), the implied code-entry type is [encoded source-code string](#code-entry-type-sourcecode) (`sourceCode`) and the function is built from the configured source code. The `spec.build.codeEntryType` and `spec.build.path` fields are ignored.
 
 3. If [`spec.build.codeEntryType`](/docs/reference/function-configuration/function-configuration-reference.md#spec.build.codeEntryType) is set (and `spec.image` and `spec.build.functionSourceCode` aren't set), the value of the code-entry field determines the [external function-code code-entry type](#external-func-code-entry-types) (`archive`, `github`, or `s3`).
 
-4. If [`spec.build.path`](/docs/reference/function-configuration.md#spec.build.path) is set (and `spec.image`, `spec.build.functionSourceCode`, and `spec.build.codeEntryType` aren't set), the implied code-entry type is [source-code-file](#code-entry-type-codefile) and the function is built from the configured source code.
+4. If [`spec.build.path`](/docs/reference/function-configuration/function-configuration-reference.md#spec.build.path) is set (and `spec.image`, `spec.build.functionSourceCode`, and `spec.build.codeEntryType` aren't set), the implied code-entry type is [source-code-file](#code-entry-type-codefile) and the function is built from the configured source code.
 
 <a id="dashboard-configuration"></a>
 ### Configuring the code-entry type from the dashboard
@@ -58,7 +58,7 @@ The dashboard notes in this reference refer to fields in the **Code** function d
 <a id="code-entry-type-image"></a>
 ## Function-image code-entry type (`image`)
 
-Set the [`spec.image`](/docs/reference/function-configuration.md#spec.image) function-configuration field to the name of a function container image (`[<host name>.]<namespace>.<repository>[:<tag>]`) to deploy the function from this image.
+Set the [`spec.image`](/docs/reference/function-configuration/function-configuration-reference.md#spec.image) function-configuration field to the name of a function container image (`[<host name>.]<namespace>.<repository>[:<tag>]`) to deploy the function from this image.
 
 > **Note:** When `spec.image` is set, the implied code-entry type is `image` and `spec.build.codeEntryType` and `spec.build.path` are ignored. See [Determining the code-entry type](#code-entry-type-determine).
 
@@ -84,7 +84,7 @@ Use either of the following methods to provide the function source code:
 <a id="code-entry-type-sourcecode"></a>
 ### Encoded source-code string code-entry type (`sourceCode`)
 
-Set the [`spec.build.functionSourceCode`](/docs/reference/function-configuration.md#spec.build.functionSourceCode) function-configuration field to the function's source code, encoded as a Base64-encoded string, to build the function image from this code.
+Set the [`spec.build.functionSourceCode`](/docs/reference/function-configuration/function-configuration-reference.md#spec.build.functionSourceCode) function-configuration field to the function's source code, encoded as a Base64-encoded string, to build the function image from this code.
 
 > **Note:** When `spec.build.functionSourceCode` is set and `spec.image` isn't set, the implied code-entry type is `sourceCode` and `spec.build.codeEntryType` and `spec.build.path` are ignored. When `spec.image` is set, `spec.build.functionSourceCode` is ignored. See [Determining the code-entry type](#code-entry-type-determine).
 
