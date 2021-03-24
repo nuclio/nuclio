@@ -45,7 +45,7 @@ jobs:
     # since github-actions gives us 14G only, and fill it up with some garbage
     # we will free up some space for us (~2GB)
     - name: Freeing some disk space
-      run: >
+      run: |
         sudo swapoff -a
         sudo rm -f /swapfile
         sudo apt clean
