@@ -12,6 +12,7 @@ env:
   GO_VERSION: 1.12.x
   GO111MODULE: off
   GOPATH: /home/runner/work/nuclio/nuclio/go
+  NUCLIO_LABEL: ${{ github.run_number }}
 
 jobs:
   lint:
@@ -100,16 +101,6 @@ jobs:
       - name: Dump github ref
         run: echo "$GITHUB_REF"
 
-      - name: Set NUCLIO_LABEL to release tag
-        run: |
-          echo "NUCLIO_LABEL=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
-      - uses: actions/checkout@v2
-
-      - uses: actions/setup-go@v2
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
       # since github-actions gives us 14G only, and fill it up with some garbage
       # we will free up some space for us (~2GB)
       - name: Freeing some disk space
@@ -119,6 +110,12 @@ jobs:
           sudo apt clean
           docker rmi $(docker image ls -aq)
           df -h
+
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Build
         run: make docker-images
