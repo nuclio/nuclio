@@ -49,7 +49,7 @@ jobs:
         sudo swapoff -a
         sudo rm -f /swapfile
         sudo apt clean
-        docker rmi $(docker image ls -aq)
+        docker system prune --all --force
         df -h
 
     - uses: azure/docker-login@v1
@@ -76,7 +76,7 @@ jobs:
         sudo swapoff -a
         sudo rm -f /swapfile
         sudo apt clean
-        docker rmi $(docker image ls -aq)
+        docker system prune --all --force
         df -h
 
     - name: Build binaries
