@@ -45,7 +45,12 @@ jobs:
     # since github-actions gives us 14G only, and fill it up with some garbage
     # we will free up some space for us (~2GB)
     - name: Freeing some disk space
-      run: docker system prune --all --force
+      run: >
+        sudo swapoff -a
+        sudo rm -f /swapfile
+        sudo apt clean
+        docker rmi $(docker image ls -aq)
+        df -h
 
     - uses: azure/docker-login@v1
       with:
