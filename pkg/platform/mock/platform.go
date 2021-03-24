@@ -290,11 +290,9 @@ func (mp *Platform) Initialize() error {
 	return nil
 }
 
-
 func (mp *Platform) EnsureDefaultProjectExistence() error {
 	return nil
 }
-
 
 func (mp *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (string, string) {
 	return "", ""

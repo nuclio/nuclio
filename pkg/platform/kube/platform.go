@@ -1405,7 +1405,7 @@ func newProjectsClient(parentLogger logger.Logger,
 	consumer *client.Consumer,
 	platformConfiguration *platformconfig.Config) (project.Client, error) {
 
-	if platformConfiguration.Kube.ProjectsLeaderAddress != "" {
+	if platformConfiguration.Kube.ProjectsLeaderURL != "" {
 		return externalproject.NewClient(parentLogger)
 	}
 

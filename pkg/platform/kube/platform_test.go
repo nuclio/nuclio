@@ -111,7 +111,7 @@ func (suite *KubePlatformTestSuite) resetCRDMocks() {
 
 	suite.Platform = &Platform{
 		Platform: suite.abstractPlatform,
-		getter: getter,
+		getter:   getter,
 		consumer: &client.Consumer{
 			NuclioClientSet: suite.nuclioioInterfaceMock,
 			KubeClientSet:   &suite.kubeClientSet,

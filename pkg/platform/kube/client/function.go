@@ -32,7 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type function struct {
+type Function struct {
 	platform.AbstractFunction
 	function           *nuclioio.NuclioFunction
 	consumer           *Consumer
@@ -46,9 +46,9 @@ type function struct {
 func NewFunction(parentLogger logger.Logger,
 	parentPlatform platform.Platform,
 	nuclioioFunction *nuclioio.NuclioFunction,
-	consumer *Consumer) (*function, error) {
+	consumer *Consumer) (*Function, error) {
 
-	newFunction := &function{}
+	newFunction := &Function{}
 
 	// create a config from function
 	functionConfig := functionconfig.Config{
@@ -81,7 +81,7 @@ func NewFunction(parentLogger logger.Logger,
 }
 
 // Initialize loads sub-resources so we can populate our configuration
-func (f *function) Initialize([]string) error {
+func (f *Function) Initialize([]string) error {
 	var deploymentList *appsv1.DeploymentList
 	var ingressList *extv1beta1.IngressList
 	var serviceList *v1.ServiceList
@@ -202,7 +202,7 @@ func (f *function) Initialize([]string) error {
 }
 
 // GetInvokeURL returns the URL on which the function can be invoked
-func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
+func (f *Function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
 	host, port, path, err := f.getInvokeURLFields(invokeViaType)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get address")
@@ -212,11 +212,11 @@ func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, e
 }
 
 // GetReplicas returns the current # of replicas and the configured # of replicas
-func (f *function) GetReplicas() (int, int) {
+func (f *Function) GetReplicas() (int, int) {
 	return f.availableReplicas, f.configuredReplicas
 }
 
-func (f *function) GetConfig() *functionconfig.Config {
+func (f *Function) GetConfig() *functionconfig.Config {
 	return &functionconfig.Config{
 		Meta: functionconfig.Meta{
 			Name:            f.function.Name,
@@ -229,7 +229,7 @@ func (f *function) GetConfig() *functionconfig.Config {
 	}
 }
 
-func (f *function) getInvokeURLFields(invokeViaType platform.InvokeViaType) (string, int, string, error) {
+func (f *Function) getInvokeURLFields(invokeViaType platform.InvokeViaType) (string, int, string, error) {
 	var host, path string
 	var port int
 	var err error
@@ -289,7 +289,7 @@ func (f *function) getInvokeURLFields(invokeViaType platform.InvokeViaType) (str
 	return "", 0, "", errors.New("Could not resolve invoke URL")
 }
 
-func (f *function) getIngressInvokeURL() (string, int, string, error) {
+func (f *Function) getIngressInvokeURL() (string, int, string, error) {
 	if f.ingressAddress != "" {
 
 		// 80 seems to be hardcoded in kubectl as well
@@ -302,7 +302,7 @@ func (f *function) getIngressInvokeURL() (string, int, string, error) {
 	return "", 0, "", nil
 }
 
-func (f *function) getExternalIPInvokeURL() (string, int, string, error) {
+func (f *Function) getExternalIPInvokeURL() (string, int, string, error) {
 	host, port, err := f.GetExternalIPInvocationURL()
 	if err != nil {
 		return "", 0, "", errors.Wrap(err, "Failed to get external IP invocation URL")
@@ -312,7 +312,7 @@ func (f *function) getExternalIPInvokeURL() (string, int, string, error) {
 	return host, port, "", nil
 }
 
-func (f *function) getDomainNameInvokeURL() (string, int, string, error) {
+func (f *Function) getDomainNameInvokeURL() (string, int, string, error) {
 	host, port := GetDomainNameInvokeURL(f.service.Name, f.function.Namespace)
 	return host, port, "", nil
 }
