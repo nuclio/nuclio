@@ -77,7 +77,7 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 	suite.mockedPlatform = &mockplatform.Platform{}
 	abstractPlatform, err := abstract.NewPlatform(suite.Logger, suite.mockedPlatform, &platformconfig.Config{
 		Kube: *suite.PlatformKubeConfig,
-	}, "nuclio")
+	}, "")
 	suite.Require().NoError(err, "Could not create platform")
 
 	abstractPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
