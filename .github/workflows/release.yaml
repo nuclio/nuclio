@@ -45,7 +45,12 @@ jobs:
     # since github-actions gives us 14G only, and fill it up with some garbage
     # we will free up some space for us (~2GB)
     - name: Freeing some disk space
-      run: docker system prune --all --force
+      run: |
+        sudo swapoff -a
+        sudo rm -f /swapfile
+        sudo apt clean
+        docker system prune --all --force
+        df -h
 
     - uses: azure/docker-login@v1
       with:
@@ -63,6 +68,16 @@ jobs:
         make push-docker-images
       env:
         NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
+
+      # since github-actions gives us 14G only, and fill it up with some garbage
+    - name: Freeing some disk space
+      run: |
+        df -h
+        sudo swapoff -a
+        sudo rm -f /swapfile
+        sudo apt clean
+        docker system prune --all --force
+        df -h
 
     - name: Build binaries
       run: |
