@@ -462,7 +462,6 @@ func (c *consumerGroup) loopCheckPartitionNumbers(topics []string, session *cons
 		} else {
 			for topic, num := range oldTopicToPartitionNum {
 				if newTopicToPartitionNum[topic] != num {
-					fmt.Printf("NEW NUMBER OF PARTITIONS: %d -> %d\n", newTopicToPartitionNum[topic], num)
 					return // trigger the end of the session on exit
 				}
 			}
@@ -720,17 +719,12 @@ func (s *consumerGroupSession) release(withCleanup bool) (err error) {
 		<-s.hbDead
 	})
 
-	Logger.Printf("Session release complete")
-
 	return
 }
 
 func (s *consumerGroupSession) heartbeatLoop() {
 	defer close(s.hbDead)
 	defer s.cancel() // trigger the end of the session on exit
-	defer func() {
-		Logger.Printf("Hearbeat stopped")
-	}()
 
 	pause := time.NewTicker(s.parent.config.Consumer.Group.Heartbeat.Interval)
 	defer pause.Stop()
@@ -778,7 +772,6 @@ func (s *consumerGroupSession) heartbeatLoop() {
 			s.parent.handleError(err, "", -1)
 			return
 		}
-
 
 		select {
 		case <-pause.C:
