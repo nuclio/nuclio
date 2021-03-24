@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kube
+package client
 
 import (
 	"fmt"
@@ -43,7 +43,7 @@ type function struct {
 	service            *v1.Service
 }
 
-func newFunction(parentLogger logger.Logger,
+func NewFunction(parentLogger logger.Logger,
 	parentPlatform platform.Platform,
 	nuclioioFunction *nuclioio.NuclioFunction,
 	consumer *Consumer) (*function, error) {
@@ -103,7 +103,7 @@ func (f *function) Initialize([]string) error {
 	// get deployment info
 	go func() {
 		if deploymentList == nil {
-			deploymentList, deploymentErr = f.consumer.kubeClientSet.AppsV1().
+			deploymentList, deploymentErr = f.consumer.KubeClientSet.AppsV1().
 				Deployments(f.Config.Meta.Namespace).
 				List(listOptions)
 
@@ -127,7 +127,7 @@ func (f *function) Initialize([]string) error {
 	// get service info
 	go func() {
 		if serviceList == nil {
-			serviceList, serviceErr = f.consumer.kubeClientSet.CoreV1().
+			serviceList, serviceErr = f.consumer.KubeClientSet.CoreV1().
 				Services(f.Config.Meta.Namespace).
 				List(listOptions)
 
@@ -151,7 +151,7 @@ func (f *function) Initialize([]string) error {
 	// get ingress info
 	go func() {
 		if ingressList == nil {
-			ingressList, ingressErr = f.consumer.kubeClientSet.ExtensionsV1beta1().
+			ingressList, ingressErr = f.consumer.KubeClientSet.ExtensionsV1beta1().
 				Ingresses(f.Config.Meta.Namespace).
 				List(listOptions)
 

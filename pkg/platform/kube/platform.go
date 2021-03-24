@@ -31,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platform/kube/project"
 	externalproject "github.com/nuclio/nuclio/pkg/platform/kube/project/external"
@@ -49,12 +50,12 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	deployer       *deployer
-	getter         *getter
-	updater        *updater
-	deleter        *deleter
+	deployer       *client.Deployer
+	getter         *client.Getter
+	updater        *client.Updater
+	deleter        *client.Deleter
 	kubeconfigPath string
-	consumer       *Consumer
+	consumer       *client.Consumer
 	projectsClient project.Client
 }
 
@@ -77,31 +78,31 @@ func NewPlatform(parentLogger logger.Logger,
 	newPlatform.kubeconfigPath = common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath)
 
 	// create consumer
-	newPlatform.consumer, err = newConsumer(newPlatform.Logger, newPlatform.kubeconfigPath)
+	newPlatform.consumer, err = client.NewConsumer(newPlatform.Logger, newPlatform.kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a consumer")
 	}
 
 	// create deployer
-	newPlatform.deployer, err = newDeployer(newPlatform.Logger, newPlatform.consumer, newPlatform)
+	newPlatform.deployer, err = client.NewDeployer(newPlatform.Logger, newPlatform.consumer, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a deployer")
 	}
 
 	// create getter
-	newPlatform.getter, err = newGetter(newPlatform.Logger, newPlatform)
+	newPlatform.getter, err = client.NewGetter(newPlatform.Logger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a getter")
 	}
 
 	// create deleter
-	newPlatform.deleter, err = newDeleter(newPlatform.Logger, newPlatform)
+	newPlatform.deleter, err = client.NewDeleter(newPlatform.Logger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a deleter")
 	}
 
 	// create updater
-	newPlatform.updater, err = newUpdater(newPlatform.Logger, newPlatform.consumer, newPlatform)
+	newPlatform.updater, err = client.NewUpdater(newPlatform.Logger, newPlatform.consumer, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create an updater")
 	}
@@ -115,7 +116,7 @@ func NewPlatform(parentLogger logger.Logger,
 	// create container builder
 	if platformConfiguration.ContainerBuilderConfiguration.Kind == "kaniko" {
 		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewKaniko(newPlatform.Logger,
-			newPlatform.consumer.kubeClientSet, platformConfiguration.ContainerBuilderConfiguration)
+			newPlatform.consumer.KubeClientSet, platformConfiguration.ContainerBuilderConfiguration)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create a kaniko builder")
 		}
@@ -228,7 +229,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		// create or update the function. The possible creation needs to happen here, since on cases of
 		// early build failures we might get here before the function CR was created. After this point
 		// it is guaranteed to be created and updated with the reported error state
-		_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
+		_, err = p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
 			createFunctionOptions,
 			&functionconfig.Status{
 				HTTPPort: defaultHTTPPort,
@@ -263,7 +264,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		// create or update the function if it exists. If functionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
 		// the goal here is for the function to exist prior to building so that it is gettable
-		existingFunctionInstance, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
+		existingFunctionInstance, err = p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
 			createFunctionOptions,
 			&functionconfig.Status{
 				State: functionconfig.FunctionStateBuilding,
@@ -311,7 +312,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		if skipDeploy {
 			p.Logger.Info("Skipping function deployment")
 
-			_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
+			_, err = p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
 				createFunctionOptions,
 				&functionconfig.Status{
 					State: functionconfig.FunctionStateImported,
@@ -325,7 +326,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			}, nil
 		}
 
-		createFunctionResult, updatedFunctionInstance, briefErrorsMessage, deployErr := p.deployer.deploy(existingFunctionInstance,
+		createFunctionResult, updatedFunctionInstance, briefErrorsMessage, deployErr := p.deployer.Deploy(existingFunctionInstance,
 			createFunctionOptions)
 
 		// update the function instance (after the deployment)
@@ -366,7 +367,7 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
-	functions, err := p.getter.get(p.consumer, getFunctionsOptions)
+	functions, err := p.getter.Get(p.consumer, getFunctionsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
@@ -393,7 +394,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 
 // UpdateFunction will update a previously deployed function
 func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
-	return p.updater.update(updateFunctionOptions)
+	return p.updater.Update(updateFunctionOptions)
 }
 
 // DeleteFunction will delete a previously deployed function
@@ -411,7 +412,7 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 		return errors.Wrap(err, "Failed to validate that the function has no API gateways")
 	}
 
-	return p.deleter.delete(p.consumer, deleteFunctionOptions)
+	return p.deleter.Delete(p.consumer, deleteFunctionOptions)
 }
 
 func IsInCluster() bool {
@@ -427,7 +428,7 @@ func (p *Platform) GetName() string {
 func (p *Platform) GetNodes() ([]platform.Node, error) {
 	var platformNodes []platform.Node
 
-	kubeNodes, err := p.consumer.kubeClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
+	kubeNodes, err := p.consumer.KubeClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get nodes")
 	}
@@ -876,7 +877,7 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 	}
 
 	// try to take from kube host as configured
-	kubeURL, err := url.Parse(p.consumer.kubeHost)
+	kubeURL, err := url.Parse(p.consumer.KubeHost)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse kube host")
 	}
@@ -909,7 +910,7 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 
 // GetNamespaces returns all the namespaces in the platform
 func (p *Platform) GetNamespaces() ([]string, error) {
-	namespaces, err := p.consumer.kubeClientSet.CoreV1().Namespaces().List(metav1.ListOptions{})
+	namespaces, err := p.consumer.KubeClientSet.CoreV1().Namespaces().List(metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 			return nil, nuclio.WrapErrForbidden(err)
@@ -956,7 +957,7 @@ func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error 
 
 	function := functions[0]
 
-	return p.updater.update(&platform.UpdateFunctionOptions{
+	return p.updater.Update(&platform.UpdateFunctionOptions{
 		FunctionMeta:   &function.GetConfig().Meta,
 		FunctionStatus: function.GetStatus(),
 	})
@@ -1071,7 +1072,7 @@ func (p *Platform) getFunctionInstanceAndConfig(namespace string,
 
 	// found function instance, return as function config
 	if functionInstance != nil {
-		initializedFunctionInstance, err := newFunction(p.Logger, p, functionInstance, p.consumer)
+		initializedFunctionInstance, err := client.NewFunction(p.Logger, p, functionInstance, p.consumer)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to create a new function instance")
 		}
@@ -1296,7 +1297,7 @@ func (p *Platform) validateIngressHostAndPathAvailability(listIngressesOptions m
 	ingresses map[string]functionconfig.Ingress) error {
 
 	// get all ingresses on the namespace
-	existingIngresses, err := p.consumer.kubeClientSet.
+	existingIngresses, err := p.consumer.KubeClientSet.
 		ExtensionsV1beta1().
 		Ingresses(namespace).
 		List(listIngressesOptions)
@@ -1401,7 +1402,7 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 }
 
 func newProjectsClient(parentLogger logger.Logger,
-	consumer *Consumer,
+	consumer *client.Consumer,
 	platformConfiguration *platformconfig.Config) (project.Client, error) {
 
 	if platformConfiguration.Kube.ProjectsLeaderAddress != "" {

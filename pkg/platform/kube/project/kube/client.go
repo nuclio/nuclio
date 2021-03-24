@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/project"
 
 	"github.com/nuclio/errors"
@@ -15,24 +15,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-
 type Client struct {
 	project.Client
-	consumer *kube.Consumer
+	consumer *client.Consumer
 }
 
-func NewClient(parentLogger logger.Logger, consumer *kube.Consumer) (*Client, error) {
-	client := Client{}
+func NewClient(parentLogger logger.Logger, consumer *client.Consumer) (*Client, error) {
+	newClient := Client{}
 
 	abstractClient, err := project.NewAbstractClient(parentLogger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract client")
 	}
 
-	client.Client = abstractClient
-	client.consumer = consumer
+	newClient.Client = abstractClient
+	newClient.consumer = consumer
 
-	return &client, nil
+	return &newClient, nil
 }
 
 func (c *Client) Initialize(p platform.Platform) error {

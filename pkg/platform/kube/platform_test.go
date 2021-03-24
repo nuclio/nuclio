@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/mocks"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
@@ -76,7 +77,7 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 	suite.mockedPlatform = &mockplatform.Platform{}
 	abstractPlatform, err := abstract.NewPlatform(suite.Logger, suite.mockedPlatform, &platformconfig.Config{
 		Kube: *suite.PlatformKubeConfig,
-	})
+	}, "nuclio")
 	suite.Require().NoError(err, "Could not create platform")
 
 	abstractPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
@@ -105,15 +106,15 @@ func (suite *KubePlatformTestSuite) resetCRDMocks() {
 		On("NuclioAPIGateways", suite.Namespace).
 		Return(suite.nuclioAPIGatewayInterfaceMock)
 
+	getter, err := client.NewGetter(suite.Logger, suite.Platform)
+	suite.Require().NoError(err)
+
 	suite.Platform = &Platform{
 		Platform: suite.abstractPlatform,
-		getter: &getter{
-			logger:   suite.Logger,
-			platform: suite.Platform,
-		},
-		consumer: &Consumer{
+		getter: getter,
+		consumer: &client.Consumer{
 			NuclioClientSet: suite.nuclioioInterfaceMock,
-			kubeClientSet:   &suite.kubeClientSet,
+			KubeClientSet:   &suite.kubeClientSet,
 		},
 	}
 }

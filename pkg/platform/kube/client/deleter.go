@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kube
+package client
 
 import (
 	"github.com/nuclio/nuclio/pkg/nuctl"
@@ -26,21 +26,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type deleter struct {
+type Deleter struct {
 	logger   logger.Logger
 	platform platform.Platform
 }
 
-func newDeleter(parentLogger logger.Logger, platform platform.Platform) (*deleter, error) {
-	newdeleter := &deleter{
+func NewDeleter(parentLogger logger.Logger, platform platform.Platform) (*Deleter, error) {
+	newDeleter := &Deleter{
 		logger:   parentLogger.GetChild("deleter"),
 		platform: platform,
 	}
 
-	return newdeleter, nil
+	return newDeleter, nil
 }
 
-func (d *deleter) delete(consumer *Consumer, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+func (d *Deleter) Delete(consumer *Consumer, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	var err error
 
 	resourceName, _, err := nuctl.ParseResourceIdentifier(deleteFunctionOptions.FunctionConfig.Meta.Name)

@@ -12,14 +12,14 @@ type Client struct {
 }
 
 func NewClient(parentLogger logger.Logger) (*Client, error) {
-	client := Client{}
+	newClient := Client{}
 
 	abstractClient, err := project.NewAbstractClient(parentLogger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract client")
 	}
 
-	client.Client = abstractClient
+	newClient.Client = abstractClient
 
-	return &client, nil
+	return &newClient, nil
 }

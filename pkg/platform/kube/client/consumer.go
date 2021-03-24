@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kube
+package client
 
 import (
 	"os"
@@ -32,12 +32,12 @@ import (
 
 type Consumer struct {
 	NuclioClientSet nuclioioclient.Interface
-	kubeClientSet   kubernetes.Interface
-	kubeHost        string
+	KubeClientSet   kubernetes.Interface
+	KubeHost        string
 	kubeconfigPath  string
 }
 
-func newConsumer(logger logger.Logger, kubeconfigPath string) (*Consumer, error) {
+func NewConsumer(logger logger.Logger, kubeconfigPath string) (*Consumer, error) {
 	logger.DebugWith("Using kubeconfig", "kubeconfigPath", kubeconfigPath)
 
 	newConsumer := Consumer{
@@ -57,10 +57,10 @@ func newConsumer(logger logger.Logger, kubeconfigPath string) (*Consumer, error)
 	}
 
 	// set kube host
-	newConsumer.kubeHost = restConfig.Host
+	newConsumer.KubeHost = restConfig.Host
 
-	// create kubeClientSet
-	newConsumer.kubeClientSet, err = kubernetes.NewForConfig(restConfig)
+	// create KubeClientSet
+	newConsumer.KubeClientSet, err = kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create client set")
 	}

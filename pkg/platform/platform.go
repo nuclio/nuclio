@@ -17,6 +17,8 @@ limitations under the License.
 package platform
 
 import (
+	"bufio"
+
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -186,6 +188,9 @@ type Platform interface {
 
 	// Save build logs from platform logger to function store or k8s
 	SaveFunctionDeployLogs(functionName, namespace string) error
+
+	// Parse and construct a function processor logs and brief error
+	GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (string, string)
 
 	// GetContainerBuilderKind returns the container-builder kind
 	GetContainerBuilderKind() string

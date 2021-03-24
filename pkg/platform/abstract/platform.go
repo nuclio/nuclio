@@ -752,7 +752,7 @@ func (ap *Platform) GetProjectResources(projectMeta *platform.ProjectMeta) ([]pl
 func (ap *Platform) EnsureDefaultProjectExistence() error {
 	resolvedNamespace := ap.platform.ResolveDefaultNamespace(ap.DefaultNamespace)
 
-	projects, err := ap.GetProjects(&platform.GetProjectsOptions{
+	projects, err := ap.platform.GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      platform.DefaultProjectName,
 			Namespace: resolvedNamespace,
@@ -777,7 +777,7 @@ func (ap *Platform) EnsureDefaultProjectExistence() error {
 			return errors.Wrap(err, "Failed to create abstract default project")
 		}
 
-		if err := ap.CreateProject(&platform.CreateProjectOptions{
+		if err := ap.platform.CreateProject(&platform.CreateProjectOptions{
 			ProjectConfig: newProject.GetConfig(),
 		}); err != nil {
 			return errors.Wrap(err, "Failed to create default project")
