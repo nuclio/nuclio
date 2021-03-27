@@ -13,7 +13,7 @@ This guide assumes that:
 
 When you install Nuclio's services onto Minikube (using the [Helm chart](../../../hack/k8s/helm/nuclio)), Kubernetes examines the given resource specification to determine which images to use for Nuclio's controller and dashboard services. To get it to take your images, we must first push them onto the local Docker registry running inside the Minikube VM. To do this:
 - Make sure you've built container images with your changes (`make build`)
-- Push them by running the script located at `hack/minikube/scripts/push_images.py`. Keep in mind the script assumes the local Docker registry to be listening on port 5000 of the Minikube VM. It does the following:
+- Push them by running the script located at `hack/scripts/minikube/push_images.py`. Keep in mind the script assumes the local Docker registry to be listening on port 5000 of the Minikube VM. It does the following:
    - Iterates over the existing Nuclio container images on the host machine
    - For each such image:
      - Tags it locally as `$(minikube ip):5000/<image>` (i.e., `192.168.64.4:5000/processor:latest-amd64`)
