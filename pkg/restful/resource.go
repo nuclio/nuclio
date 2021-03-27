@@ -326,7 +326,6 @@ func (ar *AbstractResource) registerCustomRoutes() error {
 			return errors.Errorf("Invalid method %s used in custom route", customRoute.Method)
 		}
 
-
 		customRouteCopy := customRoute
 
 		ar.Logger.DebugWith("Registered custom route",
