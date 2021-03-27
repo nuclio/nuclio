@@ -42,7 +42,7 @@ It differs from the usual upstream chart in that:
 1) Controller/dashboard images are "latest", resulting in the images you pushed in the last step being used
 2) Controller/dashboard images are never pulled from Docker Hub
 3) Dashboard is told (via an environment variable) not to pull base images when deploying functions (it'll use the images you pushed)
-4) it uses the helm chart from a local copy - giving you additional ability to test any local changes to the nuclio chart
+4) It uses the helm chart from a local copy - giving you additional ability to test any local changes to the nuclio chart
 
 You should now have a functional Kubernetes cluster using images built from your local changes, and can test against it to make sure they work as expected. Keep in mind when using a locally-built latest `nuctl`, to specify `--no-pull` such that the base images you pushed are used.
 
