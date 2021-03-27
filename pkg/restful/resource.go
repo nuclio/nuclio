@@ -322,7 +322,10 @@ func (ar *AbstractResource) registerCustomRoutes() error {
 			routerFunc = ar.router.Put
 		case http.MethodDelete:
 			routerFunc = ar.router.Delete
+		default:
+			return errors.Errorf("Invalid method %s used in custom route", customRoute.Method)
 		}
+
 
 		customRouteCopy := customRoute
 
@@ -442,6 +445,14 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 	// see if the resource only supports a single record
 	response, err := routeFunc(request)
 
+	if err != nil || response == nil {
+		ar.Logger.ErrorWith("Custom routed handler failed",
+			"err", err,
+			"routeFunc", routeFunc,
+			"request", request)
+		return
+	}
+
 	// set headers in response
 	for headerKey, headerValue := range response.Headers {
 		responseWriter.Header().Set(headerKey, headerValue)
@@ -455,7 +466,15 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 	if response.Resources == nil {
 
 		// write a valid, empty JSON
-		responseWriter.Write([]byte("{}")) // nolint: errcheck
+		if _, err := responseWriter.Write([]byte("{}")); err != nil {
+
+			// should never happen
+			ar.Logger.ErrorWith("Response writer failed writing empty resources",
+				"err", err,
+				"routeFunc", routeFunc,
+				"request", request)
+			return
+		}
 
 		return
 	}
