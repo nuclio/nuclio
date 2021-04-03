@@ -26,7 +26,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/restful"
 
-	"github.com/nuclio/errors"
 	"k8s.io/api/core/v1"
 )
 
@@ -37,7 +36,10 @@ type frontendSpecResource struct {
 func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 	externalIPAddresses, err := fesr.getPlatform().GetExternalIPAddresses()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get external IP addresses")
+		externalIPAddresses = []string{"localhost"}
+		fesr.Logger.WarnWith("Failed to get external IP addresses, falling back to default",
+			"err", err,
+			"externalIPAddresses", externalIPAddresses)
 	}
 
 	// try to get platform kind

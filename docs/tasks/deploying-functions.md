@@ -317,10 +317,10 @@ reachable from your client unless you're running the client from inside a pod in
 
 If you wish to expose your function externally, for example, to be able to run `nuctl invoke` from outside the
 Kubernetes network, you can do so in one of 2 ways during deployment, both controlled via the [HTTP trigger spec](/docs/reference/triggers/http.md):
-1. Configure the function with a reachable [HTTP ingress](/docs/reference/triggers/http.md#attributes.ingresses). For
+1. Configure the function with a reachable [HTTP ingress](/docs/reference/triggers/http.md#attributes-ingresses). For
    this to work you'll need to install an ingress controller on your cluster. See [function ingress document](/docs/concepts/k8s/function-ingress.md)
    for more details.
-2. Configure the function to use [serviceType](/docs/reference/triggers/http.md#attributes.serviceType) of type `nodePort`.
+2. Configure the function to use [serviceType](/docs/reference/triggers/http.md#attributes-serviceType) of type `nodePort`.
 
 If you are deploying the function using [nuctl](/docs/reference/nuctl/nuctl.md) CLI, you can also configure a `nodePort` easily by using the
 `--http-trigger-service-type=nodePort` CLI arg.

@@ -68,6 +68,9 @@ rules:
 - apiGroups: ["nuclio.io"]
   resources: ["nucliofunctions", "nuclioprojects", "nucliofunctionevents", "nuclioapigateways"]
   verbs: ["*"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list"]
 
 ---
 
