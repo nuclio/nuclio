@@ -55,7 +55,7 @@ func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runti
 	_, runtimeVersion := common.GetRuntimeNameAndVersion(p.FunctionConfig.Spec.Runtime)
 
 	switch runtimeVersion {
-	case "3.8", "3.7":
+	case "3.9", "3.8", "3.7":
 		baseImage = fmt.Sprintf("python:%s", runtimeVersion)
 
 		// use specific wheel files path

@@ -7,7 +7,7 @@ This document describes the specific Python build and deploy configurations.
 - [Function and handler](#function-and-handler)
 - [Dockerfile](#dockerfile)
 - [Python runtime 2.7 EOL](#python-runtime-27-eol)
-- [Introducing Python runtime 3.7 and 3.8](#introducing-python-runtime-37-and-38)
+- [Introducing Python runtimes 3.7, 3.8 and 3.9](#introducing-python-runtimes-37-38-and-39)
 - [Function configuration](#function-configuration)
 - [Build and execution](#build-and-execution)
 
@@ -75,19 +75,19 @@ releases. Starting from [Nuclio 1.6.0](https://github.com/nuclio/nuclio/releases
 deploy any Nuclio function using Python 2.7 runtime.
 
 To keep using latest Nuclio, and reach better performance and message throughput, we strongly suggest migrating your
-code to the newer [Python 3.7 and 3.8 runtimes](#introducing-python-runtime-37-and-38), if you haven't already.
+code to the newer [Python 3.7, 3.8 and 3.9 runtimes](#introducing-python-runtimes-37-38-and-39), if you haven't already.
 
-<a id="introducing-python-runtime-37-and-38"></a>
-## Introducing Python runtime 3.7 and 3.8
+<a id="introducing-python-runtimes-37-38-and-39"></a>
+## Introducing Python runtimes 3.7, 3.8 and 3.9
 
-Nuclio officially supports python 3.7 and python 3.8 (along with good-old python 3.6) as stand-alone runtimes. Along
+Nuclio officially supports python 3.7, 3.8 and python 3.9 (along with good-old python 3.6) as stand-alone runtimes. Along
 with simply bumping the python versions, some changes to the internal function processor were made, to take advantage of
 new language features and newer packages.
 
 Key differences and changes:
 
-- Python 3.8 is 5%-8% faster than Python 3.6 for small sized event messages.
-- Python 3.7 and 3.8 base images are `python:3.7` and `python:3.8`, respectively.
+- Python 3.8+ is 5%-8% faster than Python 3.6 for small sized event messages.
+- Python 3.7, 3.8 and 3.9 base images are `python:3.7`, `python:3.8` and `python:3.9`, respectively.
 - Events metadata, such as headers, path, method, etc are now byte-strings. This may incur changes in your code to refer
   to the various (now) byte-string event properties correctly in the new runtimes. e.g.: Simple code snipped which
   worked on python 2.7 and 3.6, using some event metadata, such as `event.path` -
@@ -98,7 +98,7 @@ Key differences and changes:
       return "I'm doing something..."
   ```
 
-  In the new 3.7 and 3.8 runtimes, the matching `event.path` property is now a `byte-string` instead of an old `string`,
+  In Python 3.7+ runtimes, the matching `event.path` property is now a `byte-string` instead of an old `string`,
   The new snippet will look like this:
 
   ```python
