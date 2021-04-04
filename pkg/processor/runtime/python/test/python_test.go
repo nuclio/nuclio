@@ -448,6 +448,7 @@ func TestIntegrationSuite(t *testing.T) {
 		{runtimeName: "python:3.6"},
 		{runtimeName: "python:3.7"},
 		{runtimeName: "python:3.8"},
+		{runtimeName: "python:3.9"},
 	} {
 		t.Run(testCase.runtimeName, func(t *testing.T) {
 			testSuite := new(TestSuite)
