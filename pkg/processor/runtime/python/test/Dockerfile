@@ -13,7 +13,7 @@
 # limitations under the License.
 
 ARG PYTHON_IMAGE_TAG=3.6
-FROM python:$PYTHON_IMAGE_TAG
+FROM gcr.io/iguazio/python:$PYTHON_IMAGE_TAG
 
 WORKDIR /nuclio
 
