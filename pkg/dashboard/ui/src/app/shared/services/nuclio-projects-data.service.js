@@ -36,7 +36,7 @@
 
             return NuclioClientService.makeRequest({
                 method: 'POST',
-                url: NuclioClientService.buildUrlWithPath('projects'),
+                url: NuclioClientService.buildUrlWithPath('nuclio_projects'),
                 params: {
                     import: importProcess
                 },
@@ -68,7 +68,7 @@
 
             return NuclioClientService.makeRequest({
                 method: 'DELETE',
-                url: NuclioClientService.buildUrlWithPath('projects', ''),
+                url: NuclioClientService.buildUrlWithPath('nuclio_projects', ''),
                 headers: headers,
                 data: data,
                 withCredentials: false
@@ -85,7 +85,7 @@
             return NuclioClientService.makeRequest({
                 headers: headers,
                 method: 'GET',
-                url: NuclioClientService.buildUrlWithPath('projects', ''),
+                url: NuclioClientService.buildUrlWithPath('nuclio_projects', ''),
                 withCredentials: false
             });
         }
@@ -101,7 +101,7 @@
             return NuclioClientService.makeRequest({
                 headers: headers,
                 method: 'GET',
-                url: NuclioClientService.buildUrlWithPath('projects/', id),
+                url: NuclioClientService.buildUrlWithPath('nuclio_projects/', id),
                 withCredentials: false
             });
         }
@@ -126,7 +126,7 @@
 
             return NuclioClientService.makeRequest({
                 method: 'PUT',
-                url: NuclioClientService.buildUrlWithPath('projects', ''),
+                url: NuclioClientService.buildUrlWithPath('nuclio_projects', ''),
                 headers: headers,
                 data: data,
                 withCredentials: false
