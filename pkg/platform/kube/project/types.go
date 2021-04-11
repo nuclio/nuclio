@@ -8,15 +8,15 @@ import (
 type Client interface {
 
 	// Initializes the projects client
-	Initialize(platform.Platform) error
+	Initialize() error
 
 	// Creates a new project
-	Create(*nuclioio.NuclioProject) (*nuclioio.NuclioProject, error)
+	Create(*platform.CreateProjectOptions) (*nuclioio.NuclioProject, error)
 
 	// Updates a project
-	Update(*nuclioio.NuclioProject) (*nuclioio.NuclioProject, error)
+	Update(*platform.UpdateProjectOptions) (*nuclioio.NuclioProject, error)
 
-	// Deletes a project
+	// Deletes a project (receives options and the origin
 	Delete(*platform.DeleteProjectOptions) error
 
 	// Gets projects (specify "getProjectsOptions.Meta.Name" to get a single function)

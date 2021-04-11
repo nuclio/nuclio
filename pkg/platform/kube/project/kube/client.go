@@ -17,37 +17,52 @@ import (
 
 type Client struct {
 	project.Client
+
+	Logger   logger.Logger
+	platform platform.Platform
 	consumer *client.Consumer
 }
 
-func NewClient(parentLogger logger.Logger, consumer *client.Consumer) (*Client, error) {
-	newClient := Client{}
-
-	abstractClient, err := project.NewAbstractClient(parentLogger)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create abstract client")
+func NewClient(parentLogger logger.Logger, platform platform.Platform, consumer *client.Consumer) (*Client, error) {
+	newClient := Client{
+		Logger: parentLogger.GetChild("projects-client"),
+		consumer: consumer,
+		platform: platform,
 	}
-
-	newClient.Client = abstractClient
-	newClient.consumer = consumer
 
 	return &newClient, nil
 }
 
-func (c *Client) Initialize(p platform.Platform) error {
-	return p.EnsureDefaultProjectExistence()
+func (c *Client) Initialize() error {
+	return c.platform.EnsureDefaultProjectExistence()
 }
 
-func (c *Client) Create(newProject *nuclioio.NuclioProject) (*nuclioio.NuclioProject, error) {
+func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (*nuclioio.NuclioProject, error) {
+	newProject := nuclioio.NuclioProject{}
+	c.platformProjectToProject(createProjectOptions.ProjectConfig, &newProject)
+
 	return c.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioProjects(newProject.Namespace).
-		Create(newProject)
+		Create(&newProject)
 }
 
-func (c *Client) Update(project *nuclioio.NuclioProject) (*nuclioio.NuclioProject, error) {
+func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (*nuclioio.NuclioProject, error) {
+	projectInstance, err := c.consumer.NuclioClientSet.NuclioV1beta1().
+		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
+		Get(updateProjectOptions.ProjectConfig.Meta.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get a project")
+	}
+
+	updatedProject := nuclioio.NuclioProject{}
+	c.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
+	projectInstance.Spec = updatedProject.Spec
+	projectInstance.Annotations = updatedProject.Annotations
+	projectInstance.Labels = updatedProject.Labels
+
 	return c.consumer.NuclioClientSet.NuclioV1beta1().
-		NuclioProjects(project.Namespace).
-		Update(project)
+		NuclioProjects(projectInstance.Namespace).
+		Update(projectInstance)
 }
 
 func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) error {
@@ -64,6 +79,11 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 			deleteProjectOptions.Meta.Namespace)
 	}
 
+	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
+		return c.platform.WaitForProjectResourcesDeletion(&deleteProjectOptions.Meta,
+			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration)
+	}
+
 	return nil
 }
 
@@ -74,7 +94,7 @@ func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]nuclioi
 	if getProjectsOptions.Meta.Name != "" {
 
 		// get specific NuclioProject CR
-		Project, err := c.consumer.NuclioClientSet.NuclioV1beta1().
+		projectInstance, err := c.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioProjects(getProjectsOptions.Meta.Namespace).
 			Get(getProjectsOptions.Meta.Name, metav1.GetOptions{})
 
@@ -88,7 +108,7 @@ func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]nuclioi
 			return nil, errors.Wrap(err, "Failed to get a project")
 		}
 
-		projects = append(projects, *Project)
+		projects = append(projects, *projectInstance)
 
 	} else {
 
@@ -105,4 +125,12 @@ func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]nuclioi
 	}
 
 	return projects, nil
+}
+
+func (c *Client) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.NuclioProject) {
+	project.Name = platformProject.Meta.Name
+	project.Namespace = platformProject.Meta.Namespace
+	project.Labels = platformProject.Meta.Labels
+	project.Annotations = platformProject.Meta.Annotations
+	project.Spec = platformProject.Spec
 }

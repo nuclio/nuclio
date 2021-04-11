@@ -108,7 +108,7 @@ func NewPlatform(parentLogger logger.Logger,
 	}
 
 	// create projects client
-	newPlatform.projectsClient, err = newProjectsClient(newPlatform.Logger, newPlatform.consumer, platformConfiguration)
+	newPlatform.projectsClient, err = newProjectsClient(newPlatform, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create projects client")
 	}
@@ -134,7 +134,7 @@ func NewPlatform(parentLogger logger.Logger,
 }
 
 func (p *Platform) Initialize() error {
-	if err := p.projectsClient.Initialize(p); err != nil {
+	if err := p.projectsClient.Initialize(); err != nil {
 		return errors.Wrap(err, "Failed to initialize projects client")
 	}
 
@@ -456,13 +456,9 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 		return errors.Wrap(err, "Failed to validate a project configuration")
 	}
 
-	// project config -> nuclio project crd instance
-	newProject := nuclioio.NuclioProject{}
-	p.platformProjectToProject(createProjectOptions.ProjectConfig, &newProject)
-
 	// create
 	p.Logger.DebugWith("Creating project", "projectName", createProjectOptions.ProjectConfig.Meta.Name)
-	if _, err := p.projectsClient.Create(&newProject); err != nil {
+	if _, err := p.projectsClient.Create(createProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to create a project")
 	}
 
@@ -475,20 +471,7 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 		return nuclio.WrapErrBadRequest(err)
 	}
 
-	project, err := p.consumer.NuclioClientSet.NuclioV1beta1().
-		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
-		Get(updateProjectOptions.ProjectConfig.Meta.Name, metav1.GetOptions{})
-	if err != nil {
-		return errors.Wrap(err, "Failed to get a project")
-	}
-
-	updatedProject := nuclioio.NuclioProject{}
-	p.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
-	project.Spec = updatedProject.Spec
-	project.Annotations = updatedProject.Annotations
-	project.Labels = updatedProject.Labels
-
-	if _, err := p.projectsClient.Update(project); err != nil {
+	if _, err := p.projectsClient.Update(updateProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to update a project")
 	}
 
@@ -510,6 +493,7 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return p.Platform.WaitForProjectResourcesDeletion(&deleteProjectOptions.Meta,
 			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration)
 	}
+
 	return nil
 }
 
@@ -1401,13 +1385,11 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 	return nil
 }
 
-func newProjectsClient(parentLogger logger.Logger,
-	consumer *client.Consumer,
-	platformConfiguration *platformconfig.Config) (project.Client, error) {
+func newProjectsClient(platform *Platform, platformConfiguration *platformconfig.Config) (project.Client, error) {
 
-	if platformConfiguration.Kube.ProjectsLeaderURL != "" {
-		return externalproject.NewClient(parentLogger)
+	if platformConfiguration.Kube.ProjectsLeader != nil {
+		return externalproject.NewClient(platform.Logger, platform, platform.consumer, platformConfiguration)
 	}
 
-	return kubeproject.NewClient(parentLogger, consumer)
+	return kubeproject.NewClient(platform.Logger, platform, platform.consumer)
 }

@@ -18,6 +18,7 @@ package platform
 
 import (
 	"bufio"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -91,6 +92,9 @@ type Platform interface {
 
 	// Ensures default project exists, creates it otherwise
 	EnsureDefaultProjectExistence() error
+
+	// Waits for all of the project's resources to be deleted
+	WaitForProjectResourcesDeletion(projectMeta *ProjectMeta, duration time.Duration) error
 
 	//
 	// Function event
