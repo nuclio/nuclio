@@ -2,6 +2,7 @@ package mock
 
 import (
 	"bufio"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -296,4 +297,8 @@ func (mp *Platform) EnsureDefaultProjectExistence() error {
 
 func (mp *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (string, string) {
 	return "", ""
+}
+
+func (mp *Platform) WaitForProjectResourcesDeletion(projectMeta *platform.ProjectMeta, duration time.Duration) error {
+	return nil
 }
