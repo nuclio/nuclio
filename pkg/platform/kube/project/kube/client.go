@@ -25,7 +25,7 @@ type Client struct {
 
 func NewClient(parentLogger logger.Logger, platform platform.Platform, consumer *client.Consumer) (*Client, error) {
 	newClient := Client{
-		Logger: parentLogger.GetChild("projects-client"),
+		Logger:   parentLogger.GetChild("projects-client"),
 		consumer: consumer,
 		platform: platform,
 	}
