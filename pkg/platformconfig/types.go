@@ -102,6 +102,7 @@ type Kubernetes struct {
 }
 
 type ProjectsLeaderKind string
+
 const (
 	ProjectsLeaderKindIguazio ProjectsLeaderKind = "iguazio"
 	ProjectsLeaderKindMlrun   ProjectsLeaderKind = "mlrun"

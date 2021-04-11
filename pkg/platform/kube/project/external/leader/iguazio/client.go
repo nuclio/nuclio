@@ -18,7 +18,7 @@ type Client struct {
 
 func NewClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) (*Client, error) {
 	newClient := Client{
-		logger: parentLogger.GetChild("iguazio-leader-client"),
+		logger:                parentLogger.GetChild("iguazio-leader-client"),
 		platformConfiguration: platformConfiguration,
 	}
 

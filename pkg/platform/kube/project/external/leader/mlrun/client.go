@@ -18,7 +18,7 @@ type Client struct {
 
 func NewClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) (*Client, error) {
 	newClient := Client{
-		logger: parentLogger.GetChild("mlrun-leader-client"),
+		logger:                parentLogger.GetChild("mlrun-leader-client"),
 		platformConfiguration: platformConfiguration,
 	}
 
