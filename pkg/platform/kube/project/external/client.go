@@ -12,6 +12,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Client struct {
@@ -53,7 +54,11 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (*n
 	case platform.RequestOriginLeader:
 		return c.Client.Create(createProjectOptions)
 	default:
-		return nil, c.leaderClient.Create(createProjectOptions)
+		if err := c.leaderClient.Create(createProjectOptions); err != nil {
+			return nil, errors.Wrap(err, "Failed while requesting from the leader to create the project")
+		}
+
+		return nil, nuclio.NewErrAccepted("Successfully requested from the leader to create the project")
 	}
 }
 
@@ -62,7 +67,11 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (*n
 	case platform.RequestOriginLeader:
 		return c.Client.Update(updateProjectOptions)
 	default:
-		return nil, c.leaderClient.Update(updateProjectOptions)
+		if err := c.leaderClient.Update(updateProjectOptions); err != nil {
+			return nil, errors.Wrap(err, "Failed while requesting from the leader to update the project")
+		}
+
+		return nil, nuclio.NewErrAccepted("Successfully requested from the leader to update the project")
 	}
 }
 
@@ -71,7 +80,11 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	case platform.RequestOriginLeader:
 		return c.Client.Delete(deleteProjectOptions)
 	default:
-		return c.leaderClient.Delete(deleteProjectOptions)
+		if err := c.leaderClient.Delete(deleteProjectOptions); err != nil {
+			return errors.Wrap(err, "Failed while requesting from the leader to delete the project")
+		}
+
+		return nuclio.NewErrAccepted("Successfully requested from the leader to delete the project")
 	}
 }
 
