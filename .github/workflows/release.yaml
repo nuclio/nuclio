@@ -79,7 +79,8 @@ jobs:
         sudo apt update -qqy && sudo apt -qqy install qemu qemu-user-static
 
         # enabled non arm64 docker containers executables
-        docker run --rm --privileged multiarch/qemu-user-static:latest --reset -p yes
+        # mirrored to gcr.io/iguazio from multiarch/qemu-user-static:latest for availability reasons
+        docker run --rm --privileged gcr.io/iguazio/multiarch/qemu-user-static:latest --reset -p yes
 
     - name: Build
       run: make docker-images

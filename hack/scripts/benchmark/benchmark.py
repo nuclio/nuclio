@@ -64,6 +64,7 @@ class Runtimes(object):
     python36 = "python:3.6"
     python37 = "python:3.7"
     python38 = "python:3.8"
+    python39 = "python:3.9"
 
     # NOTE: python is just an alias to python3.6
     python = "python"

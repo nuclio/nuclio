@@ -258,14 +258,14 @@ func (g *Generator) buildFunctionTemplates(functionDirs []string) ([]*functionte
 			"runtime", configuration.Spec.Runtime)
 		functionTemplates = append(functionTemplates, functionTemplate)
 
-		// HACK: allow python 3.6, 3.7, 3.8 share the same functions to avoid specific examples per runtime version
+		// HACK: allow python 3.6, 3.7, 3.8, 3.9 share the same functions to avoid specific examples per runtime version
 		runtimeName, runtimeVersion := common.GetRuntimeNameAndVersion(configuration.Spec.Runtime)
 		if runtimeName == "python" &&
 			runtimeVersion == "3.6" &&
 			functionName == "helloworld" {
 
-			// add helloworld function example to python 3.7 and 3.8
-			for _, runtimeCopy := range []string{"python:3.7", "python:3.8"} {
+			// add helloworld function example to python 3.7+
+			for _, runtimeCopy := range []string{"python:3.7", "python:3.8", "python:3.9"} {
 				configurationCopy := *configuration
 				configurationCopy.Spec.Runtime = runtimeCopy
 

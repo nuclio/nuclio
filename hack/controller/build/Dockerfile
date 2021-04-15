@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM alpine:3.11
+FROM gcr.io/iguazio/alpine:3.11
 
 # install apache2-utils for htpasswd
 RUN apk add --no-cache ca-certificates apache2-utils
