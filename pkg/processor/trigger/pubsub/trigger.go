@@ -65,22 +65,15 @@ func newTrigger(parentLogger logger.Logger,
 func (p *pubsub) Start(checkpoint functionconfig.Checkpoint) error {
 	var err error
 
-	// TODO: find a better way to do this
-	serviceAccountFilePath := "/tmp/service-account.json"
-	if err := ioutil.WriteFile(serviceAccountFilePath,
-		[]byte(p.configuration.Credentials.Contents),
-		0600); err != nil {
-		return errors.Wrap(err, "Failed to write temporary service account")
-	}
-
-	if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", serviceAccountFilePath); err != nil {
-		return errors.Wrap(err, "Failed to set credentials env")
-	}
-
 	p.Logger.InfoWith("Starting",
 		"subscriptions", p.configuration.Subscriptions,
 		"projectID", p.configuration.ProjectID,
 	)
+
+	// ensure application credentials (aka service-account)
+	if err := p.setAndValidateGoogleApplicationCredentials(); err != nil {
+		return err
+	}
 
 	// pubsub client consumes namespace/project string to be created
 	p.client, err = pubsubClient.NewClient(context.TODO(), p.configuration.ProjectID)
@@ -207,6 +200,29 @@ func (p *pubsub) getAckDeadline(subscriptionConfig *Subscription) (time.Duration
 	}
 
 	return time.ParseDuration(ackDeadlineString)
+}
+
+func (p *pubsub) setAndValidateGoogleApplicationCredentials() error {
+	if p.configuration.Credentials.Contents != "" {
+
+		// dump contents to a file and use
+		serviceAccountFilePath := "/tmp/service-account.json"
+
+		if err := ioutil.WriteFile(serviceAccountFilePath,
+			[]byte(p.configuration.Credentials.Contents),
+			0600); err != nil {
+			return errors.Wrap(err, "Failed to write temporary service account")
+		}
+		if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", serviceAccountFilePath); err != nil {
+			return errors.Wrap(err, "Failed to set credentials env")
+		}
+	}
+
+	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") == "" {
+		return errors.New(
+			"GOOGLE_APPLICATION_CREDENTIALS env must be filled with a valid service account file path")
+	}
+	return nil
 }
 
 func (p *pubsub) createOrUseSubscription(ctx context.Context,
