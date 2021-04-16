@@ -53,13 +53,13 @@ func NewConfiguration(id string,
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
-	for subscriptionIdx, subscriptions := range newConfiguration.Subscriptions {
+	for subscriptionIdx, subscription := range newConfiguration.Subscriptions {
 
-		if subscriptions.Topic == "" {
+		if subscription.Topic == "" {
 			return nil, errors.New("Subscription topic must be set")
 		}
 
-		if subscriptions.MaxNumWorkers == 0 {
+		if subscription.MaxNumWorkers == 0 {
 			newConfiguration.Subscriptions[subscriptionIdx].MaxNumWorkers = 1
 		}
 	}
