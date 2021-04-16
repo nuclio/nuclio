@@ -99,6 +99,10 @@ func (p *pubsub) Start(checkpoint functionconfig.Checkpoint) error {
 }
 
 func (p *pubsub) Stop(force bool) (functionconfig.Checkpoint, error) {
+
+	// TODO:
+	// err := p.client.Close()
+	// return nil, err
 	return nil, nil
 }
 
