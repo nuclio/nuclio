@@ -26,10 +26,15 @@ import (
 )
 
 type Subscription struct {
-	Topic         string
+	Name        string
+	Topic       string
+	Shared      bool
+	AckDeadline string
+	Create      bool
+
+	// https://godoc.org/cloud.google.com/go/pubsub#ReceiveSettings
 	MaxNumWorkers int
-	Shared        bool
-	AckDeadline   string
+	Synchronous   bool
 }
 
 type Configuration struct {

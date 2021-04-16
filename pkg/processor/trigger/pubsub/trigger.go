@@ -94,8 +94,7 @@ func (p *pubsub) Start(checkpoint functionconfig.Checkpoint) error {
 		subscription := subscription
 
 		go func() {
-			err := p.receiveFromSubscription(&subscription)
-			if err != nil {
+			if err := p.receiveFromSubscription(&subscription); err != nil {
 				p.Logger.WarnWith("Failed to create subscription",
 					"err", errors.GetErrorStackString(err, 10),
 					"subscription", subscription)
@@ -119,7 +118,7 @@ func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error
 
 	p.Logger.DebugWith("Receiving from subscription", "subscription", subscriptionConfig)
 
-	// get subscription name
+	// get subscription id
 	subscriptionID := p.getSubscriptionID(subscriptionConfig)
 
 	// get ack timeout
@@ -128,40 +127,13 @@ func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error
 		return errors.Wrap(err, "Failed to parse ack deadline")
 	}
 
-	p.Logger.DebugWith("Creating subscription",
-		"sid", subscriptionID,
-		"topic", subscriptionConfig.Topic,
-		"ackDeadline", ackDeadline)
-
-	// try to create a subscription
-	subscription, err := p.client.CreateSubscription(ctx, subscriptionID, pubsubClient.SubscriptionConfig{
-		Topic:       p.client.Topic(subscriptionConfig.Topic),
-		AckDeadline: ackDeadline,
-	})
-
-	p.Logger.DebugWith("Subscription created",
-		"sid", subscriptionID,
-		"topic", subscriptionConfig.Topic,
-		"ackDeadline", ackDeadline,
-		"err", err)
-
+	subscription, err := p.createOrUseSubscription(ctx, subscriptionID, ackDeadline, subscriptionConfig)
 	if err != nil {
-		p.Logger.WarnWith("Failed to create subscription", "err", err.Error())
-
-		if !subscriptionConfig.Shared {
-			return errors.Wrap(err, "Failed to create subscription")
-		}
-
-		// try to use a subscription
-		subscription = p.client.Subscription(subscriptionID)
+		return errors.Wrapf(err, "Failed to create or use subscription %s", subscriptionID)
 	}
-
-	// https://godoc.org/cloud.google.com/go/pubsub#ReceiveSettings
-	subscription.ReceiveSettings.NumGoroutines = subscriptionConfig.MaxNumWorkers
 
 	// create a channel of events
 	eventsChan := make(chan *Event, subscriptionConfig.MaxNumWorkers)
-
 	for eventIdx := 0; eventIdx < subscriptionConfig.MaxNumWorkers; eventIdx++ {
 		eventsChan <- &Event{
 			topic: subscriptionConfig.Topic,
@@ -235,4 +207,48 @@ func (p *pubsub) getAckDeadline(subscriptionConfig *Subscription) (time.Duration
 	}
 
 	return time.ParseDuration(ackDeadlineString)
+}
+
+func (p *pubsub) createOrUseSubscription(ctx context.Context,
+	subscriptionID string,
+	ackDeadline time.Duration,
+	subscriptionConfig *Subscription) (*pubsubClient.Subscription, error) {
+	var err error
+	var created bool
+	var subscription *pubsubClient.Subscription
+
+	if subscriptionConfig.Create {
+		p.Logger.DebugWith("Creating subscription",
+			"sid", subscriptionID,
+			"ackDeadline", ackDeadline,
+			"topic", subscriptionConfig.Topic)
+		subscription, err = p.client.CreateSubscription(ctx, subscriptionID, pubsubClient.SubscriptionConfig{
+			Topic:       p.client.Topic(subscriptionConfig.Topic),
+			AckDeadline: ackDeadline,
+		})
+		if err != nil && !subscriptionConfig.Shared {
+			return nil, errors.Wrap(err, "Failed to create subscription")
+		}
+		created = true
+	}
+
+	// use
+	if subscription == nil {
+		subscription = p.client.Subscription(subscriptionID)
+	}
+
+	// https://godoc.org/cloud.google.com/go/pubsub#ReceiveSettings
+	// TODO: load all ReceiveSettings from subscriptionConfig
+	subscription.ReceiveSettings.NumGoroutines = subscriptionConfig.MaxNumWorkers
+	subscription.ReceiveSettings.Synchronous = subscriptionConfig.Synchronous
+
+	p.Logger.DebugWith("Resolved subscription",
+		"sid", subscriptionID,
+		"topic", subscriptionConfig.Topic,
+		"created", created,
+		"ackDeadline", ackDeadline,
+		"err", err)
+
+	return subscription, nil
+
 }
