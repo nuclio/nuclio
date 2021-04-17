@@ -25,9 +25,11 @@ import (
 	"github.com/nuclio/errors"
 )
 
+const DefaultSubscriptionIDPrefix string = "nuclio-pub"
+
 type Subscription struct {
-	Name        string
 	Topic       string
+	IDPrefix    string
 	Shared      bool
 	AckDeadline string
 	Create      bool
@@ -62,6 +64,10 @@ func NewConfiguration(id string,
 
 		if subscription.Topic == "" {
 			return nil, errors.New("Subscription topic must be set")
+		}
+
+		if subscription.IDPrefix == "" {
+			subscription.IDPrefix = DefaultSubscriptionIDPrefix
 		}
 
 		if subscription.MaxNumWorkers == 0 {

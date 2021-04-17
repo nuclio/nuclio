@@ -18,6 +18,7 @@ package pubsub
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
@@ -180,7 +181,7 @@ func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error
 }
 
 func (p *pubsub) getSubscriptionID(subscriptionConfig *Subscription) string {
-	subscriptionID := "nuclio-sub-" + subscriptionConfig.Topic
+	subscriptionID := subscriptionConfig.IDPrefix + subscriptionConfig.Topic
 
 	// if multiple replicas share this subscription it must be named the same
 	if subscriptionConfig.Shared {
@@ -188,7 +189,7 @@ func (p *pubsub) getSubscriptionID(subscriptionConfig *Subscription) string {
 	}
 
 	// if it's not shared, we must add a unique variable
-	return subscriptionID + "-" + xid.New().String()
+	return fmt.Sprintf("%s-%s", subscriptionID, xid.New().String())
 }
 
 func (p *pubsub) getAckDeadline(subscriptionConfig *Subscription) (time.Duration, error) {
