@@ -32,7 +32,7 @@ type Subscription struct {
 	IDPrefix    string
 	Shared      bool
 	AckDeadline string
-	Create      bool
+	SkipCreate  bool
 
 	// https://godoc.org/cloud.google.com/go/pubsub#ReceiveSettings
 	MaxNumWorkers int
@@ -41,10 +41,11 @@ type Subscription struct {
 
 type Configuration struct {
 	trigger.Configuration
-	Subscriptions []Subscription
-	ProjectID     string
-	AckDeadline   string
-	Credentials   trigger.Secret
+	Subscriptions                            []Subscription
+	ProjectID                                string
+	AckDeadline                              string
+	Credentials                              trigger.Secret
+	SkipSetAndValidateApplicationCredentials bool
 }
 
 func NewConfiguration(id string,

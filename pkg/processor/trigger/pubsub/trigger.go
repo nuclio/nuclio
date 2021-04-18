@@ -208,6 +208,9 @@ func (p *pubsub) getAckDeadline(subscriptionConfig *Subscription) (time.Duration
 }
 
 func (p *pubsub) setAndValidateGoogleApplicationCredentials() error {
+	if p.configuration.SkipSetAndValidateApplicationCredentials {
+		return nil
+	}
 	if p.configuration.Credentials.Contents != "" {
 
 		// dump contents to a file and use
@@ -238,7 +241,7 @@ func (p *pubsub) createOrUseSubscription(ctx context.Context,
 	var created bool
 	var subscription *pubsubClient.Subscription
 
-	if subscriptionConfig.Create {
+	if !subscriptionConfig.SkipCreate {
 		p.Logger.DebugWith("Creating subscription",
 			"sid", subscriptionID,
 			"ackDeadline", ackDeadline,
