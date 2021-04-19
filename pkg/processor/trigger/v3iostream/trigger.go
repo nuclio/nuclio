@@ -93,9 +93,9 @@ func (vs *v3iostream) Start(checkpoint functionconfig.Checkpoint) error {
 		vs.Logger.DebugWith("Starting to consume from v3io")
 
 		// start consuming. this will exit without error if a rebalancing occurs
-		err = vs.streamConsumerGroupMember.Consume(vs)
-		if err != nil {
-			vs.Logger.WarnWith("Failed to consume from group, waiting before retrying", "err", errors.GetErrorStackString(err, 10))
+		if err := vs.streamConsumerGroupMember.Consume(vs); err != nil {
+			vs.Logger.WarnWith("Failed to consume from group, waiting before retrying",
+				"err", errors.GetErrorStackString(err, 10))
 		}
 	}()
 
@@ -106,8 +106,7 @@ func (vs *v3iostream) Stop(force bool) (functionconfig.Checkpoint, error) {
 	vs.shutdownSignal <- struct{}{}
 	close(vs.shutdownSignal)
 
-	err := vs.streamConsumerGroupMember.Close()
-	if err != nil {
+	if err := vs.streamConsumerGroupMember.Close(); err != nil {
 		return nil, errors.Wrap(err, "Failed to close consumer")
 	}
 	return nil, nil
@@ -139,8 +138,7 @@ func (vs *v3iostream) Setup(session streamconsumergroup.Session) error {
 }
 
 func (vs *v3iostream) Cleanup(session streamconsumergroup.Session) error {
-	err := vs.partitionWorkerAllocator.Stop()
-	if err != nil {
+	if err := vs.partitionWorkerAllocator.Stop(); err != nil {
 		return errors.Wrap(err, "Failed to stop partition worker allocator")
 	}
 
@@ -191,8 +189,7 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 			}
 
 			// release the worker from whence it came
-			err = vs.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance)
-			if err != nil {
+			if err = vs.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance); err != nil {
 				return errors.Wrap(err, "Failed to release worker")
 			}
 
@@ -215,9 +212,9 @@ func (vs *v3iostream) eventSubmitter(claim streamconsumergroup.Claim, submittedE
 	for submittedEvent := range submittedEventChan {
 
 		// submit the event to the worker
-		_, processErr := vs.SubmitEventToWorker(nil, submittedEvent.worker, &submittedEvent.event) // nolint: errcheck
+		_, processErr := vs.SubmitEventToWorker(nil, submittedEvent.worker, &submittedEvent.event)
 		if processErr != nil {
-			vs.Logger.DebugWith("Process error",
+			vs.Logger.DebugWith("Event processing error",
 				"shardID", submittedEvent.event.record.ShardID,
 				"err", processErr)
 		}
@@ -269,7 +266,6 @@ func (vs *v3iostream) newConsumerGroupMember() (streamconsumergroup.Member, erro
 		v3ioContainer,
 		vs.configuration.StreamPath,
 		maxReplicas)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create consumer group")
 	}
@@ -295,7 +291,6 @@ func (vs *v3iostream) createPartitionWorkerAllocator(session streamconsumergroup
 	case partitionworker.AllocationModeStatic:
 		var shardIDs []int
 
-		// convert int32 -> int
 		for _, claim := range session.GetClaims() {
 			shardIDs = append(shardIDs, claim.GetShardID())
 		}
