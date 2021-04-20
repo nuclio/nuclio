@@ -10,8 +10,6 @@ import (
 )
 
 type Client struct {
-	abstractproject.Client
-
 	Logger     logger.Logger
 	platform   platform.Platform
 	localStore *client.Store

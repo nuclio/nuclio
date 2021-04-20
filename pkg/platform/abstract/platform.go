@@ -783,7 +783,9 @@ func (ap *Platform) EnsureDefaultProjectExistence() error {
 			return errors.Wrap(err, "Failed to create default project")
 		}
 
-		ap.Logger.Debug("Default project was successfully created")
+		ap.Logger.DebugWith("Default project was successfully created",
+			"name", platform.DefaultProjectName,
+			"namespace", resolvedNamespace)
 	}
 
 	return nil

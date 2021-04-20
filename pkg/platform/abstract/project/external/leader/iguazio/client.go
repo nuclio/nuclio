@@ -2,7 +2,6 @@ package iguazio
 
 import (
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
@@ -10,8 +9,6 @@ import (
 )
 
 type Client struct {
-	leader.Client
-
 	logger                logger.Logger
 	platformConfiguration *platformconfig.Config
 }
