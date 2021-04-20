@@ -2,7 +2,7 @@ package iguazio
 
 import (
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/kube/project/external/leader"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
@@ -18,7 +18,7 @@ type Client struct {
 
 func NewClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) (*Client, error) {
 	newClient := Client{
-		logger:                parentLogger.GetChild("iguazio-leader-client"),
+		logger:                parentLogger.GetChild("leader-client-iguazio"),
 		platformConfiguration: platformConfiguration,
 	}
 

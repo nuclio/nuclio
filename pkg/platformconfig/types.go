@@ -115,7 +115,6 @@ type ProjectsLeader struct {
 
 type PlatformKubeConfig struct {
 	KubeConfigPath string          `json:"kubeConfigPath,omitempty"`
-	ProjectsLeader *ProjectsLeader `json:"projectsLeader,omitempty"`
 
 	// TODO: Move IngressConfig here
 	DefaultServiceType corev1.ServiceType `json:"defaultServiceType,omitempty"`

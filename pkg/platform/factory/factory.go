@@ -70,7 +70,7 @@ func CreatePlatform(parentLogger logger.Logger,
 	}
 
 	if err = newPlatform.Initialize(); err != nil {
-		return nil, errors.Wrap(err, "Failed to initialize new platform")
+		return nil, errors.Wrap(err, "Failed to initialize platform")
 	}
 
 	return newPlatform, nil

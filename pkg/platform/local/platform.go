@@ -34,6 +34,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
+	externalproject "github.com/nuclio/nuclio/pkg/platform/abstract/project/external"
+	"github.com/nuclio/nuclio/pkg/platform/local/client"
+	internalproject "github.com/nuclio/nuclio/pkg/platform/local/project"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
@@ -49,12 +53,30 @@ type Platform struct {
 	*abstract.Platform
 	cmdRunner                cmdrunner.CmdRunner
 	dockerClient             dockerclient.Client
-	localStore               *store
+	localStore               *client.Store
 	defaultFunctionMountMode FunctionMountMode
+	projectsClient           project.Client
 }
 
 const Mib = 1048576
 const FunctionProcessorContainerDirPath = "/etc/nuclio/config/processor"
+
+func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig.Config) (project.Client, error) {
+
+	// create local projects client
+	localProjectsClient, err := internalproject.NewClient(platform.Logger, platform, platform.localStore)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create internal projects client (local)")
+	}
+
+	if platformConfiguration.ProjectsLeader != nil {
+
+		// wrap external client around local projects client as internal client
+		return externalproject.NewClient(platform.Logger, localProjectsClient, platformConfiguration)
+	}
+
+	return localProjectsClient, nil
+}
 
 // NewPlatform instantiates a new local platform
 func NewPlatform(parentLogger logger.Logger,
@@ -87,8 +109,14 @@ func NewPlatform(parentLogger logger.Logger,
 	}
 
 	// create a local store for configs and stuff
-	if newPlatform.localStore, err = newStore(parentLogger, newPlatform, newPlatform.dockerClient); err != nil {
+	if newPlatform.localStore, err = client.NewStore(parentLogger, newPlatform, newPlatform.dockerClient); err != nil {
 		return nil, errors.Wrap(err, "Failed to create a local store")
+	}
+
+	// create projects client
+	newPlatform.projectsClient, err = NewProjectsClient(newPlatform, platformConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create projects client")
 	}
 
 	// ignite goroutine to check function container healthiness
@@ -113,7 +141,7 @@ func NewPlatform(parentLogger logger.Logger,
 }
 
 func (p *Platform) Initialize() error {
-	return p.EnsureDefaultProjectExistence()
+	return p.projectsClient.Initialize()
 }
 
 // CreateFunction will simply run a docker image
@@ -144,7 +172,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
 	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" && createFunctionOptions.FunctionConfig.Meta.Name != "" {
-		existingFunctions, err := p.localStore.getFunctions(&createFunctionOptions.FunctionConfig.Meta)
+		existingFunctions, err := p.localStore.GetFunctions(&createFunctionOptions.FunctionConfig.Meta)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get existing functions")
 		}
@@ -183,7 +211,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 
 		// post logs and error
-		return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+		return p.localStore.CreateOrUpdateFunction(&functionconfig.ConfigWithStatus{
 			Config: createFunctionOptions.FunctionConfig,
 			Status: functionconfig.Status{
 				State:   functionconfig.FunctionStateError,
@@ -202,7 +230,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 
 		// create the function in the store
-		if err = p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+		if err = p.localStore.CreateOrUpdateFunction(&functionconfig.ConfigWithStatus{
 			Config: createFunctionOptions.FunctionConfig,
 			Status: functionconfig.Status{
 				State: functionconfig.FunctionStateBuilding,
@@ -265,7 +293,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 
 		// update the function
-		if err = p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+		if err = p.localStore.CreateOrUpdateFunction(&functionconfig.ConfigWithStatus{
 			Config: createFunctionOptions.FunctionConfig,
 			Status: functionStatus,
 		}); err != nil {
@@ -291,7 +319,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
-	functions, err := p.localStore.getProjectFunctions(getFunctionsOptions)
+	functions, err := p.localStore.GetProjectFunctions(getFunctionsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read functions from a local store")
 	}
@@ -351,9 +379,11 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	}
 
 	// create
-	p.Logger.DebugWith("Creating project",
-		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
-	return p.localStore.createOrUpdateProject(createProjectOptions.ProjectConfig)
+	if _, err := p.projectsClient.Create(createProjectOptions); err != nil {
+		return errors.Wrap(err, "Failed to create project")
+	}
+
+	return nil
 }
 
 // UpdateProject will update an existing project
@@ -361,7 +391,12 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 	if err := p.ValidateProjectConfig(&updateProjectOptions.ProjectConfig); err != nil {
 		return nuclio.WrapErrBadRequest(err)
 	}
-	return p.localStore.createOrUpdateProject(&updateProjectOptions.ProjectConfig)
+
+	if _, err := p.projectsClient.Update(updateProjectOptions); err != nil {
+		return errors.Wrap(err, "Failed to update project")
+	}
+
+	return nil
 }
 
 // DeleteProject will delete an existing project
@@ -370,18 +405,8 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
-	p.Logger.DebugWith("Deleting project",
-		"projectMeta", deleteProjectOptions.Meta)
-	if err := p.localStore.deleteProject(&deleteProjectOptions.Meta); err != nil {
-		return errors.Wrapf(err,
-			"Failed to delete project %s from namespace %s",
-			deleteProjectOptions.Meta.Name,
-			deleteProjectOptions.Meta.Namespace)
-	}
-
-	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
-		return p.Platform.WaitForProjectResourcesDeletion(&deleteProjectOptions.Meta,
-			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration)
+	if err := p.projectsClient.Delete(deleteProjectOptions); err != nil {
+		return errors.Wrapf(err, "Failed to delete project")
 	}
 
 	return nil
@@ -389,28 +414,28 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 
 // GetProjects will list existing projects
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	return p.localStore.getProjects(&getProjectsOptions.Meta)
+	return p.projectsClient.Get(getProjectsOptions)
 }
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
 func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
-	return p.localStore.createOrUpdateFunctionEvent(&createFunctionEventOptions.FunctionEventConfig)
+	return p.localStore.CreateOrUpdateFunctionEvent(&createFunctionEventOptions.FunctionEventConfig)
 }
 
 // UpdateFunctionEvent will update a previously existing function event
 func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
-	return p.localStore.createOrUpdateFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig)
+	return p.localStore.CreateOrUpdateFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig)
 }
 
 // DeleteFunctionEvent will delete a previously existing function event
 func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
-	return p.localStore.deleteFunctionEvent(&deleteFunctionEventOptions.Meta)
+	return p.localStore.DeleteFunctionEvent(&deleteFunctionEventOptions.Meta)
 }
 
 // GetFunctionEvents will list existing function events
 func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
-	return p.localStore.getFunctionEvents(getFunctionEventsOptions)
+	return p.localStore.GetFunctionEvents(getFunctionEventsOptions)
 }
 
 // GetAPIGateways not supported on this platform
@@ -480,7 +505,7 @@ func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error 
 
 	function := functions[0]
 
-	return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+	return p.localStore.CreateOrUpdateFunction(&functionconfig.ConfigWithStatus{
 		Config: *function.GetConfig(),
 		Status: *function.GetStatus(),
 	})
@@ -670,7 +695,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 
 	// delete the function from the local store
-	err := p.localStore.deleteFunction(&deleteFunctionOptions.FunctionConfig.Meta)
+	err := p.localStore.DeleteFunction(&deleteFunctionOptions.FunctionConfig.Meta)
 	if err != nil && err != nuclio.ErrNotFound {
 		p.Logger.WarnWith("Failed to delete a function from the local store", "err", err.Error())
 	}
@@ -940,7 +965,7 @@ func (p *Platform) setFunctionUnhealthy(function platform.Function) error {
 		"functionStatus", functionStatus)
 
 	// function container is not healthy or missing, set function state as error
-	return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+	return p.localStore.CreateOrUpdateFunction(&functionconfig.ConfigWithStatus{
 		Config: *function.GetConfig(),
 		Status: *functionStatus,
 	})
@@ -964,7 +989,7 @@ func (p *Platform) checkAndSetFunctionHealthy(containerID string, function platf
 		"functionStatus", functionStatus)
 
 	// function container is not healthy or missing, set function state as error
-	return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+	return p.localStore.CreateOrUpdateFunction(&functionconfig.ConfigWithStatus{
 		Config: *function.GetConfig(),
 		Status: *functionStatus,
 	})

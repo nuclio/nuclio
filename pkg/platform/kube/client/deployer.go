@@ -334,7 +334,7 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 	// gets the function, checks if ready
 	conditionFunc := func() (bool, error) {
 
-		// Get the appropriate function CR
+		// get the appropriate function CR
 		function, err = consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioFunctions(namespace).
 			Get(name, metav1.GetOptions{})

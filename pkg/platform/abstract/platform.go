@@ -783,8 +783,7 @@ func (ap *Platform) EnsureDefaultProjectExistence() error {
 			return errors.Wrap(err, "Failed to create default project")
 		}
 
-	} else if len(projects) > 1 {
-		return errors.New("Something went wrong. There's more than one default project")
+		ap.Logger.Debug("Default project was successfully created")
 	}
 
 	return nil

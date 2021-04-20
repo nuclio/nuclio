@@ -6,12 +6,12 @@ import (
 
 type Client interface {
 
-	// Sends to the leader a request to create a project
+	// Delegates project creation to leader
 	Create(*platform.CreateProjectOptions) error
 
-	// Sends to the leader a request to update a project
+	// Delegates project update to leader
 	Update(*platform.UpdateProjectOptions) error
 
-	// Sends to the leader a request to delete a project
+	// Delegates project deletion to leader
 	Delete(*platform.DeleteProjectOptions) error
 }

@@ -30,12 +30,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
+	externalproject "github.com/nuclio/nuclio/pkg/platform/abstract/project/external"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
-	"github.com/nuclio/nuclio/pkg/platform/kube/project"
-	externalproject "github.com/nuclio/nuclio/pkg/platform/kube/project/external"
-	kubeproject "github.com/nuclio/nuclio/pkg/platform/kube/project/kube"
+	internalproject "github.com/nuclio/nuclio/pkg/platform/kube/project"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -60,6 +60,23 @@ type Platform struct {
 }
 
 const Mib = 1048576
+
+func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig.Config) (project.Client, error) {
+
+	// create kube projects client
+	kubeProjectsClient, err := internalproject.NewClient(platform.Logger, platform, platform.consumer)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create internal projects client (kube)")
+	}
+
+	if platformConfiguration.ProjectsLeader != nil {
+
+		// wrap external client around kube projects client as internal client
+		return externalproject.NewClient(platform.Logger, kubeProjectsClient, platformConfiguration)
+	}
+
+	return kubeProjectsClient, nil
+}
 
 // NewPlatform instantiates a new kubernetes platform
 func NewPlatform(parentLogger logger.Logger,
@@ -108,7 +125,7 @@ func NewPlatform(parentLogger logger.Logger,
 	}
 
 	// create projects client
-	newPlatform.projectsClient, err = newProjectsClient(newPlatform, platformConfiguration)
+	newPlatform.projectsClient, err = NewProjectsClient(newPlatform, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create projects client")
 	}
@@ -459,7 +476,7 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	// create
 	p.Logger.DebugWith("Creating project", "projectName", createProjectOptions.ProjectConfig.Meta.Name)
 	if _, err := p.projectsClient.Create(createProjectOptions); err != nil {
-		return errors.Wrap(err, "Failed to create a project")
+		return errors.Wrap(err, "Failed to create project")
 	}
 
 	return nil
@@ -472,7 +489,7 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 	}
 
 	if _, err := p.projectsClient.Update(updateProjectOptions); err != nil {
-		return errors.Wrap(err, "Failed to update a project")
+		return errors.Wrap(err, "Failed to update project")
 	}
 
 	return nil
@@ -499,38 +516,7 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 
 // GetProjects will list existing projects
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	var platformProjects []platform.Project
-
-	projects, err := p.projectsClient.Get(getProjectsOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get projects")
-	}
-
-	// convert []nuclioio.NuclioProject -> NuclioProject
-	for projectInstanceIndex := 0; projectInstanceIndex < len(projects); projectInstanceIndex++ {
-		projectInstance := projects[projectInstanceIndex]
-
-		newProject, err := platform.NewAbstractProject(p.Logger,
-			p,
-			platform.ProjectConfig{
-				Meta: platform.ProjectMeta{
-					Name:        projectInstance.Name,
-					Namespace:   projectInstance.Namespace,
-					Labels:      projectInstance.Labels,
-					Annotations: projectInstance.Annotations,
-				},
-				Spec: projectInstance.Spec,
-			})
-
-		if err != nil {
-			return nil, err
-		}
-
-		platformProjects = append(platformProjects, newProject)
-	}
-
-	// render it
-	return platformProjects, nil
+	return p.projectsClient.Get(getProjectsOptions)
 }
 
 // CreateAPIGateway creates and deploys a new api gateway
@@ -1383,13 +1369,4 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 	}
 
 	return nil
-}
-
-func newProjectsClient(platform *Platform, platformConfiguration *platformconfig.Config) (project.Client, error) {
-
-	if platformConfiguration.Kube.ProjectsLeader != nil {
-		return externalproject.NewClient(platform.Logger, platform, platform.consumer, platformConfiguration)
-	}
-
-	return kubeproject.NewClient(platform.Logger, platform, platform.consumer)
 }

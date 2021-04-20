@@ -2,12 +2,10 @@ package external
 
 import (
 	"github.com/nuclio/nuclio/pkg/platform"
-	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	"github.com/nuclio/nuclio/pkg/platform/kube/client"
-	"github.com/nuclio/nuclio/pkg/platform/kube/project/external/leader"
-	"github.com/nuclio/nuclio/pkg/platform/kube/project/external/leader/iguazio"
-	"github.com/nuclio/nuclio/pkg/platform/kube/project/external/leader/mlrun"
-	"github.com/nuclio/nuclio/pkg/platform/kube/project/kube"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mlrun"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -16,25 +14,20 @@ import (
 )
 
 type Client struct {
-	*kube.Client
+	internalClient project.Client
 	leaderClient leader.Client
 }
 
 func NewClient(parentLogger logger.Logger,
-	platform platform.Platform,
-	consumer *client.Consumer,
+	internalClient project.Client,
 	platformConfiguration *platformconfig.Config) (*Client, error) {
+	var err error
 
 	newClient := Client{}
 
-	// inherits from kube client - because for now we will want to create the project both on the external
-	// project manager, and on the k8s platform (mainly for the use of nuctl)
-	kubeClient, err := kube.NewClient(parentLogger, platform, consumer)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create projects kube client")
-	}
+	// use the internal client (for now), so projects will be modified both on leader's side and internally by nuclio
+	newClient.internalClient = internalClient
 
-	newClient.Client = kubeClient
 	newClient.leaderClient, err = newLeaderClient(parentLogger, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create leader client")
@@ -49,10 +42,14 @@ func (c *Client) Initialize() error {
 	return nil
 }
 
-func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (*nuclioio.NuclioProject, error) {
+func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	return c.internalClient.Get(getProjectsOptions)
+}
+
+func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
 	switch createProjectOptions.RequestOrigin {
 	case platform.RequestOriginLeader:
-		return c.Client.Create(createProjectOptions)
+		return c.internalClient.Create(createProjectOptions)
 	default:
 		if err := c.leaderClient.Create(createProjectOptions); err != nil {
 			return nil, errors.Wrap(err, "Failed while requesting from the leader to create the project")
@@ -62,10 +59,10 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (*n
 	}
 }
 
-func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (*nuclioio.NuclioProject, error) {
+func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
 	switch updateProjectOptions.RequestOrigin {
 	case platform.RequestOriginLeader:
-		return c.Client.Update(updateProjectOptions)
+		return c.internalClient.Update(updateProjectOptions)
 	default:
 		if err := c.leaderClient.Update(updateProjectOptions); err != nil {
 			return nil, errors.Wrap(err, "Failed while requesting from the leader to update the project")
@@ -78,7 +75,7 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (*n
 func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	switch deleteProjectOptions.RequestOrigin {
 	case platform.RequestOriginLeader:
-		return c.Client.Delete(deleteProjectOptions)
+		return c.internalClient.Delete(deleteProjectOptions)
 	default:
 		if err := c.leaderClient.Delete(deleteProjectOptions); err != nil {
 			return errors.Wrap(err, "Failed while requesting from the leader to delete the project")
@@ -89,7 +86,7 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 }
 
 func newLeaderClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) (leader.Client, error) {
-	switch platformConfiguration.Kube.ProjectsLeader.Kind {
+	switch platformConfiguration.ProjectsLeader.Kind {
 
 	// mlrun projects leader
 	case platformconfig.ProjectsLeaderKindMlrun:
@@ -100,5 +97,5 @@ func newLeaderClient(parentLogger logger.Logger, platformConfiguration *platform
 		return iguazio.NewClient(parentLogger, platformConfiguration)
 	}
 
-	return nil, errors.New("Unknown projects leader type")
+	return nil, errors.Errorf("Unknown projects leader kind: %s", platformConfiguration.ProjectsLeader.Kind)
 }

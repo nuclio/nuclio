@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package local
+package client
 
 import (
 	"bufio"
@@ -46,16 +46,16 @@ const (
 	functionEventsDir = baseDir + "/function-events"
 )
 
-type store struct {
+type Store struct {
 	logger       logger.Logger
 	dockerClient dockerclient.Client
 	platform     platform.Platform
 }
 
-func newStore(parentLogger logger.Logger,
+func NewStore(parentLogger logger.Logger,
 	platform platform.Platform,
-	dockerClient dockerclient.Client) (*store, error) {
-	return &store{
+	dockerClient dockerclient.Client) (*Store, error) {
+	return &Store{
 		logger:       parentLogger.GetChild("store"),
 		dockerClient: dockerClient,
 		platform:     platform,
@@ -66,14 +66,14 @@ func newStore(parentLogger logger.Logger,
 // Project
 //
 
-func (s *store) createOrUpdateProject(projectConfig *platform.ProjectConfig) error {
+func (s *Store) CreateOrUpdateProject(projectConfig *platform.ProjectConfig) error {
 	resourcePath := s.getResourcePath(projectsDir, projectConfig.Meta.Namespace, projectConfig.Meta.Name)
 
 	// write the contents to that file name at the appropriate path
 	return s.serializeAndWriteFileContents(resourcePath, projectConfig)
 }
 
-func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Project, error) {
+func (s *Store) GetProjects(projectMeta *platform.ProjectMeta) ([]platform.Project, error) {
 	var projects []platform.Project
 
 	rowHandler := func(row []byte) error {
@@ -97,8 +97,8 @@ func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 	return projects, nil
 }
 
-func (s *store) deleteProject(projectMeta *platform.ProjectMeta) error {
-	functions, err := s.getProjectFunctions(&platform.GetFunctionsOptions{
+func (s *Store) DeleteProject(projectMeta *platform.ProjectMeta) error {
+	functions, err := s.GetProjectFunctions(&platform.GetFunctionsOptions{
 		Namespace: projectMeta.Namespace,
 		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
 	})
@@ -111,7 +111,7 @@ func (s *store) deleteProject(projectMeta *platform.ProjectMeta) error {
 	for _, function := range functions {
 		function := function
 		deleteFunctionsErrGroup.Go(func() error {
-			return s.deleteFunction(&function.GetConfig().Meta)
+			return s.DeleteFunction(&function.GetConfig().Meta)
 		})
 	}
 	if err := deleteFunctionsErrGroup.Wait(); err != nil {
@@ -125,14 +125,14 @@ func (s *store) deleteProject(projectMeta *platform.ProjectMeta) error {
 // Function events
 //
 
-func (s *store) createOrUpdateFunctionEvent(functionEventConfig *platform.FunctionEventConfig) error {
+func (s *Store) CreateOrUpdateFunctionEvent(functionEventConfig *platform.FunctionEventConfig) error {
 	resourcePath := s.getResourcePath(functionEventsDir, functionEventConfig.Meta.Namespace, functionEventConfig.Meta.Name)
 
 	// write the contents to that file name at the appropriate path
 	return s.serializeAndWriteFileContents(resourcePath, functionEventConfig)
 }
 
-func (s *store) getFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
+func (s *Store) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
 	var functionEvents []platform.FunctionEvent
 
 	// get function filter
@@ -185,7 +185,7 @@ func (s *store) getFunctionEvents(getFunctionEventsOptions *platform.GetFunction
 	return functionEvents, nil
 }
 
-func (s *store) deleteFunctionEvent(functionEventMeta *platform.FunctionEventMeta) error {
+func (s *Store) DeleteFunctionEvent(functionEventMeta *platform.FunctionEventMeta) error {
 	return s.deleteResource(functionEventsDir, functionEventMeta.Namespace, functionEventMeta.Name)
 }
 
@@ -193,14 +193,14 @@ func (s *store) deleteFunctionEvent(functionEventMeta *platform.FunctionEventMet
 // Function (used only for the period before there's a docker container to represent the function)
 //
 
-func (s *store) createOrUpdateFunction(functionConfig *functionconfig.ConfigWithStatus) error {
+func (s *Store) CreateOrUpdateFunction(functionConfig *functionconfig.ConfigWithStatus) error {
 	resourcePath := s.getResourcePath(functionsDir, functionConfig.Meta.Namespace, functionConfig.Meta.Name)
 
 	// write the contents to that file name at the appropriate path
 	return s.serializeAndWriteFileContents(resourcePath, functionConfig)
 }
 
-func (s *store) getProjectFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+func (s *Store) GetProjectFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	var functions []platform.Function
 
 	// get project filter
@@ -208,7 +208,7 @@ func (s *store) getProjectFunctions(getFunctionsOptions *platform.GetFunctionsOp
 
 	// get all the functions in the store. these functions represent both functions that are deployed
 	// and functions that failed to build
-	localStoreFunctions, err := s.getFunctions(&functionconfig.Meta{
+	localStoreFunctions, err := s.GetFunctions(&functionconfig.Meta{
 		Name:      getFunctionsOptions.Name,
 		Namespace: getFunctionsOptions.Namespace,
 	})
@@ -228,7 +228,7 @@ func (s *store) getProjectFunctions(getFunctionsOptions *platform.GetFunctionsOp
 	return functions, nil
 }
 
-func (s *store) getFunctions(functionMeta *functionconfig.Meta) ([]platform.Function, error) {
+func (s *Store) GetFunctions(functionMeta *functionconfig.Meta) ([]platform.Function, error) {
 	var functions []platform.Function
 
 	rowHandler := func(row []byte) error {
@@ -256,8 +256,8 @@ func (s *store) getFunctions(functionMeta *functionconfig.Meta) ([]platform.Func
 	return functions, nil
 }
 
-func (s *store) deleteFunction(functionMeta *functionconfig.Meta) error {
-	functionEvents, err := s.getFunctionEvents(&platform.GetFunctionEventsOptions{
+func (s *Store) DeleteFunction(functionMeta *functionconfig.Meta) error {
+	functionEvents, err := s.GetFunctionEvents(&platform.GetFunctionEventsOptions{
 		Meta: platform.FunctionEventMeta{
 			Namespace: functionMeta.Namespace,
 			Labels: map[string]string{
@@ -273,7 +273,7 @@ func (s *store) deleteFunction(functionMeta *functionconfig.Meta) error {
 	for _, functionEvent := range functionEvents {
 		functionEvent := functionEvent
 		deleteFunctionEventsErrGroup.Go(func() error {
-			return s.deleteFunctionEvent(&functionEvent.GetConfig().Meta)
+			return s.DeleteFunctionEvent(&functionEvent.GetConfig().Meta)
 		})
 	}
 
@@ -290,7 +290,7 @@ func (s *store) deleteFunction(functionMeta *functionconfig.Meta) error {
 // Implementation
 //
 
-func (s *store) serializeAndWriteFileContents(resourcePath string, resourceConfig interface{}) error {
+func (s *Store) serializeAndWriteFileContents(resourcePath string, resourceConfig interface{}) error {
 
 	// serialize the resource to json
 	serializedResourceConfig, err := json.Marshal(resourceConfig)
@@ -301,15 +301,15 @@ func (s *store) serializeAndWriteFileContents(resourcePath string, resourceConfi
 	return s.writeFileContents(resourcePath, serializedResourceConfig)
 }
 
-func (s *store) getResourcePath(resourceDir string, resourceNamespace string, resourceName string) string {
+func (s *Store) getResourcePath(resourceDir string, resourceNamespace string, resourceName string) string {
 	return path.Join(s.getResourceNamespaceDir(resourceDir, resourceNamespace), resourceName+".json")
 }
 
-func (s *store) getResourceNamespaceDir(resourceDir string, resourceNamespace string) string {
+func (s *Store) getResourceNamespaceDir(resourceDir string, resourceNamespace string) string {
 	return path.Join(resourceDir, resourceNamespace)
 }
 
-func (s *store) getResources(resourceDir string,
+func (s *Store) getResources(resourceDir string,
 	resourceNamespace string,
 	resourceName string,
 	rowHandler func([]byte) error) error {
@@ -360,7 +360,7 @@ func (s *store) getResources(resourceDir string,
 	return nil
 }
 
-func (s *store) writeFileContents(filePath string, contents []byte) error {
+func (s *Store) writeFileContents(filePath string, contents []byte) error {
 	s.logger.DebugWith("Writing file contents", "path", filePath, "contents", string(contents))
 
 	// get the file dir
@@ -378,7 +378,7 @@ func (s *store) writeFileContents(filePath string, contents []byte) error {
 	return err
 }
 
-func (s *store) runCommand(env map[string]string, format string, args ...interface{}) (string, string, error) {
+func (s *Store) runCommand(env map[string]string, format string, args ...interface{}) (string, string, error) {
 	var commandStdout, commandStderr string
 
 	// format the command to a string
@@ -428,7 +428,7 @@ func (s *store) runCommand(env map[string]string, format string, args ...interfa
 	return commandStdout, commandStderr, nil
 }
 
-func (s *store) deleteResource(resourceDir string, resourceNamespace string, resourceName string) error {
+func (s *Store) deleteResource(resourceDir string, resourceNamespace string, resourceName string) error {
 	resourcePath := s.getResourcePath(resourceDir, resourceNamespace, resourceName)
 
 	// stat the file
