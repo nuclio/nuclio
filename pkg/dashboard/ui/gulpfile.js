@@ -22,7 +22,7 @@ var concat = require('gulp-concat');
 var runSequence = require('run-sequence');
 var eslint = require('gulp-eslint');
 var preprocess = require('gulp-preprocess');
-var minifyCss = require('gulp-cssnano');
+var minifyCss = require('gulp-clean-css');
 var gulpIf = require('gulp-if');
 var rev = require('gulp-rev');
 var argv = require('yargs').argv;
@@ -105,9 +105,7 @@ gulp.task('vendor.css', function () {
         gulp.src([path.join(distFolder, 'bootstrap.css')].concat(config.vendor_files.css)))
         .pipe(errorHandler(handleError))
         .pipe(concat(config.output_files.vendor.css))
-        .pipe(gulpIf(!state.isDevMode, minifyCss({
-            reduceIndents: false
-        })))
+        .pipe(gulpIf(!state.isDevMode, minifyCss()))
         .pipe(gulpIf(!state.isDevMode, rev()))
         .pipe(gulp.dest(distFolder))
         .pipe(gulpIf(!state.isDevMode, rev.manifest(config.output_files.vendor.css_manifest)))

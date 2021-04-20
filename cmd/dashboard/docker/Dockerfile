@@ -19,7 +19,7 @@ ARG NGINX_IMAGE=nginx
 ARG NUCLIO_LABEL
 ARG UHTTPC_ARCH=amd64
 
-FROM node:10.21.0 as build-static
+FROM gcr.io/iguazio/node:10.21.0 as build-static
 
 # copy source tree
 COPY ./pkg/dashboard/ui /home/nuclio/dashboard/src
@@ -49,7 +49,7 @@ RUN GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build \
     -o dashboard cmd/dashboard/main.go
 
 
-FROM quay.io/nuclio/uhttpc:0.0.1-$UHTTPC_ARCH AS uhttpc
+FROM gcr.io/iguazio/uhttpc:0.0.1-$UHTTPC_ARCH AS uhttpc
 
 #
 # Output stage: Creates version file, copies binary and assets to an alpine image

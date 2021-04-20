@@ -175,8 +175,8 @@
             var deleteAction = lodash.find(ctrl.projectActions, { id: 'delete' });
 
             if (!lodash.isNil(deleteAction)) {
-                deleteAction.confirm.message = $i18next.t('functions:DELETE_PROJECT', { lng: lng }) + ' “' +
-                    lodash.defaultTo(ctrl.project.spec.displayName, ctrl.project.metadata.name) + '“?'
+                deleteAction.confirm.message =
+                    $i18next.t('functions:DELETE_PROJECT', { lng: lng }) + ' “' + ctrl.project.metadata.name + '“?'
             }
         }
     }

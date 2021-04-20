@@ -8,8 +8,8 @@
 
 This chart bootstraps a Nuclio deployment (controller and dashboard) and service on a Kubernetes cluster using the Helm Package manager. Before you get started you will need:
 
-- A Kubernetes 1.7+ cluster with tiller installed
-- helm 
+- A Kubernetes 1.15+ cluster
+- helm (with tiller installed if using helm2, we recommend helm3)
 - kubectl
 
 ### Adding Nuclio to helm

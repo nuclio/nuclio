@@ -876,13 +876,15 @@ func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container
 		return 0, nil
 	}
 
-	if len(portBindings) != 0 && portBindings[0].HostPort != "" {
-
-		// by default take the port binding, as if the user requested
+	// by default take the port binding, as if the user requested
+	if len(portBindings) != 0 &&
+		portBindings[0].HostPort != "" && // docker version < 20.10
+		portBindings[0].HostPort != "0" { // on docker version >= 20.10, the host port would by 0 and not empty string.
 		return strconv.Atoi(portBindings[0].HostPort)
-	} else if len(ports) != 0 && ports[0].HostPort != "" {
+	}
 
-		// in case the user did not set an explicit port, take the random port assigned by docker
+	// port was not explicit by user, take port assigned by docker daemon
+	if len(ports) != 0 && ports[0].HostPort != "" {
 		return strconv.Atoi(ports[0].HostPort)
 	}
 
