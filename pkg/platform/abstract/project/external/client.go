@@ -15,7 +15,7 @@ import (
 
 type Client struct {
 	internalClient project.Client
-	leaderClient leader.Client
+	leaderClient   leader.Client
 }
 
 func NewClient(parentLogger logger.Logger,
