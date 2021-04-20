@@ -25,6 +25,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/v3io-go/pkg/dataplane"
 	v3iohttp "github.com/v3io/v3io-go/pkg/dataplane/http"
 	"github.com/v3io/v3io-go/pkg/dataplane/streamconsumergroup"
@@ -251,6 +252,19 @@ func (vs *v3iostream) newConsumerGroupMember() (streamconsumergroup.Member, erro
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create v3io container")
+	}
+
+	// ensure path exists
+	if err := v3ioContainer.CheckPathExistsSync(&v3io.CheckPathExistsInput{
+		Path: vs.configuration.StreamPath,
+	}); err != nil {
+		if errWithStatusCode, ok := err.(nuclio.WithStatusCode); ok &&
+			errWithStatusCode.StatusCode() == nuclio.ErrNotFound.StatusCode() {
+			vs.Logger.WarnWith("Stream path does not exists",
+				"path", vs.configuration.StreamPath)
+			return nil, errors.Wrap(err, "Stream path does not exists")
+		}
+		return nil, errors.Wrap(err, "Failed to check stream path existence")
 	}
 
 	maxReplicas := 1
