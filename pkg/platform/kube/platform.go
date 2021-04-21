@@ -258,8 +258,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 		// create or update the function. The possible creation needs to happen here, since on cases of
 		// early build failures we might get here before the function CR was created. After this point
-		// it is guaranteed to be created and updated with the reported function state
-		_, err = p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
+		// it is guaranteed to be created and updated with the reported error state
+		_, err := p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
 			createFunctionOptions,
 			&functionconfig.Status{
 				HTTPPort:   functionInvocation.HTTPPort,
@@ -300,7 +300,6 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			&functionconfig.Status{
 				State: functionconfig.FunctionStateBuilding,
 			})
-
 		if err != nil {
 			return errors.Wrap(err, "Failed to create or update a function before build")
 		}
@@ -314,7 +313,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	// called after function was built
-	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
+	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult,
+		buildErr error) (*platform.CreateFunctionResult, error) {
 
 		skipDeploy := functionconfig.ShouldSkipDeploy(createFunctionOptions.FunctionConfig.Meta.Annotations)
 
@@ -341,13 +341,17 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 
 		if skipDeploy {
-			p.Logger.Info("Skipping function deployment")
+			p.Logger.Info("Skipping function deployment",
+				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
+				"functionNamespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
 
-			_, err = p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
+			if _, err := p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
 				createFunctionOptions,
 				&functionconfig.Status{
 					State: functionconfig.FunctionStateImported,
-				})
+				}); err != nil {
+				return nil, errors.Wrap(err, "Failed to create/update function as imported")
+			}
 
 			return &platform.CreateFunctionResult{
 				CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
