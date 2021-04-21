@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -73,7 +74,7 @@ func RenderFunctions(logger logger.Logger,
 			if format == OutputFormatWide {
 				functionFields = append(functionFields, []string{
 					common.StringMapToString(function.GetConfig().Meta.Labels),
-					FormatFunctionIngresses(function),
+					strings.Join(function.GetStatus().Invocation.Ingresses, ", "),
 				}...)
 			}
 
