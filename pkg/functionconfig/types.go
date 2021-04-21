@@ -515,6 +515,22 @@ type Status struct {
 	HTTPPort    int                      `json:"httpPort,omitempty"`
 	ScaleToZero *ScaleToZeroStatus       `json:"scaleToZero,omitempty"`
 	APIGateways []string                 `json:"apiGateways,omitempty"`
+	Invocation  FunctionInvocation       `json:"invocation,omitempty"`
+}
+
+type FunctionInvocation struct {
+
+	// e.g.: 3000
+	HTTPPort int `json:"httpPort,omitempty"`
+
+	// e.g.: my-namespace.my-function.svc.cluster.local:8080
+	Internal string `json:"internal,omitempty"`
+
+	// e.g.: 1.2.3.4:3000
+	External string `json:"external,omitempty"`
+
+	// e.g.: [ my-function.some-domain.com/pathA, other-ingress.some-domain.co ]
+	Ingresses []string `json:"ingresses,omitempty"`
 }
 
 type ScaleToZeroStatus struct {
