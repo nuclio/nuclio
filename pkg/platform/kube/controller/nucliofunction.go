@@ -18,12 +18,14 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
@@ -197,17 +199,14 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			finalState = functionconfig.FunctionStateReady
 		}
 
-		// get function http port
-		httpPort, err := fo.getFunctionHTTPPort(resources)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get function http port")
-		}
-
 		// NOTE: this reconstructs function status and hence omits all other function status fields
 		// ... such as message and logs.
 		functionStatus := &functionconfig.Status{
-			State:    finalState,
-			HTTPPort: httpPort,
+			State: finalState,
+		}
+
+		if err := fo.populateFunctionInvocationStatus(function, functionStatus, resources); err != nil {
+			return errors.Wrap(err, "Failed to populate function invocation status")
 		}
 
 		if err := fo.setFunctionScaleToZeroStatus(ctx, functionStatus, scaleEvent); err != nil {
@@ -311,4 +310,47 @@ func (fo *functionOperator) getFunctionHTTPPort(functionResources functionres.Re
 		}
 	}
 	return httpPort, nil
+}
+
+func (fo *functionOperator) populateFunctionInvocationStatus(function *nuclioio.NuclioFunction,
+	functionStatus *functionconfig.Status,
+	functionResources functionres.Resources) error {
+
+	// get function http port
+	httpPort, err := fo.getFunctionHTTPPort(functionResources)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function http port")
+	}
+
+	service, err := functionResources.Service()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function service")
+	}
+
+	ingress, err := functionResources.Ingress()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function ingress")
+	}
+
+	serviceHost, servicePort := kube.GetDomainNameInvokeURL(service.GetName(), service.GetNamespace())
+
+	functionStatus.HTTPPort = httpPort
+	functionStatus.Invocation.HTTPPort = httpPort
+	functionStatus.Invocation.Internal = fmt.Sprintf("%s:%d", serviceHost, servicePort)
+	functionStatus.Invocation.External = fmt.Sprintf("%s:%d", function.Status.Invocation.External, httpPort)
+
+	for _, rule := range ingress.Spec.Rules {
+		host := rule.Host
+		path := "/"
+		if rule.HTTP != nil {
+			if len(rule.HTTP.Paths) > 0 {
+				path = rule.HTTP.Paths[0].Path
+			}
+		}
+		functionStatus.Invocation.Ingresses = append(functionStatus.Invocation.Ingresses,
+			fmt.Sprintf("%s%s", host, path))
+
+	}
+	return nil
+
 }

@@ -238,10 +238,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		createFunctionOptions.Logger.WarnWith("Function creation failed, updating function status",
 			"errorStack", errorStack.String())
 
-		defaultHTTPPort := 0
+		functionInvocation := functionconfig.FunctionInvocation{}
 		defaultFunctionState := functionconfig.FunctionStateError
 		if existingFunctionInstance != nil {
-			defaultHTTPPort = existingFunctionInstance.Status.HTTPPort
+			functionInvocation = existingFunctionInstance.Status.Invocation
 
 			// if function deployment ended up with unhealthy, due to unstable Kubernetes env that lead
 			// to failing on waiting for function readiness.
@@ -262,9 +262,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		_, err = p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
 			createFunctionOptions,
 			&functionconfig.Status{
-				HTTPPort: defaultHTTPPort,
-				State:    defaultFunctionState,
-				Message:  briefErrorsMessage,
+				HTTPPort:   functionInvocation.HTTPPort,
+				Invocation: functionInvocation,
+				State:      defaultFunctionState,
+				Message:    briefErrorsMessage,
 			})
 		return err
 	}

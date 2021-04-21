@@ -72,6 +72,7 @@ func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 		functionInstance.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 	} else {
 		functionStatus.HTTPPort = functionInstance.Status.HTTPPort
+		functionStatus.Invocation = functionInstance.Status.Invocation
 	}
 
 	// convert config, status -> function
@@ -136,7 +137,7 @@ func (d *Deployer) Deploy(functionInstance *nuclioio.NuclioFunction,
 	}
 
 	return &platform.CreateFunctionResult{
-		Port: updatedFunctionInstance.Status.HTTPPort,
+		Port: updatedFunctionInstance.Status.Invocation.HTTPPort,
 	}, updatedFunctionInstance, "", nil
 }
 

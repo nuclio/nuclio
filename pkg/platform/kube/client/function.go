@@ -75,7 +75,7 @@ func NewFunction(parentLogger logger.Logger,
 	newFunction.AbstractFunction = *newAbstractFunction
 	newFunction.function = nuclioioFunction
 	newFunction.consumer = consumer
-	newFunction.httpPort = nuclioioFunction.Status.HTTPPort
+	newFunction.httpPort = nuclioioFunction.Status.Invocation.HTTPPort
 
 	return newFunction, nil
 }
