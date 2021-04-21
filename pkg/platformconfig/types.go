@@ -109,8 +109,8 @@ const (
 )
 
 type ProjectsLeader struct {
-	URL  string             `json:"url,omitempty"`
-	Kind ProjectsLeaderKind `json:"kind,omitempty"`
+	Address string             `json:"address,omitempty"`
+	Kind    ProjectsLeaderKind `json:"kind,omitempty"`
 }
 
 type PlatformKubeConfig struct {

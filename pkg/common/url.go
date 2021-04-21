@@ -17,12 +17,14 @@ limitations under the License.
 package common
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
 
+	"github.com/nuclio/errors"
 	"github.com/valyala/fasthttp"
 )
 
@@ -106,4 +108,42 @@ func NormalizeURLPath(p string) string {
 	}
 
 	return string(res)
+}
+
+// Sends an http request
+// ignore expectedStatusCode by setting it to 0
+func SendHTTPRequest(method string,
+	requestURL string,
+	body []byte,
+	cookies []*http.Cookie,
+	expectedStatusCode int) error {
+
+	client := &http.Client{}
+
+	// create request object
+	req, err := http.NewRequest(method, requestURL, bytes.NewBuffer(body))
+	if err != nil {
+		return errors.Wrap(err, "Failed to create http request")
+	}
+
+	// attach cookies
+	for _, cookie := range cookies{
+		req.AddCookie(cookie)
+	}
+
+	// perform the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return errors.Wrap(err, "Failed to send HTTP request")
+	}
+
+	// validate status code is as expected
+	if expectedStatusCode != 0 && resp.StatusCode != expectedStatusCode {
+		return errors.Wrapf(err,
+			"Got unexpected response status code: %s. Expected: %s",
+			resp.StatusCode,
+			expectedStatusCode)
+	}
+
+	return nil
 }

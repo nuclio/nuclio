@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -169,21 +170,16 @@ func (pc *ProjectConfig) Scrub() {
 	pc.Meta.ResourceVersion = ""
 }
 
-type RequestOrigin string
-
-const (
-	RequestOriginEmpty  RequestOrigin = ""
-	RequestOriginLeader RequestOrigin = "leader"
-)
-
 type CreateProjectOptions struct {
 	ProjectConfig *ProjectConfig
-	RequestOrigin RequestOrigin
+	RequestOrigin platformconfig.ProjectsLeaderKind
+	SessionCookie *http.Cookie
 }
 
 type UpdateProjectOptions struct {
 	ProjectConfig ProjectConfig
-	RequestOrigin RequestOrigin
+	RequestOrigin platformconfig.ProjectsLeaderKind
+	SessionCookie *http.Cookie
 }
 
 type DeleteProjectStrategy string
@@ -211,7 +207,8 @@ func ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy string) Del
 type DeleteProjectOptions struct {
 	Meta          ProjectMeta
 	Strategy      DeleteProjectStrategy
-	RequestOrigin RequestOrigin
+	RequestOrigin platformconfig.ProjectsLeaderKind
+	SessionCookie *http.Cookie
 
 	// allowing us to "block" until related resources are removed.
 	// used in testings

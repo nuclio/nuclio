@@ -14,8 +14,9 @@ import (
 )
 
 type Client struct {
-	internalClient project.Client
-	leaderClient   leader.Client
+	platformConfiguration *platformconfig.Config
+	internalClient        project.Client
+	leaderClient          leader.Client
 }
 
 func NewClient(parentLogger logger.Logger,
@@ -24,6 +25,7 @@ func NewClient(parentLogger logger.Logger,
 	var err error
 
 	newClient := Client{}
+	newClient.platformConfiguration = platformConfiguration
 
 	// use the internal client (for now), so projects will be modified both on leader's side and internally by nuclio
 	newClient.internalClient = internalClient
@@ -48,7 +50,7 @@ func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platfor
 
 func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
 	switch createProjectOptions.RequestOrigin {
-	case platform.RequestOriginLeader:
+	case c.platformConfiguration.ProjectsLeader.Kind:
 		return c.internalClient.Create(createProjectOptions)
 	default:
 		if err := c.leaderClient.Create(createProjectOptions); err != nil {
@@ -61,7 +63,7 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (pl
 
 func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
 	switch updateProjectOptions.RequestOrigin {
-	case platform.RequestOriginLeader:
+	case c.platformConfiguration.ProjectsLeader.Kind:
 		return c.internalClient.Update(updateProjectOptions)
 	default:
 		if err := c.leaderClient.Update(updateProjectOptions); err != nil {
@@ -74,7 +76,7 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (pl
 
 func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	switch deleteProjectOptions.RequestOrigin {
-	case platform.RequestOriginLeader:
+	case c.platformConfiguration.ProjectsLeader.Kind:
 		return c.internalClient.Delete(deleteProjectOptions)
 	default:
 		if err := c.leaderClient.Delete(deleteProjectOptions); err != nil {
