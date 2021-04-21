@@ -130,7 +130,7 @@ func (af *AbstractFunction) GetExternalIPInvocationURL() (string, int, error) {
 	chosenExternalIPAddress := externalIPAddresses[rand.Intn(len(externalIPAddresses))]
 
 	// return it and the port
-	return chosenExternalIPAddress, af.function.GetStatus().HTTPPort, nil
+	return chosenExternalIPAddress, af.function.GetStatus().Invocation.HTTPPort, nil
 }
 
 // GetConfigWithStatus returns both function config and status

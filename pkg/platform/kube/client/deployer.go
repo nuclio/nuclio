@@ -71,8 +71,16 @@ func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 		functionInstance = &nuclioio.NuclioFunction{}
 		functionInstance.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 	} else {
-		functionStatus.HTTPPort = functionInstance.Status.HTTPPort
 		functionStatus.Invocation = functionInstance.Status.Invocation
+
+		// we have an existing function, with an assigned port
+		// but never populated its invocation status (probably an old function)
+		if functionInstance.Status.HTTPPort != 0 && functionStatus.Invocation.HTTPPort == 0 {
+			functionStatus.Invocation.HTTPPort = functionInstance.Status.HTTPPort
+		}
+
+		// for backwards compatibility - aka clients that still uses this field.
+		functionStatus.HTTPPort = functionInstance.Status.Invocation.HTTPPort
 	}
 
 	// convert config, status -> function

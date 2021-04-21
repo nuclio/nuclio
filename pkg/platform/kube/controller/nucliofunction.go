@@ -332,24 +332,28 @@ func (fo *functionOperator) populateFunctionInvocationStatus(function *nuclioio.
 		return errors.Wrap(err, "Failed to get function ingress")
 	}
 
-	serviceHost, servicePort := kube.GetDomainNameInvokeURL(service.GetName(), service.GetNamespace())
-
 	functionStatus.HTTPPort = httpPort
 	functionStatus.Invocation.HTTPPort = httpPort
-	functionStatus.Invocation.Internal = fmt.Sprintf("%s:%d", serviceHost, servicePort)
 	functionStatus.Invocation.External = fmt.Sprintf("%s:%d", function.Status.Invocation.External, httpPort)
 
-	for _, rule := range ingress.Spec.Rules {
-		host := rule.Host
-		path := "/"
-		if rule.HTTP != nil {
-			if len(rule.HTTP.Paths) > 0 {
-				path = rule.HTTP.Paths[0].Path
-			}
-		}
-		functionStatus.Invocation.Ingresses = append(functionStatus.Invocation.Ingresses,
-			fmt.Sprintf("%s%s", host, path))
+	if service != nil {
+		serviceHost, servicePort := kube.GetDomainNameInvokeURL(service.GetName(), service.GetNamespace())
+		functionStatus.Invocation.Internal = fmt.Sprintf("%s:%d", serviceHost, servicePort)
+	}
 
+	if ingress != nil {
+		for _, rule := range ingress.Spec.Rules {
+			host := rule.Host
+			path := "/"
+			if rule.HTTP != nil {
+				if len(rule.HTTP.Paths) > 0 {
+					path = rule.HTTP.Paths[0].Path
+				}
+			}
+			functionStatus.Invocation.Ingresses = append(functionStatus.Invocation.Ingresses,
+				fmt.Sprintf("%s%s", host, path))
+
+		}
 	}
 	return nil
 
