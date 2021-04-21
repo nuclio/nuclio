@@ -943,7 +943,10 @@ func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange
 	suite.Require().NoError(err)
 
 	// ensure allocated http port is returned
-	suite.Require().NotZero(deployedFunctionConfig.Status.HTTPPort)
+	suite.Require().NotZero(deployedFunctionConfig.Status.Invocation.HTTPPort)
+
+	// for backwards compatibility
+	suite.Require().Equal(deployedFunctionConfig.Status.Invocation.HTTPPort, deployedFunctionConfig.Status.HTTPPort)
 
 	desiredHTTPPort := 30555
 	namedArgs = map[string]string{
@@ -972,7 +975,7 @@ func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange
 	deployedFunctionConfig, err = suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
 	suite.Require().NoError(err)
 
-	suite.Require().Equal(desiredHTTPPort, deployedFunctionConfig.Status.HTTPPort)
+	suite.Require().Equal(desiredHTTPPort, deployedFunctionConfig.Status.Invocation.HTTPPort)
 }
 
 func (suite *functionDeployTestSuite) TestDeployFailsOnReservedFunctionName() {
