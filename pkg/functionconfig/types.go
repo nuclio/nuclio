@@ -512,10 +512,13 @@ type Status struct {
 	State       FunctionState            `json:"state,omitempty"`
 	Message     string                   `json:"message,omitempty"`
 	Logs        []map[string]interface{} `json:"logs,omitempty"`
-	HTTPPort    int                      `json:"httpPort,omitempty"`
 	ScaleToZero *ScaleToZeroStatus       `json:"scaleToZero,omitempty"`
 	APIGateways []string                 `json:"apiGateways,omitempty"`
 	Invocation  FunctionInvocation       `json:"invocation,omitempty"`
+
+	// Deprecated
+	// Use FunctionInvocation.HTTPPort instead
+	HTTPPort int `json:"httpPort,omitempty"`
 }
 
 type FunctionInvocation struct {
