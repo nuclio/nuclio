@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
@@ -237,8 +238,8 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(project platform.Pro
 	return functionsMap, functionEventsMap
 }
 
-func (pr *projectResource) getRequestOriginAndSessionCookie(request *http.Request) (platform.RequestOrigin, *http.Cookie) {
-	requestOrigin := platform.RequestOrigin(request.Header.Get("igz-projects-role"))
+func (pr *projectResource) getRequestOriginAndSessionCookie(request *http.Request) (platformconfig.ProjectsLeaderKind, *http.Cookie) {
+	requestOrigin := platformconfig.ProjectsLeaderKind(request.Header.Get("igz-projects-role"))
 
 	// ignore error here, and just return a nil cookie when no session was passed (relevant only on leader/follower mode)
 	sessionCookie, _ := request.Cookie("session")
