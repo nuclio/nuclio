@@ -216,8 +216,8 @@ def handler(context, event):
 			// wait for monitoring
 			time.Sleep(postDeploymentSleepInterval)
 
-			// ensure function is still in error state (due to deploy error of missing configmap)
-			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
+			// function would become unhealthy as its function deployment is missing the mentioned configmap
+			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateUnhealthy)
 
 			// create the missing configmap
 			configMap, err = suite.KubeClientSet.CoreV1().ConfigMaps(suite.Namespace).Create(configMap)
