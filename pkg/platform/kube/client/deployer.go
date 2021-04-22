@@ -84,7 +84,12 @@ func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	}
 
 	// convert config, status -> function
-	d.populateFunction(&createFunctionOptions.FunctionConfig, functionStatus, functionInstance, functionExists)
+	if err := d.populateFunction(&createFunctionOptions.FunctionConfig,
+		functionStatus,
+		functionInstance,
+		functionExists); err != nil {
+		return nil, errors.Wrap(err, "Failed to populate function")
+	}
 
 	createFunctionOptions.Logger.DebugWith("Populated function with configuration and status",
 		"function", functionInstance)
@@ -122,11 +127,6 @@ func (d *Deployer) Deploy(functionInstance *nuclioio.NuclioFunction,
 		deployLogger = d.logger
 	}
 
-	externalIPAddresses, err := d.platform.GetExternalIPAddresses()
-	if err != nil {
-		return nil, nil, err.Error(), errors.Wrap(err, "Failed to get external ip address")
-	}
-
 	// do the create / update
 	// TODO: Infer timestamp from function config (consider create/update scenarios)
 	functionCreateOrUpdateTimestamp := time.Now()
@@ -134,9 +134,6 @@ func (d *Deployer) Deploy(functionInstance *nuclioio.NuclioFunction,
 		createFunctionOptions,
 		&functionconfig.Status{
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
-			Invocation: functionconfig.FunctionInvocation{
-				External: fmt.Sprintf("%s:-1", externalIPAddresses[0]),
-			},
 		}); err != nil {
 		return nil, nil, err.Error(), errors.Wrap(err, "Failed to create function")
 	}
@@ -160,7 +157,7 @@ func (d *Deployer) Deploy(functionInstance *nuclioio.NuclioFunction,
 func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 	functionStatus *functionconfig.Status,
 	functionInstance *nuclioio.NuclioFunction,
-	functionExisted bool) {
+	functionExisted bool) error {
 
 	functionInstance.Spec = functionConfig.Spec
 
@@ -198,6 +195,16 @@ func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 
 	// update status
 	functionInstance.Status = *functionStatus
+
+	externalIPAddresses, err := d.platform.GetExternalIPAddresses()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get external ip address")
+	}
+
+	// -1 because port was not assigned yet, it is just a placeholder
+	functionInstance.Status.Invocation.External = fmt.Sprintf("%s:-1", externalIPAddresses[0])
+	return nil
+
 }
 
 func (d *Deployer) getFunctionPodLogsAndEvents(namespace string, name string) (string, string) {

@@ -234,7 +234,9 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 		}
 	}
 
-	lc.logger.DebugWith("Successfully created/updated resources", "functionName", function.Name)
+	lc.logger.DebugWith("Successfully created/updated resources",
+		"functionName", function.Name,
+		"functionNamespace", function.Namespace)
 	return &resources, nil
 }
 
