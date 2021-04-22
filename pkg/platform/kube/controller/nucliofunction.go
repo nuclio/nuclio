@@ -334,7 +334,14 @@ func (fo *functionOperator) populateFunctionInvocationStatus(function *nuclioio.
 
 	functionStatus.HTTPPort = httpPort
 	functionStatus.Invocation.HTTPPort = httpPort
-	functionStatus.Invocation.External = fmt.Sprintf("%s:%d", function.Status.Invocation.External, httpPort)
+
+	// This should be filled by nuclio-dashboard
+	// since its platform holds the information regarding the external ip address
+	// TODO: move the information on platformConfig and share with controller?
+	if function.Status.Invocation.External != "" {
+		hostPort := strings.Split(function.Status.Invocation.External, ":")
+		functionStatus.Invocation.External = fmt.Sprintf("%s:%d", hostPort[0], httpPort)
+	}
 
 	if service != nil {
 		serviceHost, servicePort := kube.GetDomainNameInvokeURL(service.GetName(), service.GetNamespace())

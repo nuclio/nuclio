@@ -122,6 +122,11 @@ func (d *Deployer) Deploy(functionInstance *nuclioio.NuclioFunction,
 		deployLogger = d.logger
 	}
 
+	externalIPAddresses, err := d.platform.GetExternalIPAddresses()
+	if err != nil {
+		return nil, nil, err.Error(), errors.Wrap(err, "Failed to get external ip address")
+	}
+
 	// do the create / update
 	// TODO: Infer timestamp from function config (consider create/update scenarios)
 	functionCreateOrUpdateTimestamp := time.Now()
@@ -129,6 +134,9 @@ func (d *Deployer) Deploy(functionInstance *nuclioio.NuclioFunction,
 		createFunctionOptions,
 		&functionconfig.Status{
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
+			Invocation: functionconfig.FunctionInvocation{
+				External: fmt.Sprintf("%s:-1", externalIPAddresses[0]),
+			},
 		}); err != nil {
 		return nil, nil, err.Error(), errors.Wrap(err, "Failed to create function")
 	}
