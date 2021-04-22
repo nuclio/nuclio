@@ -49,7 +49,8 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) err
 		body,
 		map[string]string{ProjectsRoleHeaderKey: ProjectsRoleHeaderValueNuclio},
 		[]*http.Cookie{createProjectOptions.SessionCookie},
-		http.StatusAccepted); err != nil {
+		http.StatusAccepted,
+		true); err != nil {
 
 		return errors.Wrap(err, "Failed to send request to leader")
 	}
@@ -81,7 +82,8 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) err
 		body,
 		map[string]string{ProjectsRoleHeaderKey: ProjectsRoleHeaderValueNuclio},
 		[]*http.Cookie{updateProjectOptions.SessionCookie},
-		http.StatusOK); err != nil {
+		http.StatusOK,
+		true); err != nil {
 
 		return errors.Wrap(err, "Failed to send request to leader")
 	}
@@ -113,7 +115,8 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 			"igz-project-deletion-strategy": string(deleteProjectOptions.Strategy),
 		},
 		[]*http.Cookie{deleteProjectOptions.SessionCookie},
-		http.StatusAccepted); err != nil {
+		http.StatusAccepted,
+		true); err != nil {
 
 		return errors.Wrap(err, "Failed to send request to leader")
 	}
@@ -126,7 +129,7 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 }
 
 func (c *Client) generateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
-	return json.Marshal(Project{
+	project := Project{
 		Type: ProjectType,
 		Data: ProjectData{
 			Attributes: ProjectAttributes{
@@ -137,7 +140,17 @@ func (c *Client) generateProjectRequestBody(projectConfig *platform.ProjectConfi
 				Description: projectConfig.Spec.Description,
 			},
 		},
-	})
+	}
+
+	c.enrichProjectWithNuclioFields(&project)
+
+	return json.Marshal(project)
+}
+
+func (c *Client) enrichProjectWithNuclioFields(project *Project) {
+
+	// TODO: update this function when nuclio fields are added
+	//project.Data.Attributes.NuclioFields = NuclioFields{}
 }
 
 func (c *Client) generateProjectDeletionRequestBody(projectName string) ([]byte, error) {

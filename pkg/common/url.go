@@ -18,6 +18,7 @@ package common
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -117,9 +118,17 @@ func SendHTTPRequest(method string,
 	body []byte,
 	headers map[string]string,
 	cookies []*http.Cookie,
-	expectedStatusCode int) error {
+	expectedStatusCode int,
+	insecure bool) error {
 
-	client := &http.Client{}
+	var tr *http.Transport
+	if insecure {
+		tr = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	}
+
+	client := &http.Client{Transport: tr}
 
 	// create request object
 	req, err := http.NewRequest(method, requestURL, bytes.NewBuffer(body))
