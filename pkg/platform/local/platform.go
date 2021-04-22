@@ -279,8 +279,9 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			functionStatus.HTTPPort = createFunctionResult.Port
 			functionStatus.State = functionconfig.FunctionStateReady
 
-			if err := p.PopulateFunctionInvocation(&functionStatus.Invocation, createFunctionResult); err != nil {
-				return nil, errors.Wrap(err, "Failed to populate function results")
+			if err := p.populateFunctionInvocationStatus(&functionStatus.Invocation,
+				createFunctionResult); err != nil {
+				return nil, errors.Wrap(err, "Failed to populate function invocation status")
 			}
 		} else {
 			p.Logger.Info("Skipping function deployment")
@@ -1113,7 +1114,7 @@ func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfi
 	return nil
 }
 
-func (p *Platform) PopulateFunctionInvocation(functionInvocation *functionconfig.FunctionInvocation,
+func (p *Platform) populateFunctionInvocationStatus(functionInvocation *functionconfig.FunctionInvocation,
 	createFunctionResults *platform.CreateFunctionResult) error {
 
 	externalIPAddresses, err := p.GetExternalIPAddresses()
