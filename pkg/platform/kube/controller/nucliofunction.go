@@ -25,8 +25,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
-	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
 
@@ -350,7 +350,7 @@ func (fo *functionOperator) populateFunctionInvocationStatus(function *nuclioio.
 	}
 
 	if service != nil {
-		serviceHost, servicePort := kube.GetDomainNameInvokeURL(service.GetName(), service.GetNamespace())
+		serviceHost, servicePort := client.GetDomainNameInvokeURL(service.GetName(), service.GetNamespace())
 		functionStatus.Invocation.Internal = fmt.Sprintf("%s:%d", serviceHost, servicePort)
 	}
 
