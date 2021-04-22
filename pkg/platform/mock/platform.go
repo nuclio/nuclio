@@ -1,6 +1,9 @@
 package mock
 
 import (
+	"bufio"
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -281,5 +284,21 @@ func (mp *Platform) GetDefaultRegistryCredentialsSecretName() string {
 }
 
 func (mp *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
+	return nil
+}
+
+func (mp *Platform) Initialize() error {
+	return nil
+}
+
+func (mp *Platform) EnsureDefaultProjectExistence() error {
+	return nil
+}
+
+func (mp *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (string, string) {
+	return "", ""
+}
+
+func (mp *Platform) WaitForProjectResourcesDeletion(projectMeta *platform.ProjectMeta, duration time.Duration) error {
 	return nil
 }

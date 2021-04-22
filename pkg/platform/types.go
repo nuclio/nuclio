@@ -169,12 +169,21 @@ func (pc *ProjectConfig) Scrub() {
 	pc.Meta.ResourceVersion = ""
 }
 
+type RequestOrigin string
+
+const (
+	RequestOriginEmpty  RequestOrigin = ""
+	RequestOriginLeader RequestOrigin = "leader"
+)
+
 type CreateProjectOptions struct {
 	ProjectConfig *ProjectConfig
+	RequestOrigin RequestOrigin
 }
 
 type UpdateProjectOptions struct {
 	ProjectConfig ProjectConfig
+	RequestOrigin RequestOrigin
 }
 
 type DeleteProjectStrategy string
@@ -200,8 +209,9 @@ func ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy string) Del
 }
 
 type DeleteProjectOptions struct {
-	Meta     ProjectMeta
-	Strategy DeleteProjectStrategy
+	Meta          ProjectMeta
+	Strategy      DeleteProjectStrategy
+	RequestOrigin RequestOrigin
 
 	// allowing us to "block" until related resources are removed.
 	// used in testings

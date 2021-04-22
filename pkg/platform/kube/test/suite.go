@@ -36,7 +36,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -129,7 +128,7 @@ func (suite *KubeTestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
 	// default project gets deleted during testings, ensure it is being recreated
-	err := factory.EnsureDefaultProjectExistence(suite.Logger, suite.Platform, suite.Namespace)
+	err := suite.Platform.EnsureDefaultProjectExistence()
 	suite.Require().NoError(err, "Failed to ensure default project exists")
 }
 

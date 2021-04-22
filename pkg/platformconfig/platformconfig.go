@@ -43,6 +43,7 @@ type Config struct {
 	Local                    PlatformLocalConfig          `json:"local,omitempty"`
 	ImageRegistryOverrides   ImageRegistryOverridesConfig `json:"imageRegistryOverrides,omitempty"`
 	Runtime                  *runtimeconfig.Config        `json:"runtime,omitempty"`
+	ProjectsLeader           *ProjectsLeader              `json:"projectsLeader,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 }

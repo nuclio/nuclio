@@ -33,6 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
@@ -1497,7 +1498,7 @@ func (lc *lazyClient) getCronTriggerInvocationURL(resources Resources, namespace
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get function service")
 	}
-	host, port := kube.GetDomainNameInvokeURL(functionService.Name, namespace)
+	host, port := client.GetDomainNameInvokeURL(functionService.Name, namespace)
 
 	return fmt.Sprintf("%s:%d", host, port), nil
 }

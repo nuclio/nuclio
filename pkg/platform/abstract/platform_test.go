@@ -89,7 +89,7 @@ func (suite *AbstractPlatformTestSuite) SetupTest() {
 func (suite *AbstractPlatformTestSuite) initializeMockedPlatform() {
 	var err error
 	suite.mockedPlatform = &mockedplatform.Platform{}
-	suite.Platform, err = NewPlatform(suite.Logger, suite.mockedPlatform, &platformconfig.Config{})
+	suite.Platform, err = NewPlatform(suite.Logger, suite.mockedPlatform, &platformconfig.Config{}, "")
 	suite.Require().NoError(err, "Could not create platform")
 
 	suite.Platform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)

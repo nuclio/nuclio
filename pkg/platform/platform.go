@@ -17,6 +17,9 @@ limitations under the License.
 package platform
 
 import (
+	"bufio"
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -36,6 +39,10 @@ const (
 // Platform defines the interface that any underlying function platform must provide for nuclio
 // to run over it
 type Platform interface {
+
+	// Initializes the platform
+	Initialize() error
+
 	//
 	// Function
 	//
@@ -82,6 +89,12 @@ type Platform interface {
 
 	// GetProjects will list existing projects
 	GetProjects(getProjectsOptions *GetProjectsOptions) ([]Project, error)
+
+	// Ensures default project exists, creates it otherwise
+	EnsureDefaultProjectExistence() error
+
+	// Waits for all of the project's resources to be deleted
+	WaitForProjectResourcesDeletion(projectMeta *ProjectMeta, duration time.Duration) error
 
 	//
 	// Function event
@@ -179,6 +192,9 @@ type Platform interface {
 
 	// Save build logs from platform logger to function store or k8s
 	SaveFunctionDeployLogs(functionName, namespace string) error
+
+	// Parse and construct a function processor logs and brief error
+	GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (string, string)
 
 	// GetContainerBuilderKind returns the container-builder kind
 	GetContainerBuilderKind() string

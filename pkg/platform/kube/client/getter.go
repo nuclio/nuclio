@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kube
+package client
 
 import (
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -26,29 +26,29 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type getter struct {
+type Getter struct {
 	logger   logger.Logger
 	platform platform.Platform
 }
 
-func newGetter(parentLogger logger.Logger, platform platform.Platform) (*getter, error) {
-	newgetter := &getter{
+func NewGetter(parentLogger logger.Logger, platform platform.Platform) (*Getter, error) {
+	newGetter := &Getter{
 		logger:   parentLogger.GetChild("getter"),
 		platform: platform,
 	}
 
-	return newgetter, nil
+	return newGetter, nil
 }
 
-func (g *getter) get(consumer *consumer, getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+func (g *Getter) Get(consumer *Consumer, getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	var platformFunctions []platform.Function
 	var functions []nuclioio.NuclioFunction
 
 	// if identifier specified, we need to get a single function
 	if getFunctionsOptions.Name != "" {
 
-		// get specific function CR
-		function, err := consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(getFunctionsOptions.Namespace).Get(getFunctionsOptions.Name, metav1.GetOptions{})
+		// Get specific function CR
+		function, err := consumer.NuclioClientSet.NuclioV1beta1().NuclioFunctions(getFunctionsOptions.Namespace).Get(getFunctionsOptions.Name, metav1.GetOptions{})
 		if err != nil {
 
 			// if we didn't find the function, return an empty slice
@@ -63,7 +63,7 @@ func (g *getter) get(consumer *consumer, getFunctionsOptions *platform.GetFuncti
 
 	} else {
 
-		functionInstanceList, err := consumer.nuclioClientSet.NuclioV1beta1().NuclioFunctions(getFunctionsOptions.Namespace).List(metav1.ListOptions{LabelSelector: getFunctionsOptions.Labels})
+		functionInstanceList, err := consumer.NuclioClientSet.NuclioV1beta1().NuclioFunctions(getFunctionsOptions.Namespace).List(metav1.ListOptions{LabelSelector: getFunctionsOptions.Labels})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list functions")
@@ -77,7 +77,7 @@ func (g *getter) get(consumer *consumer, getFunctionsOptions *platform.GetFuncti
 	for functionInstanceIndex := 0; functionInstanceIndex < len(functions); functionInstanceIndex++ {
 		functionInstance := functions[functionInstanceIndex]
 
-		newFunction, err := newFunction(g.logger,
+		newFunction, err := NewFunction(g.logger,
 			g.platform,
 			&functionInstance,
 			consumer)
