@@ -119,21 +119,24 @@ func SendHTTPRequest(method string,
 	headers map[string]string,
 	cookies []*http.Cookie,
 	expectedStatusCode int,
-	insecure bool) error {
+	insecure bool) (*http.Response, error) {
 
-	var tr *http.Transport
+	var client *http.Client
+
+	// create client (secure or not)
 	if insecure {
-		tr = &http.Transport{
+		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
+		client = &http.Client{Transport: tr}
+	} else {
+		client = &http.Client{}
 	}
-
-	client := &http.Client{Transport: tr}
 
 	// create request object
 	req, err := http.NewRequest(method, requestURL, bytes.NewBuffer(body))
 	if err != nil {
-		return errors.Wrap(err, "Failed to create http request")
+		return nil, errors.Wrap(err, "Failed to create http request")
 	}
 
 	// attach cookies
@@ -149,16 +152,16 @@ func SendHTTPRequest(method string,
 	// perform the request
 	resp, err := client.Do(req)
 	if err != nil {
-		return errors.Wrap(err, "Failed to send HTTP request")
+		return nil, errors.Wrap(err, "Failed to send HTTP request")
 	}
 
 	// validate status code is as expected
 	if expectedStatusCode != 0 && resp.StatusCode != expectedStatusCode {
-		return errors.Wrapf(err,
+		return nil, errors.Wrapf(err,
 			"Got unexpected response status code: %s. Expected: %s",
 			resp.StatusCode,
 			expectedStatusCode)
 	}
 
-	return nil
+	return resp, nil
 }

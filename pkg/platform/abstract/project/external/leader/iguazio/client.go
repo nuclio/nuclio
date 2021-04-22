@@ -44,7 +44,7 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) err
 	}
 
 	// send the request
-	if err := common.SendHTTPRequest(http.MethodPost,
+	if _, err := common.SendHTTPRequest(http.MethodPost,
 		fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.Address, "projects"),
 		body,
 		map[string]string{ProjectsRoleHeaderKey: ProjectsRoleHeaderValueNuclio},
@@ -74,7 +74,7 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) err
 	}
 
 	// send the request
-	if err := common.SendHTTPRequest(http.MethodPut,
+	if _, err := common.SendHTTPRequest(http.MethodPut,
 		fmt.Sprintf("%s/%s/%s",
 			c.platformConfiguration.ProjectsLeader.Address,
 			"projects/__name__",
@@ -107,7 +107,7 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	}
 
 	// send the request
-	if err := common.SendHTTPRequest(http.MethodDelete,
+	if _, err := common.SendHTTPRequest(http.MethodDelete,
 		fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.Address, "projects"),
 		body,
 		map[string]string{
