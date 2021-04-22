@@ -212,7 +212,9 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 		"replicas": 10,
 		"eventTimeout": ""
 	},
-	"status": {}
+	"status": {
+		"invocation": {}
+	}
 }`
 
 	suite.sendRequest("GET",
@@ -280,7 +282,9 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 			"runtime": "r1",
 		    "eventTimeout": ""
 		},
-		"status": {}
+		"status": {
+			"invocation": {}
+		}
 	},
 	"f2": {
 		"metadata": {
@@ -294,7 +298,9 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 			"runtime": "r2",
 		    "eventTimeout": ""
 		},
-		"status": {}
+		"status": {
+			"invocation": {}
+		}
 	}
 }`
 
