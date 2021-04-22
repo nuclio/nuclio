@@ -1121,8 +1121,13 @@ func (p *Platform) PopulateFunctionInvocation(functionInvocation *functionconfig
 		return err
 	}
 
+	addresses, err := p.dockerClient.GetContainerIPAddresses(createFunctionResults.ContainerID)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get container network addresses")
+	}
+
 	functionInvocation.HTTPPort = createFunctionResults.Port
-	functionInvocation.Internal = createFunctionResults.ContainerID
+	functionInvocation.Internal = addresses[0]
 	functionInvocation.External = fmt.Sprintf("%s:%d", externalIPAddresses[0], functionInvocation.HTTPPort)
 
 	// Not applicable for local platform
