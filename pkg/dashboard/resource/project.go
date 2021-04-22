@@ -239,7 +239,7 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(project platform.Pro
 }
 
 func (pr *projectResource) getRequestOriginAndSessionCookie(request *http.Request) (platformconfig.ProjectsLeaderKind, *http.Cookie) {
-	requestOrigin := platformconfig.ProjectsLeaderKind(request.Header.Get("igz-projects-role"))
+	requestOrigin := platformconfig.ProjectsLeaderKind(request.Header.Get("x-projects-role"))
 
 	// ignore error here, and just return a nil cookie when no session was passed (relevant only on leader/follower mode)
 	sessionCookie, _ := request.Cookie("session")

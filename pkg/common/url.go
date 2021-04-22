@@ -115,6 +115,7 @@ func NormalizeURLPath(p string) string {
 func SendHTTPRequest(method string,
 	requestURL string,
 	body []byte,
+	headers map[string]string,
 	cookies []*http.Cookie,
 	expectedStatusCode int) error {
 
@@ -129,6 +130,11 @@ func SendHTTPRequest(method string,
 	// attach cookies
 	for _, cookie := range cookies{
 		req.AddCookie(cookie)
+	}
+
+	// attach headers
+	for headerKey, headerValue := range headers {
+		req.Header.Set(headerKey, headerValue)
 	}
 
 	// perform the request

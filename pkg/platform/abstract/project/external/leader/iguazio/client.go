@@ -13,6 +13,11 @@ import (
 	"github.com/nuclio/logger"
 )
 
+const (
+	ProjectsRoleHeaderKey         = "x-projects-role"
+	ProjectsRoleHeaderValueNuclio = "nuclio"
+)
+
 type Client struct {
 	logger                logger.Logger
 	platformConfiguration *platformconfig.Config
@@ -40,8 +45,9 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) err
 
 	// send the request
 	if err := common.SendHTTPRequest(http.MethodPost,
-		fmt.Sprintf("%s%s", c.platformConfiguration.ProjectsLeader.Address, "/projects"),
+		fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.Address, "projects"),
 		body,
+		map[string]string{ProjectsRoleHeaderKey: ProjectsRoleHeaderValueNuclio},
 		[]*http.Cookie{createProjectOptions.SessionCookie},
 		http.StatusAccepted); err != nil {
 
@@ -68,10 +74,14 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) err
 
 	// send the request
 	if err := common.SendHTTPRequest(http.MethodPut,
-		fmt.Sprintf("%s%s", c.platformConfiguration.ProjectsLeader.Address, "/projects"),
+		fmt.Sprintf("%s/%s/%s",
+			c.platformConfiguration.ProjectsLeader.Address,
+			"projects/__name__",
+			updateProjectOptions.ProjectConfig.Meta.Name),
 		body,
+		map[string]string{ProjectsRoleHeaderKey: ProjectsRoleHeaderValueNuclio},
 		[]*http.Cookie{updateProjectOptions.SessionCookie},
-		http.StatusAccepted); err != nil {
+		http.StatusOK); err != nil {
 
 		return errors.Wrap(err, "Failed to send request to leader")
 	}
@@ -88,10 +98,20 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 		"name", deleteProjectOptions.Meta.Name,
 		"namespace", deleteProjectOptions.Meta.Namespace)
 
+	// generate request body
+	body, err := c.generateProjectDeletionRequestBody(deleteProjectOptions.Meta.Name)
+	if err != nil {
+		return errors.Wrap(err, "Failed to generate project request body")
+	}
+
 	// send the request
 	if err := common.SendHTTPRequest(http.MethodDelete,
-		fmt.Sprintf("%s%s", c.platformConfiguration.ProjectsLeader.Address, "/projects"),
-		nil,
+		fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.Address, "projects"),
+		body,
+		map[string]string{
+			ProjectsRoleHeaderKey: ProjectsRoleHeaderValueNuclio,
+			"igz-project-deletion-strategy": string(deleteProjectOptions.Strategy),
+		},
 		[]*http.Cookie{deleteProjectOptions.SessionCookie},
 		http.StatusAccepted); err != nil {
 
@@ -106,16 +126,26 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 }
 
 func (c *Client) generateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
-		"attributes": map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"name": projectConfig.Meta.Name,
-				"namespace": projectConfig.Meta.Namespace,
-				"labels": projectConfig.Meta.Labels,
-				"annotations": projectConfig.Meta.Annotations,
+	return json.Marshal(Project{
+		Type: ProjectType,
+		Data: ProjectData{
+			Attributes: ProjectAttributes{
+				Name: projectConfig.Meta.Name,
+				Namespace: projectConfig.Meta.Namespace,
+				Labels: projectConfig.Meta.Labels,
+				Annotations: projectConfig.Meta.Annotations,
+				Description: projectConfig.Spec.Description,
 			},
-			"spec": map[string]interface{}{
-				"description": projectConfig.Spec.Description,
+		},
+	})
+}
+
+func (c *Client) generateProjectDeletionRequestBody(projectName string) ([]byte, error) {
+	return json.Marshal(Project{
+		Type: ProjectType,
+		Data: ProjectData{
+			Attributes: ProjectAttributes{
+				Name: projectName,
 			},
 		},
 	})
