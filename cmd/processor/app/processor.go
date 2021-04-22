@@ -185,7 +185,7 @@ func (p *Processor) Start() error {
 	}
 
 	// start the web interface
-	if err = p.webAdminServer.Start(); err != nil {
+	if err := p.webAdminServer.Start(); err != nil {
 		return errors.Wrap(err, "Failed to start web interface")
 	}
 
