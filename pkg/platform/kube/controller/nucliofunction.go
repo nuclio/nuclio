@@ -33,6 +33,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/scaler-types"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -338,9 +339,14 @@ func (fo *functionOperator) populateFunctionInvocationStatus(function *nuclioio.
 	// This should be filled by nuclio-dashboard
 	// since its platform holds the information regarding the external ip address
 	// TODO: move the information on platformConfig and share with controller?
-	if function.Status.Invocation.External != "" && httpPort != 0 {
-		hostPort := strings.Split(function.Status.Invocation.External, ":")
-		functionStatus.Invocation.External = fmt.Sprintf("%s:%d", hostPort[0], httpPort)
+	if function.Status.Invocation.External != "" {
+		switch service.Spec.Type {
+		case v1.ServiceTypeNodePort:
+			hostPort := strings.Split(function.Status.Invocation.External, ":")
+			functionStatus.Invocation.External = fmt.Sprintf("%s:%d", hostPort[0], httpPort)
+		default:
+			functionStatus.Invocation.External = ""
+		}
 	}
 
 	if service != nil {
