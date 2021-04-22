@@ -170,8 +170,6 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 // Start starts the processor
 func (p *Processor) Start() error {
-	var err error
-
 	p.logger.DebugWith("Starting triggers", "triggers", p.triggers)
 
 	// iterate over all triggers and start them
@@ -219,8 +217,8 @@ func (p *Processor) GetWorkers() []*worker.Worker {
 	var workers []*worker.Worker
 
 	// iterate over the processor's triggers
-	for _, trigger := range p.triggers {
-		workers = append(workers, trigger.GetWorkers()...)
+	for _, triggerInstance := range p.triggers {
+		workers = append(workers, triggerInstance.GetWorkers()...)
 	}
 
 	return workers
