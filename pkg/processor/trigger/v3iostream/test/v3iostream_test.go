@@ -55,7 +55,7 @@ func (suite *testSuite) SetupSuite() {
 
 	// Change below
 	suite.url = "https://somewhere:8444"
-	suite.accessKey = "806e8755-f89f-4f77-bd17-93344dfae1d8"
+	suite.accessKey = "some-access-key"
 	// END OF change
 
 	suite.numWorkers = 8

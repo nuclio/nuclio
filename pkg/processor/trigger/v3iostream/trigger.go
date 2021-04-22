@@ -190,7 +190,7 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 			}
 
 			// release the worker from whence it came
-			if err = vs.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance); err != nil {
+			if err := vs.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance); err != nil {
 				return errors.Wrap(err, "Failed to release worker")
 			}
 
