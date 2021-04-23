@@ -14,6 +14,22 @@ controller:
     pullPolicy: IfNotPresent  
   resources: {}
 
+  ## Node labels for pod assignment
+  ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
+  ##
+  nodeSelector: {}
+
+  ## List of node taints to tolerate (requires Kubernetes >= 1.6)
+  tolerations: []
+  #  - key: "key"
+  #    operator: "Equal|Exists"
+  #    value: "value"
+  #    effect: "NoSchedule|PreferNoSchedule|NoExecute"
+
+  ## Affinity
+  ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+  affinity: {}
+
   # Uncomment to have the controller to listen only the namespace's events, 
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
@@ -52,6 +68,23 @@ dashboard:
     tag: 1.6.4-amd64
     pullPolicy: IfNotPresent
   resources: {}
+
+  ## Node labels for pod assignment
+  ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
+  ##
+  nodeSelector: {}
+
+  ## List of node taints to tolerate (requires Kubernetes >= 1.6)
+  tolerations: []
+  #  - key: "key"
+  #    operator: "Equal|Exists"
+  #    value: "value"
+  #    effect: "NoSchedule|PreferNoSchedule|NoExecute"
+
+  ## Affinity
+  ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+  affinity: {}
+
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
   httpIngressHostTemplate: ""
@@ -112,6 +145,22 @@ autoscaler:
     pullPolicy: IfNotPresent
   resources: {}
 
+  ## Node labels for pod assignment
+  ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
+  ##
+  nodeSelector: {}
+
+  ## List of node taints to tolerate (requires Kubernetes >= 1.6)
+  tolerations: []
+  #  - key: "key"
+  #    operator: "Equal|Exists"
+  #    value: "value"
+  #    effect: "NoSchedule|PreferNoSchedule|NoExecute"
+
+  ## Affinity
+  ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+  affinity: {}
+
 dlx:
   enabled: false
   replicas: 1
@@ -120,6 +169,22 @@ dlx:
     tag: 1.6.4-amd64
     pullPolicy: IfNotPresent
   resources: {}
+
+  ## Node labels for pod assignment
+  ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
+  ##
+  nodeSelector: {}
+
+  ## List of node taints to tolerate (requires Kubernetes >= 1.6)
+  tolerations: []
+  #  - key: "key"
+  #    operator: "Equal|Exists"
+  #    value: "value"
+  #    effect: "NoSchedule|PreferNoSchedule|NoExecute"
+
+  ## Affinity
+  ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+  affinity: {}
 
 registry:
 
