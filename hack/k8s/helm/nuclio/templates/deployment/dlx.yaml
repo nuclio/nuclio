@@ -65,7 +65,7 @@ spec:
       {{- end }}
       {{- with .Values.dlx.nodeSelector }}
       nodeSelector:
-      {{- toYaml . | indent 8 }}
+      {{ toYaml . | indent 8 }}
       {{- end }}
       {{- with .Values.dlx.tolerations }}
       tolerations:
