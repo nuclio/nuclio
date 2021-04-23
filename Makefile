@@ -100,7 +100,7 @@ all:
 #
 
 helm-publish:
-	$(eval HELM_PUBLISH_COMMIT_MESSAGE := "Releasing chart $(shell helm inspect chart hack/k8s/helm/nuclio | yq r - version)")
+	$(eval HELM_PUBLISH_COMMIT_MESSAGE := "Releasing chart $(shell helm inspect chart hack/k8s/helm/nuclio | yq eval '.version' -)")
 	@echo Fetching branch
 	@rm -rf /tmp/nuclio-helm
 	@git clone -b gh-pages --single-branch git@github.com:nuclio/nuclio.git /tmp/nuclio-helm
