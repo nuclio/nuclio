@@ -239,18 +239,31 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			"errorStack", errorStack.String())
 
 		defaultHTTPPort := 0
+		defaultFunctionState := functionconfig.FunctionStateError
 		if existingFunctionInstance != nil {
 			defaultHTTPPort = existingFunctionInstance.Status.HTTPPort
+
+			// if function deployment ended up with unhealthy, due to unstable Kubernetes env that lead
+			// to failing on waiting for function readiness.
+			// it is desired to preserve the function unhealthiness state set by the controller, to allow
+			// function recovery later on, when Kubernetes become stable
+			// alternatively, set function in error state to indicate deployment has failed
+			switch functionState := existingFunctionInstance.Status.State; functionState {
+			case functionconfig.FunctionStateUnhealthy:
+				defaultFunctionState = functionState
+			default:
+				defaultFunctionState = functionconfig.FunctionStateError
+			}
 		}
 
 		// create or update the function. The possible creation needs to happen here, since on cases of
 		// early build failures we might get here before the function CR was created. After this point
-		// it is guaranteed to be created and updated with the reported error state
+		// it is guaranteed to be created and updated with the reported function state
 		_, err = p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
 			createFunctionOptions,
 			&functionconfig.Status{
 				HTTPPort: defaultHTTPPort,
-				State:    functionconfig.FunctionStateError,
+				State:    defaultFunctionState,
 				Message:  briefErrorsMessage,
 			})
 		return err

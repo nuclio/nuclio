@@ -155,8 +155,8 @@ func (suite *FunctionMonitoringTestSuite) TestNoRecoveryAfterBuildError() {
 		})
 }
 
-func (suite *FunctionMonitoringTestSuite) TestNoRecoveryAfterDeployError() {
-	functionName := "function-deploy-fail"
+func (suite *FunctionMonitoringTestSuite) TestRecoveryAfterDeployError() {
+	functionName := "function-recover-after-deploy-fail"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	getFunctionOptions := &platform.GetFunctionsOptions{
 		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
@@ -209,15 +209,15 @@ def handler(context, event):
 	postDeploymentSleepInterval := 2*suite.Controller.GetFunctionMonitoringInterval() +
 		monitoring.PostDeploymentMonitoringBlockingInterval
 
-	suite.DeployFunctionExpectErrorAndRedeploy(createFunctionOptions,
+	_, err := suite.DeployFunctionExpectError(createFunctionOptions,
 		func(deployResult *platform.CreateFunctionResult) bool {
 			var err error
 
 			// wait for monitoring
 			time.Sleep(postDeploymentSleepInterval)
 
-			// ensure function is still in error state (due to deploy error of missing configmap)
-			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
+			// function would become unhealthy as its function deployment is missing the mentioned configmap
+			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateUnhealthy)
 
 			// create the missing configmap
 			configMap, err = suite.KubeClientSet.CoreV1().ConfigMaps(suite.Namespace).Create(configMap)
@@ -237,19 +237,48 @@ def handler(context, event):
 			// wait for monitoring
 			time.Sleep(postDeploymentSleepInterval)
 
-			// ensure function monitoring did not recover the function from its recent deploy error
-			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
-
-			return true
-		}, func(deployResult *platform.CreateFunctionResult) bool {
-
-			// let interval occur at least once
-			time.Sleep(postDeploymentSleepInterval)
-
-			// ensure function in ready state, deploy passes
+			// function should be recovered by function monitoring
 			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateReady)
+
 			return true
 		})
+	suite.Require().Error(err)
+}
+
+func (suite *FunctionMonitoringTestSuite) TestNoRecoveryAfterDeployError() {
+	functionName := "function-no-recover-after-deploy-fail"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	getFunctionOptions := &platform.GetFunctionsOptions{
+		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+	}
+	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
+
+	// function deploy would fail trying to run, leaving the function in error state forever
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.
+		EncodeToString([]byte(`def invalidhandler(context, event):return ""`))
+
+	// wait for at least one monitor + post deployment blocking intervals
+	postDeploymentSleepInterval := 2*suite.Controller.GetFunctionMonitoringInterval() +
+		monitoring.PostDeploymentMonitoringBlockingInterval
+
+	_, err := suite.DeployFunctionExpectError(createFunctionOptions,
+		func(deployResult *platform.CreateFunctionResult) bool {
+
+			// wait for monitoring
+			time.Sleep(postDeploymentSleepInterval)
+
+			// ensure function is still in error state (due to deploy error of missing configmap)
+			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
+
+			// let function monitoring run for a while
+			time.Sleep(postDeploymentSleepInterval)
+
+			// function should be remained in error state
+			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
+			return true
+		})
+	suite.Require().Error(err)
 }
 
 func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResourcesAvailable() {
