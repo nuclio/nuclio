@@ -30,8 +30,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
+	externalproject "github.com/nuclio/nuclio/pkg/platform/abstract/project/external"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+	internalproject "github.com/nuclio/nuclio/pkg/platform/kube/project"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -46,23 +50,42 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	deployer       *deployer
-	getter         *getter
-	updater        *updater
-	deleter        *deleter
+	deployer       *client.Deployer
+	getter         *client.Getter
+	updater        *client.Updater
+	deleter        *client.Deleter
 	kubeconfigPath string
-	consumer       *consumer
+	consumer       *client.Consumer
+	projectsClient project.Client
 }
 
 const Mib = 1048576
 
+func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig.Config) (project.Client, error) {
+
+	// create kube projects client
+	kubeProjectsClient, err := internalproject.NewClient(platform.Logger, platform, platform.consumer)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create internal projects client (kube)")
+	}
+
+	if platformConfiguration.ProjectsLeader != nil {
+
+		// wrap external client around kube projects client as internal client
+		return externalproject.NewClient(platform.Logger, kubeProjectsClient, platformConfiguration)
+	}
+
+	return kubeProjectsClient, nil
+}
+
 // NewPlatform instantiates a new kubernetes platform
 func NewPlatform(parentLogger logger.Logger,
-	platformConfiguration *platformconfig.Config) (*Platform, error) {
+	platformConfiguration *platformconfig.Config,
+	defaultNamespace string) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform, platformConfiguration)
+	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform, platformConfiguration, defaultNamespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create an abstract platform")
 	}
@@ -72,39 +95,45 @@ func NewPlatform(parentLogger logger.Logger,
 	newPlatform.kubeconfigPath = common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath)
 
 	// create consumer
-	newPlatform.consumer, err = newConsumer(newPlatform.Logger, newPlatform.kubeconfigPath)
+	newPlatform.consumer, err = client.NewConsumer(newPlatform.Logger, newPlatform.kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a consumer")
 	}
 
 	// create deployer
-	newPlatform.deployer, err = newDeployer(newPlatform.Logger, newPlatform.consumer, newPlatform)
+	newPlatform.deployer, err = client.NewDeployer(newPlatform.Logger, newPlatform.consumer, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a deployer")
 	}
 
 	// create getter
-	newPlatform.getter, err = newGetter(newPlatform.Logger, newPlatform)
+	newPlatform.getter, err = client.NewGetter(newPlatform.Logger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a getter")
 	}
 
 	// create deleter
-	newPlatform.deleter, err = newDeleter(newPlatform.Logger, newPlatform)
+	newPlatform.deleter, err = client.NewDeleter(newPlatform.Logger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a deleter")
 	}
 
 	// create updater
-	newPlatform.updater, err = newUpdater(newPlatform.Logger, newPlatform.consumer, newPlatform)
+	newPlatform.updater, err = client.NewUpdater(newPlatform.Logger, newPlatform.consumer, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create an updater")
+	}
+
+	// create projects client
+	newPlatform.projectsClient, err = NewProjectsClient(newPlatform, platformConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create projects client")
 	}
 
 	// create container builder
 	if platformConfiguration.ContainerBuilderConfiguration.Kind == "kaniko" {
 		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewKaniko(newPlatform.Logger,
-			newPlatform.consumer.kubeClientSet, platformConfiguration.ContainerBuilderConfiguration)
+			newPlatform.consumer.KubeClientSet, platformConfiguration.ContainerBuilderConfiguration)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create a kaniko builder")
 		}
@@ -119,6 +148,14 @@ func NewPlatform(parentLogger logger.Logger,
 	}
 
 	return newPlatform, nil
+}
+
+func (p *Platform) Initialize() error {
+	if err := p.projectsClient.Initialize(); err != nil {
+		return errors.Wrap(err, "Failed to initialize projects client")
+	}
+
+	return nil
 }
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
@@ -209,7 +246,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		// create or update the function. The possible creation needs to happen here, since on cases of
 		// early build failures we might get here before the function CR was created. After this point
 		// it is guaranteed to be created and updated with the reported error state
-		_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
+		_, err = p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
 			createFunctionOptions,
 			&functionconfig.Status{
 				HTTPPort: defaultHTTPPort,
@@ -244,7 +281,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		// create or update the function if it exists. If functionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
 		// the goal here is for the function to exist prior to building so that it is gettable
-		existingFunctionInstance, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
+		existingFunctionInstance, err = p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
 			createFunctionOptions,
 			&functionconfig.Status{
 				State: functionconfig.FunctionStateBuilding,
@@ -292,7 +329,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		if skipDeploy {
 			p.Logger.Info("Skipping function deployment")
 
-			_, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
+			_, err = p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
 				createFunctionOptions,
 				&functionconfig.Status{
 					State: functionconfig.FunctionStateImported,
@@ -306,7 +343,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			}, nil
 		}
 
-		createFunctionResult, updatedFunctionInstance, briefErrorsMessage, deployErr := p.deployer.deploy(existingFunctionInstance,
+		createFunctionResult, updatedFunctionInstance, briefErrorsMessage, deployErr := p.deployer.Deploy(existingFunctionInstance,
 			createFunctionOptions)
 
 		// update the function instance (after the deployment)
@@ -347,7 +384,7 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
-	functions, err := p.getter.get(p.consumer, getFunctionsOptions)
+	functions, err := p.getter.Get(p.consumer, getFunctionsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
@@ -374,7 +411,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 
 // UpdateFunction will update a previously deployed function
 func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
-	return p.updater.update(updateFunctionOptions)
+	return p.updater.Update(updateFunctionOptions)
 }
 
 // DeleteFunction will delete a previously deployed function
@@ -392,7 +429,7 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 		return errors.Wrap(err, "Failed to validate that the function has no API gateways")
 	}
 
-	return p.deleter.delete(p.consumer, deleteFunctionOptions)
+	return p.deleter.Delete(p.consumer, deleteFunctionOptions)
 }
 
 func IsInCluster() bool {
@@ -408,7 +445,7 @@ func (p *Platform) GetName() string {
 func (p *Platform) GetNodes() ([]platform.Node, error) {
 	var platformNodes []platform.Node
 
-	kubeNodes, err := p.consumer.kubeClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
+	kubeNodes, err := p.consumer.KubeClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get nodes")
 	}
@@ -433,21 +470,15 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 
 	// validate
 	if err := p.ValidateProjectConfig(createProjectOptions.ProjectConfig); err != nil {
-		return errors.Wrap(err, "Failed to validate a project confiuration")
+		return errors.Wrap(err, "Failed to validate a project configuration")
 	}
-
-	// project config -> nuclio project crd instance
-	newProject := nuclioio.NuclioProject{}
-	p.platformProjectToProject(createProjectOptions.ProjectConfig, &newProject)
 
 	// create
-	p.Logger.DebugWith("Creating project",
-		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
-	if _, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		NuclioProjects(createProjectOptions.ProjectConfig.Meta.Namespace).
-		Create(&newProject); err != nil {
-		return errors.Wrap(err, "Failed to create a project")
+	p.Logger.DebugWith("Creating project", "projectName", createProjectOptions.ProjectConfig.Meta.Name)
+	if _, err := p.projectsClient.Create(createProjectOptions); err != nil {
+		return errors.Wrap(err, "Failed to create project")
 	}
+
 	return nil
 }
 
@@ -457,25 +488,8 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 		return nuclio.WrapErrBadRequest(err)
 	}
 
-	project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
-		Get(updateProjectOptions.ProjectConfig.Meta.Name, metav1.GetOptions{})
-	if err != nil {
-		return errors.Wrap(err, "Failed to get a project")
-	}
-
-	updatedProject := nuclioio.NuclioProject{}
-	p.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
-	project.Spec = updatedProject.Spec
-	project.Annotations = updatedProject.Annotations
-	project.Labels = updatedProject.Labels
-
-	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
-		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
-		Update(project)
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to update a project")
+	if _, err := p.projectsClient.Update(updateProjectOptions); err != nil {
+		return errors.Wrap(err, "Failed to update project")
 	}
 
 	return nil
@@ -487,92 +501,22 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
-	p.Logger.DebugWith("Deleting project",
-		"projectMeta", deleteProjectOptions.Meta)
-	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
-		NuclioProjects(deleteProjectOptions.Meta.Namespace).
-		Delete(deleteProjectOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
-
-		if apierrors.IsNotFound(err) {
-			return nuclio.NewErrNotFound(fmt.Sprintf("Project %s not found", deleteProjectOptions.Meta.Name))
-		}
-		return errors.Wrapf(err,
-			"Failed to delete project %s from namespace %s",
-			deleteProjectOptions.Meta.Name,
-			deleteProjectOptions.Meta.Namespace)
+	p.Logger.DebugWith("Deleting project", "projectMeta", deleteProjectOptions.Meta)
+	if err := p.projectsClient.Delete(deleteProjectOptions); err != nil {
+		return errors.Wrap(err, "Failed to delete project")
 	}
 
 	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
 		return p.Platform.WaitForProjectResourcesDeletion(&deleteProjectOptions.Meta,
 			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration)
 	}
+
 	return nil
 }
 
 // GetProjects will list existing projects
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	var platformProjects []platform.Project
-	var projects []nuclioio.NuclioProject
-
-	// if identifier specified, we need to get a single NuclioProject
-	if getProjectsOptions.Meta.Name != "" {
-
-		// get specific NuclioProject CR
-		Project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-			NuclioProjects(getProjectsOptions.Meta.Namespace).
-			Get(getProjectsOptions.Meta.Name, metav1.GetOptions{})
-
-		if err != nil {
-
-			// if we didn't find the NuclioProject, return an empty slice
-			if apierrors.IsNotFound(err) {
-				return platformProjects, nil
-			}
-
-			return nil, errors.Wrap(err, "Failed to get a project")
-		}
-
-		projects = append(projects, *Project)
-
-	} else {
-
-		projectInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
-			NuclioProjects(getProjectsOptions.Meta.Namespace).
-			List(metav1.ListOptions{LabelSelector: ""})
-
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to list projects")
-		}
-
-		// convert []NuclioProject to []*NuclioProject
-		projects = projectInstanceList.Items
-	}
-
-	// convert []nuclioio.NuclioProject -> NuclioProject
-	for projectInstanceIndex := 0; projectInstanceIndex < len(projects); projectInstanceIndex++ {
-		projectInstance := projects[projectInstanceIndex]
-
-		newProject, err := platform.NewAbstractProject(p.Logger,
-			p,
-			platform.ProjectConfig{
-				Meta: platform.ProjectMeta{
-					Name:        projectInstance.Name,
-					Namespace:   projectInstance.Namespace,
-					Labels:      projectInstance.Labels,
-					Annotations: projectInstance.Annotations,
-				},
-				Spec: projectInstance.Spec,
-			})
-
-		if err != nil {
-			return nil, err
-		}
-
-		platformProjects = append(platformProjects, newProject)
-	}
-
-	// render it
-	return platformProjects, nil
+	return p.projectsClient.Get(getProjectsOptions)
 }
 
 // CreateAPIGateway creates and deploys a new api gateway
@@ -593,7 +537,7 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 	newAPIGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
 	// create
-	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	_, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(newAPIGateway.Namespace).
 		Create(&newAPIGateway)
 	if err != nil {
@@ -605,7 +549,7 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 
 // UpdateAPIGateway will update a previously existing api gateway
 func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
-	apiGateway, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	apiGateway, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Get(updateAPIGatewayOptions.APIGatewayConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
@@ -628,7 +572,7 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	apiGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
 	// update
-	if _, err = p.consumer.nuclioClientSet.NuclioV1beta1().
+	if _, err = p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Update(apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to update an API gateway")
@@ -648,7 +592,7 @@ func (p *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIG
 	p.Logger.DebugWith("Deleting api gateway", "name", deleteAPIGatewayOptions.Meta.Name)
 
 	// delete
-	if err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	if err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(deleteAPIGatewayOptions.Meta.Namespace).
 		Delete(deleteAPIGatewayOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
 
@@ -670,7 +614,7 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 	if getAPIGatewaysOptions.Name != "" {
 
 		// get specific NuclioAPIGateway CR
-		apiGateway, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		apiGateway, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
 			Get(getAPIGatewaysOptions.Name, metav1.GetOptions{})
 		if err != nil {
@@ -687,7 +631,7 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 
 	} else {
 
-		apiGatewayInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		apiGatewayInstanceList, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
 			List(metav1.ListOptions{LabelSelector: getAPIGatewaysOptions.Labels})
 		if err != nil {
@@ -731,7 +675,7 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 	newFunctionEvent := nuclioio.NuclioFunctionEvent{}
 	p.platformFunctionEventToFunctionEvent(&createFunctionEventOptions.FunctionEventConfig, &newFunctionEvent)
 
-	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	_, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(createFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
 		Create(&newFunctionEvent)
 
@@ -747,7 +691,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 	updatedFunctionEvent := nuclioio.NuclioFunctionEvent{}
 	p.platformFunctionEventToFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig, &updatedFunctionEvent)
 
-	functionEvent, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	functionEvent, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
 		Get(updateFunctionEventOptions.FunctionEventConfig.Meta.Name, metav1.GetOptions{})
 
@@ -759,7 +703,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 	functionEvent.Annotations = updatedFunctionEvent.Annotations
 	functionEvent.Labels = updatedFunctionEvent.Labels
 
-	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
+	_, err = p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
 		Update(functionEvent)
 
@@ -772,7 +716,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 
 // DeleteFunctionEvent will delete a previously existing function event
 func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
-	err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
 		Delete(deleteFunctionEventOptions.Meta.Name, &metav1.DeleteOptions{})
 
@@ -795,7 +739,7 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 	if getFunctionEventsOptions.Meta.Name != "" {
 
 		// get specific function event CR
-		functionEvent, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		functionEvent, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioFunctionEvents(getFunctionEventsOptions.Meta.Namespace).
 			Get(getFunctionEventsOptions.Meta.Name, metav1.GetOptions{})
 
@@ -823,7 +767,7 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 			labelSelector = fmt.Sprintf("nuclio.io/function-name in (%s)", encodedFunctionNames)
 		}
 
-		functionEventInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		functionEventInstanceList, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioFunctionEvents(getFunctionEventsOptions.Meta.Namespace).
 			List(metav1.ListOptions{LabelSelector: labelSelector})
 
@@ -903,7 +847,7 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 	}
 
 	// try to take from kube host as configured
-	kubeURL, err := url.Parse(p.consumer.kubeHost)
+	kubeURL, err := url.Parse(p.consumer.KubeHost)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse kube host")
 	}
@@ -936,7 +880,7 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 
 // GetNamespaces returns all the namespaces in the platform
 func (p *Platform) GetNamespaces() ([]string, error) {
-	namespaces, err := p.consumer.kubeClientSet.CoreV1().Namespaces().List(metav1.ListOptions{})
+	namespaces, err := p.consumer.KubeClientSet.CoreV1().Namespaces().List(metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 			return nil, nuclio.WrapErrForbidden(err)
@@ -983,7 +927,7 @@ func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error 
 
 	function := functions[0]
 
-	return p.updater.update(&platform.UpdateFunctionOptions{
+	return p.updater.Update(&platform.UpdateFunctionOptions{
 		FunctionMeta:   &function.GetConfig().Meta,
 		FunctionStatus: function.GetStatus(),
 	})
@@ -993,7 +937,7 @@ func (p *Platform) generateFunctionToAPIGatewaysMapping(namespace string) (map[s
 	functionToAPIGateways := map[string][]string{}
 
 	// get all api gateways in the namespace
-	apiGateways, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	apiGateways, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(namespace).
 		List(metav1.ListOptions{})
 	if err != nil {
@@ -1068,7 +1012,7 @@ func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction
 		"name", name)
 
 	// get specific function CR
-	function, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	function, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctions(namespace).
 		Get(name, metav1.GetOptions{})
 	if err != nil {
@@ -1098,7 +1042,7 @@ func (p *Platform) getFunctionInstanceAndConfig(namespace string,
 
 	// found function instance, return as function config
 	if functionInstance != nil {
-		initializedFunctionInstance, err := newFunction(p.Logger, p, functionInstance, p.consumer)
+		initializedFunctionInstance, err := client.NewFunction(p.Logger, p, functionInstance, p.consumer)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to create a new function instance")
 		}
@@ -1323,7 +1267,7 @@ func (p *Platform) validateIngressHostAndPathAvailability(listIngressesOptions m
 	ingresses map[string]functionconfig.Ingress) error {
 
 	// get all ingresses on the namespace
-	existingIngresses, err := p.consumer.kubeClientSet.
+	existingIngresses, err := p.consumer.KubeClientSet.
 		ExtensionsV1beta1().
 		Ingresses(namespace).
 		List(listIngressesOptions)

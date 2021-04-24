@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kube
+package client
 
 import (
 	"strconv"
@@ -27,27 +27,27 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type updater struct {
+type Updater struct {
 	logger   logger.Logger
 	platform platform.Platform
-	consumer *consumer
+	consumer *Consumer
 }
 
-func newUpdater(parentLogger logger.Logger, consumer *consumer, platform platform.Platform) (*updater, error) {
-	newupdater := &updater{
+func NewUpdater(parentLogger logger.Logger, consumer *Consumer, platform platform.Platform) (*Updater, error) {
+	newUpdater := &Updater{
 		logger:   parentLogger.GetChild("updater"),
 		platform: platform,
 		consumer: consumer,
 	}
 
-	return newupdater, nil
+	return newUpdater, nil
 }
 
-func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) error {
+func (u *Updater) Update(updateFunctionOptions *platform.UpdateFunctionOptions) error {
 	u.logger.InfoWith("Updating function", "name", updateFunctionOptions.FunctionMeta.Name)
 
 	// get specific function CR
-	function, err := u.consumer.nuclioClientSet.NuclioV1beta1().
+	function, err := u.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
 		Get(updateFunctionOptions.FunctionMeta.Name, metav1.GetOptions{})
 

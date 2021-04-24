@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kube
+package client
 
 import (
 	"bufio"
@@ -37,23 +37,23 @@ import (
 
 const MaxLogLines = 100
 
-type deployer struct {
+type Deployer struct {
 	logger   logger.Logger
-	consumer *consumer
-	platform *Platform
+	consumer *Consumer
+	platform platform.Platform
 }
 
-func newDeployer(parentLogger logger.Logger, consumer *consumer, platform *Platform) (*deployer, error) {
-	newdeployer := &deployer{
+func NewDeployer(parentLogger logger.Logger, consumer *Consumer, platform platform.Platform) (*Deployer, error) {
+	newDeployer := &Deployer{
 		logger:   parentLogger.GetChild("deployer"),
 		platform: platform,
 		consumer: consumer,
 	}
 
-	return newdeployer, nil
+	return newDeployer, nil
 }
 
-func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunction,
+func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunction,
 	createFunctionOptions *platform.CreateFunctionOptions,
 	functionStatus *functionconfig.Status) (*nuclioio.NuclioFunction, error) {
 
@@ -104,7 +104,43 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	return functionInstance, nil
 }
 
-func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
+func (d *Deployer) Deploy(functionInstance *nuclioio.NuclioFunction,
+	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, *nuclioio.NuclioFunction, string, error) {
+
+	// Get the logger with which we need to Deploy
+	deployLogger := createFunctionOptions.Logger
+	if deployLogger == nil {
+		deployLogger = d.logger
+	}
+
+	// do the create / update
+	// TODO: Infer timestamp from function config (consider create/update scenarios)
+	functionCreateOrUpdateTimestamp := time.Now()
+	if _, err := d.CreateOrUpdateFunction(functionInstance,
+		createFunctionOptions,
+		&functionconfig.Status{
+			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
+		}); err != nil {
+		return nil, nil, err.Error(), errors.Wrap(err, "Failed to create function")
+	}
+
+	// wait for the function to be ready
+	updatedFunctionInstance, err := waitForFunctionReadiness(deployLogger,
+		d.consumer,
+		functionInstance.Namespace,
+		functionInstance.Name,
+		functionCreateOrUpdateTimestamp)
+	if err != nil {
+		podLogs, briefErrorsMessage := d.getFunctionPodLogsAndEvents(functionInstance.Namespace, functionInstance.Name)
+		return nil, updatedFunctionInstance, briefErrorsMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
+	}
+
+	return &platform.CreateFunctionResult{
+		Port: updatedFunctionInstance.Status.HTTPPort,
+	}, updatedFunctionInstance, "", nil
+}
+
+func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 	functionStatus *functionconfig.Status,
 	functionInstance *nuclioio.NuclioFunction,
 	functionExisted bool) {
@@ -147,55 +183,103 @@ func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 	functionInstance.Status = *functionStatus
 }
 
-func (d *deployer) deploy(functionInstance *nuclioio.NuclioFunction,
-	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, *nuclioio.NuclioFunction, string, error) {
+func (d *Deployer) getFunctionPodLogsAndEvents(namespace string, name string) (string, string) {
+	var briefErrorsMessage string
+	podLogsMessage := "\nPod logs:\n"
 
-	// get the logger with which we need to deploy
-	deployLogger := createFunctionOptions.Logger
-	if deployLogger == nil {
-		deployLogger = d.logger
+	// list pods
+	functionPods, listPodErr := d.consumer.KubeClientSet.CoreV1().
+		Pods(namespace).
+		List(metav1.ListOptions{
+			LabelSelector: compileListFunctionPodsLabelSelector(name),
+		})
+
+	if listPodErr != nil {
+		podLogsMessage += fmt.Sprintf("Failed to list pods: %s\n", listPodErr.Error())
+		return podLogsMessage, ""
 	}
 
-	// do the create / update
-	// TODO: Infer timestamp from function config (consider create/update scenarios)
-	functionCreateOrUpdateTimestamp := time.Now()
-	if _, err := d.createOrUpdateFunction(functionInstance,
-		createFunctionOptions,
-		&functionconfig.Status{
-			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
-		}); err != nil {
-		return nil, nil, err.Error(), errors.Wrap(err, "Failed to create function")
+	if len(functionPods.Items) == 0 {
+		podLogsMessage += fmt.Sprintf("No pods found for %s:%s, is replicas set to 0?",
+			namespace,
+			name)
+	} else {
+		var pod v1.Pod
+
+		// get the latest pod
+		for _, currentPod := range functionPods.Items {
+			if pod.ObjectMeta.CreationTimestamp.Before(&currentPod.ObjectMeta.CreationTimestamp) {
+				pod = currentPod
+			}
+		}
+
+		// get the pod logs
+		podLogsMessage += "\n* " + pod.Name + "\n"
+
+		maxLogLines := int64(MaxLogLines)
+		logsRequest, getLogsErr := d.consumer.KubeClientSet.CoreV1().
+			Pods(namespace).
+			GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).
+			Stream()
+		if getLogsErr != nil {
+			podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
+		} else {
+			scanner := bufio.NewScanner(logsRequest)
+
+			var formattedProcessorLogs string
+			formattedProcessorLogs, briefErrorsMessage = d.platform.GetProcessorLogsAndBriefError(scanner)
+
+			podLogsMessage += formattedProcessorLogs
+
+			// close the stream
+			logsRequest.Close() // nolint: errcheck
+		}
+
+		podWarningEvents, err := d.getFunctionPodWarningEvents(namespace, pod.Name)
+		if err != nil {
+			podLogsMessage += "Failed to get pod warning events: " + err.Error() + "\n"
+		} else if briefErrorsMessage == "" && podWarningEvents != "" {
+
+			// if there is no brief error message and there are warning events - add them
+			podLogsMessage += "\n* Warning events:\n" + podWarningEvents
+			briefErrorsMessage += podWarningEvents
+		}
 	}
 
-	// wait for the function to be ready
-	updatedFunctionInstance, err := waitForFunctionReadiness(deployLogger,
-		d.consumer,
-		functionInstance.Namespace,
-		functionInstance.Name,
-		functionCreateOrUpdateTimestamp)
-	if err != nil {
-		podLogs, briefErrorsMessage := d.getFunctionPodLogsAndEvents(functionInstance.Namespace, functionInstance.Name)
-		return nil, updatedFunctionInstance, briefErrorsMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
-	}
-
-	return &platform.CreateFunctionResult{
-		Port: updatedFunctionInstance.Status.HTTPPort,
-	}, updatedFunctionInstance, "", nil
+	return podLogsMessage, briefErrorsMessage
 }
 
-func isFunctionDeploymentFailed(consumer *consumer,
+func (d *Deployer) getFunctionPodWarningEvents(namespace string, podName string) (string, error) {
+	eventList, err := d.consumer.KubeClientSet.CoreV1().Events(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	var podWarningEvents []string
+	for _, event := range eventList.Items {
+		if event.InvolvedObject.Name == podName && event.Type == "Warning" {
+			if !common.StringInSlice(event.Message, podWarningEvents) {
+				podWarningEvents = append(podWarningEvents, event.Message)
+			}
+		}
+	}
+
+	return fmt.Sprintf("%s\n", strings.Join(podWarningEvents, "\n")), nil
+}
+
+func isFunctionDeploymentFailed(consumer *Consumer,
 	namespace string,
 	name string,
 	functionCreateOrUpdateTimestamp time.Time) (bool, error) {
 
 	// list function pods
-	pods, err := consumer.kubeClientSet.CoreV1().
+	pods, err := consumer.KubeClientSet.CoreV1().
 		Pods(namespace).
 		List(metav1.ListOptions{
 			LabelSelector: compileListFunctionPodsLabelSelector(name),
 		})
 	if err != nil {
-		return false, errors.Wrap(err, "Failed to get pods")
+		return false, errors.Wrap(err, "Failed to Get pods")
 	}
 
 	// infer from the pod statuses if the function deployment had failed
@@ -240,7 +324,7 @@ func compileListFunctionPodsLabelSelector(functionName string) string {
 }
 
 func waitForFunctionReadiness(loggerInstance logger.Logger,
-	consumer *consumer,
+	consumer *Consumer,
 	namespace string,
 	name string,
 	functionCreateOrUpdateTimestamp time.Time) (*nuclioio.NuclioFunction, error) {
@@ -251,7 +335,7 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 	conditionFunc := func() (bool, error) {
 
 		// get the appropriate function CR
-		function, err = consumer.nuclioClientSet.NuclioV1beta1().
+		function, err = consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioFunctions(namespace).
 			Get(name, metav1.GetOptions{})
 		if err != nil {
@@ -285,88 +369,4 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 
 	err = wait.PollInfinite(250*time.Millisecond, conditionFunc)
 	return function, err
-}
-
-func (d *deployer) getFunctionPodLogsAndEvents(namespace string, name string) (string, string) {
-	var briefErrorsMessage string
-	podLogsMessage := "\nPod logs:\n"
-
-	// list pods
-	functionPods, listPodErr := d.consumer.kubeClientSet.CoreV1().
-		Pods(namespace).
-		List(metav1.ListOptions{
-			LabelSelector: compileListFunctionPodsLabelSelector(name),
-		})
-
-	if listPodErr != nil {
-		podLogsMessage += fmt.Sprintf("Failed to list pods: %s\n", listPodErr.Error())
-		return podLogsMessage, ""
-	}
-
-	if len(functionPods.Items) == 0 {
-		podLogsMessage += fmt.Sprintf("No pods found for %s:%s, is replicas set to 0?",
-			namespace,
-			name)
-	} else {
-		var pod v1.Pod
-
-		// get the latest pod
-		for _, currentPod := range functionPods.Items {
-			if pod.ObjectMeta.CreationTimestamp.Before(&currentPod.ObjectMeta.CreationTimestamp) {
-				pod = currentPod
-			}
-		}
-
-		// get the pod logs
-		podLogsMessage += "\n* " + pod.Name + "\n"
-
-		maxLogLines := int64(MaxLogLines)
-		logsRequest, getLogsErr := d.consumer.kubeClientSet.CoreV1().
-			Pods(namespace).
-			GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).
-			Stream()
-		if getLogsErr != nil {
-			podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
-		} else {
-			scanner := bufio.NewScanner(logsRequest)
-
-			var formattedProcessorLogs string
-			formattedProcessorLogs, briefErrorsMessage = d.platform.GetProcessorLogsAndBriefError(scanner)
-
-			podLogsMessage += formattedProcessorLogs
-
-			// close the stream
-			logsRequest.Close() // nolint: errcheck
-		}
-
-		podWarningEvents, err := d.getFunctionPodWarningEvents(namespace, pod.Name)
-		if err != nil {
-			podLogsMessage += "Failed to get pod warning events: " + err.Error() + "\n"
-		} else if briefErrorsMessage == "" && podWarningEvents != "" {
-
-			// if there is no brief error message and there are warning events - add them
-			podLogsMessage += "\n* Warning events:\n" + podWarningEvents
-			briefErrorsMessage += podWarningEvents
-		}
-	}
-
-	return podLogsMessage, briefErrorsMessage
-}
-
-func (d *deployer) getFunctionPodWarningEvents(namespace string, podName string) (string, error) {
-	eventList, err := d.consumer.kubeClientSet.CoreV1().Events(namespace).List(metav1.ListOptions{})
-	if err != nil {
-		return "", err
-	}
-
-	var podWarningEvents []string
-	for _, event := range eventList.Items {
-		if event.InvolvedObject.Name == podName && event.Type == "Warning" {
-			if !common.StringInSlice(event.Message, podWarningEvents) {
-				podWarningEvents = append(podWarningEvents, event.Message)
-			}
-		}
-	}
-
-	return fmt.Sprintf("%s\n", strings.Join(podWarningEvents, "\n")), nil
 }

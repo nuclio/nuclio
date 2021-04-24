@@ -101,6 +101,18 @@ type Kubernetes struct {
 	Deployment *appsv1.Deployment `json:"deployment,omitempty"`
 }
 
+type ProjectsLeaderKind string
+
+const (
+	ProjectsLeaderKindIguazio ProjectsLeaderKind = "iguazio"
+	ProjectsLeaderKindMlrun   ProjectsLeaderKind = "mlrun"
+)
+
+type ProjectsLeader struct {
+	URL  string             `json:"url,omitempty"`
+	Kind ProjectsLeaderKind `json:"kind,omitempty"`
+}
+
 type PlatformKubeConfig struct {
 	KubeConfigPath string `json:"kubeConfigPath,omitempty"`
 
