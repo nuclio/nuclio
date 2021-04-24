@@ -116,7 +116,7 @@ nuctl deploy helloworld \
     --registry $(minikube ip):5000 \
     --run-registry localhost:5000
 ```
->**Note:** The command in the previous code snippet exposes the function externally using a `nodePort`.
+> **Note:** The command in the previous code snippet exposes the function externally using a `nodePort`.
 > This is done for demonstration purposes only.
 > For more information about exposing your function, see [Deploying Functions](/docs/tasks/deploying-functions.md#exposing-a-function).
 
