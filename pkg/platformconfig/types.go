@@ -109,8 +109,8 @@ const (
 )
 
 type ProjectsLeader struct {
-	Address                 string             `json:"address,omitempty"`
 	Kind                    ProjectsLeaderKind `json:"kind,omitempty"`
+	APIAddress              string             `json:"apiAddress,omitempty"`
 	SynchronizationInterval time.Duration      `json:"synchronizationInterval,omitempty"`
 }
 

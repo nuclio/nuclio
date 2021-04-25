@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -119,7 +120,7 @@ func SendHTTPRequest(method string,
 	headers map[string]string,
 	cookies []*http.Cookie,
 	expectedStatusCode int,
-	insecure bool) (*http.Response, error) {
+	insecure bool) ([]byte, int, error) {
 
 	var client *http.Client
 
@@ -136,7 +137,7 @@ func SendHTTPRequest(method string,
 	// create request object
 	req, err := http.NewRequest(method, requestURL, bytes.NewBuffer(body))
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create http request")
+		return nil, 0, errors.Wrap(err, "Failed to create http request")
 	}
 
 	// attach cookies
@@ -152,16 +153,27 @@ func SendHTTPRequest(method string,
 	// perform the request
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to send HTTP request")
+		return nil, 0, errors.Wrap(err, "Failed to send HTTP request")
+	}
+
+	defer resp.Body.Close() // nolint: errcheck
+
+	// read response body
+	var responseBody []byte
+	if resp != nil && resp.Body != nil {
+		responseBody, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "Failed to read response body")
+		}
 	}
 
 	// validate status code is as expected
 	if expectedStatusCode != 0 && resp.StatusCode != expectedStatusCode {
-		return nil, errors.Wrapf(err,
-			"Got unexpected response status code: %s. Expected: %s",
+		return nil, resp.StatusCode, errors.Errorf("Got unexpected response status code: %d. Expected: %d. Response: %s",
 			resp.StatusCode,
-			expectedStatusCode)
+			expectedStatusCode,
+			string(responseBody))
 	}
 
-	return resp, nil
+	return responseBody, resp.StatusCode, nil
 }

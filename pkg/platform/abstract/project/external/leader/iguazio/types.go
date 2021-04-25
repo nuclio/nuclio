@@ -5,11 +5,11 @@ const (
 )
 
 type Project struct {
-	Type string      `json:"type,omitempty"`
 	Data ProjectData `json:"data,omitempty"`
 }
 
 type ProjectData struct {
+	Type string      `json:"type,omitempty"`
 	Attributes ProjectAttributes `json:"attributes,omitempty"`
 }
 
@@ -19,9 +19,9 @@ type ProjectAttributes struct {
 	Labels       map[string]string `json:"labels,omitempty"`
 	Annotations  map[string]string `json:"annotations,omitempty"`
 	Description  string            `json:"description,omitempty"`
-	NuclioFields NuclioFields      `json:"nuclio_fields,omitempty"`
+	NuclioFields NuclioProject     `json:"nuclio_project,omitempty"`
 }
 
-type NuclioFields struct {
+type NuclioProject struct {
 	// currently no nuclio specific fields are needed
 }
