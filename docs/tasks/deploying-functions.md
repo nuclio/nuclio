@@ -310,10 +310,10 @@ nuctl deploy \
 
 By default, when deploying a function on a Kubernetes cluster the function is exposed only on the Kubernetes cluster network, using a `ClusterIP` [Service Type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types), and isn't exposed for external communication.
 In most network topologies, this makes the function available only inside the cluster network, and [Kubernetes network policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/) can be used to further limit and control communications.
-The function will be unavailable for invocations over HTTP from entities running outside of the cluster - such as `nuctl`, `curl`, or any other HTTP client.
+The function will be unavailable for invocations over HTTP from entities running outside of the cluster - such as `curl`, `httpie`, `nuctl invoke`, or any other HTTP client.
 
-To understand whether a function can be reached by your HTTP client (which can be `curl`, `httpie`, `nuctl invoke`, or any other HTTP client), consider the location from which the function is running and the network path.
-An unexposed (default) function won't be reachable by your client unless you're running the client from inside a pod in your Kubernetes cluster.
+To understand whether a function can be reached by your HTTP client, consider the location from which the client is running and the network path to the function.
+An unexposed (default) function won't be reachable from your client unless you're running the client from inside a pod in your Kubernetes cluster.
 
 If you wish to expose your function externally - for example, to enable running `nuctl invoke` from outside the Kubernetes network - you can do this during the function deployment in one of two ways, both controlled by the function's [HTTP-trigger configuration](/docs/reference/triggers/http.md):
 
