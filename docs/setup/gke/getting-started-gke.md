@@ -151,9 +151,10 @@ nuctl deploy helloworld \
     --http-trigger-service-type nodePort \
     --registry <URL>
 ```
->**Note:** The command above exposes the function externally using a `nodePort`. This is done for demonstration
-> purposes only. Please read more about [exposing your function](/docs/tasks/deploying-functions.md#exposing-a-function)
-> for more information.
+
+> **Note:** The command in the previous code snippet exposes the function externally using a `nodePort`.
+> This is done for demonstration purposes only.
+> For more information about exposing your function, see [Deploying Functions](/docs/tasks/deploying-functions.md#exposing-a-function).
 
 When the function deployment completes, you can get the function information by running the following CLI command:
 
@@ -169,7 +170,7 @@ Sample output -
 ```
 You can see from the sample output that the deployed function `helloworld` is running and using port `42089`.
 
-Since the function is exposed using a `nodePort`, you can run the following CLI command to invoke it:
+Because the function is exposed using a `nodePort`, you can run the following CLI command to invoke it:
 
 ```sh
 nuctl invoke helloworld --method POST --body '{"hello":"world"}' --content-type "application/json"
