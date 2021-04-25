@@ -174,4 +174,16 @@ spec:
         configMap:
           name: {{ template "nuclio.platformConfigName" . }}
       {{- end }}
+      {{- with .Values.dashboard.nodeSelector }}
+      nodeSelector:
+      {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dashboard.tolerations }}
+      tolerations:
+      {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dashboard.affinity }}
+      affinity:
+      {{ toYaml . | nindent 8 }}
+      {{- end }}
 {{- end }}

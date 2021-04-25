@@ -170,6 +170,13 @@ func (pc *ProjectConfig) Scrub() {
 	pc.Meta.ResourceVersion = ""
 }
 
+type RequestOrigin string
+
+const (
+	RequestOriginEmpty  RequestOrigin = ""
+	RequestOriginLeader RequestOrigin = "leader"
+)
+
 type CreateProjectOptions struct {
 	ProjectConfig *ProjectConfig
 	RequestOrigin platformconfig.ProjectsLeaderKind

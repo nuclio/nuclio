@@ -63,4 +63,16 @@ spec:
         configMap:
           name: {{ template "nuclio.platformConfigName" . }}
       {{- end }}
+      {{- with .Values.dlx.nodeSelector }}
+      nodeSelector:
+      {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dlx.tolerations }}
+      tolerations:
+      {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dlx.affinity }}
+      affinity:
+      {{ toYaml . | nindent 8 }}
+      {{- end }}
 {{- end }}
