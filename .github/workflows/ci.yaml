@@ -128,22 +128,13 @@ jobs:
       run: docker system prune --force
 
     - name: Save
-      run: |
-        # list built images
-        # join with " "
-        # save docker images
-        # compress using pigz (use fast, the difference is insignificant)
-        docker images \
-            --filter="reference=${REPO}/${REPO_NAME}/*:${NUCLIO_LABEL}*" \
-            --format "{{ .Repository }}:{{ .Tag }}" \
-          | xargs docker save \
-          | pigz --fast > nuclio_docker_images.tar.gz
+      run: make save-docker-images
 
     - name: Upload
       uses: actions/upload-artifact@v2
       with:
         name: nuclio-docker-images
-        path: nuclio_docker_images.tar.gz
+        path: nuclio-docker-images-*.tar.gz
 
   test_k8s_nuctl:
     name: Test Kubernetes nuctl
@@ -188,14 +179,14 @@ jobs:
       run: |
 
         # load nuclio docker images to host docker
-        docker load -i nuclio_docker_images.tar.gz
+        make load-docker-images
 
         # activate minikube docker
         eval $(minikube -p minikube docker-env)
 
         # load nuclio docker images to minikube
-        docker load -i nuclio_docker_images.tar.gz
-        rm nuclio_docker_images.tar.gz
+        make load-docker-images
+        rm nuclio-docker-images*.tar.gz
 
     - name: Export env
       run: |
@@ -245,8 +236,8 @@ jobs:
 
     - name: Load nuclio docker images
       run: |
-        docker load -i nuclio_docker_images.tar.gz
-        rm nuclio_docker_images.tar.gz
+        make load-docker-images
+        rm nuclio-docker-images*.tar.gz
 
     - name: Run nuctl docker tests
       run: |
@@ -293,8 +284,8 @@ jobs:
 
       - name: Load nuclio docker images
         run: |
-          docker load -i nuclio_docker_images.tar.gz
-          rm nuclio_docker_images.tar.gz
+          make load-docker-images
+          rm nuclio-docker-images*.tar.gz
 
       - name: Export env
         run: |
