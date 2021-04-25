@@ -8,7 +8,7 @@
 <a id="overview"></a>
 ## Overview
 
-The `cron` trigger riggers the function according to a schedule or interval, with an optional body.
+The `cron` trigger triggers the function according to a schedule or interval, with an optional body.
 
 <a id="attributes"></a>
 ## Attributes
