@@ -334,26 +334,29 @@ func (fo *functionOperator) populateFunctionInvocationStatus(function *nuclioio.
 	}
 
 	functionStatus.HTTPPort = httpPort
-	functionStatus.Invocation.HTTPPort = httpPort
 
-	// This should be filled by nuclio-dashboard
-	// since its platform holds the information regarding the external ip address
+	// add internal invocation urls
+	if service != nil {
+		serviceHost, servicePort := client.GetDomainNameInvokeURL(service.GetName(), service.GetNamespace())
+		functionStatus.InternalInvocationURL = fmt.Sprintf("%s:%d", serviceHost, servicePort)
+	}
+
 	// TODO: move the information on platformConfig and share with controller?
-	if function.Status.Invocation.External != "" {
+	// add external invocation url in form of "external-ip:nodeport"
+	// first item is being filled by nuclio-dashboard to holds the information regarding the external ip address
+	if len(function.Status.ExternalInvocationURLs) > 0 {
 		switch service.Spec.Type {
 		case v1.ServiceTypeNodePort:
-			hostPort := strings.Split(function.Status.Invocation.External, ":")
-			functionStatus.Invocation.External = fmt.Sprintf("%s:%d", hostPort[0], httpPort)
+			hostPort := strings.Split(function.Status.ExternalInvocationURLs[0], ":")
+			functionStatus.ExternalInvocationURLs = []string{
+				fmt.Sprintf("%s:%d", hostPort[0], httpPort),
+			}
 		default:
-			functionStatus.Invocation.External = ""
+			functionStatus.ExternalInvocationURLs = []string{}
 		}
 	}
 
-	if service != nil {
-		serviceHost, servicePort := client.GetDomainNameInvokeURL(service.GetName(), service.GetNamespace())
-		functionStatus.Invocation.Internal = fmt.Sprintf("%s:%d", serviceHost, servicePort)
-	}
-
+	// add ingresses to external invocation urls
 	if ingress != nil {
 		for _, rule := range ingress.Spec.Rules {
 			host := rule.Host
@@ -363,9 +366,8 @@ func (fo *functionOperator) populateFunctionInvocationStatus(function *nuclioio.
 					path = rule.HTTP.Paths[0].Path
 				}
 			}
-			functionStatus.Invocation.Ingresses = append(functionStatus.Invocation.Ingresses,
+			functionStatus.ExternalInvocationURLs = append(functionStatus.ExternalInvocationURLs,
 				fmt.Sprintf("%s%s", host, path))
-
 		}
 	}
 	return nil

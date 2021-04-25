@@ -514,26 +514,15 @@ type Status struct {
 	Logs        []map[string]interface{} `json:"logs,omitempty"`
 	ScaleToZero *ScaleToZeroStatus       `json:"scaleToZero,omitempty"`
 	APIGateways []string                 `json:"apiGateways,omitempty"`
-	Invocation  FunctionInvocation       `json:"invocation,omitempty"`
+	HTTPPort    int                      `json:"httpPort,omitempty"`
 
-	// Deprecated
-	// Use FunctionInvocation.HTTPPort instead
-	HTTPPort int `json:"httpPort,omitempty"`
-}
+	// function internal address
+	// e.g.: my-namespace.my-function.svc.cluster.local:8080 // function-container-name:8080
+	InternalInvocationURL string `json:"InternalInvocationURL,omitempty"`
 
-type FunctionInvocation struct {
-
-	// e.g.: 3000
-	HTTPPort int `json:"httpPort,omitempty"`
-
-	// e.g.: my-namespace.my-function.svc.cluster.local:8080
-	Internal string `json:"internal,omitempty"`
-
-	// e.g.: 1.2.3.4:3000
-	External string `json:"external,omitempty"`
-
-	// e.g.: [ my-function.some-domain.com/pathA, other-ingress.some-domain.co ]
-	Ingresses []string `json:"ingresses,omitempty"`
+	// list of external urls, containing ingresses and external-ip:function-port
+	// e.g.: [ my-function.some-domain.com/pathA, other-ingress.some-domain.co, 1.2.3.4:3000 ]
+	ExternalInvocationURLs []string `json:"ExternalInvocationURLs,omitempty"`
 }
 
 type ScaleToZeroStatus struct {

@@ -50,7 +50,8 @@ func RenderFunctions(logger logger.Logger,
 		if format == OutputFormatWide {
 			header = append(header, []string{
 				"Labels",
-				"Ingresses",
+				"Internal Invocation URL",
+				"External Invocation URLs",
 			}...)
 		}
 
@@ -66,7 +67,7 @@ func RenderFunctions(logger logger.Logger,
 				function.GetConfig().Meta.Name,
 				function.GetConfig().Meta.Labels["nuclio.io/project-name"],
 				encodeFunctionState(function),
-				strconv.Itoa(function.GetStatus().Invocation.HTTPPort),
+				strconv.Itoa(function.GetStatus().HTTPPort),
 				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),
 			}
 
@@ -74,7 +75,8 @@ func RenderFunctions(logger logger.Logger,
 			if format == OutputFormatWide {
 				functionFields = append(functionFields, []string{
 					common.StringMapToString(function.GetConfig().Meta.Labels),
-					strings.Join(function.GetStatus().Invocation.Ingresses, ", "),
+					function.GetStatus().InternalInvocationURL,
+					strings.Join(function.GetStatus().ExternalInvocationURLs, ", "),
 				}...)
 			}
 

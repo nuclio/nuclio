@@ -71,16 +71,9 @@ func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 		functionInstance = &nuclioio.NuclioFunction{}
 		functionInstance.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 	} else {
-		functionStatus.Invocation = functionInstance.Status.Invocation
-
-		// we have an existing function, with an assigned port
-		// but never populated its invocation status (probably an old function)
-		if functionInstance.Status.HTTPPort != 0 && functionStatus.Invocation.HTTPPort == 0 {
-			functionStatus.Invocation.HTTPPort = functionInstance.Status.HTTPPort
-		}
-
-		// for backwards compatibility - aka clients that still uses this field.
-		functionStatus.HTTPPort = functionInstance.Status.Invocation.HTTPPort
+		functionStatus.InternalInvocationURL = functionInstance.Status.InternalInvocationURL
+		functionStatus.ExternalInvocationURLs = functionInstance.Status.ExternalInvocationURLs
+		functionStatus.HTTPPort = functionInstance.Status.HTTPPort
 	}
 
 	// convert config, status -> function
@@ -92,7 +85,8 @@ func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	}
 
 	createFunctionOptions.Logger.DebugWith("Populated function with configuration and status",
-		"function", functionInstance)
+		"function", functionInstance,
+		"functionExists", functionExists)
 
 	// get clientset
 	nuclioClientSet, err := d.consumer.getNuclioClientSet(createFunctionOptions.AuthConfig)
@@ -150,7 +144,7 @@ func (d *Deployer) Deploy(functionInstance *nuclioio.NuclioFunction,
 	}
 
 	return &platform.CreateFunctionResult{
-		Port: updatedFunctionInstance.Status.Invocation.HTTPPort,
+		Port: updatedFunctionInstance.Status.HTTPPort,
 	}, updatedFunctionInstance, "", nil
 }
 
@@ -202,7 +196,7 @@ func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 	}
 
 	// -1 because port was not assigned yet, it is just a placeholder
-	functionInstance.Status.Invocation.External = fmt.Sprintf("%s:-1", externalIPAddresses[0])
+	functionInstance.Status.ExternalInvocationURLs = []string{fmt.Sprintf("%s:-1", externalIPAddresses[0])}
 	return nil
 
 }

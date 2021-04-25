@@ -238,21 +238,24 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		createFunctionOptions.Logger.WarnWith("Function creation failed, updating function status",
 			"errorStack", errorStack.String())
 
-		functionInvocation := functionconfig.FunctionInvocation{}
-		defaultFunctionState := functionconfig.FunctionStateError
+		functionStatus := &functionconfig.Status{
+			State:   functionconfig.FunctionStateError,
+			Message: briefErrorsMessage,
+		}
 		if existingFunctionInstance != nil {
-			functionInvocation = existingFunctionInstance.Status.Invocation
+
+			// preserve invocation metadata for when function become healthy again
+			functionStatus.HTTPPort = existingFunctionInstance.Status.HTTPPort
+			functionStatus.ExternalInvocationURLs = existingFunctionInstance.Status.ExternalInvocationURLs
+			functionStatus.InternalInvocationURL = existingFunctionInstance.Status.InternalInvocationURL
 
 			// if function deployment ended up with unhealthy, due to unstable Kubernetes env that lead
 			// to failing on waiting for function readiness.
 			// it is desired to preserve the function unhealthiness state set by the controller, to allow
 			// function recovery later on, when Kubernetes become stable
 			// alternatively, set function in error state to indicate deployment has failed
-			switch functionState := existingFunctionInstance.Status.State; functionState {
-			case functionconfig.FunctionStateUnhealthy:
-				defaultFunctionState = functionState
-			default:
-				defaultFunctionState = functionconfig.FunctionStateError
+			if existingFunctionInstance.Status.State == functionconfig.FunctionStateUnhealthy {
+				functionStatus.State = functionconfig.FunctionStateUnhealthy
 			}
 		}
 
@@ -261,12 +264,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		// it is guaranteed to be created and updated with the reported error state
 		_, err := p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
 			createFunctionOptions,
-			&functionconfig.Status{
-				HTTPPort:   functionInvocation.HTTPPort,
-				Invocation: functionInvocation,
-				State:      defaultFunctionState,
-				Message:    briefErrorsMessage,
-			})
+			functionStatus,
+		)
 		return err
 	}
 

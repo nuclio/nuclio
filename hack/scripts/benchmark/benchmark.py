@@ -192,7 +192,7 @@ class Nuctl(object):
     def get_function_port(self, function_name):
         cmd = f"get function --platform {self._platform} --output json {function_name}"
         get_function_response = self._exec(cmd, capture_output=True)
-        return json.loads(get_function_response.stdout.decode())["status"]["invocation"]["httpPort"]
+        return json.loads(get_function_response.stdout.decode())["status"]["httpPort"]
 
     def _exec(self, cmd, check=True, capture_output=False):
         return subprocess.run(shlex.split(f"{self._exec_path} {cmd}"), check=check, capture_output=capture_output)

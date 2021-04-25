@@ -279,7 +279,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			functionStatus.HTTPPort = createFunctionResult.Port
 			functionStatus.State = functionconfig.FunctionStateReady
 
-			if err := p.populateFunctionInvocationStatus(&functionStatus.Invocation,
+			if err := p.populateFunctionInvocationStatus(&functionStatus,
 				createFunctionResult); err != nil {
 				return nil, errors.Wrap(err, "Failed to populate function invocation status")
 			}
@@ -1114,7 +1114,7 @@ func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfi
 	return nil
 }
 
-func (p *Platform) populateFunctionInvocationStatus(functionInvocation *functionconfig.FunctionInvocation,
+func (p *Platform) populateFunctionInvocationStatus(functionInvocation *functionconfig.Status,
 	createFunctionResults *platform.CreateFunctionResult) error {
 
 	externalIPAddresses, err := p.GetExternalIPAddresses()
@@ -1127,11 +1127,8 @@ func (p *Platform) populateFunctionInvocationStatus(functionInvocation *function
 		return errors.Wrap(err, "Failed to get container network addresses")
 	}
 
-	functionInvocation.HTTPPort = createFunctionResults.Port
-	functionInvocation.Internal = addresses[0]
-	functionInvocation.External = fmt.Sprintf("%s:%d", externalIPAddresses[0], functionInvocation.HTTPPort)
-
-	// Not applicable for local platform
-	functionInvocation.Ingresses = []string{"N/A"}
+	functionInvocation.InternalInvocationURL = addresses[0]
+	functionInvocation.ExternalInvocationURLs = append(functionInvocation.ExternalInvocationURLs,
+		fmt.Sprintf("%s:%d", externalIPAddresses[0], createFunctionResults.Port))
 	return nil
 }
