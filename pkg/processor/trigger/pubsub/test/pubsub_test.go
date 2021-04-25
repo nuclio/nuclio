@@ -62,6 +62,7 @@ func (suite *testSuite) SetupSuite() {
 	suite.brokerContainerName = "nuclio-pubsub-server"
 	suite.brokerURL = fmt.Sprintf("%s:%d", suite.BrokerHost, suite.brokerPort)
 	suite.BrokerContainerNetworkName = "nuclio-pubsub-test"
+	suite.LoggerName = "pubsub-test"
 
 	suite.AbstractBrokerSuite.SetupSuite()
 	suite.Logger.InfoWith("Creating pubsub broker resources",
@@ -95,7 +96,7 @@ func (suite *testSuite) SetupSuite() {
 
 func (suite *testSuite) TestReceiveRecords() {
 	pubsubContainerBrokerURL := fmt.Sprintf("%s:%d", suite.brokerContainerName, suite.brokerPort)
-	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
+	createFunctionOptions := suite.GetDeployOptions("pubsub-event-recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
 		Attributes: map[string]interface{}{
 			"network": suite.BrokerContainerNetworkName,
