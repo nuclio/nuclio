@@ -51,7 +51,7 @@ You'll later push your functions to this registry.
 
 > **Note:** The tutorial demonstrates how to bring up a local, simple, insecure Docker Registry.
 > You can select, instead, to skip this step, and use any other Docker Registry, such as [Docker Hub](https://hub.docker.com/), [Azure Container Registry (ACR)](https://azure.microsoft.com/services/container-registry/), or [Google Container Registry (GCR)](https://cloud.google.com/container-registry/).
-> For instructions., see [Getting started with Kubernetes](/docs/setup/k8s/getting-started-k8s.md).
+> For instructions, see [Getting started with Kubernetes](/docs/setup/k8s/getting-started-k8s.md).
 Establish an SSH connection to the Minikube machine, and run the registry using `docker`:
 
 ```sh
