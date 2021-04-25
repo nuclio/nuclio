@@ -306,7 +306,7 @@ nuctl deploy \
 
 > **Security Note:** Exposing your functions outside of your Kubernetes cluster network has significant security implications.
 > Make sure that you understand the risks involved before deciding to expose any function externally.
-> Always control on which networks your functions are exposed and use proper authentication to protect these networks and the rest of your pipeline and data.
+> Always control on which networks your functions are exposed and use proper authentication to protect your functions and the rest of your pipeline and data.
 
 By default, when deploying a function on a Kubernetes cluster the function is exposed only on the Kubernetes-cluster network, using a `ClusterIP` [Service Type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types), and isn't exposed for external communication.
 In most network topologies, this makes the function available only inside the cluster network, and [Kubernetes network policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/) can be used to further limit and control communications.
