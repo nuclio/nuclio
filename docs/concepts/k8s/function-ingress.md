@@ -11,13 +11,16 @@
 
 If you followed the [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md) or [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md) guide, you invoked functions using their HTTP interface with `nuctl` and the Nuclio dashboard.
 By default, each function deployed to Kubernetes declares a [Kubernetes service](https://kubernetes.io/docs/concepts/services-networking/service/) that is responsible for routing requests to the functions' HTTP trigger port.
-To invoke the function externally, using `nuctl`, you probably exposed your function by using a [NodePort](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport), which is a unique cluster-wide port that is assigned to the function.
+To invoke the function externally, using `nuctl`, you probably exposed your function by using a [NodePort](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport), which is a unique cluster-wide port that's assigned to the function.
 
 This means that if your function's HTTP trigger is configured with a `NodePort`, any underlying HTTP client can call `http://<your cluster IP>:<some unique port>` to reach it.
-You can try this out yourself: first, find out the NodePort assigned to your function, by using the `nuctl get function` command of the `nuctl` CLI or the `kubectl get svc` command of the Kubernetes CLI. Then, use `curl` to send an HTTP request to this port.
+You can try this out yourself:
+First, find out the NodePort assigned to your function, by using the `nuctl get function` command of the `nuctl` CLI or the `kubectl get svc` command of the Kubernetes CLI.
+Then, use `curl` to send an HTTP request to this port.
 
 In addition to configuring a service, Nuclio can create a [Kubernetes ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) for your function's HTTP trigger, with the path specified as `<function name>/latest`.
-However, without an ingress controller running on your cluster, this will have no effect. An Ingress controller will listen for changed ingresses and reconfigure some type of reverse proxy to route requests based on rules specified in the ingress resource.
+However, without an ingress controller running on your cluster, this will have no effect.
+An Ingress controller will listen for changed ingresses and reconfigure some type of reverse proxy to route requests based on rules specified in the ingress resource.
 
 ## Setting up an ingress controller
 
@@ -102,7 +105,8 @@ Note that since the `i1` configuration explicitly specifies `some.host.com` as t
 
 ## Deploying an ingress example
 
-Let's put this into practice and deploy the [ingress example](/hack/examples/golang/ingress/ingress.go). This is the **function.yaml** file for the example:
+To put this into practice, following is an example that deploys the [ingress example](/hack/examples/golang/ingress/ingress.go).
+This is the **function.yaml** file for the example:
 
 ```yaml
 apiVersion: "nuclio.io/v1"
@@ -125,7 +129,7 @@ spec:
             - /first/from/host
 ```
 
-And this is the definition of the `Ingress` handler function: 
+And this is the definition of the `Ingress` handler function:
 ```golang
 func Ingress(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	return "Handler called", nil
