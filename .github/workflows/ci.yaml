@@ -111,10 +111,12 @@ jobs:
 
     - uses: actions/checkout@v2
 
-    # since github-actions gives us 14G only, and fill it up with some garbage
+    # since github-actions gives us 14G only, and fills it up with some garbage
     # we will free up some space for us (~2GB)
-    - name: Freeing some disk space
-      run: docker system prune --all --force
+    - name: Freeing up disk space
+      run: |
+        chmod +x "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
+        "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
     - name: Build
       run: make docker-images
