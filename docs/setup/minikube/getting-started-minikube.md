@@ -118,7 +118,7 @@ nuctl deploy helloworld \
 > **Note:**
 > -  The command in the previous code snippet exposes the function externally using a `nodePort`.
 >    This is done for demonstration purposes only.
->    For more information about exposing your function, see [Deploying Functions](/docs/tasks/deploying-functions.md#exposing-a-function).
+>    For more information about exposing your function, see [Exposing a function](/docs/tasks/deploying-functions.md#exposing-a-function).
 > -  The difference between the two registries specified in this command, and the reason for their addresses being different is as follows:
 >
 >    - The `--registry` option defines the Docker registry onto which the function images that you build will be pushed. This is the registry that you previously brought up on your Minikube VM.
