@@ -170,30 +170,26 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 // Start starts the processor
 func (p *Processor) Start() error {
-	var err error
-
 	p.logger.DebugWith("Starting triggers", "triggers", p.triggers)
 
 	// iterate over all triggers and start them
-	for _, trigger := range p.triggers {
-		if err := trigger.Start(nil); err != nil {
+	for _, triggerInstance := range p.triggers {
+		if err := triggerInstance.Start(nil); err != nil {
 			p.logger.ErrorWith("Failed to start trigger",
-				"kind", trigger.GetKind(),
+				"kind", triggerInstance.GetKind(),
 				"err", err.Error())
 			return errors.Wrap(err, "Failed to start trigger")
 		}
 	}
 
 	// start the web interface
-	err = p.webAdminServer.Start()
-	if err != nil {
+	if err := p.webAdminServer.Start(); err != nil {
 		return errors.Wrap(err, "Failed to start web interface")
 	}
 
 	// start pushing metrics
 	for _, metricPusher := range p.metricSinks {
-		err := metricPusher.Start()
-		if err != nil {
+		if err := metricPusher.Start(); err != nil {
 			return errors.Wrap(err, "Failed to start metric pushing")
 		}
 	}
@@ -221,8 +217,8 @@ func (p *Processor) GetWorkers() []*worker.Worker {
 	var workers []*worker.Worker
 
 	// iterate over the processor's triggers
-	for _, trigger := range p.triggers {
-		workers = append(workers, trigger.GetWorkers()...)
+	for _, triggerInstance := range p.triggers {
+		workers = append(workers, triggerInstance.GetWorkers()...)
 	}
 
 	return workers

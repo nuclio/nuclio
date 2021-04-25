@@ -263,7 +263,7 @@ func (fo *functionOperator) setFunctionError(function *nuclioio.NuclioFunction,
 		State:   functionErrorState,
 		Message: errors.GetErrorStackString(err, 10),
 	}); setStatusErr != nil {
-		fo.logger.Warn("Failed to update function on error",
+		fo.logger.WarnWith("Failed to update function on error",
 			"setStatusErr", errors.Cause(setStatusErr))
 	}
 
