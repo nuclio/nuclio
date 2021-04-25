@@ -518,11 +518,11 @@ type Status struct {
 
 	// function internal address
 	// e.g.: my-namespace.my-function.svc.cluster.local:8080 // function-container-name:8080
-	InternalInvocationURL string `json:"InternalInvocationURL,omitempty"`
+	InternalInvocationURL string `json:"internalInvocationURL,omitempty"`
 
 	// list of external urls, containing ingresses and external-ip:function-port
 	// e.g.: [ my-function.some-domain.com/pathA, other-ingress.some-domain.co, 1.2.3.4:3000 ]
-	ExternalInvocationURLs []string `json:"ExternalInvocationURLs,omitempty"`
+	ExternalInvocationURLs []string `json:"externalInvocationURLs,omitempty"`
 }
 
 type ScaleToZeroStatus struct {

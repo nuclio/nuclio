@@ -349,7 +349,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 				&functionconfig.Status{
 					State: functionconfig.FunctionStateImported,
 				}); err != nil {
-				return nil, errors.Wrap(err, "Failed to create/update function as imported")
+				return nil, errors.Wrap(err, "Failed to create/update imported function")
 			}
 
 			return &platform.CreateFunctionResult{
