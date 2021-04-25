@@ -19,7 +19,10 @@ After successfully installing Nuclio, you can start writing functions and deploy
 
 The entry point, essentially a function native to the runtime, is called whenever one of the configured triggers receives an event (more on configuring triggers later).
 
-> **Note:** Nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (for example, `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived.
+> **Note:** Nuclio supports configuring multiple triggers for a single function.
+> For example, the same function can be called either by calling an HTTP endpoint and by posting to a Kafka stream.
+> Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (for example, `event.GetBody`).
+> Other functions might want to behave differently, using the event's trigger information to determine through which trigger it arrived.
 
 The entry point may return a response which is handled differently based on which trigger configured the function. Some synchronous triggers (like HTTP) expect a response, some (like RabbitMQ) expect an ack or nack and others (like cron) ignore the response altogether.
 
@@ -85,8 +88,8 @@ nuctl deploy my-function \
 > 1. `--path` can also be set to a URL.
 > 2. See the applicable setup tutorial for registry information.
 > 3. Note the use of the `nodePort` HTTP-trigger service type, which exposes the function and makes it reachable externally.
->   This is done for demonstration purposes only.
->   For more information, see the [Exposing a function](#exposing-a-function) section in this tutorial.
+>    This is done for demonstration purposes only.
+>    For more information, see the [Exposing a function](#exposing-a-function) section in this tutorial.
 
 Once the function deploys, you should see `Function deploy complete` and an HTTP port through which you can invoke it. If there's a problem, invoke the above with `--verbose` and try to understand what went wrong. You can see your function through `nuctl get`:
 
@@ -301,29 +304,25 @@ nuctl deploy \
 <a id="exposing-a-function"></a>
 ## Exposing a function
 
->**Security note:** Exposing your functions outside your Kubernetes cluster network has dire security implications.
-> Please make sure you understand the risks involved before deciding to expose any function externally. Always control
-> on which networks your functions are exposed, and use proper authentication to protect them, as well as the rest of your pipeline and data.
+> **Security Note:** Exposing your functions outside of your Kubernetes cluster network has significant security implications.
+> Make sure that you understand the risks involved before deciding to expose any function externally.
+> Always control on which networks your functions are exposed and use proper authentication to protect these networks and the rest of your pipeline and data.
 
-When deploying a function on a Kubernetes cluster, the function is not exposed by default for external communication,
-but only on the kubernetes cluster network, using a `ClusterIP` [Service Type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types).
-In most network topologies this makes the function only available inside the cluster network, and [Kubernetes network policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
-can be used to further limit and control communications. The function will be unavailable for invocations
-over HTTP from entities running outside the cluster, like `nuctl`, `curl` or any other HTTP client.
+By default, when deploying a function on a Kubernetes cluster the function is exposed only on the Kubernetes-cluster network, using a `ClusterIP` [Service Type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types), and isn't exposed for external communication.
+In most network topologies, this makes the function available only inside the cluster network, and [Kubernetes network policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/) can be used to further limit and control communications.
+The function will be unavailable for invocations over HTTP from entities running outside of the cluster - such as `nuctl`, `curl`, or any other HTTP client.
 
-To understand whether a function is reachable to your HTTP client (this can be `curl`, `httpie`, `nuctl invoke` or any
-other HTTP client), consider where it is running from and the network path. An unexposed (default) function will not be
-reachable from your client unless you're running the client from inside a pod in your cluster.
+To understand whether a function can be reached by your HTTP client (which can be `curl`, `httpie`, `nuctl invoke`, or any other HTTP client), consider the location from which the function is running and the network path.
+An unexposed (default) function won't be reachable by your client unless you're running the client from inside a pod in your Kubernetes cluster.
 
-If you wish to expose your function externally, for example, to be able to run `nuctl invoke` from outside the
-Kubernetes network, you can do so in one of 2 ways during deployment, both controlled via the [HTTP trigger spec](/docs/reference/triggers/http.md):
-1. Configure the function with a reachable [HTTP ingress](/docs/reference/triggers/http.md#attributes-ingresses). For
-   this to work you'll need to install an ingress controller on your cluster. See [function ingress document](/docs/concepts/k8s/function-ingress.md)
-   for more details.
-2. Configure the function to use [serviceType](/docs/reference/triggers/http.md#attributes-serviceType) of type `nodePort`.
+If you wish to expose your function externally - for example, to enable running `nuctl invoke` from outside the Kubernetes network - you can do this during the function deployment in one of two ways, both controlled by the function's [HTTP-trigger configuration](/docs/reference/triggers/http.md):
 
-If you are deploying the function using [nuctl](/docs/reference/nuctl/nuctl.md) CLI, you can also configure a `nodePort` easily by using the
-`--http-trigger-service-type=nodePort` CLI arg.
+1.  Configure the function with a reachable [HTTP ingress](/docs/reference/triggers/http.md#attributes-ingresses).
+    For this to work you need to install an ingress controller on your cluster.
+    For details, see the [function-ingress documentation](/docs/concepts/k8s/function-ingress.md).
+2. Configure the function to use a [`serviceType`](/docs/reference/triggers/http.md#attributes-serviceType) attribute of type `nodePort`.
+
+If you're deploying the function using the [Nuclio CLI](/docs/reference/nuctl/nuctl.md) (`nuctl`), you can also easily configure a `nodePort` by using the `--http-trigger-service-type=nodePort` CLI option.
 
 <a id="whats-next"></a>
 ## What's next?
