@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -25,12 +26,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/scaler-types"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -197,17 +200,14 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			finalState = functionconfig.FunctionStateReady
 		}
 
-		// get function http port
-		httpPort, err := fo.getFunctionHTTPPort(resources)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get function http port")
-		}
-
 		// NOTE: this reconstructs function status and hence omits all other function status fields
 		// ... such as message and logs.
 		functionStatus := &functionconfig.Status{
-			State:    finalState,
-			HTTPPort: httpPort,
+			State: finalState,
+		}
+
+		if err := fo.populateFunctionInvocationStatus(function, functionStatus, resources); err != nil {
+			return errors.Wrap(err, "Failed to populate function invocation status")
 		}
 
 		if err := fo.setFunctionScaleToZeroStatus(ctx, functionStatus, scaleEvent); err != nil {
@@ -311,4 +311,62 @@ func (fo *functionOperator) getFunctionHTTPPort(functionResources functionres.Re
 		}
 	}
 	return httpPort, nil
+}
+
+func (fo *functionOperator) populateFunctionInvocationStatus(function *nuclioio.NuclioFunction,
+	functionStatus *functionconfig.Status,
+	functionResources functionres.Resources) error {
+
+	// get function http port
+	httpPort, err := fo.getFunctionHTTPPort(functionResources)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function http port")
+	}
+
+	service, err := functionResources.Service()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function service")
+	}
+
+	ingress, err := functionResources.Ingress()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function ingress")
+	}
+
+	functionStatus.HTTPPort = httpPort
+
+	// add internal invocation urls
+	functionStatus.InternalInvocationURLs = []string{}
+	if service != nil {
+		serviceHost, servicePort := client.GetDomainNameInvokeURL(service.GetName(), service.GetNamespace())
+		functionStatus.InternalInvocationURLs = append(functionStatus.InternalInvocationURLs,
+			fmt.Sprintf("%s:%d", serviceHost, servicePort))
+	}
+
+	// TODO: move the information on platformConfig and share with controller?
+	// add external invocation url in form of "external-ip:nodeport"
+	// first item is being filled by nuclio-dashboard to holds the information regarding the external ip address
+	if len(function.Status.ExternalInvocationURLs) > 0 && service.Spec.Type == v1.ServiceTypeNodePort {
+		hostPort := strings.Split(function.Status.ExternalInvocationURLs[0], ":")
+		functionStatus.ExternalInvocationURLs = []string{fmt.Sprintf("%s:%d", hostPort[0], httpPort)}
+	} else {
+		functionStatus.ExternalInvocationURLs = []string{}
+	}
+
+	// add ingresses to external invocation urls
+	if ingress != nil {
+		for _, rule := range ingress.Spec.Rules {
+			host := rule.Host
+			path := "/"
+			if rule.HTTP != nil {
+				if len(rule.HTTP.Paths) > 0 {
+					path = rule.HTTP.Paths[0].Path
+				}
+			}
+			functionStatus.ExternalInvocationURLs = append(functionStatus.ExternalInvocationURLs,
+				fmt.Sprintf("%s%s", host, path))
+		}
+	}
+	return nil
+
 }

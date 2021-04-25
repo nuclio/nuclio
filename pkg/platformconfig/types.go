@@ -133,7 +133,7 @@ type ImageRegistryOverridesConfig struct {
 	OnbuildImageRegistries map[string]string `json:"onbuildImageRegistries,omitempty"`
 }
 
-// default values for created ingresses
+// IngressConfig holds the default values for created ingresses
 type IngressConfig struct {
 	EnableSSLRedirect          bool     `json:"enableSSLRedirect,omitempty"`
 	TLSSecret                  string   `json:"tlsSecret,omitempty"`

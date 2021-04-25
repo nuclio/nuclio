@@ -151,3 +151,8 @@ func (mdc *MockDockerClient) GetVersion(quiet bool) (string, error) {
 	args := mdc.Called(quiet)
 	return args.String(0), args.Error(1)
 }
+
+func (mdc *MockDockerClient) GetContainerIPAddresses(containerID string) ([]string, error) {
+	args := mdc.Called(containerID)
+	return args.Get(0).([]string), args.Error(1)
+}

@@ -42,8 +42,8 @@ import (
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
-	"github.com/nuclio/nuclio/test/compare"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
@@ -154,8 +154,7 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 
 			err = json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
 			suite.Require().NoError(err)
-
-			suite.Require().True(compare.NoOrder(decodedExpectedResponseBody, decodedResponseBody))
+			suite.Require().Empty(cmp.Diff(decodedExpectedResponseBody, decodedResponseBody))
 
 		case func(response map[string]interface{}) bool:
 			suite.Require().True(typedEncodedExpectedResponse(decodedResponseBody))

@@ -2,40 +2,13 @@ package common
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 
-	"github.com/nuclio/nuclio/pkg/platform"
-
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 )
-
-func FormatFunctionIngresses(function platform.Function) string {
-	var formattedIngresses string
-
-	ingresses := function.GetIngresses()
-
-	for _, ingress := range ingresses {
-		host := ingress.Host
-		if host != "" {
-			host += ":<port>"
-		}
-
-		for _, path := range ingress.Paths {
-			formattedIngresses += fmt.Sprintf("%s%s, ", host, path)
-		}
-	}
-
-	// add default ingress
-	formattedIngresses += fmt.Sprintf("/%s/%s",
-		function.GetConfig().Meta.Name,
-		function.GetVersion())
-
-	return formattedIngresses
-}
 
 func ReadFromInOrStdin(r io.Reader) ([]byte, error) {
 	switch in := r.(type) {

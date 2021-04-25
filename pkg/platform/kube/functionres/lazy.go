@@ -159,7 +159,9 @@ func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (R
 	}, err
 }
 
-func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.NuclioFunction, imagePullSecrets string) (Resources, error) {
+func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
+	function *nuclioio.NuclioFunction,
+	imagePullSecrets string) (Resources, error) {
 	var err error
 
 	// get labels from the function and add class labels
@@ -232,7 +234,9 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 		}
 	}
 
-	lc.logger.DebugWith("Successfully created/updated resources", "functionName", function.Name)
+	lc.logger.DebugWith("Successfully created/updated resources",
+		"functionName", function.Name,
+		"functionNamespace", function.Namespace)
 	return &resources, nil
 }
 

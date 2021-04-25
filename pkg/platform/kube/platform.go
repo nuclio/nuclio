@@ -238,34 +238,34 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		createFunctionOptions.Logger.WarnWith("Function creation failed, updating function status",
 			"errorStack", errorStack.String())
 
-		defaultHTTPPort := 0
-		defaultFunctionState := functionconfig.FunctionStateError
+		functionStatus := &functionconfig.Status{
+			State:   functionconfig.FunctionStateError,
+			Message: briefErrorsMessage,
+		}
 		if existingFunctionInstance != nil {
-			defaultHTTPPort = existingFunctionInstance.Status.HTTPPort
+
+			// preserve invocation metadata for when function become healthy again
+			functionStatus.HTTPPort = existingFunctionInstance.Status.HTTPPort
+			functionStatus.ExternalInvocationURLs = existingFunctionInstance.Status.ExternalInvocationURLs
+			functionStatus.InternalInvocationURLs = existingFunctionInstance.Status.InternalInvocationURLs
 
 			// if function deployment ended up with unhealthy, due to unstable Kubernetes env that lead
 			// to failing on waiting for function readiness.
 			// it is desired to preserve the function unhealthiness state set by the controller, to allow
 			// function recovery later on, when Kubernetes become stable
 			// alternatively, set function in error state to indicate deployment has failed
-			switch functionState := existingFunctionInstance.Status.State; functionState {
-			case functionconfig.FunctionStateUnhealthy:
-				defaultFunctionState = functionState
-			default:
-				defaultFunctionState = functionconfig.FunctionStateError
+			if existingFunctionInstance.Status.State == functionconfig.FunctionStateUnhealthy {
+				functionStatus.State = functionconfig.FunctionStateUnhealthy
 			}
 		}
 
 		// create or update the function. The possible creation needs to happen here, since on cases of
 		// early build failures we might get here before the function CR was created. After this point
-		// it is guaranteed to be created and updated with the reported function state
-		_, err = p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
+		// it is guaranteed to be created and updated with the reported error state
+		_, err := p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
 			createFunctionOptions,
-			&functionconfig.Status{
-				HTTPPort: defaultHTTPPort,
-				State:    defaultFunctionState,
-				Message:  briefErrorsMessage,
-			})
+			functionStatus,
+		)
 		return err
 	}
 
@@ -299,7 +299,6 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			&functionconfig.Status{
 				State: functionconfig.FunctionStateBuilding,
 			})
-
 		if err != nil {
 			return errors.Wrap(err, "Failed to create or update a function before build")
 		}
@@ -313,7 +312,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	// called after function was built
-	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
+	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult,
+		buildErr error) (*platform.CreateFunctionResult, error) {
 
 		skipDeploy := functionconfig.ShouldSkipDeploy(createFunctionOptions.FunctionConfig.Meta.Annotations)
 
@@ -340,13 +340,17 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 
 		if skipDeploy {
-			p.Logger.Info("Skipping function deployment")
+			p.Logger.Info("Skipping function deployment",
+				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
+				"functionNamespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
 
-			_, err = p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
+			if _, err := p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
 				createFunctionOptions,
 				&functionconfig.Status{
 					State: functionconfig.FunctionStateImported,
-				})
+				}); err != nil {
+				return nil, errors.Wrap(err, "Failed to create/update imported function")
+			}
 
 			return &platform.CreateFunctionResult{
 				CreateFunctionBuildResult: platform.CreateFunctionBuildResult{

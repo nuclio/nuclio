@@ -88,4 +88,7 @@ type Client interface {
 
 	// GetVersion returns docker client and engine versions
 	GetVersion(quiet bool) (string, error)
+
+	// GetContainerIPAddresses return list of container ip addresses
+	GetContainerIPAddresses(containerID string) ([]string, error)
 }

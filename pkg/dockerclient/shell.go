@@ -716,7 +716,6 @@ func (c *ShellClient) Save(imageName string, outPath string) error {
 func (c *ShellClient) Load(inPath string) error {
 	c.logger.DebugWith("Docker loading from path", "inPath", inPath)
 	_, err := c.runCommand(nil, `docker load --input %s`, inPath)
-
 	return err
 }
 
@@ -729,6 +728,16 @@ func (c *ShellClient) GetVersion(quiet bool) (string, error) {
 		return "", errors.Wrap(err, "Failed to get docker version")
 	}
 	return output.Output, nil
+}
+
+func (c *ShellClient) GetContainerIPAddresses(containerID string) ([]string, error) {
+	c.logger.DebugWith("Getting container IP addresses", "containerID", containerID)
+	runResults, err := c.runCommand(nil, `docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' %s`, containerID)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get container ip addresses")
+	}
+
+	return strings.Split(strings.TrimSpace(runResults.Output), "\n"), nil
 }
 
 func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string, vars ...interface{}) (cmdrunner.RunResult, error) {

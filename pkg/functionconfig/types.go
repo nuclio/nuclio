@@ -512,9 +512,19 @@ type Status struct {
 	State       FunctionState            `json:"state,omitempty"`
 	Message     string                   `json:"message,omitempty"`
 	Logs        []map[string]interface{} `json:"logs,omitempty"`
-	HTTPPort    int                      `json:"httpPort,omitempty"`
 	ScaleToZero *ScaleToZeroStatus       `json:"scaleToZero,omitempty"`
 	APIGateways []string                 `json:"apiGateways,omitempty"`
+	HTTPPort    int                      `json:"httpPort,omitempty"`
+
+	// list of internal urls
+	// e.g.:
+	//		Kubernetes 	-	[ my-namespace.my-function.svc.cluster.local:8080 ]
+	//		Docker 		-	[ function-container-name:8080 ]
+	InternalInvocationURLs []string `json:"internalInvocationURLs,omitempty"`
+
+	// list of external urls, containing ingresses and external-ip:function-port
+	// e.g.: [ my-function.some-domain.com/pathA, other-ingress.some-domain.co, 1.2.3.4:3000 ]
+	ExternalInvocationURLs []string `json:"externalInvocationURLs,omitempty"`
 }
 
 type ScaleToZeroStatus struct {
