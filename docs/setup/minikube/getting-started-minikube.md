@@ -49,11 +49,10 @@ minikube start --kubernetes-version v1.17.9 --driver docker --extra-config=apise
 **Bring up a Docker registry inside Minikube.**
 You'll later push your functions to this registry.
 
-> **Note:** The tutorial demonstrates how to bring up up a local, simple, insecure Docker Registry.
+> **Note:** The tutorial demonstrates how to bring up a local, simple, insecure Docker Registry.
 > You can select, instead, to skip this step, and use any other Docker Registry, such as [Docker Hub](https://hub.docker.com/), [Azure Container Registry (ACR)](https://azure.microsoft.com/services/container-registry/), or [Google Container Registry (GCR)](https://cloud.google.com/container-registry/).
-> For instructions., see [Getting started with Kubernetes](/docs/setup/k8s/getting-started-k8s.md). 
-
-SSH into the Minikube machine, and run the registry using `docker`:
+> For instructions., see [Getting started with Kubernetes](/docs/setup/k8s/getting-started-k8s.md).
+Establish an SSH connection to the Minikube machine, and run the registry using `docker`:
 
 ```sh
 minikube ssh -- docker run -d -p 5000:5000 registry:2
@@ -99,7 +98,7 @@ minikube kubectl -- port-forward -n nuclio $(kubectl get pods -n nuclio -l nucli
 
 Browse to `http://localhost:8070` (after having forwarded this port as part of the Nuclio installation) to see the [Nuclio dashboard](/README.md#dashboard).
 Select the "default" project and then select **New Function** from the action toolbar to display the **Create function** page (http://localhost:8070/projects/default/create-function).
-Choose one of the predefined template functions, and select **Deploy**. 
+Choose one of the predefined template functions, and select **Deploy**.
 The first build populates the local Docker cache with base images and other files, so it might take a while to complete, depending on your network.
 When the function deployment completes, you can select **Test** to invoke the function with a body.
 
@@ -116,14 +115,14 @@ nuctl deploy helloworld \
     --registry $(minikube ip):5000 \
     --run-registry localhost:5000
 ```
-> **Note:** The command in the previous code snippet exposes the function externally using a `nodePort`.
-> This is done for demonstration purposes only.
-> For more information about exposing your function, see [Deploying Functions](/docs/tasks/deploying-functions.md#exposing-a-function).
-
->**Note:** The difference between the two registries specified in this command, and the reason for their addresses being different is as follows:
+> **Note:**
+> -  The command in the previous code snippet exposes the function externally using a `nodePort`.
+>    This is done for demonstration purposes only.
+>    For more information about exposing your function, see [Deploying Functions](/docs/tasks/deploying-functions.md#exposing-a-function).
+> -  The difference between the two registries specified in this command, and the reason for their addresses being different is as follows:
 >
-> - The `--registry` option defines the Docker registry onto which the function images that you build will be pushed. This is the registry that you previously brought up on your Minikube VM.
-> - The `--registry-run` option defines the registry from which the [`kubelet`](https://kubernetes.io/docs/reference/generated/kubelet/) Kubernetes "node agent" will pull the function images. Because this operation occurs in the Minikube VM, the command specifies `localhost` instead of the VM's IP address.
+>    - The `--registry` option defines the Docker registry onto which the function images that you build will be pushed. This is the registry that you previously brought up on your Minikube VM.
+>    - The `--registry-run` option defines the registry from which the [`kubelet`](https://kubernetes.io/docs/reference/generated/kubelet/) Kubernetes "node agent" will pull the function images. Because this operation occurs in the Minikube VM, the command specifies `localhost` instead of the VM's IP address.
 
 When the function deployment completes, you can get the function information by running the following CLI command:
 ```sh
@@ -131,12 +130,12 @@ nuctl get function helloworld
 ```
 Sample output -
 ```sh
-  NAMESPACE | NAME        | PROJECT | STATE | NODE PORT | REPLICAS  
-  nuclio    | helloworld  | default | ready |     42089 | 1/1   
+  NAMESPACE | NAME        | PROJECT | STATE | NODE PORT | REPLICAS
+  nuclio    | helloworld  | default | ready |     42089 | 1/1
 ```
 You can see from the sample output that the deployed function `helloworld` is running and using port `42089`.
 
-Since the function is exposed using a `nodePort`, you can run the following CLI command to invoke it:
+Because the function is exposed using a `nodePort`, you can run the following CLI command to invoke it:
 
 ```sh
 nuctl invoke helloworld --method POST --body '{"hello":"world"}' --content-type "application/json"
