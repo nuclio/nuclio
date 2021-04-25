@@ -1127,7 +1127,7 @@ func (p *Platform) populateFunctionInvocationStatus(functionInvocation *function
 		return errors.Wrap(err, "Failed to get container network addresses")
 	}
 
-	functionInvocation.InternalInvocationURL = addresses[0]
+	functionInvocation.InternalInvocationURLs = addresses
 	functionInvocation.ExternalInvocationURLs = append(functionInvocation.ExternalInvocationURLs,
 		fmt.Sprintf("%s:%d", externalIPAddresses[0], createFunctionResults.Port))
 	return nil

@@ -247,7 +247,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			// preserve invocation metadata for when function become healthy again
 			functionStatus.HTTPPort = existingFunctionInstance.Status.HTTPPort
 			functionStatus.ExternalInvocationURLs = existingFunctionInstance.Status.ExternalInvocationURLs
-			functionStatus.InternalInvocationURL = existingFunctionInstance.Status.InternalInvocationURL
+			functionStatus.InternalInvocationURLs = existingFunctionInstance.Status.InternalInvocationURLs
 
 			// if function deployment ended up with unhealthy, due to unstable Kubernetes env that lead
 			// to failing on waiting for function readiness.

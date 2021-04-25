@@ -71,7 +71,7 @@ func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 		functionInstance = &nuclioio.NuclioFunction{}
 		functionInstance.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 	} else {
-		functionStatus.InternalInvocationURL = functionInstance.Status.InternalInvocationURL
+		functionStatus.InternalInvocationURLs = functionInstance.Status.InternalInvocationURLs
 		functionStatus.ExternalInvocationURLs = functionInstance.Status.ExternalInvocationURLs
 		functionStatus.HTTPPort = functionInstance.Status.HTTPPort
 	}

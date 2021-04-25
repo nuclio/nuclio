@@ -75,7 +75,7 @@ func RenderFunctions(logger logger.Logger,
 			if format == OutputFormatWide {
 				functionFields = append(functionFields, []string{
 					common.StringMapToString(function.GetConfig().Meta.Labels),
-					function.GetStatus().InternalInvocationURL,
+					strings.Join(function.GetStatus().InternalInvocationURLs, ", "),
 					strings.Join(function.GetStatus().ExternalInvocationURLs, ", "),
 				}...)
 			}

@@ -516,9 +516,11 @@ type Status struct {
 	APIGateways []string                 `json:"apiGateways,omitempty"`
 	HTTPPort    int                      `json:"httpPort,omitempty"`
 
-	// function internal address
-	// e.g.: my-namespace.my-function.svc.cluster.local:8080 // function-container-name:8080
-	InternalInvocationURL string `json:"internalInvocationURL,omitempty"`
+	// list of internal urls
+	// e.g.:
+	//		Kubernetes 	-	[ my-namespace.my-function.svc.cluster.local:8080 ]
+	//		Docker 		-	[ function-container-name:8080 ]
+	InternalInvocationURLs []string `json:"internalInvocationURLs,omitempty"`
 
 	// list of external urls, containing ingresses and external-ip:function-port
 	// e.g.: [ my-function.some-domain.com/pathA, other-ingress.some-domain.co, 1.2.3.4:3000 ]

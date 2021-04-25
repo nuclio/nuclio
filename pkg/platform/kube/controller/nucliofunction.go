@@ -336,24 +336,21 @@ func (fo *functionOperator) populateFunctionInvocationStatus(function *nuclioio.
 	functionStatus.HTTPPort = httpPort
 
 	// add internal invocation urls
+	functionStatus.InternalInvocationURLs = []string{}
 	if service != nil {
 		serviceHost, servicePort := client.GetDomainNameInvokeURL(service.GetName(), service.GetNamespace())
-		functionStatus.InternalInvocationURL = fmt.Sprintf("%s:%d", serviceHost, servicePort)
+		functionStatus.InternalInvocationURLs = append(functionStatus.InternalInvocationURLs,
+			fmt.Sprintf("%s:%d", serviceHost, servicePort))
 	}
 
 	// TODO: move the information on platformConfig and share with controller?
 	// add external invocation url in form of "external-ip:nodeport"
 	// first item is being filled by nuclio-dashboard to holds the information regarding the external ip address
-	if len(function.Status.ExternalInvocationURLs) > 0 {
-		switch service.Spec.Type {
-		case v1.ServiceTypeNodePort:
-			hostPort := strings.Split(function.Status.ExternalInvocationURLs[0], ":")
-			functionStatus.ExternalInvocationURLs = []string{
-				fmt.Sprintf("%s:%d", hostPort[0], httpPort),
-			}
-		default:
-			functionStatus.ExternalInvocationURLs = []string{}
-		}
+	if len(function.Status.ExternalInvocationURLs) > 0 && service.Spec.Type == v1.ServiceTypeNodePort {
+		hostPort := strings.Split(function.Status.ExternalInvocationURLs[0], ":")
+		functionStatus.ExternalInvocationURLs = []string{fmt.Sprintf("%s:%d", hostPort[0], httpPort)}
+	} else {
+		functionStatus.ExternalInvocationURLs = []string{}
 	}
 
 	// add ingresses to external invocation urls
