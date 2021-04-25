@@ -39,13 +39,15 @@ jobs:
       - name: Freeing up disk space
         run: |
           df --human-readable
-          sudo apt-get remove --yes '^ghc-8.*' '^dotnet-.*' 'php.*' azure-cli google-cloud-sdk hhvm google-chrome-stable firefox powershell
+          sudo apt-get remove --yes '^dotnet-.*' 'php.*' azure-cli google-cloud-sdk google-chrome-stable firefox powershell
           sudo apt-get autoremove --yes
           sudo apt clean
           docker system prune --all --force
           sudo rm --recursive --force \
             /usr/share/dotnet \
             /usr/share/miniconda \
+            /usr/share/dotnet \
+            /usr/local/lib/android \
             /usr/share/swift
           df --human-readable
 
