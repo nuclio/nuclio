@@ -12,6 +12,7 @@ This document describes the Nuclio function code-entry types and related configu
   - [Encoded source-code string code-entry type (`sourceCode`)](#code-entry-type-sourcecode)
   - [Source-code file code-entry type](#code-entry-type-codefile)
 - [External function-code entry types](#external-func-code-entry-types)
+  - [Git code-entry type (`git`)](#code-entry-type-git)
   - [GitHub code-entry type (`github`)](#code-entry-type-github)
   - [Archive-file code-entry type (`archive`)](#code-entry-type-archive)
   - [AWS S3 code-entry type (`s3`)](#code-entry-type-s3)
