@@ -120,7 +120,7 @@ func (suite *testSuite) TestReceiveRecords() {
 					},
 				},
 				"projectID": suite.projectID,
-				"skipSetAndValidateApplicationCredentials": true,
+				"NoCredentials": true,
 			},
 		},
 	}

@@ -208,7 +208,7 @@ func (p *pubsub) getAckDeadline(subscriptionConfig *Subscription) (time.Duration
 }
 
 func (p *pubsub) setAndValidateGoogleApplicationCredentials() error {
-	if p.configuration.SkipSetAndValidateApplicationCredentials {
+	if p.configuration.NoCredentials {
 		return nil
 	}
 	if p.configuration.Credentials.Contents != "" {

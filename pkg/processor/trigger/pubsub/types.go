@@ -41,11 +41,11 @@ type Subscription struct {
 
 type Configuration struct {
 	trigger.Configuration
-	Subscriptions                            []Subscription
-	ProjectID                                string
-	AckDeadline                              string
-	Credentials                              trigger.Secret
-	SkipSetAndValidateApplicationCredentials bool
+	Subscriptions []Subscription
+	ProjectID     string
+	AckDeadline   string
+	Credentials   trigger.Secret
+	NoCredentials bool
 }
 
 func NewConfiguration(id string,
