@@ -25,11 +25,18 @@ import (
 	"github.com/nuclio/errors"
 )
 
+const DefaultSubscriptionIDPrefix string = "nuclio-pub"
+
 type Subscription struct {
-	Topic         string
+	Topic       string
+	IDPrefix    string
+	Shared      bool
+	AckDeadline string
+	SkipCreate  bool
+
+	// https://godoc.org/cloud.google.com/go/pubsub#ReceiveSettings
 	MaxNumWorkers int
-	Shared        bool
-	AckDeadline   string
+	Synchronous   bool
 }
 
 type Configuration struct {
@@ -38,6 +45,7 @@ type Configuration struct {
 	ProjectID     string
 	AckDeadline   string
 	Credentials   trigger.Secret
+	NoCredentials bool
 }
 
 func NewConfiguration(id string,
@@ -53,13 +61,17 @@ func NewConfiguration(id string,
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
-	for subscriptionIdx, subscriptions := range newConfiguration.Subscriptions {
+	for subscriptionIdx, subscription := range newConfiguration.Subscriptions {
 
-		if subscriptions.Topic == "" {
+		if subscription.Topic == "" {
 			return nil, errors.New("Subscription topic must be set")
 		}
 
-		if subscriptions.MaxNumWorkers == 0 {
+		if subscription.IDPrefix == "" {
+			subscription.IDPrefix = DefaultSubscriptionIDPrefix
+		}
+
+		if subscription.MaxNumWorkers == 0 {
 			newConfiguration.Subscriptions[subscriptionIdx].MaxNumWorkers = 1
 		}
 	}

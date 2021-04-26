@@ -129,12 +129,6 @@ func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 	}
 }
 
-type SecretRef struct {
-	Name string
-	Key  string
-}
-
 type Secret struct {
-	Contents  string
-	SecretRef SecretRef
+	Contents string
 }

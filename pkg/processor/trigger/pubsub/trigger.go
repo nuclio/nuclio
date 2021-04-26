@@ -18,6 +18,7 @@ package pubsub
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
@@ -65,22 +66,15 @@ func newTrigger(parentLogger logger.Logger,
 func (p *pubsub) Start(checkpoint functionconfig.Checkpoint) error {
 	var err error
 
-	// TODO: find a better way to do this
-	serviceAccountFilePath := "/tmp/service-account.json"
-	if err := ioutil.WriteFile(serviceAccountFilePath,
-		[]byte(p.configuration.Credentials.Contents),
-		0600); err != nil {
-		return errors.Wrap(err, "Failed to write temporary service account")
-	}
-
-	if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", serviceAccountFilePath); err != nil {
-		return errors.Wrap(err, "Failed to set credentials env")
-	}
-
 	p.Logger.InfoWith("Starting",
 		"subscriptions", p.configuration.Subscriptions,
 		"projectID", p.configuration.ProjectID,
 	)
+
+	// ensure application credentials (aka service-account)
+	if err := p.setAndValidateGoogleApplicationCredentials(); err != nil {
+		return err
+	}
 
 	// pubsub client consumes namespace/project string to be created
 	p.client, err = pubsubClient.NewClient(context.TODO(), p.configuration.ProjectID)
@@ -94,8 +88,7 @@ func (p *pubsub) Start(checkpoint functionconfig.Checkpoint) error {
 		subscription := subscription
 
 		go func() {
-			err := p.receiveFromSubscription(&subscription)
-			if err != nil {
+			if err := p.receiveFromSubscription(&subscription); err != nil {
 				p.Logger.WarnWith("Failed to create subscription",
 					"err", errors.GetErrorStackString(err, 10),
 					"subscription", subscription)
@@ -107,6 +100,10 @@ func (p *pubsub) Start(checkpoint functionconfig.Checkpoint) error {
 }
 
 func (p *pubsub) Stop(force bool) (functionconfig.Checkpoint, error) {
+
+	// TODO:
+	// err := p.client.Close()
+	// return nil, err
 	return nil, nil
 }
 
@@ -119,7 +116,7 @@ func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error
 
 	p.Logger.DebugWith("Receiving from subscription", "subscription", subscriptionConfig)
 
-	// get subscription name
+	// get subscription id
 	subscriptionID := p.getSubscriptionID(subscriptionConfig)
 
 	// get ack timeout
@@ -128,40 +125,13 @@ func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error
 		return errors.Wrap(err, "Failed to parse ack deadline")
 	}
 
-	p.Logger.DebugWith("Creating subscription",
-		"sid", subscriptionID,
-		"topic", subscriptionConfig.Topic,
-		"ackDeadline", ackDeadline)
-
-	// try to create a subscription
-	subscription, err := p.client.CreateSubscription(ctx, subscriptionID, pubsubClient.SubscriptionConfig{
-		Topic:       p.client.Topic(subscriptionConfig.Topic),
-		AckDeadline: ackDeadline,
-	})
-
-	p.Logger.DebugWith("Subscription created",
-		"sid", subscriptionID,
-		"topic", subscriptionConfig.Topic,
-		"ackDeadline", ackDeadline,
-		"err", err)
-
+	subscription, err := p.createOrUseSubscription(ctx, subscriptionID, ackDeadline, subscriptionConfig)
 	if err != nil {
-		p.Logger.WarnWith("Failed to create subscription", "err", err.Error())
-
-		if !subscriptionConfig.Shared {
-			return errors.Wrap(err, "Failed to create subscription")
-		}
-
-		// try to use a subscription
-		subscription = p.client.Subscription(subscriptionID)
+		return errors.Wrapf(err, "Failed to create or use subscription %s", subscriptionID)
 	}
-
-	// https://godoc.org/cloud.google.com/go/pubsub#ReceiveSettings
-	subscription.ReceiveSettings.NumGoroutines = subscriptionConfig.MaxNumWorkers
 
 	// create a channel of events
 	eventsChan := make(chan *Event, subscriptionConfig.MaxNumWorkers)
-
 	for eventIdx := 0; eventIdx < subscriptionConfig.MaxNumWorkers; eventIdx++ {
 		eventsChan <- &Event{
 			topic: subscriptionConfig.Topic,
@@ -211,7 +181,7 @@ func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error
 }
 
 func (p *pubsub) getSubscriptionID(subscriptionConfig *Subscription) string {
-	subscriptionID := "nuclio-sub-" + subscriptionConfig.Topic
+	subscriptionID := subscriptionConfig.IDPrefix + subscriptionConfig.Topic
 
 	// if multiple replicas share this subscription it must be named the same
 	if subscriptionConfig.Shared {
@@ -219,7 +189,7 @@ func (p *pubsub) getSubscriptionID(subscriptionConfig *Subscription) string {
 	}
 
 	// if it's not shared, we must add a unique variable
-	return subscriptionID + "-" + xid.New().String()
+	return fmt.Sprintf("%s-%s", subscriptionID, xid.New().String())
 }
 
 func (p *pubsub) getAckDeadline(subscriptionConfig *Subscription) (time.Duration, error) {
@@ -235,4 +205,74 @@ func (p *pubsub) getAckDeadline(subscriptionConfig *Subscription) (time.Duration
 	}
 
 	return time.ParseDuration(ackDeadlineString)
+}
+
+func (p *pubsub) setAndValidateGoogleApplicationCredentials() error {
+	if p.configuration.NoCredentials {
+		return nil
+	}
+	if p.configuration.Credentials.Contents != "" {
+
+		// dump contents to a file and use
+		serviceAccountFilePath := "/tmp/service-account.json"
+
+		if err := ioutil.WriteFile(serviceAccountFilePath,
+			[]byte(p.configuration.Credentials.Contents),
+			0600); err != nil {
+			return errors.Wrap(err, "Failed to write temporary service account")
+		}
+		if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", serviceAccountFilePath); err != nil {
+			return errors.Wrap(err, "Failed to set credentials env")
+		}
+	}
+
+	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") == "" {
+		return errors.New(
+			"GOOGLE_APPLICATION_CREDENTIALS env must be filled with a valid service account file path")
+	}
+	return nil
+}
+
+func (p *pubsub) createOrUseSubscription(ctx context.Context,
+	subscriptionID string,
+	ackDeadline time.Duration,
+	subscriptionConfig *Subscription) (*pubsubClient.Subscription, error) {
+	var err error
+	var created bool
+	var subscription *pubsubClient.Subscription
+
+	if !subscriptionConfig.SkipCreate {
+		p.Logger.DebugWith("Creating subscription",
+			"sid", subscriptionID,
+			"ackDeadline", ackDeadline,
+			"topic", subscriptionConfig.Topic)
+		subscription, err = p.client.CreateSubscription(ctx, subscriptionID, pubsubClient.SubscriptionConfig{
+			Topic:       p.client.Topic(subscriptionConfig.Topic),
+			AckDeadline: ackDeadline,
+		})
+		if err != nil && !subscriptionConfig.Shared {
+			return nil, errors.Wrap(err, "Failed to create subscription")
+		}
+		created = true
+	}
+
+	// use
+	if subscription == nil {
+		subscription = p.client.Subscription(subscriptionID)
+	}
+
+	// https://godoc.org/cloud.google.com/go/pubsub#ReceiveSettings
+	// TODO: load all ReceiveSettings from subscriptionConfig
+	subscription.ReceiveSettings.NumGoroutines = subscriptionConfig.MaxNumWorkers
+	subscription.ReceiveSettings.Synchronous = subscriptionConfig.Synchronous
+
+	p.Logger.DebugWith("Resolved subscription",
+		"sid", subscriptionID,
+		"topic", subscriptionConfig.Topic,
+		"created", created,
+		"ackDeadline", ackDeadline,
+		"err", err)
+
+	return subscription, nil
+
 }

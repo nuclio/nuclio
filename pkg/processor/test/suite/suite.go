@@ -58,6 +58,7 @@ type OnAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool
 type TestSuite struct {
 	suite.Suite
 	Logger                logger.Logger
+	LoggerName            string
 	DockerClient          dockerclient.Client
 	Platform              platform.Platform
 	TestID                string
@@ -103,10 +104,14 @@ func (suite *TestSuite) SetupSuite() {
 		suite.Namespace = "default"
 	}
 
+	if suite.LoggerName == "" {
+		suite.LoggerName = "test"
+	}
+
 	// this will preserve the current behavior where function names are renamed to be unique upon deployment
 	suite.FunctionNameUniquify = true
 
-	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Logger, err = nucliozap.NewNuclioZapTest(suite.LoggerName)
 	suite.Require().NoError(err)
 
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)

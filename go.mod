@@ -3,7 +3,7 @@ module github.com/nuclio/nuclio
 go 1.14
 
 require (
-	cloud.google.com/go/pubsub v1.2.0
+	cloud.google.com/go/pubsub v1.10.2
 	code.cloudfoundry.org/clock v1.0.0 // indirect
 	github.com/Azure/azure-sdk-for-go v43.3.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.11.0 // indirect
@@ -62,7 +62,9 @@ require (
 	github.com/v3io/version-go v0.0.2
 	github.com/valyala/fasthttp v1.21.0
 	github.com/vmihailenco/msgpack/v4 v4.3.12
-	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	google.golang.org/api v0.43.0
+	google.golang.org/grpc v1.36.1
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v2 v2.2.8
