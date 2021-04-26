@@ -5,7 +5,7 @@ on:
   - cron:  '0 */12 * * *'
 
 jobs:
-  build:
+  periodic:
     name: Periodic Regression
     runs-on: ubuntu-latest
 
@@ -28,7 +28,9 @@ jobs:
     # since github-actions gives us 14G only, and fills it up with some garbage
     # we will free up some space for us (~2GB)
     - name: Freeing up disk space
-      run: docker system prune --all --force
+      run: |
+        chmod +x "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
+        "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
     - name: Build
       run: make build

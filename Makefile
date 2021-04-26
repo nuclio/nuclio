@@ -154,6 +154,10 @@ save-docker-images: print-docker-images
 	@echo "Saving Nuclio docker images"
 	docker save $(IMAGES_TO_PUSH) | pigz --fast > nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
 
+load-docker-images: print-docker-images
+	@echo "Load Nuclio docker images"
+	docker load -i nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
+
 print-docker-images:
 	@echo "Nuclio Docker images:"
 	@for image in $(IMAGES_TO_PUSH); do \
