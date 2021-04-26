@@ -119,7 +119,7 @@ func (suite *testSuite) TestReceiveRecords() {
 						Topic: suite.topic.ID(),
 					},
 				},
-				"projectID": suite.projectID,
+				"projectID":     suite.projectID,
 				"NoCredentials": true,
 			},
 		},
