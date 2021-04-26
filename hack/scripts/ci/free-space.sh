@@ -18,7 +18,7 @@ sudo rm --recursive --force \
     /usr/share/dotnet \
     /usr/share/miniconda \
     /usr/share/dotnet \
-    /usr/share/swift \
+    /usr/share/swift
 
 # clean unneeded docker images
 docker system prune --all --force
