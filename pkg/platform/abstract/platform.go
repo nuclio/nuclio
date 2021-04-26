@@ -195,10 +195,11 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	}
 
 	// indicate that we're done
-	// TODO: print function.Status.Invocation and not just `HTTPPort`
 	createFunctionOptions.Logger.InfoWith("Function deploy complete",
 		"functionName", deployResult.UpdatedFunctionConfig.Meta.Name,
-		"httpPort", deployResult.Port)
+		"httpPort", deployResult.Port,
+		"internalInvocationURLs", deployResult.FunctionStatus.InternalInvocationURLs,
+		"externalInvocationURLs", deployResult.FunctionStatus.ExternalInvocationURLs)
 	return deployResult, nil
 }
 
