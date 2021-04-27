@@ -144,7 +144,8 @@ func (d *Deployer) Deploy(functionInstance *nuclioio.NuclioFunction,
 	}
 
 	return &platform.CreateFunctionResult{
-		Port: updatedFunctionInstance.Status.HTTPPort,
+		Port:           updatedFunctionInstance.Status.HTTPPort,
+		FunctionStatus: updatedFunctionInstance.Status,
 	}, updatedFunctionInstance, "", nil
 }
 

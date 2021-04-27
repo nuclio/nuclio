@@ -302,6 +302,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return nil, errors.Wrap(err, "Failed to update a function with state")
 		}
 
+		createFunctionResult.FunctionStatus = functionStatus
 		return createFunctionResult, nil
 	}
 
@@ -1128,7 +1129,12 @@ func (p *Platform) populateFunctionInvocationStatus(functionInvocation *function
 	}
 
 	functionInvocation.InternalInvocationURLs = addresses
-	functionInvocation.ExternalInvocationURLs = append(functionInvocation.ExternalInvocationURLs,
-		fmt.Sprintf("%s:%d", externalIPAddresses[0], createFunctionResults.Port))
+	functionInvocation.ExternalInvocationURLs = []string{}
+	for _, externalIPAddress := range externalIPAddresses {
+		if externalIPAddress != "" {
+			functionInvocation.ExternalInvocationURLs = append(functionInvocation.ExternalInvocationURLs,
+				fmt.Sprintf("%s:%d", externalIPAddress, createFunctionResults.Port))
+		}
+	}
 	return nil
 }

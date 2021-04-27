@@ -81,8 +81,9 @@ type CreateFunctionBuildResult struct {
 // CreateFunctionResult holds the results of a deploy
 type CreateFunctionResult struct {
 	CreateFunctionBuildResult
-	Port        int
-	ContainerID string
+	FunctionStatus functionconfig.Status
+	Port           int
+	ContainerID    string
 }
 
 // GetFunctionsOptions is the base for all platform get options
