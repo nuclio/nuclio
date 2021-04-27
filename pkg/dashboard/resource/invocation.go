@@ -18,7 +18,6 @@ package resource
 
 import (
 	"fmt"
-	"github.com/nuclio/nuclio-sdk-go"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -31,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type invocationResource struct {
