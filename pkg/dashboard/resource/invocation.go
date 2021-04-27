@@ -18,6 +18,7 @@ package resource
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -129,7 +130,7 @@ func (tr *invocationResource) writeErrorHeader(responseWriter http.ResponseWrite
 	responseWriter.WriteHeader(statusCode)
 }
 
-func (tr *invocationResource) writeErrorMessage(responseWriter http.ResponseWriter, message string) {
+func (tr *invocationResource) writeErrorMessage(responseWriter io.Writer, message string) {
 	formattedMessage := fmt.Sprintf(`{"error": "%s"}`, message)
 	responseWriter.Write([]byte(formattedMessage)) // nolint: errcheck
 }
