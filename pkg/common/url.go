@@ -141,7 +141,7 @@ func SendHTTPRequest(method string,
 	}
 
 	// attach cookies
-	for _, cookie := range cookies{
+	for _, cookie := range cookies {
 		req.AddCookie(cookie)
 	}
 
@@ -156,11 +156,11 @@ func SendHTTPRequest(method string,
 		return nil, 0, errors.Wrap(err, "Failed to send HTTP request")
 	}
 
-	defer resp.Body.Close() // nolint: errcheck
-
 	// read response body
 	var responseBody []byte
 	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close() // nolint: errcheck
+
 		responseBody, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "Failed to read response body")

@@ -238,15 +238,6 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(project platform.Pro
 	return functionsMap, functionEventsMap
 }
 
-func (pr *projectResource) getRequestOriginAndSessionCookie(request *http.Request) (platformconfig.ProjectsLeaderKind, *http.Cookie) {
-	requestOrigin := platformconfig.ProjectsLeaderKind(request.Header.Get("x-projects-role"))
-
-	// ignore error here, and just return a nil cookie when no session was passed (relevant only on leader/follower mode)
-	sessionCookie, _ := request.Cookie("session")
-
-	return requestOrigin, sessionCookie
-}
-
 func (pr *projectResource) createProject(request *http.Request, projectInfoInstance *projectInfo) (id string,
 	attributes restful.Attributes, responseErr error) {
 
@@ -283,6 +274,15 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 		"id", id,
 		"attributes", attributes)
 	return
+}
+
+func (pr *projectResource) getRequestOriginAndSessionCookie(request *http.Request) (platformconfig.ProjectsLeaderKind, *http.Cookie) {
+	requestOrigin := platformconfig.ProjectsLeaderKind(request.Header.Get("x-projects-role"))
+
+	// ignore error here, and just return a nil cookie when no session was passed (relevant only on leader/follower mode)
+	sessionCookie, _ := request.Cookie("session")
+
+	return requestOrigin, sessionCookie
 }
 
 func (pr *projectResource) importProject(projectImportOptions *ProjectImportOptions) (
@@ -559,8 +559,8 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
 	if err = pr.getPlatform().DeleteProject(&platform.DeleteProjectOptions{
-		Meta:     *projectInfo.Meta,
-		Strategy: platform.ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy),
+		Meta:          *projectInfo.Meta,
+		Strategy:      platform.ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
 	}); err != nil {

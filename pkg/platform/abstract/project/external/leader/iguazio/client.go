@@ -106,7 +106,7 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	// generate request body
 	body, err := c.generateProjectDeletionRequestBody(deleteProjectOptions.Meta.Name)
 	if err != nil {
-		return errors.Wrap(err, "Failed to generate project request body")
+		return errors.Wrap(err, "Failed to generate project deletion request body")
 	}
 
 	// send the request
@@ -124,7 +124,8 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	}
 
 	c.logger.DebugWith("Successfully sent delete project request to leader",
-		"name", deleteProjectOptions.Meta.Name)
+		"name", deleteProjectOptions.Meta.Name,
+		"namespace", deleteProjectOptions.Meta.Namespace)
 
 	return nil
 }
@@ -132,7 +133,7 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 func (c *Client) generateCommonRequestHeaders() map[string]string {
 	return map[string]string{
 		ProjectsRoleHeaderKey: ProjectsRoleHeaderValueNuclio,
-		"Content-Type": "application/json",
+		"Content-Type":        "application/json",
 	}
 }
 
@@ -141,8 +142,8 @@ func (c *Client) generateProjectRequestBody(projectConfig *platform.ProjectConfi
 		Data: ProjectData{
 			Type: ProjectType,
 			Attributes: ProjectAttributes{
-				Name: projectConfig.Meta.Name,
-				Labels: projectConfig.Meta.Labels,
+				Name:        projectConfig.Meta.Name,
+				Labels:      projectConfig.Meta.Labels,
 				Annotations: projectConfig.Meta.Annotations,
 				Description: projectConfig.Spec.Description,
 			},
