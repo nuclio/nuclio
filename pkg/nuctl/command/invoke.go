@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
@@ -43,6 +44,7 @@ type invokeCommandeer struct {
 	createFunctionInvocationOptions platform.CreateFunctionInvocationOptions
 	invokeVia                       string
 	externalIPAddresses             string
+	timeout                         time.Duration
 	contentType                     string
 	headers                         string
 	body                            string
@@ -95,8 +97,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			}
 
 			// populate content type
-			err = commandeer.populateContentType()
-			if err != nil {
+			if err := commandeer.populateContentType(); err != nil {
 				return errors.Wrap(err, "Failed to populate content-type")
 			}
 
@@ -123,6 +124,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				return errors.New("Invalid via type - must be ingress / nodePort")
 			}
 
+			commandeer.createFunctionInvocationOptions.Timeout = commandeer.timeout
 			invokeResult, err := rootCommandeer.platform.CreateFunctionInvocation(&commandeer.createFunctionInvocationOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to invoke function")
@@ -141,7 +143,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "Invoke the function via - \"any\": a load balancer or an external IP; \"loadbalancer\": a load balancer; \"external-ip\": an external IP")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.LogLevelName, "log-level", "l", "info", "Log level - \"none\", \"debug\", \"info\", \"warn\", or \"error\"")
 	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", os.Getenv("NUCTL_EXTERNAL_IP_ADDRESSES"), "External IP addresses (comma-delimited) with which to invoke the function")
-
+	cmd.Flags().DurationVarP(&commandeer.timeout, "timeout", "t", platform.FunctionInvocationDefaultTimeout, "Invocation request timeout")
 	commandeer.cmd = cmd
 
 	return commandeer
