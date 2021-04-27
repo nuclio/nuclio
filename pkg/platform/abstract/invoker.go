@@ -142,7 +142,7 @@ func (i *invoker) resolveInvokeURL(function platform.Function,
 	if createFunctionInvocationOptions.URL != "" {
 
 		// validate given url, must matching one of the function status invocation urls
-		if !common.StringSliceContainsStringCaseInsensitive(function.GetStatus().InvocationURLs(),
+		if !common.StringSliceContainsString(function.GetStatus().InvocationURLs(),
 			createFunctionInvocationOptions.URL) {
 			i.logger.WarnWith("Invocation URL does not match any of function status invocation urls",
 				"url", createFunctionInvocationOptions.URL,
