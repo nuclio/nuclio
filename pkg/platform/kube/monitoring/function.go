@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"runtime/debug"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -30,7 +31,7 @@ type FunctionMonitor struct {
 	nuclioClientSet            nuclioioclient.Interface
 	interval                   time.Duration
 	stopChan                   chan struct{}
-	lastProvisioningTimestamps map[string]time.Time
+	lastProvisioningTimestamps sync.Map
 }
 
 func NewFunctionMonitor(parentLogger logger.Logger,
@@ -45,7 +46,7 @@ func NewFunctionMonitor(parentLogger logger.Logger,
 		kubeClientSet:              kubeClientSet,
 		nuclioClientSet:            nuclioClientSet,
 		interval:                   interval,
-		lastProvisioningTimestamps: make(map[string]time.Time),
+		lastProvisioningTimestamps: sync.Map{},
 	}
 
 	newFunctionMonitor.logger.DebugWith("Created function monitor",
@@ -265,18 +266,21 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(function *nuclioio.Nucli
 
 func (fm *FunctionMonitor) resolveFunctionProvisionedOrRecentlyDeployed(function *nuclioio.NuclioFunction) bool {
 	if functionconfig.FunctionStateProvisioning(function.Status.State) {
-		fm.lastProvisioningTimestamps[function.Name] = time.Now()
+		fm.lastProvisioningTimestamps.Store(function.Name, time.Now())
 		fm.logger.DebugWith("Function is in provisioning state",
 			"functionState", function.Status.State,
 			"functionName", function.Name)
 		return true
-	} else if lastProvisioningTimestamp, ok := fm.lastProvisioningTimestamps[function.Name]; ok {
-		if lastProvisioningTimestamp.Add(PostDeploymentMonitoringBlockingInterval).After(time.Now()) {
+	} else if lastProvisioningTimestamp, ok := fm.lastProvisioningTimestamps.Load(function.Name); ok {
+		if lastProvisioningTimestamp.(time.Time).Add(PostDeploymentMonitoringBlockingInterval).After(time.Now()) {
 			fm.logger.DebugWith("Function was recently deployed",
 				"functionName", function.Name,
 				"lastProvisioningTimestamp", lastProvisioningTimestamp)
 			return true
 		}
 	}
+
+	// cleanup
+	fm.lastProvisioningTimestamps.Delete(function.Name)
 	return false
 }
