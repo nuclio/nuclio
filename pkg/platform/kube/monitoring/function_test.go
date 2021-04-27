@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioiofake "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned/fake"
@@ -46,9 +45,6 @@ type FunctionMonitoringTestSuite struct {
 
 func (suite *FunctionMonitoringTestSuite) SetupSuite() {
 	var err error
-
-	common.SetVersionFromEnv()
-
 	suite.Namespace = "default-namespace"
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err, "Failed to create logger")
