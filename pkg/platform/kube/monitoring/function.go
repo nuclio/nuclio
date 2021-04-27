@@ -1,11 +1,13 @@
 package monitoring
 
 import (
+	"context"
 	"runtime/debug"
 	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -13,7 +15,6 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -108,10 +109,10 @@ func (fm *FunctionMonitor) checkFunctionStatuses() error {
 		return errors.Wrap(err, "Failed to list functions")
 	}
 
-	var errGroup errgroup.Group
+	errGroup, _ := errgroup.WithContext(context.TODO(), fm.logger)
 	for _, function := range functions.Items {
 		function := function
-		errGroup.Go(func() error {
+		errGroup.Go("update-function-status", func() error {
 			return fm.updateFunctionStatus(&function)
 		})
 	}
