@@ -78,10 +78,10 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 
 	invokeURL, err := i.resolveInvokeURL(function, createFunctionInvocationOptions)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to resolve invocation url")
 	}
-	fullpath := fmt.Sprintf("http://%s", invokeURL)
 
+	fullpath := fmt.Sprintf("http://%s", invokeURL)
 	if createFunctionInvocationOptions.Path != "" {
 		fullpath += "/" + createFunctionInvocationOptions.Path
 	}
