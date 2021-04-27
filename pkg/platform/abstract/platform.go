@@ -434,7 +434,9 @@ func (ap *Platform) ResolveReservedResourceNames() []string {
 }
 
 // CreateFunctionInvocation will invoke a previously deployed function
-func (ap *Platform) CreateFunctionInvocation(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (*platform.CreateFunctionInvocationResult, error) {
+func (ap *Platform) CreateFunctionInvocation(
+	createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (
+	*platform.CreateFunctionInvocationResult, error) {
 	if createFunctionInvocationOptions.Headers == nil {
 		createFunctionInvocationOptions.Headers = http.Header{}
 	}

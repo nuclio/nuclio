@@ -17,13 +17,17 @@ limitations under the License.
 package resource
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
+
+	"github.com/nuclio/errors"
 )
 
 type invocationResource struct {
@@ -62,14 +66,14 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 
 	if functionName == "" || functionNamespace == "" {
 		tr.writeErrorHeader(responseWriter, http.StatusBadRequest)
-		responseWriter.Write([]byte(`{"error": "Function name must be provided"}`)) // nolint: errcheck
+		tr.writeErrorMessage(responseWriter, "Function name must be provided")
 		return
 	}
 
 	requestBody, err := ioutil.ReadAll(request.Body)
 	if err != nil {
 		tr.writeErrorHeader(responseWriter, http.StatusInternalServerError)
-		responseWriter.Write([]byte(`{"error": "Failed to read request body"}`)) // nolint: errcheck
+		tr.writeErrorMessage(responseWriter, "Failed to read request body")
 		return
 	}
 
@@ -87,9 +91,8 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 
 	if err != nil {
 		tr.Logger.WarnWith("Failed to invoke function", "err", err)
-
-		tr.writeErrorHeader(responseWriter, http.StatusInternalServerError)
-		responseWriter.Write([]byte(`{"error": "Failed to invoke function"}`)) // nolint: errcheck
+		tr.writeErrorHeader(responseWriter, common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError))
+		tr.writeErrorMessage(responseWriter, fmt.Sprintf("Failed to invoke function: %v", errors.RootCause(err)))
 		return
 	}
 
@@ -124,6 +127,11 @@ func (tr *invocationResource) getInvokeVia(invokeViaName string) platform.Invoke
 func (tr *invocationResource) writeErrorHeader(responseWriter http.ResponseWriter, statusCode int) {
 	responseWriter.Header().Set("Content-Type", "application/json")
 	responseWriter.WriteHeader(statusCode)
+}
+
+func (tr *invocationResource) writeErrorMessage(responseWriter http.ResponseWriter, message string) {
+	formattedMessage := fmt.Sprintf(`{"error": "%s"}`, message)
+	responseWriter.Write([]byte(formattedMessage)) // nolint: errcheck
 }
 
 // register the resource
