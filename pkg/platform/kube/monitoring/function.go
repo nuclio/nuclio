@@ -1,10 +1,29 @@
+/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package monitoring
 
 import (
+	"context"
 	"runtime/debug"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -12,7 +31,6 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +48,7 @@ type FunctionMonitor struct {
 	nuclioClientSet            nuclioioclient.Interface
 	interval                   time.Duration
 	stopChan                   chan struct{}
-	lastProvisioningTimestamps map[string]time.Time
+	lastProvisioningTimestamps sync.Map
 }
 
 func NewFunctionMonitor(parentLogger logger.Logger,
@@ -45,7 +63,7 @@ func NewFunctionMonitor(parentLogger logger.Logger,
 		kubeClientSet:              kubeClientSet,
 		nuclioClientSet:            nuclioClientSet,
 		interval:                   interval,
-		lastProvisioningTimestamps: make(map[string]time.Time),
+		lastProvisioningTimestamps: sync.Map{},
 	}
 
 	newFunctionMonitor.logger.DebugWith("Created function monitor",
@@ -107,10 +125,10 @@ func (fm *FunctionMonitor) checkFunctionStatuses() error {
 		return errors.Wrap(err, "Failed to list functions")
 	}
 
-	var errGroup errgroup.Group
+	errGroup, _ := errgroup.WithContext(context.TODO(), fm.logger)
 	for _, function := range functions.Items {
 		function := function
-		errGroup.Go(func() error {
+		errGroup.Go("update-function-status", func() error {
 			return fm.updateFunctionStatus(&function)
 		})
 	}
@@ -265,18 +283,21 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(function *nuclioio.Nucli
 
 func (fm *FunctionMonitor) resolveFunctionProvisionedOrRecentlyDeployed(function *nuclioio.NuclioFunction) bool {
 	if functionconfig.FunctionStateProvisioning(function.Status.State) {
-		fm.lastProvisioningTimestamps[function.Name] = time.Now()
+		fm.lastProvisioningTimestamps.Store(function.Name, time.Now())
 		fm.logger.DebugWith("Function is in provisioning state",
 			"functionState", function.Status.State,
 			"functionName", function.Name)
 		return true
-	} else if lastProvisioningTimestamp, ok := fm.lastProvisioningTimestamps[function.Name]; ok {
-		if lastProvisioningTimestamp.Add(PostDeploymentMonitoringBlockingInterval).After(time.Now()) {
+	} else if lastProvisioningTimestamp, ok := fm.lastProvisioningTimestamps.Load(function.Name); ok {
+		if lastProvisioningTimestamp.(time.Time).Add(PostDeploymentMonitoringBlockingInterval).After(time.Now()) {
 			fm.logger.DebugWith("Function was recently deployed",
 				"functionName", function.Name,
 				"lastProvisioningTimestamp", lastProvisioningTimestamp)
 			return true
 		}
 	}
+
+	// cleanup
+	fm.lastProvisioningTimestamps.Delete(function.Name)
 	return false
 }
