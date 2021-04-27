@@ -466,9 +466,9 @@ func CatchAndLogPanicWithOptions(ctx context.Context,
 	options *CatchAndLogPanicOptions) error {
 	if err := recover(); err != nil {
 		callStack := debug.Stack()
-		logPanic(ctx, loggerInstance, actionName, options.Args, callStack, err)
+		LogPanic(ctx, loggerInstance, actionName, options.Args, callStack, err)
 
-		asErr := errorFromRecoveredError(err)
+		asErr := ErrorFromRecoveredError(err)
 		if options.CustomHandler != nil {
 			options.CustomHandler(asErr)
 		}
@@ -499,7 +499,7 @@ func LabelsMapMatchByLabelSelector(labelSelector string, labelsMap map[string]st
 	return selector.Matches(labels.Set(labelsMap)), nil
 }
 
-func logPanic(ctx context.Context,
+func LogPanic(ctx context.Context,
 	loggerInstance logger.Logger,
 	actionName string,
 	args []interface{},
@@ -518,7 +518,7 @@ func logPanic(ctx context.Context,
 	loggerInstance.ErrorWithCtx(ctx, "Panic caught while "+actionName, logArgs...)
 }
 
-func errorFromRecoveredError(recoveredError interface{}) error {
+func ErrorFromRecoveredError(recoveredError interface{}) error {
 	switch typedErr := recoveredError.(type) {
 	case string:
 		return errors.New(typedErr)
