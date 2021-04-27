@@ -117,6 +117,7 @@ type CreateFunctionInvocationOptions struct {
 	Headers      http.Header
 	LogLevelName string
 	Via          InvokeViaType
+	URL          string
 }
 
 // CreateFunctionInvocationResult holds the result of a single invocation

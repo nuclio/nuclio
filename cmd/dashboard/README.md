@@ -195,6 +195,7 @@ The HTTP method you apply to this endpoint is the one with which dashboard will 
   * `x-nuclio-function-namespace`: Namespace (required)
   * `x-nuclio-path`: The path to invoke the function with (can be empty to invoke with `/`)
   * `x-nuclio-invoke-via`: One of `external-ip`, `loadbalancer` and `domain-name`
+  * `x-nuclio-invoke-url`: Function invocation url to use (if provided, overrides `x-nuclio-invoke-via` header)
   * Any other header is passed transparently to the function
 * Body: Raw body passed as is to the function
 

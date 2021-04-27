@@ -527,6 +527,10 @@ type Status struct {
 	ExternalInvocationURLs []string `json:"externalInvocationURLs,omitempty"`
 }
 
+func (s *Status) InvocationURLs() []string {
+	return append(s.InternalInvocationURLs, s.ExternalInvocationURLs...)
+}
+
 type ScaleToZeroStatus struct {
 	LastScaleEvent     scaler_types.ScaleEvent `json:"lastScaleEvent,omitempty"`
 	LastScaleEventTime *time.Time              `json:"lastScaleEventTime,omitempty"`

@@ -536,6 +536,80 @@ func (suite *functionTestSuite) TestDeleteNoNamespace() {
 	suite.sendRequestNoNamespace("DELETE")
 }
 
+func (suite *functionTestSuite) TestInvokeUnSuccessful() {
+	errMessage := "something-bad-happened"
+	functionName := "f1"
+	functionNamespace := "f1-namespace"
+
+	requestMethod := "PUT"
+	requestPath := "/some/path"
+	requestBody := []byte("request body")
+
+	// headers we want to pass to the actual function
+	functionRequestHeaders := map[string]string{
+		"request_h1": "request_h1v",
+		"request_h2": "request_h2v",
+	}
+
+	// headers we need to pass to dashboard for invocation
+	requestHeaders := map[string]string{
+		"x-nuclio-path":               requestPath,
+		"x-nuclio-function-name":      functionName,
+		"x-nuclio-function-namespace": functionNamespace,
+		"x-nuclio-invoke-url":         "something-bad",
+	}
+
+	// add functionRequestHeaders to requestHeaders so that dashboard will invoke the functions with them
+	for headerKey, headerValue := range functionRequestHeaders {
+		requestHeaders[headerKey] = headerValue
+	}
+
+	// CreateFunctionInvocationResult holds the result of a single invocation
+	expectedInvokeResult := platform.CreateFunctionInvocationResult{}
+
+	// verify call to invoke function
+	verifyCreateFunctionInvocation := func(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) bool {
+		suite.Require().Equal(functionName, createFunctionInvocationOptions.Name)
+		suite.Require().Equal(functionNamespace, createFunctionInvocationOptions.Namespace)
+		suite.Require().Equal(requestBody, createFunctionInvocationOptions.Body)
+		suite.Require().Equal(requestMethod, createFunctionInvocationOptions.Method)
+		suite.Require().Equal(platform.InvokeViaAny, createFunctionInvocationOptions.Via)
+		suite.Require().Equal("something-bad", createFunctionInvocationOptions.URL)
+
+		// dashboard will trim the first "/"
+		suite.Require().Equal(requestPath[1:], createFunctionInvocationOptions.Path)
+
+		// expect only to receive the function headers (those that don't start with x-nuclio
+		for headerKey := range createFunctionInvocationOptions.Headers {
+			suite.Require().False(strings.HasPrefix(headerKey, "x-nuclio"))
+		}
+
+		// expect all the function headers to be there
+		for headerKey, headerValue := range functionRequestHeaders {
+			suite.Require().Equal(headerValue, createFunctionInvocationOptions.Headers.Get(headerKey))
+		}
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("CreateFunctionInvocation", mock.MatchedBy(verifyCreateFunctionInvocation)).
+		Return(&expectedInvokeResult, nuclio.NewErrBadRequest(errMessage)).
+		Once()
+
+	expectedStatusCode := http.StatusBadRequest
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{errMessage})
+
+	suite.sendRequest(requestMethod,
+		"/api/function_invocations",
+		requestHeaders,
+		bytes.NewBuffer(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
 func (suite *functionTestSuite) TestInvokeSuccessful() {
 	functionName := "f1"
 	functionNamespace := "f1-namespace"
@@ -557,6 +631,7 @@ func (suite *functionTestSuite) TestInvokeSuccessful() {
 		"x-nuclio-function-name":      functionName,
 		"x-nuclio-function-namespace": functionNamespace,
 		"x-nuclio-invoke-via":         "external-ip",
+		"x-nuclio-invoke-url":         "something",
 	}
 
 	// add functionRequestHeaders to requestHeaders so that dashboard will invoke the functions with them
@@ -581,6 +656,7 @@ func (suite *functionTestSuite) TestInvokeSuccessful() {
 		suite.Require().Equal(requestBody, createFunctionInvocationOptions.Body)
 		suite.Require().Equal(requestMethod, createFunctionInvocationOptions.Method)
 		suite.Require().Equal(platform.InvokeViaAny, createFunctionInvocationOptions.Via)
+		suite.Require().Equal("something", createFunctionInvocationOptions.URL)
 
 		// dashboard will trim the first "/"
 		suite.Require().Equal(requestPath[1:], createFunctionInvocationOptions.Path)
