@@ -214,6 +214,7 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 			"X-nuclio-api-gateway-name",
 			"X-nuclio-api-gateway-namespace",
 			"X-nuclio-invoke-via",
+			"X-nuclio-invoke-url",
 			"X-nuclio-project-name",
 			"X-nuclio-project-namespace",
 			"X-nuclio-function-event-name",

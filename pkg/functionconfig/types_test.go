@@ -93,6 +93,14 @@ func (suite *ReaderTestSuite) TestFunctionMetaSkipBuildAnnotationTrue() {
 	}
 }
 
+func (suite *ReaderTestSuite) TestGetInvocationURLs() {
+	functionStatus := Status{
+		InternalInvocationURLs: []string{"a", "b"},
+		ExternalInvocationURLs: []string{"c", "d"},
+	}
+	suite.Require().Equal([]string{"a", "b", "c", "d"}, functionStatus.InvocationURLs())
+}
+
 func TestTypesTestSuite(t *testing.T) {
 	suite.Run(t, new(TypesTestSuite))
 }

@@ -557,6 +557,7 @@ func (suite *functionTestSuite) TestInvokeSuccessful() {
 		"x-nuclio-function-name":      functionName,
 		"x-nuclio-function-namespace": functionNamespace,
 		"x-nuclio-invoke-via":         "external-ip",
+		"x-nuclio-invoke-url":         "something",
 	}
 
 	// add functionRequestHeaders to requestHeaders so that dashboard will invoke the functions with them
@@ -581,6 +582,7 @@ func (suite *functionTestSuite) TestInvokeSuccessful() {
 		suite.Require().Equal(requestBody, createFunctionInvocationOptions.Body)
 		suite.Require().Equal(requestMethod, createFunctionInvocationOptions.Method)
 		suite.Require().Equal(platform.InvokeViaAny, createFunctionInvocationOptions.Via)
+		suite.Require().Equal("something", createFunctionInvocationOptions.URL)
 
 		// dashboard will trim the first "/"
 		suite.Require().Equal(requestPath[1:], createFunctionInvocationOptions.Path)

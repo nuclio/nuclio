@@ -51,6 +51,7 @@ func (tr *invocationResource) OnAfterInitialize() error {
 func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, request *http.Request) {
 	path := request.Header.Get("x-nuclio-path")
 	functionName := request.Header.Get("x-nuclio-function-name")
+	invokeURL := request.Header.Get("x-nuclio-invoke-url")
 	invokeVia := tr.getInvokeVia(request.Header.Get("x-nuclio-invoke-via"))
 
 	// get namespace from request or use the provided default
@@ -81,6 +82,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		Headers:   request.Header,
 		Body:      requestBody,
 		Via:       invokeVia,
+		URL:       invokeURL,
 	})
 
 	if err != nil {
