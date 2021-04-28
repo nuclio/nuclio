@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/processor/build"
@@ -220,6 +221,49 @@ func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
 
 	// make sure reverser worked
 	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+}
+
+func (suite *functionDeployTestSuite) TestInvokeWithTimeout() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "invoke-with-timeout" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+	timeoutSeconds := 3
+	timeoutSourceCode := fmt.Sprintf("sleep %d\necho done", timeoutSeconds)
+	namedArgs := map[string]string{
+		"image":   imageName,
+		"runtime": "shell",
+		"handler": "main.sh",
+		"source":  base64.StdEncoding.EncodeToString([]byte(timeoutSourceCode)),
+	}
+
+	// deploy function
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	// try a few times to invoke, until it succeeds
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
+		map[string]string{
+			"method":  "POST",
+			"via":     "external-ip",
+			"timeout": platform.FunctionInvocationDefaultTimeout.String(),
+		},
+		false)
+	suite.Require().NoError(err)
+
+	// fail to invoke due to timeout error
+	err = suite.ExecuteNuctl([]string{"invoke", functionName},
+		map[string]string{
+			"method":  "POST",
+			"via":     "external-ip",
+			"timeout": (time.Duration(timeoutSeconds-1) * time.Second).String(),
+		})
+	suite.Require().Error(err)
 }
 
 func (suite *functionDeployTestSuite) TestDeployWithMetadata() {

@@ -213,6 +213,7 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 			"X-nuclio-wait-function-action",
 			"X-nuclio-api-gateway-name",
 			"X-nuclio-api-gateway-namespace",
+			"X-nuclio-invoke-timeout",
 			"X-nuclio-invoke-via",
 			"X-nuclio-invoke-url",
 			"X-nuclio-project-name",

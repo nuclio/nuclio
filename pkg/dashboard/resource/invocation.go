@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
@@ -29,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type invocationResource struct {
@@ -78,6 +80,12 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		return
 	}
 
+	invokeTimeout, err := tr.resolveInvokeTimeout(request.Header.Get("x-nuclio-invoke-timeout"))
+	if err != nil {
+		tr.writeErrorHeader(responseWriter, http.StatusBadRequest)
+		tr.writeErrorMessage(responseWriter, errors.RootCause(err).Error())
+	}
+
 	// resolve the function host
 	invocationResult, err := tr.getPlatform().CreateFunctionInvocation(&platform.CreateFunctionInvocationOptions{
 		Name:      functionName,
@@ -88,6 +96,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		Body:      requestBody,
 		Via:       invokeVia,
 		URL:       invokeURL,
+		Timeout:   invokeTimeout,
 	})
 
 	if err != nil {
@@ -133,6 +142,17 @@ func (tr *invocationResource) writeErrorHeader(responseWriter http.ResponseWrite
 func (tr *invocationResource) writeErrorMessage(responseWriter io.Writer, message string) {
 	formattedMessage := fmt.Sprintf(`{"error": "%s"}`, message)
 	responseWriter.Write([]byte(formattedMessage)) // nolint: errcheck
+}
+
+func (tr *invocationResource) resolveInvokeTimeout(invokeTimeout string) (time.Duration, error) {
+	if invokeTimeout == "" {
+		return platform.FunctionInvocationDefaultTimeout, nil
+	}
+	parsedDuration, err := time.ParseDuration(invokeTimeout)
+	if err != nil {
+		return 0, nuclio.NewErrBadRequest("Invalid invoke timeout")
+	}
+	return parsedDuration, nil
 }
 
 // register the resource

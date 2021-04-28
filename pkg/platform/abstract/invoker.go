@@ -86,7 +86,9 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 		fullpath += "/" + createFunctionInvocationOptions.Path
 	}
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: createFunctionInvocationOptions.Timeout,
+	}
 	var req *http.Request
 	var body io.Reader = http.NoBody
 

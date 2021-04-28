@@ -116,9 +116,12 @@ type CreateFunctionInvocationOptions struct {
 	Body         []byte
 	Headers      http.Header
 	LogLevelName string
+	Timeout      time.Duration
 	Via          InvokeViaType
 	URL          string
 }
+
+const FunctionInvocationDefaultTimeout = time.Minute
 
 // CreateFunctionInvocationResult holds the result of a single invocation
 type CreateFunctionInvocationResult struct {
