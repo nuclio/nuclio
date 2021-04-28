@@ -27,7 +27,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
@@ -138,7 +140,7 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 		return
 	}
 
-	return pr.createProject(projectInfo)
+	return pr.createProject(request, projectInfo)
 }
 
 // returns a list of custom routes for the resource
@@ -237,7 +239,7 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(project platform.Pro
 	return functionsMap, functionEventsMap
 }
 
-func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id string,
+func (pr *projectResource) createProject(request *http.Request, projectInfoInstance *projectInfo) (id string,
 	attributes restful.Attributes, responseErr error) {
 
 	// create a project config
@@ -252,10 +254,14 @@ func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id s
 		return "", nil, nuclio.WrapErrInternalServerError(err)
 	}
 
+	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
+
 	// just deploy. the status is async through polling
 	pr.Logger.DebugWith("Creating project", "newProject", newProject)
 	if err := pr.getPlatform().CreateProject(&platform.CreateProjectOptions{
 		ProjectConfig: newProject.GetConfig(),
+		RequestOrigin: requestOrigin,
+		SessionCookie: sessionCookie,
 	}); err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "already exists") {
 			return "", nil, nuclio.WrapErrConflict(err)
@@ -269,6 +275,15 @@ func (pr *projectResource) createProject(projectInfoInstance *projectInfo) (id s
 		"id", id,
 		"attributes", attributes)
 	return
+}
+
+func (pr *projectResource) getRequestOriginAndSessionCookie(request *http.Request) (platformconfig.ProjectsLeaderKind, *http.Cookie) {
+	requestOrigin := platformconfig.ProjectsLeaderKind(request.Header.Get(iguazio.ProjectsRoleHeaderKey))
+
+	// ignore error here, and just return a nil cookie when no session was passed (relevant only on leader/follower mode)
+	sessionCookie, _ := request.Cookie("session")
+
+	return requestOrigin, sessionCookie
 }
 
 func (pr *projectResource) importProject(projectImportOptions *ProjectImportOptions) (
@@ -542,9 +557,13 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 	}
 
 	projectDeletionStrategy := request.Header.Get("x-nuclio-delete-project-strategy")
+	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
+
 	if err = pr.getPlatform().DeleteProject(&platform.DeleteProjectOptions{
-		Meta:     *projectInfo.Meta,
-		Strategy: platform.ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy),
+		Meta:          *projectInfo.Meta,
+		Strategy:      platform.ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy),
+		RequestOrigin: requestOrigin,
+		SessionCookie: sessionCookie,
 	}); err != nil {
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
@@ -574,13 +593,15 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 		}, err
 	}
 
-	projectConfig := platform.ProjectConfig{
-		Meta: *projectInfo.Meta,
-		Spec: *projectInfo.Spec,
-	}
+	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
 	if err = pr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
-		ProjectConfig: projectConfig,
+		ProjectConfig: platform.ProjectConfig{
+			Meta: *projectInfo.Meta,
+			Spec: *projectInfo.Spec,
+		},
+		RequestOrigin: requestOrigin,
+		SessionCookie: sessionCookie,
 	}); err != nil {
 		pr.Logger.WarnWith("Failed to update project", "err", err)
 		statusCode = common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError)
