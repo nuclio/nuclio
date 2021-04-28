@@ -129,10 +129,9 @@ func SendHTTPRequest(method string,
 		Timeout: timeout,
 	}
 	if insecure {
-		tr := &http.Transport{
+		client.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
-		client = &http.Client{Transport: tr}
 	}
 
 	// create request object

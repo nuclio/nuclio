@@ -15,9 +15,11 @@ import (
 )
 
 const (
-	ProjectsRoleHeaderKey         = "x-projects-role"
 	ProjectsRoleHeaderValueNuclio = "nuclio"
 	DefaultRequestTimeout         = 10 * time.Second
+
+	// didn't use "x-nuclio.." prefix, because this header is used across iguazio, mlrun and nuclio (not nuclio specific)
+	ProjectsRoleHeaderKey = "x-projects-role"
 )
 
 type Client struct {
