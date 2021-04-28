@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/nuclio/errors"
 	"github.com/valyala/fasthttp"
@@ -120,18 +121,18 @@ func SendHTTPRequest(method string,
 	headers map[string]string,
 	cookies []*http.Cookie,
 	expectedStatusCode int,
-	insecure bool) ([]byte, int, error) {
-
-	var client *http.Client
+	insecure bool,
+	timeout time.Duration) ([]byte, int, error) {
 
 	// create client (secure or not)
+	client := &http.Client{
+		Timeout: timeout,
+	}
 	if insecure {
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client = &http.Client{Transport: tr}
-	} else {
-		client = &http.Client{}
 	}
 
 	// create request object

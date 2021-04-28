@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -16,6 +17,7 @@ import (
 const (
 	ProjectsRoleHeaderKey         = "x-projects-role"
 	ProjectsRoleHeaderValueNuclio = "nuclio"
+	DefaultRequestTimeout         = 10 * time.Second
 )
 
 type Client struct {
@@ -51,7 +53,8 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) err
 		headers,
 		[]*http.Cookie{createProjectOptions.SessionCookie},
 		http.StatusCreated,
-		true)
+		true,
+		DefaultRequestTimeout)
 	if err != nil {
 		return errors.Wrap(err, "Failed to send request to leader")
 	}
@@ -86,7 +89,8 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) err
 		headers,
 		[]*http.Cookie{updateProjectOptions.SessionCookie},
 		http.StatusOK,
-		true)
+		true,
+		DefaultRequestTimeout)
 	if err != nil {
 		return errors.Wrap(err, "Failed to send request to leader")
 	}
@@ -118,7 +122,8 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 		headers,
 		[]*http.Cookie{deleteProjectOptions.SessionCookie},
 		http.StatusAccepted,
-		true); err != nil {
+		true,
+		DefaultRequestTimeout); err != nil {
 
 		return errors.Wrap(err, "Failed to send request to leader")
 	}

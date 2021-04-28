@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -221,6 +222,7 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 			"X-nuclio-function-enrich-apigateways",
 			"X-nuclio-path",
 			"X-nuclio-delete-project-strategy",
+			iguazio.ProjectsRoleHeaderKey,
 		},
 		ExposedHeaders: []string{
 			"Content-Length",

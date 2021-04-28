@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -277,7 +278,7 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 }
 
 func (pr *projectResource) getRequestOriginAndSessionCookie(request *http.Request) (platformconfig.ProjectsLeaderKind, *http.Cookie) {
-	requestOrigin := platformconfig.ProjectsLeaderKind(request.Header.Get("x-projects-role"))
+	requestOrigin := platformconfig.ProjectsLeaderKind(request.Header.Get(iguazio.ProjectsRoleHeaderKey))
 
 	// ignore error here, and just return a nil cookie when no session was passed (relevant only on leader/follower mode)
 	sessionCookie, _ := request.Cookie("session")
