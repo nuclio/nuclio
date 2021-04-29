@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
@@ -753,9 +754,6 @@ func (c *ShellClient) GetContainerLogStream(ctx context.Context,
 	}
 
 	var cmdArgs []string
-	if logOptions.Follow {
-		cmdArgs = append(cmdArgs, "--follow")
-	}
 	if logOptions.Since != "" {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--since %s", common.Quote(logOptions.Since)))
 	}
@@ -763,9 +761,20 @@ func (c *ShellClient) GetContainerLogStream(ctx context.Context,
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--tail %s", common.Quote(logOptions.Tail)))
 	}
 
-	return c.streamCommand(ctx, &cmdrunner.RunOptions{
-		LogOnlyOnFailure: true,
+	if logOptions.Follow {
+		return c.streamCommand(ctx,
+			nil,
+			"docker logs %s --follow %s", strings.Join(cmdArgs, " "), containerID)
+	}
+
+	output, err := c.runCommand(&cmdrunner.RunOptions{
+		CaptureOutputMode: cmdrunner.CaptureOutputModeCombined,
 	}, "docker logs %s %s", strings.Join(cmdArgs, " "), containerID)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get container log stream")
+	}
+
+	return ioutil.NopCloser(strings.NewReader(output.Output)), nil
 }
 
 func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions,

@@ -196,7 +196,7 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 			RouteFunc: fr.getFunctionReplicas,
 		},
 		{
-			Pattern:         "/__logs/{id}/{replicaName}",
+			Pattern:         "/{id}/logs/{replicaName}",
 			Method:          http.MethodGet,
 			StreamRouteFunc: fr.getFunctionLogs,
 			Stream:          true,
@@ -572,12 +572,16 @@ func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(replicaN
 		}
 		sinceSeconds := int64(since.Seconds())
 		getFunctionReplicaLogsStreamOptions.SinceSeconds = &sinceSeconds
+	} else {
+		getFunctionReplicaLogsStreamOptions.SinceSeconds = nil
 	}
 
 	// populate since seconds
 	tailLines := fr.GetURLParamInt64OrDefault(request, "tailLines", -1)
 	if tailLines != -1 {
 		getFunctionReplicaLogsStreamOptions.TailLines = &tailLines
+	} else {
+		getFunctionReplicaLogsStreamOptions.TailLines = nil
 	}
 
 	return getFunctionReplicaLogsStreamOptions, nil
