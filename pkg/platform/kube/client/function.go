@@ -17,7 +17,9 @@ limitations under the License.
 package client
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"sync"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -31,6 +33,8 @@ import (
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+const FunctionContainerName = "nuclio"
 
 type Function struct {
 	platform.AbstractFunction
@@ -227,6 +231,35 @@ func (f *Function) GetConfig() *functionconfig.Config {
 		},
 		Spec: f.function.Spec,
 	}
+}
+
+func (f *Function) GetReplicaNames(ctx context.Context) ([]string, error) {
+	pods, err := f.consumer.KubeClientSet.CoreV1().Pods(f.GetConfig().Meta.Namespace).List(metav1.ListOptions{
+		LabelSelector: compileListFunctionPodsLabelSelector(f.Config.Meta.Name),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function pods")
+	}
+	var names []string
+	for _, pod := range pods.Items {
+		names = append(names, pod.GetName())
+	}
+	return names, nil
+}
+
+func (f *Function) GetReplicaLogsStream(ctx context.Context,
+	options *platform.GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error) {
+	return f.consumer.KubeClientSet.
+		CoreV1().
+		Pods(f.GetConfig().Meta.Namespace).
+		GetLogs(options.Name, &v1.PodLogOptions{
+			Container:    FunctionContainerName,
+			SinceSeconds: options.SinceSeconds,
+			TailLines:    options.TailLines,
+			Follow:       options.Follow,
+		}).
+		Context(ctx).
+		Stream()
 }
 
 func (f *Function) getInvokeURLFields(invokeViaType platform.InvokeViaType) (string, int, string, error) {
