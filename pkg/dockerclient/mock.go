@@ -17,6 +17,8 @@ limitations under the License.
 package dockerclient
 
 import (
+	"context"
+	"io"
 	"time"
 
 	"github.com/stretchr/testify/mock"
@@ -155,4 +157,11 @@ func (mdc *MockDockerClient) GetVersion(quiet bool) (string, error) {
 func (mdc *MockDockerClient) GetContainerIPAddresses(containerID string) ([]string, error) {
 	args := mdc.Called(containerID)
 	return args.Get(0).([]string), args.Error(1)
+}
+
+func (mdc *MockDockerClient) GetContainerLogStream(ctx context.Context,
+	containerID string,
+	logOptions *ContainerLogsOptions) (io.ReadCloser, error) {
+	args := mdc.Called(ctx, containerID, logOptions)
+	return args.Get(0).(io.ReadCloser), args.Error(1)
 }

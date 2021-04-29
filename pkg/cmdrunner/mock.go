@@ -17,6 +17,9 @@ limitations under the License.
 package cmdrunner
 
 import (
+	"context"
+	"io"
+
 	"github.com/stretchr/testify/mock"
 )
 
@@ -32,6 +35,14 @@ func (m *MockRunner) Run(runOptions *RunOptions, format string, vars ...interfac
 		runResults.Output = Redact(runOptions.LogRedactions, runResults.Output)
 	}
 	return runResults, args.Error(1)
+}
+
+func (m *MockRunner) Stream(ctx context.Context,
+	runOptions *RunOptions,
+	format string,
+	vars ...interface{}) (io.ReadCloser, error) {
+	args := m.Called(ctx, runOptions, format, vars)
+	return args.Get(0).(io.ReadCloser), args.Error(1)
 }
 
 func NewMockRunner() *MockRunner {

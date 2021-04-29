@@ -18,7 +18,9 @@ package cmdrunner
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -102,6 +104,63 @@ func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interf
 	}
 
 	return runResult, nil
+}
+
+func (sr *ShellRunner) Stream(ctx context.Context,
+	runOptions *RunOptions,
+	format string,
+	vars ...interface{}) (io.ReadCloser, error) {
+
+	// support missing runOptions for tests that send nil
+	if runOptions == nil {
+		runOptions = &RunOptions{}
+	}
+
+	// format the command
+	formattedCommand := fmt.Sprintf(format, vars...)
+	redactedCommand := Redact(runOptions.LogRedactions, formattedCommand)
+
+	if !runOptions.LogOnlyOnFailure {
+		sr.logger.DebugWith("Executing", "command", redactedCommand)
+	}
+
+	// create a command
+	cmd := exec.CommandContext(ctx, sr.shell, "-c", formattedCommand)
+
+	// if there are runOptions, set them
+	if runOptions.WorkingDir != nil {
+		cmd.Dir = *runOptions.WorkingDir
+	}
+
+	// get environment variables if any
+	if runOptions.Env != nil {
+		cmd.Env = sr.getEnvFromOptions(runOptions)
+	}
+
+	if runOptions.Stdin != nil {
+		cmd.Stdin = strings.NewReader(*runOptions.Stdin)
+	}
+
+	pipeReader, pipeWriter := io.Pipe()
+
+	// close pipe once context is done
+	go func(closers ...io.Closer) {
+		<-ctx.Done()
+		for _, closer := range closers {
+			closer.Close() // nolint: errcheck
+		}
+	}(pipeWriter, pipeReader)
+
+	// write stdout/stderr to pipe writer
+	cmd.Stdout = pipeWriter
+	cmd.Stderr = pipeWriter
+
+	// start command
+	if err := cmd.Start(); err != nil {
+		return nil, errors.Wrap(err, "Failed to start command")
+	}
+
+	return pipeReader, nil
 }
 
 func (sr *ShellRunner) SetShell(shell string) {

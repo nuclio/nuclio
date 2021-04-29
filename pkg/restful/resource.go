@@ -513,6 +513,7 @@ func (ar *AbstractResource) callCustomStreamRouteFunc(responseWriter http.Respon
 						flusher.Flush()
 					}
 				case <-request.Context().Done():
+					response.ReadCloser.Close() // nolint: errcheck
 					return
 				}
 			}

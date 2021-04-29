@@ -417,7 +417,6 @@ type GetFunctionReplicaLogsStreamOptions struct {
 	// A relative time in seconds before the current time from which to show logs.
 	SinceSeconds *int64
 
-	// If set, the number of lines from the end of the logs to show. If not specified,
-	// logs are shown from the creation of the container or sinceSeconds or sinceTime
+	// Number of lines to show from the end of the logs
 	TailLines *int64
 }
