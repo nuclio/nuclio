@@ -141,26 +141,28 @@ func (sr *ShellRunner) Stream(ctx context.Context,
 		cmd.Stdin = strings.NewReader(*runOptions.Stdin)
 	}
 
-	pipeReader, pipeWriter := io.Pipe()
+	// Use stdout for standard error
+	cmd.Stderr = cmd.Stdout
 
-	// close pipe once context is done
-	go func(closers ...io.Closer) {
-		<-ctx.Done()
-		for _, closer := range closers {
-			closer.Close() // nolint: errcheck
-		}
-	}(pipeWriter, pipeReader)
-
-	// write stdout/stderr to pipe writer
-	cmd.Stdout = pipeWriter
-	cmd.Stderr = pipeWriter
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create stdout pipe")
+	}
 
 	// start command
 	if err := cmd.Start(); err != nil {
 		return nil, errors.Wrap(err, "Failed to start command")
 	}
 
-	return pipeReader, nil
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			sr.logger.DebugWith("Stream command finished with an error", "err", err)
+			return
+		}
+		sr.logger.Debug("Stream command finished")
+	}()
+
+	return stdoutPipe, nil
 }
 
 func (sr *ShellRunner) SetShell(shell string) {

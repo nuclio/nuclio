@@ -19,10 +19,17 @@ limitations under the License.
 package cmdrunner
 
 import (
+	"context"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -51,6 +58,61 @@ func (suite *ShellRunnerTestSuite) SetupTest() {
 	}
 	suite.runOptions = &RunOptions{
 		WorkingDir: &currentDirectory,
+	}
+}
+
+func (suite *ShellRunnerTestSuite) TestStream() {
+	for _, testCase := range []struct {
+		name          string
+		streamCommand string
+	}{
+		{
+			name:          "Stream",
+			streamCommand: "echo something",
+		},
+		{
+			name: "StreamCancelled",
+			streamCommand: func() string {
+
+				// stream this file contents
+				return fmt.Sprintf(`tail -f %s`, path.Join(common.GetSourceDir(), "README.md"))
+			}(),
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			ctx, cancel := context.WithCancel(context.Background())
+			fileReader, err := suite.shellRunner.Stream(ctx,
+				&RunOptions{},
+				testCase.streamCommand,
+			)
+			suite.Require().NoError(err)
+
+			go func() {
+
+				// let it stream for a second and then stop it
+				time.Sleep(1 * time.Second)
+				suite.logger.DebugWithCtx(ctx, "Cancelling context")
+				cancel()
+			}()
+
+			// read all streamed data
+			suite.logger.DebugWithCtx(ctx, "Streaming file contents")
+			fileContents, err := ioutil.ReadAll(fileReader)
+			suite.logger.DebugWithCtx(ctx, "Done streaming file contents")
+			suite.Require().NoError(err)
+			suite.Require().NotEmpty(fileContents)
+
+			// wait for context termination
+			<-ctx.Done()
+			suite.logger.DebugWithCtx(ctx, "Context is done")
+
+			// `stream` is running with a context, once it is being terminated (or cancelled), the reader should be closed
+			// this ensure it has been closed.
+			err = fileReader.Close()
+			suite.Require().Error(err)
+			suite.Require().Contains(err.Error(), "already closed", "should have been closed")
+
+		})
 	}
 }
 
