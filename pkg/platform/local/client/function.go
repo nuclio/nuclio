@@ -17,13 +17,8 @@ limitations under the License.
 package client
 
 import (
-	"context"
 	"fmt"
-	"io"
-	"strconv"
-	"time"
 
-	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -33,12 +28,10 @@ import (
 
 type function struct {
 	platform.AbstractFunction
-	store *Store
 }
 
 func newFunction(parentLogger logger.Logger,
 	parentPlatform platform.Platform,
-	store *Store,
 	config *functionconfig.Config,
 	status *functionconfig.Status) (*function, error) {
 
@@ -49,7 +42,6 @@ func newFunction(parentLogger logger.Logger,
 	}
 
 	newFunction.AbstractFunction = *newAbstractFunction
-	newFunction.store = store
 
 	return newFunction, nil
 }
@@ -81,32 +73,4 @@ func (f *function) GetIngresses() map[string]functionconfig.Ingress {
 // GetReplicas returns the current # of replicas and the configured # of replicas
 func (f *function) GetReplicas() (int, int) {
 	return 1, 1
-}
-
-func (f *function) GetReplicaNames(ctx context.Context) ([]string, error) {
-	return []string{
-		fmt.Sprintf("nuclio-%s-%s", f.Config.Meta.Namespace, f.Config.Meta.Name),
-	}, nil
-}
-
-func (f *function) GetReplicaLogsStream(ctx context.Context,
-	options *platform.GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error) {
-
-	sinceDuration := ""
-	if options.SinceSeconds != nil {
-		sinceDuration = (time.Second * time.Duration(*options.SinceSeconds)).String()
-	}
-
-	tail := ""
-	if options.TailLines != nil {
-		tail = strconv.FormatInt(*options.TailLines, 10)
-	}
-
-	return f.store.dockerClient.GetContainerLogStream(ctx,
-		options.Name,
-		&dockerclient.ContainerLogsOptions{
-			Follow: options.Follow,
-			Since:  sinceDuration,
-			Tail:   tail,
-		})
 }

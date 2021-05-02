@@ -2,6 +2,8 @@ package mock
 
 import (
 	"bufio"
+	"context"
+	"io"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
@@ -81,6 +83,18 @@ func (mp *Platform) CreateFunctionInvocation(createFunctionInvocationOptions *pl
 func (mp *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	args := mp.Called(getFunctionsOptions)
 	return args.Get(0).([]platform.Function), args.Error(1)
+}
+
+// GetFunctionReplicaLogsStream return the function instance (Kubernetes - Pod / Docker - Container) logs stream
+func (mp *Platform) GetFunctionReplicaLogsStream(ctx context.Context, options *platform.GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error) {
+	args := mp.Called(ctx, options)
+	return args.Get(0).(io.ReadCloser), args.Error(1)
+}
+
+// GetFunctionReplicaNames returns function replica names (Pod / Container names)
+func (mp *Platform) GetFunctionReplicaNames(ctx context.Context, functionConfig *functionconfig.Config) ([]string, error) {
+	args := mp.Called(ctx, functionConfig)
+	return args.Get(0).([]string), args.Error(1)
 }
 
 //

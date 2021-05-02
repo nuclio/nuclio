@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -447,6 +448,40 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 	}
 
 	return p.deleter.Delete(p.consumer, deleteFunctionOptions)
+}
+
+func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
+	options *platform.GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error) {
+	return p.consumer.KubeClientSet.
+		CoreV1().
+		Pods(options.Namespace).
+		GetLogs(options.Name, &v1.PodLogOptions{
+			Container:    client.FunctionContainerName,
+			SinceSeconds: options.SinceSeconds,
+			TailLines:    options.TailLines,
+			Follow:       options.Follow,
+		}).
+		Context(ctx).
+		Stream()
+}
+
+func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
+	functionConfig *functionconfig.Config) ([]string, error) {
+
+	pods, err := p.consumer.KubeClientSet.
+		CoreV1().
+		Pods(functionConfig.Meta.Namespace).
+		List(metav1.ListOptions{
+			LabelSelector: common.CompileListFunctionPodsLabelSelector(functionConfig.Meta.Name),
+		})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function pods")
+	}
+	var names []string
+	for _, pod := range pods.Items {
+		names = append(names, pod.GetName())
+	}
+	return names, nil
 }
 
 func IsInCluster() bool {

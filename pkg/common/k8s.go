@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -42,6 +43,10 @@ func ResolveDefaultNamespace(defaultNamespace string) string {
 	}
 
 	return defaultNamespace
+}
+
+func CompileListFunctionPodsLabelSelector(functionName string) string {
+	return fmt.Sprintf("nuclio.io/function-name=%s,nuclio.io/function-cron-job-pod!=true", functionName)
 }
 
 func getKubeconfigFromHomeDir() string {

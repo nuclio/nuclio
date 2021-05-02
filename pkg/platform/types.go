@@ -411,6 +411,9 @@ type GetFunctionReplicaLogsStreamOptions struct {
 	// The replica (pod / container) name
 	Name string
 
+	// The replica (pod / container) namespace
+	Namespace string
+
 	// Whether to log stream of the replica
 	Follow bool
 

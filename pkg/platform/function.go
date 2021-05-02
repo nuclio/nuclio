@@ -17,8 +17,6 @@ limitations under the License.
 package platform
 
 import (
-	"context"
-	"io"
 	"math/rand"
 	"strconv"
 
@@ -55,12 +53,6 @@ type Function interface {
 
 	// GetConfigWithStatus returns configuration and state of the function
 	GetConfigWithStatus() *functionconfig.ConfigWithStatus
-
-	// GetReplicaNames returns function replica names (Pod / Container names)
-	GetReplicaNames(context.Context) ([]string, error)
-
-	// GetReplicaLogsStream return the function instance (Kubernetes - Pod / Docker - Container) logs stream
-	GetReplicaLogsStream(context.Context, *GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error)
 }
 
 type AbstractFunction struct {
@@ -147,13 +139,4 @@ func (af *AbstractFunction) GetConfigWithStatus() *functionconfig.ConfigWithStat
 		Config: *af.GetConfig(),
 		Status: *af.GetStatus(),
 	}
-}
-
-func (af *AbstractFunction) GetReplicaNames(ctx context.Context) ([]string, error) {
-	return nil, errors.New("Unsupported")
-}
-
-func (af *AbstractFunction) GetReplicaLogsStream(ctx context.Context,
-	options *GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error) {
-	return nil, errors.New("Unsupported")
 }

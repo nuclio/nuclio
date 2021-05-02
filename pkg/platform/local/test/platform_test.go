@@ -64,7 +64,8 @@ func (suite *TestSuite) TestRunFunctionContainerWithCustomRestartPolicy() {
 		Name:              dockerclient.RestartPolicyNameOnFailure,
 		MaximumRetryCount: functionContainerMaximumRetryCount,
 	}
-	containerName := suite.Platform.(*local.Platform).GetContainerNameByCreateFunctionOptions(createFunctionOptions)
+	containerName := suite.Platform.(*local.Platform).
+		GetFunctionContainerName(&createFunctionOptions.FunctionConfig)
 	suite.DeployFunctionExpectError(createFunctionOptions, // nolint: errcheck
 		func(deployResult *platform.CreateFunctionResult) bool {
 
@@ -192,7 +193,7 @@ func (suite *TestSuite) TestDeployFunctionVolumeMount() {
 		// sanity
 		func(deployResult *platform.CreateFunctionResult) bool {
 			containers, err := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
-				Name: localPlatform.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
+				Name: localPlatform.GetFunctionContainerName(&createFunctionOptions.FunctionConfig),
 			})
 			suite.Require().NoError(err, "Failed to get containers")
 
@@ -223,7 +224,7 @@ func (suite *TestSuite) TestDeleteFunctionMissingVolumeMount() {
 		// sanity
 		func(deployResult *platform.CreateFunctionResult) bool {
 			containers, err := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
-				Name: localPlatform.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
+				Name: localPlatform.GetFunctionContainerName(&createFunctionOptions.FunctionConfig),
 			})
 			suite.Require().NoError(err, "Failed to get containers")
 

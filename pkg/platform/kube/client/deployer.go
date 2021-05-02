@@ -210,7 +210,7 @@ func (d *Deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 	functionPods, listPodErr := d.consumer.KubeClientSet.CoreV1().
 		Pods(namespace).
 		List(metav1.ListOptions{
-			LabelSelector: compileListFunctionPodsLabelSelector(name),
+			LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
 		})
 
 	if listPodErr != nil {
@@ -295,7 +295,7 @@ func isFunctionDeploymentFailed(consumer *Consumer,
 	pods, err := consumer.KubeClientSet.CoreV1().
 		Pods(namespace).
 		List(metav1.ListOptions{
-			LabelSelector: compileListFunctionPodsLabelSelector(name),
+			LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
 		})
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to Get pods")
@@ -336,10 +336,6 @@ func isFunctionDeploymentFailed(consumer *Consumer,
 	}
 
 	return false, nil
-}
-
-func compileListFunctionPodsLabelSelector(functionName string) string {
-	return fmt.Sprintf("nuclio.io/function-name=%s,nuclio.io/function-cron-job-pod!=true", functionName)
 }
 
 func waitForFunctionReadiness(loggerInstance logger.Logger,

@@ -314,8 +314,9 @@ func (fr *functionResource) getFunctionLogs(request *http.Request) (*restful.Cus
 	}
 
 	// populate get options
-	getFunctionReplicaLogsStreamOptions, err := fr.populateGetFunctionReplicaLogsStreamOptions(functionReplicaName,
-		request)
+	getFunctionReplicaLogsStreamOptions, err := fr.populateGetFunctionReplicaLogsStreamOptions(request,
+		functionReplicaName,
+		namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to populate get function replica logs stream options")
 	}
@@ -326,8 +327,20 @@ func (fr *functionResource) getFunctionLogs(request *http.Request) (*restful.Cus
 		return nil, errors.Wrap(err, "Failed to get function")
 	}
 
+	replicaNames, err := fr.getPlatform().GetFunctionReplicaNames(request.Context(), function.GetConfig())
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function replica names")
+	}
+
+	// ensure replica belongs to function
+	if !common.StringSliceContainsStringCaseInsensitive(replicaNames, functionReplicaName) {
+		return nil, nuclio.NewErrBadRequest(fmt.Sprintf("%s replica does not belong to function %s",
+			functionReplicaName,
+			function.GetConfig().Meta.Name))
+	}
+
 	// get function instance logs stream
-	stream, err := function.GetReplicaLogsStream(request.Context(), getFunctionReplicaLogsStreamOptions)
+	stream, err := fr.getPlatform().GetFunctionReplicaLogsStream(request.Context(), getFunctionReplicaLogsStreamOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to stream function logs")
 	}
@@ -364,7 +377,7 @@ func (fr *functionResource) getFunctionReplicas(request *http.Request) (
 		return nil, errors.Wrap(err, "Failed to get function")
 	}
 
-	replicaNames, err := function.GetReplicaNames(request.Context())
+	replicaNames, err := fr.getPlatform().GetFunctionReplicaNames(request.Context(), function.GetConfig())
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function replicas")
 	}
@@ -555,12 +568,14 @@ func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionIn
 	return functionInfoInstance, nil
 }
 
-func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(replicaName string,
-	request *http.Request) (*platform.GetFunctionReplicaLogsStreamOptions, error) {
+func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(request *http.Request,
+	replicaName string,
+	namespace string) (*platform.GetFunctionReplicaLogsStreamOptions, error) {
 
 	getFunctionReplicaLogsStreamOptions := &platform.GetFunctionReplicaLogsStreamOptions{
-		Name:   replicaName,
-		Follow: fr.GetURLParamBoolOrDefault(request, "follow", true),
+		Name:      replicaName,
+		Namespace: namespace,
+		Follow:    fr.GetURLParamBoolOrDefault(request, "follow", true),
 	}
 
 	// populate since seconds

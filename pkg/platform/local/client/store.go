@@ -239,7 +239,7 @@ func (s *Store) GetFunctions(functionMeta *functionconfig.Meta) ([]platform.Func
 			return errors.Wrap(err, "Failed to unmarshal function")
 		}
 
-		newFunction, err := newFunction(s.logger, s.platform, s, &configWithStatus.Config, &configWithStatus.Status)
+		newFunction, err := newFunction(s.logger, s.platform, &configWithStatus.Config, &configWithStatus.Status)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create function")
 		}
