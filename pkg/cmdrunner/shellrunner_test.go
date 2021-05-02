@@ -19,9 +19,10 @@ limitations under the License.
 package cmdrunner
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -74,8 +75,8 @@ func (suite *ShellRunnerTestSuite) TestStream() {
 			name: "StreamCancelled",
 			streamCommand: func() string {
 
-				// stream this file contents
-				return fmt.Sprintf(`tail -f %s`, path.Join(common.GetSourceDir(), "README.md"))
+				// stream the entire file contents and then follow
+				return fmt.Sprintf(`tail -n +1 -f %s`, path.Join(common.GetSourceDir(), "README.md"))
 			}(),
 		},
 	} {
@@ -87,24 +88,31 @@ func (suite *ShellRunnerTestSuite) TestStream() {
 			)
 			suite.Require().NoError(err)
 
+			buffer := bytes.NewBuffer([]byte{})
 			go func() {
+				for buffer.Len() == 0 {
+					time.Sleep(250 * time.Millisecond)
+				}
 
 				// let it stream for a second and then stop it
-				time.Sleep(1 * time.Second)
 				suite.logger.DebugWithCtx(ctx, "Cancelling context")
 				cancel()
 			}()
 
 			// read all streamed data
 			suite.logger.DebugWithCtx(ctx, "Streaming file contents")
-			fileContents, err := ioutil.ReadAll(fileReader)
+
+			_, err = io.Copy(buffer, fileReader)
 			suite.logger.DebugWithCtx(ctx, "Done streaming file contents")
 			suite.Require().NoError(err)
-			suite.Require().NotEmpty(fileContents)
+			suite.Require().NotEmpty(buffer.String())
 
 			// wait for context termination
 			<-ctx.Done()
 			suite.logger.DebugWithCtx(ctx, "Context is done")
+
+			// let the process wrap up and close its FDs
+			time.Sleep(1 * time.Second)
 
 			// `stream` is running with a context, once it is being terminated (or cancelled), the reader should be closed
 			// this ensure it has been closed.
