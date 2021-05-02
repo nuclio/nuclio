@@ -102,9 +102,8 @@ func (suite *ShellRunnerTestSuite) TestStream() {
 			// read all streamed data
 			suite.logger.DebugWithCtx(ctx, "Streaming file contents")
 
-			_, err = io.Copy(buffer, fileReader)
+			io.Copy(buffer, fileReader) // nolint: errcheck
 			suite.logger.DebugWithCtx(ctx, "Done streaming file contents")
-			suite.Require().NoError(err)
 			suite.Require().NotEmpty(buffer.String())
 
 			// wait for context termination
