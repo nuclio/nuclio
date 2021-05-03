@@ -476,14 +476,23 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 
 	if response.Resources == nil {
 
-		// write a valid, empty JSON
-		if _, err := responseWriter.Write([]byte("{}")); err != nil {
+		switch response.StatusCode {
+		case http.StatusNoContent:
 
-			// should never happen
-			ar.Logger.ErrorWith("Response writer failed writing empty resources",
-				"err", err,
-				"routeFunc", routeFunc,
-				"request", request)
+			// nothing to do
+			break
+		default:
+
+			// write a valid, empty JSON
+			if _, err := responseWriter.Write([]byte("{}")); err != nil {
+
+				// should never happen
+				ar.Logger.ErrorWith("Response writer failed writing empty resources",
+					"err", err,
+					"routeFunc", routeFunc,
+					"request", request)
+			}
+
 		}
 
 		return
