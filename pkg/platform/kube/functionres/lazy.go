@@ -171,7 +171,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 	var err error
 
 	// get labels from the function and add class labels
-	functionLabels := lc.getFunctionLabels(function, true)
+	functionLabels := lc.getFunctionLabels(function)
 
 	// set a few constants
 	functionLabels["nuclio.io/function-name"] = function.Name
@@ -190,6 +190,10 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 		functionLabels); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich function config")
 	}
+
+	// from this point onwards
+	// sanitize function labels to avoid their usage while applying them on sub resources
+	lc.sanitizeFunctionLabels(functionLabels)
 
 	// create or update the applicable configMap
 	resources.configMap, err = lc.createOrUpdateConfigMap(function)
@@ -897,7 +901,7 @@ func (lc *lazyClient) getDeploymentAugmentedConfigs(function *nuclioio.NuclioFun
 	var configs []platformconfig.LabelSelectorAndConfig
 
 	// get the function labels
-	functionLabels := lc.getFunctionLabels(function, false)
+	functionLabels := lc.getFunctionLabels(function)
 
 	// get platform config
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
@@ -1275,18 +1279,10 @@ func (lc *lazyClient) initClassLabels() {
 	lc.classLabels["nuclio.io/app"] = "functionres"
 }
 
-func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction, sanitizeInternal bool) labels.Set {
+func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) labels.Set {
 	result := labels.Set{}
 
 	for labelKey, labelValue := range function.Labels {
-
-		// whether to sanitize
-		if sanitizeInternal && common.StringSliceContainsString(lc.internalLabelKeys, labelKey) {
-
-			// sanitized
-			continue
-		}
-
 		result[labelKey] = labelValue
 	}
 
@@ -1295,6 +1291,18 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction, sanit
 	}
 
 	return result
+}
+
+func (lc *lazyClient) sanitizeFunctionLabels(labels labels.Set) {
+	for labelKey := range labels {
+
+		// whether to sanitize
+		if common.StringSliceContainsString(lc.internalLabelKeys, labelKey) {
+
+			// sanitized
+			delete(labels, labelKey)
+		}
+	}
 }
 
 func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[string]string, error) {

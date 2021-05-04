@@ -112,6 +112,10 @@ func (suite *NuclioFunctionTestSuite) TestCreateOrUpdateWithScaleToZeroLabel() {
 					continue
 				}
 
+				if _, found := deployment.Labels[kube.FunctionScaleToZeroLabelKey]; found {
+					suite.Require().FailNow("Key should have been omitted from deployment resource")
+				}
+
 				suite.logger.DebugWith("Marking function deployment as available",
 					"functionDeploymentName", functionDeploymentName)
 				_, err = kubeFakeClient.AppsV1().Deployments(suite.namespace).Update(&appsv1.Deployment{

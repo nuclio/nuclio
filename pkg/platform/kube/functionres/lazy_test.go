@@ -81,7 +81,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 			Replicas: &one,
 		},
 	}
-	functionLabels := suite.client.getFunctionLabels(&function, true)
+	functionLabels := suite.client.getFunctionLabels(&function)
 	functionLabels["nuclio.io/function-name"] = function.Name
 
 	// logs are spammy, let them
@@ -362,10 +362,17 @@ func (suite *lazyTestSuite) TestGetFunctionLabels() {
 			functionInstance.Namespace = "some-namespace"
 			functionInstance.Labels = testCase.Labels
 
+			functionLabels := suite.client.getFunctionLabels(functionInstance)
+			if testCase.sanitize {
+				suite.client.sanitizeFunctionLabels(functionLabels)
+			}
+
+			// map[key]value -> [key, keyB, keyC]
 			var functionLabelKeys []string
-			for key := range suite.client.getFunctionLabels(functionInstance, testCase.sanitize) {
+			for key := range functionLabels {
 				functionLabelKeys = append(functionLabelKeys, key)
 			}
+
 			sort.Strings(testCase.ExpectedKeys)
 			sort.Strings(functionLabelKeys)
 			suite.Require().Equal(testCase.ExpectedKeys, functionLabelKeys)
@@ -407,7 +414,7 @@ func (suite *lazyTestSuite) TestEnrichFunctionConfigFromPlatformConfiguration() 
 	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
 		"http": trigger,
 	}
-	functionLabels := suite.client.getFunctionLabels(functionInstance, false)
+	functionLabels := suite.client.getFunctionLabels(functionInstance)
 	err := suite.client.enrichFunction(platformConfig, functionInstance, functionLabels)
 	suite.Require().NoError(err)
 	enrichedHTTPTrigger := functionInstance.Spec.Triggers["http"]
