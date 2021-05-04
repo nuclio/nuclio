@@ -2104,7 +2104,14 @@ func (lc *lazyClient) enrichFunction(platformConfig *platformconfig.Config,
 			}
 
 			// apply HTTP Trigger augmented config
-			for triggerName, _ := range functionconfig.GetTriggersByKind(function.Spec.Triggers, "http") {
+			for triggerName, triggerConfig := range functionconfig.GetTriggersByKind(function.Spec.Triggers, "http") {
+
+				// trigger have few properties that are not json-omitted by default
+				// we do not wish to override the existing trigger config with "empty" values
+				augmentedConfig.HTTPTrigger.Name = triggerConfig.Name
+				augmentedConfig.HTTPTrigger.Class = triggerConfig.Class
+				augmentedConfig.HTTPTrigger.Kind = triggerConfig.Kind
+
 				encodedHTTPTrigger, err := yaml.Marshal(augmentedConfig.HTTPTrigger)
 				if err != nil {
 					return errors.Wrap(err, "Failed to marshal augmented http trigger config")
@@ -2114,6 +2121,7 @@ func (lc *lazyClient) enrichFunction(platformConfig *platformconfig.Config,
 				if err := yaml.Unmarshal(encodedHTTPTrigger, &trigger); err != nil {
 					return errors.Wrap(err, "Failed to join augmented http trigger config into target trigger")
 				}
+				function.Spec.Triggers[triggerName] = trigger
 			}
 		}
 	}
