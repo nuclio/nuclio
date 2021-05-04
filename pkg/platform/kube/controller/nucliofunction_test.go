@@ -27,7 +27,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/mocks"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
@@ -35,6 +34,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
