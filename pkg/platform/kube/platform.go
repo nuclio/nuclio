@@ -1220,6 +1220,24 @@ func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfi
 func (p *Platform) enrichHTTPTriggers(functionConfig *functionconfig.Config) {
 	p.enrichHTTPTriggersWithServiceType(functionConfig)
 
+	var scaleToZeroCandidate bool
+	if functionConfig.Spec.MinReplicas != nil && *functionConfig.Spec.MinReplicas == 0 {
+		if functionConfig.Spec.MaxReplicas != nil && *functionConfig.Spec.MaxReplicas >= 1 {
+			scaleToZeroCandidate = true
+		}
+	}
+
+	scaleToZeroCandidate = scaleToZeroCandidate && !functionConfig.Spec.Disable
+	if scaleToZeroCandidate {
+
+		// enrich HTTP Trigger with scale-to-zero labels
+		functionConfig.Meta.Labels[FunctionScaleToZeroLabelKey] = "true"
+	} else {
+
+		// ensure label is omitted
+		delete(functionConfig.Meta.Labels, FunctionScaleToZeroLabelKey)
+	}
+
 }
 
 func (p *Platform) enrichHTTPTriggersWithServiceType(functionConfig *functionconfig.Config) {

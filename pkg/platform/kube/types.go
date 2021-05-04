@@ -22,6 +22,8 @@ import (
 	"github.com/rs/xid"
 )
 
+const FunctionScaleToZeroLabelKey = "nuclio.io/function-scale-to-zero"
+
 type DeployOptions struct {
 }
 

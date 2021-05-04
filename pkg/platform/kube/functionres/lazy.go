@@ -103,6 +103,9 @@ func NewLazyClient(parentLogger logger.Logger,
 		kubeClientSet:   kubeClientSet,
 		nuclioClientSet: nuclioClientSet,
 		classLabels:     make(labels.Set),
+		internalLabelKeys: []string{
+			kube.FunctionScaleToZeroLabelKey,
+		},
 	}
 
 	newClient.initClassLabels()
@@ -180,26 +183,12 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 
 	resources := lazyResources{}
 
+	// enrich function config
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
-	for _, augmentedConfig := range platformConfig.FunctionAugmentedConfigs {
-
-		selector, err := metav1.LabelSelectorAsSelector(&augmentedConfig.LabelSelector)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get selector from label selector")
-		}
-
-		// if the label matches any of the function labels, augment the function with provided function config
-		if selector.Matches(functionLabels) {
-			encodedFunctionConfig, err := yaml.Marshal(augmentedConfig.FunctionConfig)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to marshal augmented function config")
-			}
-
-			err = yaml.Unmarshal(encodedFunctionConfig, function)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to join augmented function config into target function")
-			}
-		}
+	if err := lc.enrichFunction(platformConfig,
+		function,
+		functionLabels); err != nil {
+		return nil, errors.Wrap(err, "Failed to enrich function config")
 	}
 
 	// create or update the applicable configMap
@@ -2090,6 +2079,45 @@ func (lc *lazyClient) resolveFunctionServiceType(function *nuclioio.NuclioFuncti
 
 	// otherwise return platform default
 	return lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultServiceType
+}
+
+func (lc *lazyClient) enrichFunction(platformConfig *platformconfig.Config,
+	function *nuclioio.NuclioFunction,
+	functionLabels labels.Set) error {
+
+	for _, augmentedConfig := range platformConfig.FunctionAugmentedConfigs {
+
+		selector, err := metav1.LabelSelectorAsSelector(&augmentedConfig.LabelSelector)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get selector from label selector")
+		}
+
+		// if the label matches any of the function labels, augment the function with provided function config
+		if selector.Matches(functionLabels) {
+			encodedFunctionConfig, err := yaml.Marshal(augmentedConfig.FunctionConfig)
+			if err != nil {
+				return errors.Wrap(err, "Failed to marshal augmented function config")
+			}
+
+			if err := yaml.Unmarshal(encodedFunctionConfig, function); err != nil {
+				return errors.Wrap(err, "Failed to join augmented function config into target function")
+			}
+
+			// apply HTTP Trigger augmented config
+			for triggerName, _ := range functionconfig.GetTriggersByKind(function.Spec.Triggers, "http") {
+				encodedHTTPTrigger, err := yaml.Marshal(augmentedConfig.HTTPTrigger)
+				if err != nil {
+					return errors.Wrap(err, "Failed to marshal augmented http trigger config")
+				}
+
+				trigger := function.Spec.Triggers[triggerName]
+				if err := yaml.Unmarshal(encodedHTTPTrigger, &trigger); err != nil {
+					return errors.Wrap(err, "Failed to join augmented http trigger config into target trigger")
+				}
+			}
+		}
+	}
+	return nil
 }
 
 //
