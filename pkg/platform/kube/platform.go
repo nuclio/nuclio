@@ -340,8 +340,7 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 		return err
 	}
 
-	p.enrichHTTPTriggersWithServiceType(functionConfig)
-
+	p.enrichHTTPTriggers(functionConfig)
 	return nil
 }
 
@@ -1216,6 +1215,11 @@ func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfi
 	}
 
 	return nil
+}
+
+func (p *Platform) enrichHTTPTriggers(functionConfig *functionconfig.Config) {
+	p.enrichHTTPTriggersWithServiceType(functionConfig)
+
 }
 
 func (p *Platform) enrichHTTPTriggersWithServiceType(functionConfig *functionconfig.Config) {

@@ -93,6 +93,7 @@ type LabelSelectorAndConfig struct {
 	LabelSelector  machinarymetav1.LabelSelector `json:"labelSelector,omitempty"`
 	FunctionConfig functionconfig.Config         `json:"functionConfig,omitempty"`
 	Kubernetes     Kubernetes                    `json:"kubernetes,omitempty"`
+	HTTPTrigger    functionconfig.Trigger        `json:"httpTrigger,omitempty"`
 }
 
 type Kubernetes struct {

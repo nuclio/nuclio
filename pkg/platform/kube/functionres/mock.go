@@ -20,9 +20,24 @@ import (
 	"context"
 
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/stretchr/testify/mock"
 )
+
+type MockedPlatformConfigurationProvider struct {
+	mock.Mock
+}
+
+func (m *MockedPlatformConfigurationProvider) GetPlatformConfiguration() *platformconfig.Config {
+	args := m.Called()
+	return args.Get(0).(*platformconfig.Config)
+}
+
+func (m *MockedPlatformConfigurationProvider) GetPlatformConfigurationName() string {
+	args := m.Called()
+	return args.String(0)
+}
 
 type MockedFunctionRes struct {
 	mock.Mock

@@ -79,7 +79,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 			Replicas: &one,
 		},
 	}
-	functionLabels := suite.client.getFunctionLabels(&function)
+	functionLabels := suite.client.getFunctionLabels(&function, true)
 	functionLabels["nuclio.io/function-name"] = function.Name
 
 	// logs are spammy, let them

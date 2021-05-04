@@ -86,6 +86,12 @@ type lazyClient struct {
 	nuclioClientSet               nuclioioclient.Interface
 	classLabels                   labels.Set
 	platformConfigurationProvider PlatformConfigurationProvider
+
+	// these labels are per-function only. NOT its sub resources (e.g.: NOT applied on deployment / service / ingress /etc)
+	// these labels are dynamic, per-function configuration and might be changed.
+	// we use this list to sanitize these keys from the labels that WOULD be applied on sub-resources
+	// reason we do not change labels - https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#label-selector-updates
+	internalLabelKeys []string
 }
 
 func NewLazyClient(parentLogger logger.Logger,
@@ -162,7 +168,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Nuc
 	var err error
 
 	// get labels from the function and add class labels
-	functionLabels := lc.getFunctionLabels(function)
+	functionLabels := lc.getFunctionLabels(function, true)
 
 	// set a few constants
 	functionLabels["nuclio.io/function-name"] = function.Name
@@ -902,7 +908,7 @@ func (lc *lazyClient) getDeploymentAugmentedConfigs(function *nuclioio.NuclioFun
 	var configs []platformconfig.LabelSelectorAndConfig
 
 	// get the function labels
-	functionLabels := lc.getFunctionLabels(function)
+	functionLabels := lc.getFunctionLabels(function, false)
 
 	// get platform config
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
@@ -1280,10 +1286,18 @@ func (lc *lazyClient) initClassLabels() {
 	lc.classLabels["nuclio.io/app"] = "functionres"
 }
 
-func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) labels.Set {
+func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction, sanitizeInternal bool) labels.Set {
 	result := labels.Set{}
 
 	for labelKey, labelValue := range function.Labels {
+
+		// whether to sanitize
+		if sanitizeInternal && common.StringSliceContainsString(lc.internalLabelKeys, labelKey) {
+
+			// sanitized
+			continue
+		}
+
 		result[labelKey] = labelValue
 	}
 
