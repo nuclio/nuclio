@@ -17,6 +17,7 @@ limitations under the License.
 package functionres
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -32,6 +33,7 @@ import (
 	"k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -298,6 +300,120 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 
 	// should not be added
 	suite.Require().Len(toServicePorts, 2)
+}
+
+func (suite *lazyTestSuite) TestGetFunctionLabels() {
+	keyToSanitize := "sanitize-me"
+	suite.client.internalLabelKeys = []string{
+		keyToSanitize,
+	}
+	for _, testCase := range []struct {
+		name         string
+		Labels       labels.Set
+		ExpectedKeys []string
+		sanitize     bool
+	}{
+		{
+			name: "NoSanitizeWithKeyToSanitize",
+			Labels: map[string]string{
+				"a":           "b",
+				keyToSanitize: "c",
+			},
+			ExpectedKeys: []string{
+				"a", keyToSanitize,
+			},
+			sanitize: false,
+		},
+		{
+			name: "NoSanitizeWithoutKeysToSanitize",
+			Labels: map[string]string{
+				"a": "b",
+			},
+			ExpectedKeys: []string{
+				"a",
+			},
+			sanitize: false,
+		},
+		{
+			name: "SanitizeKeyWithKeysToSanitize",
+			Labels: map[string]string{
+				"a":           "b",
+				keyToSanitize: "c",
+			},
+			ExpectedKeys: []string{
+				"a",
+			},
+			sanitize: true,
+		},
+		{
+			name: "SanitizeKeyWithoutKeysToSanitize",
+			Labels: map[string]string{
+				"a": "b",
+			},
+			ExpectedKeys: []string{
+				"a",
+			},
+			sanitize: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionInstance := &nuclioio.NuclioFunction{}
+			functionInstance.Name = testCase.name
+			functionInstance.Namespace = "some-namespace"
+			functionInstance.Labels = testCase.Labels
+
+			var functionLabelKeys []string
+			for key := range suite.client.getFunctionLabels(functionInstance, testCase.sanitize) {
+				functionLabelKeys = append(functionLabelKeys, key)
+			}
+			sort.Strings(testCase.ExpectedKeys)
+			sort.Strings(functionLabelKeys)
+			suite.Require().Equal(testCase.ExpectedKeys, functionLabelKeys)
+		})
+	}
+}
+
+func (suite *lazyTestSuite) TestEnrichFunctionConfigFromPlatformConfiguration() {
+	platformConfig := &platformconfig.Config{
+		FunctionAugmentedConfigs: []platformconfig.LabelSelectorAndConfig{
+			{
+				LabelSelector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"nuclio.io/some-label": "true",
+					},
+				},
+				HTTPTrigger: functionconfig.Trigger{
+					Annotations: map[string]string{
+						"change-me": "changed",
+						"added":     "yes",
+					},
+				},
+			},
+		},
+	}
+
+	functionInstance := &nuclioio.NuclioFunction{}
+	functionInstance.Name = "func-name"
+	functionInstance.Namespace = "some-namespace"
+	functionInstance.Labels = map[string]string{
+		"nuclio.io/some-label": "true",
+	}
+	trigger := functionconfig.GetDefaultHTTPTrigger()
+	trigger.Annotations = map[string]string{
+		"do-not-change-me": "ok",
+		"change-me":        "unchanged",
+	}
+
+	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+		"http": trigger,
+	}
+	functionLabels := suite.client.getFunctionLabels(functionInstance, false)
+	err := suite.client.enrichFunction(platformConfig, functionInstance, functionLabels)
+	suite.Require().NoError(err)
+	enrichedHTTPTrigger := functionInstance.Spec.Triggers["http"]
+	suite.Require().Equal("changed", enrichedHTTPTrigger.Annotations["change-me"])
+	suite.Require().Equal("ok", enrichedHTTPTrigger.Annotations["do-not-change-me"])
+	suite.Require().Equal("yes", enrichedHTTPTrigger.Annotations["added"])
 }
 
 func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
