@@ -69,6 +69,9 @@ type ScaleToZero struct {
 	ResourceReadinessTimeout string                         `json:"resourceReadinessTimeout,omitempty"`
 	ScaleResources           []functionconfig.ScaleResource `json:"scaleResources,omitempty"`
 	InactivityWindowPresets  []string                       `json:"inactivityWindowPresets,omitempty"`
+
+	// Uses to enrich ingress annotations with special scale-to-zero configuration
+	HTTPTriggerIngressAnnotations map[string]string `json:"HTTPTriggerIngressAnnotations,omitempty"`
 }
 
 type ScaleToZeroMode string
