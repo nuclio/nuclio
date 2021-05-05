@@ -1643,20 +1643,21 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 		`proxy_set_header X-Nuclio-Target "%s";`, function.Name)
 
 	// Check if function is a scale to zero candidate
-	// Function is not disabled
-	//  		is not in imported state
-	// 			has minimum replicas == 0
+	//			is not disabled
+	//			is not in imported state
+	//			has minimum replicas == 0
 	//			has maximum replicas >  0
 	if !function.Spec.Disable &&
-		!functionconfig.FunctionStateInSlice(
-			function.Status.State, []functionconfig.FunctionState{
-				functionconfig.FunctionStateImported,
-			}) &&
+		function.Status.State != functionconfig.FunctionStateImported &&
 		function.GetComputedMinReplicas() == 0 &&
 		function.GetComputedMaxReplicas() > 0 {
 		platformConfiguration := lc.platformConfigurationProvider.GetPlatformConfiguration()
+
+		// enrich if not exists
 		for key, value := range platformConfiguration.ScaleToZero.HTTPTriggerIngressAnnotations {
-			meta.Annotations[key] = value
+			if _, ok := meta.Annotations[key]; !ok {
+				meta.Annotations[key] = value
+			}
 		}
 	}
 
