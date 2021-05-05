@@ -71,7 +71,7 @@ type ScaleToZero struct {
 	InactivityWindowPresets  []string                       `json:"inactivityWindowPresets,omitempty"`
 
 	// Uses to enrich ingress annotations with special scale-to-zero configuration
-	HTTPTriggerIngressAnnotations map[string]string `json:"HTTPTriggerIngressAnnotations,omitempty"`
+	HTTPTriggerIngressAnnotations map[string]string `json:"httpTriggerIngressAnnotations,omitempty"`
 }
 
 type ScaleToZeroMode string
