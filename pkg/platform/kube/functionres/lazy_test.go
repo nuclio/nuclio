@@ -162,6 +162,37 @@ func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
 	suite.Require().Len(ingressSpec.Rules, 0)
 }
 
+func (suite *lazyTestSuite) TestScaleToZeroSpecificAnnotations() {
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			ScaleToZero: platformconfig.ScaleToZero{
+				HTTPTriggerIngressAnnotations: map[string]string{
+					"something": "added",
+				},
+			},
+		},
+	})
+
+	zero := 0
+	one := 1
+	ingressMeta := metav1.ObjectMeta{}
+	functionInstance := &nuclioio.NuclioFunction{}
+	functionInstance.Spec.MinReplicas = &zero
+	functionInstance.Spec.MaxReplicas = &one
+	functionInstance.Name = "func-name"
+	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+		"http": functionconfig.GetDefaultHTTPTrigger(),
+	}
+
+	functionLabels := suite.client.getFunctionLabels(functionInstance)
+	err := suite.client.populateIngressConfig(functionLabels,
+		functionInstance,
+		&ingressMeta,
+		&extv1beta1.IngressSpec{})
+	suite.Require().NoError(err)
+	suite.Require().Equal("added", ingressMeta.Annotations["something"])
+}
+
 func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
 	ingressMeta := metav1.ObjectMeta{}
 	ingressSpec := extv1beta1.IngressSpec{}
