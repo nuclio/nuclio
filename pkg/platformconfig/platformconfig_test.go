@@ -472,13 +472,13 @@ functionAugmentedConfigs:
 		{
 
 			// all function matches `nuclio.io/class: function` should have deployment spec of MinReadySeconds: 90
-			v1.LabelSelector{
+			LabelSelector: v1.LabelSelector{
 				MatchLabels: map[string]string{
 					"nuclio.io/class": "function",
 				},
 			},
-			functionconfig.Config{},
-			Kubernetes{
+			FunctionConfig: functionconfig.Config{},
+			Kubernetes: Kubernetes{
 				Deployment: &appsv1.Deployment{
 					Spec: appsv1.DeploymentSpec{
 						MinReadySeconds: 90,
@@ -489,11 +489,11 @@ functionAugmentedConfigs:
 		{
 
 			// set min replicas to 0 and max replicas to 10 for all functions
-			v1.LabelSelector{},
-			functionconfig.Config{
+			LabelSelector: v1.LabelSelector{},
+			FunctionConfig: functionconfig.Config{
 				Spec: functionconfig.Spec{MinReplicas: &zero, MaxReplicas: &ten},
 			},
-			Kubernetes{},
+			Kubernetes: Kubernetes{},
 		},
 	}
 

@@ -91,6 +91,7 @@ func (suite *NuclioFunctionTestSuite) TestCreateOrUpdateWithScaleToZeroLabel() {
 		suite.logger,
 		kubeFakeClient,
 		suite.nuclioioInterfaceMock)
+	suite.Require().NoError(err)
 
 	go func() {
 		functionDeploymentName := "nuclio-func-name"
