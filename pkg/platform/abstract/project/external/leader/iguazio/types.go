@@ -11,10 +11,6 @@ type Project struct {
 }
 
 func CreateProjectFromProjectConfig(projectConfig *platform.ProjectConfig) Project {
-	// TODO: REMOVE THIS when zebo is sending project config with namespace
-	if projectConfig.Meta.Namespace == "" {
-		projectConfig.Meta.Namespace = "default-tenant"
-	}
 	return Project{
 		Data: ProjectData{
 			Type: ProjectType,
@@ -101,11 +97,6 @@ func (pl *ProjectList) ToSingleProjectList() []platform.Project {
 	var projects []platform.Project
 
 	for _, projectData := range pl.Data {
-
-		// TODO: Remove this once zebo is sending namesapces
-		if projectData.Attributes.Namespace == "" {
-			projectData.Attributes.Namespace = "default-tenant"
-		}
 		projects = append(projects, &Project{Data: projectData})
 	}
 

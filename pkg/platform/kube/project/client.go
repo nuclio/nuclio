@@ -215,7 +215,6 @@ func (c *Client) updateProjectInCache(projectInstance platform.Project) {
 }
 
 func (c *Client) deleteProjectFromCache(namespace, name string) {
-	c.Logger.DebugWith("deletion start", "cache", c.projectsCache)
 	newProjectsCache := []platform.Project{}
 
 	for _, projectInstance := range c.projectsCache {
@@ -227,7 +226,6 @@ func (c *Client) deleteProjectFromCache(namespace, name string) {
 	}
 
 	c.projectsCache = newProjectsCache
-	c.Logger.DebugWith("deletion end", "cache", c.projectsCache)
 }
 
 func (c *Client) getProjectsFromCache(getProjectOptions *platform.GetProjectsOptions) []platform.Project {
@@ -235,13 +233,19 @@ func (c *Client) getProjectsFromCache(getProjectOptions *platform.GetProjectsOpt
 
 	for _, projectInstance := range c.projectsCache {
 		projectConfig := projectInstance.GetConfig()
-		if projectConfig.Meta.Namespace != getProjectOptions.Meta.Namespace {
-			continue
-		}
 
-		if getProjectOptions.Meta.Name != "" {
-			if projectConfig.Meta.Name == getProjectOptions.Meta.Name {
-				return []platform.Project{projectInstance}
+		if projectConfig.Meta.Namespace != "" {
+
+			// if a specific namespace was requested and this project is not in it - skip it
+			if projectConfig.Meta.Namespace != getProjectOptions.Meta.Namespace {
+				continue
+			}
+
+			// if a specific namespace and name were requested - return this project (can't be more than one)
+			if getProjectOptions.Meta.Name != "" {
+				if projectConfig.Meta.Name == getProjectOptions.Meta.Name {
+					return []platform.Project{projectInstance}
+				}
 			}
 		}
 

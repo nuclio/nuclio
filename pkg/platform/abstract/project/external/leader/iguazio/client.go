@@ -141,14 +141,16 @@ func (c *Client) GetAll(updatedAfterTimestamp string) ([]platform.Project, error
 	c.logger.DebugWith("Sending get all projects request to leader",
 		"updatedAfterTimestamp", updatedAfterTimestamp)
 
-	if c.cachedCookie == nil {
-		return nil, nil
-	}
-
 	// if updatedAfterTimestamp arg was given, filter by it
 	updatedAfterTimestampQuery := ""
 	if updatedAfterTimestamp != "" {
 		updatedAfterTimestampQuery = fmt.Sprintf("?filter[updated_at]=[$gt]%s", updatedAfterTimestamp)
+	}
+
+	// get iguazio session - must exist in order to perform this GET operation against iguazio dashboard API
+	iguazioSession := c.platformConfiguration.IguazioSession
+	if iguazioSession == "" {
+		return nil, errors.New("Iguazio access key must be specified to get projects from its api")
 	}
 
 	// send the request
@@ -160,7 +162,7 @@ func (c *Client) GetAll(updatedAfterTimestamp string) ([]platform.Project, error
 			updatedAfterTimestampQuery),
 		nil,
 		headers,
-		[]*http.Cookie{c.cachedCookie},
+		[]*http.Cookie{{Name: "session", Value: iguazioSession}},
 		http.StatusOK,
 		true,
 		DefaultRequestTimeout)

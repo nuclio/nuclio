@@ -2,7 +2,6 @@ package iguazio
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -38,20 +37,28 @@ func NewSynchronizer(parentLogger logger.Logger,
 	return &newSynchronizer, nil
 }
 
-func (c *Synchronizer) Start() {
-	go c.synchronizationLoop()
-}
-
-func (c *Synchronizer) synchronizationLoop() {
-	synchronizationInterval := c.platformConfiguration.ProjectsLeader.SynchronizationInterval
-	if synchronizationInterval == 0 {
-		c.logger.InfoWith("Synchronization interval set to 0. Projects will not synchronize with leader")
-		return
+func (c *Synchronizer) Start() error {
+	synchronizationInterval, err := time.ParseDuration(c.platformConfiguration.ProjectsLeader.SynchronizationInterval)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse synchronization interval")
 	}
 
-	c.logger.InfoWith("Starting synchronization loop", "synchronizationInterval", synchronizationInterval)
+	// don't synchronize when set to 0
+	if synchronizationInterval == 0 {
+		c.logger.InfoWith("Synchronization interval set to 0. Projects will not synchronize with leader")
+		return nil
+	}
 
-	ticker := time.NewTicker(c.platformConfiguration.ProjectsLeader.SynchronizationInterval * time.Second)
+	// start synchronization loop in the background
+	go c.synchronizationLoop(synchronizationInterval)
+
+	return nil
+}
+
+func (c *Synchronizer) synchronizationLoop(interval time.Duration) {
+	c.logger.InfoWith("Starting synchronization loop", "interval", interval)
+
+	ticker := time.NewTicker(interval)
 	for {
 		select {
 		case _ = <-ticker.C:
@@ -138,13 +145,10 @@ func (c *Synchronizer) synchronizeProjectsAccordingToLeader() error {
 		return errors.Wrap(err, "Failed to get leader projects")
 	}
 
-	// fetch internal projects
-	// TODO: fetch projects from every managed namespace - could be done by implementing GetAll()
-	namespace := "default-tenant"
-	internalProjects, err :=
-		c.internalProjectsClient.Get(&platform.GetProjectsOptions{Meta: platform.ProjectMeta{Namespace: "default-tenant"}})
+	// fetch all internal projects
+	internalProjects, err := c.internalProjectsClient.Get(&platform.GetProjectsOptions{})
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get internal projects from namespace: %s", namespace)
+		return errors.Wrapf(err, "Failed to get all internal projects")
 	}
 
 	// filter modified projects
@@ -167,7 +171,8 @@ func (c *Synchronizer) synchronizeProjectsAccordingToLeader() error {
 			createProjectConfig := &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
 					Meta: projectInstance.Meta,
-					Spec: projectInstance.Spec},
+					Spec: projectInstance.Spec,
+				},
 			}
 			if _, err := c.internalProjectsClient.Create(createProjectConfig); err != nil {
 				c.logger.WarnWith("Failed to create project (during sync)",

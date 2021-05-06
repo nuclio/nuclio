@@ -45,7 +45,9 @@ func NewClient(parentLogger logger.Logger,
 }
 
 func (c *Client) Initialize() error {
-	c.synchronizer.Start()
+	if err := c.synchronizer.Start(); err != nil {
+		return errors.Wrap(err, "Failed to start the projects synchronizer")
+	}
 
 	return c.internalClient.Initialize()
 }

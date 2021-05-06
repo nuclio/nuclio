@@ -111,7 +111,7 @@ const (
 type ProjectsLeader struct {
 	Kind                    ProjectsLeaderKind `json:"kind,omitempty"`
 	APIAddress              string             `json:"apiAddress,omitempty"`
-	SynchronizationInterval time.Duration      `json:"synchronizationInterval,omitempty"`
+	SynchronizationInterval string             `json:"synchronizationInterval,omitempty"`
 }
 
 type PlatformKubeConfig struct {

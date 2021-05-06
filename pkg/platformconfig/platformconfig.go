@@ -45,6 +45,7 @@ type Config struct {
 	Runtime                  *runtimeconfig.Config        `json:"runtime,omitempty"`
 	ProjectsLeader           *ProjectsLeader              `json:"projectsLeader,omitempty"`
 	ManagedNamespaces        []string                     `json:"managedNamespaces,omitempty"`
+	IguazioSession           string                       `json:"iguazioSession,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 }

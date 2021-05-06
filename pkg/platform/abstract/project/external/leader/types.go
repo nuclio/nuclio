@@ -14,4 +14,7 @@ type Client interface {
 
 	// Delegates project deletion to leader
 	Delete(*platform.DeleteProjectOptions) error
+
+	// Gets all projects from the leader (gets projects that have been updated since the given timestamp)
+	GetAll(string) ([]platform.Project, error)
 }
