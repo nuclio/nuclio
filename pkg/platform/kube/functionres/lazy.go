@@ -1661,6 +1661,25 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 	meta.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"] = fmt.Sprintf(
 		`proxy_set_header X-Nuclio-Target "%s";`, function.Name)
 
+	// Check if function is a scale to zero candidate
+	//			is not disabled
+	//			is not in imported state
+	//			has minimum replicas == 0
+	//			has maximum replicas >  0
+	if !function.Spec.Disable &&
+		function.Status.State != functionconfig.FunctionStateImported &&
+		function.GetComputedMinReplicas() == 0 &&
+		function.GetComputedMaxReplicas() > 0 {
+		platformConfiguration := lc.platformConfigurationProvider.GetPlatformConfiguration()
+
+		// enrich if not exists
+		for key, value := range platformConfiguration.ScaleToZero.HTTPTriggerIngressAnnotations {
+			if _, ok := meta.Annotations[key]; !ok {
+				meta.Annotations[key] = value
+			}
+		}
+	}
+
 	// clear out existing so that we don't keep adding rules
 	spec.Rules = []extv1beta1.IngressRule{}
 	spec.TLS = []extv1beta1.IngressTLS{}
