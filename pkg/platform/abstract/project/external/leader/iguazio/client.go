@@ -150,7 +150,7 @@ func (c *Client) GetAll(updatedAfterTimestamp string) ([]platform.Project, error
 	// get iguazio session - must exist in order to perform this GET operation against iguazio dashboard API
 	iguazioSession := c.platformConfiguration.IguazioSession
 	if iguazioSession == "" {
-		return nil, errors.New("Iguazio access key must be specified to get projects from its api")
+		return nil, errors.New("Iguazio session must be specified to get projects from its api")
 	}
 
 	// send the request
