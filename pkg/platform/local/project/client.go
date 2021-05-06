@@ -26,7 +26,7 @@ func NewClient(parentLogger logger.Logger, platform platform.Platform, localStor
 }
 
 func (c *Client) Initialize() error {
-	return c.platform.EnsureDefaultProjectExistence()
+	return nil
 }
 
 func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {

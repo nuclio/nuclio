@@ -126,3 +126,12 @@ func CreateKeyValuePairs(m map[string]string) string {
 	}
 	return generatedString
 }
+
+// returns string to string map if it's not nil. otherwise, return an empty one
+func GetStringStringMapOrEmpty(m map[string]string) map[string]string {
+	if m == nil {
+		return map[string]string{}
+	}
+
+	return m
+}

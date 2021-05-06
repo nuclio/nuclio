@@ -151,6 +151,14 @@ func NewPlatform(parentLogger logger.Logger,
 }
 
 func (p *Platform) Initialize() error {
+
+	// ensure default project existence only when projects aren't managed by external leader
+	if p.Config.ProjectsLeader == nil {
+		if err := p.EnsureDefaultProjectExistence(); err != nil {
+			return errors.Wrap(err, "Failed to ensure default project existence")
+		}
+	}
+
 	if err := p.projectsClient.Initialize(); err != nil {
 		return errors.Wrap(err, "Failed to initialize projects client")
 	}
@@ -880,7 +888,7 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 
 // ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
 func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
-	if defaultNamespace == "@nuclio.selfNamespace" {
+	if defaultNamespace == "@nuclio.selfNamespace" || p.DefaultNamespace == "@nuclio.selfNamespace" {
 
 		// get namespace from within the pod. if found, return that
 		if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
@@ -889,6 +897,10 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	}
 
 	if defaultNamespace == "" {
+		if p.DefaultNamespace != "" {
+			return p.DefaultNamespace
+		}
+
 		return "default"
 	}
 
@@ -897,6 +909,10 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 
 // GetNamespaces returns all the namespaces in the platform
 func (p *Platform) GetNamespaces() ([]string, error) {
+	if p.Config.ManagedNamespaces != nil {
+		return p.Config.ManagedNamespaces, nil
+	}
+
 	namespaces, err := p.consumer.KubeClientSet.CoreV1().Namespaces().List(metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {

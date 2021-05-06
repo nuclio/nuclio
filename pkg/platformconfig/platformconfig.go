@@ -44,6 +44,7 @@ type Config struct {
 	ImageRegistryOverrides   ImageRegistryOverridesConfig `json:"imageRegistryOverrides,omitempty"`
 	Runtime                  *runtimeconfig.Config        `json:"runtime,omitempty"`
 	ProjectsLeader           *ProjectsLeader              `json:"projectsLeader,omitempty"`
+	ManagedNamespaces        []string                     `json:"managedNamespaces,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 }

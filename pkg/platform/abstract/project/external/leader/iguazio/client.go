@@ -137,6 +137,46 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	return nil
 }
 
+func (c *Client) GetAll(updatedAfterTimestamp string) ([]platform.Project, error) {
+	c.logger.DebugWith("Sending get all projects request to leader",
+		"updatedAfterTimestamp", updatedAfterTimestamp)
+
+	if c.cachedCookie == nil {
+		return nil, nil
+	}
+
+	// if updatedAfterTimestamp arg was given, filter by it
+	updatedAfterTimestampQuery := ""
+	if updatedAfterTimestamp != "" {
+		updatedAfterTimestampQuery = fmt.Sprintf("?filter[updated_at]=[$gt]%s", updatedAfterTimestamp)
+	}
+
+	// send the request
+	headers := c.generateCommonRequestHeaders()
+	responseBody, _, err := common.SendHTTPRequest(http.MethodGet,
+		fmt.Sprintf("%s/%s%s",
+			c.platformConfiguration.ProjectsLeader.APIAddress,
+			"projects",
+			updatedAfterTimestampQuery),
+		nil,
+		headers,
+		[]*http.Cookie{c.cachedCookie},
+		http.StatusOK,
+		true,
+		DefaultRequestTimeout)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to send request to leader")
+	}
+
+	projectsList := ProjectList{}
+	if err := json.Unmarshal(responseBody, &projectsList); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal response body")
+	}
+
+	return projectsList.ToSingleProjectList(), nil
+}
+
+
 func (c *Client) generateCommonRequestHeaders() map[string]string {
 	return map[string]string{
 		ProjectsRoleHeaderKey: ProjectsRoleHeaderValueNuclio,
@@ -145,18 +185,7 @@ func (c *Client) generateCommonRequestHeaders() map[string]string {
 }
 
 func (c *Client) generateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
-	project := Project{
-		Data: ProjectData{
-			Type: ProjectType,
-			Attributes: ProjectAttributes{
-				Name:        projectConfig.Meta.Name,
-				Labels:      projectConfig.Meta.Labels,
-				Annotations: projectConfig.Meta.Annotations,
-				Description: projectConfig.Spec.Description,
-			},
-		},
-	}
-
+	project := CreateProjectFromProjectConfig(projectConfig)
 	c.enrichProjectWithNuclioFields(&project)
 
 	return json.Marshal(project)
