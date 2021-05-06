@@ -32,16 +32,16 @@ func CreateProjectFromProjectConfig(projectConfig *platform.ProjectConfig) Proje
 func (pl *Project) GetConfig() *platform.ProjectConfig {
 	return &platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
-			Name: pl.Data.Attributes.Name,
-			Namespace: pl.Data.Attributes.Namespace,
+			Name:        pl.Data.Attributes.Name,
+			Namespace:   pl.Data.Attributes.Namespace,
 			Annotations: pl.labelListToMap(pl.Data.Attributes.Annotations),
-			Labels: pl.labelListToMap(pl.Data.Attributes.Labels),
+			Labels:      pl.labelListToMap(pl.Data.Attributes.Labels),
 		},
 		Spec: platform.ProjectSpec{
 			Description: pl.Data.Attributes.Description,
 		},
 		Status: platform.ProjectStatus{
-			AdminStatus: pl.Data.Attributes.AdminStatus,
+			AdminStatus:       pl.Data.Attributes.AdminStatus,
 			OperationalStatus: pl.Data.Attributes.OperationalStatus,
 		},
 	}
@@ -51,7 +51,7 @@ func labelMapToList(labelMap map[string]string) []Label {
 	var labelList []Label
 
 	for labelName, labelValue := range labelMap {
-		labelList = append(labelList, Label{Name: labelName, Value:labelValue})
+		labelList = append(labelList, Label{Name: labelName, Value: labelValue})
 	}
 
 	return labelList
@@ -106,7 +106,7 @@ func (pl *ProjectList) ToSingleProjectList() []platform.Project {
 		if projectData.Attributes.Namespace == "" {
 			projectData.Attributes.Namespace = "default-tenant"
 		}
-		projects = append(projects, &Project{Data:projectData})
+		projects = append(projects, &Project{Data: projectData})
 	}
 
 	return projects

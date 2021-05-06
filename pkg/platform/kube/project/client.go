@@ -51,7 +51,7 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (pl
 		return nil, errors.Wrap(err, "Failed to create nuclio project")
 	}
 
-	platformProject, err :=  c.nuclioProjectToPlatformProject(nuclioProject)
+	platformProject, err := c.nuclioProjectToPlatformProject(nuclioProject)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to convert nuclio project to platform project")
 	}
@@ -83,7 +83,7 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (pl
 		return nil, errors.Wrap(err, "Failed to update nuclio project")
 	}
 
-	platformProject, err :=  c.nuclioProjectToPlatformProject(nuclioProject)
+	platformProject, err := c.nuclioProjectToPlatformProject(nuclioProject)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to convert nuclio project to platform project")
 	}
@@ -128,7 +128,6 @@ func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platfor
 
 	return c.getProjectsFromKube(getProjectsOptions)
 }
-
 
 func (c *Client) getProjectsFromKube(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	var platformProjects []platform.Project
@@ -236,7 +235,7 @@ func (c *Client) getProjectsFromCache(getProjectOptions *platform.GetProjectsOpt
 
 	for _, projectInstance := range c.projectsCache {
 		projectConfig := projectInstance.GetConfig()
-		if projectConfig.Meta.Namespace != getProjectOptions.Meta.Namespace{
+		if projectConfig.Meta.Namespace != getProjectOptions.Meta.Namespace {
 			continue
 		}
 

@@ -176,7 +176,6 @@ func (c *Client) GetAll(updatedAfterTimestamp string) ([]platform.Project, error
 	return projectsList.ToSingleProjectList(), nil
 }
 
-
 func (c *Client) generateCommonRequestHeaders() map[string]string {
 	return map[string]string{
 		ProjectsRoleHeaderKey: ProjectsRoleHeaderValueNuclio,

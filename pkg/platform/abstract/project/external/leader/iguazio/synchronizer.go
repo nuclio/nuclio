@@ -71,7 +71,7 @@ func (c *Synchronizer) synchronizationLoop() {
 func (c *Synchronizer) updateLastSuccessfulSyncTimestamp() {
 	loc, err := time.LoadLocation("GMT")
 	if err != nil {
-		c.logger.WarnWith("Failed to load GMT location (Should not happen on unix based systems). " +
+		c.logger.WarnWith("Failed to load GMT location (Should not happen on unix based systems). "+
 			"Skipping last successful sync timestamp update",
 			"err", err)
 		return
@@ -120,7 +120,7 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 		matchingInternalProjectConfig, found := internalProjectsMap[namespaceAndNameKey]
 		if !found {
 			projectsToCreate = append(projectsToCreate, leaderProjectConfig)
-		} else  if !matchingInternalProjectConfig.IsEqual(leaderProjectConfig, true) {
+		} else if !matchingInternalProjectConfig.IsEqual(leaderProjectConfig, true) {
 
 			// if the project exists both internally and on the leader - update it
 			projectsToUpdate = append(projectsToUpdate, leaderProjectConfig)
