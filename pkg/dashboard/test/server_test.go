@@ -45,6 +45,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
@@ -67,7 +68,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 	trueValue := true
 
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	suite.mockPlatform = &mockplatform.Platform{}
+	suite.mockPlatform = &mockplatform.Platform{CreateFunctionCreationStateUpdated: true}
 
 	templateRepository, err := functiontemplates.NewRepository(suite.logger, []functiontemplates.FunctionTemplateFetcher{})
 	suite.Require().NoError(err)
@@ -415,6 +416,69 @@ func (suite *functionTestSuite) TestCreateFunctionWithInvalidName() {
 	expectedStatusCode := http.StatusBadRequest
 	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name doesn't conform to k8s naming convention"})
 	requestBody := body
+
+	suite.sendRequest("POST",
+		"/api/functions",
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+
+func (suite *functionTestSuite) TestCreateDeploymentError() {
+
+	// mock a failure before the function is updated (e.g during project fetching)
+	suite.mockPlatform.CreateFunctionCreationStateUpdated = false
+
+	// verify
+	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
+		suite.Require().Equal("f1", createFunctionOptions.FunctionConfig.Meta.Name)
+		suite.Require().Equal("f1-namespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
+		suite.Require().Equal("proj", createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"])
+
+		return true
+	}
+
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1-namespace", getFunctionsOptions.Namespace)
+		return true
+	}
+
+	suite.mockPlatform.
+		On("CreateFunction", mock.MatchedBy(verifyCreateFunction)).
+		Return(&platform.CreateFunctionResult{}, errors.New("Just some error")).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-wait-function-action": "true",
+		"x-nuclio-project-name":         "proj",
+		"x-nuclio-function-namespace":   "f1-namespace",
+	}
+
+	requestBody := `{
+	"metadata": {
+		"name": "f1",
+		"namespace": "f1-namespace"
+	},
+	"spec": {
+		"resources": {},
+		"build": {},
+		"platform": {},
+		"runtime": "r1"
+	}
+}`
+
+	expectedStatusCode := http.StatusInternalServerError
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Failed to deploy function resource"})
 
 	suite.sendRequest("POST",
 		"/api/functions",

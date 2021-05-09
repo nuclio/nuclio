@@ -232,7 +232,9 @@ func (fr *functionResource) export(function platform.Function) restful.Attribute
 	return attributes
 }
 
-func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, authConfig *platform.AuthConfig, waitForFunction bool) error {
+func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo,
+	authConfig *platform.AuthConfig,
+	waitForFunction bool) error {
 
 	creationStateUpdatedTimeout := 45 * time.Second
 
@@ -278,7 +280,9 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, a
 		})
 
 		if err != nil {
-			fr.Logger.WarnWith("Failed to deploy function", "err", err)
+			fr.Logger.WarnWith("Failed to deploy function resource",
+				"err", err,
+				"functionInfo", functionInfo)
 			errDeployingChan <- err
 		}
 
@@ -292,7 +296,8 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, a
 	case <-creationStateUpdatedChan:
 		break
 	case errDeploying := <-errDeployingChan:
-		return errors.RootCause(errDeploying)
+		return nuclio.NewErrInternalServerError(
+			fmt.Sprintf("Failed to deploy function resource: %s", errDeploying))
 	case <-time.After(creationStateUpdatedTimeout):
 		return nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
 	}

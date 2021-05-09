@@ -21,6 +21,10 @@ import (
 // to run over it
 type Platform struct {
 	mock.Mock
+
+	// a mock only field signifying whether, during the CreateFunction call, the CreationStateUpdated channel
+	// should be populated. This is used to mock failures before/after the update on the production types
+	CreateFunctionCreationStateUpdated bool
 }
 
 //
@@ -41,8 +45,12 @@ func (mp *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 func (mp *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 
 	// release requester
-	if createFunctionOptions.CreationStateUpdated != nil {
-		createFunctionOptions.CreationStateUpdated <- true
+	if mp.CreateFunctionCreationStateUpdated {
+
+		// the exact same condition as kube/local platform
+		if createFunctionOptions.CreationStateUpdated != nil {
+			createFunctionOptions.CreationStateUpdated <- true
+		}
 	}
 
 	args := mp.Called(createFunctionOptions)
