@@ -52,7 +52,7 @@
     "jquery": "*",
     "jquery-ui": "1.12.0",
     "js-base64": "^2.5.2",
-    "lodash": "^4.17.19",
+    "lodash": "^4.17.21",
     "lodash-inflection": "^1.4.0",
     "merge2": "^0.3.6",
     "moment": "^2.24.0",
