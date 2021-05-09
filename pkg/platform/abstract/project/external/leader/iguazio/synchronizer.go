@@ -179,6 +179,7 @@ func (c *Synchronizer) synchronizeProjectsAccordingToLeader() error {
 					"name", createProjectConfig.ProjectConfig.Meta.Name,
 					"namespace", createProjectConfig.ProjectConfig.Meta.Namespace,
 					"err", err)
+				return
 			}
 			c.logger.DebugWith("Successfully created project (during sync)",
 				"name", createProjectConfig.ProjectConfig.Meta.Name,
@@ -202,6 +203,7 @@ func (c *Synchronizer) synchronizeProjectsAccordingToLeader() error {
 					"name", updateProjectOptions.ProjectConfig.Meta.Name,
 					"namespace", updateProjectOptions.ProjectConfig.Meta.Namespace,
 					"err", err)
+				return
 			}
 			c.logger.DebugWith("Successfully updated project (during sync)",
 				"name", updateProjectOptions.ProjectConfig.Meta.Name,
