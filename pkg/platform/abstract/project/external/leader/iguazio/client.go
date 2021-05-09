@@ -152,7 +152,7 @@ func (c *Client) GetAll(updatedAfterTimestamp string) ([]platform.Project, error
 	// get the encoded iguazio session - used to perform this GET operation against iguazio dashboard API
 	encodedIguazioSession, err := c.getEncodedIguazioSession()
 	if err != nil {
-	   return nil, errors.Wrap(err, "Failed to get encoded iguazio session")
+		return nil, errors.Wrap(err, "Failed to get encoded iguazio session")
 	}
 
 	// send the request

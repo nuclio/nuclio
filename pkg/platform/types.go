@@ -171,7 +171,7 @@ func (pm ProjectMeta) IsEqual(other ProjectMeta) bool {
 	otherAnnotations := common.GetStringStringMapOrEmpty(other.Annotations)
 
 	return pm.Name == other.Name &&
-		pm.Namespace == pm.Namespace &&
+		pm.Namespace == other.Namespace &&
 		reflect.DeepEqual(labels, otherLabels) &&
 		reflect.DeepEqual(annotations, otherAnnotations)
 }
@@ -180,8 +180,8 @@ type ProjectSpec struct {
 	Description string `json:"description,omitempty"`
 }
 
-func (ps ProjectSpec) IsEqual(other ProjectSpec) bool {
-	return ps == other
+func (ps *ProjectSpec) IsEqual(other *ProjectSpec) bool {
+	return *ps == *other
 }
 
 type ProjectStatus struct {
@@ -189,8 +189,8 @@ type ProjectStatus struct {
 	OperationalStatus string `json:"operationalStatus,omitempty"`
 }
 
-func (ps ProjectStatus) IsEqual(other ProjectStatus) bool {
-	return ps == other
+func (ps *ProjectStatus) IsEqual(other *ProjectStatus) bool {
+	return *ps == *other
 }
 
 type ProjectConfig struct {
@@ -265,10 +265,10 @@ type GetProjectsOptions struct {
 }
 
 // to appease k8s
-func (s *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
+func (ps *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
 
 	// TODO: proper deep copy
-	*out = *s
+	*out = *ps
 }
 
 //

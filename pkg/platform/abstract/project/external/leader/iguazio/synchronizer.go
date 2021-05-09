@@ -59,19 +59,14 @@ func (c *Synchronizer) synchronizationLoop(interval time.Duration) {
 	c.logger.InfoWith("Starting synchronization loop", "interval", interval)
 
 	ticker := time.NewTicker(interval)
-	for {
-		select {
-		case _ = <-ticker.C:
-			c.logger.DebugWith("Synchronizing projects according to leader")
-
-			if err := c.synchronizeProjectsAccordingToLeader(); err != nil {
-				c.logger.WarnWith("Failed to synchronize projects according to leader", "err", err)
-				continue
-			}
-
-			// update last successful sync timestamp
-			c.updateLastSuccessfulSyncTimestamp()
+	for range ticker.C {
+		if err := c.synchronizeProjectsAccordingToLeader(); err != nil {
+			c.logger.WarnWith("Failed to synchronize projects according to leader", "err", err)
+			continue
 		}
+
+		// update last successful sync timestamp
+		c.updateLastSuccessfulSyncTimestamp()
 	}
 }
 
@@ -92,7 +87,12 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 	projectsToCreate []*platform.ProjectConfig,
 	projectsToUpdate []*platform.ProjectConfig) {
 
-	// create a mapping of all existing internal projects
+	// a helper function - generates unique key to be used by the projects map later
+	generateUniqueProjectKey := func(configInstance *platform.ProjectConfig) string {
+		return fmt.Sprintf("%s:%s", configInstance.Meta.Namespace, configInstance.Meta.Name)
+	}
+
+	// create a mapping of all internal projects
 	internalProjectsMap := map[string]*platform.ProjectConfig{}
 	for _, internalProject := range internalProjects {
 		internalProjectConfig := internalProject.GetConfig()
@@ -100,15 +100,11 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 			continue
 		}
 
-		// generate a unique namespace+name key for the project
-		namespaceAndNameKey := fmt.Sprintf("%s:%s",
-			internalProjectConfig.Meta.Namespace,
-			internalProjectConfig.Meta.Name)
-
+		namespaceAndNameKey := generateUniqueProjectKey(internalProjectConfig)
 		internalProjectsMap[namespaceAndNameKey] = internalProjectConfig
 	}
 
-	// iterate over matching leader projects and create/update each according to the existing internal projects
+	// iterate over leader projects and figure which we should create/update
 	for _, leaderProject := range leaderProjects {
 		leaderProjectConfig := leaderProject.GetConfig()
 
@@ -119,11 +115,8 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 			continue
 		}
 
-		// generate a unique namespace+name key for the project (same as above)
-		namespaceAndNameKey := fmt.Sprintf("%s:%s",
-			leaderProjectConfig.Meta.Namespace,
-			leaderProjectConfig.Meta.Name)
-
+		// check if the project exists internally
+		namespaceAndNameKey := generateUniqueProjectKey(leaderProjectConfig)
 		matchingInternalProjectConfig, found := internalProjectsMap[namespaceAndNameKey]
 		if !found {
 			projectsToCreate = append(projectsToCreate, leaderProjectConfig)
@@ -139,7 +132,7 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 
 func (c *Synchronizer) synchronizeProjectsAccordingToLeader() error {
 
-	// fetch projects from leader
+	// fetch projects from leader (created/updated since last sync)
 	leaderProjects, err := c.leaderClient.GetAll(c.lastSuccessfulSyncTimestamp)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get leader projects")
