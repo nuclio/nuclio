@@ -427,7 +427,6 @@ func (suite *functionTestSuite) TestCreateFunctionWithInvalidName() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-
 func (suite *functionTestSuite) TestCreateDeploymentError() {
 
 	// mock a failure before the function is updated (e.g during project fetching)
