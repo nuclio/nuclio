@@ -37,6 +37,8 @@ func NewClient(parentLogger logger.Logger, platformConfiguration *platformconfig
 }
 
 func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) error {
+	var cookies []*http.Cookie
+
 	c.logger.DebugWith("Sending create project request to leader",
 		"name", createProjectOptions.ProjectConfig.Meta.Name,
 		"namespace", createProjectOptions.ProjectConfig.Meta.Namespace)
@@ -47,13 +49,18 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) err
 		return errors.Wrap(err, "Failed to generate project request body")
 	}
 
+	// attach session cookie
+	if createProjectOptions.SessionCookie != nil {
+		cookies = append(cookies, createProjectOptions.SessionCookie)
+	}
+
 	// send the request
 	headers := c.generateCommonRequestHeaders()
 	responseBody, _, err := common.SendHTTPRequest(http.MethodPost,
 		fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects"),
 		body,
 		headers,
-		[]*http.Cookie{createProjectOptions.SessionCookie},
+		cookies,
 		http.StatusCreated,
 		true,
 		DefaultRequestTimeout)
@@ -70,6 +77,8 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) err
 }
 
 func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) error {
+	var cookies []*http.Cookie
+
 	c.logger.DebugWith("Sending update project request to leader",
 		"name", updateProjectOptions.ProjectConfig.Meta.Name,
 		"namespace", updateProjectOptions.ProjectConfig.Meta.Namespace)
@@ -78,6 +87,11 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) err
 	body, err := c.generateProjectRequestBody(&updateProjectOptions.ProjectConfig)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate project request body")
+	}
+
+	// attach session cookie
+	if updateProjectOptions.SessionCookie != nil {
+		cookies = append(cookies, updateProjectOptions.SessionCookie)
 	}
 
 	// send the request
@@ -89,7 +103,7 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) err
 			updateProjectOptions.ProjectConfig.Meta.Name),
 		body,
 		headers,
-		[]*http.Cookie{updateProjectOptions.SessionCookie},
+		cookies,
 		http.StatusOK,
 		true,
 		DefaultRequestTimeout)
@@ -106,6 +120,8 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) err
 }
 
 func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) error {
+	var cookies []*http.Cookie
+
 	c.logger.DebugWith("Sending delete project request to leader",
 		"name", deleteProjectOptions.Meta.Name)
 
@@ -115,6 +131,11 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 		return errors.Wrap(err, "Failed to generate project deletion request body")
 	}
 
+	// attach session cookie
+	if deleteProjectOptions.SessionCookie != nil {
+		cookies = append(cookies, deleteProjectOptions.SessionCookie)
+	}
+
 	// send the request
 	headers := c.generateCommonRequestHeaders()
 	headers["igz-project-deletion-strategy"] = string(deleteProjectOptions.Strategy)
@@ -122,7 +143,7 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 		fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects"),
 		body,
 		headers,
-		[]*http.Cookie{deleteProjectOptions.SessionCookie},
+		cookies,
 		http.StatusAccepted,
 		true,
 		DefaultRequestTimeout); err != nil {
