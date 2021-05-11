@@ -223,6 +223,7 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 			"X-nuclio-function-event-namespace",
 			"X-nuclio-function-enrich-apigateways",
 			"X-nuclio-path",
+			"x-nuclio-filter-contains",
 			"X-nuclio-delete-project-strategy",
 			iguazio.ProjectsRoleHeaderKey,
 		},
