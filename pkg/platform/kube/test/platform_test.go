@@ -1104,7 +1104,7 @@ func (suite *ProjectTestSuite) TestDelete() {
 		Meta: projectConfig.Meta,
 	})
 	suite.Require().NoError(err, "Failed to get projects")
-	suite.Require().Equal(len(projects), 0)
+	suite.Require().Equal(0, len(projects))
 }
 
 func (suite *ProjectTestSuite) TestDeleteCascading() {

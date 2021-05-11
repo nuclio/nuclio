@@ -241,9 +241,12 @@ func (c *Client) getProjectsFromCache(getProjectOptions *platform.GetProjectsOpt
 
 		// if a specific namespace and name were requested - return this project (can't be more than one)
 		if getProjectOptions.Meta.Name != "" {
-			if projectConfig.Meta.Name == getProjectOptions.Meta.Name {
-				return []platform.Project{projectInstance}
+			if projectConfig.Meta.Name != getProjectOptions.Meta.Name {
+				continue
 			}
+
+			// name matches - return the matching project
+			return []platform.Project{projectInstance}
 		}
 
 		matchingProjects = append(matchingProjects, projectInstance)
