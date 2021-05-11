@@ -17,7 +17,7 @@ type Client struct {
 
 func NewClient(parentLogger logger.Logger, platform platform.Platform, localStore *client.Store) (abstractproject.Client, error) {
 	newClient := Client{
-		Logger:     parentLogger.GetChild("projects-client"),
+		Logger:     parentLogger.GetChild("projects-client-local"),
 		localStore: localStore,
 		platform:   platform,
 	}

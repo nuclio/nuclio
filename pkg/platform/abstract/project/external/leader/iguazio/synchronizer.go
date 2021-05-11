@@ -4,41 +4,39 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
-	"github.com/nuclio/nuclio/pkg/platformconfig"
-
-	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
 )
 
 type Synchronizer struct {
 	logger                       logger.Logger
-	platformConfiguration        *platformconfig.Config
+	synchronizationIntervalStr      string
 	leaderClient                 leader.Client
 	internalProjectsClient       project.Client
 	mostRecentUpdatedProjectTime *time.Time
 }
 
 func NewSynchronizer(parentLogger logger.Logger,
-	platformConfiguration *platformconfig.Config,
+	synchronizationIntervalStr string,
 	leaderClient leader.Client,
 	internalProjectsClient project.Client) (*Synchronizer, error) {
 
 	parentLogger.DebugWith("Creating project synchronizer")
 	newSynchronizer := Synchronizer{
-		logger:                 parentLogger.GetChild("leader-synchronizer-iguazio"),
-		platformConfiguration:  platformConfiguration,
-		leaderClient:           leaderClient,
-		internalProjectsClient: internalProjectsClient,
+		logger:                  parentLogger.GetChild("leader-synchronizer-iguazio"),
+		synchronizationIntervalStr: synchronizationIntervalStr,
+		leaderClient:            leaderClient,
+		internalProjectsClient:  internalProjectsClient,
 	}
 
 	return &newSynchronizer, nil
 }
 
 func (c *Synchronizer) Start() error {
-	synchronizationInterval, err := time.ParseDuration(c.platformConfiguration.ProjectsLeader.SynchronizationInterval)
+	synchronizationInterval, err := time.ParseDuration(c.synchronizationIntervalStr)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse synchronization interval")
 	}
@@ -50,31 +48,31 @@ func (c *Synchronizer) Start() error {
 	}
 
 	// start synchronization loop in the background
-	go c.synchronizationLoop(synchronizationInterval)
+	go c.startSynchronizationLoop(synchronizationInterval)
 
 	return nil
 }
 
-func (c *Synchronizer) synchronizationLoop(interval time.Duration) {
+func (c *Synchronizer) startSynchronizationLoop(interval time.Duration) {
 	c.logger.InfoWith("Starting synchronization loop", "interval", interval)
 
 	ticker := time.NewTicker(interval)
 	for range ticker.C {
-		if err := c.synchronizeProjectsAccordingToLeader(); err != nil {
+		if err := c.synchronizeProjectsFromLeader(); err != nil {
 			c.logger.WarnWith("Failed to synchronize projects according to leader", "err", err)
 		}
 	}
+}
+
+// a helper function - generates unique key to be used by projects maps
+func (c *Synchronizer) generateUniqueProjectKey(configInstance *platform.ProjectConfig) string {
+	return fmt.Sprintf("%s:%s", configInstance.Meta.Namespace, configInstance.Meta.Name)
 }
 
 func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, internalProjects []platform.Project) (
 	projectsToCreate []*platform.ProjectConfig,
 	projectsToUpdate []*platform.ProjectConfig,
 	mostRecentUpdatedProjectTime *time.Time) {
-
-	// a helper function - generates unique key to be used by the projects map later
-	generateUniqueProjectKey := func(configInstance *platform.ProjectConfig) string {
-		return fmt.Sprintf("%s:%s", configInstance.Meta.Namespace, configInstance.Meta.Name)
-	}
 
 	// create a mapping of all internal projects
 	internalProjectsMap := map[string]*platform.ProjectConfig{}
@@ -84,8 +82,8 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 			continue
 		}
 
-		namespaceAndNameKey := generateUniqueProjectKey(internalProjectConfig)
-		internalProjectsMap[namespaceAndNameKey] = internalProjectConfig
+		projectKey := c.generateUniqueProjectKey(internalProjectConfig)
+		internalProjectsMap[projectKey] = internalProjectConfig
 	}
 
 	// iterate over leader projects and figure which we should create/update
@@ -105,8 +103,8 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 		}
 
 		// check if the project exists internally
-		namespaceAndNameKey := generateUniqueProjectKey(leaderProjectConfig)
-		matchingInternalProjectConfig, found := internalProjectsMap[namespaceAndNameKey]
+		projectKey := c.generateUniqueProjectKey(leaderProjectConfig)
+		matchingInternalProjectConfig, found := internalProjectsMap[projectKey]
 		if !found {
 			projectsToCreate = append(projectsToCreate, leaderProjectConfig)
 		} else if !matchingInternalProjectConfig.IsEqual(leaderProjectConfig, true) {
@@ -119,18 +117,18 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 	return
 }
 
-func (c *Synchronizer) synchronizeProjectsAccordingToLeader() error {
+func (c *Synchronizer) synchronizeProjectsFromLeader() error {
 
-	// fetch projects from leader (created/updated since last sync)
-	leaderProjects, err := c.leaderClient.GetAll(c.mostRecentUpdatedProjectTime)
+	// fetch updated projects from leader
+	leaderProjects, err := c.leaderClient.GetUpdatedAfter(c.mostRecentUpdatedProjectTime)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get leader projects")
+		return errors.Wrap(err, "Failed to get projects from leader")
 	}
 
 	// fetch all internal projects
 	internalProjects, err := c.internalProjectsClient.Get(&platform.GetProjectsOptions{})
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get all internal projects")
+		return errors.Wrapf(err, "Failed to get projects from internal client")
 	}
 
 	// filter modified projects
@@ -149,7 +147,7 @@ func (c *Synchronizer) synchronizeProjectsAccordingToLeader() error {
 	for _, projectInstance := range projectsToCreate {
 		projectInstance := projectInstance
 		go func() {
-			c.logger.DebugWith("Creating project (during sync)", "projectInstance", *projectInstance)
+			c.logger.DebugWith("Creating project from leader sync", "projectInstance", *projectInstance)
 			createProjectConfig := &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
 					Meta: projectInstance.Meta,
@@ -157,13 +155,13 @@ func (c *Synchronizer) synchronizeProjectsAccordingToLeader() error {
 				},
 			}
 			if _, err := c.internalProjectsClient.Create(createProjectConfig); err != nil {
-				c.logger.WarnWith("Failed to create project (during sync)",
+				c.logger.WarnWith("Failed to create project from leader sync",
 					"name", createProjectConfig.ProjectConfig.Meta.Name,
 					"namespace", createProjectConfig.ProjectConfig.Meta.Namespace,
 					"err", err)
 				return
 			}
-			c.logger.DebugWith("Successfully created project (during sync)",
+			c.logger.DebugWith("Successfully created project from leader sync",
 				"name", createProjectConfig.ProjectConfig.Meta.Name,
 				"namespace", createProjectConfig.ProjectConfig.Meta.Namespace)
 		}()
@@ -173,7 +171,7 @@ func (c *Synchronizer) synchronizeProjectsAccordingToLeader() error {
 	for _, projectInstance := range projectsToUpdate {
 		projectInstance := projectInstance
 		go func() {
-			c.logger.DebugWith("Updating project (during sync)", "projectInstance", *projectInstance)
+			c.logger.DebugWith("Updating project from leader sync", "projectInstance", *projectInstance)
 			updateProjectOptions := &platform.UpdateProjectOptions{
 				ProjectConfig: platform.ProjectConfig{
 					Meta: projectInstance.Meta,
@@ -181,13 +179,13 @@ func (c *Synchronizer) synchronizeProjectsAccordingToLeader() error {
 				},
 			}
 			if _, err := c.internalProjectsClient.Update(updateProjectOptions); err != nil {
-				c.logger.WarnWith("Failed to update project (during sync)",
+				c.logger.WarnWith("Failed to update project from leader sync",
 					"name", updateProjectOptions.ProjectConfig.Meta.Name,
 					"namespace", updateProjectOptions.ProjectConfig.Meta.Namespace,
 					"err", err)
 				return
 			}
-			c.logger.DebugWith("Successfully updated project (during sync)",
+			c.logger.DebugWith("Successfully updated project from leader sync",
 				"name", updateProjectOptions.ProjectConfig.Meta.Name,
 				"namespace", updateProjectOptions.ProjectConfig.Meta.Namespace)
 		}()

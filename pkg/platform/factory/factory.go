@@ -69,6 +69,8 @@ func CreatePlatform(parentLogger logger.Logger,
 		return nil, errors.Wrapf(err, "Failed to create %s platform", platformType)
 	}
 
+	// under this section, add actions to be performed only after platform type had been resolved
+	// (so it won't be performed more than once)
 	if platformType != "auto" {
 		parentLogger.DebugWith("Initializing platform", "platformType", platformType)
 		if err = newPlatform.Initialize(); err != nil {

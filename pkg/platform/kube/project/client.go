@@ -24,7 +24,7 @@ type Client struct {
 
 func NewClient(parentLogger logger.Logger, platformInstance platform.Platform, consumer *client.Consumer) (abstractproject.Client, error) {
 	newClient := Client{
-		Logger:   parentLogger.GetChild("projects-client"),
+		Logger:   parentLogger.GetChild("projects-client-kube"),
 		consumer: consumer,
 		platform: platformInstance,
 	}
@@ -33,7 +33,7 @@ func NewClient(parentLogger logger.Logger, platformInstance platform.Platform, c
 }
 
 func (c *Client) Initialize() error {
-	c.Logger.DebugWith("Initializing projects client (kube)")
+	c.Logger.DebugWith("Initializing projects client")
 	if err := c.syncProjectsCache(); err != nil {
 		return errors.Wrap(err, "Failed to sync projects cache")
 	}
@@ -234,18 +234,15 @@ func (c *Client) getProjectsFromCache(getProjectOptions *platform.GetProjectsOpt
 	for _, projectInstance := range c.projectsCache {
 		projectConfig := projectInstance.GetConfig()
 
-		if projectConfig.Meta.Namespace != "" {
+		// if a specific namespace was requested and this project is not in it - skip it
+		if projectConfig.Meta.Namespace != getProjectOptions.Meta.Namespace {
+			continue
+		}
 
-			// if a specific namespace was requested and this project is not in it - skip it
-			if projectConfig.Meta.Namespace != getProjectOptions.Meta.Namespace {
-				continue
-			}
-
-			// if a specific namespace and name were requested - return this project (can't be more than one)
-			if getProjectOptions.Meta.Name != "" {
-				if projectConfig.Meta.Name == getProjectOptions.Meta.Name {
-					return []platform.Project{projectInstance}
-				}
+		// if a specific namespace and name were requested - return this project (can't be more than one)
+		if getProjectOptions.Meta.Name != "" {
+			if projectConfig.Meta.Name == getProjectOptions.Meta.Name {
+				return []platform.Project{projectInstance}
 			}
 		}
 

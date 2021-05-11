@@ -14,7 +14,7 @@ type Project struct {
 	Data ProjectData `json:"data,omitempty"`
 }
 
-func CreateProjectFromProjectConfig(projectConfig *platform.ProjectConfig) Project {
+func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) Project {
 	return Project{
 		Data: ProjectData{
 			Type: ProjectType,
@@ -33,8 +33,8 @@ func (pl *Project) GetConfig() *platform.ProjectConfig {
 		Meta: platform.ProjectMeta{
 			Name:        pl.Data.Attributes.Name,
 			Namespace:   pl.Data.Attributes.Namespace,
-			Annotations: pl.labelListToMap(pl.Data.Attributes.Annotations),
-			Labels:      pl.labelListToMap(pl.Data.Attributes.Labels),
+			Annotations: labelListToMap(pl.Data.Attributes.Annotations),
+			Labels:      labelListToMap(pl.Data.Attributes.Labels),
 		},
 		Spec: platform.ProjectSpec{
 			Description: pl.Data.Attributes.Description,
@@ -47,31 +47,11 @@ func (pl *Project) GetConfig() *platform.ProjectConfig {
 	}
 }
 
-func labelMapToList(labelMap map[string]string) []Label {
-	var labelList []Label
-
-	for labelName, labelValue := range labelMap {
-		labelList = append(labelList, Label{Name: labelName, Value: labelValue})
-	}
-
-	return labelList
-}
-
 func (pl *Project) parseTimeFromTimestamp(timestamp string) time.Time {
 	loc, _ := time.LoadLocation("GMT")
 	layout := "2006-01-02T15:04:05.000000+00:00"
 	t, _ := time.ParseInLocation(layout, timestamp, loc)
 	return t
-}
-
-func (pl *Project) labelListToMap(labelList []Label) map[string]string {
-	labelsMap := map[string]string{}
-
-	for _, label := range labelList {
-		labelsMap[label.Name] = label.Value
-	}
-
-	return labelsMap
 }
 
 type ProjectData struct {

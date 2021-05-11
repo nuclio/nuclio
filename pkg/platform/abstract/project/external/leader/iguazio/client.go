@@ -137,8 +137,8 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	return nil
 }
 
-func (c *Client) GetAll(updatedAfterTime *time.Time) ([]platform.Project, error) {
-	c.logger.DebugWith("Sending get all projects request to leader", "updatedAfterTime", updatedAfterTime)
+func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Project, error) {
+	c.logger.DebugWith("Fetching all projects from leader", "updatedAfterTime", updatedAfterTime)
 
 	// if updatedAfterTime arg was specified, filter by it
 	updatedAfterTimestampQuery := ""
@@ -180,7 +180,7 @@ func (c *Client) generateCommonRequestHeaders() map[string]string {
 }
 
 func (c *Client) generateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
-	project := CreateProjectFromProjectConfig(projectConfig)
+	project := NewProjectFromProjectConfig(projectConfig)
 	c.enrichProjectWithNuclioFields(&project)
 
 	return json.Marshal(project)

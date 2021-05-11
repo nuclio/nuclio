@@ -142,9 +142,7 @@ func SendHTTPRequest(method string,
 
 	// attach cookies
 	for _, cookie := range cookies {
-		if cookie != nil {
-			req.AddCookie(cookie)
-		}
+		req.AddCookie(cookie)
 	}
 
 	// attach headers

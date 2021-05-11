@@ -15,8 +15,8 @@ import (
 
 type Client struct {
 	platformConfiguration *platformconfig.Config
-	internalClient        project.Client
 	synchronizer          *iguazio.Synchronizer
+	internalClient        project.Client
 	leaderClient          leader.Client
 }
 
@@ -36,7 +36,12 @@ func NewClient(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create leader client")
 	}
 
-	newClient.synchronizer, err = iguazio.NewSynchronizer(parentLogger, platformConfiguration, newClient.leaderClient, internalClient)
+	// get leader synchronization interval
+	synchronizationIntervalStr := "0"
+	if platformConfiguration.ProjectsLeader != nil{
+		synchronizationIntervalStr = platformConfiguration.ProjectsLeader.SynchronizationInterval
+	}
+	newClient.synchronizer, err = iguazio.NewSynchronizer(parentLogger, synchronizationIntervalStr, newClient.leaderClient, internalClient)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create synchronizer")
 	}

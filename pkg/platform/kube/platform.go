@@ -888,7 +888,11 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 
 // ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
 func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
-	if defaultNamespace == "@nuclio.selfNamespace" || p.DefaultNamespace == "@nuclio.selfNamespace" {
+	if defaultNamespace == "" {
+		defaultNamespace = p.DefaultNamespace
+	}
+
+	if defaultNamespace == "@nuclio.selfNamespace" {
 
 		// get namespace from within the pod. if found, return that
 		if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
@@ -897,9 +901,6 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	}
 
 	if defaultNamespace == "" {
-		if p.DefaultNamespace != "" {
-			return p.DefaultNamespace
-		}
 
 		return "default"
 	}

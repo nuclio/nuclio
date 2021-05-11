@@ -165,10 +165,10 @@ type ProjectMeta struct {
 }
 
 func (pm ProjectMeta) IsEqual(other ProjectMeta) bool {
-	labels := common.GetStringStringMapOrEmpty(pm.Labels)
-	otherLabels := common.GetStringStringMapOrEmpty(other.Labels)
-	annotations := common.GetStringStringMapOrEmpty(pm.Annotations)
-	otherAnnotations := common.GetStringStringMapOrEmpty(other.Annotations)
+	labels := common.GetStringToStringMapOrEmpty(pm.Labels)
+	otherLabels := common.GetStringToStringMapOrEmpty(other.Labels)
+	annotations := common.GetStringToStringMapOrEmpty(pm.Annotations)
+	otherAnnotations := common.GetStringToStringMapOrEmpty(other.Annotations)
 
 	return pm.Name == other.Name &&
 		pm.Namespace == other.Namespace &&
