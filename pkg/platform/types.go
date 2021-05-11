@@ -185,8 +185,9 @@ func (ps ProjectSpec) IsEqual(other ProjectSpec) bool {
 }
 
 type ProjectStatus struct {
-	AdminStatus       string `json:"adminStatus,omitempty"`
-	OperationalStatus string `json:"operationalStatus,omitempty"`
+	AdminStatus       string    `json:"adminStatus,omitempty"`
+	OperationalStatus string    `json:"operationalStatus,omitempty"`
+	UpdatedAt         time.Time `json:"updatedAt,omitempty"`
 }
 
 func (pst ProjectStatus) IsEqual(other ProjectStatus) bool {

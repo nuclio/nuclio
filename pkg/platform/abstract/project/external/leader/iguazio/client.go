@@ -139,13 +139,13 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	return nil
 }
 
-func (c *Client) GetAll(updatedAfterTimestamp string) ([]platform.Project, error) {
-	c.logger.DebugWith("Sending get all projects request to leader",
-		"updatedAfterTimestamp", updatedAfterTimestamp)
+func (c *Client) GetAll(updatedAfterTime *time.Time) ([]platform.Project, error) {
+	c.logger.DebugWith("Sending get all projects request to leader", "updatedAfterTime", updatedAfterTime)
 
-	// if updatedAfterTimestamp arg was given, filter by it
+	// if updatedAfterTime arg was given, filter by it
 	updatedAfterTimestampQuery := ""
-	if updatedAfterTimestamp != "" {
+	if updatedAfterTime != nil {
+		updatedAfterTimestamp := updatedAfterTime.Format(time.RFC3339Nano)
 		updatedAfterTimestampQuery = fmt.Sprintf("?filter[updated_at]=[$gt]%s", updatedAfterTimestamp)
 	}
 

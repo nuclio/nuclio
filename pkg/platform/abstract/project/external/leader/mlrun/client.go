@@ -1,6 +1,8 @@
 package mlrun
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -34,6 +36,6 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	return nuclio.ErrNotImplemented
 }
 
-func (c *Client) GetAll(updatedAfterTimestamp string) ([]platform.Project, error) {
+func (c *Client) GetAll(updatedAfterTime *time.Time) ([]platform.Project, error) {
 	return nil, nuclio.ErrNotImplemented
 }

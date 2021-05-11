@@ -1,6 +1,10 @@
 package iguazio
 
-import "github.com/nuclio/nuclio/pkg/platform"
+import (
+	"time"
+
+	"github.com/nuclio/nuclio/pkg/platform"
+)
 
 const (
 	ProjectType = "project"
@@ -16,7 +20,6 @@ func CreateProjectFromProjectConfig(projectConfig *platform.ProjectConfig) Proje
 			Type: ProjectType,
 			Attributes: ProjectAttributes{
 				Name:        projectConfig.Meta.Name,
-				Namespace:   projectConfig.Meta.Namespace,
 				Labels:      labelMapToList(projectConfig.Meta.Labels),
 				Annotations: labelMapToList(projectConfig.Meta.Annotations),
 				Description: projectConfig.Spec.Description,
@@ -39,6 +42,7 @@ func (pl *Project) GetConfig() *platform.ProjectConfig {
 		Status: platform.ProjectStatus{
 			AdminStatus:       pl.Data.Attributes.AdminStatus,
 			OperationalStatus: pl.Data.Attributes.OperationalStatus,
+			UpdatedAt:         pl.parseTimeFromTimestamp(pl.Data.Attributes.UpdatedAt),
 		},
 	}
 }
@@ -51,6 +55,13 @@ func labelMapToList(labelMap map[string]string) []Label {
 	}
 
 	return labelList
+}
+
+func (pl *Project) parseTimeFromTimestamp(timestamp string) time.Time {
+	loc, _ := time.LoadLocation("GMT")
+	layout := "2006-01-02T15:04:05.000000+00:00"
+	t, _ := time.ParseInLocation(layout, timestamp, loc)
+	return t
 }
 
 func (pl *Project) labelListToMap(labelList []Label) map[string]string {
@@ -76,6 +87,7 @@ type ProjectAttributes struct {
 	Description       string        `json:"description,omitempty"`
 	AdminStatus       string        `json:"admin_status,omitempty"`
 	OperationalStatus string        `json:"operational_status,omitempty"`
+	UpdatedAt         string        `json:"updated_at,omitempty"`
 	NuclioProject     NuclioProject `json:"nuclio_project,omitempty"`
 }
 

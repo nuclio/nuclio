@@ -1,6 +1,8 @@
 package leader
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/platform"
 )
 
@@ -16,5 +18,5 @@ type Client interface {
 	Delete(*platform.DeleteProjectOptions) error
 
 	// Gets all projects from the leader (gets projects that have been updated since the given timestamp)
-	GetAll(string) ([]platform.Project, error)
+	GetAll(*time.Time) ([]platform.Project, error)
 }
