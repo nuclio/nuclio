@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -142,17 +140,11 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 func (c *Client) GetAll(updatedAfterTime *time.Time) ([]platform.Project, error) {
 	c.logger.DebugWith("Sending get all projects request to leader", "updatedAfterTime", updatedAfterTime)
 
-	// if updatedAfterTime arg was given, filter by it
+	// if updatedAfterTime arg was specified, filter by it
 	updatedAfterTimestampQuery := ""
 	if updatedAfterTime != nil {
 		updatedAfterTimestamp := updatedAfterTime.Format(time.RFC3339Nano)
 		updatedAfterTimestampQuery = fmt.Sprintf("?filter[updated_at]=[$gt]%s", updatedAfterTimestamp)
-	}
-
-	// get the encoded iguazio session - used to perform this GET operation against iguazio dashboard API
-	encodedIguazioSession, err := c.getEncodedIguazioSession()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get encoded iguazio session")
 	}
 
 	// send the request
@@ -164,7 +156,7 @@ func (c *Client) GetAll(updatedAfterTime *time.Time) ([]platform.Project, error)
 			updatedAfterTimestampQuery),
 		nil,
 		headers,
-		[]*http.Cookie{{Name: "session", Value: encodedIguazioSession}},
+		[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSession}},
 		http.StatusOK,
 		true,
 		DefaultRequestTimeout)
@@ -178,21 +170,6 @@ func (c *Client) GetAll(updatedAfterTime *time.Time) ([]platform.Project, error)
 	}
 
 	return projectsList.ToSingleProjectList(), nil
-}
-
-func (c *Client) getEncodedIguazioSession() (string, error) {
-	iguazioSession := c.platformConfiguration.IguazioSession
-	if iguazioSession == "" {
-		return "", errors.New("Iguazio session is empty")
-	}
-
-	// parse as the session cookie is expected to be (uses url query encoding)
-	parsedSession := url.QueryEscape(iguazioSession)
-
-	// net/url QueryEscape() still doesn't parse "" as "%20", so do it manually
-	parsedSession = strings.ReplaceAll(parsedSession, "", "%20")
-
-	return parsedSession, nil
 }
 
 func (c *Client) generateCommonRequestHeaders() map[string]string {
