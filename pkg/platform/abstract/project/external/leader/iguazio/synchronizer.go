@@ -4,16 +4,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+
+	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 )
 
 type Synchronizer struct {
 	logger                       logger.Logger
-	synchronizationIntervalStr      string
+	synchronizationIntervalStr   string
 	leaderClient                 leader.Client
 	internalProjectsClient       project.Client
 	mostRecentUpdatedProjectTime *time.Time
@@ -26,10 +27,10 @@ func NewSynchronizer(parentLogger logger.Logger,
 
 	parentLogger.DebugWith("Creating project synchronizer")
 	newSynchronizer := Synchronizer{
-		logger:                  parentLogger.GetChild("leader-synchronizer-iguazio"),
+		logger:                     parentLogger.GetChild("leader-synchronizer-iguazio"),
 		synchronizationIntervalStr: synchronizationIntervalStr,
-		leaderClient:            leaderClient,
-		internalProjectsClient:  internalProjectsClient,
+		leaderClient:               leaderClient,
+		internalProjectsClient:     internalProjectsClient,
 	}
 
 	return &newSynchronizer, nil

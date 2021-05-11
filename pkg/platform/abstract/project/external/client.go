@@ -38,7 +38,7 @@ func NewClient(parentLogger logger.Logger,
 
 	// get leader synchronization interval
 	synchronizationIntervalStr := "0"
-	if platformConfiguration.ProjectsLeader != nil{
+	if platformConfiguration.ProjectsLeader != nil {
 		synchronizationIntervalStr = platformConfiguration.ProjectsLeader.SynchronizationInterval
 	}
 	newClient.synchronizer, err = iguazio.NewSynchronizer(parentLogger, synchronizationIntervalStr, newClient.leaderClient, internalClient)
