@@ -538,7 +538,6 @@ func (suite *projectExportImportTestSuite) TestImportProject() {
 		uniqueSuffix,
 		[]string{function1Name, function2Name},
 		[]string{function1EventDisplayName, function2EventDisplayName},
-		//[]string{apiGateway1Name})
 		[]string{apiGateway1Name, apiGateway2Name})
 	defer os.Remove(uniqueProjectConfigPath) // nolint: errcheck
 
