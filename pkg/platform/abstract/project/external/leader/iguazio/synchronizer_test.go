@@ -38,10 +38,10 @@ func (suite *SynchronizerTestSuite) SetupTest() {
 	suite.mockLeaderProjectsClient = &leadermock.Client{}
 
 	// create synchronizer
-	suite.synchronizer =  Synchronizer{
-		logger: suite.logger,
-		internalProjectsClient: suite.mockInternalProjectsClient,
-		leaderClient: suite.mockLeaderProjectsClient,
+	suite.synchronizer = Synchronizer{
+		logger:                     suite.logger,
+		internalProjectsClient:     suite.mockInternalProjectsClient,
+		leaderClient:               suite.mockLeaderProjectsClient,
 		synchronizationIntervalStr: "0",
 	}
 }
@@ -180,8 +180,8 @@ func (suite *SynchronizerTestSuite) createAbstractProject(name string,
 			},
 			Status: platform.ProjectStatus{
 				OperationalStatus: status,
-				AdminStatus: status,
-				UpdatedAt: updatedAt,
+				AdminStatus:       status,
+				UpdatedAt:         updatedAt,
 			},
 		},
 	}

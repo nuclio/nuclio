@@ -50,8 +50,8 @@ func (suite *ExternalProjectClientTestSuite) SetupSuite() {
 	// create external projects client
 	suite.Client = &Client{
 		platformConfiguration: &platformConfiguration,
-		internalClient: suite.mockInternalProjectsClient,
-		leaderClient: suite.mockLeaderProjectsClient,
+		internalClient:        suite.mockInternalProjectsClient,
+		leaderClient:          suite.mockLeaderProjectsClient,
 	}
 	suite.Require().NoError(err)
 }
