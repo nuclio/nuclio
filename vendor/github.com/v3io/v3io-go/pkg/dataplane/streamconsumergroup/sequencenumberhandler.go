@@ -31,7 +31,8 @@ func newSequenceNumberHandler(member *member) (*sequenceNumberHandler, error) {
 }
 
 func (snh *sequenceNumberHandler) start() error {
-	snh.logger.DebugWith("Starting sequenceNumber handler")
+	snh.logger.DebugWith("Starting sequenceNumber handler",
+		"memberID", snh.member.id)
 
 	// stopped on stop()
 	go snh.markedShardSequenceNumbersCommitter(snh.member.streamConsumerGroup.config.SequenceNumber.CommitInterval,
@@ -41,7 +42,8 @@ func (snh *sequenceNumberHandler) start() error {
 }
 
 func (snh *sequenceNumberHandler) stop() error {
-	snh.logger.DebugWith("Stopping sequenceNumber handler")
+	snh.logger.DebugWith("Stopping sequenceNumber handler",
+		"memberID", snh.member.id)
 
 	select {
 	case snh.stopMarkedShardSequenceNumberCommitterChan <- struct{}{}:
@@ -62,7 +64,8 @@ func (snh *sequenceNumberHandler) markedShardSequenceNumbersCommitter(interval t
 		select {
 		case <-time.After(interval):
 			if err := snh.commitMarkedShardSequenceNumbers(); err != nil {
-				snh.logger.WarnWith("Failed committing marked shard sequenceNumbers", "err", errors.GetErrorStackString(err, 10))
+				snh.logger.WarnWith("Failed committing marked shard sequenceNumbers", 
+					"err", errors.GetErrorStackString(err, 10))
 				continue
 			}
 		case <-stopChan:
@@ -70,7 +73,8 @@ func (snh *sequenceNumberHandler) markedShardSequenceNumbersCommitter(interval t
 
 			// do the last commit
 			if err := snh.commitMarkedShardSequenceNumbers(); err != nil {
-				snh.logger.WarnWith("Failed committing marked shard sequenceNumbers on stop", "err", errors.GetErrorStackString(err, 10))
+				snh.logger.WarnWith("Failed committing marked shard sequenceNumbers on stop", 
+					"err", errors.GetErrorStackString(err, 10))
 			}
 			return
 		}

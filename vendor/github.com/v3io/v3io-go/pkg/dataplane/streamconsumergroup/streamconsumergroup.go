@@ -65,6 +65,7 @@ func NewStreamConsumerGroup(parentLogger logger.Logger,
 		"config", config,
 		"path", streamPath,
 		"maxReplicas", maxReplicas,
+		"totalNumShards", newStreamConsumerGroup.totalNumShards,
 		"dataplaneTimeout", newStreamConsumerGroup.dataplaneInput.Timeout)
 
 	return &newStreamConsumerGroup, nil
@@ -123,6 +124,10 @@ func (scg *streamConsumerGroup) setState(modifier stateModifier) (*State, error)
 			if err != nil {
 				return true, errors.Wrap(err, "Failed to create state")
 			}
+		} else {
+			scg.logger.DebugWith("Found an existing state from persistency",
+				"mtime", mtime,
+				"state", state)
 		}
 
 		// for logging
@@ -130,6 +135,10 @@ func (scg *streamConsumerGroup) setState(modifier stateModifier) (*State, error)
 
 		modifiedState, err = modifier(state)
 		if err != nil {
+			scg.logger.DebugWith("Failed to modify state",
+				"err", errors.GetErrorStackString(err, 10),
+				"previousState", previousState,
+				"unmodifiedState", state)
 			return true, errors.Wrap(err, "Failed modifying state")
 		}
 

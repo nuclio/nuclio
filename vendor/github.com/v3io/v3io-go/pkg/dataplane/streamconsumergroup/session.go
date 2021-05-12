@@ -25,7 +25,9 @@ func newSession(member *member,
 }
 
 func (s *session) start() error {
-	s.logger.DebugWith("Starting session")
+	s.logger.DebugWith("Starting session",
+		"shards", s.state.Shards,
+		"memberID", s.GetMemberID())
 
 	// for each shard we need handle, create a StreamConsumerGroupClaim object and start it
 	for _, shardID := range s.state.Shards {
@@ -55,7 +57,9 @@ func (s *session) start() error {
 }
 
 func (s *session) stop() error {
-	s.logger.DebugWith("Stopping session, triggering given handler cleanup")
+	s.logger.DebugWith("Stopping session, triggering given handler cleanup",
+		"shards", s.state.Shards,
+		"memberID", s.GetMemberID())
 
 	// tell the consumer group handler to set up
 	if err := s.member.handler.Cleanup(s); err != nil {
