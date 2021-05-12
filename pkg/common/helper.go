@@ -517,3 +517,7 @@ func ErrorFromRecoveredError(recoveredError interface{}) error {
 		return errors.New(fmt.Sprintf("Unknown error type: %s", reflect.TypeOf(typedErr)))
 	}
 }
+
+func TimeToTimePointer(t time.Time) *time.Time {
+	return &t
+}

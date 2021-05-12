@@ -59,7 +59,7 @@ func (c *Synchronizer) startSynchronizationLoop(interval time.Duration) {
 
 	ticker := time.NewTicker(interval)
 	for range ticker.C {
-		if err := c.synchronizeProjectsFromLeader(); err != nil {
+		if err := c.SynchronizeProjectsFromLeader(); err != nil {
 			c.logger.WarnWith("Failed to synchronize projects according to leader", "err", err)
 		}
 	}
@@ -70,7 +70,7 @@ func (c *Synchronizer) generateUniqueProjectKey(configInstance *platform.Project
 	return fmt.Sprintf("%s:%s", configInstance.Meta.Namespace, configInstance.Meta.Name)
 }
 
-func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, internalProjects []platform.Project) (
+func (c *Synchronizer) GetModifiedProjects(leaderProjects []platform.Project, internalProjects []platform.Project) (
 	projectsToCreate []*platform.ProjectConfig,
 	projectsToUpdate []*platform.ProjectConfig,
 	mostRecentUpdatedProjectTime *time.Time) {
@@ -118,7 +118,7 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 	return
 }
 
-func (c *Synchronizer) synchronizeProjectsFromLeader() error {
+func (c *Synchronizer) SynchronizeProjectsFromLeader() error {
 
 	// fetch updated projects from leader
 	leaderProjects, err := c.leaderClient.GetUpdatedAfter(c.mostRecentUpdatedProjectTime)
@@ -133,7 +133,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader() error {
 	}
 
 	// filter modified projects
-	projectsToCreate, projectsToUpdate, mostRecentUpdatedProjectTime := c.getModifiedProjects(leaderProjects, internalProjects)
+	projectsToCreate, projectsToUpdate, mostRecentUpdatedProjectTime := c.GetModifiedProjects(leaderProjects, internalProjects)
 	if len(projectsToCreate) == 0 && len(projectsToUpdate) == 0 {
 
 		// nothing to create/update - return
@@ -151,8 +151,9 @@ func (c *Synchronizer) synchronizeProjectsFromLeader() error {
 			c.logger.DebugWith("Creating project from leader sync", "projectInstance", *projectInstance)
 			createProjectConfig := &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
-					Meta: projectInstance.Meta,
-					Spec: projectInstance.Spec,
+					Meta:   projectInstance.Meta,
+					Spec:   projectInstance.Spec,
+					Status: projectInstance.Status,
 				},
 			}
 			if _, err := c.internalProjectsClient.Create(createProjectConfig); err != nil {
@@ -175,8 +176,9 @@ func (c *Synchronizer) synchronizeProjectsFromLeader() error {
 			c.logger.DebugWith("Updating project from leader sync", "projectInstance", *projectInstance)
 			updateProjectOptions := &platform.UpdateProjectOptions{
 				ProjectConfig: platform.ProjectConfig{
-					Meta: projectInstance.Meta,
-					Spec: projectInstance.Spec,
+					Meta:   projectInstance.Meta,
+					Spec:   projectInstance.Spec,
+					Status: projectInstance.Status,
 				},
 			}
 			if _, err := c.internalProjectsClient.Update(updateProjectOptions); err != nil {
