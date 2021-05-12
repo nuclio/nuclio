@@ -134,6 +134,12 @@ func (c *Synchronizer) SynchronizeProjectsFromLeader() error {
 
 	// filter modified projects
 	projectsToCreate, projectsToUpdate, mostRecentUpdatedProjectTime := c.GetModifiedProjects(leaderProjects, internalProjects)
+
+	// update most recent updated project time
+	if mostRecentUpdatedProjectTime != nil {
+		c.mostRecentUpdatedProjectTime = mostRecentUpdatedProjectTime
+	}
+
 	if len(projectsToCreate) == 0 && len(projectsToUpdate) == 0 {
 
 		// nothing to create/update - return
@@ -193,9 +199,6 @@ func (c *Synchronizer) SynchronizeProjectsFromLeader() error {
 				"namespace", updateProjectOptions.ProjectConfig.Meta.Namespace)
 		}()
 	}
-
-	// update most recent updated project time
-	c.mostRecentUpdatedProjectTime = mostRecentUpdatedProjectTime
 
 	return nil
 }

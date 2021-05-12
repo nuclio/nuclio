@@ -61,17 +61,18 @@ func (suite *SynchronizerTestSuite) TestNoLeaderProjects() {
 func (suite *SynchronizerTestSuite) TestLeaderProjectsDoesntExistInternally() {
 	testBeginningTime := time.Now()
 
-	suite.testSynchronizeProjectsFromLeader([]platform.Project{
-		suite.createAbstractProject("leader-project-most-updated", "", "online", testBeginningTime.Add(time.Hour)),
-		suite.createAbstractProject("leader-project-less-updated", "", "online", testBeginningTime),
-	},
+	leaderProjectMostUpdated := suite.createAbstractProject("leader-project-most-updated", "", "online", testBeginningTime.Add(time.Hour))
+	leaderProjectLessUpdated := suite.createAbstractProject("leader-project-less-updated", "", "online", testBeginningTime)
+
+	suite.testSynchronizeProjectsFromLeader(
+		[]platform.Project{leaderProjectMostUpdated, leaderProjectLessUpdated},
 		[]platform.Project{},
 		[]*platform.CreateProjectOptions{
 			{
-				ProjectConfig: &suite.createAbstractProject("leader-project-most-updated", "", "online", testBeginningTime.Add(time.Hour)).ProjectConfig,
+				ProjectConfig: &leaderProjectMostUpdated.ProjectConfig,
 			},
 			{
-				ProjectConfig: &suite.createAbstractProject("leader-project-less-updated", "", "online", testBeginningTime).ProjectConfig,
+				ProjectConfig: &leaderProjectLessUpdated.ProjectConfig,
 			},
 		},
 		[]*platform.UpdateProjectOptions{},
@@ -81,19 +82,27 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsDoesntExistInternally() {
 func (suite *SynchronizerTestSuite) TestLeaderProjectsIsntUpdatedInternally() {
 	testBeginningTime := time.Now()
 
+	updatedProject := suite.createAbstractProject("leader-project", "updated", "online", testBeginningTime)
+	notUpdatedProject := suite.createAbstractProject("leader-project", "not-updated", "online", testBeginningTime)
+
 	suite.testSynchronizeProjectsFromLeader(
-		[]platform.Project{
-			suite.createAbstractProject("leader-project", "updated", "online", testBeginningTime),
-		},
-		[]platform.Project{
-			suite.createAbstractProject("leader-project", "not-updated", "online", testBeginningTime),
-		},
+		[]platform.Project{updatedProject},
+		[]platform.Project{notUpdatedProject},
 		[]*platform.CreateProjectOptions{},
-		[]*platform.UpdateProjectOptions{
-			{
-				ProjectConfig: suite.createAbstractProject("leader-project", "updated", "online", testBeginningTime).ProjectConfig,
-			},
-		},
+		[]*platform.UpdateProjectOptions{{ProjectConfig: updatedProject.ProjectConfig}},
+		&testBeginningTime)
+}
+
+func (suite *SynchronizerTestSuite) TestLeaderProjectsThatExistInternally() {
+	testBeginningTime := time.Now()
+
+	projectInstance := suite.createAbstractProject("leader-project", "updated", "online", testBeginningTime)
+
+	suite.testSynchronizeProjectsFromLeader(
+		[]platform.Project{projectInstance},
+		[]platform.Project{projectInstance},
+		[]*platform.CreateProjectOptions{},
+		[]*platform.UpdateProjectOptions{},
 		&testBeginningTime)
 }
 
