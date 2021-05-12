@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import functools
 import http.client
 import json
@@ -41,6 +42,8 @@ class TestSubmitEvents(unittest.TestCase):
         cls._decode_event_strings = False
 
     def setUp(self):
+        self._event_loop = asyncio.get_event_loop()
+
         self._temp_path = tempfile.mkdtemp(prefix='nuclio-test-py-wrapper')
 
         # write handler to temp path
@@ -75,6 +78,16 @@ class TestSubmitEvents(unittest.TestCase):
         self._unix_stream_server.server_close()
         self._unix_stream_server.shutdown()
         self._unix_stream_server_thread.join()
+
+    def _reinitialize_wrapper(self, override_handler=None):
+        handler = override_handler if override_handler else self._default_test_handler
+        if self._wrapper is not None:
+            self._wrapper._processor_sock.close()
+        self._wrapper = wrapper.Wrapper(self._logger,
+                                        handler,
+                                        self._socket_path,
+                                        self._platform_kind,
+                                        decode_event_strings=self._decode_event_strings)
 
     def test_non_utf8_headers(self):
         """
@@ -207,6 +220,34 @@ class TestSubmitEvents(unittest.TestCase):
 
         # record incoming events
         self.assertEqual(expected_events_length, len(recorded_event_ids), 'Wrong number of events')
+
+    def test_awaitable_function(self):
+        """Test awaitable function (decorated with asyncio.coroutine / signed with async)"""
+
+        recorded_events = []
+
+        async def event_recorder(context, event):
+            await asyncio.sleep(0, loop=context.event_loop)
+            recorded_events.append(event)
+            return 'ok'
+
+        num_of_events = 10
+        events = (
+            nuclio_sdk.Event(_id=i, body='e{}'.format(i))
+            for i in range(num_of_events)
+        )
+        self._send_events(events)
+        self._wrapper._context.event_loop = self._event_loop
+        self._wrapper._entrypoint = event_recorder
+        self._wrapper._ensure_awaitable_entrypoint()
+        self._wrapper.serve_requests(num_of_events)
+        self.assertEqual(num_of_events, len(recorded_events), 'wrong number of events')
+
+        # we expect the event to be ordered since though the function is "asynchronous", it is blocked
+        # by the processor until it gets response.
+        for recorded_event_index, recorded_event in enumerate(sorted(recorded_events, key=operator.attrgetter('id'))):
+            self.assertEqual(recorded_event_index, recorded_event.id)
+            self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
 
     def test_multi_event(self):
         """Test when two events fit inside on TCP packet"""

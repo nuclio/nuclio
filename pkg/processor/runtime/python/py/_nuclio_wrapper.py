@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import argparse
+import asyncio
+import inspect
 import json
 import logging
 import re
@@ -81,6 +83,8 @@ class Wrapper(object):
                                            self._platform,
                                            worker_id,
                                            nuclio_sdk.TriggerInfo(trigger_kind, trigger_name))
+
+        self._ensure_awaitable_entrypoint()
 
         # replace the default output with the process socket
         self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
@@ -291,6 +295,28 @@ class Wrapper(object):
         print('Shutting down')
         self._processor_sock.close()
         sys.exit(error_code)
+
+    def _ensure_awaitable_entrypoint(self):
+
+        # coroutine functions are defined with "async def" syntax.
+        coroutine_entrypoint = inspect.iscoroutinefunction(self._entrypoint)
+
+        # determine whether we can "await" on function handler
+        if not coroutine_entrypoint:
+
+            # nothing to do
+            return
+
+        # TODO: move to py-sdk
+        if not hasattr(self._context, 'event_loop'):
+            setattr(self._context, 'event_loop', asyncio.get_event_loop())
+
+        self._entrypoint = self._wrap_entrypoint_awaitable(self._context.event_loop, self._entrypoint)
+
+    def _wrap_entrypoint_awaitable(self, event_loop, func):
+        def wrapper(context, event):
+            return event_loop.run_until_complete(func(context, event))
+        return wrapper
 
 
 #

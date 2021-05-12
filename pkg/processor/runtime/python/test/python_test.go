@@ -77,6 +77,25 @@ func (suite *TestSuite) TestStress() {
 	suite.BlastHTTP(blastConfiguration)
 }
 
+func (suite *TestSuite) TestAsyncHandler() {
+	statusOK := http.StatusOK
+
+	createFunctionOptions := suite.GetDeployOptions("asyncer",
+		suite.GetFunctionPath("async_handler"))
+
+	createFunctionOptions.FunctionConfig.Spec.Handler = "async_handler:handler"
+
+	testRequests := []*httpsuite.Request{
+		{
+			Name:                       "async sleep",
+			RequestBody:                "sleep",
+			ExpectedResponseBody:       "slept",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+	}
+	suite.DeployFunctionAndRequests(createFunctionOptions, testRequests)
+}
+
 func (suite *TestSuite) TestOutputs() {
 	statusOK := http.StatusOK
 	statusCreated := http.StatusCreated
