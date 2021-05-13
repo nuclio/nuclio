@@ -19,14 +19,15 @@ type Client struct {
 	Logger        logger.Logger
 	platform      platform.Platform
 	consumer      *client.Consumer
-	projectsCache []platform.Project
+	projectsCache *SafeCache
 }
 
 func NewClient(parentLogger logger.Logger, platformInstance platform.Platform, consumer *client.Consumer) (abstractproject.Client, error) {
 	newClient := Client{
-		Logger:   parentLogger.GetChild("projects-client-kube"),
-		consumer: consumer,
-		platform: platformInstance,
+		Logger:        parentLogger.GetChild("projects-client-kube"),
+		consumer:      consumer,
+		platform:      platformInstance,
+		projectsCache: NewSafeCache(),
 	}
 
 	return &newClient, nil
@@ -57,7 +58,7 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (pl
 	}
 
 	// add project to cache
-	c.addProjectToCache(platformProject)
+	c.projectsCache.Add(platformProject)
 
 	return platformProject, nil
 }
@@ -89,7 +90,7 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (pl
 	}
 
 	// update project in cache
-	c.updateProjectInCache(platformProject)
+	c.projectsCache.Update(platformProject)
 
 	return platformProject, nil
 }
@@ -109,7 +110,7 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	}
 
 	// delete project from cache
-	c.deleteProjectFromCache(deleteProjectOptions.Meta.Namespace, deleteProjectOptions.Meta.Name)
+	c.projectsCache.Delete(deleteProjectOptions.Meta.Namespace, deleteProjectOptions.Meta.Name)
 
 	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
 		return c.platform.WaitForProjectResourcesDeletion(&deleteProjectOptions.Meta,
@@ -123,7 +124,7 @@ func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platfor
 
 	// first, try getting projects from cache
 	if c.projectsCache != nil {
-		return c.getProjectsFromCache(getProjectsOptions), nil
+		return c.projectsCache.Get(getProjectsOptions), nil
 	}
 
 	return c.getProjectsFromKube(getProjectsOptions)
@@ -183,7 +184,6 @@ func (c *Client) getProjectsFromKube(getProjectsOptions *platform.GetProjectsOpt
 }
 
 func (c *Client) syncProjectsCache() error {
-	c.projectsCache = []platform.Project{}
 
 	// get all managed namespaces
 	namespaces, err := c.platform.GetNamespaces()
@@ -197,62 +197,10 @@ func (c *Client) syncProjectsCache() error {
 			return errors.Wrapf(err, "Failed to get projects in namespace: %s", namespace)
 		}
 
-		c.projectsCache = append(c.projectsCache, projectsInNamespace...)
+		c.projectsCache.AddMany(projectsInNamespace)
 	}
 
 	return nil
-}
-
-func (c *Client) addProjectToCache(projectInstance platform.Project) {
-	c.projectsCache = append(c.projectsCache, projectInstance)
-}
-
-func (c *Client) updateProjectInCache(projectInstance platform.Project) {
-
-	// delete project and re-add it to update the cache
-	c.deleteProjectFromCache(projectInstance.GetConfig().Meta.Namespace, projectInstance.GetConfig().Meta.Name)
-	c.addProjectToCache(projectInstance)
-}
-
-func (c *Client) deleteProjectFromCache(namespace, name string) {
-	newProjectsCache := []platform.Project{}
-
-	for _, projectInstance := range c.projectsCache {
-		projectConfig := projectInstance.GetConfig()
-		if projectConfig.Meta.Namespace == namespace && projectConfig.Meta.Name == name {
-			continue
-		}
-		newProjectsCache = append(newProjectsCache, projectInstance)
-	}
-
-	c.projectsCache = newProjectsCache
-}
-
-func (c *Client) getProjectsFromCache(getProjectOptions *platform.GetProjectsOptions) []platform.Project {
-	matchingProjects := []platform.Project{}
-
-	for _, projectInstance := range c.projectsCache {
-		projectConfig := projectInstance.GetConfig()
-
-		// if a specific namespace was requested and this project is not in it - skip it
-		if projectConfig.Meta.Namespace != getProjectOptions.Meta.Namespace {
-			continue
-		}
-
-		// if a specific namespace and name were requested - return this project (can't be more than one)
-		if getProjectOptions.Meta.Name != "" {
-			if projectConfig.Meta.Name != getProjectOptions.Meta.Name {
-				continue
-			}
-
-			// name matches - return the matching project
-			return []platform.Project{projectInstance}
-		}
-
-		matchingProjects = append(matchingProjects, projectInstance)
-	}
-
-	return matchingProjects
 }
 
 func (c *Client) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.NuclioProject) {
