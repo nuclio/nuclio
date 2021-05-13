@@ -81,19 +81,34 @@ func (suite *TestSuite) TestAsyncHandler() {
 	statusOK := http.StatusOK
 
 	createFunctionOptions := suite.GetDeployOptions("asyncer",
-		suite.GetFunctionPath("async_handler"))
+		suite.GetFunctionPath("outputter"))
 
-	createFunctionOptions.FunctionConfig.Spec.Handler = "async_handler:handler"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "async_outputter:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+		"python -m pip install aiofile==3.5.0",
+	}
 
-	testRequests := []*httpsuite.Request{
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
 			Name:                       "async sleep",
 			RequestBody:                "sleep",
 			ExpectedResponseBody:       "slept",
 			ExpectedResponseStatusCode: &statusOK,
 		},
-	}
-	suite.DeployFunctionAndRequests(createFunctionOptions, testRequests)
+		{
+			Name:                       "async write",
+			RequestMethod:              http.MethodDelete,
+			RequestBody:                "async_write",
+			ExpectedResponseBody:       "written",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
+			Name:                       "async read",
+			RequestBody:                "read_async_write",
+			ExpectedResponseBody:       http.MethodDelete, // "async_write" above ensure requestMethod is returned
+			ExpectedResponseStatusCode: &statusOK,
+		},
+	})
 }
 
 func (suite *TestSuite) TestOutputs() {

@@ -84,6 +84,8 @@ class Wrapper(object):
                                            worker_id,
                                            nuclio_sdk.TriggerInfo(trigger_kind, trigger_name))
 
+        # asyncio event loop, initialized when function is a coroutine
+        self._event_loop = None
         self._ensure_awaitable_entrypoint()
 
         # replace the default output with the process socket
@@ -141,6 +143,8 @@ class Wrapper(object):
                 num_requests -= 1
 
             if num_requests == 0:
+                self._event_loop.run_until_complete(self._event_loop.shutdown_asyncgens())
+                self._event_loop.close()
                 break
 
     def _resolve_unpacker(self):
@@ -307,15 +311,19 @@ class Wrapper(object):
             # nothing to do
             return
 
+        # set event loop
+        self._event_loop = asyncio.get_event_loop()
+
         # TODO: move to py-sdk
+        # allow user to use the event loop from the context object
         if not hasattr(self._context, 'event_loop'):
-            setattr(self._context, 'event_loop', asyncio.get_event_loop())
+            setattr(self._context, 'event_loop', self._event_loop)
 
-        self._entrypoint = self._wrap_entrypoint_awaitable(self._context.event_loop, self._entrypoint)
+        self._entrypoint = self._wrap_entrypoint_awaitable(self._entrypoint)
 
-    def _wrap_entrypoint_awaitable(self, event_loop, func):
+    def _wrap_entrypoint_awaitable(self, func):
         def wrapper(context, event):
-            return event_loop.run_until_complete(func(context, event))
+            return self._event_loop.run_until_complete(func(context, event))
         return wrapper
 
 

@@ -14,6 +14,8 @@
 
 import asyncio
 
+import aiofile
+
 
 async def handler(context, event):
     body_str = event.body.decode('utf-8')
@@ -21,5 +23,18 @@ async def handler(context, event):
     if body_str == 'sleep':
         await asyncio.sleep(0, loop=context.event_loop)
         return 'slept'
+
+    if body_str == 'async_write':
+        async def write_async():
+            write_mode = 'wb' if isinstance(event.method, bytes) else 'w'
+            async with aiofile.async_open('./async_write', write_mode) as w:
+                await w.write(event.method)
+
+        asyncio.get_event_loop().create_task(write_async())
+        return 'written'
+
+    if body_str == 'read_async_write':
+        async with aiofile.async_open('./async_write', 'r') as r:
+            return await r.read()
 
     raise RuntimeError('Unknown return mode: {0}'.format(body_str))

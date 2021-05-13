@@ -43,6 +43,7 @@ class TestSubmitEvents(unittest.TestCase):
 
     def setUp(self):
         self._event_loop = asyncio.get_event_loop()
+        self._event_loop.set_debug(True)
 
         self._temp_path = tempfile.mkdtemp(prefix='nuclio-test-py-wrapper')
 
@@ -227,8 +228,14 @@ class TestSubmitEvents(unittest.TestCase):
         recorded_events = []
 
         async def event_recorder(context, event):
+            async def append_event(_event):
+                context.logger.debug_with("Sleeping", event=repr(_event.id))
+                await asyncio.sleep(0, loop=context.event_loop)
+                context.logger.debug_with("Appending event", event=repr(_event.id))
+                recorded_events.append(_event)
+
             await asyncio.sleep(0, loop=context.event_loop)
-            recorded_events.append(event)
+            self._event_loop.create_task(append_event(event))
             return 'ok'
 
         num_of_events = 10
