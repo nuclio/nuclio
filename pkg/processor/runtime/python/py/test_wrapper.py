@@ -235,7 +235,10 @@ class TestSubmitEvents(unittest.TestCase):
                 recorded_events.append(_event)
 
             await asyncio.sleep(0, loop=context.event_loop)
-            self._event_loop.create_task(append_event(event))
+
+            # using `ensure_future` to BC with python:3.6 (on >= 3.7, you will see "create_task")
+            # https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
+            asyncio.ensure_future(append_event(event), loop=self._event_loop)
             return 'ok'
 
         num_of_events = 10
