@@ -201,7 +201,7 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.Flags().StringVar(&commandeer.encodedAnnotations, "annotations", "", "Additional function annotations (ant1=val1[,ant2=val2,...])")
 	cmd.Flags().StringVar(&commandeer.encodedNodeSelector, "nodeSelector", "", "Run function pod on a Node by key=value selection constraints (key1=val1[,key2=val2,...])")
-	cmd.Flags().StringVar(&commandeer.nodeName, "nodeName", "", "Run function pod on a Node by name-matching selection constrain (key1=val1[,key2=val2,...])")
+	cmd.Flags().StringVar(&commandeer.nodeName, "nodeName", "", "Run function pod on a Node by name-matching selection constrain")
 	cmd.Flags().VarP(&commandeer.encodedEnv, "env", "e", "Environment variables env1=val1")
 	cmd.Flags().BoolVarP(&commandeer.disable, "disable", "d", false, "Start the function as disabled (don't run yet)")
 	cmd.Flags().IntVarP(&commandeer.replicas, "replicas", "", -1, "Set to any non-negative integer to use a static number of replicas")
