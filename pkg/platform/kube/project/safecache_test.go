@@ -27,10 +27,9 @@ func (suite *SafeCacheTestSuite) TestAdd() {
 	projectInstance := suite.createProjectInstance("test-name", "test-namespace")
 
 	suite.safeCache.Add(projectInstance)
-	projects := suite.safeCache.Get(&platform.GetProjectsOptions{Meta:platform.ProjectMeta{Namespace: "test-namespace", Name: "test-name"}})
+	projects := suite.safeCache.Get(&platform.GetProjectsOptions{Meta: platform.ProjectMeta{Namespace: "test-namespace", Name: "test-name"}})
 	suite.Require().Equal(projects, []platform.Project{projectInstance})
 }
-
 
 func (suite *SafeCacheTestSuite) TestAddMany() {
 	projectInstances := []platform.Project{}
@@ -42,7 +41,7 @@ func (suite *SafeCacheTestSuite) TestAddMany() {
 
 	suite.safeCache.AddMany(projectInstances)
 
-	projects := suite.safeCache.Get(&platform.GetProjectsOptions{Meta:platform.ProjectMeta{Namespace:"test-namespace"}})
+	projects := suite.safeCache.Get(&platform.GetProjectsOptions{Meta: platform.ProjectMeta{Namespace: "test-namespace"}})
 	suite.Require().Equal(len(projects), 10)
 
 	for _, projectInstance := range projectInstances {
@@ -51,19 +50,18 @@ func (suite *SafeCacheTestSuite) TestAddMany() {
 	}
 }
 
-
 func (suite *SafeCacheTestSuite) TestUpdate() {
 	projectInstance := suite.createProjectInstance("test-name", "test-namespace")
 
 	// add project
 	suite.safeCache.Add(projectInstance)
-	projects := suite.safeCache.Get(&platform.GetProjectsOptions{Meta:platform.ProjectMeta{Namespace: "test-namespace", Name: "test-name"}})
+	projects := suite.safeCache.Get(&platform.GetProjectsOptions{Meta: platform.ProjectMeta{Namespace: "test-namespace", Name: "test-name"}})
 	suite.Require().Equal(projects[0].GetConfig().Spec.Description, "default-description")
 
 	// update project
 	projectInstance.ProjectConfig.Spec.Description = "new-description"
 	suite.safeCache.Update(projectInstance)
-	projects = suite.safeCache.Get(&platform.GetProjectsOptions{Meta:platform.ProjectMeta{Namespace: "test-namespace", Name: "test-name"}})
+	projects = suite.safeCache.Get(&platform.GetProjectsOptions{Meta: platform.ProjectMeta{Namespace: "test-namespace", Name: "test-name"}})
 	suite.Require().Equal(projects[0].GetConfig().Spec.Description, "new-description")
 }
 
@@ -72,12 +70,12 @@ func (suite *SafeCacheTestSuite) TestDelete() {
 
 	// add project
 	suite.safeCache.Add(projectInstance)
-	projects := suite.safeCache.Get(&platform.GetProjectsOptions{Meta:platform.ProjectMeta{Namespace: "test-namespace", Name: "test-name"}})
+	projects := suite.safeCache.Get(&platform.GetProjectsOptions{Meta: platform.ProjectMeta{Namespace: "test-namespace", Name: "test-name"}})
 	suite.Require().Equal(projects, []platform.Project{projectInstance})
 
 	// delete project
 	suite.safeCache.Delete("test-namespace", "test-name")
-	projects = suite.safeCache.Get(&platform.GetProjectsOptions{Meta:platform.ProjectMeta{Namespace: "test-namespace", Name: "test-name"}})
+	projects = suite.safeCache.Get(&platform.GetProjectsOptions{Meta: platform.ProjectMeta{Namespace: "test-namespace", Name: "test-name"}})
 	suite.Require().Equal(projects, []platform.Project{})
 }
 
@@ -98,7 +96,7 @@ func (suite *SafeCacheTestSuite) TestGet() {
 	}
 
 	for _, namespace := range namespaces {
-		projects := suite.safeCache.Get(&platform.GetProjectsOptions{Meta:platform.ProjectMeta{Namespace:namespace}})
+		projects := suite.safeCache.Get(&platform.GetProjectsOptions{Meta: platform.ProjectMeta{Namespace: namespace}})
 		suite.Require().Equal(len(projects), 10)
 
 		for _, projectInstanceInNamespace := range projectInstancesByNamespace[namespace] {
@@ -111,11 +109,11 @@ func (suite *SafeCacheTestSuite) TestGet() {
 func (suite *SafeCacheTestSuite) createProjectInstance(name, namespace string) *platform.AbstractProject {
 	return &platform.AbstractProject{
 		ProjectConfig: platform.ProjectConfig{
-			Meta:platform.ProjectMeta{
-				Name: name,
+			Meta: platform.ProjectMeta{
+				Name:      name,
 				Namespace: namespace,
 			},
-			Spec:platform.ProjectSpec{
+			Spec: platform.ProjectSpec{
 				Description: "default-description",
 			},
 		},

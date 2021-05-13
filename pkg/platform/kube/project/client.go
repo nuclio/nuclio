@@ -24,7 +24,7 @@ type Client struct {
 
 func NewClient(parentLogger logger.Logger, platformInstance platform.Platform, consumer *client.Consumer) (abstractproject.Client, error) {
 	newClient := Client{
-		Logger:        parentLogger.GetChild("projects-client-kube"),
+		Logger:        parentLogger.GetChild("projects-kube"),
 		consumer:      consumer,
 		platform:      platformInstance,
 		projectsCache: NewSafeCache(),

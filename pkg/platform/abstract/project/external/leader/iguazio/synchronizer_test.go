@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	leadermock "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mock"
 	internalmock "github.com/nuclio/nuclio/pkg/platform/abstract/project/mock"
@@ -60,8 +59,9 @@ func (suite *SynchronizerTestSuite) TestNoLeaderProjects() {
 
 func (suite *SynchronizerTestSuite) TestLeaderProjectsDoesntExistInternally() {
 	testBeginningTime := time.Now()
+	testBeginningTimePlusOneHour := testBeginningTime.Add(time.Hour)
 
-	leaderProjectMostUpdated := suite.createAbstractProject("leader-project-most-updated", "", "online", testBeginningTime.Add(time.Hour))
+	leaderProjectMostUpdated := suite.createAbstractProject("leader-project-most-updated", "", "online", testBeginningTimePlusOneHour)
 	leaderProjectLessUpdated := suite.createAbstractProject("leader-project-less-updated", "", "online", testBeginningTime)
 
 	suite.testSynchronizeProjectsFromLeader(
@@ -76,7 +76,7 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsDoesntExistInternally() {
 			},
 		},
 		[]*platform.UpdateProjectOptions{},
-		common.TimeToTimePointer(testBeginningTime.Add(time.Hour)))
+		&testBeginningTimePlusOneHour)
 }
 
 func (suite *SynchronizerTestSuite) TestLeaderProjectsIsntUpdatedInternally() {
@@ -110,11 +110,12 @@ func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(leaderProj
 	internalProjects []platform.Project,
 	projectsToCreate []*platform.CreateProjectOptions,
 	projectsToUpdate []*platform.UpdateProjectOptions,
-	expectedMostRecentUpdatedProjectTime *time.Time) {
+	expectedNewMostRecentUpdatedProjectTime *time.Time) {
+	var uninitializedTime *time.Time
 
 	// mock leader client get projects
 	suite.mockLeaderProjectsClient.
-		On("GetUpdatedAfter", suite.synchronizer.mostRecentUpdatedProjectTime).
+		On("GetUpdatedAfter", uninitializedTime).
 		Return(leaderProjects, nil).
 		Once()
 
@@ -140,10 +141,10 @@ func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(leaderProj
 			Once()
 	}
 
-	err := suite.synchronizer.SynchronizeProjectsFromLeader()
+	newMostRecentUpdatedProjectTime, err := suite.synchronizer.SynchronizeProjectsFromLeader(uninitializedTime)
 	suite.Require().NoError(err)
 
-	suite.Require().Equal(suite.synchronizer.mostRecentUpdatedProjectTime, expectedMostRecentUpdatedProjectTime)
+	suite.Require().Equal(newMostRecentUpdatedProjectTime, expectedNewMostRecentUpdatedProjectTime)
 
 	// sleep for 1 second so every mock create/update go routine would finish
 	time.Sleep(1 * time.Second)

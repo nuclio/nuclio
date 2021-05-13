@@ -13,11 +13,10 @@ import (
 )
 
 type Synchronizer struct {
-	logger                       logger.Logger
-	synchronizationIntervalStr   string
-	leaderClient                 leader.Client
-	internalProjectsClient       project.Client
-	mostRecentUpdatedProjectTime *time.Time
+	logger                     logger.Logger
+	synchronizationIntervalStr string
+	leaderClient               leader.Client
+	internalProjectsClient     project.Client
 }
 
 func NewSynchronizer(parentLogger logger.Logger,
@@ -55,12 +54,20 @@ func (c *Synchronizer) Start() error {
 }
 
 func (c *Synchronizer) startSynchronizationLoop(interval time.Duration) {
+	var mostRecentUpdatedProjectTime *time.Time
+
 	c.logger.InfoWith("Starting synchronization loop", "interval", interval)
 
 	ticker := time.NewTicker(interval)
 	for range ticker.C {
-		if err := c.SynchronizeProjectsFromLeader(); err != nil {
+		newMostRecentUpdatedProjectTime, err := c.SynchronizeProjectsFromLeader(mostRecentUpdatedProjectTime)
+		if err != nil {
 			c.logger.WarnWith("Failed to synchronize projects according to leader", "err", err)
+		}
+
+		// update most recent updated project time
+		if newMostRecentUpdatedProjectTime != nil {
+			mostRecentUpdatedProjectTime = newMostRecentUpdatedProjectTime
 		}
 	}
 }
@@ -118,32 +125,27 @@ func (c *Synchronizer) GetModifiedProjects(leaderProjects []platform.Project, in
 	return
 }
 
-func (c *Synchronizer) SynchronizeProjectsFromLeader() error {
+func (c *Synchronizer) SynchronizeProjectsFromLeader(mostRecentUpdatedProjectTime *time.Time) (*time.Time, error) {
 
 	// fetch updated projects from leader
-	leaderProjects, err := c.leaderClient.GetUpdatedAfter(c.mostRecentUpdatedProjectTime)
+	leaderProjects, err := c.leaderClient.GetUpdatedAfter(mostRecentUpdatedProjectTime)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get projects from leader")
+		return nil, errors.Wrap(err, "Failed to get projects from leader")
 	}
 
 	// fetch all internal projects
 	internalProjects, err := c.internalProjectsClient.Get(&platform.GetProjectsOptions{})
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get projects from internal client")
+		return nil, errors.Wrapf(err, "Failed to get projects from internal client")
 	}
 
 	// filter modified projects
-	projectsToCreate, projectsToUpdate, mostRecentUpdatedProjectTime := c.GetModifiedProjects(leaderProjects, internalProjects)
-
-	// update most recent updated project time
-	if mostRecentUpdatedProjectTime != nil {
-		c.mostRecentUpdatedProjectTime = mostRecentUpdatedProjectTime
-	}
+	projectsToCreate, projectsToUpdate, newMostRecentUpdatedProjectTime := c.GetModifiedProjects(leaderProjects, internalProjects)
 
 	if len(projectsToCreate) == 0 && len(projectsToUpdate) == 0 {
 
 		// nothing to create/update - return
-		return nil
+		return newMostRecentUpdatedProjectTime, nil
 	}
 
 	c.logger.DebugWith("Synchronization loop modified projects",
@@ -200,5 +202,5 @@ func (c *Synchronizer) SynchronizeProjectsFromLeader() error {
 		}()
 	}
 
-	return nil
+	return newMostRecentUpdatedProjectTime, nil
 }
