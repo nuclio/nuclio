@@ -320,6 +320,7 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Consumer.Group.Rebalance.Timeout = k.configuration.rebalanceTimeout
 	config.Consumer.Group.Rebalance.Retry.Max = k.configuration.RebalanceRetryMax
 	config.Consumer.Group.Rebalance.Retry.Backoff = k.configuration.rebalanceRetryBackoff
+	config.Consumer.Group.Rebalance.Strategy = k.configuration.balanceStrategy
 	config.Consumer.Retry.Backoff = k.configuration.retryBackoff
 	config.Consumer.Fetch.Min = int32(k.configuration.FetchMin)
 	config.Consumer.Fetch.Default = int32(k.configuration.FetchDefault)
