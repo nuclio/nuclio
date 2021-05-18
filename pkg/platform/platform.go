@@ -18,6 +18,8 @@ package platform
 
 import (
 	"bufio"
+	"context"
+	"io"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
@@ -73,6 +75,12 @@ type Platform interface {
 
 	// GetDefaultInvokeIPAddresses will return a list of ip addresses to be used by the platform to invoke a function
 	GetDefaultInvokeIPAddresses() ([]string, error)
+
+	// GetFunctionReplicaLogsStream return the function instance (Kubernetes - Pod / Docker - Container) logs stream
+	GetFunctionReplicaLogsStream(context.Context, *GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error)
+
+	// GetFunctionReplicaNames returns function replica names (Pod / Container names)
+	GetFunctionReplicaNames(context.Context, *functionconfig.Config) ([]string, error)
 
 	//
 	// Project

@@ -18,9 +18,11 @@ package local
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -350,6 +352,35 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 	return p.delete(deleteFunctionOptions)
 }
 
+func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
+	options *platform.GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error) {
+
+	sinceDuration := ""
+	if options.SinceSeconds != nil {
+		sinceDuration = (time.Second * time.Duration(*options.SinceSeconds)).String()
+	}
+
+	tail := ""
+	if options.TailLines != nil {
+		tail = strconv.FormatInt(*options.TailLines, 10)
+	}
+
+	return p.dockerClient.GetContainerLogStream(ctx,
+		options.Name,
+		&dockerclient.ContainerLogsOptions{
+			Follow: options.Follow,
+			Since:  sinceDuration,
+			Tail:   tail,
+		})
+}
+
+func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
+	functionConfig *functionconfig.Config) ([]string, error) {
+	return []string{
+		p.GetFunctionContainerName(functionConfig),
+	}, nil
+}
+
 // GetHealthCheckMode returns the healthcheck mode the platform requires
 func (p *Platform) GetHealthCheckMode() platform.HealthCheckMode {
 
@@ -554,12 +585,10 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 			}
 
 			// get function container name
-			containerName := p.GetContainerNameByCreateFunctionOptions(&platform.CreateFunctionOptions{
-				FunctionConfig: functionconfig.Config{
-					Meta: functionconfig.Meta{
-						Name:      functionName,
-						Namespace: namespace,
-					},
+			containerName := p.GetFunctionContainerName(&functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Name:      functionName,
+					Namespace: namespace,
 				},
 			})
 
@@ -613,6 +642,18 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 	}
 }
 
+func (p *Platform) GetFunctionContainerName(functionConfig *functionconfig.Config) string {
+	return fmt.Sprintf("nuclio-%s-%s",
+		functionConfig.Meta.Namespace,
+		functionConfig.Meta.Name)
+}
+
+func (p *Platform) GetFunctionVolumeMountName(functionConfig *functionconfig.Config) string {
+	return fmt.Sprintf("nuclio-%s-%s",
+		functionConfig.Meta.Namespace,
+		functionConfig.Meta.Name)
+}
+
 func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
 
@@ -653,7 +694,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 
 	// run the docker image
 	runContainerOptions := &dockerclient.RunOptions{
-		ContainerName: p.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
+		ContainerName: p.GetFunctionContainerName(&createFunctionOptions.FunctionConfig),
 		Ports: map[int]int{
 			functionExternalHTTPPort: abstract.FunctionContainerHTTPPort,
 		},
@@ -848,18 +889,6 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 	return dockerclient.RunOptionsNoPort, nil
 }
 
-func (p *Platform) GetContainerNameByCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) string {
-	return fmt.Sprintf("nuclio-%s-%s",
-		createFunctionOptions.FunctionConfig.Meta.Namespace,
-		createFunctionOptions.FunctionConfig.Meta.Name)
-}
-
-func (p *Platform) GetFunctionVolumeMountName(functionConfig *functionconfig.Config) string {
-	return fmt.Sprintf("nuclio-%s-%s",
-		functionConfig.Meta.Namespace,
-		functionConfig.Meta.Name)
-}
-
 func (p *Platform) resolveDeployedFunctionHTTPPort(containerID string) (int, error) {
 	containers, err := p.dockerClient.GetContainers(&dockerclient.GetContainerOptions{
 		ID: containerID,
@@ -917,7 +946,7 @@ func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.Crea
 
 	// get function containers
 	containers, err := p.dockerClient.GetContainers(&dockerclient.GetContainerOptions{
-		Name:    p.GetContainerNameByCreateFunctionOptions(createFunctionOptions),
+		Name:    p.GetFunctionContainerName(&createFunctionOptions.FunctionConfig),
 		Stopped: true,
 	})
 	if err != nil {

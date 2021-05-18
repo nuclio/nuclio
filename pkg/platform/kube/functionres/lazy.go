@@ -727,7 +727,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 
 	createDeployment := func() (interface{}, error) {
 		method := createDeploymentResourceMethod
-		container := v1.Container{Name: "nuclio"}
+		container := v1.Container{Name: client.FunctionContainerName}
 		lc.populateDeploymentContainer(functionLabels, function, &container)
 		container.VolumeMounts = volumeMounts
 

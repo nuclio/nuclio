@@ -19,7 +19,7 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/fatih/structs v1.1.0
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-chi/chi v4.0.2+incompatible
+	github.com/go-chi/chi/v5 v5.0.2
 	github.com/go-chi/cors v1.0.0
 	github.com/gobuffalo/flect v0.2.2
 	github.com/google/go-cmp v0.5.5

@@ -4,6 +4,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -16,8 +17,6 @@ import (
 	"github.com/v3io/scaler-types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 // A plugin for github.com/v3io/scaler, allowing to extend it to scale to zero and from zero function resources in k8s
@@ -49,7 +48,7 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 		return nil, errors.Wrap(err, "Failed creating a new logger")
 	}
 
-	restConfig, err := getClientConfig(kubeconfigPath)
+	restConfig, err := common.GetClientConfig(kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get client configuration")
 	}
@@ -287,12 +286,4 @@ func (n *NuclioResourceScaler) waitFunctionReadiness(namespace string, functionN
 
 		time.Sleep(3 * time.Second)
 	}
-}
-
-func getClientConfig(kubeconfigPath string) (*rest.Config, error) {
-	if kubeconfigPath != "" {
-		return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-	}
-
-	return rest.InClusterConfig()
 }

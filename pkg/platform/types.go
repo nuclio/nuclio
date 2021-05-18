@@ -405,3 +405,21 @@ func (s *APIGatewaySpec) DeepCopyInto(out *APIGatewaySpec) {
 	// TODO: proper deep copy
 	*out = *s
 }
+
+type GetFunctionReplicaLogsStreamOptions struct {
+
+	// The replica (pod / container) name
+	Name string
+
+	// The replica (pod / container) namespace
+	Namespace string
+
+	// Whether to log stream of the replica
+	Follow bool
+
+	// A relative time in seconds before the current time from which to show logs.
+	SinceSeconds *int64
+
+	// Number of lines to show from the end of the logs
+	TailLines *int64
+}

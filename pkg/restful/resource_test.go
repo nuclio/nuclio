@@ -28,7 +28,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -242,9 +242,9 @@ func (r1 *r1Resource) GetByID(request *http.Request, id string) (Attributes, err
 
 func (r1 *r1Resource) GetCustomRoutes() ([]CustomRoute, error) {
 	return []CustomRoute{
-		{"/{id}/single", http.MethodGet, r1.getCustomSingle},
-		{"/{id}/multi", http.MethodGet, r1.getCustomMulti},
-		{"/post", http.MethodPost, r1.postCustom},
+		{Stream: false, Pattern: "/{id}/single", Method: http.MethodGet, RouteFunc: r1.getCustomSingle},
+		{Stream: false, Pattern: "/{id}/multi", Method: http.MethodGet, RouteFunc: r1.getCustomMulti},
+		{Stream: false, Pattern: "/post", Method: http.MethodPost, RouteFunc: r1.postCustom},
 	}, nil
 }
 

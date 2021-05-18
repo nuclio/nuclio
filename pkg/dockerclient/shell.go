@@ -17,7 +17,10 @@ limitations under the License.
 package dockerclient
 
 import (
+	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
@@ -740,9 +743,44 @@ func (c *ShellClient) GetContainerIPAddresses(containerID string) ([]string, err
 	return strings.Split(strings.TrimSpace(runResults.Output), "\n"), nil
 }
 
-func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string, vars ...interface{}) (cmdrunner.RunResult, error) {
+func (c *ShellClient) GetContainerLogStream(ctx context.Context,
+	containerID string,
+	logOptions *ContainerLogsOptions) (io.ReadCloser, error) {
 
-	// if user
+	if logOptions == nil {
+		logOptions = &ContainerLogsOptions{
+			Follow: true,
+		}
+	}
+
+	var cmdArgs []string
+	if logOptions.Since != "" {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--since %s", common.Quote(logOptions.Since)))
+	}
+	if logOptions.Tail != "" {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--tail %s", common.Quote(logOptions.Tail)))
+	}
+
+	if logOptions.Follow {
+		return c.streamCommand(ctx,
+			nil,
+			"docker logs %s --follow %s", strings.Join(cmdArgs, " "), containerID)
+	}
+
+	output, err := c.runCommand(&cmdrunner.RunOptions{
+		CaptureOutputMode: cmdrunner.CaptureOutputModeCombined,
+	}, "docker logs %s %s", strings.Join(cmdArgs, " "), containerID)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get container log stream")
+	}
+
+	return ioutil.NopCloser(strings.NewReader(output.Output)), nil
+}
+
+func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions,
+	format string,
+	vars ...interface{}) (cmdrunner.RunResult, error) {
+
 	if runOptions == nil {
 		runOptions = &cmdrunner.RunOptions{
 			CaptureOutputMode: cmdrunner.CaptureOutputModeStdout,
@@ -761,6 +799,13 @@ func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string
 	}
 
 	return runResult, err
+}
+
+func (c *ShellClient) streamCommand(ctx context.Context,
+	runOptions *cmdrunner.RunOptions,
+	format string,
+	vars ...interface{}) (io.ReadCloser, error) {
+	return c.cmdRunner.Stream(ctx, runOptions, format, vars...)
 }
 
 func (c *ShellClient) getLastNonEmptyLine(lines []string, offset int) string {

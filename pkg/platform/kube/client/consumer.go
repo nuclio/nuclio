@@ -19,6 +19,7 @@ package client
 import (
 	"os"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 
@@ -27,7 +28,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	// enable OIDC plugin
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Consumer struct {
@@ -45,7 +45,7 @@ func NewConsumer(logger logger.Logger, kubeconfigPath string) (*Consumer, error)
 	}
 
 	// create REST config
-	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	restConfig, err := common.GetClientConfig(kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create REST config")
 	}
@@ -82,7 +82,7 @@ func (c *Consumer) getNuclioClientSet(authConfig *platform.AuthConfig) (nuclioio
 	}
 
 	// create REST config
-	restConfig, err := clientcmd.BuildConfigFromFlags("", c.kubeconfigPath)
+	restConfig, err := common.GetClientConfig(c.kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create REST config")
 	}

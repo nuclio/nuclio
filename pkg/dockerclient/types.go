@@ -354,3 +354,16 @@ type CreateNetworkOptions struct {
 type CreateVolumeOptions struct {
 	Name string
 }
+
+// ContainerLogsOptions holds parameters to filter logs with
+// https://github.com/moby/moby/blob/v20.10.6/api/types/client.go#L73
+type ContainerLogsOptions struct {
+	ShowStdout bool
+	ShowStderr bool
+	Since      string
+	Until      string
+	Timestamps bool
+	Follow     bool
+	Tail       string
+	Details    bool
+}
