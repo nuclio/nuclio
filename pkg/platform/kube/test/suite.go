@@ -17,6 +17,7 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -269,6 +270,27 @@ func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
 
 	suite.Require().NoError(err, "Failed to list function pods")
 	return pods.Items
+}
+
+func (suite *KubeTestSuite) GetNodes() []v1.Node {
+	nodesList, err := suite.KubeClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
+	suite.Require().NoError(err)
+	return nodesList.Items
+}
+
+func (suite *KubeTestSuite) DeleteFunctionPods(functionName string) {
+	errGroup, _ := errgroup.WithContext(context.TODO())
+	for _, pod := range suite.GetFunctionPods(functionName) {
+		pod := pod
+		errGroup.Go(func() error {
+			suite.Logger.DebugWith("Deleting function pod", "podName", pod.Name)
+			return suite.KubeClientSet.
+				CoreV1().
+				Pods(suite.Namespace).
+				Delete(pod.Name, metav1.NewDeleteOptions(0))
+		})
+	}
+	suite.Require().NoError(errGroup.Wait(), "Failed to delete function pods")
 }
 
 func (suite *KubeTestSuite) GetResourceAndUnmarshal(resourceKind, resourceName string, resource interface{}) {
