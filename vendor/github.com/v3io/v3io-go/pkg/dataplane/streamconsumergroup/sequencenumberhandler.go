@@ -64,7 +64,7 @@ func (snh *sequenceNumberHandler) markedShardSequenceNumbersCommitter(interval t
 		select {
 		case <-time.After(interval):
 			if err := snh.commitMarkedShardSequenceNumbers(); err != nil {
-				snh.logger.WarnWith("Failed committing marked shard sequenceNumbers", 
+				snh.logger.WarnWith("Failed committing marked shard sequenceNumbers",
 					"err", errors.GetErrorStackString(err, 10))
 				continue
 			}
@@ -73,7 +73,7 @@ func (snh *sequenceNumberHandler) markedShardSequenceNumbersCommitter(interval t
 
 			// do the last commit
 			if err := snh.commitMarkedShardSequenceNumbers(); err != nil {
-				snh.logger.WarnWith("Failed committing marked shard sequenceNumbers on stop", 
+				snh.logger.WarnWith("Failed committing marked shard sequenceNumbers on stop",
 					"err", errors.GetErrorStackString(err, 10))
 			}
 			return
