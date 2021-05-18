@@ -49,6 +49,7 @@ type Configuration struct {
 	SequenceNumberShardWaitInterval string
 	DataplaneTimeout                string
 	RecordBatchSizeChan             int
+	LogLevel                        int
 
 	seekTo           v3io.SeekShardInputType
 	dataplaneTimeout time.Duration
@@ -67,8 +68,8 @@ func NewConfiguration(ID string,
 
 	err := newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
 		{Key: "nuclio.io/v3io-stream-dataplane-timeout", ValueString: &newConfiguration.DataplaneTimeout},
+		{Key: "nuclio.io/v3io-stream-log-level", ValueInt: &newConfiguration.LogLevel},
 	})
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to populate configuration from annotations")
 	}
@@ -168,6 +169,7 @@ func (c *Configuration) getStreamConsumerGroupConfig() (*streamconsumergroup.Con
 	streamConsumerGroupConfig.Claim.RecordBatchChanSize = c.RecordBatchSizeChan
 	streamConsumerGroupConfig.Claim.RecordBatchFetch.NumRecordsInBatch = c.ReadBatchSize
 	streamConsumerGroupConfig.Claim.RecordBatchFetch.InitialLocation = c.seekTo
+	streamConsumerGroupConfig.LogLevel = c.LogLevel
 
 	for _, durationConfigField := range []trigger.DurationConfigField{
 		{"session timeout", c.SessionTimeout, &streamConsumerGroupConfig.Session.Timeout, 10 * time.Second},
