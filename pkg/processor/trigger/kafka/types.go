@@ -33,11 +33,12 @@ import (
 type Configuration struct {
 	trigger.Configuration
 
-	Brokers       []string
-	Topics        []string
-	ConsumerGroup string
-	InitialOffset string
-	SASL          struct {
+	Brokers         []string
+	Topics          []string
+	ConsumerGroup   string
+	InitialOffset   string
+	BalanceStrategy string
+	SASL            struct {
 		Enable   bool
 		User     string
 		Password string
@@ -65,6 +66,7 @@ type Configuration struct {
 	// resolved fields
 	brokers                       []string
 	initialOffset                 int64
+	balanceStrategy               sarama.BalanceStrategy
 	sessionTimeout                time.Duration
 	heartbeatInterval             time.Duration
 	maxProcessingTime             time.Duration
@@ -92,6 +94,7 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-rebalance-timeout", ValueString: &newConfiguration.RebalanceTimeout},
 		{Key: "nuclio.io/kafka-rebalance-retry-backoff", ValueString: &newConfiguration.RebalanceRetryBackoff},
 		{Key: "nuclio.io/kafka-retry-backoff", ValueString: &newConfiguration.RetryBackoff},
+		{Key: "nuclio.io/kafka-balance-strategy", ValueString: &newConfiguration.BalanceStrategy},
 		{Key: "nuclio.io/kafka-max-wait-time", ValueString: &newConfiguration.MaxWaitTime},
 		{Key: "nuclio.io/kafka-max-wait-handler-during-rebalance", ValueString: &newConfiguration.MaxWaitHandlerDuringRebalance},
 		{Key: "nuclio.io/kafka-worker-allocation-mode", ValueString: &workerAllocationModeValue},
@@ -133,6 +136,11 @@ func NewConfiguration(id string,
 	newConfiguration.initialOffset, err = newConfiguration.resolveInitialOffset(newConfiguration.InitialOffset)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve initial offset")
+	}
+
+	newConfiguration.balanceStrategy, err = newConfiguration.resolveBalanceStrategy(newConfiguration.BalanceStrategy)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve balance strategy")
 	}
 
 	newConfiguration.brokers, err = newConfiguration.resolveBrokers(newConfiguration.Brokers)
@@ -238,6 +246,22 @@ func (c *Configuration) resolveInitialOffset(initialOffset string) (int64, error
 		return sarama.OffsetNewest, nil
 	default:
 		return 0, errors.Errorf("InitialOffset must be either 'earliest' or 'latest', not '%s'", initialOffset)
+	}
+}
+
+func (c *Configuration) resolveBalanceStrategy(balanceStrategy string) (sarama.BalanceStrategy, error) {
+	if balanceStrategy == "" {
+		return sarama.BalanceStrategyRange, nil
+	}
+	switch lower := strings.ToLower(balanceStrategy); lower {
+	case "range":
+		return sarama.BalanceStrategyRange, nil
+	case "roundrobin":
+		return sarama.BalanceStrategyRoundRobin, nil
+	case "sticky":
+		return sarama.BalanceStrategySticky, nil
+	default:
+		return nil, errors.Errorf("BalanceStrategy must be either 'range', 'roundrobin' or 'sticky', not '%s'", balanceStrategy)
 	}
 }
 
