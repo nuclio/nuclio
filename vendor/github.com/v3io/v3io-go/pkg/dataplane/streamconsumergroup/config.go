@@ -55,31 +55,3 @@ func NewConfig() *Config {
 
 	return c
 }
-
-// returns a logger function according to the set log level
-// we want this to ensure the logger used, overrides the severity level set by the parent logger.
-func (c *Config) getLeveledLogger(loggerInstance logger.Logger,
-	logLevel logger.Level,
-	minLogLevel int) func(interface{}, ...interface{}) {
-
-	// log level is not set
-	// does meet the minimum log level
-	if c.LogLevel == 0 || minLogLevel < c.LogLevel {
-		return func(i interface{}, i2 ...interface{}) {
-			// does nothing
-		}
-	}
-
-	switch logLevel {
-	case logger.LevelDebug:
-		return loggerInstance.DebugWith
-	case logger.LevelError:
-		return loggerInstance.ErrorWith
-	case logger.LevelInfo:
-		return loggerInstance.InfoWith
-	case logger.LevelWarn:
-		return loggerInstance.WarnWith
-	default:
-		return loggerInstance.DebugWith
-	}
-}

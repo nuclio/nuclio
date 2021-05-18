@@ -155,6 +155,10 @@ func (scg *streamConsumerGroup) setState(modifier stateModifier) (*State, error)
 				scg.logger.InfoWith("Modified state, saving",
 					"previousState", previousState,
 					"modifiedState", modifiedState)
+			} else {
+				scg.logger.DebugWith("Modified state, saving",
+					"previousState", previousState,
+					"modifiedState", modifiedState)
 			}
 		}
 

@@ -170,6 +170,10 @@ func (sh *stateHandler) createSessionState(state *State) error {
 		sh.logger.InfoWith("Assigned shards",
 			"shards", shards,
 			"state", state)
+	} else {
+		sh.logger.DebugWith("Assigned shards",
+			"shards", shards,
+			"state", state)
 	}
 
 	state.SessionStates = append(state.SessionStates, &SessionState{
@@ -286,6 +290,10 @@ func (sh *stateHandler) removeStaleSessionStates(state *State) error {
 					"memberID", sessionState.MemberID,
 					"lastHeartbeat", time.Since(sessionState.LastHeartbeat),
 					"shards", sessionState.Shards)
+			} else {
+				sh.logger.DebugWith("Removing stale member",
+					"memberID", sessionState.MemberID,
+					"lastHeartbeat", time.Since(sessionState.LastHeartbeat))
 			}
 		}
 	}
