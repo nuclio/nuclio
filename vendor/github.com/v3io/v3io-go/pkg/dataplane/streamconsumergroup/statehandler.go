@@ -280,20 +280,21 @@ func (sh *stateHandler) removeStaleSessionStates(state *State) error {
 	var activeSessionStates []*SessionState
 
 	for _, sessionState := range state.SessionStates {
+		timeSinceLastHeartbeat := time.Since(sessionState.LastHeartbeat)
 
 		// check if the last heartbeat happened prior to the session timeout
-		if time.Since(sessionState.LastHeartbeat) < sh.member.streamConsumerGroup.config.Session.Timeout {
+		if timeSinceLastHeartbeat < sh.member.streamConsumerGroup.config.Session.Timeout {
 			activeSessionStates = append(activeSessionStates, sessionState)
 		} else {
 			if sh.member.streamConsumerGroup.config.LogLevel > 5 {
 				sh.logger.InfoWith("Removing stale member",
 					"memberID", sessionState.MemberID,
-					"lastHeartbeat", time.Since(sessionState.LastHeartbeat),
+					"lastHeartbeat", timeSinceLastHeartbeat,
 					"shards", sessionState.Shards)
 			} else {
 				sh.logger.DebugWith("Removing stale member",
 					"memberID", sessionState.MemberID,
-					"lastHeartbeat", time.Since(sessionState.LastHeartbeat))
+					"lastHeartbeat", timeSinceLastHeartbeat)
 			}
 		}
 	}
