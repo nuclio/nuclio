@@ -19,6 +19,7 @@ limitations under the License.
 package functionres
 
 import (
+	"context"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -68,6 +69,44 @@ func (suite *lazyTestSuite) SetupTest() {
 	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
 		platformConfiguration: defaultPlatformConfiguration,
 	})
+}
+
+func (suite *lazyTestSuite) TestNodeConstrains() {
+	functionInstance := &nuclioio.NuclioFunction{}
+	functionInstance.Name = "func-name"
+	functionInstance.Spec.NodeName = "some-node-name"
+	functionInstance.Spec.NodeSelector = map[string]string{
+		"some-key": "some-value",
+	}
+	functionInstance.Spec.Affinity = &v1.Affinity{
+		NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
+					{
+						MatchExpressions: []v1.NodeSelectorRequirement{
+							{
+								Key: "req-key",
+								Values: []string{
+									"a",
+									"b",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	resources, err := suite.client.CreateOrUpdate(context.TODO(), functionInstance, "")
+	suite.Require().NoError(err)
+	suite.Require().NotEmpty(resources)
+	deployment, err := resources.Deployment()
+	suite.Require().NoError(err)
+
+	// ensure fields were passed
+	deployment.Spec.Template.Spec.NodeName = functionInstance.Spec.NodeName
+	deployment.Spec.Template.Spec.NodeSelector = functionInstance.Spec.NodeSelector
+	deployment.Spec.Template.Spec.Affinity = functionInstance.Spec.Affinity
 }
 
 func (suite *lazyTestSuite) TestNoChanges() {

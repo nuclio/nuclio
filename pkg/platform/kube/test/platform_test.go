@@ -387,6 +387,9 @@ func (suite *DeployFunctionTestSuite) TestSecurityContext() {
 }
 
 func (suite *DeployFunctionTestSuite) TestAssigningFunctionPodToNodes() {
+
+	// TODO: currently is not working on minikube
+	suite.T().Skip("Run manually")
 	existingNodes := suite.GetNodes()
 	suite.Require().NotEmpty(existingNodes, "Must have at least one node available")
 
