@@ -5,8 +5,6 @@ import (
 
 	"github.com/v3io/v3io-go/pkg/common"
 	"github.com/v3io/v3io-go/pkg/dataplane"
-
-	"github.com/nuclio/logger"
 )
 
 type Config struct {
