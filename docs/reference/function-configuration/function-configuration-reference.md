@@ -92,11 +92,16 @@ The `spec` section contains the requirements and attributes and has the followin
 | runtimeAttributes | See [reference](/docs/reference/runtimes/) | Runtime-specific attributes |
 | resources | See [reference](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) | Limit resources allocated to deployed function |
 | readinessTimeoutSeconds | int | Number of seconds that the controller will wait for the function to become ready before declaring failure (default: 60) |
+| waitReadinessTimeoutBeforeFailure | bool | Wait for the expiration of the readiness timeout period even if the deployment fails or isn't expected to complete before the readinessTimeout expires |
 | avatar | string | Base64 representation of an icon to be shown in UI for the function |
 | eventTimeout | string | Global event timeout, in the format supported for the `Duration` parameter of the [`time.ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function |
 | securityContext.runAsUser | int | The user ID (UID) for runing the entry point of the container process |
 | securityContext.runAsGroup | int | The group ID (GID) for running the entry point of the container process |
 | securityContext.fsGroup | int | A supplemental group to add and use for running the entry point of the container process |
+| serviceType | string | Describes ingress methods for a service |
+| affinity | v1.Affinity | Set of rules used to determine the node that schedule the pod |
+| nodeSelector | map | Constrain function pod to a node by key-value pairs selectors |
+| nodeName | string | Constrain function pod to a node by node name |
 
 <a id="spec-example"></a>
 ### Example

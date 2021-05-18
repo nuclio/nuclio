@@ -691,7 +691,7 @@ in `metadata.labels`.
 
 * URL: `GET /api/function_templates`
 * Headers:
-    * `x-nuclio-filter-contents`: Substring that appears either in name or configuration of the function (optional)
+  * `x-nuclio-filter-contains`: Substring that appears either in name or configuration of the function (optional)
 
 #### Response
 

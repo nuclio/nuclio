@@ -339,6 +339,12 @@ func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
 	return pods.Items
 }
 
+func (suite *KubeTestSuite) GetNodes() []v1.Node {
+	nodesList, err := suite.KubeClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
+	suite.Require().NoError(err)
+	return nodesList.Items
+}
+
 func (suite *KubeTestSuite) DeleteFunctionPods(functionName string) {
 	errGroup, _ := errgroup.WithContext(context.TODO())
 	for _, pod := range suite.GetFunctionPods(functionName) {

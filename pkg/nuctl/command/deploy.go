@@ -70,6 +70,8 @@ type deployCommandeer struct {
 	replicas                        int
 	minReplicas                     int
 	maxReplicas                     int
+	nodeName                        string
+	encodedNodeSelector             string
 	runAsUser                       int64
 	runAsGroup                      int64
 	fsGroup                         int64
@@ -198,6 +200,8 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVar(&commandeer.description, "desc", "", "Function description")
 	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.Flags().StringVar(&commandeer.encodedAnnotations, "annotations", "", "Additional function annotations (ant1=val1[,ant2=val2,...])")
+	cmd.Flags().StringVar(&commandeer.encodedNodeSelector, "nodeSelector", "", "Run function pod on a Node by key=value selection constraints (key1=val1[,key2=val2,...])")
+	cmd.Flags().StringVar(&commandeer.nodeName, "nodeName", "", "Run function pod on a Node by name-matching selection constrain")
 	cmd.Flags().VarP(&commandeer.encodedEnv, "env", "e", "Environment variables env1=val1")
 	cmd.Flags().BoolVarP(&commandeer.disable, "disable", "d", false, "Start the function as disabled (don't run yet)")
 	cmd.Flags().IntVarP(&commandeer.replicas, "replicas", "", -1, "Set to any non-negative integer to use a static number of replicas")
@@ -388,6 +392,10 @@ func (d *deployCommandeer) enrichConfigWithStringArgs() {
 			{Level: d.loggerLevel},
 		}
 	}
+
+	if d.nodeName != "" {
+		d.functionConfig.Spec.NodeName = d.nodeName
+	}
 }
 
 func (d *deployCommandeer) enrichConfigWithBoolArgs() {
@@ -534,6 +542,16 @@ func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
 	}
 	for label, labelValue := range common.StringToStringMap(d.encodedLabels, "=") {
 		d.functionConfig.Meta.Labels[label] = labelValue
+	}
+
+	// decode node selector
+	if d.encodedNodeSelector != "" {
+		if d.functionConfig.Spec.NodeSelector == nil {
+			d.functionConfig.Spec.NodeSelector = map[string]string{}
+		}
+		for key, value := range common.StringToStringMap(d.encodedNodeSelector, "=") {
+			d.functionConfig.Spec.NodeSelector[key] = value
+		}
 	}
 
 	// if the project name was set, add it as a label (not in string enrichment, because it's part of the labels)

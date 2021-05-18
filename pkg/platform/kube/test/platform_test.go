@@ -38,6 +38,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 	testk8s "github.com/nuclio/nuclio/test/common/k8s"
 
+	"github.com/gobuffalo/flect"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/errors"
@@ -50,6 +51,7 @@ import (
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type DeployFunctionTestSuite struct {
@@ -382,6 +384,104 @@ func (suite *DeployFunctionTestSuite) TestSecurityContext() {
 			strings.TrimSpace(results.Output))
 		return true
 	})
+}
+
+func (suite *DeployFunctionTestSuite) TestAssigningFunctionPodToNodes() {
+
+	// TODO: currently is not working on minikube
+	suite.T().Skip("Run manually")
+	existingNodes := suite.GetNodes()
+	suite.Require().NotEmpty(existingNodes, "Must have at least one node available")
+
+	testNodeName := existingNodes[0].GetName()
+	testLabelKey := "test-nuclio.io"
+
+	labelPatch := fmt.Sprintf(`[{"op":"add","path":"/metadata/labels/%s","value":"%s"}]`, testLabelKey, "true")
+	_, err := suite.KubeClientSet.CoreV1().Nodes().Patch(testNodeName, types.JSONPatchType, []byte(labelPatch))
+	suite.Require().NoError(err, "Failed to patch node labels")
+
+	// undo changes
+	defer func() {
+		suite.Logger.DebugWith("Rolling back node labels change")
+		labelPatch = fmt.Sprintf(`[{"op":"remove","path":"/metadata/labels/%s"}]`, testLabelKey)
+		_, err := suite.KubeClientSet.CoreV1().Nodes().Patch(testNodeName, types.JSONPatchType, []byte(labelPatch))
+		suite.Require().NoError(err, "Failed to patch node labels")
+	}()
+
+	for _, testCase := range []struct {
+		name string
+
+		// function spec
+		nodeName        string
+		nodeSelector    map[string]string
+		nodeAffinity    *v1.Affinity
+		expectedFailure bool
+	}{
+		{
+			name:     "AssignByNodeName",
+			nodeName: testNodeName,
+		},
+		{
+			name:            "UnscheduledNoSuchNodeName",
+			nodeName:        "nuclio-do-not-should-not-exists",
+			expectedFailure: true,
+		},
+		{
+			name: "AssignByNodeSelector",
+			nodeSelector: map[string]string{
+				testLabelKey: "true",
+			},
+		},
+		{
+			name: "UnscheduledNoSuchLabel",
+			nodeSelector: map[string]string{
+				testLabelKey: "false",
+			},
+			expectedFailure: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionName := flect.Dasherize(testCase.name)
+			createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+			createFunctionOptions.FunctionConfig.Spec.NodeName = testCase.nodeName
+			createFunctionOptions.FunctionConfig.Spec.Affinity = testCase.nodeAffinity
+			createFunctionOptions.FunctionConfig.Spec.NodeSelector = testCase.nodeSelector
+			if testCase.expectedFailure {
+
+				// dont wait for too long
+				createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 15
+				_, err := suite.DeployFunctionExpectError(createFunctionOptions,
+					func(deployResult *platform.CreateFunctionResult) bool {
+						return true
+					})
+				suite.Require().Error(err)
+
+				if testCase.nodeSelector != nil {
+					pods := suite.GetFunctionPods(functionName)
+					podEvents, err := suite.KubeClientSet.CoreV1().Events(suite.Namespace).List(metav1.ListOptions{
+						FieldSelector: fmt.Sprintf("involvedObject.name=%s", pods[0].GetName()),
+					})
+					suite.Require().NoError(err)
+					suite.Require().NotNil(podEvents)
+					suite.Require().Equal("FailedScheduling", podEvents.Items[0].Reason)
+				}
+			} else {
+				suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+					pods := suite.GetFunctionPods(functionName)
+					if testCase.nodeName != "" {
+						suite.Require().Equal(testCase.nodeName, pods[0].Spec.NodeName)
+					}
+					if testCase.nodeSelector != nil {
+						suite.Require().Equal(testCase.nodeSelector, pods[0].Spec.NodeSelector)
+					}
+					if testCase.nodeAffinity != nil {
+						suite.Require().Equal(testCase.nodeAffinity, pods[0].Spec.Affinity)
+					}
+					return true
+				})
+			}
+		})
+	}
 }
 
 func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {

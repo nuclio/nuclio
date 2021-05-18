@@ -10,7 +10,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.6.4-amd64
+    tag: 1.6.5-amd64
     pullPolicy: IfNotPresent  
   resources: {}
 
@@ -65,7 +65,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.6.4-amd64
+    tag: 1.6.5-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -141,7 +141,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.6.4-amd64
+    tag: 1.6.5-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -166,7 +166,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.6.4-amd64
+    tag: 1.6.5-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
