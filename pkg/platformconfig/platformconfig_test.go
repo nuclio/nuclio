@@ -24,8 +24,9 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/test/compare"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -46,6 +47,7 @@ func (suite *PlatformConfigTestSuite) SetupTest() {
 
 func (suite *PlatformConfigTestSuite) TestReadConfiguration() {
 	configurationContents := `
+functionReadinessTimeout: 10s
 webAdmin:
   enabled: true
   listenAddress: :8081
@@ -88,6 +90,9 @@ metrics:
 	trueValue := true
 	expectedConfiguration.WebAdmin.Enabled = &trueValue
 	expectedConfiguration.WebAdmin.ListenAddress = ":8081"
+
+	tenSecondsStr := "10s"
+	expectedConfiguration.FunctionReadinessTimeout = &tenSecondsStr
 
 	// logger
 	expectedConfiguration.Logger.System = append(expectedConfiguration.Logger.System, LoggerSinkBinding{
@@ -144,7 +149,7 @@ metrics:
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
 	suite.Require().NoError(err)
 
-	suite.Require().True(compare.NoOrder(expectedConfiguration, readConfiguration))
+	suite.Require().Empty(cmp.Diff(&expectedConfiguration, &readConfiguration, cmpopts.IgnoreUnexported(Config{})))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetSystemLoggerSinks() {
@@ -191,7 +196,7 @@ logger:
 		},
 	}
 
-	suite.Require().True(compare.NoOrder(expectedSystemLoggerSinks, systemLoggerSinks))
+	suite.Require().Empty(cmp.Diff(&expectedSystemLoggerSinks, &systemLoggerSinks, cmpopts.IgnoreUnexported(Config{})))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetSystemLoggerSinksInvalidSink() {
@@ -258,7 +263,7 @@ logger:
 		},
 	}
 
-	suite.Require().True(compare.NoOrder(expectedFunctionLoggerSinks, functionLoggerSinks))
+	suite.Require().Empty(cmp.Diff(&expectedFunctionLoggerSinks, &functionLoggerSinks, cmpopts.IgnoreUnexported(Config{})))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetFunctionLoggerSinksWithFunctionConfig() {
@@ -315,7 +320,7 @@ logger:
 		},
 	}
 
-	suite.Require().True(compare.NoOrder(expectedFunctionLoggerSinks, functionLoggerSinks))
+	suite.Require().Empty(cmp.Diff(&expectedFunctionLoggerSinks, &functionLoggerSinks, cmpopts.IgnoreUnexported(Config{})))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetFunctionLoggerSinksInvalidSink() {
@@ -381,7 +386,7 @@ metrics:
 		},
 	}
 
-	suite.Require().True(compare.NoOrder(expectedSystemMetricSinks, systemMetricSinks))
+	suite.Require().Empty(cmp.Diff(&expectedSystemMetricSinks, &systemMetricSinks, cmpopts.IgnoreUnexported(Config{})))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetSystemMetricSinksInvalidSink() {
@@ -443,7 +448,7 @@ metrics:
 		},
 	}
 
-	suite.Require().True(compare.NoOrder(expectedFunctionMetricSinks, functionMetricSinks))
+	suite.Require().Empty(cmp.Diff(&expectedFunctionMetricSinks, &functionMetricSinks, cmpopts.IgnoreUnexported(Config{})))
 }
 
 func (suite *PlatformConfigTestSuite) TestFunctionAugmentedConfigs() {
@@ -499,8 +504,7 @@ functionAugmentedConfigs:
 		},
 	}
 
-	suite.Require().True(compare.NoOrder(expectedFunctionAugmentedConfigs,
-		readConfiguration.FunctionAugmentedConfigs))
+	suite.Require().Empty(cmp.Diff(&expectedFunctionAugmentedConfigs, &readConfiguration.FunctionAugmentedConfigs, cmpopts.IgnoreUnexported(Config{})))
 }
 
 func TestRegistryTestSuite(t *testing.T) {

@@ -38,7 +38,7 @@ type Config struct {
 	AutoScale                AutoScale                    `json:"autoScale,omitempty"`
 	CronTriggerCreationMode  CronTriggerCreationMode      `json:"cronTriggerCreationMode,omitempty"`
 	FunctionAugmentedConfigs []LabelSelectorAndConfig     `json:"functionAugmentedConfigs,omitempty"`
-	FunctionReadinessTimeout *time.Duration               `json:"functionReadinessTimeout,omitempty"`
+	FunctionReadinessTimeout *string                      `json:"functionReadinessTimeout,omitempty"`
 	IngressConfig            IngressConfig                `json:"ingressConfig,omitempty"`
 	Kube                     PlatformKubeConfig           `json:"kube,omitempty"`
 	Local                    PlatformLocalConfig          `json:"local,omitempty"`
@@ -47,6 +47,9 @@ type Config struct {
 	ProjectsLeader           *ProjectsLeader              `json:"projectsLeader,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
+
+	// stores the encoded FunctionReadinessTimeout as time.Duration
+	functionReadinessTimeout *time.Duration
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {
@@ -83,9 +86,15 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 	}
 
 	if config.FunctionReadinessTimeout == nil {
-		readinessDuration := DefaultFunctionReadinessTimeoutSeconds * time.Second
-		config.FunctionReadinessTimeout = &readinessDuration
+		encodedReadinessTimeoutDuration := (DefaultFunctionReadinessTimeoutSeconds * time.Second).String()
+		config.FunctionReadinessTimeout = &encodedReadinessTimeoutDuration
 	}
+
+	functionReadinessTimeout, err := time.ParseDuration(*config.FunctionReadinessTimeout)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse function readiness timeout")
+	}
+	config.functionReadinessTimeout = &functionReadinessTimeout
 
 	return config, nil
 }
@@ -131,8 +140,8 @@ func (config *Config) GetFunctionReadinessTimeout(timeout int) time.Duration {
 	}
 
 	// provided by the platform-config
-	if config.FunctionReadinessTimeout != nil {
-		return *config.FunctionReadinessTimeout
+	if config.functionReadinessTimeout != nil {
+		return *config.functionReadinessTimeout
 	}
 
 	// no configuration were explicitly given, return default
