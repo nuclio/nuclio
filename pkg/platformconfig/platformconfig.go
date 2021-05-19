@@ -38,6 +38,7 @@ type Config struct {
 	AutoScale                AutoScale                    `json:"autoScale,omitempty"`
 	CronTriggerCreationMode  CronTriggerCreationMode      `json:"cronTriggerCreationMode,omitempty"`
 	FunctionAugmentedConfigs []LabelSelectorAndConfig     `json:"functionAugmentedConfigs,omitempty"`
+	FunctionReadinessTimeout *time.Duration               `json:"functionReadinessTimeout,omitempty"`
 	IngressConfig            IngressConfig                `json:"ingressConfig,omitempty"`
 	Kube                     PlatformKubeConfig           `json:"kube,omitempty"`
 	Local                    PlatformLocalConfig          `json:"local,omitempty"`
@@ -81,6 +82,11 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.Kube.DefaultServiceType = DefaultServiceType
 	}
 
+	if config.FunctionReadinessTimeout == nil {
+		readinessDuration := DefaultFunctionReadinessTimeoutSeconds * time.Second
+		config.FunctionReadinessTimeout = &readinessDuration
+	}
+
 	return config, nil
 }
 
@@ -115,6 +121,22 @@ func (config *Config) GetFunctionLoggerSinks(functionConfig *functionconfig.Conf
 	}
 
 	return config.getLoggerSinksWithLevel(loggerSinkBindings)
+}
+
+func (config *Config) GetFunctionReadinessTimeout(timeout int) time.Duration {
+
+	// usually provided by function spec
+	if timeout != 0 {
+		return time.Duration(timeout) * time.Second
+	}
+
+	// provided by the platform-config
+	if config.FunctionReadinessTimeout != nil {
+		return *config.FunctionReadinessTimeout
+	}
+
+	// no configuration were explicitly given, return default
+	return DefaultFunctionReadinessTimeoutSeconds * time.Second
 }
 
 func (config *Config) GetSystemMetricSinks() (map[string]MetricSink, error) {

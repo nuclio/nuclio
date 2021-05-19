@@ -1033,12 +1033,7 @@ func (p *Platform) waitForContainer(containerID string, timeout int) error {
 	p.Logger.InfoWith("Waiting for function to be ready",
 		"timeout", timeout)
 
-	var readinessTimeout time.Duration
-	if timeout != 0 {
-		readinessTimeout = time.Duration(timeout) * time.Second
-	} else {
-		readinessTimeout = abstract.DefaultReadinessTimeoutSeconds * time.Second
-	}
+	readinessTimeout := p.Config.GetFunctionReadinessTimeout(timeout)
 
 	if err := p.dockerClient.AwaitContainerHealth(containerID, &readinessTimeout); err != nil {
 		var errMessage string
