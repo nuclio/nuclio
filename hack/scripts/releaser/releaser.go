@@ -539,7 +539,7 @@ func (r *Release) waitForReleaseCompleteness() error {
 	return common.RetryUntilSuccessful(time.Minute*60,
 		time.Minute*1,
 		func() bool {
- 			status, err := r.getGithubWorkflowsReleaseStatus()
+			status, err := r.getGithubWorkflowsReleaseStatus()
 			if err != nil {
 				r.logger.DebugWith("Get release status returned with an error", "err", err)
 				return false
