@@ -75,6 +75,9 @@ func newTrigger(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to get v3io stream config")
 	}
 
+	newTrigger.Logger.DebugWith("Created new v3io trigger",
+		"v3ioStreamConfig", newTrigger.v3iostreamConfig)
+
 	return newTrigger, nil
 }
 

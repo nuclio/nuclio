@@ -94,7 +94,8 @@ func (sh *stateHandler) refreshStatePeriodically() {
 			} else {
 				lastState, err = sh.refreshState()
 				if err != nil {
-					sh.logger.WarnWith("Failed getting state", "err", errors.GetErrorStackString(err, 10))
+					sh.logger.WarnWith("Failed getting state",
+						"err", errors.GetErrorStackString(err, 10))
 				}
 
 				// lastState may be nil
@@ -137,6 +138,9 @@ func (sh *stateHandler) refreshState() (*State, error) {
 		}
 
 		// session doesn't exist - create it
+		if sh.member.streamConsumerGroup.config.LogLevel > 5 {
+			sh.logger.InfoWith("Creating session state", "memberID", sh.member.id)
+		}
 		if err := sh.createSessionState(state); err != nil {
 			return nil, errors.Wrap(err, "Failed to create session state")
 		}
@@ -151,14 +155,22 @@ func (sh *stateHandler) createSessionState(state *State) error {
 	}
 
 	// assign shards
-	shards, err := sh.assignShards(sh.member.streamConsumerGroup.maxReplicas, sh.member.streamConsumerGroup.totalNumShards, state)
+	if sh.member.streamConsumerGroup.config.LogLevel > 5 {
+		sh.logger.InfoWith("Assigning shards",
+			"maxReplicas", sh.member.streamConsumerGroup.maxReplicas,
+			"totalNumShards", sh.member.streamConsumerGroup.totalNumShards)
+
+	}
+	shards, err := sh.assignShards(sh.member.streamConsumerGroup.maxReplicas,
+		sh.member.streamConsumerGroup.totalNumShards, state)
 	if err != nil {
 		return errors.Wrap(err, "Failed resolving shards for session")
 	}
-
-	sh.logger.DebugWith("Assigned shards",
-		"shards", shards,
-		"state", state)
+	if sh.member.streamConsumerGroup.config.LogLevel > 5 {
+		sh.logger.InfoWith("Assigned shards",
+			"shards", shards,
+			"state", state)
+	}
 
 	state.SessionStates = append(state.SessionStates, &SessionState{
 		MemberID:      sh.member.id,
@@ -180,11 +192,24 @@ func (sh *stateHandler) assignShards(maxReplicas int, numShards int, state *Stat
 	// empty shard groups are not unique - therefore simply check whether the number of
 	// empty shard groups allocated to sessions is equal to the number of empty shard groups
 	// required. if not, allocate an empty shard group
+	if sh.member.streamConsumerGroup.config.LogLevel > 5 {
+		sh.logger.InfoWith("Getting assign empty shard group",
+			"replicaShardGroups", replicaShardGroups,
+			"memberID", sh.member.id,
+			"sessionStates", state.SessionStates)
+	}
 	if sh.getAssignEmptyShardGroup(replicaShardGroups, state) {
 		return []int{}, nil
 	}
 
 	// simply look for the first non-assigned replica shard group which isn't empty
+	if sh.member.streamConsumerGroup.config.LogLevel > 5 {
+		sh.logger.InfoWith("Looking for first non-assigned replica",
+			"sessionStates", state.SessionStates,
+			"numShards", numShards,
+			"maxReplicas", maxReplicas,
+			"replicaShardGroups", replicaShardGroups)
+	}
 	for _, replicaShardGroup := range replicaShardGroups {
 
 		// we already checked if we need to allocate an empty shard group
@@ -251,14 +276,18 @@ func (sh *stateHandler) removeStaleSessionStates(state *State) error {
 	var activeSessionStates []*SessionState
 
 	for _, sessionState := range state.SessionStates {
+		timeSinceLastHeartbeat := time.Since(sessionState.LastHeartbeat)
 
 		// check if the last heartbeat happened prior to the session timeout
-		if time.Since(sessionState.LastHeartbeat) < sh.member.streamConsumerGroup.config.Session.Timeout {
+		if timeSinceLastHeartbeat < sh.member.streamConsumerGroup.config.Session.Timeout {
 			activeSessionStates = append(activeSessionStates, sessionState)
 		} else {
-			sh.logger.DebugWith("Removing stale member",
-				"memberID", sessionState.MemberID,
-				"lastHeartbeat", time.Since(sessionState.LastHeartbeat))
+			if sh.member.streamConsumerGroup.config.LogLevel > 5 {
+				sh.logger.InfoWith("Removing stale member",
+					"memberID", sessionState.MemberID,
+					"lastHeartbeat", timeSinceLastHeartbeat,
+					"shards", sessionState.Shards)
+			}
 		}
 	}
 

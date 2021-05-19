@@ -65,6 +65,7 @@ func NewStreamConsumerGroup(parentLogger logger.Logger,
 		"config", config,
 		"path", streamPath,
 		"maxReplicas", maxReplicas,
+		"totalNumShards", newStreamConsumerGroup.totalNumShards,
 		"dataplaneTimeout", newStreamConsumerGroup.dataplaneInput.Timeout)
 
 	return &newStreamConsumerGroup, nil
@@ -108,12 +109,15 @@ func (scg *streamConsumerGroup) getTotalNumberOfShards() (int, error) {
 
 func (scg *streamConsumerGroup) setState(modifier stateModifier) (*State, error) {
 	var previousState, modifiedState *State
+	var mtime *int
 
 	backoff := scg.config.State.ModifyRetry.Backoff
 	attempts := scg.config.State.ModifyRetry.Attempts
 
-	err := common.RetryFunc(context.TODO(), scg.logger, attempts, nil, &backoff, func(int) (bool, error) {
-		state, mtime, err := scg.getStateFromPersistency()
+	retryErr := common.RetryFunc(context.TODO(), scg.logger, attempts, nil, &backoff, func(int) (bool, error) {
+		var err error
+		var state *State
+		state, mtime, err = scg.getStateFromPersistency()
 		if err != nil && err != v3ioerrors.ErrNotFound {
 			return true, errors.Wrap(err, "Failed getting current state from persistency")
 		}
@@ -123,6 +127,12 @@ func (scg *streamConsumerGroup) setState(modifier stateModifier) (*State, error)
 			if err != nil {
 				return true, errors.Wrap(err, "Failed to create state")
 			}
+		} else {
+			if scg.config.LogLevel > 5 {
+				scg.logger.InfoWith("Found an existing state from persistency",
+					"mtime", mtime,
+					"state", state)
+			}
 		}
 
 		// for logging
@@ -130,28 +140,48 @@ func (scg *streamConsumerGroup) setState(modifier stateModifier) (*State, error)
 
 		modifiedState, err = modifier(state)
 		if err != nil {
+			if scg.config.LogLevel > 5 {
+				scg.logger.ErrorWith("Failed to modify state",
+					"err", errors.GetErrorStackString(err, 10),
+					"previousState", previousState,
+					"unmodifiedState", state)
+			}
 			return true, errors.Wrap(err, "Failed modifying state")
 		}
 
 		// log only on change
 		if !scg.statesEqual(previousState, modifiedState) {
-			scg.logger.DebugWith("Modified state, saving",
-				"previousState", previousState,
-				"modifiedState", modifiedState)
+			if scg.config.LogLevel > 5 {
+				scg.logger.InfoWith("Modified state, saving",
+					"previousState", previousState,
+					"modifiedState", modifiedState)
+			}
 		}
 
 		err = scg.setStateInPersistency(modifiedState, mtime)
 		if err != nil {
+			if scg.config.LogLevel > 5 {
+				scg.logger.ErrorWith("Failed to set state in persistency",
+					"modifiedState", modifiedState,
+					"mtime", mtime)
+			}
 			return true, errors.Wrap(err, "Failed setting state in persistency state")
 		}
 
 		return false, nil
 	})
 
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed modifying state, attempts exhausted. currentState(%s)", previousState.String())
+	if retryErr != nil {
+		return nil, errors.Wrapf(retryErr,
+			"Failed modifying state, attempts exhausted. currentState(%s)",
+			previousState.String())
 	}
 
+	if scg.config.LogLevel > 5 {
+		scg.logger.InfoWith("Successfully updated state in persistency",
+			"mtime", mtime,
+			"modifiedState", modifiedState)
+	}
 	return modifiedState, nil
 }
 
@@ -334,7 +364,7 @@ func (scg *streamConsumerGroup) setShardSequenceNumberInPersistency(shardID int,
 
 	_, err = scg.container.UpdateItemSync(&v3io.UpdateItemInput{
 		DataPlaneInput: *scg.GetDataplaneInput(),
-		Path: shardPath,
+		Path:           shardPath,
 		Attributes: map[string]interface{}{
 			scg.getShardCommittedSequenceNumberAttributeName(): sequenceNumber,
 		},

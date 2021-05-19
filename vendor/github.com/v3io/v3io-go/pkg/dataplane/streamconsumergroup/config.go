@@ -30,6 +30,7 @@ type Config struct {
 			InitialLocation   v3io.SeekShardInputType `json:"initialLocation,omitempty"`
 		} `json:"recordBatchFetch,omitempty"`
 	} `json:"claim,omitempty"`
+	LogLevel int `json:"logLevel,omitempty"`
 }
 
 // NewConfig returns a new configuration instance with sane defaults.
