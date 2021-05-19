@@ -312,15 +312,6 @@ func (r *Release) mergeAndPush(branch string, branchToMerge string) error {
 	return nil
 }
 
-func (r *Release) getReleaseStatus() (string, error) {
-	switch r.releaseBranch {
-	case "1.1.x":
-		return r.getTravisReleaseStatus()
-	default:
-		return r.getGithubWorkflowsReleaseStatus()
-	}
-}
-
 func (r *Release) getGithubWorkflowsReleaseStatus() (string, error) {
 	if err := r.populateReleaseWorkflowID(); err != nil {
 		return "", errors.Wrap(err, "Failed to get release workflow id")
@@ -534,7 +525,7 @@ func (r *Release) createRelease() error {
 	return common.RetryUntilSuccessful(time.Minute*5,
 		time.Second*5,
 		func() bool {
-			status, err := r.getReleaseStatus()
+			status, err := r.getGithubWorkflowsReleaseStatus()
 			if err != nil {
 				r.logger.DebugWith("Get release status returned with an error", "err", err)
 				return false
@@ -548,26 +539,21 @@ func (r *Release) waitForReleaseCompleteness() error {
 	return common.RetryUntilSuccessful(time.Minute*60,
 		time.Minute*1,
 		func() bool {
-			status, err := r.getReleaseStatus()
+			status, err := r.getGithubWorkflowsReleaseStatus()
 			if err != nil {
 				r.logger.DebugWith("Get release status returned with an error", "err", err)
 				return false
 			}
 
 			r.logger.DebugWith("Waiting for release completeness", "status", status)
-			switch r.releaseBranch {
-			case "1.1.x":
-				return status == "finished"
-			default:
-				if status == "failure" {
-					r.logger.Warn(`Release job has failed, checkout its job status from 
+			if status == "failure" {
+				r.logger.Warn(`Release job has failed, checkout its job status from 
 https://github.com/nuclio/nuclio/actions?query=workflow%3ARelease
 Once re-run, it will catch up here.`)
-				}
-
-				// TODO: handle failure/cancelled from here? or let it run as suggested above
-				return status == "success"
 			}
+
+			// TODO: handle failure/cancelled from here? or let it run as suggested above
+			return status == "success"
 		})
 }
 
