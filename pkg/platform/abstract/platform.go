@@ -786,7 +786,7 @@ func (ap *Platform) EnsureDefaultProjectExistence() error {
 		}); err != nil {
 
 			// if project already exists, return
-			if apierrors.IsAlreadyExists(err) {
+			if apierrors.IsAlreadyExists(errors.RootCause(err)) {
 				return nil
 			}
 

@@ -141,6 +141,9 @@ func NewPlatform(parentLogger logger.Logger,
 }
 
 func (p *Platform) Initialize() error {
+	if err := p.projectsClient.Initialize(); err != nil {
+		return errors.Wrap(err, "Failed to initialize projects client")
+	}
 
 	// ensure default project existence only when projects aren't managed by external leader
 	if p.Config.ProjectsLeader == nil {
@@ -149,7 +152,7 @@ func (p *Platform) Initialize() error {
 		}
 	}
 
-	return p.projectsClient.Initialize()
+	return nil
 }
 
 // CreateFunction will simply run a docker image
