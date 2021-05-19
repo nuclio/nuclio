@@ -149,8 +149,15 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		})
 	}
 
+	// wait for up to the default readiness timeout or whatever was set in the spec
+	readinessTimeout := fo.
+		controller.
+		GetPlatformConfiguration().
+		GetFunctionReadinessTimeout(function.Spec.ReadinessTimeoutSeconds)
+
 	fo.logger.DebugWith("Ensuring function resources",
 		"functionNamespace", function.Namespace,
+		"readinessTimeout", readinessTimeout,
 		"functionName", function.Name)
 
 	// ensure function resources (deployment, ingress, configmap, etc ...)
@@ -161,16 +168,19 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			errors.Wrap(err, "Failed to create/update function"))
 	}
 
-	// wait for up to the default readiness timeout or whatever was set in the spec
-	readinessTimeout := fo.controller.GetPlatformConfiguration().GetFunctionReadinessTimeout(function.Spec.ReadinessTimeoutSeconds)
-	waitContext, cancel := context.WithDeadline(ctx, time.Now().Add(readinessTimeout))
-	defer cancel()
+	// readinessTimeout would be zero when
+	// - not defined on function spec
+	// - defined 0 on platform-config
+	if readinessTimeout != 0 {
+		waitContext, cancel := context.WithDeadline(ctx, time.Now().Add(readinessTimeout))
+		defer cancel()
 
-	// wait until the function resources are ready
-	if err = fo.functionresClient.WaitAvailable(waitContext, function.Namespace, function.Name); err != nil {
-		return fo.setFunctionError(function,
-			functionconfig.FunctionStateUnhealthy,
-			errors.Wrap(err, "Failed to wait for function resources to be available"))
+		// wait until the function resources are ready
+		if err = fo.functionresClient.WaitAvailable(waitContext, function.Namespace, function.Name); err != nil {
+			return fo.setFunctionError(function,
+				functionconfig.FunctionStateUnhealthy,
+				errors.Wrap(err, "Failed to wait for function resources to be available"))
+		}
 	}
 
 	waitingStates := []functionconfig.FunctionState{
