@@ -77,6 +77,7 @@ jobs:
 
     - name: Push images
       run: |
+        cd $GOPATH/src/github.com/nuclio/nuclio
         make push-docker-images
       env:
         NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
