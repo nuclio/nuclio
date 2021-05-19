@@ -133,7 +133,6 @@ func (r *Release) compileRepositoryURL(scheme string) string {
 }
 
 func (r *Release) prepareRepository() error {
-	r.repositoryDirPath = "/var/folders/v6/vgzwl64n689d68v034507jxc0000gn/T/nuclio-releaser-063665611"
 	if r.repositoryDirPath == "" {
 		r.logger.Debug("Creating a temp dir")
 
