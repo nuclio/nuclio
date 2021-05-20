@@ -177,7 +177,7 @@ func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Projec
 			updatedAfterTimestampQuery),
 		nil,
 		headers,
-		[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSession}},
+		[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSessionCookie}},
 		http.StatusOK,
 		true,
 		DefaultRequestTimeout)
