@@ -17,38 +17,34 @@ func NewSafeCache() *SafeCache {
 
 func (c *SafeCache) Add(projectInstance platform.Project) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	c.add(projectInstance)
-
-	c.mu.Unlock()
 }
 
 func (c *SafeCache) AddMany(projectInstances []platform.Project) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	for _, projectInstance := range projectInstances {
 		c.add(projectInstance)
 	}
-
-	c.mu.Unlock()
 }
 
 func (c *SafeCache) Update(projectInstance platform.Project) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	// delete project and re-add it to update the cache
 	c.delete(projectInstance.GetConfig().Meta.Namespace, projectInstance.GetConfig().Meta.Name)
 	c.add(projectInstance)
-
-	c.mu.Unlock()
 }
 
 func (c *SafeCache) Delete(namespace, name string) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	c.delete(namespace, name)
-
-	c.mu.Unlock()
 }
 
 func (c *SafeCache) Get(getProjectOptions *platform.GetProjectsOptions) []platform.Project {
