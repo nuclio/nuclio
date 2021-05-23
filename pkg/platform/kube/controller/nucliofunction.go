@@ -150,10 +150,13 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	}
 
 	// wait for up to the default readiness timeout or whatever was set in the spec
-	readinessTimeout := fo.
-		controller.
-		GetPlatformConfiguration().
-		GetFunctionReadinessTimeout(function.Spec.ReadinessTimeoutSeconds)
+	readinessTimeout := function.Spec.ReadinessTimeoutSeconds
+	if readinessTimeout == 0 {
+		readinessTimeout = int(fo.
+			controller.
+			GetPlatformConfiguration().
+			GetDefaultFunctionReadinessTimeout().Seconds())
+	}
 
 	fo.logger.DebugWith("Ensuring function resources",
 		"functionNamespace", function.Namespace,
@@ -172,7 +175,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	// - not defined on function spec
 	// - defined 0 on platform-config
 	if readinessTimeout != 0 {
-		waitContext, cancel := context.WithDeadline(ctx, time.Now().Add(readinessTimeout))
+		waitContext, cancel := context.WithDeadline(ctx, time.Now().Add(time.Duration(readinessTimeout)*time.Second))
 		defer cancel()
 
 		// wait until the function resources are ready

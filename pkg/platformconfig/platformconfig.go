@@ -132,12 +132,7 @@ func (config *Config) GetFunctionLoggerSinks(functionConfig *functionconfig.Conf
 	return config.getLoggerSinksWithLevel(loggerSinkBindings)
 }
 
-func (config *Config) GetFunctionReadinessTimeout(timeout int) time.Duration {
-
-	// usually provided by function spec
-	if timeout != 0 {
-		return time.Duration(timeout) * time.Second
-	}
+func (config *Config) GetDefaultFunctionReadinessTimeout() time.Duration {
 
 	// provided by the platform-config
 	if config.functionReadinessTimeout != nil {

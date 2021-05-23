@@ -154,9 +154,9 @@ func (fesr *frontendSpecResource) resolveDefaultServiceType() v1.ServiceType {
 }
 
 func (fesr *frontendSpecResource) resolveFunctionReadinessTimeoutSeconds() int {
-	var readinessTimeoutSeconds = platformconfig.DefaultFunctionReadinessTimeoutSeconds
+	readinessTimeoutSeconds := platformconfig.DefaultFunctionReadinessTimeoutSeconds
 	if dashboardServer, ok := fesr.resource.GetServer().(*dashboard.Server); ok {
-		return int(dashboardServer.GetPlatformConfiguration().GetFunctionReadinessTimeout(0).Seconds())
+		return int(dashboardServer.GetPlatformConfiguration().GetDefaultFunctionReadinessTimeout().Seconds())
 	}
 	return readinessTimeoutSeconds
 }
