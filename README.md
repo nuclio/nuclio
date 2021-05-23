@@ -68,13 +68,17 @@ curl -X POST -H "Content-Type: application/text" -d '{"value":2,"unit":"hours"}'
 
 For a complete step-by-step guide to using Nuclio over Kubernetes, either with the dashboard UI or the Nuclio command-line interface (`nuctl`), see [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md), [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md), or [Getting started with Nuclio on Azure Container Services (AKS)](/docs/setup/aks/getting-started-aks.md).
 
-## High-level architecture
+## "When this happens, do that"
 
-The following image illustrates Nuclio's high-level architecture:
+Nuclio tries to abstract away all the scaffolding around taking an event that occurred (e.g. a record was written into Kafka, an HTTP request was made, a timer expired) and passing this information to a piece of code for processing. To do this, Nuclio expects the users to provide (at the very least) information about what can trigger an event and the code to run when such an event happens. Users provide this information to Nuclio either via the command line utility (`nuctl`), a REST API or visually through a web application. 
 
 ![architecture](/docs/assets/images/architecture-3.png)
 
-Following is an outline of the main architecture components. For more information about the Nuclio architecture, see [Architecture](/docs/concepts/architecture.md).
+Nuclio takes this information (namely, the function `handler` and the function `configuration`) and sends it to a builder. This builder will craft the function's container image containing the user's handler and a piece of software that can execute this handler whenever events are received. The builder will then "publish" this container image by pushing it to a container registry.
+
+Once published, the function container image can be deployed. The deployer will craft orchestrator specific configuration from the function's configuration. For example, if deploying to Kubernetes - the deployer will take configuration parameters like number of replicas, auto scaling timing parameters, how many GPUs the function is requesting and convert this to Kubernetes resource configuration (i.e. Deployment, Service, Ingress, etc).  
+
+The orchestrator will then spin up containers from the published container images and execute them, providing them the function configuration. As mentioned earlier, these contain a piece of software called the "processor" responsible for reading the configuration, listening to event triggers (e.g. connecting to Kafka, listening for HTTP), reading events when they happen and calling the user's handler. The processor is responsible for many, many other things including handling metrics, marshaling responses, gracefully handling crashes, etc. 
 
 ### Services
 
