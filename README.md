@@ -74,48 +74,19 @@ Nuclio tries to abstract away all the scaffolding around taking an event that oc
 
 ![architecture](/docs/assets/images/architecture-3.png)
 
-Nuclio takes this information (namely, the function `handler` and the function `configuration`) and sends it to a builder. This builder will craft the function's container image containing the user's handler and a piece of software that can execute this handler whenever events are received. The builder will then "publish" this container image by pushing it to a container registry.
+Nuclio takes this information (namely, the function `handler` and the function `configuration`) and sends it to a builder. This builder will craft the function's container image holding the user's handler and a piece of software that can execute this handler whenever events are received (more on that in a bit). The builder will then "publish" this container image by pushing it to a container registry.
 
-Once published, the function container image can be deployed. The deployer will craft orchestrator specific configuration from the function's configuration. For example, if deploying to Kubernetes - the deployer will take configuration parameters like number of replicas, auto scaling timing parameters, how many GPUs the function is requesting and convert this to Kubernetes resource configuration (i.e. Deployment, Service, Ingress, etc).  
+Once published, the function container image can be deployed. The deployer will craft orchestrator specific configuration from the function's configuration. For example, if deploying to Kubernetes the deployer will take configuration parameters like number of replicas, auto scaling timing parameters, how many GPUs the function is requesting and convert this to Kubernetes resource configuration (i.e. Deployment, Service, Ingress, etc). 
 
-The orchestrator will then spin up containers from the published container images and execute them, providing them the function configuration. As mentioned earlier, these contain a piece of software called the "processor" responsible for reading the configuration, listening to event triggers (e.g. connecting to Kafka, listening for HTTP), reading events when they happen and calling the user's handler. The processor is responsible for many, many other things including handling metrics, marshaling responses, gracefully handling crashes, etc. 
+> Note: The deployer does not create Kubernetes native resources directly, but rather creates a "NuclioFunction" custom resource (CRD). A Nuclio service called the "controller" listens to changes on the NuclioFunction CRD and creates/modifies/destroys the applicable Kubernetes native resources (Deployment, Service, etc). This follows the standard Kubernetes operator pattern
 
-### Services
+The orchestrator will then spin up containers from the published container images and execute them, providing them the function configuration. The entrypoint of these containers is the "processor", responsible for reading the configuration, listening to event triggers (e.g. connecting to Kafka, listening for HTTP), reading events when they happen and calling the user's handler. The processor is responsible for many, many other things including handling metrics, marshaling responses, gracefully handling crashes, etc. 
 
-#### Processor
+### Scaling to Zero
 
-A processor listens on one or more triggers (for example, HTTP, Message Queue, or Stream), and executes user functions with one or more parallel workers.
+Once built and deployed to an orchestrator like Kubernetes, Nuclio functions (namely, processors) can process events, scale up and down based on performance metrics, ship logs and metrics - all without the help of any external entity. Once deployed, you can terminate the Nuclio Dashboard and Controller services and Nuclio functions will still run and scale perfectly.
 
-The workers use language-specific runtimes to execute the function (via native calls, shared memory, or shell). Processors use abstract interfaces to integrate with platform facilities for logging, monitoring and configuration, allowing for greater portability and extensibility (such as logging to a screen, file, or log stream).
-
-#### Controller
-
-A controller accepts function and event-source specifications, invokes builders and processors through an orchestration platform (such as Kubernetes), and manages function elasticity, life cycle, and versions.
-
-#### Dashboard
-
-The dashboard is a standalone microservice that is accessed through HTTP and includes a code-editor GUI for editing, deploying, and testing functions. This is the most user-friendly way to work with Nuclio. The dashboard container comes packaged with a version of the Nuclio [builder](#builder).
-
-#### Builder
-
-A builder receives raw code and optional build instructions and dependencies, and generates the function artifact - a binary file or a container image that the builder can also push to a specified image repository. The builder can run in the context of the CLI or as a separate service, for automated development pipelines.
-
-<a id="supported-container-images-note"></a>
-> **Note:** The current version of Nuclio supports Docker images.
-
-#### Scaler
-
-The scaler is designed to auto-scale, scale-to-zero, and wake up functions, based on the function load and usage.
-
-### Function concepts
-
-#### Triggers
-
-Functions can be invoked through a variety of event sources that are defined in the function (such as HTTP, RabbitMQ, Kafka, Kinesis, NATS, DynamoDB, Iguazio v3io, or schedule). Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
-
-#### SDK
-
-The Nuclio SDK is used by function developers to write, test, and submit their code, without the need for the entire Nuclio source tree.
+However, scaling to zero is not something they can do on their own. Rather - once scaled to zero, a Nuclio function cannot scale itself up when a new event arrives. For this purpose, Nuclio has a "Scaler" service. This handles all matters of scaling to zero and, more importantly, from zero.  
 
 ## Function examples
 
