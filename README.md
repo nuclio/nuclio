@@ -14,7 +14,7 @@ Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news
 - [Overview](#overview)
 - [Why another "serverless" project?](#why-another-serverless-project)
 - [Quick-start steps](#quick-start-steps)
-- [High-level architecture](#high-level-architecture)
+- [How it works](#how-it-works)
 - [Function examples](#function-examples)
 - [Further reading](#further-reading)
 
@@ -68,9 +68,9 @@ curl -X POST -H "Content-Type: application/text" -d '{"value":2,"unit":"hours"}'
 
 For a complete step-by-step guide to using Nuclio over Kubernetes, either with the dashboard UI or the Nuclio command-line interface (`nuctl`), see [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md), [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md), or [Getting started with Nuclio on Azure Container Services (AKS)](/docs/setup/aks/getting-started-aks.md).
 
-## "When this happens, do that"
+## How it works
 
-Nuclio tries to abstract away all the scaffolding around taking an event that occurred (e.g. a record was written into Kafka, an HTTP request was made, a timer expired) and passing this information to a piece of code for processing. To do this, Nuclio expects the users to provide (at the very least) information about what can trigger an event and the code to run when such an event happens. Users provide this information to Nuclio either via the command line utility (`nuctl`), a REST API or visually through a web application. 
+"When this happens, do that". Nuclio tries to abstract away all the scaffolding around taking an event that occurred (e.g. a record was written into Kafka, an HTTP request was made, a timer expired) and passing this information to a piece of code for processing. To do this, Nuclio expects the users to provide (at the very least) information about what can trigger an event and the code to run when such an event happens. Users provide this information to Nuclio either via the command line utility (`nuctl`), a REST API or visually through a web application. 
 
 ![architecture](/docs/assets/images/architecture-3.png)
 
