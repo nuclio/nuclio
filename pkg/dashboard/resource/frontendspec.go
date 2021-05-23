@@ -108,7 +108,7 @@ func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interfac
 	defaultFunctionSpec := functionconfig.Spec{
 		MinReplicas:             &one,
 		MaxReplicas:             &one,
-		ReadinessTimeoutSeconds: abstract.DefaultReadinessTimeoutSeconds,
+		ReadinessTimeoutSeconds: fesr.resolveFunctionReadinessTimeoutSeconds(),
 		TargetCPU:               abstract.DefaultTargetCPU,
 		Triggers: map[string]functionconfig.Trigger{
 
@@ -151,6 +151,14 @@ func (fesr *frontendSpecResource) resolveDefaultServiceType() v1.ServiceType {
 		defaultServiceType = dashboardServer.GetPlatformConfiguration().Kube.DefaultServiceType
 	}
 	return defaultServiceType
+}
+
+func (fesr *frontendSpecResource) resolveFunctionReadinessTimeoutSeconds() int {
+	readinessTimeoutSeconds := platformconfig.DefaultFunctionReadinessTimeoutSeconds
+	if dashboardServer, ok := fesr.resource.GetServer().(*dashboard.Server); ok {
+		return int(dashboardServer.GetPlatformConfiguration().GetDefaultFunctionReadinessTimeout().Seconds())
+	}
+	return readinessTimeoutSeconds
 }
 
 // register the resource

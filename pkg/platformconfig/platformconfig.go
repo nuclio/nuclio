@@ -38,6 +38,7 @@ type Config struct {
 	AutoScale                AutoScale                    `json:"autoScale,omitempty"`
 	CronTriggerCreationMode  CronTriggerCreationMode      `json:"cronTriggerCreationMode,omitempty"`
 	FunctionAugmentedConfigs []LabelSelectorAndConfig     `json:"functionAugmentedConfigs,omitempty"`
+	FunctionReadinessTimeout *string                      `json:"functionReadinessTimeout,omitempty"`
 	IngressConfig            IngressConfig                `json:"ingressConfig,omitempty"`
 	Kube                     PlatformKubeConfig           `json:"kube,omitempty"`
 	Local                    PlatformLocalConfig          `json:"local,omitempty"`
@@ -46,6 +47,9 @@ type Config struct {
 	ProjectsLeader           *ProjectsLeader              `json:"projectsLeader,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
+
+	// stores the encoded FunctionReadinessTimeout as time.Duration
+	functionReadinessTimeout *time.Duration
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {
@@ -81,6 +85,17 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.Kube.DefaultServiceType = DefaultServiceType
 	}
 
+	if config.FunctionReadinessTimeout == nil {
+		encodedReadinessTimeoutDuration := (DefaultFunctionReadinessTimeoutSeconds * time.Second).String()
+		config.FunctionReadinessTimeout = &encodedReadinessTimeoutDuration
+	}
+
+	functionReadinessTimeout, err := time.ParseDuration(*config.FunctionReadinessTimeout)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse function readiness timeout")
+	}
+	config.functionReadinessTimeout = &functionReadinessTimeout
+
 	return config, nil
 }
 
@@ -115,6 +130,17 @@ func (config *Config) GetFunctionLoggerSinks(functionConfig *functionconfig.Conf
 	}
 
 	return config.getLoggerSinksWithLevel(loggerSinkBindings)
+}
+
+func (config *Config) GetDefaultFunctionReadinessTimeout() time.Duration {
+
+	// provided by the platform-config
+	if config.functionReadinessTimeout != nil {
+		return *config.functionReadinessTimeout
+	}
+
+	// no configuration were explicitly given, return default
+	return DefaultFunctionReadinessTimeoutSeconds * time.Second
 }
 
 func (config *Config) GetSystemMetricSinks() (map[string]MetricSink, error) {

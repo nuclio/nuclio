@@ -340,9 +340,12 @@ func (d *deployCommandeer) populateDeploymentDefaults() {
 	if d.functionConfig.Spec.RunRegistry == "" {
 		d.functionConfig.Spec.RunRegistry = os.Getenv("NUCTL_RUN_REGISTRY")
 	}
+
 	if d.functionConfig.Spec.ReadinessTimeoutSeconds == 0 {
-		d.functionConfig.Spec.ReadinessTimeoutSeconds = abstract.DefaultReadinessTimeoutSeconds
+		d.functionConfig.Spec.ReadinessTimeoutSeconds = int(
+			d.rootCommandeer.platformConfiguration.GetDefaultFunctionReadinessTimeout().Seconds())
 	}
+
 	if d.functionConfig.Spec.DataBindings == nil {
 		d.functionConfig.Spec.DataBindings = map[string]functionconfig.DataBinding{}
 	}

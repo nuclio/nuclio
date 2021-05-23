@@ -296,6 +296,7 @@ platform: {}
 #       "python:3.6": "myregistry"
 #     onbuildImageRegistries:
 #       "golang": "myregistry"
+#   functionReadinessTimeout: 120s
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:

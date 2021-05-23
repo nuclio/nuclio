@@ -26,6 +26,8 @@ import (
 	machinarymetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const DefaultFunctionReadinessTimeoutSeconds = 60
+
 type LoggerSink struct {
 	Kind       string                 `json:"kind,omitempty"`
 	URL        string                 `json:"url,omitempty"`
