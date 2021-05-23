@@ -72,7 +72,7 @@ For a complete step-by-step guide to using Nuclio over Kubernetes, either with t
 
 The following image illustrates Nuclio's high-level architecture:
 
-![architecture](/docs/assets/images/architecture-2.png)
+![architecture](/docs/assets/images/architecture-3.png)
 
 Following is an outline of the main architecture components. For more information about the Nuclio architecture, see [Architecture](/docs/concepts/architecture.md).
 
