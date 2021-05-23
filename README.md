@@ -1,4 +1,4 @@
-![Periodic](https://github.com/nuclio/nuclio/workflows/Periodic/badge.svg)
+[![Build Status](https://travis-ci.org/nuclio/nuclio.svg?branch=master)](https://travis-ci.org/nuclio/nuclio)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nuclio/nuclio)](https://goreportcard.com/report/github.com/nuclio/nuclio)
 [![Slack](https://img.shields.io/badge/slack-join%20chat%20%E2%86%92-e01563.svg)](https://lit-oasis-83353.herokuapp.com/)
 
@@ -14,7 +14,7 @@ Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news
 - [Overview](#overview)
 - [Why another "serverless" project?](#why-another-serverless-project)
 - [Quick-start steps](#quick-start-steps)
-- [High-level architecture](#high-level-architecture)
+- [How it works](#how-it-works)
 - [Function examples](#function-examples)
 - [Further reading](#further-reading)
 
@@ -42,83 +42,51 @@ None of the existing cloud and open-source serverless solutions addressed all th
 - Real-time processing with minimal CPU/GPU and I/O overhead and maximum parallelism
 - Native integration with a large variety of data sources, triggers, processing models, and ML frameworks
 - Stateful functions with data-path acceleration
-- Simple debugging, regression testing, and multi-versioned CI/CD pipelines
 - Portability across low-power devices, laptops, edge and on-prem clusters, and public clouds
 - Open-source but designed for the enterprise (including logging, monitoring, security, and usability)
 
-Nuclio was created to fulfill these requirements.  It was intentionally designed as an extendable open-source framework, using a modular and layered approach that supports constant addition of triggers and data sources, with the hope that many will join the effort of developing new modules, developer tools, and platforms for Nuclio.
+Nuclio was created to fulfill these requirements.  It was intentionally designed as an extendable open-source framework, using a modular and layered approach that supports constant addition of triggers and runtimes, with the hope that many will join the effort of developing new modules, developer tools, and platforms for Nuclio.
 
 ## Quick-start steps
 
-The simplest way to explore Nuclio is to run its graphical user interface (GUI) of the Nuclio [dashboard](#dashboard). All you need to run the dashboard is Docker:
+The simplest way to explore Nuclio is to run its graphical user interface (GUI) of the Nuclio [dashboard](#dashboard). All you need in order to run the dashboard is Docker:
 
 ```sh
-docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp --name nuclio-dashboard quay.io/nuclio/dashboard:stable-amd64
+docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp --name nuclio-dashboard gcr.io/nuclio/dashboard:stable-amd64
 ```
 
 ![dashboard](/docs/assets/images/dashboard.png)
 
-Browse to http://localhost:8070, create a project, and add a function. When run outside of an orchestration platform (for example, Kubernetes or Swarm), the dashboard will simply deploy to the local Docker daemon.
+Browse to http://localhost:8070, create a project, and add a function. When run outside of an orchestration platform (for example, Kubernetes), the dashboard will simply deploy to the local Docker daemon.
 
 Assuming you are running Nuclio with Docker, as an example, create a project and deploy the pre-existing template "dates (nodejs)".
-With `docker ps`, you should see that the function was deployed in its own container.
-You can then invoke your function with curl; (check that the port number is correct by using `docker ps` or the Nuclio dashboard):
+With `docker ps`, you should see that the function was deployed in its own container. You can then invoke your function with curl; (check that the port number is correct by using `docker ps` or the Nuclio dashboard):
 
 ```sh
 curl -X POST -H "Content-Type: application/text" -d '{"value":2,"unit":"hours"}' http://localhost:37975
 ```
 
-For a complete step-by-step guide to using Nuclio over Kubernetes, either with the dashboard UI or the Nuclio command-line interface (`nuctl`), explore these learning pathways:
+For a complete step-by-step guide to using Nuclio over Kubernetes, either with the dashboard UI or the Nuclio command-line interface (`nuctl`), see [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md), [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md), or [Getting started with Nuclio on Azure Container Services (AKS)](/docs/setup/aks/getting-started-aks.md).
 
-- [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md)
-- [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md)
-- [Getting started with Nuclio on Azure Container Services (AKS)](/docs/setup/aks/getting-started-aks.md)
-- [Hands-on live Kubernetes sandbox and guiding instructions for Nuclio, free on Katacoda](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
+## How it works
 
-## High-level architecture
+"When this happens, do that". Nuclio tries to abstract away all the scaffolding around taking an event that occurred (e.g. a record was written into Kafka, an HTTP request was made, a timer expired) and passing this information to a piece of code for processing. To do this, Nuclio expects the users to provide (at the very least) information about what can trigger an event and the code to run when such an event happens. Users provide this information to Nuclio either via the command line utility (`nuctl`), a REST API or visually through a web application. 
 
-The following illustrates Nuclio's high-level architecture:
+![architecture](/docs/assets/images/architecture-3.png)
 
-![architecture](/docs/assets/images/architecture.png)
+Nuclio takes this information (namely, the function `handler` and the function `configuration`) and sends it to a builder. This builder will craft the function's container image holding the user's handler and a piece of software that can execute this handler whenever events are received (more on that in a bit). The builder will then "publish" this container image by pushing it to a container registry.
 
-The following is an outline of the main architecture components. For more information about the Nuclio architecture, see [Architecture](/docs/concepts/architecture.md).
+Once published, the function container image can be deployed. The deployer will craft orchestrator specific configuration from the function's configuration. For example, if deploying to Kubernetes the deployer will take configuration parameters like number of replicas, auto scaling timing parameters, how many GPUs the function is requesting and convert this to Kubernetes resource configuration (i.e. Deployment, Service, Ingress, etc). 
 
-### Services
+> Note: The deployer does not create Kubernetes native resources directly, but rather creates a "NuclioFunction" custom resource (CRD). A Nuclio service called the "controller" listens to changes on the NuclioFunction CRD and creates/modifies/destroys the applicable Kubernetes native resources (Deployment, Service, etc). This follows the standard Kubernetes operator pattern
 
-#### Processor
+The orchestrator will then spin up containers from the published container images and execute them, providing them the function configuration. The entrypoint of these containers is the "processor", responsible for reading the configuration, listening to event triggers (e.g. connecting to Kafka, listening for HTTP), reading events when they happen and calling the user's handler. The processor is responsible for many, many other things including handling metrics, marshaling responses, gracefully handling crashes, etc. 
 
-A processor listens on one or more triggers (for example, HTTP, Message Queue, or Stream), and executes user functions with one or more parallel workers.
+### Scaling to Zero
 
-The workers use language-specific runtimes to execute the function (via native calls, shared memory, or shell). Processors use abstract interfaces to integrate with platform facilities for logging, monitoring and configuration, allowing for greater portability and extensibility (such as logging to a screen, file, or log stream).
+Once built and deployed to an orchestrator like Kubernetes, Nuclio functions (namely, processors) can process events, scale up and down based on performance metrics, ship logs and metrics - all without the help of any external entity. Once deployed, you can terminate the Nuclio Dashboard and Controller services and Nuclio functions will still run and scale perfectly.
 
-#### Controller
-
-A controller accepts function and event-source specifications, invokes builders and processors through an orchestration platform (such as Kubernetes), and manages function elasticity, life cycle, and versions.
-
-#### Dashboard
-
-The dashboard is a standalone microservice that is accessed through HTTP and includes a code-editor GUI for editing, deploying, and testing functions. This is the most user-friendly way to work with Nuclio. The dashboard container comes packaged with a version of the Nuclio [builder](#builder).
-
-#### Builder
-
-A builder receives raw code and optional build instructions and dependencies, and generates the function artifact - a binary file or a container image that the builder can also push to a specified image repository. The builder can run in the context of the CLI or as a separate service, for automated development pipelines.
-
-<a id="supported-container-images-note"></a>
-> **Note:** The current version of Nuclio supports Docker images.
-
-#### Scaler
-
-The scaler is designed to auto-scale, scale-to-zero, and wake up functions, based on the function load and usage.
-
-### Function concepts
-
-#### Triggers
-
-Functions can be invoked through a variety of event sources that are defined in the function (such as HTTP, RabbitMQ, Kafka, Kinesis, NATS, DynamoDB, an Iguazio Data Science Platform stream, or schedule). Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
-
-#### SDK
-
-The Nuclio SDK is used by function developers to write, test, and submit their code, without the need for the entire Nuclio source tree.
+However, scaling to zero is not something they can do on their own. Rather - once scaled to zero, a Nuclio function cannot scale itself up when a new event arrives. For this purpose, Nuclio has a "Scaler" service. This handles all matters of scaling to zero and, more importantly, from zero.  
 
 ## Function examples
 
@@ -163,40 +131,38 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
 ## Further reading
 
 - Setup
-    - [Getting Started with Nuclio on Docker](/docs/setup/docker/getting-started-docker.md)
-    - [Getting Started with Nuclio on Minikube](/docs/setup/minikube/getting-started-minikube.md)
-    - [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md)
-    - [Getting Started with Nuclio on Azure Kubernetes Service (AKS)](/docs/setup/aks/getting-started-aks.md)
-    - [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md)
-    - Getting Started with Nuclio on Raspberry Pi (coming soon)
+  - [Getting Started with Nuclio on Minikube](/docs/setup/minikube/getting-started-minikube.md)
+  - [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md)
+  - [Getting Started with Nuclio on Azure Kubernetes Service (AKS)](/docs/setup/aks/getting-started-aks.md)
+  - [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md)
+  - Getting Started with Nuclio on Raspberry Pi (coming soon)
 - Tasks
-    - [Deploying Functions](/docs/tasks/deploying-functions.md)
-    - [Deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md)
-    - [Deploying Pre-Built Functions](/docs/tasks/deploying-pre-built-functions.md)
-    - [Configuring a Platform](/docs/tasks/configuring-a-platform.md)
+  - [Deploying Functions](/docs/tasks/deploying-functions.md)
+  - [Deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md)
+  - [Deploying Pre-Built Functions](/docs/tasks/deploying-pre-built-functions.md)
+  - [Configuring a Platform](/docs/tasks/configuring-a-platform.md)
 - Concepts
-    - [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
-    - [Architecture](/docs/concepts/architecture.md)
-    - Kubernetes
-        - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
+  - [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
+  - [Architecture](/docs/concepts/architecture.md)
+  - Kubernetes
+    - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
 - References
-    - [nuctl](/docs/reference/nuctl/nuctl.md)
-    - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
-    - [Triggers](/docs/reference/triggers)
-    - [Runtime - .NET Core 3.1](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
-    - [Runtime - Shell](/docs/reference/runtimes/shell/writing-a-shell-function.md)
+  - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
+  - [Triggers](/docs/reference/triggers)
+  - [nuctl](/docs/reference/nuctl)
+  - [Runtime - .NET Core 3.1](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
+  - [Runtime - Shell](/docs/reference/runtimes/shell/writing-a-shell-function.md)
 - [Examples](hack/examples/README.md)
-- Sandbox
-    - [Install Nuclio and run functions. Explore and experiment on a free Kubernetes cluster.](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
+- [Roadmap](ROADMAP.md)
 - Contributing
-    - [Code conventions](/docs/devel/coding-conventions.md)
-    - [Contributing to Nuclio](/docs/devel/contributing.md)
+  - [Code conventions](/docs/devel/coding-conventions.md)
+  - [Contributing to Nuclio](/docs/devel/contributing.md)
 - Media
-    - [Running High-Speed Serverless with nuclio (slides)](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio)
-    - [CNCF Webinar – Serverless and AI (video)](https://www.youtube.com/watch?v=pTCx569Kd4A)
-    - [Faster AI Development With Serverless (tutorial)](https://dzone.com/articles/tutorial-faster-ai-development-with-serverless)
-    - [nuclio and the Future of Serverless Computing (blog)](https://thenewstack.io/whats-next-serverless/)
-    - [nuclio: The New Serverless Superhero (blog)](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
-    - [Serverless Framework for Real-Time Apps Emerges (Blog)](https://www.rtinsights.com/serverless-framework-for-real-time-apps-emerges/)
+  - [Running High-Speed Serverless with nuclio (slides)](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio)
+  - [CNCF Webinar – Serverless and AI (video)](https://www.youtube.com/watch?v=pTCx569Kd4A)
+  - [Faster AI Development With Serverless (tutorial)](https://dzone.com/articles/tutorial-faster-ai-development-with-serverless)
+  - [nuclio and the Future of Serverless Computing (blog)](https://thenewstack.io/whats-next-serverless/)
+  - [nuclio: The New Serverless Superhero (blog)](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
+  - [Serverless Framework for Real-Time Apps Emerges (Blog)](https://www.rtinsights.com/serverless-framework-for-real-time-apps-emerges/)
 
 For support and additional product information, [join](https://lit-oasis-83353.herokuapp.com) the active [Nuclio Slack](https://nuclio-io.slack.com) workspace.
