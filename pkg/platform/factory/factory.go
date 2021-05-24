@@ -49,7 +49,7 @@ func CreatePlatform(parentLogger logger.Logger,
 
 	case "auto":
 
-		// kubeconfig path is set, or running in kubernetes clsuter
+		// kubeconfig path is set, or running in kubernetes cluster
 		if common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath) != "" ||
 			kube.IsInCluster() {
 
@@ -69,8 +69,13 @@ func CreatePlatform(parentLogger logger.Logger,
 		return nil, errors.Wrapf(err, "Failed to create %s platform", platformType)
 	}
 
-	if err = newPlatform.Initialize(); err != nil {
-		return nil, errors.Wrap(err, "Failed to initialize platform")
+	// under this section, add actions to be performed only after platform type had been resolved
+	// (so it won't be performed more than once)
+	if platformType != "auto" {
+		parentLogger.DebugWith("Initializing platform", "platformType", platformType)
+		if err = newPlatform.Initialize(); err != nil {
+			return nil, errors.Wrap(err, "Failed to initialize platform")
+		}
 	}
 
 	return newPlatform, nil

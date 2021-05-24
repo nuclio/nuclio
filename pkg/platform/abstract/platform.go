@@ -42,6 +42,7 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
@@ -782,6 +783,12 @@ func (ap *Platform) EnsureDefaultProjectExistence() error {
 		if err := ap.platform.CreateProject(&platform.CreateProjectOptions{
 			ProjectConfig: newProject.GetConfig(),
 		}); err != nil {
+
+			// if project already exists, return
+			if apierrors.IsAlreadyExists(errors.RootCause(err)) {
+				return nil
+			}
+
 			return errors.Wrap(err, "Failed to create default project")
 		}
 

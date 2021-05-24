@@ -10,11 +10,11 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Client struct {
 	platformConfiguration *platformconfig.Config
+	synchronizer          *iguazio.Synchronizer
 	internalClient        project.Client
 	leaderClient          leader.Client
 }
@@ -35,13 +35,25 @@ func NewClient(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create leader client")
 	}
 
+	// get leader synchronization interval
+	synchronizationIntervalStr := "0"
+	if platformConfiguration.ProjectsLeader != nil {
+		synchronizationIntervalStr = platformConfiguration.ProjectsLeader.SynchronizationInterval
+	}
+	newClient.synchronizer, err = iguazio.NewSynchronizer(parentLogger, synchronizationIntervalStr, newClient.leaderClient, internalClient)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create synchronizer")
+	}
+
 	return &newClient, nil
 }
 
 func (c *Client) Initialize() error {
+	if err := c.synchronizer.Start(); err != nil {
+		return errors.Wrap(err, "Failed to start the projects synchronizer")
+	}
 
-	// do nothing
-	return nil
+	return c.internalClient.Initialize()
 }
 
 func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
@@ -57,7 +69,7 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (pl
 			return nil, errors.Wrap(err, "Failed while requesting from the leader to create the project")
 		}
 
-		return nil, nuclio.NewErrAccepted("Successfully requested from the leader to create the project")
+		return nil, platform.ErrSuccessfulCreateProjectLeader
 	}
 }
 
@@ -70,7 +82,7 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (pl
 			return nil, errors.Wrap(err, "Failed while requesting from the leader to update the project")
 		}
 
-		return nil, nuclio.NewErrAccepted("Successfully requested from the leader to update the project")
+		return nil, platform.ErrSuccessfulUpdateProjectLeader
 	}
 }
 
@@ -83,7 +95,7 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 			return errors.Wrap(err, "Failed while requesting from the leader to delete the project")
 		}
 
-		return nuclio.NewErrAccepted("Successfully requested from the leader to delete the project")
+		return platform.ErrSuccessfulDeleteProjectLeader
 	}
 }
 

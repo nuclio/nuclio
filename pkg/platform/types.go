@@ -19,8 +19,10 @@ package platform
 // use k8s structure definitions for now. In the future, duplicate them for cleanliness
 import (
 	"net/http"
+	"reflect"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -162,13 +164,44 @@ type ProjectMeta struct {
 	ResourceVersion string `json:"resourceVersion,omitempty"`
 }
 
+func (pm ProjectMeta) IsEqual(other ProjectMeta) bool {
+	labels := common.GetStringToStringMapOrEmpty(pm.Labels)
+	otherLabels := common.GetStringToStringMapOrEmpty(other.Labels)
+	annotations := common.GetStringToStringMapOrEmpty(pm.Annotations)
+	otherAnnotations := common.GetStringToStringMapOrEmpty(other.Annotations)
+
+	return pm.Name == other.Name &&
+		pm.Namespace == other.Namespace &&
+		reflect.DeepEqual(labels, otherLabels) &&
+		reflect.DeepEqual(annotations, otherAnnotations)
+}
+
 type ProjectSpec struct {
 	Description string `json:"description,omitempty"`
 }
 
+func (ps ProjectSpec) IsEqual(other ProjectSpec) bool {
+	return ps == other
+}
+
+type ProjectStatus struct {
+	AdminStatus       string    `json:"adminStatus,omitempty"`
+	OperationalStatus string    `json:"operationalStatus,omitempty"`
+	UpdatedAt         time.Time `json:"updatedAt,omitempty"`
+}
+
+func (pst ProjectStatus) IsEqual(other ProjectStatus) bool {
+	return pst == other
+}
+
 type ProjectConfig struct {
-	Meta ProjectMeta `json:"meta"`
-	Spec ProjectSpec `json:"spec"`
+	Meta   ProjectMeta   `json:"meta"`
+	Spec   ProjectSpec   `json:"spec"`
+	Status ProjectStatus `json:"status,omitempty"`
+}
+
+func (pc *ProjectConfig) IsEqual(other *ProjectConfig, ignoreStatus bool) bool {
+	return pc.Meta.IsEqual(other.Meta) && pc.Spec.IsEqual(other.Spec) && (ignoreStatus || pc.Status.IsEqual(other.Status))
 }
 
 func (pc *ProjectConfig) Scrub() {
@@ -233,10 +266,10 @@ type GetProjectsOptions struct {
 }
 
 // to appease k8s
-func (s *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
+func (ps *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
 
 	// TODO: proper deep copy
-	*out = *s
+	*out = *ps
 }
 
 //
