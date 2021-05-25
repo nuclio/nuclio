@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import asyncio
 import functools
 import http.client
 import json
@@ -99,7 +99,7 @@ class TestSubmitEvents(unittest.TestCase):
         t = threading.Thread(target=self._send_events, args=(events,))
         t.start()
 
-        self._wrapper.serve_requests(num_requests=len(events))
+        asyncio.get_event_loop().run_until_complete(self._wrapper.serve_requests(num_requests=len(events)))
         t.join()
 
         # processor start
@@ -137,7 +137,7 @@ class TestSubmitEvents(unittest.TestCase):
         self._send_event(nuclio_sdk.Event(_id='1'))
 
         self._wrapper._entrypoint = raise_exception
-        self._wrapper.serve_requests(num_requests=1)
+        asyncio.get_event_loop().run_until_complete(self._wrapper.serve_requests(num_requests=1))
 
         # processor start, function log line, response body
         self._wait_until_received_messages(3)
@@ -160,7 +160,7 @@ class TestSubmitEvents(unittest.TestCase):
         self._wrapper._entrypoint = unittest.mock.MagicMock()
         self._wrapper._entrypoint.assert_not_called()
         with self.assertRaises(SystemExit):
-            self._wrapper.serve_requests(num_requests=1)
+            asyncio.get_event_loop().run_until_complete(self._wrapper.serve_requests(num_requests=1))
         t.join()
 
     def test_single_event(self):
@@ -171,7 +171,7 @@ class TestSubmitEvents(unittest.TestCase):
         t = threading.Thread(target=self._send_event, args=(nuclio_sdk.Event(_id=1, body=reverse_text),))
         t.start()
 
-        self._wrapper.serve_requests(num_requests=1)
+        asyncio.get_event_loop().run_until_complete(self._wrapper.serve_requests(num_requests=1))
         t.join()
 
         # processor start, function log line, response body, duration messages
@@ -202,7 +202,7 @@ class TestSubmitEvents(unittest.TestCase):
         t.start()
 
         self._wrapper._entrypoint = functools.partial(record_event, recorded_event_ids)
-        self._wrapper.serve_requests(num_requests=expected_events_length)
+        asyncio.get_event_loop().run_until_complete(self._wrapper.serve_requests(num_requests=expected_events_length))
         t.join()
 
         # record incoming events
@@ -223,7 +223,7 @@ class TestSubmitEvents(unittest.TestCase):
         )
         self._send_events(events)
         self._wrapper._entrypoint = event_recorder
-        self._wrapper.serve_requests(num_of_events)
+        asyncio.get_event_loop().run_until_complete(self._wrapper.serve_requests(num_of_events))
         self.assertEqual(num_of_events, len(recorded_events), 'wrong number of events')
 
         for recorded_event_index, recorded_event in enumerate(sorted(recorded_events, key=operator.attrgetter('id'))):
