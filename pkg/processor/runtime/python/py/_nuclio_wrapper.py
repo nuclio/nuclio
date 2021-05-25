@@ -91,7 +91,7 @@ class Wrapper(object):
     async def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
 
-        self._loop = asyncio.get_running_loop()
+        self._loop = asyncio.get_event_loop()
 
         # call init context
         if hasattr(self._entrypoint_module, 'init_context'):
