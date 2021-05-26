@@ -216,7 +216,7 @@ class Wrapper(object):
         int_buf = bytearray(4)
 
         if self._is_entrypoint_coroutine:
-            should_be_four = await self._loop.run_in_executor(None, self._processor_sock.recv_into, int_buf, 4)
+            should_be_four = await self._loop.sock_recv_into(self._processor_sock, int_buf)
         else:
             should_be_four = self._processor_sock.recv_into(int_buf, 4)
 
