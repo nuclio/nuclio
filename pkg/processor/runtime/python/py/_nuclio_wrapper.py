@@ -210,14 +210,15 @@ class Wrapper(object):
         self._processor_sock_wfile.write(body + '\n')
         self._processor_sock_wfile.flush()
 
+    # Determines the message body size
     async def _resolve_event_message_length(self):
 
-        # used for the first message, to determine the body size
-        int_buf = bytearray(4)
-
         if self._is_entrypoint_coroutine:
-            should_be_four = await self._loop.run_in_executor(None, self._processor_sock.recv_into, int_buf, 4)
+            # loop.sock_recv_into is not python 3.6-compatible.
+            int_buf = await self._loop.sock_recv(self._processor_sock, 4)
+            should_be_four = len(int_buf)
         else:
+            int_buf = bytearray(4)
             should_be_four = self._processor_sock.recv_into(int_buf, 4)
 
         # client disconnect
