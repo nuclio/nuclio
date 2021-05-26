@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import argparse
+import asyncio
 import json
 import logging
 import re
@@ -61,6 +62,8 @@ class Wrapper(object):
         # holds the function that will be called
         self._entrypoint = self._load_entrypoint_from_handler(handler)
 
+        self._is_entrypoint_coroutine = asyncio.iscoroutinefunction(self._entrypoint)
+
         # connect to processor
         self._processor_sock = self._connect_to_processor()
 
@@ -74,7 +77,7 @@ class Wrapper(object):
         self._event_deserializer_kind = self._resolve_event_deserializer_kind()
 
         # get handler module
-        entrypoint_module = sys.modules[self._entrypoint.__module__]
+        self._entrypoint_module = sys.modules[self._entrypoint.__module__]
 
         # create a context with logger and platform
         self._context = nuclio_sdk.Context(self._logger,
@@ -85,10 +88,19 @@ class Wrapper(object):
         # replace the default output with the process socket
         self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
 
+    async def serve_requests(self, num_requests=None):
+        """Read event from socket, send out reply"""
+
+        self._loop = asyncio.get_event_loop()
+
         # call init context
-        if hasattr(entrypoint_module, 'init_context'):
+        if hasattr(self._entrypoint_module, 'init_context'):
             try:
-                getattr(entrypoint_module, 'init_context')(self._context)
+                init_context = getattr(self._entrypoint_module, 'init_context')
+                init_context_result = getattr(self._entrypoint_module, 'init_context')(self._context)
+                if asyncio.iscoroutinefunction(init_context):
+                    await init_context_result
+
             except:
                 self._logger.error('Exception raised while running init_context')
                 raise
@@ -96,24 +108,21 @@ class Wrapper(object):
         # indicate that we're ready
         self._write_packet_to_processor('s')
 
-    def serve_requests(self, num_requests=None):
-        """Read event from socket, send out reply"""
-
         while True:
 
             try:
 
                 # resolve event message length
-                event_message_length = self._resolve_event_message_length()
+                event_message_length = await self._resolve_event_message_length()
 
                 # resolve event message
-                event_message = self._resolve_event(event_message_length)
+                event_message = await self._resolve_event(event_message_length)
 
                 # instantiate event message
                 event = nuclio_sdk.Event.deserialize(event_message, kind=self._event_deserializer_kind)
 
                 try:
-                    self._handle_event(event)
+                    await self._handle_event(event)
                 except BaseException as exc:
                     self._on_handle_event_error(exc)
 
@@ -201,12 +210,16 @@ class Wrapper(object):
         self._processor_sock_wfile.write(body + '\n')
         self._processor_sock_wfile.flush()
 
-    def _resolve_event_message_length(self):
+    # Determines the message body size
+    async def _resolve_event_message_length(self):
 
-        # used for the first message, to determine the body size
-        int_buf = bytearray(4)
-
-        should_be_four = self._processor_sock.recv_into(int_buf, 4)
+        if self._is_entrypoint_coroutine:
+            # loop.sock_recv_into is not python 3.6-compatible.
+            int_buf = await self._loop.sock_recv(self._processor_sock, 4)
+            should_be_four = len(int_buf)
+        else:
+            int_buf = bytearray(4)
+            should_be_four = self._processor_sock.recv_into(int_buf, 4)
 
         # client disconnect
         if should_be_four != 4:
@@ -222,12 +235,15 @@ class Wrapper(object):
 
         return bytes_to_read
 
-    def _resolve_event(self, event_bytes_length):
+    async def _resolve_event(self, event_bytes_length):
 
         cumulative_bytes_read = 0
         while cumulative_bytes_read < event_bytes_length:
             bytes_to_read_now = event_bytes_length - cumulative_bytes_read
-            bytes_read = self._processor_sock.recv(bytes_to_read_now)
+            if self._is_entrypoint_coroutine:
+                bytes_read = await self._loop.sock_recv(self._processor_sock, bytes_to_read_now)
+            else:
+                bytes_read = self._processor_sock.recv(bytes_to_read_now)
 
             if not bytes_read:
                 raise WrapperFatalException('Client disconnected')
@@ -265,13 +281,15 @@ class Wrapper(object):
             print('Failed to write message to processor after serving error detected, is socket open?\n'
                   'Exception: {0}'.format(str(exc)))
 
-    def _handle_event(self, event):
+    async def _handle_event(self, event):
 
         # take call time
         start_time = time.time()
 
         # call the entrypoint
         entrypoint_output = self._entrypoint(self._context, event)
+        if self._is_entrypoint_coroutine:
+            entrypoint_output = await entrypoint_output
 
         # measure duration, set to minimum float in case execution was too fast
         duration = time.time() - start_time or sys.float_info.min
@@ -373,8 +391,8 @@ def run_wrapper():
 
         raise SystemExit(1)
 
-    # register the function @ the wrapper
-    wrapper_instance.serve_requests()
+    # 3.6-compatible alternative to asyncio.run()
+    asyncio.get_event_loop().run_until_complete(wrapper_instance.serve_requests())
 
 
 if __name__ == '__main__':
