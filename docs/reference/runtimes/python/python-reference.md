@@ -23,6 +23,28 @@ def handler(context: nuclio_sdk.Context, event: nuclio_sdk.Event):
 
 The `handler` field is of the form `<package>:<entrypoint>`, where `<package>` is a dot (`.`) separated path (for example, `foo.bar` equates to `foo/bar.py`) and `<entrypoint>` is the function name. In the example above, the handler is `main:handler`, assuming the file is named `main.py`.
 
+For asynchronous support (e.g.: `asyncio`), you may want to decorate your function handle with `async`
+
+Do note that:
+  - Nuclio, at the moment, does not support concurrent requests handling for a single working. Each working may handle
+    one request at a time, for more information and reading further, see [here](/docs/concepts/architecture.md#runtime-engine).
+  - The event loop would keep running while listening on more incoming requests, that can benefit functions that do
+    I/O bound background tasks.
+
+```python
+import asyncio
+
+import nuclio_sdk
+
+async def handler(context: nuclio_sdk.Context, event: nuclio_sdk.Event):
+    context.logger.info_with('Updating db in background', event_body=event.body.decode())
+    asyncio.create_task(update_db(context, event))    
+    return "Hello, from Nuclio :]"
+
+async def update_db(context, event):
+    context.db.update_record(event.body)
+```
+
 ## Dockerfile
 
 Following is sample Dockerfile code for deploying a Python function. For more information, see [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
