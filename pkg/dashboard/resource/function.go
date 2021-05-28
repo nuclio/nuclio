@@ -296,8 +296,7 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo,
 	case <-creationStateUpdatedChan:
 		break
 	case errDeploying := <-errDeployingChan:
-		return nuclio.NewErrInternalServerError(
-			fmt.Sprintf("Failed to deploy function resource: %s", errDeploying))
+		return errors.Wrapf(errors.Cause(errDeploying), "Failed deploying function %s", functionInfo.Meta.Name)
 	case <-time.After(creationStateUpdatedTimeout):
 		return nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
 	}
