@@ -28,7 +28,7 @@ Releaser flow
 - Release from development, bump patch version
 
 ```shell
- go run releaser \
+ go run releaser.go \
   --bump-patch \
   --github-token <my-scopeless-token>
 ```
@@ -36,7 +36,7 @@ Releaser flow
 - Release from development, explicit target versions
 
 ```shell script
- go run releaser \
+ go run releaser.go \
   --target-version 1.5.0 \
   --helm-charts-release-version 0.7.3
   --github-token <my-scopeless-token>
@@ -45,7 +45,7 @@ Releaser flow
 - Release from a 1.x.y branch
 
 ```shell script
-go run releaser \
+go run releaser.go \
   --development-branch 1.4.x \
   --release-branch 1.4.x \
   --target-version 1.4.18 \
@@ -55,7 +55,7 @@ go run releaser \
 - Bump + publish helm charts only
 
 ```shell script
-go run releaser \
+go run releaser.go \
   --skip-create-release \
   --current-version 1.4.17 \
   --target-version 1.4.18 \
