@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
+	"github.com/nuclio/nuclio/pkg/dashboard/opa"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -60,6 +61,7 @@ type Server struct {
 	imageNamePrefixTemplate        string
 	platformAuthorizationMode      PlatformAuthorizationMode
 	dependantImageRegistryURL      string
+	opaClient                      *opa.Client
 }
 
 func NewServer(parentLogger logger.Logger,
@@ -124,6 +126,9 @@ func NewServer(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}
+
+	// create opa client
+	newServer.opaClient = opa.NewClient(newServer.Logger, platformConfiguration)
 
 	// try to load docker keys, ignoring errors
 	if containerBuilderKind == "docker" {
