@@ -88,11 +88,11 @@ func (r *resource) headerValueIsTrue(request *http.Request, headerName string) b
 func (r *resource) getUserAndGroupIdsFromHeaders(request *http.Request) []string {
 	var ids []string
 
-	userId := request.Header.Get(opa.UserIdHeader)
+	userID := request.Header.Get(opa.UserIDHeader)
 	userGroupIdsStr := request.Header.Get(opa.UserGroupIdsHeader)
 
-	if userId != "" {
-		ids = append(ids, userId)
+	if userID != "" {
+		ids = append(ids, userID)
 	}
 
 	if userGroupIdsStr != "" {

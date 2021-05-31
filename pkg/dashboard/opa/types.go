@@ -17,7 +17,7 @@ type PermissionResponse struct {
 }
 
 const (
-	UserIdHeader       string = "x-user-id"
+	UserIDHeader       string = "x-user-id"
 	UserGroupIdsHeader string = "x-user-group-ids"
 )
 
