@@ -157,7 +157,8 @@ func NewServer(parentLogger logger.Logger,
 		"defaultRegistryURL", defaultRegistryURL,
 		"defaultRunRegistryURL", defaultRunRegistryURL,
 		"defaultCredRefreshInterval", defaultCredRefreshInterval,
-		"defaultNamespace", defaultNamespace)
+		"defaultNamespace", defaultNamespace,
+		"opaAddress", platformConfiguration.OpaAddress)
 
 	return newServer, nil
 }

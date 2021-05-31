@@ -136,6 +136,75 @@ dashboard:
     #    hosts:
     #      - nuclio.local
 
+  opa:
+    enabled: false
+    name: opa-server
+    fullnameOverride:
+    nodePort:
+
+    config: { }
+    # services:
+    #   acmecorp:
+    #     url: https://example.com/control-plane-api/v1
+    #     response_header_timeout_seconds: 5
+    #     credentials:
+    #       bearer:
+    #         token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
+
+    # bundles:
+    #   authz:
+    #     service: acmecorp
+    #     resource: bundles/http/example/authz.tar.gz
+    #     persist: true
+    #     polling:
+    #       min_delay_seconds: 60
+    #       max_delay_seconds: 120
+    #     signing:
+    #       keyid: global_key
+    #       scope: write
+
+    logLevel: info
+    logFormat: json
+
+    image:
+      repository: openpolicyagent/opa
+      tag: 0.28.0
+      pullPolicy: IfNotPresent
+      pullSecrets: [ ]
+
+    resources: { }
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+    securityContext: { }
+    # capabilities:
+    #   drop:
+    #   - ALL
+    # readOnlyRootFilesystem: true
+    # runAsNonRoot: true
+    # runAsUser: 1000
+
+    readinessProbe:
+      httpGet:
+        path: /health?bundle=true
+        port: http
+      initialDelaySeconds: 10
+      timeoutSeconds: 10
+      periodSeconds: 15
+      failureThreshold: 4
+
+    livenessProbe:
+      httpGet:
+        port: http
+      initialDelaySeconds: 15
+      timeoutSeconds: 10
+      periodSeconds: 15
+      failureThreshold: 4
+
 autoscaler:
   enabled: false
   replicas: 1

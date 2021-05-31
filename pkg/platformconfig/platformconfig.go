@@ -47,6 +47,7 @@ type Config struct {
 	ProjectsLeader           *ProjectsLeader              `json:"projectsLeader,omitempty"`
 	ManagedNamespaces        []string                     `json:"managedNamespaces,omitempty"`
 	IguazioSessionCookie     string                       `json:"iguazioSessionCookie,omitempty"`
+	OpaAddress               string                       `json:"opaAddress,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 
@@ -73,6 +74,8 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 	} else {
 		config.Kind = "local"
 	}
+
+	config.OpaAddress = os.Getenv("NUCLIO_DASHBOARD_OPA_ADDRESS")
 
 	// enrich local platform configuration
 	config.enrichLocalPlatform()
