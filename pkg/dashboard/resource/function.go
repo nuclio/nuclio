@@ -27,6 +27,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/opa"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -57,6 +58,14 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	}
 
 	functionName := request.Header.Get("x-nuclio-function-name")
+
+	// check opa permissions for resource
+	projectName := request.Header.Get("x-nuclio-project-name")
+	err := fr.queryOPAFunctionPermissions(request, projectName, functionName, opa.ActionRead)
+	if err != nil {
+		return nil, err
+	}
+
 	functions, err := fr.getPlatform().GetFunctions(fr.resolveGetFunctionsFromRequest(request, functionName))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
@@ -91,6 +100,15 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 		return nil, errors.Wrap(err, "Failed to get get function")
 	}
 
+	// check opa permissions for resource
+	err = fr.queryOPAFunctionPermissions(request,
+		function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+		id,
+		opa.ActionRead)
+	if err != nil {
+		return nil, err
+	}
+
 	if fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false) {
 		return fr.export(function), nil
 	}
@@ -103,6 +121,14 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
 	if responseErr != nil {
 		return
+	}
+
+	err := fr.queryOPAFunctionPermissions(request,
+		functionInfo.Meta.Labels["nuclio.io/project-name"],
+		functionInfo.Meta.Name,
+		opa.ActionCreate)
+	if err != nil {
+		return "", nil, err
 	}
 
 	// TODO: Add a lock to prevent race conditions here (prevent 2 functions created with the same name)
@@ -142,6 +168,14 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
 	if responseErr != nil {
 		return
+	}
+
+	err := fr.queryOPAFunctionPermissions(request,
+		functionInfo.Meta.Labels["nuclio.io/project-name"],
+		functionInfo.Meta.Name,
+		opa.ActionUpdate)
+	if err != nil {
+		return nil, err
 	}
 
 	// TODO: Add a lock to prevent race conditions here
@@ -601,6 +635,19 @@ func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(request 
 
 	return getFunctionReplicaLogsStreamOptions, nil
 
+}
+
+func (fr *functionResource) queryOPAFunctionPermissions(request *http.Request,
+	projectName,
+	functionName string,
+	action opa.Action) error {
+	if projectName == "" {
+		projectName = "*"
+	}
+	if functionName == "" {
+		functionName = "*"
+	}
+	return fr.queryOPAPermissions(request, opa.GenerateFunctionResourceString(projectName, functionName), action)
 }
 
 // register the resource

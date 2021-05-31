@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -50,9 +51,10 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
+	functionEventName := request.Header.Get("x-nuclio-function-event-name")
 	getFunctionEventOptions := platform.GetFunctionEventsOptions{
 		Meta: platform.FunctionEventMeta{
-			Name:      request.Header.Get("x-nuclio-function-event-name"),
+			Name:      functionEventName,
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
 	}
@@ -63,6 +65,17 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 		getFunctionEventOptions.Meta.Labels = map[string]string{
 			"nuclio.io/function-name": functionName,
 		}
+	}
+
+	// check opa permissions for resource
+	projectName := request.Header.Get("x-nuclio-project-name")
+	err := fer.queryOPAFunctionEventPermissions(request,
+		projectName,
+		functionName,
+		functionEventName,
+		opa.ActionRead)
+	if err != nil {
+		return nil, err
 	}
 
 	functionEvents, err := fer.getPlatform().GetFunctionEvents(&getFunctionEventOptions)
@@ -103,6 +116,16 @@ func (fer *functionEventResource) GetByID(request *http.Request, id string) (res
 		return nil, nuclio.NewErrNotFound("Function event not found")
 	}
 
+	// check opa permissions for resource
+	err = fer.queryOPAFunctionEventPermissions(request,
+		functionEvent[0].GetConfig().Meta.Labels["nuclio.io/project-name"],
+		functionEvent[0].GetConfig().Meta.Labels["nuclio.io/function-name"],
+		id,
+		opa.ActionRead)
+	if err != nil {
+		return nil, err
+	}
+
 	return fer.functionEventToAttributes(functionEvent[0]), nil
 }
 
@@ -117,6 +140,16 @@ func (fer *functionEventResource) Create(request *http.Request) (id string, attr
 	// if the name wasn't specified, generate something
 	if functionEventInfo.Meta.Name == "" {
 		functionEventInfo.Meta.Name = uuid.NewV4().String()
+	}
+
+	// check opa permissions for resource
+	err := fer.queryOPAFunctionEventPermissions(request,
+		functionEventInfo.Meta.Labels["nuclio.io/project-name"],
+		functionEventInfo.Meta.Labels["nuclio.io/function-name"],
+		functionEventInfo.Meta.Name,
+		opa.ActionCreate)
+	if err != nil {
+		return "", nil, err
 	}
 
 	newFunctionEvent, err := fer.storeAndDeployFunctionEvent(functionEventInfo)
@@ -305,6 +338,25 @@ func (fer *functionEventResource) getFunctionEventInfoFromRequest(request *http.
 	}
 
 	return &functionEventInfoInstance, nil
+}
+
+func (fer *functionEventResource) queryOPAFunctionEventPermissions(request *http.Request,
+	projectName,
+	functionName,
+	functionEventName string,
+	action opa.Action) error {
+	if projectName == "" {
+		projectName = "*"
+	}
+	if functionName == "" {
+		functionName = "*"
+	}
+	if functionEventName == "" {
+		functionEventName = "*"
+	}
+	return fer.queryOPAPermissions(request,
+		opa.GenerateFunctionEventResourceString(projectName, functionName, functionEventName),
+		action)
 }
 
 // register the resource

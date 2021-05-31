@@ -55,7 +55,7 @@ func NewClient(parentLogger logger.Logger, platformConfiguration *platformconfig
 	return &newClient
 }
 
-func (c *Client) QueryPermissions(resource, action string, ids []string) (bool, error) {
+func (c *Client) QueryPermissions(resource string, action Action, ids []string) (bool, error) {
 	c.logger.DebugWith("Checking permissions in OPA",
 		"resource", resource,
 		"action", action,
@@ -75,7 +75,7 @@ func (c *Client) QueryPermissions(resource, action string, ids []string) (bool, 
 	}
 	request := PermissionRequest{Input: PermissionRequestInput{
 		resource,
-		action,
+		string(action),
 		ids,
 	}}
 	requestBody, err := json.Marshal(request)

@@ -61,7 +61,7 @@ type Server struct {
 	imageNamePrefixTemplate        string
 	platformAuthorizationMode      PlatformAuthorizationMode
 	dependantImageRegistryURL      string
-	opaClient                      *opa.Client
+	OPAClient                      *opa.Client
 }
 
 func NewServer(parentLogger logger.Logger,
@@ -128,7 +128,7 @@ func NewServer(parentLogger logger.Logger,
 	}
 
 	// create opa client
-	newServer.opaClient = opa.NewClient(newServer.Logger, platformConfiguration)
+	newServer.OPAClient = opa.NewClient(newServer.Logger, platformConfiguration)
 
 	// try to load docker keys, ignoring errors
 	if containerBuilderKind == "docker" {

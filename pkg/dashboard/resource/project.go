@@ -26,6 +26,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -68,9 +69,17 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
+	projectName := request.Header.Get("x-nuclio-project-name")
+
+	// check opa permissions for resource
+	err := pr.queryOPAProjectPermissions(request, projectName, opa.ActionRead)
+	if err != nil {
+		return nil, err
+	}
+
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
-			Name:      request.Header.Get("x-nuclio-project-name"),
+			Name:      projectName,
 			Namespace: namespace,
 		},
 	})
@@ -96,6 +105,12 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 // GetByID returns a specific project by id
 func (pr *projectResource) GetByID(request *http.Request, id string) (restful.Attributes, error) {
 
+	// check opa permissions for resource
+	err := pr.queryOPAProjectPermissions(request, id, opa.ActionRead)
+	if err != nil {
+		return nil, err
+	}
+
 	// get namespace
 	namespace := pr.getNamespaceFromRequest(request)
 	if namespace == "" {
@@ -117,6 +132,12 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 
 // Create deploys a project
 func (pr *projectResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
+
+	// check opa permissions for resource
+	err := pr.queryOPAProjectPermissions(request, "*", opa.ActionCreate)
+	if err != nil {
+		return "", nil, err
+	}
 
 	// get the authentication configuration for the request
 	authConfig, responseErr := pr.getRequestAuthConfig(request)
@@ -724,6 +745,15 @@ func (pr *projectResource) enrichProjectImportInfoImportResources(projectImportI
 			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
 		}
 	}
+}
+
+func (pr *projectResource) queryOPAProjectPermissions(request *http.Request,
+	projectName string,
+	action opa.Action) error {
+	if projectName == "" {
+		projectName = "*"
+	}
+	return pr.queryOPAPermissions(request, opa.GenerateProjectResourceString(projectName), action)
 }
 
 // register the resource

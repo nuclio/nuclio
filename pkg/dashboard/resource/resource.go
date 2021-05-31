@@ -17,10 +17,12 @@ limitations under the License.
 package resource
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -81,4 +83,33 @@ func (r *resource) getListenAddress() string {
 
 func (r *resource) headerValueIsTrue(request *http.Request, headerName string) bool {
 	return strings.ToLower(request.Header.Get(headerName)) == "true"
+}
+
+func (r *resource) getUserAndGroupIdsFromHeaders(request *http.Request) []string {
+	var ids []string
+
+	userId := request.Header.Get(opa.UserIdHeader)
+	userGroupIdsStr := request.Header.Get(opa.UserGroupIdsHeader)
+
+	if userId != "" {
+		ids = append(ids, userId)
+	}
+
+	if userGroupIdsStr != "" {
+		ids = append(ids, strings.Split(userGroupIdsStr, ",")...)
+	}
+
+	return ids
+}
+
+func (r *resource) queryOPAPermissions(request *http.Request, resource string, action opa.Action) error {
+	ids := r.getUserAndGroupIdsFromHeaders(request)
+	allowed, err := r.GetServer().(*dashboard.Server).OPAClient.QueryPermissions(resource, action, ids)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to check %s permissions for resource %s", action, resource)
+	}
+	if !allowed {
+		return nuclio.NewErrForbidden(fmt.Sprintf("Not allowed to %s resource %s", action, resource))
+	}
+	return nil
 }

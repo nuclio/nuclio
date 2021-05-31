@@ -1,5 +1,7 @@
 package opa
 
+import "fmt"
+
 type PermissionRequestInput struct {
 	Resource string   `json:"resource,omitempty"`
 	Action   string   `json:"action,omitempty"`
@@ -12,4 +14,30 @@ type PermissionRequest struct {
 
 type PermissionResponse struct {
 	Result bool `json:"result,omitempty"`
+}
+
+const (
+	UserIdHeader       string = "x-user-id"
+	UserGroupIdsHeader string = "x-user-group-ids"
+)
+
+type Action string
+
+const (
+	ActionRead   Action = "read"
+	ActionCreate Action = "create"
+	ActionUpdate Action = "update"
+	ActionDelete Action = "delete"
+)
+
+func GenerateProjectResourceString(projectName string) string {
+	return fmt.Sprintf("/projects/%s", projectName)
+}
+
+func GenerateFunctionResourceString(projectName, functionName string) string {
+	return fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName)
+}
+
+func GenerateFunctionEventResourceString(projectName, functionName, functionEventName string) string {
+	return fmt.Sprintf("/projects/%s/functions/%s/events/%s", projectName, functionName, functionEventName)
 }
