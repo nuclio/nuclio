@@ -2131,6 +2131,10 @@ func (suite *functionEventTestSuite) TestGetDetailSuccessful() {
 		"fe1KeyB": []interface{}{"fe1ListValueItemA", "fe1ListValueItemB"},
 	}
 
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "fe1Func"
+	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
+
 	// verify
 	verifyGetFunctionEvents := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
 		suite.Require().Equal("fe1", getFunctionEventsOptions.Meta.Name)
@@ -2139,9 +2143,21 @@ func (suite *functionEventTestSuite) TestGetDetailSuccessful() {
 		return true
 	}
 
+	verifyGetFunction := func(getFunctionOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("fe1Func", getFunctionOptions.Name)
+		suite.Require().Equal("fe1-namespace", getFunctionOptions.Namespace)
+
+		return true
+	}
+
 	suite.mockPlatform.
 		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunctionEvents)).
 		Return([]platform.FunctionEvent{&returnedFunctionEvent}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunction)).
+		Return([]platform.Function{&returnedFunction}, nil).
 		Once()
 
 	headers := map[string]string{
@@ -2320,7 +2336,18 @@ func (suite *functionEventTestSuite) TestGetListNoNamespace() {
 
 func (suite *functionEventTestSuite) TestCreateSuccessful() {
 
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "fe1Func"
+	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
+
 	// verify
+	verifyGetFunction := func(getFunctionOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("fe1Func", getFunctionOptions.Name)
+		suite.Require().Equal("fe1-namespace", getFunctionOptions.Namespace)
+
+		return true
+	}
+
 	verifyCreateFunctionEvent := func(createFunctionEventOptions *platform.CreateFunctionEventOptions) bool {
 		suite.Require().Equal("fe1", createFunctionEventOptions.FunctionEventConfig.Meta.Name)
 		suite.Require().Equal("fe1-namespace", createFunctionEventOptions.FunctionEventConfig.Meta.Namespace)
@@ -2336,6 +2363,11 @@ func (suite *functionEventTestSuite) TestCreateSuccessful() {
 
 		return true
 	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunction)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
 
 	suite.mockPlatform.
 		On("CreateFunctionEvent", mock.MatchedBy(verifyCreateFunctionEvent)).
@@ -2432,6 +2464,10 @@ func (suite *functionEventTestSuite) TestCreateNoNamespace() {
 
 func (suite *functionEventTestSuite) TestUpdateSuccessful() {
 
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "fe1Func"
+	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
+
 	// verify
 	verifyUpdateFunctionEvent := func(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) bool {
 		suite.Require().Equal("fe1", updateFunctionEventOptions.FunctionEventConfig.Meta.Name)
@@ -2448,6 +2484,18 @@ func (suite *functionEventTestSuite) TestUpdateSuccessful() {
 
 		return true
 	}
+
+	verifyGetFunction := func(getFunctionOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("fe1Func", getFunctionOptions.Name)
+		suite.Require().Equal("fe1-namespace", getFunctionOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunction)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
 
 	suite.mockPlatform.
 		On("UpdateFunctionEvent", mock.MatchedBy(verifyUpdateFunctionEvent)).
@@ -2499,13 +2547,29 @@ func (suite *functionEventTestSuite) TestUpdateNoNamespace() {
 
 func (suite *functionEventTestSuite) TestDeleteSuccessful() {
 
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "fe1Func"
+	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
+
 	// verify
+	verifyGetFunction := func(getFunctionOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("fe1Func", getFunctionOptions.Name)
+		suite.Require().Equal("fe1-namespace", getFunctionOptions.Namespace)
+
+		return true
+	}
+
 	verifyDeleteFunctionEvent := func(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) bool {
 		suite.Require().Equal("fe1", deleteFunctionEventOptions.Meta.Name)
 		suite.Require().Equal("fe1-namespace", deleteFunctionEventOptions.Meta.Namespace)
 
 		return true
 	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunction)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
 
 	suite.mockPlatform.
 		On("DeleteFunctionEvent", mock.MatchedBy(verifyDeleteFunctionEvent)).

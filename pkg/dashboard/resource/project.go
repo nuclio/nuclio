@@ -579,6 +579,12 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		}, err
 	}
 
+	// check opa permissions for resource
+	_, err = pr.queryOPAProjectPermissions(request, projectInfo.Meta.Name, opa.ActionDelete, true)
+	if err != nil {
+		return nil, err
+	}
+
 	projectDeletionStrategy := request.Header.Get("x-nuclio-delete-project-strategy")
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
@@ -614,6 +620,12 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 			Single:     true,
 			StatusCode: http.StatusBadRequest,
 		}, err
+	}
+
+	// check opa permissions for resource
+	_, err = pr.queryOPAProjectPermissions(request, projectInfo.Meta.Name, opa.ActionUpdate, true)
+	if err != nil {
+		return nil, err
 	}
 
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)

@@ -368,6 +368,16 @@ func (fr *functionResource) getFunctionLogs(request *http.Request) (*restful.Cus
 		return nil, errors.Wrap(err, "Failed to get function")
 	}
 
+	// check opa permissions for resource
+	_, err = fr.queryOPAFunctionPermissions(request,
+		function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+		function.GetConfig().Meta.Name,
+		opa.ActionRead,
+		true)
+	if err != nil {
+		return nil, err
+	}
+
 	replicaNames, err := fr.getPlatform().GetFunctionReplicaNames(request.Context(), function.GetConfig())
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function replica names")
@@ -418,6 +428,16 @@ func (fr *functionResource) getFunctionReplicas(request *http.Request) (
 		return nil, errors.Wrap(err, "Failed to get function")
 	}
 
+	// check opa permissions for resource
+	_, err = fr.queryOPAFunctionPermissions(request,
+		function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+		function.GetConfig().Meta.Name,
+		opa.ActionRead,
+		true)
+	if err != nil {
+		return nil, err
+	}
+
 	replicaNames, err := fr.getPlatform().GetFunctionReplicaNames(request.Context(), function.GetConfig())
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function replicas")
@@ -445,6 +465,16 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 			Single:     true,
 			StatusCode: http.StatusBadRequest,
 		}, err
+	}
+
+	// check opa permissions for resource
+	_, err = fr.queryOPAFunctionPermissions(request,
+		functionInfo.Meta.Labels["nuclio.io/project-name"],
+		functionInfo.Meta.Name,
+		opa.ActionDelete,
+		true)
+	if err != nil {
+		return nil, err
 	}
 
 	// get the authentication configuration for the request

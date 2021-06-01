@@ -77,7 +77,8 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 	for _, functionEvent := range functionEvents {
 
 		// check opa permissions for resource
-		function, err := fer.getFunctionEventFunction(functionEvent)
+		function, err := fer.getFunction(functionEvent.GetConfig().Meta.Labels["nuclio.io/function-name"],
+			functionEvent.GetConfig().Meta.Namespace)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get function for function event")
 		}
@@ -125,9 +126,14 @@ func (fer *functionEventResource) GetByID(request *http.Request, id string) (res
 	}
 
 	// check opa permissions for resource
+	function, err := fer.getFunction(functionEvent[0].GetConfig().Meta.Labels["nuclio.io/function-name"],
+		functionEvent[0].GetConfig().Meta.Namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function for function event")
+	}
 	_, err = fer.queryOPAFunctionEventPermissions(request,
-		functionEvent[0].GetConfig().Meta.Labels["nuclio.io/project-name"],
-		functionEvent[0].GetConfig().Meta.Labels["nuclio.io/function-name"],
+		function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+		function.GetConfig().Meta.Name,
 		id,
 		opa.ActionRead,
 		true)
@@ -152,14 +158,21 @@ func (fer *functionEventResource) Create(request *http.Request) (id string, attr
 	}
 
 	// check opa permissions for resource
-	_, err := fer.queryOPAFunctionEventPermissions(request,
-		functionEventInfo.Meta.Labels["nuclio.io/project-name"],
-		functionEventInfo.Meta.Labels["nuclio.io/function-name"],
-		functionEventInfo.Meta.Name,
-		opa.ActionCreate,
-		true)
-	if err != nil {
-		return "", nil, err
+	if functionEventInfo.Meta.Labels["nuclio.io/function-name"] != "" {
+		function, err := fer.getFunction(functionEventInfo.Meta.Labels["nuclio.io/function-name"],
+			functionEventInfo.Meta.Namespace)
+		if err != nil {
+			return "", nil, errors.Wrap(err, "Failed to get function for function event")
+		}
+		_, err = fer.queryOPAFunctionEventPermissions(request,
+			function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+			function.GetConfig().Meta.Name,
+			functionEventInfo.Meta.Name,
+			opa.ActionCreate,
+			true)
+		if err != nil {
+			return "", nil, err
+		}
 	}
 
 	newFunctionEvent, err := fer.storeAndDeployFunctionEvent(functionEventInfo)
@@ -249,6 +262,24 @@ func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*r
 		}, err
 	}
 
+	// check opa permissions for resource
+	if functionEventInfo.Meta.Labels["nuclio.io/function-name"] != "" {
+		function, err := fer.getFunction(functionEventInfo.Meta.Labels["nuclio.io/function-name"],
+			functionEventInfo.Meta.Namespace)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get function for function event")
+		}
+		_, err = fer.queryOPAFunctionEventPermissions(request,
+			function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+			function.GetConfig().Meta.Name,
+			functionEventInfo.Meta.Name,
+			opa.ActionDelete,
+			true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	deleteFunctionEventOptions := platform.DeleteFunctionEventOptions{}
 	deleteFunctionEventOptions.Meta = *functionEventInfo.Meta
 
@@ -280,6 +311,24 @@ func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*r
 			Single:     true,
 			StatusCode: http.StatusBadRequest,
 		}, err
+	}
+
+	// check opa permissions for resource
+	if functionEventInfo.Meta.Labels["nuclio.io/function-name"] != "" {
+		function, err := fer.getFunction(functionEventInfo.Meta.Labels["nuclio.io/function-name"],
+			functionEventInfo.Meta.Namespace)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get function for function event")
+		}
+		_, err = fer.queryOPAFunctionEventPermissions(request,
+			function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+			function.GetConfig().Meta.Name,
+			functionEventInfo.Meta.Name,
+			opa.ActionUpdate,
+			true)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	functionEventConfig := platform.FunctionEventConfig{
@@ -350,11 +399,10 @@ func (fer *functionEventResource) getFunctionEventInfoFromRequest(request *http.
 	return &functionEventInfoInstance, nil
 }
 
-func (fer *functionEventResource) getFunctionEventFunction(functionEvent platform.FunctionEvent) (platform.Function,
+func (fer *functionEventResource) getFunction(functionName, namespace string) (platform.Function,
 	error) {
-	functionName := functionEvent.GetConfig().Meta.Labels["nuclio.io/function-name"]
 	getFunctionsOptions := &platform.GetFunctionsOptions{
-		Namespace: functionEvent.GetConfig().Meta.Namespace,
+		Namespace: namespace,
 		Name:      functionName,
 	}
 
