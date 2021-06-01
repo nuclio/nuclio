@@ -2133,7 +2133,7 @@ func (suite *functionEventTestSuite) TestGetDetailSuccessful() {
 
 	returnedFunction := platform.AbstractFunction{}
 	returnedFunction.Config.Meta.Name = "fe1Func"
-	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
+	returnedFunction.Config.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
 
 	// verify
 	verifyGetFunctionEvents := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
@@ -2237,7 +2237,7 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 
 	returnedFunction := platform.AbstractFunction{}
 	returnedFunction.Config.Meta.Name = "feFunc"
-	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/project-name": "feProj"}
+	returnedFunction.Config.Meta.Labels = map[string]string{"nuclio.io/project-name": "feProj"}
 
 	// verify
 	verifyGetFunctionEvents := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
@@ -2338,7 +2338,7 @@ func (suite *functionEventTestSuite) TestCreateSuccessful() {
 
 	returnedFunction := platform.AbstractFunction{}
 	returnedFunction.Config.Meta.Name = "fe1Func"
-	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
+	returnedFunction.Config.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
 
 	// verify
 	verifyGetFunction := func(getFunctionOptions *platform.GetFunctionsOptions) bool {
@@ -2466,7 +2466,7 @@ func (suite *functionEventTestSuite) TestUpdateSuccessful() {
 
 	returnedFunction := platform.AbstractFunction{}
 	returnedFunction.Config.Meta.Name = "fe1Func"
-	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
+	returnedFunction.Config.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
 
 	// verify
 	verifyUpdateFunctionEvent := func(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) bool {
@@ -2549,7 +2549,7 @@ func (suite *functionEventTestSuite) TestDeleteSuccessful() {
 
 	returnedFunction := platform.AbstractFunction{}
 	returnedFunction.Config.Meta.Name = "fe1Func"
-	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
+	returnedFunction.Config.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
 
 	// verify
 	verifyGetFunction := func(getFunctionOptions *platform.GetFunctionsOptions) bool {
