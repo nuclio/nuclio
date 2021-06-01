@@ -69,17 +69,9 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	projectName := request.Header.Get("x-nuclio-project-name")
-
-	// check opa permissions for resource
-	err := pr.queryOPAProjectPermissions(request, projectName, opa.ActionRead)
-	if err != nil {
-		return nil, err
-	}
-
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
-			Name:      projectName,
+			Name:      request.Header.Get("x-nuclio-project-name"),
 			Namespace: namespace,
 		},
 	})
@@ -92,6 +84,16 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 
 	// create a map of attributes keyed by the project id (name)
 	for _, project := range projects {
+
+		// check opa permissions for resource
+		allowed, err := pr.queryOPAProjectPermissions(request, project.GetConfig().Meta.Name, opa.ActionRead, false)
+		if err != nil {
+			return nil, err
+		}
+		if !allowed {
+			continue
+		}
+
 		if exportProject {
 			response[project.GetConfig().Meta.Name] = pr.export(project)
 		} else {
@@ -106,7 +108,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 func (pr *projectResource) GetByID(request *http.Request, id string) (restful.Attributes, error) {
 
 	// check opa permissions for resource
-	err := pr.queryOPAProjectPermissions(request, id, opa.ActionRead)
+	_, err := pr.queryOPAProjectPermissions(request, id, opa.ActionRead, true)
 	if err != nil {
 		return nil, err
 	}
@@ -133,12 +135,6 @@ func (pr *projectResource) GetByID(request *http.Request, id string) (restful.At
 // Create deploys a project
 func (pr *projectResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
 
-	// check opa permissions for resource
-	err := pr.queryOPAProjectPermissions(request, "*", opa.ActionCreate)
-	if err != nil {
-		return "", nil, err
-	}
-
 	// get the authentication configuration for the request
 	authConfig, responseErr := pr.getRequestAuthConfig(request)
 	if responseErr != nil {
@@ -159,6 +155,12 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 	projectInfo, responseErr := pr.getProjectInfoFromRequest(request)
 	if responseErr != nil {
 		return
+	}
+
+	// check opa permissions for resource
+	_, err := pr.queryOPAProjectPermissions(request, projectInfo.Meta.Name, opa.ActionCreate, true)
+	if err != nil {
+		return "", nil, err
 	}
 
 	return pr.createProject(request, projectInfo)
@@ -749,11 +751,12 @@ func (pr *projectResource) enrichProjectImportInfoImportResources(projectImportI
 
 func (pr *projectResource) queryOPAProjectPermissions(request *http.Request,
 	projectName string,
-	action opa.Action) error {
+	action opa.Action,
+	raiseForbidden bool) (bool, error) {
 	if projectName == "" {
 		projectName = "*"
 	}
-	return pr.queryOPAPermissions(request, opa.GenerateProjectResourceString(projectName), action)
+	return pr.queryOPAPermissions(request, opa.GenerateProjectResourceString(projectName), action, raiseForbidden)
 }
 
 // register the resource

@@ -102,14 +102,17 @@ func (r *resource) getUserAndGroupIdsFromHeaders(request *http.Request) []string
 	return ids
 }
 
-func (r *resource) queryOPAPermissions(request *http.Request, resource string, action opa.Action) error {
+func (r *resource) queryOPAPermissions(request *http.Request,
+	resource string,
+	action opa.Action,
+	raiseForbidden bool) (bool, error) {
 	ids := r.getUserAndGroupIdsFromHeaders(request)
 	allowed, err := r.GetServer().(*dashboard.Server).OPAClient.QueryPermissions(resource, action, ids)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to check %s permissions for resource %s", action, resource)
+		return allowed, errors.Wrapf(err, "Failed to check %s permissions for resource %s", action, resource)
 	}
-	if !allowed {
-		return nuclio.NewErrForbidden(fmt.Sprintf("Not allowed to %s resource %s", action, resource))
+	if !allowed && raiseForbidden {
+		return false, nuclio.NewErrForbidden(fmt.Sprintf("Not allowed to %s resource %s", action, resource))
 	}
-	return nil
+	return allowed, nil
 }

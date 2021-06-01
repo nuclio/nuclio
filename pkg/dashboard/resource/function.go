@@ -58,14 +58,6 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	}
 
 	functionName := request.Header.Get("x-nuclio-function-name")
-
-	// check opa permissions for resource
-	projectName := request.Header.Get("x-nuclio-project-name")
-	err := fr.queryOPAFunctionPermissions(request, projectName, functionName, opa.ActionRead)
-	if err != nil {
-		return nil, err
-	}
-
 	functions, err := fr.getPlatform().GetFunctions(fr.resolveGetFunctionsFromRequest(request, functionName))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
@@ -75,6 +67,18 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
+		allowed, err := fr.queryOPAFunctionPermissions(request,
+			function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+			function.GetConfig().Meta.Name,
+			opa.ActionRead,
+			false)
+		if err != nil {
+			return nil, err
+		}
+		if !allowed {
+			continue
+		}
+
 		if exportFunction {
 			response[function.GetConfig().Meta.Name] = fr.export(function)
 		} else {
@@ -101,10 +105,11 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	}
 
 	// check opa permissions for resource
-	err = fr.queryOPAFunctionPermissions(request,
+	_, err = fr.queryOPAFunctionPermissions(request,
 		function.GetConfig().Meta.Labels["nuclio.io/project-name"],
 		id,
-		opa.ActionRead)
+		opa.ActionRead,
+		true)
 	if err != nil {
 		return nil, err
 	}
@@ -123,10 +128,11 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
-	err := fr.queryOPAFunctionPermissions(request,
+	_, err := fr.queryOPAFunctionPermissions(request,
 		functionInfo.Meta.Labels["nuclio.io/project-name"],
 		functionInfo.Meta.Name,
-		opa.ActionCreate)
+		opa.ActionCreate,
+		true)
 	if err != nil {
 		return "", nil, err
 	}
@@ -170,10 +176,11 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		return
 	}
 
-	err := fr.queryOPAFunctionPermissions(request,
+	_, err := fr.queryOPAFunctionPermissions(request,
 		functionInfo.Meta.Labels["nuclio.io/project-name"],
 		functionInfo.Meta.Name,
-		opa.ActionUpdate)
+		opa.ActionUpdate,
+		true)
 	if err != nil {
 		return nil, err
 	}
@@ -640,14 +647,18 @@ func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(request 
 func (fr *functionResource) queryOPAFunctionPermissions(request *http.Request,
 	projectName,
 	functionName string,
-	action opa.Action) error {
+	action opa.Action,
+	raiseForbidden bool) (bool, error) {
 	if projectName == "" {
 		projectName = "*"
 	}
 	if functionName == "" {
 		functionName = "*"
 	}
-	return fr.queryOPAPermissions(request, opa.GenerateFunctionResourceString(projectName, functionName), action)
+	return fr.queryOPAPermissions(request,
+		opa.GenerateFunctionResourceString(projectName, functionName),
+		action,
+		raiseForbidden)
 }
 
 // register the resource
