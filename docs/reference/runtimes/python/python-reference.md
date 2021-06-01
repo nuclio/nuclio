@@ -25,10 +25,10 @@ The `handler` field is of the form `<package>:<entrypoint>`, where `<package>` i
 
 For asynchronous support (e.g.: `asyncio`), you may want to decorate your function handle with `async`
 
-Do note that:
+Important to note:
   - Nuclio, at the moment, does not support concurrent requests handling for a single working. Each working may handle
-    one request at a time, for more information and reading further, see [here](/docs/concepts/architecture.md#runtime-engine).
-  - The event loop would keep running while listening on more incoming requests, that can benefit functions that do
+    one request at a time, for more information see [here](/docs/concepts/architecture.md#runtime-engine).
+  - However, using an async handler can still be beneficial in some scenarios; Since the event loop would keep running while listening on more incoming requests, it allows functions to asynchronously perform
     I/O bound background tasks.
 
 ```python

@@ -229,9 +229,8 @@ class Wrapper(object):
         else:
             int_buf = self._processor_sock.recv(4)
 
-        # may happen when client disconnect
-        should_be_four = len(int_buf)
-        if should_be_four != 4:
+        # not reading 4 bytes meaning client has disconnected while sending the packet. bail
+        if len(int_buf) != 4:
             raise WrapperFatalException('Client disconnected')
 
         # big-endian, compute event bytes length to read
