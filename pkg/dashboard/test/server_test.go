@@ -2218,6 +2218,11 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 		"fe2KeyA": "fe2StringValue",
 		"fe2KeyB": []interface{}{"fe2ListValueItemA", "fe2ListValueItemB"},
 	}
+
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "feFunc"
+	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/project-name": "feProj"}
+
 	// verify
 	verifyGetFunctionEvents := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
 		suite.Require().Equal("", getFunctionEventsOptions.Meta.Name)
@@ -2226,11 +2231,22 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 
 		return true
 	}
+	verifyGetFunction := func(getFunctionOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("feFunc", getFunctionOptions.Name)
+		suite.Require().Equal("fe-namespace", getFunctionOptions.Namespace)
+
+		return true
+	}
 
 	suite.mockPlatform.
 		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunctionEvents)).
 		Return([]platform.FunctionEvent{&returnedFunctionEvent1, &returnedFunctionEvent2}, nil).
 		Once()
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunction)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Twice()
 
 	headers := map[string]string{
 		"x-nuclio-function-event-namespace": "fe-namespace",
