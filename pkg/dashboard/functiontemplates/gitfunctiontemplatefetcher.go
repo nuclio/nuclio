@@ -47,13 +47,13 @@ type GitFunctionTemplateFetcher struct {
 func NewGitFunctionTemplateFetcher(parentLogger logger.Logger,
 	repository string,
 	ref string,
-	gitCaCertContents string) (*GitFunctionTemplateFetcher, error) {
+	templatesGithubCaCertContents string) (*GitFunctionTemplateFetcher, error) {
 
 	return &GitFunctionTemplateFetcher{
 		repository:        repository,
 		ref:               ref,
 		logger:            parentLogger.GetChild("GitFunctionTemplateFetcher"),
-		gitCaCertContents: gitCaCertContents,
+		gitCaCertContents: templatesGithubCaCertContents,
 	}, nil
 }
 

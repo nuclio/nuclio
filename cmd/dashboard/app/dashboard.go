@@ -255,7 +255,7 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 		functionGitTemplateFetcher, err = functiontemplates.NewGitFunctionTemplateFetcher(rootLogger,
 			templatesGitRepository,
 			createDashboardServerOptions.templatesGitRef,
-			gitCaCertContents)
+			createDashboardServerOptions.templatesGithubCaCertContents)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create git fetcher")
 		}
