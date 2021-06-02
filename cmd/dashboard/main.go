@@ -60,6 +60,7 @@ func main() {
 	templatesGitPassword := flag.String("templates-git-password", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_PASSWORD", ""), "Git repo's user password")
 	templatesGithubAccessToken := flag.String("templates-github-access-token", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_ACCESS_TOKEN", ""), "Github templates repo's access token")
 	templatesArchiveAddress := flag.String("templates-archive-address", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_ARCHIVE_ADDRESS", ""), "Function Templates zip file address")
+	templatesGitCaCertContents := flag.String("templates-git-ca-cert-contents", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_CA_CERT_CONTENTS", ""), "Base64 encoded ca certificate contents used in git requests to templates repo")
 
 	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the dashboard listens")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
@@ -102,6 +103,7 @@ func main() {
 		*templatesGitUsername,
 		*templatesGitPassword,
 		*templatesGithubAccessToken,
+		*templatesGitCaCertContents,
 		*defaultHTTPIngressHostTemplate,
 		*imageNamePrefixTemplate,
 		*platformAuthorizationMode,

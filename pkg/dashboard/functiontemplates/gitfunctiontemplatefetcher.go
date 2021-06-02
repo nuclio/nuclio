@@ -17,7 +17,11 @@ limitations under the License.
 package functiontemplates
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	b64 "encoding/base64"
 	"io"
+	"net/http"
 	"strings"
 
 	"github.com/nuclio/errors"
@@ -26,25 +30,30 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/filemode"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport/client"
+	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
 type GitFunctionTemplateFetcher struct {
 	BaseFunctionTemplateFetcher
 
-	ref        string
-	repository string
-	logger     logger.Logger
+	ref               string
+	repository        string
+	logger            logger.Logger
+	gitCaCertContents string
 }
 
 func NewGitFunctionTemplateFetcher(parentLogger logger.Logger,
 	repository string,
-	ref string) (*GitFunctionTemplateFetcher, error) {
+	ref string,
+	templatesGithubCaCertContents string) (*GitFunctionTemplateFetcher, error) {
 
 	return &GitFunctionTemplateFetcher{
-		repository: repository,
-		ref:        ref,
-		logger:     parentLogger.GetChild("GitFunctionTemplateFetcher"),
+		repository:        repository,
+		ref:               ref,
+		logger:            parentLogger.GetChild("GitFunctionTemplateFetcher"),
+		gitCaCertContents: templatesGithubCaCertContents,
 	}, nil
 }
 
@@ -70,6 +79,26 @@ func (gftf *GitFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 }
 
 func (gftf *GitFunctionTemplateFetcher) getRootTree() (*object.Tree, error) {
+	if gftf.gitCaCertContents != "" {
+		certPool := x509.NewCertPool()
+		cert, err := b64.URLEncoding.DecodeString(gftf.gitCaCertContents)
+		if err != nil {
+			return nil, errors.New("Failed to decode certificate authority")
+		}
+		ok := certPool.AppendCertsFromPEM(cert)
+		if !ok {
+			return nil, errors.New("Failed to parse certificate authority")
+		}
+
+		newClient := &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{RootCAs: certPool},
+			},
+		}
+		client.InstallProtocol("https", githttp.NewClient(newClient))
+		client.InstallProtocol("ssh", githttp.NewClient(newClient))
+	}
+
 	referenceName := plumbing.ReferenceName(gftf.ref)
 	gitRepo, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
 		URL:           gftf.repository,
