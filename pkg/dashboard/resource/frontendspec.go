@@ -33,27 +33,27 @@ type frontendSpecResource struct {
 	*resource
 }
 
-func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
-	externalIPAddresses, err := fesr.getPlatform().GetExternalIPAddresses()
+func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	externalIPAddresses, err := fsr.getPlatform().GetExternalIPAddresses()
 	if err != nil {
 		externalIPAddresses = []string{"localhost"}
-		fesr.Logger.WarnWith("Failed to get external IP addresses, falling back to default",
+		fsr.Logger.WarnWith("Failed to get external IP addresses, falling back to default",
 			"err", err,
 			"externalIPAddresses", externalIPAddresses)
 	}
 
 	// try to get platform kind
 	platformKind := ""
-	if dashboardServer, ok := fesr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
 		platformConfiguration := dashboardServer.GetPlatformConfiguration()
 		if platformConfiguration != nil {
 			platformKind = platformConfiguration.Kind
 		}
 	}
 
-	scaleToZeroConfiguration := fesr.getPlatform().GetScaleToZeroConfiguration()
+	scaleToZeroConfiguration := fsr.getPlatform().GetScaleToZeroConfiguration()
 
-	allowedAuthenticationModes := fesr.getPlatform().GetAllowedAuthenticationModes()
+	allowedAuthenticationModes := fsr.getPlatform().GetAllowedAuthenticationModes()
 
 	scaleToZeroMode := platformconfig.DisabledScaleToZeroMode
 	var inactivityWindowPresets []string
@@ -71,14 +71,14 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 		"scaleResources":          scaleResources,
 	}
 
-	defaultFunctionConfig := fesr.getDefaultFunctionConfig()
+	defaultFunctionConfig := fsr.getDefaultFunctionConfig()
 
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
 			"externalIPAddresses":            externalIPAddresses,
-			"namespace":                      fesr.getNamespaceOrDefault(""),
-			"defaultHTTPIngressHostTemplate": fesr.getPlatform().GetDefaultHTTPIngressHostTemplate(),
-			"imageNamePrefixTemplate":        fesr.getPlatform().GetImageNamePrefixTemplate(),
+			"namespace":                      fsr.getNamespaceOrDefault(""),
+			"defaultHTTPIngressHostTemplate": fsr.getPlatform().GetDefaultHTTPIngressHostTemplate(),
+			"imageNamePrefixTemplate":        fsr.getPlatform().GetImageNamePrefixTemplate(),
 			"scaleToZero":                    scaleToZeroAttribute,
 			"defaultFunctionConfig":          defaultFunctionConfig,
 			"platformKind":                   platformKind,
@@ -94,11 +94,12 @@ func (fesr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restf
 	}, nil
 }
 
-func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface{} {
+func (fsr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface{} {
 	one := 1
 	defaultWorkerAvailabilityTimeoutMilliseconds := trigger.DefaultWorkerAvailabilityTimeoutMilliseconds
 
-	defaultServiceType := fesr.resolveDefaultServiceType()
+	defaultFunctionNodeSelector := fsr.resolveDefaultFunctionNodeSelector()
+	defaultServiceType := fsr.resolveDefaultServiceType()
 	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
 	defaultHTTPTrigger.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
 	defaultHTTPTrigger.Attributes = map[string]interface{}{
@@ -108,7 +109,8 @@ func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interfac
 	defaultFunctionSpec := functionconfig.Spec{
 		MinReplicas:             &one,
 		MaxReplicas:             &one,
-		ReadinessTimeoutSeconds: fesr.resolveFunctionReadinessTimeoutSeconds(),
+		ReadinessTimeoutSeconds: fsr.resolveFunctionReadinessTimeoutSeconds(),
+		NodeSelector:            defaultFunctionNodeSelector,
 		TargetCPU:               abstract.DefaultTargetCPU,
 		Triggers: map[string]functionconfig.Trigger{
 
@@ -133,32 +135,40 @@ func (fesr *frontendSpecResource) getDefaultFunctionConfig() map[string]interfac
 }
 
 // returns a list of custom routes for the resource
-func (fesr *frontendSpecResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
+func (fsr *frontendSpecResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
 	// since frontendSpec is a singleton we create a custom route that will return this single object
 	return []restful.CustomRoute{
 		{
 			Pattern:   "/",
 			Method:    http.MethodGet,
-			RouteFunc: fesr.getFrontendSpec,
+			RouteFunc: fsr.getFrontendSpec,
 		},
 	}, nil
 }
 
-func (fesr *frontendSpecResource) resolveDefaultServiceType() v1.ServiceType {
+func (fsr *frontendSpecResource) resolveDefaultServiceType() v1.ServiceType {
 	var defaultServiceType v1.ServiceType = ""
-	if dashboardServer, ok := fesr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
 		defaultServiceType = dashboardServer.GetPlatformConfiguration().Kube.DefaultServiceType
 	}
 	return defaultServiceType
 }
 
-func (fesr *frontendSpecResource) resolveFunctionReadinessTimeoutSeconds() int {
+func (fsr *frontendSpecResource) resolveFunctionReadinessTimeoutSeconds() int {
 	readinessTimeoutSeconds := platformconfig.DefaultFunctionReadinessTimeoutSeconds
-	if dashboardServer, ok := fesr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
 		return int(dashboardServer.GetPlatformConfiguration().GetDefaultFunctionReadinessTimeout().Seconds())
 	}
 	return readinessTimeoutSeconds
+}
+
+func (fsr *frontendSpecResource) resolveDefaultFunctionNodeSelector() map[string]string {
+	var defaultNodeSelector map[string]string
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+		defaultNodeSelector = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionNodeSelector
+	}
+	return defaultNodeSelector
 }
 
 // register the resource
