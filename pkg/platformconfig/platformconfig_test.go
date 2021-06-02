@@ -51,6 +51,9 @@ functionReadinessTimeout: 10s
 webAdmin:
   enabled: true
   listenAddress: :8081
+kube:
+  defaultFunctionNodeSelector:
+    defaultFunctionNodeSelectorKey: defaultFunctionNodeSelectorValue
 logger:
   sinks:
     stdout:
@@ -128,6 +131,10 @@ metrics:
 		Attributes: map[string]interface{}{
 			"dontCrash": true,
 		},
+	}
+
+	expectedConfiguration.Kube.DefaultFunctionNodeSelector = map[string]string{
+		"defaultFunctionNodeSelectorKey": "defaultFunctionNodeSelectorValue",
 	}
 
 	// metric
