@@ -8,6 +8,15 @@ platform/kube:
 platform/local:
   - pkg/platform/local/**/*
 
+configuration:
+  - pkg/processor/config/**/*
+  - pkg/functionconfig/**/*
+  - pkg/platformconfig/**/*
+  - pkg/runtimeconfig/**/*
+
+dashboard/resources:
+  - pkg/dashboard/resource/**/*
+
 # triggers
 trigger/cron:
   - pkg/processsor/trigger/cron/**/*
@@ -74,3 +83,18 @@ nuctl:
 # releaser
 releaser:
   - hack/scripts/releaser/**/*
+
+ci:
+  - .github/**/*
+  - hack/scripts/ci/**/*
+
+docs:
+  - docs/**/*
+
+kubernetes/helm:
+  - hack/k8s/helm/**/*
+
+kubernetes/resources:
+  - hack/aks/**/*
+  - hack/gke/**/*
+  - hack/k8s/resources/**/*
