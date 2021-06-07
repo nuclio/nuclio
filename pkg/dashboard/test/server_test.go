@@ -26,6 +26,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/dashboard/opa"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -60,6 +61,9 @@ type dashboardTestSuite struct {
 	dashboardServer *dashboard.Server
 	httpServer      *httptest.Server
 	mockPlatform    *mockplatform.Platform
+	opaClient       *opa.MockClient
+	userId          string
+	groupId         string
 }
 
 func (suite *dashboardTestSuite) SetupTest() {
@@ -100,11 +104,17 @@ func (suite *dashboardTestSuite) SetupTest() {
 		panic("Failed to create server")
 	}
 
+	suite.opaClient = opa.NewMockClient(suite.logger)
+	suite.dashboardServer.OPAClient = suite.opaClient
+	suite.userId = "user-id"
+	suite.groupId = "group-id"
+
 	// create an http server from the dashboard server
 	suite.httpServer = httptest.NewServer(suite.dashboardServer.Router)
 }
 
 func (suite *dashboardTestSuite) TeardownTest() {
+	suite.opaClient.ClearRequests()
 	suite.httpServer.Close()
 }
 
@@ -121,6 +131,10 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 	for headerKey, headerValue := range requestHeaders {
 		request.Header.Set(headerKey, headerValue)
 	}
+
+	// for opa testing
+	request.Header.Set("X-User-Id", suite.userId)
+	request.Header.Set("X-User-Group-Ids", suite.groupId)
 
 	response, err := http.DefaultClient.Do(request)
 	suite.Require().NoError(err)
@@ -168,6 +182,12 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 	return response, decodedResponseBody
 }
 
+func (suite *dashboardTestSuite) validateOpaRequest(request opa.PermissionRequestInput, resource, action string) {
+	suite.Assert().Equal(resource, request.Resource)
+	suite.Assert().Equal(action, request.Action)
+	suite.Assert().Equal([]string{suite.userId, suite.groupId}, request.Ids)
+}
+
 //
 // Function
 //
@@ -181,6 +201,9 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 	returnedFunction := platform.AbstractFunction{}
 	returnedFunction.Config.Meta.Name = "f1"
 	returnedFunction.Config.Meta.Namespace = "f1-namespace"
+	returnedFunction.Config.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": "f1-proj",
+	}
 	returnedFunction.Config.Spec.Replicas = &replicas
 
 	// verify
@@ -204,7 +227,10 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 	expectedResponseBody := `{
 	"metadata": {
 		"name": "f1",
-		"namespace": "f1-namespace"
+		"namespace": "f1-namespace",
+		"labels": {
+            "nuclio.io/project-name": "f1-proj"
+        }
 	},
 	"spec": {
 		"resources": {},
@@ -223,6 +249,10 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 		&expectedStatusCode,
 		expectedResponseBody)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/f1-proj/functions/f1", "read")
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
@@ -239,15 +269,65 @@ func (suite *functionTestSuite) TestGetDetailNoNamespace() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+func (suite *functionTestSuite) TestGetDetailNoPermissions() {
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "f1"
+	returnedFunction.Config.Meta.Namespace = "f1-namespace"
+	returnedFunction.Config.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": "f1-proj",
+	}
+
+	// verify
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1-namespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-function-namespace": "f1-namespace",
+	}
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusForbidden
+	ecv := restful.NewErrorContainsVerifier(suite.logger,
+		[]string{"Not allowed to read resource /projects/f1-proj/functions/f1"})
+
+	suite.sendRequest("GET",
+		"/api/functions/f1",
+		headers,
+		nil,
+		&expectedStatusCode,
+		ecv.Verify)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/f1-proj/functions/f1", "read")
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
 func (suite *functionTestSuite) TestGetListSuccessful() {
 	returnedFunction1 := platform.AbstractFunction{}
 	returnedFunction1.Config.Meta.Name = "f1"
 	returnedFunction1.Config.Meta.Namespace = "f-namespace"
+	returnedFunction1.Config.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": "f1-proj",
+	}
 	returnedFunction1.Config.Spec.Runtime = "r1"
 
 	returnedFunction2 := platform.AbstractFunction{}
 	returnedFunction2.Config.Meta.Name = "f2"
 	returnedFunction2.Config.Meta.Namespace = "f-namespace"
+	returnedFunction2.Config.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": "f2-proj",
+	}
 	returnedFunction2.Config.Spec.Runtime = "r2"
 
 	// verify
@@ -272,7 +352,10 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 	"f1": {
 		"metadata": {
 			"name": "f1",
-			"namespace": "f-namespace"
+			"namespace": "f-namespace",
+			"labels": {
+				"nuclio.io/project-name": "f1-proj"
+			}
 		},
 		"spec": {
 			"resources": {},
@@ -286,7 +369,10 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 	"f2": {
 		"metadata": {
 			"name": "f2",
-			"namespace": "f-namespace"
+			"namespace": "f-namespace",
+			"labels": {
+				"nuclio.io/project-name": "f2-proj"
+			}
 		},
 		"spec": {
 			"resources": {},
@@ -306,6 +392,13 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 		&expectedStatusCode,
 		expectedResponseBody)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(2, len(opaRequests))
+	for idx, request := range opaRequests {
+		functionResource := fmt.Sprintf("/projects/f%d-proj/functions/f%d", idx + 1, idx + 1)
+		suite.validateOpaRequest(request, functionResource, "read")
+	}
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
@@ -318,6 +411,63 @@ func (suite *functionTestSuite) TestGetListNoNamespace() {
 		nil,
 		&expectedStatusCode,
 		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionTestSuite) TestGetListNoPermissions() {
+	returnedFunction1 := platform.AbstractFunction{}
+	returnedFunction1.Config.Meta.Name = "f1"
+	returnedFunction1.Config.Meta.Namespace = "f-namespace"
+	returnedFunction1.Config.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": "f1-proj",
+	}
+	returnedFunction1.Config.Spec.Runtime = "r1"
+
+	returnedFunction2 := platform.AbstractFunction{}
+	returnedFunction2.Config.Meta.Name = "f2"
+	returnedFunction2.Config.Meta.Namespace = "f-namespace"
+	returnedFunction2.Config.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": "f2-proj",
+	}
+	returnedFunction2.Config.Spec.Runtime = "r2"
+
+	// verify
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("", getFunctionsOptions.Name)
+		suite.Require().Equal("f-namespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunction1, &returnedFunction2}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-function-namespace": "f-namespace",
+	}
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusOK
+
+	// empty response because of no permissions
+	expectedResponseBody := `{}`
+
+	suite.sendRequest("GET",
+		"/api/functions",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(2, len(opaRequests))
+	for idx, request := range opaRequests {
+		functionResource := fmt.Sprintf("/projects/f%d-proj/functions/f%d", idx + 1, idx + 1)
+		suite.validateOpaRequest(request, functionResource, "read")
+	}
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
@@ -376,6 +526,10 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 		&expectedStatusCode,
 		nil)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/proj/functions/f1", "create")
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
@@ -422,6 +576,46 @@ func (suite *functionTestSuite) TestCreateFunctionWithInvalidName() {
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
 		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionTestSuite) TestCreateNoPermissions() {
+
+	headers := map[string]string{
+		"x-nuclio-wait-function-action": "true",
+		"x-nuclio-project-name":         "proj",
+		"x-nuclio-function-namespace":   "f1-namespace",
+	}
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusForbidden
+	ecv := restful.NewErrorContainsVerifier(suite.logger,
+		[]string{"Not allowed to create resource /projects/proj/functions/f1"})
+
+	requestBody := `{
+	"metadata": {
+		"name": "f1",
+		"namespace": "f1-namespace"
+	},
+	"spec": {
+		"resources": {},
+		"build": {},
+		"platform": {},
+		"runtime": "r1"
+	}
+}`
+
+	suite.sendRequest("POST",
+		"/api/functions",
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/proj/functions/f1", "create")
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
@@ -490,13 +684,32 @@ func (suite *functionTestSuite) TestUpdateNoNamespace() {
 
 func (suite *functionTestSuite) TestDeleteSuccessful() {
 
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "f1"
+	returnedFunction.Config.Meta.Namespace = "f1-namespace"
+	returnedFunction.Config.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": "f1-proj",
+	}
+
 	// verify
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1-namespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+
 	verifyDeleteFunction := func(deleteFunctionOptions *platform.DeleteFunctionOptions) bool {
 		suite.Require().Equal("f1", deleteFunctionOptions.FunctionConfig.Meta.Name)
 		suite.Require().Equal("f1-namespace", deleteFunctionOptions.FunctionConfig.Meta.Namespace)
 
 		return true
 	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
 
 	suite.mockPlatform.
 		On("DeleteFunction", mock.MatchedBy(verifyDeleteFunction)).
@@ -522,6 +735,10 @@ func (suite *functionTestSuite) TestDeleteSuccessful() {
 		&expectedStatusCode,
 		nil)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/f1-proj/functions/f1", "delete")
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
@@ -535,6 +752,58 @@ func (suite *functionTestSuite) TestDeleteNoName() {
 
 func (suite *functionTestSuite) TestDeleteNoNamespace() {
 	suite.sendRequestNoNamespace("DELETE")
+}
+
+func (suite *functionTestSuite) TestDeleteNoPermissions() {
+
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "f1"
+	returnedFunction.Config.Meta.Namespace = "f1-namespace"
+	returnedFunction.Config.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": "f1-proj",
+	}
+
+	// verify
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1-namespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-wait-function-action": "true",
+	}
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusForbidden
+	ecv := restful.NewErrorContainsVerifier(suite.logger,
+		[]string{"Not allowed to delete resource /projects/f1-proj/functions/f1"})
+
+	requestBody := `{
+	"metadata": {
+		"name": "f1",
+		"namespace": "f1-namespace"
+	}
+}`
+
+	suite.sendRequest("DELETE",
+		"/api/functions",
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/f1-proj/functions/f1", "delete")
+
+	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
 func (suite *functionTestSuite) TestInvokeUnSuccessful() {
@@ -1018,6 +1287,10 @@ func (suite *projectTestSuite) TestGetDetailSuccessful() {
 		&expectedStatusCode,
 		expectedResponseBody)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/p1", "read")
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
@@ -1030,6 +1303,30 @@ func (suite *projectTestSuite) TestGetDetailNoNamespace() {
 		nil,
 		&expectedStatusCode,
 		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *projectTestSuite) TestGetDetailNoPermissions() {
+	headers := map[string]string{
+		"x-nuclio-project-namespace": "p1-namespace",
+	}
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusForbidden
+	ecv := restful.NewErrorContainsVerifier(suite.logger,
+		[]string{"Not allowed to read resource /projects/p1"})
+
+	suite.sendRequest("GET",
+		"/api/projects/p1",
+		headers,
+		nil,
+		&expectedStatusCode,
+		ecv.Verify)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/p1", "read")
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
@@ -1091,6 +1388,13 @@ func (suite *projectTestSuite) TestGetListSuccessful() {
 		&expectedStatusCode,
 		expectedResponseBody)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(2, len(opaRequests))
+	for idx, request := range opaRequests {
+		projectResource := fmt.Sprintf("/projects/p%d", idx + 1)
+		suite.validateOpaRequest(request, projectResource, "read")
+	}
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
@@ -1103,6 +1407,57 @@ func (suite *projectTestSuite) TestGetListNoNamespace() {
 		nil,
 		&expectedStatusCode,
 		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *projectTestSuite) TestGetListNoPermissions() {
+	returnedProject1 := platform.AbstractProject{}
+	returnedProject1.ProjectConfig.Meta.Name = "p1"
+	returnedProject1.ProjectConfig.Meta.Namespace = "p-namespace"
+	returnedProject1.ProjectConfig.Spec.Description = "p1Desc"
+
+	returnedProject2 := platform.AbstractProject{}
+	returnedProject2.ProjectConfig.Meta.Name = "p2"
+	returnedProject2.ProjectConfig.Meta.Namespace = "p-namespace"
+	returnedProject2.ProjectConfig.Spec.Description = "p2Desc"
+
+	// verify
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("", getProjectsOptions.Meta.Name)
+		suite.Require().Equal("p-namespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{&returnedProject1, &returnedProject2}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-project-namespace": "p-namespace",
+	}
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusOK
+
+	// empty response because of no permissions
+	expectedResponseBody := `{}`
+
+	suite.sendRequest("GET",
+		"/api/projects",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(2, len(opaRequests))
+	for idx, request := range opaRequests {
+		projectResource := fmt.Sprintf("/projects/p%d", idx + 1)
+		suite.validateOpaRequest(request, projectResource, "read")
+	}
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
@@ -1271,6 +1626,10 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 		nil,
 		&expectedStatusCode,
 		expectedResponseBody)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/p1", "read")
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
@@ -1442,6 +1801,13 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 		&expectedStatusCode,
 		expectedResponseBody)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(2, len(opaRequests))
+	for idx, request := range opaRequests {
+		projectResource := fmt.Sprintf("/projects/p%d", idx + 1)
+		suite.validateOpaRequest(request, projectResource, "read")
+	}
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
@@ -1478,6 +1844,10 @@ func (suite *projectTestSuite) TestCreateSuccessful() {
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
 		requestBody)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/p1", "create")
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
@@ -1522,11 +1892,45 @@ func (suite *projectTestSuite) TestCreateNoName() {
 		&expectedStatusCode,
 		responseVerifier)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/p1name", "create")
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
 func (suite *projectTestSuite) TestCreateNoNamespace() {
 	suite.sendRequestNoNamespace("POST")
+}
+
+func (suite *projectTestSuite) TestCreateNoPermissions() {
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusForbidden
+	ecv := restful.NewErrorContainsVerifier(suite.logger,
+		[]string{"Not allowed to create resource /projects/p1"})
+	requestBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1-namespace"
+	},
+	"spec": {
+		"description": "p1Description"
+	}
+}`
+
+	suite.sendRequest("POST",
+		"/api/projects",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/p1", "create")
+
+	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
 func (suite *projectTestSuite) TestUpdateSuccessful() {
@@ -1563,6 +1967,10 @@ func (suite *projectTestSuite) TestUpdateSuccessful() {
 		&expectedStatusCode,
 		nil)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/p1", "update")
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
@@ -1576,6 +1984,36 @@ func (suite *projectTestSuite) TestUpdateNoName() {
 
 func (suite *projectTestSuite) TestUpdateNoNamespace() {
 	suite.sendRequestNoNamespace("PUT")
+}
+
+func (suite *projectTestSuite) TestUpdateNoPermissions() {
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusForbidden
+	ecv := restful.NewErrorContainsVerifier(suite.logger,
+		[]string{"Not allowed to update resource /projects/p1"})
+	requestBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1-namespace"
+	},
+	"spec": {
+		"description": "p1Description"
+	}
+}`
+
+	suite.sendRequest("PUT",
+		"/api/projects",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/p1", "update")
+
+	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
 func (suite *projectTestSuite) TestDeleteSuccessful() {
@@ -1607,6 +2045,10 @@ func (suite *projectTestSuite) TestDeleteSuccessful() {
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
 		nil)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/p1", "delete")
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
@@ -1679,6 +2121,11 @@ func (suite *projectTestSuite) TestDeleteWithFunctions() {
 				bytes.NewBufferString(requestBody),
 				&testCase.expectedStatusCode,
 				nil)
+
+			opaRequests := suite.opaClient.GetRequests()
+			suite.Assert().Equal(1, len(opaRequests))
+			suite.validateOpaRequest(opaRequests[0], "/projects/p1", "delete")
+			suite.opaClient.ClearRequests()
 		})
 	}
 
@@ -1695,6 +2142,33 @@ func (suite *projectTestSuite) TestDeleteNoName() {
 
 func (suite *projectTestSuite) TestDeleteNoNamespace() {
 	suite.sendRequestNoNamespace("DELETE")
+}
+
+func (suite *projectTestSuite) TestDeleteNoPermissions() {
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusForbidden
+	ecv := restful.NewErrorContainsVerifier(suite.logger,
+		[]string{"Not allowed to delete resource /projects/p1"})
+	requestBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1-namespace"
+	}
+}`
+
+	suite.sendRequest("DELETE",
+		"/api/projects",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/p1", "delete")
+
+	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
 func (suite *projectTestSuite) TestImportSuccessful() {
@@ -2192,6 +2666,10 @@ func (suite *functionEventTestSuite) TestGetDetailSuccessful() {
 		&expectedStatusCode,
 		expectedResponseBody)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/fe1Proj/functions/fe1Func/events/fe1", "read")
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
@@ -2204,6 +2682,64 @@ func (suite *functionEventTestSuite) TestGetDetailNoNamespace() {
 		nil,
 		&expectedStatusCode,
 		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionEventTestSuite) TestGetDetailNoPermissions() {
+	returnedFunctionEvent := platform.AbstractFunctionEvent{}
+	returnedFunctionEvent.FunctionEventConfig.Meta.Name = "fe1"
+	returnedFunctionEvent.FunctionEventConfig.Meta.Namespace = "fe1-namespace"
+	returnedFunctionEvent.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/function-name": "fe1Func"}
+
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "fe1Func"
+	returnedFunction.Config.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
+
+	// verify
+	verifyGetFunctionEvents := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
+		suite.Require().Equal("fe1", getFunctionEventsOptions.Meta.Name)
+		suite.Require().Equal("fe1-namespace", getFunctionEventsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	verifyGetFunction := func(getFunctionOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("fe1Func", getFunctionOptions.Name)
+		suite.Require().Equal("fe1-namespace", getFunctionOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunctionEvents)).
+		Return([]platform.FunctionEvent{&returnedFunctionEvent}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunction)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-function-event-namespace": "fe1-namespace",
+	}
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusForbidden
+	ecv := restful.NewErrorContainsVerifier(suite.logger,
+		[]string{"Not allowed to read resource /projects/fe1Proj/functions/fe1Func/events/fe1"})
+
+	suite.sendRequest("GET",
+		"/api/function_events/fe1",
+		headers,
+		nil,
+		&expectedStatusCode,
+		ecv.Verify)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/fe1Proj/functions/fe1Func/events/fe1", "read")
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
@@ -2318,6 +2854,13 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 		&expectedStatusCode,
 		expectedResponseBody)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(2, len(opaRequests))
+	for idx, request := range opaRequests {
+		functionResource := fmt.Sprintf("/projects/feProj/functions/feFunc/events/fe%d", idx + 1)
+		suite.validateOpaRequest(request, functionResource, "read")
+	}
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
@@ -2330,6 +2873,74 @@ func (suite *functionEventTestSuite) TestGetListNoNamespace() {
 		nil,
 		&expectedStatusCode,
 		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionEventTestSuite) TestGetListNoPermissions() {
+	returnedFunctionEvent1 := platform.AbstractFunctionEvent{}
+	returnedFunctionEvent1.FunctionEventConfig.Meta.Name = "fe1"
+	returnedFunctionEvent1.FunctionEventConfig.Meta.Namespace = "fe-namespace"
+	returnedFunctionEvent1.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/function-name": "feFunc"}
+
+	returnedFunctionEvent2 := platform.AbstractFunctionEvent{}
+	returnedFunctionEvent2.FunctionEventConfig.Meta.Name = "fe2"
+	returnedFunctionEvent2.FunctionEventConfig.Meta.Namespace = "fe-namespace"
+	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/function-name": "feFunc"}
+
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "feFunc"
+	returnedFunction.Config.Meta.Labels = map[string]string{"nuclio.io/project-name": "feProj"}
+
+	// verify
+	verifyGetFunctionEvents := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
+		suite.Require().Equal("", getFunctionEventsOptions.Meta.Name)
+		suite.Require().Equal("fe-namespace", getFunctionEventsOptions.Meta.Namespace)
+		suite.Require().Equal("feFunc", getFunctionEventsOptions.Meta.Labels["nuclio.io/function-name"])
+
+		return true
+	}
+	verifyGetFunction := func(getFunctionOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("feFunc", getFunctionOptions.Name)
+		suite.Require().Equal("fe-namespace", getFunctionOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunctionEvents)).
+		Return([]platform.FunctionEvent{&returnedFunctionEvent1, &returnedFunctionEvent2}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunction)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Twice()
+
+	headers := map[string]string{
+		"x-nuclio-function-event-namespace": "fe-namespace",
+		"x-nuclio-function-name":            "feFunc",
+	}
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusOK
+
+	// empty response because of no permissions
+	expectedResponseBody := `{}`
+
+	suite.sendRequest("GET",
+		"/api/function_events",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(2, len(opaRequests))
+	for idx, request := range opaRequests {
+		functionResource := fmt.Sprintf("/projects/feProj/functions/feFunc/events/fe%d", idx + 1)
+		suite.validateOpaRequest(request, functionResource, "read")
+	}
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
@@ -2402,6 +3013,10 @@ func (suite *functionEventTestSuite) TestCreateSuccessful() {
 		&expectedStatusCode,
 		requestBody)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/fe1Proj/functions/fe1Func/events/fe1", "create")
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
@@ -2460,6 +3075,63 @@ func (suite *functionEventTestSuite) TestCreateNoName() {
 
 func (suite *functionEventTestSuite) TestCreateNoNamespace() {
 	suite.sendRequestNoNamespace("POST")
+}
+
+func (suite *functionEventTestSuite) TestCreateNoPermissions() {
+
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "fe1Func"
+	returnedFunction.Config.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
+
+	// verify
+	verifyGetFunction := func(getFunctionOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("fe1Func", getFunctionOptions.Name)
+		suite.Require().Equal("fe1-namespace", getFunctionOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunction)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusForbidden
+	ecv := restful.NewErrorContainsVerifier(suite.logger,
+		[]string{"Not allowed to create resource /projects/fe1Proj/functions/fe1Func/events/fe1"})
+	requestBody := `{
+	"metadata": {
+		"name": "fe1",
+		"namespace": "fe1-namespace",
+		"labels": {
+			"nuclio.io/function-name": "fe1Func"
+		}
+	},
+	"spec": {
+		"displayName": "fe1DisplayName",
+		"triggerName": "fe1TriggerName",
+		"triggerKind": "fe1TriggerKind",
+		"body": "fe1Body",
+		"attributes": {
+			"fe1KeyA": "fe1StringValue",
+			"fe1KeyB": ["fe1ListValueItemA", "fe1ListValueItemB"]
+		}
+	}
+}`
+
+	suite.sendRequest("POST",
+		"/api/function_events",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/fe1Proj/functions/fe1Func/events/fe1", "create")
+
+	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
 func (suite *functionEventTestSuite) TestUpdateSuccessful() {
@@ -2530,6 +3202,10 @@ func (suite *functionEventTestSuite) TestUpdateSuccessful() {
 		&expectedStatusCode,
 		nil)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/fe1Proj/functions/fe1Func/events/fe1", "update")
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
@@ -2543,6 +3219,63 @@ func (suite *functionEventTestSuite) TestUpdateNoName() {
 
 func (suite *functionEventTestSuite) TestUpdateNoNamespace() {
 	suite.sendRequestNoNamespace("PUT")
+}
+
+func (suite *functionEventTestSuite) TestUpdateNoPermissions() {
+
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "fe1Func"
+	returnedFunction.Config.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
+
+	// verify
+	verifyGetFunction := func(getFunctionOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("fe1Func", getFunctionOptions.Name)
+		suite.Require().Equal("fe1-namespace", getFunctionOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunction)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusForbidden
+	ecv := restful.NewErrorContainsVerifier(suite.logger,
+		[]string{"Not allowed to update resource /projects/fe1Proj/functions/fe1Func/events/fe1"})
+	requestBody := `{
+	"metadata": {
+		"name": "fe1",
+		"namespace": "fe1-namespace",
+		"labels": {
+			"nuclio.io/function-name": "fe1Func"
+		}
+	},
+	"spec": {
+		"displayName": "fe1DisplayName",
+		"triggerName": "fe1TriggerName",
+		"triggerKind": "fe1TriggerKind",
+		"body": "fe1Body",
+		"attributes": {
+			"fe1KeyA": "fe1StringValue",
+			"fe1KeyB": ["fe1ListValueItemA", "fe1ListValueItemB"]
+		}
+	}
+}`
+
+	suite.sendRequest("PUT",
+		"/api/function_events",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/fe1Proj/functions/fe1Func/events/fe1", "update")
+
+	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
 func (suite *functionEventTestSuite) TestDeleteSuccessful() {
@@ -2608,6 +3341,10 @@ func (suite *functionEventTestSuite) TestDeleteSuccessful() {
 		&expectedStatusCode,
 		nil)
 
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/fe1Proj/functions/fe1Func/events/fe1", "delete")
+
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
@@ -2621,6 +3358,67 @@ func (suite *functionEventTestSuite) TestDeleteNoName() {
 
 func (suite *functionEventTestSuite) TestDeleteNoNamespace() {
 	suite.sendRequestNoNamespace("DELETE")
+}
+
+func (suite *functionEventTestSuite) TestDeleteNoPermissions() {
+
+	returnedFunctionEvent := platform.AbstractFunctionEvent{}
+	returnedFunctionEvent.FunctionEventConfig.Meta.Name = "fe1"
+	returnedFunctionEvent.FunctionEventConfig.Meta.Namespace = "fe1-namespace"
+	returnedFunctionEvent.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/function-name": "fe1Func"}
+
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = "fe1Func"
+	returnedFunction.Config.Meta.Labels = map[string]string{"nuclio.io/project-name": "fe1Proj"}
+
+	// verify
+	verifyGetFunctionEvent := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
+		suite.Require().Equal("fe1", getFunctionEventsOptions.Meta.Name)
+		suite.Require().Equal("fe1-namespace", getFunctionEventsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	verifyGetFunction := func(getFunctionOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("fe1Func", getFunctionOptions.Name)
+		suite.Require().Equal("fe1-namespace", getFunctionOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunctionEvent)).
+		Return([]platform.FunctionEvent{&returnedFunctionEvent}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunction)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
+
+	suite.opaClient.SetAnswer(false)
+	expectedStatusCode := http.StatusForbidden
+	ecv := restful.NewErrorContainsVerifier(suite.logger,
+		[]string{"Not allowed to delete resource /projects/fe1Proj/functions/fe1Func/events/fe1"})
+	requestBody := `{
+	"metadata": {
+		"name": "fe1",
+		"namespace": "fe1-namespace"
+	}
+}`
+
+	suite.sendRequest("DELETE",
+		"/api/function_events",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	opaRequests := suite.opaClient.GetRequests()
+	suite.Assert().Equal(1, len(opaRequests))
+	suite.validateOpaRequest(opaRequests[0], "/projects/fe1Proj/functions/fe1Func/events/fe1", "delete")
+
+	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
 func (suite *functionEventTestSuite) sendRequestNoMetadata(method string) {

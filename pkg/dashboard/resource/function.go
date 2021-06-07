@@ -176,15 +176,6 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		return
 	}
 
-	_, err := fr.queryOPAFunctionPermissions(request,
-		functionInfo.Meta.Labels["nuclio.io/project-name"],
-		functionInfo.Meta.Name,
-		opa.ActionUpdate,
-		true)
-	if err != nil {
-		return nil, err
-	}
-
 	// TODO: Add a lock to prevent race conditions here
 	// validate the function exists
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
@@ -203,6 +194,15 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 	if err = fr.validateUpdateInfo(functionInfo, functions[0]); err != nil {
 		responseErr = nuclio.WrapErrBadRequest(errors.Wrap(err, "Requested update fields are invalid"))
 		return
+	}
+
+	_, err = fr.queryOPAFunctionPermissions(request,
+		functions[0].GetConfig().Meta.Labels["nuclio.io/project-name"],
+		functionInfo.Meta.Name,
+		opa.ActionUpdate,
+		true)
+	if err != nil {
+		return nil, err
 	}
 
 	// get the authentication configuration for the request
@@ -468,8 +468,19 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 	}
 
 	// check opa permissions for resource
+	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
+		Name:      functionInfo.Meta.Name,
+		Namespace: fr.resolveNamespace(request, functionInfo),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get functions")
+	}
+
+	if len(functions) == 0 {
+		return nil, nuclio.NewErrNotFound("Function not found")
+	}
 	_, err = fr.queryOPAFunctionPermissions(request,
-		functionInfo.Meta.Labels["nuclio.io/project-name"],
+		functions[0].GetConfig().Meta.Labels["nuclio.io/project-name"],
 		functionInfo.Meta.Name,
 		opa.ActionDelete,
 		true)
