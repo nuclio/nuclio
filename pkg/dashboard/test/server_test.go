@@ -62,8 +62,8 @@ type dashboardTestSuite struct {
 	httpServer      *httptest.Server
 	mockPlatform    *mockplatform.Platform
 	opaClient       *opa.MockClient
-	userId          string
-	groupId         string
+	userID          string
+	groupID         string
 }
 
 func (suite *dashboardTestSuite) SetupTest() {
@@ -106,8 +106,8 @@ func (suite *dashboardTestSuite) SetupTest() {
 
 	suite.opaClient = opa.NewMockClient(suite.logger)
 	suite.dashboardServer.OPAClient = suite.opaClient
-	suite.userId = "user-id"
-	suite.groupId = "group-id"
+	suite.userID = "user-id"
+	suite.groupID = "group-id"
 
 	// create an http server from the dashboard server
 	suite.httpServer = httptest.NewServer(suite.dashboardServer.Router)
@@ -133,8 +133,8 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 	}
 
 	// for opa testing
-	request.Header.Set("X-User-Id", suite.userId)
-	request.Header.Set("X-User-Group-Ids", suite.groupId)
+	request.Header.Set("X-User-Id", suite.userID)
+	request.Header.Set("X-User-Group-Ids", suite.groupID)
 
 	response, err := http.DefaultClient.Do(request)
 	suite.Require().NoError(err)
@@ -185,7 +185,7 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 func (suite *dashboardTestSuite) validateOpaRequest(request opa.PermissionRequestInput, resource, action string) {
 	suite.Assert().Equal(resource, request.Resource)
 	suite.Assert().Equal(action, request.Action)
-	suite.Assert().Equal([]string{suite.userId, suite.groupId}, request.Ids)
+	suite.Assert().Equal([]string{suite.userID, suite.groupID}, request.Ids)
 }
 
 //
@@ -395,7 +395,7 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 	opaRequests := suite.opaClient.GetRequests()
 	suite.Assert().Equal(2, len(opaRequests))
 	for idx, request := range opaRequests {
-		functionResource := fmt.Sprintf("/projects/f%d-proj/functions/f%d", idx + 1, idx + 1)
+		functionResource := fmt.Sprintf("/projects/f%d-proj/functions/f%d", idx+1, idx+1)
 		suite.validateOpaRequest(request, functionResource, "read")
 	}
 
@@ -465,7 +465,7 @@ func (suite *functionTestSuite) TestGetListNoPermissions() {
 	opaRequests := suite.opaClient.GetRequests()
 	suite.Assert().Equal(2, len(opaRequests))
 	for idx, request := range opaRequests {
-		functionResource := fmt.Sprintf("/projects/f%d-proj/functions/f%d", idx + 1, idx + 1)
+		functionResource := fmt.Sprintf("/projects/f%d-proj/functions/f%d", idx+1, idx+1)
 		suite.validateOpaRequest(request, functionResource, "read")
 	}
 
@@ -1391,7 +1391,7 @@ func (suite *projectTestSuite) TestGetListSuccessful() {
 	opaRequests := suite.opaClient.GetRequests()
 	suite.Assert().Equal(2, len(opaRequests))
 	for idx, request := range opaRequests {
-		projectResource := fmt.Sprintf("/projects/p%d", idx + 1)
+		projectResource := fmt.Sprintf("/projects/p%d", idx+1)
 		suite.validateOpaRequest(request, projectResource, "read")
 	}
 
@@ -1455,7 +1455,7 @@ func (suite *projectTestSuite) TestGetListNoPermissions() {
 	opaRequests := suite.opaClient.GetRequests()
 	suite.Assert().Equal(2, len(opaRequests))
 	for idx, request := range opaRequests {
-		projectResource := fmt.Sprintf("/projects/p%d", idx + 1)
+		projectResource := fmt.Sprintf("/projects/p%d", idx+1)
 		suite.validateOpaRequest(request, projectResource, "read")
 	}
 
@@ -1804,7 +1804,7 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 	opaRequests := suite.opaClient.GetRequests()
 	suite.Assert().Equal(2, len(opaRequests))
 	for idx, request := range opaRequests {
-		projectResource := fmt.Sprintf("/projects/p%d", idx + 1)
+		projectResource := fmt.Sprintf("/projects/p%d", idx+1)
 		suite.validateOpaRequest(request, projectResource, "read")
 	}
 
@@ -2857,7 +2857,7 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 	opaRequests := suite.opaClient.GetRequests()
 	suite.Assert().Equal(2, len(opaRequests))
 	for idx, request := range opaRequests {
-		functionResource := fmt.Sprintf("/projects/feProj/functions/feFunc/events/fe%d", idx + 1)
+		functionResource := fmt.Sprintf("/projects/feProj/functions/feFunc/events/fe%d", idx+1)
 		suite.validateOpaRequest(request, functionResource, "read")
 	}
 
@@ -2938,7 +2938,7 @@ func (suite *functionEventTestSuite) TestGetListNoPermissions() {
 	opaRequests := suite.opaClient.GetRequests()
 	suite.Assert().Equal(2, len(opaRequests))
 	for idx, request := range opaRequests {
-		functionResource := fmt.Sprintf("/projects/feProj/functions/feFunc/events/fe%d", idx + 1)
+		functionResource := fmt.Sprintf("/projects/feProj/functions/feFunc/events/fe%d", idx+1)
 		suite.validateOpaRequest(request, functionResource, "read")
 	}
 

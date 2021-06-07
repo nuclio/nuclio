@@ -21,14 +21,14 @@ import (
 )
 
 type MockClient struct {
-	logger  logger.Logger
+	logger   logger.Logger
 	requests []PermissionRequestInput
-	answer bool
+	answer   bool
 }
 
 func NewMockClient(parentLogger logger.Logger) *MockClient {
 	newClient := MockClient{
-		logger:  parentLogger.GetChild("mock-opa"),
+		logger: parentLogger.GetChild("mock-opa"),
 		answer: true,
 	}
 	return &newClient
