@@ -26,7 +26,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/dashboard/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -84,16 +83,6 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 
 	// create a map of attributes keyed by the project id (name)
 	for _, project := range projects {
-
-		// check opa permissions for resource
-		allowed, err := pr.queryOPAProjectPermissions(request, project.GetConfig().Meta.Name, opa.ActionRead, false)
-		if err != nil {
-			return nil, err
-		}
-		if !allowed {
-			continue
-		}
-
 		if exportProject {
 			response[project.GetConfig().Meta.Name] = pr.export(project)
 		} else {
@@ -106,12 +95,6 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 
 // GetByID returns a specific project by id
 func (pr *projectResource) GetByID(request *http.Request, id string) (restful.Attributes, error) {
-
-	// check opa permissions for resource
-	_, err := pr.queryOPAProjectPermissions(request, id, opa.ActionRead, true)
-	if err != nil {
-		return nil, err
-	}
 
 	// get namespace
 	namespace := pr.getNamespaceFromRequest(request)
@@ -155,12 +138,6 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 	projectInfo, responseErr := pr.getProjectInfoFromRequest(request)
 	if responseErr != nil {
 		return
-	}
-
-	// check opa permissions for resource
-	_, err := pr.queryOPAProjectPermissions(request, projectInfo.Meta.Name, opa.ActionCreate, true)
-	if err != nil {
-		return "", nil, err
 	}
 
 	return pr.createProject(request, projectInfo)
@@ -579,12 +556,6 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		}, err
 	}
 
-	// check opa permissions for resource
-	_, err = pr.queryOPAProjectPermissions(request, projectInfo.Meta.Name, opa.ActionDelete, true)
-	if err != nil {
-		return nil, err
-	}
-
 	projectDeletionStrategy := request.Header.Get("x-nuclio-delete-project-strategy")
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
@@ -620,12 +591,6 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 			Single:     true,
 			StatusCode: http.StatusBadRequest,
 		}, err
-	}
-
-	// check opa permissions for resource
-	_, err = pr.queryOPAProjectPermissions(request, projectInfo.Meta.Name, opa.ActionUpdate, true)
-	if err != nil {
-		return nil, err
 	}
 
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
@@ -759,16 +724,6 @@ func (pr *projectResource) enrichProjectImportInfoImportResources(projectImportI
 			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
 		}
 	}
-}
-
-func (pr *projectResource) queryOPAProjectPermissions(request *http.Request,
-	projectName string,
-	action opa.Action,
-	raiseForbidden bool) (bool, error) {
-	if projectName == "" {
-		projectName = "*"
-	}
-	return pr.queryOPAPermissions(request, opa.GenerateProjectResourceString(projectName), action, raiseForbidden)
 }
 
 // register the resource

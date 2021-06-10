@@ -149,6 +149,25 @@ type IngressConfig struct {
 	Oauth2ProxyURL             string   `json:"oauth2ProxyURL,omitempty"`
 }
 
+type OpaClientKind string
+
+const (
+	OpaClientKindHTTP OpaClientKind = "http"
+	OpaClientKindNop  OpaClientKind = "nop"
+	OpaClientKindMock OpaClientKind = "mock"
+
+	DefaultOpaClientKind          OpaClientKind = OpaClientKindNop
+	DefaultOpaRequestTimeOut                    = 10
+	DefaultOpaPermissionQueryPath               = "/v1/data/iguazio/authz/allow"
+)
+
+type OpaConfig struct {
+	Address             string        `json:"address,omitempty"`
+	ClientKind          OpaClientKind `json:"client_kind,omitempty"`
+	RequestTimeout      int           `json:"request_timeout,omitempty"`
+	PermissionQueryPath string        `json:"permission_query_path,omitempty"`
+}
+
 type CronTriggerCreationMode string
 
 const (

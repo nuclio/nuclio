@@ -29,27 +29,19 @@ import (
 	"github.com/nuclio/logger"
 )
 
-const (
-	DefaultRequestTimeout = 10 * time.Second
-
-	PermissionQueryPath string = "/v1/data/iguazio/authz/allow"
-)
-
 type HTTPClient struct {
-	logger  logger.Logger
-	enabled bool
-	address string
+	logger              logger.Logger
+	address             string
+	permissionQueryPath string
+	requestTimeout      time.Duration
 }
 
 func NewHTTPClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) *HTTPClient {
 	newClient := HTTPClient{
-		enabled: false,
 		logger:  parentLogger.GetChild("opa"),
-	}
-	newClient.address = platformConfiguration.OpaAddress
-
-	if newClient.address != "" {
-		newClient.enabled = true
+		address: platformConfiguration.Opa.Address,
+		permissionQueryPath: platformConfiguration.Opa.PermissionQueryPath,
+		requestTimeout: time.Duration(platformConfiguration.Opa.RequestTimeout) * time.Second,
 	}
 
 	return &newClient
@@ -60,14 +52,6 @@ func (c *HTTPClient) QueryPermissions(resource string, action Action, ids []stri
 		"resource", resource,
 		"action", action,
 		"ids", ids)
-
-	if !c.enabled {
-		c.logger.DebugWith("OPA is disabled, allowing by default",
-			"resource", resource,
-			"action", action,
-			"ids", ids)
-		return true, nil
-	}
 
 	// send the request
 	headers := map[string]string{
@@ -84,13 +68,13 @@ func (c *HTTPClient) QueryPermissions(resource string, action Action, ids []stri
 	}
 
 	responseBody, _, err := common.SendHTTPRequest(http.MethodPost,
-		fmt.Sprintf("%s%s", c.address, PermissionQueryPath),
+		fmt.Sprintf("%s%s", c.address, c.permissionQueryPath),
 		requestBody,
 		headers,
 		[]*http.Cookie{},
 		http.StatusOK,
 		true,
-		DefaultRequestTimeout)
+		c.requestTimeout)
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to send request to OPA")
 	}

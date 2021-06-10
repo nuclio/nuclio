@@ -47,7 +47,7 @@ type Config struct {
 	ProjectsLeader           *ProjectsLeader              `json:"projectsLeader,omitempty"`
 	ManagedNamespaces        []string                     `json:"managedNamespaces,omitempty"`
 	IguazioSessionCookie     string                       `json:"iguazioSessionCookie,omitempty"`
-	OpaAddress               string                       `json:"opaAddress,omitempty"`
+	Opa                      OpaConfig                    `json:"opa,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 
@@ -75,7 +75,8 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.Kind = "local"
 	}
 
-	config.OpaAddress = os.Getenv("NUCLIO_DASHBOARD_OPA_ADDRESS")
+	// enrich opa configuration
+	config.enrichOpaConfig()
 
 	// enrich local platform configuration
 	config.enrichLocalPlatform()
@@ -208,5 +209,19 @@ func (config *Config) enrichLocalPlatform() {
 
 	if config.Local.FunctionContainersHealthinessTimeout == 0 {
 		config.Local.FunctionContainersHealthinessTimeout = time.Second * 5
+	}
+}
+
+func (config *Config) enrichOpaConfig() {
+	if config.Opa.ClientKind == "" {
+		config.Opa.ClientKind = DefaultOpaClientKind
+	}
+
+	if config.Opa.RequestTimeout == 0 {
+		config.Opa.RequestTimeout = DefaultOpaRequestTimeOut
+	}
+
+	if config.Opa.PermissionQueryPath == "" {
+		config.Opa.PermissionQueryPath = DefaultOpaPermissionQueryPath
 	}
 }
