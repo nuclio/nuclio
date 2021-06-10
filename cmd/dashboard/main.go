@@ -80,6 +80,7 @@ func main() {
 	monitorDockerDeamonIntervalStr := flag.String("monitor-docker-deamon-interval", common.GetEnvOrDefaultString("NUCLIO_MONITOR_DOCKER_DAEMON_INTERVAL", "5s"), "Docker deamon connectivity monitor interval (used in conjunction with 'monitor-docker-deamon')")
 	monitorDockerDeamonMaxConsecutiveErrorsStr := flag.String("monitor-docker-deamon-max-consecutive-errors", common.GetEnvOrDefaultString("NUCLIO_MONITOR_DOCKER_DAEMON_MAX_CONSECUTIVE_ERRORS", "5"), "Docker deamon connectivity monitor max consecutive errors before declaring docker connection is unhealthy (used in conjunction with 'monitor-docker-deamon')")
 	opaAddress := flag.String("opa-address", common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_OPA_ADDRESS", ""), "OPA address for querying permissions")
+
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)
 
