@@ -134,8 +134,8 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to get platform configuration")
 	}
 
-	if platformConfiguration.OpaAddress == "" {
-		platformConfiguration.OpaAddress = opaAddress
+	if platformConfiguration.Opa.Address == "" {
+		platformConfiguration.Opa.Address = opaAddress
 	}
 
 	// create a root logger

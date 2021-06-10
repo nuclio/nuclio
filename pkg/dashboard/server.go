@@ -128,8 +128,10 @@ func NewServer(parentLogger logger.Logger,
 	}
 
 	// create opa client
-	if platformConfiguration.OpaAddress != "" {
+	if platformConfiguration.Opa.ClientKind != platformconfig.OpaClientKindHTTP {
 		newServer.OPAClient = opa.NewHTTPClient(newServer.Logger, platformConfiguration)
+	} else if platformConfiguration.Opa.ClientKind != platformconfig.OpaClientKindMock {
+		newServer.OPAClient = &opa.MockClient{}
 	} else {
 		newServer.OPAClient = opa.NewNopClient(newServer.Logger)
 	}
@@ -167,7 +169,7 @@ func NewServer(parentLogger logger.Logger,
 		"defaultRunRegistryURL", defaultRunRegistryURL,
 		"defaultCredRefreshInterval", defaultCredRefreshInterval,
 		"defaultNamespace", defaultNamespace,
-		"opaAddress", platformConfiguration.OpaAddress)
+		"opaAddress", platformConfiguration.Opa.Address)
 
 	return newServer, nil
 }
