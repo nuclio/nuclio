@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/dashboard/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -82,21 +81,4 @@ func (r *resource) getListenAddress() string {
 
 func (r *resource) headerValueIsTrue(request *http.Request, headerName string) bool {
 	return strings.ToLower(request.Header.Get(headerName)) == "true"
-}
-
-func (r *resource) getUserAndGroupIdsFromHeaders(request *http.Request) []string {
-	var ids []string
-
-	userID := request.Header.Get(opa.UserIDHeader)
-	userGroupIdsStr := request.Header.Get(opa.UserGroupIdsHeader)
-
-	if userID != "" {
-		ids = append(ids, userID)
-	}
-
-	if userGroupIdsStr != "" {
-		ids = append(ids, strings.Split(userGroupIdsStr, ",")...)
-	}
-
-	return ids
 }

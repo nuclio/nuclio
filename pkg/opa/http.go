@@ -22,11 +22,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/platformconfig"
-
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio/pkg/common"
 )
 
 type HTTPClient struct {
@@ -36,12 +34,12 @@ type HTTPClient struct {
 	requestTimeout      time.Duration
 }
 
-func NewHTTPClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) *HTTPClient {
+func NewHTTPClient(parentLogger logger.Logger, address, permissionQueryPath string, requestTimeout time.Duration) *HTTPClient {
 	newClient := HTTPClient{
 		logger:              parentLogger.GetChild("opa"),
-		address:             platformConfiguration.Opa.Address,
-		permissionQueryPath: platformConfiguration.Opa.PermissionQueryPath,
-		requestTimeout:      time.Duration(platformConfiguration.Opa.RequestTimeout) * time.Second,
+		address:             address,
+		permissionQueryPath: permissionQueryPath,
+		requestTimeout:      requestTimeout,
 	}
 
 	return &newClient

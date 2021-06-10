@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"net/http"
 	"regexp"
 	"strings"
@@ -66,6 +67,7 @@ type Platform struct {
 	DefaultHTTPIngressHostTemplate string
 	ImageNamePrefixTemplate        string
 	DefaultNamespace               string
+	OpaClient                      opa.Client
 }
 
 func NewPlatform(parentLogger logger.Logger,
@@ -88,6 +90,8 @@ func NewPlatform(parentLogger logger.Logger,
 	}
 
 	newPlatform.DefaultNamespace = defaultNamespace
+
+	newPlatform.OpaClient = opa.CreateOpaClient(newPlatform.Logger, &platformConfiguration.Opa)
 
 	return newPlatform, nil
 }

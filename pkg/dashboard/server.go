@@ -23,7 +23,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
-	"github.com/nuclio/nuclio/pkg/dashboard/opa"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -61,7 +60,6 @@ type Server struct {
 	imageNamePrefixTemplate        string
 	platformAuthorizationMode      PlatformAuthorizationMode
 	dependantImageRegistryURL      string
-	OPAClient                      opa.Client
 }
 
 func NewServer(parentLogger logger.Logger,
