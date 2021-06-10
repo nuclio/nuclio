@@ -128,7 +128,11 @@ func NewServer(parentLogger logger.Logger,
 	}
 
 	// create opa client
-	newServer.OPAClient = opa.NewSideCarClient(newServer.Logger, platformConfiguration)
+	if platformConfiguration.OpaAddress != "" {
+		newServer.OPAClient = opa.NewHTTPClient(newServer.Logger, platformConfiguration)
+	} else {
+		newServer.OPAClient = opa.NewNopClient(newServer.Logger)
+	}
 
 	// try to load docker keys, ignoring errors
 	if containerBuilderKind == "docker" {

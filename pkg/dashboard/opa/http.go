@@ -35,14 +35,14 @@ const (
 	PermissionQueryPath string = "/v1/data/iguazio/authz/allow"
 )
 
-type SideCarClient struct {
+type HTTPClient struct {
 	logger  logger.Logger
 	enabled bool
 	address string
 }
 
-func NewSideCarClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) *SideCarClient {
-	newClient := SideCarClient{
+func NewHTTPClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) *HTTPClient {
+	newClient := HTTPClient{
 		enabled: false,
 		logger:  parentLogger.GetChild("opa"),
 	}
@@ -55,7 +55,7 @@ func NewSideCarClient(parentLogger logger.Logger, platformConfiguration *platfor
 	return &newClient
 }
 
-func (c *SideCarClient) QueryPermissions(resource string, action Action, ids []string) (bool, error) {
+func (c *HTTPClient) QueryPermissions(resource string, action Action, ids []string) (bool, error) {
 	c.logger.DebugWith("Checking permissions in OPA",
 		"resource", resource,
 		"action", action,

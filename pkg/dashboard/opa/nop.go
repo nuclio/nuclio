@@ -17,14 +17,26 @@ limitations under the License.
 package opa
 
 import (
-	"github.com/stretchr/testify/mock"
+	"github.com/nuclio/logger"
 )
 
-type MockClient struct {
-	mock.Mock
+type NopClient struct {
+	logger logger.Logger
 }
 
-func (mc *MockClient) QueryPermissions(resource string, action Action, ids []string) (bool, error) {
-	args := mc.Called(resource, action, ids)
-	return args.Get(0).(bool), args.Error(1)
+func NewNopClient(parentLogger logger.Logger) *NopClient {
+	newClient := NopClient{
+		logger: parentLogger.GetChild("opa"),
+	}
+
+	return &newClient
+}
+
+func (c *NopClient) QueryPermissions(resource string, action Action, ids []string) (bool, error) {
+	c.logger.DebugWith("Checking permissions in OPA (nop)",
+		"resource", resource,
+		"action", action,
+		"ids", ids)
+
+	return true, nil
 }
