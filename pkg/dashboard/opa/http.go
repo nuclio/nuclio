@@ -38,10 +38,10 @@ type HTTPClient struct {
 
 func NewHTTPClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) *HTTPClient {
 	newClient := HTTPClient{
-		logger:  parentLogger.GetChild("opa"),
-		address: platformConfiguration.Opa.Address,
+		logger:              parentLogger.GetChild("opa"),
+		address:             platformConfiguration.Opa.Address,
 		permissionQueryPath: platformConfiguration.Opa.PermissionQueryPath,
-		requestTimeout: time.Duration(platformConfiguration.Opa.RequestTimeout) * time.Second,
+		requestTimeout:      time.Duration(platformConfiguration.Opa.RequestTimeout) * time.Second,
 	}
 
 	return &newClient

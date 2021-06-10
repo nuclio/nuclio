@@ -127,15 +127,6 @@ func NewServer(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}
 
-	// create opa client
-	if platformConfiguration.Opa.ClientKind != platformconfig.OpaClientKindHTTP {
-		newServer.OPAClient = opa.NewHTTPClient(newServer.Logger, platformConfiguration)
-	} else if platformConfiguration.Opa.ClientKind != platformconfig.OpaClientKindMock {
-		newServer.OPAClient = &opa.MockClient{}
-	} else {
-		newServer.OPAClient = opa.NewNopClient(newServer.Logger)
-	}
-
 	// try to load docker keys, ignoring errors
 	if containerBuilderKind == "docker" {
 		if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
@@ -168,8 +159,7 @@ func NewServer(parentLogger logger.Logger,
 		"defaultRegistryURL", defaultRegistryURL,
 		"defaultRunRegistryURL", defaultRunRegistryURL,
 		"defaultCredRefreshInterval", defaultCredRefreshInterval,
-		"defaultNamespace", defaultNamespace,
-		"opaAddress", platformConfiguration.Opa.Address)
+		"defaultNamespace", defaultNamespace)
 
 	return newServer, nil
 }
