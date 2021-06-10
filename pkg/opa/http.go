@@ -22,9 +22,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio/pkg/common"
 )
 
 type HTTPClient struct {
