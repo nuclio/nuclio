@@ -497,11 +497,13 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 				RaiseForbidden: testCase.raiseForbidden,
 			})
 
-			if !testCase.opaResponse && testCase.raiseForbidden && testCase.givenMemberIds {
-				suite.Assert().Error(err)
-			} else if !testCase.opaResponse && testCase.givenMemberIds {
-				suite.Assert().NoError(err)
-				suite.Assert().Equal(0, len(functions))
+			if !testCase.opaResponse && testCase.givenMemberIds {
+				if testCase.raiseForbidden {
+					suite.Assert().Error(err)
+				} else {
+					suite.Assert().NoError(err)
+					suite.Assert().Equal(0, len(functions))
+				}
 			} else {
 				suite.Assert().NoError(err)
 				suite.Assert().Equal(1, len(functions))
