@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -39,13 +41,27 @@ func (suite *functionEventGetTestSuite) TestGet() {
 	for functionEventIdx := 0; functionEventIdx < numOfFunctionEvents; functionEventIdx++ {
 		uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), functionEventIdx)
 
+		runtimeName, _ := common.GetRuntimeNameAndVersion("shell")
+		functionName := fmt.Sprintf("function-%d", functionEventIdx)
+		namedArgs := map[string]string{
+			"path":    path.Join(suite.GetExamples(), runtimeName, "empty", "empty.sh"),
+			"runtime": "shell",
+			"handler": "empty.sh:main",
+		}
+		suite.logger.DebugWith("Deploying function",
+			"functionName", functionName,
+			"namedArgs", namedArgs,
+		)
+		err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+		suite.Require().NoError(err)
+
 		functionEventName := "get-test-functionevent" + uniqueSuffix
 
 		// add function event name to list
 		functionEventNames = append(functionEventNames, functionEventName)
 
 		namedArgs := map[string]string{
-			"function":     fmt.Sprintf("function-%d", functionEventIdx),
+			"function":     functionName,
 			"display-name": fmt.Sprintf("display-name-%d", functionEventIdx),
 			"trigger-name": fmt.Sprintf("trigger-name-%d", functionEventIdx),
 			"trigger-kind": fmt.Sprintf("trigger-kind-%d", functionEventIdx),
