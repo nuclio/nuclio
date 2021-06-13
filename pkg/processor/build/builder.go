@@ -169,16 +169,14 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	}
 
 	// create base temp directory
-	err = b.createTempDir()
-	if err != nil {
+	if err := b.createTempDir(); err != nil {
 		return nil, errors.Wrap(err, "Failed to create base temp dir")
 	}
 
 	defer b.cleanupTempDir() // nolint: errcheck
 
 	// create staging directory
-	err = b.createStagingDir()
-	if err != nil {
+	if err := b.createStagingDir(); err != nil {
 		return nil, errors.Wrap(err, "Failed to create staging dir")
 	}
 
@@ -990,18 +988,14 @@ func (b *Builder) copyHandlerToStagingDir(handlerSubPath string) error {
 }
 
 func (b *Builder) mkDirUnderTemp(name string) (string, error) {
-
 	dir := path.Join(b.tempDir, name)
 
 	// temp dir needs executable permission for docker to be able to pull from it
-	err := os.Mkdir(dir, 0744)
-
-	if err != nil {
+	if err := os.Mkdir(dir, 0744); err != nil {
 		return "", errors.Wrapf(err, "Failed to create temporary subdir %s", dir)
 	}
 
 	b.logger.DebugWith("Created temporary dir", "dir", dir)
-
 	return dir, nil
 }
 
@@ -1638,6 +1632,8 @@ func (b *Builder) cloneFunctionFromGit(outputDir, repositoryURL string) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse git attributes")
 	}
+
+	b.logger.DebugWith("Parsed git attributes", "gitAttributes", gitAttributes)
 
 	return b.gitClient.Clone(outputDir, repositoryURL, gitAttributes)
 }

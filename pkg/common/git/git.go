@@ -7,12 +7,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
-	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 )
 
 type Client interface {
@@ -63,7 +63,16 @@ func (agc *AbstractClient) Clone(outputDir, repositoryURL string, attributes *At
 	return agc.clone(outputDir, repositoryURL, referenceName, gitAuth)
 }
 
-func (agc *AbstractClient) clone(outputDir, repositoryURL, referenceName string, gitAuth transport.AuthMethod) error {
+func (agc *AbstractClient) clone(outputDir string,
+	repositoryURL string,
+	referenceName string,
+	gitAuth transport.AuthMethod) error {
+
+	agc.logger.DebugWith("Cloning",
+		"outputDir", outputDir,
+		"referenceName", referenceName,
+		"repositoryURL", repositoryURL)
+
 	if _, err := git.PlainClone(outputDir, false, &git.CloneOptions{
 		URL:           repositoryURL,
 		ReferenceName: plumbing.ReferenceName(referenceName),
@@ -78,31 +87,16 @@ func (agc *AbstractClient) clone(outputDir, repositoryURL, referenceName string,
 	return nil
 }
 
-func (agc *AbstractClient) logCurrentCommitSHA(gitDir, repositoryURL, referenceName string) {
-	res, err := agc.cmdRunner.Run(nil, fmt.Sprintf("cd %s;git rev-parse HEAD", common.Quote(gitDir)))
-	if err != nil || res.ExitCode != 0 {
-		agc.logger.WarnWith("Failed to get commit SHA", "err", err)
-		return
-	}
-	if res.ExitCode != 0 {
-		agc.logger.WarnWith("Failed to get commit SHA (non-zero exit code)", "output", res.Output)
-		return
-	}
-
-	// remove automatic new line from end of res.Output
-	commitSHA := strings.TrimSuffix(res.Output, "\n")
-
-	agc.logger.InfoWith("Logging current commit SHA",
-		"repositoryURL", repositoryURL,
-		"referenceName", referenceName,
-		"commitSHA", commitSHA)
-}
-
 func (agc *AbstractClient) cloneFromAzureDevops(outputDir string,
 	repositoryURL string,
 	referenceName string,
 	gitAuth *githttp.BasicAuth,
 	cmdRunner cmdrunner.CmdRunner) error {
+
+	agc.logger.DebugWith("Cloning from azure devops",
+		"outputDir", outputDir,
+		"referenceName", referenceName,
+		"repositoryURL", repositoryURL)
 
 	var runOptions *cmdrunner.RunOptions
 
@@ -142,8 +136,27 @@ func (agc *AbstractClient) cloneFromAzureDevops(outputDir string,
 	}
 
 	agc.logCurrentCommitSHA(outputDir, repositoryURL, referenceName)
-
 	return nil
+}
+
+func (agc *AbstractClient) logCurrentCommitSHA(gitDir, repositoryURL, referenceName string) {
+	res, err := agc.cmdRunner.Run(nil, fmt.Sprintf("cd %s;git rev-parse HEAD", common.Quote(gitDir)))
+	if err != nil || res.ExitCode != 0 {
+		agc.logger.WarnWith("Failed to get commit SHA", "err", err)
+		return
+	}
+	if res.ExitCode != 0 {
+		agc.logger.WarnWith("Failed to get commit SHA (non-zero exit code)", "output", res.Output)
+		return
+	}
+
+	// remove automatic new line from end of res.Output
+	commitSHA := strings.TrimSuffix(res.Output, "\n")
+
+	agc.logger.DebugWith("Current commit SHA",
+		"repositoryURL", repositoryURL,
+		"referenceName", referenceName,
+		"commitSHA", commitSHA)
 }
 
 func (agc *AbstractClient) parseCredentials(attributes *Attributes) *githttp.BasicAuth {
