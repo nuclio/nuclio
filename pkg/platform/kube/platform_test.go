@@ -19,11 +19,13 @@ limitations under the License.
 package kube
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -60,6 +62,7 @@ type KubePlatformTestSuite struct {
 	Logger                        logger.Logger
 	Platform                      *Platform
 	PlatformKubeConfig            *platformconfig.PlatformKubeConfig
+	mockedOpaClient               *opa.MockClient
 }
 
 func (suite *KubePlatformTestSuite) SetupSuite() {
@@ -83,6 +86,8 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 	abstractPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
 	suite.Require().NoError(err)
 	suite.abstractPlatform = abstractPlatform
+	suite.mockedOpaClient = &opa.MockClient{}
+	suite.abstractPlatform.OpaClient = suite.mockedOpaClient
 	suite.kubeClientSet = *fake.NewSimpleClientset()
 }
 
@@ -117,6 +122,8 @@ func (suite *KubePlatformTestSuite) resetCRDMocks() {
 			KubeClientSet:   &suite.kubeClientSet,
 		},
 	}
+	suite.Platform.updater, _ = client.NewUpdater(suite.Logger, suite.Platform.consumer, suite.Platform)
+	suite.Platform.deleter, _ = client.NewDeleter(suite.Logger, suite.Platform)
 }
 
 type FunctionKubePlatformTestSuite struct {
@@ -410,6 +417,260 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionInstanceAndConfig() {
 
 			if testCase.hasAPIGateways {
 				suite.Require().Contains(functionConfigAndStatus.Status.APIGateways, testCase.apiGateWayName)
+			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
+	var getFunctionResponse *v1beta1.NuclioFunction
+
+	for _, testCase := range []struct {
+		name           string
+		opaResponse    bool
+		givenMemberIds bool
+		raiseForbidden bool
+	}{
+		{
+			name:           "Allowed",
+			opaResponse:    true,
+			givenMemberIds: true,
+			raiseForbidden: true,
+		},
+		{
+			name:           "Forbidden with Error",
+			opaResponse:    false,
+			givenMemberIds: true,
+			raiseForbidden: true,
+		},
+		{
+			name:           "Forbidden no Error",
+			opaResponse:    false,
+			givenMemberIds: true,
+			raiseForbidden: false,
+		},
+		{
+			name:           "No OPA",
+			opaResponse:    false,
+			givenMemberIds: false,
+			raiseForbidden: false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			var memberIds []string
+
+			functionName := "func"
+			projectName := "proj"
+
+			getFunctionResponse = &v1beta1.NuclioFunction{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: suite.Namespace,
+					Name:      functionName,
+					Labels: map[string]string{
+						"nuclio.io/project-name": projectName,
+					},
+				},
+			}
+
+			suite.nuclioFunctionInterfaceMock.
+				On("Get", functionName, metav1.GetOptions{}).
+				Return(getFunctionResponse, nil).
+				Once()
+			defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
+
+			if testCase.givenMemberIds {
+				memberIds = []string{"id1", "id2"}
+
+				suite.mockedOpaClient.
+					On("QueryPermissions",
+						fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName),
+						opa.ActionRead,
+						memberIds).
+					Return(testCase.opaResponse, nil).
+					Once()
+				defer suite.mockedOpaClient.AssertExpectations(suite.T())
+			}
+			functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+				Name:           functionName,
+				Namespace:      suite.Namespace,
+				MemberIds:      memberIds,
+				RaiseForbidden: testCase.raiseForbidden,
+			})
+
+			if !testCase.opaResponse && testCase.raiseForbidden && testCase.givenMemberIds {
+				suite.Assert().Error(err)
+			} else if !testCase.opaResponse && testCase.givenMemberIds {
+				suite.Assert().NoError(err)
+				suite.Assert().Equal(0, len(functions))
+			} else {
+				suite.Assert().NoError(err)
+				suite.Assert().Equal(1, len(functions))
+				suite.Assert().Equal(functionName, functions[0].GetConfig().Meta.Name)
+			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
+	var getFunctionResponse *v1beta1.NuclioFunction
+
+	for _, testCase := range []struct {
+		name        string
+		opaResponse bool
+	}{
+		{
+			name:        "Allowed",
+			opaResponse: true,
+		},
+		{
+			name:        "Forbidden",
+			opaResponse: false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionName := "func"
+			projectName := "proj"
+			memberIds := []string{"id1", "id2"}
+
+			getFunctionResponse = &v1beta1.NuclioFunction{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: suite.Namespace,
+					Name:      functionName,
+					Labels: map[string]string{
+						"nuclio.io/project-name": projectName,
+					},
+				},
+				Status: functionconfig.Status{
+					State: functionconfig.FunctionStateReady,
+				},
+			}
+
+			suite.nuclioFunctionInterfaceMock.
+				On("Get", functionName, metav1.GetOptions{}).
+				Return(getFunctionResponse, nil).
+				Twice()
+			defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
+
+			suite.mockedOpaClient.
+				On("QueryPermissions",
+					fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName),
+					opa.ActionUpdate,
+					memberIds).
+				Return(testCase.opaResponse, nil).
+				Once()
+			defer suite.mockedOpaClient.AssertExpectations(suite.T())
+
+			if testCase.opaResponse {
+
+				// verify
+				verifyUpdateFunction := func(function *v1beta1.NuclioFunction) bool {
+					suite.Require().Equal(functionName, function.Name)
+					suite.Require().Equal(suite.Namespace, function.Namespace)
+
+					return true
+				}
+
+				suite.nuclioFunctionInterfaceMock.
+					On("Update", mock.MatchedBy(verifyUpdateFunction)).
+					Return(getFunctionResponse, nil).
+					Once()
+				defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
+			}
+
+			err := suite.Platform.UpdateFunction(&platform.UpdateFunctionOptions{
+				FunctionMeta: &functionconfig.Meta{
+					Name:      functionName,
+					Namespace: suite.Namespace,
+				},
+				MemberIds: memberIds,
+			})
+
+			if !testCase.opaResponse {
+				suite.Assert().Error(err)
+			} else {
+				suite.Assert().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
+	for _, testCase := range []struct {
+		name        string
+		opaResponse bool
+	}{
+		{
+			name:        "Allowed",
+			opaResponse: true,
+		},
+		{
+			name:        "Forbidden",
+			opaResponse: false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionName := "func"
+			projectName := "proj"
+			memberIds := []string{"id1", "id2"}
+
+			returnedFunction := platform.AbstractFunction{
+				Config: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						Namespace: suite.Namespace,
+						Name:      functionName,
+						Labels: map[string]string{
+							"nuclio.io/project-name": projectName,
+						},
+					},
+				},
+			}
+
+			suite.mockedPlatform.
+				On("GetFunctions", &platform.GetFunctionsOptions{
+					Name:      functionName,
+					Namespace: suite.Namespace,
+				}).
+				Return([]platform.Function{&returnedFunction}, nil).
+				Once()
+			defer suite.mockedPlatform.AssertExpectations(suite.T())
+
+			suite.mockedOpaClient.
+				On("QueryPermissions",
+					fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName),
+					opa.ActionDelete,
+					memberIds).
+				Return(testCase.opaResponse, nil).
+				Once()
+			defer suite.mockedOpaClient.AssertExpectations(suite.T())
+
+			if testCase.opaResponse {
+				suite.nuclioAPIGatewayInterfaceMock.
+					On("List", metav1.ListOptions{}).
+					Return(&v1beta1.NuclioAPIGatewayList{}, nil).
+					Once()
+				defer suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
+
+				suite.nuclioFunctionInterfaceMock.
+					On("Delete", functionName, &metav1.DeleteOptions{}).
+					Return(nil).
+					Once()
+				defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
+			}
+
+			err := suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						Name:      functionName,
+						Namespace: suite.Namespace,
+					},
+				},
+				MemberIds: memberIds,
+			})
+
+			if !testCase.opaResponse {
+				suite.Assert().Error(err)
+			} else {
+				suite.Assert().NoError(err)
 			}
 		})
 	}
