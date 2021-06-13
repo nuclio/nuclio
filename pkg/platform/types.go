@@ -59,6 +59,7 @@ type CreateFunctionOptions struct {
 	InputImageFile             string
 	AuthConfig                 *AuthConfig
 	DependantImagesRegistryURL string
+	MemberIds                  []string
 }
 
 type UpdateFunctionOptions struct {
@@ -66,11 +67,13 @@ type UpdateFunctionOptions struct {
 	FunctionSpec   *functionconfig.Spec
 	FunctionStatus *functionconfig.Status
 	AuthConfig     *AuthConfig
+	MemberIds      []string
 }
 
 type DeleteFunctionOptions struct {
 	FunctionConfig functionconfig.Config
 	AuthConfig     *AuthConfig
+	MemberIds      []string
 }
 
 // CreateFunctionBuildResult holds information detected/generated as a result of a build process
@@ -95,6 +98,7 @@ type GetFunctionsOptions struct {
 	Namespace  string
 	Labels     string
 	AuthConfig *AuthConfig
+	MemberIds  []string
 
 	// Enrich functions with their api gateways
 	EnrichWithAPIGateways bool
@@ -219,12 +223,14 @@ type CreateProjectOptions struct {
 	ProjectConfig *ProjectConfig
 	RequestOrigin platformconfig.ProjectsLeaderKind
 	SessionCookie *http.Cookie
+	MemberIds     []string
 }
 
 type UpdateProjectOptions struct {
 	ProjectConfig ProjectConfig
 	RequestOrigin platformconfig.ProjectsLeaderKind
 	SessionCookie *http.Cookie
+	MemberIds     []string
 }
 
 type DeleteProjectStrategy string
@@ -254,6 +260,7 @@ type DeleteProjectOptions struct {
 	Strategy      DeleteProjectStrategy
 	RequestOrigin platformconfig.ProjectsLeaderKind
 	SessionCookie *http.Cookie
+	MemberIds     []string
 
 	// allowing us to "block" until related resources are removed.
 	// used in testings
@@ -262,7 +269,8 @@ type DeleteProjectOptions struct {
 }
 
 type GetProjectsOptions struct {
-	Meta ProjectMeta
+	Meta      ProjectMeta
+	MemberIds []string
 }
 
 // to appease k8s
@@ -298,19 +306,23 @@ type FunctionEventConfig struct {
 
 type CreateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
+	MemberIds           []string
 }
 
 type UpdateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
+	MemberIds           []string
 }
 
 type DeleteFunctionEventOptions struct {
-	Meta FunctionEventMeta
+	Meta      FunctionEventMeta
+	MemberIds []string
 }
 
 type GetFunctionEventsOptions struct {
 	Meta          FunctionEventMeta
 	FunctionNames []string
+	MemberIds     []string
 }
 
 // to appease k8s

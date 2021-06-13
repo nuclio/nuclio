@@ -1291,3 +1291,68 @@ func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Con
 
 	return nil
 }
+
+func (ap *Platform) queryOPAProjectPermissions(projectName string,
+	action opa.Action,
+	ids []string,
+	raiseForbidden bool) (bool, error) {
+	if projectName == "" {
+		projectName = "*"
+	}
+	return ap.queryOPAPermissions(opa.GenerateProjectResourceString(projectName),
+		action,
+		ids,
+		raiseForbidden)
+}
+
+func (ap *Platform) queryOPAFunctionPermissions(projectName,
+	functionName string,
+	action opa.Action,
+	ids []string,
+	raiseForbidden bool) (bool, error) {
+	if projectName == "" {
+		projectName = "*"
+	}
+	if functionName == "" {
+		functionName = "*"
+	}
+	return ap.queryOPAPermissions(opa.GenerateFunctionResourceString(projectName, functionName),
+		action,
+		ids,
+		raiseForbidden)
+}
+
+func (ap *Platform) queryOPAFunctionEventPermissions(projectName,
+	functionName,
+	functionEventName string,
+	action opa.Action,
+	ids []string,
+	raiseForbidden bool) (bool, error) {
+	if projectName == "" {
+		projectName = "*"
+	}
+	if functionName == "" {
+		functionName = "*"
+	}
+	if functionEventName == "" {
+		functionEventName = "*"
+	}
+	return ap.queryOPAPermissions(opa.GenerateFunctionEventResourceString(projectName, functionName, functionEventName),
+		action,
+		ids,
+		raiseForbidden)
+}
+
+func (ap *Platform) queryOPAPermissions(resource string,
+	action opa.Action,
+	ids []string,
+	raiseForbidden bool) (bool, error) {
+	allowed, err := ap.OpaClient.QueryPermissions(resource, action, ids)
+	if err != nil {
+		return allowed, errors.Wrapf(err, "Failed to check %s permissions for resource %s", action, resource)
+	}
+	if !allowed && raiseForbidden {
+		return false, nuclio.NewErrForbidden(fmt.Sprintf("Not allowed to %s resource %s", action, resource))
+	}
+	return allowed, nil
+}

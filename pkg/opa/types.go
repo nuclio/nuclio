@@ -1,6 +1,10 @@
 package opa
 
-import "fmt"
+import (
+	"fmt"
+	"net/http"
+	"strings"
+)
 
 type PermissionRequestInput struct {
 	Resource string   `json:"resource,omitempty"`
@@ -30,6 +34,23 @@ const (
 	ActionDelete Action = "delete"
 )
 
+func GetUserAndGroupIdsFromHeaders(request *http.Request) []string {
+	var ids []string
+
+	userID := request.Header.Get(UserIDHeader)
+	userGroupIdsStr := request.Header.Get(UserGroupIdsHeader)
+
+	if userID != "" {
+		ids = append(ids, userID)
+	}
+
+	if userGroupIdsStr != "" {
+		ids = append(ids, strings.Split(userGroupIdsStr, ",")...)
+	}
+
+	return ids
+}
+
 func GenerateProjectResourceString(projectName string) string {
 	return fmt.Sprintf("/projects/%s", projectName)
 }
@@ -39,5 +60,5 @@ func GenerateFunctionResourceString(projectName, functionName string) string {
 }
 
 func GenerateFunctionEventResourceString(projectName, functionName, functionEventName string) string {
-	return fmt.Sprintf("/projects/%s/functions/%s/events/%s", projectName, functionName, functionEventName)
+	return fmt.Sprintf("/projects/%s/functions/%s/function-events/%s", projectName, functionName, functionEventName)
 }

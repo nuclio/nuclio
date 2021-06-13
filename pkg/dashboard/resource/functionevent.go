@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -55,6 +56,7 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 			Name:      request.Header.Get("x-nuclio-function-event-name"),
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
+		MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 	}
 
 	// get function name
@@ -93,6 +95,7 @@ func (fer *functionEventResource) GetByID(request *http.Request, id string) (res
 			Name:      id,
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
+		MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 	})
 
 	if err != nil {
@@ -119,7 +122,7 @@ func (fer *functionEventResource) Create(request *http.Request) (id string, attr
 		functionEventInfo.Meta.Name = uuid.NewV4().String()
 	}
 
-	newFunctionEvent, err := fer.storeAndDeployFunctionEvent(functionEventInfo)
+	newFunctionEvent, err := fer.storeAndDeployFunctionEvent(request, functionEventInfo)
 	if err != nil {
 		return "", nil, nuclio.WrapErrInternalServerError(err)
 	}
@@ -149,7 +152,8 @@ func (fer *functionEventResource) GetCustomRoutes() ([]restful.CustomRoute, erro
 	}, nil
 }
 
-func (fer *functionEventResource) storeAndDeployFunctionEvent(functionEvent *functionEventInfo) (platform.FunctionEvent, error) {
+func (fer *functionEventResource) storeAndDeployFunctionEvent(request *http.Request,
+	functionEvent *functionEventInfo) (platform.FunctionEvent, error) {
 
 	// create a functionEvent config
 	functionEventConfig := platform.FunctionEventConfig{
@@ -166,6 +170,7 @@ func (fer *functionEventResource) storeAndDeployFunctionEvent(functionEvent *fun
 	// just deploy. the status is async through polling
 	err = fer.getPlatform().CreateFunctionEvent(&platform.CreateFunctionEventOptions{
 		FunctionEventConfig: *newFunctionEvent.GetConfig(),
+		MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 	})
 	if err != nil {
 		return nil, err
@@ -174,7 +179,7 @@ func (fer *functionEventResource) storeAndDeployFunctionEvent(functionEvent *fun
 	return newFunctionEvent, nil
 }
 
-func (fer *functionEventResource) getFunctionEvents(function platform.Function, namespace string) []platform.FunctionEvent {
+func (fer *functionEventResource) getFunctionEvents(request *http.Request, function platform.Function, namespace string) []platform.FunctionEvent {
 	getFunctionEventOptions := platform.GetFunctionEventsOptions{
 		Meta: platform.FunctionEventMeta{
 			Name:      "",
@@ -183,6 +188,7 @@ func (fer *functionEventResource) getFunctionEvents(function platform.Function, 
 				"nuclio.io/function-name": function.GetConfig().Meta.Name,
 			},
 		},
+		MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 	}
 
 	functionEvents, err := fer.getPlatform().GetFunctionEvents(&getFunctionEventOptions)
@@ -206,7 +212,9 @@ func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*r
 		}, err
 	}
 
-	deleteFunctionEventOptions := platform.DeleteFunctionEventOptions{}
+	deleteFunctionEventOptions := platform.DeleteFunctionEventOptions{
+		MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+	}
 	deleteFunctionEventOptions.Meta = *functionEventInfo.Meta
 
 	err = fer.getPlatform().DeleteFunctionEvent(&deleteFunctionEventOptions)
@@ -246,6 +254,7 @@ func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*r
 
 	if err = fer.getPlatform().UpdateFunctionEvent(&platform.UpdateFunctionEventOptions{
 		FunctionEventConfig: functionEventConfig,
+		MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 	}); err != nil {
 		fer.Logger.WarnWith("Failed to update function event", "err", err)
 		statusCode = common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError)
