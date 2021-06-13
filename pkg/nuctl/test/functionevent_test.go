@@ -21,6 +21,7 @@ package test
 
 import (
 	"fmt"
+	"path"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -60,7 +61,7 @@ func (suite *functionEventGetTestSuite) TestGet() {
 		// add function event name to list
 		functionEventNames = append(functionEventNames, functionEventName)
 
-		namedArgs := map[string]string{
+		namedArgs = map[string]string{
 			"function":     functionName,
 			"display-name": fmt.Sprintf("display-name-%d", functionEventIdx),
 			"trigger-name": fmt.Sprintf("trigger-name-%d", functionEventIdx),
@@ -68,7 +69,7 @@ func (suite *functionEventGetTestSuite) TestGet() {
 			"body":         fmt.Sprintf("body-%d", functionEventIdx),
 		}
 
-		err := suite.ExecuteNuctl([]string{
+		err = suite.ExecuteNuctl([]string{
 			"create",
 			"functionevent",
 			functionEventName,
