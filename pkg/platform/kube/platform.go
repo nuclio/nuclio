@@ -199,7 +199,6 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
-
 	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
 	// with appropriate namespace and name
 	// e.g. ./nuctl deploy --path /path/to/function-with-function.yaml (function.yaml specifying the name and namespace)
@@ -811,7 +810,7 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 
 	if functionName, found := newFunctionEvent.Labels["nuclio.io/function-name"]; found {
 		functions, err := p.getter.Get(p.consumer, &platform.GetFunctionsOptions{
-			Name: functionName,
+			Name:      functionName,
 			Namespace: createFunctionEventOptions.FunctionEventConfig.Meta.Namespace,
 		})
 		if err != nil {
@@ -856,7 +855,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 
 	if functionName, found := functionEvent.Labels["nuclio.io/function-name"]; found {
 		functions, err := p.getter.Get(p.consumer, &platform.GetFunctionsOptions{
-			Name: functionName,
+			Name:      functionName,
 			Namespace: updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace,
 		})
 		if err != nil {
@@ -902,7 +901,7 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 
 	if functionName, found := functionEventToDelete.Labels["nuclio.io/function-name"]; found {
 		functions, err := p.getter.Get(p.consumer, &platform.GetFunctionsOptions{
-			Name: functionName,
+			Name:      functionName,
 			Namespace: deleteFunctionEventOptions.Meta.Namespace,
 		})
 		if err != nil {
@@ -1005,9 +1004,9 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 		}
 
 		if functionName, found := functionEventInstance.Labels["nuclio.io/function-name"];
-		found && getFunctionEventsOptions.MemberIds != nil {
+			found && getFunctionEventsOptions.MemberIds != nil {
 			functions, err := p.getter.Get(p.consumer, &platform.GetFunctionsOptions{
-				Name: functionName,
+				Name:      functionName,
 				Namespace: functionEventInstance.Namespace,
 			})
 			if err != nil {

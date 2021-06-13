@@ -541,7 +541,7 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
 	if functionName, found := createFunctionEventOptions.FunctionEventConfig.Meta.Labels["nuclio.io/function-name"]; found {
 		functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
-			Name: functionName,
+			Name:      functionName,
 			Namespace: createFunctionEventOptions.FunctionEventConfig.Meta.Namespace,
 		})
 		if err != nil {
@@ -574,7 +574,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 
 	if functionName, found := functionEventToUpdate.GetConfig().Meta.Labels["nuclio.io/function-name"]; found {
 		functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
-			Name: functionName,
+			Name:      functionName,
 			Namespace: functionEventToUpdate.GetConfig().Meta.Namespace,
 		})
 		if err != nil {
@@ -608,7 +608,7 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 
 	if functionName, found := functionEventToUpdate.GetConfig().Meta.Labels["nuclio.io/function-name"]; found {
 		functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
-			Name: functionName,
+			Name:      functionName,
 			Namespace: functionEventToUpdate.GetConfig().Meta.Namespace,
 		})
 		if err != nil {
@@ -641,7 +641,7 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 		for _, functionEventInstance := range functionEvents {
 			if functionName, found := functionEventInstance.GetConfig().Meta.Labels["nuclio.io/function-name"]; found {
 				functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
-					Name: functionName,
+					Name:      functionName,
 					Namespace: functionEventInstance.GetConfig().Meta.Namespace,
 				})
 				if err != nil {

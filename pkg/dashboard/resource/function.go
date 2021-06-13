@@ -150,9 +150,9 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 	// TODO: Add a lock to prevent race conditions here
 	// validate the function exists
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Name:      functionInfo.Meta.Name,
-		Namespace: fr.resolveNamespace(request, functionInfo),
-		MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		Name:           functionInfo.Meta.Name,
+		Namespace:      fr.resolveNamespace(request, functionInfo),
+		MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
 		RaiseForbidden: true,
 	})
 	if err != nil {

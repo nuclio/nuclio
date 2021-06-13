@@ -8,6 +8,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -315,4 +316,31 @@ func (mp *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 
 func (mp *Platform) WaitForProjectResourcesDeletion(projectMeta *platform.ProjectMeta, duration time.Duration) error {
 	return nil
+}
+
+func (mp *Platform) QueryOPAProjectPermissions(projectName string,
+	action opa.Action,
+	ids []string,
+	raiseForbidden bool) (bool, error) {
+	args := mp.Called(projectName, action, ids, raiseForbidden)
+	return args.Get(0).(bool), args.Error(1)
+}
+
+func (mp *Platform) QueryOPAFunctionPermissions(projectName,
+	functionName string,
+	action opa.Action,
+	ids []string,
+	raiseForbidden bool) (bool, error) {
+	args := mp.Called(projectName, functionName, action, ids, raiseForbidden)
+	return args.Get(0).(bool), args.Error(1)
+}
+
+func (mp *Platform) QueryOPAFunctionEventPermissions(projectName,
+	functionName,
+	functionEventName string,
+	action opa.Action,
+	ids []string,
+	raiseForbidden bool) (bool, error) {
+	args := mp.Called(projectName, functionName, functionEventName, action, ids, raiseForbidden)
+	return args.Get(0).(bool), args.Error(1)
 }
