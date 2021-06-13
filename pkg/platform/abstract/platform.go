@@ -422,6 +422,15 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 		return nuclio.WrapErrConflict(err)
 	}
 
+	// Check OPA permissions
+	if _, err := ap.QueryOPAFunctionPermissions(functionToDelete.GetConfig().Meta.Labels["nuclio.io/project-name"],
+		functionToDelete.GetConfig().Meta.Name,
+		opa.ActionDelete,
+		deleteFunctionOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	}
+
 	return nil
 }
 
@@ -802,6 +811,57 @@ func (ap *Platform) EnsureDefaultProjectExistence() error {
 	}
 
 	return nil
+}
+
+func (ap *Platform) QueryOPAProjectPermissions(projectName string,
+	action opa.Action,
+	ids []string,
+	raiseForbidden bool) (bool, error) {
+	if projectName == "" {
+		projectName = "*"
+	}
+	return ap.queryOPAPermissions(opa.GenerateProjectResourceString(projectName),
+		action,
+		ids,
+		raiseForbidden)
+}
+
+func (ap *Platform) QueryOPAFunctionPermissions(projectName,
+	functionName string,
+	action opa.Action,
+	ids []string,
+	raiseForbidden bool) (bool, error) {
+	if projectName == "" {
+		projectName = "*"
+	}
+	if functionName == "" {
+		functionName = "*"
+	}
+	return ap.queryOPAPermissions(opa.GenerateFunctionResourceString(projectName, functionName),
+		action,
+		ids,
+		raiseForbidden)
+}
+
+func (ap *Platform) QueryOPAFunctionEventPermissions(projectName,
+	functionName,
+	functionEventName string,
+	action opa.Action,
+	ids []string,
+	raiseForbidden bool) (bool, error) {
+	if projectName == "" {
+		projectName = "*"
+	}
+	if functionName == "" {
+		functionName = "*"
+	}
+	if functionEventName == "" {
+		functionEventName = "*"
+	}
+	return ap.queryOPAPermissions(opa.GenerateFunctionEventResourceString(projectName, functionName, functionEventName),
+		action,
+		ids,
+		raiseForbidden)
 }
 
 func (ap *Platform) functionBuildRequired(functionConfig *functionconfig.Config) (bool, error) {
@@ -1290,57 +1350,6 @@ func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Con
 	}
 
 	return nil
-}
-
-func (ap *Platform) queryOPAProjectPermissions(projectName string,
-	action opa.Action,
-	ids []string,
-	raiseForbidden bool) (bool, error) {
-	if projectName == "" {
-		projectName = "*"
-	}
-	return ap.queryOPAPermissions(opa.GenerateProjectResourceString(projectName),
-		action,
-		ids,
-		raiseForbidden)
-}
-
-func (ap *Platform) queryOPAFunctionPermissions(projectName,
-	functionName string,
-	action opa.Action,
-	ids []string,
-	raiseForbidden bool) (bool, error) {
-	if projectName == "" {
-		projectName = "*"
-	}
-	if functionName == "" {
-		functionName = "*"
-	}
-	return ap.queryOPAPermissions(opa.GenerateFunctionResourceString(projectName, functionName),
-		action,
-		ids,
-		raiseForbidden)
-}
-
-func (ap *Platform) queryOPAFunctionEventPermissions(projectName,
-	functionName,
-	functionEventName string,
-	action opa.Action,
-	ids []string,
-	raiseForbidden bool) (bool, error) {
-	if projectName == "" {
-		projectName = "*"
-	}
-	if functionName == "" {
-		functionName = "*"
-	}
-	if functionEventName == "" {
-		functionEventName = "*"
-	}
-	return ap.queryOPAPermissions(opa.GenerateFunctionEventResourceString(projectName, functionName, functionEventName),
-		action,
-		ids,
-		raiseForbidden)
 }
 
 func (ap *Platform) queryOPAPermissions(resource string,

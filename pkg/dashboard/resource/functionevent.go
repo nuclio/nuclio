@@ -95,7 +95,8 @@ func (fer *functionEventResource) GetByID(request *http.Request, id string) (res
 			Name:      id,
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
-		MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+		RaiseForbidden: true,
 	})
 
 	if err != nil {

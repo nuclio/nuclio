@@ -343,8 +343,9 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 		"projectName", projectName)
 
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
-		Meta:      *projectImportOptions.projectInfo.Project.Meta,
-		MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		Meta:           *projectImportOptions.projectInfo.Project.Meta,
+		MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+		RaiseForbidden: true,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get projects")
@@ -441,9 +442,10 @@ func (pr *projectResource) importFunction(request *http.Request, function *funct
 		"function", function.Meta.Name,
 		"project", function.Meta.Labels["nuclio.io/project-name"])
 	functions, err := pr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Name:      function.Meta.Name,
-		Namespace: function.Meta.Namespace,
-		MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		Name:           function.Meta.Name,
+		Namespace:      function.Meta.Namespace,
+		MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+		RaiseForbidden: true,
 	})
 	if err != nil {
 		return errors.New("Failed to get functions")
@@ -539,7 +541,8 @@ func (pr *projectResource) getProjectByName(request *http.Request, projectName, 
 			Name:      projectName,
 			Namespace: projectNamespace,
 		},
-		MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+		RaiseForbidden: true,
 	})
 
 	if err != nil {

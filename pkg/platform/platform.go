@@ -24,6 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )
@@ -209,4 +210,17 @@ type Platform interface {
 
 	// GetRuntimeBuildArgs returns the runtime specific build arguments
 	GetRuntimeBuildArgs(runtime runtime.Runtime) map[string]string
+
+	//
+	// OPA
+	//
+
+	// QueryOPAProjectPermissions queries opa permissions for a certain project
+	QueryOPAProjectPermissions(projectName string, action opa.Action, ids []string, raiseForbidden bool) (bool, error)
+
+	// QueryOPAFunctionPermissions queries opa permissions for a certain function
+	QueryOPAFunctionPermissions(projectName, functionName string, action opa.Action, ids []string, raiseForbidden bool) (bool, error)
+
+	// QueryOPAFunctionEventPermissions queries opa permissions for a certain function event
+	QueryOPAFunctionEventPermissions(projectName, functionName, functionEventName string, action opa.Action, ids []string, raiseForbidden bool) (bool, error)
 }

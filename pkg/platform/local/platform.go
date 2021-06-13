@@ -34,6 +34,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
@@ -177,6 +178,15 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
+	}
+
+	// Check OPA permissions
+	if _, err := p.QueryOPAFunctionPermissions(createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
+		createFunctionOptions.FunctionConfig.Meta.Name,
+		opa.ActionCreate,
+		createFunctionOptions.MemberIds,
+		true); err != nil {
+		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	// local currently doesn't support registries of any kind. remove push / run registry
@@ -340,6 +350,24 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		return nil, errors.Wrap(err, "Failed to read functions from a local store")
 	}
 
+	if getFunctionsOptions.MemberIds != nil {
+		var permittedFunctions []platform.Function
+		for _, function := range functions {
+
+			// Check OPA permissions
+			if allowed, err := p.QueryOPAFunctionPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+				function.GetConfig().Meta.Name,
+				opa.ActionRead,
+				getFunctionsOptions.MemberIds,
+				getFunctionsOptions.RaiseForbidden); err != nil {
+				return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+			} else if allowed {
+				permittedFunctions = append(permittedFunctions, function)
+			}
+		}
+		functions = permittedFunctions
+	}
+
 	// enrich with build logs
 	p.EnrichFunctionsWithDeployLogStream(functions)
 
@@ -423,6 +451,14 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 		return errors.Wrap(err, "Failed to validate a project configuration")
 	}
 
+	// Check OPA permissions
+	if _, err := p.QueryOPAProjectPermissions(createProjectOptions.ProjectConfig.Meta.Name,
+		opa.ActionCreate,
+		createProjectOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	}
+
 	// create
 	if _, err := p.projectsClient.Create(createProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to create project")
@@ -435,6 +471,14 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
 	if err := p.ValidateProjectConfig(&updateProjectOptions.ProjectConfig); err != nil {
 		return nuclio.WrapErrBadRequest(err)
+	}
+
+	// Check OPA permissions
+	if _, err := p.QueryOPAProjectPermissions(updateProjectOptions.ProjectConfig.Meta.Name,
+		opa.ActionUpdate,
+		updateProjectOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	if _, err := p.projectsClient.Update(updateProjectOptions); err != nil {
@@ -450,6 +494,14 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
+	// Check OPA permissions
+	if _, err := p.QueryOPAProjectPermissions(deleteProjectOptions.Meta.Name,
+		opa.ActionDelete,
+		deleteProjectOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	}
+
 	if err := p.projectsClient.Delete(deleteProjectOptions); err != nil {
 		return errors.Wrapf(err, "Failed to delete project")
 	}
@@ -459,28 +511,158 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 
 // GetProjects will list existing projects
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	return p.projectsClient.Get(getProjectsOptions)
+	projects, err := p.projectsClient.Get(getProjectsOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed getting projects")
+	}
+
+	if getProjectsOptions.MemberIds != nil {
+		var permittedProjects []platform.Project
+		for _, projectInstance := range projects {
+
+			// Check OPA permissions
+			if allowed, err := p.QueryOPAProjectPermissions(projectInstance.GetConfig().Meta.Name,
+				opa.ActionRead,
+				getProjectsOptions.MemberIds,
+				getProjectsOptions.RaiseForbidden); err != nil {
+				return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+			} else if allowed {
+				permittedProjects = append(permittedProjects, projectInstance)
+			}
+		}
+		projects = permittedProjects
+	}
+
+	return projects, nil
 }
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
 func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
+	if functionName, found := createFunctionEventOptions.FunctionEventConfig.Meta.Labels["nuclio.io/function-name"]; found {
+		functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
+			Name: functionName,
+			Namespace: createFunctionEventOptions.FunctionEventConfig.Meta.Namespace,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to read functions from a local store")
+		}
+		function := functions[0]
+
+		// Check OPA permissions
+		if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+			functionName,
+			createFunctionEventOptions.FunctionEventConfig.Meta.Name,
+			opa.ActionCreate,
+			createFunctionEventOptions.MemberIds,
+			true); err != nil {
+			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		}
+	}
 	return p.localStore.CreateOrUpdateFunctionEvent(&createFunctionEventOptions.FunctionEventConfig)
 }
 
 // UpdateFunctionEvent will update a previously existing function event
 func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
+	functionEvents, err := p.localStore.GetFunctionEvents(&platform.GetFunctionEventsOptions{
+		Meta: updateFunctionEventOptions.FunctionEventConfig.Meta,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to read function events from a local store")
+	}
+	functionEventToUpdate := functionEvents[0]
+
+	if functionName, found := functionEventToUpdate.GetConfig().Meta.Labels["nuclio.io/function-name"]; found {
+		functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
+			Name: functionName,
+			Namespace: functionEventToUpdate.GetConfig().Meta.Namespace,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to read functions from a local store")
+		}
+		function := functions[0]
+
+		// Check OPA permissions
+		if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+			functionName,
+			functionEventToUpdate.GetConfig().Meta.Name,
+			opa.ActionUpdate,
+			updateFunctionEventOptions.MemberIds,
+			true); err != nil {
+			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		}
+	}
+
 	return p.localStore.CreateOrUpdateFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig)
 }
 
 // DeleteFunctionEvent will delete a previously existing function event
 func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
+	functionEvents, err := p.localStore.GetFunctionEvents(&platform.GetFunctionEventsOptions{
+		Meta: deleteFunctionEventOptions.Meta,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to read function events from a local store")
+	}
+	functionEventToUpdate := functionEvents[0]
+
+	if functionName, found := functionEventToUpdate.GetConfig().Meta.Labels["nuclio.io/function-name"]; found {
+		functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
+			Name: functionName,
+			Namespace: functionEventToUpdate.GetConfig().Meta.Namespace,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to read functions from a local store")
+		}
+		function := functions[0]
+
+		// Check OPA permissions
+		if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+			functionName,
+			functionEventToUpdate.GetConfig().Meta.Name,
+			opa.ActionDelete,
+			deleteFunctionEventOptions.MemberIds,
+			true); err != nil {
+			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		}
+	}
+
 	return p.localStore.DeleteFunctionEvent(&deleteFunctionEventOptions.Meta)
 }
 
 // GetFunctionEvents will list existing function events
 func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
-	return p.localStore.GetFunctionEvents(getFunctionEventsOptions)
+	functionEvents, err := p.localStore.GetFunctionEvents(getFunctionEventsOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read function events from a local store")
+	}
+
+	if getFunctionEventsOptions.MemberIds != nil {
+		for _, functionEventInstance := range functionEvents {
+			if functionName, found := functionEventInstance.GetConfig().Meta.Labels["nuclio.io/function-name"]; found {
+				functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
+					Name: functionName,
+					Namespace: functionEventInstance.GetConfig().Meta.Namespace,
+				})
+				if err != nil {
+					return nil, errors.Wrap(err, "Failed to get functions")
+				}
+				function := functions[0]
+
+				// Check OPA permissions
+				if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+					functionName,
+					functionEventInstance.GetConfig().Meta.Name,
+					opa.ActionRead,
+					getFunctionEventsOptions.MemberIds,
+					getFunctionEventsOptions.RaiseForbidden); err != nil {
+					return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+				}
+			}
+		}
+	}
+
+	return functionEvents, nil
 }
 
 // GetAPIGateways not supported on this platform

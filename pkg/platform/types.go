@@ -94,11 +94,12 @@ type CreateFunctionResult struct {
 
 // GetFunctionsOptions is the base for all platform get options
 type GetFunctionsOptions struct {
-	Name       string
-	Namespace  string
-	Labels     string
-	AuthConfig *AuthConfig
-	MemberIds  []string
+	Name           string
+	Namespace      string
+	Labels         string
+	AuthConfig     *AuthConfig
+	MemberIds      []string
+	RaiseForbidden bool
 
 	// Enrich functions with their api gateways
 	EnrichWithAPIGateways bool
@@ -269,8 +270,9 @@ type DeleteProjectOptions struct {
 }
 
 type GetProjectsOptions struct {
-	Meta      ProjectMeta
-	MemberIds []string
+	Meta           ProjectMeta
+	MemberIds      []string
+	RaiseForbidden bool
 }
 
 // to appease k8s
@@ -320,9 +322,10 @@ type DeleteFunctionEventOptions struct {
 }
 
 type GetFunctionEventsOptions struct {
-	Meta          FunctionEventMeta
-	FunctionNames []string
-	MemberIds     []string
+	Meta           FunctionEventMeta
+	FunctionNames  []string
+	MemberIds      []string
+	RaiseForbidden bool
 }
 
 // to appease k8s

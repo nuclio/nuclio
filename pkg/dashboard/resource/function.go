@@ -58,7 +58,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	}
 
 	functionName := request.Header.Get("x-nuclio-function-name")
-	functions, err := fr.getPlatform().GetFunctions(fr.resolveGetFunctionsFromRequest(request, functionName))
+	functions, err := fr.getPlatform().GetFunctions(fr.resolveGetFunctionsFromRequest(request, functionName, false))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
@@ -109,9 +109,10 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	// TODO: Add a lock to prevent race conditions here (prevent 2 functions created with the same name)
 	// validate there are no 2 functions with the same name
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Name:      functionInfo.Meta.Name,
-		Namespace: fr.resolveNamespace(request, functionInfo),
-		MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		Name:           functionInfo.Meta.Name,
+		Namespace:      fr.resolveNamespace(request, functionInfo),
+		MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+		RaiseForbidden: true,
 	})
 	if err != nil {
 		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
@@ -152,6 +153,7 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		Name:      functionInfo.Meta.Name,
 		Namespace: fr.resolveNamespace(request, functionInfo),
 		MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		RaiseForbidden: true,
 	})
 	if err != nil {
 		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
@@ -501,7 +503,7 @@ func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, funct
 }
 
 func (fr *functionResource) getFunction(request *http.Request, name string) (platform.Function, error) {
-	functions, err := fr.getPlatform().GetFunctions(fr.resolveGetFunctionsFromRequest(request, name))
+	functions, err := fr.getPlatform().GetFunctions(fr.resolveGetFunctionsFromRequest(request, name, true))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
@@ -513,13 +515,14 @@ func (fr *functionResource) getFunction(request *http.Request, name string) (pla
 }
 
 func (fr *functionResource) resolveGetFunctionsFromRequest(request *http.Request,
-	functionName string) *platform.GetFunctionsOptions {
+	functionName string, raiseForbidden bool) *platform.GetFunctionsOptions {
 
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Namespace:             fr.getNamespaceFromRequest(request),
 		Name:                  functionName,
 		EnrichWithAPIGateways: fr.headerValueIsTrue(request, "x-nuclio-function-enrich-apigateways"),
 		MemberIds:             opa.GetUserAndGroupIdsFromHeaders(request),
+		RaiseForbidden:        raiseForbidden,
 	}
 
 	// if the user wants to filter by project, do that

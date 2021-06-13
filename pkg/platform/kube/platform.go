@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
@@ -188,6 +189,16 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
 	}
+
+	// Check OPA permissions
+	if _, err := p.QueryOPAFunctionPermissions(createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
+		createFunctionOptions.FunctionConfig.Meta.Name,
+		opa.ActionCreate,
+		createFunctionOptions.MemberIds,
+		true); err != nil {
+		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	}
+
 
 	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
 	// with appropriate namespace and name
@@ -414,6 +425,24 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
+	if getFunctionsOptions.MemberIds != nil {
+		var permittedFunctions []platform.Function
+		for _, function := range functions {
+
+			// Check OPA permissions
+			if allowed, err := p.QueryOPAFunctionPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+				function.GetConfig().Meta.Name,
+				opa.ActionRead,
+				getFunctionsOptions.MemberIds,
+				getFunctionsOptions.RaiseForbidden); err != nil {
+				return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+			} else if allowed {
+				permittedFunctions = append(permittedFunctions, function)
+			}
+		}
+		functions = permittedFunctions
+	}
+
 	p.EnrichFunctionsWithDeployLogStream(functions)
 
 	if getFunctionsOptions.EnrichWithAPIGateways {
@@ -532,6 +561,14 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 		return errors.Wrap(err, "Failed to validate a project configuration")
 	}
 
+	// Check OPA permissions
+	if _, err := p.QueryOPAProjectPermissions(createProjectOptions.ProjectConfig.Meta.Name,
+		opa.ActionCreate,
+		createProjectOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	}
+
 	// create
 	p.Logger.DebugWith("Creating project", "projectName", createProjectOptions.ProjectConfig.Meta.Name)
 	if _, err := p.projectsClient.Create(createProjectOptions); err != nil {
@@ -547,6 +584,14 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 		return nuclio.WrapErrBadRequest(err)
 	}
 
+	// Check OPA permissions
+	if _, err := p.QueryOPAProjectPermissions(updateProjectOptions.ProjectConfig.Meta.Name,
+		opa.ActionUpdate,
+		updateProjectOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	}
+
 	if _, err := p.projectsClient.Update(updateProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to update project")
 	}
@@ -558,6 +603,14 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate delete project options")
+	}
+
+	// Check OPA permissions
+	if _, err := p.QueryOPAProjectPermissions(deleteProjectOptions.Meta.Name,
+		opa.ActionDelete,
+		deleteProjectOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	p.Logger.DebugWith("Deleting project", "projectMeta", deleteProjectOptions.Meta)
@@ -575,7 +628,29 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 
 // GetProjects will list existing projects
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	return p.projectsClient.Get(getProjectsOptions)
+	projects, err := p.projectsClient.Get(getProjectsOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed getting projects")
+	}
+
+	if getProjectsOptions.MemberIds != nil {
+		var permittedProjects []platform.Project
+		for _, projectInstance := range projects {
+
+			// Check OPA permissions
+			if allowed, err := p.QueryOPAProjectPermissions(projectInstance.GetConfig().Meta.Name,
+				opa.ActionRead,
+				getProjectsOptions.MemberIds,
+				getProjectsOptions.RaiseForbidden); err != nil {
+				return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+			} else if allowed {
+				permittedProjects = append(permittedProjects, projectInstance)
+			}
+		}
+		projects = permittedProjects
+	}
+
+	return projects, nil
 }
 
 // CreateAPIGateway creates and deploys a new api gateway
@@ -734,6 +809,27 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 	newFunctionEvent := nuclioio.NuclioFunctionEvent{}
 	p.platformFunctionEventToFunctionEvent(&createFunctionEventOptions.FunctionEventConfig, &newFunctionEvent)
 
+	if functionName, found := newFunctionEvent.Labels["nuclio.io/function-name"]; found {
+		functions, err := p.getter.Get(p.consumer, &platform.GetFunctionsOptions{
+			Name: functionName,
+			Namespace: createFunctionEventOptions.FunctionEventConfig.Meta.Namespace,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to get functions")
+		}
+		function := functions[0]
+
+		// Check OPA permissions
+		if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+			functionName,
+			newFunctionEvent.Name,
+			opa.ActionCreate,
+			createFunctionEventOptions.MemberIds,
+			true); err != nil {
+			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		}
+	}
+
 	_, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(createFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
 		Create(&newFunctionEvent)
@@ -758,6 +854,27 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 		return errors.Wrap(err, "Failed to get a function event")
 	}
 
+	if functionName, found := functionEvent.Labels["nuclio.io/function-name"]; found {
+		functions, err := p.getter.Get(p.consumer, &platform.GetFunctionsOptions{
+			Name: functionName,
+			Namespace: updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to get functions")
+		}
+		function := functions[0]
+
+		// Check OPA permissions
+		if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+			functionName,
+			functionEvent.Name,
+			opa.ActionUpdate,
+			updateFunctionEventOptions.MemberIds,
+			true); err != nil {
+			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		}
+	}
+
 	functionEvent.Spec = updatedFunctionEvent.Spec
 	functionEvent.Annotations = updatedFunctionEvent.Annotations
 	functionEvent.Labels = updatedFunctionEvent.Labels
@@ -775,7 +892,36 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 
 // DeleteFunctionEvent will delete a previously existing function event
 func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
-	err := p.consumer.NuclioClientSet.NuclioV1beta1().
+	functionEventToDelete, err := p.consumer.NuclioClientSet.NuclioV1beta1().
+		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
+		Get(deleteFunctionEventOptions.Meta.Name, metav1.GetOptions{})
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to get a function event")
+	}
+
+	if functionName, found := functionEventToDelete.Labels["nuclio.io/function-name"]; found {
+		functions, err := p.getter.Get(p.consumer, &platform.GetFunctionsOptions{
+			Name: functionName,
+			Namespace: deleteFunctionEventOptions.Meta.Namespace,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to get functions")
+		}
+		function := functions[0]
+
+		// Check OPA permissions
+		if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+			functionName,
+			functionEventToDelete.Name,
+			opa.ActionDelete,
+			deleteFunctionEventOptions.MemberIds,
+			true); err != nil {
+			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		}
+	}
+
+	err = p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
 		Delete(deleteFunctionEventOptions.Meta.Name, &metav1.DeleteOptions{})
 
@@ -856,6 +1002,28 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 
 		if err != nil {
 			return nil, err
+		}
+
+		if functionName, found := functionEventInstance.Labels["nuclio.io/function-name"];
+		found && getFunctionEventsOptions.MemberIds != nil {
+			functions, err := p.getter.Get(p.consumer, &platform.GetFunctionsOptions{
+				Name: functionName,
+				Namespace: functionEventInstance.Namespace,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to get functions")
+			}
+			function := functions[0]
+
+			// Check OPA permissions
+			if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+				functionName,
+				functionEventInstance.Name,
+				opa.ActionRead,
+				getFunctionEventsOptions.MemberIds,
+				getFunctionEventsOptions.RaiseForbidden); err != nil {
+				return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+			}
 		}
 
 		platformFunctionEvents = append(platformFunctionEvents, newFunctionEvent)
