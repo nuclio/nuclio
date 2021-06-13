@@ -547,6 +547,9 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 		if err != nil {
 			return errors.Wrap(err, "Failed to read functions from a local store")
 		}
+		if len(functions) == 0 {
+			return errors.Errorf("Function %s not found", functionName)
+		}
 		function := functions[0]
 
 		// Check OPA permissions

@@ -1003,14 +1003,16 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 			return nil, err
 		}
 
-		if functionName, found := functionEventInstance.Labels["nuclio.io/function-name"];
-			found && getFunctionEventsOptions.MemberIds != nil {
+		if functionName, found := functionEventInstance.Labels["nuclio.io/function-name"]; found && getFunctionEventsOptions.MemberIds != nil {
 			functions, err := p.getter.Get(p.consumer, &platform.GetFunctionsOptions{
 				Name:      functionName,
 				Namespace: functionEventInstance.Namespace,
 			})
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to get functions")
+			}
+			if len(functions) == 0 {
+				return nil, errors.Errorf("Function %s not found", functionName)
 			}
 			function := functions[0]
 
