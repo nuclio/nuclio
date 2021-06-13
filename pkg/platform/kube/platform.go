@@ -816,6 +816,9 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 		if err != nil {
 			return errors.Wrap(err, "Failed to get functions")
 		}
+		if len(functions) == 0 {
+			return errors.Errorf("Function %s not found", functionName)
+		}
 		function := functions[0]
 
 		// Check OPA permissions
@@ -860,6 +863,9 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 		})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get functions")
+		}
+		if len(functions) == 0 {
+			return errors.Errorf("Function %s not found", functionName)
 		}
 		function := functions[0]
 
@@ -906,6 +912,9 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 		})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get functions")
+		}
+		if len(functions) == 0 {
+			return errors.Errorf("Function %s not found", functionName)
 		}
 		function := functions[0]
 
