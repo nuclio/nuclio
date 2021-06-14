@@ -596,22 +596,24 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 	if err != nil {
 		return errors.Wrap(err, "Failed to read function events from a local store")
 	}
-	functionEventToUpdate := functionEvents[0]
 
-	if functionName, found := functionEventToUpdate.GetConfig().Meta.Labels["nuclio.io/function-name"]; found {
-		function, err := p.getFunction(deleteFunctionEventOptions.Meta.Namespace, functionName)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get function")
-		}
+	if len(functionEvents) > 0 {
+		functionEventToUpdate := functionEvents[0]
+		if functionName, found := functionEventToUpdate.GetConfig().Meta.Labels["nuclio.io/function-name"]; found {
+			function, err := p.getFunction(deleteFunctionEventOptions.Meta.Namespace, functionName)
+			if err != nil {
+				return errors.Wrap(err, "Failed to get function")
+			}
 
-		// Check OPA permissions
-		if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
-			functionName,
-			functionEventToUpdate.GetConfig().Meta.Name,
-			opa.ActionDelete,
-			deleteFunctionEventOptions.MemberIds,
-			true); err != nil {
-			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+			// Check OPA permissions
+			if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+				functionName,
+				functionEventToUpdate.GetConfig().Meta.Name,
+				opa.ActionDelete,
+				deleteFunctionEventOptions.MemberIds,
+				true); err != nil {
+				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+			}
 		}
 	}
 
