@@ -163,9 +163,9 @@ const (
 
 type OpaConfig struct {
 	Address             string        `json:"address,omitempty"`
-	ClientKind          OpaClientKind `json:"client_kind,omitempty"`
-	RequestTimeout      int           `json:"request_timeout,omitempty"`
-	PermissionQueryPath string        `json:"permission_query_path,omitempty"`
+	ClientKind          OpaClientKind `json:"clientKind,omitempty"`
+	RequestTimeout      int           `json:"requestTimeout,omitempty"`
+	PermissionQueryPath string        `json:"permissionQueryPath,omitempty"`
 }
 
 type CronTriggerCreationMode string

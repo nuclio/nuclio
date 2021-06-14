@@ -540,17 +540,10 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 // which to invoke functions
 func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
 	if functionName, found := createFunctionEventOptions.FunctionEventConfig.Meta.Labels["nuclio.io/function-name"]; found {
-		functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
-			Name:      functionName,
-			Namespace: createFunctionEventOptions.FunctionEventConfig.Meta.Namespace,
-		})
+		function, err := p.getFunction(createFunctionEventOptions.FunctionEventConfig.Meta.Namespace, functionName)
 		if err != nil {
-			return errors.Wrap(err, "Failed to read functions from a local store")
+			return errors.Wrap(err, "Failed to get function")
 		}
-		if len(functions) == 0 {
-			return errors.Errorf("Function %s not found", functionName)
-		}
-		function := functions[0]
 
 		// Check OPA permissions
 		if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
@@ -576,17 +569,10 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 	functionEventToUpdate := functionEvents[0]
 
 	if functionName, found := functionEventToUpdate.GetConfig().Meta.Labels["nuclio.io/function-name"]; found {
-		functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
-			Name:      functionName,
-			Namespace: functionEventToUpdate.GetConfig().Meta.Namespace,
-		})
+		function, err := p.getFunction(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace, functionName)
 		if err != nil {
-			return errors.Wrap(err, "Failed to read functions from a local store")
+			return errors.Wrap(err, "Failed to get function")
 		}
-		if len(functions) == 0 {
-			return errors.Errorf("Function %s not found", functionName)
-		}
-		function := functions[0]
 
 		// Check OPA permissions
 		if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
@@ -613,17 +599,10 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 	functionEventToUpdate := functionEvents[0]
 
 	if functionName, found := functionEventToUpdate.GetConfig().Meta.Labels["nuclio.io/function-name"]; found {
-		functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
-			Name:      functionName,
-			Namespace: functionEventToUpdate.GetConfig().Meta.Namespace,
-		})
+		function, err := p.getFunction(deleteFunctionEventOptions.Meta.Namespace, functionName)
 		if err != nil {
-			return errors.Wrap(err, "Failed to read functions from a local store")
+			return errors.Wrap(err, "Failed to get function")
 		}
-		if len(functions) == 0 {
-			return errors.Errorf("Function %s not found", functionName)
-		}
-		function := functions[0]
 
 		// Check OPA permissions
 		if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
@@ -649,17 +628,10 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 	if getFunctionEventsOptions.MemberIds != nil {
 		for _, functionEventInstance := range functionEvents {
 			if functionName, found := functionEventInstance.GetConfig().Meta.Labels["nuclio.io/function-name"]; found {
-				functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
-					Name:      functionName,
-					Namespace: functionEventInstance.GetConfig().Meta.Namespace,
-				})
+				function, err := p.getFunction(functionEventInstance.GetConfig().Meta.Namespace, functionName)
 				if err != nil {
-					return nil, errors.Wrap(err, "Failed to get functions")
+					return nil, errors.Wrap(err, "Failed to get function")
 				}
-				if len(functions) == 0 {
-					return nil, errors.Errorf("Function %s not found", functionName)
-				}
-				function := functions[0]
 
 				// Check OPA permissions
 				if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
@@ -857,6 +829,22 @@ func (p *Platform) GetFunctionVolumeMountName(functionConfig *functionconfig.Con
 	return fmt.Sprintf("nuclio-%s-%s",
 		functionConfig.Meta.Namespace,
 		functionConfig.Meta.Name)
+}
+
+func (p *Platform) getFunction(namespace, functionName string) (platform.Function, error) {
+	functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
+		Name:      functionName,
+		Namespace: namespace,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read functions from a local store")
+	}
+	if len(functions) == 0 {
+		return nil, errors.Errorf("Function %s not found", functionName)
+	}
+	function := functions[0]
+
+	return function, err
 }
 
 func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,

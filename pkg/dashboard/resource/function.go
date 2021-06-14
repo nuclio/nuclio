@@ -515,7 +515,8 @@ func (fr *functionResource) getFunction(request *http.Request, name string) (pla
 }
 
 func (fr *functionResource) resolveGetFunctionsFromRequest(request *http.Request,
-	functionName string, raiseForbidden bool) *platform.GetFunctionsOptions {
+	functionName string,
+	raiseForbidden bool) *platform.GetFunctionsOptions {
 
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Namespace:             fr.getNamespaceFromRequest(request),

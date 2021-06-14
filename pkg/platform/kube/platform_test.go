@@ -550,7 +550,7 @@ func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
 			suite.nuclioFunctionInterfaceMock.
 				On("Get", functionName, metav1.GetOptions{}).
 				Return(getFunctionResponse, nil).
-				Twice()
+				Once()
 			defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
 
 			suite.mockedOpaClient.
@@ -571,6 +571,11 @@ func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
 
 					return true
 				}
+
+				suite.nuclioFunctionInterfaceMock.
+					On("Get", functionName, metav1.GetOptions{}).
+					Return(getFunctionResponse, nil).
+					Once()
 
 				suite.nuclioFunctionInterfaceMock.
 					On("Update", mock.MatchedBy(verifyUpdateFunction)).
