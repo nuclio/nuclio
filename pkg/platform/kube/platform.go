@@ -989,6 +989,7 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 			return nil, err
 		}
 
+		allowed := true
 		if functionName, found := functionEventInstance.Labels["nuclio.io/function-name"]; found && getFunctionEventsOptions.MemberIds != nil {
 			function, err := p.getFunction(functionEventInstance.Namespace, functionName)
 			if err != nil {
@@ -996,7 +997,7 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 			}
 
 			// Check OPA permissions
-			if _, err := p.QueryOPAFunctionEventPermissions(function.Labels["nuclio.io/project-name"],
+			if allowed, err = p.QueryOPAFunctionEventPermissions(function.Labels["nuclio.io/project-name"],
 				functionName,
 				functionEventInstance.Name,
 				opa.ActionRead,
@@ -1006,7 +1007,9 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 			}
 		}
 
-		platformFunctionEvents = append(platformFunctionEvents, newFunctionEvent)
+		if allowed {
+			platformFunctionEvents = append(platformFunctionEvents, newFunctionEvent)
+		}
 	}
 
 	// render it
