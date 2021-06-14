@@ -82,7 +82,7 @@ func (suite *functionEventGetTestSuite) TestGet() {
 
 			// use nutctl to delete the function event and function when we're done
 			suite.ExecuteNuctl([]string{"delete", "fe", functionEventName}, nil) // nolint: errcheck
-			suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+			suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)      // nolint: errcheck
 
 		}(functionEventName, functionName)
 	}
