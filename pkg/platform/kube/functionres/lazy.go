@@ -753,6 +753,9 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 					Volumes:            volumes,
 					ServiceAccountName: function.Spec.ServiceAccount,
 					SecurityContext:    function.Spec.SecurityContext,
+					Affinity:           function.Spec.Affinity,
+					NodeSelector:       function.Spec.NodeSelector,
+					NodeName:           function.Spec.NodeName,
 				},
 			},
 		}
@@ -812,6 +815,10 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		if function.Spec.ServiceAccount != "" {
 			deployment.Spec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
 		}
+
+		deployment.Spec.Template.Spec.Affinity = function.Spec.Affinity
+		deployment.Spec.Template.Spec.NodeSelector = function.Spec.NodeSelector
+		deployment.Spec.Template.Spec.NodeName = function.Spec.NodeName
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment

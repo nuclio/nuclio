@@ -260,6 +260,12 @@ type Spec struct {
 	ServiceAccount          string                  `json:"serviceAccount,omitempty"`
 	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
 
+	// Run function on a particular set of node(s)
+	// https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+	Affinity     *v1.Affinity      `json:"affinity,omitempty"`
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	NodeName     string            `json:"nodeName,omitempty"`
+
 	// Currently relevant only for k8s platform
 	// if true - wait the whole ReadinessTimeoutSeconds before marking this function as unhealthy
 	// otherwise, fail the function instantly when there is indication of deployment failure (e.g. pod stuck on crash
