@@ -35,7 +35,10 @@ type HTTPClient struct {
 	requestTimeout      time.Duration
 }
 
-func NewHTTPClient(parentLogger logger.Logger, address, permissionQueryPath string, requestTimeout time.Duration) *HTTPClient {
+func NewHTTPClient(parentLogger logger.Logger,
+	address string,
+	permissionQueryPath string,
+	requestTimeout time.Duration) *HTTPClient {
 	newClient := HTTPClient{
 		logger:              parentLogger.GetChild("opa"),
 		address:             address,
@@ -75,7 +78,7 @@ func (c *HTTPClient) QueryPermissions(resource string, action Action, ids []stri
 		true,
 		c.requestTimeout)
 	if err != nil {
-		return false, errors.Wrap(err, "Failed to send request to OPA")
+		return false, errors.Wrap(err, "Failed to send HTTP request to OPA")
 	}
 
 	permissionResponse := PermissionResponse{}

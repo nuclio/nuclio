@@ -60,7 +60,7 @@ func (u *Updater) Update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	if _, err := u.platform.QueryOPAFunctionPermissions(function.Labels["nuclio.io/project-name"],
 		updateFunctionOptions.FunctionMeta.Name,
 		opa.ActionUpdate,
-		updateFunctionOptions.MemberIds,
+		updateFunctionOptions.CleanseOptions.MemberIds,
 		true); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}

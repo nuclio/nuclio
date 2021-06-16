@@ -21,10 +21,7 @@ package test
 
 import (
 	"fmt"
-	"path"
 	"testing"
-
-	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
@@ -42,34 +39,19 @@ func (suite *functionEventGetTestSuite) TestGet() {
 	for functionEventIdx := 0; functionEventIdx < numOfFunctionEvents; functionEventIdx++ {
 		uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), functionEventIdx)
 
-		runtimeName, _ := common.GetRuntimeNameAndVersion("shell")
-		functionName := fmt.Sprintf("function-%d", functionEventIdx)
-		namedArgs := map[string]string{
-			"path":    path.Join(suite.GetExamples(), runtimeName, "empty", "empty.sh"),
-			"runtime": "shell",
-			"handler": "empty.sh:main",
-		}
-		suite.logger.DebugWith("Deploying function",
-			"functionName", functionName,
-			"namedArgs", namedArgs,
-		)
-		err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
-		suite.Require().NoError(err)
-
 		functionEventName := "get-test-functionevent" + uniqueSuffix
 
 		// add function event name to list
 		functionEventNames = append(functionEventNames, functionEventName)
 
-		namedArgs = map[string]string{
-			"function":     functionName,
+		namedArgs := map[string]string{
 			"display-name": fmt.Sprintf("display-name-%d", functionEventIdx),
 			"trigger-name": fmt.Sprintf("trigger-name-%d", functionEventIdx),
 			"trigger-kind": fmt.Sprintf("trigger-kind-%d", functionEventIdx),
 			"body":         fmt.Sprintf("body-%d", functionEventIdx),
 		}
 
-		err = suite.ExecuteNuctl([]string{
+		err := suite.ExecuteNuctl([]string{
 			"create",
 			"functionevent",
 			functionEventName,
@@ -78,13 +60,12 @@ func (suite *functionEventGetTestSuite) TestGet() {
 		suite.Require().NoError(err)
 
 		// cleanup
-		defer func(functionEventName, functionName string) {
+		defer func(functionEventName string) {
 
-			// use nutctl to delete the function event and function when we're done
+			// use nutctl to delete the function event when we're done
 			suite.ExecuteNuctl([]string{"delete", "fe", functionEventName}, nil) // nolint: errcheck
-			suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)      // nolint: errcheck
 
-		}(functionEventName, functionName)
+		}(functionEventName)
 	}
 
 	err := suite.ExecuteNuctl([]string{"get", "functionevent"}, nil)

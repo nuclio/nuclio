@@ -74,7 +74,9 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 			Name:      request.Header.Get("x-nuclio-project-name"),
 			Namespace: namespace,
 		},
-		MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		CleanseOptions: platform.CleanseOptions{
+			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		},
 	})
 
 	if err != nil {
@@ -217,7 +219,9 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 		Name:      "",
 		Namespace: project.GetConfig().Meta.Namespace,
 		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", project.GetConfig().Meta.Name),
-		MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		CleanseOptions: platform.CleanseOptions{
+			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		},
 	}
 
 	functions, err := pr.getPlatform().GetFunctions(getFunctionsOptions)
@@ -265,7 +269,9 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 		ProjectConfig: newProject.GetConfig(),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
-		MemberIds:     opa.GetUserAndGroupIdsFromHeaders(request),
+		CleanseOptions: platform.CleanseOptions{
+			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		},
 	}); err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "already exists") {
 			return "", nil, nuclio.WrapErrConflict(err)
@@ -343,9 +349,11 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 		"projectName", projectName)
 
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
-		Meta:           *projectImportOptions.projectInfo.Project.Meta,
-		MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-		RaiseForbidden: true,
+		Meta: *projectImportOptions.projectInfo.Project.Meta,
+		CleanseOptions: platform.CleanseOptions{
+			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden: true,
+		},
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get projects")
@@ -375,7 +383,9 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 
 		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
 			ProjectConfig: newProject.GetConfig(),
-			MemberIds:     opa.GetUserAndGroupIdsFromHeaders(request),
+			CleanseOptions: platform.CleanseOptions{
+				MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			},
 		}); err != nil {
 
 			// preserve err - it might contain an informative status code (validation failure, etc)
@@ -442,10 +452,12 @@ func (pr *projectResource) importFunction(request *http.Request, function *funct
 		"function", function.Meta.Name,
 		"project", function.Meta.Labels["nuclio.io/project-name"])
 	functions, err := pr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Name:           function.Meta.Name,
-		Namespace:      function.Meta.Namespace,
-		MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-		RaiseForbidden: true,
+		Name:      function.Meta.Name,
+		Namespace: function.Meta.Namespace,
+		CleanseOptions: platform.CleanseOptions{
+			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden: true,
+		},
 	})
 	if err != nil {
 		return errors.New("Failed to get functions")
@@ -541,8 +553,10 @@ func (pr *projectResource) getProjectByName(request *http.Request, projectName, 
 			Name:      projectName,
 			Namespace: projectNamespace,
 		},
-		MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-		RaiseForbidden: true,
+		CleanseOptions: platform.CleanseOptions{
+			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden: true,
+		},
 	})
 
 	if err != nil {
@@ -576,7 +590,9 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		Strategy:      platform.ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
-		MemberIds:     opa.GetUserAndGroupIdsFromHeaders(request),
+		CleanseOptions: platform.CleanseOptions{
+			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		},
 	}); err != nil {
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
@@ -615,7 +631,9 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 		},
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
-		MemberIds:     opa.GetUserAndGroupIdsFromHeaders(request),
+		CleanseOptions: platform.CleanseOptions{
+			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		},
 	}); err != nil {
 		pr.Logger.WarnWith("Failed to update project", "err", err)
 		statusCode = common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError)

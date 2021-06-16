@@ -35,6 +35,11 @@ import (
 // Auth
 //
 
+type CleanseOptions struct {
+	MemberIds      []string
+	RaiseForbidden bool
+}
+
 type AuthConfig struct {
 	Token string
 }
@@ -59,7 +64,7 @@ type CreateFunctionOptions struct {
 	InputImageFile             string
 	AuthConfig                 *AuthConfig
 	DependantImagesRegistryURL string
-	MemberIds                  []string
+	CleanseOptions             CleanseOptions
 }
 
 type UpdateFunctionOptions struct {
@@ -67,13 +72,13 @@ type UpdateFunctionOptions struct {
 	FunctionSpec   *functionconfig.Spec
 	FunctionStatus *functionconfig.Status
 	AuthConfig     *AuthConfig
-	MemberIds      []string
+	CleanseOptions CleanseOptions
 }
 
 type DeleteFunctionOptions struct {
 	FunctionConfig functionconfig.Config
 	AuthConfig     *AuthConfig
-	MemberIds      []string
+	CleanseOptions CleanseOptions
 }
 
 // CreateFunctionBuildResult holds information detected/generated as a result of a build process
@@ -98,8 +103,7 @@ type GetFunctionsOptions struct {
 	Namespace      string
 	Labels         string
 	AuthConfig     *AuthConfig
-	MemberIds      []string
-	RaiseForbidden bool
+	CleanseOptions CleanseOptions
 
 	// Enrich functions with their api gateways
 	EnrichWithAPIGateways bool
@@ -213,25 +217,18 @@ func (pc *ProjectConfig) Scrub() {
 	pc.Meta.ResourceVersion = ""
 }
 
-type RequestOrigin string
-
-const (
-	RequestOriginEmpty  RequestOrigin = ""
-	RequestOriginLeader RequestOrigin = "leader"
-)
-
 type CreateProjectOptions struct {
-	ProjectConfig *ProjectConfig
-	RequestOrigin platformconfig.ProjectsLeaderKind
-	SessionCookie *http.Cookie
-	MemberIds     []string
+	ProjectConfig  *ProjectConfig
+	RequestOrigin  platformconfig.ProjectsLeaderKind
+	SessionCookie  *http.Cookie
+	CleanseOptions CleanseOptions
 }
 
 type UpdateProjectOptions struct {
-	ProjectConfig ProjectConfig
-	RequestOrigin platformconfig.ProjectsLeaderKind
-	SessionCookie *http.Cookie
-	MemberIds     []string
+	ProjectConfig  ProjectConfig
+	RequestOrigin  platformconfig.ProjectsLeaderKind
+	SessionCookie  *http.Cookie
+	CleanseOptions CleanseOptions
 }
 
 type DeleteProjectStrategy string
@@ -257,11 +254,11 @@ func ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy string) Del
 }
 
 type DeleteProjectOptions struct {
-	Meta          ProjectMeta
-	Strategy      DeleteProjectStrategy
-	RequestOrigin platformconfig.ProjectsLeaderKind
-	SessionCookie *http.Cookie
-	MemberIds     []string
+	Meta           ProjectMeta
+	Strategy       DeleteProjectStrategy
+	RequestOrigin  platformconfig.ProjectsLeaderKind
+	SessionCookie  *http.Cookie
+	CleanseOptions CleanseOptions
 
 	// allowing us to "block" until related resources are removed.
 	// used in testings
@@ -271,8 +268,7 @@ type DeleteProjectOptions struct {
 
 type GetProjectsOptions struct {
 	Meta           ProjectMeta
-	MemberIds      []string
-	RaiseForbidden bool
+	CleanseOptions CleanseOptions
 }
 
 // to appease k8s
@@ -308,27 +304,26 @@ type FunctionEventConfig struct {
 
 type CreateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
-	MemberIds           []string
+	CleanseOptions      CleanseOptions
 }
 
 type UpdateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
-	MemberIds           []string
+	CleanseOptions      CleanseOptions
 }
 
 type DeleteFunctionEventOptions struct {
-	Meta      FunctionEventMeta
-	MemberIds []string
+	Meta           FunctionEventMeta
+	CleanseOptions CleanseOptions
 }
 
 type GetFunctionEventsOptions struct {
 	Meta           FunctionEventMeta
 	FunctionNames  []string
-	MemberIds      []string
-	RaiseForbidden bool
+	CleanseOptions CleanseOptions
 }
 
-// to appease k8s
+// DeepCopyInto to appease k8s
 func (s *FunctionEventSpec) DeepCopyInto(out *FunctionEventSpec) {
 
 	// TODO: proper deep copy

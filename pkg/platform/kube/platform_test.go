@@ -506,10 +506,12 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 				defer suite.mockedOpaClient.AssertExpectations(suite.T())
 			}
 			functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
-				Name:           functionName,
-				Namespace:      suite.Namespace,
-				MemberIds:      memberIds,
-				RaiseForbidden: testCase.raiseForbidden,
+				Name:      functionName,
+				Namespace: suite.Namespace,
+				CleanseOptions: platform.CleanseOptions{
+					MemberIds:      memberIds,
+					RaiseForbidden: testCase.raiseForbidden,
+				},
 			})
 
 			if !testCase.opaResponse && testCase.givenMemberIds {
@@ -604,7 +606,9 @@ func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
 					Name:      functionName,
 					Namespace: suite.Namespace,
 				},
-				MemberIds: memberIds,
+				CleanseOptions: platform.CleanseOptions{
+					MemberIds: memberIds,
+				},
 			})
 
 			if !testCase.opaResponse {
@@ -686,7 +690,9 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 						Namespace: suite.Namespace,
 					},
 				},
-				MemberIds: memberIds,
+				CleanseOptions: platform.CleanseOptions{
+					MemberIds: memberIds,
+				},
 			})
 
 			if !testCase.opaResponse {
@@ -778,8 +784,10 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsPermissions() {
 					Name:      projectName,
 					Namespace: suite.Namespace,
 				},
-				MemberIds:      memberIds,
-				RaiseForbidden: testCase.raiseForbidden,
+				CleanseOptions: platform.CleanseOptions{
+					MemberIds:      memberIds,
+					RaiseForbidden: testCase.raiseForbidden,
+				},
 			})
 
 			if !testCase.opaResponse && testCase.givenMemberIds {
@@ -876,7 +884,9 @@ func (suite *ProjectKubePlatformTestSuite) TestUpdateProjectPermissions() {
 						Namespace: suite.Namespace,
 					},
 				},
-				MemberIds: memberIds,
+				CleanseOptions: platform.CleanseOptions{
+					MemberIds: memberIds,
+				},
 			})
 
 			if !testCase.opaResponse {
@@ -951,7 +961,9 @@ func (suite *ProjectKubePlatformTestSuite) TestDeleteProjectPermissions() {
 					Name:      projectName,
 					Namespace: suite.Namespace,
 				},
-				MemberIds: memberIds,
+				CleanseOptions: platform.CleanseOptions{
+					MemberIds: memberIds,
+				},
 			})
 
 			if !testCase.opaResponse {
@@ -1012,6 +1024,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestGetFunctionEventsPermission
 					Name:      functionEventName,
 					Labels: map[string]string{
 						"nuclio.io/function-name": functionName,
+						"nuclio.io/project-name":  projectName,
 					},
 				},
 			}
@@ -1024,23 +1037,6 @@ func (suite *FunctionEventKubePlatformTestSuite) TestGetFunctionEventsPermission
 
 			if testCase.givenMemberIds {
 				memberIds = []string{"id1", "id2"}
-
-				getFunctionResponse := &v1beta1.NuclioFunction{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: suite.Namespace,
-						Name:      functionName,
-						Labels: map[string]string{
-							"nuclio.io/project-name": projectName,
-						},
-					},
-				}
-
-				suite.nuclioFunctionInterfaceMock.
-					On("Get", functionName, metav1.GetOptions{}).
-					Return(getFunctionResponse, nil).
-					Once()
-				defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
-
 				suite.mockedOpaClient.
 					On("QueryPermissions",
 						fmt.Sprintf("/projects/%s/functions/%s/function-events/%s",
@@ -1058,21 +1054,23 @@ func (suite *FunctionEventKubePlatformTestSuite) TestGetFunctionEventsPermission
 					Name:      functionEventName,
 					Namespace: suite.Namespace,
 				},
-				MemberIds:      memberIds,
-				RaiseForbidden: testCase.raiseForbidden,
+				CleanseOptions: platform.CleanseOptions{
+					MemberIds:      memberIds,
+					RaiseForbidden: testCase.raiseForbidden,
+				},
 			})
 
 			if !testCase.opaResponse && testCase.givenMemberIds {
 				if testCase.raiseForbidden {
-					suite.Assert().Error(err)
+					suite.Require().Error(err)
 				} else {
-					suite.Assert().NoError(err)
-					suite.Assert().Equal(0, len(functionEvents))
+					suite.Require().NoError(err)
+					suite.Require().Equal(0, len(functionEvents))
 				}
 			} else {
-				suite.Assert().NoError(err)
-				suite.Assert().Equal(1, len(functionEvents))
-				suite.Assert().Equal(functionEventName, functionEvents[0].GetConfig().Meta.Name)
+				suite.Require().NoError(err)
+				suite.Require().Equal(1, len(functionEvents))
+				suite.Require().Equal(functionEventName, functionEvents[0].GetConfig().Meta.Name)
 			}
 		})
 	}
@@ -1104,6 +1102,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestUpdateFunctionEventPermissi
 					Name:      functionEventName,
 					Labels: map[string]string{
 						"nuclio.io/function-name": functionName,
+						"nuclio.io/project-name":  projectName,
 					},
 				},
 			}
@@ -1171,13 +1170,15 @@ func (suite *FunctionEventKubePlatformTestSuite) TestUpdateFunctionEventPermissi
 					},
 					Spec: platform.FunctionEventSpec{},
 				},
-				MemberIds: memberIds,
+				CleanseOptions: platform.CleanseOptions{
+					MemberIds: memberIds,
+				},
 			})
 
 			if !testCase.opaResponse {
-				suite.Assert().Error(err)
+				suite.Require().Error(err)
 			} else {
-				suite.Assert().NoError(err)
+				suite.Require().NoError(err)
 			}
 		})
 	}
@@ -1261,7 +1262,9 @@ func (suite *FunctionEventKubePlatformTestSuite) TestDeleteFunctionEventPermissi
 					Name:      functionEventName,
 					Namespace: suite.Namespace,
 				},
-				MemberIds: memberIds,
+				CleanseOptions: platform.CleanseOptions{
+					MemberIds: memberIds,
+				},
 			})
 
 			if !testCase.opaResponse {

@@ -86,6 +86,12 @@ func (mp *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptio
 	return args.Get(0).([]platform.Function), args.Error(1)
 }
 
+func (mp *Platform) CleanseFunctions(cleanseOptions *platform.CleanseOptions,
+	functions []platform.Function) ([]platform.Function, error) {
+	args := mp.Called(cleanseOptions, functions)
+	return args.Get(0).([]platform.Function), args.Error(1)
+}
+
 // GetFunctionReplicaLogsStream return the function instance (Kubernetes - Pod / Docker - Container) logs stream
 func (mp *Platform) GetFunctionReplicaLogsStream(ctx context.Context, options *platform.GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error) {
 	args := mp.Called(ctx, options)
@@ -123,6 +129,12 @@ func (mp *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOp
 // GetProjects will list existing projects
 func (mp *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	args := mp.Called(getProjectsOptions)
+	return args.Get(0).([]platform.Project), args.Error(1)
+}
+
+func (mp *Platform) CleanseProjects(cleanseOptions *platform.CleanseOptions,
+	projects []platform.Project) ([]platform.Project, error) {
+	args := mp.Called(cleanseOptions, projects)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
@@ -185,6 +197,12 @@ func (mp *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Del
 // GetFunctionEvents will list existing function events
 func (mp *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
 	args := mp.Called(getFunctionEventsOptions)
+	return args.Get(0).([]platform.FunctionEvent), args.Error(1)
+}
+
+func (mp *Platform) CleanseFunctionEvents(cleanseOptions *platform.CleanseOptions,
+	functionEvents []platform.FunctionEvent) ([]platform.FunctionEvent, error) {
+	args := mp.Called(cleanseOptions, functionEvents)
 	return args.Get(0).([]platform.FunctionEvent), args.Error(1)
 }
 

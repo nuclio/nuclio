@@ -74,6 +74,9 @@ type Platform interface {
 	// GetFunctions will list existing functions
 	GetFunctions(getFunctionsOptions *GetFunctionsOptions) ([]Function, error)
 
+	// CleanseFunctions will filter out some functions
+	CleanseFunctions(*CleanseOptions, []Function) ([]Function, error)
+
 	// GetDefaultInvokeIPAddresses will return a list of ip addresses to be used by the platform to invoke a function
 	GetDefaultInvokeIPAddresses() ([]string, error)
 
@@ -99,6 +102,9 @@ type Platform interface {
 	// GetProjects will list existing projects
 	GetProjects(getProjectsOptions *GetProjectsOptions) ([]Project, error)
 
+	// CleanseProjects will filter out some projects
+	CleanseProjects(*CleanseOptions, []Project) ([]Project, error)
+
 	// Ensures default project exists, creates it otherwise
 	EnsureDefaultProjectExistence() error
 
@@ -121,6 +127,9 @@ type Platform interface {
 
 	// GetFunctionEvents will list existing function events
 	GetFunctionEvents(getFunctionEventsOptions *GetFunctionEventsOptions) ([]FunctionEvent, error)
+
+	// CleanseFunctionEvents will filter out some function events
+	CleanseFunctionEvents(*CleanseOptions, []FunctionEvent) ([]FunctionEvent, error)
 
 	//
 	// API Gateway

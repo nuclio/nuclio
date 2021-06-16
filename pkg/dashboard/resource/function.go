@@ -109,10 +109,12 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	// TODO: Add a lock to prevent race conditions here (prevent 2 functions created with the same name)
 	// validate there are no 2 functions with the same name
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Name:           functionInfo.Meta.Name,
-		Namespace:      fr.resolveNamespace(request, functionInfo),
-		MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-		RaiseForbidden: true,
+		Name:      functionInfo.Meta.Name,
+		Namespace: fr.resolveNamespace(request, functionInfo),
+		CleanseOptions: platform.CleanseOptions{
+			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden: true,
+		},
 	})
 	if err != nil {
 		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
@@ -150,10 +152,12 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 	// TODO: Add a lock to prevent race conditions here
 	// validate the function exists
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Name:           functionInfo.Meta.Name,
-		Namespace:      fr.resolveNamespace(request, functionInfo),
-		MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-		RaiseForbidden: true,
+		Name:      functionInfo.Meta.Name,
+		Namespace: fr.resolveNamespace(request, functionInfo),
+		CleanseOptions: platform.CleanseOptions{
+			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden: true,
+		},
 	})
 	if err != nil {
 		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
@@ -271,7 +275,9 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 			CreationStateUpdated:       creationStateUpdatedChan,
 			AuthConfig:                 authConfig,
 			DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
-			MemberIds:                  opa.GetUserAndGroupIdsFromHeaders(request),
+			CleanseOptions: platform.CleanseOptions{
+				MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			},
 		})
 
 		if err != nil {
@@ -426,7 +432,9 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 
 	deleteFunctionOptions := platform.DeleteFunctionOptions{
 		AuthConfig: authConfig,
-		MemberIds:  opa.GetUserAndGroupIdsFromHeaders(request),
+		CleanseOptions: platform.CleanseOptions{
+			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		},
 	}
 
 	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta
@@ -522,8 +530,10 @@ func (fr *functionResource) resolveGetFunctionsFromRequest(request *http.Request
 		Namespace:             fr.getNamespaceFromRequest(request),
 		Name:                  functionName,
 		EnrichWithAPIGateways: fr.headerValueIsTrue(request, "x-nuclio-function-enrich-apigateways"),
-		MemberIds:             opa.GetUserAndGroupIdsFromHeaders(request),
-		RaiseForbidden:        raiseForbidden,
+		CleanseOptions: platform.CleanseOptions{
+			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden: raiseForbidden,
+		},
 	}
 
 	// if the user wants to filter by project, do that

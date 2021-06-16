@@ -24,7 +24,7 @@ import (
 	"github.com/nuclio/logger"
 )
 
-// CreateOpaClient creates a opa client based on a requested
+// CreateOpaClient creates an OPA client by a given configuration
 func CreateOpaClient(parentLogger logger.Logger, opaConfiguration *platformconfig.OpaConfig) Client {
 
 	var newOpaClient Client
