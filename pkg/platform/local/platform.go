@@ -776,22 +776,6 @@ func (p *Platform) GetFunctionVolumeMountName(functionConfig *functionconfig.Con
 		functionConfig.Meta.Name)
 }
 
-func (p *Platform) getFunction(namespace, functionName string) (platform.Function, error) {
-	functions, err := p.localStore.GetProjectFunctions(&platform.GetFunctionsOptions{
-		Name:      functionName,
-		Namespace: namespace,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read functions from a local store")
-	}
-	if len(functions) == 0 {
-		return nil, errors.Errorf("Function %s not found", functionName)
-	}
-	function := functions[0]
-
-	return function, err
-}
-
 func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
 

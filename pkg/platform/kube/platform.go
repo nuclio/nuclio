@@ -868,7 +868,7 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 		}
 	}
 
-	if err = p.consumer.NuclioClientSet.NuclioV1beta1().
+	if err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
 		Delete(deleteFunctionEventOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
 		return errors.Wrapf(err,

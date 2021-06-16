@@ -45,6 +45,7 @@ func (suite *functionEventGetTestSuite) TestGet() {
 		functionEventNames = append(functionEventNames, functionEventName)
 
 		namedArgs := map[string]string{
+			"function":     fmt.Sprintf("function-%d", functionEventIdx),
 			"display-name": fmt.Sprintf("display-name-%d", functionEventIdx),
 			"trigger-name": fmt.Sprintf("trigger-name-%d", functionEventIdx),
 			"trigger-kind": fmt.Sprintf("trigger-kind-%d", functionEventIdx),
