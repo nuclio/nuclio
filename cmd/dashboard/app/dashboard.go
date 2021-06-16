@@ -125,17 +125,12 @@ func Run(listenAddress string,
 	dependantImageRegistryURL string,
 	monitorDockerDeamon bool,
 	monitorDockerDeamonIntervalStr string,
-	monitorDockerDeamonMaxConsecutiveErrorsStr string,
-	opaAddress string) error {
+	monitorDockerDeamonMaxConsecutiveErrorsStr string) error {
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get platform configuration")
-	}
-
-	if platformConfiguration.Opa.Address == "" {
-		platformConfiguration.Opa.Address = opaAddress
 	}
 
 	// create a root logger

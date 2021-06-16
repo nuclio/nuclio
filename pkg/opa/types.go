@@ -22,6 +22,36 @@ import (
 	"strings"
 )
 
+type ClientKind string
+
+const (
+	ClientKindHTTP ClientKind = "http"
+	ClientKindNop  ClientKind = "nop"
+	ClientKindMock ClientKind = "mock"
+
+	DefaultClientKind          = ClientKindNop
+	DefaultRequestTimeOut      = 10
+	DefaultPermissionQueryPath = "/v1/data/iguazio/authz/allow"
+)
+
+type Config struct {
+
+	// OPA server address
+	Address string `json:"address,omitempty"`
+
+	// client kind to use (nop | http | mock)
+	ClientKind ClientKind `json:"clientKind,omitempty"`
+
+	// timeout period when querying opa server
+	RequestTimeout int `json:"requestTimeout,omitempty"`
+
+	// the path used when querying opa server (e.g.: /v1/data/somewhere/authz/allow)
+	PermissionQueryPath string `json:"permissionQueryPath,omitempty"`
+
+	// for extra verbosity on top of nuclio logger
+	LogLevel int `json:"logLevel,omitempty"`
+}
+
 type PermissionRequestInput struct {
 	Resource string   `json:"resource,omitempty"`
 	Action   string   `json:"action,omitempty"`

@@ -51,7 +51,6 @@ func (u *Updater) Update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	function, err := u.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
 		Get(updateFunctionOptions.FunctionMeta.Name, metav1.GetOptions{})
-
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
 	}

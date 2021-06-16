@@ -509,14 +509,12 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
 func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
-	if functionName, found := createFunctionEventOptions.FunctionEventConfig.Meta.Labels["nuclio.io/function-name"]; found {
-		function, err := p.getFunction(createFunctionEventOptions.FunctionEventConfig.Meta.Namespace, functionName)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get function")
-		}
+	functionName, functionNameFound := createFunctionEventOptions.FunctionEventConfig.Meta.Labels["nuclio.io/function-name"]
+	projectName, projectNameFound := createFunctionEventOptions.FunctionEventConfig.Meta.Labels["nuclio.io/project-name"]
+	if projectNameFound && functionNameFound {
 
 		// Check OPA permissions
-		if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+		if _, err := p.QueryOPAFunctionEventPermissions(projectName,
 			functionName,
 			createFunctionEventOptions.FunctionEventConfig.Meta.Name,
 			opa.ActionCreate,
@@ -538,14 +536,12 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 	}
 	functionEventToUpdate := functionEvents[0]
 
-	if functionName, found := functionEventToUpdate.GetConfig().Meta.Labels["nuclio.io/function-name"]; found {
-		function, err := p.getFunction(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace, functionName)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get function")
-		}
+	functionName, functionNameFound := updateFunctionEventOptions.FunctionEventConfig.Meta.Labels["nuclio.io/function-name"]
+	projectName, projectNameFound := updateFunctionEventOptions.FunctionEventConfig.Meta.Labels["nuclio.io/project-name"]
+	if projectNameFound && functionNameFound {
 
 		// Check OPA permissions
-		if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+		if _, err := p.QueryOPAFunctionEventPermissions(projectName,
 			functionName,
 			functionEventToUpdate.GetConfig().Meta.Name,
 			opa.ActionUpdate,
@@ -568,17 +564,15 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 	}
 
 	if len(functionEvents) > 0 {
-		functionEventToUpdate := functionEvents[0]
-		if functionName, found := functionEventToUpdate.GetConfig().Meta.Labels["nuclio.io/function-name"]; found {
-			function, err := p.getFunction(deleteFunctionEventOptions.Meta.Namespace, functionName)
-			if err != nil {
-				return errors.Wrap(err, "Failed to get function")
-			}
+		functionEventToDelete := functionEvents[0]
+		functionName, functionNameFound := functionEventToDelete.GetConfig().Meta.Labels["nuclio.io/function-name"]
+		projectName, projectNameFound := functionEventToDelete.GetConfig().Meta.Labels["nuclio.io/project-name"]
+		if projectNameFound && functionNameFound {
 
 			// Check OPA permissions
-			if _, err := p.QueryOPAFunctionEventPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+			if _, err := p.QueryOPAFunctionEventPermissions(projectName,
 				functionName,
-				functionEventToUpdate.GetConfig().Meta.Name,
+				functionEventToDelete.GetConfig().Meta.Name,
 				opa.ActionDelete,
 				deleteFunctionEventOptions.CleanseOptions.MemberIds,
 				true); err != nil {

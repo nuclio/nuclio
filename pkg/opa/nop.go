@@ -21,22 +21,24 @@ import (
 )
 
 type NopClient struct {
-	logger logger.Logger
+	logger   logger.Logger
+	logLevel int
 }
 
-func NewNopClient(parentLogger logger.Logger) *NopClient {
+func NewNopClient(parentLogger logger.Logger, logLevel int) *NopClient {
 	newClient := NopClient{
-		logger: parentLogger.GetChild("opa"),
+		logger:   parentLogger.GetChild("opa"),
+		logLevel: logLevel,
 	}
-
 	return &newClient
 }
 
 func (c *NopClient) QueryPermissions(resource string, action Action, ids []string) (bool, error) {
-	c.logger.DebugWith("Checking permissions in OPA (nop)",
-		"resource", resource,
-		"action", action,
-		"ids", ids)
-
+	if c.logLevel > 5 {
+		c.logger.DebugWith("Checking permissions in OPA",
+			"resource", resource,
+			"action", action,
+			"ids", ids)
+	}
 	return true, nil
 }

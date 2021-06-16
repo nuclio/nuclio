@@ -58,7 +58,8 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	}
 
 	functionName := request.Header.Get("x-nuclio-function-name")
-	functions, err := fr.getPlatform().GetFunctions(fr.resolveGetFunctionsFromRequest(request, functionName, false))
+	getFunctionOptions := fr.resolveGetFunctionOptionsFromRequest(request, functionName, false)
+	functions, err := fr.getPlatform().GetFunctions(getFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
@@ -511,7 +512,8 @@ func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, funct
 }
 
 func (fr *functionResource) getFunction(request *http.Request, name string) (platform.Function, error) {
-	functions, err := fr.getPlatform().GetFunctions(fr.resolveGetFunctionsFromRequest(request, name, true))
+	getFunctionOptions := fr.resolveGetFunctionOptionsFromRequest(request, name, true)
+	functions, err := fr.getPlatform().GetFunctions(getFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
@@ -522,7 +524,7 @@ func (fr *functionResource) getFunction(request *http.Request, name string) (pla
 	return functions[0], nil
 }
 
-func (fr *functionResource) resolveGetFunctionsFromRequest(request *http.Request,
+func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.Request,
 	functionName string,
 	raiseForbidden bool) *platform.GetFunctionsOptions {
 

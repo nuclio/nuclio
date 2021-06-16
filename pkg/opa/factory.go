@@ -19,31 +19,29 @@ package opa
 import (
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/platformconfig"
-
 	"github.com/nuclio/logger"
 )
 
 // CreateOpaClient creates an OPA client by a given configuration
-func CreateOpaClient(parentLogger logger.Logger, opaConfiguration *platformconfig.OpaConfig) Client {
-
+func CreateOpaClient(parentLogger logger.Logger, opaConfiguration *Config) Client {
 	var newOpaClient Client
 
 	switch opaConfiguration.ClientKind {
-	case platformconfig.OpaClientKindHTTP:
+	case ClientKindHTTP:
 		newOpaClient = NewHTTPClient(parentLogger,
 			opaConfiguration.Address,
 			opaConfiguration.PermissionQueryPath,
-			time.Duration(opaConfiguration.RequestTimeout)*time.Second)
+			time.Duration(opaConfiguration.RequestTimeout)*time.Second,
+			opaConfiguration.LogLevel)
 
-	case platformconfig.OpaClientKindMock:
+	case ClientKindMock:
 		newOpaClient = &MockClient{}
 
-	case platformconfig.OpaClientKindNop:
-		newOpaClient = NewNopClient(parentLogger)
+	case ClientKindNop:
+		newOpaClient = NewNopClient(parentLogger, opaConfiguration.LogLevel)
 
 	default:
-		newOpaClient = NewNopClient(parentLogger)
+		newOpaClient = NewNopClient(parentLogger, opaConfiguration.LogLevel)
 	}
 
 	return newOpaClient

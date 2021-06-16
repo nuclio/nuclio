@@ -33,27 +33,31 @@ type HTTPClient struct {
 	address             string
 	permissionQueryPath string
 	requestTimeout      time.Duration
+	logLevel            int
 }
 
 func NewHTTPClient(parentLogger logger.Logger,
 	address string,
 	permissionQueryPath string,
-	requestTimeout time.Duration) *HTTPClient {
+	requestTimeout time.Duration,
+	logLevel int) *HTTPClient {
 	newClient := HTTPClient{
 		logger:              parentLogger.GetChild("opa"),
 		address:             address,
 		permissionQueryPath: permissionQueryPath,
 		requestTimeout:      requestTimeout,
+		logLevel:            logLevel,
 	}
-
 	return &newClient
 }
 
 func (c *HTTPClient) QueryPermissions(resource string, action Action, ids []string) (bool, error) {
-	c.logger.DebugWith("Checking permissions in OPA",
-		"resource", resource,
-		"action", action,
-		"ids", ids)
+	if c.logLevel > 5 {
+		c.logger.InfoWith("Checking permissions in OPA",
+			"resource", resource,
+			"action", action,
+			"ids", ids)
+	}
 
 	// send the request
 	headers := map[string]string{
@@ -81,9 +85,18 @@ func (c *HTTPClient) QueryPermissions(resource string, action Action, ids []stri
 		return false, errors.Wrap(err, "Failed to send HTTP request to OPA")
 	}
 
+	if c.logLevel > 5 {
+		c.logger.InfoWith("Received response from OPA", "responseBody", responseBody)
+	}
+
 	permissionResponse := PermissionResponse{}
 	if err := json.Unmarshal(responseBody, &permissionResponse); err != nil {
 		return false, errors.Wrap(err, "Failed to unmarshal response body")
+	}
+
+	if c.logLevel > 5 {
+		c.logger.InfoWith("Successfully unmarshalled permission response",
+			"permissionResponse", permissionResponse)
 	}
 
 	return permissionResponse.Result, nil

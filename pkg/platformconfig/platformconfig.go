@@ -21,8 +21,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/runtimeconfig"
 
 	"github.com/nuclio/errors"
@@ -47,7 +49,7 @@ type Config struct {
 	ProjectsLeader           *ProjectsLeader              `json:"projectsLeader,omitempty"`
 	ManagedNamespaces        []string                     `json:"managedNamespaces,omitempty"`
 	IguazioSessionCookie     string                       `json:"iguazioSessionCookie,omitempty"`
-	Opa                      OpaConfig                    `json:"opa,omitempty"`
+	Opa                      opa.Config                   `json:"opa,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 
@@ -213,15 +215,18 @@ func (config *Config) enrichLocalPlatform() {
 }
 
 func (config *Config) enrichOpaConfig() {
+
+	config.Opa.Address = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_OPA_ADDRESS", "")
+
 	if config.Opa.ClientKind == "" {
-		config.Opa.ClientKind = DefaultOpaClientKind
+		config.Opa.ClientKind = opa.DefaultClientKind
 	}
 
 	if config.Opa.RequestTimeout == 0 {
-		config.Opa.RequestTimeout = DefaultOpaRequestTimeOut
+		config.Opa.RequestTimeout = opa.DefaultRequestTimeOut
 	}
 
 	if config.Opa.PermissionQueryPath == "" {
-		config.Opa.PermissionQueryPath = DefaultOpaPermissionQueryPath
+		config.Opa.PermissionQueryPath = opa.DefaultPermissionQueryPath
 	}
 }
