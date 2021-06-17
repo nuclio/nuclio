@@ -112,7 +112,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Name:      functionInfo.Meta.Name,
 		Namespace: fr.resolveNamespace(request, functionInfo),
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
 			RaiseForbidden: true,
 		},
@@ -155,7 +155,7 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Name:      functionInfo.Meta.Name,
 		Namespace: fr.resolveNamespace(request, functionInfo),
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
 			RaiseForbidden: true,
 		},
@@ -276,7 +276,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 			CreationStateUpdated:       creationStateUpdatedChan,
 			AuthConfig:                 authConfig,
 			DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
-			CleanseOptions: platform.CleanseOptions{
+			PermissionOptions: platform.PermissionOptions{
 				MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 			},
 		})
@@ -433,7 +433,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 
 	deleteFunctionOptions := platform.DeleteFunctionOptions{
 		AuthConfig: authConfig,
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 		},
 	}
@@ -532,7 +532,7 @@ func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.R
 		Namespace:             fr.getNamespaceFromRequest(request),
 		Name:                  functionName,
 		EnrichWithAPIGateways: fr.headerValueIsTrue(request, "x-nuclio-function-enrich-apigateways"),
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
 			RaiseForbidden: raiseForbidden,
 		},

@@ -35,7 +35,7 @@ import (
 // Auth
 //
 
-type CleanseOptions struct {
+type PermissionOptions struct {
 	MemberIds      []string
 	RaiseForbidden bool
 }
@@ -64,21 +64,21 @@ type CreateFunctionOptions struct {
 	InputImageFile             string
 	AuthConfig                 *AuthConfig
 	DependantImagesRegistryURL string
-	CleanseOptions             CleanseOptions
+	PermissionOptions          PermissionOptions
 }
 
 type UpdateFunctionOptions struct {
-	FunctionMeta   *functionconfig.Meta
-	FunctionSpec   *functionconfig.Spec
-	FunctionStatus *functionconfig.Status
-	AuthConfig     *AuthConfig
-	CleanseOptions CleanseOptions
+	FunctionMeta      *functionconfig.Meta
+	FunctionSpec      *functionconfig.Spec
+	FunctionStatus    *functionconfig.Status
+	AuthConfig        *AuthConfig
+	PermissionOptions PermissionOptions
 }
 
 type DeleteFunctionOptions struct {
-	FunctionConfig functionconfig.Config
-	AuthConfig     *AuthConfig
-	CleanseOptions CleanseOptions
+	FunctionConfig    functionconfig.Config
+	AuthConfig        *AuthConfig
+	PermissionOptions PermissionOptions
 }
 
 // CreateFunctionBuildResult holds information detected/generated as a result of a build process
@@ -99,11 +99,11 @@ type CreateFunctionResult struct {
 
 // GetFunctionsOptions is the base for all platform get options
 type GetFunctionsOptions struct {
-	Name           string
-	Namespace      string
-	Labels         string
-	AuthConfig     *AuthConfig
-	CleanseOptions CleanseOptions
+	Name              string
+	Namespace         string
+	Labels            string
+	AuthConfig        *AuthConfig
+	PermissionOptions PermissionOptions
 
 	// Enrich functions with their api gateways
 	EnrichWithAPIGateways bool
@@ -218,17 +218,17 @@ func (pc *ProjectConfig) Scrub() {
 }
 
 type CreateProjectOptions struct {
-	ProjectConfig  *ProjectConfig
-	RequestOrigin  platformconfig.ProjectsLeaderKind
-	SessionCookie  *http.Cookie
-	CleanseOptions CleanseOptions
+	ProjectConfig     *ProjectConfig
+	RequestOrigin     platformconfig.ProjectsLeaderKind
+	SessionCookie     *http.Cookie
+	PermissionOptions PermissionOptions
 }
 
 type UpdateProjectOptions struct {
-	ProjectConfig  ProjectConfig
-	RequestOrigin  platformconfig.ProjectsLeaderKind
-	SessionCookie  *http.Cookie
-	CleanseOptions CleanseOptions
+	ProjectConfig     ProjectConfig
+	RequestOrigin     platformconfig.ProjectsLeaderKind
+	SessionCookie     *http.Cookie
+	PermissionOptions PermissionOptions
 }
 
 type DeleteProjectStrategy string
@@ -254,11 +254,11 @@ func ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy string) Del
 }
 
 type DeleteProjectOptions struct {
-	Meta           ProjectMeta
-	Strategy       DeleteProjectStrategy
-	RequestOrigin  platformconfig.ProjectsLeaderKind
-	SessionCookie  *http.Cookie
-	CleanseOptions CleanseOptions
+	Meta              ProjectMeta
+	Strategy          DeleteProjectStrategy
+	RequestOrigin     platformconfig.ProjectsLeaderKind
+	SessionCookie     *http.Cookie
+	PermissionOptions PermissionOptions
 
 	// allowing us to "block" until related resources are removed.
 	// used in testings
@@ -267,8 +267,8 @@ type DeleteProjectOptions struct {
 }
 
 type GetProjectsOptions struct {
-	Meta           ProjectMeta
-	CleanseOptions CleanseOptions
+	Meta              ProjectMeta
+	PermissionOptions PermissionOptions
 }
 
 // to appease k8s
@@ -304,23 +304,23 @@ type FunctionEventConfig struct {
 
 type CreateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
-	CleanseOptions      CleanseOptions
+	PermissionOptions   PermissionOptions
 }
 
 type UpdateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
-	CleanseOptions      CleanseOptions
+	PermissionOptions   PermissionOptions
 }
 
 type DeleteFunctionEventOptions struct {
-	Meta           FunctionEventMeta
-	CleanseOptions CleanseOptions
+	Meta              FunctionEventMeta
+	PermissionOptions PermissionOptions
 }
 
 type GetFunctionEventsOptions struct {
-	Meta           FunctionEventMeta
-	FunctionNames  []string
-	CleanseOptions CleanseOptions
+	Meta              FunctionEventMeta
+	FunctionNames     []string
+	PermissionOptions PermissionOptions
 }
 
 // DeepCopyInto to appease k8s

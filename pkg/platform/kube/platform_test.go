@@ -508,7 +508,7 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 			functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
 				Name:      functionName,
 				Namespace: suite.Namespace,
-				CleanseOptions: platform.CleanseOptions{
+				PermissionOptions: platform.PermissionOptions{
 					MemberIds:      memberIds,
 					RaiseForbidden: testCase.raiseForbidden,
 				},
@@ -606,7 +606,7 @@ func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
 					Name:      functionName,
 					Namespace: suite.Namespace,
 				},
-				CleanseOptions: platform.CleanseOptions{
+				PermissionOptions: platform.PermissionOptions{
 					MemberIds: memberIds,
 				},
 			})
@@ -690,7 +690,7 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 						Namespace: suite.Namespace,
 					},
 				},
-				CleanseOptions: platform.CleanseOptions{
+				PermissionOptions: platform.PermissionOptions{
 					MemberIds: memberIds,
 				},
 			})
@@ -784,7 +784,7 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsPermissions() {
 					Name:      projectName,
 					Namespace: suite.Namespace,
 				},
-				CleanseOptions: platform.CleanseOptions{
+				PermissionOptions: platform.PermissionOptions{
 					MemberIds:      memberIds,
 					RaiseForbidden: testCase.raiseForbidden,
 				},
@@ -884,7 +884,7 @@ func (suite *ProjectKubePlatformTestSuite) TestUpdateProjectPermissions() {
 						Namespace: suite.Namespace,
 					},
 				},
-				CleanseOptions: platform.CleanseOptions{
+				PermissionOptions: platform.PermissionOptions{
 					MemberIds: memberIds,
 				},
 			})
@@ -961,7 +961,7 @@ func (suite *ProjectKubePlatformTestSuite) TestDeleteProjectPermissions() {
 					Name:      projectName,
 					Namespace: suite.Namespace,
 				},
-				CleanseOptions: platform.CleanseOptions{
+				PermissionOptions: platform.PermissionOptions{
 					MemberIds: memberIds,
 				},
 			})
@@ -1054,7 +1054,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestGetFunctionEventsPermission
 					Name:      functionEventName,
 					Namespace: suite.Namespace,
 				},
-				CleanseOptions: platform.CleanseOptions{
+				PermissionOptions: platform.PermissionOptions{
 					MemberIds:      memberIds,
 					RaiseForbidden: testCase.raiseForbidden,
 				},
@@ -1155,7 +1155,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestUpdateFunctionEventPermissi
 					},
 					Spec: platform.FunctionEventSpec{},
 				},
-				CleanseOptions: platform.CleanseOptions{
+				PermissionOptions: platform.PermissionOptions{
 					MemberIds: memberIds,
 				},
 			})
@@ -1232,7 +1232,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestDeleteFunctionEventPermissi
 					Name:      functionEventName,
 					Namespace: suite.Namespace,
 				},
-				CleanseOptions: platform.CleanseOptions{
+				PermissionOptions: platform.PermissionOptions{
 					MemberIds: memberIds,
 				},
 			})

@@ -56,7 +56,7 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 			Name:      request.Header.Get("x-nuclio-function-event-name"),
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 		},
 	}
@@ -97,7 +97,7 @@ func (fer *functionEventResource) GetByID(request *http.Request, id string) (res
 			Name:      id,
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
 			RaiseForbidden: true,
 		},
@@ -175,7 +175,7 @@ func (fer *functionEventResource) storeAndDeployFunctionEvent(request *http.Requ
 	// just deploy. the status is async through polling
 	err = fer.getPlatform().CreateFunctionEvent(&platform.CreateFunctionEventOptions{
 		FunctionEventConfig: *newFunctionEvent.GetConfig(),
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 		},
 	})
@@ -195,7 +195,7 @@ func (fer *functionEventResource) getFunctionEvents(request *http.Request, funct
 				"nuclio.io/function-name": function.GetConfig().Meta.Name,
 			},
 		},
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 		},
 	}
@@ -222,7 +222,7 @@ func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*r
 	}
 
 	deleteFunctionEventOptions := platform.DeleteFunctionEventOptions{
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 		},
 	}
@@ -265,7 +265,7 @@ func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*r
 
 	if err = fer.getPlatform().UpdateFunctionEvent(&platform.UpdateFunctionEventOptions{
 		FunctionEventConfig: functionEventConfig,
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 		},
 	}); err != nil {

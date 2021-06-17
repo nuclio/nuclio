@@ -426,7 +426,7 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 	if _, err := ap.QueryOPAFunctionPermissions(functionToDelete.GetConfig().Meta.Labels["nuclio.io/project-name"],
 		functionToDelete.GetConfig().Meta.Name,
 		opa.ActionDelete,
-		deleteFunctionOptions.CleanseOptions.MemberIds,
+		deleteFunctionOptions.PermissionOptions.MemberIds,
 		true); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
@@ -446,12 +446,12 @@ func (ap *Platform) ResolveReservedResourceNames() []string {
 	}
 }
 
-// CleanseProjects will filter out some projects
-func (ap *Platform) CleanseProjects(cleanseOptions *platform.CleanseOptions,
+// FilterProjectsByPermissions will filter out some projects
+func (ap *Platform) FilterProjectsByPermissions(permissionOptions *platform.PermissionOptions,
 	projects []platform.Project) ([]platform.Project, error) {
 
 	// no cleansing is mandated
-	if len(cleanseOptions.MemberIds) == 0 {
+	if len(permissionOptions.MemberIds) == 0 {
 		return projects, nil
 	}
 
@@ -465,8 +465,8 @@ func (ap *Platform) CleanseProjects(cleanseOptions *platform.CleanseOptions,
 			// Check OPA permissions
 			if allowed, err := ap.QueryOPAProjectPermissions(projectInstance.GetConfig().Meta.Name,
 				opa.ActionRead,
-				cleanseOptions.MemberIds,
-				cleanseOptions.RaiseForbidden); err != nil {
+				permissionOptions.MemberIds,
+				permissionOptions.RaiseForbidden); err != nil {
 				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 			} else if allowed {
 				appendLock.Lock()
@@ -482,12 +482,12 @@ func (ap *Platform) CleanseProjects(cleanseOptions *platform.CleanseOptions,
 	return permittedProjects, nil
 }
 
-// CleanseFunctions will filter out some functions
-func (ap *Platform) CleanseFunctions(cleanseOptions *platform.CleanseOptions,
+// FilterFunctionsByPermissions will filter out some functions
+func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *platform.PermissionOptions,
 	functions []platform.Function) ([]platform.Function, error) {
 
 	// no cleansing is mandated
-	if len(cleanseOptions.MemberIds) == 0 {
+	if len(permissionOptions.MemberIds) == 0 {
 		return functions, nil
 	}
 
@@ -502,8 +502,8 @@ func (ap *Platform) CleanseFunctions(cleanseOptions *platform.CleanseOptions,
 			if allowed, err := ap.QueryOPAFunctionPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
 				function.GetConfig().Meta.Name,
 				opa.ActionRead,
-				cleanseOptions.MemberIds,
-				cleanseOptions.RaiseForbidden); err != nil {
+				permissionOptions.MemberIds,
+				permissionOptions.RaiseForbidden); err != nil {
 				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 			} else if allowed {
 				appendLock.Lock()
@@ -519,12 +519,12 @@ func (ap *Platform) CleanseFunctions(cleanseOptions *platform.CleanseOptions,
 	return permittedFunctions, nil
 }
 
-// CleanseFunctionEvents will filter out some function events
-func (ap *Platform) CleanseFunctionEvents(cleanseOptions *platform.CleanseOptions,
+// FilterFunctionEventsByPermissions will filter out some function events
+func (ap *Platform) FilterFunctionEventsByPermissions(permissionOptions *platform.PermissionOptions,
 	functionEvents []platform.FunctionEvent) ([]platform.FunctionEvent, error) {
 
 	// no cleansing is mandated
-	if len(cleanseOptions.MemberIds) == 0 {
+	if len(permissionOptions.MemberIds) == 0 {
 		return functionEvents, nil
 	}
 
@@ -552,8 +552,8 @@ func (ap *Platform) CleanseFunctionEvents(cleanseOptions *platform.CleanseOption
 				functionName,
 				functionEventInstance.GetConfig().Meta.Name,
 				opa.ActionRead,
-				cleanseOptions.MemberIds,
-				cleanseOptions.RaiseForbidden); err != nil {
+				permissionOptions.MemberIds,
+				permissionOptions.RaiseForbidden); err != nil {
 				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 			} else if allowed {
 				appendLock.Lock()

@@ -74,7 +74,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 			Name:      request.Header.Get("x-nuclio-project-name"),
 			Namespace: namespace,
 		},
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 		},
 	})
@@ -219,7 +219,7 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 		Name:      "",
 		Namespace: project.GetConfig().Meta.Namespace,
 		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", project.GetConfig().Meta.Name),
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 		},
 	}
@@ -269,7 +269,7 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 		ProjectConfig: newProject.GetConfig(),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 		},
 	}); err != nil {
@@ -350,7 +350,7 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: *projectImportOptions.projectInfo.Project.Meta,
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
 			RaiseForbidden: true,
 		},
@@ -383,7 +383,7 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 
 		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
 			ProjectConfig: newProject.GetConfig(),
-			CleanseOptions: platform.CleanseOptions{
+			PermissionOptions: platform.PermissionOptions{
 				MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 			},
 		}); err != nil {
@@ -454,7 +454,7 @@ func (pr *projectResource) importFunction(request *http.Request, function *funct
 	functions, err := pr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Name:      function.Meta.Name,
 		Namespace: function.Meta.Namespace,
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
 			RaiseForbidden: true,
 		},
@@ -553,7 +553,7 @@ func (pr *projectResource) getProjectByName(request *http.Request, projectName, 
 			Name:      projectName,
 			Namespace: projectNamespace,
 		},
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
 			RaiseForbidden: true,
 		},
@@ -590,7 +590,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		Strategy:      platform.ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 		},
 	}); err != nil {
@@ -631,7 +631,7 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 		},
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
-		CleanseOptions: platform.CleanseOptions{
+		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
 		},
 	}); err != nil {

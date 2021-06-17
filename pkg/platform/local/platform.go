@@ -184,7 +184,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	if _, err := p.QueryOPAFunctionPermissions(createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
 		createFunctionOptions.FunctionConfig.Meta.Name,
 		opa.ActionCreate,
-		createFunctionOptions.CleanseOptions.MemberIds,
+		createFunctionOptions.PermissionOptions.MemberIds,
 		true); err != nil {
 		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
@@ -350,9 +350,9 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		return nil, errors.Wrap(err, "Failed to read functions from a local store")
 	}
 
-	functions, err = p.Platform.CleanseFunctions(&getFunctionsOptions.CleanseOptions, functions)
+	functions, err = p.Platform.FilterFunctionsByPermissions(&getFunctionsOptions.PermissionOptions, functions)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to cleansed functions")
+		return nil, errors.Wrap(err, "Failed to filter functions by permissions")
 	}
 
 	// enrich with build logs
@@ -441,7 +441,7 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	// Check OPA permissions
 	if _, err := p.QueryOPAProjectPermissions(createProjectOptions.ProjectConfig.Meta.Name,
 		opa.ActionCreate,
-		createProjectOptions.CleanseOptions.MemberIds,
+		createProjectOptions.PermissionOptions.MemberIds,
 		true); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
@@ -463,7 +463,7 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 	// Check OPA permissions
 	if _, err := p.QueryOPAProjectPermissions(updateProjectOptions.ProjectConfig.Meta.Name,
 		opa.ActionUpdate,
-		updateProjectOptions.CleanseOptions.MemberIds,
+		updateProjectOptions.PermissionOptions.MemberIds,
 		true); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
@@ -484,7 +484,7 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 	// Check OPA permissions
 	if _, err := p.QueryOPAProjectPermissions(deleteProjectOptions.Meta.Name,
 		opa.ActionDelete,
-		deleteProjectOptions.CleanseOptions.MemberIds,
+		deleteProjectOptions.PermissionOptions.MemberIds,
 		true); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
@@ -503,7 +503,7 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 		return nil, errors.Wrap(err, "Failed getting projects")
 	}
 
-	return p.Platform.CleanseProjects(&getProjectsOptions.CleanseOptions, projects)
+	return p.Platform.FilterProjectsByPermissions(&getProjectsOptions.PermissionOptions, projects)
 }
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
@@ -518,7 +518,7 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 			functionName,
 			createFunctionEventOptions.FunctionEventConfig.Meta.Name,
 			opa.ActionCreate,
-			createFunctionEventOptions.CleanseOptions.MemberIds,
+			createFunctionEventOptions.PermissionOptions.MemberIds,
 			true); err != nil {
 			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 		}
@@ -545,7 +545,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 			functionName,
 			functionEventToUpdate.GetConfig().Meta.Name,
 			opa.ActionUpdate,
-			updateFunctionEventOptions.CleanseOptions.MemberIds,
+			updateFunctionEventOptions.PermissionOptions.MemberIds,
 			true); err != nil {
 			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 		}
@@ -574,7 +574,7 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 				functionName,
 				functionEventToDelete.GetConfig().Meta.Name,
 				opa.ActionDelete,
-				deleteFunctionEventOptions.CleanseOptions.MemberIds,
+				deleteFunctionEventOptions.PermissionOptions.MemberIds,
 				true); err != nil {
 				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 			}
@@ -591,7 +591,7 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 		return nil, errors.Wrap(err, "Failed to read function events from a local store")
 	}
 
-	return p.Platform.CleanseFunctionEvents(&getFunctionEventsOptions.CleanseOptions, functionEvents)
+	return p.Platform.FilterFunctionEventsByPermissions(&getFunctionEventsOptions.PermissionOptions, functionEvents)
 }
 
 // GetAPIGateways not supported on this platform

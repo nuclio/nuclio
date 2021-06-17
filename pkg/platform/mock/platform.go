@@ -86,9 +86,9 @@ func (mp *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptio
 	return args.Get(0).([]platform.Function), args.Error(1)
 }
 
-func (mp *Platform) CleanseFunctions(cleanseOptions *platform.CleanseOptions,
+func (mp *Platform) FilterFunctionsByPermissions(permissionOptions *platform.PermissionOptions,
 	functions []platform.Function) ([]platform.Function, error) {
-	args := mp.Called(cleanseOptions, functions)
+	args := mp.Called(permissionOptions, functions)
 	return args.Get(0).([]platform.Function), args.Error(1)
 }
 
@@ -132,9 +132,9 @@ func (mp *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
-func (mp *Platform) CleanseProjects(cleanseOptions *platform.CleanseOptions,
+func (mp *Platform) FilterProjectsByPermissions(permissionOptions *platform.PermissionOptions,
 	projects []platform.Project) ([]platform.Project, error) {
-	args := mp.Called(cleanseOptions, projects)
+	args := mp.Called(permissionOptions, projects)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
@@ -200,9 +200,9 @@ func (mp *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunc
 	return args.Get(0).([]platform.FunctionEvent), args.Error(1)
 }
 
-func (mp *Platform) CleanseFunctionEvents(cleanseOptions *platform.CleanseOptions,
+func (mp *Platform) FilterFunctionEventsByPermissions(permissionOptions *platform.PermissionOptions,
 	functionEvents []platform.FunctionEvent) ([]platform.FunctionEvent, error) {
-	args := mp.Called(cleanseOptions, functionEvents)
+	args := mp.Called(permissionOptions, functionEvents)
 	return args.Get(0).([]platform.FunctionEvent), args.Error(1)
 }
 
