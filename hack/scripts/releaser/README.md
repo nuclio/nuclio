@@ -1,14 +1,14 @@
 ## Releaser
 
-A dev-internal go-based tool to create nuclio releases
+A dev-internal Go-based tool to create Nuclio releases
 
 Releaser flow
 
-1. Clone nuclio to a temp dir
+1. Clone Nuclio to a temp dir
 2. Merge your dev branch changes onto your release branch (if there is any)
-3. Create a Github release out of your release branch
-4. Wait for the Build + Push nuclio images to finish
-6. Bump + release helm charts with the target version
+3. Create a GitHub release out of the _release_ branch
+4. Wait for the Build + Push Nuclio images to finish
+6. Bump + release Nuclio Helm charts with the target version
 
 ### Pre Requisites
 
@@ -21,7 +21,7 @@ Releaser flow
     4. `echo "use-agent" > gpg.conf`
     5. `killall gpg-agent`
     6. now gnupg would use macOS keychain to prompt for a password and releaser would be able to use your git commands
-4. use a scope-less github token to avoid API rate limiting
+4. use a scope-less GitHub token to avoid API rate limiting
 
 ### Use cases
 
@@ -52,16 +52,19 @@ go run releaser.go \
   --helm-charts-release-version 0.6.19
 ```
 
-- Bump + publish helm charts only
+- Publish Nuclio Helm charts
+
+Steps:
+
+1. Create a PR against development with your changes, wait for it to pass CI
+2. Merge to development
+3. Run the following snippet
 
 ```shell script
 go run releaser.go \
   --skip-create-release \
-  --current-version 1.4.17 \
-  --target-version 1.4.18 \
-  --development-branch 1.4.x \
-  --release-branch 1.4.x \
-  --helm-charts-release-version 0.6.19
-``` 
+  --helm-charts-release-version x.y.z
+```
 
-> To use Github token, simply run releaser with `--github-token <my-token>`
+> To use GitHub token, simply run releaser with `--github-token <my-token>`
+> or set it via env `NUCLIO_RELEASER_GITHUB_TOKEN`
