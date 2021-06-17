@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
@@ -215,8 +214,9 @@ func (config *Config) enrichLocalPlatform() {
 }
 
 func (config *Config) enrichOpaConfig() {
-
-	config.Opa.Address = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_OPA_ADDRESS", "")
+	if config.Opa.Address == "" {
+		config.Opa.Address = "127.0.0.1:8181"
+	}
 
 	if config.Opa.ClientKind == "" {
 		config.Opa.ClientKind = opa.DefaultClientKind

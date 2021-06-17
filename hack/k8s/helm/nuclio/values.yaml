@@ -140,8 +140,6 @@ dashboard:
     enabled: false
     name: opa-server
     fullnameOverride:
-    nodePort:
-    address: 127.0.0.1
 
     config: {}
     # services:
@@ -367,6 +365,14 @@ platform: {}
 #     onbuildImageRegistries:
 #       "golang": "myregistry"
 #   functionReadinessTimeout: 120s
+#   opa:
+#
+#     # for extra verbosity on top of nuclio logger
+#     logLevel: 0
+#     address: 127.0.0.1
+#     clientKind: nop
+#     requestTimeout: 10
+#     permissionQueryPath: /v1/data/somewhere/authz/allow
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:
