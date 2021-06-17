@@ -518,8 +518,7 @@ func (ap *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Cre
 	return platform.ErrUnsupportedMethod
 }
 
-func (ap *Platform) EnrichFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
-	functionEventConfig := createFunctionEventOptions.FunctionEventConfig
+func (ap *Platform) EnrichFunctionEvent(functionEventConfig *platform.FunctionEventConfig) error {
 
 	// to avoid blow-ups
 	if functionEventConfig.Meta.Labels == nil {
@@ -555,8 +554,8 @@ func (ap *Platform) EnrichFunctionEvent(createFunctionEventOptions *platform.Cre
 		projectName = function.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName]
 	}
 
-	createFunctionEventOptions.FunctionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyFunctionName] = functionName
-	createFunctionEventOptions.FunctionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
+	functionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyFunctionName] = functionName
+	functionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
 	return nil
 }
 

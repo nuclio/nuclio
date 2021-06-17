@@ -939,9 +939,7 @@ func (suite *AbstractPlatformTestSuite) TestCreateFunctionEvent() {
 
 	// key not exists / enriched
 	suite.Require().Equal(functionEvent.Meta.Labels[common.NuclioResourceLabelKeyProjectName], "")
-	err := suite.Platform.EnrichFunctionEvent(&platform.CreateFunctionEventOptions{
-		FunctionEventConfig: functionEvent,
-	})
+	err := suite.Platform.EnrichFunctionEvent(&functionEvent)
 
 	// enriched with project name
 	suite.Require().Equal(functionEvent.Meta.Labels[common.NuclioResourceLabelKeyProjectName], projectName)
