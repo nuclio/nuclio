@@ -119,6 +119,7 @@ func Run(listenAddress string,
 	templatesGitUsername string,
 	templatesGitPassword string,
 	templatesGithubAccessToken string,
+	templatesGitCaCertContents string,
 	defaultHTTPIngressHostTemplate string,
 	imageNamePrefixTemplate string,
 	platformAuthorizationMode string,
@@ -182,6 +183,7 @@ func Run(listenAddress string,
 		templatesGitUsername:             templatesGitUsername,
 		templatesGitPassword:             templatesGitPassword,
 		templatesGithubAccessToken:       templatesGithubAccessToken,
+		templatesGitCaCertContents:       templatesGitCaCertContents,
 		defaultHTTPIngressHostTemplate:   defaultHTTPIngressHostTemplate,
 		imageNamePrefixTemplate:          imageNamePrefixTemplate,
 		platformAuthorizationMode:        platformAuthorizationMode,
@@ -253,7 +255,8 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 
 		functionGitTemplateFetcher, err = functiontemplates.NewGitFunctionTemplateFetcher(rootLogger,
 			templatesGitRepository,
-			createDashboardServerOptions.templatesGitRef)
+			createDashboardServerOptions.templatesGitRef,
+			createDashboardServerOptions.templatesGitCaCertContents)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create git fetcher")
 		}

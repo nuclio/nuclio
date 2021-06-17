@@ -123,7 +123,8 @@ type PlatformKubeConfig struct {
 	KubeConfigPath string `json:"kubeConfigPath,omitempty"`
 
 	// TODO: Move IngressConfig here
-	DefaultServiceType corev1.ServiceType `json:"defaultServiceType,omitempty"`
+	DefaultServiceType          corev1.ServiceType `json:"defaultServiceType,omitempty"`
+	DefaultFunctionNodeSelector map[string]string  `json:"defaultFunctionNodeSelector,omitempty"`
 }
 
 type PlatformLocalConfig struct {
