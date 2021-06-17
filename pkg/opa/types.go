@@ -16,12 +16,6 @@ limitations under the License.
 
 package opa
 
-import (
-	"fmt"
-	"net/http"
-	"strings"
-)
-
 type ClientKind string
 
 const (
@@ -79,32 +73,3 @@ const (
 	ActionUpdate Action = "update"
 	ActionDelete Action = "delete"
 )
-
-func GetUserAndGroupIdsFromHeaders(request *http.Request) []string {
-	var ids []string
-
-	userID := request.Header.Get(UserIDHeader)
-	userGroupIdsStr := request.Header.Get(UserGroupIdsHeader)
-
-	if userID != "" {
-		ids = append(ids, userID)
-	}
-
-	if userGroupIdsStr != "" {
-		ids = append(ids, strings.Split(userGroupIdsStr, ",")...)
-	}
-
-	return ids
-}
-
-func GenerateProjectResourceString(projectName string) string {
-	return fmt.Sprintf("/projects/%s", projectName)
-}
-
-func GenerateFunctionResourceString(projectName, functionName string) string {
-	return fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName)
-}
-
-func GenerateFunctionEventResourceString(projectName, functionName, functionEventName string) string {
-	return fmt.Sprintf("/projects/%s/functions/%s/function-events/%s", projectName, functionName, functionEventName)
-}

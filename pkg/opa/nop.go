@@ -35,7 +35,7 @@ func NewNopClient(parentLogger logger.Logger, logLevel int) *NopClient {
 
 func (c *NopClient) QueryPermissions(resource string, action Action, ids []string) (bool, error) {
 	if c.logLevel > 5 {
-		c.logger.DebugWith("Checking permissions in OPA",
+		c.logger.InfoWith("Skipping permission query",
 			"resource", resource,
 			"action", action,
 			"ids", ids)

@@ -159,7 +159,7 @@ spec:
           value: {{ .Values.dashboard.imageNamePrefixTemplate | quote }}
         {{- if .Values.dashboard.opa.enabled }}
         - name: NUCLIO_DASHBOARD_OPA_ADDRESS
-          value: {{ template "nuclio.dashboard.opa.fullname" . }}:8181
+          value: {{ .Values.dashboard.opa.address . }}:8181
         {{- end }}
       {{- if .Values.dashboard.opa.enabled }}
       - name: {{ template "nuclio.name" . }}-{{ .Values.dashboard.opa.name }}

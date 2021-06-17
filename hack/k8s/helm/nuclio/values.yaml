@@ -141,8 +141,9 @@ dashboard:
     name: opa-server
     fullnameOverride:
     nodePort:
+    address: 127.0.0.1
 
-    config: { }
+    config: {}
     # services:
     #   acmecorp:
     #     url: https://example.com/control-plane-api/v1
@@ -170,9 +171,9 @@ dashboard:
       repository: openpolicyagent/opa
       tag: 0.28.0
       pullPolicy: IfNotPresent
-      pullSecrets: [ ]
+      pullSecrets: []
 
-    resources: { }
+    resources: {}
     # limits:
     #   cpu: 100m
     #   memory: 128Mi
@@ -180,7 +181,7 @@ dashboard:
     #   cpu: 100m
     #   memory: 128Mi
 
-    securityContext: { }
+    securityContext: {}
     # capabilities:
     #   drop:
     #   - ALL
