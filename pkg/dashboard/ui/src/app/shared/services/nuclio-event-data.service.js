@@ -94,16 +94,15 @@
         /**
          * Invokes the function.
          * @param {Object} eventData - the function event to invoke function with.
-         * @param {string} [invokeVia='external-ip'] - via which mechanism to invoke the function, 'domain-name' or
-         *     'external-ip'.
+         * @param {string} [invokeUrl] - the invocation URL to use (could be internal or external).
          * @param {Promise} [canceler] - if provided, function invocation is canceled on resolving this promise.
          * @returns {Promise}
          */
-        function invokeFunction(eventData, invokeVia, canceler) {
+        function invokeFunction(eventData, invokeUrl, canceler) {
             var userDefinedHeaders = lodash.get(eventData, 'spec.attributes.headers', {});
             var headers = lodash.assign({}, userDefinedHeaders, {
                 'x-nuclio-function-name': eventData.metadata.labels['nuclio.io/function-name'],
-                'x-nuclio-invoke-via': lodash.defaultTo(invokeVia, 'external-ip'),
+                'x-nuclio-invoke-url': invokeUrl,
                 'x-nuclio-path': eventData.spec.attributes.path,
                 'x-nuclio-log-level': eventData.spec.attributes.logLevel
             });
