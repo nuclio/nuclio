@@ -518,6 +518,48 @@ func (ap *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Cre
 	return platform.ErrUnsupportedMethod
 }
 
+func (ap *Platform) EnrichFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
+	functionEventConfig := createFunctionEventOptions.FunctionEventConfig
+
+	// to avoid blow-ups
+	if functionEventConfig.Meta.Labels == nil {
+		functionEventConfig.Meta.Labels = map[string]string{}
+	}
+
+	functionName, functionNameFound := functionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyFunctionName]
+	if !functionNameFound {
+		return errors.Errorf("Function event has a missing label - `%s`",
+			common.NuclioResourceLabelKeyFunctionName)
+	}
+
+	projectName, projectNameFound := functionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+	if !projectNameFound {
+		ap.Logger.DebugWith("Enriching function event project name",
+			"functionEventName", functionEventConfig.Meta.Name,
+			"functionEventNamespace", functionEventConfig.Meta.Namespace,
+			"functionName", functionName)
+
+		// infer project name from its function
+		functions, err := ap.platform.GetFunctions(&platform.GetFunctionsOptions{
+			Name:      functionName,
+			Namespace: functionEventConfig.Meta.Namespace,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to get function")
+		}
+		if len(functions) == 0 {
+			return errors.Errorf("The Function event parent function does not exist")
+		}
+
+		function := functions[0]
+		projectName = function.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+	}
+
+	createFunctionEventOptions.FunctionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyFunctionName] = functionName
+	createFunctionEventOptions.FunctionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
+	return nil
+}
+
 // UpdateFunctionEvent will update a previously existing function event
 func (ap *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
 	return platform.ErrUnsupportedMethod

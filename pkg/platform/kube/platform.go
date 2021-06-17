@@ -734,6 +734,10 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 	newFunctionEvent := nuclioio.NuclioFunctionEvent{}
 	p.platformFunctionEventToFunctionEvent(&createFunctionEventOptions.FunctionEventConfig, &newFunctionEvent)
 
+	if err := p.Platform.EnrichFunctionEvent(createFunctionEventOptions); err != nil {
+		return errors.Wrap(err, "Failed to enrich function event")
+	}
+
 	_, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(createFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
 		Create(&newFunctionEvent)

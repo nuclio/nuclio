@@ -465,6 +465,11 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
 func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
+
+	if err := p.Platform.EnrichFunctionEvent(createFunctionEventOptions); err != nil {
+		return errors.Wrap(err, "Failed to enrich function event")
+	}
+
 	return p.localStore.CreateOrUpdateFunctionEvent(&createFunctionEventOptions.FunctionEventConfig)
 }
 
