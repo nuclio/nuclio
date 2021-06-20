@@ -367,9 +367,9 @@ platform: {}
 #   functionReadinessTimeout: 120s
 #   opa:
 #
-#     # for extra verbosity on top of nuclio logger
+#     # set to 10 for extra verbosity on top of nuclio logger
 #     logLevel: 0
-#     address: 127.0.0.1
+#     address: http://127.0.0.1:8081
 #     clientKind: nop
 #     requestTimeout: 10
 #     permissionQueryPath: /v1/data/somewhere/authz/allow
