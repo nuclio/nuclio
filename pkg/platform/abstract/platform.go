@@ -1483,8 +1483,7 @@ func (ap *Platform) queryOPAPermissions(resource string,
 
 	allowed, err := ap.OpaClient.QueryPermissions(resource, action, ids)
 	if err != nil {
-		return allowed, nuclio.WrapErrInternalServerError(errors.Wrapf(err,
-			"Failed to check %s permissions for resource %s", action, resource))
+		return allowed, nuclio.WrapErrInternalServerError(err)
 	}
 	if !allowed && raiseForbidden {
 		return false, nuclio.NewErrForbidden(fmt.Sprintf("Not allowed to %s resource %s", action, resource))
