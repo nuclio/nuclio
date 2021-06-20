@@ -52,12 +52,7 @@ func NewHTTPClient(parentLogger logger.Logger,
 }
 
 func (c *HTTPClient) QueryPermissions(resource string, action Action, ids []string) (bool, error) {
-	if c.logLevel > 5 {
-		c.logger.InfoWith("Checking permissions in OPA",
-			"resource", resource,
-			"action", action,
-			"ids", ids)
-	}
+	requestURL := fmt.Sprintf("%s%s", c.address, c.permissionQueryPath)
 
 	// send the request
 	headers := map[string]string{
@@ -73,8 +68,13 @@ func (c *HTTPClient) QueryPermissions(resource string, action Action, ids []stri
 		return false, errors.Wrap(err, "Failed to generate request body")
 	}
 
+	if c.logLevel > 5 {
+		c.logger.InfoWith("Sending request to OPA",
+			"requestBody", string(requestBody),
+			"requestURL", requestURL)
+	}
 	responseBody, _, err := common.SendHTTPRequest(http.MethodPost,
-		fmt.Sprintf("%s%s", c.address, c.permissionQueryPath),
+		requestURL,
 		requestBody,
 		headers,
 		[]*http.Cookie{},
@@ -82,11 +82,16 @@ func (c *HTTPClient) QueryPermissions(resource string, action Action, ids []stri
 		true,
 		c.requestTimeout)
 	if err != nil {
+		if c.logLevel > 5 {
+			c.logger.ErrorWith("Failed to send HTTP request to OPA",
+				"err", errors.GetErrorStackString(err, 10))
+		}
 		return false, errors.Wrap(err, "Failed to send HTTP request to OPA")
 	}
 
 	if c.logLevel > 5 {
-		c.logger.InfoWith("Received response from OPA", "responseBody", responseBody)
+		c.logger.InfoWith("Received response from OPA",
+			"responseBody", string(responseBody))
 	}
 
 	permissionResponse := PermissionResponse{}
