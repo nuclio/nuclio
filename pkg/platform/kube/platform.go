@@ -778,19 +778,21 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 	newFunctionEvent := nuclioio.NuclioFunctionEvent{}
 	p.platformFunctionEventToFunctionEvent(&createFunctionEventOptions.FunctionEventConfig, &newFunctionEvent)
 
-	functionName, functionNameFound := newFunctionEvent.Labels["nuclio.io/function-name"]
-	projectName, projectNameFound := newFunctionEvent.Labels["nuclio.io/project-name"]
-	if projectNameFound && functionNameFound {
+	if err := p.Platform.EnrichFunctionEvent(&createFunctionEventOptions.FunctionEventConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich function event")
+	}
 
-		// Check OPA permissions
-		if _, err := p.QueryOPAFunctionEventPermissions(projectName,
-			functionName,
-			newFunctionEvent.Name,
-			opa.ActionCreate,
-			createFunctionEventOptions.PermissionOptions.MemberIds,
-			true); err != nil {
-			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-		}
+	functionName := newFunctionEvent.Labels[common.NuclioResourceLabelKeyFunctionName]
+	projectName := newFunctionEvent.Labels[common.NuclioResourceLabelKeyProjectName]
+
+	// Check OPA permissions
+	if _, err := p.QueryOPAFunctionEventPermissions(projectName,
+		functionName,
+		newFunctionEvent.Name,
+		opa.ActionCreate,
+		createFunctionEventOptions.PermissionOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
@@ -809,35 +811,34 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 	functionEvent, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
 		Get(updateFunctionEventOptions.FunctionEventConfig.Meta.Name, metav1.GetOptions{})
-
 	if err != nil {
 		return errors.Wrap(err, "Failed to get a function event")
 	}
 
-	functionName, functionNameFound := functionEvent.Labels["nuclio.io/function-name"]
-	projectName, projectNameFound := functionEvent.Labels["nuclio.io/project-name"]
-	if projectNameFound && functionNameFound {
+	if err := p.Platform.EnrichFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich function event")
+	}
 
-		// Check OPA permissions
-		if _, err := p.QueryOPAFunctionEventPermissions(projectName,
-			functionName,
-			functionEvent.Name,
-			opa.ActionUpdate,
-			updateFunctionEventOptions.PermissionOptions.MemberIds,
-			true); err != nil {
-			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-		}
+	functionName := functionEvent.Labels[common.NuclioResourceLabelKeyFunctionName]
+	projectName := functionEvent.Labels[common.NuclioResourceLabelKeyProjectName]
+
+	// Check OPA permissions
+	if _, err := p.QueryOPAFunctionEventPermissions(projectName,
+		functionName,
+		functionEvent.Name,
+		opa.ActionUpdate,
+		updateFunctionEventOptions.PermissionOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	functionEvent.Spec = updatedFunctionEvent.Spec
 	functionEvent.Annotations = updatedFunctionEvent.Annotations
 	functionEvent.Labels = updatedFunctionEvent.Labels
 
-	_, err = p.consumer.NuclioClientSet.NuclioV1beta1().
+	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
-		Update(functionEvent)
-
-	if err != nil {
+		Update(functionEvent); err != nil {
 		return errors.Wrap(err, "Failed to update a function event")
 	}
 
@@ -853,19 +854,17 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 		return errors.Wrap(err, "Failed to get a function event")
 	}
 
-	functionName, functionNameFound := functionEventToDelete.Labels["nuclio.io/function-name"]
-	projectName, projectNameFound := functionEventToDelete.Labels["nuclio.io/project-name"]
-	if projectNameFound && functionNameFound {
+	functionName := functionEventToDelete.Labels[common.NuclioResourceLabelKeyFunctionName]
+	projectName := functionEventToDelete.Labels[common.NuclioResourceLabelKeyProjectName]
 
-		// Check OPA permissions
-		if _, err := p.QueryOPAFunctionEventPermissions(projectName,
-			functionName,
-			functionEventToDelete.Name,
-			opa.ActionDelete,
-			deleteFunctionEventOptions.PermissionOptions.MemberIds,
-			true); err != nil {
-			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-		}
+	// Check OPA permissions
+	if _, err := p.QueryOPAFunctionEventPermissions(projectName,
+		functionName,
+		functionEventToDelete.Name,
+		opa.ActionDelete,
+		deleteFunctionEventOptions.PermissionOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	if err := p.consumer.NuclioClientSet.NuclioV1beta1().
@@ -907,14 +906,16 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 
 	} else {
 		var labelSelector string
-		functionName := getFunctionEventsOptions.Meta.Labels["nuclio.io/function-name"]
+		functionName := getFunctionEventsOptions.Meta.Labels[common.NuclioResourceLabelKeyFunctionName]
 
 		// if function name specified, supply it
 		if functionName != "" {
-			labelSelector = fmt.Sprintf("nuclio.io/function-name=%s", functionName)
+			labelSelector = fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName)
 		} else if len(getFunctionEventsOptions.FunctionNames) > 0 {
 			encodedFunctionNames := strings.Join(getFunctionEventsOptions.FunctionNames, ",")
-			labelSelector = fmt.Sprintf("nuclio.io/function-name in (%s)", encodedFunctionNames)
+			labelSelector = fmt.Sprintf("%s in (%s)",
+				common.NuclioResourceLabelKeyFunctionName,
+				encodedFunctionNames)
 		}
 
 		functionEventInstanceList, err := p.consumer.NuclioClientSet.NuclioV1beta1().

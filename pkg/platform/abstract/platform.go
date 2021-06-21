@@ -534,12 +534,12 @@ func (ap *Platform) FilterFunctionEventsByPermissions(permissionOptions *platfor
 	for _, functionEventInstance := range functionEvents {
 
 		// TODO: handle function event without function name / project name
-		functionName, found := functionEventInstance.GetConfig().Meta.Labels["nuclio.io/function-name"]
+		functionName, found := functionEventInstance.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyFunctionName]
 		if !found {
 			continue
 		}
 
-		projectName, found := functionEventInstance.GetConfig().Meta.Labels["nuclio.io/project-name"]
+		projectName, found := functionEventInstance.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName]
 		if !found {
 			continue
 		}
@@ -653,6 +653,47 @@ func (ap *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateway
 // which to invoke functions
 func (ap *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
 	return platform.ErrUnsupportedMethod
+}
+
+func (ap *Platform) EnrichFunctionEvent(functionEventConfig *platform.FunctionEventConfig) error {
+
+	// to avoid blow-ups
+	if functionEventConfig.Meta.Labels == nil {
+		functionEventConfig.Meta.Labels = map[string]string{}
+	}
+
+	functionName, functionNameFound := functionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyFunctionName]
+	if !functionNameFound {
+		return errors.Errorf("Function event has a missing label - `%s`",
+			common.NuclioResourceLabelKeyFunctionName)
+	}
+
+	projectName, projectNameFound := functionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+	if !projectNameFound {
+		ap.Logger.DebugWith("Enriching function event project name",
+			"functionEventName", functionEventConfig.Meta.Name,
+			"functionEventNamespace", functionEventConfig.Meta.Namespace,
+			"functionName", functionName)
+
+		// infer project name from its function
+		functions, err := ap.platform.GetFunctions(&platform.GetFunctionsOptions{
+			Name:      functionName,
+			Namespace: functionEventConfig.Meta.Namespace,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to get function")
+		}
+		if len(functions) == 0 {
+			return errors.Errorf("The Function event parent function does not exist")
+		}
+
+		function := functions[0]
+		projectName = function.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+	}
+
+	functionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyFunctionName] = functionName
+	functionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
+	return nil
 }
 
 // UpdateFunctionEvent will update a previously existing function event

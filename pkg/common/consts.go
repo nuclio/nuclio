@@ -14,3 +14,8 @@ type FunctionStateMessage string
 const (
 	FunctionStateMessageUnhealthy FunctionStateMessage = "Function is not healthy"
 )
+
+type NuclioResourceLabelKey string
+
+const NuclioResourceLabelKeyFunctionName = "nuclio.io/function-name"
+const NuclioResourceLabelKeyProjectName = "nuclio.io/project-name"

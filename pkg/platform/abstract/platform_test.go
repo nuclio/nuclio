@@ -908,6 +908,44 @@ func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsWithConsecutiveDupli
 	suite.testGetProcessorLogsTestFromFile(ConsecutiveDuplicateFunctionLogsFilePath)
 }
 
+func (suite *AbstractPlatformTestSuite) TestCreateFunctionEvent() {
+	functionName := "some-function-name"
+	projectName := "some-project-name"
+	suite.mockedPlatform.On("GetFunctions", mock.Anything).Return([]platform.Function{
+		&platform.AbstractFunction{
+			Logger:   suite.Logger,
+			Platform: suite.Platform.platform,
+			Config: functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Name: functionName,
+					Labels: map[string]string{
+						common.NuclioResourceLabelKeyProjectName: projectName,
+					},
+				},
+			},
+		},
+	}, nil).Once()
+	defer suite.mockedPlatform.AssertExpectations(suite.T())
+
+	functionEvent := platform.FunctionEventConfig{
+		Meta: platform.FunctionEventMeta{
+			Name:      "test-function-event",
+			Namespace: suite.DefaultNamespace,
+			Labels: map[string]string{
+				common.NuclioResourceLabelKeyFunctionName: functionName,
+			},
+		},
+	}
+
+	// key not exists / enriched
+	suite.Require().Equal(functionEvent.Meta.Labels[common.NuclioResourceLabelKeyProjectName], "")
+	err := suite.Platform.EnrichFunctionEvent(&functionEvent)
+
+	// enriched with project name
+	suite.Require().Equal(functionEvent.Meta.Labels[common.NuclioResourceLabelKeyProjectName], projectName)
+	suite.Require().NoError(err)
+}
+
 // Test that GetProcessorLogs() generates the expected formattedPodLogs and briefErrorsMessage
 // Expects 3 files inside functionLogsFilePath: (kept in these constants)
 // - FunctionLogsFile
