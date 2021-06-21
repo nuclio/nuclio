@@ -136,6 +136,74 @@ dashboard:
     #    hosts:
     #      - nuclio.local
 
+  opa:
+    enabled: false
+    name: opa-server
+    fullnameOverride:
+
+    config: {}
+    # services:
+    #   acmecorp:
+    #     url: https://example.com/control-plane-api/v1
+    #     response_header_timeout_seconds: 5
+    #     credentials:
+    #       bearer:
+    #         token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
+
+    # bundles:
+    #   authz:
+    #     service: acmecorp
+    #     resource: bundles/http/example/authz.tar.gz
+    #     persist: true
+    #     polling:
+    #       min_delay_seconds: 60
+    #       max_delay_seconds: 120
+    #     signing:
+    #       keyid: global_key
+    #       scope: write
+
+    logLevel: info
+    logFormat: json
+
+    image:
+      repository: openpolicyagent/opa
+      tag: 0.28.0
+      pullPolicy: IfNotPresent
+      pullSecrets: []
+
+    resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+    securityContext: {}
+    # capabilities:
+    #   drop:
+    #   - ALL
+    # readOnlyRootFilesystem: true
+    # runAsNonRoot: true
+    # runAsUser: 1000
+
+    readinessProbe:
+      httpGet:
+        path: /health?bundle=true
+        port: http
+      initialDelaySeconds: 10
+      timeoutSeconds: 10
+      periodSeconds: 15
+      failureThreshold: 4
+
+    livenessProbe:
+      httpGet:
+        port: http
+      initialDelaySeconds: 15
+      timeoutSeconds: 10
+      periodSeconds: 15
+      failureThreshold: 4
+
 autoscaler:
   enabled: false
   replicas: 1
@@ -297,6 +365,14 @@ platform: {}
 #     onbuildImageRegistries:
 #       "golang": "myregistry"
 #   functionReadinessTimeout: 120s
+#   opa:
+#
+#     # set to 10 for extra verbosity on top of nuclio logger
+#     logLevel: 0
+#     address: http://127.0.0.1:8081
+#     clientKind: nop
+#     requestTimeout: 10
+#     permissionQueryPath: /v1/data/somewhere/authz/allow
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:

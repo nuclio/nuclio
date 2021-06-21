@@ -24,6 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )
@@ -73,6 +74,9 @@ type Platform interface {
 	// GetFunctions will list existing functions
 	GetFunctions(getFunctionsOptions *GetFunctionsOptions) ([]Function, error)
 
+	// FilterFunctionsByPermissions will filter out some functions
+	FilterFunctionsByPermissions(*PermissionOptions, []Function) ([]Function, error)
+
 	// GetDefaultInvokeIPAddresses will return a list of ip addresses to be used by the platform to invoke a function
 	GetDefaultInvokeIPAddresses() ([]string, error)
 
@@ -98,6 +102,9 @@ type Platform interface {
 	// GetProjects will list existing projects
 	GetProjects(getProjectsOptions *GetProjectsOptions) ([]Project, error)
 
+	// FilterProjectsByPermissions will filter out some projects
+	FilterProjectsByPermissions(*PermissionOptions, []Project) ([]Project, error)
+
 	// Ensures default project exists, creates it otherwise
 	EnsureDefaultProjectExistence() error
 
@@ -120,6 +127,9 @@ type Platform interface {
 
 	// GetFunctionEvents will list existing function events
 	GetFunctionEvents(getFunctionEventsOptions *GetFunctionEventsOptions) ([]FunctionEvent, error)
+
+	// FilterFunctionEventsByPermissions will filter out some function events
+	FilterFunctionEventsByPermissions(*PermissionOptions, []FunctionEvent) ([]FunctionEvent, error)
 
 	//
 	// API Gateway
@@ -209,4 +219,17 @@ type Platform interface {
 
 	// GetRuntimeBuildArgs returns the runtime specific build arguments
 	GetRuntimeBuildArgs(runtime runtime.Runtime) map[string]string
+
+	//
+	// OPA
+	//
+
+	// QueryOPAProjectPermissions queries opa permissions for a certain project
+	QueryOPAProjectPermissions(projectName string, action opa.Action, ids []string, raiseForbidden bool) (bool, error)
+
+	// QueryOPAFunctionPermissions queries opa permissions for a certain function
+	QueryOPAFunctionPermissions(projectName, functionName string, action opa.Action, ids []string, raiseForbidden bool) (bool, error)
+
+	// QueryOPAFunctionEventPermissions queries opa permissions for a certain function event
+	QueryOPAFunctionEventPermissions(projectName, functionName, functionEventName string, action opa.Action, ids []string, raiseForbidden bool) (bool, error)
 }

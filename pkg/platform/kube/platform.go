@@ -28,7 +28,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
@@ -43,7 +45,6 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
-	"golang.org/x/sync/errgroup"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -187,6 +188,15 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
+	}
+
+	// Check OPA permissions
+	if _, err := p.QueryOPAFunctionPermissions(createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
+		createFunctionOptions.FunctionConfig.Meta.Name,
+		opa.ActionCreate,
+		createFunctionOptions.PermissionOptions.MemberIds,
+		true); err != nil {
+		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
@@ -414,6 +424,11 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
+	functions, err = p.Platform.FilterFunctionsByPermissions(&getFunctionsOptions.PermissionOptions, functions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to filter functions by permissions")
+	}
+
 	p.EnrichFunctionsWithDeployLogStream(functions)
 
 	if getFunctionsOptions.EnrichWithAPIGateways {
@@ -532,6 +547,14 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 		return errors.Wrap(err, "Failed to validate a project configuration")
 	}
 
+	// Check OPA permissions
+	if _, err := p.QueryOPAProjectPermissions(createProjectOptions.ProjectConfig.Meta.Name,
+		opa.ActionCreate,
+		createProjectOptions.PermissionOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	}
+
 	// create
 	p.Logger.DebugWith("Creating project", "projectName", createProjectOptions.ProjectConfig.Meta.Name)
 	if _, err := p.projectsClient.Create(createProjectOptions); err != nil {
@@ -547,6 +570,14 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 		return nuclio.WrapErrBadRequest(err)
 	}
 
+	// Check OPA permissions
+	if _, err := p.QueryOPAProjectPermissions(updateProjectOptions.ProjectConfig.Meta.Name,
+		opa.ActionUpdate,
+		updateProjectOptions.PermissionOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	}
+
 	if _, err := p.projectsClient.Update(updateProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to update project")
 	}
@@ -558,6 +589,14 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate delete project options")
+	}
+
+	// Check OPA permissions
+	if _, err := p.QueryOPAProjectPermissions(deleteProjectOptions.Meta.Name,
+		opa.ActionDelete,
+		deleteProjectOptions.PermissionOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	p.Logger.DebugWith("Deleting project", "projectMeta", deleteProjectOptions.Meta)
@@ -575,7 +614,12 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 
 // GetProjects will list existing projects
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	return p.projectsClient.Get(getProjectsOptions)
+	projects, err := p.projectsClient.Get(getProjectsOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed getting projects")
+	}
+
+	return p.Platform.FilterProjectsByPermissions(&getProjectsOptions.PermissionOptions, projects)
 }
 
 // CreateAPIGateway creates and deploys a new api gateway
@@ -734,14 +778,26 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 	newFunctionEvent := nuclioio.NuclioFunctionEvent{}
 	p.platformFunctionEventToFunctionEvent(&createFunctionEventOptions.FunctionEventConfig, &newFunctionEvent)
 
-	_, err := p.consumer.NuclioClientSet.NuclioV1beta1().
-		NuclioFunctionEvents(createFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
-		Create(&newFunctionEvent)
+	functionName, functionNameFound := newFunctionEvent.Labels["nuclio.io/function-name"]
+	projectName, projectNameFound := newFunctionEvent.Labels["nuclio.io/project-name"]
+	if projectNameFound && functionNameFound {
 
-	if err != nil {
-		return errors.Wrap(err, "Failed to create a function event")
+		// Check OPA permissions
+		if _, err := p.QueryOPAFunctionEventPermissions(projectName,
+			functionName,
+			newFunctionEvent.Name,
+			opa.ActionCreate,
+			createFunctionEventOptions.PermissionOptions.MemberIds,
+			true); err != nil {
+			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		}
 	}
 
+	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
+		NuclioFunctionEvents(createFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
+		Create(&newFunctionEvent); err != nil {
+		return errors.Wrap(err, "Failed to create a function event")
+	}
 	return nil
 }
 
@@ -756,6 +812,21 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to get a function event")
+	}
+
+	functionName, functionNameFound := functionEvent.Labels["nuclio.io/function-name"]
+	projectName, projectNameFound := functionEvent.Labels["nuclio.io/project-name"]
+	if projectNameFound && functionNameFound {
+
+		// Check OPA permissions
+		if _, err := p.QueryOPAFunctionEventPermissions(projectName,
+			functionName,
+			functionEvent.Name,
+			opa.ActionUpdate,
+			updateFunctionEventOptions.PermissionOptions.MemberIds,
+			true); err != nil {
+			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		}
 	}
 
 	functionEvent.Spec = updatedFunctionEvent.Spec
@@ -775,11 +846,31 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 
 // DeleteFunctionEvent will delete a previously existing function event
 func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
-	err := p.consumer.NuclioClientSet.NuclioV1beta1().
+	functionEventToDelete, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
-		Delete(deleteFunctionEventOptions.Meta.Name, &metav1.DeleteOptions{})
-
+		Get(deleteFunctionEventOptions.Meta.Name, metav1.GetOptions{})
 	if err != nil {
+		return errors.Wrap(err, "Failed to get a function event")
+	}
+
+	functionName, functionNameFound := functionEventToDelete.Labels["nuclio.io/function-name"]
+	projectName, projectNameFound := functionEventToDelete.Labels["nuclio.io/project-name"]
+	if projectNameFound && functionNameFound {
+
+		// Check OPA permissions
+		if _, err := p.QueryOPAFunctionEventPermissions(projectName,
+			functionName,
+			functionEventToDelete.Name,
+			opa.ActionDelete,
+			deleteFunctionEventOptions.PermissionOptions.MemberIds,
+			true); err != nil {
+			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		}
+	}
+
+	if err := p.consumer.NuclioClientSet.NuclioV1beta1().
+		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
+		Delete(deleteFunctionEventOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
 		return errors.Wrapf(err,
 			"Failed to delete function event %s from namespace %s",
 			deleteFunctionEventOptions.Meta.Name,
@@ -838,10 +929,9 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 		functionEvents = functionEventInstanceList.Items
 	}
 
-	// convert []nuclioio.NuclioFunctionEvent -> NuclioFunctionEvent
+	// convert []nuclioio.NuclioFunctionEvent -> []platform.FunctionEvent
 	for functionEventInstanceIndex := 0; functionEventInstanceIndex < len(functionEvents); functionEventInstanceIndex++ {
 		functionEventInstance := functionEvents[functionEventInstanceIndex]
-
 		newFunctionEvent, err := platform.NewAbstractFunctionEvent(p.Logger,
 			p,
 			platform.FunctionEventConfig{
@@ -853,16 +943,14 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 				},
 				Spec: functionEventInstance.Spec,
 			})
-
 		if err != nil {
 			return nil, err
 		}
-
 		platformFunctionEvents = append(platformFunctionEvents, newFunctionEvent)
 	}
 
-	// render it
-	return platformFunctionEvents, nil
+	return p.Platform.FilterFunctionEventsByPermissions(&getFunctionEventsOptions.PermissionOptions,
+		platformFunctionEvents)
 }
 
 // GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
@@ -1389,28 +1477,25 @@ func (p *Platform) validateIngressHostAndPathAvailability(listIngressesOptions m
 func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *platform.APIGatewayConfig) error {
 
 	// check ingresses on every upstream function
-	errGroup, _ := errgroup.WithContext(context.TODO())
+	errGroup, _ := errgroup.WithContext(context.TODO(), p.Logger)
 	for _, upstream := range apiGatewayConfig.Spec.Upstreams {
 		upstream := upstream
-		errGroup.Go(func() error {
-			function, err := p.GetFunctions(&platform.GetFunctionsOptions{
-				Namespace: apiGatewayConfig.Meta.Namespace,
-				Name:      upstream.Nucliofunction.Name,
-			})
+		errGroup.Go("GetFunctionIngresses", func() error {
+			function, err := p.getFunction(apiGatewayConfig.Meta.Namespace, upstream.Nucliofunction.Name)
 			if err != nil {
-				return errors.New("Failed to get a function")
+				return errors.New("Failed to get upstream function")
 			}
-			if len(function) == 0 {
+			if function == nil {
 
 				// if such function doesn't exist, just skip - because it doesn't have ingresses for sure
 				return nil
 			}
-
-			ingresses := functionconfig.GetIngressesFromTriggers(function[0].GetConfig().Spec.Triggers)
+			ingresses := functionconfig.GetIngressesFromTriggers(function.Spec.Triggers)
 			if len(ingresses) > 0 {
-				return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Api gateway upstream function: %s must not have an ingress", upstream.Nucliofunction.Name))
+				return nuclio.NewErrPreconditionFailed(
+					fmt.Sprintf("Api gateway upstream function: %s must not have an ingress",
+						upstream.Nucliofunction.Name))
 			}
-
 			return nil
 		})
 	}
