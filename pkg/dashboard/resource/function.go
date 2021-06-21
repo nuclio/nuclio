@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -57,7 +58,8 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	}
 
 	functionName := request.Header.Get("x-nuclio-function-name")
-	functions, err := fr.getPlatform().GetFunctions(fr.resolveGetFunctionsFromRequest(request, functionName))
+	getFunctionOptions := fr.resolveGetFunctionOptionsFromRequest(request, functionName, false)
+	functions, err := fr.getPlatform().GetFunctions(getFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
@@ -110,6 +112,10 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Name:      functionInfo.Meta.Name,
 		Namespace: fr.resolveNamespace(request, functionInfo),
+		PermissionOptions: platform.PermissionOptions{
+			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden: true,
+		},
 	})
 	if err != nil {
 		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
@@ -129,7 +135,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
 
 	// validation finished successfully - store and deploy the given function
-	if responseErr = fr.storeAndDeployFunction(functionInfo, authConfig, waitForFunction); responseErr != nil {
+	if responseErr = fr.storeAndDeployFunction(request, functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return
 	}
 
@@ -149,6 +155,10 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Name:      functionInfo.Meta.Name,
 		Namespace: fr.resolveNamespace(request, functionInfo),
+		PermissionOptions: platform.PermissionOptions{
+			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden: true,
+		},
 	})
 	if err != nil {
 		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
@@ -172,7 +182,7 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 
 	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
 
-	if responseErr = fr.storeAndDeployFunction(functionInfo, authConfig, waitForFunction); responseErr != nil {
+	if responseErr = fr.storeAndDeployFunction(request, functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return
 	}
 
@@ -220,7 +230,10 @@ func (fr *functionResource) export(function platform.Function) restful.Attribute
 	return attributes
 }
 
-func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, authConfig *platform.AuthConfig, waitForFunction bool) error {
+func (fr *functionResource) storeAndDeployFunction(request *http.Request,
+	functionInfo *functionInfo,
+	authConfig *platform.AuthConfig,
+	waitForFunction bool) error {
 
 	creationStateUpdatedTimeout := 45 * time.Second
 
@@ -263,6 +276,9 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, a
 			CreationStateUpdated:       creationStateUpdatedChan,
 			AuthConfig:                 authConfig,
 			DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
+			PermissionOptions: platform.PermissionOptions{
+				MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			},
 		})
 
 		if err != nil {
@@ -417,6 +433,9 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 
 	deleteFunctionOptions := platform.DeleteFunctionOptions{
 		AuthConfig: authConfig,
+		PermissionOptions: platform.PermissionOptions{
+			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		},
 	}
 
 	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta
@@ -493,7 +512,8 @@ func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, funct
 }
 
 func (fr *functionResource) getFunction(request *http.Request, name string) (platform.Function, error) {
-	functions, err := fr.getPlatform().GetFunctions(fr.resolveGetFunctionsFromRequest(request, name))
+	getFunctionOptions := fr.resolveGetFunctionOptionsFromRequest(request, name, true)
+	functions, err := fr.getPlatform().GetFunctions(getFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
@@ -504,13 +524,18 @@ func (fr *functionResource) getFunction(request *http.Request, name string) (pla
 	return functions[0], nil
 }
 
-func (fr *functionResource) resolveGetFunctionsFromRequest(request *http.Request,
-	functionName string) *platform.GetFunctionsOptions {
+func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.Request,
+	functionName string,
+	raiseForbidden bool) *platform.GetFunctionsOptions {
 
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Namespace:             fr.getNamespaceFromRequest(request),
 		Name:                  functionName,
 		EnrichWithAPIGateways: fr.headerValueIsTrue(request, "x-nuclio-function-enrich-apigateways"),
+		PermissionOptions: platform.PermissionOptions{
+			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden: raiseForbidden,
+		},
 	}
 
 	// if the user wants to filter by project, do that

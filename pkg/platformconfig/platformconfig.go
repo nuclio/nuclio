@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/runtimeconfig"
 
 	"github.com/nuclio/errors"
@@ -47,6 +48,7 @@ type Config struct {
 	ProjectsLeader           *ProjectsLeader              `json:"projectsLeader,omitempty"`
 	ManagedNamespaces        []string                     `json:"managedNamespaces,omitempty"`
 	IguazioSessionCookie     string                       `json:"iguazioSessionCookie,omitempty"`
+	Opa                      opa.Config                   `json:"opa,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 
@@ -73,6 +75,9 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 	} else {
 		config.Kind = "local"
 	}
+
+	// enrich opa configuration
+	config.enrichOpaConfig()
 
 	// enrich local platform configuration
 	config.enrichLocalPlatform()
@@ -205,5 +210,23 @@ func (config *Config) enrichLocalPlatform() {
 
 	if config.Local.FunctionContainersHealthinessTimeout == 0 {
 		config.Local.FunctionContainersHealthinessTimeout = time.Second * 5
+	}
+}
+
+func (config *Config) enrichOpaConfig() {
+	if config.Opa.Address == "" {
+		config.Opa.Address = "127.0.0.1:8181"
+	}
+
+	if config.Opa.ClientKind == "" {
+		config.Opa.ClientKind = opa.DefaultClientKind
+	}
+
+	if config.Opa.RequestTimeout == 0 {
+		config.Opa.RequestTimeout = opa.DefaultRequestTimeOut
+	}
+
+	if config.Opa.PermissionQueryPath == "" {
+		config.Opa.PermissionQueryPath = opa.DefaultPermissionQueryPath
 	}
 }

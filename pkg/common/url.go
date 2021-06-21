@@ -113,7 +113,7 @@ func NormalizeURLPath(p string) string {
 	return string(res)
 }
 
-// Sends an http request
+// SendHTTPRequest Sends an http request
 // ignore expectedStatusCode by setting it to 0
 func SendHTTPRequest(method string,
 	requestURL string,
@@ -124,10 +124,11 @@ func SendHTTPRequest(method string,
 	insecure bool,
 	timeout time.Duration) ([]byte, int, error) {
 
-	// create client (secure or not)
+	// create client
 	client := &http.Client{
 		Timeout: timeout,
 	}
+
 	if insecure {
 		client.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -169,10 +170,10 @@ func SendHTTPRequest(method string,
 
 	// validate status code is as expected
 	if expectedStatusCode != 0 && resp.StatusCode != expectedStatusCode {
-		return nil, resp.StatusCode, errors.Errorf("Got unexpected response status code: %d. Expected: %d. Response: %s",
+		return responseBody, resp.StatusCode, errors.Errorf(
+			"Got unexpected response status code: %d. Expected: %d",
 			resp.StatusCode,
-			expectedStatusCode,
-			string(responseBody))
+			expectedStatusCode)
 	}
 
 	return responseBody, resp.StatusCode, nil

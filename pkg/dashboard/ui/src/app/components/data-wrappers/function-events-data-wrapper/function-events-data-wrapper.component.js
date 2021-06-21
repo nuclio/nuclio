@@ -10,7 +10,7 @@
             controller: FunctionEventsDataWrapperController
         });
 
-    function FunctionEventsDataWrapperController(NuclioEventDataService, NuclioProjectsDataService) {
+    function FunctionEventsDataWrapperController(NuclioEventDataService) {
         var ctrl = this;
 
         ctrl.createFunctionEvent = createFunctionEvent;
@@ -53,12 +53,12 @@
         /**
          * Invoke function event
          * @param {Object} eventData
-         * @param {string} invokeVia
+         * @param {string} invokeUrl
          * @param {Promise} canceller
          * @returns {Promise}
          */
-        function invokeFunction(eventData, invokeVia, canceller) {
-            return NuclioEventDataService.invokeFunction(eventData, invokeVia, canceller);
+        function invokeFunction(eventData, invokeUrl, canceller) {
+            return NuclioEventDataService.invokeFunction(eventData, invokeUrl, canceller);
         }
     }
 }());

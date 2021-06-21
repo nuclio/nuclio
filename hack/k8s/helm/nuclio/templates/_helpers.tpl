@@ -99,3 +99,11 @@ NOTE: make sure to not quote here, because an empty string is false, but a quote
 {{- print "" -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "nuclio.dashboard.opa.fullname" -}}
+{{- if .Values.dashboard.opa.fullnameOverride -}}
+{{- .Values.api.opa.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-%s" (include "nuclio.dashboardName" .) .Values.dashboard.opa.name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}

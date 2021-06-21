@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/errors"
@@ -50,9 +51,17 @@ func (u *Updater) Update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	function, err := u.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
 		Get(updateFunctionOptions.FunctionMeta.Name, metav1.GetOptions{})
-
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
+	}
+
+	// Check OPA permissions
+	if _, err := u.platform.QueryOPAFunctionPermissions(function.Labels["nuclio.io/project-name"],
+		updateFunctionOptions.FunctionMeta.Name,
+		opa.ActionUpdate,
+		updateFunctionOptions.PermissionOptions.MemberIds,
+		true); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	// update it with spec if passed
