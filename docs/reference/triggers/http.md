@@ -17,7 +17,7 @@ If a worker is not available, a `503` error is returned.
 
 | **Path** | **Type** | **Description** |
 | :--- | :--- | :--- |
-| port | int | The NodePort (or equivalent) on which the function will serve HTTP requests. If empty, chooses a random port within the platform range. |
+| port | int | The NodePort (or equivalent) on which the function will serve HTTP requests. If empty, chooses a random port within the platform range. When running on k8s, this only has effect if [serviceType](/docs/reference/triggers/http.md#attributes-serviceType) of type `nodePort` is used|
 | <a id="attributes-ingresses"></a>ingresses.(name).host | string | The host to which the ingress maps. |
 | ingresses.(name).paths | list of strings | The paths that the ingress handles. Variables of the form `{{.<NAME>}}` can be specified using `.Name`, `.Namespace`, and `.Version`. For example, `/{{.Namespace}}-{{.Name}}/{{.Version}}` will result in a default ingress of `/namespace-name/version`. |
 | readBufferSize | int | Per-connection buffer size for reading requests. |
