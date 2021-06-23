@@ -57,7 +57,7 @@ func NewHTTPClient(parentLogger logger.Logger,
 func (c *HTTPClient) QueryPermissions(resource string, action Action, ids []string, overrideHeaderValue string) (bool, error) {
 
 	// If the override header value matches the configured override header value, allow without checking
-	if overrideHeaderValue == c.overrideHeaderValue {
+	if c.overrideHeaderValue != "" && overrideHeaderValue == c.overrideHeaderValue {
 		return true, nil
 	}
 
