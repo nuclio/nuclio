@@ -32,7 +32,8 @@ func CreateOpaClient(parentLogger logger.Logger, opaConfiguration *Config) Clien
 			opaConfiguration.Address,
 			opaConfiguration.PermissionQueryPath,
 			time.Duration(opaConfiguration.RequestTimeout)*time.Second,
-			opaConfiguration.LogLevel)
+			opaConfiguration.LogLevel,
+			opaConfiguration.OverrideHeaderValue)
 
 	case ClientKindMock:
 		newOpaClient = &MockClient{}

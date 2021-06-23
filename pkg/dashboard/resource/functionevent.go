@@ -58,6 +58,7 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 		},
 		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
 
@@ -100,6 +101,7 @@ func (fer *functionEventResource) GetByID(request *http.Request, id string) (res
 		PermissionOptions: platform.PermissionOptions{
 			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
 			RaiseForbidden: true,
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
 
@@ -177,6 +179,7 @@ func (fer *functionEventResource) storeAndDeployFunctionEvent(request *http.Requ
 		FunctionEventConfig: *newFunctionEvent.GetConfig(),
 		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
 	if err != nil {
@@ -197,6 +200,7 @@ func (fer *functionEventResource) getFunctionEvents(request *http.Request, funct
 		},
 		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
 
@@ -224,6 +228,7 @@ func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*r
 	deleteFunctionEventOptions := platform.DeleteFunctionEventOptions{
 		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
 	deleteFunctionEventOptions.Meta = *functionEventInfo.Meta
@@ -267,6 +272,7 @@ func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*r
 		FunctionEventConfig: functionEventConfig,
 		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {
 		fer.Logger.WarnWith("Failed to update function event", "err", err)

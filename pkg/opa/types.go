@@ -44,6 +44,9 @@ type Config struct {
 
 	// for extra verbosity on top of nuclio logger
 	LogLevel int `json:"logLevel,omitempty"`
+
+	// the header value for bypassing OPA if needed
+	OverrideHeaderValue string `json:"overrideHeaderValue,omitempty"`
 }
 
 type PermissionRequestInput struct {
@@ -63,6 +66,7 @@ type PermissionResponse struct {
 const (
 	UserIDHeader       string = "x-user-id"
 	UserGroupIdsHeader string = "x-user-group-ids"
+	OverrideHeader     string = "x-projects-role"
 )
 
 type Action string

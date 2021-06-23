@@ -115,6 +115,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		PermissionOptions: platform.PermissionOptions{
 			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
 			RaiseForbidden: true,
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
 	if err != nil {
@@ -158,6 +159,7 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		PermissionOptions: platform.PermissionOptions{
 			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
 			RaiseForbidden: true,
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
 	if err != nil {
@@ -278,6 +280,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 			DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
 			PermissionOptions: platform.PermissionOptions{
 				MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+				OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 			},
 		})
 
@@ -435,6 +438,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 		AuthConfig: authConfig,
 		PermissionOptions: platform.PermissionOptions{
 			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
 
@@ -535,6 +539,7 @@ func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.R
 		PermissionOptions: platform.PermissionOptions{
 			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
 			RaiseForbidden: raiseForbidden,
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
 

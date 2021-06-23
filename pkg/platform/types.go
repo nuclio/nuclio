@@ -36,8 +36,9 @@ import (
 //
 
 type PermissionOptions struct {
-	MemberIds      []string
-	RaiseForbidden bool
+	MemberIds           []string
+	RaiseForbidden      bool
+	OverrideHeaderValue string
 }
 
 type AuthConfig struct {

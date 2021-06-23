@@ -60,7 +60,8 @@ func (u *Updater) Update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 		updateFunctionOptions.FunctionMeta.Name,
 		opa.ActionUpdate,
 		updateFunctionOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		true,
+		updateFunctionOptions.PermissionOptions.OverrideHeaderValue); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 

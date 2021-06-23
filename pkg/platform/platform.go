@@ -225,11 +225,11 @@ type Platform interface {
 	//
 
 	// QueryOPAProjectPermissions queries opa permissions for a certain project
-	QueryOPAProjectPermissions(projectName string, action opa.Action, ids []string, raiseForbidden bool) (bool, error)
+	QueryOPAProjectPermissions(projectName string, action opa.Action, ids []string, raiseForbidden bool, overrideHeaderValue string) (bool, error)
 
 	// QueryOPAFunctionPermissions queries opa permissions for a certain function
-	QueryOPAFunctionPermissions(projectName, functionName string, action opa.Action, ids []string, raiseForbidden bool) (bool, error)
+	QueryOPAFunctionPermissions(projectName, functionName string, action opa.Action, ids []string, raiseForbidden bool, overrideHeaderValue string) (bool, error)
 
 	// QueryOPAFunctionEventPermissions queries opa permissions for a certain function event
-	QueryOPAFunctionEventPermissions(projectName, functionName, functionEventName string, action opa.Action, ids []string, raiseForbidden bool) (bool, error)
+	QueryOPAFunctionEventPermissions(projectName, functionName, functionEventName string, action opa.Action, ids []string, raiseForbidden bool, overrideHeaderValue string) (bool, error)
 }

@@ -339,8 +339,9 @@ func (mp *Platform) WaitForProjectResourcesDeletion(projectMeta *platform.Projec
 func (mp *Platform) QueryOPAProjectPermissions(projectName string,
 	action opa.Action,
 	ids []string,
-	raiseForbidden bool) (bool, error) {
-	args := mp.Called(projectName, action, ids, raiseForbidden)
+	raiseForbidden bool,
+	overrideHeaderValue string) (bool, error) {
+	args := mp.Called(projectName, action, ids, raiseForbidden, overrideHeaderValue)
 	return args.Get(0).(bool), args.Error(1)
 }
 
@@ -348,8 +349,9 @@ func (mp *Platform) QueryOPAFunctionPermissions(projectName,
 	functionName string,
 	action opa.Action,
 	ids []string,
-	raiseForbidden bool) (bool, error) {
-	args := mp.Called(projectName, functionName, action, ids, raiseForbidden)
+	raiseForbidden bool,
+	overrideHeaderValue string) (bool, error) {
+	args := mp.Called(projectName, functionName, action, ids, raiseForbidden, overrideHeaderValue)
 	return args.Get(0).(bool), args.Error(1)
 }
 
@@ -358,7 +360,8 @@ func (mp *Platform) QueryOPAFunctionEventPermissions(projectName,
 	functionEventName string,
 	action opa.Action,
 	ids []string,
-	raiseForbidden bool) (bool, error) {
-	args := mp.Called(projectName, functionName, functionEventName, action, ids, raiseForbidden)
+	raiseForbidden bool,
+	overrideHeaderValue string) (bool, error) {
+	args := mp.Called(projectName, functionName, functionEventName, action, ids, raiseForbidden, overrideHeaderValue)
 	return args.Get(0).(bool), args.Error(1)
 }

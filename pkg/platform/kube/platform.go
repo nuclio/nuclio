@@ -195,7 +195,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		createFunctionOptions.FunctionConfig.Meta.Name,
 		opa.ActionCreate,
 		createFunctionOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		true,
+		createFunctionOptions.PermissionOptions.OverrideHeaderValue); err != nil {
 		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -551,7 +552,8 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	if _, err := p.QueryOPAProjectPermissions(createProjectOptions.ProjectConfig.Meta.Name,
 		opa.ActionCreate,
 		createProjectOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		true,
+		createProjectOptions.PermissionOptions.OverrideHeaderValue); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -574,7 +576,8 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 	if _, err := p.QueryOPAProjectPermissions(updateProjectOptions.ProjectConfig.Meta.Name,
 		opa.ActionUpdate,
 		updateProjectOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		true,
+		updateProjectOptions.PermissionOptions.OverrideHeaderValue); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -595,7 +598,8 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 	if _, err := p.QueryOPAProjectPermissions(deleteProjectOptions.Meta.Name,
 		opa.ActionDelete,
 		deleteProjectOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		true,
+		deleteProjectOptions.PermissionOptions.OverrideHeaderValue); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -791,7 +795,8 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 		newFunctionEvent.Name,
 		opa.ActionCreate,
 		createFunctionEventOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		true,
+		createFunctionEventOptions.PermissionOptions.OverrideHeaderValue); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -828,7 +833,8 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 		functionEvent.Name,
 		opa.ActionUpdate,
 		updateFunctionEventOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		true,
+		updateFunctionEventOptions.PermissionOptions.OverrideHeaderValue); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -863,7 +869,8 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 		functionEventToDelete.Name,
 		opa.ActionDelete,
 		deleteFunctionEventOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		true,
+		deleteFunctionEventOptions.PermissionOptions.OverrideHeaderValue); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 

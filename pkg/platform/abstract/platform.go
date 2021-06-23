@@ -427,7 +427,8 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 		functionToDelete.GetConfig().Meta.Name,
 		opa.ActionDelete,
 		deleteFunctionOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		true,
+		deleteFunctionOptions.PermissionOptions.OverrideHeaderValue); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -466,7 +467,8 @@ func (ap *Platform) FilterProjectsByPermissions(permissionOptions *platform.Perm
 			if allowed, err := ap.QueryOPAProjectPermissions(projectInstance.GetConfig().Meta.Name,
 				opa.ActionRead,
 				permissionOptions.MemberIds,
-				permissionOptions.RaiseForbidden); err != nil {
+				permissionOptions.RaiseForbidden,
+				permissionOptions.OverrideHeaderValue); err != nil {
 				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 			} else if allowed {
 				appendLock.Lock()
@@ -503,7 +505,8 @@ func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *platform.Per
 				function.GetConfig().Meta.Name,
 				opa.ActionRead,
 				permissionOptions.MemberIds,
-				permissionOptions.RaiseForbidden); err != nil {
+				permissionOptions.RaiseForbidden,
+				permissionOptions.OverrideHeaderValue); err != nil {
 				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 			} else if allowed {
 				appendLock.Lock()
@@ -553,7 +556,8 @@ func (ap *Platform) FilterFunctionEventsByPermissions(permissionOptions *platfor
 				functionEventInstance.GetConfig().Meta.Name,
 				opa.ActionRead,
 				permissionOptions.MemberIds,
-				permissionOptions.RaiseForbidden); err != nil {
+				permissionOptions.RaiseForbidden,
+				permissionOptions.OverrideHeaderValue); err != nil {
 				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 			} else if allowed {
 				appendLock.Lock()
@@ -981,21 +985,24 @@ func (ap *Platform) EnsureDefaultProjectExistence() error {
 func (ap *Platform) QueryOPAProjectPermissions(projectName string,
 	action opa.Action,
 	ids []string,
-	raiseForbidden bool) (bool, error) {
+	raiseForbidden bool,
+	overrideHeaderValue string) (bool, error) {
 	if projectName == "" {
 		projectName = "*"
 	}
 	return ap.queryOPAPermissions(opa.GenerateProjectResourceString(projectName),
 		action,
 		ids,
-		raiseForbidden)
+		raiseForbidden,
+		overrideHeaderValue)
 }
 
 func (ap *Platform) QueryOPAFunctionPermissions(projectName,
 	functionName string,
 	action opa.Action,
 	ids []string,
-	raiseForbidden bool) (bool, error) {
+	raiseForbidden bool,
+	overrideHeaderValue string) (bool, error) {
 	if projectName == "" {
 		projectName = "*"
 	}
@@ -1005,7 +1012,8 @@ func (ap *Platform) QueryOPAFunctionPermissions(projectName,
 	return ap.queryOPAPermissions(opa.GenerateFunctionResourceString(projectName, functionName),
 		action,
 		ids,
-		raiseForbidden)
+		raiseForbidden,
+		overrideHeaderValue)
 }
 
 func (ap *Platform) QueryOPAFunctionEventPermissions(projectName,
@@ -1013,7 +1021,8 @@ func (ap *Platform) QueryOPAFunctionEventPermissions(projectName,
 	functionEventName string,
 	action opa.Action,
 	ids []string,
-	raiseForbidden bool) (bool, error) {
+	raiseForbidden bool,
+	overrideHeaderValue string) (bool, error) {
 	if projectName == "" {
 		projectName = "*"
 	}
@@ -1026,7 +1035,8 @@ func (ap *Platform) QueryOPAFunctionEventPermissions(projectName,
 	return ap.queryOPAPermissions(opa.GenerateFunctionEventResourceString(projectName, functionName, functionEventName),
 		action,
 		ids,
-		raiseForbidden)
+		raiseForbidden,
+		overrideHeaderValue)
 }
 
 func (ap *Platform) functionBuildRequired(functionConfig *functionconfig.Config) (bool, error) {
@@ -1520,9 +1530,10 @@ func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Con
 func (ap *Platform) queryOPAPermissions(resource string,
 	action opa.Action,
 	ids []string,
-	raiseForbidden bool) (bool, error) {
+	raiseForbidden bool,
+	overrideHeaderValue string) (bool, error) {
 
-	allowed, err := ap.OpaClient.QueryPermissions(resource, action, ids)
+	allowed, err := ap.OpaClient.QueryPermissions(resource, action, ids, overrideHeaderValue)
 	if err != nil {
 		return allowed, nuclio.WrapErrInternalServerError(err)
 	}

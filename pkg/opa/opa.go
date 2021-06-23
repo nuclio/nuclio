@@ -23,7 +23,7 @@ import (
 )
 
 type Client interface {
-	QueryPermissions(resource string, action Action, ids []string) (bool, error)
+	QueryPermissions(resource string, action Action, ids []string, overrideHeaderValue string) (bool, error)
 }
 
 func GetUserAndGroupIdsFromHeaders(request *http.Request) []string {
