@@ -57,7 +57,7 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
@@ -99,8 +99,8 @@ func (fer *functionEventResource) GetByID(request *http.Request, id string) (res
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-			RaiseForbidden: true,
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
@@ -178,7 +178,7 @@ func (fer *functionEventResource) storeAndDeployFunctionEvent(request *http.Requ
 	err = fer.getPlatform().CreateFunctionEvent(&platform.CreateFunctionEventOptions{
 		FunctionEventConfig: *newFunctionEvent.GetConfig(),
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
@@ -199,7 +199,7 @@ func (fer *functionEventResource) getFunctionEvents(request *http.Request, funct
 			},
 		},
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
@@ -227,7 +227,7 @@ func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*r
 
 	deleteFunctionEventOptions := platform.DeleteFunctionEventOptions{
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
@@ -271,7 +271,7 @@ func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*r
 	if err = fer.getPlatform().UpdateFunctionEvent(&platform.UpdateFunctionEventOptions{
 		FunctionEventConfig: functionEventConfig,
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {

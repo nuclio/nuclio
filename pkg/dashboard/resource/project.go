@@ -75,7 +75,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 			Namespace: namespace,
 		},
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
@@ -221,7 +221,7 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 		Namespace: project.GetConfig().Meta.Namespace,
 		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", project.GetConfig().Meta.Name),
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
@@ -272,7 +272,7 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {
@@ -354,8 +354,8 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: *projectImportOptions.projectInfo.Project.Meta,
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-			RaiseForbidden: true,
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
@@ -388,7 +388,7 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
 			ProjectConfig: newProject.GetConfig(),
 			PermissionOptions: platform.PermissionOptions{
-				MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+				MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 				OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 			},
 		}); err != nil {
@@ -460,8 +460,8 @@ func (pr *projectResource) importFunction(request *http.Request, function *funct
 		Name:      function.Meta.Name,
 		Namespace: function.Meta.Namespace,
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-			RaiseForbidden: true,
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
@@ -560,8 +560,8 @@ func (pr *projectResource) getProjectByName(request *http.Request, projectName, 
 			Namespace: projectNamespace,
 		},
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-			RaiseForbidden: true,
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
@@ -598,7 +598,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {
@@ -640,7 +640,7 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {

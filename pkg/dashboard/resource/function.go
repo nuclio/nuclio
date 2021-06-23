@@ -113,8 +113,8 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		Name:      functionInfo.Meta.Name,
 		Namespace: fr.resolveNamespace(request, functionInfo),
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-			RaiseForbidden: true,
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
@@ -157,8 +157,8 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		Name:      functionInfo.Meta.Name,
 		Namespace: fr.resolveNamespace(request, functionInfo),
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-			RaiseForbidden: true,
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
@@ -279,7 +279,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 			AuthConfig:                 authConfig,
 			DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
 			PermissionOptions: platform.PermissionOptions{
-				MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+				MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 				OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 			},
 		})
@@ -437,7 +437,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 	deleteFunctionOptions := platform.DeleteFunctionOptions{
 		AuthConfig: authConfig,
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
@@ -537,8 +537,8 @@ func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.R
 		Name:                  functionName,
 		EnrichWithAPIGateways: fr.headerValueIsTrue(request, "x-nuclio-function-enrich-apigateways"),
 		PermissionOptions: platform.PermissionOptions{
-			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-			RaiseForbidden: raiseForbidden,
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden:      raiseForbidden,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
