@@ -34,24 +34,33 @@ type HTTPClient struct {
 	permissionQueryPath string
 	requestTimeout      time.Duration
 	logLevel            int
+	overrideHeaderValue string
 }
 
 func NewHTTPClient(parentLogger logger.Logger,
 	address string,
 	permissionQueryPath string,
 	requestTimeout time.Duration,
-	logLevel int) *HTTPClient {
+	logLevel int,
+	overrideHeaderValue string) *HTTPClient {
 	newClient := HTTPClient{
 		logger:              parentLogger.GetChild("opa"),
 		address:             address,
 		permissionQueryPath: permissionQueryPath,
 		requestTimeout:      requestTimeout,
 		logLevel:            logLevel,
+		overrideHeaderValue: overrideHeaderValue,
 	}
 	return &newClient
 }
 
-func (c *HTTPClient) QueryPermissions(resource string, action Action, ids []string) (bool, error) {
+func (c *HTTPClient) QueryPermissions(resource string, action Action, permissionOptions *PermissionOptions) (bool, error) {
+
+	// If the override header value matches the configured override header value, allow without checking
+	if c.overrideHeaderValue != "" && permissionOptions.OverrideHeaderValue == c.overrideHeaderValue {
+		return true, nil
+	}
+
 	requestURL := fmt.Sprintf("%s%s", c.address, c.permissionQueryPath)
 
 	// send the request
@@ -61,7 +70,7 @@ func (c *HTTPClient) QueryPermissions(resource string, action Action, ids []stri
 	request := PermissionRequest{Input: PermissionRequestInput{
 		resource,
 		string(action),
-		ids,
+		permissionOptions.MemberIds,
 	}}
 	requestBody, err := json.Marshal(request)
 	if err != nil {

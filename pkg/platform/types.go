@@ -24,6 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -34,11 +35,6 @@ import (
 //
 // Auth
 //
-
-type PermissionOptions struct {
-	MemberIds      []string
-	RaiseForbidden bool
-}
 
 type AuthConfig struct {
 	Token string
@@ -64,7 +60,7 @@ type CreateFunctionOptions struct {
 	InputImageFile             string
 	AuthConfig                 *AuthConfig
 	DependantImagesRegistryURL string
-	PermissionOptions          PermissionOptions
+	PermissionOptions          opa.PermissionOptions
 }
 
 type UpdateFunctionOptions struct {
@@ -72,13 +68,13 @@ type UpdateFunctionOptions struct {
 	FunctionSpec      *functionconfig.Spec
 	FunctionStatus    *functionconfig.Status
 	AuthConfig        *AuthConfig
-	PermissionOptions PermissionOptions
+	PermissionOptions opa.PermissionOptions
 }
 
 type DeleteFunctionOptions struct {
 	FunctionConfig    functionconfig.Config
 	AuthConfig        *AuthConfig
-	PermissionOptions PermissionOptions
+	PermissionOptions opa.PermissionOptions
 }
 
 // CreateFunctionBuildResult holds information detected/generated as a result of a build process
@@ -103,7 +99,7 @@ type GetFunctionsOptions struct {
 	Namespace         string
 	Labels            string
 	AuthConfig        *AuthConfig
-	PermissionOptions PermissionOptions
+	PermissionOptions opa.PermissionOptions
 
 	// Enrich functions with their api gateways
 	EnrichWithAPIGateways bool
@@ -221,14 +217,14 @@ type CreateProjectOptions struct {
 	ProjectConfig     *ProjectConfig
 	RequestOrigin     platformconfig.ProjectsLeaderKind
 	SessionCookie     *http.Cookie
-	PermissionOptions PermissionOptions
+	PermissionOptions opa.PermissionOptions
 }
 
 type UpdateProjectOptions struct {
 	ProjectConfig     ProjectConfig
 	RequestOrigin     platformconfig.ProjectsLeaderKind
 	SessionCookie     *http.Cookie
-	PermissionOptions PermissionOptions
+	PermissionOptions opa.PermissionOptions
 }
 
 type DeleteProjectStrategy string
@@ -258,7 +254,7 @@ type DeleteProjectOptions struct {
 	Strategy          DeleteProjectStrategy
 	RequestOrigin     platformconfig.ProjectsLeaderKind
 	SessionCookie     *http.Cookie
-	PermissionOptions PermissionOptions
+	PermissionOptions opa.PermissionOptions
 
 	// allowing us to "block" until related resources are removed.
 	// used in testings
@@ -268,7 +264,7 @@ type DeleteProjectOptions struct {
 
 type GetProjectsOptions struct {
 	Meta              ProjectMeta
-	PermissionOptions PermissionOptions
+	PermissionOptions opa.PermissionOptions
 }
 
 // to appease k8s
@@ -304,23 +300,23 @@ type FunctionEventConfig struct {
 
 type CreateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
-	PermissionOptions   PermissionOptions
+	PermissionOptions   opa.PermissionOptions
 }
 
 type UpdateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
-	PermissionOptions   PermissionOptions
+	PermissionOptions   opa.PermissionOptions
 }
 
 type DeleteFunctionEventOptions struct {
 	Meta              FunctionEventMeta
-	PermissionOptions PermissionOptions
+	PermissionOptions opa.PermissionOptions
 }
 
 type GetFunctionEventsOptions struct {
 	Meta              FunctionEventMeta
 	FunctionNames     []string
-	PermissionOptions PermissionOptions
+	PermissionOptions opa.PermissionOptions
 }
 
 // DeepCopyInto to appease k8s

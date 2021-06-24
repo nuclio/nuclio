@@ -74,8 +74,9 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 			Name:      request.Header.Get("x-nuclio-project-name"),
 			Namespace: namespace,
 		},
-		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
 
@@ -219,8 +220,9 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 		Name:      "",
 		Namespace: project.GetConfig().Meta.Namespace,
 		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", project.GetConfig().Meta.Name),
-		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
 
@@ -269,8 +271,9 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 		ProjectConfig: newProject.GetConfig(),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
-		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "already exists") {
@@ -350,9 +353,10 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: *projectImportOptions.projectInfo.Project.Meta,
-		PermissionOptions: platform.PermissionOptions{
-			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-			RaiseForbidden: true,
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden:      true,
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
 	if err != nil {
@@ -383,8 +387,9 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 
 		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
 			ProjectConfig: newProject.GetConfig(),
-			PermissionOptions: platform.PermissionOptions{
-				MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+			PermissionOptions: opa.PermissionOptions{
+				MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+				OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 			},
 		}); err != nil {
 
@@ -454,9 +459,10 @@ func (pr *projectResource) importFunction(request *http.Request, function *funct
 	functions, err := pr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Name:      function.Meta.Name,
 		Namespace: function.Meta.Namespace,
-		PermissionOptions: platform.PermissionOptions{
-			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-			RaiseForbidden: true,
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden:      true,
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
 	if err != nil {
@@ -553,9 +559,10 @@ func (pr *projectResource) getProjectByName(request *http.Request, projectName, 
 			Name:      projectName,
 			Namespace: projectNamespace,
 		},
-		PermissionOptions: platform.PermissionOptions{
-			MemberIds:      opa.GetUserAndGroupIdsFromHeaders(request),
-			RaiseForbidden: true,
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			RaiseForbidden:      true,
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
 
@@ -590,8 +597,9 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		Strategy:      platform.ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
-		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {
 		return &restful.CustomRouteFuncResponse{
@@ -631,8 +639,9 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 		},
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
-		PermissionOptions: platform.PermissionOptions{
-			MemberIds: opa.GetUserAndGroupIdsFromHeaders(request),
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {
 		pr.Logger.WarnWith("Failed to update project", "err", err)

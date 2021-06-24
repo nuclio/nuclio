@@ -65,6 +65,7 @@ type KubePlatformTestSuite struct {
 	Platform                         *Platform
 	PlatformKubeConfig               *platformconfig.PlatformKubeConfig
 	mockedOpaClient                  *opa.MockClient
+	opaOverrideHeaderValue           string
 }
 
 func (suite *KubePlatformTestSuite) SetupSuite() {
@@ -88,6 +89,7 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 	abstractPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
 	suite.Require().NoError(err)
 	suite.abstractPlatform = abstractPlatform
+	suite.opaOverrideHeaderValue = "some-dummy-opa-override-value"
 	suite.mockedOpaClient = &opa.MockClient{}
 	suite.abstractPlatform.OpaClient = suite.mockedOpaClient
 	suite.abstractPlatform.ExternalIPAddresses = []string{
@@ -500,7 +502,11 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 					On("QueryPermissions",
 						fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName),
 						opa.ActionRead,
-						memberIds).
+						&opa.PermissionOptions{
+							MemberIds:           memberIds,
+							RaiseForbidden:      testCase.raiseForbidden,
+							OverrideHeaderValue: suite.opaOverrideHeaderValue,
+						}).
 					Return(testCase.opaResponse, nil).
 					Once()
 				defer suite.mockedOpaClient.AssertExpectations(suite.T())
@@ -508,9 +514,10 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 			functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
 				Name:      functionName,
 				Namespace: suite.Namespace,
-				PermissionOptions: platform.PermissionOptions{
-					MemberIds:      memberIds,
-					RaiseForbidden: testCase.raiseForbidden,
+				PermissionOptions: opa.PermissionOptions{
+					MemberIds:           memberIds,
+					RaiseForbidden:      testCase.raiseForbidden,
+					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
 			})
 
@@ -574,7 +581,11 @@ func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
 				On("QueryPermissions",
 					fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName),
 					opa.ActionUpdate,
-					memberIds).
+					&opa.PermissionOptions{
+						MemberIds:           memberIds,
+						RaiseForbidden:      true,
+						OverrideHeaderValue: suite.opaOverrideHeaderValue,
+					}).
 				Return(testCase.opaResponse, nil).
 				Once()
 			defer suite.mockedOpaClient.AssertExpectations(suite.T())
@@ -606,8 +617,9 @@ func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
 					Name:      functionName,
 					Namespace: suite.Namespace,
 				},
-				PermissionOptions: platform.PermissionOptions{
-					MemberIds: memberIds,
+				PermissionOptions: opa.PermissionOptions{
+					MemberIds:           memberIds,
+					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
 			})
 
@@ -664,7 +676,11 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 				On("QueryPermissions",
 					fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName),
 					opa.ActionDelete,
-					memberIds).
+					&opa.PermissionOptions{
+						MemberIds:           memberIds,
+						RaiseForbidden:      true,
+						OverrideHeaderValue: suite.opaOverrideHeaderValue,
+					}).
 				Return(testCase.opaResponse, nil).
 				Once()
 			defer suite.mockedOpaClient.AssertExpectations(suite.T())
@@ -690,8 +706,9 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 						Namespace: suite.Namespace,
 					},
 				},
-				PermissionOptions: platform.PermissionOptions{
-					MemberIds: memberIds,
+				PermissionOptions: opa.PermissionOptions{
+					MemberIds:           memberIds,
+					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
 			})
 
@@ -774,7 +791,11 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsPermissions() {
 					On("QueryPermissions",
 						fmt.Sprintf("/projects/%s", projectName),
 						opa.ActionRead,
-						memberIds).
+						&opa.PermissionOptions{
+							MemberIds:           memberIds,
+							RaiseForbidden:      testCase.raiseForbidden,
+							OverrideHeaderValue: suite.opaOverrideHeaderValue,
+						}).
 					Return(testCase.opaResponse, nil).
 					Once()
 				defer suite.mockedOpaClient.AssertExpectations(suite.T())
@@ -784,9 +805,10 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsPermissions() {
 					Name:      projectName,
 					Namespace: suite.Namespace,
 				},
-				PermissionOptions: platform.PermissionOptions{
-					MemberIds:      memberIds,
-					RaiseForbidden: testCase.raiseForbidden,
+				PermissionOptions: opa.PermissionOptions{
+					MemberIds:           memberIds,
+					RaiseForbidden:      testCase.raiseForbidden,
+					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
 			})
 
@@ -850,7 +872,11 @@ func (suite *ProjectKubePlatformTestSuite) TestUpdateProjectPermissions() {
 				On("QueryPermissions",
 					fmt.Sprintf("/projects/%s", projectName),
 					opa.ActionUpdate,
-					memberIds).
+					&opa.PermissionOptions{
+						MemberIds:           memberIds,
+						RaiseForbidden:      true,
+						OverrideHeaderValue: suite.opaOverrideHeaderValue,
+					}).
 				Return(testCase.opaResponse, nil).
 				Once()
 			defer suite.mockedOpaClient.AssertExpectations(suite.T())
@@ -884,8 +910,9 @@ func (suite *ProjectKubePlatformTestSuite) TestUpdateProjectPermissions() {
 						Namespace: suite.Namespace,
 					},
 				},
-				PermissionOptions: platform.PermissionOptions{
-					MemberIds: memberIds,
+				PermissionOptions: opa.PermissionOptions{
+					MemberIds:           memberIds,
+					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
 			})
 
@@ -942,7 +969,11 @@ func (suite *ProjectKubePlatformTestSuite) TestDeleteProjectPermissions() {
 				On("QueryPermissions",
 					fmt.Sprintf("/projects/%s", projectName),
 					opa.ActionDelete,
-					memberIds).
+					&opa.PermissionOptions{
+						MemberIds:           memberIds,
+						RaiseForbidden:      true,
+						OverrideHeaderValue: suite.opaOverrideHeaderValue,
+					}).
 				Return(testCase.opaResponse, nil).
 				Once()
 			defer suite.mockedOpaClient.AssertExpectations(suite.T())
@@ -961,8 +992,9 @@ func (suite *ProjectKubePlatformTestSuite) TestDeleteProjectPermissions() {
 					Name:      projectName,
 					Namespace: suite.Namespace,
 				},
-				PermissionOptions: platform.PermissionOptions{
-					MemberIds: memberIds,
+				PermissionOptions: opa.PermissionOptions{
+					MemberIds:           memberIds,
+					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
 			})
 
@@ -1044,7 +1076,11 @@ func (suite *FunctionEventKubePlatformTestSuite) TestGetFunctionEventsPermission
 							functionName,
 							functionEventName),
 						opa.ActionRead,
-						memberIds).
+						&opa.PermissionOptions{
+							MemberIds:           memberIds,
+							RaiseForbidden:      testCase.raiseForbidden,
+							OverrideHeaderValue: suite.opaOverrideHeaderValue,
+						}).
 					Return(testCase.opaResponse, nil).
 					Once()
 				defer suite.mockedOpaClient.AssertExpectations(suite.T())
@@ -1054,9 +1090,10 @@ func (suite *FunctionEventKubePlatformTestSuite) TestGetFunctionEventsPermission
 					Name:      functionEventName,
 					Namespace: suite.Namespace,
 				},
-				PermissionOptions: platform.PermissionOptions{
-					MemberIds:      memberIds,
-					RaiseForbidden: testCase.raiseForbidden,
+				PermissionOptions: opa.PermissionOptions{
+					MemberIds:           memberIds,
+					RaiseForbidden:      testCase.raiseForbidden,
+					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
 			})
 
@@ -1120,7 +1157,11 @@ func (suite *FunctionEventKubePlatformTestSuite) TestUpdateFunctionEventPermissi
 						functionName,
 						functionEventName),
 					opa.ActionUpdate,
-					memberIds).
+					&opa.PermissionOptions{
+						MemberIds:           memberIds,
+						RaiseForbidden:      true,
+						OverrideHeaderValue: suite.opaOverrideHeaderValue,
+					}).
 				Return(testCase.opaResponse, nil).
 				Once()
 			defer suite.mockedOpaClient.AssertExpectations(suite.T())
@@ -1155,8 +1196,9 @@ func (suite *FunctionEventKubePlatformTestSuite) TestUpdateFunctionEventPermissi
 					},
 					Spec: platform.FunctionEventSpec{},
 				},
-				PermissionOptions: platform.PermissionOptions{
-					MemberIds: memberIds,
+				PermissionOptions: opa.PermissionOptions{
+					MemberIds:           memberIds,
+					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
 			})
 
@@ -1213,7 +1255,11 @@ func (suite *FunctionEventKubePlatformTestSuite) TestDeleteFunctionEventPermissi
 						functionName,
 						functionEventName),
 					opa.ActionDelete,
-					memberIds).
+					&opa.PermissionOptions{
+						MemberIds:           memberIds,
+						RaiseForbidden:      true,
+						OverrideHeaderValue: suite.opaOverrideHeaderValue,
+					}).
 				Return(testCase.opaResponse, nil).
 				Once()
 			defer suite.mockedOpaClient.AssertExpectations(suite.T())
@@ -1232,8 +1278,9 @@ func (suite *FunctionEventKubePlatformTestSuite) TestDeleteFunctionEventPermissi
 					Name:      functionEventName,
 					Namespace: suite.Namespace,
 				},
-				PermissionOptions: platform.PermissionOptions{
-					MemberIds: memberIds,
+				PermissionOptions: opa.PermissionOptions{
+					MemberIds:           memberIds,
+					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
 			})
 

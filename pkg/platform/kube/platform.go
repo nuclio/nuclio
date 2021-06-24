@@ -191,11 +191,12 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	// Check OPA permissions
+	permissionOptions := createFunctionOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
 	if _, err := p.QueryOPAFunctionPermissions(createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
 		createFunctionOptions.FunctionConfig.Meta.Name,
 		opa.ActionCreate,
-		createFunctionOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		&permissionOptions); err != nil {
 		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -548,10 +549,11 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	}
 
 	// Check OPA permissions
+	permissionOptions := createProjectOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
 	if _, err := p.QueryOPAProjectPermissions(createProjectOptions.ProjectConfig.Meta.Name,
 		opa.ActionCreate,
-		createProjectOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -571,10 +573,11 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 	}
 
 	// Check OPA permissions
+	permissionOptions := updateProjectOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
 	if _, err := p.QueryOPAProjectPermissions(updateProjectOptions.ProjectConfig.Meta.Name,
 		opa.ActionUpdate,
-		updateProjectOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -592,10 +595,11 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 	}
 
 	// Check OPA permissions
+	permissionOptions := deleteProjectOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
 	if _, err := p.QueryOPAProjectPermissions(deleteProjectOptions.Meta.Name,
 		opa.ActionDelete,
-		deleteProjectOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -786,12 +790,13 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 	projectName := newFunctionEvent.Labels[common.NuclioResourceLabelKeyProjectName]
 
 	// Check OPA permissions
+	permissionOptions := createFunctionEventOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
 	if _, err := p.QueryOPAFunctionEventPermissions(projectName,
 		functionName,
 		newFunctionEvent.Name,
 		opa.ActionCreate,
-		createFunctionEventOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -823,12 +828,13 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 	projectName := functionEvent.Labels[common.NuclioResourceLabelKeyProjectName]
 
 	// Check OPA permissions
+	permissionOptions := updateFunctionEventOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
 	if _, err := p.QueryOPAFunctionEventPermissions(projectName,
 		functionName,
 		functionEvent.Name,
 		opa.ActionUpdate,
-		updateFunctionEventOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -858,12 +864,13 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 	projectName := functionEventToDelete.Labels[common.NuclioResourceLabelKeyProjectName]
 
 	// Check OPA permissions
+	permissionOptions := deleteFunctionEventOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
 	if _, err := p.QueryOPAFunctionEventPermissions(projectName,
 		functionName,
 		functionEventToDelete.Name,
 		opa.ActionDelete,
-		deleteFunctionEventOptions.PermissionOptions.MemberIds,
-		true); err != nil {
+		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
