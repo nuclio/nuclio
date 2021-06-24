@@ -447,8 +447,8 @@ github.com/nuclio/nuclio-sdk-go v0.2.0 h1:acd+hCRKupV6n70F2dX+bGPTuYl6kiHOHI+tar
 github.com/nuclio/nuclio-sdk-go v0.2.0/go.mod h1:OBDhOcCf2GLO1e16GdWNU4EBjFoa9DAUJgzR226FMBc=
 github.com/nuclio/zap v0.0.2/go.mod h1:SUxPsgePvlyjx6c5MtGdB50pf0IQThtlyLwISLboeuc=
 github.com/nuclio/zap v0.0.3/go.mod h1:SUxPsgePvlyjx6c5MtGdB50pf0IQThtlyLwISLboeuc=
-github.com/nuclio/zap v0.0.4 h1:pc6zNr5O/VgB/gRc0cQp3cTf1kYAhfFBkgx2nSPkom4=
-github.com/nuclio/zap v0.0.4/go.mod h1:4kiW3CKmgomEjYgB68ZWrOWgQfm68tytD9goMD/miy4=
+github.com/nuclio/zap v0.0.5 h1:rSYqE9YRZ7MzuGyez/raeqQ/W7iec7pcU/GUUZSx1Cs=
+github.com/nuclio/zap v0.0.5/go.mod h1:4kiW3CKmgomEjYgB68ZWrOWgQfm68tytD9goMD/miy4=
 github.com/nwaples/rardecode v1.0.0 h1:r7vGuS5akxOnR4JQSkko62RJ1ReCMXxQRPtxsiFMBOs=
 github.com/nwaples/rardecode v1.0.0/go.mod h1:5DzqNKiOdpKKBH87u8VlvAnPZMXcGRhxWkRpHbbfGS0=
 github.com/olekukonko/tablewriter v0.0.1 h1:b3iUnf1v+ppJiOfNX4yxxqfWKMQPZR5yoh8urCTFX88=
