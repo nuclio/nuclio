@@ -75,7 +75,7 @@ type Platform interface {
 	GetFunctions(getFunctionsOptions *GetFunctionsOptions) ([]Function, error)
 
 	// FilterFunctionsByPermissions will filter out some functions
-	FilterFunctionsByPermissions(*PermissionOptions, []Function) ([]Function, error)
+	FilterFunctionsByPermissions(*opa.PermissionOptions, []Function) ([]Function, error)
 
 	// GetDefaultInvokeIPAddresses will return a list of ip addresses to be used by the platform to invoke a function
 	GetDefaultInvokeIPAddresses() ([]string, error)
@@ -103,7 +103,7 @@ type Platform interface {
 	GetProjects(getProjectsOptions *GetProjectsOptions) ([]Project, error)
 
 	// FilterProjectsByPermissions will filter out some projects
-	FilterProjectsByPermissions(*PermissionOptions, []Project) ([]Project, error)
+	FilterProjectsByPermissions(*opa.PermissionOptions, []Project) ([]Project, error)
 
 	// Ensures default project exists, creates it otherwise
 	EnsureDefaultProjectExistence() error
@@ -129,7 +129,7 @@ type Platform interface {
 	GetFunctionEvents(getFunctionEventsOptions *GetFunctionEventsOptions) ([]FunctionEvent, error)
 
 	// FilterFunctionEventsByPermissions will filter out some function events
-	FilterFunctionEventsByPermissions(*PermissionOptions, []FunctionEvent) ([]FunctionEvent, error)
+	FilterFunctionEventsByPermissions(*opa.PermissionOptions, []FunctionEvent) ([]FunctionEvent, error)
 
 	//
 	// API Gateway
@@ -225,11 +225,11 @@ type Platform interface {
 	//
 
 	// QueryOPAProjectPermissions queries opa permissions for a certain project
-	QueryOPAProjectPermissions(projectName string, action opa.Action, ids []string, raiseForbidden bool, overrideHeaderValue string) (bool, error)
+	QueryOPAProjectPermissions(projectName string, action opa.Action, permissionOptions *opa.PermissionOptions) (bool, error)
 
 	// QueryOPAFunctionPermissions queries opa permissions for a certain function
-	QueryOPAFunctionPermissions(projectName, functionName string, action opa.Action, ids []string, raiseForbidden bool, overrideHeaderValue string) (bool, error)
+	QueryOPAFunctionPermissions(projectName, functionName string, action opa.Action, permissionOptions *opa.PermissionOptions) (bool, error)
 
 	// QueryOPAFunctionEventPermissions queries opa permissions for a certain function event
-	QueryOPAFunctionEventPermissions(projectName, functionName, functionEventName string, action opa.Action, ids []string, raiseForbidden bool, overrideHeaderValue string) (bool, error)
+	QueryOPAFunctionEventPermissions(projectName, functionName, functionEventName string, action opa.Action, permissionOptions *opa.PermissionOptions) (bool, error)
 }

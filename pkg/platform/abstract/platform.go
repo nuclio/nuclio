@@ -423,12 +423,12 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 	}
 
 	// Check OPA permissions
+	permissionOptions := deleteFunctionOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
 	if _, err := ap.QueryOPAFunctionPermissions(functionToDelete.GetConfig().Meta.Labels["nuclio.io/project-name"],
 		functionToDelete.GetConfig().Meta.Name,
 		opa.ActionDelete,
-		deleteFunctionOptions.PermissionOptions.MemberIds,
-		true,
-		deleteFunctionOptions.PermissionOptions.OverrideHeaderValue); err != nil {
+		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
@@ -448,7 +448,7 @@ func (ap *Platform) ResolveReservedResourceNames() []string {
 }
 
 // FilterProjectsByPermissions will filter out some projects
-func (ap *Platform) FilterProjectsByPermissions(permissionOptions *platform.PermissionOptions,
+func (ap *Platform) FilterProjectsByPermissions(permissionOptions *opa.PermissionOptions,
 	projects []platform.Project) ([]platform.Project, error) {
 
 	// no cleansing is mandated
@@ -466,9 +466,7 @@ func (ap *Platform) FilterProjectsByPermissions(permissionOptions *platform.Perm
 			// Check OPA permissions
 			if allowed, err := ap.QueryOPAProjectPermissions(projectInstance.GetConfig().Meta.Name,
 				opa.ActionRead,
-				permissionOptions.MemberIds,
-				permissionOptions.RaiseForbidden,
-				permissionOptions.OverrideHeaderValue); err != nil {
+				permissionOptions); err != nil {
 				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 			} else if allowed {
 				appendLock.Lock()
@@ -485,7 +483,7 @@ func (ap *Platform) FilterProjectsByPermissions(permissionOptions *platform.Perm
 }
 
 // FilterFunctionsByPermissions will filter out some functions
-func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *platform.PermissionOptions,
+func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *opa.PermissionOptions,
 	functions []platform.Function) ([]platform.Function, error) {
 
 	// no cleansing is mandated
@@ -504,9 +502,7 @@ func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *platform.Per
 			if allowed, err := ap.QueryOPAFunctionPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
 				function.GetConfig().Meta.Name,
 				opa.ActionRead,
-				permissionOptions.MemberIds,
-				permissionOptions.RaiseForbidden,
-				permissionOptions.OverrideHeaderValue); err != nil {
+				permissionOptions); err != nil {
 				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 			} else if allowed {
 				appendLock.Lock()
@@ -523,7 +519,7 @@ func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *platform.Per
 }
 
 // FilterFunctionEventsByPermissions will filter out some function events
-func (ap *Platform) FilterFunctionEventsByPermissions(permissionOptions *platform.PermissionOptions,
+func (ap *Platform) FilterFunctionEventsByPermissions(permissionOptions *opa.PermissionOptions,
 	functionEvents []platform.FunctionEvent) ([]platform.FunctionEvent, error) {
 
 	// no cleansing is mandated
@@ -555,9 +551,7 @@ func (ap *Platform) FilterFunctionEventsByPermissions(permissionOptions *platfor
 				functionName,
 				functionEventInstance.GetConfig().Meta.Name,
 				opa.ActionRead,
-				permissionOptions.MemberIds,
-				permissionOptions.RaiseForbidden,
-				permissionOptions.OverrideHeaderValue); err != nil {
+				permissionOptions); err != nil {
 				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 			} else if allowed {
 				appendLock.Lock()
@@ -984,25 +978,19 @@ func (ap *Platform) EnsureDefaultProjectExistence() error {
 
 func (ap *Platform) QueryOPAProjectPermissions(projectName string,
 	action opa.Action,
-	ids []string,
-	raiseForbidden bool,
-	overrideHeaderValue string) (bool, error) {
+	permissionOptions *opa.PermissionOptions) (bool, error) {
 	if projectName == "" {
 		projectName = "*"
 	}
 	return ap.queryOPAPermissions(opa.GenerateProjectResourceString(projectName),
 		action,
-		ids,
-		raiseForbidden,
-		overrideHeaderValue)
+		permissionOptions)
 }
 
 func (ap *Platform) QueryOPAFunctionPermissions(projectName,
 	functionName string,
 	action opa.Action,
-	ids []string,
-	raiseForbidden bool,
-	overrideHeaderValue string) (bool, error) {
+	permissionOptions *opa.PermissionOptions) (bool, error) {
 	if projectName == "" {
 		projectName = "*"
 	}
@@ -1011,18 +999,14 @@ func (ap *Platform) QueryOPAFunctionPermissions(projectName,
 	}
 	return ap.queryOPAPermissions(opa.GenerateFunctionResourceString(projectName, functionName),
 		action,
-		ids,
-		raiseForbidden,
-		overrideHeaderValue)
+		permissionOptions)
 }
 
 func (ap *Platform) QueryOPAFunctionEventPermissions(projectName,
 	functionName,
 	functionEventName string,
 	action opa.Action,
-	ids []string,
-	raiseForbidden bool,
-	overrideHeaderValue string) (bool, error) {
+	permissionOptions *opa.PermissionOptions) (bool, error) {
 	if projectName == "" {
 		projectName = "*"
 	}
@@ -1034,9 +1018,7 @@ func (ap *Platform) QueryOPAFunctionEventPermissions(projectName,
 	}
 	return ap.queryOPAPermissions(opa.GenerateFunctionEventResourceString(projectName, functionName, functionEventName),
 		action,
-		ids,
-		raiseForbidden,
-		overrideHeaderValue)
+		permissionOptions)
 }
 
 func (ap *Platform) functionBuildRequired(functionConfig *functionconfig.Config) (bool, error) {
@@ -1529,15 +1511,13 @@ func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Con
 
 func (ap *Platform) queryOPAPermissions(resource string,
 	action opa.Action,
-	ids []string,
-	raiseForbidden bool,
-	overrideHeaderValue string) (bool, error) {
+	permissionOptions *opa.PermissionOptions) (bool, error) {
 
-	allowed, err := ap.OpaClient.QueryPermissions(resource, action, ids, overrideHeaderValue)
+	allowed, err := ap.OpaClient.QueryPermissions(resource, action, permissionOptions)
 	if err != nil {
 		return allowed, nuclio.WrapErrInternalServerError(err)
 	}
-	if !allowed && raiseForbidden {
+	if !allowed && permissionOptions.RaiseForbidden {
 		return false, nuclio.NewErrForbidden(fmt.Sprintf("Not allowed to %s resource %s", action, resource))
 	}
 	return allowed, nil

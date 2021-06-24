@@ -33,12 +33,12 @@ func NewNopClient(parentLogger logger.Logger, logLevel int) *NopClient {
 	return &newClient
 }
 
-func (c *NopClient) QueryPermissions(resource string, action Action, ids []string, overrideHeaderValue string) (bool, error) {
+func (c *NopClient) QueryPermissions(resource string, action Action, permissionOptions *PermissionOptions) (bool, error) {
 	if c.logLevel > 5 {
 		c.logger.InfoWith("Skipping permission query",
 			"resource", resource,
 			"action", action,
-			"ids", ids)
+			"permissionOptions", permissionOptions)
 	}
 	return true, nil
 }

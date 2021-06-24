@@ -86,7 +86,7 @@ func (mp *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptio
 	return args.Get(0).([]platform.Function), args.Error(1)
 }
 
-func (mp *Platform) FilterFunctionsByPermissions(permissionOptions *platform.PermissionOptions,
+func (mp *Platform) FilterFunctionsByPermissions(permissionOptions *opa.PermissionOptions,
 	functions []platform.Function) ([]platform.Function, error) {
 	args := mp.Called(permissionOptions, functions)
 	return args.Get(0).([]platform.Function), args.Error(1)
@@ -132,7 +132,7 @@ func (mp *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
-func (mp *Platform) FilterProjectsByPermissions(permissionOptions *platform.PermissionOptions,
+func (mp *Platform) FilterProjectsByPermissions(permissionOptions *opa.PermissionOptions,
 	projects []platform.Project) ([]platform.Project, error) {
 	args := mp.Called(permissionOptions, projects)
 	return args.Get(0).([]platform.Project), args.Error(1)
@@ -200,7 +200,7 @@ func (mp *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunc
 	return args.Get(0).([]platform.FunctionEvent), args.Error(1)
 }
 
-func (mp *Platform) FilterFunctionEventsByPermissions(permissionOptions *platform.PermissionOptions,
+func (mp *Platform) FilterFunctionEventsByPermissions(permissionOptions *opa.PermissionOptions,
 	functionEvents []platform.FunctionEvent) ([]platform.FunctionEvent, error) {
 	args := mp.Called(permissionOptions, functionEvents)
 	return args.Get(0).([]platform.FunctionEvent), args.Error(1)
@@ -338,20 +338,16 @@ func (mp *Platform) WaitForProjectResourcesDeletion(projectMeta *platform.Projec
 
 func (mp *Platform) QueryOPAProjectPermissions(projectName string,
 	action opa.Action,
-	ids []string,
-	raiseForbidden bool,
-	overrideHeaderValue string) (bool, error) {
-	args := mp.Called(projectName, action, ids, raiseForbidden, overrideHeaderValue)
+	permissionOptions *opa.PermissionOptions) (bool, error) {
+	args := mp.Called(projectName, action, permissionOptions)
 	return args.Get(0).(bool), args.Error(1)
 }
 
 func (mp *Platform) QueryOPAFunctionPermissions(projectName,
 	functionName string,
 	action opa.Action,
-	ids []string,
-	raiseForbidden bool,
-	overrideHeaderValue string) (bool, error) {
-	args := mp.Called(projectName, functionName, action, ids, raiseForbidden, overrideHeaderValue)
+	permissionOptions *opa.PermissionOptions) (bool, error) {
+	args := mp.Called(projectName, functionName, action, permissionOptions)
 	return args.Get(0).(bool), args.Error(1)
 }
 
@@ -359,9 +355,7 @@ func (mp *Platform) QueryOPAFunctionEventPermissions(projectName,
 	functionName,
 	functionEventName string,
 	action opa.Action,
-	ids []string,
-	raiseForbidden bool,
-	overrideHeaderValue string) (bool, error) {
-	args := mp.Called(projectName, functionName, functionEventName, action, ids, raiseForbidden, overrideHeaderValue)
+	permissionOptions *opa.PermissionOptions) (bool, error) {
+	args := mp.Called(projectName, functionName, functionEventName, action, permissionOptions)
 	return args.Get(0).(bool), args.Error(1)
 }

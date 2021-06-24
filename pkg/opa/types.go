@@ -49,6 +49,12 @@ type Config struct {
 	OverrideHeaderValue string `json:"overrideHeaderValue,omitempty"`
 }
 
+type PermissionOptions struct {
+	MemberIds           []string
+	RaiseForbidden      bool
+	OverrideHeaderValue string
+}
+
 type PermissionRequestInput struct {
 	Resource string   `json:"resource,omitempty"`
 	Action   string   `json:"action,omitempty"`

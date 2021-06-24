@@ -24,7 +24,7 @@ type MockClient struct {
 	mock.Mock
 }
 
-func (mc *MockClient) QueryPermissions(resource string, action Action, ids []string, overrideHeaderValue string) (bool, error) {
-	args := mc.Called(resource, action, ids, overrideHeaderValue)
+func (mc *MockClient) QueryPermissions(resource string, action Action, permissionOptions *PermissionOptions) (bool, error) {
+	args := mc.Called(resource, action, permissionOptions)
 	return args.Get(0).(bool), args.Error(1)
 }
