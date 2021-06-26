@@ -71,9 +71,9 @@ For more information on Nuclio function configuration, see the [function-configu
 
 > **Note:** For more advanced configuration parameters, see the configuration sections under [How a message travels through Nuclio to the handler](#message-course-config-params) and [Rebalancing](#rebalancing-config-params). For an example, see [Configuration example](#config-example).
 
-- <a id="topic"></a>**`topic`** - The name of the topic on which to listen.
+- <a id="topics"></a>**`topics`** - The name of the topic(s) on which to listen.
   <br/>
-  **Type:** `string`
+  **Type:** `[]string`
 
 - <a id="brokers"></a>**`brokers`** - A list of broker IP addresses.
   <br/>
