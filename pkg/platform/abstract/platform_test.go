@@ -20,10 +20,12 @@ package abstract
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -885,6 +887,79 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 			continue
 		}
 		suite.Require().NoError(err)
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestProcessLogLines() {
+	for _, testCase := range []struct {
+		name           string
+		encoding       string
+		encodingConfig *nucliozap.EncoderConfig
+	}{
+		{
+			name:           "default",
+			encoding:       "json",
+			encodingConfig: nucliozap.NewEncoderConfig(),
+		},
+		{
+			name:     "structured",
+			encoding: "json",
+			encodingConfig: func() *nucliozap.EncoderConfig {
+				encoding := nucliozap.NewEncoderConfig()
+				encoding.JSON.VarGroupMode = nucliozap.VarGroupModeStructured
+				return encoding
+			}(),
+		},
+		{
+			name:     "flattened",
+			encoding: "json",
+			encodingConfig: func() *nucliozap.EncoderConfig {
+				encoding := nucliozap.NewEncoderConfig()
+				encoding.JSON.VarGroupMode = nucliozap.VarGroupModeFlattened
+				encoding.JSON.LineEnding = "\n"
+				encoding.JSON.TimeFieldEncoding = "iso8601"
+				return encoding
+			}(),
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			writer := &bytes.Buffer{}
+			loggerInstance, err := nucliozap.NewNuclioZap(testCase.name,
+				testCase.encoding,
+				testCase.encodingConfig,
+				writer,
+				writer,
+				nucliozap.InfoLevel)
+			suite.Require().NoError(err)
+
+			errorMessage := "Failed to start trigger"
+			loggerInstance.WarnWith(errorMessage, "var", "details", "extra", "information")
+
+			suite.Logger.InfoWith("Getting processor logs and brief error", "logLine", writer.String())
+
+			scanner := bufio.NewScanner(writer)
+			formattedProcessorLogs, briefErrorsMessage := suite.Platform.GetProcessorLogsAndBriefError(scanner)
+
+			suite.Logger.InfoWith("Successfully processed processor logs and brief error",
+				"formattedProcessorLogs", formattedProcessorLogs,
+				"briefErrorsMessage", briefErrorsMessage)
+
+			suite.Require().Contains(formattedProcessorLogs, fmt.Sprintf("(W) %s", errorMessage))
+			suite.Require().Contains(briefErrorsMessage, errorMessage)
+			for _, processedLogLine := range []string{
+				formattedProcessorLogs,
+				briefErrorsMessage,
+			} {
+				suite.Require().Condition(func() (success bool) {
+					success =
+						strings.Contains(processedLogLine, `[var="details" || extra="information"]`)
+					success = success ||
+						strings.Contains(processedLogLine, `[extra="information" || var="details"]`)
+					return success
+				})
+			}
+
+		})
 	}
 }
 

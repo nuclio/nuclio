@@ -222,47 +222,44 @@ func (d *Deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 		podLogsMessage += fmt.Sprintf("No pods found for %s:%s, is replicas set to 0?",
 			namespace,
 			name)
+
+		return podLogsMessage, briefErrorsMessage
+
+	}
+
+	// extract logs from the last created pod
+	pod := d.getLastCreatedPod(functionPods.Items)
+
+	// get the pod logs
+	podLogsMessage += "\n* " + pod.Name + "\n"
+
+	maxLogLines := int64(MaxLogLines)
+	if logsRequest, getLogsErr := d.consumer.KubeClientSet.CoreV1().
+		Pods(namespace).
+		GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).
+		Stream(); getLogsErr != nil {
+		podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
 	} else {
-		var pod v1.Pod
+		scanner := bufio.NewScanner(logsRequest)
 
-		// get the latest pod
-		for _, currentPod := range functionPods.Items {
-			if pod.ObjectMeta.CreationTimestamp.Before(&currentPod.ObjectMeta.CreationTimestamp) {
-				pod = currentPod
-			}
-		}
+		var formattedProcessorLogs string
 
-		// get the pod logs
-		podLogsMessage += "\n* " + pod.Name + "\n"
+		// close the stream
+		defer logsRequest.Close() // nolint: errcheck
 
-		maxLogLines := int64(MaxLogLines)
-		logsRequest, getLogsErr := d.consumer.KubeClientSet.CoreV1().
-			Pods(namespace).
-			GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).
-			Stream()
-		if getLogsErr != nil {
-			podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
-		} else {
-			scanner := bufio.NewScanner(logsRequest)
+		formattedProcessorLogs, briefErrorsMessage = d.platform.GetProcessorLogsAndBriefError(scanner)
 
-			var formattedProcessorLogs string
-			formattedProcessorLogs, briefErrorsMessage = d.platform.GetProcessorLogsAndBriefError(scanner)
+		podLogsMessage += formattedProcessorLogs
+	}
 
-			podLogsMessage += formattedProcessorLogs
+	podWarningEvents, err := d.getFunctionPodWarningEvents(namespace, pod.Name)
+	if err != nil {
+		podLogsMessage += "Failed to get pod warning events: " + err.Error() + "\n"
+	} else if briefErrorsMessage == "" && podWarningEvents != "" {
 
-			// close the stream
-			logsRequest.Close() // nolint: errcheck
-		}
-
-		podWarningEvents, err := d.getFunctionPodWarningEvents(namespace, pod.Name)
-		if err != nil {
-			podLogsMessage += "Failed to get pod warning events: " + err.Error() + "\n"
-		} else if briefErrorsMessage == "" && podWarningEvents != "" {
-
-			// if there is no brief error message and there are warning events - add them
-			podLogsMessage += "\n* Warning events:\n" + podWarningEvents
-			briefErrorsMessage += podWarningEvents
-		}
+		// if there is no brief error message and there are warning events - add them
+		podLogsMessage += "\n* Warning events:\n" + podWarningEvents
+		briefErrorsMessage += podWarningEvents
 	}
 
 	return podLogsMessage, briefErrorsMessage
@@ -284,6 +281,19 @@ func (d *Deployer) getFunctionPodWarningEvents(namespace string, podName string)
 	}
 
 	return fmt.Sprintf("%s\n", strings.Join(podWarningEvents, "\n")), nil
+}
+
+func (d *Deployer) getLastCreatedPod(pods []v1.Pod) v1.Pod {
+	var latestPod v1.Pod
+
+	// get the latest pod
+	for _, pod := range pods {
+		if latestPod.ObjectMeta.CreationTimestamp.Before(&pod.ObjectMeta.CreationTimestamp) {
+			latestPod = pod
+		}
+	}
+
+	return latestPod
 }
 
 func isFunctionDeploymentFailed(consumer *Consumer,
