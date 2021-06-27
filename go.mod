@@ -42,7 +42,7 @@ require (
 	github.com/nuclio/logger v0.0.1
 	github.com/nuclio/logger-appinsights v0.0.1
 	github.com/nuclio/nuclio-sdk-go v0.2.0
-	github.com/nuclio/zap v0.0.5
+	github.com/nuclio/zap v0.0.6
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.1.0
