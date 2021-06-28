@@ -22,12 +22,14 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
+	nucliozap "github.com/nuclio/zap"
 )
 
 type Configuration struct {
 	loggersink.Configuration
 	Encoding          string
 	VarGroupName      string
+	VarGroupMode      nucliozap.VarGroupMode
 	TimeFieldName     string
 	TimeFieldEncoding string
 }
@@ -53,6 +55,10 @@ func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.Logge
 
 	if newConfiguration.TimeFieldEncoding == "" {
 		newConfiguration.TimeFieldEncoding = "epoch-millis"
+	}
+
+	if newConfiguration.VarGroupMode == "" {
+		newConfiguration.VarGroupMode = nucliozap.DefaultVarGroupMode
 	}
 
 	return &newConfiguration, nil
