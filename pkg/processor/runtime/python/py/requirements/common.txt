@@ -1,2 +1,6 @@
 mock==2.0.0
 git+https://github.com/nuclio/nuclio-sdk-py.git@development#egg=nuclio-sdk
+
+# TODO: remove, this is only required when using remote package url
+setuptools>=40.8.0
+wheel==0.36.2
