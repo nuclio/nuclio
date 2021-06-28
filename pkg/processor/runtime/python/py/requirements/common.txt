@@ -1,2 +1,2 @@
 mock==2.0.0
-git+git://github.com/ihs-nick/nuclio-sdk-py@development#egg=nuclio-sdk
+git+https://github.com/nuclio/nuclio-sdk-py.git@development#egg=nuclio-sdk
