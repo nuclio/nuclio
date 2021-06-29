@@ -152,8 +152,8 @@ class Wrapper(object):
                 if asyncio.iscoroutinefunction(init_context):
                     await init_context_result
 
-            except Exception as e:
-                self._log_exception(e, 'Exception raised while running init_context')
+            except Exception as exc:
+                self._log_exception(exc, 'Exception raised while running init_context')
                 raise
 
     def _resolve_unpacker(self):
@@ -191,8 +191,8 @@ class Wrapper(object):
 
         try:
             entrypoint_address = getattr(module, entrypoint)
-        except Exception as e:
-            self._log_exception(e, 'Handler not found', handler=handler)
+        except Exception as exc:
+            self._log_exception(exc, 'Handler not found', handler=handler)
             raise
 
         return entrypoint_address
