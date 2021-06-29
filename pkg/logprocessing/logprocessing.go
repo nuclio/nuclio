@@ -26,7 +26,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 
-	"github.com/fatih/structs"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
@@ -164,7 +163,7 @@ func getLogLineAdditionalKwargs(log []byte) (map[string]string, error) {
 	}
 
 	additionalKwargs := map[string]string{}
-	defaultArgs := structs.Names(functionLogLineInstance)
+	defaultArgs := functionLogLineInstance.GetJSONFields()
 
 	// validate it is a suitable special arg
 	for argKey, argValue := range logAsMap {

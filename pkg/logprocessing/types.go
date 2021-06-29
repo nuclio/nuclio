@@ -16,6 +16,11 @@ limitations under the License.
 
 package logprocessing
 
+import (
+	"reflect"
+	"strings"
+)
+
 type FunctionLogLine struct {
 	Time    *string `json:"time"`
 	Level   *string `json:"level"`
@@ -26,4 +31,27 @@ type FunctionLogLine struct {
 	// these fields may be filled by user function log lines
 	Datetime *string           `json:"datetime"`
 	With     map[string]string `json:"with,omitempty"`
+}
+
+// GetJSONFields returns FunctionLogLine json field names
+func (f FunctionLogLine) GetJSONFields() []string {
+	var jsonFields []string
+	val := reflect.ValueOf(f)
+	for i := 0; i < val.Type().NumField(); i++ {
+		t := val.Type().Field(i)
+		fieldName := t.Name
+
+		switch jsonTag := t.Tag.Get("json"); jsonTag {
+		case "-", "":
+			jsonFields = append(jsonFields, fieldName)
+		default:
+			parts := strings.Split(jsonTag, ",")
+			name := parts[0]
+			if name == "" {
+				name = fieldName
+			}
+			jsonFields = append(jsonFields, name)
+		}
+	}
+	return jsonFields
 }
