@@ -19,10 +19,8 @@ package abstract
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/logprocessing"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -828,7 +827,7 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 	briefErrorsArray := &[]string{}
 
 	for scanner.Scan() {
-		currentLogLine, briefLogLine, err := ap.prettifyProcessorLogLine(scanner.Bytes())
+		currentLogLine, briefLogLine, err := logprocessing.PrettifyFunctionLogLine(ap.Logger, scanner.Bytes())
 		if err != nil {
 			rawLogLine := scanner.Text()
 
@@ -1074,172 +1073,6 @@ func (ap *Platform) aggregateConsecutiveDuplicateMessages(errorMessagesArray []s
 	}
 
 	return aggregatedErrorsArray
-}
-
-// Prettifies log line, and returns - (formattedLogLine, briefLogLine, error)
-// when line shouldn't be added to brief error message - briefLogLine will be an empty string ("")
-func (ap *Platform) prettifyProcessorLogLine(log []byte) (string, string, error) {
-	var workerID, logStructArgs string
-
-	// trim `l` prefix if appears on log line
-	if ap.isSDKLogLine(log) {
-		log = log[1:]
-	}
-
-	functionLogLineInstance, err := ap.resolveFunctionLogLine(log)
-	if err != nil {
-		return "", "", errors.Wrap(err, "Failed to unmarshal log line")
-	}
-
-	// check required fields existence
-	if functionLogLineInstance.Time == nil ||
-		functionLogLineInstance.Level == nil ||
-		functionLogLineInstance.Message == nil {
-		return "", "", errors.New("Missing required fields in pod log line")
-	}
-
-	parsedTime, err := time.Parse(time.RFC3339, *functionLogLineInstance.Time)
-	if err != nil {
-		return "", "", err
-	}
-
-	logLevel := strings.ToUpper(*functionLogLineInstance.Level)[0]
-
-	if functionLogLineInstance.With != nil {
-		workerID = functionLogLineInstance.With["worker_id"]
-	}
-
-	// if worker ID wasn't explicitly given as an arg, try to infer worker ID from logger name
-	if workerID == "" && functionLogLineInstance.Name != nil {
-		workerID = ap.tryInferWorkerID(*functionLogLineInstance.Name)
-	}
-
-	if functionLogLineInstance.More != nil {
-		logStructArgs = *functionLogLineInstance.More
-	}
-
-	messageAndArgs := ap.getMessageAndArgs(*functionLogLineInstance.Message, logStructArgs, log, workerID)
-
-	res := fmt.Sprintf("[%s] (%c) %s",
-		parsedTime.Format("15:04:05.000"),
-		logLevel,
-		messageAndArgs)
-
-	briefLogLine := ""
-	if ap.shouldAddToBriefErrorsMessage(logLevel, *functionLogLineInstance.Message, workerID) {
-		briefLogLine = messageAndArgs
-	}
-
-	return res, briefLogLine, nil
-}
-
-// get the worker ID from the logger name, for example:
-// "processor.http.w5.python.logger" -> 5
-func (ap *Platform) tryInferWorkerID(loggerName string) string {
-	processorRe := regexp.MustCompile(`^processor\..*\.w[0-9]+\..*`)
-	if processorRe.MatchString(loggerName) {
-		splitName := strings.Split(loggerName, ".")
-		return splitName[2][1:]
-	}
-
-	return ""
-}
-
-func (ap *Platform) getMessageAndArgs(message string, args string, log []byte, workerID string) string {
-	var additionalKwargsAsString string
-
-	additionalKwargs, err := ap.getLogLineAdditionalKwargs(log)
-	if err != nil {
-		ap.Logger.WarnWith("Failed to get log line's additional kwargs",
-			"logLineMessage", message)
-	}
-	additionalKwargsAsString = common.CreateKeyValuePairs(additionalKwargs)
-
-	// format result depending on args/additional kwargs existence
-	var messageArgsList []string
-	if args != "" {
-		messageArgsList = append(messageArgsList, args)
-	}
-	if additionalKwargsAsString != "" {
-		messageArgsList = append(messageArgsList, additionalKwargsAsString)
-	}
-	if len(messageArgsList) > 0 {
-		return fmt.Sprintf("%s [%s]", message, strings.Join(messageArgsList, " || "))
-	}
-
-	return message
-}
-
-func (ap *Platform) getLogLineAdditionalKwargs(log []byte) (map[string]string, error) {
-	logAsMap := map[string]interface{}{}
-
-	if ap.isSDKLogLine(log) {
-		if err := json.Unmarshal(log[1:], &logAsMap); err != nil {
-			return nil, errors.Wrap(err, "Failed to unmarshal log line")
-		}
-	} else if err := json.Unmarshal(log, &logAsMap); err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshal log line")
-	}
-
-	additionalKwargs := map[string]string{}
-
-	defaultArgs := []string{"time", "datetime", "level", "message", "with", "more", "name"}
-
-	// validate it is a suitable special arg
-	for argKey, argValue := range logAsMap {
-
-		// validate it is indeed an additional arg - it isn't a default arg
-		if common.StringSliceContainsString(defaultArgs, argKey) {
-			continue
-		}
-
-		// ensure argument is a string
-		if _, ok := argValue.(string); !ok {
-			continue
-		}
-
-		additionalKwargs[argKey] = argValue.(string)
-	}
-
-	return additionalKwargs, nil
-}
-
-func (ap *Platform) isSDKLogLine(logLine []byte) bool {
-	return len(logLine) > 0 && logLine[0] == 'l'
-}
-
-func (ap *Platform) shouldAddToBriefErrorsMessage(logLevel uint8, logMessage, workerID string) bool {
-	knownFailureSubstrings := [...]string{"Failed to connect to broker"}
-	ignoreFailureSubstrings := [...]string{
-		string(common.UnexpectedTerminationChildProcess),
-		string(common.FailedReadFromConnection),
-	}
-
-	// when the log message contains a failure that should be ignored
-	for _, ignoreFailureSubstring := range ignoreFailureSubstrings {
-		if strings.Contains(logMessage, ignoreFailureSubstring) {
-			return false
-		}
-	}
-
-	// show errors only of the first worker
-	// done to prevent error duplication from several workers
-	if workerID != "" && workerID != "0" {
-		return false
-	}
-	// when log level is warning or above
-	if logLevel != 'D' && logLevel != 'I' {
-		return true
-	}
-
-	// when the log message contains a known failure substring
-	for _, knownFailureSubstring := range knownFailureSubstrings {
-		if strings.Contains(logMessage, knownFailureSubstring) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // If a user specify the image name to be built - add "projectName-functionName-" prefix to it
@@ -1492,31 +1325,4 @@ func (ap *Platform) queryOPAPermissions(resource string,
 		return false, nuclio.NewErrForbidden(fmt.Sprintf("Not allowed to %s resource %s", action, resource))
 	}
 	return allowed, nil
-}
-
-func (ap *Platform) resolveFunctionLogLine(log []byte) (*functionLogLine, error) {
-	functionLogLineInstance := &functionLogLine{}
-	if err := json.Unmarshal(log, &functionLogLineInstance); err != nil {
-		return nil, err
-	}
-
-	// user function log lines has datetime and "with" fields
-	// we will leverage these fields to differentiate between processor log lines
-	// and function user log lines
-	if functionLogLineInstance.Datetime != nil {
-
-		// manipulate the time format so it can be parsed later
-		unparsedTime := *functionLogLineInstance.Datetime + "Z"
-		unparsedTime = strings.Replace(unparsedTime, " ", "T", 1)
-		unparsedTime = strings.Replace(unparsedTime, ",", ".", 1)
-		functionLogLineInstance.Time = &unparsedTime
-	}
-
-	// optional field for user function log lines
-	if functionLogLineInstance.With != nil {
-		more := common.CreateKeyValuePairs(functionLogLineInstance.With)
-		functionLogLineInstance.More = &more
-	}
-
-	return functionLogLineInstance, nil
 }
