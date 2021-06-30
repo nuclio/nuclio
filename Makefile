@@ -158,6 +158,17 @@ load-docker-images: print-docker-images
 	@echo "Load Nuclio docker images"
 	docker load -i nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
 
+pull-docker-images: print-docker-images
+	@echo "Pull Nuclio docker images"
+	@echo $(IMAGES_TO_PUSH) | xargs -n 1 -P 5 docker pull
+
+retag-docker-images: print-docker-images
+	$(eval NUCLIO_NEW_LABEL ?= retagged)
+	$(eval NUCLIO_NEW_LABEL = ${NUCLIO_NEW_LABEL}-${NUCLIO_ARCH})
+	@echo "Retagging Nuclio docker images with ${NUCLIO_NEW_LABEL}"
+	echo $(IMAGES_TO_PUSH) | xargs -n 1 -P 5 -I{} sh -c 'image="{}"; docker tag $$image $$(echo $$image | cut -d : -f 1):$(NUCLIO_NEW_LABEL)'
+	@echo "Done"
+
 print-docker-images:
 	@echo "Nuclio Docker images:"
 	@for image in $(IMAGES_TO_PUSH); do \
