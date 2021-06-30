@@ -37,6 +37,13 @@ class WrapperFatalException(Exception):
     pass
 
 
+# Appends `l` character to follow the processor conventions
+# more information @ pkg/processor/runtime/rpc/abstract.go / wrapperOutputHandler
+class JSONFormatterOverSocket(nuclio_sdk.logger.JSONFormatter):
+    def format(self, record):
+        return 'l' + super(JSONFormatterOverSocket, self).format(record)
+
+
 class Wrapper(object):
     def __init__(self,
                  logger,
@@ -90,7 +97,7 @@ class Wrapper(object):
                                            nuclio_sdk.TriggerInfo(trigger_kind, trigger_name))
 
         # replace the default output with the process socket
-        self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
+        self._logger.set_handler('default', self._processor_sock_wfile, JSONFormatterOverSocket())
 
     async def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
