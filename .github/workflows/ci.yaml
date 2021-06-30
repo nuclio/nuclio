@@ -138,7 +138,7 @@ jobs:
 
   test_k8s_nuctl:
     name: Test Kubernetes nuctl
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     needs:
     - build_docker_images
     steps:
@@ -245,7 +245,7 @@ jobs:
 
   test_k8s:
     name: Test Kubernetes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     needs:
       - build_docker_images
     steps:
