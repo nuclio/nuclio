@@ -200,7 +200,7 @@ jobs:
 
     - name: Install nuclio helm chart
       run: |
-        minikube kubectl -- kubectl create namespace ${NAMESPACE}
+        minikube kubectl -- create namespace ${NAMESPACE}
         cat test/k8s/ci_assets/helm_values.yaml \
           | envsubst \
           | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
