@@ -1417,9 +1417,11 @@ func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Conf
 		// validate ingresses not created by this function
 		FieldSelector: fmt.Sprintf("metadata.name!=%s", IngressNameFromFunctionName(functionConfig.Meta.Name)),
 	}
+
+	ingresses := functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)
 	if err := p.validateIngressHostAndPathAvailability(listIngressesOptions,
 		functionConfig.Meta.Namespace,
-		functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)); err != nil {
+		ingresses); err != nil {
 		return errors.Wrapf(err, "Failed to validate the function-ingress host and path availability")
 	}
 
