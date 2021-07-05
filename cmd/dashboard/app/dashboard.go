@@ -120,7 +120,6 @@ func Run(listenAddress string,
 	templatesGitPassword string,
 	templatesGithubAccessToken string,
 	templatesGitCaCertContents string,
-	defaultHTTPIngressHostTemplate string,
 	imageNamePrefixTemplate string,
 	platformAuthorizationMode string,
 	dependantImageRegistryURL string,
@@ -184,7 +183,6 @@ func Run(listenAddress string,
 		templatesGitPassword:             templatesGitPassword,
 		templatesGithubAccessToken:       templatesGithubAccessToken,
 		templatesGitCaCertContents:       templatesGitCaCertContents,
-		defaultHTTPIngressHostTemplate:   defaultHTTPIngressHostTemplate,
 		imageNamePrefixTemplate:          imageNamePrefixTemplate,
 		platformAuthorizationMode:        platformAuthorizationMode,
 		dependantImageRegistryURL:        dependantImageRegistryURL,
@@ -314,10 +312,6 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 		return nil, errors.Wrap(err, "Failed to set external ip addresses")
 	}
 
-	if createDashboardServerOptions.defaultHTTPIngressHostTemplate != "" {
-		platformInstance.SetDefaultHTTPIngressHostTemplate(createDashboardServerOptions.defaultHTTPIngressHostTemplate)
-	}
-
 	if createDashboardServerOptions.imageNamePrefixTemplate != "" {
 		platformInstance.SetImageNamePrefixTemplate(createDashboardServerOptions.imageNamePrefixTemplate)
 	}
@@ -353,7 +347,6 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 		createDashboardServerOptions.offline,
 		functionTemplatesRepository,
 		createDashboardServerOptions.platformConfiguration,
-		createDashboardServerOptions.defaultHTTPIngressHostTemplate,
 		createDashboardServerOptions.imageNamePrefixTemplate,
 		createDashboardServerOptions.platformAuthorizationMode,
 		createDashboardServerOptions.dependantImageRegistryURL)

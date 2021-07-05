@@ -210,15 +210,6 @@ func (mp *Platform) FilterFunctionEventsByPermissions(permissionOptions *opa.Per
 // Misc
 //
 
-func (mp *Platform) SetDefaultHTTPIngressHostTemplate(defaultHTTPIngressHostTemplate string) {
-	mp.Called(defaultHTTPIngressHostTemplate)
-}
-
-func (mp *Platform) GetDefaultHTTPIngressHostTemplate() string {
-	args := mp.Called()
-	return args.Get(0).(string)
-}
-
 func (mp *Platform) SetImageNamePrefixTemplate(imageNamePrefixTemplate string) {
 	mp.Called(imageNamePrefixTemplate)
 }
