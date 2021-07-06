@@ -52,21 +52,9 @@ func NewFunction(parentLogger logger.Logger,
 
 	newFunction := &Function{}
 
-	// create a config from function
-	functionConfig := functionconfig.Config{
-		Meta: functionconfig.Meta{
-			Name:            nuclioioFunction.Name,
-			Namespace:       nuclioioFunction.Namespace,
-			Labels:          nuclioioFunction.Labels,
-			Annotations:     nuclioioFunction.Annotations,
-			ResourceVersion: nuclioioFunction.ResourceVersion,
-		},
-		Spec: nuclioioFunction.Spec,
-	}
-
 	newAbstractFunction, err := platform.NewAbstractFunction(parentLogger,
 		parentPlatform,
-		&functionConfig,
+		NuclioioToFunctionConfig(nuclioioFunction),
 		&nuclioioFunction.Status,
 		newFunction)
 
@@ -80,6 +68,19 @@ func NewFunction(parentLogger logger.Logger,
 	newFunction.httpPort = nuclioioFunction.Status.HTTPPort
 
 	return newFunction, nil
+}
+
+func NuclioioToFunctionConfig(nuclioioFunction *nuclioio.NuclioFunction) *functionconfig.Config {
+	return &functionconfig.Config{
+		Meta: functionconfig.Meta{
+			Name:            nuclioioFunction.Name,
+			Namespace:       nuclioioFunction.Namespace,
+			Labels:          nuclioioFunction.Labels,
+			Annotations:     nuclioioFunction.Annotations,
+			ResourceVersion: nuclioioFunction.ResourceVersion,
+		},
+		Spec: nuclioioFunction.Spec,
+	}
 }
 
 // Initialize loads sub-resources so we can populate our configuration

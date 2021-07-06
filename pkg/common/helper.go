@@ -322,8 +322,7 @@ func RenderTemplateWithCustomDelimiters(text string,
 
 func renderTemplate(templateToRender *template.Template, data map[string]interface{}) (string, error) {
 	var templateToRenderBuffer bytes.Buffer
-	err := templateToRender.Execute(&templateToRenderBuffer, &data)
-	if err != nil {
+	if err := templateToRender.Execute(&templateToRenderBuffer, &data); err != nil {
 		return "", errors.Wrap(err, "Failed to execute template rendering")
 	}
 

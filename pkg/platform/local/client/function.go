@@ -63,13 +63,6 @@ func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, e
 	return fmt.Sprintf("%s:%d", host, port), nil
 }
 
-// GetIngresses returns all ingresses for this function
-func (f *function) GetIngresses() map[string]functionconfig.Ingress {
-
-	// local platform doesn't support ingress
-	return map[string]functionconfig.Ingress{}
-}
-
 // GetReplicas returns the current # of replicas and the configured # of replicas
 func (f *function) GetReplicas() (int, int) {
 	return 1, 1

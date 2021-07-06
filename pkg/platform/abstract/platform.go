@@ -1317,3 +1317,79 @@ func (ap *Platform) queryOPAPermissions(resource string,
 	}
 	return allowed, nil
 }
+
+func GetFunctionIngresses(functionConfig *functionconfig.Config, defaultHTTPIngressHostTemplate string) (
+	map[string]functionconfig.Ingress, error) {
+
+	ingresses := map[string]functionconfig.Ingress{}
+
+	for _, functionTrigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
+
+		// if there are attributes
+		if encodedIngresses, found := functionTrigger.Attributes["ingresses"]; found {
+
+			// iterate over the encoded ingresses map and created ingress structures
+			encodedIngresses := encodedIngresses.(map[string]interface{})
+			for encodedIngressName, encodedIngress := range encodedIngresses {
+				encodedIngressMap := encodedIngress.(map[string]interface{})
+
+				var ingress functionconfig.Ingress
+
+				var ingressHost string
+
+				if host, ok := encodedIngressMap["host"].(string); ok {
+					ingressHost = host
+				}
+
+				if ingressHostTemplate, ok := encodedIngressMap["hostTemplate"].(string); ok {
+
+					// one way to say "just render me the default"
+					if ingressHostTemplate == "@nuclio.fromDefault" {
+						ingressHostTemplate = defaultHTTPIngressHostTemplate
+					}
+
+					renderedIngressHost, err := common.RenderTemplate(ingressHostTemplate, map[string]interface{}{
+						"Name":         functionConfig.Meta.Name,
+						"ResourceName": functionConfig.Meta.Name,
+						"Namespace":    functionConfig.Meta.Namespace,
+						"ProjectName":  functionConfig.Meta.Labels["nuclio.io/project-name"],
+					})
+					if err != nil {
+						return nil, errors.Wrap(err, "Failed to render ingress host template")
+					}
+
+					// use template only if host was not given
+					if ingressHost == "" {
+						ingressHost = renderedIngressHost
+					}
+				}
+
+				ingress.Host = ingressHost
+
+				// try to convert paths - this can arrive as []string or []interface{}
+				switch typedPaths := encodedIngressMap["paths"].(type) {
+				case []string:
+					ingress.Paths = typedPaths
+				case []interface{}:
+					for _, path := range typedPaths {
+						ingress.Paths = append(ingress.Paths, path.(string))
+					}
+				}
+
+				// try to convert secretName and create a matching ingressTLS
+				var ingressTLS functionconfig.IngressTLS
+				if secretName, ok := encodedIngressMap["secretName"].(string); ok {
+					hostsList := []string{ingress.Host}
+
+					ingressTLS.Hosts = hostsList
+					ingressTLS.SecretName = secretName
+				}
+				ingress.TLS = ingressTLS
+
+				ingresses[encodedIngressName] = ingress
+			}
+		}
+	}
+
+	return ingresses, nil
+}

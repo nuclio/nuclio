@@ -1418,7 +1418,10 @@ func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Conf
 		FieldSelector: fmt.Sprintf("metadata.name!=%s", IngressNameFromFunctionName(functionConfig.Meta.Name)),
 	}
 
-	ingresses := functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)
+	ingresses, err := p.getFunctionIngresses(functionConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function ingresses")
+	}
 	if err := p.validateIngressHostAndPathAvailability(listIngressesOptions,
 		functionConfig.Meta.Namespace,
 		ingresses); err != nil {
@@ -1500,7 +1503,11 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *
 				// if such function doesn't exist, just skip - because it doesn't have ingresses for sure
 				return nil
 			}
-			ingresses := functionconfig.GetIngressesFromTriggers(function.Spec.Triggers)
+
+			ingresses, err := p.getFunctionIngresses(client.NuclioioToFunctionConfig(function))
+			if err != nil {
+				return errors.Wrap(err, "Failed to get function ingresses")
+			}
 			if len(ingresses) > 0 {
 				return nuclio.NewErrPreconditionFailed(
 					fmt.Sprintf("Api gateway upstream function: %s must not have an ingress",
@@ -1518,7 +1525,10 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *
 // (e.g. when a service is exposed by an ingress with host-1.com without canary ingress, and on another api gateway with host-2.com
 // with canary ingress, when sending requests to host-1.com we may get directed to the canary ingress defined by the api gateway)
 func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functionconfig.Config) error {
-	ingresses := functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)
+	ingresses, err := p.getFunctionIngresses(functionConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function ingresses")
+	}
 	if len(ingresses) > 0 {
 
 		// TODO: when we'll add upstream labels to api gateway, use get api gateways by label to replace this line
@@ -1532,4 +1542,9 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 	}
 
 	return nil
+}
+
+func (p *Platform) getFunctionIngresses(functionConfig *functionconfig.Config) (
+	map[string]functionconfig.Ingress, error) {
+	return abstract.GetFunctionIngresses(functionConfig, p.Config.Kube.DefaultHTTPIngressHostTemplate)
 }

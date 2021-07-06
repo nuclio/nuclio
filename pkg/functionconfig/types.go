@@ -94,55 +94,6 @@ func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trig
 	return matchingTrigger
 }
 
-// GetIngressesFromTriggers returns all ingresses from a map of triggers
-func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
-	ingresses := map[string]Ingress{}
-
-	for _, trigger := range GetTriggersByKind(triggers, "http") {
-
-		// if there are attributes
-		if encodedIngresses, found := trigger.Attributes["ingresses"]; found {
-
-			// iterate over the encoded ingresses map and created ingress structures
-			encodedIngresses := encodedIngresses.(map[string]interface{})
-			for encodedIngressName, encodedIngress := range encodedIngresses {
-				encodedIngressMap := encodedIngress.(map[string]interface{})
-
-				ingress := Ingress{}
-
-				// try to convert host
-				if host, ok := encodedIngressMap["host"].(string); ok {
-					ingress.Host = host
-				}
-
-				// try to convert paths - this can arrive as []string or []interface{}
-				switch typedPaths := encodedIngressMap["paths"].(type) {
-				case []string:
-					ingress.Paths = typedPaths
-				case []interface{}:
-					for _, path := range typedPaths {
-						ingress.Paths = append(ingress.Paths, path.(string))
-					}
-				}
-
-				// try to convert secretName and create a matching ingressTLS
-				ingressTLS := IngressTLS{}
-				if secretName, ok := encodedIngressMap["secretName"].(string); ok {
-					hostsList := []string{ingress.Host}
-
-					ingressTLS.Hosts = hostsList
-					ingressTLS.SecretName = secretName
-				}
-				ingress.TLS = ingressTLS
-
-				ingresses[encodedIngressName] = ingress
-			}
-		}
-	}
-
-	return ingresses
-}
-
 func GetDefaultHTTPTrigger() Trigger {
 	return Trigger{
 		Kind:       "http",
