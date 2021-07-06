@@ -175,17 +175,17 @@ func (fsr *frontendSpecResource) resolveDefaultFunctionNodeSelector() map[string
 
 func (fsr *frontendSpecResource) getDefaultHTTPIngressHostTemplate() string {
 
-	// backwards compatibility with old helm charts that inject the ingress host template via envvar
-	defaultHTTPIngressHostTemplate := common.GetEnvOrDefaultString(
-		"NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE", "")
-	if defaultHTTPIngressHostTemplate != "" {
-		return defaultHTTPIngressHostTemplate
+	// try read from platform configuration first, if set use that, otherwise
+	// fallback reading from envvar for backwards compatibility with old helm charts
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+		defaultHTTPIngressHostTemplate := dashboardServer.GetPlatformConfiguration().Kube.DefaultHTTPIngressHostTemplate
+		if defaultHTTPIngressHostTemplate != "" {
+			return defaultHTTPIngressHostTemplate
+		}
 	}
 
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
-		defaultHTTPIngressHostTemplate = dashboardServer.GetPlatformConfiguration().Kube.DefaultHTTPIngressHostTemplate
-	}
-	return defaultHTTPIngressHostTemplate
+	return common.GetEnvOrDefaultString(
+		"NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE", "")
 }
 
 // register the resource
