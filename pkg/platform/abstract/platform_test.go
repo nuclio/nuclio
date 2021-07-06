@@ -718,6 +718,35 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestRenderFunctionIngress() {
+	functionConfig := &functionconfig.Config{
+		Meta: functionconfig.Meta{
+			Name:      "some-name",
+			Namespace: "some-namespace",
+		},
+		Spec: functionconfig.Spec{
+			Triggers: map[string]functionconfig.Trigger{
+				"http-trigger": {
+					Name: "http-trigger",
+					Kind: "http",
+					Attributes: map[string]interface{}{
+						"ingresses": map[string]interface{}{
+							"0": map[string]interface{}{
+								"hostTemplate": "@nuclio.fromDefault",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	ingresses, err := GetFunctionIngresses(functionConfig, "{{ .ResourceName }}-{{ .Namespace }}.test.com")
+	suite.Require().NoError(err)
+	suite.Require().NotEmpty(ingresses)
+	suite.Require().Equal(ingresses["0"].Host, "some-name-some-namespace.test.com")
+}
+
 func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() {
 	for idx, testCase := range []struct {
 		triggers                 map[string]functionconfig.Trigger
