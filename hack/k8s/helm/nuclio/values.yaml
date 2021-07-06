@@ -87,7 +87,6 @@ dashboard:
 
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
-  httpIngressHostTemplate: ""
   imageNamePrefixTemplate: ""
 
   # Supported container builders: "kaniko", "docker"
@@ -358,7 +357,8 @@ platform: {}
 #     - myPrometheusPull
 #   cronTriggerCreationMode: "kube"
 #   kube:
-#     defaultServiceType: NodePort
+#     defaultServiceType: ClusterIP
+#     defaultHTTPIngressHostTemplate: ""
 #   imageRegistryOverrides:
 #     baseImageRegistries:
 #       "python:3.6": "myregistry"
