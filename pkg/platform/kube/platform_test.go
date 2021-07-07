@@ -20,6 +20,7 @@ package kube
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -717,6 +718,188 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 			} else {
 				suite.Require().NoError(err)
 			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
+	suite.Platform.Config.Kube.DefaultHTTPIngressHostTemplate = "{{ .ResourceName }}.{{ .Namespace }}.test.com"
+
+	for _, testCase := range []struct {
+		name        string
+		httpTrigger functionconfig.Trigger
+		want        map[string]interface{}
+	}{
+		{
+			name: "nothingToDo",
+			httpTrigger: functionconfig.Trigger{
+				Name: "http-trigger",
+				Kind: "http",
+				Attributes: map[string]interface{}{
+					"ingresses": map[string]interface{}{},
+				},
+			},
+			want: map[string]interface{}{},
+		},
+		{
+			name: "fromCustom",
+			httpTrigger: functionconfig.Trigger{
+				Name: "http-trigger",
+				Kind: "http",
+				Attributes: map[string]interface{}{
+					"ingresses": map[string]interface{}{
+						"0": map[string]interface{}{
+							"hostTemplate": "{{ .ResourceName }}.custom.test.com",
+						},
+					},
+				},
+			},
+			want: map[string]interface{}{
+				"0": map[string]interface{}{
+					"hostTemplate": "{{ .ResourceName }}.custom.test.com",
+					"host":         "some-name.custom.test.com",
+				},
+			},
+		},
+		{
+			name: "fromDefault",
+			httpTrigger: functionconfig.Trigger{
+				Name: "http-trigger",
+				Kind: "http",
+				Attributes: map[string]interface{}{
+					"ingresses": map[string]interface{}{
+						"0": map[string]interface{}{
+							"hostTemplate": "@nuclio.fromDefault",
+						},
+					},
+				},
+			},
+			want: map[string]interface{}{
+				"0": map[string]interface{}{
+					"hostTemplate": "@nuclio.fromDefault",
+					"host":         "some-name.some-namespace.test.com",
+				},
+			},
+		},
+		{
+			name: "multipleIngresses",
+			httpTrigger: functionconfig.Trigger{
+				Name: "http-trigger",
+				Kind: "http",
+				Attributes: map[string]interface{}{
+					"ingresses": map[string]interface{}{
+						"0": map[string]interface{}{
+							"hostTemplate": "@nuclio.fromDefault",
+						},
+						"1": map[string]interface{}{
+							"host": "leave-it-as.is.com",
+						},
+					},
+				},
+			},
+			want: map[string]interface{}{
+				"0": map[string]interface{}{
+					"hostTemplate": "@nuclio.fromDefault",
+					"host":         "some-name.some-namespace.test.com",
+				},
+				"1": map[string]interface{}{
+					"host": "leave-it-as.is.com",
+				},
+			},
+		},
+		{
+			name: "fromDefaultHostEmpty",
+			httpTrigger: functionconfig.Trigger{
+				Name: "http-trigger",
+				Kind: "http",
+				Attributes: map[string]interface{}{
+					"ingresses": map[string]interface{}{
+						"0": map[string]interface{}{
+							"hostTemplate": "@nuclio.fromDefault",
+							"host":         "",
+						},
+					},
+				},
+			},
+			want: map[string]interface{}{
+				"0": map[string]interface{}{
+					"hostTemplate": "@nuclio.fromDefault",
+					"host":         "some-name.some-namespace.test.com",
+				},
+			},
+		},
+		{
+			name: "fromDefaultNoHostOverriding",
+			httpTrigger: functionconfig.Trigger{
+				Name: "http-trigger",
+				Kind: "http",
+				Attributes: map[string]interface{}{
+					"ingresses": map[string]interface{}{
+						"0": map[string]interface{}{
+							"hostTemplate": "@nuclio.fromDefault",
+							"host":         "dont-override-me.com",
+						},
+					},
+				},
+			},
+			want: map[string]interface{}{
+				"0": map[string]interface{}{
+					"hostTemplate": "@nuclio.fromDefault",
+					"host":         "dont-override-me.com",
+				},
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionConfig := &functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Name:      "some-name",
+					Namespace: "some-namespace",
+				},
+				Spec: functionconfig.Spec{
+					Triggers: map[string]functionconfig.Trigger{
+						testCase.httpTrigger.Name: testCase.httpTrigger,
+					},
+				},
+			}
+			err := suite.Platform.enrichHTTPTriggers(functionConfig)
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.want,
+				functionConfig.Spec.Triggers[testCase.httpTrigger.Name].Attributes["ingresses"])
+
+		})
+	}
+
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestAlignIngressHostSubdomain() {
+	type args struct {
+		host              string
+		randomCharsLength int
+	}
+
+	for _, testCase := range []struct {
+		name string
+		args args
+		want *regexp.Regexp
+	}{
+		{
+			name: "noChange",
+			args: args{host: "something.simple.com", randomCharsLength: 5},
+			want: regexp.MustCompile("something.simple.com"),
+		},
+		{
+			name: "truncate",
+			args: args{host: func() string {
+				longSubdomainLevel := "this-is-a-very-long-level-and-should-be-truncated-by-the-random-chars-length"
+				return fmt.Sprintf("%s.blabla.com", longSubdomainLevel)
+			}(), randomCharsLength: 5},
+			want: regexp.MustCompile("this-is-a-very-long-level-and-should-be-truncated-by-the-[a-z0-9]{5}.blabla.com"),
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			alignedIngressHostSubdomain := suite.Platform.alignIngressHostSubdomainLevel(testCase.args.host, testCase.args.randomCharsLength)
+			suite.Require().Regexp(testCase.want, alignedIngressHostSubdomain)
 		})
 	}
 }

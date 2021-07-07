@@ -88,10 +88,10 @@ func (suite *dashboardTestSuite) SetupTest() {
 		templateRepository,
 		&platformconfig.Config{
 			Kube: platformconfig.PlatformKubeConfig{
-				DefaultServiceType: v1.ServiceTypeNodePort,
+				DefaultServiceType:             v1.ServiceTypeNodePort,
+				DefaultHTTPIngressHostTemplate: "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test.com",
 			},
 		},
-		"",
 		"",
 		"",
 		"")
@@ -128,7 +128,7 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 	encodedResponseBody, err := ioutil.ReadAll(response.Body)
 	suite.Require().NoError(err)
 
-	defer response.Body.Close()
+	defer response.Body.Close() // nolint: errcheck
 
 	suite.logger.DebugWith("Got response",
 		"status", response.StatusCode,
@@ -3075,7 +3075,6 @@ func (suite *miscTestSuite) TestGetExternalIPAddresses() {
 
 func (suite *miscTestSuite) TestGetFrontendSpec() {
 	returnedAddresses := []string{"address1", "address2", "address3"}
-	defaultHTTPIngressHostTemplate := "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com"
 	imageNamePrefixTemplate := "{{ .ProjectName }}-{{ .FunctionName }}-"
 	scaleToZeroConfiguration := platformconfig.ScaleToZero{
 		Mode:                     platformconfig.EnabledScaleToZeroMode,
@@ -3096,11 +3095,6 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 	suite.mockPlatform.
 		On("GetExternalIPAddresses").
 		Return(returnedAddresses, nil).
-		Once()
-
-	suite.mockPlatform.
-		On("GetDefaultHTTPIngressHostTemplate").
-		Return(defaultHTTPIngressHostTemplate, nil).
 		Once()
 
 	suite.mockPlatform.
@@ -3162,7 +3156,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
             }
         }
     },
-    "defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
+    "defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test.com",
     "externalIPAddresses": [
         "address1",
         "address2",

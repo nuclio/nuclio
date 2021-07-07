@@ -94,23 +94,21 @@ func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trig
 	return matchingTrigger
 }
 
-// GetIngressesFromTriggers returns all ingresses from a map of triggers
-func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
-	ingresses := map[string]Ingress{}
+func GetFunctionIngresses(config *Config) map[string]Ingress {
 
-	for _, trigger := range GetTriggersByKind(triggers, "http") {
+	ingresses := map[string]Ingress{}
+	for _, httpTrigger := range GetTriggersByKind(config.Spec.Triggers, "http") {
 
 		// if there are attributes
-		if encodedIngresses, found := trigger.Attributes["ingresses"]; found {
+		if encodedIngresses, found := httpTrigger.Attributes["ingresses"]; found {
 
 			// iterate over the encoded ingresses map and created ingress structures
 			encodedIngresses := encodedIngresses.(map[string]interface{})
 			for encodedIngressName, encodedIngress := range encodedIngresses {
 				encodedIngressMap := encodedIngress.(map[string]interface{})
 
-				ingress := Ingress{}
+				var ingress Ingress
 
-				// try to convert host
 				if host, ok := encodedIngressMap["host"].(string); ok {
 					ingress.Host = host
 				}
@@ -126,7 +124,7 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 				}
 
 				// try to convert secretName and create a matching ingressTLS
-				ingressTLS := IngressTLS{}
+				var ingressTLS IngressTLS
 				if secretName, ok := encodedIngressMap["secretName"].(string); ok {
 					hostsList := []string{ingress.Host}
 
@@ -139,7 +137,6 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 			}
 		}
 	}
-
 	return ingresses
 }
 

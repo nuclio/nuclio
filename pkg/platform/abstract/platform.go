@@ -56,17 +56,16 @@ const (
 )
 
 type Platform struct {
-	Logger                         logger.Logger
-	platform                       platform.Platform
-	invoker                        *invoker
-	Config                         *platformconfig.Config
-	ExternalIPAddresses            []string
-	DeployLogStreams               *sync.Map
-	ContainerBuilder               containerimagebuilderpusher.BuilderPusher
-	DefaultHTTPIngressHostTemplate string
-	ImageNamePrefixTemplate        string
-	DefaultNamespace               string
-	OpaClient                      opa.Client
+	Logger                  logger.Logger
+	platform                platform.Platform
+	invoker                 *invoker
+	Config                  *platformconfig.Config
+	ExternalIPAddresses     []string
+	DeployLogStreams        *sync.Map
+	ContainerBuilder        containerimagebuilderpusher.BuilderPusher
+	ImageNamePrefixTemplate string
+	DefaultNamespace        string
+	OpaClient               opa.Client
 }
 
 func NewPlatform(parentLogger logger.Logger,
@@ -714,14 +713,6 @@ func (ap *Platform) SetExternalIPAddresses(externalIPAddresses []string) error {
 	ap.ExternalIPAddresses = externalIPAddresses
 
 	return nil
-}
-
-func (ap *Platform) SetDefaultHTTPIngressHostTemplate(defaultHTTPIngressHostTemplate string) {
-	ap.DefaultHTTPIngressHostTemplate = defaultHTTPIngressHostTemplate
-}
-
-func (ap *Platform) GetDefaultHTTPIngressHostTemplate() string {
-	return ap.DefaultHTTPIngressHostTemplate
 }
 
 func (ap *Platform) SetImageNamePrefixTemplate(imageNamePrefixTemplate string) {

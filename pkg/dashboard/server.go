@@ -45,21 +45,20 @@ const (
 
 type Server struct {
 	*restful.AbstractServer
-	dockerKeyDir                   string
-	defaultRegistryURL             string
-	defaultRunRegistryURL          string
-	dockerCreds                    *dockercreds.DockerCreds
-	Platform                       platform.Platform
-	NoPullBaseImages               bool
-	externalIPAddresses            []string
-	defaultNamespace               string
-	Offline                        bool
-	Repository                     *functiontemplates.Repository
-	platformConfiguration          *platformconfig.Config
-	defaultHTTPIngressHostTemplate string
-	imageNamePrefixTemplate        string
-	platformAuthorizationMode      PlatformAuthorizationMode
-	dependantImageRegistryURL      string
+	dockerKeyDir              string
+	defaultRegistryURL        string
+	defaultRunRegistryURL     string
+	dockerCreds               *dockercreds.DockerCreds
+	Platform                  platform.Platform
+	NoPullBaseImages          bool
+	externalIPAddresses       []string
+	defaultNamespace          string
+	Offline                   bool
+	Repository                *functiontemplates.Repository
+	platformConfiguration     *platformconfig.Config
+	imageNamePrefixTemplate   string
+	platformAuthorizationMode PlatformAuthorizationMode
+	dependantImageRegistryURL string
 }
 
 func NewServer(parentLogger logger.Logger,
@@ -76,7 +75,6 @@ func NewServer(parentLogger logger.Logger,
 	offline bool,
 	repository *functiontemplates.Repository,
 	platformConfiguration *platformconfig.Config,
-	defaultHTTPIngressHostTemplate string,
 	imageNamePrefixTemplate string,
 	platformAuthorizationMode string,
 	dependantImageRegistryURL string) (*Server, error) {
@@ -98,21 +96,20 @@ func NewServer(parentLogger logger.Logger,
 	}
 
 	newServer := &Server{
-		dockerKeyDir:                   dockerKeyDir,
-		defaultRegistryURL:             defaultRegistryURL,
-		defaultRunRegistryURL:          defaultRunRegistryURL,
-		dockerCreds:                    newDockerCreds,
-		Platform:                       platform,
-		NoPullBaseImages:               noPullBaseImages,
-		externalIPAddresses:            externalIPAddresses,
-		defaultNamespace:               defaultNamespace,
-		Offline:                        offline,
-		Repository:                     repository,
-		platformConfiguration:          platformConfiguration,
-		defaultHTTPIngressHostTemplate: defaultHTTPIngressHostTemplate,
-		imageNamePrefixTemplate:        imageNamePrefixTemplate,
-		platformAuthorizationMode:      PlatformAuthorizationMode(platformAuthorizationMode),
-		dependantImageRegistryURL:      dependantImageRegistryURL,
+		dockerKeyDir:              dockerKeyDir,
+		defaultRegistryURL:        defaultRegistryURL,
+		defaultRunRegistryURL:     defaultRunRegistryURL,
+		dockerCreds:               newDockerCreds,
+		Platform:                  platform,
+		NoPullBaseImages:          noPullBaseImages,
+		externalIPAddresses:       externalIPAddresses,
+		defaultNamespace:          defaultNamespace,
+		Offline:                   offline,
+		Repository:                repository,
+		platformConfiguration:     platformConfiguration,
+		imageNamePrefixTemplate:   imageNamePrefixTemplate,
+		platformAuthorizationMode: PlatformAuthorizationMode(platformAuthorizationMode),
+		dependantImageRegistryURL: dependantImageRegistryURL,
 	}
 
 	// create server
@@ -176,10 +173,6 @@ func (s *Server) GetDependantImagesRegistryURL() string {
 
 func (s *Server) GetExternalIPAddresses() []string {
 	return s.externalIPAddresses
-}
-
-func (s *Server) GetDefaultHTTPIngressHostTemplate() string {
-	return s.defaultHTTPIngressHostTemplate
 }
 
 func (s *Server) GetImageNamePrefixTemplate() string {

@@ -19,6 +19,7 @@ package resource
 import (
 	"net/http"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
@@ -72,12 +73,13 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 	}
 
 	defaultFunctionConfig := fsr.getDefaultFunctionConfig()
+	defaultHTTPIngressHostTemplate := fsr.getDefaultHTTPIngressHostTemplate()
 
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
 			"externalIPAddresses":            externalIPAddresses,
 			"namespace":                      fsr.getNamespaceOrDefault(""),
-			"defaultHTTPIngressHostTemplate": fsr.getPlatform().GetDefaultHTTPIngressHostTemplate(),
+			"defaultHTTPIngressHostTemplate": defaultHTTPIngressHostTemplate,
 			"imageNamePrefixTemplate":        fsr.getPlatform().GetImageNamePrefixTemplate(),
 			"scaleToZero":                    scaleToZeroAttribute,
 			"defaultFunctionConfig":          defaultFunctionConfig,
@@ -169,6 +171,21 @@ func (fsr *frontendSpecResource) resolveDefaultFunctionNodeSelector() map[string
 		defaultNodeSelector = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionNodeSelector
 	}
 	return defaultNodeSelector
+}
+
+func (fsr *frontendSpecResource) getDefaultHTTPIngressHostTemplate() string {
+
+	// try read from platform configuration first, if set use that, otherwise
+	// fallback reading from envvar for backwards compatibility with old helm charts
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+		defaultHTTPIngressHostTemplate := dashboardServer.GetPlatformConfiguration().Kube.DefaultHTTPIngressHostTemplate
+		if defaultHTTPIngressHostTemplate != "" {
+			return defaultHTTPIngressHostTemplate
+		}
+	}
+
+	return common.GetEnvOrDefaultString(
+		"NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE", "")
 }
 
 // register the resource

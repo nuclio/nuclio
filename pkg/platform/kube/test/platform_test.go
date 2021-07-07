@@ -728,6 +728,49 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithIngress() {
 		})
 }
 
+func (suite *DeployFunctionTestSuite) TestCreateFunctionWithTemplatedIngress() {
+	functionName := "func-with-ingress"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"customTrigger": {
+			Kind:       "http",
+			Name:       "customTrigger",
+			MaxWorkers: 3,
+			Attributes: map[string]interface{}{
+				"ingresses": map[string]interface{}{
+					"someKey": map[string]interface{}{
+						"paths":        []string{"/"},
+						"hostTemplate": "{{ .ResourceName }}.{{ .Namespace }}.nuclio.com",
+					},
+				},
+			},
+		},
+	}
+
+	suite.DeployFunctionAndRedeploy(createFunctionOptions,
+		func(deployResult *platform.CreateFunctionResult) bool {
+
+			// wait for function to become ready
+			// that ensure us all of its resources (ingresses) are created correctly
+			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+				Name:      functionName,
+				Namespace: suite.Namespace,
+			}, functionconfig.FunctionStateReady, time.Minute)
+
+			expectedIngressHost := fmt.Sprintf("%s.%s.nuclio.com",
+				functionName,
+				createFunctionOptions.FunctionConfig.Meta.Namespace)
+			functionIngress := suite.GetFunctionIngress(functionName)
+			suite.Require().Equal(expectedIngressHost, functionIngress.Spec.Rules[0].Host)
+			return true
+
+		}, func(deployResult *platform.CreateFunctionResult) bool {
+
+			// sanity check, redeploy does break on certain ingress / apigateway ingress validations
+			return true
+		})
+}
+
 type DeleteFunctionTestSuite struct {
 	KubeTestSuite
 }

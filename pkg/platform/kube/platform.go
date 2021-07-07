@@ -413,7 +413,9 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 		return err
 	}
 
-	p.enrichHTTPTriggersWithServiceType(functionConfig)
+	if err := p.enrichHTTPTriggers(functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich http trigger")
+	}
 
 	return nil
 }
@@ -1326,7 +1328,7 @@ func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfi
 	return nil
 }
 
-func (p *Platform) enrichHTTPTriggersWithServiceType(functionConfig *functionconfig.Config) {
+func (p *Platform) enrichHTTPTriggers(functionConfig *functionconfig.Config) error {
 
 	// for backwards compatibility
 	serviceType := functionConfig.Spec.ServiceType
@@ -1335,10 +1337,14 @@ func (p *Platform) enrichHTTPTriggersWithServiceType(functionConfig *functioncon
 	}
 
 	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
-		functionConfig.Spec.Triggers[triggerName] = p.enrichTriggerWithServiceType(functionConfig,
-			trigger,
-			serviceType)
+		p.enrichTriggerWithServiceType(functionConfig, &trigger, serviceType)
+		if err := p.enrichHTTPTriggerIngresses(&trigger, functionConfig); err != nil {
+			return errors.Wrap(err, "Failed to enrich HTTP trigger ingresses")
+		}
+		functionConfig.Spec.Triggers[triggerName] = trigger
 	}
+
+	return nil
 }
 
 func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
@@ -1358,8 +1364,8 @@ func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platf
 }
 
 func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.Config,
-	trigger functionconfig.Trigger,
-	serviceType v1.ServiceType) functionconfig.Trigger {
+	trigger *functionconfig.Trigger,
+	serviceType v1.ServiceType) {
 
 	if trigger.Attributes == nil {
 		trigger.Attributes = map[string]interface{}{}
@@ -1373,8 +1379,6 @@ func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.C
 			"serviceType", serviceType)
 		trigger.Attributes["serviceType"] = serviceType
 	}
-
-	return trigger
 }
 
 func (p *Platform) validateAPIGatewayIngresses(apiGatewayConfig *platform.APIGatewayConfig) error {
@@ -1417,9 +1421,11 @@ func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Conf
 		// validate ingresses not created by this function
 		FieldSelector: fmt.Sprintf("metadata.name!=%s", IngressNameFromFunctionName(functionConfig.Meta.Name)),
 	}
+
+	ingresses := functionconfig.GetFunctionIngresses(functionConfig)
 	if err := p.validateIngressHostAndPathAvailability(listIngressesOptions,
 		functionConfig.Meta.Namespace,
-		functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)); err != nil {
+		ingresses); err != nil {
 		return errors.Wrapf(err, "Failed to validate the function-ingress host and path availability")
 	}
 
@@ -1498,7 +1504,8 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *
 				// if such function doesn't exist, just skip - because it doesn't have ingresses for sure
 				return nil
 			}
-			ingresses := functionconfig.GetIngressesFromTriggers(function.Spec.Triggers)
+
+			ingresses := functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))
 			if len(ingresses) > 0 {
 				return nuclio.NewErrPreconditionFailed(
 					fmt.Sprintf("Api gateway upstream function: %s must not have an ingress",
@@ -1516,7 +1523,7 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *
 // (e.g. when a service is exposed by an ingress with host-1.com without canary ingress, and on another api gateway with host-2.com
 // with canary ingress, when sending requests to host-1.com we may get directed to the canary ingress defined by the api gateway)
 func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functionconfig.Config) error {
-	ingresses := functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)
+	ingresses := functionconfig.GetFunctionIngresses(functionConfig)
 	if len(ingresses) > 0 {
 
 		// TODO: when we'll add upstream labels to api gateway, use get api gateways by label to replace this line
@@ -1530,4 +1537,84 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 	}
 
 	return nil
+}
+
+func (p *Platform) enrichHTTPTriggerIngresses(httpTrigger *functionconfig.Trigger,
+	functionConfig *functionconfig.Config) error {
+
+	ingresses, hasIngresses := httpTrigger.Attributes["ingresses"]
+	if !hasIngresses {
+		return nil
+	}
+
+	templateData := map[string]interface{}{
+		"Name":         functionConfig.Meta.Name,
+		"ResourceName": functionConfig.Meta.Name,
+		"Namespace":    functionConfig.Meta.Namespace,
+		"ProjectName":  functionConfig.Meta.Labels["nuclio.io/project-name"],
+	}
+
+	// iterate over the encoded ingresses map and created ingress structures
+	encodedIngresses := ingresses.(map[string]interface{})
+	for _, encodedIngress := range encodedIngresses {
+		encodedIngressMap := encodedIngress.(map[string]interface{})
+
+		if ingressHostTemplate, hostTemplateFound := encodedIngressMap["hostTemplate"].(string); hostTemplateFound {
+
+			// one way to say "just render me the default"
+			if ingressHostTemplate == "@nuclio.fromDefault" {
+				ingressHostTemplate = p.Config.Kube.DefaultHTTPIngressHostTemplate
+			} else {
+				p.Logger.DebugWith("Received custom ingress host template to enrich host with",
+					"ingressHostTemplate", ingressHostTemplate,
+					"functionName", functionConfig.Meta.Name)
+			}
+
+			// render host with pre-defined data
+			renderedIngressHost, err := common.RenderTemplate(ingressHostTemplate, templateData)
+			if err != nil {
+				return errors.Wrap(err, "Failed to render ingress host template")
+			}
+
+			// try infer from attributes, if not use default 8
+			hostTemplateRandomCharsLength := 8
+			if hostTemplateRandomCharsLengthValue, ok := encodedIngressMap["hostTemplateRandomCharsLength"].(int); ok {
+				hostTemplateRandomCharsLength = hostTemplateRandomCharsLengthValue
+			}
+			renderedIngressHost = p.alignIngressHostSubdomainLevel(renderedIngressHost, hostTemplateRandomCharsLength)
+			if ingressHost, ingressHostFound := encodedIngressMap["host"].(string); !ingressHostFound || ingressHost == "" {
+				p.Logger.DebugWith("Enriching function ingress host from template",
+					"renderedIngressHost", renderedIngressHost,
+					"functionName", functionConfig.Meta.Name)
+				encodedIngressMap["host"] = renderedIngressHost
+			}
+		}
+	}
+	return nil
+}
+
+// will take a host, split to "."
+// for each component, will ensure its max length is not >63
+// if it does, it will truncate by randomCharsLength+1 and add "-<random-chars>" to it
+func (p *Platform) alignIngressHostSubdomainLevel(host string, randomCharsLength int) string {
+
+	// backdoor to make it stop
+	if randomCharsLength == -1 {
+		return host
+	}
+	var reconstructedHost []string
+	hostLevels := strings.Split(host, ".")
+	for _, hostLevel := range hostLevels {
+
+		// DNS domain level limitation is 63 chars
+		if len(hostLevel) <= common.KubernetesDomainLevelMaxLength {
+			reconstructedHost = append(reconstructedHost, hostLevel)
+			continue
+		}
+		randomSuffix := common.GenerateRandomString(randomCharsLength, common.SmallLettersAndNumbers)
+		truncatedHostLevel := hostLevel[:common.KubernetesDomainLevelMaxLength-randomCharsLength-1]
+		truncatedHostLevel = strings.TrimSuffix(truncatedHostLevel, "-")
+		reconstructedHost = append(reconstructedHost, fmt.Sprintf("%s-%s", truncatedHostLevel, randomSuffix))
+	}
+	return strings.Join(reconstructedHost, ".")
 }

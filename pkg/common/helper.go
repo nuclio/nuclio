@@ -42,6 +42,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
+var SmallLettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyz1234567890")
 var LettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
 var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -322,8 +323,7 @@ func RenderTemplateWithCustomDelimiters(text string,
 
 func renderTemplate(templateToRender *template.Template, data map[string]interface{}) (string, error) {
 	var templateToRenderBuffer bytes.Buffer
-	err := templateToRender.Execute(&templateToRenderBuffer, &data)
-	if err != nil {
+	if err := templateToRender.Execute(&templateToRenderBuffer, &data); err != nil {
 		return "", errors.Wrap(err, "Failed to execute template rendering")
 	}
 

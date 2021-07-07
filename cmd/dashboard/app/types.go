@@ -30,7 +30,6 @@ type CreateDashboardServerOptions struct {
 	templatesGitPassword             string
 	templatesGithubAccessToken       string
 	templatesGitCaCertContents       string
-	defaultHTTPIngressHostTemplate   string
 	imageNamePrefixTemplate          string
 	platformAuthorizationMode        string
 	dependantImageRegistryURL        string

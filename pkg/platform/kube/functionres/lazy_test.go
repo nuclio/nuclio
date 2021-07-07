@@ -22,6 +22,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -111,13 +112,30 @@ func (suite *lazyTestSuite) TestNodeConstrains() {
 
 func (suite *lazyTestSuite) TestNoChanges() {
 	one := 1
+	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+	defaultHTTPTrigger.Attributes = map[string]interface{}{
+		"ingresses": map[string]interface{}{
+			"0": map[string]interface{}{
+				"hostTemplate": "@nuclio.fromDefault",
+				"paths":        []string{"/"},
+			},
+		},
+	}
 	function := nuclioio.NuclioFunction{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-function",
 			Namespace: "test-namespace",
+			Labels: map[string]string{
+
+				// we want the created ingress host to be exceed the length limitation
+				"nuclio.io/project-name": common.GenerateRandomString(60, common.SmallLettersAndNumbers),
+			},
 		},
 		Spec: functionconfig.Spec{
 			Replicas: &one,
+			Triggers: map[string]functionconfig.Trigger{
+				defaultHTTPTrigger.Name: defaultHTTPTrigger,
+			},
 		},
 	}
 	functionLabels := suite.client.getFunctionLabels(&function)
@@ -127,6 +145,21 @@ func (suite *lazyTestSuite) TestNoChanges() {
 	prevLevel := suite.client.logger.(*nucliozap.NuclioZap).GetLevel()
 	suite.client.logger.(*nucliozap.NuclioZap).SetLevel(nucliozap.InfoLevel)
 	defer suite.client.logger.(*nucliozap.NuclioZap).SetLevel(prevLevel)
+
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			Kube: platformconfig.PlatformKubeConfig{
+				DefaultHTTPIngressHostTemplate: "{{ .ResourceName }}-{{ .ProjectName }}.test-nuclio.com",
+			},
+		},
+	})
+
+	suite.client.nginxIngressUpdateGracePeriod = 0
+
+	// "create the ingress
+	ingressInstance, err := suite.client.createOrUpdateIngress(functionLabels, &function)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(ingressInstance)
 
 	// "create" the deployment
 	deploymentInstance, err := suite.client.createOrUpdateDeployment(functionLabels,
@@ -138,12 +171,20 @@ func (suite *lazyTestSuite) TestNoChanges() {
 	// make sure no changes were applied for 1000 times of re-apply deployment.
 	for i := 0; i < 1000; i++ {
 
+		// "update" the ingress
+		updatedIngressInstance, err := suite.client.createOrUpdateIngress(functionLabels, &function)
+		suite.Require().NoError(err)
+		suite.Require().NotNil(updatedIngressInstance)
+
+		// ensure no changes
+		suite.Require().Empty(cmp.Diff(ingressInstance, updatedIngressInstance))
+
 		// "update" the deployment
 		updatedDeploymentInstance, err := suite.client.createOrUpdateDeployment(functionLabels,
 			"image-pull-secret-str",
 			&function)
 		suite.Require().NoError(err)
-		suite.Require().NotNil(deploymentInstance)
+		suite.Require().NotNil(updatedDeploymentInstance)
 
 		// ensure no changes
 		suite.Require().Empty(cmp.Diff(deploymentInstance, updatedDeploymentInstance))

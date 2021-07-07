@@ -87,6 +87,7 @@ type lazyClient struct {
 	nuclioClientSet               nuclioioclient.Interface
 	classLabels                   labels.Set
 	platformConfigurationProvider PlatformConfigurationProvider
+	nginxIngressUpdateGracePeriod time.Duration
 }
 
 func NewLazyClient(parentLogger logger.Logger,
@@ -94,10 +95,11 @@ func NewLazyClient(parentLogger logger.Logger,
 	nuclioClientSet nuclioioclient.Interface) (Client, error) {
 
 	newClient := lazyClient{
-		logger:          parentLogger.GetChild("functionres"),
-		kubeClientSet:   kubeClientSet,
-		nuclioClientSet: nuclioClientSet,
-		classLabels:     make(labels.Set),
+		logger:                        parentLogger.GetChild("functionres"),
+		kubeClientSet:                 kubeClientSet,
+		nuclioClientSet:               nuclioClientSet,
+		classLabels:                   make(labels.Set),
+		nginxIngressUpdateGracePeriod: nginxIngressUpdateGracePeriod,
 	}
 
 	newClient.initClassLabels()
@@ -1285,10 +1287,11 @@ func (lc *lazyClient) compileCronTriggerNotInSliceLabels(slice []string) (string
 // nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
 func (lc *lazyClient) waitForNginxIngressToStabilize(ingress *extv1beta1.Ingress) {
 	lc.logger.DebugWith("Waiting for nginx ingress to stabilize",
-		"nginxIngressUpdateGracePeriod", nginxIngressUpdateGracePeriod,
+		"nginxIngressUpdateGracePeriod", lc.nginxIngressUpdateGracePeriod,
 		"ingressNamespace", ingress.Namespace,
 		"ingressName", ingress.Name)
-	time.Sleep(nginxIngressUpdateGracePeriod)
+
+	time.Sleep(lc.nginxIngressUpdateGracePeriod)
 	lc.logger.DebugWith("Finished waiting for nginx ingress to stabilize",
 		"ingressNamespace", ingress.Namespace,
 		"ingressName", ingress.Name)
@@ -1691,12 +1694,12 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 	spec.Rules = []extv1beta1.IngressRule{}
 	spec.TLS = []extv1beta1.IngressTLS{}
 
-	for _, ingress := range functionconfig.GetIngressesFromTriggers(function.Spec.Triggers) {
+	ingresses := functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))
+	for _, ingress := range ingresses {
 		if err := lc.addIngressToSpec(&ingress, functionLabels, function, spec); err != nil {
 			return errors.Wrap(err, "Failed to add ingress to spec")
 		}
 	}
-
 	return nil
 }
 
