@@ -1337,15 +1337,11 @@ func (p *Platform) enrichHTTPTriggers(functionConfig *functionconfig.Config) err
 	}
 
 	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
-		functionConfig.Spec.Triggers[triggerName] = p.enrichTriggerWithServiceType(functionConfig,
-			trigger,
-			serviceType)
-
-		enrichedHTTPTrigger, err := p.enrichHTTPTriggerIngresses(&trigger, functionConfig)
-		if err != nil {
+		p.enrichTriggerWithServiceType(functionConfig, &trigger, serviceType)
+		if err := p.enrichHTTPTriggerIngresses(&trigger, functionConfig); err != nil {
 			return errors.Wrap(err, "Failed to enrich HTTP trigger ingresses")
 		}
-		functionConfig.Spec.Triggers[triggerName] = *enrichedHTTPTrigger
+		functionConfig.Spec.Triggers[triggerName] = trigger
 	}
 
 	return nil
@@ -1368,8 +1364,8 @@ func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platf
 }
 
 func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.Config,
-	trigger functionconfig.Trigger,
-	serviceType v1.ServiceType) functionconfig.Trigger {
+	trigger *functionconfig.Trigger,
+	serviceType v1.ServiceType) {
 
 	if trigger.Attributes == nil {
 		trigger.Attributes = map[string]interface{}{}
@@ -1383,8 +1379,6 @@ func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.C
 			"serviceType", serviceType)
 		trigger.Attributes["serviceType"] = serviceType
 	}
-
-	return trigger
 }
 
 func (p *Platform) validateAPIGatewayIngresses(apiGatewayConfig *platform.APIGatewayConfig) error {
@@ -1546,11 +1540,11 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 }
 
 func (p *Platform) enrichHTTPTriggerIngresses(httpTrigger *functionconfig.Trigger,
-	functionConfig *functionconfig.Config) (*functionconfig.Trigger, error) {
+	functionConfig *functionconfig.Config) error {
 
 	ingresses, hasIngresses := httpTrigger.Attributes["ingresses"]
 	if !hasIngresses {
-		return httpTrigger, nil
+		return nil
 	}
 
 	templateData := map[string]interface{}{
@@ -1579,7 +1573,7 @@ func (p *Platform) enrichHTTPTriggerIngresses(httpTrigger *functionconfig.Trigge
 			// render host with pre-defined data
 			renderedIngressHost, err := common.RenderTemplate(ingressHostTemplate, templateData)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to render ingress host template")
+				return errors.Wrap(err, "Failed to render ingress host template")
 			}
 
 			// try infer from attributes, if not use default 8
@@ -1596,7 +1590,7 @@ func (p *Platform) enrichHTTPTriggerIngresses(httpTrigger *functionconfig.Trigge
 			}
 		}
 	}
-	return httpTrigger, nil
+	return nil
 }
 
 // will take a host, split to "."
