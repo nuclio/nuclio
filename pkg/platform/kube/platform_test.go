@@ -782,6 +782,32 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 			},
 		},
 		{
+			name: "multipleIngresses",
+			httpTrigger: functionconfig.Trigger{
+				Name: "http-trigger",
+				Kind: "http",
+				Attributes: map[string]interface{}{
+					"ingresses": map[string]interface{}{
+						"0": map[string]interface{}{
+							"hostTemplate": "@nuclio.fromDefault",
+						},
+						"1": map[string]interface{}{
+							"host": "leave-it-as.is.com",
+						},
+					},
+				},
+			},
+			want: map[string]interface{}{
+				"0": map[string]interface{}{
+					"hostTemplate": "@nuclio.fromDefault",
+					"host":         "some-name.some-namespace.test.com",
+				},
+				"1": map[string]interface{}{
+					"host": "leave-it-as.is.com",
+				},
+			},
+		},
+		{
 			name: "fromDefaultHostEmpty",
 			httpTrigger: functionconfig.Trigger{
 				Name: "http-trigger",
