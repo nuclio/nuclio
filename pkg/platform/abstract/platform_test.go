@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"regexp"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -745,6 +746,38 @@ func (suite *AbstractPlatformTestSuite) TestRenderFunctionIngress() {
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(ingresses)
 	suite.Require().Equal(ingresses["0"].Host, "some-name-some-namespace.test.com")
+}
+
+func (suite *AbstractPlatformTestSuite) TestAlignIngressHostSubdomain() {
+	type args struct {
+		host              string
+		randomCharsLength int
+	}
+
+	for _, testCase := range []struct {
+		name string
+		args args
+		want *regexp.Regexp
+	}{
+		{
+			name: "noChange",
+			args: args{host: "something.simple.com", randomCharsLength: 5},
+			want: regexp.MustCompile("something.simple.com"),
+		},
+		{
+			name: "truncate",
+			args: args{host: func() string {
+				longSubdomainLevel := "this-is-a-very-long-level-and-should-be-truncated-by-the-random-chars-length"
+				return fmt.Sprintf("%s.blabla.com", longSubdomainLevel)
+			}(), randomCharsLength: 5},
+			want: regexp.MustCompile("this-is-a-very-long-level-and-should-be-truncated-by-the-[a-z0-9]{5}.blabla.com"),
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			alignedIngressHostSubdomain := alignIngressHostSubdomainLevel(testCase.args.host, testCase.args.randomCharsLength)
+			suite.Require().Regexp(testCase.want, alignedIngressHostSubdomain)
+		})
+	}
 }
 
 func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() {

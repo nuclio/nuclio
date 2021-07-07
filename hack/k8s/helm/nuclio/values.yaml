@@ -357,6 +357,8 @@ platform: {}
 #     - myPrometheusPull
 #   cronTriggerCreationMode: "kube"
 #   kube:
+#     defaultFunctionNodeSelector:
+#       nodeLabelKey: nodeLabelValue
 #     defaultServiceType: ClusterIP
 #     defaultHTTPIngressHostTemplate: ""
 #   imageRegistryOverrides:

@@ -1323,6 +1323,13 @@ func GetFunctionIngresses(functionConfig *functionconfig.Config, defaultHTTPIngr
 
 	ingresses := map[string]functionconfig.Ingress{}
 
+	templateRenderingData := map[string]interface{}{
+		"Name":         functionConfig.Meta.Name,
+		"ResourceName": functionConfig.Meta.Name,
+		"Namespace":    functionConfig.Meta.Namespace,
+		"ProjectName":  functionConfig.Meta.Labels["nuclio.io/project-name"],
+	}
+
 	for _, functionTrigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
 
 		// if there are attributes
@@ -1348,15 +1355,18 @@ func GetFunctionIngresses(functionConfig *functionconfig.Config, defaultHTTPIngr
 						ingressHostTemplate = defaultHTTPIngressHostTemplate
 					}
 
-					renderedIngressHost, err := common.RenderTemplate(ingressHostTemplate, map[string]interface{}{
-						"Name":         functionConfig.Meta.Name,
-						"ResourceName": functionConfig.Meta.Name,
-						"Namespace":    functionConfig.Meta.Namespace,
-						"ProjectName":  functionConfig.Meta.Labels["nuclio.io/project-name"],
-					})
+					// render host with pre-defined data
+					renderedIngressHost, err := common.RenderTemplate(ingressHostTemplate, templateRenderingData)
 					if err != nil {
 						return nil, errors.Wrap(err, "Failed to render ingress host template")
 					}
+
+					// try infer from attributes, if not use default 8
+					hostTemplateRandomCharsLength := 8
+					if hostTemplateRandomCharsLengthValue, ok := encodedIngressMap["hostTemplateRandomCharsLength"].(int); ok {
+						hostTemplateRandomCharsLength = hostTemplateRandomCharsLengthValue
+					}
+					renderedIngressHost = alignIngressHostSubdomainLevel(renderedIngressHost, hostTemplateRandomCharsLength)
 
 					// use template only if host was not given
 					if ingressHost == "" {
@@ -1392,4 +1402,30 @@ func GetFunctionIngresses(functionConfig *functionconfig.Config, defaultHTTPIngr
 	}
 
 	return ingresses, nil
+}
+
+// will take a host, split to "."
+// for each component, will ensure its max length is not >63
+// if it does, it will truncate by randomCharsLength+1 and add "-<random-chars>" to it
+func alignIngressHostSubdomainLevel(host string, randomCharsLength int) string {
+
+	// backdoor to make it stop
+	if randomCharsLength == -1 {
+		return host
+	}
+	var reconstructedHost []string
+	hostLevels := strings.Split(host, ".")
+	for _, hostLevel := range hostLevels {
+
+		// DNS domain level limitation is 63 chars
+		if len(hostLevel) <= common.KubernetesDomainLevelMaxLength {
+			reconstructedHost = append(reconstructedHost, hostLevel)
+			continue
+		}
+		randomSuffix := common.GenerateRandomString(randomCharsLength, common.SmallLettersAndNumbers)
+		truncatedHostLevel := hostLevel[:common.KubernetesDomainLevelMaxLength-randomCharsLength-1]
+		truncatedHostLevel = strings.TrimSuffix(truncatedHostLevel, "-")
+		reconstructedHost = append(reconstructedHost, fmt.Sprintf("%s-%s", truncatedHostLevel, randomSuffix))
+	}
+	return strings.Join(reconstructedHost, ".")
 }

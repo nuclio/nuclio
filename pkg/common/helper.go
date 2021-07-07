@@ -42,6 +42,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
+var SmallLettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyz1234567890")
 var LettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
 var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
