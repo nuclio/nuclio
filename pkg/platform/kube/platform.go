@@ -413,7 +413,9 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 		return err
 	}
 
-	p.enrichHTTPTriggersWithServiceType(functionConfig)
+	if err := p.enrichHTTPTriggers(functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich http trigger")
+	}
 
 	return nil
 }
@@ -1326,7 +1328,7 @@ func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfi
 	return nil
 }
 
-func (p *Platform) enrichHTTPTriggersWithServiceType(functionConfig *functionconfig.Config) {
+func (p *Platform) enrichHTTPTriggers(functionConfig *functionconfig.Config) error {
 
 	// for backwards compatibility
 	serviceType := functionConfig.Spec.ServiceType
@@ -1338,7 +1340,15 @@ func (p *Platform) enrichHTTPTriggersWithServiceType(functionConfig *functioncon
 		functionConfig.Spec.Triggers[triggerName] = p.enrichTriggerWithServiceType(functionConfig,
 			trigger,
 			serviceType)
+
+		enrichedHTTPTrigger, err := p.enrichHTTPTriggerIngresses(&trigger, functionConfig)
+		if err != nil {
+			return errors.Wrap(err, "Failed to enrich HTTP trigger ingresses")
+		}
+		functionConfig.Spec.Triggers[triggerName] = *enrichedHTTPTrigger
 	}
+
+	return nil
 }
 
 func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
@@ -1418,10 +1428,7 @@ func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Conf
 		FieldSelector: fmt.Sprintf("metadata.name!=%s", IngressNameFromFunctionName(functionConfig.Meta.Name)),
 	}
 
-	ingresses, err := p.getFunctionIngresses(functionConfig)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get function ingresses")
-	}
+	ingresses := functionconfig.GetFunctionIngresses(functionConfig)
 	if err := p.validateIngressHostAndPathAvailability(listIngressesOptions,
 		functionConfig.Meta.Namespace,
 		ingresses); err != nil {
@@ -1504,10 +1511,7 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *
 				return nil
 			}
 
-			ingresses, err := p.getFunctionIngresses(client.NuclioioToFunctionConfig(function))
-			if err != nil {
-				return errors.Wrap(err, "Failed to get function ingresses")
-			}
+			ingresses := functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))
 			if len(ingresses) > 0 {
 				return nuclio.NewErrPreconditionFailed(
 					fmt.Sprintf("Api gateway upstream function: %s must not have an ingress",
@@ -1525,10 +1529,7 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *
 // (e.g. when a service is exposed by an ingress with host-1.com without canary ingress, and on another api gateway with host-2.com
 // with canary ingress, when sending requests to host-1.com we may get directed to the canary ingress defined by the api gateway)
 func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functionconfig.Config) error {
-	ingresses, err := p.getFunctionIngresses(functionConfig)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get function ingresses")
-	}
+	ingresses := functionconfig.GetFunctionIngresses(functionConfig)
 	if len(ingresses) > 0 {
 
 		// TODO: when we'll add upstream labels to api gateway, use get api gateways by label to replace this line
@@ -1544,7 +1545,82 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 	return nil
 }
 
-func (p *Platform) getFunctionIngresses(functionConfig *functionconfig.Config) (
-	map[string]functionconfig.Ingress, error) {
-	return abstract.GetFunctionIngresses(functionConfig, p.Config.Kube.DefaultHTTPIngressHostTemplate)
+func (p *Platform) enrichHTTPTriggerIngresses(httpTrigger *functionconfig.Trigger,
+	functionConfig *functionconfig.Config) (*functionconfig.Trigger, error) {
+
+	ingresses, hasIngresses := httpTrigger.Attributes["ingresses"]
+	if !hasIngresses {
+		return httpTrigger, nil
+	}
+
+	templateData := map[string]interface{}{
+		"Name":         functionConfig.Meta.Name,
+		"ResourceName": functionConfig.Meta.Name,
+		"Namespace":    functionConfig.Meta.Namespace,
+		"ProjectName":  functionConfig.Meta.Labels["nuclio.io/project-name"],
+	}
+
+	// iterate over the encoded ingresses map and created ingress structures
+	encodedIngresses := ingresses.(map[string]interface{})
+	for _, encodedIngress := range encodedIngresses {
+		encodedIngressMap := encodedIngress.(map[string]interface{})
+
+		if ingressHostTemplate, hostTemplateFound := encodedIngressMap["hostTemplate"].(string); hostTemplateFound {
+
+			// one way to say "just render me the default"
+			if ingressHostTemplate == "@nuclio.fromDefault" {
+				ingressHostTemplate = p.Config.Kube.DefaultHTTPIngressHostTemplate
+			} else {
+				p.Logger.DebugWith("Received custom ingress host template to enrich host with",
+					"ingressHostTemplate", ingressHostTemplate,
+					"functionName", functionConfig.Meta.Name)
+			}
+
+			// render host with pre-defined data
+			renderedIngressHost, err := common.RenderTemplate(ingressHostTemplate, templateData)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to render ingress host template")
+			}
+
+			// try infer from attributes, if not use default 8
+			hostTemplateRandomCharsLength := 8
+			if hostTemplateRandomCharsLengthValue, ok := encodedIngressMap["hostTemplateRandomCharsLength"].(int); ok {
+				hostTemplateRandomCharsLength = hostTemplateRandomCharsLengthValue
+			}
+			renderedIngressHost = p.alignIngressHostSubdomainLevel(renderedIngressHost, hostTemplateRandomCharsLength)
+			if ingressHost, ingressHostFound := encodedIngressMap["host"].(string); !ingressHostFound || ingressHost == "" {
+				p.Logger.DebugWith("Enriching function ingress host from template",
+					"renderedIngressHost", renderedIngressHost,
+					"functionName", functionConfig.Meta.Name)
+				encodedIngressMap["host"] = renderedIngressHost
+			}
+		}
+	}
+	return httpTrigger, nil
+}
+
+// will take a host, split to "."
+// for each component, will ensure its max length is not >63
+// if it does, it will truncate by randomCharsLength+1 and add "-<random-chars>" to it
+func (p *Platform) alignIngressHostSubdomainLevel(host string, randomCharsLength int) string {
+
+	// backdoor to make it stop
+	if randomCharsLength == -1 {
+		return host
+	}
+	var reconstructedHost []string
+	hostLevels := strings.Split(host, ".")
+	for _, hostLevel := range hostLevels {
+
+		// DNS domain level limitation is 63 chars
+		if len(hostLevel) <= common.KubernetesDomainLevelMaxLength {
+			reconstructedHost = append(reconstructedHost, hostLevel)
+			continue
+		}
+		randomSuffix := common.GenerateRandomString(randomCharsLength, common.SmallLettersAndNumbers)
+		truncatedHostLevel := hostLevel[:common.KubernetesDomainLevelMaxLength-randomCharsLength-1]
+		truncatedHostLevel = strings.TrimSuffix(truncatedHostLevel, "-")
+		reconstructedHost = append(reconstructedHost, fmt.Sprintf("%s-%s", truncatedHostLevel, randomSuffix))
+	}
+	return strings.Join(reconstructedHost, ".")
 }
