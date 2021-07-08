@@ -27,10 +27,10 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube/resourcescaler"
 	"github.com/nuclio/nuclio/pkg/platform/kube/test"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
-	"github.com/nuclio/nuclio/pkg/platform/kube/resourcescaler"
 	"github.com/stretchr/testify/suite"
 	"github.com/v3io/scaler/pkg/autoscaler"
 	"github.com/v3io/scaler/pkg/dlx"
