@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/v3io/scaler-types"
+	"github.com/v3io/scaler/pkg/scalertypes"
 	"k8s.io/api/core/v1"
 )
 
@@ -535,8 +535,8 @@ func (s *Status) InvocationURLs() []string {
 }
 
 type ScaleToZeroStatus struct {
-	LastScaleEvent     scaler_types.ScaleEvent `json:"lastScaleEvent,omitempty"`
-	LastScaleEventTime *time.Time              `json:"lastScaleEventTime,omitempty"`
+	LastScaleEvent     scalertypes.ScaleEvent `json:"lastScaleEvent,omitempty"`
+	LastScaleEventTime *time.Time             `json:"lastScaleEventTime,omitempty"`
 }
 
 // DeepCopyInto copies to appease k8s

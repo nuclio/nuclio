@@ -57,7 +57,7 @@ func newDLX(platformConfigurationPath string, namespace string, kubeconfigPath s
 	}
 
 	// create resource scaler
-	resourceScaler, err := resourcescaler.New(kubeconfigPath, namespace)
+	resourceScaler, err := resourcescaler.New(rootLogger, platformConfiguration, kubeconfigPath, namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create resource scaler")
 	}

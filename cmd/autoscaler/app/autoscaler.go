@@ -41,7 +41,7 @@ func Run(platformConfigurationPath string, namespace string, kubeconfigPath stri
 	}
 
 	// start autoscaler and run forever
-	if err = autoScaler.Start(); err != nil {
+	if err := autoScaler.Start(); err != nil {
 		return errors.Wrap(err, "Failed to start autoscaler")
 	}
 	select {}
@@ -70,7 +70,7 @@ func createAutoScaler(platformConfigurationPath string,
 	}
 
 	// create resource scaler
-	resourceScaler, err := resourcescaler.New(kubeconfigPath, namespace)
+	resourceScaler, err := resourcescaler.New(rootLogger, platformConfiguration, kubeconfigPath, namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create resource scaler")
 	}

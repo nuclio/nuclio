@@ -1,7 +1,6 @@
 package resourcescaler
 
 import (
-	"os"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -13,13 +12,13 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
-	"github.com/v3io/scaler-types"
+	"github.com/v3io/scaler/pkg/scalertypes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// A plugin for github.com/v3io/scaler, allowing to extend it to scale to zero and from zero function resources in k8s
+// NuclioResourceScaler leverages github.com/v3io/scaler
+// to allow extending scale to zero and from zero nuclio functions
 type NuclioResourceScaler struct {
 	logger                logger.Logger
 	nuclioClientSet       nuclioioclient.Interface
@@ -28,25 +27,10 @@ type NuclioResourceScaler struct {
 	platformConfiguration *platformconfig.Config
 }
 
-// New is called when plugin loaded on scaler, so it's considered "dead code" for the linter
-func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, error) { // nolint: deadcode
-
-	// get platform configuration
-	platformConfigurationPath := "/etc/nuclio/config/platform/platform.yaml"
-	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get platform configuration")
-	}
-
-	resourceScalerLogger, err := nucliozap.NewNuclioZap("resource-scaler",
-		"console",
-		nil,
-		os.Stdout,
-		os.Stderr,
-		nucliozap.DebugLevel)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed creating a new logger")
-	}
+func New(logger logger.Logger,
+	platformConfiguration *platformconfig.Config,
+	kubeconfigPath string,
+	namespace string) (scalertypes.ResourceScaler, error) {
 
 	restConfig, err := common.GetClientConfig(kubeconfigPath)
 	if err != nil {
@@ -58,13 +42,13 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 		return nil, errors.Wrap(err, "Failed to create nuclio client set")
 	}
 
-	resourceScalerLogger.DebugWith("Initialized resource scaler",
+	logger.DebugWith("Initialized resource scaler",
 		"platformconfig", platformConfiguration,
 		"namespace", namespace,
 		"kubeconfigPath", kubeconfigPath)
 
 	return &NuclioResourceScaler{
-		logger:                resourceScalerLogger,
+		logger:                logger,
 		nuclioClientSet:       nuclioClientSet,
 		kubeconfigPath:        kubeconfigPath,
 		namespace:             namespace,
@@ -72,7 +56,7 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 	}, nil
 }
 
-func (n *NuclioResourceScaler) SetScale(resources []scaler_types.Resource, scale int) error {
+func (n *NuclioResourceScaler) SetScale(resources []scalertypes.Resource, scale int) error {
 	functionNames := make([]string, 0)
 	for _, resource := range resources {
 		functionNames = append(functionNames, resource.Name)
@@ -83,8 +67,8 @@ func (n *NuclioResourceScaler) SetScale(resources []scaler_types.Resource, scale
 	return n.scaleFunctionsFromZero(n.namespace, functionNames)
 }
 
-func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
-	var functionList []scaler_types.Resource
+func (n *NuclioResourceScaler) GetResources() ([]scalertypes.Resource, error) {
+	var functionList []scalertypes.Resource
 	functions, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(n.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list functions")
@@ -112,7 +96,7 @@ func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
 				continue
 			}
 
-			functionList = append(functionList, scaler_types.Resource{
+			functionList = append(functionList, scalertypes.Resource{
 				Name:               function.Name,
 				ScaleResources:     scaleResources,
 				LastScaleEvent:     lastScaleEvent,
@@ -123,7 +107,7 @@ func (n *NuclioResourceScaler) GetResources() ([]scaler_types.Resource, error) {
 	return functionList, nil
 }
 
-func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, error) {
+func (n *NuclioResourceScaler) GetConfig() (*scalertypes.ResourceScalerConfig, error) {
 
 	// enrich
 	if n.platformConfiguration.ScaleToZero.ResourceReadinessTimeout == "" {
@@ -144,48 +128,49 @@ func (n *NuclioResourceScaler) GetConfig() (*scaler_types.ResourceScalerConfig, 
 		return nil, errors.Wrap(err, "Failed to parse resource readiness timeout")
 	}
 
-	return &scaler_types.ResourceScalerConfig{
+	return &scalertypes.ResourceScalerConfig{
 		KubeconfigPath: n.kubeconfigPath,
-		AutoScalerOptions: scaler_types.AutoScalerOptions{
+		AutoScalerOptions: scalertypes.AutoScalerOptions{
 			Namespace:     n.namespace,
-			ScaleInterval: scaler_types.Duration{Duration: scaleInterval},
+			ScaleInterval: scalertypes.Duration{Duration: scaleInterval},
 			GroupKind: schema.GroupKind{
 				Group: "nuclio.io",
 				Kind:  "NuclioFunction",
 			},
 		},
-		DLXOptions: scaler_types.DLXOptions{
+		DLXOptions: scalertypes.DLXOptions{
 			Namespace:                n.namespace,
 			TargetPort:               8080,
 			TargetNameHeader:         "X-Nuclio-Target",
 			TargetPathHeader:         "X-Nuclio-Function-Path",
 			ListenAddress:            ":8080",
-			ResourceReadinessTimeout: scaler_types.Duration{Duration: resourceReadinessTimeout},
+			ResourceReadinessTimeout: scalertypes.Duration{Duration: resourceReadinessTimeout},
 		},
 	}, nil
 }
 
-func (n *NuclioResourceScaler) ResolveServiceName(resource scaler_types.Resource) (string, error) {
+func (n *NuclioResourceScaler) ResolveServiceName(resource scalertypes.Resource) (string, error) {
 	return kube.ServiceNameFromFunctionName(resource.Name), nil
 }
 
-func (n *NuclioResourceScaler) parseScaleResources(function nuclioio.NuclioFunction) ([]scaler_types.ScaleResource, error) {
-	var scaleResources []scaler_types.ScaleResource
+func (n *NuclioResourceScaler) parseScaleResources(function nuclioio.NuclioFunction) ([]scalertypes.ScaleResource, error) {
+	var scaleResources []scalertypes.ScaleResource
 	for _, scaleResource := range function.Spec.ScaleToZero.ScaleResources {
 		windowSize, err := time.ParseDuration(scaleResource.WindowSize)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to parse window size")
 		}
-		scaleResources = append(scaleResources, scaler_types.ScaleResource{
+		scaleResources = append(scaleResources, scalertypes.ScaleResource{
 			MetricName: scaleResource.MetricName,
 			Threshold:  scaleResource.Threshold,
-			WindowSize: scaler_types.Duration{Duration: windowSize},
+			WindowSize: scalertypes.Duration{Duration: windowSize},
 		})
 	}
 	return scaleResources, nil
 }
 
-func (n *NuclioResourceScaler) parseLastScaleEvent(function nuclioio.NuclioFunction) (*scaler_types.ScaleEvent, *time.Time, error) {
+func (n *NuclioResourceScaler) parseLastScaleEvent(
+	function nuclioio.NuclioFunction) (*scalertypes.ScaleEvent, *time.Time, error) {
 	if function.Status.ScaleToZero == nil {
 		return nil, nil, nil
 	}
@@ -204,7 +189,7 @@ func (n *NuclioResourceScaler) scaleFunctionsToZero(namespace string, functionNa
 		err := n.updateFunctionStatus(namespace,
 			functionName,
 			functionconfig.FunctionStateWaitingForScaleResourcesToZero,
-			scaler_types.ScaleToZeroStartedScaleEvent)
+			scalertypes.ScaleToZeroStartedScaleEvent)
 		if err != nil {
 			failedFunctionNames = append(failedFunctionNames, functionName)
 			n.logger.WarnWith("Failed to update function status to scale to zero", "functionName", functionName)
@@ -225,7 +210,7 @@ func (n *NuclioResourceScaler) scaleFunctionsFromZero(namespace string, function
 		err := n.updateFunctionStatus(namespace,
 			functionName,
 			functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
-			scaler_types.ScaleFromZeroStartedScaleEvent)
+			scalertypes.ScaleFromZeroStartedScaleEvent)
 		if err != nil {
 			failedFunctionNames = append(failedFunctionNames, functionName)
 			n.logger.WarnWith("Failed to update function status to scale from zero", "functionName", functionName)
@@ -246,7 +231,7 @@ func (n *NuclioResourceScaler) scaleFunctionsFromZero(namespace string, function
 func (n *NuclioResourceScaler) updateFunctionStatus(namespace string,
 	functionName string,
 	functionState functionconfig.FunctionState,
-	functionScaleEvent scaler_types.ScaleEvent) error {
+	functionScaleEvent scalertypes.ScaleEvent) error {
 	function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
 	if err != nil {
 		n.logger.WarnWith("Failed getting nuclio function to update function status", "functionName", functionName, "err", err)
@@ -280,7 +265,7 @@ func (n *NuclioResourceScaler) waitFunctionReadiness(namespace string, functionN
 			return nil
 		}
 
-		n.logger.DebugWith("Function not ready yet",
+		n.logger.DebugWith("Function is not ready yet",
 			"functionName", functionName,
 			"currentState", function.Status.State)
 
