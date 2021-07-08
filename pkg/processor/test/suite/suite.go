@@ -299,11 +299,12 @@ func (suite *TestSuite) WaitForFunctionState(getFunctionOptions *platform.GetFun
 	suite.Require().NoError(err, "Function did not reach its desired state")
 }
 
-// CreateFunction builds a docker image, runs a container from it and then
+// DeployFunction builds a docker image, runs a container from it and then
 // runs onAfterContainerRun
 func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterContainerRun OnAfterContainerRun) *platform.CreateFunctionResult {
-	deployResult, _ := suite.deployFunctionPopulateMissingFields(createFunctionOptions, onAfterContainerRun)
+	deployResult, err := suite.deployFunctionPopulateMissingFields(createFunctionOptions, onAfterContainerRun)
+	suite.Require().NoError(err)
 	return deployResult
 }
 
