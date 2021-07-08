@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/zap"
 )
 
-// CreateSystemLoggers returns the system loggers
+// CreateSystemLogger returns the system loggers
 func CreateSystemLogger(name string, platformConfiguration *platformconfig.Config) (logger.Logger, error) {
 
 	// get system loggers
@@ -37,7 +37,7 @@ func CreateSystemLogger(name string, platformConfiguration *platformconfig.Confi
 	return createLoggers(name, systemLoggerSinksByName)
 }
 
-// returns the processor logger and the function logger. For now, they are one of the same
+// CreateFunctionLogger returns the processor logger and the function logger. For now, they are one of the same
 func CreateFunctionLogger(name string,
 	functionConfiguration *functionconfig.Config,
 	platformConfiguration *platformconfig.Config) (logger.Logger, error) {
@@ -51,7 +51,7 @@ func CreateFunctionLogger(name string,
 	return createLoggers(name, functionLoggerSinksByName)
 }
 
-// returns the processor logger and the function logger. For now, they are one of the same
+// createLoggers returns the processor logger and the function logger. For now, they are one of the same
 func createLoggers(name string, loggerSinksWithLevel map[string]platformconfig.LoggerSinkWithLevel) (logger.Logger, error) {
 	var loggers []logger.Logger
 	var loggerInstance logger.Logger
