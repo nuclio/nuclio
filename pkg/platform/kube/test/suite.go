@@ -421,6 +421,40 @@ func (suite *KubeTestSuite) WaitForAPIGatewayState(getAPIGatewayOptions *platfor
 	suite.Require().NoError(err, "Api gateway did not reach its desired state")
 }
 
+func (suite *KubeTestSuite) KubectlInvokeFunctionViaCurl(functionName string, curlCommand string) string {
+	curlPodName := fmt.Sprintf("curl-%s", functionName)
+
+	// start curl pod, let it sleep
+	runCurlPodCommand := fmt.Sprintf(""+
+		"kubectl "+
+		"run "+
+		"%s "+
+		"--image=curlimages/curl:7.77.0 "+
+		"--restart=Never "+
+		"--command -- "+
+		"sleep 600",
+		curlPodName)
+	_, err := suite.CmdRunner.Run(nil, runCurlPodCommand)
+	suite.Require().NoError(err)
+
+	waitForCurlPodReadyCommand := fmt.Sprintf("kubectl wait --for=condition=ready pod/%s", curlPodName)
+	_, err = suite.CmdRunner.Run(nil, waitForCurlPodReadyCommand)
+	suite.Require().NoError(err)
+
+	execCurlCommand := fmt.Sprintf(
+		"kubectl "+
+			"exec "+
+			"%s -- "+
+			"curl %s",
+		curlPodName,
+		curlCommand)
+
+	curlResults, err := suite.CmdRunner.Run(nil, execCurlCommand)
+	suite.Require().NoError(err)
+
+	return curlResults.Output
+}
+
 func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
 	onAfterIngressCreated OnAfterIngressCreated) error {
 
