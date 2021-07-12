@@ -65,7 +65,7 @@ func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platfor
 		return c.internalClient.Get(getProjectsOptions)
 
 	// request came from user / non-leader client
-	// ask leader to create
+	// get from leader
 	default:
 		return c.leaderClient.Get(getProjectsOptions)
 	}
