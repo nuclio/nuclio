@@ -150,7 +150,7 @@ func (fsr *frontendSpecResource) GetCustomRoutes() ([]restful.CustomRoute, error
 }
 
 func (fsr *frontendSpecResource) resolveDefaultServiceType() v1.ServiceType {
-	var defaultServiceType v1.ServiceType = ""
+	var defaultServiceType v1.ServiceType
 	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
 		defaultServiceType = dashboardServer.GetPlatformConfiguration().Kube.DefaultServiceType
 	}
