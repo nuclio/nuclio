@@ -6,18 +6,18 @@ import (
 
 type Client interface {
 
-	// Initializes the projects client
+	// Initialize client
 	Initialize() error
 
-	// Creates a new project
+	// Create a new project
 	Create(*platform.CreateProjectOptions) (platform.Project, error)
 
-	// Updates a project
+	// Update a project
 	Update(*platform.UpdateProjectOptions) (platform.Project, error)
 
-	// Deletes a project
+	// Delete a project
 	Delete(*platform.DeleteProjectOptions) error
 
-	// Gets projects
+	// Get projects
 	Get(*platform.GetProjectsOptions) ([]platform.Project, error)
 }

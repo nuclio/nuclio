@@ -16,9 +16,9 @@ import (
 
 const (
 	ProjectsRoleHeaderValueNuclio = "nuclio"
-	DefaultRequestTimeout         = 10 * time.Second
+	DefaultRequestTimeout         = 30 * time.Second
 
-	// didn't use "x-nuclio.." prefix, because this header is used across iguazio, mlrun and nuclio (not nuclio specific)
+	// ProjectsRoleHeaderKey not prefixed with "x-nuclio.." this header is used across Iguazio components
 	ProjectsRoleHeaderKey = "x-projects-role"
 )
 

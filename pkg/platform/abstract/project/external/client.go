@@ -62,8 +62,13 @@ func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platfor
 
 func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
 	switch createProjectOptions.RequestOrigin {
+
+	// if request came from leader, create it internally
 	case c.platformConfiguration.ProjectsLeader.Kind:
 		return c.internalClient.Create(createProjectOptions)
+
+	// request came from user / non-leader client
+	// ask leader to create
 	default:
 		if err := c.leaderClient.Create(createProjectOptions); err != nil {
 			return nil, errors.Wrap(err, "Failed while requesting from the leader to create the project")

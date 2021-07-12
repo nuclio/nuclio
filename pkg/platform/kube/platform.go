@@ -550,17 +550,9 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 		return errors.Wrap(err, "Failed to validate a project configuration")
 	}
 
-	// Check OPA permissions
-	permissionOptions := createProjectOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAProjectPermissions(createProjectOptions.ProjectConfig.Meta.Name,
-		opa.ActionCreate,
-		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-	}
-
 	// create
-	p.Logger.DebugWith("Creating project", "projectName", createProjectOptions.ProjectConfig.Meta.Name)
+	p.Logger.DebugWith("Creating project",
+		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
 	if _, err := p.projectsClient.Create(createProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to create project")
 	}
@@ -574,15 +566,6 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 		return nuclio.WrapErrBadRequest(err)
 	}
 
-	// Check OPA permissions
-	permissionOptions := updateProjectOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAProjectPermissions(updateProjectOptions.ProjectConfig.Meta.Name,
-		opa.ActionUpdate,
-		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-	}
-
 	if _, err := p.projectsClient.Update(updateProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to update project")
 	}
@@ -594,15 +577,6 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate delete project options")
-	}
-
-	// Check OPA permissions
-	permissionOptions := deleteProjectOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAProjectPermissions(deleteProjectOptions.Meta.Name,
-		opa.ActionDelete,
-		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	p.Logger.DebugWith("Deleting project", "projectMeta", deleteProjectOptions.Meta)
@@ -620,12 +594,7 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 
 // GetProjects will list existing projects
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	projects, err := p.projectsClient.Get(getProjectsOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed getting projects")
-	}
-
-	return p.Platform.FilterProjectsByPermissions(&getProjectsOptions.PermissionOptions, projects)
+	return p.projectsClient.Get(getProjectsOptions)
 }
 
 // CreateAPIGateway creates and deploys a new api gateway

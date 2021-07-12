@@ -84,7 +84,7 @@ type ProjectList struct {
 	Data []ProjectData `json:"data,omitempty"`
 }
 
-// ProjectList -> []Project
+// ToSingleProjectList returns list of Project
 func (pl *ProjectList) ToSingleProjectList() []platform.Project {
 	var projects []platform.Project
 

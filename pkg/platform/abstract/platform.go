@@ -445,41 +445,6 @@ func (ap *Platform) ResolveReservedResourceNames() []string {
 	}
 }
 
-// FilterProjectsByPermissions will filter out some projects
-func (ap *Platform) FilterProjectsByPermissions(permissionOptions *opa.PermissionOptions,
-	projects []platform.Project) ([]platform.Project, error) {
-
-	// no cleansing is mandated
-	if len(permissionOptions.MemberIds) == 0 {
-		return projects, nil
-	}
-
-	appendLock := sync.Mutex{}
-	errGroup, _ := errgroup.WithContext(context.TODO(), ap.Logger)
-	var permittedProjects []platform.Project
-	for _, projectInstance := range projects {
-		projectInstance := projectInstance
-		errGroup.Go("QueryOPAProjectPermissions", func() error {
-
-			// Check OPA permissions
-			if allowed, err := ap.QueryOPAProjectPermissions(projectInstance.GetConfig().Meta.Name,
-				opa.ActionRead,
-				permissionOptions); err != nil {
-				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-			} else if allowed {
-				appendLock.Lock()
-				permittedProjects = append(permittedProjects, projectInstance)
-				appendLock.Unlock()
-			}
-			return nil
-		})
-	}
-	if err := errGroup.Wait(); err != nil {
-		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for project resources")
-	}
-	return permittedProjects, nil
-}
-
 // FilterFunctionsByPermissions will filter out some functions
 func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *opa.PermissionOptions,
 	functions []platform.Function) ([]platform.Function, error) {
@@ -964,17 +929,6 @@ func (ap *Platform) EnsureDefaultProjectExistence() error {
 	}
 
 	return nil
-}
-
-func (ap *Platform) QueryOPAProjectPermissions(projectName string,
-	action opa.Action,
-	permissionOptions *opa.PermissionOptions) (bool, error) {
-	if projectName == "" {
-		projectName = "*"
-	}
-	return ap.queryOPAPermissions(opa.GenerateProjectResourceString(projectName),
-		action,
-		permissionOptions)
 }
 
 func (ap *Platform) QueryOPAFunctionPermissions(projectName,
