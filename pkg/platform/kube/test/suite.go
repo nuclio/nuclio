@@ -642,7 +642,7 @@ func (suite *KubeTestSuite) compileCreateAPIGatewayOptions(apiGatewayName string
 				Upstreams: []platform.APIGatewayUpstreamSpec{
 					{
 						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+						NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 							Name: functionName,
 						},
 					},

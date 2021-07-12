@@ -239,7 +239,7 @@ func (suite *Suite) verifyAPIGatewayExists(apiGatewayName, primaryFunctionName s
 	suite.Require().NoError(err)
 
 	suite.Assert().Equal(apiGatewayName, apiGateway.Meta.Name)
-	suite.Assert().Equal(primaryFunctionName, apiGateway.Spec.Upstreams[0].Nucliofunction.Name)
+	suite.Assert().Equal(primaryFunctionName, apiGateway.Spec.Upstreams[0].NuclioFunction.Name)
 }
 
 func (suite *Suite) assertFunctionImported(functionName string, imported bool) {

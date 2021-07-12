@@ -58,8 +58,7 @@ func getKubeconfigFromHomeDir() string {
 	homeKubeConfigPath := filepath.Join(homeDir, ".kube", "config")
 
 	// if the file exists @ home, use it
-	_, err = os.Stat(homeKubeConfigPath)
-	if err == nil {
+	if _, err := os.Stat(homeKubeConfigPath); err == nil {
 		return homeKubeConfigPath
 	}
 

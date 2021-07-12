@@ -1117,8 +1117,8 @@ func (p *Platform) generateFunctionToAPIGatewaysMapping(namespace string) (map[s
 		for _, upstream := range apiGateway.Spec.Upstreams {
 
 			// append the current api gateway to the function's api gateways list
-			functionToAPIGateways[upstream.Nucliofunction.Name] =
-				append(functionToAPIGateways[upstream.Nucliofunction.Name], apiGateway.Name)
+			functionToAPIGateways[upstream.NuclioFunction.Name] =
+				append(functionToAPIGateways[upstream.NuclioFunction.Name], apiGateway.Name)
 		}
 	}
 
@@ -1491,7 +1491,7 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *
 	for _, upstream := range apiGatewayConfig.Spec.Upstreams {
 		upstream := upstream
 		errGroup.Go("GetFunctionIngresses", func() error {
-			function, err := p.getFunction(apiGatewayConfig.Meta.Namespace, upstream.Nucliofunction.Name)
+			function, err := p.getFunction(apiGatewayConfig.Meta.Namespace, upstream.NuclioFunction.Name)
 			if err != nil {
 				return errors.New("Failed to get upstream function")
 			}
@@ -1505,7 +1505,7 @@ func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *
 			if len(ingresses) > 0 {
 				return nuclio.NewErrPreconditionFailed(
 					fmt.Sprintf("Api gateway upstream function: %s must not have an ingress",
-						upstream.Nucliofunction.Name))
+						upstream.NuclioFunction.Name))
 			}
 			return nil
 		})
