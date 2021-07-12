@@ -50,7 +50,7 @@ func NewClient(parentLogger logger.Logger,
 
 	newClient.synchronizer, err = iguazio.NewSynchronizer(parentLogger,
 		synchronizationIntervalStr,
-		platformConfiguration.ManagedNamespaces,
+		namespaces,
 		newClient.leaderClient,
 		internalClient)
 	if err != nil {
