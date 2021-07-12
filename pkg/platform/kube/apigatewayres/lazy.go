@@ -306,7 +306,52 @@ func (lc *lazyClient) resolveCommonAnnotations(canaryDeployment bool, upstreamPe
 }
 
 func (lc *lazyClient) resolveBaseAndCanaryUpstreamsFromSpec(upstreams []platform.APIGatewayUpstreamSpec) (
+	*platform.APIGatewayUpstreamSpec, *platform.APIGatewayUpstreamSpec, error) {
+
+	if len(upstreams) == 1 {
+		return &upstreams[0], nil, nil
+	}
+
+	var primary *platform.APIGatewayUpstreamSpec
+	var canary *platform.APIGatewayUpstreamSpec
+
+	// determine which upstream is the canary one
+	switch {
+	case upstreams[0].Percentage != 0:
+		primary = &upstreams[1]
+		canary = &upstreams[0]
+	case upstreams[1].Percentage != 0:
+		primary = &upstreams[0]
+		canary = &upstreams[1]
+	default:
+		return nil, nil, errors.New("Percentage must be set on one of the upstreams (canary)")
+	}
+
+	return primary, canary, nil
 }
+
+func (lc *lazyClient) enrichPrimaryIngressResources(primaryIngressResources *ingress.Resources,
+	primaryUpstream *platform.APIGatewayUpstreamSpec,
+	canaryUpstream *platform.APIGatewayUpstreamSpec) {
+
+	// set nuclio target header on ingress
+	encodedPrimaryTargetHeader := fmt.Sprintf(`proxy_set_header X-Nuclio-Target "%s";`, primaryUpstream.NuclioFunction.Name)
+	annotations := primaryIngressResources.Ingress.Annotations
+	configurationSnippetHeaderName := "nginx.ingress.kubernetes.io/configuration-snippet"
+
+	if _, headerExists := annotations[configurationSnippetHeaderName]; headerExists {
+		annotations[configurationSnippetHeaderName] += fmt.Sprintf("\n%s", encodedPrimaryTargetHeader)
+	} else {
+		annotations[configurationSnippetHeaderName] = encodedPrimaryTargetHeader
+	}
+
+	// TODO: uncomment after work is done on scaler part
+	//if canaryUpstream != nil {
+	//	encodedCanaryTargetHeader := fmt.Sprintf(`proxy_set_header X-Nuclio-Sub-Targets "%s";`, canaryUpstream.NuclioFunction.Name)
+	//	annotations[configurationSnippetHeaderName] += fmt.Sprintf("\n%s", encodedCanaryTargetHeader)
+	//}
+}
+
 //
 // Resources
 //
