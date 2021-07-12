@@ -1,4 +1,4 @@
-package project
+package internal
 
 import (
 	"sync"
@@ -48,7 +48,7 @@ func (c *SafeCache) Delete(namespace, name string) {
 }
 
 func (c *SafeCache) Get(getProjectOptions *platform.GetProjectsOptions) []platform.Project {
-	matchingProjects := []platform.Project{}
+	var matchingProjects []platform.Project
 
 	for _, projectInstance := range c.projectsCache {
 		projectConfig := projectInstance.GetConfig()
@@ -79,7 +79,7 @@ func (c *SafeCache) add(projectInstance platform.Project) {
 }
 
 func (c *SafeCache) delete(namespace, name string) {
-	newProjectsCache := []platform.Project{}
+	var newProjectsCache []platform.Project
 
 	for _, projectInstance := range c.projectsCache {
 		projectConfig := projectInstance.GetConfig()

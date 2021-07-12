@@ -39,8 +39,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	externalproject "github.com/nuclio/nuclio/pkg/platform/abstract/project/external"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/internalc/local"
 	"github.com/nuclio/nuclio/pkg/platform/local/client"
-	internalproject "github.com/nuclio/nuclio/pkg/platform/local/project"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
@@ -67,7 +67,7 @@ const FunctionProcessorContainerDirPath = "/etc/nuclio/config/processor"
 func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig.Config) (project.Client, error) {
 
 	// create local projects client
-	localProjectsClient, err := internalproject.NewClient(platform.Logger, platform, platform.localStore)
+	localProjectsClient, err := local.NewClient(platform.Logger, platform, platform.localStore)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create internal projects client (local)")
 	}

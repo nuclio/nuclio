@@ -35,10 +35,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	externalproject "github.com/nuclio/nuclio/pkg/platform/abstract/project/external"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/internalc/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
-	internalproject "github.com/nuclio/nuclio/pkg/platform/kube/project"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -66,7 +66,7 @@ const Mib = 1048576
 func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig.Config) (project.Client, error) {
 
 	// create kube projects client
-	kubeProjectsClient, err := internalproject.NewClient(platform.Logger, platform, platform.consumer)
+	kubeProjectsClient, err := kube.NewClient(platform.Logger, platform, platform.consumer)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create internal projects client (kube)")
 	}
@@ -167,7 +167,7 @@ func (p *Platform) Initialize() error {
 	return nil
 }
 
-// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+// CreateFunction will deploy a processor image to the platform (optionally building it, if source is provided)
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (
 	*platform.CreateFunctionResult, error) {
 

@@ -1,4 +1,4 @@
-package project
+package local
 
 import (
 	"github.com/nuclio/nuclio/pkg/platform"

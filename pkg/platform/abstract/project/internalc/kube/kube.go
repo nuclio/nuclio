@@ -1,10 +1,11 @@
-package project
+package kube
 
 import (
 	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/platform"
-	abstractproject "github.com/nuclio/nuclio/pkg/platform/abstract/project"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/internalc"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 
@@ -19,18 +20,20 @@ type Client struct {
 	Logger        logger.Logger
 	platform      platform.Platform
 	consumer      *client.Consumer
-	projectsCache *SafeCache
+	projectsCache *internal.SafeCache
 }
 
-func NewClient(parentLogger logger.Logger, platformInstance platform.Platform, consumer *client.Consumer) (abstractproject.Client, error) {
-	newClient := Client{
+func NewClient(parentLogger logger.Logger,
+	platformInstance platform.Platform,
+	consumer *client.Consumer) (project.Client, error) {
+	newClient := &Client{
 		Logger:        parentLogger.GetChild("projects-kube"),
 		consumer:      consumer,
 		platform:      platformInstance,
-		projectsCache: NewSafeCache(),
+		projectsCache: internal.NewSafeCache(),
 	}
 
-	return &newClient, nil
+	return newClient, nil
 }
 
 func (c *Client) Initialize() error {

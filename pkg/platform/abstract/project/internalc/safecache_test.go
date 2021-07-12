@@ -1,4 +1,4 @@
-package project
+package internal
 
 import (
 	"fmt"
@@ -32,7 +32,7 @@ func (suite *SafeCacheTestSuite) TestAdd() {
 }
 
 func (suite *SafeCacheTestSuite) TestAddMany() {
-	projectInstances := []platform.Project{}
+	var projectInstances []platform.Project
 
 	for i := 0; i < 10; i++ {
 		testName := fmt.Sprintf("test-name-%d", i)
@@ -82,7 +82,7 @@ func (suite *SafeCacheTestSuite) TestDelete() {
 func (suite *SafeCacheTestSuite) TestGet() {
 	projectInstancesByNamespace := map[string][]platform.Project{}
 
-	namespaces := []string{}
+	var namespaces []string
 	for i := 0; i < 10; i++ {
 		namespaces = append(namespaces, fmt.Sprintf("namespace-%d", i))
 	}
