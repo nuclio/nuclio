@@ -24,6 +24,10 @@ func NewClient(parentLogger logger.Logger, platformConfiguration *platformconfig
 	return &newClient, nil
 }
 
+func (c *Client) Get(getProjectOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	return nil, nuclio.ErrNotImplemented
+}
+
 func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) error {
 	return nuclio.ErrNotImplemented
 }

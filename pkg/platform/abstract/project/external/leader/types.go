@@ -8,6 +8,9 @@ import (
 
 type Client interface {
 
+	// Get delegate the project get to leader
+	Get(*platform.GetProjectsOptions) ([]platform.Project, error)
+
 	// Create delegates project creation to leader
 	Create(*platform.CreateProjectOptions) error
 
