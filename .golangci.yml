@@ -4,10 +4,9 @@ linters:
     - deadcode
     - goconst
     - gofmt
-    - golint
+    - revive
     - gosimple
     - ineffassign
-    - interfacer
     - misspell
     - staticcheck
     - unconvert
@@ -37,6 +36,13 @@ run:
     - vendor
 
 linters-settings:
+  revive:
+    rules:
+
+        # avoid  errorf: should replace errors.New(fmt.Sprintf(...)) with fmt.Errorf(...)  messages
+      - name: errorf
+        disabled: true
+
   gocritic:
     disabled-checks:
       - commentFormatting # we dont want to enforce space before the comment text

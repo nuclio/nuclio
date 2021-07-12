@@ -1301,11 +1301,7 @@ func (p *Platform) ValidateAPIGatewayConfig(platformAPIGateway *platform.APIGate
 		return errors.Wrap(err, "Failed to validate the API-gateway spec")
 	}
 
-	if err := p.validateAPIGatewayIngresses(platformAPIGateway); err != nil {
-		return err
-	}
-
-	return nil
+	return p.validateAPIGatewayIngresses(platformAPIGateway)
 }
 
 func (p *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config) error {
