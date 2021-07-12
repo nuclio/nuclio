@@ -69,6 +69,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
+	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      request.Header.Get("x-nuclio-project-name"),
@@ -78,6 +79,8 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
+		SessionCookie: sessionCookie,
+		RequestOrigin: requestOrigin,
 	})
 
 	if err != nil {
@@ -554,6 +557,7 @@ func (pr *projectResource) importProjectFunctionEvents(request *http.Request,
 }
 
 func (pr *projectResource) getProjectByName(request *http.Request, projectName, projectNamespace string) (platform.Project, error) {
+	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      projectName,
@@ -564,6 +568,8 @@ func (pr *projectResource) getProjectByName(request *http.Request, projectName, 
 			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
+		RequestOrigin: requestOrigin,
+		SessionCookie: sessionCookie,
 	})
 
 	if err != nil {

@@ -265,6 +265,8 @@ type DeleteProjectOptions struct {
 type GetProjectsOptions struct {
 	Meta              ProjectMeta
 	PermissionOptions opa.PermissionOptions
+	RequestOrigin     platformconfig.ProjectsLeaderKind
+	SessionCookie     *http.Cookie
 }
 
 // to appease k8s

@@ -132,12 +132,6 @@ func (mp *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
-func (mp *Platform) FilterProjectsByPermissions(permissionOptions *opa.PermissionOptions,
-	projects []platform.Project) ([]platform.Project, error) {
-	args := mp.Called(permissionOptions, projects)
-	return args.Get(0).([]platform.Project), args.Error(1)
-}
-
 func (mp *Platform) GetRuntimeBuildArgs(runtime runtime.Runtime) map[string]string {
 	args := mp.Called()
 	return args.Get(0).(map[string]string)
@@ -325,13 +319,6 @@ func (mp *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 
 func (mp *Platform) WaitForProjectResourcesDeletion(projectMeta *platform.ProjectMeta, duration time.Duration) error {
 	return nil
-}
-
-func (mp *Platform) QueryOPAProjectPermissions(projectName string,
-	action opa.Action,
-	permissionOptions *opa.PermissionOptions) (bool, error) {
-	args := mp.Called(projectName, action, permissionOptions)
-	return args.Get(0).(bool), args.Error(1)
 }
 
 func (mp *Platform) QueryOPAFunctionPermissions(projectName,

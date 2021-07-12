@@ -102,13 +102,10 @@ type Platform interface {
 	// GetProjects will list existing projects
 	GetProjects(getProjectsOptions *GetProjectsOptions) ([]Project, error)
 
-	// FilterProjectsByPermissions will filter out some projects
-	FilterProjectsByPermissions(*opa.PermissionOptions, []Project) ([]Project, error)
-
-	// Ensures default project exists, creates it otherwise
+	// EnsureDefaultProjectExistence ensure default project exists, creates it otherwise
 	EnsureDefaultProjectExistence() error
 
-	// Waits for all of the project's resources to be deleted
+	// WaitForProjectResourcesDeletion waits for all of the project's resources to be deleted
 	WaitForProjectResourcesDeletion(projectMeta *ProjectMeta, duration time.Duration) error
 
 	//
@@ -135,7 +132,7 @@ type Platform interface {
 	// API Gateway
 	//
 
-	// Create APIGateway creates and deploys a new api gateway
+	// CreateAPIGateway creates and deploy APIGateway
 	CreateAPIGateway(createAPIGatewayOptions *CreateAPIGatewayOptions) error
 
 	// UpdateAPIGateway will update a previously deployed api gateway
@@ -219,9 +216,6 @@ type Platform interface {
 	//
 	// OPA
 	//
-
-	// QueryOPAProjectPermissions queries opa permissions for a certain project
-	QueryOPAProjectPermissions(projectName string, action opa.Action, permissionOptions *opa.PermissionOptions) (bool, error)
 
 	// QueryOPAFunctionPermissions queries opa permissions for a certain function
 	QueryOPAFunctionPermissions(projectName, functionName string, action opa.Action, permissionOptions *opa.PermissionOptions) (bool, error)

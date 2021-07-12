@@ -111,6 +111,7 @@ type ProjectsLeaderKind string
 const (
 	ProjectsLeaderKindIguazio ProjectsLeaderKind = "iguazio"
 	ProjectsLeaderKindMlrun   ProjectsLeaderKind = "mlrun"
+	ProjectsLeaderKindMock    ProjectsLeaderKind = "mock"
 )
 
 type ProjectsLeader struct {

@@ -166,7 +166,7 @@ dashboard:
 
     image:
       repository: openpolicyagent/opa
-      tag: 0.28.0
+      tag: 0.30.1
       pullPolicy: IfNotPresent
       pullSecrets: []
 

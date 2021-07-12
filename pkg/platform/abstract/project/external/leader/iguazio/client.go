@@ -16,9 +16,9 @@ import (
 
 const (
 	ProjectsRoleHeaderValueNuclio = "nuclio"
-	DefaultRequestTimeout         = 10 * time.Second
+	DefaultRequestTimeout         = 60 * time.Second
 
-	// didn't use "x-nuclio.." prefix, because this header is used across iguazio, mlrun and nuclio (not nuclio specific)
+	// ProjectsRoleHeaderKey not prefixed with "x-nuclio.." this header is used across Iguazio components
 	ProjectsRoleHeaderKey = "x-projects-role"
 )
 
@@ -34,6 +34,42 @@ func NewClient(parentLogger logger.Logger, platformConfiguration *platformconfig
 	}
 
 	return &newClient, nil
+}
+
+func (c *Client) Get(getProjectOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	c.logger.DebugWith("Fetching projects from leader",
+		"getProjectOptionsMeta", getProjectOptions.Meta)
+
+	var cookies []*http.Cookie
+	if getProjectOptions.SessionCookie != nil {
+		cookies = append(cookies, getProjectOptions.SessionCookie)
+	}
+
+	url := fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects")
+	if getProjectOptions.Meta.Name != "" {
+		url += fmt.Sprintf("/__name__/%s", getProjectOptions.Meta.Name)
+	}
+
+	// send the request
+	headers := c.generateCommonRequestHeaders()
+	responseBody, _, err := common.SendHTTPRequest(http.MethodGet,
+		url,
+		nil,
+		headers,
+		cookies,
+		http.StatusOK,
+		true,
+		DefaultRequestTimeout)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to send request to leader")
+	}
+
+	projectsList := ProjectList{}
+	if err := json.Unmarshal(responseBody, &projectsList); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal response body")
+	}
+
+	return projectsList.ToSingleProjectList(), nil
 }
 
 func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) error {

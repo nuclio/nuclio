@@ -39,8 +39,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	externalproject "github.com/nuclio/nuclio/pkg/platform/abstract/project/external"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/internalc/local"
 	"github.com/nuclio/nuclio/pkg/platform/local/client"
-	internalproject "github.com/nuclio/nuclio/pkg/platform/local/project"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
@@ -67,7 +67,7 @@ const FunctionProcessorContainerDirPath = "/etc/nuclio/config/processor"
 func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig.Config) (project.Client, error) {
 
 	// create local projects client
-	localProjectsClient, err := internalproject.NewClient(platform.Logger, platform, platform.localStore)
+	localProjectsClient, err := local.NewClient(platform.Logger, platform, platform.localStore)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create internal projects client (local)")
 	}
@@ -439,15 +439,6 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 		return errors.Wrap(err, "Failed to validate a project configuration")
 	}
 
-	// Check OPA permissions
-	permissionOptions := createProjectOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAProjectPermissions(createProjectOptions.ProjectConfig.Meta.Name,
-		opa.ActionCreate,
-		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-	}
-
 	// create
 	if _, err := p.projectsClient.Create(createProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to create project")
@@ -462,15 +453,6 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 		return nuclio.WrapErrBadRequest(err)
 	}
 
-	// Check OPA permissions
-	permissionOptions := updateProjectOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAProjectPermissions(updateProjectOptions.ProjectConfig.Meta.Name,
-		opa.ActionUpdate,
-		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-	}
-
 	if _, err := p.projectsClient.Update(updateProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to update project")
 	}
@@ -482,15 +464,6 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate delete project options")
-	}
-
-	// Check OPA permissions
-	permissionOptions := deleteProjectOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAProjectPermissions(deleteProjectOptions.Meta.Name,
-		opa.ActionDelete,
-		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	if err := p.projectsClient.Delete(deleteProjectOptions); err != nil {
@@ -507,7 +480,7 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 		return nil, errors.Wrap(err, "Failed getting projects")
 	}
 
-	return p.Platform.FilterProjectsByPermissions(&getProjectsOptions.PermissionOptions, projects)
+	return projects, nil
 }
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
