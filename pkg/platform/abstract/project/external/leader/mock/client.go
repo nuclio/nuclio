@@ -12,6 +12,10 @@ type Client struct {
 	mock.Mock
 }
 
+func NewClient() (*Client, error) {
+	return &Client{}, nil
+}
+
 func (c *Client) Get(getProjectOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	args := c.Called(getProjectOptions)
 	return args.Get(0).([]platform.Project), args.Error(1)

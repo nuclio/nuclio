@@ -6,6 +6,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mlrun"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -124,6 +125,9 @@ func newLeaderClient(parentLogger logger.Logger, platformConfiguration *platform
 	// iguazio projects leader
 	case platformconfig.ProjectsLeaderKindIguazio:
 		return iguazio.NewClient(parentLogger, platformConfiguration)
+
+	case platformconfig.ProjectsLeaderKindMock:
+		return mock.NewClient()
 	}
 
 	return nil, errors.Errorf("Unknown projects leader kind: %s", platformConfiguration.ProjectsLeader.Kind)

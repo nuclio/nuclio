@@ -29,6 +29,10 @@ func (c *Client) Initialize() error {
 	return nil
 }
 
+func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	return c.localStore.GetProjects(&getProjectsOptions.Meta)
+}
+
 func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
 	c.Logger.DebugWith("Creating a project", "projectName", createProjectOptions.ProjectConfig.Meta.Name)
 	return nil, c.localStore.CreateOrUpdateProject(createProjectOptions.ProjectConfig)
@@ -54,8 +58,4 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	}
 
 	return nil
-}
-
-func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	return c.localStore.GetProjects(&getProjectsOptions.Meta)
 }
