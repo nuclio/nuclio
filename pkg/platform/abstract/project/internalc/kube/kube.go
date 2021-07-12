@@ -66,7 +66,6 @@ func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platfor
 		projectInstanceList, err := c.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioProjects(getProjectsOptions.Meta.Namespace).
 			List(metav1.ListOptions{LabelSelector: ""})
-
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list projects")
 		}

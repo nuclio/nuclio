@@ -1,6 +1,7 @@
 package external
 
 import (
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
@@ -41,7 +42,17 @@ func NewClient(parentLogger logger.Logger,
 	if platformConfiguration.ProjectsLeader != nil {
 		synchronizationIntervalStr = platformConfiguration.ProjectsLeader.SynchronizationInterval
 	}
-	newClient.synchronizer, err = iguazio.NewSynchronizer(parentLogger, synchronizationIntervalStr, newClient.leaderClient, internalClient)
+
+	namespaces := platformConfiguration.ManagedNamespaces
+	if len(namespaces) == 0 {
+		namespaces = append(namespaces, common.ResolveDefaultNamespace("@nuclio.selfNamespace"))
+	}
+
+	newClient.synchronizer, err = iguazio.NewSynchronizer(parentLogger,
+		synchronizationIntervalStr,
+		platformConfiguration.ManagedNamespaces,
+		newClient.leaderClient,
+		internalClient)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create synchronizer")
 	}

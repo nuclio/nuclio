@@ -74,7 +74,9 @@ func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig
 	if platformConfiguration.ProjectsLeader != nil {
 
 		// wrap external client around kube projects client as internal client
-		return externalproject.NewClient(platform.Logger, kubeProjectsClient, platformConfiguration)
+		return externalproject.NewClient(platform.Logger,
+			kubeProjectsClient,
+			platformConfiguration)
 	}
 
 	return kubeProjectsClient, nil
@@ -1011,7 +1013,7 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 
 // GetNamespaces returns all the namespaces in the platform
 func (p *Platform) GetNamespaces() ([]string, error) {
-	if p.Config.ManagedNamespaces != nil {
+	if len(p.Config.ManagedNamespaces) > 0 {
 		return p.Config.ManagedNamespaces, nil
 	}
 

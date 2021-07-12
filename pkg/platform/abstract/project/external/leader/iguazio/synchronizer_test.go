@@ -121,7 +121,11 @@ func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(leaderProj
 
 	// mock internal client get projects
 	suite.mockInternalProjectsClient.
-		On("Get", &platform.GetProjectsOptions{}).
+		On("Get", &platform.GetProjectsOptions{
+			Meta: platform.ProjectMeta{
+				Namespace: "some-namespace",
+			},
+		}).
 		Return(internalProjects, nil).
 		Once()
 
@@ -141,7 +145,8 @@ func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(leaderProj
 			Once()
 	}
 
-	newMostRecentUpdatedProjectTime, err := suite.synchronizer.SynchronizeProjectsFromLeader(uninitializedTime)
+	newMostRecentUpdatedProjectTime, err := suite.synchronizer.synchronizeProjectsFromLeader("some-namespace",
+		uninitializedTime)
 	suite.Require().NoError(err)
 
 	suite.Require().Equal(newMostRecentUpdatedProjectTime, expectedNewMostRecentUpdatedProjectTime)
