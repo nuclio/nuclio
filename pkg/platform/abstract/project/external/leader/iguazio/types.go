@@ -79,6 +79,10 @@ type NuclioProject struct {
 	// currently no nuclio specific fields are needed
 }
 
+type GetProjectResponse interface {
+	ToSingleProjectList() []platform.Project
+}
+
 type ProjectList struct {
 	Data []ProjectData `json:"data,omitempty"`
 }
@@ -92,4 +96,15 @@ func (pl *ProjectList) ToSingleProjectList() []platform.Project {
 	}
 
 	return projects
+}
+
+type ProjectDetail struct {
+	Data ProjectData `json:"data,omitempty"`
+}
+
+// ToSingleProjectList returns list of Project
+func (pl *ProjectDetail) ToSingleProjectList() []platform.Project {
+	return []platform.Project{
+		&Project{Data: pl.Data},
+	}
 }
