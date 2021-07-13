@@ -191,7 +191,9 @@ func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(namespace 
 	newMostRecentUpdatedProjectTime, err := suite.synchronizer.synchronizeProjectsFromLeader(namespace, uninitializedTime)
 	suite.Require().NoError(err)
 
-	suite.Require().Equal(expectedNewMostRecentUpdatedProjectTime, newMostRecentUpdatedProjectTime)
+	if expectedNewMostRecentUpdatedProjectTime != nil {
+		suite.Require().True(expectedNewMostRecentUpdatedProjectTime.Equal(*newMostRecentUpdatedProjectTime))
+	}
 
 	// sleep for 1 second so every mock create/update go routine would finish
 	time.Sleep(1 * time.Second)
