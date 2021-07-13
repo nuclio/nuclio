@@ -8,6 +8,7 @@ import (
 
 const (
 	ProjectType = "project"
+	ProjectTimeLayout = "2006-01-02T15:04:05.000000+00:00"
 )
 
 type Project struct {
@@ -48,9 +49,7 @@ func (pl *Project) GetConfig() *platform.ProjectConfig {
 }
 
 func (pl *Project) parseTimeFromTimestamp(timestamp string) time.Time {
-	loc, _ := time.LoadLocation("GMT")
-	layout := "2006-01-02T15:04:05.000000+00:00"
-	t, _ := time.ParseInLocation(layout, timestamp, loc)
+	t, _ := time.Parse(ProjectTimeLayout, timestamp)
 	return t
 }
 

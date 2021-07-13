@@ -46,11 +46,15 @@ func (suite *SynchronizerTestSuite) SetupTest() {
 }
 
 func (suite *SynchronizerTestSuite) TestNoLeaderProjects() {
-	testBeginningTime := time.Now()
+	testBeginningTime := time.Now().UTC()
 
-	suite.testSynchronizeProjectsFromLeader([]platform.Project{},
+	suite.testSynchronizeProjectsFromLeader("some-namespace",
+		[]platform.Project{},
 		[]platform.Project{
-			suite.createAbstractProject("test-internal-project", "", "online", testBeginningTime),
+			suite.compileProject("test-internal-project",
+				"",
+				"online",
+				testBeginningTime.Format(ProjectTimeLayout)),
 		},
 		[]*platform.CreateProjectOptions{},
 		[]*platform.UpdateProjectOptions{},
@@ -58,47 +62,77 @@ func (suite *SynchronizerTestSuite) TestNoLeaderProjects() {
 }
 
 func (suite *SynchronizerTestSuite) TestLeaderProjectsDoesntExistInternally() {
-	testBeginningTime := time.Now()
+	testBeginningTime := time.Now().UTC()
 	testBeginningTimePlusOneHour := testBeginningTime.Add(time.Hour)
 
-	leaderProjectMostUpdated := suite.createAbstractProject("leader-project-most-updated", "", "online", testBeginningTimePlusOneHour)
-	leaderProjectLessUpdated := suite.createAbstractProject("leader-project-less-updated", "", "online", testBeginningTime)
+	namespace := "some-namespace"
+	leaderProjectMostUpdated := suite.compileProject(
+		"leader-project-most-updated",
+		"",
+		"online",
+		testBeginningTimePlusOneHour.Format(ProjectTimeLayout))
+	leaderProjectLessUpdated := suite.compileProject(
+		"leader-project-less-updated",
+		"",
+		"online",
+		testBeginningTime.Format(ProjectTimeLayout))
 
 	suite.testSynchronizeProjectsFromLeader(
+		namespace,
 		[]platform.Project{leaderProjectMostUpdated, leaderProjectLessUpdated},
 		[]platform.Project{},
 		[]*platform.CreateProjectOptions{
 			{
-				ProjectConfig: &leaderProjectMostUpdated.ProjectConfig,
+				ProjectConfig: func() *platform.ProjectConfig {
+					platformConfig := leaderProjectMostUpdated.GetConfig()
+					platformConfig.Meta.Namespace = namespace
+					return platformConfig
+				}(),
 			},
 			{
-				ProjectConfig: &leaderProjectLessUpdated.ProjectConfig,
+				ProjectConfig: func() *platform.ProjectConfig {
+					platformConfig := leaderProjectLessUpdated.GetConfig()
+					platformConfig.Meta.Namespace = namespace
+					return platformConfig
+				}(),
 			},
 		},
 		[]*platform.UpdateProjectOptions{},
 		&testBeginningTimePlusOneHour)
 }
 
-func (suite *SynchronizerTestSuite) TestLeaderProjectsIsntUpdatedInternally() {
-	testBeginningTime := time.Now()
+func (suite *SynchronizerTestSuite) TestLeaderProjectsNotUpdatedInternally() {
+	testBeginningTime := time.Now().UTC()
 
-	updatedProject := suite.createAbstractProject("leader-project", "updated", "online", testBeginningTime)
-	notUpdatedProject := suite.createAbstractProject("leader-project", "not-updated", "online", testBeginningTime)
-
+	updatedProject := suite.compileProject("leader-project",
+		"updated",
+		"online",
+		testBeginningTime.Format(ProjectTimeLayout))
+	notUpdatedProject := suite.compileProject("leader-project",
+		"not-updated",
+		"online",
+		testBeginningTime.Format(ProjectTimeLayout))
+	namespace := "some-namespace"
 	suite.testSynchronizeProjectsFromLeader(
+		namespace,
 		[]platform.Project{updatedProject},
 		[]platform.Project{notUpdatedProject},
 		[]*platform.CreateProjectOptions{},
-		[]*platform.UpdateProjectOptions{{ProjectConfig: updatedProject.ProjectConfig}},
+		[]*platform.UpdateProjectOptions{{ProjectConfig: *updatedProject.GetConfig()}},
 		&testBeginningTime)
 }
 
 func (suite *SynchronizerTestSuite) TestLeaderProjectsThatExistInternally() {
-	testBeginningTime := time.Now()
+	testBeginningTime := time.Now().UTC()
 
-	projectInstance := suite.createAbstractProject("leader-project", "updated", "online", testBeginningTime)
+	projectInstance := suite.compileProject("leader-project",
+		"updated",
+		"online",
+		testBeginningTime.Format(ProjectTimeLayout))
 
+	namespace := "some-namespace"
 	suite.testSynchronizeProjectsFromLeader(
+		namespace,
 		[]platform.Project{projectInstance},
 		[]platform.Project{projectInstance},
 		[]*platform.CreateProjectOptions{},
@@ -106,7 +140,8 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsThatExistInternally() {
 		&testBeginningTime)
 }
 
-func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(leaderProjects []platform.Project,
+func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(namespace string,
+	leaderProjects []platform.Project,
 	internalProjects []platform.Project,
 	projectsToCreate []*platform.CreateProjectOptions,
 	projectsToUpdate []*platform.UpdateProjectOptions,
@@ -123,7 +158,7 @@ func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(leaderProj
 	suite.mockInternalProjectsClient.
 		On("Get", &platform.GetProjectsOptions{
 			Meta: platform.ProjectMeta{
-				Namespace: "some-namespace",
+				Namespace: namespace,
 			},
 		}).
 		Return(internalProjects, nil).
@@ -145,11 +180,10 @@ func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(leaderProj
 			Once()
 	}
 
-	newMostRecentUpdatedProjectTime, err := suite.synchronizer.synchronizeProjectsFromLeader("some-namespace",
-		uninitializedTime)
+	newMostRecentUpdatedProjectTime, err := suite.synchronizer.synchronizeProjectsFromLeader(namespace, uninitializedTime)
 	suite.Require().NoError(err)
 
-	suite.Require().Equal(newMostRecentUpdatedProjectTime, expectedNewMostRecentUpdatedProjectTime)
+	suite.Require().Equal(expectedNewMostRecentUpdatedProjectTime, newMostRecentUpdatedProjectTime)
 
 	// sleep for 1 second so every mock create/update go routine would finish
 	time.Sleep(1 * time.Second)
@@ -169,22 +203,20 @@ func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(leaderProj
 	if len(projectsToUpdate) == 0 {
 		suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Update", mock.Anything)
 	}
+
+	suite.mockInternalProjectsClient.AssertExpectations(suite.T())
 }
 
-func (suite *SynchronizerTestSuite) createAbstractProject(name string,
+func (suite *SynchronizerTestSuite) compileProject(name string,
 	description string,
 	status string,
-	updatedAt time.Time) *platform.AbstractProject {
+	updatedAt string) platform.Project {
 
-	return &platform.AbstractProject{
-		ProjectConfig: platform.ProjectConfig{
-			Meta: platform.ProjectMeta{
-				Name: name,
-			},
-			Spec: platform.ProjectSpec{
-				Description: description,
-			},
-			Status: platform.ProjectStatus{
+	return &Project{
+		Data: ProjectData{
+			Attributes: ProjectAttributes{
+				Name:              name,
+				Description:       description,
 				OperationalStatus: status,
 				AdminStatus:       status,
 				UpdatedAt:         updatedAt,

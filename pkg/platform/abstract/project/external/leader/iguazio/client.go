@@ -243,12 +243,6 @@ func (c *Client) generateProjectRequestBody(projectConfig *platform.ProjectConfi
 	return json.Marshal(project)
 }
 
-func (c *Client) enrichProjectWithNuclioFields(project *Project) {
-
-	// TODO: update this function when nuclio fields are added
-	//project.Data.Attributes.NuclioProject = NuclioProject{}
-}
-
 func (c *Client) generateProjectDeletionRequestBody(projectName string) ([]byte, error) {
 	return json.Marshal(Project{
 		Data: ProjectData{
@@ -258,4 +252,10 @@ func (c *Client) generateProjectDeletionRequestBody(projectName string) ([]byte,
 			},
 		},
 	})
+}
+
+func (c *Client) enrichProjectWithNuclioFields(project *Project) {
+
+	// TODO: update this function when nuclio fields are added
+	//project.Data.Attributes.NuclioProject = NuclioProject{}
 }
