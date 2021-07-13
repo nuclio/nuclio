@@ -351,7 +351,7 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 	}
 
 	if err := ap.validateNodeSelector(functionConfig); err != nil {
-		return errors.Wrap(err, "NodeSelectors validation failed")
+		return errors.Wrap(err, "NodeSelector validation failed")
 	}
 
 	if err := ap.validateProjectExists(functionConfig); err != nil {
@@ -1080,9 +1080,7 @@ func (ap *Platform) validateMinMaxReplicas(functionConfig *functionconfig.Config
 }
 
 func (ap *Platform) validateNodeSelector(functionConfig *functionconfig.Config) error {
-	nodeSelector := functionConfig.Spec.NodeSelector
-
-	for labelKey, labelValue := range nodeSelector {
+	for labelKey, labelValue := range functionConfig.Spec.NodeSelector {
 		if errs := validation.IsValidLabelValue(labelValue); len(errs) > 0 {
 			return nuclio.NewErrBadRequest(fmt.Sprintf(errs[0]))
 		}
