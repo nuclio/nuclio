@@ -1,3 +1,5 @@
+// +build test_unit
+
 package iguazio
 
 import (

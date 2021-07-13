@@ -473,6 +473,7 @@ ensure-test-files-annotated: modules
 		exit 1; \
 	fi
 	@echo "All go test file have build annotations"
+	@exit $(.SHELLSTATUS)
 
 #
 # Testing
