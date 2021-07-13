@@ -1085,9 +1085,9 @@ func (ap *Platform) validateNodeSelector(functionConfig *functionconfig.Config) 
 			return nuclio.NewErrBadRequest(fmt.Sprintf(errs[0]))
 		}
 
-		//Valid label keys have two segments: an optional prefix and name, separated by a slash (/).
-		//The name segment is required and must realize the rules for a valid label value.
-		//The prefix is optional. If specified, the prefix must be a DNS subdomain.
+		// Valid label keys have two segments: an optional prefix and name, separated by a slash (/).
+		// The name segment is required and must realize the rules for a valid label value.
+		// The prefix is optional. If specified, the prefix must be a DNS subdomain.
 		splitLabelKey := strings.SplitN(labelKey, "/", 2)
 		keyName := splitLabelKey[0]
 		if len(splitLabelKey) == 2 {
