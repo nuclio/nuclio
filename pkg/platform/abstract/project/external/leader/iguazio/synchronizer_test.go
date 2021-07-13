@@ -104,21 +104,29 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsDoesntExistInternally() {
 func (suite *SynchronizerTestSuite) TestLeaderProjectsNotUpdatedInternally() {
 	testBeginningTime := time.Now().UTC()
 
+	namespace := "some-namespace"
 	updatedProject := suite.compileProject("leader-project",
 		"updated",
 		"online",
 		testBeginningTime.Format(ProjectTimeLayout))
+	updatedProject.(*Project).Data.Attributes.Namespace = "some-namespace"
 	notUpdatedProject := suite.compileProject("leader-project",
 		"not-updated",
 		"online",
 		testBeginningTime.Format(ProjectTimeLayout))
-	namespace := "some-namespace"
+	notUpdatedProject.(*Project).Data.Attributes.Namespace = "some-namespace"
 	suite.testSynchronizeProjectsFromLeader(
 		namespace,
 		[]platform.Project{updatedProject},
 		[]platform.Project{notUpdatedProject},
 		[]*platform.CreateProjectOptions{},
-		[]*platform.UpdateProjectOptions{{ProjectConfig: *updatedProject.GetConfig()}},
+		[]*platform.UpdateProjectOptions{{
+			ProjectConfig: func() platform.ProjectConfig {
+				platformConfig := *updatedProject.GetConfig()
+				platformConfig.Meta.Namespace = namespace
+				return platformConfig
+			}(),
+		}},
 		&testBeginningTime)
 }
 
