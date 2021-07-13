@@ -466,7 +466,7 @@ lint: modules
 .PHONY: ensure-test-files-annotated
 ensure-test-files-annotated: modules
 	$(eval test_files_missing_build_annotations=$(strip $(shell find . -type f -name '*_test.go' -exec bash -c "grep -m 1 -L '// +build' {} | grep go" \;)))
-	@if [[ -n "$(test_files_missing_build_annotations)" ]]; then \
+	@if [ -n "$(test_files_missing_build_annotations)" ]; then \
 		echo "Found go test files without build annotations: "; \
 		echo $(test_files_missing_build_annotations); \
 		echo "!!! Go test files must be annotated with '// +build test_<x>' !!!"; \
