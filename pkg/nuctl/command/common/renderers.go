@@ -216,13 +216,13 @@ func RenderAPIGateways(apiGateways []platform.APIGateway,
 		for _, apiGateway := range apiGateways {
 
 			// primary function
-			primaryFunction := apiGateway.GetConfig().Spec.Upstreams[0].Nucliofunction.Name
+			primaryFunction := apiGateway.GetConfig().Spec.Upstreams[0].NuclioFunction.Name
 
 			// get canaryFunction if it exists
 			canaryFunction := ""
 			canaryPercentage := 0
 			if len(apiGateway.GetConfig().Spec.Upstreams) == 2 {
-				canaryFunction = apiGateway.GetConfig().Spec.Upstreams[1].Nucliofunction.Name
+				canaryFunction = apiGateway.GetConfig().Spec.Upstreams[1].NuclioFunction.Name
 				canaryPercentage = apiGateway.GetConfig().Spec.Upstreams[1].Percentage
 			}
 

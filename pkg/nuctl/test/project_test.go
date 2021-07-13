@@ -314,7 +314,7 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Meta.Name, apiGatewayName)
 		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Host, fmt.Sprintf("host-%s", apiGatewayName))
 		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Upstreams[0].Kind, platform.APIGatewayUpstreamKindNuclioFunction)
-		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Upstreams[0].Nucliofunction.Name, functionName)
+		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Upstreams[0].NuclioFunction.Name, functionName)
 	}
 }
 
@@ -669,7 +669,7 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 		apiGateways[apiGatewayUniqueName].Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
 			{
 				Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-				Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+				NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 					Name: functionNames[index] + uniqueSuffix,
 				},
 			},

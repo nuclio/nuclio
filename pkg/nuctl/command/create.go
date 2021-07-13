@@ -194,7 +194,7 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 			commandeer.apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
 				{
 					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-					Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+					NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 						Name: commandeer.function,
 					},
 				},
@@ -207,7 +207,7 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 
 				canaryUpstream := platform.APIGatewayUpstreamSpec{
 					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-					Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+					NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 						Name: commandeer.canaryFunction,
 					},
 					Percentage: commandeer.canaryPercentage,

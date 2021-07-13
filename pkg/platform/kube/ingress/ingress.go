@@ -198,7 +198,7 @@ func (m *Manager) CreateOrUpdateResources(resources *Resources) (*v1beta1.Ingres
 	return appliedIngress, appliedBasicAuthSecret, nil
 }
 
-// deletes ingress resource
+// DeleteByName deletes an ingress resource by name
 // when deleteAuthSecret == true, delete related secret resource too
 func (m *Manager) DeleteByName(ingressName string, namespace string, deleteAuthSecret bool) error {
 	var ingress *v1beta1.Ingress

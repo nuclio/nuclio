@@ -26,7 +26,7 @@ import (
 //
 
 type lazyClient struct {
-	Logger          logger.Logger
+	logger          logger.Logger
 	kubeClientSet   kubernetes.Interface
 	nuclioClientSet nuclioio_client.Interface
 	ingressManager  *ingress.Manager
@@ -38,7 +38,7 @@ func NewLazyClient(loggerInstance logger.Logger,
 	ingressManager *ingress.Manager) (Client, error) {
 
 	newClient := lazyClient{
-		Logger:          loggerInstance.GetChild("apigatewayres"),
+		logger:          loggerInstance.GetChild("apigatewayres"),
 		kubeClientSet:   kubeClientSet,
 		nuclioClientSet: nuclioClientSet,
 		ingressManager:  ingressManager,
@@ -56,124 +56,106 @@ func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (R
 }
 
 func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.NuclioAPIGateway) (Resources, error) {
-	var appliedIngressNames []string
-
 	apiGateway.Status.Name = apiGateway.Spec.Name
 
 	if err := lc.validateSpec(apiGateway); err != nil {
 		return nil, errors.Wrap(err, "Api gateway spec validation failed")
 	}
 
-	// generate an ingress for each upstream
-	upstreams := apiGateway.Spec.Upstreams
-	ingresses := map[string]*ingress.Resources{}
-
 	// always try to remove previous canary ingress first, because
 	// nginx returns 503 on all requests if primary service == secondary service. (happens on every promotion)
 	// so during promotion all requests will be sent to the primary ingress
 	lc.tryRemovePreviousCanaryIngress(ctx, apiGateway)
 
-	if len(upstreams) == 1 {
+	// generate an ingress for each upstream
+	ingressesResources := map[string]*ingress.Resources{}
+	var ingressesToCreate []*ingress.Resources
 
-		// create just a single ingress
-		ingressResources, err := lc.generateNginxIngress(ctx, apiGateway, upstreams[0])
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to generate nginx ingress")
-		}
+	primaryUpstream, canaryUpstream, err := lc.resolveBaseAndCanaryUpstreamsFromSpec(apiGateway.Spec.Upstreams)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve base and canary upstreams")
+	}
 
-		ingresses[ingressResources.Ingress.Name] = ingressResources
+	// create primary ingress
+	primaryIngressResources, err := lc.generateNginxIngress(ctx, apiGateway, primaryUpstream)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to generate primary nginx ingress")
+	}
 
-	} else if len(upstreams) == 2 {
-		var canaryUpstream platform.APIGatewayUpstreamSpec
-		var baseUpstream platform.APIGatewayUpstreamSpec
+	lc.enrichPrimaryIngressResources(primaryIngressResources, primaryUpstream, canaryUpstream)
 
-		// determine which upstream is the canary one
-		switch {
-		case upstreams[0].Percentage != 0:
-			baseUpstream = upstreams[1]
-			canaryUpstream = upstreams[0]
-		case upstreams[1].Percentage != 0:
-			baseUpstream = upstreams[0]
-			canaryUpstream = upstreams[1]
-		default:
-			return nil, errors.New("Percentage must be set on one of the upstreams (canary)")
-		}
+	ingressesResources[primaryIngressResources.Ingress.Name] = primaryIngressResources
+	ingressesToCreate = append(ingressesToCreate, primaryIngressResources)
 
-		// validity check
+	// add the canary ingress
+	if canaryUpstream != nil {
+
+		// percentage range
 		if canaryUpstream.Percentage > 100 || canaryUpstream.Percentage < 1 {
 			return nil, errors.New("The canary upstream percentage must be between 1 and 100")
 		}
 
-		// add the base ingress
-		baseIngressResources, err := lc.generateNginxIngress(ctx, apiGateway, baseUpstream)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to generate the base nginx ingress")
-		}
-		ingresses[baseIngressResources.Ingress.Name] = baseIngressResources
-
-		// add the canary ingress
 		canaryIngressResources, err := lc.generateNginxIngress(ctx, apiGateway, canaryUpstream)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to generate the canary nginx ingress")
 		}
-		ingresses[canaryIngressResources.Ingress.Name] = canaryIngressResources
+		ingressesResources[canaryIngressResources.Ingress.Name] = canaryIngressResources
+		ingressesToCreate = append(ingressesToCreate, canaryIngressResources)
 	}
 
 	// create ingresses
 	// must be done synchronously, first primary and then canary
 	// otherwise, when there is only canary ingress, the endpoint will not work (nginx behavior)
-	for ingressName, ingressResources := range ingresses {
+	for _, ingressResources := range ingressesToCreate {
 		if _, _, err := lc.ingressManager.CreateOrUpdateResources(ingressResources); err != nil {
-			lc.Logger.WarnWithCtx(ctx, "Failed to create/update api gateway ingress resources",
+			lc.logger.WarnWithCtx(ctx, "Failed to create/update api gateway ingress resources",
 				"err", errors.Cause(err),
-				"ingressName", ingressName,
-				"appliedIngressNames", appliedIngressNames)
+				"ingressName", ingressResources.Ingress.Name)
 			return nil, errors.New("Failed to create/update api gateway ingress resources")
 		}
-
-		appliedIngressNames = append(appliedIngressNames, ingressName)
 	}
 
 	return &lazyResources{
-		ingressResourcesMap: ingresses,
+		ingressResourcesMap: ingressesResources,
 	}, nil
 }
 
 func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name string) {
-	lc.Logger.Debug("Sleeping for 4 seconds so nginx controller will stabilize")
+	lc.logger.Debug("Sleeping for 4 seconds so nginx controller will stabilize")
 
 	// sleep 4 seconds as a safety, so nginx will finish updating the ingresses properly (it takes time)
 	time.Sleep(4 * time.Second)
 }
 
 func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string) {
-	lc.Logger.DebugWithCtx(ctx, "Deleting api gateway base ingress", "name", name)
+	lc.logger.DebugWithCtx(ctx, "Deleting api gateway base ingress", "name", name)
 
 	err := lc.ingressManager.DeleteByName(kube.IngressNameFromAPIGatewayName(name, false), namespace, true)
 	if err != nil {
-		lc.Logger.WarnWithCtx(ctx, "Failed to delete base ingress. Continuing with deletion",
+		lc.logger.WarnWithCtx(ctx, "Failed to delete base ingress. Continuing with deletion",
 			"err", errors.Cause(err))
 	}
 
-	lc.Logger.DebugWithCtx(ctx, "Deleting api gateway canary ingress", "name", name)
+	lc.logger.DebugWithCtx(ctx, "Deleting api gateway canary ingress", "name", name)
 
 	err = lc.ingressManager.DeleteByName(kube.IngressNameFromAPIGatewayName(name, true), namespace, true)
 	if err != nil {
-		lc.Logger.WarnWithCtx(ctx, "Failed to delete canary ingress. Continuing with deletion",
+		lc.logger.WarnWithCtx(ctx, "Failed to delete canary ingress. Continuing with deletion",
 			"err", errors.Cause(err))
 	}
 }
 
 func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGateway *nuclioio.NuclioAPIGateway) {
-	lc.Logger.DebugWithCtx(ctx, "Trying to remove previous canary ingress",
+	lc.logger.DebugWithCtx(ctx, "Trying to remove previous canary ingress",
 		"apiGatewayName", apiGateway.Name)
 
 	// remove old canary ingress if it exists
 	// this works thanks to an assumption that ingress names == api gateway name
 	previousCanaryIngressName := kube.IngressNameFromAPIGatewayName(apiGateway.Name, true)
-	err := lc.ingressManager.DeleteByName(previousCanaryIngressName, apiGateway.Namespace, true)
-	if err != nil {
-		lc.Logger.WarnWithCtx(ctx,
+	if err := lc.ingressManager.DeleteByName(previousCanaryIngressName,
+		apiGateway.Namespace,
+		true); err != nil {
+		lc.logger.WarnWithCtx(ctx,
 			"Failed to delete previous canary ingress on api gateway update",
 			"previousCanaryIngressName", previousCanaryIngressName,
 			"err", errors.Cause(err))
@@ -195,9 +177,9 @@ func (lc *lazyClient) validateSpec(apiGateway *nuclioio.NuclioAPIGateway) error 
 		return errors.Wrap(err, "Failed while getting all existing upstreams")
 	}
 	for _, upstream := range upstreams {
-		if common.StringSliceContainsString(existingUpstreamFunctionNames, upstream.Nucliofunction.Name) {
+		if common.StringSliceContainsString(existingUpstreamFunctionNames, upstream.NuclioFunction.Name) {
 			return errors.Errorf("Nuclio function '%s' is already being used in another api gateway",
-				upstream.Nucliofunction.Name)
+				upstream.NuclioFunction.Name)
 		}
 	}
 
@@ -220,7 +202,7 @@ func (lc *lazyClient) getAllExistingUpstreamFunctionNames(namespace, apiGatewayN
 		}
 
 		for _, upstream := range apiGateway.Spec.Upstreams {
-			existingUpstreamNames = append(existingUpstreamNames, upstream.Nucliofunction.Name)
+			existingUpstreamNames = append(existingUpstreamNames, upstream.NuclioFunction.Name)
 		}
 	}
 
@@ -229,9 +211,9 @@ func (lc *lazyClient) getAllExistingUpstreamFunctionNames(namespace, apiGatewayN
 
 func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 	apiGateway *nuclioio.NuclioAPIGateway,
-	upstream platform.APIGatewayUpstreamSpec) (*ingress.Resources, error) {
+	upstream *platform.APIGatewayUpstreamSpec) (*ingress.Resources, error) {
 
-	serviceName, servicePort, err := lc.getServiceNameAndPort(upstream, apiGateway.Namespace)
+	serviceName, servicePort, err := lc.getServiceNameAndPort(upstream)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get service name")
 	}
@@ -292,27 +274,21 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 	return lc.ingressManager.GenerateResources(ctx, commonIngressSpec)
 }
 
-func (lc *lazyClient) getServiceNameAndPort(upstream platform.APIGatewayUpstreamSpec,
-	namespace string) (string, int, error) {
+func (lc *lazyClient) getServiceNameAndPort(upstream *platform.APIGatewayUpstreamSpec) (string, int, error) {
 	switch upstream.Kind {
 	case platform.APIGatewayUpstreamKindNuclioFunction:
-		return lc.getNuclioFunctionServiceNameAndPort(upstream, namespace)
+
+		// we used to get service name by actually getting the function's service
+		// it was "stupified" to this logic, in order to prevent api-gateway failing when a function has no service
+		// (which may happen when a function is imported, but not yet deployed, and in that point we import an api-gateway
+		// that has this function as an upstream)
+		serviceName := kube.ServiceNameFromFunctionName(upstream.NuclioFunction.Name)
+
+		// use default port
+		return serviceName, abstract.FunctionContainerHTTPPort, nil
 	default:
 		return "", 0, errors.Errorf("Unsupported API gateway upstream kind: %s", upstream.Kind)
 	}
-}
-
-func (lc *lazyClient) getNuclioFunctionServiceNameAndPort(upstream platform.APIGatewayUpstreamSpec,
-	namespace string) (string, int, error) {
-
-	// we used to get service name by actually getting the function's service
-	// it was "stupified" to this logic, in order to prevent api-gateway failing when a function has no service
-	// (which may happen when a function is imported, but not yet deployed, and in that point we import an api-gateway
-	// that has this function as an upstream)
-	serviceName := kube.ServiceNameFromFunctionName(upstream.Nucliofunction.Name)
-
-	// use default port
-	return serviceName, abstract.FunctionContainerHTTPPort, nil
 }
 
 func (lc *lazyClient) resolveCommonAnnotations(canaryDeployment bool, upstreamPercentage int) map[string]string {
@@ -327,6 +303,53 @@ func (lc *lazyClient) resolveCommonAnnotations(canaryDeployment bool, upstreamPe
 		annotations["nginx.ingress.kubernetes.io/canary-weight"] = strconv.Itoa(upstreamPercentage)
 	}
 	return annotations
+}
+
+func (lc *lazyClient) resolveBaseAndCanaryUpstreamsFromSpec(upstreams []platform.APIGatewayUpstreamSpec) (
+	*platform.APIGatewayUpstreamSpec, *platform.APIGatewayUpstreamSpec, error) {
+
+	if len(upstreams) == 1 {
+		return &upstreams[0], nil, nil
+	}
+
+	var primary *platform.APIGatewayUpstreamSpec
+	var canary *platform.APIGatewayUpstreamSpec
+
+	// determine which upstream is the canary one
+	switch {
+	case upstreams[0].Percentage != 0:
+		primary = &upstreams[1]
+		canary = &upstreams[0]
+	case upstreams[1].Percentage != 0:
+		primary = &upstreams[0]
+		canary = &upstreams[1]
+	default:
+		return nil, nil, errors.New("Percentage must be set on one of the upstreams (canary)")
+	}
+
+	return primary, canary, nil
+}
+
+func (lc *lazyClient) enrichPrimaryIngressResources(primaryIngressResources *ingress.Resources,
+	primaryUpstream *platform.APIGatewayUpstreamSpec,
+	canaryUpstream *platform.APIGatewayUpstreamSpec) {
+
+	// set nuclio target header on ingress
+	encodedPrimaryTargetHeader := fmt.Sprintf(`proxy_set_header X-Nuclio-Target "%s";`, primaryUpstream.NuclioFunction.Name)
+	annotations := primaryIngressResources.Ingress.Annotations
+	configurationSnippetHeaderName := "nginx.ingress.kubernetes.io/configuration-snippet"
+
+	if _, headerExists := annotations[configurationSnippetHeaderName]; headerExists {
+		annotations[configurationSnippetHeaderName] += fmt.Sprintf("\n%s", encodedPrimaryTargetHeader)
+	} else {
+		annotations[configurationSnippetHeaderName] = encodedPrimaryTargetHeader
+	}
+
+	// TODO: uncomment after work is done on scaler part
+	//if canaryUpstream != nil {
+	//	encodedCanaryTargetHeader := fmt.Sprintf(`proxy_set_header X-Nuclio-Sub-Targets "%s";`, canaryUpstream.NuclioFunction.Name)
+	//	annotations[configurationSnippetHeaderName] += fmt.Sprintf("\n%s", encodedCanaryTargetHeader)
+	//}
 }
 
 //

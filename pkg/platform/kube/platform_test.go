@@ -384,7 +384,7 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionInstanceAndConfig() {
 							Upstreams: []platform.APIGatewayUpstreamSpec{
 								{
 									Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-									Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+									NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 										Name: testCase.functionName,
 									},
 								},
@@ -1337,7 +1337,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			name: "ValidateAPIGatewayFunctionHasNoIngresses",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				apiGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name = "function-with-ingresses"
+				apiGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name = "function-with-ingresses"
 				return &apiGatewayConfig
 			}(),
 			upstreamFunctions: []*v1beta1.NuclioFunction{
@@ -1365,10 +1365,10 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			name: "ValidateAPIGatewayCanaryFunctionHasNoIngresses",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				apiGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name = "function-without-ingresses"
+				apiGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name = "function-without-ingresses"
 				apiGatewayConfig.Spec.Upstreams = append(apiGatewayConfig.Spec.Upstreams, platform.APIGatewayUpstreamSpec{
 					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-					Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+					NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 						Name: "function-with-ingresses-2",
 					},
 				})
@@ -1510,7 +1510,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				}
 
 				suite.nuclioFunctionInterfaceMock.
-					On("Get", upstream.Nucliofunction.Name, metav1.GetOptions{}).
+					On("Get", upstream.NuclioFunction.Name, metav1.GetOptions{}).
 					Return(upstreamFunction, getFunctionsError).
 					Once()
 			}
@@ -1603,7 +1603,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 
 			// no function with matching upstreams
 			suite.nuclioFunctionInterfaceMock.
-				On("Get", apiGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name, metav1.GetOptions{}).
+				On("Get", apiGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name, metav1.GetOptions{}).
 				Return(nil,
 					&apierrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonNotFound}}).
 				Once()
@@ -1628,7 +1628,7 @@ func (suite *APIGatewayKubePlatformTestSuite) compileAPIGatewayConfig() platform
 			Upstreams: []platform.APIGatewayUpstreamSpec{
 				{
 					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-					Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+					NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 						Name: "default-func-name",
 					},
 				},

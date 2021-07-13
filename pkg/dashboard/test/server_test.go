@@ -1742,7 +1742,7 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 		suite.Require().Equal("p1-namespace", createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace)
 		suite.Require().Equal("some-host", createAPIGatewayOptions.APIGatewayConfig.Spec.Host)
 		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Kind)
-		suite.Require().Equal("f1", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name)
+		suite.Require().Equal("f1", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name)
 
 		return true
 	}
@@ -1896,7 +1896,7 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 	apiGateway.APIGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
 		{
 			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 				Name: "f1",
 			},
 		},
@@ -1927,7 +1927,7 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 		suite.Require().Equal("p1-namespace", createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace)
 		suite.Require().Equal("host-name1", createAPIGatewayOptions.APIGatewayConfig.Spec.Host)
 		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Kind)
-		suite.Require().Equal("f1", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name)
+		suite.Require().Equal("f1", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name)
 
 		return true
 	}
@@ -2599,12 +2599,12 @@ func (suite *apiGatewayTestSuite) TestGetDetailSuccessful() {
 				Upstreams: []platform.APIGatewayUpstreamSpec{
 					{
 						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+						NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 							Name: "f1",
 						},
 					}, {
 						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+						NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 							Name: "f2",
 						},
 						Percentage: 20,
@@ -2710,12 +2710,12 @@ func (suite *apiGatewayTestSuite) TestGetListSuccessful() {
 	returnedAPIGateway1.APIGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
 		{
 			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 				Name: "f1",
 			},
 		}, {
 			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 				Name: "f2",
 			},
 			Percentage: 20,
@@ -2740,12 +2740,12 @@ func (suite *apiGatewayTestSuite) TestGetListSuccessful() {
 	returnedAPIGateway2.APIGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
 		{
 			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 				Name: "f3",
 			},
 		}, {
 			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 				Name: "f4",
 			},
 			Percentage: 50,
@@ -2870,9 +2870,9 @@ func (suite *apiGatewayTestSuite) TestCreateSuccessful() {
 		suite.Require().Equal("some-desc2", createAPIGatewayOptions.APIGatewayConfig.Spec.Description)
 		suite.Require().Equal("some-path2", createAPIGatewayOptions.APIGatewayConfig.Spec.Path)
 		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Kind)
-		suite.Require().Equal("f3", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name)
+		suite.Require().Equal("f3", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name)
 		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Kind)
-		suite.Require().Equal("f4", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Nucliofunction.Name)
+		suite.Require().Equal("f4", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].NuclioFunction.Name)
 		suite.Require().Equal(50, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Percentage)
 
 		return true
@@ -2935,9 +2935,9 @@ func (suite *apiGatewayTestSuite) TestUpdateSuccessful() {
 		suite.Require().Equal("some-desc2", updateAPIGatewayOptions.APIGatewayConfig.Spec.Description)
 		suite.Require().Equal("some-path2", updateAPIGatewayOptions.APIGatewayConfig.Spec.Path)
 		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Kind)
-		suite.Require().Equal("f3", updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name)
+		suite.Require().Equal("f3", updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name)
 		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Kind)
-		suite.Require().Equal("f4", updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Nucliofunction.Name)
+		suite.Require().Equal("f4", updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].NuclioFunction.Name)
 		suite.Require().Equal(50, updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Percentage)
 
 		return true
