@@ -946,6 +946,100 @@ func (suite *AbstractPlatformTestSuite) TestCreateFunctionEvent() {
 	suite.Require().NoError(err)
 }
 
+func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
+	for idx, testCase := range []struct {
+		nodeSelector         map[string]string
+		shouldFailValidation bool
+	}{
+		{
+			nodeSelector: map[string]string{
+				"some-key": "some-value",
+			},
+		},
+		{
+			nodeSelector: map[string]string{
+				"some-key": "",
+			},
+		},
+		{
+			nodeSelector: map[string]string{
+				"beta.kubernetes.io/arch":                        "amd64",
+				"beta.kubernetes.io/os":                          "linux",
+				"feature.node.kubernetes.io/cpu-cpuid.ADX":       "true",
+				"feature.node.kubernetes.io/kernel-version.full": "3.10.0-1127.13.1.el7.x86_64",
+			},
+		},
+		{
+			nodeSelector: map[string]string{
+				"some-key": "_some-value",
+			},
+			shouldFailValidation: true,
+		},
+		{
+
+			// should fail on empty key ""
+			nodeSelector: map[string]string{
+				"": "some-value",
+			},
+			shouldFailValidation: true,
+		},
+		{
+
+			// should fail on value "_some-value"
+			nodeSelector: map[string]string{
+				"some-key":      "some-value",
+				"some-key/name": "_some-value",
+			},
+			shouldFailValidation: true,
+		},
+		{
+
+			// should fail on key "/some-key" (empty DNS subdomain)
+			nodeSelector: map[string]string{
+				"some-key":  "some-value",
+				"/some-key": "some-value",
+			},
+			shouldFailValidation: true,
+		},
+	} {
+
+		suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+			Meta: platform.ProjectMeta{
+				Name:      platform.DefaultProjectName,
+				Namespace: "default",
+			},
+		}).Return([]platform.Project{
+			&platform.AbstractProject{},
+		}, nil).Once()
+
+		// name it with index and shift with 65 to get A as first letter
+		functionName := string(rune(idx + 65))
+		functionConfig := *functionconfig.NewConfig()
+		functionConfig.Spec.NodeSelector = testCase.nodeSelector
+
+		createFunctionOptions := &platform.CreateFunctionOptions{
+			Logger:         suite.Logger,
+			FunctionConfig: functionConfig,
+		}
+		createFunctionOptions.FunctionConfig.Meta.Name = functionName
+		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+			"nuclio.io/project-name": platform.DefaultProjectName,
+		}
+		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+
+		err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+		suite.Require().NoError(err, "Failed to enrich function")
+
+		err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+		if testCase.shouldFailValidation {
+			suite.Require().Error(err, "Validation passed unexpectedly")
+			continue
+		}
+
+		suite.Require().NoError(err, "Validation failed unexpectedly")
+	}
+}
+
 // Test that GetProcessorLogs() generates the expected formattedPodLogs and briefErrorsMessage
 // Expects 3 files inside functionLogsFilePath: (kept in these constants)
 // - FunctionLogsFile
