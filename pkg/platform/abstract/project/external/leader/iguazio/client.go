@@ -218,12 +218,7 @@ func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Projec
 		return nil, errors.Wrap(err, "Failed to send request to leader")
 	}
 
-	projectsList := ProjectList{}
-	if err := json.Unmarshal(responseBody, &projectsList); err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshal response body")
-	}
-
-	return projectsList.ToSingleProjectList(), nil
+	return c.resolveGetProjectResponse(false, responseBody)
 }
 
 func (c *Client) generateCommonRequestHeaders() map[string]string {
