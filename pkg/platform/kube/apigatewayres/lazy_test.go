@@ -61,7 +61,7 @@ func (suite *lazyTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 }
 
-func (suite *lazyTestSuite) TestNodeConstrains() {
+func (suite *lazyTestSuite) TestEnsurePrimaryIngressHasXNuclioTargetHeader() {
 	primaryFunctionConfig := *functionconfig.NewConfig()
 	primaryFunctionConfig.Meta.Name = "primary-function-name"
 	canaryFunctionConfig := *functionconfig.NewConfig()
@@ -101,15 +101,19 @@ func (suite *lazyTestSuite) TestNodeConstrains() {
 	})
 	suite.Require().NoError(err)
 	suite.Require().NotNil(resources.IngressResourcesMap())
-	for resourceName, resource := range resources.IngressResourcesMap() {
-		if !strings.HasSuffix(resourceName, "-canary") {
 
-			// expect primary function ingress to have `X-Nuclio-Target`
-			// so that if has STZ option, it would wake up upon a request
-			suite.Require().Equal(`proxy_set_header X-Nuclio-Target "primary-function-name";`,
-				resource.Ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"])
+	var primaryIngressResources ingress.Resources
+
+	for resourceName, resources := range resources.IngressResourcesMap() {
+		if !strings.HasSuffix(resourceName, "-canary") {
+			primaryIngressResources = *resources
 		}
 	}
+
+	// expect primary function ingress to have `X-Nuclio-Target`
+	// so that if has STZ option, it would wake up upon a request
+	suite.Require().Equal(`proxy_set_header X-Nuclio-Target "primary-function-name";`,
+		primaryIngressResources.Ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"])
 }
 
 func TestLazyTestSuite(t *testing.T) {
