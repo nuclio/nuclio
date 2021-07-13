@@ -45,8 +45,10 @@ func (c *Client) Get(getProjectOptions *platform.GetProjectsOptions) ([]platform
 		cookies = append(cookies, getProjectOptions.SessionCookie)
 	}
 
+	getSingleProject := getProjectOptions.Meta.Name != ""
+
 	url := fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects")
-	if getProjectOptions.Meta.Name != "" {
+	if getSingleProject {
 		url += fmt.Sprintf("/__name__/%s", getProjectOptions.Meta.Name)
 	}
 
@@ -64,12 +66,7 @@ func (c *Client) Get(getProjectOptions *platform.GetProjectsOptions) ([]platform
 		return nil, errors.Wrap(err, "Failed to send request to leader")
 	}
 
-	projectsList := ProjectList{}
-	if err := json.Unmarshal(responseBody, &projectsList); err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshal response body")
-	}
-
-	return projectsList.ToSingleProjectList(), nil
+	return c.resolveGetProjectResponse(getSingleProject, responseBody)
 }
 
 func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) error {
@@ -221,12 +218,7 @@ func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Projec
 		return nil, errors.Wrap(err, "Failed to send request to leader")
 	}
 
-	projectsList := ProjectList{}
-	if err := json.Unmarshal(responseBody, &projectsList); err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshal response body")
-	}
-
-	return projectsList.ToSingleProjectList(), nil
+	return c.resolveGetProjectResponse(false, responseBody)
 }
 
 func (c *Client) generateCommonRequestHeaders() map[string]string {
@@ -243,12 +235,6 @@ func (c *Client) generateProjectRequestBody(projectConfig *platform.ProjectConfi
 	return json.Marshal(project)
 }
 
-func (c *Client) enrichProjectWithNuclioFields(project *Project) {
-
-	// TODO: update this function when nuclio fields are added
-	//project.Data.Attributes.NuclioProject = NuclioProject{}
-}
-
 func (c *Client) generateProjectDeletionRequestBody(projectName string) ([]byte, error) {
 	return json.Marshal(Project{
 		Data: ProjectData{
@@ -258,4 +244,26 @@ func (c *Client) generateProjectDeletionRequestBody(projectName string) ([]byte,
 			},
 		},
 	})
+}
+
+func (c *Client) enrichProjectWithNuclioFields(project *Project) {
+
+	// TODO: update this function when nuclio fields are added
+	//project.Data.Attributes.NuclioProject = NuclioProject{}
+}
+
+func (c *Client) resolveGetProjectResponse(detail bool, body []byte) ([]platform.Project, error) {
+
+	var projectStructure GetProjectResponse
+	if detail {
+		projectStructure = &ProjectDetail{}
+	} else {
+		projectStructure = &ProjectList{}
+	}
+
+	if err := json.Unmarshal(body, projectStructure); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal response body")
+	}
+
+	return projectStructure.ToSingleProjectList(), nil
 }

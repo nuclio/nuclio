@@ -15,12 +15,14 @@ import (
 type Synchronizer struct {
 	logger                     logger.Logger
 	synchronizationIntervalStr string
+	managedNamespaces          []string
 	leaderClient               leader.Client
 	internalProjectsClient     project.Client
 }
 
 func NewSynchronizer(parentLogger logger.Logger,
 	synchronizationIntervalStr string,
+	managedNamespaces []string,
 	leaderClient leader.Client,
 	internalProjectsClient project.Client) (*Synchronizer, error) {
 
@@ -30,6 +32,7 @@ func NewSynchronizer(parentLogger logger.Logger,
 		synchronizationIntervalStr: synchronizationIntervalStr,
 		leaderClient:               leaderClient,
 		internalProjectsClient:     internalProjectsClient,
+		managedNamespaces:          managedNamespaces,
 	}
 
 	return &newSynchronizer, nil
@@ -48,36 +51,41 @@ func (c *Synchronizer) Start() error {
 	}
 
 	// start synchronization loop in the background
-	go c.startSynchronizationLoop(synchronizationInterval)
+	go c.startSynchronizationLoop(synchronizationInterval, c.managedNamespaces)
 
 	return nil
 }
 
-func (c *Synchronizer) startSynchronizationLoop(interval time.Duration) {
-	var mostRecentUpdatedProjectTime *time.Time
+func (c *Synchronizer) startSynchronizationLoop(interval time.Duration, namespaces []string) {
+	namespaceToMostRecentUpdatedProjectTimeMap := map[string]*time.Time{}
 
-	c.logger.InfoWith("Starting synchronization loop", "interval", interval)
+	// fil it up with default
+	for _, namespace := range namespaces {
+		namespaceToMostRecentUpdatedProjectTimeMap[namespace] = nil
+	}
+
+	c.logger.InfoWith("Starting synchronization loop",
+		"namespaces", namespaces,
+		"interval", interval)
 
 	ticker := time.NewTicker(interval)
 	for range ticker.C {
-		newMostRecentUpdatedProjectTime, err := c.SynchronizeProjectsFromLeader(mostRecentUpdatedProjectTime)
-		if err != nil {
-			c.logger.WarnWith("Failed to synchronize projects according to leader", "err", err)
-		}
+		for _, namespace := range namespaces {
+			newMostRecentUpdatedProjectTime, err := c.synchronizeProjectsFromLeader(namespace,
+				namespaceToMostRecentUpdatedProjectTimeMap[namespace])
+			if err != nil {
+				c.logger.WarnWith("Failed to synchronize projects according to leader", "err", err)
+			}
 
-		// update most recent updated project time
-		if newMostRecentUpdatedProjectTime != nil {
-			mostRecentUpdatedProjectTime = newMostRecentUpdatedProjectTime
+			// update most recent updated project time
+			if newMostRecentUpdatedProjectTime != nil {
+				namespaceToMostRecentUpdatedProjectTimeMap[namespace] = newMostRecentUpdatedProjectTime
+			}
 		}
 	}
 }
 
-// a helper function - generates unique key to be used by projects maps
-func (c *Synchronizer) generateUniqueProjectKey(configInstance *platform.ProjectConfig) string {
-	return fmt.Sprintf("%s:%s", configInstance.Meta.Namespace, configInstance.Meta.Name)
-}
-
-func (c *Synchronizer) GetModifiedProjects(leaderProjects []platform.Project, internalProjects []platform.Project) (
+func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, internalProjects []platform.Project) (
 	projectsToCreate []*platform.ProjectConfig,
 	projectsToUpdate []*platform.ProjectConfig,
 	mostRecentUpdatedProjectTime *time.Time) {
@@ -125,7 +133,8 @@ func (c *Synchronizer) GetModifiedProjects(leaderProjects []platform.Project, in
 	return
 }
 
-func (c *Synchronizer) SynchronizeProjectsFromLeader(mostRecentUpdatedProjectTime *time.Time) (*time.Time, error) {
+func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
+	mostRecentUpdatedProjectTime *time.Time) (*time.Time, error) {
 
 	// fetch updated projects from leader
 	leaderProjects, err := c.leaderClient.GetUpdatedAfter(mostRecentUpdatedProjectTime)
@@ -133,14 +142,25 @@ func (c *Synchronizer) SynchronizeProjectsFromLeader(mostRecentUpdatedProjectTim
 		return nil, errors.Wrap(err, "Failed to get projects from leader")
 	}
 
+	// TODO: hack way to fix returned project without their namespace
+	for _, leaderProject := range leaderProjects {
+		if leaderProject.GetConfig().Meta.Namespace == "" {
+			leaderProject.(*Project).Data.Attributes.Namespace = namespace
+		}
+	}
+
 	// fetch all internal projects
-	internalProjects, err := c.internalProjectsClient.Get(&platform.GetProjectsOptions{})
+	internalProjects, err := c.internalProjectsClient.Get(&platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta{
+			Namespace: namespace,
+		},
+	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to get projects from internal client")
 	}
 
 	// filter modified projects
-	projectsToCreate, projectsToUpdate, newMostRecentUpdatedProjectTime := c.GetModifiedProjects(leaderProjects, internalProjects)
+	projectsToCreate, projectsToUpdate, newMostRecentUpdatedProjectTime := c.getModifiedProjects(leaderProjects, internalProjects)
 
 	if len(projectsToCreate) == 0 && len(projectsToUpdate) == 0 {
 
@@ -203,4 +223,9 @@ func (c *Synchronizer) SynchronizeProjectsFromLeader(mostRecentUpdatedProjectTim
 	}
 
 	return newMostRecentUpdatedProjectTime, nil
+}
+
+// a helper function - generates unique key to be used by projects maps
+func (c *Synchronizer) generateUniqueProjectKey(configInstance *platform.ProjectConfig) string {
+	return fmt.Sprintf("%s:%s", configInstance.Meta.Namespace, configInstance.Meta.Name)
 }

@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	ProjectType = "project"
+	ProjectType       = "project"
+	ProjectTimeLayout = "2006-01-02T15:04:05.000000+00:00"
 )
 
 type Project struct {
@@ -48,9 +49,7 @@ func (pl *Project) GetConfig() *platform.ProjectConfig {
 }
 
 func (pl *Project) parseTimeFromTimestamp(timestamp string) time.Time {
-	loc, _ := time.LoadLocation("GMT")
-	layout := "2006-01-02T15:04:05.000000+00:00"
-	t, _ := time.ParseInLocation(layout, timestamp, loc)
+	t, _ := time.Parse(ProjectTimeLayout, timestamp)
 	return t
 }
 
@@ -80,6 +79,10 @@ type NuclioProject struct {
 	// currently no nuclio specific fields are needed
 }
 
+type GetProjectResponse interface {
+	ToSingleProjectList() []platform.Project
+}
+
 type ProjectList struct {
 	Data []ProjectData `json:"data,omitempty"`
 }
@@ -93,4 +96,15 @@ func (pl *ProjectList) ToSingleProjectList() []platform.Project {
 	}
 
 	return projects
+}
+
+type ProjectDetail struct {
+	Data ProjectData `json:"data,omitempty"`
+}
+
+// ToSingleProjectList returns list of Project
+func (pl *ProjectDetail) ToSingleProjectList() []platform.Project {
+	return []platform.Project{
+		&Project{Data: pl.Data},
+	}
 }
