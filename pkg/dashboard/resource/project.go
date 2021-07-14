@@ -59,6 +59,11 @@ type ProjectImportOptions struct {
 	authConfig  *platform.AuthConfig
 }
 
+func (pr *projectResource) ExtendMiddlewares() error {
+	pr.resource.addAuthMiddleware()
+	return nil
+}
+
 // GetAll returns all projects
 func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	response := map[string]restful.Attributes{}

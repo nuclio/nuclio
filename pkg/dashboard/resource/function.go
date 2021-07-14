@@ -47,6 +47,11 @@ type functionInfo struct {
 	Status *functionconfig.Status `json:"status,omitempty"`
 }
 
+func (fr *functionResource) ExtendMiddlewares() error {
+	fr.resource.addAuthMiddleware()
+	return nil
+}
+
 // GetAll returns all functions
 func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	response := map[string]restful.Attributes{}

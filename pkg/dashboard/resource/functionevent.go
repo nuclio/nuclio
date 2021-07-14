@@ -41,6 +41,11 @@ type functionEventInfo struct {
 	Spec *platform.FunctionEventSpec `json:"spec,omitempty"`
 }
 
+func (fer *functionEventResource) ExtendMiddlewares() error {
+	fer.resource.addAuthMiddleware()
+	return nil
+}
+
 // GetAll returns all function events
 func (fer *functionEventResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	response := map[string]restful.Attributes{}

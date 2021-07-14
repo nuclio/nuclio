@@ -21,6 +21,8 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -39,7 +41,7 @@ func newResource(name string, resourceMethods []restful.ResourceMethod) *resourc
 }
 
 func (r *resource) getPlatform() platform.Platform {
-	return r.GetServer().(*dashboard.Server).Platform
+	return r.getDashboard().Platform
 }
 
 func (r *resource) getNamespaceOrDefault(providedNamespace string) string {
@@ -50,13 +52,15 @@ func (r *resource) getNamespaceOrDefault(providedNamespace string) string {
 	}
 
 	// get the default namespace we were created with
-	return r.GetServer().(*dashboard.Server).GetDefaultNamespace()
+	return r.getDashboard().GetDefaultNamespace()
 }
 
 func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthConfig, error) {
 
+	// TODO: move as a middleware for specific routes
+
 	// if we're instructed to use the authorization header as an OIDC token
-	if r.GetServer().(*dashboard.Server).GetPlatformAuthorizationMode() == dashboard.PlatformAuthorizationModeAuthorizationHeaderOIDC {
+	if r.getDashboard().GetPlatformAuthorizationMode() == dashboard.PlatformAuthorizationModeAuthorizationHeaderOIDC {
 
 		// make sure the Authorization header exists
 		authorizationHeaderFromRequest := request.Header.Get("Authorization")
@@ -76,9 +80,20 @@ func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthCo
 }
 
 func (r *resource) getListenAddress() string {
-	return r.GetServer().(*dashboard.Server).ListenAddress
+	return r.getDashboard().ListenAddress
 }
 
 func (r *resource) headerValueIsTrue(request *http.Request, headerName string) bool {
 	return strings.ToLower(request.Header.Get(headerName)) == "true"
+}
+
+func (r *resource) getDashboard() *dashboard.Server {
+	return r.GetServer().(*dashboard.Server)
+}
+
+func (r *resource) addAuthMiddleware() {
+	authOptions := r.getDashboard().GetPlatformAuthenticationOptions()
+	if authOptions.Mode == auth.ModeIguazio {
+		r.GetRouter().Use(iguazio.AuthenticationMiddleware(r.Logger, authOptions))
+	}
 }

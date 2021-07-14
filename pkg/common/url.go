@@ -122,7 +122,7 @@ func SendHTTPRequest(method string,
 	cookies []*http.Cookie,
 	expectedStatusCode int,
 	insecure bool,
-	timeout time.Duration) ([]byte, int, error) {
+	timeout time.Duration) ([]byte, *http.Response, error) {
 
 	// create client
 	client := &http.Client{
@@ -138,7 +138,7 @@ func SendHTTPRequest(method string,
 	// create request object
 	req, err := http.NewRequest(method, requestURL, bytes.NewBuffer(body))
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "Failed to create http request")
+		return nil, nil, errors.Wrap(err, "Failed to create http request")
 	}
 
 	// attach cookies
@@ -154,7 +154,7 @@ func SendHTTPRequest(method string,
 	// perform the request
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "Failed to send HTTP request")
+		return nil, nil, errors.Wrap(err, "Failed to send HTTP request")
 	}
 
 	// read response body
@@ -164,17 +164,17 @@ func SendHTTPRequest(method string,
 
 		responseBody, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return nil, 0, errors.Wrap(err, "Failed to read response body")
+			return nil, nil, errors.Wrap(err, "Failed to read response body")
 		}
 	}
 
 	// validate status code is as expected
 	if expectedStatusCode != 0 && resp.StatusCode != expectedStatusCode {
-		return responseBody, resp.StatusCode, errors.Errorf(
+		return responseBody, resp, errors.Errorf(
 			"Got unexpected response status code: %d. Expected: %d",
 			resp.StatusCode,
 			expectedStatusCode)
 	}
 
-	return responseBody, resp.StatusCode, nil
+	return responseBody, resp, nil
 }

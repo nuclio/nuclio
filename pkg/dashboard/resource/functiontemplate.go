@@ -37,7 +37,7 @@ type functionTemplateResource struct {
 }
 
 func (ftr *functionTemplateResource) OnAfterInitialize() error {
-	ftr.functionTemplateRepository = ftr.resource.GetServer().(*dashboard.Server).Repository
+	ftr.functionTemplateRepository = ftr.getDashboard().Repository
 	ftr.renderer = functiontemplates.NewFunctionTemplateRenderer(ftr.Logger)
 	return nil
 }

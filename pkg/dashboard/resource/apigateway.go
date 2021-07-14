@@ -39,6 +39,11 @@ type apiGatewayInfo struct {
 	Status *platform.APIGatewayStatus `json:"status,omitempty"`
 }
 
+func (agr *apiGatewayResource) ExtendMiddlewares() error {
+	agr.resource.addAuthMiddleware()
+	return nil
+}
+
 // GetAll returns all api gateways
 func (agr *apiGatewayResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 
