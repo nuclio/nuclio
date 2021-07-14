@@ -361,10 +361,20 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 
 	// configure SASL if applicable
 	if k.configuration.SASL.Enable {
-		k.Logger.DebugWith("Configuring SASL authentication", "username", k.configuration.SASL.User)
+		k.Logger.DebugWith("Configuring SASL authentication",
+			"username", k.configuration.SASL.User,
+			"mechanism", k.configuration.SASL.Mechanism)
+
 		config.Net.SASL.Enable = true
 		config.Net.SASL.User = k.configuration.SASL.User
 		config.Net.SASL.Password = k.configuration.SASL.Password
+		config.Net.SASL.Mechanism = sarama.SASLMechanism(k.configuration.SASL.Mechanism)
+
+		// per mechanism configuration
+		switch config.Net.SASL.Mechanism {
+		case sarama.SASLTypeOAuth:
+			config.Net.SASL.TokenProvider = &SaramaSaslTokenProvider{k.configuration.SASL.AccessToken}
+		}
 	}
 
 	if err := config.Validate(); err != nil {

@@ -39,6 +39,7 @@ type AnnotationConfigField struct {
 	Key         string
 	ValueString *string
 	ValueInt    *int
+	ValueBool   *bool
 }
 
 type Configuration struct {
@@ -81,6 +82,11 @@ func (c *Configuration) PopulateConfigurationFromAnnotations(annotationConfigFie
 				*annotationConfigField.ValueInt, err = strconv.Atoi(annotationValue)
 				if err != nil {
 					return errors.Wrapf(err, "Annotation %s must be numeric", annotationConfigField.Key)
+				}
+			} else if annotationConfigField.ValueBool != nil {
+				*annotationConfigField.ValueBool, err = strconv.ParseBool(annotationValue)
+				if err != nil {
+					return errors.Wrapf(err, "Annotation %s must represent boolean", annotationConfigField.Key)
 				}
 			}
 		}

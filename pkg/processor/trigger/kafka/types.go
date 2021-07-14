@@ -39,9 +39,11 @@ type Configuration struct {
 	InitialOffset   string
 	BalanceStrategy string
 	SASL            struct {
-		Enable   bool
-		User     string
-		Password string
+		Enable      bool
+		User        string
+		Password    string
+		Mechanism   string
+		AccessToken sarama.AccessToken
 	}
 
 	SessionTimeout                string
@@ -107,6 +109,13 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-access-cert", ValueString: &newConfiguration.AccessCertificate},
 		{Key: "nuclio.io/kafka-ca-cert", ValueString: &newConfiguration.CACert},
 		{Key: "nuclio.io/kafka-log-level", ValueInt: &newConfiguration.LogLevel},
+
+		// sasl
+		{Key: "nuclio.io/kafka-sasl-enabled", ValueBool: &newConfiguration.SASL.Enable},
+		{Key: "nuclio.io/kafka-sasl-user", ValueString: &newConfiguration.SASL.User},
+		{Key: "nuclio.io/kafka-sasl-password", ValueString: &newConfiguration.SASL.Password},
+		{Key: "nuclio.io/kafka-sasl-mechanism", ValueString: &newConfiguration.SASL.Mechanism},
+		{Key: "nuclio.io/kafka-sasl-access-token", ValueString: &newConfiguration.SASL.AccessToken.Token},
 	})
 
 	if err != nil {
@@ -318,4 +327,12 @@ func (c *Configuration) unflattenCertificate(certificate string) string {
 	}
 
 	return certificate
+}
+
+type SaramaSaslTokenProvider struct {
+	sarama.AccessToken
+}
+
+func (s *SaramaSaslTokenProvider) Token() (*sarama.AccessToken, error) {
+	return &s.AccessToken, nil
 }
