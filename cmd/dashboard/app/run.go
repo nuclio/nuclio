@@ -10,6 +10,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	authconfig "github.com/nuclio/nuclio/pkg/dashboard/auth/config"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dashboard/healthcheck"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -86,19 +87,17 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to create platform")
 	}
 
-	authOptions := &auth.Options{
-		Mode: auth.Mode(authOptionsMode),
-	}
+	authOptions := authconfig.NewOptions(auth.Mode(authOptionsMode))
+
 	if authOptionsTimeout != "" {
-		duration, err := time.ParseDuration(authOptionsTimeout)
+		authOptions.Iguazio.Timeout, err = time.ParseDuration(authOptionsTimeout)
 		if err != nil {
 			return errors.Wrap(err, "Failed to parse auth options timeout duration")
 		}
-		authOptions.Timeout = &duration
 	}
 
 	if authOptionsVerificationURL != "" {
-		authOptions.VerificationURL = &authOptionsVerificationURL
+		authOptions.Iguazio.VerificationURL = authOptionsVerificationURL
 	}
 
 	dashboardInstance.server, err = newDashboardServer(&CreateDashboardServerOptions{

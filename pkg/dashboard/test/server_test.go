@@ -35,7 +35,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	authconfig "github.com/nuclio/nuclio/pkg/dashboard/auth/config"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -96,7 +96,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 		"",
 		"",
 		"",
-		&auth.Options{})
+		&authconfig.Options{})
 
 	if err != nil {
 		panic("Failed to create server")
