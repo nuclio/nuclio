@@ -47,9 +47,9 @@ func PrettifyFunctionLogLine(logger logger.Logger, log []byte) (string, string, 
 		return "", "", errors.New("Missing required fields in pod log line")
 	}
 
-	parsedTime, err := time.Parse(time.RFC3339, *functionLogLineInstance.Time)
+	parsedTime, err := resolveProcessedLogLineTime(functionLogLineInstance.Time)
 	if err != nil {
-		return "", "", err
+		return "", "", errors.Wrap(err, "Failed to resolve process log line time")
 	}
 
 	logLevel := strings.ToUpper(*functionLogLineInstance.Level)[0]
@@ -118,27 +118,27 @@ func inferWorkerID(name string) string {
 }
 
 func getMessageAndArgs(logger logger.Logger, functionLogLineInstance *FunctionLogLine, log []byte) string {
-
-	var args string
-
-	if functionLogLineInstance.More != nil {
-		args = *functionLogLineInstance.More
-	}
-
-	var additionalKwargsAsString string
-
 	additionalKwargs, err := getLogLineAdditionalKwargs(log)
 	if err != nil {
 		logger.WarnWith("Failed to get log line's additional kwargs",
 			"logLineMessage", *functionLogLineInstance.Message)
 	}
-	additionalKwargsAsString = createKeyValuePairs(additionalKwargs)
+	additionalKwargsAsString := createKeyValuePairs(additionalKwargs)
 
 	// format result depending on args/additional kwargs existence
 	var messageArgsList []string
-	if args != "" {
-		messageArgsList = append(messageArgsList, args)
+
+	switch argsValue := functionLogLineInstance.More.(type) {
+	case map[string]interface{}:
+		for key, value := range argsValue {
+			messageArgsList = append(messageArgsList, fmt.Sprintf("%s=%s", key, value))
+		}
+	case string:
+		if argsValue != "" {
+			messageArgsList = append(messageArgsList, argsValue)
+		}
 	}
+
 	if additionalKwargsAsString != "" {
 		messageArgsList = append(messageArgsList, additionalKwargsAsString)
 	}
@@ -257,4 +257,34 @@ func createKeyValuePairs(m map[string]string) string {
 		generatedString = generatedString[:len(generatedString)-len(delimiter)]
 	}
 	return generatedString
+}
+
+func resolveProcessedLogLineTime(logTime interface{}) (time.Time, error) {
+	var parsedTime time.Time
+	switch timeValue := logTime.(type) {
+	case float64:
+
+		// nucliozap format the time to a floating-point number of milliseconds since the Unix epoch.
+		parsedTime = time.Unix(0, int64(timeValue)*int64(time.Millisecond))
+	case string:
+		var err error
+
+		for _, layout := range []string{
+			time.RFC3339,
+			"2006-01-02T15:04:05.000Z0700",
+		} {
+			parsedTime, err = time.Parse(layout, timeValue)
+			if err != nil {
+				continue
+			}
+			if !parsedTime.IsZero() {
+				err = nil
+				break
+			}
+		}
+		if err != nil {
+			return parsedTime, err
+		}
+	}
+	return parsedTime, nil
 }
