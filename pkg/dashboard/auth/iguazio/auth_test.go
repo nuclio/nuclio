@@ -70,7 +70,7 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 			auth: Auth{
 				logger: suite.logger,
 				options: func() *authconfig.Options {
-					authConfig := authconfig.NewOptions(auth.ModeIguazio)
+					authConfig := authconfig.NewOptions(auth.KindIguazio)
 					authConfig.Iguazio.VerificationURL = "http://somewhere.local"
 					return authConfig
 				}(),
@@ -88,7 +88,7 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 			auth: Auth{
 				logger: suite.logger,
 				options: func() *authconfig.Options {
-					authConfig := authconfig.NewOptions(auth.ModeIguazio)
+					authConfig := authconfig.NewOptions(auth.KindIguazio)
 					authConfig.Iguazio.VerificationURL = "http://somewhere.local"
 					return authConfig
 				}(),
@@ -106,7 +106,7 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 			auth: Auth{
 				logger: suite.logger,
 				options: func() *authconfig.Options {
-					authConfig := authconfig.NewOptions(auth.ModeIguazio)
+					authConfig := authconfig.NewOptions(auth.KindIguazio)
 					authConfig.Iguazio.VerificationURL = "http://somewhere.local"
 					return authConfig
 				}(),

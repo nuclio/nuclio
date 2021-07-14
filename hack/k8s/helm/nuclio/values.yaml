@@ -11,7 +11,7 @@ controller:
   image:
     repository: quay.io/nuclio/controller
     tag: 1.6.12-amd64
-    pullPolicy: IfNotPresent  
+    pullPolicy: IfNotPresent
   resources: {}
 
   ## Node labels for pod assignment
@@ -138,13 +138,16 @@ dashboard:
   authOptions:
 
     # either one of "nop" or "iguazio"
-    mode: nop
+    kind: nop
 
-    # timeout before getting auth response (when using external verifier)
-    timeout: 60s
+    iguazio:
 
-    # endpoint for external auth verification
-    verificationURL: "/somewhere"
+      # endpoint which verify incoming request session
+      sessionVerificationURL: "http://somewhere.com"
+
+      # session verification request timeout
+      timeout: 30s
+
 
   opa:
     enabled: false
@@ -338,7 +341,7 @@ rbac:
   crdAccessMode: cluster
 
 crd:
-  
+
   # If true, creates cluster wide custom resources definitions for nuclio's resources
   create: true
 

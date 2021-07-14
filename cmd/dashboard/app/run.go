@@ -50,9 +50,9 @@ func Run(listenAddress string,
 	monitorDockerDeamon bool,
 	monitorDockerDeamonIntervalStr string,
 	monitorDockerDeamonMaxConsecutiveErrorsStr string,
-	authOptionsMode string,
-	authOptionsTimeout string,
-	authOptionsVerificationURL string) error {
+	authOptionsKind string,
+	authOptionsIguazioTimeout string,
+	authOptionsIguazioVerificationURL string) error {
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
@@ -87,17 +87,17 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to create platform")
 	}
 
-	authOptions := authconfig.NewOptions(auth.Mode(authOptionsMode))
+	authOptions := authconfig.NewOptions(auth.Kind(authOptionsKind))
 
-	if authOptionsTimeout != "" {
-		authOptions.Iguazio.Timeout, err = time.ParseDuration(authOptionsTimeout)
+	if authOptionsIguazioTimeout != "" {
+		authOptions.Iguazio.Timeout, err = time.ParseDuration(authOptionsIguazioTimeout)
 		if err != nil {
 			return errors.Wrap(err, "Failed to parse auth options timeout duration")
 		}
 	}
 
-	if authOptionsVerificationURL != "" {
-		authOptions.Iguazio.VerificationURL = authOptionsVerificationURL
+	if authOptionsIguazioVerificationURL != "" {
+		authOptions.Iguazio.VerificationURL = authOptionsIguazioVerificationURL
 	}
 
 	dashboardInstance.server, err = newDashboardServer(&CreateDashboardServerOptions{

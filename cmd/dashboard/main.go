@@ -81,9 +81,9 @@ func main() {
 	monitorDockerDeamonMaxConsecutiveErrorsStr := flag.String("monitor-docker-deamon-max-consecutive-errors", common.GetEnvOrDefaultString("NUCLIO_MONITOR_DOCKER_DAEMON_MAX_CONSECUTIVE_ERRORS", "5"), "Docker deamon connectivity monitor max consecutive errors before declaring docker connection is unhealthy (used in conjunction with 'monitor-docker-deamon')")
 
 	// auth options
-	authOptionsMode := flag.String("auth-options-mode", common.GetEnvOrDefaultString("NUCLIO_AUTH_MODE", "nop"), "Authentication mode")
-	authOptionsTimeout := flag.String("auth-options-timeout", common.GetEnvOrDefaultString("NUCLIO_AUTH_OPTIONS_TIMEOUT", ""), "Authentication request timeout (golang duration string)")
-	authOptionsVerificationURL := flag.String("auth-options-verification-url", common.GetEnvOrDefaultString("NUCLIO_AUTH_VERIFICATION_URL", ""), "Authentication verification url")
+	authOptionsKind := flag.String("auth-options-kind", common.GetEnvOrDefaultString("NUCLIO_AUTH_KIND", "nop"), "Authentication kind, either nop or iguazio")
+	authOptionsIguazioTimeout := flag.String("auth-options-iguazio-timeout", common.GetEnvOrDefaultString("NUCLIO_AUTH_OPTIONS_IGUAZIO_TIMEOUT", ""), "Authentication request timeout (golang duration string)")
+	authOptionsIguazioVerificationURL := flag.String("auth-options-iguazio-verification-url", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_VERIFICATION_URL", ""), "Authentication verification url")
 
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)
@@ -114,9 +114,9 @@ func main() {
 		*monitorDockerDeamon,
 		*monitorDockerDeamonIntervalStr,
 		*monitorDockerDeamonMaxConsecutiveErrorsStr,
-		*authOptionsMode,
-		*authOptionsTimeout,
-		*authOptionsVerificationURL); err != nil {
+		*authOptionsKind,
+		*authOptionsIguazioTimeout,
+		*authOptionsIguazioVerificationURL); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 

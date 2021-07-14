@@ -4,11 +4,11 @@ import (
 	"net/http"
 )
 
-type Mode string
+type Kind string
 
 const (
-	ModeNop     = "nop"
-	ModeIguazio = "iguazio"
+	KindNop     = "nop"
+	KindIguazio = "iguazio"
 )
 
 type Auth interface {

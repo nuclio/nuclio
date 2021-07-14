@@ -16,17 +16,16 @@ type Iguazio struct {
 }
 
 type Options struct {
-	Mode    auth.Mode `json:"mode"`
+	Kind    auth.Kind
 	Iguazio *Iguazio
 }
 
-func NewOptions(mode auth.Mode) *Options {
+func NewOptions(kind auth.Kind) *Options {
 	opts := &Options{
-		Mode: mode,
+		Kind: kind,
 	}
-	if mode == auth.ModeIguazio {
+	if kind == auth.KindIguazio {
 		opts.Iguazio = &Iguazio{}
 	}
-
 	return opts
 }

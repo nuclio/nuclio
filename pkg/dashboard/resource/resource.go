@@ -93,7 +93,7 @@ func (r *resource) getDashboard() *dashboard.Server {
 
 func (r *resource) addAuthMiddleware() {
 	authOptions := r.getDashboard().GetPlatformAuthenticationOptions()
-	if authOptions.Mode == auth.ModeIguazio {
+	if authOptions.Kind == auth.KindIguazio {
 		r.GetRouter().Use(iguazio.AuthenticationMiddleware(r.Logger, authOptions))
 	}
 }
