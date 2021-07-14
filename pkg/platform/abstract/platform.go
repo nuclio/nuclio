@@ -1087,7 +1087,7 @@ func (ap *Platform) validateNodeSelector(functionConfig *functionconfig.Config) 
 		}
 
 		// Valid label keys have two segments: an optional prefix and name, separated by a slash (/).
-		// The name segment is required and must realize the rules for a valid label value.
+		// The name segment is required and must conform to the rules of a valid label value.
 		// The prefix is optional. If specified, the prefix must be a DNS subdomain.
 		splitLabelKey := strings.SplitN(labelKey, "/", 2)
 		keyName := splitLabelKey[0]
