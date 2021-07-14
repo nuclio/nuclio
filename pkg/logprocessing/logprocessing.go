@@ -227,8 +227,9 @@ func shouldAddToBriefErrorsMessage(logLevel uint8, logMessage, workerID string) 
 
 func formatLogLine(log []byte) []byte {
 	if isSDKLogLine(log) {
-		return log[1:]
+		log = log[1:]
 	}
+	log = bytes.TrimSuffix(log, []byte(","))
 	return log
 }
 

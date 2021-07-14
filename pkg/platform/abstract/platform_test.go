@@ -902,7 +902,17 @@ func (suite *AbstractPlatformTestSuite) TestProcessLogLines() {
 			encodingConfig: nucliozap.NewEncoderConfig(),
 		},
 		{
-			name:     "structured",
+			name:     "NoLineEnding",
+			encoding: "json",
+			encodingConfig: func() *nucliozap.EncoderConfig {
+				encoding := nucliozap.NewEncoderConfig()
+				encoding.JSON.VarGroupMode = nucliozap.VarGroupModeFlattened
+				encoding.JSON.LineEnding = ""
+				return encoding
+			}(),
+		},
+		{
+			name:     "Structured",
 			encoding: "json",
 			encodingConfig: func() *nucliozap.EncoderConfig {
 				encoding := nucliozap.NewEncoderConfig()
@@ -911,13 +921,11 @@ func (suite *AbstractPlatformTestSuite) TestProcessLogLines() {
 			}(),
 		},
 		{
-			name:     "flattened",
+			name:     "Flattened",
 			encoding: "json",
 			encodingConfig: func() *nucliozap.EncoderConfig {
 				encoding := nucliozap.NewEncoderConfig()
 				encoding.JSON.VarGroupMode = nucliozap.VarGroupModeFlattened
-				encoding.JSON.LineEnding = "\n"
-				encoding.JSON.TimeFieldEncoding = "iso8601"
 				return encoding
 			}(),
 		},
