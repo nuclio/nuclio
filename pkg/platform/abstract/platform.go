@@ -828,8 +828,7 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 	briefErrorsArray := &[]string{}
 
 	for scanner.Scan() {
-		logLine := scanner.Bytes()
-		currentLogLine, briefLogLine, err := logprocessing.PrettifyFunctionLogLine(ap.Logger, logLine)
+		currentLogLine, briefLogLine, err := logprocessing.PrettifyFunctionLogLine(ap.Logger, scanner.Bytes())
 		if err != nil {
 			rawLogLine := scanner.Text()
 
