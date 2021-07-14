@@ -75,19 +75,23 @@ func (c *Configuration) PopulateConfigurationFromAnnotations(annotationConfigFie
 	var err error
 
 	for _, annotationConfigField := range annotationConfigFields {
-		if annotationValue, annotationKeyExists := c.RuntimeConfiguration.Config.Meta.Annotations[annotationConfigField.Key]; annotationKeyExists {
-			if annotationConfigField.ValueString != nil {
-				*annotationConfigField.ValueString = annotationValue
-			} else if annotationConfigField.ValueInt != nil {
-				*annotationConfigField.ValueInt, err = strconv.Atoi(annotationValue)
-				if err != nil {
-					return errors.Wrapf(err, "Annotation %s must be numeric", annotationConfigField.Key)
-				}
-			} else if annotationConfigField.ValueBool != nil {
-				*annotationConfigField.ValueBool, err = strconv.ParseBool(annotationValue)
-				if err != nil {
-					return errors.Wrapf(err, "Annotation %s must represent boolean", annotationConfigField.Key)
-				}
+		annotationValue, annotationKeyExists := c.RuntimeConfiguration.Config.Meta.Annotations[annotationConfigField.Key]
+		if !annotationKeyExists {
+			continue
+		}
+
+		switch {
+		case annotationConfigField.ValueString != nil:
+			*annotationConfigField.ValueString = annotationValue
+		case annotationConfigField.ValueInt != nil:
+			*annotationConfigField.ValueInt, err = strconv.Atoi(annotationValue)
+			if err != nil {
+				return errors.Wrapf(err, "Annotation %s must be numeric", annotationConfigField.Key)
+			}
+		case annotationConfigField.ValueBool != nil:
+			*annotationConfigField.ValueBool, err = strconv.ParseBool(annotationValue)
+			if err != nil {
+				return errors.Wrapf(err, "Annotation %s must represent boolean", annotationConfigField.Key)
 			}
 		}
 	}

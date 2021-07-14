@@ -371,8 +371,7 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 		config.Net.SASL.Mechanism = sarama.SASLMechanism(k.configuration.SASL.Mechanism)
 
 		// per mechanism configuration
-		switch config.Net.SASL.Mechanism {
-		case sarama.SASLTypeOAuth:
+		if config.Net.SASL.Mechanism == sarama.SASLTypeOAuth {
 			config.Net.SASL.TokenProvider = &SaramaSaslTokenProvider{k.configuration.SASL.AccessToken}
 		}
 	}
