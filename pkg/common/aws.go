@@ -15,18 +15,21 @@ import (
 
 type S3Client interface {
 	Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error
+	DownloadWithinEC2Instance(file *os.File, bucket, itemKey string) error
 }
 
 type AbstractS3Client struct {
 	S3Client
 }
 
-func (asc AbstractS3Client) Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error {
-	itemKey = filepath.Clean(itemKey)
-
-	pathInsideBucket, item := path.Split(itemKey)
-	bucketAndPath := path.Join(bucket, pathInsideBucket) + "/"
-
+func (asc *AbstractS3Client) Download(file *os.File,
+	bucket string,
+	itemKey string,
+	region string,
+	accessKeyID string,
+	secretAccessKey string,
+	sessionToken string) error {
+	bucketAndPath, item := asc.resolveBucketPathAndItem(bucket, itemKey)
 	sess, err := session.NewSession(&aws.Config{
 		Region:      aws.String("us-east-1"), // default region (some valid region must be mentioned)
 		Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, sessionToken),
@@ -44,15 +47,33 @@ func (asc AbstractS3Client) Download(file *os.File, bucket, itemKey, region, acc
 	}
 	sess.Config.Region = aws.String(region)
 
+	return asc.download(file, sess, bucketAndPath, item)
+}
+
+func (asc *AbstractS3Client) DownloadWithinEC2Instance(file *os.File, bucket, itemKey string) error {
+	bucketAndPath, item := asc.resolveBucketPathAndItem(bucket, itemKey)
+	sess, err := session.NewSession()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create session")
+	}
+	return asc.download(file, sess, bucketAndPath, item)
+
+}
+
+func (asc *AbstractS3Client) resolveBucketPathAndItem(bucket, itemKey string) (string, string) {
+	pathInsideBucket, item := path.Split(filepath.Clean(itemKey))
+	bucketAndPath := path.Join(bucket, pathInsideBucket) + "/"
+	return bucketAndPath, item
+}
+
+func (asc *AbstractS3Client) download(file *os.File, sess *session.Session, bucketAndPath, item string) error {
 	downloader := s3manager.NewDownloader(sess)
-	_, err = downloader.Download(file,
+	if _, err := downloader.Download(file,
 		&s3.GetObjectInput{
 			Bucket: aws.String(bucketAndPath),
 			Key:    aws.String(item),
-		})
-	if err != nil {
+		}); err != nil {
 		return errors.Wrap(err, "Failed to download file from s3")
 	}
-
 	return nil
 }
