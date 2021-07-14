@@ -1082,7 +1082,7 @@ func (ap *Platform) validateMinMaxReplicas(functionConfig *functionconfig.Config
 func (ap *Platform) validateNodeSelector(functionConfig *functionconfig.Config) error {
 	for labelKey, labelValue := range functionConfig.Spec.NodeSelector {
 		if errs := validation.IsValidLabelValue(labelValue); len(errs) > 0 {
-			errs = append(errs, fmt.Sprintf("Invalid value: %s", labelValue))
+			errs = append([]string{fmt.Sprintf("Invalid value: %s", labelValue)}, errs...)
 			return nuclio.NewErrBadRequest(strings.Join(errs, ", "))
 		}
 
@@ -1095,7 +1095,7 @@ func (ap *Platform) validateNodeSelector(functionConfig *functionconfig.Config) 
 			keyName = splitLabelKey[1]
 			prefix := splitLabelKey[0]
 			if errs := validation.IsDNS1123Subdomain(prefix); len(errs) > 0 {
-				errs = append(errs, fmt.Sprintf("Invalid key: %s", labelKey))
+				errs = append([]string{fmt.Sprintf("Invalid key: %s", labelKey)}, errs...)
 				return nuclio.NewErrBadRequest(strings.Join(errs, ", "))
 			}
 		}
@@ -1105,7 +1105,7 @@ func (ap *Platform) validateNodeSelector(functionConfig *functionconfig.Config) 
 		}
 
 		if errs := validation.IsValidLabelValue(keyName); len(errs) > 0 {
-			errs = append(errs, fmt.Sprintf("Invalid key: %s", labelKey))
+			errs = append([]string{fmt.Sprintf("Invalid key: %s", labelKey)}, errs...)
 			return nuclio.NewErrBadRequest(strings.Join(errs, ", "))
 		}
 
