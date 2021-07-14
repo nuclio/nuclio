@@ -948,20 +948,26 @@ func (suite *AbstractPlatformTestSuite) TestCreateFunctionEvent() {
 
 func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 	for idx, testCase := range []struct {
+		name                 string
 		nodeSelector         map[string]string
 		shouldFailValidation bool
 	}{
+
+		// happy flows
 		{
+			name: "Sanity",
 			nodeSelector: map[string]string{
 				"some-key": "some-value",
 			},
 		},
 		{
+			name: "AllowEmptyValue",
 			nodeSelector: map[string]string{
 				"some-key": "",
 			},
 		},
 		{
+			name: "TrueValuesSanity",
 			nodeSelector: map[string]string{
 				"beta.kubernetes.io/arch":                        "amd64",
 				"beta.kubernetes.io/os":                          "linux",
@@ -969,23 +975,24 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 				"feature.node.kubernetes.io/kernel-version.full": "3.10.0-1127.13.1.el7.x86_64",
 			},
 		},
+
+		// bad flows
 		{
+			name: "InvalidValue",
 			nodeSelector: map[string]string{
 				"some-key": "_some-value",
 			},
 			shouldFailValidation: true,
 		},
 		{
-
-			// should fail on empty key ""
+			name: "FailMissingKey",
 			nodeSelector: map[string]string{
 				"": "some-value",
 			},
 			shouldFailValidation: true,
 		},
 		{
-
-			// should fail on value "_some-value"
+			name: "Invalid2ndValue",
 			nodeSelector: map[string]string{
 				"some-key":      "some-value",
 				"some-key/name": "_some-value",
@@ -993,8 +1000,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 			shouldFailValidation: true,
 		},
 		{
-
-			// should fail on key "/some-key" (empty DNS subdomain)
+			name: "SegmentInvalidPrefix",
 			nodeSelector: map[string]string{
 				"some-key":  "some-value",
 				"/some-key": "some-value",
@@ -1002,41 +1008,41 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 			shouldFailValidation: true,
 		},
 	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+				Meta: platform.ProjectMeta{
+					Name:      platform.DefaultProjectName,
+					Namespace: "default",
+				},
+			}).Return([]platform.Project{
+				&platform.AbstractProject{},
+			}, nil).Once()
 
-		suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
-			Meta: platform.ProjectMeta{
-				Name:      platform.DefaultProjectName,
-				Namespace: "default",
-			},
-		}).Return([]platform.Project{
-			&platform.AbstractProject{},
-		}, nil).Once()
+			// name it with index and shift with 65 to get A as first letter
+			functionName := string(rune(idx + 65))
+			functionConfig := *functionconfig.NewConfig()
+			functionConfig.Spec.NodeSelector = testCase.nodeSelector
 
-		// name it with index and shift with 65 to get A as first letter
-		functionName := string(rune(idx + 65))
-		functionConfig := *functionconfig.NewConfig()
-		functionConfig.Spec.NodeSelector = testCase.nodeSelector
+			createFunctionOptions := &platform.CreateFunctionOptions{
+				Logger:         suite.Logger,
+				FunctionConfig: functionConfig,
+			}
+			createFunctionOptions.FunctionConfig.Meta.Name = functionName
+			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-		createFunctionOptions := &platform.CreateFunctionOptions{
-			Logger:         suite.Logger,
-			FunctionConfig: functionConfig,
-		}
-		createFunctionOptions.FunctionConfig.Meta.Name = functionName
-		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-			"nuclio.io/project-name": platform.DefaultProjectName,
-		}
-		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+			err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+			suite.Require().NoError(err, "Failed to enrich function")
 
-		err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
-		suite.Require().NoError(err, "Failed to enrich function")
-
-		err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
-		if testCase.shouldFailValidation {
-			suite.Require().Error(err, "Validation passed unexpectedly")
-			continue
-		}
-
-		suite.Require().NoError(err, "Validation failed unexpectedly")
+			err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
 	}
 }
 
