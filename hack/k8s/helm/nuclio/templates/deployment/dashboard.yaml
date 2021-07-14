@@ -87,6 +87,12 @@ spec:
           {{ toYaml .Values.dashboard.resources | nindent 11 }}
         {{- end }}
         env:
+        - name: NUCLIO_AUTH_MODE
+          value: {{ .Values.dashboard.authOptions.mode }}
+        - name: NUCLIO_AUTH_OPTIONS_TIMEOUT
+          value: {{ .Values.dashboard.authOptions.timeout }}
+        - name: NUCLIO_AUTH_VERIFICATION_URL
+          value: {{ .Values.dashboard.authOptions.verificationURL }}
         - name: NUCLIO_DASHBOARD_REGISTRY_URL
           valueFrom:
             configMapKeyRef:

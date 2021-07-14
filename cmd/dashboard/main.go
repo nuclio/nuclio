@@ -82,7 +82,7 @@ func main() {
 
 	// auth options
 	authOptionsMode := flag.String("auth-options-mode", common.GetEnvOrDefaultString("NUCLIO_AUTH_MODE", "nop"), "Authentication mode")
-	authOptionsTimeout := flag.String("auth-options-timeout", common.GetEnvOrDefaultString("NUCLIO_AUTH_OPTIONS_TIMEOUT", ""), "Authentication request timeout")
+	authOptionsTimeout := flag.String("auth-options-timeout", common.GetEnvOrDefaultString("NUCLIO_AUTH_OPTIONS_TIMEOUT", ""), "Authentication request timeout (golang duration string)")
 	authOptionsVerificationURL := flag.String("auth-options-verification-url", common.GetEnvOrDefaultString("NUCLIO_AUTH_VERIFICATION_URL", ""), "Authentication verification url")
 
 	// get the namespace from args -> env -> default

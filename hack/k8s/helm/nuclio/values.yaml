@@ -135,6 +135,17 @@ dashboard:
     #    hosts:
     #      - nuclio.local
 
+  authOptions:
+
+    # either one of "nop" or "iguazio"
+    mode: nop
+
+    # timeout before getting auth response (when using external verifier)
+    timeout: 60s
+
+    # endpoint for external auth verification
+    verificationURL: "/somewhere"
+
   opa:
     enabled: false
     name: opa-server
