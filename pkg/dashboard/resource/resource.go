@@ -21,8 +21,6 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -92,8 +90,9 @@ func (r *resource) getDashboard() *dashboard.Server {
 }
 
 func (r *resource) addAuthMiddleware() {
-	authOptions := r.getDashboard().GetPlatformAuthenticationOptions()
-	if authOptions.Kind == auth.KindIguazio {
-		r.GetRouter().Use(iguazio.AuthenticationMiddleware(r.Logger, authOptions))
-	}
+	authenticator := r.getDashboard().GetAuthenticator()
+	r.Logger.DebugWith("Installing auth middleware on router",
+		"authenticatorKind", authenticator.Kind(),
+		"resourceName", r.GetName())
+	r.GetRouter().Use(authenticator.Middleware())
 }

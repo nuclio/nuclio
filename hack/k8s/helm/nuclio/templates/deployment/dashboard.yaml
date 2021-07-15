@@ -88,11 +88,15 @@ spec:
         {{- end }}
         env:
         - name: NUCLIO_AUTH_KIND
-          value: {{ .Values.dashboard.authOptions.kind }}
+          value: {{ .Values.dashboard.authConfig.kind }}
         - name: NUCLIO_AUTH_OPTIONS_IGUAZIO_TIMEOUT
-          value: {{ .Values.dashboard.authOptions.iguazio.timeout }}
+          value: {{ .Values.dashboard.authConfig.iguazio.timeout }}
         - name: NUCLIO_AUTH_IGUAZIO_VERIFICATION_URL
-          value: {{ .Values.dashboard.authOptions.iguazio.sessionVerificationURL }}
+          value: {{ .Values.dashboard.authConfig.iguazio.sessionVerificationURL }}
+        - name: NUCLIO_AUTH_IGUAZIO_CACHE_SIZE
+          value: {{ .Values.dashboard.authConfig.iguazio.cacheSize | quote }}
+        - name: NUCLIO_AUTH_IGUAZIO_CACHE_EXPIRATION_TIMEOUT
+          value: {{ .Values.dashboard.authConfig.iguazio.cacheExpirationTimeout }}
         - name: NUCLIO_DASHBOARD_REGISTRY_URL
           valueFrom:
             configMapKeyRef:

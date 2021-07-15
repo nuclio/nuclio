@@ -437,7 +437,7 @@ fmt:
 	gofmt -s -w .
 
 .PHONY: lint
-lint: modules
+lint: modules ensure-test-files-annotated
 	@echo Installing linters...
 	@test -e $(GOPATH)/bin/impi || \
 		(mkdir -p $(GOPATH)/bin && \
@@ -464,7 +464,7 @@ lint: modules
 	@echo Done.
 
 .PHONY: ensure-test-files-annotated
-ensure-test-files-annotated: modules
+ensure-test-files-annotated:
 	$(eval test_files_missing_build_annotations=$(strip $(shell find . -type f -name '*_test.go' -exec bash -c "grep -m 1 -L '// +build' {} | grep go" \;)))
 	@if [ -n "$(test_files_missing_build_annotations)" ]; then \
 		echo "Found go test files without build annotations: "; \
@@ -472,7 +472,7 @@ ensure-test-files-annotated: modules
 		echo "!!! Go test files must be annotated with '// +build test_<x>' !!!"; \
 		exit 1; \
 	fi
-	@echo "All go test file have build annotations"
+	@echo "All go test files have +build annotation"
 	@exit $(.SHELLSTATUS)
 
 #

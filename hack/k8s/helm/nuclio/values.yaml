@@ -135,7 +135,7 @@ dashboard:
     #    hosts:
     #      - nuclio.local
 
-  authOptions:
+  authConfig:
 
     # either one of "nop" or "iguazio"
     kind: nop
@@ -148,6 +148,11 @@ dashboard:
       # session verification request timeout
       timeout: 30s
 
+      # how many entries to cache
+      cacheSize: 100
+
+      # invalidate a cache entry after specific timeout
+      cacheExpirationTimeout: 60s
 
   opa:
     enabled: false

@@ -1,7 +1,7 @@
 package app
 
 import (
-	authconfig "github.com/nuclio/nuclio/pkg/dashboard/auth/config"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -36,5 +36,5 @@ type CreateDashboardServerOptions struct {
 	dependantImageRegistryURL        string
 
 	// auth options
-	authOptions *authconfig.Options
+	authConfig *auth.Config
 }

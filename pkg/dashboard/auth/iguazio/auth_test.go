@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/dashboard/auth"
-	authconfig "github.com/nuclio/nuclio/pkg/dashboard/auth/config"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
@@ -37,9 +36,67 @@ func (suite *AuthTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 }
 
+func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
+	// mocks IguazioConfig session verification endpoint
+	mockedHTTPClient := suite.createHTTPMockClient(func(r *http.Request) *http.Response {
+		authorization := r.Header.Get("Authorization")
+		cookie := r.Header.Get("Cookie")
+		if authorization != "Basic YWJjOmVmZwo=" || cookie != "session=some-session" {
+			return &http.Response{
+				StatusCode: http.StatusUnauthorized,
+			}
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header: map[string][]string{
+				"X-Remote-User":      {"admin"},
+				"X-User-Group-Ids":   {"1", "2"},
+				"X-User-Id":          {"3"},
+				"X-V3io-Session-Key": {"4"},
+			},
+		}
+	})
+
+	newAuth := NewAuth(suite.logger, func() *auth.Config {
+		authConfig := auth.NewConfig(auth.KindIguazio)
+		authConfig.Iguazio.VerificationURL = "http://somewhere.local"
+		return authConfig
+	}())
+	authInstance := newAuth.(*Auth)
+	authInstance.httpClient = mockedHTTPClient
+	incomingRequest := &http.Request{
+		Header: map[string][]string{
+			"Authorization": {"Basic YWJjOmVmZwo="},
+			"Cookie":        {"session=some-session"},
+		}}
+
+	// step A. successfully authenticate, let it to be cached
+	_, err := authInstance.Authenticate(incomingRequest)
+	suite.Require().NoError(err)
+	suite.Require().NotEmpty(authInstance.cache.Keys())
+
+	// step B. re-authenticate, read from cache
+	// nil the http client in order to force it to panic if it was used to make an HTTP request
+	authInstance.httpClient = nil
+	_, err = authInstance.Authenticate(incomingRequest)
+	suite.Require().NoError(err)
+
+	authInstance.cache.Remove(authInstance.cache.Keys()[0])
+
+	// step C. bad authentication + cache remains empty
+	authInstance.httpClient = suite.createHTTPMockClient(func(r *http.Request) *http.Response {
+		return &http.Response{
+			StatusCode: http.StatusUnauthorized,
+		}
+	})
+	_, err = authInstance.Authenticate(incomingRequest)
+	suite.Require().Error(err)
+	suite.Require().Empty(authInstance.cache.Keys())
+}
+
 func (suite *AuthTestSuite) TestAuthenticate() {
 
-	// mocks Iguazio session verification endpoint
+	// mocks IguazioConfig session verification endpoint
 	mockedHTTPClient := suite.createHTTPMockClient(func(r *http.Request) *http.Response {
 		authorization := r.Header.Get("Authorization")
 		cookie := r.Header.Get("Cookie")
@@ -61,21 +118,17 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 
 	for _, testCase := range []struct {
 		name            string
-		auth            Auth
+		auth            auth.Auth
 		incomingRequest *http.Request
 		invalidRequest  bool
 	}{
 		{
 			name: "sanity",
-			auth: Auth{
-				logger: suite.logger,
-				options: func() *authconfig.Options {
-					authConfig := authconfig.NewOptions(auth.KindIguazio)
-					authConfig.Iguazio.VerificationURL = "http://somewhere.local"
-					return authConfig
-				}(),
-				httpClient: mockedHTTPClient,
-			},
+			auth: NewAuth(suite.logger, func() *auth.Config {
+				authConfig := auth.NewConfig(auth.KindIguazio)
+				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
+				return authConfig
+			}()),
 			incomingRequest: &http.Request{
 				Header: map[string][]string{
 					"Authorization": {"Basic YWJjOmVmZwo="},
@@ -85,15 +138,11 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 		},
 		{
 			name: "missingCookie",
-			auth: Auth{
-				logger: suite.logger,
-				options: func() *authconfig.Options {
-					authConfig := authconfig.NewOptions(auth.KindIguazio)
-					authConfig.Iguazio.VerificationURL = "http://somewhere.local"
-					return authConfig
-				}(),
-				httpClient: mockedHTTPClient,
-			},
+			auth: NewAuth(suite.logger, func() *auth.Config {
+				authConfig := auth.NewConfig(auth.KindIguazio)
+				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
+				return authConfig
+			}()),
 			incomingRequest: &http.Request{
 				Header: map[string][]string{
 					"Authorization": {"Basic YWJjOmVmZwo="},
@@ -103,15 +152,11 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 		},
 		{
 			name: "missingAuthorizationHeader",
-			auth: Auth{
-				logger: suite.logger,
-				options: func() *authconfig.Options {
-					authConfig := authconfig.NewOptions(auth.KindIguazio)
-					authConfig.Iguazio.VerificationURL = "http://somewhere.local"
-					return authConfig
-				}(),
-				httpClient: mockedHTTPClient,
-			},
+			auth: NewAuth(suite.logger, func() *auth.Config {
+				authConfig := auth.NewConfig(auth.KindIguazio)
+				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
+				return authConfig
+			}()),
 			incomingRequest: &http.Request{
 				Header: map[string][]string{
 					"Cookie": {"session=some-session"},
@@ -121,16 +166,17 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			err := testCase.auth.Authenticate(testCase.incomingRequest)
+			testCase.auth.(*Auth).httpClient = mockedHTTPClient
+			authInfo, err := testCase.auth.Authenticate(testCase.incomingRequest)
 			if testCase.invalidRequest {
 				suite.Require().Error(err)
 				return
 			}
 			suite.Require().NoError(err)
-			suite.Require().Equal("admin", testCase.auth.Username)
-			suite.Require().Equal([]string{"1", "2"}, testCase.auth.GroupIDs)
-			suite.Require().Equal("3", testCase.auth.UserID)
-			suite.Require().Equal("4", testCase.auth.SessionKey)
+			suite.Require().Equal("admin", authInfo.Iguazio.Username)
+			suite.Require().Equal([]string{"1", "2"}, authInfo.Iguazio.GroupIDs)
+			suite.Require().Equal("3", authInfo.Iguazio.UserID)
+			suite.Require().Equal("4", authInfo.Iguazio.SessionKey)
 		})
 	}
 }

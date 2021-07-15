@@ -81,9 +81,11 @@ func main() {
 	monitorDockerDeamonMaxConsecutiveErrorsStr := flag.String("monitor-docker-deamon-max-consecutive-errors", common.GetEnvOrDefaultString("NUCLIO_MONITOR_DOCKER_DAEMON_MAX_CONSECUTIVE_ERRORS", "5"), "Docker deamon connectivity monitor max consecutive errors before declaring docker connection is unhealthy (used in conjunction with 'monitor-docker-deamon')")
 
 	// auth options
-	authOptionsKind := flag.String("auth-options-kind", common.GetEnvOrDefaultString("NUCLIO_AUTH_KIND", "nop"), "Authentication kind, either nop or iguazio")
-	authOptionsIguazioTimeout := flag.String("auth-options-iguazio-timeout", common.GetEnvOrDefaultString("NUCLIO_AUTH_OPTIONS_IGUAZIO_TIMEOUT", ""), "Authentication request timeout (golang duration string)")
-	authOptionsIguazioVerificationURL := flag.String("auth-options-iguazio-verification-url", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_VERIFICATION_URL", ""), "Authentication verification url")
+	authConfigKind := flag.String("auth-config-kind", common.GetEnvOrDefaultString("NUCLIO_AUTH_KIND", "nop"), "Authentication kind, either nop or iguazio")
+	authConfigIguazioVerificationURL := flag.String("auth-config-iguazio-verification-url", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_VERIFICATION_URL", ""), "Iguazio authentication verification url")
+	authConfigIguazioTimeout := flag.String("auth-config-iguazio-timeout", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_TIMEOUT", ""), "Iguazio authentication request timeout (golang duration string)")
+	authConfigIguazioCacheSize := flag.String("auth-config-iguazio-cache-size", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_CACHE_SIZE", ""), "Iguazio authentication cache size")
+	authConfigIguazioCacheTimeout := flag.String("auth-config-iguazio-cache-expiration-timeout", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_CACHE_EXPIRATION_TIMEOUT", "30s"), "Iguazio authentication cache expiration timeout (golang duration string)")
 
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)
@@ -114,9 +116,11 @@ func main() {
 		*monitorDockerDeamon,
 		*monitorDockerDeamonIntervalStr,
 		*monitorDockerDeamonMaxConsecutiveErrorsStr,
-		*authOptionsKind,
-		*authOptionsIguazioTimeout,
-		*authOptionsIguazioVerificationURL); err != nil {
+		*authConfigKind,
+		*authConfigIguazioTimeout,
+		*authConfigIguazioVerificationURL,
+		*authConfigIguazioCacheSize,
+		*authConfigIguazioCacheTimeout); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 

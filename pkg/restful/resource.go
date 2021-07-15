@@ -170,6 +170,11 @@ func (ar *AbstractResource) Register(registry *registry.Registry) {
 	registry.Register(ar.name, ar)
 }
 
+// GetName returns the resource name
+func (ar *AbstractResource) GetName() string {
+	return ar.name
+}
+
 // GetServer returns the server
 func (ar *AbstractResource) GetServer() Server {
 	return ar.server
@@ -363,6 +368,7 @@ func (ar *AbstractResource) registerCustomRoutes() error {
 
 		customRouteCopy := customRoute
 		ar.Logger.DebugWith("Registered custom route",
+			"routeName", ar.name,
 			"stream", customRoute.Stream,
 			"pattern", customRoute.Pattern,
 			"method", customRoute.Method)

@@ -35,7 +35,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	authconfig "github.com/nuclio/nuclio/pkg/dashboard/auth/config"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -96,7 +96,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 		"",
 		"",
 		"",
-		&authconfig.Options{})
+		&auth.Config{})
 
 	if err != nil {
 		panic("Failed to create server")
@@ -146,7 +146,7 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 
 	if encodedExpectedResponse != nil {
 
-		err = json.Unmarshal(encodedResponseBody, &decodedResponseBody)
+		err := json.Unmarshal(encodedResponseBody, &decodedResponseBody)
 		suite.Require().NoError(err)
 
 		suite.logger.DebugWith("Comparing expected", "expected", encodedExpectedResponse)
@@ -155,7 +155,7 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 		case string:
 			decodedExpectedResponseBody := map[string]interface{}{}
 
-			err = json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
+			err := json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
 			suite.Require().NoError(err)
 			suite.Require().Empty(cmp.Diff(decodedExpectedResponseBody, decodedResponseBody))
 

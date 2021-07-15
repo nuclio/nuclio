@@ -10,7 +10,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/auth"
-	authconfig "github.com/nuclio/nuclio/pkg/dashboard/auth/config"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dashboard/healthcheck"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -51,8 +50,10 @@ func Run(listenAddress string,
 	monitorDockerDeamonIntervalStr string,
 	monitorDockerDeamonMaxConsecutiveErrorsStr string,
 	authOptionsKind string,
-	authOptionsIguazioTimeout string,
-	authOptionsIguazioVerificationURL string) error {
+	authConfigIguazioTimeout string,
+	authConfigIguazioVerificationURL string,
+	authConfigIguazioCacheSize string,
+	authConfigIguazioCacheExpirationTimeout string) error {
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
@@ -87,17 +88,15 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to create platform")
 	}
 
-	authOptions := authconfig.NewOptions(auth.Kind(authOptionsKind))
-
-	if authOptionsIguazioTimeout != "" {
-		authOptions.Iguazio.Timeout, err = time.ParseDuration(authOptionsIguazioTimeout)
-		if err != nil {
-			return errors.Wrap(err, "Failed to parse auth options timeout duration")
+	authConfig := auth.NewConfig(auth.Kind(authOptionsKind))
+	if authConfig.Iguazio != nil {
+		if err := enrichAuthConfig(authConfig,
+			authConfigIguazioVerificationURL,
+			authConfigIguazioCacheSize,
+			authConfigIguazioCacheExpirationTimeout,
+			authConfigIguazioTimeout); err != nil {
+			return errors.Wrap(err, "Failed to enrich auth config")
 		}
-	}
-
-	if authOptionsIguazioVerificationURL != "" {
-		authOptions.Iguazio.VerificationURL = authOptionsIguazioVerificationURL
 	}
 
 	dashboardInstance.server, err = newDashboardServer(&CreateDashboardServerOptions{
@@ -126,7 +125,7 @@ func Run(listenAddress string,
 		imageNamePrefixTemplate:          imageNamePrefixTemplate,
 		platformAuthorizationMode:        platformAuthorizationMode,
 		dependantImageRegistryURL:        dependantImageRegistryURL,
-		authOptions:                      authOptions,
+		authConfig:                       authConfig,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to create new dashboard")
@@ -167,6 +166,39 @@ func Run(listenAddress string,
 
 	dashboardInstance.status = status.Ready
 	select {}
+}
+
+func enrichAuthConfig(authConfig *auth.Config,
+	authConfigIguazioVerificationURL string,
+	authConfigIguazioCacheSize string,
+	authConfigIguazioCacheExpirationTimeout string,
+	authConfigIguazioTimeout string) error {
+	var err error
+
+	if authConfigIguazioVerificationURL != "" {
+		authConfig.Iguazio.VerificationURL = authConfigIguazioVerificationURL
+	}
+
+	if authConfigIguazioTimeout != "" {
+		authConfig.Iguazio.Timeout, err = time.ParseDuration(authConfigIguazioTimeout)
+		if err != nil {
+			return errors.Wrap(err, "Failed to parse auth config iguazio timeout")
+		}
+	}
+
+	if authConfigIguazioCacheSize != "" {
+		authConfig.Iguazio.CacheSize, err = strconv.Atoi(authConfigIguazioCacheSize)
+		if err != nil {
+			return errors.Wrap(err, "Cache size must be numeric")
+		}
+	}
+	if authConfigIguazioCacheExpirationTimeout != "" {
+		authConfig.Iguazio.CacheExpirationTimeout, err = time.ParseDuration(authConfigIguazioCacheExpirationTimeout)
+		if err != nil {
+			return errors.Wrap(err, "Failed to parse auth config iguazio expiration timeout")
+		}
+	}
+	return nil
 }
 
 func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptions) (restful.Server, error) {
@@ -291,7 +323,7 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 		createDashboardServerOptions.imageNamePrefixTemplate,
 		createDashboardServerOptions.platformAuthorizationMode,
 		createDashboardServerOptions.dependantImageRegistryURL,
-		createDashboardServerOptions.authOptions)
+		createDashboardServerOptions.authConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create server")
 	}
