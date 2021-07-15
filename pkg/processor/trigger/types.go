@@ -18,6 +18,7 @@ package trigger
 
 import (
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -36,10 +37,11 @@ type DurationConfigField struct {
 }
 
 type AnnotationConfigField struct {
-	Key         string
-	ValueString *string
-	ValueInt    *int
-	ValueBool   *bool
+	Key             string
+	ValueString     *string
+	ValueListString []string
+	ValueInt        *int
+	ValueBool       *bool
 }
 
 type Configuration struct {
@@ -70,7 +72,7 @@ func NewConfiguration(id string,
 	return configuration
 }
 
-// allows setting configuration via annotations, for experimental settings
+// PopulateConfigurationFromAnnotations allows setting configuration via annotations, for experimental settings
 func (c *Configuration) PopulateConfigurationFromAnnotations(annotationConfigFields []AnnotationConfigField) error {
 	var err error
 
@@ -93,13 +95,15 @@ func (c *Configuration) PopulateConfigurationFromAnnotations(annotationConfigFie
 			if err != nil {
 				return errors.Wrapf(err, "Annotation %s must represent boolean", annotationConfigField.Key)
 			}
+		case annotationConfigField.ValueListString != nil:
+			annotationConfigField.ValueListString = strings.Split(annotationValue, ",")
 		}
 	}
 
 	return nil
 }
 
-// parses a duration string into a time.duration field. if empty, sets the field to the default
+// ParseDurationOrDefault parses a duration string into a time.duration field. if empty, sets the field to the default
 func (c *Configuration) ParseDurationOrDefault(durationConfigField *DurationConfigField) error {
 	if durationConfigField.Value == "" {
 		*durationConfigField.Field = durationConfigField.Default

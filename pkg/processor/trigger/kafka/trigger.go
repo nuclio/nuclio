@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/kafka/tokenprovider/oauth"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -372,7 +373,11 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 
 		// per mechanism configuration
 		if config.Net.SASL.Mechanism == sarama.SASLTypeOAuth {
-			config.Net.SASL.TokenProvider = &SaramaSaslTokenProvider{k.configuration.SASL.AccessToken}
+			config.Net.SASL.TokenProvider = oauth.NewTokenProvider(context.TODO(),
+				k.configuration.SASL.OAuth.ClientID,
+				k.configuration.SASL.OAuth.ClientSecret,
+				k.configuration.SASL.OAuth.TokenURL,
+				k.configuration.SASL.OAuth.Scopes)
 		}
 	}
 
