@@ -340,11 +340,3 @@ func (c *Configuration) unflattenCertificate(certificate string) string {
 
 	return certificate
 }
-
-type SaramaSaslTokenProvider struct {
-	sarama.AccessToken
-}
-
-func (s *SaramaSaslTokenProvider) Token() (*sarama.AccessToken, error) {
-	return &s.AccessToken, nil
-}
