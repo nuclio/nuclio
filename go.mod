@@ -62,6 +62,7 @@ require (
 	github.com/v3io/version-go v0.0.2
 	github.com/valyala/fasthttp v1.21.0
 	github.com/vmihailenco/msgpack/v4 v4.3.12
+	golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/api v0.43.0
 	google.golang.org/grpc v1.36.1
