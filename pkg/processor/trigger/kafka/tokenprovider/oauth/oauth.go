@@ -4,10 +4,9 @@ import (
 	"context"
 
 	"github.com/Shopify/sarama"
+	"github.com/nuclio/errors"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
-
-	"github.com/nuclio/errors"
 )
 
 // TokenProvider encapsulates oauth2.TokenSource and returns sarama.AccessToken
