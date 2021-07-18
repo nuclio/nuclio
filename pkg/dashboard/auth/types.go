@@ -19,6 +19,17 @@ const (
 	NopContextKey     SessionContextKey = "NopSession"
 )
 
+func ContextKeyByKind(kind Kind) SessionContextKey {
+	switch kind {
+	case KindNop:
+		return NopContextKey
+	case KindIguazio:
+		return IguazioContextKey
+	default:
+		return NopContextKey
+	}
+}
+
 type IguazioConfig struct {
 	Timeout                time.Duration
 	VerificationURL        string
@@ -45,23 +56,16 @@ func NewConfig(kind Kind) *Config {
 	return config
 }
 
-type Session struct {
-	Iguazio *IguazioSession
-	Nop     *NopSession
-}
-
-type IguazioSession struct {
-	Username   string
-	SessionKey string
-	UserID     string
-	GroupIDs   []string
-}
-
-type NopSession struct {
+type Session interface {
+	GetUsername() string
+	GetPassword() string
+	GetUserID() string
+	GetGroupIDs() []string
+	CompileAuthorizationBasic() string
 }
 
 type Auth interface {
-	Authenticate(request *http.Request) (*Session, error)
+	Authenticate(request *http.Request) (Session, error)
 	Middleware() func(http.Handler) http.Handler
 	Kind() Kind
 }

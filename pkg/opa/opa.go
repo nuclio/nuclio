@@ -20,10 +20,23 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 )
 
 type Client interface {
 	QueryPermissions(resource string, action Action, permissionOptions *PermissionOptions) (bool, error)
+}
+
+func GetUserAndGroupIdsFromAuthSession(session auth.Session) []string {
+	if session == nil {
+		return []string{}
+	}
+	ids := []string{
+		session.GetUserID(),
+	}
+	ids = append(ids, session.GetGroupIDs()...)
+	return ids
 }
 
 func GetUserAndGroupIdsFromHeaders(request *http.Request) []string {

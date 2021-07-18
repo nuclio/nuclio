@@ -12,21 +12,19 @@ import (
 type Auth struct {
 	logger     logger.Logger
 	config     *auth.Config
-	nopSession *auth.Session
+	nopSession auth.Session
 }
 
 func NewAuth(logger logger.Logger, authConfig *auth.Config) auth.Auth {
 	return &Auth{
-		logger: logger.GetChild("nop-auth"),
-		config: authConfig,
-		nopSession: &auth.Session{
-			Nop: &auth.NopSession{},
-		},
+		logger:     logger.GetChild("nop-auth"),
+		config:     authConfig,
+		nopSession: &auth.NopSession{},
 	}
 }
 
 // Authenticate will do nothing
-func (a *Auth) Authenticate(request *http.Request) (*auth.Session, error) {
+func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
 	return a.nopSession, nil
 }
 

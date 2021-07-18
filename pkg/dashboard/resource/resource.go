@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -95,4 +96,8 @@ func (r *resource) addAuthMiddleware() {
 		"authenticatorKind", authenticator.Kind(),
 		"resourceName", r.GetName())
 	r.GetRouter().Use(authenticator.Middleware())
+}
+
+func (r *resource) getCtxSession(request *http.Request) auth.Session {
+	return request.Context().Value(auth.ContextKeyByKind(r.getDashboard().GetAuthenticator().Kind())).(auth.Session)
 }

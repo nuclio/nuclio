@@ -27,6 +27,11 @@ type namespaceResource struct {
 	*resource
 }
 
+func (nr *namespaceResource) ExtendMiddlewares() error {
+	nr.resource.addAuthMiddleware()
+	return nil
+}
+
 // GetAll returns all namespaces
 func (nr *namespaceResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	namespaces, err := nr.getPlatform().GetNamespaces()

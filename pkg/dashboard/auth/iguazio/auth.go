@@ -37,14 +37,14 @@ func NewAuth(logger logger.Logger, config *auth.Config) auth.Auth {
 
 // Authenticate will ask IguazioConfig session verification endpoint to verify the request session
 // and enrich with session metadata
-func (a *Auth) Authenticate(request *http.Request) (*auth.Session, error) {
+func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
 	authorization := request.Header.Get("authorization")
 	cookie := request.Header.Get("cookie")
 	cacheKey := authorization + cookie
 
 	// try resolve from cache
 	if cacheData, found := a.cache.Get(cacheKey); found {
-		return cacheData.(*auth.Session), nil
+		return cacheData.(*auth.IguazioSession), nil
 	}
 
 	authHeaders := map[string]string{
@@ -85,13 +85,11 @@ func (a *Auth) Authenticate(request *http.Request) (*auth.Session, error) {
 		return nil, nuclio.NewErrUnauthorized("Authentication failed")
 	}
 
-	authInfo := &auth.Session{
-		Iguazio: &auth.IguazioSession{
-			Username:   response.Header.Get("x-remote-user"),
-			SessionKey: response.Header.Get("x-v3io-session-key"),
-			UserID:     response.Header.Get("x-user-id"),
-			GroupIDs:   response.Header.Values("x-user-group-ids"),
-		},
+	authInfo := &auth.IguazioSession{
+		Username:   response.Header.Get("x-remote-user"),
+		SessionKey: response.Header.Get("x-v3io-session-key"),
+		UserID:     response.Header.Get("x-user-id"),
+		GroupIDs:   response.Header.Values("x-user-group-ids"),
 	}
 	a.cache.Add(authorization+cookie, authInfo, a.config.Iguazio.CacheExpirationTimeout)
 	a.logger.InfoWith("Authentication succeeded", "iguazioUser", authInfo.Iguazio.Username)
@@ -108,7 +106,7 @@ func (a *Auth) Middleware() func(next http.Handler) http.Handler {
 				return
 			}
 			a.logger.DebugWith("Successfully authenticated incoming request",
-				"sessionUser", session.Iguazio.Username)
+				"sessionUsername", session.GetUsername())
 			ctx := context.WithValue(r.Context(), auth.IguazioContextKey, session)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

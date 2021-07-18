@@ -128,7 +128,7 @@ func (agr *apiGatewayResource) Create(request *http.Request) (string, restful.At
 		return "", nil, err
 	}
 
-	return agr.createAPIGateway(apiGatewayInfo)
+	return agr.createAPIGateway(request, apiGatewayInfo)
 }
 
 func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
@@ -200,7 +200,8 @@ func (agr *apiGatewayResource) export(apiGateway platform.APIGateway) restful.At
 }
 
 // returns (id, attributes, error)
-func (agr *apiGatewayResource) createAPIGateway(apiGatewayInfoInstance *apiGatewayInfo) (string, restful.Attributes, error) {
+func (agr *apiGatewayResource) createAPIGateway(request *http.Request,
+	apiGatewayInfoInstance *apiGatewayInfo) (string, restful.Attributes, error) {
 
 	// create an api gateway config
 	apiGatewayConfig := platform.APIGatewayConfig{
@@ -221,6 +222,7 @@ func (agr *apiGatewayResource) createAPIGateway(apiGatewayInfoInstance *apiGatew
 	// just deploy. the status is async through polling
 	agr.Logger.DebugWith("Creating api gateway", "newAPIGateway", newAPIGateway)
 	if err = agr.getPlatform().CreateAPIGateway(&platform.CreateAPIGatewayOptions{
+		AuthSession:      agr.getCtxSession(request),
 		APIGatewayConfig: newAPIGateway.GetConfig(),
 	}); err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "already exists") {

@@ -49,10 +49,10 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Header: map[string][]string{
-				"X-Remote-User":      {"admin"},
-				"X-User-Group-Ids":   {"1", "2"},
-				"X-User-Id":          {"3"},
-				"X-V3io-Session-Key": {"4"},
+				"X-Remote-User":              {"admin"},
+				"X-User-Group-Ids":           {"1", "2"},
+				"X-User-Id":                  {"3"},
+				"X-V3io-abstractSession-Key": {"4"},
 			},
 		}
 	})
@@ -108,10 +108,10 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Header: map[string][]string{
-				"X-Remote-User":      {"admin"},
-				"X-User-Group-Ids":   {"1", "2"},
-				"X-User-Id":          {"3"},
-				"X-V3io-Session-Key": {"4"},
+				"X-Remote-User":              {"admin"},
+				"X-User-Group-Ids":           {"1", "2"},
+				"X-User-Id":                  {"3"},
+				"X-V3io-abstractSession-Key": {"4"},
 			},
 		}
 	})
@@ -173,10 +173,10 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 				return
 			}
 			suite.Require().NoError(err)
-			suite.Require().Equal("admin", authInfo.Iguazio.Username)
-			suite.Require().Equal([]string{"1", "2"}, authInfo.Iguazio.GroupIDs)
-			suite.Require().Equal("3", authInfo.Iguazio.UserID)
-			suite.Require().Equal("4", authInfo.Iguazio.SessionKey)
+			suite.Require().Equal("admin", authInfo.GetUsername())
+			suite.Require().Equal([]string{"1", "2"}, authInfo.GetGroupIDs())
+			suite.Require().Equal("3", authInfo.GetUserID())
+			suite.Require().Equal("4", authInfo.GetPassword())
 		})
 	}
 }

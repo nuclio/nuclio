@@ -42,6 +42,11 @@ func (ftr *functionTemplateResource) OnAfterInitialize() error {
 	return nil
 }
 
+func (ftr *functionTemplateResource) ExtendMiddlewares() error {
+	ftr.resource.addAuthMiddleware()
+	return nil
+}
+
 // GetAll returns all functionTemplates
 func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	attributes := map[string]restful.Attributes{}

@@ -29,6 +29,11 @@ type externalIPAddressesResource struct {
 	*resource
 }
 
+func (eiar *externalIPAddressesResource) ExtendMiddlewares() error {
+	eiar.resource.addAuthMiddleware()
+	return nil
+}
+
 // GetAll returns all externalIPAddressess
 func (eiar *externalIPAddressesResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	externalIPAddresses, err := eiar.getPlatform().GetExternalIPAddresses()
