@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -40,22 +41,30 @@ func (c *Client) Get(getProjectOptions *platform.GetProjectsOptions) ([]platform
 	c.logger.DebugWith("Fetching projects from leader",
 		"getProjectOptionsMeta", getProjectOptions.Meta)
 
+	headers := c.generateCommonRequestHeaders()
 	var cookies []*http.Cookie
 	if getProjectOptions.SessionCookie != nil {
 		cookies = append(cookies, getProjectOptions.SessionCookie)
 	}
 
+	if getProjectOptions.AuthSession != nil {
+		headers["authorization"] = getProjectOptions.AuthSession.CompileAuthorizationBasic()
+		cookies = append(cookies, &http.Cookie{
+			Name:  "session",
+			Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, getProjectOptions.AuthSession.GetPassword())),
+		})
+	}
+
 	getSingleProject := getProjectOptions.Meta.Name != ""
 
-	url := fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects")
+	requestURL := fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects")
 	if getSingleProject {
-		url += fmt.Sprintf("/__name__/%s", getProjectOptions.Meta.Name)
+		requestURL += fmt.Sprintf("/__name__/%s", getProjectOptions.Meta.Name)
 	}
 
 	// send the request
-	headers := c.generateCommonRequestHeaders()
 	responseBody, _, err := common.SendHTTPRequest(http.MethodGet,
-		url,
+		requestURL,
 		nil,
 		headers,
 		cookies,
@@ -76,6 +85,15 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) err
 		"name", createProjectOptions.ProjectConfig.Meta.Name,
 		"namespace", createProjectOptions.ProjectConfig.Meta.Namespace)
 
+	headers := c.generateCommonRequestHeaders()
+	if createProjectOptions.AuthSession != nil {
+		headers["authorization"] = createProjectOptions.AuthSession.CompileAuthorizationBasic()
+		cookies = append(cookies, &http.Cookie{
+			Name:  "session",
+			Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, createProjectOptions.AuthSession.GetPassword())),
+		})
+	}
+
 	// generate request body
 	body, err := c.generateProjectRequestBody(createProjectOptions.ProjectConfig)
 	if err != nil {
@@ -88,7 +106,6 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) err
 	}
 
 	// send the request
-	headers := c.generateCommonRequestHeaders()
 	responseBody, _, err := common.SendHTTPRequest(http.MethodPost,
 		fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects"),
 		body,
@@ -116,6 +133,15 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) err
 		"name", updateProjectOptions.ProjectConfig.Meta.Name,
 		"namespace", updateProjectOptions.ProjectConfig.Meta.Namespace)
 
+	headers := c.generateCommonRequestHeaders()
+	if updateProjectOptions.AuthSession != nil {
+		headers["authorization"] = updateProjectOptions.AuthSession.CompileAuthorizationBasic()
+		cookies = append(cookies, &http.Cookie{
+			Name:  "session",
+			Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, updateProjectOptions.AuthSession.GetPassword())),
+		})
+	}
+
 	// generate request body
 	body, err := c.generateProjectRequestBody(&updateProjectOptions.ProjectConfig)
 	if err != nil {
@@ -128,7 +154,6 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) err
 	}
 
 	// send the request
-	headers := c.generateCommonRequestHeaders()
 	responseBody, _, err := common.SendHTTPRequest(http.MethodPut,
 		fmt.Sprintf("%s/%s/%s",
 			c.platformConfiguration.ProjectsLeader.APIAddress,
@@ -158,6 +183,17 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	c.logger.DebugWith("Sending delete project request to leader",
 		"name", deleteProjectOptions.Meta.Name)
 
+	// send the request
+	headers := c.generateCommonRequestHeaders()
+	if deleteProjectOptions.AuthSession != nil {
+		headers["authorization"] = deleteProjectOptions.AuthSession.CompileAuthorizationBasic()
+		cookies = append(cookies, &http.Cookie{
+			Name:  "session",
+			Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, deleteProjectOptions.AuthSession.GetPassword())),
+		})
+	}
+	headers["igz-project-deletion-strategy"] = string(deleteProjectOptions.Strategy)
+
 	// generate request body
 	body, err := c.generateProjectDeletionRequestBody(deleteProjectOptions.Meta.Name)
 	if err != nil {
@@ -169,9 +205,6 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 		cookies = append(cookies, deleteProjectOptions.SessionCookie)
 	}
 
-	// send the request
-	headers := c.generateCommonRequestHeaders()
-	headers["igz-project-deletion-strategy"] = string(deleteProjectOptions.Strategy)
 	if _, _, err := common.SendHTTPRequest(http.MethodDelete,
 		fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects"),
 		body,
@@ -192,7 +225,13 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 }
 
 func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Project, error) {
-	c.logger.DebugWith("Fetching all projects from leader", "updatedAfterTime", updatedAfterTime)
+
+	// to avoid `panic: value method time.Time.String called using nil *Time pointer`
+	updatedAfterTimeLogVar := ""
+	if updatedAfterTime != nil {
+		updatedAfterTimeLogVar = updatedAfterTime.String()
+	}
+	c.logger.DebugWith("Fetching all projects from leader", "updatedAfterTime", updatedAfterTimeLogVar)
 
 	// if updatedAfterTime arg was specified, filter by it
 	updatedAfterTimestampQuery := ""

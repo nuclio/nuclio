@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -94,7 +95,8 @@ func (suite *dashboardTestSuite) SetupTest() {
 		},
 		"",
 		"",
-		"")
+		"",
+		&auth.Config{})
 
 	if err != nil {
 		panic("Failed to create server")
@@ -144,7 +146,7 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 
 	if encodedExpectedResponse != nil {
 
-		err = json.Unmarshal(encodedResponseBody, &decodedResponseBody)
+		err := json.Unmarshal(encodedResponseBody, &decodedResponseBody)
 		suite.Require().NoError(err)
 
 		suite.logger.DebugWith("Comparing expected", "expected", encodedExpectedResponse)
@@ -153,7 +155,7 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 		case string:
 			decodedExpectedResponseBody := map[string]interface{}{}
 
-			err = json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
+			err := json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
 			suite.Require().NoError(err)
 			suite.Require().Empty(cmp.Diff(decodedExpectedResponseBody, decodedResponseBody))
 
@@ -1664,6 +1666,7 @@ func (suite *projectTestSuite) TestDeleteWithFunctions() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
+			testCase.deleteProjectOptions.AuthSession = &auth.NopSession{}
 			suite.mockPlatform.
 				On("DeleteProject", testCase.deleteProjectOptions).
 				Return(testCase.deleteProjectReturnedError).

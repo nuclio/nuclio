@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	authfactory "github.com/nuclio/nuclio/pkg/dashboard/auth/factory"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
@@ -59,6 +61,9 @@ type Server struct {
 	imageNamePrefixTemplate   string
 	platformAuthorizationMode PlatformAuthorizationMode
 	dependantImageRegistryURL string
+
+	// auth options
+	authInstance auth.Auth
 }
 
 func NewServer(parentLogger logger.Logger,
@@ -77,7 +82,8 @@ func NewServer(parentLogger logger.Logger,
 	platformConfiguration *platformconfig.Config,
 	imageNamePrefixTemplate string,
 	platformAuthorizationMode string,
-	dependantImageRegistryURL string) (*Server, error) {
+	dependantImageRegistryURL string,
+	authConfig *auth.Config) (*Server, error) {
 
 	// newDockerClient may be nil
 	newDockerClient, err := createDockerClient(parentLogger, containerBuilderKind)
@@ -110,6 +116,7 @@ func NewServer(parentLogger logger.Logger,
 		imageNamePrefixTemplate:   imageNamePrefixTemplate,
 		platformAuthorizationMode: PlatformAuthorizationMode(platformAuthorizationMode),
 		dependantImageRegistryURL: dependantImageRegistryURL,
+		authInstance:              authfactory.NewAuth(parentLogger, authConfig),
 	}
 
 	// create server
@@ -240,6 +247,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) GetPlatformAuthorizationMode() PlatformAuthorizationMode {
 	return s.platformAuthorizationMode
+}
+
+func (s *Server) GetAuthenticator() auth.Auth {
+	return s.authInstance
 }
 
 func (s *Server) getRegistryURL() string {

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
@@ -61,6 +62,7 @@ type CreateFunctionOptions struct {
 	AuthConfig                 *AuthConfig
 	DependantImagesRegistryURL string
 	PermissionOptions          opa.PermissionOptions
+	AuthSession                auth.Session
 }
 
 type UpdateFunctionOptions struct {
@@ -69,12 +71,14 @@ type UpdateFunctionOptions struct {
 	FunctionStatus    *functionconfig.Status
 	AuthConfig        *AuthConfig
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 }
 
 type DeleteFunctionOptions struct {
 	FunctionConfig    functionconfig.Config
 	AuthConfig        *AuthConfig
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 }
 
 // CreateFunctionBuildResult holds information detected/generated as a result of a build process
@@ -100,6 +104,7 @@ type GetFunctionsOptions struct {
 	Labels            string
 	AuthConfig        *AuthConfig
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 
 	// Enrich functions with their api gateways
 	EnrichWithAPIGateways bool
@@ -218,6 +223,7 @@ type CreateProjectOptions struct {
 	RequestOrigin     platformconfig.ProjectsLeaderKind
 	SessionCookie     *http.Cookie
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 }
 
 type UpdateProjectOptions struct {
@@ -225,6 +231,7 @@ type UpdateProjectOptions struct {
 	RequestOrigin     platformconfig.ProjectsLeaderKind
 	SessionCookie     *http.Cookie
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 }
 
 type DeleteProjectStrategy string
@@ -255,6 +262,7 @@ type DeleteProjectOptions struct {
 	RequestOrigin     platformconfig.ProjectsLeaderKind
 	SessionCookie     *http.Cookie
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 
 	// allowing us to "block" until related resources are removed.
 	// used in testings
@@ -267,6 +275,7 @@ type GetProjectsOptions struct {
 	PermissionOptions opa.PermissionOptions
 	RequestOrigin     platformconfig.ProjectsLeaderKind
 	SessionCookie     *http.Cookie
+	AuthSession       auth.Session
 }
 
 // to appease k8s
@@ -303,22 +312,26 @@ type FunctionEventConfig struct {
 type CreateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
 	PermissionOptions   opa.PermissionOptions
+	AuthSession         auth.Session
 }
 
 type UpdateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
 	PermissionOptions   opa.PermissionOptions
+	AuthSession         auth.Session
 }
 
 type DeleteFunctionEventOptions struct {
 	Meta              FunctionEventMeta
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 }
 
 type GetFunctionEventsOptions struct {
 	Meta              FunctionEventMeta
 	FunctionNames     []string
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 }
 
 // DeepCopyInto to appease k8s
@@ -424,20 +437,24 @@ type APIGatewayStatus struct {
 
 type CreateAPIGatewayOptions struct {
 	APIGatewayConfig *APIGatewayConfig
+	AuthSession      auth.Session
 }
 
 type UpdateAPIGatewayOptions struct {
 	APIGatewayConfig *APIGatewayConfig
+	AuthSession      auth.Session
 }
 
 type DeleteAPIGatewayOptions struct {
-	Meta APIGatewayMeta
+	Meta        APIGatewayMeta
+	AuthSession auth.Session
 }
 
 type GetAPIGatewaysOptions struct {
-	Name      string
-	Namespace string
-	Labels    string
+	Name        string
+	Namespace   string
+	Labels      string
+	AuthSession auth.Session
 }
 
 // to appease k8s

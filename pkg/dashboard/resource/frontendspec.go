@@ -34,6 +34,11 @@ type frontendSpecResource struct {
 	*resource
 }
 
+func (fsr *frontendSpecResource) ExtendMiddlewares() error {
+	fsr.resource.addAuthMiddleware()
+	return nil
+}
+
 func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 	externalIPAddresses, err := fsr.getPlatform().GetExternalIPAddresses()
 	if err != nil {
