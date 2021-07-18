@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -48,18 +49,22 @@ func (c *Client) Get(getProjectOptions *platform.GetProjectsOptions) ([]platform
 
 	if getProjectOptions.AuthSession != nil {
 		headers["authorization"] = getProjectOptions.AuthSession.CompileAuthorizationBasic()
+		cookies = append(cookies, &http.Cookie{
+			Name:  "session",
+			Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, getProjectOptions.AuthSession.GetPassword())),
+		})
 	}
 
 	getSingleProject := getProjectOptions.Meta.Name != ""
 
-	url := fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects")
+	requestURL := fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects")
 	if getSingleProject {
-		url += fmt.Sprintf("/__name__/%s", getProjectOptions.Meta.Name)
+		requestURL += fmt.Sprintf("/__name__/%s", getProjectOptions.Meta.Name)
 	}
 
 	// send the request
 	responseBody, _, err := common.SendHTTPRequest(http.MethodGet,
-		url,
+		requestURL,
 		nil,
 		headers,
 		cookies,
@@ -83,6 +88,10 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) err
 	headers := c.generateCommonRequestHeaders()
 	if createProjectOptions.AuthSession != nil {
 		headers["authorization"] = createProjectOptions.AuthSession.CompileAuthorizationBasic()
+		cookies = append(cookies, &http.Cookie{
+			Name:  "session",
+			Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, createProjectOptions.AuthSession.GetPassword())),
+		})
 	}
 
 	// generate request body
@@ -127,6 +136,10 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) err
 	headers := c.generateCommonRequestHeaders()
 	if updateProjectOptions.AuthSession != nil {
 		headers["authorization"] = updateProjectOptions.AuthSession.CompileAuthorizationBasic()
+		cookies = append(cookies, &http.Cookie{
+			Name:  "session",
+			Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, updateProjectOptions.AuthSession.GetPassword())),
+		})
 	}
 
 	// generate request body
@@ -174,6 +187,10 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	headers := c.generateCommonRequestHeaders()
 	if deleteProjectOptions.AuthSession != nil {
 		headers["authorization"] = deleteProjectOptions.AuthSession.CompileAuthorizationBasic()
+		cookies = append(cookies, &http.Cookie{
+			Name:  "session",
+			Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, deleteProjectOptions.AuthSession.GetPassword())),
+		})
 	}
 	headers["igz-project-deletion-strategy"] = string(deleteProjectOptions.Strategy)
 
@@ -208,7 +225,13 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 }
 
 func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Project, error) {
-	c.logger.DebugWith("Fetching all projects from leader", "updatedAfterTime", updatedAfterTime)
+
+	// to avoid `panic: value method time.Time.String called using nil *Time pointer`
+	updatedAfterTimeLogVar := ""
+	if updatedAfterTime != nil {
+		updatedAfterTimeLogVar = updatedAfterTime.String()
+	}
+	c.logger.DebugWith("Fetching all projects from leader", "updatedAfterTime", updatedAfterTimeLogVar)
 
 	// if updatedAfterTime arg was specified, filter by it
 	updatedAfterTimestampQuery := ""
