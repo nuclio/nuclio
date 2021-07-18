@@ -94,6 +94,7 @@ func (a *Auth) Authenticate(request *http.Request) (*auth.Session, error) {
 		},
 	}
 	a.cache.Add(authorization+cookie, authInfo, a.config.Iguazio.CacheExpirationTimeout)
+	a.logger.InfoWith("Authentication succeeded", "iguazioUser", authInfo.Iguazio.Username)
 	return authInfo, nil
 }
 
@@ -103,9 +104,11 @@ func (a *Auth) Middleware() func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			session, err := a.Authenticate(r)
 			if err != nil {
-				iguazioAuthenticationFailed(w)
+				a.iguazioAuthenticationFailed(w)
 				return
 			}
+			a.logger.DebugWith("Successfully authenticated incoming request",
+				"sessionUser", session.Iguazio.Username)
 			ctx := context.WithValue(r.Context(), auth.IguazioContextKey, session)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -116,7 +119,7 @@ func (a *Auth) Kind() auth.Kind {
 	return a.config.Kind
 }
 
-func iguazioAuthenticationFailed(w http.ResponseWriter) {
+func (a *Auth) iguazioAuthenticationFailed(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusUnauthorized)
 }
 
