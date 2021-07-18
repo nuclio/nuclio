@@ -49,10 +49,10 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Header: map[string][]string{
-				"X-Remote-User":              {"admin"},
-				"X-User-Group-Ids":           {"1", "2"},
-				"X-User-Id":                  {"3"},
-				"X-V3io-abstractSession-Key": {"4"},
+				"X-Remote-User":      {"admin"},
+				"X-User-Group-Ids":   {"1", "2"},
+				"X-User-Id":          {"3"},
+				"X-V3io-session-Key": {"4"},
 			},
 		}
 	})
@@ -108,10 +108,10 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Header: map[string][]string{
-				"X-Remote-User":              {"admin"},
-				"X-User-Group-Ids":           {"1", "2"},
-				"X-User-Id":                  {"3"},
-				"X-V3io-abstractSession-Key": {"4"},
+				"X-Remote-User":      {"admin"},
+				"X-User-Group-Ids":   {"1", "2"},
+				"X-User-Id":          {"3"},
+				"X-V3io-Session-Key": {"4"},
 			},
 		}
 	})

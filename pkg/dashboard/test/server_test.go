@@ -1666,6 +1666,7 @@ func (suite *projectTestSuite) TestDeleteWithFunctions() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
+			testCase.deleteProjectOptions.AuthSession = &auth.NopSession{}
 			suite.mockPlatform.
 				On("DeleteProject", testCase.deleteProjectOptions).
 				Return(testCase.deleteProjectReturnedError).
