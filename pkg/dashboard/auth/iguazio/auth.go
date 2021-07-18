@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/apimachinery/pkg/util/cache"
 )
 
@@ -47,6 +47,11 @@ func (a *Auth) Authenticate(request *http.Request) (*auth.Session, error) {
 		return cacheData.(*auth.Session), nil
 	}
 
+	authHeaders := map[string]string{
+		"authorization": authorization,
+		"cookie":        cookie,
+	}
+
 	response, err := a.performHTTPRequest(http.MethodPost,
 		a.config.Iguazio.VerificationURL,
 		nil,
@@ -61,12 +66,23 @@ func (a *Auth) Authenticate(request *http.Request) (*auth.Session, error) {
 		return nil, errors.Wrap(err, "Failed to perform http POST request")
 	}
 
-	// within range of 200
+	// auth failed
+	if response.StatusCode == http.StatusUnauthorized {
+		a.logger.InfoWith("Authentication failed",
+			"authorizationHeaderLength", len(authHeaders["authorization"]),
+			"cookieHeaderLength", len(authHeaders["cookie"]),
+		)
+		return nil, nuclio.NewErrUnauthorized("Authentication failed")
+	}
+
+	// not within range of 200
 	if !(response.StatusCode >= http.StatusOK && response.StatusCode < 300) {
-		a.logger.DebugWith("Invalid authentication status code response",
+		a.logger.WarnWith("Unexpected authentication status code",
+			"authorizationHeaderLength", len(authHeaders["authorization"]),
+			"cookieHeaderLength", len(authHeaders["cookie"]),
 			"statusCode", response.StatusCode,
 		)
-		return nil, errors.New(fmt.Sprintf("Unexpected authentication status code %d", response.StatusCode))
+		return nil, nuclio.NewErrUnauthorized("Authentication failed")
 	}
 
 	authInfo := &auth.Session{
