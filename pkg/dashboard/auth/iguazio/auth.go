@@ -92,7 +92,7 @@ func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
 		GroupIDs:   response.Header.Values("x-user-group-ids"),
 	}
 	a.cache.Add(authorization+cookie, authInfo, a.config.Iguazio.CacheExpirationTimeout)
-	a.logger.InfoWith("Authentication succeeded", "iguazioUser", authInfo.Iguazio.Username)
+	a.logger.InfoWith("Authentication succeeded", "username", authInfo.GetUsername())
 	return authInfo, nil
 }
 
