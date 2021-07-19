@@ -1105,6 +1105,9 @@ func (ap *Platform) validateProjectExists(functionConfig *functionconfig.Config)
 			Name:      functionConfig.Meta.Labels["nuclio.io/project-name"],
 			Namespace: functionConfig.Meta.Namespace,
 		},
+		PermissionOptions: opa.PermissionOptions{
+			OverrideHeaderValue: ap.Config.Opa.OverrideHeaderValue,
+		},
 	}
 	projects, err := ap.platform.GetProjects(getProjectsOptions)
 	if err != nil {
