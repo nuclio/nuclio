@@ -1113,6 +1113,7 @@ func (ap *Platform) validateProjectExists(functionConfig *functionconfig.Config)
 	if ap.Config.ProjectsLeader != nil {
 		getProjectsOptions.RequestOrigin = ap.Config.ProjectsLeader.Kind
 	}
+
 	projects, err := ap.platform.GetProjects(getProjectsOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get projects")
