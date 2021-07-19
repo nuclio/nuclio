@@ -132,6 +132,9 @@ type CreateFunctionInvocationOptions struct {
 	Timeout      time.Duration
 	Via          InvokeViaType
 	URL          string
+
+	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 }
 
 const FunctionInvocationDefaultTimeout = time.Minute
@@ -243,11 +246,14 @@ const (
 
 	// DeleteProjectStrategyRestricted - avoid deleting when project contains related resources (e.g.: functions)
 	DeleteProjectStrategyRestricted DeleteProjectStrategy = "restricted"
+
+	// DeleteProjectStrategyCheck - check pre-conditions for project deletion. does not perform deletion.
+	DeleteProjectStrategyCheck DeleteProjectStrategy = "check"
 )
 
 func ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy string) DeleteProjectStrategy {
 	switch strategy := DeleteProjectStrategy(projectDeletionStrategy); strategy {
-	case DeleteProjectStrategyCascading, DeleteProjectStrategyRestricted:
+	case DeleteProjectStrategyCascading, DeleteProjectStrategyRestricted, DeleteProjectStrategyCheck:
 		return strategy
 	default:
 

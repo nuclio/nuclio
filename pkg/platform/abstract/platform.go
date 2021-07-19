@@ -367,18 +367,24 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 
 	switch projectName {
 	case platform.DefaultProjectName:
-		return nuclio.NewErrPreconditionFailed("Cannot delete the default project")
+
+		// projects is controlled by a leader. when not set, do not allow deleting the only project
+		if ap.Config.ProjectsLeader == nil {
+			return nuclio.NewErrPreconditionFailed("Cannot delete the default project")
+		}
 	case "":
 		return nuclio.NewErrBadRequest("Project name cannot be empty")
 	}
 
-	// ensure project have no sub resources
-	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyRestricted {
-
+	switch deleteProjectOptions.Strategy {
+	case platform.DeleteProjectStrategyCheck, platform.DeleteProjectStrategyRestricted:
 		// listing project resources might be too excessive
 		// to avoid listing resources for non-existing project, first we ensure it exists
 		projects, err := ap.platform.GetProjects(&platform.GetProjectsOptions{
-			Meta: deleteProjectOptions.Meta,
+			Meta:              deleteProjectOptions.Meta,
+			RequestOrigin:     deleteProjectOptions.RequestOrigin,
+			PermissionOptions: deleteProjectOptions.PermissionOptions,
+			AuthSession:       deleteProjectOptions.AuthSession,
 		})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get project")
@@ -390,9 +396,15 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 			return nil
 		}
 
-		// validate project has no related resources such as functions, api gateways, etc
-		if err := ap.validateProjectHasNoRelatedResources(&deleteProjectOptions.Meta); err != nil {
-			return errors.Wrap(err, "Failed to validate whether a project has no related resources")
+		functions, apiGateways, err := ap.GetProjectResources(&deleteProjectOptions.Meta)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get project resources")
+		}
+
+		if len(functions) > 0 {
+			return platform.ErrProjectContainsFunctions
+		} else if len(apiGateways) > 0 {
+			return platform.ErrProjectContainsAPIGateways
 		}
 	}
 	return nil
@@ -403,8 +415,10 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 	functionName := deleteFunctionOptions.FunctionConfig.Meta.Name
 	functionNamespace := deleteFunctionOptions.FunctionConfig.Meta.Namespace
 	functions, err := ap.platform.GetFunctions(&platform.GetFunctionsOptions{
-		Name:      functionName,
-		Namespace: functionNamespace,
+		Name:              functionName,
+		Namespace:         functionNamespace,
+		AuthSession:       deleteFunctionOptions.AuthSession,
+		PermissionOptions: deleteFunctionOptions.PermissionOptions,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get functions")
@@ -542,7 +556,34 @@ func (ap *Platform) CreateFunctionInvocation(
 	if createFunctionInvocationOptions.Headers == nil {
 		createFunctionInvocationOptions.Headers = http.Header{}
 	}
-	return ap.invoker.invoke(createFunctionInvocationOptions)
+
+	// get the function
+	functions, err := ap.platform.GetFunctions(&platform.GetFunctionsOptions{
+		Name:              createFunctionInvocationOptions.Name,
+		Namespace:         createFunctionInvocationOptions.Namespace,
+		AuthSession:       createFunctionInvocationOptions.AuthSession,
+		PermissionOptions: createFunctionInvocationOptions.PermissionOptions,
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get functions")
+	}
+
+	if len(functions) == 0 {
+		return nil, nuclio.NewErrNotFound(fmt.Sprintf("Function not found: %s @ %s",
+			createFunctionInvocationOptions.Name,
+			createFunctionInvocationOptions.Namespace))
+	}
+
+	// use the first function found (should always be one, but if there's more just use first)
+	function := functions[0]
+
+	// make sure to initialize the function (some underlying functions are lazy load)
+	if err := function.Initialize(nil); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize function")
+	}
+
+	return ap.invoker.invoke(function, createFunctionInvocationOptions)
 }
 
 // GetHealthCheckMode returns the healthcheck mode the platform requires
@@ -1205,19 +1246,6 @@ func (ap *Platform) enrichMinMaxReplicas(functionConfig *functionconfig.Config) 
 		functionConfig.Spec.MinReplicas != nil {
 		functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
 	}
-}
-
-func (ap *Platform) validateProjectHasNoRelatedResources(projectMeta *platform.ProjectMeta) error {
-	functions, apiGateways, err := ap.GetProjectResources(projectMeta)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get project resources")
-	}
-	if len(functions) > 0 {
-		return platform.ErrProjectContainsFunctions
-	} else if len(apiGateways) > 0 {
-		return platform.ErrProjectContainsAPIGateways
-	}
-	return nil
 }
 
 func (ap *Platform) enrichTriggers(functionConfig *functionconfig.Config) error {

@@ -26,6 +26,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -35,6 +36,11 @@ import (
 
 type invocationResource struct {
 	*resource
+}
+
+func (tr *invocationResource) ExtendMiddlewares() error {
+	tr.resource.addAuthMiddleware()
+	return nil
 }
 
 // called after initialization
@@ -97,6 +103,14 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		Via:       invokeVia,
 		URL:       invokeURL,
 		Timeout:   invokeTimeout,
+
+		// auth & permissions
+		AuthSession: tr.getCtxSession(request),
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(tr.getCtxSession(request)),
+			RaiseForbidden:      true,
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+		},
 	})
 
 	if err != nil {
