@@ -668,6 +668,10 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 				On("GetFunctions", &platform.GetFunctionsOptions{
 					Name:      functionName,
 					Namespace: suite.Namespace,
+					PermissionOptions: opa.PermissionOptions{
+						MemberIds:           memberIds,
+						OverrideHeaderValue: suite.opaOverrideHeaderValue,
+					},
 				}).
 				Return([]platform.Function{&returnedFunction}, nil).
 				Once()
