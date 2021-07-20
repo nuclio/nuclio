@@ -581,6 +581,12 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
+	// check only, do not delete
+	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCheck {
+		p.Logger.DebugWith("Project is ready for deletion", "projectMeta", deleteProjectOptions.Meta)
+		return nil
+	}
+
 	p.Logger.DebugWith("Deleting project", "projectMeta", deleteProjectOptions.Meta)
 	if err := p.projectsClient.Delete(deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to delete project")

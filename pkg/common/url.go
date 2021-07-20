@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/valyala/fasthttp"
 )
 
@@ -170,10 +171,10 @@ func SendHTTPRequest(method string,
 
 	// validate status code is as expected
 	if expectedStatusCode != 0 && resp.StatusCode != expectedStatusCode {
-		return responseBody, resp, errors.Errorf(
+		return responseBody, resp, nuclio.GetByStatusCode(resp.StatusCode)(fmt.Sprintf(
 			"Got unexpected response status code: %d. Expected: %d",
 			resp.StatusCode,
-			expectedStatusCode)
+			expectedStatusCode))
 	}
 
 	return responseBody, resp, nil
