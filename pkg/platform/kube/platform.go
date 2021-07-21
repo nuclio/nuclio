@@ -269,6 +269,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			functionStatus.HTTPPort = existingFunctionInstance.Status.HTTPPort
 			functionStatus.ExternalInvocationURLs = existingFunctionInstance.Status.ExternalInvocationURLs
 			functionStatus.InternalInvocationURLs = existingFunctionInstance.Status.InternalInvocationURLs
+			functionStatus.Logs = existingFunctionInstance.Status.Logs
 
 			// if function deployment ended up with unhealthy, due to unstable Kubernetes env that lead
 			// to failing on waiting for function readiness.
