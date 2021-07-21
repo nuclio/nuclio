@@ -164,18 +164,6 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	var err error
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
-	// wrap logger
-	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create a log stream")
-	}
-
-	// save the log stream for the name
-	p.DeployLogStreams.Store(createFunctionOptions.FunctionConfig.Meta.GetUniqueID(), logStream)
-
-	// replace logger
-	createFunctionOptions.Logger = logStream.GetLogger()
-
 	if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
 	}
@@ -221,6 +209,18 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		createFunctionOptions); err != nil {
 		return nil, errors.Wrap(err, "Failed to validate a function configuration against an existing configuration")
 	}
+
+	// wrap logger
+	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create a log stream")
+	}
+
+	// save the log stream for the name
+	p.DeployLogStreams.Store(createFunctionOptions.FunctionConfig.Meta.GetUniqueID(), logStream)
+
+	// replace logger
+	createFunctionOptions.Logger = logStream.GetLogger()
 
 	reportCreationError := func(creationError error) error {
 		createFunctionOptions.Logger.WarnWith("Failed to create a function; setting the function status",
@@ -303,8 +303,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			functionStatus.HTTPPort = createFunctionResult.Port
 			functionStatus.State = functionconfig.FunctionStateReady
 
-			if err := p.populateFunctionInvocationStatus(&functionStatus,
-				createFunctionResult); err != nil {
+			if err := p.populateFunctionInvocationStatus(&functionStatus, createFunctionResult); err != nil {
 				return nil, errors.Wrap(err, "Failed to populate function invocation status")
 			}
 		} else {

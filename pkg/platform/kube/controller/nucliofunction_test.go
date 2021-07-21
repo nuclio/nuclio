@@ -85,6 +85,31 @@ func (suite *NuclioFunctionTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 }
 
+func (suite *NuclioFunctionTestSuite) TestPreserveBuildLogs() {
+	functionInstance := &nuclioio.NuclioFunction{}
+	functionInstance.Name = "func-name"
+	functionInstance.Status.State = functionconfig.FunctionStateReady
+	functionInstance.Status.Logs = []map[string]interface{}{
+		{
+			"A": "B",
+		},
+	}
+
+	suite.k8sClientSet.PrependReactor("create",
+		"configmaps",
+		func(action k8stesting.Action) (bool, runtime.Object, error) {
+
+			// simulating a panic being thrown during function creation
+			panic("Oh nooo")
+		})
+
+	err := suite.controller.functionOperator.CreateOrUpdate(context.TODO(), functionInstance)
+	suite.Require().NoError(err)
+
+	// function state must be change to error after panicking during its create/update
+	suite.Assert().Equal("B", functionInstance.Status.Logs[0]["A"])
+}
+
 func (suite *NuclioFunctionTestSuite) TestRecoverFromPanic() {
 	functionInstance := &nuclioio.NuclioFunction{}
 	functionInstance.Name = "func-name"
@@ -102,7 +127,7 @@ func (suite *NuclioFunctionTestSuite) TestRecoverFromPanic() {
 	suite.Require().NoError(err)
 
 	// function state must be change to error after panicking during its create/update
-	suite.Assert().Equal(functionInstance.Status.State, functionconfig.FunctionStateError)
+	suite.Assert().Equal(functionconfig.FunctionStateError, functionInstance.Status.State)
 }
 
 func TestTestSuite(t *testing.T) {
