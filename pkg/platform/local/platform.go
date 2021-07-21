@@ -303,8 +303,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			functionStatus.HTTPPort = createFunctionResult.Port
 			functionStatus.State = functionconfig.FunctionStateReady
 
-			if err := p.populateFunctionInvocationStatus(&functionStatus,
-				createFunctionResult); err != nil {
+			if err := p.populateFunctionInvocationStatus(&functionStatus, createFunctionResult); err != nil {
 				return nil, errors.Wrap(err, "Failed to populate function invocation status")
 			}
 		} else {
