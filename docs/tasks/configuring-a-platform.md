@@ -9,14 +9,14 @@
 
 Function configuration carries information about the specific function (how it's triggered, the runtime type, etc.) whereas a platform configuration carries information about the platform on which functions are run. For example, where should the function log to? What sort of metric mechanism is in place? Which port should the function listen on for health checks? 
 
-While this could theoretically be passed in the function configuration, it would make configuration updates a complex task of regenerating the configuration for all provisioned functions. The platform configuration is therefore stored separately, shared amongst all functions that share a platform.
+While this could theoretically be passed in the function configuration, it would make configuration updates a complex task of regenerating the configuration for all provisioned functions. The platform configuration is therefore stored separately, shared among all functions that share a platform.
 
 > **Note:** A "platform" could be a cluster or any sub resource of that cluster like a namespace. If, for example, you have a namespace per tenant, you configure logging, metrics, etc. differently for each tenant
 
 <a id="k8s-platform-config-create"></a>
 ## Creating a platform configuration in Kubernetes
 
-In Kubernetes, a platform configuration is stored as a ConfigMap named `platform-config` in the namespace of the function. For example, to create a ConfigMap in the "nuclio" namespace from a local file called `platform.yaml`, run the following from a command line:
+In Kubernetes, a platform configuration is stored as a ConfigMap named `platform-config` in the namespace of the function. For example, to create a ConfigMap in the "nuclio" namespace from a local file named **platform.yaml**, run the following from a command line:
 ```sh
 kubectl create configmap platform-config  --namespace nuclio --from-file platform.yaml
 ```
@@ -33,7 +33,7 @@ Configuring where a function logs to is a two step process. First, you create a 
 - **Function logging** - Unless overridden per function, this is where the function logs are shipped to
 - **A specific function** - An optional override per function, allowing specific functions to ship elsewhere than the platform function logger
 
-Let's say you want to ship all function logs and only warning/error logs from the system to Azure App Insights. However, you want all system logs to also go to `stdout`. Your `logger` section in the `platform.yaml` would look like this:
+For example, assume you want to ship all function logs and only warning/error logs from the system to Azure App Insights. However, you want all system logs to also go to `stdout`. Your `logger` section in the **platform.yam** configuration file would look like this:
 
 ```yaml
 logger:
@@ -77,12 +77,12 @@ The standard output sink currently does not support any specific attributes.
 
 - `attributes.instrumentationKey` - The instrumentation key from Azure
 - `attributes.maxBatchSize` - Max number of records to batch together before sending to Azure (defaults to 1024)
-- `attributes.maxBatchInterval` - Time to wait for maxBatchSize records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever's gathered will be sent towards Azure (defaults to 3s)
+- `attributes.maxBatchInterval` - Time to wait for `maxBatchSize` records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever is gathered will be sent towards Azure (defaults to 3s)
 
 <a id="metrics"></a>
 ### Metric sinks (`metrics`)
 
-Metric sinks behave similarly to logger sinks in that first you declare a sink and then bind a scope to it. To illustrate with an example, if you would (for some reason) want all of your system metrics to be pulled by Prometheus whereas all function metrics pushed to a Prometheus push proxy, your `metrics` section in the `platform.yaml` would look like this:
+Metric sinks behave similarly to logger sinks in that first you declare a sink and then bind a scope to it. To illustrate with an example, if you would (for some reason) want all of your system metrics to be pulled by Prometheus whereas all function metrics pushed to a Prometheus push proxy, your `metrics` section in the **platform.yaml** file would look like this:
 
 ```yaml
 metrics:
@@ -145,7 +145,7 @@ All metric sinks support the following fields:
 - `attributes.interval` - A string holding the interval to which the push occurs such as "10s", "1h" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"
 - `attributes.instrumentationKey` - The instrumentation key from Azure
 - `attributes.maxBatchSize` - Max number of records to batch together before sending to Azure (defaults to 1024)
-- `attributes.maxBatchInterval` - Time to wait for maxBatchSize records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever's gathered will be sent towards Azure (defaults to 3s)
+- `attributes.maxBatchInterval` - Time to wait for `maxBatchSize` records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever is gathered will be sent towards Azure (defaults to 3s)
 
 <a id="webAdmin"></a>
 ### Webadmin (`webAdmin`)
@@ -195,11 +195,11 @@ For more information, see the [Cron-trigger reference](/docs/reference/triggers/
 <a id="runtime"></a>
 ### Runtime (`runtime`)
 
-The `runtime` sections allows you to configure various runtime related parameters. 
-For example to define custom PyPI repository, add the following section:
+The `runtime` section allows you to configure various runtime-related parameters. 
+For example, to define a custom PyPI repository, add the following section:
 ```yaml
-  runtime:
-    python:
-      buildArgs:
-        PIP_INDEX_URL: "https://test.pypi.org/simple"
+runtime:
+  python:
+    buildArgs:
+      PIP_INDEX_URL: "https://test.pypi.org/simple"
 ```
