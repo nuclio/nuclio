@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -55,22 +54,8 @@ type testSuite struct {
 	logger       logger.Logger
 	builder      *Builder
 	testID       string
-	mockS3Client *mockS3Client
+	mockS3Client *common.MockS3Client
 	mockPlatform *mockplatform.Platform
-}
-
-type mockS3Client struct {
-	mock.Mock
-}
-
-// mock function
-func (msc *mockS3Client) Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error {
-	functionArchiveFileBytes, _ := ioutil.ReadFile(FunctionsArchiveFilePath)
-
-	_ = ioutil.WriteFile(file.Name(), functionArchiveFileBytes, os.FileMode(os.O_RDWR))
-
-	args := msc.Called(file, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken)
-	return args.Error(0)
 }
 
 // SetupSuite is called for suite setup
@@ -80,7 +65,9 @@ func (suite *testSuite) SetupSuite() {
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
 
-	suite.mockS3Client = &mockS3Client{}
+	suite.mockS3Client = &common.MockS3Client{
+		FilePath: FunctionsArchiveFilePath,
+	}
 	suite.mockPlatform = &mockplatform.Platform{}
 }
 
