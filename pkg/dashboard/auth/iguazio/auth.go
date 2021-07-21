@@ -89,8 +89,14 @@ func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
 		Username:   response.Header.Get("x-remote-user"),
 		SessionKey: response.Header.Get("x-v3io-session-key"),
 		UserID:     response.Header.Get("x-user-id"),
-		GroupIDs:   response.Header.Values("x-user-group-ids"),
 	}
+
+	for _, groupID := range response.Header.Values("x-user-group-ids") {
+		if groupID != "" {
+			authInfo.GroupIDs = append(authInfo.GroupIDs, groupID)
+		}
+	}
+
 	a.cache.Add(authorization+cookie, authInfo, a.config.Iguazio.CacheExpirationTimeout)
 	a.logger.InfoWith("Authentication succeeded", "username", authInfo.GetUsername())
 	return authInfo, nil
