@@ -121,6 +121,11 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 			filename: "empty.js",
 		},
 		{
+			runtime:  "deno",
+			handler:  "empty:handler",
+			filename: "empty.ts",
+		},
+		{
 			runtime:  "dotnetcore",
 			handler:  "nuclio:empty",
 			filename: "empty.cs",

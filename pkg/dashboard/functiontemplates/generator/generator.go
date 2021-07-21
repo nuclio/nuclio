@@ -477,6 +477,11 @@ func newGenerator(logger logger.Logger, examplesDir string, outputPath string) (
 		},
 		{
 			InlineParser:  slashSlashParser,
+			FileExtension: ".ts",
+			Name:          "deno",
+		},
+		{
+			InlineParser:  slashSlashParser,
 			FileExtension: ".cs",
 			Name:          "dotnetcore",
 		},
