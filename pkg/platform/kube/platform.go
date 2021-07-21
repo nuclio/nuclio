@@ -173,20 +173,9 @@ func (p *Platform) Initialize() error {
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (
 	*platform.CreateFunctionResult, error) {
 
+	var err error
 	var existingFunctionInstance *nuclioio.NuclioFunction
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
-
-	// wrap logger
-	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create a log stream")
-	}
-
-	// save the log stream for the name
-	p.DeployLogStreams.Store(createFunctionOptions.FunctionConfig.Meta.GetUniqueID(), logStream)
-
-	// replace logger
-	createFunctionOptions.Logger = logStream.GetLogger()
 
 	if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
@@ -223,6 +212,18 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		createFunctionOptions); err != nil {
 		return nil, errors.Wrap(err, "Failed to validate a function configuration against an existing configuration")
 	}
+
+	// wrap logger
+	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create a log stream")
+	}
+
+	// save the log stream for the name
+	p.DeployLogStreams.Store(createFunctionOptions.FunctionConfig.Meta.GetUniqueID(), logStream)
+
+	// replace logger
+	createFunctionOptions.Logger = logStream.GetLogger()
 
 	// called when function creation failed, update function status with failure
 	reportCreationError := func(creationError error, briefErrorsMessage string, clearCallStack bool) error {
