@@ -193,10 +193,8 @@ AttributeError: module 'main' has no attribute 'expected_handler'
 			CreateFunctionOptions: func() *platform.CreateFunctionOptions {
 				createFunctionOptions := suite.CompileCreateFunctionOptions("fail-func-insufficient-gpu")
 				createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
-				createFunctionOptions.FunctionConfig.Spec.Handler = "main:expected_handler"
-				functionSourceCode := `def not_expected_handler(context, event):
-  return ""
-`
+				createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
+				functionSourceCode := `def handler(context, event): return ""`
 				createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
 				createFunctionOptions.FunctionConfig.Spec.Resources.Limits = map[v1.ResourceName]resource.Quantity{
 					functionconfig.NvidiaGPUResourceName: resource.MustParse("99"),
