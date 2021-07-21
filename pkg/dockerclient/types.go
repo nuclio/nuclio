@@ -45,6 +45,7 @@ type BuildOptions struct {
 	ContextDir     string
 	DockerfilePath string
 	NoCache        bool
+	Pull           bool
 	BuildArgs      map[string]string
 }
 

@@ -112,12 +112,7 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		buildArgs += fmt.Sprintf("--build-arg %s=%s ", buildArgName, buildArgValue)
 	}
 
-	cacheOption := ""
-	if buildOptions.NoCache {
-		cacheOption = "--no-cache"
-	}
-
-	if err := c.build(buildOptions, buildArgs, cacheOption); err != nil {
+	if err := c.build(buildOptions, buildArgs); err != nil {
 		return errors.Wrap(err, "Failed to build")
 	}
 
@@ -852,8 +847,27 @@ func (c *ShellClient) resolveDockerBuildNetwork() string {
 	}
 }
 
-func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string, cacheOption string) error {
+func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string) error {
 	var lastBuildErr error
+
+	cacheOption := ""
+	if buildOptions.NoCache {
+		cacheOption = "--no-cache"
+	}
+
+	pullOption := ""
+	if buildOptions.Pull {
+		pullOption = "--pull"
+	}
+
+	buildCommand := fmt.Sprintf("docker build %s --force-rm -t %s -f %s %s %s %s .",
+		c.resolveDockerBuildNetwork(),
+		buildOptions.Image,
+		buildOptions.DockerfilePath,
+		cacheOption,
+		pullOption,
+		buildArgs)
+
 	retryOnErrorMessages := []string{
 
 		// when one of the underlying image is gone (from cache)
@@ -880,13 +894,7 @@ func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string, cacheO
 		c.buildRetryInterval,
 		retryOnErrorMessages,
 		func() string {
-			runResults, err := c.runCommand(runOptions,
-				"docker build %s --force-rm -t %s -f %s %s %s .",
-				c.resolveDockerBuildNetwork(),
-				buildOptions.Image,
-				buildOptions.DockerfilePath,
-				cacheOption,
-				buildArgs)
+			runResults, err := c.runCommand(runOptions, buildCommand)
 
 			// preserve error
 			lastBuildErr = err

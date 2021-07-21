@@ -187,7 +187,7 @@ func (suite *ShellClientTestSuite) TestBuildBailOnUnknownError() {
 		On("Run",
 			mock.Anything,
 			mock.MatchedBy(func(command string) bool {
-				return strings.Contains(command, "docker build %s")
+				return strings.Contains(command, "docker build")
 			}),
 			mock.Anything).
 		Return(cmdrunner.RunResult{
@@ -212,7 +212,7 @@ func (suite *ShellClientTestSuite) TestBuildRetryOnErrors() {
 		On("Run",
 			mock.Anything,
 			mock.MatchedBy(func(command string) bool {
-				return strings.Contains(command, "docker build %s")
+				return strings.Contains(command, "docker build")
 			}),
 			mock.Anything).
 		Return(cmdrunner.RunResult{
