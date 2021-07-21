@@ -12,6 +12,7 @@ type BuildOptions struct {
 	TempDir             string
 	DockerfileInfo      *runtime.ProcessorDockerfileInfo
 	NoCache             bool
+	Pull                bool
 	NoBaseImagePull     bool
 	BuildArgs           map[string]string
 	RegistryURL         string
