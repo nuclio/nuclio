@@ -17,6 +17,7 @@ limitations under the License.
 package platformconfig
 
 import (
+	"github.com/v3io/scaler/pkg/scalertypes"
 	"os"
 	"strings"
 	"time"
@@ -95,6 +96,10 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 	if config.FunctionReadinessTimeout == nil {
 		encodedReadinessTimeoutDuration := (DefaultFunctionReadinessTimeoutSeconds * time.Second).String()
 		config.FunctionReadinessTimeout = &encodedReadinessTimeoutDuration
+	}
+
+	if config.ScaleToZero.MultiTargetStrategy == "" {
+		config.ScaleToZero.MultiTargetStrategy = scalertypes.MultiTargetStrategyRandom
 	}
 
 	functionReadinessTimeout, err := time.ParseDuration(*config.FunctionReadinessTimeout)

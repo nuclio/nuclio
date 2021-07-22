@@ -21,6 +21,7 @@ package test
 
 import (
 	"context"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 
 	"fmt"
 	"net/http"
@@ -197,6 +198,116 @@ func (suite *ResourceScalerTestSuite) TestSanity() {
 		},
 			functionconfig.FunctionStateReady,
 			30*time.Second)
+		return true
+	})
+}
+
+func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
+	zero := 0
+	one := 1
+	functionName1 := fmt.Sprintf("resourcescaler-multi-target-test-1-%s", suite.TestID)
+	functionName2 := fmt.Sprintf("resourcescaler-multi-target-test-2-%s", suite.TestID)
+	createFunctionOptions1 := suite.CompileCreateFunctionOptions(functionName1)
+	createFunctionOptions2 := suite.CompileCreateFunctionOptions(functionName2)
+	scalToZeroSpec := functionconfig.ScaleToZeroSpec{
+		ScaleResources: []functionconfig.ScaleResource{
+			{
+				MetricName: "something",
+				Threshold:  1,
+				WindowSize: "250ms",
+			},
+		},
+	}
+	createFunctionOptions1.FunctionConfig.Spec.MinReplicas = &zero
+	createFunctionOptions1.FunctionConfig.Spec.MaxReplicas = &one
+	createFunctionOptions1.FunctionConfig.Spec.ScaleToZero = &scalToZeroSpec
+	createFunctionOptions2.FunctionConfig.Spec.MinReplicas = &zero
+	createFunctionOptions2.FunctionConfig.Spec.MaxReplicas = &one
+	createFunctionOptions2.FunctionConfig.Spec.ScaleToZero = &scalToZeroSpec
+
+	scaleToZero := func (functionName string) {
+
+		// add metrics data
+		// make metric client return value that is small enough (e.g.: 0)
+		// to ensure scaler will scale the function to zero
+		suite.metricClient.AddReactor("get", "nucliofunctions.nuclio.io", func(action k8stesting.Action) (
+			handled bool, ret runtime.Object, err error) {
+			return true, &v1beta2.MetricValueList{
+				Items: []v1beta2.MetricValue{
+					{
+						DescribedObject: v1.ObjectReference{
+							Name:      functionName,
+							Namespace: suite.Namespace,
+						},
+						Value: resource.MustParse("0"),
+					},
+				},
+			}, nil
+		})
+
+		// wait for the function to scale to zero
+		suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+			Namespace: suite.Namespace,
+			Name:      functionName,
+		},
+			functionconfig.FunctionStateScaledToZero,
+			30*time.Second)
+
+		// ensure function deployment replicas is zero
+		suite.WaitForFunctionDeployment(functionName, 15*time.Second, func(deployment *appsv1.Deployment) bool {
+			return deployment.Status.Replicas == 0
+		})
+
+		// function has scaled to zero, remove the reactor we added to send "fake" metric values
+		suite.metricClient.ReactionChain = suite.metricClient.ReactionChain[:len(suite.metricClient.ReactionChain)-1]
+	}
+
+	suite.DeployFunction(createFunctionOptions1, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.DeployFunction(createFunctionOptions2, func(deployResult *platform.CreateFunctionResult) bool {
+
+			apiGatewayName := "api-gateway-test"
+			createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName1, functionName2)
+			err := suite.DeployAPIGateway(createAPIGatewayOptions, func(*extensionsv1beta1.Ingress) {
+				scaleToZero(functionName1)
+				scaleToZero(functionName2)
+
+				// add target header, expect it to wake up both functions
+				// for this specific test case, the response status code is 502
+				// reason dlx tries to reverse-proxy the request to the function by its service
+				// and since the dlx component is running as a process (and not as a POD)
+				// it fails to resolve the internal (kubernetes) function host
+				// TODO: make DLX work in "test" mode, where it invoke the function from within the k8s cluster
+				//       see suite.KubectlInvokeFunctionViaCurl(functionName, "http://function-service-endpoint:8080")
+				responseBody, _, err := common.SendHTTPRequest(http.MethodGet,
+					fmt.Sprintf("http://%s:8080", suite.GetTestHost()),
+					[]byte{},
+					map[string]string{
+						"X-Nuclio-Target": fmt.Sprintf("%s,%s", functionName1, functionName2),
+					},
+					nil,
+					0,
+					true,
+					30*time.Second)
+				suite.Require().NoError(err)
+				suite.Require().Equal([]byte{}, responseBody)
+
+				// function has woken up
+				suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+					Namespace: suite.Namespace,
+					Name:      functionName1,
+				},
+					functionconfig.FunctionStateReady,
+					30*time.Second)
+				suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+					Namespace: suite.Namespace,
+					Name:      functionName2,
+				},
+					functionconfig.FunctionStateReady,
+					30*time.Second)
+			})
+			suite.Require().NoError(err)
+			return true
+		})
 		return true
 	})
 }

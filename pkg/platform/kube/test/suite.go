@@ -455,7 +455,7 @@ func (suite *KubeTestSuite) KubectlInvokeFunctionViaCurl(functionName string, cu
 	return curlResults.Output
 }
 
-func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
+func (suite *KubeTestSuite) DeployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
 	onAfterIngressCreated OnAfterIngressCreated) error {
 
 	// deploy the api gateway
@@ -626,8 +626,19 @@ func (suite *KubeTestSuite) ensureTriggerAmount(functionName, triggerKind string
 	suite.Require().Equal(amount, len(functionHTTPTriggers))
 }
 
-func (suite *KubeTestSuite) compileCreateAPIGatewayOptions(apiGatewayName string,
-	functionName string) *platform.CreateAPIGatewayOptions {
+func (suite *KubeTestSuite) CompileCreateAPIGatewayOptions(apiGatewayName string,
+	functionNames ...string) *platform.CreateAPIGatewayOptions {
+
+	var upstreams []platform.APIGatewayUpstreamSpec
+	for idx, functionName := range functionNames {
+		upstreams = append(upstreams, platform.APIGatewayUpstreamSpec{
+			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
+				Name: functionName,
+			},
+			Percentage: int((float64(idx) / float64(len(functionNames))) * 100),
+		})
+	}
 
 	return &platform.CreateAPIGatewayOptions{
 		APIGatewayConfig: &platform.APIGatewayConfig{
@@ -639,14 +650,7 @@ func (suite *KubeTestSuite) compileCreateAPIGatewayOptions(apiGatewayName string
 			Spec: platform.APIGatewaySpec{
 				Host:               "some-host",
 				AuthenticationMode: ingress.AuthenticationModeNone,
-				Upstreams: []platform.APIGatewayUpstreamSpec{
-					{
-						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-						NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
-							Name: functionName,
-						},
-					},
-				},
+				Upstreams: upstreams,
 			},
 		},
 	}

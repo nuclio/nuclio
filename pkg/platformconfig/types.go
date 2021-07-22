@@ -17,6 +17,7 @@ limitations under the License.
 package platformconfig
 
 import (
+	"github.com/v3io/scaler/pkg/scalertypes"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -76,6 +77,8 @@ type ScaleToZero struct {
 
 	// Used to enrich special scale-to-zero ingress annotations
 	HTTPTriggerIngressAnnotations map[string]string `json:"httpTriggerIngressAnnotations,omitempty"`
+
+	MultiTargetStrategy scalertypes.MultiTargetStrategy `json:"multiTargetStrategy,omitempty"`
 }
 
 type ScaleToZeroMode string
