@@ -78,6 +78,8 @@ type ScaleToZero struct {
 	// Used to enrich special scale-to-zero ingress annotations
 	HTTPTriggerIngressAnnotations map[string]string `json:"httpTriggerIngressAnnotations,omitempty"`
 
+	// Used for DLX options, selects in which way to send invocation when multiple targets are given:
+	// random, primary or canary.
 	MultiTargetStrategy scalertypes.MultiTargetStrategy `json:"multiTargetStrategy,omitempty"`
 }
 

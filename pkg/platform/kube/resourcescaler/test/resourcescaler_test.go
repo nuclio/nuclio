@@ -21,7 +21,6 @@ package test
 
 import (
 	"context"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 
 	"fmt"
 	"net/http"
@@ -40,6 +39,7 @@ import (
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8stesting "k8s.io/client-go/testing"
@@ -225,7 +225,7 @@ func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
 	createFunctionOptions2.FunctionConfig.Spec.MaxReplicas = &one
 	createFunctionOptions2.FunctionConfig.Spec.ScaleToZero = &scalToZeroSpec
 
-	scaleToZero := func (functionName string) {
+	scaleToZero := func(functionName string) {
 
 		// add metrics data
 		// make metric client return value that is small enough (e.g.: 0)
