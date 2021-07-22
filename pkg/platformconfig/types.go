@@ -17,11 +17,11 @@ limitations under the License.
 package platformconfig
 
 import (
-	"github.com/v3io/scaler/pkg/scalertypes"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
+	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	machinarymetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

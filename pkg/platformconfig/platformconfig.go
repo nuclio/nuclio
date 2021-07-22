@@ -17,7 +17,6 @@ limitations under the License.
 package platformconfig
 
 import (
-	"github.com/v3io/scaler/pkg/scalertypes"
 	"os"
 	"strings"
 	"time"
@@ -28,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/runtimeconfig"
 
 	"github.com/nuclio/errors"
+	"github.com/v3io/scaler/pkg/scalertypes"
 )
 
 type Config struct {
