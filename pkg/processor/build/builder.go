@@ -1648,15 +1648,26 @@ func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {
 		return errors.Wrap(err, "Failed to parse and validate s3 code entry attributes")
 	}
 
-	err = b.s3Client.Download(tempFile,
+	if err := b.s3Client.Download(tempFile,
 		s3Attributes["s3Bucket"],
 		s3Attributes["s3ItemKey"],
 		s3Attributes["s3Region"],
 		s3Attributes["s3AccessKeyId"],
 		s3Attributes["s3SecretAccessKey"],
-		s3Attributes["s3SessionToken"])
+		s3Attributes["s3SessionToken"]); err != nil {
 
-	if err != nil {
+		// assume running on ec2 container, which resolves the authentication seamlessly
+		if downloadError := b.s3Client.DownloadWithinEC2Instance(tempFile,
+			s3Attributes["s3Bucket"],
+			s3Attributes["s3ItemKey"]); downloadError != nil {
+			b.logger.WarnWith("Failed to download within ec2 instance",
+				"err", err)
+		} else {
+
+			b.logger.DebugWith("Download from within ec2 instance succeeded")
+			return nil
+		}
+
 		return errors.Wrap(err, "Failed to download the function archive from s3")
 	}
 

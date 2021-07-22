@@ -40,7 +40,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 
-	"github.com/aws/aws-sdk-go/private/util"
 	"github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
 	"github.com/mitchellh/mapstructure"
@@ -1620,7 +1619,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
 	concurrencyPolicy := batchv1beta1.ForbidConcurrent
 	if attributes.ConcurrencyPolicy != "" {
-		concurrencyPolicy = batchv1beta1.ConcurrencyPolicy(util.Capitalize(attributes.ConcurrencyPolicy))
+		concurrencyPolicy = batchv1beta1.ConcurrencyPolicy(strings.Title(attributes.ConcurrencyPolicy))
 	}
 	spec.ConcurrencyPolicy = concurrencyPolicy
 
