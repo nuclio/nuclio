@@ -52,6 +52,7 @@ type ResourceScalerTestSuite struct {
 	dlx            *dlx.DLX
 	autoscaler     *autoscaler.Autoscaler
 	metricClient   *fake.FakeCustomMetricsClient
+	resourceScalerConfig *scalertypes.ResourceScalerConfig
 	resourceScaler *resourcescaler.NuclioResourceScaler
 }
 
@@ -76,6 +77,11 @@ func (suite *ResourceScalerTestSuite) SetupSuite() {
 	suite.dlx, err = dlx.NewDLX(suite.Logger, resourceScaler, resourceScalerConfig.DLXOptions)
 	suite.Require().NoError(err)
 
+	go func() {
+		err := suite.dlx.Start()
+		suite.Require().NoError(err, "Failed to start DLX server")
+	}()
+
 	suite.metricClient = &fake.FakeCustomMetricsClient{}
 	suite.autoscaler, err = autoscaler.NewAutoScaler(suite.Logger,
 		resourceScaler,
@@ -86,10 +92,6 @@ func (suite *ResourceScalerTestSuite) SetupSuite() {
 }
 func (suite *ResourceScalerTestSuite) SetupTest() {
 	suite.KubeTestSuite.SetupTest()
-	go func() {
-		err := suite.dlx.Start()
-		suite.Require().NoError(err, "Failed to start DLX server")
-	}()
 
 	go func() {
 		err := suite.autoscaler.Start()
@@ -98,12 +100,14 @@ func (suite *ResourceScalerTestSuite) SetupTest() {
 }
 
 func (suite *ResourceScalerTestSuite) TearDownTest() {
-	err := suite.dlx.Stop(context.TODO())
-	suite.Require().NoError(err, "Failed to stop DLX server")
-
-	err = suite.autoscaler.Stop()
+	err := suite.autoscaler.Stop()
 	suite.Require().NoError(err, "Failed to stop AutoScaler server")
 	suite.KubeTestSuite.TearDownTest()
+}
+
+func (suite *ResourceScalerTestSuite) TearDownSuite() {
+	err := suite.dlx.Stop(context.TODO())
+	suite.Require().NoError(err, "Failed to stop DLX server")
 }
 
 // TestSanity scale function to / from zero
