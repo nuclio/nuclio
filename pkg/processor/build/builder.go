@@ -1047,10 +1047,14 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	b.logger.InfoWith("Building processor image", "imageName", imageName)
 
 	err = b.platform.BuildAndPushContainerImage(&containerimagebuilderpusher.BuildOptions{
-		ContextDir:          b.stagingDir,
-		Image:               imageName,
-		TempDir:             b.tempDir,
-		DockerfileInfo:      processorDockerfileInfo,
+		ContextDir:     b.stagingDir,
+		Image:          imageName,
+		TempDir:        b.tempDir,
+		DockerfileInfo: processorDockerfileInfo,
+
+		// Conjunct Pull with NoCache
+		// To ensure that when forcing a function build, the base images would be pulled as well.
+		Pull:                b.options.FunctionConfig.Spec.Build.NoCache,
 		NoCache:             b.options.FunctionConfig.Spec.Build.NoCache,
 		NoBaseImagePull:     b.GetNoBaseImagePull(),
 		BuildArgs:           buildArgs,
