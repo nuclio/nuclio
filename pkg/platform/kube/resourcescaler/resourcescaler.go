@@ -129,6 +129,7 @@ func (n *NuclioResourceScaler) GetConfig() (*scalertypes.ResourceScalerConfig, e
 			TargetPathHeader:         "X-Nuclio-Function-Path",
 			ListenAddress:            ":8080",
 			ResourceReadinessTimeout: scalertypes.Duration{Duration: resourceReadinessTimeout},
+			MultiTargetStrategy:      n.platformConfiguration.ScaleToZero.MultiTargetStrategy,
 		},
 	}, nil
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/runtimeconfig"
 
 	"github.com/nuclio/errors"
+	"github.com/v3io/scaler/pkg/scalertypes"
 )
 
 type Config struct {
@@ -95,6 +96,10 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 	if config.FunctionReadinessTimeout == nil {
 		encodedReadinessTimeoutDuration := (DefaultFunctionReadinessTimeoutSeconds * time.Second).String()
 		config.FunctionReadinessTimeout = &encodedReadinessTimeoutDuration
+	}
+
+	if config.ScaleToZero.MultiTargetStrategy == "" {
+		config.ScaleToZero.MultiTargetStrategy = scalertypes.MultiTargetStrategyRandom
 	}
 
 	functionReadinessTimeout, err := time.ParseDuration(*config.FunctionReadinessTimeout)
