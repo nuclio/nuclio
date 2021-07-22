@@ -177,8 +177,6 @@ func (suite *KubeTestSuite) TearDownTest() {
 	suite.Require().NoError(err, "Not all nuclio resources were deleted")
 }
 
-func (suite *KubeTestSuite) TearDownSuite() {}
-
 func (suite *KubeTestSuite) CompileCreateFunctionOptions(functionName string) *platform.CreateFunctionOptions {
 	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger: suite.Logger,

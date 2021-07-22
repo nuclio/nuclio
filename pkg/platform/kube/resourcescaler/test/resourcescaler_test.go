@@ -52,7 +52,6 @@ type ResourceScalerTestSuite struct {
 	dlx            *dlx.DLX
 	autoscaler     *autoscaler.Autoscaler
 	metricClient   *fake.FakeCustomMetricsClient
-	resourceScalerConfig *scalertypes.ResourceScalerConfig
 	resourceScaler *resourcescaler.NuclioResourceScaler
 }
 

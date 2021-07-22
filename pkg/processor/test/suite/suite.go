@@ -274,9 +274,6 @@ func (suite *TestSuite) TearDownTest() {
 	}
 }
 
-// TearDownSuite is called for suite tear down
-func (suite *TestSuite) TearDownSuite() {}
-
 // GetFunction will return the first function it finds
 func (suite *TestSuite) GetFunction(getFunctionOptions *platform.GetFunctionsOptions) platform.Function {
 	functions, err := suite.Platform.GetFunctions(getFunctionOptions)
