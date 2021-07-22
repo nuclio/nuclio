@@ -335,9 +335,13 @@ func (lc *lazyClient) enrichPrimaryIngressResources(primaryIngressResources *ing
 	canaryUpstream *platform.APIGatewayUpstreamSpec) {
 
 	// set nuclio target header on ingress
-	encodedPrimaryTargetHeader := fmt.Sprintf(`proxy_set_header X-Nuclio-Target "%s,%s";`,
-		primaryUpstream.NuclioFunction.Name,
-		canaryUpstream.NuclioFunction.Name)
+	targetHeaderValue := primaryUpstream.NuclioFunction.Name
+	if canaryUpstream != nil {
+		targetHeaderValue = fmt.Sprintf(`%s,%s`,
+			primaryUpstream.NuclioFunction.Name,
+			canaryUpstream.NuclioFunction.Name)
+	}
+	encodedPrimaryTargetHeader := fmt.Sprintf(`proxy_set_header X-Nuclio-Target "%s";`, targetHeaderValue)
 	annotations := primaryIngressResources.Ingress.Annotations
 	configurationSnippetHeaderName := "nginx.ingress.kubernetes.io/configuration-snippet"
 
