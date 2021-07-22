@@ -650,7 +650,7 @@ func (suite *KubeTestSuite) CompileCreateAPIGatewayOptions(apiGatewayName string
 			Spec: platform.APIGatewaySpec{
 				Host:               "some-host",
 				AuthenticationMode: ingress.AuthenticationModeNone,
-				Upstreams: upstreams,
+				Upstreams:          upstreams,
 			},
 		},
 	}
