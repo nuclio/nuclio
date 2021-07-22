@@ -108,6 +108,7 @@ func (d *Docker) buildContainerImage(buildOptions *BuildOptions) error {
 		Image:          buildOptions.Image,
 		DockerfilePath: buildOptions.DockerfileInfo.DockerfilePath,
 		NoCache:        buildOptions.NoCache,
+		Pull:           buildOptions.Pull,
 		BuildArgs:      buildOptions.BuildArgs,
 	})
 
