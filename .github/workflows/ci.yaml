@@ -141,7 +141,7 @@ jobs:
 
   test_k8s_nuctl:
     name: Test Kubernetes nuctl
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     needs:
     - build_docker_images
     steps:
@@ -171,7 +171,7 @@ jobs:
 
         # redirect $(minikube ip):5000 -> localhost:5000
         docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
-        kubectl config view --flatten > kubeconfig_flatten
+        minikube kubectl -- config view --flatten > kubeconfig_flatten
 
     - name: Fetch nuclio docker images
       uses: actions/download-artifact@v2
@@ -203,7 +203,7 @@ jobs:
 
     - name: Install nuclio helm chart
       run: |
-        kubectl create namespace ${NAMESPACE}
+        minikube kubectl -- create namespace ${NAMESPACE}
         cat test/k8s/ci_assets/helm_values.yaml \
           | envsubst \
           | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
@@ -248,7 +248,7 @@ jobs:
 
   test_k8s:
     name: Test Kubernetes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     needs:
       - build_docker_images
     steps:
@@ -278,7 +278,7 @@ jobs:
 
           # redirect $(minikube ip):5000 -> localhost:5000
           docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
-          kubectl config view --flatten > kubeconfig_flatten
+          minikube kubectl -- config view --flatten > kubeconfig_flatten
 
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v2
@@ -300,7 +300,7 @@ jobs:
         run: |
 
           # create namespace
-          kubectl create namespace ${NAMESPACE}
+          minikube kubectl -- create namespace ${NAMESPACE}
 
           # install helm chart
           ./test/k8s/ci_assets/install_nuclio_crds.sh
@@ -318,6 +318,7 @@ jobs:
     - name: Run python test
       run: |
         make test-python
+
   test_nodejs:
     name: Test NodeJS
     runs-on: ubuntu-latest
