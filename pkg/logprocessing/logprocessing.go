@@ -133,6 +133,10 @@ func getMessageAndArgs(logger logger.Logger, functionLogLineInstance *FunctionLo
 		for key, value := range argsValue {
 			messageArgsList = append(messageArgsList, fmt.Sprintf("%s=%s", key, value))
 		}
+	case *string:
+		if argsValue != nil {
+			messageArgsList = append(messageArgsList, *argsValue)
+		}
 	case string:
 		if argsValue != "" {
 			messageArgsList = append(messageArgsList, argsValue)
@@ -267,25 +271,31 @@ func resolveProcessedLogLineTime(logTime interface{}) (time.Time, error) {
 
 		// nucliozap format the time to a floating-point number of milliseconds since the Unix epoch.
 		parsedTime = time.Unix(0, int64(timeValue)*int64(time.Millisecond))
+	case *string:
+		if timeValue != nil {
+			return resolveProcessedLogLineTimeString(*timeValue)
+		}
 	case string:
-		var err error
-
-		for _, layout := range []string{
-			time.RFC3339,
-			"2006-01-02T15:04:05.000Z0700",
-		} {
-			parsedTime, err = time.Parse(layout, timeValue)
-			if err != nil {
-				continue
-			}
-			if !parsedTime.IsZero() {
-				err = nil
-				break
-			}
-		}
-		if err != nil {
-			return parsedTime, err
-		}
+		return resolveProcessedLogLineTimeString(timeValue)
 	}
 	return parsedTime, nil
+}
+
+func resolveProcessedLogLineTimeString(logTimeValue string) (time.Time, error) {
+	var parsedTime time.Time
+	var err error
+
+	for _, layout := range []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05.000Z0700",
+	} {
+		parsedTime, err = time.Parse(layout, logTimeValue)
+		if err != nil {
+			continue
+		}
+		if !parsedTime.IsZero() {
+			return parsedTime, nil
+		}
+	}
+	return parsedTime, err
 }
