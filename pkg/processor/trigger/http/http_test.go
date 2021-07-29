@@ -189,7 +189,7 @@ func (suite *TestSuite) TestInternalHealthiness() {
 			suite.trigger.status = status.Ready
 
 			request, err := nethttp.NewRequest(nethttp.MethodGet,
-				"http://foo.bar"+string(suite.trigger.internalHealthzPath),
+				"http://foo.bar"+string(suite.trigger.internalHealthPath),
 				nil)
 			suite.Require().NoError(err, "Failed to create new request")
 

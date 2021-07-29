@@ -28,7 +28,7 @@ import (
 
 const DefaultReadBufferSize = 16 * 1024
 const DefaultMaxRequestBodySize = 4 * 1024 * 1024
-const InternalHealthinessPath = "/__internal/healthz"
+const InternalHealthPath = "/__internal/health"
 
 type Configuration struct {
 	trigger.Configuration

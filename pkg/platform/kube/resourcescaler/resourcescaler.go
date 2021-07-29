@@ -314,12 +314,12 @@ func (n *NuclioResourceScaler) verifyReadiness(function *nuclioio.NuclioFunction
 		n.logger.Debug("Skipping function readiness verification")
 	}
 
-	healthzEndpoint := fmt.Sprintf("http://%s.%s.svc.cluster.local:8080%s",
+	url := fmt.Sprintf("http://%s.%s.svc.cluster.local:8080%s",
 		kube.ServiceNameFromFunctionName(function.Name),
 		function.Namespace,
-		httptrigger.InternalHealthinessPath)
+		httptrigger.InternalHealthPath)
 
-	request, err := http.NewRequest(http.MethodGet, healthzEndpoint, nil)
+	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create request")
 	}
@@ -332,23 +332,24 @@ func (n *NuclioResourceScaler) verifyReadiness(function *nuclioio.NuclioFunction
 			if err != nil {
 				n.logger.WarnWith("Failed to send request",
 					"err", err,
-					"timeForHealthz", time.Since(startTime),
-					"healthzEndpoint", healthzEndpoint)
+					"elapsed", time.Since(startTime),
+					"url", url)
 				return false
 			}
 
 			// response is within [200, 300)
 			if response.StatusCode >= http.StatusOK && response.StatusCode < 300 {
 				n.logger.InfoWith("Function readiness is verified",
-					"took", time.Since(startTime),
-					"healthzEndpoint", healthzEndpoint)
+					"elapsed", time.Since(startTime),
+					"url", url)
 				return true
 			}
-			n.logger.DebugWith("Endpoint is not ready yet, retrying",
+
+			n.logger.DebugWith("Function readiness verification hit unexpected status code, retrying",
 				"err", err,
-				"timeForHealthz", time.Since(startTime),
-				"healthzEndpoint", healthzEndpoint,
-				"responseStatusCode", response.StatusCode)
+				"elapsed", time.Since(startTime),
+				"url", url,
+				"statusCode", response.StatusCode)
 			return false
 		}); err != nil {
 		return errors.Wrap(err, "Exhausted waiting for function readiness verification")

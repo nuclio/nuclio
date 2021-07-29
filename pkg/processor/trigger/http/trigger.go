@@ -53,7 +53,7 @@ type http struct {
 	timeouts            []uint64 // flag of worker is in timeout
 	answering           []uint64 // flag the worker is answering
 	server              *fasthttp.Server
-	internalHealthzPath []byte
+	internalHealthPath []byte
 }
 
 func newTrigger(logger logger.Logger,
@@ -94,7 +94,7 @@ func newTrigger(logger logger.Logger,
 		activeContexts:      make([]*fasthttp.RequestCtx, numWorkers),
 		timeouts:            make([]uint64, numWorkers),
 		answering:           make([]uint64, numWorkers),
-		internalHealthzPath: []byte(InternalHealthinessPath),
+		internalHealthPath: []byte(InternalHealthPath),
 	}
 
 	newTrigger.allocateEvents(numWorkers)
@@ -393,7 +393,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 	// internal endpoint to allow clients the information whether the http server is taking requests in
 	// this is an internal endpoint, we do not want to update statistics here
-	if bytes.HasPrefix(ctx.URI().Path(), h.internalHealthzPath) {
+	if bytes.HasPrefix(ctx.URI().Path(), h.internalHealthPath) {
 		ctx.Response.SetStatusCode(nethttp.StatusOK)
 		return
 	}
