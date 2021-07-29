@@ -45,14 +45,14 @@ var (
 
 type http struct {
 	trigger.AbstractTrigger
-	configuration       *Configuration
-	events              []Event
-	bufferLoggerPool    *nucliozap.BufferLoggerPool
-	status              status.Status
-	activeContexts      []*fasthttp.RequestCtx
-	timeouts            []uint64 // flag of worker is in timeout
-	answering           []uint64 // flag the worker is answering
-	server              *fasthttp.Server
+	configuration      *Configuration
+	events             []Event
+	bufferLoggerPool   *nucliozap.BufferLoggerPool
+	status             status.Status
+	activeContexts     []*fasthttp.RequestCtx
+	timeouts           []uint64 // flag of worker is in timeout
+	answering          []uint64 // flag the worker is answering
+	server             *fasthttp.Server
 	internalHealthPath []byte
 }
 
@@ -87,13 +87,13 @@ func newTrigger(logger logger.Logger,
 	}
 
 	newTrigger := http{
-		AbstractTrigger:     abstractTrigger,
-		configuration:       configuration,
-		bufferLoggerPool:    bufferLoggerPool,
-		status:              status.Initializing,
-		activeContexts:      make([]*fasthttp.RequestCtx, numWorkers),
-		timeouts:            make([]uint64, numWorkers),
-		answering:           make([]uint64, numWorkers),
+		AbstractTrigger:    abstractTrigger,
+		configuration:      configuration,
+		bufferLoggerPool:   bufferLoggerPool,
+		status:             status.Initializing,
+		activeContexts:     make([]*fasthttp.RequestCtx, numWorkers),
+		timeouts:           make([]uint64, numWorkers),
+		answering:          make([]uint64, numWorkers),
 		internalHealthPath: []byte(InternalHealthPath),
 	}
 
