@@ -1999,6 +1999,7 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 	lc.logger.DebugWith("Got function events", "num", len(result.Items))
 
 	for _, functionEvent := range result.Items {
+		functionEvent := functionEvent
 		errGroup.Go(func() error {
 			err = lc.nuclioClientSet.NuclioV1beta1().
 				NuclioFunctionEvents(namespace).
