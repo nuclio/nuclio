@@ -92,7 +92,7 @@ func (n *NuclioResourceScaler) SetFunctionReadinessVerificationEnabled(enable bo
 }
 
 func (n *NuclioResourceScaler) SetScale(resources []scaler_types.Resource, scale int) error {
-	functionNames := make([]string, len(resources))
+	functionNames := make([]string, 0)
 	for _, resource := range resources {
 		functionNames = append(functionNames, resource.Name)
 	}
@@ -339,8 +339,8 @@ func (n *NuclioResourceScaler) verifyReadiness(function *nuclioio.NuclioFunction
 
 			// response is within [200, 300)
 			if response.StatusCode >= http.StatusOK && response.StatusCode < 300 {
-				n.logger.InfoWith("Readiness has verified",
-					"timeForHealthz", time.Since(startTime),
+				n.logger.InfoWith("Function readiness is verified",
+					"took", time.Since(startTime),
 					"healthzEndpoint", healthzEndpoint)
 				return true
 			}
@@ -351,7 +351,7 @@ func (n *NuclioResourceScaler) verifyReadiness(function *nuclioio.NuclioFunction
 				"responseStatusCode", response.StatusCode)
 			return false
 		}); err != nil {
-		return errors.Wrap(err, "Exhausting waiting for function readiness verification")
+		return errors.Wrap(err, "Exhausted waiting for function readiness verification")
 	}
 	return nil
 }
