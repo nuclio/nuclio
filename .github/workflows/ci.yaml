@@ -158,6 +158,12 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
+    - name: Hotfix for minikube < 1.21
+      run: |
+        # Hotfix for minikube < 1.21.0
+        # https://serverfault.com/questions/1063166/kube-proxy-wont-start-in-minikube-because-of-permission-denied-issue-with-proc#comment1385632_1063305
+        sudo sysctl net/netfilter/nf_conntrack_max=131072
+
     - uses: manusa/actions-setup-minikube@v2.4.0
       with:
         minikube version: "v1.15.1"
@@ -264,6 +270,12 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+
+      - name: Hotfix for minikube < 1.21
+        run: |
+          # Hotfix for minikube < 1.21.0
+          # https://serverfault.com/questions/1063166/kube-proxy-wont-start-in-minikube-because-of-permission-denied-issue-with-proc#comment1385632_1063305
+          sudo sysctl net/netfilter/nf_conntrack_max=131072
 
       - uses: manusa/actions-setup-minikube@v2.4.0
         with:
