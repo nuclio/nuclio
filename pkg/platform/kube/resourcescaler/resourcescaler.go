@@ -1,14 +1,19 @@
 package resourcescaler
 
 import (
+	"crypto/tls"
+	"fmt"
+	"net/http"
 	"os"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -22,11 +27,13 @@ import (
 
 // A plugin for github.com/v3io/scaler, allowing to extend it to scale to zero and from zero function resources in k8s
 type NuclioResourceScaler struct {
-	logger                logger.Logger
-	nuclioClientSet       nuclioioclient.Interface
-	kubeconfigPath        string
-	namespace             string
-	platformConfiguration *platformconfig.Config
+	logger                               logger.Logger
+	nuclioClientSet                      nuclioioclient.Interface
+	kubeconfigPath                       string
+	namespace                            string
+	platformConfiguration                *platformconfig.Config
+	httpClient                           *http.Client
+	functionReadinessVerificationEnabled bool
 }
 
 // New is called when plugin loaded on scaler, so it's considered "dead code" for the linter
@@ -70,11 +77,21 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 		kubeconfigPath:        kubeconfigPath,
 		namespace:             namespace,
 		platformConfiguration: platformConfiguration,
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		},
 	}, nil
 }
 
+func (n *NuclioResourceScaler) SetFunctionReadinessVerificationEnabled(enable bool) {
+	n.functionReadinessVerificationEnabled = enable
+}
+
 func (n *NuclioResourceScaler) SetScale(resources []scaler_types.Resource, scale int) error {
-	functionNames := make([]string, 0)
+	functionNames := make([]string, len(resources))
 	for _, resource := range resources {
 		functionNames = append(functionNames, resource.Name)
 	}
@@ -223,11 +240,10 @@ func (n *NuclioResourceScaler) scaleFunctionsFromZero(namespace string, function
 	n.logger.DebugWith("Scaling from zero", "functionNames", functionNames)
 	failedFunctionNames := make([]string, 0)
 	for _, functionName := range functionNames {
-		err := n.updateFunctionStatus(namespace,
+		if err := n.updateFunctionStatus(namespace,
 			functionName,
 			functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
-			scaler_types.ScaleFromZeroStartedScaleEvent)
-		if err != nil {
+			scaler_types.ScaleFromZeroStartedScaleEvent); err != nil {
 			failedFunctionNames = append(failedFunctionNames, functionName)
 			n.logger.WarnWith("Failed to update function status to scale from zero", "functionName", functionName)
 			continue
@@ -270,15 +286,17 @@ func (n *NuclioResourceScaler) updateFunctionStatus(namespace string,
 
 func (n *NuclioResourceScaler) waitFunctionReadiness(namespace string, functionName string) error {
 	n.logger.DebugWith("Waiting for function readiness", "functionName", functionName)
+	var function *nuclioio.NuclioFunction
+	var err error
 	for {
-		function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
+		function, err = n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
 		if err != nil {
 			n.logger.WarnWith("Failed getting nuclio function", "functionName", functionName, "err", err)
 			return errors.Wrap(err, "Failed getting nuclio function")
 		}
 		if function.Status.State == functionconfig.FunctionStateReady {
 			n.logger.InfoWith("Function is ready", "functionName", functionName)
-			return nil
+			break
 		}
 
 		n.logger.DebugWith("Function not ready yet",
@@ -287,6 +305,54 @@ func (n *NuclioResourceScaler) waitFunctionReadiness(namespace string, functionN
 
 		time.Sleep(3 * time.Second)
 	}
+	return n.verifyReadiness(function)
+}
+
+func (n *NuclioResourceScaler) verifyReadiness(function *nuclioio.NuclioFunction) error {
+	if !n.functionReadinessVerificationEnabled {
+		n.logger.Debug("Skipping function readiness verification")
+	}
+
+	healthzEndpoint := fmt.Sprintf("http://%s.%s.svc.cluster.local:8080%s",
+		kube.ServiceNameFromFunctionName(function.Name),
+		function.Namespace,
+		httptrigger.InternalHealthinessPath)
+
+	request, err := http.NewRequest(http.MethodGet, healthzEndpoint, nil)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create request")
+	}
+
+	startTime := time.Now()
+	if err := common.RetryUntilSuccessful(time.Minute,
+		time.Second*1,
+		func() bool {
+			response, err := n.httpClient.Do(request)
+			if err != nil {
+				n.logger.WarnWith("Failed to send request",
+					"err", err,
+					"timeForHealthz", time.Since(startTime),
+					"healthzEndpoint", healthzEndpoint)
+				return false
+			}
+
+			// response is within [200, 300)
+			if response.StatusCode >= http.StatusOK && response.StatusCode < 300 {
+				n.logger.InfoWith("Readiness has verified",
+					"timeForHealthz", time.Since(startTime),
+					"healthzEndpoint", healthzEndpoint)
+				return true
+			}
+			n.logger.DebugWith("Endpoint is not ready yet, retrying",
+				"err", err,
+				"timeForHealthz", time.Since(startTime),
+				"healthzEndpoint", healthzEndpoint,
+				"responseStatusCode", response.StatusCode)
+			return false
+		}); err != nil {
+		return errors.Wrap(err, "Exhausting waiting for function readiness verification")
+	}
+	return nil
 }
 
 func getClientConfig(kubeconfigPath string) (*rest.Config, error) {

@@ -27,10 +27,16 @@ import (
 	"github.com/v3io/scaler/pkg/dlx"
 )
 
-func Run(platformConfigurationPath string, namespace string, kubeconfigPath string) error {
+func Run(platformConfigurationPath string,
+	namespace string,
+	kubeconfigPath string,
+	functionReadinessVerificationEnabled bool) error {
 
 	// create dlx
-	dlxInstance, err := newDLX(platformConfigurationPath, namespace, kubeconfigPath)
+	dlxInstance, err := newDLX(platformConfigurationPath,
+		namespace,
+		kubeconfigPath,
+		functionReadinessVerificationEnabled)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create dlx")
 	}
@@ -42,7 +48,10 @@ func Run(platformConfigurationPath string, namespace string, kubeconfigPath stri
 	select {}
 }
 
-func newDLX(platformConfigurationPath string, namespace string, kubeconfigPath string) (*dlx.DLX, error) {
+func newDLX(platformConfigurationPath string,
+	namespace string,
+	kubeconfigPath string,
+	functionReadinessVerificationEnabled bool) (*dlx.DLX, error) {
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
@@ -61,6 +70,12 @@ func newDLX(platformConfigurationPath string, namespace string, kubeconfigPath s
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create resource scaler")
 	}
+
+	// NOTE: hacky, making sure that argument passes to the struct itself
+	// on 1.5.x both dlx/autoscaler were merged onto nuclio from v3io/scaler to stop using v3io/scaler as a plugin
+	// this intermediate work status does not allow us (yet) the flexibility to inject
+	// arguments via the resourcescaler structure and hence, we will cast it (it is safe) and set the argument.
+	resourceScaler.(*resourcescaler.NuclioResourceScaler).SetFunctionReadinessVerificationEnabled(functionReadinessVerificationEnabled)
 
 	// get resource scaler configuration
 	resourceScalerConfig, err := resourceScaler.GetConfig()
