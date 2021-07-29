@@ -87,6 +87,7 @@ func New(kubeconfigPath string, namespace string) (scaler_types.ResourceScaler, 
 }
 
 func (n *NuclioResourceScaler) SetFunctionReadinessVerificationEnabled(enable bool) {
+	n.logger.InfoWith("Setting function readiness verification", "enable", enable)
 	n.functionReadinessVerificationEnabled = enable
 }
 
