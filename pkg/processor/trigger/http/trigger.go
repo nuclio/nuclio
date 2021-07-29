@@ -18,6 +18,7 @@ package http
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	nethttp "net/http"
 	"os"
@@ -44,14 +45,15 @@ var (
 
 type http struct {
 	trigger.AbstractTrigger
-	configuration    *Configuration
-	events           []Event
-	bufferLoggerPool *nucliozap.BufferLoggerPool
-	status           status.Status
-	activeContexts   []*fasthttp.RequestCtx
-	timeouts         []uint64 // flag of worker is in timeout
-	answering        []uint64 // flag the worker is answering
-	server           *fasthttp.Server
+	configuration       *Configuration
+	events              []Event
+	bufferLoggerPool    *nucliozap.BufferLoggerPool
+	status              status.Status
+	activeContexts      []*fasthttp.RequestCtx
+	timeouts            []uint64 // flag of worker is in timeout
+	answering           []uint64 // flag the worker is answering
+	server              *fasthttp.Server
+	internalHealthzPath []byte
 }
 
 func newTrigger(logger logger.Logger,
@@ -85,13 +87,14 @@ func newTrigger(logger logger.Logger,
 	}
 
 	newTrigger := http{
-		AbstractTrigger:  abstractTrigger,
-		configuration:    configuration,
-		bufferLoggerPool: bufferLoggerPool,
-		status:           status.Initializing,
-		activeContexts:   make([]*fasthttp.RequestCtx, numWorkers),
-		timeouts:         make([]uint64, numWorkers),
-		answering:        make([]uint64, numWorkers),
+		AbstractTrigger:     abstractTrigger,
+		configuration:       configuration,
+		bufferLoggerPool:    bufferLoggerPool,
+		status:              status.Initializing,
+		activeContexts:      make([]*fasthttp.RequestCtx, numWorkers),
+		timeouts:            make([]uint64, numWorkers),
+		answering:           make([]uint64, numWorkers),
+		internalHealthzPath: []byte(InternalHealthinessPath),
 	}
 
 	newTrigger.allocateEvents(numWorkers)
@@ -385,6 +388,13 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 		// in case validation failed, stop here
 		h.UpdateStatistics(false)
+		return
+	}
+
+	// internal endpoint to allow clients the information whether the http server is taking requests in
+	// this is an internal endpoint, we do not want to update statistics here
+	if bytes.HasPrefix(ctx.URI().Path(), h.internalHealthzPath) {
+		ctx.Response.SetStatusCode(nethttp.StatusOK)
 		return
 	}
 
