@@ -110,7 +110,7 @@ func (suite *lazyTestSuite) TestEnsurePrimaryIngressHasXNuclioTargetHeader() {
 
 	// expect primary function ingress to have `X-Nuclio-Target`
 	// so that if has STZ option, it would wake up upon a request
-	suite.Require().Equal(`proxy_set_header X-Nuclio-Target "primary-function-name";`,
+	suite.Require().Equal(`proxy_set_header X-Nuclio-Target "primary-function-name,canary-function-name";`,
 		primaryIngressResources.Ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"])
 }
 
