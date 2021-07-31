@@ -41,6 +41,9 @@ spec:
       serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
       containers:
       - name: {{ template "nuclio.dlxName" . }}
+        env:
+        - name: NUCLIO_RESOURCESCALER_FUNCTION_READINESS_VERIFICATION_ENABLED
+          value: {{ .Values.dlx.functionReadinessVerificationEnabled | quote }}
         image: {{ .Values.dlx.image.repository }}:{{ .Values.dlx.image.tag }}
         imagePullPolicy: {{ .Values.dlx.image.pullPolicy }}
         {{- if .Values.dlx.resources }}
