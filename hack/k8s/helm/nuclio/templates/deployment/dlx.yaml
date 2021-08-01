@@ -48,6 +48,8 @@ spec:
           {{ toYaml .Values.dlx.resources | nindent 11 }}
         {{- end }}
         env:
+        - name: NUCLIO_RESOURCESCALER_FUNCTION_READINESS_VERIFICATION_ENABLED
+          value: {{ .Values.dlx.functionReadinessVerificationEnabled | quote }}
         {{- if .Values.dlx.namespace }}
         - name: NUCLIO_SCALER_NAMESPACE
           value: {{ .Values.dlx.namespace | quote }}

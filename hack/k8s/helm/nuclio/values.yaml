@@ -272,6 +272,9 @@ dlx:
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
   affinity: {}
 
+  # Whether to verify function readiness before redirecting incoming requests
+  functionReadinessVerificationEnabled: true
+
 registry:
 
   # By default, the chart does not advocate using helm to manage registry credentials. You should create a secret

@@ -21,17 +21,18 @@ package test
 
 import (
 	"context"
-
 	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/testutils"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/resourcescaler"
 	"github.com/nuclio/nuclio/pkg/platform/kube/test"
+	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
 	"github.com/stretchr/testify/suite"
 	"github.com/v3io/scaler/pkg/autoscaler"
@@ -53,6 +54,7 @@ type ResourceScalerTestSuite struct {
 	autoscaler     *autoscaler.Autoscaler
 	metricClient   *fake.FakeCustomMetricsClient
 	resourceScaler *resourcescaler.NuclioResourceScaler
+	dlxHTTPClient  *http.Client
 }
 
 func (suite *ResourceScalerTestSuite) SetupSuite() {
@@ -92,6 +94,9 @@ func (suite *ResourceScalerTestSuite) SetupSuite() {
 func (suite *ResourceScalerTestSuite) SetupTest() {
 	suite.KubeTestSuite.SetupTest()
 
+	// preserve it, it might be mutated during tests
+	suite.dlxHTTPClient = suite.resourceScaler.GetHTTPClient()
+
 	go func() {
 		err := suite.autoscaler.Start()
 		suite.Require().NoError(err, "Failed to start AutoScaler server")
@@ -99,6 +104,11 @@ func (suite *ResourceScalerTestSuite) SetupTest() {
 }
 
 func (suite *ResourceScalerTestSuite) TearDownTest() {
+
+	// restore
+	suite.resourceScaler.SetHTTPClient(suite.dlxHTTPClient)
+
+	// stop auto scaler
 	err := suite.autoscaler.Stop()
 	suite.Require().NoError(err, "Failed to stop AutoScaler server")
 	suite.KubeTestSuite.TearDownTest()
@@ -111,6 +121,26 @@ func (suite *ResourceScalerTestSuite) TearDownSuite() {
 
 // TestSanity scale function to / from zero
 func (suite *ResourceScalerTestSuite) TestSanity() {
+	suite.resourceScaler.SetHTTPClient(testutils.CreateDummyHTTPClient(func() func(r *http.Request) *http.Response {
+		retryCounter := 0
+		return func(request *http.Request) *http.Response {
+			if request.URL.Path == httptrigger.InternalHealthPath {
+				statusCode := http.StatusBadGateway
+				if retryCounter == 3 {
+					statusCode = http.StatusOK
+				}
+				retryCounter += 1
+				return &http.Response{
+					StatusCode: statusCode,
+				}
+			}
+
+			suite.Logger.ErrorWith("Unexpected HTTP request was made by resource scaler",
+				"request", request)
+			panic("Unexpected http request")
+		}
+	}()))
+
 	functionName := fmt.Sprintf("resourcescaler-test-%s", suite.TestID)
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	zero := 0
@@ -206,6 +236,17 @@ func (suite *ResourceScalerTestSuite) TestSanity() {
 }
 
 func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
+	suite.resourceScaler.SetHTTPClient(testutils.CreateDummyHTTPClient(func(request *http.Request) *http.Response {
+		if request.URL.Path == httptrigger.InternalHealthPath {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+			}
+		}
+
+		suite.Logger.ErrorWith("Unexpected HTTP request was made by resource scaler",
+			"request", request)
+		panic("Unexpected http request")
+	}))
 	zero := 0
 	one := 1
 	functionName1 := fmt.Sprintf("resourcescaler-multi-target-test-1-%s", suite.TestID)

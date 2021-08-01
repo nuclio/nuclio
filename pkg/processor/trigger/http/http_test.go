@@ -174,6 +174,40 @@ func (suite *TestSuite) TestCORS() {
 	}
 }
 
+func (suite *TestSuite) TestInternalHealthiness() {
+	client := suite.getClient()
+	for _, testCase := range []struct {
+		name string
+	}{
+		{
+			name: "sanity",
+		},
+	} {
+
+		suite.Run(testCase.name, func() {
+			suite.Logger.DebugWith("Testing internal healthiness endpoint", "testCase", testCase)
+
+			// ensure trigger is ready
+			suite.trigger.status = status.Ready
+
+			request, err := nethttp.NewRequest(nethttp.MethodGet,
+				"http://foo.bar"+string(suite.trigger.internalHealthPath),
+				nil)
+			suite.Require().NoError(err, "Failed to create new request")
+
+			// do request
+			response, err := client.Do(request)
+			suite.Require().NoError(err, "Failed to do request")
+			suite.Logger.DebugWith("Received response",
+				"headers", response.Header,
+				"statusCode", response.StatusCode)
+
+			suite.Require().Equal(response.StatusCode, nethttp.StatusOK)
+		})
+
+	}
+}
+
 func (suite *TestSuite) serveDummyHTTPServer(handler fasthttp.RequestHandler) {
 	go func() {
 		suite.fastDummyHTTPServerStarted = true

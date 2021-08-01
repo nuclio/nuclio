@@ -1,13 +1,18 @@
 package resourcescaler
 
 import (
+	"crypto/tls"
+	"fmt"
+	"net/http"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -19,10 +24,12 @@ import (
 // NuclioResourceScaler leverages github.com/v3io/scaler
 // to allow extending scale to zero and from zero nuclio functions
 type NuclioResourceScaler struct {
-	logger                logger.Logger
-	nuclioClientSet       nuclioioclient.Interface
-	namespace             string
-	platformConfiguration *platformconfig.Config
+	logger                               logger.Logger
+	nuclioClientSet                      nuclioioclient.Interface
+	namespace                            string
+	platformConfiguration                *platformconfig.Config
+	httpClient                           *http.Client
+	functionReadinessVerificationEnabled bool
 }
 
 func New(logger logger.Logger,
@@ -38,6 +45,12 @@ func New(logger logger.Logger,
 		namespace:             namespace,
 		nuclioClientSet:       nuclioClientSet,
 		platformConfiguration: platformConfiguration,
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		},
 	}, nil
 }
 
@@ -46,6 +59,21 @@ func (n *NuclioResourceScaler) SetScale(resources []scalertypes.Resource, scale 
 		return n.scaleFunctionsToZero(resources)
 	}
 	return n.scaleFunctionsFromZero(resources)
+}
+
+// SetHTTPClient sets the http client for testing purposes
+func (n *NuclioResourceScaler) SetHTTPClient(httpClient *http.Client) {
+	n.httpClient = httpClient
+}
+
+// GetHTTPClient returns the http client for testing purposes
+func (n *NuclioResourceScaler) GetHTTPClient() *http.Client {
+	return n.httpClient
+}
+
+func (n *NuclioResourceScaler) SetFunctionReadinessVerificationEnabled(enable bool) {
+	n.logger.InfoWith("Setting function readiness verification", "enable", enable)
+	n.functionReadinessVerificationEnabled = enable
 }
 
 func (n *NuclioResourceScaler) GetResources() ([]scalertypes.Resource, error) {
@@ -245,15 +273,20 @@ func (n *NuclioResourceScaler) updateFunctionStatus(namespace string,
 
 func (n *NuclioResourceScaler) waitFunctionReadiness(namespace string, functionName string) error {
 	n.logger.DebugWith("Waiting for function readiness", "functionName", functionName)
+	var function *nuclioio.NuclioFunction
+	var err error
 	for {
-		function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
+		function, err = n.nuclioClientSet.
+			NuclioV1beta1().
+			NuclioFunctions(namespace).
+			Get(functionName, metav1.GetOptions{})
 		if err != nil {
 			n.logger.WarnWith("Failed getting nuclio function", "functionName", functionName, "err", err)
 			return errors.Wrap(err, "Failed getting nuclio function")
 		}
 		if function.Status.State == functionconfig.FunctionStateReady {
 			n.logger.InfoWith("Function is ready", "functionName", functionName)
-			return nil
+			break
 		}
 
 		n.logger.DebugWith("Function is not ready yet",
@@ -262,4 +295,53 @@ func (n *NuclioResourceScaler) waitFunctionReadiness(namespace string, functionN
 
 		time.Sleep(3 * time.Second)
 	}
+	return n.verifyReadiness(function)
+}
+
+func (n *NuclioResourceScaler) verifyReadiness(function *nuclioio.NuclioFunction) error {
+	if !n.functionReadinessVerificationEnabled {
+		n.logger.Debug("Skipping function readiness verification")
+	}
+
+	url := fmt.Sprintf("http://%s.%s.svc.cluster.local:8080%s",
+		kube.ServiceNameFromFunctionName(function.Name),
+		function.Namespace,
+		httptrigger.InternalHealthPath)
+
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create request")
+	}
+
+	startTime := time.Now()
+	if err := common.RetryUntilSuccessful(time.Minute,
+		time.Second*1,
+		func() bool {
+			response, err := n.httpClient.Do(request)
+			if err != nil {
+				n.logger.WarnWith("Failed to send request",
+					"err", err,
+					"elapsed", time.Since(startTime),
+					"url", url)
+				return false
+			}
+
+			// response is within [200, 300)
+			if response.StatusCode >= http.StatusOK && response.StatusCode < 300 {
+				n.logger.InfoWith("Function readiness is verified",
+					"elapsed", time.Since(startTime),
+					"url", url)
+				return true
+			}
+
+			n.logger.DebugWith("Function readiness verification hit unexpected status code, retrying",
+				"err", err,
+				"elapsed", time.Since(startTime),
+				"url", url,
+				"statusCode", response.StatusCode)
+			return false
+		}); err != nil {
+		return errors.Wrap(err, "Exhausted waiting for function readiness verification")
+	}
+	return nil
 }
