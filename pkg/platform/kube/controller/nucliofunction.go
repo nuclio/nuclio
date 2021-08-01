@@ -204,6 +204,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		functionStatus := &functionconfig.Status{
 			State:    finalState,
 			HTTPPort: httpPort,
+			Logs:     function.Status.Logs,
 		}
 
 		if err := fo.setFunctionScaleToZeroStatus(ctx, functionStatus, scaleEvent); err != nil {
