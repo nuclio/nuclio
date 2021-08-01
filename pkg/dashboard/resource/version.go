@@ -30,11 +30,6 @@ type versionResource struct {
 	versionInfo *version.Info
 }
 
-func (vr *versionResource) ExtendMiddlewares() error {
-	vr.resource.addAuthMiddleware()
-	return nil
-}
-
 // GetAll returns all versions
 func (vr *versionResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	response := map[string]restful.Attributes{
