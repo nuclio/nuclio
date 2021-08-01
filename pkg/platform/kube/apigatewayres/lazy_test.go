@@ -73,13 +73,7 @@ func (suite *lazyTestSuite) TestEnsurePrimaryIngressHasXNuclioTargetHeader() {
 		Spec: platform.APIGatewaySpec{
 			Host:               "some-host.com",
 			Name:               "test-name",
-			AuthenticationMode: ingress.AuthenticationModeBasicAuth,
-			Authentication: &platform.APIGatewayAuthenticationSpec{
-				BasicAuth: &platform.BasicAuth{
-					Username: "moshe",
-					Password: "ehsom",
-				},
-			},
+			AuthenticationMode: ingress.AuthenticationModeNone,
 			Upstreams: []platform.APIGatewayUpstreamSpec{
 				{
 					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
