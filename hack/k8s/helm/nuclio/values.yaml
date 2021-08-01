@@ -273,7 +273,7 @@ dlx:
   affinity: {}
 
   # Whether to verify function readiness before redirecting incoming requests
-  functionReadinessVerificationEnabled: false
+  functionReadinessVerificationEnabled: true
 
 registry:
 

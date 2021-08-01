@@ -31,7 +31,7 @@ func main() {
 	kubeconfigPath := flag.String("kubeconfig-path", os.Getenv("KUBECONFIG"), "Path of kubeconfig file")
 	namespace := flag.String("namespace", "", "Namespace to listen on, or * for all")
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
-	functionReadinessVerificationEnabled := flag.Bool("function-readiness-verification-enabled", common.GetEnvOrDefaultBool("NUCLIO_RESOURCESCALER_FUNCTION_READINESS_VERIFICATION_ENABLED", false), "Whether to verify function readiness")
+	functionReadinessVerificationEnabled := flag.Bool("function-readiness-verification-enabled", common.GetEnvOrDefaultBool("NUCLIO_RESOURCESCALER_FUNCTION_READINESS_VERIFICATION_ENABLED", true), "Whether to verify function readiness")
 	flag.Parse()
 
 	*namespace = getNamespace(*namespace)
