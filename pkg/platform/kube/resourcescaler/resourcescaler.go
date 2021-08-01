@@ -26,7 +26,6 @@ import (
 type NuclioResourceScaler struct {
 	logger                               logger.Logger
 	nuclioClientSet                      nuclioioclient.Interface
-	kubeconfigPath                       string
 	namespace                            string
 	platformConfiguration                *platformconfig.Config
 	httpClient                           *http.Client
