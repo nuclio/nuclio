@@ -6,24 +6,13 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common/testutils"
 	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
-
-type RoundTripFunc func(req *http.Request) *http.Response
-
-func (f RoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req), nil
-}
-
-func NewTestClient(fn RoundTripFunc) *http.Client { // nolint: interfacer
-	return &http.Client{
-		Transport: fn,
-	}
-}
 
 type AuthTestSuite struct {
 	suite.Suite
@@ -38,7 +27,7 @@ func (suite *AuthTestSuite) SetupSuite() {
 
 func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 	// mocks IguazioConfig session verification endpoint
-	mockedHTTPClient := suite.createHTTPMockClient(func(r *http.Request) *http.Response {
+	mockedHTTPClient := testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
 		authorization := r.Header.Get("Authorization")
 		cookie := r.Header.Get("Cookie")
 		if authorization != "Basic YWJjOmVmZwo=" || cookie != "session=some-session" {
@@ -84,7 +73,7 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 	authInstance.cache.Remove(authInstance.cache.Keys()[0])
 
 	// step C. bad authentication + cache remains empty
-	authInstance.httpClient = suite.createHTTPMockClient(func(r *http.Request) *http.Response {
+	authInstance.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
 		return &http.Response{
 			StatusCode: http.StatusUnauthorized,
 		}
@@ -97,7 +86,7 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 func (suite *AuthTestSuite) TestAuthenticate() {
 
 	// mocks IguazioConfig session verification endpoint
-	mockedHTTPClient := suite.createHTTPMockClient(func(r *http.Request) *http.Response {
+	mockedHTTPClient := testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
 		authorization := r.Header.Get("Authorization")
 		cookie := r.Header.Get("Cookie")
 		if authorization != "Basic YWJjOmVmZwo=" || cookie != "session=some-session" {
@@ -179,12 +168,6 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 			suite.Require().Equal("4", authInfo.GetPassword())
 		})
 	}
-}
-
-func (suite *AuthTestSuite) createHTTPMockClient(f func(r *http.Request) *http.Response) *http.Client {
-	return NewTestClient(func(req *http.Request) *http.Response {
-		return f(req)
-	})
 }
 
 func TestAuthTestSuite(t *testing.T) {

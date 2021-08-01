@@ -61,6 +61,16 @@ func (n *NuclioResourceScaler) SetScale(resources []scalertypes.Resource, scale 
 	return n.scaleFunctionsFromZero(resources)
 }
 
+// SetHTTPClient sets the http client for testing purposes
+func (n *NuclioResourceScaler) SetHTTPClient(httpClient *http.Client) {
+	n.httpClient = httpClient
+}
+
+// GetHTTPClient returns the http client for testing purposes
+func (n *NuclioResourceScaler) GetHTTPClient() *http.Client {
+	return n.httpClient
+}
+
 func (n *NuclioResourceScaler) SetFunctionReadinessVerificationEnabled(enable bool) {
 	n.logger.InfoWith("Setting function readiness verification", "enable", enable)
 	n.functionReadinessVerificationEnabled = enable
