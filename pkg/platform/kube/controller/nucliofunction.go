@@ -212,6 +212,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		// ... such as message and logs.
 		functionStatus := &functionconfig.Status{
 			State: finalState,
+			Logs:  function.Status.Logs,
 		}
 
 		if err := fo.populateFunctionInvocationStatus(function, functionStatus, resources); err != nil {
