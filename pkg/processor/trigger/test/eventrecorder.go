@@ -49,6 +49,7 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 
 	// deploy functions
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
 		var sentBodies []string
 
 		suite.Logger.DebugWith("Producing",
