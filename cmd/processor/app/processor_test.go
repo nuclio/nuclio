@@ -79,6 +79,9 @@ func (suite *TriggerTestSuite) TestSomething() {
 
 	suite.Require().NoError(err)
 	suite.Require().Len(triggers, totalTriggers)
+	suite.Require().Len(processorInstance.namedWorkerAllocators.Keys(),
+		1,
+		"Expected only one named allocator to be created")
 }
 
 func TestTriggerTestSuite(t *testing.T) {

@@ -32,6 +32,16 @@ func (w *AllocatorSyncMap) Store(key string, value Allocator) {
 	w.syncMap.Store(key, value)
 }
 
+// Keys returns all allocator keys
+func (w *AllocatorSyncMap) Keys() []string {
+	var keys []string
+	w.Range(func(s string, allocator Allocator) bool {
+		keys = append(keys, s)
+		return true
+	})
+	return keys
+}
+
 // LoadOrStore tries to load exiting worker by key, if not existing - creates one and returns it
 // if key is empty - always create and return a new worker allocator
 func (w *AllocatorSyncMap) LoadOrStore(key string,
