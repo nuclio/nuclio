@@ -19,6 +19,7 @@ package app
 import (
 	"encoding/json"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -73,7 +74,7 @@ type Processor struct {
 	webAdminServer        *webadmin.Server
 	healthCheckServer     *healthcheck.Server
 	metricSinks           []metricsink.MetricSink
-	namedWorkerAllocators map[string]worker.Allocator
+	namedWorkerAllocators *worker.AllocatorSyncMap
 	eventTimeoutWatcher   *timeout.EventTimeoutWatcher
 	startComplete         bool
 	stop                  chan bool
@@ -84,7 +85,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	var err error
 
 	newProcessor := &Processor{
-		namedWorkerAllocators: map[string]worker.Allocator{},
+		namedWorkerAllocators: worker.NewAllocatorSyncMap(),
 		stop:                  make(chan bool, 1),
 	}
 
@@ -138,6 +139,8 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
+
+	newProcessor.logger.InfoWith("Created triggers", "triggersLength", len(newProcessor.triggers))
 
 	if len(processorConfiguration.Spec.EventTimeout) > 0 {
 
@@ -283,6 +286,7 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 
 	// create error group
 	errGroup := errgroup.Group{}
+	lock := sync.Mutex{}
 
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
 		triggerName, triggerConfiguration := triggerName, triggerConfiguration
@@ -306,7 +310,13 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 
 			// append to triggers (can be nil - ignore unknown triggers)
 			if triggerInstance != nil {
+				lock.Lock()
 				triggers = append(triggers, triggerInstance)
+				lock.Unlock()
+			} else {
+				p.logger.WarnWith("Skipping unknown trigger",
+					"name", triggerName,
+					"kind", triggerConfiguration.Kind)
 			}
 
 			return nil
