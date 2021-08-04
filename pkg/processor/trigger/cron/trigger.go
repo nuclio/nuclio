@@ -196,6 +196,7 @@ func (c *cron) setInterval(encodedInterval string) error {
 	}
 
 	c.Logger.InfoWith("Set cron trigger interval",
+		"name", c.configuration.Name,
 		"interval", intervalLength)
 	return nil
 }
