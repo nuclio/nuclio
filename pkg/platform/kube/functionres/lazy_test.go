@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/imdario/mergo"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -108,6 +109,98 @@ func (suite *lazyTestSuite) TestNodeConstrains() {
 	deployment.Spec.Template.Spec.NodeName = functionInstance.Spec.NodeName
 	deployment.Spec.Template.Spec.NodeSelector = functionInstance.Spec.NodeSelector
 	deployment.Spec.Template.Spec.Affinity = functionInstance.Spec.Affinity
+}
+
+func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
+	defaultIngressAnnotations := map[string]string{
+		"a": "b",
+	}
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			Kube: platformconfig.PlatformKubeConfig{
+				DefaultHTTPIngressAnnotations: defaultIngressAnnotations,
+			},
+		},
+	})
+	for _, testCase := range []struct {
+		name                               string
+		functionIngressAnnotations         map[string]string
+		expectedFunctionIngressAnnotations map[string]string
+	}{
+		{
+			name: "sanity-no-override-with-value",
+			functionIngressAnnotations: map[string]string{
+				"a": "c",
+			},
+			expectedFunctionIngressAnnotations: map[string]string{
+				"a": "c",
+			},
+		},
+		{
+			name: "sanity-no-override-empty-value",
+			functionIngressAnnotations: map[string]string{
+				"a": "",
+			},
+			expectedFunctionIngressAnnotations: map[string]string{
+				"a": "",
+			},
+		},
+		{
+			name: "override",
+			functionIngressAnnotations: map[string]string{
+				"x": "y",
+			},
+			expectedFunctionIngressAnnotations: func() map[string]string {
+				ingressAnnotations := map[string]string{
+					"x": "y",
+				}
+				err := mergo.Merge(&ingressAnnotations, &defaultIngressAnnotations)
+				suite.Require().NoError(err)
+				return ingressAnnotations
+			}(),
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			one := 1
+			defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+			defaultHTTPTrigger.Annotations = testCase.functionIngressAnnotations
+			defaultHTTPTrigger.Attributes = map[string]interface{}{
+				"ingresses": map[string]interface{}{
+					"0": map[string]interface{}{
+						"host":  "something.com",
+						"paths": []string{"/"},
+					},
+				},
+			}
+			function := nuclioio.NuclioFunction{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "my-function" + testCase.name,
+				},
+				Spec: functionconfig.Spec{
+					Replicas: &one,
+					Triggers: map[string]functionconfig.Trigger{
+						defaultHTTPTrigger.Name: defaultHTTPTrigger,
+					},
+				},
+			}
+			functionLabels := suite.client.getFunctionLabels(&function)
+			functionLabels["nuclio.io/function-name"] = function.Name
+
+			suite.client.nginxIngressUpdateGracePeriod = 0
+
+			// "create the ingress
+			ingressInstance, err := suite.client.createOrUpdateIngress(functionLabels, &function)
+			suite.Require().NoError(err)
+			suite.Require().NotNil(ingressInstance)
+			suite.Require().NotEmpty(ingressInstance.Annotations)
+
+			// make sure user function annotations exists
+			delete(ingressInstance.Annotations, "nginx.ingress.kubernetes.io/configuration-snippet")
+			suite.Require().Equal(testCase.expectedFunctionIngressAnnotations,
+				ingressInstance.Annotations)
+
+		})
+	}
 }
 
 func (suite *lazyTestSuite) TestNoChanges() {
@@ -232,12 +325,11 @@ func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
 		"nuclio.io/function-version": "latest",
 	}
 
+	// ensure no ingress is populated
 	err := suite.client.populateIngressConfig(labels,
 		&functionInstance,
 		&ingressMeta,
 		&ingressSpec)
-
-	suite.Require().NoError(err)
 	suite.Require().NoError(err)
 	suite.Require().Len(ingressSpec.Rules, 0)
 }

@@ -1694,7 +1694,7 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 	// enrich with default ingress annotations
 	for key, value := range platformConfig.Kube.DefaultHTTPIngressAnnotations {
 
-		// only if not requested by the user
+		// selectively take only undefined annotations
 		if _, found := meta.Annotations[key]; !found {
 			meta.Annotations[key] = value
 		}

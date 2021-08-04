@@ -383,6 +383,8 @@ platform: {}
 #       nodeLabelKey: nodeLabelValue
 #     defaultServiceType: ClusterIP
 #     defaultHTTPIngressHostTemplate: ""
+#     defaultHTTPIngressAnnotations:
+#       ingressAnnotationKey: ingressAnnotationValue
 #   imageRegistryOverrides:
 #     baseImageRegistries:
 #       "python:3.6": "myregistry"
