@@ -132,6 +132,7 @@ type PlatformKubeConfig struct {
 	DefaultServiceType             corev1.ServiceType `json:"defaultServiceType,omitempty"`
 	DefaultFunctionNodeSelector    map[string]string  `json:"defaultFunctionNodeSelector,omitempty"`
 	DefaultHTTPIngressHostTemplate string             `json:"defaultHTTPIngressHostTemplate,omitempty"`
+	DefaultHTTPIngressAnnotations  map[string]string  `json:"default_http_ingress_annotation,omitempty"`
 }
 
 type PlatformLocalConfig struct {

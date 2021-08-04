@@ -1653,6 +1653,8 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 	spec *extv1beta1.IngressSpec) error {
 	meta.Annotations = make(map[string]string)
 
+	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
+
 	// get the first HTTP trigger and look for annotations that we shove to the ingress
 	// there should only be 0 or 1. if there are more, just take the first
 	for _, httpTrigger := range functionconfig.GetTriggersByKind(function.Spec.Triggers, "http") {
@@ -1686,6 +1688,15 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 			if _, ok := meta.Annotations[key]; !ok {
 				meta.Annotations[key] = value
 			}
+		}
+	}
+
+	// enrich with default ingress annotations
+	for key, value := range platformConfig.Kube.DefaultHTTPIngressAnnotations {
+
+		// only if not requested by the user
+		if _, found := meta.Annotations[key]; !found {
+			meta.Annotations[key] = value
 		}
 	}
 
