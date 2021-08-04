@@ -19,40 +19,40 @@ dashboard/resources:
 
 # triggers
 trigger/cron:
-  - pkg/processsor/trigger/cron/**/*
+  - pkg/processor/trigger/cron/**/*
 
 trigger/http:
-  - pkg/processsor/trigger/http/**/*
+  - pkg/processor/trigger/http/**/*
 
 trigger/kafka:
-  - pkg/processsor/trigger/kafka/**/*
+  - pkg/processor/trigger/kafka/**/*
 
 trigger/kickstart:
-  - pkg/processsor/trigger/kickstart/**/*
+  - pkg/processor/trigger/kickstart/**/*
 
 trigger/kinesis:
-  - pkg/processsor/trigger/kinesis/**/*
+  - pkg/processor/trigger/kinesis/**/*
 
 trigger/mqtt:
-  - pkg/processsor/trigger/mqtt/**/*
+  - pkg/processor/trigger/mqtt/**/*
 
 trigger/nats:
-  - pkg/processsor/trigger/nats/**/*
+  - pkg/processor/trigger/nats/**/*
 
 trigger/partitioned:
-  - pkg/processsor/trigger/partitioned/**/*
+  - pkg/processor/trigger/partitioned/**/*
 
 trigger/poller:
-  - pkg/processsor/trigger/poller/**/*
+  - pkg/processor/trigger/poller/**/*
 
 trigger/pubsub:
-  - pkg/processsor/trigger/pubsub/**/*
+  - pkg/processor/trigger/pubsub/**/*
 
 trigger/rabbitmq:
-  - pkg/processsor/trigger/rabbitmq/**/*
+  - pkg/processor/trigger/rabbitmq/**/*
 
 trigger/v3iostream:
-  - pkg/processsor/trigger/v3iostream/**/*
+  - pkg/processor/trigger/v3iostream/**/*
 
 # runtimes
 runtime/python:
