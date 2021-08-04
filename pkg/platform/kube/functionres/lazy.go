@@ -1107,9 +1107,9 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 
 			// if there are no rules and previously were, delete the ingress resource
 			if ingressRulesExist {
-				propogationPolicy := metav1.DeletePropagationForeground
+				propagationPolicy := metav1.DeletePropagationForeground
 				deleteOptions := &metav1.DeleteOptions{
-					PropagationPolicy: &propogationPolicy,
+					PropagationPolicy: &propagationPolicy,
 				}
 
 				err := lc.kubeClientSet.ExtensionsV1beta1().
