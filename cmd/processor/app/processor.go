@@ -78,7 +78,7 @@ type Processor struct {
 	webAdminServer        *webadmin.Server
 	healthCheckServer     commonhealthcheck.Server
 	metricSinks           []metricsink.MetricSink
-	namedWorkerAllocators map[string]worker.Allocator
+	namedWorkerAllocators *worker.AllocatorSyncMap
 	eventTimeoutWatcher   *timeout.EventTimeoutWatcher
 	startComplete         bool
 	stop                  chan bool
@@ -89,7 +89,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	var err error
 
 	newProcessor := &Processor{
-		namedWorkerAllocators: map[string]worker.Allocator{},
+		namedWorkerAllocators: worker.NewAllocatorSyncMap(),
 		stop:                  make(chan bool, 1),
 	}
 
