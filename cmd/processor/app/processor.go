@@ -17,13 +17,16 @@ limitations under the License.
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	commonhealthcheck "github.com/nuclio/nuclio/pkg/common/healthcheck"
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -65,7 +68,6 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/version-go"
-	"golang.org/x/sync/errgroup"
 )
 
 // Processor is responsible to process events
@@ -76,7 +78,7 @@ type Processor struct {
 	webAdminServer        *webadmin.Server
 	healthCheckServer     commonhealthcheck.Server
 	metricSinks           []metricsink.MetricSink
-	namedWorkerAllocators map[string]worker.Allocator
+	namedWorkerAllocators *worker.AllocatorSyncMap
 	eventTimeoutWatcher   *timeout.EventTimeoutWatcher
 	startComplete         bool
 	stop                  chan bool
@@ -87,7 +89,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	var err error
 
 	newProcessor := &Processor{
-		namedWorkerAllocators: map[string]worker.Allocator{},
+		namedWorkerAllocators: worker.NewAllocatorSyncMap(),
 		stop:                  make(chan bool, 1),
 	}
 
@@ -277,7 +279,9 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 	var triggers []trigger.Trigger
 
 	// create error group
-	errGroup := errgroup.Group{}
+	errGroup, _ := errgroup.WithContext(context.Background(), p.logger)
+	lock := sync.Mutex{}
+
 	platformKind := processorConfiguration.PlatformConfig.Kind
 
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
@@ -295,7 +299,7 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 			continue
 		}
 
-		errGroup.Go(func() error {
+		errGroup.Go("Creating trigger", func() error {
 
 			// create an event source based on event source configuration and runtime configuration
 			triggerInstance, err := trigger.RegistrySingleton.NewTrigger(p.logger,
@@ -314,7 +318,13 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 
 			// append to triggers (can be nil - ignore unknown triggers)
 			if triggerInstance != nil {
+				lock.Lock()
 				triggers = append(triggers, triggerInstance)
+				lock.Unlock()
+			} else {
+				p.logger.WarnWith("Skipping unknown trigger",
+					"name", triggerName,
+					"kind", triggerConfiguration.Kind)
 			}
 
 			return nil

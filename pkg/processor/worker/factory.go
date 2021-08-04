@@ -41,7 +41,7 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 	// create the workers
 	workers, err := waf.createWorkers(logger, numWorkers, runtimeConfiguration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
+		return nil, errors.Wrap(err, "Failed to create workers")
 	}
 
 	// create an allocator
@@ -95,15 +95,11 @@ func (waf *Factory) createWorker(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	err = runtimeInstance.Start()
-
-	if err != nil {
+	if err := runtimeInstance.Start(); err != nil {
 		return nil, errors.Wrap(err, "Failed to start runtime")
 	}
 
-	return NewWorker(workerLogger,
-		workerIndex,
-		runtimeInstance)
+	return NewWorker(workerLogger, workerIndex, runtimeInstance)
 }
 
 func (waf *Factory) createWorkers(logger logger.Logger,

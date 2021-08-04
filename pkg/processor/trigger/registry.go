@@ -29,7 +29,7 @@ import (
 type Creator interface {
 
 	// Create creates a trigger instance
-	Create(logger.Logger, string, *functionconfig.Trigger, *runtime.Configuration, map[string]worker.Allocator) (Trigger, error)
+	Create(logger.Logger, string, *functionconfig.Trigger, *runtime.Configuration, *worker.AllocatorSyncMap) (Trigger, error)
 }
 
 type Registry struct {
@@ -46,7 +46,7 @@ func (r *Registry) NewTrigger(logger logger.Logger,
 	name string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration,
-	namedWorkerAllocators map[string]worker.Allocator) (Trigger, error) {
+	namedWorkerAllocators *worker.AllocatorSyncMap) (Trigger, error) {
 
 	registree, err := r.Get(kind)
 	if err != nil {
