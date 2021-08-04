@@ -20,13 +20,14 @@ package app
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"testing"
 	// load cron trigger for tests purposes
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
+	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
