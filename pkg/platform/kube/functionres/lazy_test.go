@@ -325,7 +325,7 @@ func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
 		"nuclio.io/function-version": "latest",
 	}
 
-	// ensure no ingress is populated
+	// ensure no ingress rules are populated
 	err := suite.client.populateIngressConfig(labels,
 		&functionInstance,
 		&ingressMeta,
