@@ -45,7 +45,7 @@ func (suite *TriggerTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 }
 
-func (suite *TriggerTestSuite) TestSomething() {
+func (suite *TriggerTestSuite) TestCreateManyTriggersWithSameWorkerAllocatorName() {
 	processorInstance := Processor{
 		logger:                suite.logger,
 		functionLogger:        suite.logger.GetChild("some-function-logger"),
