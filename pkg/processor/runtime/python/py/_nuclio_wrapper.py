@@ -339,7 +339,7 @@ def run_wrapper():
 
     # add a logger output that is in a JSON format. we'll remove it once we have a socket output. this
     # way all output goes to stdout until a socket is available and then switches exclusively to socket
-    root_logger.set_handler('default', sys.stdout, nuclio_sdk.logger.JSONFormatter())
+    root_logger.set_handler('default', sys.stdout, nuclio_sdk.logger.RawJSONFormatter())
 
     # bind worker_id to the logger
     root_logger.bind(worker_id=args.worker_id)
