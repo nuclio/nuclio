@@ -91,6 +91,9 @@ func NewRelease(cmdRunner cmdrunner.CmdRunner, logger logger.Logger) *Release {
 }
 
 func (r *Release) Run() error {
+	if err := r.validateGithubCredentials(); err != nil {
+		return errors.Wrap(err, "Failed to validate github credentials")
+	}
 
 	// do the cloning, fetch tags, etc
 	if err := r.prepareRepository(); err != nil {
@@ -425,6 +428,36 @@ func (r *Release) getTravisReleaseStatus() (string, error) {
 
 func (r *Release) compileGithubAPIURL() string {
 	return fmt.Sprintf("%s/repos/%s/nuclio", githubAPIURL, r.repositoryOwnerName)
+}
+
+func (r *Release) validateGithubCredentials() error {
+	if r.githubToken == "" {
+		r.logger.Debug("No github token was given")
+		return nil
+	}
+
+	r.logger.DebugWith("Validating github credentials")
+
+	// get workflows
+	workflowsURL := fmt.Sprintf("%s/actions/workflows", r.compileGithubAPIURL())
+
+	// prepare request
+	request, err := r.resolveGithubActionAPIRequest(http.MethodGet, workflowsURL, nil)
+	if err != nil {
+		return err
+	}
+
+	// make call
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return errors.Wrap(err, "Failed to make a GET request")
+	}
+	if response.StatusCode >= 400 {
+		return errors.Errorf("Unexpected status '%s'", response.Status)
+	}
+
+	r.logger.Info("Github credentials are valid")
+	return nil
 }
 
 func (r *Release) populateReleaseWorkflowID() error {
