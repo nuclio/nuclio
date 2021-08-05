@@ -62,6 +62,9 @@ func (c *Client) Get(getProjectOptions *platform.GetProjectsOptions) ([]platform
 		requestURL += fmt.Sprintf("/__name__/%s", getProjectOptions.Meta.Name)
 	}
 
+	// ask for tenant to include the namespace name on response
+	requestURL += "?include=tenant"
+
 	// send the request
 	responseBody, _, err := common.SendHTTPRequest(http.MethodGet,
 		requestURL,
