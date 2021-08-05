@@ -55,7 +55,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/tedsuo/ifrit v0.0.0-20191009134036-9a97d0632f00 // indirect
 	github.com/tsenart/vegeta v6.3.0+incompatible
-	github.com/v3io/scaler v0.4.0
+	github.com/v3io/scaler v0.4.2
 	github.com/v3io/scaler-types v1.7.0
 	github.com/v3io/v3io-go v0.2.3
 	github.com/v3io/v3io-go-http v0.0.1
