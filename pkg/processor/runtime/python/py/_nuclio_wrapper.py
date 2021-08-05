@@ -38,7 +38,7 @@ class WrapperFatalException(Exception):
 
 # Appends `l` character to follow the processor conventions
 # more information @ pkg/processor/runtime/rpc/abstract.go / wrapperOutputHandler
-class JSONFormatterOverSocket(nuclio_sdk.logger.JSONFormatter):
+class JSONFormatterOverSocket(nuclio_sdk.logger.RawJSONFormatter):
     def format(self, record):
         return 'l' + super(JSONFormatterOverSocket, self).format(record)
 
