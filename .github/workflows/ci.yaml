@@ -253,6 +253,10 @@ jobs:
     runs-on: ubuntu-18.04
     needs:
       - build_docker_images
+    strategy:
+      fail-fast: false
+      matrix:
+        k8s_version: [ v1.17.9, v1.19.13 ]
     steps:
       - uses: actions/checkout@v2
 
@@ -276,7 +280,7 @@ jobs:
       - uses: manusa/actions-setup-minikube@v2.4.2
         with:
           minikube version: "v1.15.1"
-          kubernetes version: "v1.17.9"
+          kubernetes version: ${{ matrix.k8s_version }}
           driver: docker
           github token: ${{ github.token }}
           start args: '--addons registry --addons ingress'
