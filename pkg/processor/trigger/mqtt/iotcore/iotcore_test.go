@@ -19,11 +19,12 @@ limitations under the License.
 package iotcoremqtt
 
 import (
-	"github.com/nuclio/nuclio/pkg/processor/trigger/mqtt"
-	nucliozap "github.com/nuclio/zap"
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/processor/trigger/mqtt"
+
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
