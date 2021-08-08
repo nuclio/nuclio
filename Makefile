@@ -584,7 +584,7 @@ test-k8s: build-test
 
 .PHONY: build-test
 build-test: ensure-gopath build-base
-	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.17.9)
+	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.19.13)
 	$(eval NUCLIO_TEST_KUBECTL_CLI_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),amd64,arm64))
 	docker build \
         --build-arg GOARCH=$(NUCLIO_ARCH) \
