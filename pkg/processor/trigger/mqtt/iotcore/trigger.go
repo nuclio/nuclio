@@ -17,6 +17,8 @@ limitations under the License.
 package iotcoremqtt
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"time"
 
@@ -25,7 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/mqtt"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/gbrlsnchs/jwt/v3"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
@@ -87,27 +89,28 @@ func (t *iotcoremqtt) Start(checkpoint functionconfig.Checkpoint) error {
 	return nil
 }
 
-func (t *iotcoremqtt) createJWT() (string, error) {
-	t.Logger.DebugWith("Creating JWT", "expiresIn", t.configuration.jwtRefreshInterval)
+func (t *iotcoremqtt) createJWT(issuedAt time.Time) ([]byte, error) {
+	t.Logger.DebugWith("Creating JWT",
+		"audience", t.configuration.ProjectID,
+		"expiresIn", t.configuration.jwtRefreshInterval)
 
-	token := jwt.New(jwt.SigningMethodRS256)
-	token.Claims = jwt.StandardClaims{
-		Audience:  t.configuration.ProjectID,
-		IssuedAt:  time.Now().Unix(),
-		ExpiresAt: time.Now().Add(t.configuration.jwtRefreshInterval).Unix(),
+	// translate private key contents to go-like private key
+	block, _ := pem.Decode([]byte(t.configuration.PrivateKey.Contents))
+	if block == nil {
+		return nil, errors.New("Invalid private key contents")
 	}
 
-	rsaPrivateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(t.configuration.PrivateKey.Contents))
+	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to parse RSA private key")
+		return nil, errors.Wrap(err, "Failed to parse private key")
 	}
 
-	signedJWTContents, err := token.SignedString(rsaPrivateKey)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to sign JWT")
-	}
-
-	return signedJWTContents, nil
+	// sign payload with private key using sha-256
+	return jwt.Sign(jwt.Payload{
+		Audience:       []string{t.configuration.ProjectID},
+		IssuedAt:       jwt.NumericDate(issuedAt),
+		ExpirationTime: jwt.NumericDate(issuedAt.Add(t.configuration.jwtRefreshInterval)),
+	}, jwt.NewRS256(jwt.RSAPrivateKey(privateKey)))
 }
 
 func (t *iotcoremqtt) getClientID() string {
@@ -121,13 +124,13 @@ func (t *iotcoremqtt) getClientID() string {
 func (t *iotcoremqtt) connect() error {
 
 	// create jwt for the next period
-	signedJWTContents, err := t.createJWT()
+	signedJWTContents, err := t.createJWT(time.Now())
 	if err != nil {
 		return errors.Wrap(err, "Failed to create JWT")
 	}
 
 	// set the password
-	t.configuration.Password = signedJWTContents
+	t.configuration.Password = string(signedJWTContents)
 
 	// do the initial connect
 	if err := t.Connect(); err != nil {

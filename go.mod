@@ -13,11 +13,11 @@ require (
 	github.com/Shopify/sarama v1.23.1
 	github.com/aws/aws-sdk-go v1.39.6
 	github.com/coreos/go-semver v0.2.0
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/disintegration/imaging v1.6.0
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/fatih/structs v1.1.0
+	github.com/gbrlsnchs/jwt/v3 v3.0.1
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-chi/chi/v5 v5.0.2
 	github.com/go-chi/cors v1.0.0
@@ -29,6 +29,7 @@ require (
 	github.com/icza/dyno v0.0.0-20180601094105-0c96289f9585
 	github.com/imdario/mergo v0.3.12
 	github.com/jarcoal/httpmock v1.0.4
+	github.com/magefile/mage v1.11.0 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/mholt/archiver/v3 v3.3.0
@@ -62,6 +63,7 @@ require (
 	github.com/v3io/version-go v0.0.2
 	github.com/valyala/fasthttp v1.21.0
 	github.com/vmihailenco/msgpack/v4 v4.3.12
+	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
 	golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/api v0.43.0
