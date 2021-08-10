@@ -84,8 +84,7 @@ COPY pkg/processor/runtime/java/build.gradle \
 RUN cp nuclio-sdk-java-1.1.0.jar /home/gradle/src/wrapper/nuclio-sdk-java-1.1.0.jar
 
 # Download dependencies
-RUN cd /home/gradle/src/wrapper \
-    && gradle --build-cache compileJava
+RUN cd /home/gradle/src/wrapper && gradle --build-cache compileJava
 
 # Build nuclio-java-wrapper.jar
 ONBUILD RUN /home/gradle/src/wrapper/build-wrapped-handler.sh
