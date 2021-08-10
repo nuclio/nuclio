@@ -21,7 +21,7 @@ FROM quay.io/nuclio/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
 FROM gcr.io/iguazio/openjdk:8-slim as user-handler-builder
 
 RUN apt-get update -qqy \
-    && apt-get install -o APT::Immediate-Configure=false -qqy curl \
+    && apt-get install -o APT::Immediate-Configure=false -qqy curl unzip \
     && curl -LO https://services.gradle.org/distributions/gradle-4.5.1-bin.zip \
     && unzip gradle-4.5.1-bin.zip \
     && rm gradle-4.5.1-bin.zip \
