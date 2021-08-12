@@ -17,6 +17,7 @@ limitations under the License.
 package opa
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -35,6 +36,7 @@ type HTTPClient struct {
 	requestTimeout      time.Duration
 	logLevel            int
 	overrideHeaderValue string
+	httpClient          *http.Client
 }
 
 func NewHTTPClient(parentLogger logger.Logger,
@@ -50,6 +52,12 @@ func NewHTTPClient(parentLogger logger.Logger,
 		requestTimeout:      requestTimeout,
 		logLevel:            logLevel,
 		overrideHeaderValue: overrideHeaderValue,
+		httpClient: &http.Client{
+			Timeout: requestTimeout,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		},
 	}
 	return &newClient
 }
@@ -82,14 +90,13 @@ func (c *HTTPClient) QueryPermissions(resource string, action Action, permission
 			"requestBody", string(requestBody),
 			"requestURL", requestURL)
 	}
-	responseBody, _, err := common.SendHTTPRequest(http.MethodPost,
+	responseBody, _, err := common.SendHTTPRequest(c.httpClient,
+		http.MethodPost,
 		requestURL,
 		requestBody,
 		headers,
 		[]*http.Cookie{},
-		http.StatusOK,
-		true,
-		c.requestTimeout)
+		http.StatusOK)
 	if err != nil {
 		if c.logLevel > 5 {
 			c.logger.ErrorWith("Failed to send HTTP request to OPA",

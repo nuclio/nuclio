@@ -159,6 +159,7 @@ func RenderProjects(projects []platform.Project,
 		if format == OutputFormatWide {
 			header = append(header, []string{
 				"Description",
+				"Owner",
 			}...)
 		}
 
@@ -177,6 +178,7 @@ func RenderProjects(projects []platform.Project,
 			if format == OutputFormatWide {
 				projectFields = append(projectFields, []string{
 					project.GetConfig().Spec.Description,
+					project.GetConfig().Spec.Owner,
 				}...)
 			}
 

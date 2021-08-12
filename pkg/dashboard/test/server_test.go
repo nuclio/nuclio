@@ -1010,7 +1010,8 @@ func (suite *projectTestSuite) TestGetDetailSuccessful() {
 	},
 	"spec": {
 		"description": "p1Desc"
-	}
+	},
+    "status": {}
 }`
 
 	suite.sendRequest("GET",
@@ -1073,7 +1074,8 @@ func (suite *projectTestSuite) TestGetListSuccessful() {
 		},
 		"spec": {
 			"description": "p1Desc"
-		}
+		},
+        "status": {}
 	},
 	"p2": {
 		"metadata": {
@@ -1082,7 +1084,8 @@ func (suite *projectTestSuite) TestGetListSuccessful() {
 		},
 		"spec": {
 			"description": "p2Desc"
-		}
+		},
+        "status": {}
 	}
 }`
 
@@ -1263,7 +1266,8 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
     "metadata": {
       "name": "p1"
     },
-    "spec": {}
+    "spec": {},
+    "status": {}
   }
 }`
 
@@ -1397,7 +1401,8 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
       "metadata": {
         "name": "p1"
       },
-      "spec": {}
+      "spec": {},
+	  "status": {}
     }
   },
   "p2": {
@@ -1432,7 +1437,8 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
       "metadata": {
         "name": "p2"
       },
-      "spec": {}
+      "spec": {},
+      "status": {}
     }
   }
 }`
@@ -1473,13 +1479,23 @@ func (suite *projectTestSuite) TestCreateSuccessful() {
 		"description": "p1Description"
 	}
 }`
+	expectedResponseBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1-namespace"
+	},
+	"spec": {
+		"description": "p1Description"
+	},
+    "status": {}
+}`
 
 	suite.sendRequest("POST",
 		"/api/projects",
 		nil,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
-		requestBody)
+		expectedResponseBody)
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }

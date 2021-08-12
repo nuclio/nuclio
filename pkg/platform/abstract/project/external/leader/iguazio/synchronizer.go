@@ -1,9 +1,11 @@
 package iguazio
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
@@ -113,9 +115,14 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 			continue
 		}
 
+		// no time was given, set it to empty
+		if leaderProjectConfig.Status.UpdatedAt == nil {
+			leaderProjectConfig.Status.UpdatedAt = &time.Time{}
+		}
+
 		// check if it's the most recent updated project
-		if mostRecentUpdatedProjectTime == nil || mostRecentUpdatedProjectTime.Before(leaderProjectConfig.Status.UpdatedAt) {
-			mostRecentUpdatedProjectTime = &leaderProjectConfig.Status.UpdatedAt
+		if mostRecentUpdatedProjectTime == nil || mostRecentUpdatedProjectTime.Before(*leaderProjectConfig.Status.UpdatedAt) {
+			mostRecentUpdatedProjectTime = leaderProjectConfig.Status.UpdatedAt
 		}
 
 		// check if the project exists internally
@@ -173,9 +180,10 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 		"projectsToUpdateNum", len(projectsToUpdate))
 
 	// create projects that exist on the leader but weren't created internally
+	createProjectErrGroup, _ := errgroup.WithContext(context.Background(), c.logger)
 	for _, projectInstance := range projectsToCreate {
 		projectInstance := projectInstance
-		go func() {
+		createProjectErrGroup.Go("create projects", func() error {
 			c.logger.DebugWith("Creating project from leader sync", "projectInstance", *projectInstance)
 			createProjectConfig := &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
@@ -189,18 +197,24 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 					"name", createProjectConfig.ProjectConfig.Meta.Name,
 					"namespace", createProjectConfig.ProjectConfig.Meta.Namespace,
 					"err", err)
-				return
+				return err
 			}
 			c.logger.DebugWith("Successfully created project from leader sync",
 				"name", createProjectConfig.ProjectConfig.Meta.Name,
 				"namespace", createProjectConfig.ProjectConfig.Meta.Namespace)
-		}()
+			return nil
+		})
+	}
+
+	if err := createProjectErrGroup.Wait(); err != nil {
+		return nil, errors.Wrap(err, "Failed to create projects")
 	}
 
 	// update projects that exist both internally and on the leader
+	updateProjectErrGroup, _ := errgroup.WithContext(context.Background(), c.logger)
 	for _, projectInstance := range projectsToUpdate {
 		projectInstance := projectInstance
-		go func() {
+		updateProjectErrGroup.Go("update projects", func() error {
 			c.logger.DebugWith("Updating project from leader sync", "projectInstance", *projectInstance)
 			updateProjectOptions := &platform.UpdateProjectOptions{
 				ProjectConfig: platform.ProjectConfig{
@@ -214,12 +228,17 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 					"name", updateProjectOptions.ProjectConfig.Meta.Name,
 					"namespace", updateProjectOptions.ProjectConfig.Meta.Namespace,
 					"err", err)
-				return
+				return err
 			}
 			c.logger.DebugWith("Successfully updated project from leader sync",
 				"name", updateProjectOptions.ProjectConfig.Meta.Name,
 				"namespace", updateProjectOptions.ProjectConfig.Meta.Namespace)
-		}()
+			return nil
+		})
+	}
+
+	if err := updateProjectErrGroup.Wait(); err != nil {
+		return nil, errors.Wrap(err, "Failed to update projects")
 	}
 
 	return newMostRecentUpdatedProjectTime, nil

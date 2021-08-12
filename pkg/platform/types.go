@@ -191,6 +191,7 @@ func (pm ProjectMeta) IsEqual(other ProjectMeta) bool {
 
 type ProjectSpec struct {
 	Description string `json:"description,omitempty"`
+	Owner       string `json:"owner,omitempty"`
 }
 
 func (ps ProjectSpec) IsEqual(other ProjectSpec) bool {
@@ -198,9 +199,9 @@ func (ps ProjectSpec) IsEqual(other ProjectSpec) bool {
 }
 
 type ProjectStatus struct {
-	AdminStatus       string    `json:"adminStatus,omitempty"`
-	OperationalStatus string    `json:"operationalStatus,omitempty"`
-	UpdatedAt         time.Time `json:"updatedAt,omitempty"`
+	AdminStatus       string     `json:"adminStatus,omitempty"`
+	OperationalStatus string     `json:"operationalStatus,omitempty"`
+	UpdatedAt         *time.Time `json:"updatedAt,omitempty"`
 }
 
 func (pst ProjectStatus) IsEqual(other ProjectStatus) bool {
@@ -222,11 +223,12 @@ func (pc *ProjectConfig) Scrub() {
 }
 
 type CreateProjectOptions struct {
-	ProjectConfig     *ProjectConfig
-	RequestOrigin     platformconfig.ProjectsLeaderKind
-	SessionCookie     *http.Cookie
-	PermissionOptions opa.PermissionOptions
-	AuthSession       auth.Session
+	ProjectConfig           *ProjectConfig
+	RequestOrigin           platformconfig.ProjectsLeaderKind
+	SessionCookie           *http.Cookie
+	PermissionOptions       opa.PermissionOptions
+	AuthSession             auth.Session
+	WaitForCreateCompletion bool
 }
 
 type UpdateProjectOptions struct {
