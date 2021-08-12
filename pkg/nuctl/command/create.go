@@ -103,6 +103,7 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 	}
 
 	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.Description, "description", "", "Project description")
+	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.Owner, "owner", "", "Project owner")
 	commandeer.cmd = cmd
 
 	return commandeer

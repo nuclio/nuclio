@@ -276,7 +276,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 		functionInfo.Spec.Build.Offline = dashboardServer.Offline
 
 		// just deploy. the status is async through polling
-		_, err := fr.getPlatform().CreateFunction(&platform.CreateFunctionOptions{
+		if _, err := fr.getPlatform().CreateFunction(&platform.CreateFunctionOptions{
 			Logger: fr.Logger,
 			FunctionConfig: functionconfig.Config{
 				Meta: *functionInfo.Meta,
@@ -290,9 +290,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 				MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
 				OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 			},
-		})
-
-		if err != nil {
+		}); err != nil {
 			fr.Logger.WarnWith("Failed to deploy function", "err", err)
 			errDeployingChan <- err
 		}

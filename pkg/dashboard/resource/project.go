@@ -284,6 +284,10 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 		PermissionOptions: opa.PermissionOptions{
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
+
+		// TODO: read from request header
+		// if false - return "202" and let client to poll on resource until it becomes ready
+		WaitForCreateCompletion: true,
 	}); err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "already exists") {
 			return "", nil, nuclio.WrapErrConflict(err)

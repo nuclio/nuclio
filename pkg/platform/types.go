@@ -191,6 +191,7 @@ func (pm ProjectMeta) IsEqual(other ProjectMeta) bool {
 
 type ProjectSpec struct {
 	Description string `json:"description,omitempty"`
+	Owner       string `json:"owner,omitempty"`
 }
 
 func (ps ProjectSpec) IsEqual(other ProjectSpec) bool {
@@ -222,11 +223,12 @@ func (pc *ProjectConfig) Scrub() {
 }
 
 type CreateProjectOptions struct {
-	ProjectConfig     *ProjectConfig
-	RequestOrigin     platformconfig.ProjectsLeaderKind
-	SessionCookie     *http.Cookie
-	PermissionOptions opa.PermissionOptions
-	AuthSession       auth.Session
+	ProjectConfig           *ProjectConfig
+	RequestOrigin           platformconfig.ProjectsLeaderKind
+	SessionCookie           *http.Cookie
+	PermissionOptions       opa.PermissionOptions
+	AuthSession             auth.Session
+	WaitForCreateCompletion bool
 }
 
 type UpdateProjectOptions struct {

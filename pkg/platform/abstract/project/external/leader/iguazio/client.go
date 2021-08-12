@@ -121,11 +121,27 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) err
 		return errors.Wrap(err, "Failed to send request to leader")
 	}
 
-	c.logger.DebugWith("Successfully sent create project request to leader",
-		"name", createProjectOptions.ProjectConfig.Meta.Name,
-		"namespace", createProjectOptions.ProjectConfig.Meta.Namespace,
-		"responseBody", string(responseBody))
+	// resolve project
+	project, err := c.resolveCreateProjectResponse(responseBody)
+	if err != nil {
+		return errors.Wrap(err, "Failed to resolve project from response body")
+	}
 
+	c.logger.DebugWith("Successfully sent create project request to leader",
+		"projectData", project.Data)
+
+	createProjectJobID := project.Data.Relationships.LastJob.Data.ID
+	if createProjectOptions.WaitForCreateCompletion {
+		job, err := c.waitForJobCompletion(createProjectJobID)
+		if err != nil {
+			return errors.Wrap(err, "Failed waiting for create project job completion")
+		}
+
+		if job.Data.Attributes.State != JobStateCompleted {
+			return errors.Errorf("Create project job is not completed. current state: %s",
+				job.Data.Attributes.State)
+		}
+	}
 	return nil
 }
 
@@ -288,10 +304,62 @@ func (c *Client) generateProjectDeletionRequestBody(projectName string) ([]byte,
 	})
 }
 
+func (c *Client) waitForJobCompletion(jobID string) (*JobDetail, error) {
+
+	// send the request
+	headers := c.generateCommonRequestHeaders()
+	var job JobDetail
+
+	err := common.RetryUntilSuccessful(time.Minute*5,
+		time.Second*5,
+		func() bool {
+			responseBody, _, err := common.SendHTTPRequest(http.MethodGet,
+				fmt.Sprintf("%s/%s%s",
+					c.platformConfiguration.ProjectsLeader.APIAddress,
+					"jobs",
+					jobID),
+				nil,
+				headers,
+				[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSessionCookie}},
+				http.StatusOK,
+				true,
+				DefaultRequestTimeout)
+			if err != nil {
+				c.logger.DebugWith("Failed to send request to leader",
+					"responseBody", responseBody)
+				return false
+			}
+			if err := json.Unmarshal(responseBody, &job); err != nil {
+				c.logger.DebugWith("Failed to unmarshal response body",
+					"responseBody", responseBody)
+				return false
+			}
+			return JobStateInSlice(job.Data.Attributes.State, []JobState{
+				JobStateCompleted,
+				JobStateCanceled,
+				JobStateFailed,
+			})
+		})
+	if err != nil {
+		return nil, errors.Wrap(err, "Exhausting waiting for job completion")
+	}
+
+	return &job, nil
+}
+
 func (c *Client) enrichProjectWithNuclioFields(project *Project) {
 
 	// TODO: update this function when nuclio fields are added
 	//project.Data.Attributes.NuclioProject = NuclioProject{}
+}
+
+func (c *Client) resolveCreateProjectResponse(body []byte) (*ProjectDetail, error) {
+	project := ProjectDetail{}
+	if err := json.Unmarshal(body, &project); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal response body")
+	}
+
+	return &project, nil
 }
 
 func (c *Client) resolveGetProjectResponse(detail bool, body []byte) ([]platform.Project, error) {

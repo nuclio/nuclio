@@ -20,11 +20,11 @@ func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) Project 
 		Data: ProjectData{
 			Type: ProjectType,
 			Attributes: ProjectAttributes{
-				Name:        projectConfig.Meta.Name,
-				Namespace:   projectConfig.Meta.Namespace,
-				Labels:      labelMapToList(projectConfig.Meta.Labels),
-				Annotations: labelMapToList(projectConfig.Meta.Annotations),
-				Description: projectConfig.Spec.Description,
+				Name:          projectConfig.Meta.Name,
+				Labels:        labelMapToList(projectConfig.Meta.Labels),
+				Annotations:   labelMapToList(projectConfig.Meta.Annotations),
+				Description:   projectConfig.Spec.Description,
+				OwnerUsername: projectConfig.Spec.Owner,
 			},
 		},
 	}
@@ -40,6 +40,7 @@ func (pl *Project) GetConfig() *platform.ProjectConfig {
 		},
 		Spec: platform.ProjectSpec{
 			Description: pl.Data.Attributes.Description,
+			Owner:       pl.Data.Attributes.OwnerUsername,
 		},
 		Status: platform.ProjectStatus{
 			AdminStatus:       pl.Data.Attributes.AdminStatus,
@@ -55,8 +56,9 @@ func (pl *Project) parseTimeFromTimestamp(timestamp string) time.Time {
 }
 
 type ProjectData struct {
-	Type       string            `json:"type,omitempty"`
-	Attributes ProjectAttributes `json:"attributes,omitempty"`
+	Type          string               `json:"type,omitempty"`
+	Attributes    ProjectAttributes    `json:"attributes,omitempty"`
+	Relationships ProjectRelationships `json:"relationships,omitempty"`
 }
 
 type ProjectAttributes struct {
@@ -69,6 +71,15 @@ type ProjectAttributes struct {
 	OperationalStatus string        `json:"operational_status,omitempty"`
 	UpdatedAt         string        `json:"updated_at,omitempty"`
 	NuclioProject     NuclioProject `json:"nuclio_project,omitempty"`
+	OwnerUsername     string        `json:"owner_username,omitempty"`
+}
+
+type ProjectRelationships struct {
+	LastJob struct {
+		Data struct {
+			ID string `json:"id,omitempty"`
+		}
+	}
 }
 
 type Label struct {
@@ -78,6 +89,38 @@ type Label struct {
 
 type NuclioProject struct {
 	// currently no nuclio specific fields are needed
+}
+
+type JobState string
+
+const (
+	JobStateCompleted JobState = "completed"
+	JobStateCanceled  JobState = "canceled"
+	JobStateFailed    JobState = "failed"
+)
+
+func JobStateInSlice(jobState JobState, slice []JobState) bool {
+	for _, otherJobState := range slice {
+		if otherJobState == jobState {
+			return true
+		}
+	}
+	return false
+
+}
+
+type JobDetail struct {
+	Data JobData `json:"data,omitempty"`
+}
+
+type JobData struct {
+	Type       string        `json:"type,omitempty"`
+	Attributes JobAttributes `json:"attributes,omitempty"`
+}
+
+type JobAttributes struct {
+	Kind  string   `json:"kind,omitempty"`
+	State JobState `json:"state,omitempty"`
 }
 
 type GetProjectResponse interface {
