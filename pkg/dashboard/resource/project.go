@@ -678,6 +678,7 @@ func (pr *projectResource) projectToAttributes(project platform.Project) restful
 	attributes := restful.Attributes{
 		"metadata": project.GetConfig().Meta,
 		"spec":     project.GetConfig().Spec,
+		"status":   project.GetConfig().Status,
 	}
 
 	return attributes

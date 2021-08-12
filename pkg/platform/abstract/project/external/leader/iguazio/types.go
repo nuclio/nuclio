@@ -56,9 +56,9 @@ func (pl *Project) parseTimeFromTimestamp(timestamp string) time.Time {
 }
 
 type ProjectData struct {
-	Type          string               `json:"type,omitempty"`
-	Attributes    ProjectAttributes    `json:"attributes,omitempty"`
-	Relationships ProjectRelationships `json:"relationships,omitempty"`
+	Type          string                `json:"type,omitempty"`
+	Attributes    ProjectAttributes     `json:"attributes,omitempty"`
+	Relationships *ProjectRelationships `json:"relationships,omitempty"`
 }
 
 type ProjectAttributes struct {
@@ -78,8 +78,8 @@ type ProjectRelationships struct {
 	LastJob struct {
 		Data struct {
 			ID string `json:"id,omitempty"`
-		}
-	}
+		} `json:"data,omitempty"`
+	} `json:"last_job,omitempty"`
 }
 
 type Label struct {

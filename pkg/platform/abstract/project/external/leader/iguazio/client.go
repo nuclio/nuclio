@@ -1,6 +1,7 @@
 package iguazio
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -26,12 +27,19 @@ const (
 type Client struct {
 	logger                logger.Logger
 	platformConfiguration *platformconfig.Config
+	httpClient            *http.Client
 }
 
 func NewClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) (*Client, error) {
 	newClient := Client{
 		logger:                parentLogger.GetChild("leader-client-iguazio"),
 		platformConfiguration: platformConfiguration,
+		httpClient: &http.Client{
+			Timeout: DefaultRequestTimeout,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		},
 	}
 
 	return &newClient, nil
@@ -62,18 +70,17 @@ func (c *Client) Get(getProjectOptions *platform.GetProjectsOptions) ([]platform
 		requestURL += fmt.Sprintf("/__name__/%s", getProjectOptions.Meta.Name)
 	}
 
-	// ask for tenant to include the namespace name on response
-	requestURL += "?include=tenant"
+	// include namespace and username
+	requestURL += "?include=tenant,owner"
 
 	// send the request
-	responseBody, _, err := common.SendHTTPRequest(http.MethodGet,
+	responseBody, _, err := common.SendHTTPRequest(c.httpClient,
+		http.MethodGet,
 		requestURL,
 		nil,
 		headers,
 		cookies,
-		http.StatusOK,
-		true,
-		DefaultRequestTimeout)
+		http.StatusOK)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to send request to leader")
 	}
@@ -109,14 +116,14 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) err
 	}
 
 	// send the request
-	responseBody, _, err := common.SendHTTPRequest(http.MethodPost,
+	c.logger.DebugWith("Creating project", "body", string(body))
+	responseBody, _, err := common.SendHTTPRequest(c.httpClient,
+		http.MethodPost,
 		fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects"),
 		body,
 		headers,
 		cookies,
-		http.StatusCreated,
-		true,
-		DefaultRequestTimeout)
+		http.StatusCreated)
 	if err != nil {
 		return errors.Wrap(err, "Failed to send request to leader")
 	}
@@ -130,9 +137,8 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) err
 	c.logger.DebugWith("Successfully sent create project request to leader",
 		"projectData", project.Data)
 
-	createProjectJobID := project.Data.Relationships.LastJob.Data.ID
 	if createProjectOptions.WaitForCreateCompletion {
-		job, err := c.waitForJobCompletion(createProjectJobID)
+		job, err := c.waitForJobCompletion(project.Data.Relationships.LastJob.Data.ID)
 		if err != nil {
 			return errors.Wrap(err, "Failed waiting for create project job completion")
 		}
@@ -173,7 +179,8 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) err
 	}
 
 	// send the request
-	responseBody, _, err := common.SendHTTPRequest(http.MethodPut,
+	responseBody, _, err := common.SendHTTPRequest(c.httpClient,
+		http.MethodPut,
 		fmt.Sprintf("%s/%s/%s",
 			c.platformConfiguration.ProjectsLeader.APIAddress,
 			"projects/__name__",
@@ -181,9 +188,7 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) err
 		body,
 		headers,
 		cookies,
-		http.StatusOK,
-		true,
-		DefaultRequestTimeout)
+		http.StatusOK)
 	if err != nil {
 		return errors.Wrap(err, "Failed to send request to leader")
 	}
@@ -224,14 +229,13 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 		cookies = append(cookies, deleteProjectOptions.SessionCookie)
 	}
 
-	if _, _, err := common.SendHTTPRequest(http.MethodDelete,
+	if _, _, err := common.SendHTTPRequest(c.httpClient,
+		http.MethodDelete,
 		fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects"),
 		body,
 		headers,
 		cookies,
-		http.StatusAccepted,
-		true,
-		DefaultRequestTimeout); err != nil {
+		http.StatusAccepted); err != nil {
 
 		return errors.Wrap(err, "Failed to send request to leader")
 	}
@@ -261,7 +265,8 @@ func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Projec
 
 	// send the request
 	headers := c.generateCommonRequestHeaders()
-	responseBody, _, err := common.SendHTTPRequest(http.MethodGet,
+	responseBody, _, err := common.SendHTTPRequest(c.httpClient,
+		http.MethodGet,
 		fmt.Sprintf("%s/%s%s",
 			c.platformConfiguration.ProjectsLeader.APIAddress,
 			"projects",
@@ -269,9 +274,7 @@ func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Projec
 		nil,
 		headers,
 		[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSessionCookie}},
-		http.StatusOK,
-		true,
-		DefaultRequestTimeout)
+		http.StatusOK)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to send request to leader")
 	}
@@ -310,30 +313,35 @@ func (c *Client) waitForJobCompletion(jobID string) (*JobDetail, error) {
 	headers := c.generateCommonRequestHeaders()
 	var job JobDetail
 
+	c.logger.DebugWith("Waiting for job completion", "jobID", jobID)
 	err := common.RetryUntilSuccessful(time.Minute*5,
 		time.Second*5,
 		func() bool {
-			responseBody, _, err := common.SendHTTPRequest(http.MethodGet,
-				fmt.Sprintf("%s/%s%s",
+			responseBody, _, err := common.SendHTTPRequest(c.httpClient,
+				http.MethodGet,
+				fmt.Sprintf("%s/%s/%s",
 					c.platformConfiguration.ProjectsLeader.APIAddress,
 					"jobs",
 					jobID),
 				nil,
 				headers,
 				[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSessionCookie}},
-				http.StatusOK,
-				true,
-				DefaultRequestTimeout)
+				http.StatusOK)
 			if err != nil {
-				c.logger.DebugWith("Failed to send request to leader",
-					"responseBody", responseBody)
+				c.logger.DebugWith("Failed to get job state",
+					"responseBody", string(responseBody))
 				return false
 			}
+
 			if err := json.Unmarshal(responseBody, &job); err != nil {
 				c.logger.DebugWith("Failed to unmarshal response body",
 					"responseBody", responseBody)
 				return false
 			}
+
+			c.logger.DebugWith("Inspecting job state",
+				"jobId", jobID,
+				"jobAttributes", job.Data.Attributes)
 			return JobStateInSlice(job.Data.Attributes.State, []JobState{
 				JobStateCompleted,
 				JobStateCanceled,
@@ -344,6 +352,9 @@ func (c *Client) waitForJobCompletion(jobID string) (*JobDetail, error) {
 		return nil, errors.Wrap(err, "Exhausting waiting for job completion")
 	}
 
+	c.logger.DebugWith("Completed waiting for job completion",
+		"jobAttributes", job.Data.Attributes,
+		"jobID", jobID)
 	return &job, nil
 }
 

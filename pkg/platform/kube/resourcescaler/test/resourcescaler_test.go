@@ -195,14 +195,13 @@ func (suite *ResourceScalerTestSuite) TestSanity() {
 
 		// try invoke function without the target header
 		// expect DLX to fail on 400
-		_, _, _ = common.SendHTTPRequest(http.MethodGet,
+		_, _, _ = common.SendHTTPRequest(nil,
+			http.MethodGet,
 			fmt.Sprintf("http://%s:8080", suite.GetTestHost()),
 			[]byte{},
 			map[string]string{},
 			nil,
-			http.StatusBadRequest,
-			true,
-			30*time.Second)
+			http.StatusBadRequest)
 
 		// add target header, expect it to wake up the function
 		// for this specific test case, the response status code is 502
@@ -211,16 +210,15 @@ func (suite *ResourceScalerTestSuite) TestSanity() {
 		// it fails to resolve the internal (kubernetes) function host
 		// TODO: make DLX work in "test" mode, where it invoke the function from within the k8s cluster
 		//       see suite.KubectlInvokeFunctionViaCurl(functionName, "http://function-service-endpoint:8080")
-		responseBody, _, err := common.SendHTTPRequest(http.MethodGet,
+		responseBody, _, err := common.SendHTTPRequest(nil,
+			http.MethodGet,
 			fmt.Sprintf("http://%s:8080", suite.GetTestHost()),
 			[]byte{},
 			map[string]string{
 				"X-Nuclio-Target": functionName,
 			},
 			nil,
-			0,
-			true,
-			30*time.Second)
+			0)
 		suite.Require().NoError(err)
 		suite.Require().Equal([]byte{}, responseBody)
 
@@ -322,16 +320,15 @@ func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
 				// it fails to resolve the internal (kubernetes) function host
 				// TODO: make DLX work in "test" mode, where it invoke the function from within the k8s cluster
 				//       see suite.KubectlInvokeFunctionViaCurl(functionName, "http://function-service-endpoint:8080")
-				responseBody, _, err := common.SendHTTPRequest(http.MethodGet,
+				responseBody, _, err := common.SendHTTPRequest(nil,
+					http.MethodGet,
 					fmt.Sprintf("http://%s:8080", suite.GetTestHost()),
 					[]byte{},
 					map[string]string{
 						"X-Nuclio-Target": fmt.Sprintf("%s,%s", functionName1, functionName2),
 					},
 					nil,
-					0,
-					true,
-					30*time.Second)
+					0)
 				suite.Require().NoError(err)
 				suite.Require().Equal([]byte{}, responseBody)
 

@@ -2,13 +2,13 @@ package testutils
 
 import "net/http"
 
-type RoundTripFunc func(req *http.Request) *http.Response
+type roundTripFunc func(req *http.Request) *http.Response
 
-func (f RoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req), nil
 }
 
-func newHTTPClient(fn RoundTripFunc) *http.Client { // nolint: interfacer
+func newHTTPClient(fn roundTripFunc) *http.Client { // nolint: interfacer
 	return &http.Client{
 		Transport: fn,
 	}

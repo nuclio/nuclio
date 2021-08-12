@@ -114,25 +114,22 @@ func NormalizeURLPath(p string) string {
 	return string(res)
 }
 
-// SendHTTPRequest Sends an http request
+// SendHTTPRequest Sends an HTTP request using custom http client
 // ignore expectedStatusCode by setting it to 0
-func SendHTTPRequest(method string,
+func SendHTTPRequest(httpClient *http.Client,
+	method string,
 	requestURL string,
 	body []byte,
 	headers map[string]string,
 	cookies []*http.Cookie,
-	expectedStatusCode int,
-	insecure bool,
-	timeout time.Duration) ([]byte, *http.Response, error) {
+	expectedStatusCode int) ([]byte, *http.Response, error) {
 
-	// create client
-	client := &http.Client{
-		Timeout: timeout,
-	}
-
-	if insecure {
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	if httpClient == nil {
+		httpClient = &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
 		}
 	}
 
@@ -153,7 +150,7 @@ func SendHTTPRequest(method string,
 	}
 
 	// perform the request
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to send HTTP request")
 	}
