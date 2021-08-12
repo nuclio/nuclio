@@ -421,6 +421,18 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 		return errors.Wrap(err, "Failed to enrich http trigger")
 	}
 
+	// enrich function node selector
+	if functionConfig.Spec.NodeSelector == nil && p.Config.Kube.DefaultFunctionNodeSelector != nil {
+		p.Logger.DebugWith("Enriching function node selector",
+			"functionName", functionConfig.Meta.Name,
+			"nodeSelectors", p.Config.Kube.DefaultFunctionNodeSelector)
+		functionConfig.Spec.NodeSelector = map[string]string{}
+		for key, value := range p.Config.Kube.DefaultFunctionNodeSelector {
+			functionConfig.Spec.NodeSelector[key] = value
+
+		}
+	}
+
 	return nil
 }
 
