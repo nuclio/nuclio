@@ -31,6 +31,7 @@ func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) Project 
 }
 
 func (pl *Project) GetConfig() *platform.ProjectConfig {
+	updatedAt := pl.parseTimeFromTimestamp(pl.Data.Attributes.UpdatedAt)
 	return &platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
 			Name:        pl.Data.Attributes.Name,
@@ -45,7 +46,7 @@ func (pl *Project) GetConfig() *platform.ProjectConfig {
 		Status: platform.ProjectStatus{
 			AdminStatus:       pl.Data.Attributes.AdminStatus,
 			OperationalStatus: pl.Data.Attributes.OperationalStatus,
-			UpdatedAt:         pl.parseTimeFromTimestamp(pl.Data.Attributes.UpdatedAt),
+			UpdatedAt:         &updatedAt,
 		},
 	}
 }

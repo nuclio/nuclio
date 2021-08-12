@@ -115,9 +115,14 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 			continue
 		}
 
+		// no time was given, set it to empty
+		if leaderProjectConfig.Status.UpdatedAt == nil {
+			leaderProjectConfig.Status.UpdatedAt = &time.Time{}
+		}
+
 		// check if it's the most recent updated project
-		if mostRecentUpdatedProjectTime == nil || mostRecentUpdatedProjectTime.Before(leaderProjectConfig.Status.UpdatedAt) {
-			mostRecentUpdatedProjectTime = &leaderProjectConfig.Status.UpdatedAt
+		if mostRecentUpdatedProjectTime == nil || mostRecentUpdatedProjectTime.Before(*leaderProjectConfig.Status.UpdatedAt) {
+			mostRecentUpdatedProjectTime = leaderProjectConfig.Status.UpdatedAt
 		}
 
 		// check if the project exists internally
