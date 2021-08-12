@@ -71,7 +71,7 @@ func (c *Client) Get(getProjectOptions *platform.GetProjectsOptions) ([]platform
 	}
 
 	// include namespace and username
-	requestURL += "?include=tenant,owner"
+	requestURL += "?include=owner&enrich_namespace=true"
 
 	// send the request
 	responseBody, _, err := common.SendHTTPRequest(c.httpClient,
