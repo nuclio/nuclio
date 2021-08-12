@@ -148,6 +148,47 @@ type FunctionKubePlatformTestSuite struct {
 	KubePlatformTestSuite
 }
 
+func (suite *FunctionKubePlatformTestSuite) TestFunctionNodeSelectorEnrichment() {
+	defaultNodeSelector := map[string]string{
+		"a": "b",
+	}
+	suite.Platform.Config.Kube.DefaultFunctionNodeSelector = defaultNodeSelector
+	for _, testCase := range []struct {
+		name                 string
+		nodeSelector         map[string]string
+		expectedNodeSelector map[string]string
+	}{
+		{
+			name:                 "enrich",
+			nodeSelector:         nil,
+			expectedNodeSelector: defaultNodeSelector,
+		},
+		{
+			name:                 "skipEnrichmentEmpty",
+			nodeSelector:         map[string]string{},
+			expectedNodeSelector: map[string]string{},
+		},
+		{
+			name: "skipEnrichmentFilled",
+			nodeSelector: map[string]string{
+				"a": "c",
+			},
+			expectedNodeSelector: map[string]string{
+				"a": "c",
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionConfig := functionconfig.NewConfig()
+			functionConfig.Spec.NodeSelector = testCase.nodeSelector
+			err := suite.Platform.EnrichFunctionConfig(functionConfig)
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expectedNodeSelector, functionConfig.Spec.NodeSelector)
+
+		})
+	}
+}
+
 func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndValidation() {
 
 	// return empty api gateways list on enrichFunctionsWithAPIGateways (not tested here)
