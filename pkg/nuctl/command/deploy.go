@@ -70,6 +70,8 @@ type deployCommandeer struct {
 	replicas                        int
 	minReplicas                     int
 	maxReplicas                     int
+	priorityClassName               string
+	preemptionPolicy                string
 	nodeName                        string
 	encodedNodeSelector             string
 	runAsUser                       int64
@@ -202,6 +204,8 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVar(&commandeer.encodedAnnotations, "annotations", "", "Additional function annotations (ant1=val1[,ant2=val2,...])")
 	cmd.Flags().StringVar(&commandeer.encodedNodeSelector, "nodeSelector", "", "Run function pod on a Node by key=value selection constraints (key1=val1[,key2=val2,...])")
 	cmd.Flags().StringVar(&commandeer.nodeName, "nodeName", "", "Run function pod on a Node by name-matching selection constrain")
+	cmd.Flags().StringVar(&commandeer.priorityClassName, "priorityClassName", "", "Indicates the importance of a function Pod relatively to other function pods")
+	cmd.Flags().StringVar(&commandeer.preemptionPolicy, "preemptionPolicy", "", "Function pod preemption policy")
 	cmd.Flags().VarP(&commandeer.encodedEnv, "env", "e", "Environment variables env1=val1")
 	cmd.Flags().BoolVarP(&commandeer.disable, "disable", "d", false, "Start the function as disabled (don't run yet)")
 	cmd.Flags().IntVarP(&commandeer.replicas, "replicas", "", -1, "Set to any non-negative integer to use a static number of replicas")
@@ -398,6 +402,15 @@ func (d *deployCommandeer) enrichConfigWithStringArgs() {
 
 	if d.nodeName != "" {
 		d.functionConfig.Spec.NodeName = d.nodeName
+	}
+
+	if d.preemptionPolicy != "" {
+		preemptionPolicy := v1.PreemptionPolicy(d.preemptionPolicy)
+		d.functionConfig.Spec.PreemptionPolicy = &preemptionPolicy
+	}
+
+	if d.priorityClassName != "" {
+		d.functionConfig.Spec.PriorityClassName = d.priorityClassName
 	}
 }
 

@@ -757,6 +757,8 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 					Affinity:           function.Spec.Affinity,
 					NodeSelector:       function.Spec.NodeSelector,
 					NodeName:           function.Spec.NodeName,
+					PriorityClassName:  function.Spec.PriorityClassName,
+					PreemptionPolicy:   function.Spec.PreemptionPolicy,
 				},
 			},
 		}
@@ -824,6 +826,8 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		deployment.Spec.Template.Spec.Affinity = function.Spec.Affinity
 		deployment.Spec.Template.Spec.NodeSelector = function.Spec.NodeSelector
 		deployment.Spec.Template.Spec.NodeName = function.Spec.NodeName
+		deployment.Spec.Template.Spec.PriorityClassName = function.Spec.PriorityClassName
+		deployment.Spec.Template.Spec.PreemptionPolicy = function.Spec.PreemptionPolicy
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment

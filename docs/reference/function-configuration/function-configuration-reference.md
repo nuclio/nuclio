@@ -102,6 +102,8 @@ The `spec` section contains the requirements and attributes and has the followin
 | affinity | v1.Affinity | Set of rules used to determine the node that schedule the pod |
 | nodeSelector | map | Constrain function pod to a node by key-value pairs selectors |
 | nodeName | string | Constrain function pod to a node by node name |
+| priorityClassName | string | Indicates the importance of a function Pod relatively to other function pods |
+| preemptionPolicy | string | Function pod preemption policy (one of Never or PreemptLowerPriority, default: PreemptLowerPriority) |
 
 <a id="spec-example"></a>
 ### Example
