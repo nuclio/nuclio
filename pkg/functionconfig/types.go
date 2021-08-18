@@ -262,6 +262,10 @@ type Spec struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	NodeName     string            `json:"nodeName,omitempty"`
 
+	// Priority and Preemption
+	PriorityClassName string               `json:"priorityClassName,omitempty"`
+	PreemptionPolicy  *v1.PreemptionPolicy `json:"preemptionPolicy,omitempty"`
+
 	// Currently relevant only for k8s platform
 	// if true - wait the whole ReadinessTimeoutSeconds before marking this function as unhealthy
 	// otherwise, fail the function instantly when there is indication of deployment failure (e.g. pod stuck on crash
