@@ -475,26 +475,36 @@ func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *opa.Permissi
 	appendLock := sync.Mutex{}
 	errGroup, _ := errgroup.WithContext(context.TODO(), ap.Logger)
 	var permittedFunctions []platform.Function
+	var filteredFunctionNames []string
 	for _, function := range functions {
 		function := function
 		errGroup.Go("QueryOPAFunctionPermissions", func() error {
 
 			// Check OPA permissions
-			if allowed, err := ap.QueryOPAFunctionPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+			allowed, err := ap.QueryOPAFunctionPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
 				function.GetConfig().Meta.Name,
 				opa.ActionRead,
-				permissionOptions); err != nil {
+				permissionOptions)
+			if err != nil {
 				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-			} else if allowed {
-				appendLock.Lock()
-				permittedFunctions = append(permittedFunctions, function)
-				appendLock.Unlock()
 			}
+
+			appendLock.Lock()
+			if allowed {
+				permittedFunctions = append(permittedFunctions, function)
+			} else {
+				filteredFunctionNames = append(filteredFunctionNames, function.GetConfig().Meta.Name)
+			}
+			appendLock.Unlock()
 			return nil
 		})
 	}
 	if err := errGroup.Wait(); err != nil {
 		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for function resources")
+	}
+
+	if len(filteredFunctionNames) > 0 {
+		ap.Logger.DebugWith("Some functions were filtered out", "functionNames", filteredFunctionNames)
 	}
 	return permittedFunctions, nil
 }
