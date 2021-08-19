@@ -230,4 +230,7 @@ spec:
       affinity:
       {{ toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.dashboard.priorityClassName }}
+      priorityClassName: {{ .Values.dashboard.priorityClassName | quote }}
+      {{- end }}
 {{- end }}
