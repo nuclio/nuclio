@@ -30,6 +30,10 @@ controller:
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
   affinity: {}
 
+  ## Pod Priority
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
+  priorityClassName: ""
+
   # Uncomment to have the controller to listen only the namespace's events, 
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
@@ -84,6 +88,10 @@ dashboard:
   ## Affinity
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
   affinity: {}
+
+  ## Pod Priority
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
+  priorityClassName: ""
 
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
@@ -247,6 +255,10 @@ autoscaler:
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
   affinity: {}
 
+  ## Pod Priority
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
+  priorityClassName: ""
+
 dlx:
   enabled: false
   replicas: 1
@@ -271,6 +283,10 @@ dlx:
   ## Affinity
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
   affinity: {}
+
+  ## Pod Priority
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
+  priorityClassName: ""
 
   # Whether to verify function readiness before redirecting incoming requests
   functionReadinessVerificationEnabled: true
