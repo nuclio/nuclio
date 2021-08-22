@@ -345,6 +345,15 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+	projectName, err := p.Platform.ResolveProjectNameFromLabelsStr(getFunctionsOptions.Labels)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+
+	if err := p.Platform.EnsureProjectRead(projectName, &getFunctionsOptions.PermissionOptions); err != nil {
+		return nil, errors.Wrap(err, "Failed to ensure project read permission")
+	}
+
 	functions, err := p.localStore.GetProjectFunctions(getFunctionsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read functions from a local store")

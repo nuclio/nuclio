@@ -438,6 +438,15 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+	projectName, err := p.Platform.ResolveProjectNameFromLabelsStr(getFunctionsOptions.Labels)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+
+	if err := p.Platform.EnsureProjectRead(projectName, &getFunctionsOptions.PermissionOptions); err != nil {
+		return nil, errors.Wrap(err, "Failed to ensure project read permission")
+	}
+
 	functions, err := p.getter.Get(p.consumer, getFunctionsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")

@@ -43,6 +43,7 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
@@ -1028,6 +1029,38 @@ func (ap *Platform) EnsureDefaultProjectExistence() error {
 			"namespace", resolvedNamespace)
 	}
 
+	return nil
+}
+
+// ResolveProjectNameFromLabelsStr resolves first project name from label string
+func (ap *Platform) ResolveProjectNameFromLabelsStr(encodedLabels string) (string, error) {
+	labelSelector, err := labels.Parse(encodedLabels)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to parse encoded labels")
+	}
+	requirements, _ := labelSelector.Requirements()
+	for _, requirement := range requirements {
+		if requirement.Key() == common.NuclioResourceLabelKeyProjectName {
+			return requirement.Values().List()[0], nil
+		}
+	}
+	return "", nil
+}
+
+func (ap *Platform) EnsureProjectRead(projectName string,
+	permissionOptions *opa.PermissionOptions) error {
+
+	if projectName != "" && len(permissionOptions.MemberIds) > 0 {
+		if _, err := ap.QueryOPAProjectPermissions(projectName,
+			opa.ActionRead,
+			&opa.PermissionOptions{
+				MemberIds:           permissionOptions.MemberIds,
+				OverrideHeaderValue: permissionOptions.OverrideHeaderValue,
+				RaiseForbidden:      true,
+			}); err != nil {
+			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		}
+	}
 	return nil
 }
 
