@@ -81,6 +81,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 			Namespace: namespace,
 		},
 		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(request)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 		AuthSession:   pr.getCtxSession(request),
@@ -579,6 +580,7 @@ func (pr *projectResource) getProjectByName(request *http.Request, projectName, 
 		},
 		AuthSession: pr.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(request)),
 			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},

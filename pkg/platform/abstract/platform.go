@@ -1076,6 +1076,9 @@ func (ap *Platform) QueryOPAFunctionPermissions(projectName,
 	functionName string,
 	action opa.Action,
 	permissionOptions *opa.PermissionOptions) (bool, error) {
+	if projectName == "" {
+		projectName = "*"
+	}
 	if functionName == "" {
 		functionName = "*"
 	}
@@ -1089,6 +1092,9 @@ func (ap *Platform) QueryOPAFunctionEventPermissions(projectName,
 	functionEventName string,
 	action opa.Action,
 	permissionOptions *opa.PermissionOptions) (bool, error) {
+	if projectName == "" {
+		projectName = "*"
+	}
 	if functionName == "" {
 		functionName = "*"
 	}
