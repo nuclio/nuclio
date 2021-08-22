@@ -225,9 +225,11 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 	functionEventsMap := map[string]restful.Attributes{}
 
 	getFunctionsOptions := &platform.GetFunctionsOptions{
-		Name:        "",
-		Namespace:   project.GetConfig().Meta.Namespace,
-		Labels:      fmt.Sprintf("nuclio.io/project-name=%s", project.GetConfig().Meta.Name),
+		Name:      "",
+		Namespace: project.GetConfig().Meta.Namespace,
+		Labels: fmt.Sprintf("%s=%s",
+			common.NuclioResourceLabelKeyProjectName,
+			project.GetConfig().Meta.Name),
 		AuthSession: pr.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(request)),
@@ -436,7 +438,7 @@ func (pr *projectResource) importProjectFunctions(request *http.Request, project
 			if function.Meta.Labels == nil {
 				function.Meta.Labels = map[string]string{}
 			}
-			function.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
+			function.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectImportInfoInstance.Project.Meta.Name
 
 			if err := pr.importFunction(request, function, authConfig); err != nil {
 				pr.Logger.WarnWith("Failed importing function upon project import ",
@@ -468,7 +470,7 @@ func (pr *projectResource) importProjectFunctions(request *http.Request, project
 func (pr *projectResource) importFunction(request *http.Request, function *functionInfo, authConfig *platform.AuthConfig) error {
 	pr.Logger.InfoWith("Importing project function",
 		"function", function.Meta.Name,
-		"project", function.Meta.Labels["nuclio.io/project-name"])
+		"project", function.Meta.Labels[common.NuclioResourceLabelKeyProjectName])
 	functions, err := pr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Name:        function.Meta.Name,
 		Namespace:   function.Meta.Namespace,
@@ -769,19 +771,19 @@ func (pr *projectResource) enrichProjectImportInfoImportResources(projectImportI
 
 	for _, functionConfig := range projectImportInfoInstance.Functions {
 		if functionConfig.Meta.Labels != nil {
-			functionConfig.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
+			functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectImportInfoInstance.Project.Meta.Name
 		}
 	}
 
 	for _, apiGateway := range projectImportInfoInstance.APIGateways {
 		if apiGateway.Meta.Labels != nil {
-			apiGateway.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
+			apiGateway.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectImportInfoInstance.Project.Meta.Name
 		}
 	}
 
 	for _, functionEvent := range projectImportInfoInstance.FunctionEvents {
 		if functionEvent.Meta.Labels != nil {
-			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
+			functionEvent.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectImportInfoInstance.Project.Meta.Name
 		}
 	}
 }

@@ -3,8 +3,9 @@ package command
 import (
 	"fmt"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/errors"
@@ -93,7 +94,7 @@ Arguments:
 			}
 
 			// render the functions
-			return common.RenderFunctions(commandeer.rootCommandeer.loggerInstance,
+			return nuctlcommon.RenderFunctions(commandeer.rootCommandeer.loggerInstance,
 				functions,
 				commandeer.output,
 				cmd.OutOrStdout(),
@@ -101,7 +102,7 @@ Arguments:
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", nuctlcommon.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
 	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Export all function data, including sensitive and unnecessary data")
 
 	commandeer.cmd = cmd
@@ -182,11 +183,11 @@ Arguments:
 			}
 
 			// render the projects
-			return common.RenderProjects(projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig)
+			return nuctlcommon.RenderProjects(projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig)
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", nuctlcommon.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
 	commandeer.cmd = cmd
 
 	return commandeer
@@ -214,7 +215,8 @@ func (e *exportProjectCommandeer) getFunctionEvents(functionConfig *functionconf
 func (e *exportProjectCommandeer) exportAPIGateways(projectConfig *platform.ProjectConfig) (map[string]*platform.APIGatewayConfig, error) {
 	getAPIGatewaysOptions := &platform.GetAPIGatewaysOptions{
 		Namespace: projectConfig.Meta.Namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectConfig.Meta.Name),
+		Labels: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName,
+			projectConfig.Meta.Name),
 	}
 
 	// get all api gateways in the project
@@ -239,7 +241,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(projec
 	map[string]*functionconfig.Config, map[string]*platform.FunctionEventConfig, error) {
 	getFunctionOptions := &platform.GetFunctionsOptions{
 		Namespace: projectConfig.Meta.Namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectConfig.Meta.Name),
+		Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectConfig.Meta.Name),
 	}
 	functions, err := e.rootCommandeer.platform.GetFunctions(getFunctionOptions)
 	if err != nil {

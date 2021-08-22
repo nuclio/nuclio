@@ -572,7 +572,7 @@ func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
 
 	// if the project name was set, add it as a label (not in string enrichment, because it's part of the labels)
 	if d.projectName != "" {
-		d.functionConfig.Meta.Labels["nuclio.io/project-name"] = d.projectName
+		d.functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = d.projectName
 	}
 
 	// decode env

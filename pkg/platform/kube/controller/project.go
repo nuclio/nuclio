@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
 
@@ -85,7 +86,7 @@ func (po *projectOperator) CreateOrUpdate(ctx context.Context, object runtime.Ob
 func (po *projectOperator) Delete(ctx context.Context, namespace string, name string) error {
 	po.logger.InfoWith("Deleting project resources", "namespace", namespace, "projectName", name)
 
-	projectNameLabelSelector := fmt.Sprintf("nuclio.io/project-name=%s", name)
+	projectNameLabelSelector := fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, name)
 
 	// delete api gateways
 	if err := po.controller.nuclioClientSet.

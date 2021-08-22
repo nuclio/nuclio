@@ -226,7 +226,7 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 	commonIngressSpec := ingress.Spec{
 		APIGatewayName: apiGateway.Name,
 		Namespace:      apiGateway.Namespace,
-		ProjectName:    apiGateway.Labels["nuclio.io/project-name"],
+		ProjectName:    apiGateway.Labels[common.NuclioResourceLabelKeyProjectName],
 		Host:           apiGateway.Spec.Host,
 		Path:           apiGateway.Spec.Path,
 		ServiceName:    serviceName,

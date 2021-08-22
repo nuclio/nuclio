@@ -65,7 +65,7 @@ func RenderFunctions(logger logger.Logger,
 			functionFields := []string{
 				function.GetConfig().Meta.Namespace,
 				function.GetConfig().Meta.Name,
-				function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+				function.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 				encodeFunctionState(function),
 				strconv.Itoa(function.GetStatus().HTTPPort),
 				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),

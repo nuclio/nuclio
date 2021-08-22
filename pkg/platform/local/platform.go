@@ -171,7 +171,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// Check OPA permissions
 	permissionOptions := createFunctionOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAFunctionPermissions(createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
+	if _, err := p.QueryOPAFunctionPermissions(createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		createFunctionOptions.FunctionConfig.Meta.Name,
 		opa.ActionCreate,
 		&permissionOptions); err != nil {
@@ -485,7 +485,7 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 		return nil, errors.Wrap(err, "Failed getting projects")
 	}
 
-	return projects, nil
+	return p.Platform.FilterProjectsByPermissions(&getProjectsOptions.PermissionOptions, projects)
 }
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
