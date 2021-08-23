@@ -33,25 +33,30 @@ type HTTPClient struct {
 	logger              logger.Logger
 	address             string
 	permissionQueryPath string
-	requestTimeout      time.Duration
-	logLevel            int
-	overrideHeaderValue string
-	httpClient          *http.Client
+
+	// TODO: support querying multiple resources using `permissionFilterPath`
+	permissionFilterPath string
+	requestTimeout       time.Duration
+	logLevel             int
+	overrideHeaderValue  string
+	httpClient           *http.Client
 }
 
 func NewHTTPClient(parentLogger logger.Logger,
 	address string,
 	permissionQueryPath string,
+	permissionFilterPath string,
 	requestTimeout time.Duration,
 	logLevel int,
 	overrideHeaderValue string) *HTTPClient {
 	newClient := HTTPClient{
-		logger:              parentLogger.GetChild("opa"),
-		address:             address,
-		permissionQueryPath: permissionQueryPath,
-		requestTimeout:      requestTimeout,
-		logLevel:            logLevel,
-		overrideHeaderValue: overrideHeaderValue,
+		logger:               parentLogger.GetChild("opa"),
+		address:              address,
+		permissionQueryPath:  permissionQueryPath,
+		permissionFilterPath: permissionFilterPath,
+		requestTimeout:       requestTimeout,
+		logLevel:             logLevel,
+		overrideHeaderValue:  overrideHeaderValue,
 		httpClient: &http.Client{
 			Timeout: requestTimeout,
 			Transport: &http.Transport{
@@ -62,7 +67,9 @@ func NewHTTPClient(parentLogger logger.Logger,
 	return &newClient
 }
 
-func (c *HTTPClient) QueryPermissions(resource string, action Action, permissionOptions *PermissionOptions) (bool, error) {
+func (c *HTTPClient) QueryPermissions(resource string,
+	action Action,
+	permissionOptions *PermissionOptions) (bool, error) {
 
 	// If the override header value matches the configured override header value, allow without checking
 	if c.overrideHeaderValue != "" && permissionOptions.OverrideHeaderValue == c.overrideHeaderValue {

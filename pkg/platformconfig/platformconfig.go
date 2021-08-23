@@ -111,18 +111,18 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 	return config, nil
 }
 
-func (config *Config) GetSystemLoggerSinks() (map[string]LoggerSinkWithLevel, error) {
-	return config.getLoggerSinksWithLevel(config.Logger.System)
+func (c *Config) GetSystemLoggerSinks() (map[string]LoggerSinkWithLevel, error) {
+	return c.getLoggerSinksWithLevel(c.Logger.System)
 }
 
-func (config *Config) GetFunctionLoggerSinks(functionConfig *functionconfig.Config) (map[string]LoggerSinkWithLevel, error) {
+func (c *Config) GetFunctionLoggerSinks(functionConfig *functionconfig.Config) (map[string]LoggerSinkWithLevel, error) {
 	var loggerSinkBindings []LoggerSinkBinding
 	switch {
 
 	// if user specified only one logger sink and did not specify its name, this is the way to specify the level
 	// and use platform configuration
 	case len(functionConfig.Spec.LoggerSinks) == 1 && functionConfig.Spec.LoggerSinks[0].Sink == "":
-		for _, loggerSinkBinding := range config.Logger.Functions {
+		for _, loggerSinkBinding := range c.Logger.Functions {
 			loggerSinkBindings = append(loggerSinkBindings, LoggerSinkBinding{
 				Sink:  loggerSinkBinding.Sink,
 				Level: functionConfig.Spec.LoggerSinks[0].Level,
@@ -138,36 +138,36 @@ func (config *Config) GetFunctionLoggerSinks(functionConfig *functionconfig.Conf
 			})
 		}
 	default:
-		loggerSinkBindings = config.Logger.Functions
+		loggerSinkBindings = c.Logger.Functions
 	}
 
-	return config.getLoggerSinksWithLevel(loggerSinkBindings)
+	return c.getLoggerSinksWithLevel(loggerSinkBindings)
 }
 
-func (config *Config) GetDefaultFunctionReadinessTimeout() time.Duration {
+func (c *Config) GetDefaultFunctionReadinessTimeout() time.Duration {
 
-	// provided by the platform-config
-	if config.functionReadinessTimeout != nil {
-		return *config.functionReadinessTimeout
+	// provided by the platform-c
+	if c.functionReadinessTimeout != nil {
+		return *c.functionReadinessTimeout
 	}
 
 	// no configuration were explicitly given, return default
 	return DefaultFunctionReadinessTimeoutSeconds * time.Second
 }
 
-func (config *Config) GetSystemMetricSinks() (map[string]MetricSink, error) {
-	return config.getMetricSinks(config.Metrics.System)
+func (c *Config) GetSystemMetricSinks() (map[string]MetricSink, error) {
+	return c.getMetricSinks(c.Metrics.System)
 }
 
-func (config *Config) GetFunctionMetricSinks() (map[string]MetricSink, error) {
-	return config.getMetricSinks(config.Metrics.Functions)
+func (c *Config) GetFunctionMetricSinks() (map[string]MetricSink, error) {
+	return c.getMetricSinks(c.Metrics.Functions)
 }
 
-func (config *Config) getMetricSinks(metricSinkNames []string) (map[string]MetricSink, error) {
+func (c *Config) getMetricSinks(metricSinkNames []string) (map[string]MetricSink, error) {
 	metricSinks := map[string]MetricSink{}
 
 	for _, metricSinkName := range metricSinkNames {
-		metricSink, metricSinkFound := config.Metrics.Sinks[metricSinkName]
+		metricSink, metricSinkFound := c.Metrics.Sinks[metricSinkName]
 		if !metricSinkFound {
 			return nil, errors.Errorf("Failed to find metric sink %s", metricSinkName)
 		}
@@ -178,14 +178,14 @@ func (config *Config) getMetricSinks(metricSinkNames []string) (map[string]Metri
 	return metricSinks, nil
 }
 
-func (config *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBinding) (map[string]LoggerSinkWithLevel, error) {
+func (c *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBinding) (map[string]LoggerSinkWithLevel, error) {
 	result := map[string]LoggerSinkWithLevel{}
 
 	// iterate over system bindings, look for logger sink by name
 	for _, sinkBinding := range loggerSinkBindings {
 
 		// get sink by name
-		sink, sinkFound := config.Logger.Sinks[sinkBinding.Sink]
+		sink, sinkFound := c.Logger.Sinks[sinkBinding.Sink]
 		if !sinkFound {
 			return nil, errors.Errorf("Failed to find logger sink %s", sinkBinding.Sink)
 		}
@@ -199,39 +199,43 @@ func (config *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBin
 	return result, nil
 }
 
-func (config *Config) enrichLocalPlatform() {
+func (c *Config) enrichLocalPlatform() {
 
 	// if set via envvar, override given configuration
 	switch strings.ToLower(os.Getenv("NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS")) {
 	case "false":
-		config.Local.FunctionContainersHealthinessEnabled = false
+		c.Local.FunctionContainersHealthinessEnabled = false
 	case "true":
-		config.Local.FunctionContainersHealthinessEnabled = true
+		c.Local.FunctionContainersHealthinessEnabled = true
 	}
 
-	if config.Local.FunctionContainersHealthinessInterval == 0 {
-		config.Local.FunctionContainersHealthinessInterval = time.Second * 30
+	if c.Local.FunctionContainersHealthinessInterval == 0 {
+		c.Local.FunctionContainersHealthinessInterval = time.Second * 30
 	}
 
-	if config.Local.FunctionContainersHealthinessTimeout == 0 {
-		config.Local.FunctionContainersHealthinessTimeout = time.Second * 5
+	if c.Local.FunctionContainersHealthinessTimeout == 0 {
+		c.Local.FunctionContainersHealthinessTimeout = time.Second * 5
 	}
 }
 
-func (config *Config) enrichOpaConfig() {
-	if config.Opa.Address == "" {
-		config.Opa.Address = "127.0.0.1:8181"
+func (c *Config) enrichOpaConfig() {
+	if c.Opa.Address == "" {
+		c.Opa.Address = "127.0.0.1:8181"
 	}
 
-	if config.Opa.ClientKind == "" {
-		config.Opa.ClientKind = opa.DefaultClientKind
+	if c.Opa.ClientKind == "" {
+		c.Opa.ClientKind = opa.DefaultClientKind
 	}
 
-	if config.Opa.RequestTimeout == 0 {
-		config.Opa.RequestTimeout = opa.DefaultRequestTimeOut
+	if c.Opa.RequestTimeout == 0 {
+		c.Opa.RequestTimeout = opa.DefaultRequestTimeOut
 	}
 
-	if config.Opa.PermissionQueryPath == "" {
-		config.Opa.PermissionQueryPath = opa.DefaultPermissionQueryPath
+	if c.Opa.PermissionQueryPath == "" {
+		c.Opa.PermissionQueryPath = opa.DefaultPermissionQueryPath
+	}
+
+	if c.Opa.PermissionFilterPath == "" {
+		c.Opa.PermissionFilterPath = opa.DefaultPermissionFilterPath
 	}
 }
