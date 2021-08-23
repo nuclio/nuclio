@@ -282,29 +282,19 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 }
 
 func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Project, error) {
+	requestURL := fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects")
+	requestURL += "?enrich_namespace=true"
 
-	// to avoid `panic: value method time.Time.String called using nil *Time pointer`
-	updatedAfterTimeLogVar := ""
-	if updatedAfterTime != nil {
-		updatedAfterTimeLogVar = updatedAfterTime.String()
-	}
-	c.logger.DebugWith("Fetching all projects from leader", "updatedAfterTime", updatedAfterTimeLogVar)
-
-	// if updatedAfterTime arg was specified, filter by it
-	updatedAfterTimestampQuery := ""
 	if updatedAfterTime != nil {
 		updatedAfterTimestamp := updatedAfterTime.Format(time.RFC3339Nano)
-		updatedAfterTimestampQuery = fmt.Sprintf("?filter[updated_at]=[$gt]%s", updatedAfterTimestamp)
+		requestURL += fmt.Sprintf("&filter[updated_at]=[$gt]%s", updatedAfterTimestamp)
 	}
 
 	// send the request
 	headers := c.generateCommonRequestHeaders()
 	responseBody, _, err := common.SendHTTPRequest(c.httpClient,
 		http.MethodGet,
-		fmt.Sprintf("%s/%s%s",
-			c.platformConfiguration.ProjectsLeader.APIAddress,
-			"projects",
-			updatedAfterTimestampQuery),
+		requestURL,
 		nil,
 		headers,
 		[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSessionCookie}},
