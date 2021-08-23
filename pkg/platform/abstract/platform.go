@@ -656,6 +656,12 @@ func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOp
 
 // EnrichCreateProjectConfig enrich project configuration with defaults
 func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.CreateProjectOptions) error {
+
+	// enrich project owner from auth session
+	if createProjectOptions.AuthSession != nil && createProjectOptions.ProjectConfig.Spec.Owner == "" {
+		createProjectOptions.ProjectConfig.Spec.Owner = createProjectOptions.AuthSession.GetUsername()
+	}
+
 	return nil
 }
 
