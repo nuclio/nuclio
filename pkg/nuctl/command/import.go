@@ -67,7 +67,7 @@ func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config,
 	functionConfig.Meta.Namespace = project.Meta.Namespace
 
 	if project.Meta.Name != "" {
-		functionConfig.Meta.Labels["nuclio.io/project-name"] = project.Meta.Name
+		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = project.Meta.Name
 	}
 
 	functions, err := i.rootCommandeer.platform.GetFunctions(&platform.GetFunctionsOptions{
@@ -508,21 +508,21 @@ func (i *importProjectCommandeer) enrichProjectImportConfig(projectImportConfig 
 	for _, functionConfig := range projectImportConfig.Functions {
 		functionConfig.Meta.Namespace = projectImportConfig.Project.Meta.Namespace
 		if functionConfig.Meta.Labels != nil {
-			functionConfig.Meta.Labels["nuclio.io/project-name"] = projectImportConfig.Project.Meta.Name
+			functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectImportConfig.Project.Meta.Name
 		}
 	}
 
 	for _, apiGateway := range projectImportConfig.APIGateways {
 		apiGateway.Meta.Namespace = projectImportConfig.Project.Meta.Namespace
 		if apiGateway.Meta.Labels != nil {
-			apiGateway.Meta.Labels["nuclio.io/project-name"] = projectImportConfig.Project.Meta.Name
+			apiGateway.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectImportConfig.Project.Meta.Name
 		}
 	}
 
 	for _, functionEvent := range projectImportConfig.FunctionEvents {
 		functionEvent.Meta.Namespace = projectImportConfig.Project.Meta.Namespace
 		if functionEvent.Meta.Labels != nil {
-			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectImportConfig.Project.Meta.Name
+			functionEvent.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectImportConfig.Project.Meta.Name
 		}
 	}
 }

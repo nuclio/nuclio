@@ -407,7 +407,7 @@ func (suite *KubeTestSuite) CreateImportedFunction(functionName, projectName str
 		functionconfig.FunctionAnnotationSkipBuild:  "true",
 		functionconfig.FunctionAnnotationSkipDeploy: "true",
 	}
-	createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = projectName
+	createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
 	suite.PopulateDeployOptions(createFunctionOptions)
 	_, err := suite.Platform.CreateFunction(createFunctionOptions)
 	suite.Require().NoError(err)

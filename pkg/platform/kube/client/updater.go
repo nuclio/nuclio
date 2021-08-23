@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -58,7 +59,7 @@ func (u *Updater) Update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	// Check OPA permissions
 	permissionOptions := updateFunctionOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := u.platform.QueryOPAFunctionPermissions(function.Labels["nuclio.io/project-name"],
+	if _, err := u.platform.QueryOPAFunctionPermissions(function.Labels[common.NuclioResourceLabelKeyProjectName],
 		updateFunctionOptions.FunctionMeta.Name,
 		opa.ActionUpdate,
 		&permissionOptions); err != nil {

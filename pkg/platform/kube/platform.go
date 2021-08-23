@@ -184,7 +184,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// Check OPA permissions
 	permissionOptions := createFunctionOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAFunctionPermissions(createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
+	if _, err := p.QueryOPAFunctionPermissions(createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		createFunctionOptions.FunctionConfig.Meta.Name,
 		opa.ActionCreate,
 		&permissionOptions); err != nil {
@@ -438,6 +438,15 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+	projectName, err := p.Platform.ResolveProjectNameFromLabelsStr(getFunctionsOptions.Labels)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+
+	if err := p.Platform.EnsureProjectRead(projectName, &getFunctionsOptions.PermissionOptions); err != nil {
+		return nil, errors.Wrap(err, "Failed to ensure project read permission")
+	}
+
 	functions, err := p.getter.Get(p.consumer, getFunctionsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
@@ -616,7 +625,12 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 
 // GetProjects will list existing projects
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	return p.projectsClient.Get(getProjectsOptions)
+	projects, err := p.projectsClient.Get(getProjectsOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed getting projects")
+	}
+
+	return p.Platform.FilterProjectsByPermissions(&getProjectsOptions.PermissionOptions, projects)
 }
 
 // CreateAPIGateway creates and deploys a new api gateway
@@ -1538,7 +1552,7 @@ func (p *Platform) enrichHTTPTriggerIngresses(httpTrigger *functionconfig.Trigge
 		"Name":         functionConfig.Meta.Name,
 		"ResourceName": functionConfig.Meta.Name,
 		"Namespace":    functionConfig.Meta.Namespace,
-		"ProjectName":  functionConfig.Meta.Labels["nuclio.io/project-name"],
+		"ProjectName":  functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 	}
 
 	// iterate over the encoded ingresses map and created ingress structures

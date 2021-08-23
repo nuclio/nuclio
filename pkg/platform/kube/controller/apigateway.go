@@ -97,8 +97,8 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 	}
 
 	// set default project-name if none given
-	if apiGateway.Labels["nuclio.io/project-name"] == "" {
-		apiGateway.Labels["nuclio.io/project-name"] = platform.DefaultProjectName
+	if apiGateway.Labels[common.NuclioResourceLabelKeyProjectName] == "" {
+		apiGateway.Labels[common.NuclioResourceLabelKeyProjectName] = platform.DefaultProjectName
 	}
 
 	// validate api gateway name is according to k8s convention

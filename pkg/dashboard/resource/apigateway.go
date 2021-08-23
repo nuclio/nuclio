@@ -59,7 +59,9 @@ func (agr *apiGatewayResource) GetAll(request *http.Request) (map[string]restful
 	// filter by project name (when it's specified)
 	getAPIGatewaysOptions := platform.GetAPIGatewaysOptions{Namespace: namespace}
 	if projectName != "" {
-		getAPIGatewaysOptions.Labels = fmt.Sprintf("nuclio.io/project-name=%s", projectName)
+		getAPIGatewaysOptions.Labels = fmt.Sprintf("%s=%s",
+			common.NuclioResourceLabelKeyProjectName,
+			projectName)
 	}
 
 	return agr.GetAllByNamespace(&getAPIGatewaysOptions, exportFunction)
@@ -316,7 +318,7 @@ func (agr *apiGatewayResource) enrichAPIGatewayInfo(apiGatewayInfoInstance *apiG
 			apiGatewayInfoInstance.Meta.Labels = map[string]string{}
 		}
 
-		apiGatewayInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
+		apiGatewayInfoInstance.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
 	}
 
 	// override namespace if applicable
