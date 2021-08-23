@@ -283,7 +283,7 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 
 func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Project, error) {
 	requestURL := fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects")
-	requestURL += "?enrich_namespace=true"
+	requestURL += "?include=owner&enrich_namespace=true"
 
 	if updatedAfterTime != nil {
 		updatedAfterTimestamp := updatedAfterTime.Format(time.RFC3339Nano)
