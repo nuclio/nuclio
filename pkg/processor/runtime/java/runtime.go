@@ -17,6 +17,7 @@ limitations under the License.
 package java
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -70,10 +71,25 @@ func (j *java) RunWrapper(port string) (*os.Process, error) {
 		"-workerid", strconv.Itoa(j.configuration.WorkerID),
 	}...)
 
+	env := os.Environ()
+	env = append(env, j.getEnvFromConfiguration()...)
+
 	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Env = env
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	j.Logger.InfoWith("Running wrapper jar", "command", strings.Join(cmd.Args, " "))
 
 	return cmd.Process, cmd.Start()
+}
+
+func (j *java) getEnvFromConfiguration() []string {
+	return []string{
+		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", j.configuration.Meta.Name),
+		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", j.configuration.Spec.Description),
+		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", j.configuration.Spec.Version),
+		fmt.Sprintf("NUCLIO_FUNCTION_HANDLER=%s", j.configuration.Spec.Handler),
+	}
 }
 
 // GetSocketType returns the type of socket the runtime works with (unix/tcp)
