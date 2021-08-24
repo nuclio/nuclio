@@ -42,12 +42,13 @@ COPY . .
 # build the dashboard
 RUN go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/logger \
-    && go get github.com/nuclio/nuclio-sdk-go \
+    && go get -d github.com/nuclio/nuclio-sdk-go \
     && go get github.com/nuclio/amqp \
     && go get -d golang.org/x/net/... \
     && go get github.com/v3io/scaler-types \
     && cd $GOPATH/src/github.com/nuclio/nuclio-sdk-go && git checkout v0.0.1 \
     && cd $GOPATH/src/github.com/v3io/scaler-types && git checkout v1.6.0 \
+    && cd $GOPATH/src/golang.org/x/net && git checkout -t origin/release-branch.go1.10 \
     && cd /go/src/github.com/nuclio/nuclio \
     && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o dashboard cmd/dashboard/main.go
 

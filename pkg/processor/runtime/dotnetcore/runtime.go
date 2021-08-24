@@ -92,6 +92,7 @@ func (d *dotnetcore) getEnvFromConfiguration() []string {
 		fmt.Sprintf("NUCLIO_FUNCTION_HANDLER=%s", d.configuration.Spec.Handler),
 	}
 }
+
 func (d *dotnetcore) getHandler() string {
 	return d.configuration.Spec.Handler
 }
