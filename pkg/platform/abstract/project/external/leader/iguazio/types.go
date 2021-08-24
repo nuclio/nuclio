@@ -56,6 +56,10 @@ func (pl *Project) parseTimeFromTimestamp(timestamp string) time.Time {
 	return t
 }
 
+type ResponseMeta struct {
+	Ctx string `json:"ctx"`
+}
+
 type ProjectData struct {
 	Type          string                `json:"type,omitempty"`
 	Attributes    ProjectAttributes     `json:"attributes,omitempty"`
@@ -110,8 +114,21 @@ func JobStateInSlice(jobState JobState, slice []JobState) bool {
 
 }
 
+type CreateProjectErrorResponse struct {
+	Errors []struct {
+		Status int    `json:"status,omitempty"`
+		Detail string `json:"detail,omitempty"`
+	} `json:"errors,omitempty"`
+	Meta ResponseMeta
+}
+
 type JobDetail struct {
 	Data JobData `json:"data,omitempty"`
+}
+
+type JobDetailResponse struct {
+	JobDetail
+	Meta ResponseMeta
 }
 
 type JobData struct {
@@ -120,8 +137,9 @@ type JobData struct {
 }
 
 type JobAttributes struct {
-	Kind  string   `json:"kind,omitempty"`
-	State JobState `json:"state,omitempty"`
+	Kind   string   `json:"kind,omitempty"`
+	State  JobState `json:"state,omitempty"`
+	Result string   `json:"result,omitempty"`
 }
 
 type GetProjectResponse interface {
@@ -145,6 +163,11 @@ func (pl *ProjectList) ToSingleProjectList() []platform.Project {
 
 type ProjectDetail struct {
 	Data ProjectData `json:"data,omitempty"`
+}
+
+type ProjectDetailResponse struct {
+	ProjectDetail
+	Meta ResponseMeta
 }
 
 // ToSingleProjectList returns list of Project

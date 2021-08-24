@@ -31,6 +31,7 @@ func CreateOpaClient(parentLogger logger.Logger, opaConfiguration *Config) Clien
 		newOpaClient = NewHTTPClient(parentLogger,
 			opaConfiguration.Address,
 			opaConfiguration.PermissionQueryPath,
+			opaConfiguration.PermissionFilterPath,
 			time.Duration(opaConfiguration.RequestTimeout)*time.Second,
 			opaConfiguration.LogLevel,
 			opaConfiguration.OverrideHeaderValue)

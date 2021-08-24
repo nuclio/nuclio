@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common/testutils"
@@ -40,7 +41,211 @@ func (suite *ClientTestSuite) SetupTest() {
 		},
 	})
 	suite.Require().NoError(err)
+}
 
+func (suite *ClientTestSuite) TestCreate() {
+
+	for _, testCase := range []struct {
+		name                         string
+		createProjectResponse        *http.Response
+		getProjectCreationJobResults *http.Response
+		expectedFailure              bool
+	}{
+		{
+			name: "create-ok-job-success",
+			createProjectResponse: &http.Response{
+				StatusCode: http.StatusCreated,
+				Body: ioutil.NopCloser(bytes.NewBufferString(`{
+    "data": {
+        "type": "project",
+        "id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
+        "attributes": {
+            "name": "some-dummy-project",
+            "description": "an example project",
+            "created_at": "2021-08-23T19:39:50.522000+00:00",
+            "updated_at": "2021-08-23T19:39:50.608000+00:00",
+            "admin_status": "online",
+            "operational_status": "creating",
+            "labels": [],
+            "annotations": []
+        },
+        "relationships": {
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "4274ecab-633a-4e99-8533-5df2e59bb358"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "b7c663b1-a8ee-49a9-ad62-ceae7e751ec8"
+                }
+            },
+            "project_group": {
+                "data": {
+                    "type": "project_group",
+                    "id": "33c160ff-86e8-4152-9456-faa751592bc0"
+                }
+            },
+            "last_job": {
+                "data": {
+                    "type": "job",
+                    "id": "some-job-id"
+                }
+            }
+        }
+    },
+    "included": [],
+    "meta": {
+        "ctx": "13756324163199886387"
+    }
+}`)),
+			},
+			getProjectCreationJobResults: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: ioutil.NopCloser(bytes.NewBufferString(`{
+    "data": {
+        "type": "job",
+        "id": "4f4c834d-7cb5-4244-8ec4-8e21e88f4bc4",
+        "attributes": {
+            "kind": "project.creation",
+            "state": "completed",
+            "result": "",
+            "created_at": "2021-08-23T18:55:35.363000+00:00",
+            "updated_at": "2021-08-23T18:55:45.628000+00:00",
+            "handler": "igz0.project.0"
+        }
+    },
+    "included": [],
+    "meta": {
+        "ctx": "09337526008427605089"
+    }
+}`)),
+			},
+		},
+		{
+			name:            "create-failed",
+			expectedFailure: true,
+			createProjectResponse: &http.Response{
+				StatusCode: http.StatusBadRequest,
+				Body: ioutil.NopCloser(bytes.NewBufferString(`{
+    "errors": [
+		{ "status": 400, "detail": "Failed to get user id for username" }
+    ],
+    "meta": {
+        "ctx": "12391980595089803596"
+    }
+}`)),
+			},
+		},
+		{
+			name: "create-ok-job-failed",
+			createProjectResponse: &http.Response{
+				StatusCode: http.StatusCreated,
+				Body: ioutil.NopCloser(bytes.NewBufferString(`{
+    "data": {
+        "type": "project",
+        "id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
+        "attributes": {
+            "name": "some-dummy-project",
+            "description": "an example project",
+            "created_at": "2021-08-23T19:39:50.522000+00:00",
+            "updated_at": "2021-08-23T19:39:50.608000+00:00",
+            "admin_status": "online",
+            "operational_status": "creating",
+            "labels": [],
+            "annotations": []
+        },
+        "relationships": {
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "4274ecab-633a-4e99-8533-5df2e59bb358"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "b7c663b1-a8ee-49a9-ad62-ceae7e751ec8"
+                }
+            },
+            "project_group": {
+                "data": {
+                    "type": "project_group",
+                    "id": "33c160ff-86e8-4152-9456-faa751592bc0"
+                }
+            },
+            "last_job": {
+                "data": {
+                    "type": "job",
+                    "id": "some-job-id"
+                }
+            }
+        }
+    },
+    "included": [],
+    "meta": {
+        "ctx": "13756324163199886387"
+    }
+}`)),
+			},
+			getProjectCreationJobResults: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: ioutil.NopCloser(bytes.NewBufferString(`{
+    "data": {
+        "type": "job",
+        "id": "5e1db3b8-5870-4475-96c7-f858a3e1b198",
+        "attributes": {
+            "kind": "project.creation",
+            "delay": 0.0,
+            "state": "failed",
+            "result": "{\"project_id\": \"e5d6c635-6a84-4cd8-b779-2d53884c8186\", \"status\": 400, \"message\": \"blablabla\"}",
+            "created_at": "2021-08-23T18:56:31.346000+00:00",
+            "updated_at": "2021-08-23T18:56:56.717000+00:00",
+            "handler": "igz0.project.0"
+        }
+    },
+    "included": [],
+    "meta": {
+        "ctx": "11002224568351879094"
+    }
+}`)),
+			},
+			expectedFailure: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+
+				// post to create the project
+				if r.Method == http.MethodPost && strings.HasSuffix(r.URL.String(), "/projects") {
+					return testCase.createProjectResponse
+				}
+
+				if r.Method == http.MethodGet && strings.HasSuffix(r.URL.String(), "/jobs/some-job-id") {
+					return testCase.getProjectCreationJobResults
+				}
+
+				panic(fmt.Sprintf("Unexpected request %s", r.RequestURI))
+			})
+
+			err := suite.client.Create(&platform.CreateProjectOptions{
+				ProjectConfig: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "dummy-project",
+					},
+				},
+				WaitForCreateCompletion: true,
+			})
+			if testCase.expectedFailure {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+		})
+
+	}
 }
 
 func (suite *ClientTestSuite) TestGet() {
@@ -77,7 +282,6 @@ func (suite *ClientTestSuite) TestGet() {
 			suite.Require().Equal(projects[0].GetConfig().Spec.Owner, "admin")
 
 		})
-
 	}
 }
 

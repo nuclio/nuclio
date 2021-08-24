@@ -293,6 +293,12 @@ func (ps *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
 	*out = *ps
 }
 
+func (pst *ProjectStatus) DeepCopyInto(out *ProjectStatus) {
+
+	// TODO: proper deep copy
+	*out = *pst
+}
+
 //
 // FunctionEvent
 //
