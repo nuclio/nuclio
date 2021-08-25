@@ -42,6 +42,10 @@ func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
 	cookie := request.Header.Get("cookie")
 	cacheKey := authorization + cookie
 
+	if cacheKey == "" {
+		return nil, nuclio.NewErrForbidden("Authentication headers are missing")
+	}
+
 	// try resolve from cache
 	if cacheData, found := a.cache.Get(cacheKey); found {
 		return cacheData.(*auth.IguazioSession), nil
@@ -68,7 +72,7 @@ func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
 
 	// auth failed
 	if response.StatusCode == http.StatusUnauthorized {
-		a.logger.InfoWith("Authentication failed",
+		a.logger.WarnWith("Authentication failed",
 			"authorizationHeaderLength", len(authHeaders["authorization"]),
 			"cookieHeaderLength", len(authHeaders["cookie"]),
 		)
@@ -107,14 +111,17 @@ func (a *Auth) Middleware() func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			session, err := a.Authenticate(r)
+			ctx := r.Context()
 			if err != nil {
+				a.logger.WarnWithCtx(ctx, "Authentication failed",
+					"headers", r.Header)
 				a.iguazioAuthenticationFailed(w)
 				return
 			}
-			a.logger.DebugWith("Successfully authenticated incoming request",
+			a.logger.DebugWithCtx(ctx, "Successfully authenticated incoming request",
 				"sessionUsername", session.GetUsername())
-			ctx := context.WithValue(r.Context(), auth.IguazioContextKey, session)
-			next.ServeHTTP(w, r.WithContext(ctx))
+			enrichedCtx := context.WithValue(ctx, auth.IguazioContextKey, session)
+			next.ServeHTTP(w, r.WithContext(enrichedCtx))
 		})
 	}
 }

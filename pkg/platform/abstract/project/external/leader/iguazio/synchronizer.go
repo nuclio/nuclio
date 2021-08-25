@@ -149,13 +149,6 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 		return nil, errors.Wrap(err, "Failed to get projects from leader")
 	}
 
-	// TODO: hack way to fix returned project without their namespace
-	for _, leaderProject := range leaderProjects {
-		if leaderProject.GetConfig().Meta.Namespace == "" {
-			leaderProject.(*Project).Data.Attributes.Namespace = namespace
-		}
-	}
-
 	// fetch all internal projects
 	internalProjects, err := c.internalProjectsClient.Get(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{

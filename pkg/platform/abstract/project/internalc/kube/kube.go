@@ -100,12 +100,7 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (pl
 		return nil, errors.Wrap(err, "Failed to create nuclio project")
 	}
 
-	platformProject, err := c.nuclioProjectToPlatformProject(nuclioProject)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to convert nuclio project to platform project")
-	}
-
-	return platformProject, nil
+	return c.nuclioProjectToPlatformProject(nuclioProject)
 }
 
 func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
@@ -121,6 +116,7 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (pl
 	projectInstance.Spec = updatedProject.Spec
 	projectInstance.Annotations = updatedProject.Annotations
 	projectInstance.Labels = updatedProject.Labels
+	projectInstance.Status = updatedProject.Status
 
 	nuclioProject, err := c.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioProjects(projectInstance.Namespace).
@@ -129,12 +125,7 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (pl
 		return nil, errors.Wrap(err, "Failed to update nuclio project")
 	}
 
-	platformProject, err := c.nuclioProjectToPlatformProject(nuclioProject)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to convert nuclio project to platform project")
-	}
-
-	return platformProject, nil
+	return c.nuclioProjectToPlatformProject(nuclioProject)
 }
 
 func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) error {
@@ -165,6 +156,7 @@ func (c *Client) platformProjectToProject(platformProject *platform.ProjectConfi
 	project.Labels = platformProject.Meta.Labels
 	project.Annotations = platformProject.Meta.Annotations
 	project.Spec = platformProject.Spec
+	project.Status = platformProject.Status
 }
 
 func (c *Client) nuclioProjectToPlatformProject(nuclioProject *nuclioio.NuclioProject) (platform.Project, error) {
@@ -177,6 +169,7 @@ func (c *Client) nuclioProjectToPlatformProject(nuclioProject *nuclioio.NuclioPr
 				Labels:      nuclioProject.Labels,
 				Annotations: nuclioProject.Annotations,
 			},
-			Spec: nuclioProject.Spec,
+			Spec:   nuclioProject.Spec,
+			Status: nuclioProject.Status,
 		})
 }

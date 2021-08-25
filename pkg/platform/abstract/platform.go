@@ -43,6 +43,7 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
@@ -246,8 +247,8 @@ func (ap *Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) 
 
 // Enrich labels with default project name
 func (ap *Platform) EnrichLabelsWithProjectName(labels map[string]string) {
-	if labels["nuclio.io/project-name"] == "" {
-		labels["nuclio.io/project-name"] = platform.DefaultProjectName
+	if labels[common.NuclioResourceLabelKeyProjectName] == "" {
+		labels[common.NuclioResourceLabelKeyProjectName] = platform.DefaultProjectName
 		ap.Logger.Debug("No project name specified. Setting to default")
 	}
 }
@@ -441,7 +442,7 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 	// Check OPA permissions
 	permissionOptions := deleteFunctionOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := ap.QueryOPAFunctionPermissions(functionToDelete.GetConfig().Meta.Labels["nuclio.io/project-name"],
+	if _, err := ap.QueryOPAFunctionPermissions(functionToDelete.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		functionToDelete.GetConfig().Meta.Name,
 		opa.ActionDelete,
 		&permissionOptions); err != nil {
@@ -463,6 +464,51 @@ func (ap *Platform) ResolveReservedResourceNames() []string {
 	}
 }
 
+// FilterProjectsByPermissions will filter out some projects
+func (ap *Platform) FilterProjectsByPermissions(permissionOptions *opa.PermissionOptions,
+	projects []platform.Project) ([]platform.Project, error) {
+
+	// no cleansing is mandated
+	if len(permissionOptions.MemberIds) == 0 {
+		return projects, nil
+	}
+
+	var filteredProjectNames []string
+	appendLock := sync.Mutex{}
+	errGroup, _ := errgroup.WithContext(context.TODO(), ap.Logger)
+	var permittedProjects []platform.Project
+	for _, projectInstance := range projects {
+		projectInstance := projectInstance
+		errGroup.Go("QueryOPAProjectPermissions", func() error {
+
+			// Check OPA permissions
+			allowed, err := ap.QueryOPAProjectPermissions(projectInstance.GetConfig().Meta.Name,
+				opa.ActionRead,
+				permissionOptions)
+			if err != nil {
+				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+			}
+
+			appendLock.Lock()
+			if allowed {
+				permittedProjects = append(permittedProjects, projectInstance)
+			} else {
+				filteredProjectNames = append(filteredProjectNames, projectInstance.GetConfig().Meta.Name)
+			}
+			appendLock.Unlock()
+
+			return nil
+		})
+	}
+	if err := errGroup.Wait(); err != nil {
+		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for project resources")
+	}
+	if len(filteredProjectNames) > 0 {
+		ap.Logger.DebugWith("Some projects were filtered out", "projectNames", filteredProjectNames)
+	}
+	return permittedProjects, nil
+}
+
 // FilterFunctionsByPermissions will filter out some functions
 func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *opa.PermissionOptions,
 	functions []platform.Function) ([]platform.Function, error) {
@@ -481,7 +527,7 @@ func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *opa.Permissi
 		errGroup.Go("QueryOPAFunctionPermissions", func() error {
 
 			// Check OPA permissions
-			allowed, err := ap.QueryOPAFunctionPermissions(function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+			allowed, err := ap.QueryOPAFunctionPermissions(function.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 				function.GetConfig().Meta.Name,
 				opa.ActionRead,
 				permissionOptions)
@@ -610,6 +656,12 @@ func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOp
 
 // EnrichCreateProjectConfig enrich project configuration with defaults
 func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.CreateProjectOptions) error {
+
+	// enrich project owner from auth session
+	if createProjectOptions.AuthSession != nil && createProjectOptions.ProjectConfig.Spec.Owner == "" {
+		createProjectOptions.ProjectConfig.Spec.Owner = createProjectOptions.AuthSession.GetUsername()
+	}
+
 	return nil
 }
 
@@ -912,7 +964,7 @@ func (ap *Platform) GetProjectResources(projectMeta *platform.ProjectMeta) ([]pl
 	errGroup.Go("GetAPIGateways", func() error {
 		apiGateways, err = ap.platform.GetAPIGateways(&platform.GetAPIGatewaysOptions{
 			Namespace: projectMeta.Namespace,
-			Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
+			Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectMeta.Name),
 		})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get project api gateways")
@@ -924,7 +976,7 @@ func (ap *Platform) GetProjectResources(projectMeta *platform.ProjectMeta) ([]pl
 	errGroup.Go("GetFunctions", func() error {
 		functions, err = ap.platform.GetFunctions(&platform.GetFunctionsOptions{
 			Namespace: projectMeta.Namespace,
-			Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
+			Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectMeta.Name),
 		})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get project functions")
@@ -984,6 +1036,46 @@ func (ap *Platform) EnsureDefaultProjectExistence() error {
 	}
 
 	return nil
+}
+
+// ResolveProjectNameFromLabelsStr resolves first project name from label string
+func (ap *Platform) ResolveProjectNameFromLabelsStr(encodedLabels string) (string, error) {
+	labelSelector, err := labels.Parse(encodedLabels)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to parse encoded labels")
+	}
+	requirements, _ := labelSelector.Requirements()
+	for _, requirement := range requirements {
+		if requirement.Key() == common.NuclioResourceLabelKeyProjectName {
+			return requirement.Values().List()[0], nil
+		}
+	}
+	return "", nil
+}
+
+func (ap *Platform) EnsureProjectRead(projectName string,
+	permissionOptions *opa.PermissionOptions) error {
+
+	if projectName != "" && len(permissionOptions.MemberIds) > 0 {
+		if _, err := ap.QueryOPAProjectPermissions(projectName,
+			opa.ActionRead,
+			&opa.PermissionOptions{
+				MemberIds:           permissionOptions.MemberIds,
+				OverrideHeaderValue: permissionOptions.OverrideHeaderValue,
+				RaiseForbidden:      true,
+			}); err != nil {
+			return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		}
+	}
+	return nil
+}
+
+func (ap *Platform) QueryOPAProjectPermissions(projectName string,
+	action opa.Action,
+	permissionOptions *opa.PermissionOptions) (bool, error) {
+	return ap.queryOPAPermissions(opa.GenerateProjectResourceString(projectName),
+		action,
+		permissionOptions)
 }
 
 func (ap *Platform) QueryOPAFunctionPermissions(projectName,
@@ -1081,7 +1173,7 @@ func (ap *Platform) enrichImageName(functionConfig *functionconfig.Config) error
 		return nil
 	}
 	functionName := functionConfig.Meta.Name
-	projectName := functionConfig.Meta.Labels["nuclio.io/project-name"]
+	projectName := functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
 
 	functionBuildRequired, err := ap.functionBuildRequired(functionConfig)
 	if err != nil {
@@ -1153,7 +1245,7 @@ func (ap *Platform) validateProjectExists(functionConfig *functionconfig.Config)
 	// validate the project exists
 	getProjectsOptions := &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
-			Name:      functionConfig.Meta.Labels["nuclio.io/project-name"],
+			Name:      functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 			Namespace: functionConfig.Meta.Namespace,
 		},
 	}

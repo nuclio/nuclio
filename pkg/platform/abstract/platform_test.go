@@ -634,6 +634,47 @@ func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsAgainst
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestResolveProjectNameFromLabelsStr() {
+	for _, testCase := range []struct {
+		name                string
+		label               string
+		expectedProjectName string
+		expectedError       bool
+	}{
+		{
+			name:                "empty",
+			label:               "",
+			expectedProjectName: "",
+		},
+		{
+			name:                "with-project",
+			label:               fmt.Sprintf("%s=x", common.NuclioResourceLabelKeyProjectName),
+			expectedProjectName: "x",
+		},
+		{
+			name:                "other-label",
+			label:               "something-else=y",
+			expectedProjectName: "",
+		},
+		{
+			name:          "with-malformed-project",
+			label:         "/%12",
+			expectedError: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			projectName, err := suite.Platform.ResolveProjectNameFromLabelsStr(testCase.label)
+			if testCase.expectedError {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expectedProjectName, projectName)
+
+		})
+	}
+}
+
 // Test function with invalid min max replicas
 func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 	zero := 0

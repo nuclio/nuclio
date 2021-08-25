@@ -554,7 +554,8 @@ func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.R
 	// if the user wants to filter by project, do that
 	projectNameFilter := request.Header.Get("x-nuclio-project-name")
 	if projectNameFilter != "" {
-		getFunctionsOptions.Labels = fmt.Sprintf("nuclio.io/project-name=%s", projectNameFilter)
+		getFunctionsOptions.Labels = fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName,
+			projectNameFilter)
 	}
 	return getFunctionsOptions
 }
@@ -577,7 +578,7 @@ func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionIn
 			functionInfoInstance.Meta.Labels = map[string]string{}
 		}
 
-		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
+		functionInfoInstance.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
 	}
 
 	//

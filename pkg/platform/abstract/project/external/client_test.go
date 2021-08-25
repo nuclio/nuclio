@@ -174,7 +174,7 @@ func (suite *ExternalProjectClientTestSuite) TestGet() {
 		},
 	}
 
-	suite.mockLeaderProjectsClient.
+	suite.mockInternalProjectsClient.
 		On("Get", &getProjectOptions).
 		Return([]platform.Project{}, nil).
 		Once()

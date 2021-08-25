@@ -23,9 +23,10 @@ const (
 	ClientKindNop  ClientKind = "nop"
 	ClientKindMock ClientKind = "mock"
 
-	DefaultClientKind          = ClientKindNop
-	DefaultRequestTimeOut      = 10
-	DefaultPermissionQueryPath = "/v1/data/iguazio/authz/allow"
+	DefaultClientKind           = ClientKindNop
+	DefaultRequestTimeOut       = 10
+	DefaultPermissionQueryPath  = "/v1/data/iguazio/authz/allow"
+	DefaultPermissionFilterPath = "/v1/data/iguazio/authz/filter_allowed"
 )
 
 type Config struct {
@@ -39,8 +40,11 @@ type Config struct {
 	// timeout period when querying opa server
 	RequestTimeout int `json:"requestTimeout,omitempty"`
 
-	// the path used when querying opa server (e.g.: /v1/data/somewhere/authz/allow)
+	// the path used when querying single resource against opa server (e.g.: /v1/data/somewhere/authz/allow)
 	PermissionQueryPath string `json:"permissionQueryPath,omitempty"`
+
+	// the path used when querying multiple resources against opa server (e.g.: /v1/data/somewhere/authz/filter_allowed)
+	PermissionFilterPath string `json:"permissionFilterPath,omitempty"`
 
 	// for extra verbosity on top of nuclio logger
 	LogLevel int `json:"logLevel,omitempty"`

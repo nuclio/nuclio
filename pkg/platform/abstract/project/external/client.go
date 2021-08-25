@@ -69,17 +69,7 @@ func (c *Client) Initialize() error {
 }
 
 func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	switch getProjectsOptions.RequestOrigin {
-
-	// if request came from leader, get from CRD
-	case c.platformConfiguration.ProjectsLeader.Kind:
-		return c.internalClient.Get(getProjectsOptions)
-
-	// request came from user / non-leader client
-	// get from leader
-	default:
-		return c.leaderClient.Get(getProjectsOptions)
-	}
+	return c.internalClient.Get(getProjectsOptions)
 }
 
 func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {

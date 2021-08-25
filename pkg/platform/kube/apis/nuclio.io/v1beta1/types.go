@@ -126,7 +126,8 @@ type NuclioProject struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec platform.ProjectSpec `json:"spec"`
+	Spec   platform.ProjectSpec   `json:"spec"`
+	Status platform.ProjectStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
