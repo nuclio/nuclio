@@ -75,7 +75,7 @@ func (n *nodejs) RunWrapper(socketPath string) (*os.Process, error) {
 
 	// pass global environment onto the process, and sprinkle in some added env vars
 	env := os.Environ()
-	env = append(env, n.getEnvFromConfiguration()...)
+	env = append(env, n.GetEnvFromConfiguration()...)
 
 	handlerFilePath, handlerName, err := n.getHandler()
 	if err != nil {
@@ -92,14 +92,6 @@ func (n *nodejs) RunWrapper(socketPath string) (*os.Process, error) {
 	cmd.Stderr = os.Stdout
 
 	return cmd.Process, cmd.Start()
-}
-
-func (n *nodejs) getEnvFromConfiguration() []string {
-	return []string{
-		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", n.configuration.Meta.Name),
-		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", n.configuration.Spec.Description),
-		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", n.configuration.Spec.Version),
-	}
 }
 
 func (n *nodejs) getHandler() (string, string, error) {

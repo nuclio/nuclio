@@ -17,6 +17,7 @@ limitations under the License.
 package runtime
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
@@ -146,6 +147,15 @@ func (ar *AbstractRuntime) Restart() error {
 // SupportsRestart returns true if the runtime supports restart
 func (ar *AbstractRuntime) SupportsRestart() bool {
 	return false
+}
+
+func (ar *AbstractRuntime) GetEnvFromConfiguration() []string {
+	return []string{
+		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", ar.configuration.Meta.Name),
+		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", ar.configuration.Spec.Description),
+		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", ar.configuration.Spec.Version),
+		fmt.Sprintf("NUCLIO_FUNCTION_HANDLER=%s", ar.configuration.Spec.Handler),
+	}
 }
 
 func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger,
