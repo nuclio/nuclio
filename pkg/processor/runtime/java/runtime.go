@@ -70,7 +70,13 @@ func (j *java) RunWrapper(port string) (*os.Process, error) {
 		"-workerid", strconv.Itoa(j.configuration.WorkerID),
 	}...)
 
+	env := os.Environ()
+	env = append(env, j.GetEnvFromConfiguration()...)
+
 	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Env = env
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	j.Logger.InfoWith("Running wrapper jar", "command", strings.Join(cmd.Args, " "))
 
 	return cmd.Process, cmd.Start()
