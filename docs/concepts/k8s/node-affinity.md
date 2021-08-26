@@ -32,50 +32,42 @@ To assign Nuclio functions to specific nodes you use the Kubernetes node label
 
 * non-preemptible – assign to EC2 On Demand instances
 
-```{admonition} Note
-By default Iguazio uses the key:value pair 
-<br>
+**Note:**
+By default Iguazio uses the key:value pair
+
 ```app.iguazio.com/lifecycle = preemptible```
-<br>
+
 or
-<br>
+
 ```app.iguazio.com/lifecycle = non-preemptible```
-<br>
+
 to determine spot or on demand nodes.
-```
 
 You can use multiple labels to assign Nuclio functions to specific nodes. 
 However, when you use multiple labels a logical `and` is performed on the labels.
 
-```{admonition} Note
+**Note:**
 * Do not use node specific labels as this may result in eliminating all possible nodes.
 * When assigning Nuclio functions to Spot instances it is the user’s responsibility 
   to deal with preempting issues within the running application/function.
-``` 
+
 **To assign a Nuclio function to a node:**
 1. From the platform dashboard, press projects in the left menu pane. 
 2. Press on a project, and then press Real time functions (Nuclio).
 3. Select a function from the list or press New function to create a new function.
 4. Press the Configuration tab.
 5. In the Resources pane, in the Node selector section, press Create new entry.
-<br>
-   <br/>
-   <img src="docs/assets/images/nuclio_function_rsources_node_selector.png" width="800"/>
-<br>
-<br/>
+
+![node selector](/docs/assets/images/nuclio_function_rsources_node_selector.png)
+
 Enter a key value pair.
-```{admonition} Note
-The same key value pairs cannot be entered more than once.
-```
-<br>
-   <br/>
-   <img src="docs/assets/images/nuclio_key_non-preemtible.png" width="800"/>
-<br>
-<br/>
+
+**Note:** The same key value pairs cannot be entered more than once.
+
+![non-preemtible](/docs/assets/images/nuclio_key_non-preemtible.png)
+
 Or
-<br>
-   <br/>
-   <img src="docs/assets/images/nuclio_key_preemtible.png" width="800"/>
-<br>
-<br/>
+
+![preemtible](/docs/assets/images/nuclio_key_preemtible.png)
+
 The key value pair is saved automatically. 
