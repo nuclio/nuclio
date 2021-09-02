@@ -500,7 +500,7 @@ func (ap *Platform) FilterProjectsByPermissions(permissionOptions *opa.Permissio
 	projects []platform.Project) ([]platform.Project, error) {
 
 	// no cleansing is mandated
-	if len(permissionOptions.MemberIds) == 0 {
+	if len(permissionOptions.MemberIds) == 0 || len(projects) == 0 {
 		return projects, nil
 	}
 
@@ -538,7 +538,7 @@ func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *opa.Permissi
 	functions []platform.Function) ([]platform.Function, error) {
 
 	// no cleansing is mandated
-	if len(permissionOptions.MemberIds) == 0 {
+	if len(permissionOptions.MemberIds) == 0 || len(functions) == 0 {
 		return functions, nil
 	}
 
@@ -577,7 +577,7 @@ func (ap *Platform) FilterFunctionEventsByPermissions(permissionOptions *opa.Per
 	functionEvents []platform.FunctionEvent) ([]platform.FunctionEvent, error) {
 
 	// no cleansing is mandated
-	if len(permissionOptions.MemberIds) == 0 {
+	if len(permissionOptions.MemberIds) == 0 || len(functionEvents) == 0 {
 		return functionEvents, nil
 	}
 
