@@ -1418,6 +1418,26 @@ func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Con
 	return nil
 }
 
+func (ap *Platform) queryOPAPermissionsMultiResources(resources []string,
+	action opa.Action,
+	permissionOptions *opa.PermissionOptions) ([]bool, error) {
+
+	allowedList, err := ap.OpaClient.QueryPermissionsMultiResources(resources, action, permissionOptions)
+	if err != nil {
+		return nil, nuclio.WrapErrInternalServerError(err)
+	}
+
+	for idx, allowed := range allowedList {
+		if !allowed && permissionOptions.RaiseForbidden {
+			return nil, nuclio.NewErrForbidden(fmt.Sprintf("Not allowed to %s resource %s",
+				action,
+				resources[idx]))
+		}
+	}
+
+	return allowedList, nil
+}
+
 func (ap *Platform) queryOPAPermissions(resource string,
 	action opa.Action,
 	permissionOptions *opa.PermissionOptions) (bool, error) {

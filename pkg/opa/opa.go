@@ -25,7 +25,8 @@ import (
 )
 
 type Client interface {
-	QueryPermissions(resource string, action Action, permissionOptions *PermissionOptions) (bool, error)
+	QueryPermissions(string, Action, *PermissionOptions) (bool, error)
+	QueryPermissionsMultiResources([]string, Action, *PermissionOptions) ([]bool, error)
 }
 
 func GetUserAndGroupIdsFromAuthSession(session auth.Session) []string {
