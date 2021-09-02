@@ -541,15 +541,15 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 				memberIds = []string{"id1", "id2"}
 
 				suite.mockedOpaClient.
-					On("QueryPermissions",
-						fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName),
+					On("QueryPermissionsMultiResources",
+						[]string{fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName)},
 						opa.ActionRead,
 						&opa.PermissionOptions{
 							MemberIds:           memberIds,
 							RaiseForbidden:      testCase.raiseForbidden,
 							OverrideHeaderValue: suite.opaOverrideHeaderValue,
 						}).
-					Return(testCase.opaResponse, nil).
+					Return([]bool{testCase.opaResponse}, nil).
 					Once()
 				defer suite.mockedOpaClient.AssertExpectations(suite.T())
 			}
