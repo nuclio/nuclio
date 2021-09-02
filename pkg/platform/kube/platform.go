@@ -482,11 +482,6 @@ func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunction
 	p.Logger.DebugWith("Updating function",
 		"functionName", updateFunctionOptions.FunctionMeta.Name)
 
-	// pre update validation
-	if err := p.ValidateUpdateFunctionOptions(updateFunctionOptions); err != nil {
-		return errors.Wrap(err, "Failed to validate function-updating options")
-	}
-
 	return p.updater.Update(updateFunctionOptions)
 }
 

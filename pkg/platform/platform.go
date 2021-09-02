@@ -212,4 +212,11 @@ type Platform interface {
 
 	// GetRuntimeBuildArgs returns the runtime specific build arguments
 	GetRuntimeBuildArgs(runtime runtime.Runtime) map[string]string
+
+	//
+	// OPA
+	//
+
+	// QueryOPAFunctionPermissions queries opa permissions for a certain function
+	QueryOPAFunctionPermissions(projectName, functionName string, action opa.Action, permissionOptions *opa.PermissionOptions) (bool, error)
 }

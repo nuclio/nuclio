@@ -452,37 +452,6 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 	return nil
 }
 
-// Validation and enforcement of required function update logic
-func (ap *Platform) ValidateUpdateFunctionOptions(updateFunctionOptions *platform.UpdateFunctionOptions) error {
-	functions, err := ap.platform.GetFunctions(&platform.GetFunctionsOptions{
-		Name:              updateFunctionOptions.FunctionMeta.Name,
-		Namespace:         updateFunctionOptions.FunctionMeta.Namespace,
-		AuthSession:       updateFunctionOptions.AuthSession,
-		PermissionOptions: updateFunctionOptions.PermissionOptions,
-	})
-	if err != nil {
-		return errors.Wrap(err, "Failed to get functions")
-	}
-
-	if len(functions) == 0 {
-		return nuclio.NewErrNotFound("Function was not found")
-	}
-
-	function := functions[0]
-
-	// Check OPA permissions
-	permissionOptions := updateFunctionOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
-	if _, err := ap.QueryOPAFunctionPermissions(function.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName],
-		updateFunctionOptions.FunctionMeta.Name,
-		opa.ActionUpdate,
-		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-	}
-
-	return nil
-}
-
 // ResolveReservedResourceNames returns a list of reserved resource names
 func (ap *Platform) ResolveReservedResourceNames() []string {
 
