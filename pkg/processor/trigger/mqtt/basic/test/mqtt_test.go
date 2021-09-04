@@ -86,8 +86,12 @@ func (suite *testSuite) WaitForBroker() error {
 		return true
 	})
 
-	suite.Require().NoError(err, "Failed to connect to MQTT broker in given timeframe")
+	// get broker logs in case connect has failed, we want the logs to be logged
+	containerLogs, containerLogsErr := suite.DockerClient.GetContainerLogs(suite.containerName)
+	suite.Logger.DebugWith("Fetched broker container logs", "logs", containerLogs)
+	suite.Require().NoError(containerLogsErr, "Failed to get broker container logs")
 
+	suite.Require().NoError(err, "Failed to connect to MQTT broker in given timeframe")
 	return nil
 }
 
