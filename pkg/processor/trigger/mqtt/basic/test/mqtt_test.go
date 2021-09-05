@@ -1,5 +1,24 @@
 // +build test_integration
 // +build test_local
+// +build test_broken
+
+// NOTE: Currently broken
+// It seems that the mqtt eclipse container refuses to take incoming requests when running
+// from GitHub Action worker, while working just fine when running locally - macOS.
+// Container logs:
+/*
+	1630833404: mosquitto version 2.0.12 starting
+	1630833404: Config loaded from /mosquitto/config/mosquitto.conf.
+	1630833404: Opening ipv4 listen socket on port 1883.
+	1630833404: Opening ipv6 listen socket on port 1883.
+	1630833404: mosquitto version 1.6.15 running
+	1630833405: New connection from 172.20.0.1 on port 1883.
+	1630833405: Sending CONNACK to 172.20.0.1 (0, 2)
+	1630833405: Client <unknown> disconnected due to protocol error.
+	1630833406: New connection from 172.20.0.1 on port 1883.
+	1630833406: Sending CONNACK to 172.20.0.1 (0, 2)
+	... and so on
+*/ // nolint: misspell
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -58,7 +77,7 @@ func (suite *testSuite) SetupSuite() {
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
-	return "eclipse-mosquitto:latest", &dockerclient.RunOptions{ // nolint: misspell
+	return "eclipse-mosquitto", &dockerclient.RunOptions{ // nolint: misspell
 		ContainerName: suite.containerName,
 		Network:       suite.BrokerContainerNetworkName,
 		Remove:        true,
@@ -86,8 +105,12 @@ func (suite *testSuite) WaitForBroker() error {
 		return true
 	})
 
-	suite.Require().NoError(err, "Failed to connect to MQTT broker in given timeframe")
+	// get broker logs in case connect has failed, we want the logs to be logged
+	containerLogs, containerLogsErr := suite.DockerClient.GetContainerLogs(suite.containerName)
+	suite.Logger.DebugWith("Fetched broker container logs", "logs", containerLogs)
+	suite.Require().NoError(containerLogsErr, "Failed to get broker container logs")
 
+	suite.Require().NoError(err, "Failed to connect to MQTT broker in given timeframe")
 	return nil
 }
 
