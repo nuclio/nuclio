@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 
@@ -97,7 +98,7 @@ func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
 
 	for _, groupID := range response.Header.Values("x-user-group-ids") {
 		if groupID != "" {
-			authInfo.GroupIDs = append(authInfo.GroupIDs, groupID)
+			authInfo.GroupIDs = append(authInfo.GroupIDs, strings.Split(groupID, ",")...)
 		}
 	}
 

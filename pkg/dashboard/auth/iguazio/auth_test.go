@@ -39,9 +39,9 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 			StatusCode: http.StatusOK,
 			Header: map[string][]string{
 				"X-Remote-User":      {"admin"},
-				"X-User-Group-Ids":   {"1", "2"},
-				"X-User-Id":          {"3"},
-				"X-V3io-session-Key": {"4"},
+				"X-User-Group-Ids":   {"1,2", "3"},
+				"X-User-Id":          {"some-user-id"},
+				"X-V3io-Session-Key": {"some-password"},
 			},
 		}
 	})
@@ -67,8 +67,12 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 	// step B. re-authenticate, read from cache
 	// nil the http client in order to force it to panic if it was used to make an HTTP request
 	authInstance.httpClient = nil
-	_, err = authInstance.Authenticate(incomingRequest)
+	session, err := authInstance.Authenticate(incomingRequest)
 	suite.Require().NoError(err)
+	suite.Require().Equal("some-user-id", session.GetUserID())
+	suite.Require().Equal([]string{"1", "2", "3"}, session.GetGroupIDs())
+	suite.Require().Equal("admin", session.GetUsername())
+	suite.Require().Equal("some-password", session.GetPassword())
 
 	authInstance.cache.Remove(authInstance.cache.Keys()[0])
 
