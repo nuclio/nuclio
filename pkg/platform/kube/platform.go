@@ -479,6 +479,9 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 
 // UpdateFunction will update a previously deployed function
 func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
+	p.Logger.DebugWith("Updating function",
+		"functionName", updateFunctionOptions.FunctionMeta.Name)
+
 	return p.updater.Update(updateFunctionOptions)
 }
 

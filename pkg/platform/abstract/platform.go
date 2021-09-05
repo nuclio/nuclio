@@ -469,40 +469,33 @@ func (ap *Platform) FilterProjectsByPermissions(permissionOptions *opa.Permissio
 	projects []platform.Project) ([]platform.Project, error) {
 
 	// no cleansing is mandated
-	if len(permissionOptions.MemberIds) == 0 {
+	if len(permissionOptions.MemberIds) == 0 || len(projects) == 0 {
 		return projects, nil
 	}
 
-	var filteredProjectNames []string
-	appendLock := sync.Mutex{}
-	errGroup, _ := errgroup.WithContext(context.TODO(), ap.Logger)
+	// prepare resource list
+	resources := make([]string, len(projects))
+	for idx, project := range projects {
+		projectName := project.GetConfig().Meta.Name
+		resources[idx] = opa.GenerateProjectResourceString(projectName)
+	}
+
+	allowedList, err := ap.QueryOPAMultipleResources(resources, opa.ActionRead, permissionOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed querying OPA for projects permissions")
+	}
+
+	// fill permitted / filtered project list
 	var permittedProjects []platform.Project
-	for _, projectInstance := range projects {
-		projectInstance := projectInstance
-		errGroup.Go("QueryOPAProjectPermissions", func() error {
-
-			// Check OPA permissions
-			allowed, err := ap.QueryOPAProjectPermissions(projectInstance.GetConfig().Meta.Name,
-				opa.ActionRead,
-				permissionOptions)
-			if err != nil {
-				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-			}
-
-			appendLock.Lock()
-			if allowed {
-				permittedProjects = append(permittedProjects, projectInstance)
-			} else {
-				filteredProjectNames = append(filteredProjectNames, projectInstance.GetConfig().Meta.Name)
-			}
-			appendLock.Unlock()
-
-			return nil
-		})
+	var filteredProjectNames []string
+	for idx, allowed := range allowedList {
+		if allowed {
+			permittedProjects = append(permittedProjects, projects[idx])
+		} else {
+			filteredProjectNames = append(filteredProjectNames, projects[idx].GetConfig().Meta.Name)
+		}
 	}
-	if err := errGroup.Wait(); err != nil {
-		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for project resources")
-	}
+
 	if len(filteredProjectNames) > 0 {
 		ap.Logger.DebugWith("Some projects were filtered out", "projectNames", filteredProjectNames)
 	}
@@ -514,39 +507,32 @@ func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *opa.Permissi
 	functions []platform.Function) ([]platform.Function, error) {
 
 	// no cleansing is mandated
-	if len(permissionOptions.MemberIds) == 0 {
+	if len(permissionOptions.MemberIds) == 0 || len(functions) == 0 {
 		return functions, nil
 	}
 
-	appendLock := sync.Mutex{}
-	errGroup, _ := errgroup.WithContext(context.TODO(), ap.Logger)
+	// prepare resource list
+	resources := make([]string, len(functions))
+	for idx, function := range functions {
+		functionName := function.GetConfig().Meta.Name
+		projectName := function.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+		resources[idx] = opa.GenerateFunctionResourceString(projectName, functionName)
+	}
+
+	allowedList, err := ap.QueryOPAMultipleResources(resources, opa.ActionRead, permissionOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed querying OPA for function permissions")
+	}
+
+	// fill permitted / filtered function list
 	var permittedFunctions []platform.Function
 	var filteredFunctionNames []string
-	for _, function := range functions {
-		function := function
-		errGroup.Go("QueryOPAFunctionPermissions", func() error {
-
-			// Check OPA permissions
-			allowed, err := ap.QueryOPAFunctionPermissions(function.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName],
-				function.GetConfig().Meta.Name,
-				opa.ActionRead,
-				permissionOptions)
-			if err != nil {
-				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-			}
-
-			appendLock.Lock()
-			if allowed {
-				permittedFunctions = append(permittedFunctions, function)
-			} else {
-				filteredFunctionNames = append(filteredFunctionNames, function.GetConfig().Meta.Name)
-			}
-			appendLock.Unlock()
-			return nil
-		})
-	}
-	if err := errGroup.Wait(); err != nil {
-		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for function resources")
+	for idx, allowed := range allowedList {
+		if allowed {
+			permittedFunctions = append(permittedFunctions, functions[idx])
+		} else {
+			filteredFunctionNames = append(filteredFunctionNames, functions[idx].GetConfig().Meta.Name)
+		}
 	}
 
 	if len(filteredFunctionNames) > 0 {
@@ -560,47 +546,38 @@ func (ap *Platform) FilterFunctionEventsByPermissions(permissionOptions *opa.Per
 	functionEvents []platform.FunctionEvent) ([]platform.FunctionEvent, error) {
 
 	// no cleansing is mandated
-	if len(permissionOptions.MemberIds) == 0 {
+	if len(permissionOptions.MemberIds) == 0 || len(functionEvents) == 0 {
 		return functionEvents, nil
 	}
 
-	appendLock := sync.Mutex{}
-	errGroup, _ := errgroup.WithContext(context.TODO(), ap.Logger)
-	var permittedFunctionEvents []platform.FunctionEvent
+	var resources []string
 	for _, functionEventInstance := range functionEvents {
-
-		// TODO: handle function event without function name / project name
-		functionName, found := functionEventInstance.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyFunctionName]
-		if !found {
-			continue
-		}
-
-		projectName, found := functionEventInstance.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName]
-		if !found {
-			continue
-		}
-
-		functionEventInstance := functionEventInstance
-		errGroup.Go("QueryOPAFunctionEventPermissions", func() error {
-
-			// Check OPA permissions
-			if allowed, err := ap.QueryOPAFunctionEventPermissions(projectName,
-				functionName,
-				functionEventInstance.GetConfig().Meta.Name,
-				opa.ActionRead,
-				permissionOptions); err != nil {
-				return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-			} else if allowed {
-				appendLock.Lock()
-				permittedFunctionEvents = append(permittedFunctionEvents, functionEventInstance)
-				appendLock.Unlock()
-			}
-			return nil
-		})
+		projectName := functionEventInstance.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+		functionName := functionEventInstance.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyFunctionName]
+		functionEventName := functionEventInstance.GetConfig().Meta.Name
+		resources = append(resources, opa.GenerateFunctionEventResourceString(projectName,
+			functionName,
+			functionEventName))
+	}
+	allowedList, err := ap.QueryOPAMultipleResources(resources, opa.ActionRead, permissionOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed querying OPA for function events permissions")
 	}
 
-	if err := errGroup.Wait(); err != nil {
-		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for function event resources")
+	// fill permitted / filtered function event list
+	var permittedFunctionEvents []platform.FunctionEvent
+	var filteredFunctionEventNames []string
+	for idx, allowed := range allowedList {
+		if allowed {
+			permittedFunctionEvents = append(permittedFunctionEvents, functionEvents[idx])
+		} else {
+			filteredFunctionEventNames = append(filteredFunctionEventNames, functionEvents[idx].GetConfig().Meta.Name)
+		}
+	}
+
+	if len(filteredFunctionEventNames) > 0 {
+		ap.Logger.DebugWith("Some function events were filtered out",
+			"functionEventNames", filteredFunctionEventNames)
 	}
 	return permittedFunctionEvents, nil
 }
@@ -1112,6 +1089,12 @@ func (ap *Platform) QueryOPAFunctionEventPermissions(projectName,
 		permissionOptions)
 }
 
+func (ap *Platform) QueryOPAMultipleResources(resources []string,
+	action opa.Action,
+	permissionOptions *opa.PermissionOptions) ([]bool, error) {
+	return ap.queryOPAPermissionsMultiResources(resources, action, permissionOptions)
+}
+
 func (ap *Platform) functionBuildRequired(functionConfig *functionconfig.Config) (bool, error) {
 
 	// if neverBuild was passed explicitly don't build
@@ -1416,6 +1399,26 @@ func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Con
 	}
 
 	return nil
+}
+
+func (ap *Platform) queryOPAPermissionsMultiResources(resources []string,
+	action opa.Action,
+	permissionOptions *opa.PermissionOptions) ([]bool, error) {
+
+	allowedList, err := ap.OpaClient.QueryPermissionsMultiResources(resources, action, permissionOptions)
+	if err != nil {
+		return nil, nuclio.WrapErrInternalServerError(err)
+	}
+
+	for idx, allowed := range allowedList {
+		if !allowed && permissionOptions.RaiseForbidden {
+			return nil, nuclio.NewErrForbidden(fmt.Sprintf("Not allowed to %s resource %s",
+				action,
+				resources[idx]))
+		}
+	}
+
+	return allowedList, nil
 }
 
 func (ap *Platform) queryOPAPermissions(resource string,

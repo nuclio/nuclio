@@ -25,6 +25,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -68,6 +69,10 @@ func NewStore(parentLogger logger.Logger,
 
 func (s *Store) CreateOrUpdateProject(projectConfig *platform.ProjectConfig) error {
 	resourcePath := s.getResourcePath(projectsDir, projectConfig.Meta.Namespace, projectConfig.Meta.Name)
+
+	// populate status
+	now := time.Now()
+	projectConfig.Status.UpdatedAt = &now
 
 	// write the contents to that file name at the appropriate path
 	return s.serializeAndWriteFileContents(resourcePath, projectConfig)

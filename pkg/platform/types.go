@@ -359,8 +359,6 @@ func (s *FunctionEventSpec) DeepCopyInto(out *FunctionEventSpec) {
 // APIGateway
 //
 
-const DefaultAPIGatewayName string = "default"
-
 type APIGatewayMeta struct {
 	Name              string            `json:"name,omitempty"`
 	Namespace         string            `json:"namespace,omitempty"`
