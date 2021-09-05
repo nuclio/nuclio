@@ -58,7 +58,7 @@ func (suite *testSuite) SetupSuite() {
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
-	return "eclipse-mosquitto:latest", &dockerclient.RunOptions{ // nolint: misspell
+	return "eclipse-mosquitto:1.6", &dockerclient.RunOptions{ // nolint: misspell
 		ContainerName: suite.containerName,
 		Network:       suite.BrokerContainerNetworkName,
 		Remove:        true,
