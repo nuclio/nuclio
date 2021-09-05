@@ -18,7 +18,7 @@
 	1630833406: New connection from 172.20.0.1 on port 1883.
 	1630833406: Sending CONNACK to 172.20.0.1 (0, 2)
 	... and so on
- */
+*/ // nolint: misspell
 
 /*
 Copyright 2017 The Nuclio Authors.
