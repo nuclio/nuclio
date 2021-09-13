@@ -38,6 +38,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/docker/distribution/reference"
+	"github.com/google/go-cmp/cmp"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -357,6 +358,10 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 
 	if err := ap.validateProjectExists(functionConfig); err != nil {
 		return errors.Wrap(err, "Project existence validation failed")
+	}
+
+	if err := ap.validateVolumes(functionConfig); err != nil {
+		return errors.Wrap(err, "Volumes validation failed")
 	}
 
 	return nil
@@ -1218,6 +1223,43 @@ func (ap *Platform) validateNodeSelector(functionConfig *functionconfig.Config) 
 		if errs := validation.IsQualifiedName(labelKey); len(errs) > 0 {
 			errs = append([]string{fmt.Sprintf("Invalid key: %s", labelKey)}, errs...)
 			return nuclio.NewErrBadRequest(strings.Join(errs, ", "))
+		}
+	}
+	return nil
+}
+
+func (ap *Platform) validateVolumes(functionConfig *functionconfig.Config) error {
+
+	// volume mount can be shared by many volumes (e.g.: mount volume X in /here and /there)
+	volumeNameToVolumeMounts := map[string][]v1.Volume{}
+	for _, configVolume := range functionConfig.Spec.Volumes {
+		if configVolume.VolumeMount.Name == "" {
+			return nuclio.NewErrBadRequest("Volume mount name is missing")
+		}
+		if configVolume.Volume.Name == "" {
+			return nuclio.NewErrBadRequest("Volume name is missing")
+		}
+
+		// aggregate volumes by the volume mount they refer to
+		volumeNameToVolumeMounts[configVolume.VolumeMount.Name] = append(
+			volumeNameToVolumeMounts[configVolume.VolumeMount.Name],
+			configVolume.Volume)
+	}
+
+	for volumeMountName, volumes := range volumeNameToVolumeMounts {
+		if len(volumes) <= 1 {
+			continue
+		}
+		firstVolume := volumes[0]
+		for _, volume := range volumes[1:] {
+			if volumeDiff := cmp.Diff(firstVolume, volume); volumeDiff != "" {
+				ap.Logger.WarnWith("Invalid volumes configuration found",
+					"volumeMountName", volumeMountName,
+					"volumeDiff", volumeDiff)
+				return nuclio.NewErrBadRequest(
+					fmt.Sprintf("Volumes sharing the same volume mount '%s' must having the same configuration",
+						volumeMountName))
+			}
 		}
 	}
 	return nil

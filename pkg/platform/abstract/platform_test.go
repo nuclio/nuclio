@@ -43,6 +43,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 const (
@@ -1161,6 +1162,155 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 			suite.Require().NoError(err, "Failed to enrich function")
 
 			err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
+	for idx, testCase := range []struct {
+		name                 string
+		functionVolumes      []functionconfig.Volume
+		shouldFailValidation bool
+	}{
+
+		// happy flows
+		{
+			name:            "noVolumes",
+			functionVolumes: nil,
+		},
+		{
+			name: "singleVolume",
+			functionVolumes: []functionconfig.Volume{
+				{
+					Volume: v1.Volume{
+						Name: "something",
+					},
+					VolumeMount: v1.VolumeMount{
+						Name: "something",
+					},
+				},
+			},
+		},
+		{
+			name: "sameVolumesMultipleMounts",
+			functionVolumes: []functionconfig.Volume{
+				{
+					Volume: v1.Volume{
+						Name: "something",
+						VolumeSource: v1.VolumeSource{
+							Secret: &v1.SecretVolumeSource{
+								SecretName: "some-secret",
+							},
+						},
+					},
+					VolumeMount: v1.VolumeMount{
+						Name:      "something",
+						MountPath: "/here",
+					},
+				},
+				{
+					Volume: v1.Volume{
+						Name: "something",
+						VolumeSource: v1.VolumeSource{
+							Secret: &v1.SecretVolumeSource{
+								SecretName: "some-secret",
+							},
+						},
+					},
+					VolumeMount: v1.VolumeMount{
+						Name:      "something",
+						MountPath: "/there",
+					},
+				},
+			},
+		},
+
+		// bad flows
+		{
+			name: "missingName",
+			functionVolumes: []functionconfig.Volume{
+				{
+					Volume: v1.Volume{
+						Name: "",
+					},
+					VolumeMount: v1.VolumeMount{
+						Name: "",
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "differentVolumesMultipleMounts",
+			functionVolumes: []functionconfig.Volume{
+				{
+					Volume: v1.Volume{
+						Name: "something",
+						VolumeSource: v1.VolumeSource{
+							ConfigMap: &v1.ConfigMapVolumeSource{
+								LocalObjectReference: v1.LocalObjectReference{
+									Name: "some-cm",
+								},
+							},
+						},
+					},
+					VolumeMount: v1.VolumeMount{
+						Name:      "something",
+						MountPath: "/here",
+					},
+				},
+				{
+					Volume: v1.Volume{
+						Name: "something",
+						VolumeSource: v1.VolumeSource{
+							Secret: &v1.SecretVolumeSource{
+								SecretName: "some-secret",
+							},
+						},
+					},
+					VolumeMount: v1.VolumeMount{
+						Name:      "something",
+						MountPath: "/there",
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.
+				On("GetProjects", &platform.GetProjectsOptions{
+					Meta: platform.ProjectMeta{
+						Name:      platform.DefaultProjectName,
+						Namespace: "default",
+					},
+				}).
+				Return([]platform.Project{
+					&platform.AbstractProject{},
+				}, nil).
+				Once()
+
+			// name it with index and shift with 65 to get A as first letter
+			functionName := string(rune(idx + 65))
+			functionConfig := *functionconfig.NewConfig()
+			functionConfig.Spec.Volumes = testCase.functionVolumes
+
+			createFunctionOptions := &platform.CreateFunctionOptions{
+				Logger:         suite.Logger,
+				FunctionConfig: functionConfig,
+			}
+			createFunctionOptions.FunctionConfig.Meta.Name = functionName
+			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+
+			err := suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
