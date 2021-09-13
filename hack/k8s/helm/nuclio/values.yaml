@@ -197,13 +197,13 @@ dashboard:
       pullPolicy: IfNotPresent
       pullSecrets: []
 
-    resources: {}
-    # limits:
-    #   cpu: 100m
-    #   memory: 128Mi
-    # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 10Mi
+      limits:
+        cpu: 3
+        memory: 200Mi
 
     securityContext: {}
     # capabilities:
