@@ -1246,10 +1246,16 @@ func (ap *Platform) validateVolumes(functionConfig *functionconfig.Config) error
 			configVolume.Volume)
 	}
 
+	// make sure all volumes sharing the same volume mount are the same to ensure invalid mode
+	// where different volumes sharing the same volume mount
 	for volumeMountName, volumes := range volumeNameToVolumeMounts {
+
+		// irrelevant check for a single volume
 		if len(volumes) <= 1 {
 			continue
 		}
+
+		// make sure the first volume equals all the rest volumes sharing the same volume mount
 		firstVolume := volumes[0]
 		for _, volume := range volumes[1:] {
 			if volumeDiff := cmp.Diff(firstVolume, volume); volumeDiff != "" {
