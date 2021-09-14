@@ -364,6 +364,10 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 		return errors.Wrap(err, "Volumes validation failed")
 	}
 
+	if err := ap.validateServiceType(functionConfig); err != nil {
+		return errors.Wrap(err, "Service type validation failed")
+	}
+
 	return nil
 }
 
@@ -1481,4 +1485,17 @@ func (ap *Platform) queryOPAPermissions(resource string,
 		return false, nuclio.NewErrForbidden(fmt.Sprintf("Not allowed to %s resource %s", action, resource))
 	}
 	return allowed, nil
+}
+
+func (ap *Platform) validateServiceType(functionConfig *functionconfig.Config) error {
+	switch serviceType := functionConfig.Spec.ServiceType; serviceType {
+	case "":
+
+		// empty means - let it be enriched by default
+		return nil
+	case v1.ServiceTypeNodePort, v1.ServiceTypeClusterIP:
+		return nil
+	default:
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported service type %s", serviceType))
+	}
 }
