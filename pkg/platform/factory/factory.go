@@ -51,7 +51,7 @@ func CreatePlatform(parentLogger logger.Logger,
 
 		// kubeconfig path is set, or running in kubernetes cluster
 		if common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath) != "" ||
-			kube.IsInCluster() {
+			common.IsInKubernetesCluster() {
 
 			// call again, but force kube
 			newPlatform, err = CreatePlatform(parentLogger, "kube", platformConfiguration, defaultNamespace)
