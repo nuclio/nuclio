@@ -433,6 +433,14 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 		}
 	}
 
+	// enrich function pod priority class name
+	if functionConfig.Spec.PriorityClassName == "" && p.Config.Kube.DefaultFunctionPriorityClassName != "" {
+		p.Logger.DebugWith("Enriching pod priority class name",
+			"functionName", functionConfig.Meta.Name,
+			"priorityClassName", p.Config.Kube.DefaultFunctionPriorityClassName)
+		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
+	}
+
 	return nil
 }
 

@@ -1171,6 +1171,79 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestValidatePriorityClassName() {
+	for idx, testCase := range []struct {
+		name                            string
+		priorityClassName               string
+		validFunctionPriorityClassNames []string
+		shouldFailValidation            bool
+	}{
+
+		// happy flows
+		{
+			name: "Sanity",
+			priorityClassName: "low-priority",
+			validFunctionPriorityClassNames: []string{"low-priority"},
+		},
+		{
+			name: "MultipleValidValues",
+			priorityClassName: "low-priority",
+			validFunctionPriorityClassNames: []string{"low-priority", "medium-priority", "high-priority"},
+		},
+
+		// bad flows
+		{
+			name: "NonValidValue",
+			priorityClassName: "non-valid-priority",
+			validFunctionPriorityClassNames: []string{"low-priority", "medium-priority", "high-priority"},
+			shouldFailValidation: true,
+		},
+		{
+			name: "NoValidValues",
+			priorityClassName: "low-priority",
+			validFunctionPriorityClassNames: []string{},
+			shouldFailValidation: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+				Meta: platform.ProjectMeta{
+					Name:      platform.DefaultProjectName,
+					Namespace: "default",
+				},
+			}).Return([]platform.Project{
+				&platform.AbstractProject{},
+			}, nil).Once()
+
+			// name it with index and shift with 65 to get A as first letter
+			functionName := string(rune(idx + 65))
+			functionConfig := *functionconfig.NewConfig()
+			functionConfig.Spec.PriorityClassName = testCase.priorityClassName
+
+			createFunctionOptions := &platform.CreateFunctionOptions{
+				Logger:         suite.Logger,
+				FunctionConfig: functionConfig,
+			}
+			createFunctionOptions.FunctionConfig.Meta.Name = functionName
+			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			suite.Platform.Config.Kube.ValidFunctionPriorityClassNames = testCase.validFunctionPriorityClassNames
+			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+
+			err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+			suite.Require().NoError(err, "Failed to enrich function")
+
+			err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
+}
+
 func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 	for idx, testCase := range []struct {
 		name                 string
