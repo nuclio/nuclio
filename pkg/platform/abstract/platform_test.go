@@ -1246,6 +1246,20 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 			shouldFailValidation: true,
 		},
 		{
+			name: "invalidNameReference",
+			functionVolumes: []functionconfig.Volume{
+				{
+					Volume: v1.Volume{
+						Name: "x",
+					},
+					VolumeMount: v1.VolumeMount{
+						Name: "y",
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
 			name: "differentVolumesMultipleMounts",
 			functionVolumes: []functionconfig.Volume{
 				{
@@ -1308,9 +1322,12 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
 				"nuclio.io/project-name": platform.DefaultProjectName,
 			}
-			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+			suite.Logger.DebugWith("Checking function", "functionName", functionName)
 
-			err := suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+			suite.Require().NoError(err)
+
+			err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {

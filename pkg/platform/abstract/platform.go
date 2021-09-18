@@ -243,6 +243,10 @@ func (ap *Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) 
 		functionConfig.Spec.SecurityContext = &v1.PodSecurityContext{}
 	}
 
+	if err := ap.enrichVolumes(functionConfig); err != nil {
+		return errors.Wrap(err, "Failed enriching volumes")
+	}
+
 	return nil
 }
 
@@ -1244,6 +1248,10 @@ func (ap *Platform) validateVolumes(functionConfig *functionconfig.Config) error
 			return nuclio.NewErrBadRequest("Volume name is missing")
 		}
 
+		if configVolume.VolumeMount.Name != configVolume.Volume.Name {
+			return nuclio.NewErrBadRequest("Volume and volume mount must have the same name")
+		}
+
 		// aggregate volumes by the volume mount they refer to
 		volumeNameToVolumeMounts[configVolume.VolumeMount.Name] = append(
 			volumeNameToVolumeMounts[configVolume.VolumeMount.Name],
@@ -1498,4 +1506,20 @@ func (ap *Platform) validateServiceType(functionConfig *functionconfig.Config) e
 	default:
 		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported service type %s", serviceType))
 	}
+}
+
+func (ap *Platform) enrichVolumes(functionConfig *functionconfig.Config) error {
+	for _, configVolume := range functionConfig.Spec.Volumes {
+
+		// fill volume mount name from its volume
+		if configVolume.VolumeMount.Name == "" {
+			configVolume.VolumeMount.Name = configVolume.Volume.Name
+		}
+
+		// fill volume name from its volume mount
+		if configVolume.Volume.Name == "" {
+			configVolume.Volume.Name = configVolume.VolumeMount.Name
+		}
+	}
+	return nil
 }
