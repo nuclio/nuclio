@@ -1252,7 +1252,7 @@ func (ap *Platform) validatePriorityClassName(functionConfig *functionconfig.Con
 		ap.Config.Kube.ValidFunctionPriorityClassNames,
 		functionConfig.Spec.PriorityClassName) {
 		return nuclio.NewErrBadRequest(fmt.Sprintf(
-			"Priority class name `%s` not in valid priority class names list: [%s]",
+			"Priority class name `%s` is not in valid priority class names list: [%s]",
 			functionConfig.Spec.PriorityClassName,
 			strings.Join(ap.Config.Kube.ValidFunctionPriorityClassNames, ", ")))
 	}
