@@ -1234,8 +1234,6 @@ func (ap *Platform) validateNodeSelector(functionConfig *functionconfig.Config) 
 
 func (ap *Platform) validatePriorityClassName(functionConfig *functionconfig.Config) error {
 
-	// TODO: do we validate default ?
-	// TODO: how do we give values that are not in valid list ?
 	if functionConfig.Spec.PriorityClassName == ap.Config.Kube.DefaultFunctionPriorityClassName {
 		return nil
 	}

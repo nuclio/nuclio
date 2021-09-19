@@ -79,7 +79,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 
 	defaultFunctionConfig := fsr.getDefaultFunctionConfig()
 	defaultHTTPIngressHostTemplate := fsr.getDefaultHTTPIngressHostTemplate()
-	validFunctionPriorityClassNames := fsr.getValidFunctionPriorityClassNames()
+	validFunctionPriorityClassNames := fsr.resolveValidFunctionPriorityClassNames()
 
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
@@ -190,7 +190,7 @@ func (fsr *frontendSpecResource) resolveDefaultFunctionPriorityClassName() strin
 	return defaultFunctionPriorityClassName
 }
 
-func (fsr *frontendSpecResource) getValidFunctionPriorityClassNames() []string {
+func (fsr *frontendSpecResource) resolveValidFunctionPriorityClassNames() []string {
 	var validFunctionPriorityClassNames []string
 	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
 		validFunctionPriorityClassNames = dashboardServer.GetPlatformConfiguration().Kube.ValidFunctionPriorityClassNames
