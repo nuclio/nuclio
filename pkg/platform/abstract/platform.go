@@ -1242,11 +1242,14 @@ func (ap *Platform) validateNodeSelector(functionConfig *functionconfig.Config) 
 
 func (ap *Platform) validatePriorityClassName(functionConfig *functionconfig.Config) error {
 
+	// function uses default class name
 	if functionConfig.Spec.PriorityClassName == ap.Config.Kube.DefaultFunctionPriorityClassName {
 		return nil
 	}
 
-	if !common.StringSliceContainsString(ap.Config.Kube.ValidFunctionPriorityClassNames,
+	// look for class name in list of valid class names
+	if ap.Config.Kube.ValidFunctionPriorityClassNames != nil && !common.StringSliceContainsString(
+		ap.Config.Kube.ValidFunctionPriorityClassNames,
 		functionConfig.Spec.PriorityClassName) {
 		return nuclio.NewErrBadRequest(fmt.Sprintf(
 			"Priority class name: %s, not in valid priority class names list: %v",

@@ -1190,6 +1190,13 @@ func (suite *AbstractPlatformTestSuite) TestValidatePriorityClassName() {
 			priorityClassName:               "low-priority",
 			validFunctionPriorityClassNames: []string{"low-priority", "medium-priority", "high-priority"},
 		},
+		{
+
+			// all priorityClassName should be valid when validFunctionPriorityClassNames is nil
+			name:                            "NilValidFunctionPriorityClassNames",
+			priorityClassName:               "low-priority",
+			validFunctionPriorityClassNames: nil,
+		},
 
 		// bad flows
 		{
