@@ -1534,7 +1534,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}
 
 			// run enrichment
-			suite.Platform.EnrichAPIGatewayConfig(testCase.apiGatewayConfig)
+			suite.Platform.enrichAPIGatewayConfig(testCase.apiGatewayConfig, nil)
 			if testCase.expectedEnrichedAPIGateway != nil {
 				suite.Require().Empty(cmp.Diff(testCase.expectedEnrichedAPIGateway, testCase.apiGatewayConfig))
 			}

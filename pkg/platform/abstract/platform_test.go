@@ -1319,6 +1319,20 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 			shouldFailValidation: true,
 		},
 		{
+			name: "invalidNameReference",
+			functionVolumes: []functionconfig.Volume{
+				{
+					Volume: v1.Volume{
+						Name: "x",
+					},
+					VolumeMount: v1.VolumeMount{
+						Name: "y",
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
 			name: "differentVolumesMultipleMounts",
 			functionVolumes: []functionconfig.Volume{
 				{
@@ -1372,6 +1386,85 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 			functionName := string(rune(idx + 65))
 			functionConfig := *functionconfig.NewConfig()
 			functionConfig.Spec.Volumes = testCase.functionVolumes
+
+			createFunctionOptions := &platform.CreateFunctionOptions{
+				Logger:         suite.Logger,
+				FunctionConfig: functionConfig,
+			}
+			createFunctionOptions.FunctionConfig.Meta.Name = functionName
+			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			suite.Logger.DebugWith("Checking function", "functionName", functionName)
+
+			err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+			suite.Require().NoError(err)
+
+			err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidateServiceType() {
+	for idx, testCase := range []struct {
+		name                 string
+		serviceType          v1.ServiceType
+		shouldFailValidation bool
+	}{
+
+		// happy flows
+		{
+			name:        "empty",
+			serviceType: "",
+		},
+		{
+			name:        "nodePort",
+			serviceType: v1.ServiceTypeNodePort,
+		},
+		{
+			name:        "clusterIP",
+			serviceType: v1.ServiceTypeClusterIP,
+		},
+
+		// bad flows
+		{
+			name:                 "notSupportedLoadBalancer",
+			serviceType:          v1.ServiceTypeLoadBalancer,
+			shouldFailValidation: true,
+		},
+		{
+			name:                 "notSupportedExternalName",
+			serviceType:          v1.ServiceTypeExternalName,
+			shouldFailValidation: true,
+		},
+		{
+			name:                 "notSupportedInvalid",
+			serviceType:          "blabla",
+			shouldFailValidation: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.
+				On("GetProjects", &platform.GetProjectsOptions{
+					Meta: platform.ProjectMeta{
+						Name:      platform.DefaultProjectName,
+						Namespace: "default",
+					},
+				}).
+				Return([]platform.Project{
+					&platform.AbstractProject{},
+				}, nil).
+				Once()
+
+			// name it with index and shift with 65 to get A as first letter
+			functionName := string(rune(idx + 65))
+			functionConfig := *functionconfig.NewConfig()
+			functionConfig.Spec.ServiceType = testCase.serviceType
 
 			createFunctionOptions := &platform.CreateFunctionOptions{
 				Logger:         suite.Logger,
