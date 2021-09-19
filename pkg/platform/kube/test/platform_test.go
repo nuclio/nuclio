@@ -177,7 +177,7 @@ Error - plugin: symbol ExpectedHandler not found in plugin github.com/nuclio/nuc
 				createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
 				return createFunctionOptions
 			}(),
-			ExpectedBriefErrorsMessage: `Handler not found [handler="main:expected_handler" || worker_id="0"]
+			ExpectedBriefErrorsMessage: `Handler not found [worker_id="0" || handler="main:expected_handler"]
 Caught unhandled exception while initializing [err="module 'main' has no attribute 'expected_handler'" || traceback="Traceback (most recent call last):
   File "/opt/nuclio/_nuclio_wrapper.py", line 325, in run_wrapper
     args.trigger_name)
