@@ -756,6 +756,7 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 					MemberIds:           memberIds,
 					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
+				IgnoreFunctionStateValidation: true,
 			})
 
 			if !testCase.opaResponse {

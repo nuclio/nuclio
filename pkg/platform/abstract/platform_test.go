@@ -274,6 +274,9 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 							Name: "existing",
 						},
 					},
+					Status: functionconfig.Status{
+						State: functionconfig.FunctionStateReady,
+					},
 				},
 			},
 			deleteFunctionOptions: &platform.DeleteFunctionOptions{
@@ -310,6 +313,9 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 							ResourceVersion: "1",
 						},
 					},
+					Status: functionconfig.Status{
+						State: functionconfig.FunctionStateReady,
+					},
 				},
 			},
 			deleteFunctionOptions: &platform.DeleteFunctionOptions{
@@ -322,6 +328,31 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 			},
 		},
 
+		// fail: function is being provisioned
+		{
+			existingFunctions: []platform.Function{
+				&platform.AbstractFunction{
+					Logger:   suite.Logger,
+					Platform: suite.Platform.platform,
+					Config: functionconfig.Config{
+						Meta: functionconfig.Meta{
+							Name: "existing",
+						},
+					},
+					Status: functionconfig.Status{
+						State: functionconfig.FunctionStateBuilding,
+					},
+				},
+			},
+			deleteFunctionOptions: &platform.DeleteFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						Name: "existing",
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
 		// fail: stale resourceVersion
 		{
 			existingFunctions: []platform.Function{

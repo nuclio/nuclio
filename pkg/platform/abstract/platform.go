@@ -207,7 +207,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	return deployResult, nil
 }
 
-// Enrichment of function config
+// EnrichFunctionConfig enriches function config
 func (ap *Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) error {
 
 	// if labels is nil assign an empty map to it
@@ -250,7 +250,7 @@ func (ap *Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) 
 	return nil
 }
 
-// Enrich labels with default project name
+// EnrichLabelsWithProjectName enriches labels with default project name
 func (ap *Platform) EnrichLabelsWithProjectName(labels map[string]string) {
 	if labels[common.NuclioResourceLabelKeyProjectName] == "" {
 		labels[common.NuclioResourceLabelKeyProjectName] = platform.DefaultProjectName
@@ -271,7 +271,7 @@ func (ap *Platform) enrichDefaultHTTPTrigger(functionConfig *functionconfig.Conf
 	functionConfig.Spec.Triggers[defaultHTTPTrigger.Name] = defaultHTTPTrigger
 }
 
-// Validate a function against its existing instance
+// ValidateCreateFunctionOptionsAgainstExistingFunctionConfig validates a function against its existing instance
 func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
 	existingFunctionConfig *functionconfig.ConfigWithStatus,
 	createFunctionOptions *platform.CreateFunctionOptions) error {
@@ -299,7 +299,7 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
 	return nil
 }
 
-// Validate existing and new create function options resource version
+// ValidateResourceVersion validates existing and new create function options resource version
 func (ap *Platform) ValidateResourceVersion(functionConfigWithStatus *functionconfig.ConfigWithStatus,
 	requestFunctionConfig *functionconfig.Config) error {
 
@@ -316,7 +316,8 @@ func (ap *Platform) ValidateResourceVersion(functionConfigWithStatus *functionco
 	// when requestResourceVersion is empty, the existing one will be overridden
 	if requestResourceVersion != "" &&
 		requestResourceVersion != existingResourceVersion {
-		ap.Logger.WarnWith("Create function resource version is stale",
+		ap.Logger.WarnWith("Function resource version is stale",
+			"functionName", functionConfigWithStatus.Meta.Name,
 			"requestResourceVersion", requestResourceVersion,
 			"existingResourceVersion", existingResourceVersion)
 		return errors.New("Function resource version is stale")
@@ -324,7 +325,7 @@ func (ap *Platform) ValidateResourceVersion(functionConfigWithStatus *functionco
 	return nil
 }
 
-// Enrich functions status with logs
+// EnrichFunctionsWithDeployLogStream enriches functions status with logs
 func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Function) {
 
 	// iterate over functions and enrich with deploy logs
@@ -335,7 +336,7 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 	}
 }
 
-// Validation and enforcement of required function creation logic
+// ValidateFunctionConfig validaets and enforces of required function creation logic
 func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config) error {
 
 	if common.StringInSlice(functionConfig.Meta.Name, ap.ResolveReservedResourceNames()) {
@@ -375,7 +376,7 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 	return nil
 }
 
-// Validation and enforcement of required project deletion logic
+// ValidateDeleteProjectOptions validates and enforces of required project deletion logic
 func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	projectName := deleteProjectOptions.Meta.Name
 
@@ -424,7 +425,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 	return nil
 }
 
-// Validation and enforcement of required function deletion logic
+// ValidateDeleteFunctionOptions validates and enforces of required function deletion logic
 func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	functionName := deleteFunctionOptions.FunctionConfig.Meta.Name
 	functionNamespace := deleteFunctionOptions.FunctionConfig.Meta.Namespace
@@ -450,6 +451,18 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 	if err := ap.ValidateResourceVersion(functionToDelete.GetConfigWithStatus(),
 		&deleteFunctionOptions.FunctionConfig); err != nil {
 		return nuclio.WrapErrConflict(err)
+	}
+
+	if !deleteFunctionOptions.IgnoreFunctionStateValidation {
+
+		// do not allow deleting functions that are being provisioned
+		if functionconfig.FunctionStateProvisioning(functionToDelete.GetStatus().State) {
+			ap.Logger.WarnWith("Function cannot be deleted as it is being provisioned",
+				"functionName", functionToDelete.GetConfig().Meta.Name)
+
+			// update UI when changing text / code
+			return nuclio.NewErrPreconditionFailed("Function is being provisioned and cannot be deleted")
+		}
 	}
 
 	// Check OPA permissions
@@ -819,12 +832,12 @@ func (ap *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuild
 		ap.platform.ResolveDefaultNamespace("@nuclio.selfNamespace"))
 }
 
-// Get Onbuild stage for multistage builds
+// GetOnbuildStages get onbuild multistage builds
 func (ap *Platform) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
 	return ap.ContainerBuilder.GetOnbuildStages(onbuildArtifacts)
 }
 
-// Change Onbuild artifact paths depending on the type of the builder used
+// TransformOnbuildArtifactPaths changes Onbuild artifact paths depending on the type of the builder used
 func (ap *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
 	return ap.ContainerBuilder.TransformOnbuildArtifactPaths(onbuildArtifacts)
 }
