@@ -456,6 +456,8 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 
 		// do not allow deleting functions that are being provisioned
 		if functionconfig.FunctionStateProvisioning(functionToDelete.GetStatus().State) {
+
+			// update UI when changing text / code
 			return nuclio.NewErrPreconditionFailed("Function is being provisioned and cannot be deleted")
 		}
 	}
