@@ -1181,28 +1181,28 @@ func (suite *AbstractPlatformTestSuite) TestValidatePriorityClassName() {
 
 		// happy flows
 		{
-			name: "Sanity",
-			priorityClassName: "low-priority",
+			name:                            "Sanity",
+			priorityClassName:               "low-priority",
 			validFunctionPriorityClassNames: []string{"low-priority"},
 		},
 		{
-			name: "MultipleValidValues",
-			priorityClassName: "low-priority",
+			name:                            "MultipleValidValues",
+			priorityClassName:               "low-priority",
 			validFunctionPriorityClassNames: []string{"low-priority", "medium-priority", "high-priority"},
 		},
 
 		// bad flows
 		{
-			name: "NonValidValue",
-			priorityClassName: "non-valid-priority",
+			name:                            "NonValidValue",
+			priorityClassName:               "non-valid-priority",
 			validFunctionPriorityClassNames: []string{"low-priority", "medium-priority", "high-priority"},
-			shouldFailValidation: true,
+			shouldFailValidation:            true,
 		},
 		{
-			name: "NoValidValues",
-			priorityClassName: "low-priority",
+			name:                            "NoValidValues",
+			priorityClassName:               "low-priority",
 			validFunctionPriorityClassNames: []string{},
-			shouldFailValidation: true,
+			shouldFailValidation:            true,
 		},
 	} {
 		suite.Run(testCase.name, func() {
