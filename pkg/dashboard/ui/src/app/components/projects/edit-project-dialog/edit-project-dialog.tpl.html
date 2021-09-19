@@ -10,7 +10,7 @@
     <form name="editProjectForm" novalidate data-ng-keydown="$ctrl.saveProject($event)">
         <div class="field-group">
             <div class="field-label">
-                {{ 'functions:PROJECT_NAME' | i18next }}
+                {{ 'common:PROJECT_NAME' | i18next }}
             </div>
             <div class="field-input">
                 <igz-validating-input-field class="nuclio-validating-input"
@@ -20,8 +20,7 @@
                                             data-input-value="$ctrl.data.metadata.name"
                                             data-update-data-callback="$ctrl.inputValueCallback(newData, field)"
                                             data-form-object="editProjectForm"
-                                            data-validation-rules="$ctrl.validationRules.projectName"
-                                            data-placeholder-text="{{ 'functions:PLACEHOLDER.PROJECT_NAME' | i18next }}">
+                                            data-validation-rules="$ctrl.validationRules.projectName">
                 </igz-validating-input-field>
             </div>
         </div>
