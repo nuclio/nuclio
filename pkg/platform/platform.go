@@ -213,6 +213,9 @@ type Platform interface {
 	// GetRuntimeBuildArgs returns the runtime specific build arguments
 	GetRuntimeBuildArgs(runtime runtime.Runtime) map[string]string
 
+	// GetConfig returns platform config
+	GetConfig() *platformconfig.Config
+
 	//
 	// OPA
 	//

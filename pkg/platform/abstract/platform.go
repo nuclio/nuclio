@@ -96,6 +96,10 @@ func NewPlatform(parentLogger logger.Logger,
 	return newPlatform, nil
 }
 
+func (ap *Platform) GetConfig() *platformconfig.Config {
+	return ap.Config
+}
+
 func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (
 	*platform.CreateFunctionBuildResult, error) {
 
