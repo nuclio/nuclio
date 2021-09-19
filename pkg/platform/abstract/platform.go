@@ -452,6 +452,14 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 		return nuclio.WrapErrConflict(err)
 	}
 
+	if !deleteFunctionOptions.IgnoreFunctionStateValidation {
+
+		// do not allow deleting functions that are being provisioned
+		if functionconfig.FunctionStateProvisioning(functionToDelete.GetStatus().State) {
+			return nuclio.NewErrPreconditionFailed("Function is being provisioned and cannot be deleted")
+		}
+	}
+
 	// Check OPA permissions
 	permissionOptions := deleteFunctionOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
