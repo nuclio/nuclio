@@ -316,7 +316,7 @@ func (ap *Platform) ValidateResourceVersion(functionConfigWithStatus *functionco
 	// when requestResourceVersion is empty, the existing one will be overridden
 	if requestResourceVersion != "" &&
 		requestResourceVersion != existingResourceVersion {
-		ap.Logger.WarnWith("Create function resource version is stale",
+		ap.Logger.WarnWith("Function resource version is stale",
 			"requestResourceVersion", requestResourceVersion,
 			"existingResourceVersion", existingResourceVersion)
 		return errors.New("Function resource version is stale")
