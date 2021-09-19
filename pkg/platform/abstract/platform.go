@@ -317,6 +317,7 @@ func (ap *Platform) ValidateResourceVersion(functionConfigWithStatus *functionco
 	if requestResourceVersion != "" &&
 		requestResourceVersion != existingResourceVersion {
 		ap.Logger.WarnWith("Function resource version is stale",
+			"functionName", functionConfigWithStatus.Meta.Name,
 			"requestResourceVersion", requestResourceVersion,
 			"existingResourceVersion", existingResourceVersion)
 		return errors.New("Function resource version is stale")
@@ -456,6 +457,8 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 
 		// do not allow deleting functions that are being provisioned
 		if functionconfig.FunctionStateProvisioning(functionToDelete.GetStatus().State) {
+			ap.Logger.WarnWith("Function cannot be deleted as it is being provisioned",
+				"functionName", functionToDelete.GetConfig().Meta.Name)
 
 			// update UI when changing text / code
 			return nuclio.NewErrPreconditionFailed("Function is being provisioned and cannot be deleted")
