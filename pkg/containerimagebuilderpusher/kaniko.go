@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
@@ -27,6 +27,7 @@ type Kaniko struct {
 	logger               logger.Logger
 	builderConfiguration *ContainerBuilderConfiguration
 	jobNameRegex         *regexp.Regexp
+	cmdRunner            cmdrunner.CmdRunner
 }
 
 func NewKaniko(logger logger.Logger, kubeClientSet kubernetes.Interface,
@@ -40,11 +41,17 @@ func NewKaniko(logger logger.Logger, kubeClientSet kubernetes.Interface,
 	// alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com')
 	jobNameRegex := regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
 
+	shellRunner, err := cmdrunner.NewShellRunner(logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create shell runner")
+	}
+
 	kanikoBuilder := &Kaniko{
 		logger:               logger,
 		kubeClientSet:        kubeClientSet,
 		builderConfiguration: builderConfiguration,
 		jobNameRegex:         jobNameRegex,
+		cmdRunner:            shellRunner,
 	}
 
 	return kanikoBuilder, nil
@@ -55,7 +62,9 @@ func (k *Kaniko) GetKind() string {
 }
 
 func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error {
-	bundleFilename, assetPath, err := k.createContainerBuildBundle(buildOptions.Image, buildOptions.ContextDir, buildOptions.TempDir)
+	bundleFilename, assetPath, err := k.createContainerBuildBundle(buildOptions.Image,
+		buildOptions.ContextDir,
+		buildOptions.TempDir)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create container build bundle")
 	}
@@ -140,44 +149,50 @@ func (k *Kaniko) GetOnbuildImageRegistry(registry string) string {
 }
 
 func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tempDir string) (string, string, error) {
-	var err error
 
 	// Create temp directory to store compressed container build bundle
 	buildContainerBundleDir := path.Join(tempDir, "tar")
-	err = os.Mkdir(buildContainerBundleDir, 0744)
-	if err != nil {
+	if err := os.Mkdir(buildContainerBundleDir, 0744); err != nil {
 		return "", "", errors.Wrapf(err, "Failed to create tar dir: %s", buildContainerBundleDir)
 	}
-
 	k.logger.DebugWith("Created tar dir", "dir", buildContainerBundleDir)
 
 	tarFilename := fmt.Sprintf("%s.tar.gz", strings.ReplaceAll(image, "/", "_"))
 	tarFilename = strings.ReplaceAll(tarFilename, ":", "_")
-	tarFilePath := path.Join(buildContainerBundleDir, tarFilename)
-
-	k.logger.DebugWith("Compressing build bundle", "tarFilePath", tarFilePath)
-
-	// Just in case file with the same filename already exist - delete it
-	_ = os.Remove(tarFilePath)
-
-	_, err = exec.Command("tar", "-zcvf", tarFilePath, contextDir).Output()
+	tarFile, err := ioutil.TempFile(buildContainerBundleDir, fmt.Sprintf("*-%s", tarFilename))
 	if err != nil {
+		return "", "", errors.Wrap(err, "Failed to create tar bundle")
+	}
+
+	// allow read on group
+	tarFile.Chmod(0744) // nolint: errcheck
+
+	// we dont use its fd
+	tarFile.Close() // nolint: errcheck
+
+	k.logger.DebugWith("Compressing build bundle", "tarFilePath", tarFile.Name())
+	if _, err := k.cmdRunner.Run(&cmdrunner.RunOptions{
+		WorkingDir: &buildContainerBundleDir,
+	}, "tar -zcvf %s %s", path.Base(tarFile.Name()), contextDir); err != nil {
 		return "", "", errors.Wrapf(err, "Failed to compress build bundle")
 	}
-	k.logger.Debug("Build bundle was successfully compressed")
 
 	// Create symlink to bundle tar file in nginx serving directory
-	assetPath := path.Join("/etc/nginx/static/assets", tarFilename)
-	err = os.Link(tarFilePath, assetPath)
-	if err != nil {
+	assetPath := path.Join("/etc/nginx/static/assets", path.Base(tarFile.Name()))
+	k.logger.DebugWith("Creating symlink to bundle tar",
+		"tarFileName", tarFile.Name(),
+		"assetPath", assetPath)
+	if err := os.Link(tarFile.Name(), assetPath); err != nil {
 		return "", "", errors.Wrapf(err, "Failed to create symlink to build bundle")
 	}
 
-	return tarFilename, assetPath, nil
+	return path.Base(tarFile.Name()), assetPath, nil
 }
 
 func (k *Kaniko) compileKanikoJobSpec(namespace string,
-	buildOptions *BuildOptions, bundleFilename string) *batchv1.Job {
+	buildOptions *BuildOptions,
+	bundleFilename string) *batchv1.Job {
+
 	completions := int32(1)
 	backoffLimit := int32(0)
 	buildArgs := []string{
