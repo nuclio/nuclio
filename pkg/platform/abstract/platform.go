@@ -358,7 +358,7 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 	}
 
 	if err := ap.validateNodeSelector(functionConfig); err != nil {
-		return errors.Wrap(err, "NodeSelector validation failed")
+		return errors.Wrap(err, "Node selector validation failed")
 	}
 
 	if err := ap.validateProjectExists(functionConfig); err != nil {
@@ -367,6 +367,10 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 
 	if err := ap.validateVolumes(functionConfig); err != nil {
 		return errors.Wrap(err, "Volumes validation failed")
+	}
+
+	if err := ap.validatePriorityClassName(functionConfig); err != nil {
+		return errors.Wrap(err, "Priority class name validation failed")
 	}
 
 	if err := ap.validateServiceType(functionConfig); err != nil {
@@ -1245,6 +1249,25 @@ func (ap *Platform) validateNodeSelector(functionConfig *functionconfig.Config) 
 			errs = append([]string{fmt.Sprintf("Invalid key: %s", labelKey)}, errs...)
 			return nuclio.NewErrBadRequest(strings.Join(errs, ", "))
 		}
+	}
+	return nil
+}
+
+func (ap *Platform) validatePriorityClassName(functionConfig *functionconfig.Config) error {
+
+	// function uses default class name
+	if functionConfig.Spec.PriorityClassName == ap.Config.Kube.DefaultFunctionPriorityClassName {
+		return nil
+	}
+
+	// look for class name in list of valid class names
+	if ap.Config.Kube.ValidFunctionPriorityClassNames != nil && !common.StringSliceContainsString(
+		ap.Config.Kube.ValidFunctionPriorityClassNames,
+		functionConfig.Spec.PriorityClassName) {
+		return nuclio.NewErrBadRequest(fmt.Sprintf(
+			"Priority class name `%s` is not in valid priority class names list: [%s]",
+			functionConfig.Spec.PriorityClassName,
+			strings.Join(ap.Config.Kube.ValidFunctionPriorityClassNames, ", ")))
 	}
 	return nil
 }
