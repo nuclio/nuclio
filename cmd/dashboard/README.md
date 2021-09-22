@@ -241,6 +241,7 @@ you `DELETE /api/function_invocations`, the HTTP method in the event as received
 * URL: `DELETE /api/functions`
 * Headers:
     * `Content-Type`: Must be set to `application/json`
+    * `X-nuclio-delete-function-ignore-state-validation`: When `true` - allow deleting function in transient mode (e.g.: `building`). Otherwise, disallow.
 * Body:
 
 ```json
