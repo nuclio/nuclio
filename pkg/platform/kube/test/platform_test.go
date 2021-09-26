@@ -1187,7 +1187,7 @@ func (suite *ProjectTestSuite) TestUpdate() {
 
 	// delete leftover
 	defer func() {
-		err = suite.Platform.DeleteProject(&platform.DeleteProjectOptions{
+		err := suite.Platform.DeleteProject(&platform.DeleteProjectOptions{
 			Meta:     projectConfig.Meta,
 			Strategy: platform.DeleteProjectStrategyRestricted,
 		})
@@ -1212,7 +1212,10 @@ func (suite *ProjectTestSuite) TestUpdate() {
 	updatedProject := suite.GetProject(&platform.GetProjectsOptions{
 		Meta: projectConfig.Meta,
 	})
-	suite.Require().Empty(cmp.Diff(projectConfig, *updatedProject.GetConfig()))
+	suite.Require().Empty(cmp.Diff(projectConfig, *updatedProject.GetConfig(),
+		cmp.Options{
+			cmpopts.IgnoreFields(projectConfig.Status, "UpdatedAt"), // automatically populated
+		}))
 }
 
 func (suite *ProjectTestSuite) TestDelete() {
@@ -1245,7 +1248,7 @@ func (suite *ProjectTestSuite) TestDelete() {
 	})
 	suite.Require().NoError(err, "Failed to delete project")
 
-	// ensure project does not exists
+	// ensure project does not exist
 	projects, err := suite.Platform.GetProjects(&platform.GetProjectsOptions{
 		Meta: projectConfig.Meta,
 	})

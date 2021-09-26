@@ -836,9 +836,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	// deploy first time, should successfully create the function
 
 	// write function config to file
-	functionConfigPath, err := suite.writeFunctionConfigToTempFile(&functionConfig,
-		"resource-version-*.yaml")
-	suite.Require().NoError(err)
+	functionConfigPath := suite.writeFunctionConfigToTempFile(&functionConfig, "resource-version-*.yaml")
 
 	// remove when done
 	defer os.RemoveAll(functionConfigPath) // nolint: errcheck
@@ -911,9 +909,8 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	deployedFunction.Meta.ResourceVersion = functionResourceVersion
 
 	// write function config to file
-	staleFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(&deployedFunction.Config,
+	staleFunctionConfigPath := suite.writeFunctionConfigToTempFile(&deployedFunction.Config,
 		"stale-resource-version-*.yaml")
-	suite.Require().NoError(err)
 
 	// remove when done
 	defer os.RemoveAll(staleFunctionConfigPath) // nolint: errcheck
@@ -934,9 +931,8 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	deployedFunction.Meta.ResourceVersion = ""
 
 	// write function config to file
-	overriddenFunctionConfigPath, err := suite.writeFunctionConfigToTempFile(&deployedFunction.Config,
+	overriddenFunctionConfigPath := suite.writeFunctionConfigToTempFile(&deployedFunction.Config,
 		"overridden-resource-version-*.yaml")
-	suite.Require().NoError(err)
 
 	// remove when done
 	defer os.RemoveAll(overriddenFunctionConfigPath) // nolint: errcheck

@@ -33,6 +33,20 @@ func NewNopClient(parentLogger logger.Logger, logLevel int) *NopClient {
 	return &newClient
 }
 
+func (c *NopClient) QueryPermissionsMultiResources(resources []string, action Action, permissionOptions *PermissionOptions) ([]bool, error) {
+	if c.logLevel > 5 {
+		c.logger.InfoWith("Skipping permission query for multi resources",
+			"resources", resources,
+			"action", action,
+			"permissionOptions", permissionOptions)
+	}
+	results := make([]bool, len(resources))
+	for i := 0; i < len(results); i++ {
+		results[i] = true
+	}
+	return results, nil
+}
+
 func (c *NopClient) QueryPermissions(resource string, action Action, permissionOptions *PermissionOptions) (bool, error) {
 	if c.logLevel > 5 {
 		c.logger.InfoWith("Skipping permission query",

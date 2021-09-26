@@ -447,6 +447,8 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
+		IgnoreFunctionStateValidation: fr.headerValueIsTrue(request,
+			"x-nuclio-delete-function-ignore-state-validation"),
 	}
 
 	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta

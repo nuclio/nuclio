@@ -3197,6 +3197,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
             }
         ]
     },
+	"validFunctionPriorityClassNames": null,
 	"platformKind": "",
 	"allowedAuthenticationModes": [
 		"none",

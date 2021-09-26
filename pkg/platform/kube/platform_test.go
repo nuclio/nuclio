@@ -541,15 +541,15 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 				memberIds = []string{"id1", "id2"}
 
 				suite.mockedOpaClient.
-					On("QueryPermissions",
-						fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName),
+					On("QueryPermissionsMultiResources",
+						[]string{fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName)},
 						opa.ActionRead,
 						&opa.PermissionOptions{
 							MemberIds:           memberIds,
 							RaiseForbidden:      testCase.raiseForbidden,
 							OverrideHeaderValue: suite.opaOverrideHeaderValue,
 						}).
-					Return(testCase.opaResponse, nil).
+					Return([]bool{testCase.opaResponse}, nil).
 					Once()
 				defer suite.mockedOpaClient.AssertExpectations(suite.T())
 			}
@@ -756,6 +756,7 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 					MemberIds:           memberIds,
 					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
+				IgnoreFunctionStateValidation: true,
 			})
 
 			if !testCase.opaResponse {
@@ -1012,18 +1013,18 @@ func (suite *FunctionEventKubePlatformTestSuite) TestGetFunctionEventsPermission
 			if testCase.givenMemberIds {
 				memberIds = []string{"id1", "id2"}
 				suite.mockedOpaClient.
-					On("QueryPermissions",
-						fmt.Sprintf("/projects/%s/functions/%s/function-events/%s",
+					On("QueryPermissionsMultiResources",
+						[]string{fmt.Sprintf("/projects/%s/functions/%s/function-events/%s",
 							projectName,
 							functionName,
-							functionEventName),
+							functionEventName)},
 						opa.ActionRead,
 						&opa.PermissionOptions{
 							MemberIds:           memberIds,
 							RaiseForbidden:      testCase.raiseForbidden,
 							OverrideHeaderValue: suite.opaOverrideHeaderValue,
 						}).
-					Return(testCase.opaResponse, nil).
+					Return([]bool{testCase.opaResponse}, nil).
 					Once()
 				defer suite.mockedOpaClient.AssertExpectations(suite.T())
 			}
@@ -1534,7 +1535,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}
 
 			// run enrichment
-			suite.Platform.EnrichAPIGatewayConfig(testCase.apiGatewayConfig)
+			suite.Platform.enrichAPIGatewayConfig(testCase.apiGatewayConfig, nil)
 			if testCase.expectedEnrichedAPIGateway != nil {
 				suite.Require().Empty(cmp.Diff(testCase.expectedEnrichedAPIGateway, testCase.apiGatewayConfig))
 			}

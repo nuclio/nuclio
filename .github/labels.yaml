@@ -2,6 +2,9 @@ area/ui:
   - pkg/dashboard/ui/**/*
 
 # platforms
+platform:
+  - pkg/platform/**/*
+
 platform/kube:
   - pkg/platform/kube/**/*
 
@@ -83,6 +86,10 @@ nuctl:
 # releaser
 releaser:
   - hack/scripts/releaser/**/*
+
+go/modules:
+  - go.sum
+  - go.mod
 
 ci:
   - .github/**/*

@@ -59,18 +59,32 @@ type PermissionOptions struct {
 	OverrideHeaderValue string
 }
 
-type PermissionRequestInput struct {
+type PermissionQueryRequestInput struct {
 	Resource string   `json:"resource,omitempty"`
 	Action   string   `json:"action,omitempty"`
 	Ids      []string `json:"ids,omitempty"`
 }
 
-type PermissionRequest struct {
-	Input PermissionRequestInput `json:"input,omitempty"`
+type PermissionQueryRequest struct {
+	Input PermissionQueryRequestInput `json:"input,omitempty"`
 }
 
-type PermissionResponse struct {
+type PermissionFilterRequestInput struct {
+	Resources []string `json:"resources,omitempty"`
+	Action    string   `json:"action,omitempty"`
+	Ids       []string `json:"ids,omitempty"`
+}
+
+type PermissionFilterRequest struct {
+	Input PermissionFilterRequestInput `json:"input,omitempty"`
+}
+
+type PermissionQueryResponse struct {
 	Result bool `json:"result,omitempty"`
+}
+
+type PermissionFilterResponse struct {
+	Result []string `json:"result,omitempty"`
 }
 
 const (

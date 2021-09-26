@@ -77,7 +77,7 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 
 	// pass global environment onto the process, and sprinkle in some added env vars
 	env := os.Environ()
-	env = append(env, py.getEnvFromConfiguration()...)
+	env = append(env, py.GetEnvFromConfiguration()...)
 	envPath := fmt.Sprintf("PYTHONPATH=%s", py.getPythonPath())
 	py.Logger.DebugWith("Setting PYTHONPATH", "value", envPath)
 	env = append(env, envPath)
@@ -111,14 +111,6 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 // WaitForStart returns whether the runtime supports sending an indication that it started
 func (py *python) WaitForStart() bool {
 	return true
-}
-
-func (py *python) getEnvFromConfiguration() []string {
-	return []string{
-		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", py.configuration.Meta.Name),
-		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", py.configuration.Spec.Description),
-		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", py.configuration.Spec.Version),
-	}
 }
 
 func (py *python) getHandler() string {

@@ -614,7 +614,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 	projectDeletionStrategy := request.Header.Get("x-nuclio-delete-project-strategy")
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
-	if err = pr.getPlatform().DeleteProject(&platform.DeleteProjectOptions{
+	if err := pr.getPlatform().DeleteProject(&platform.DeleteProjectOptions{
 		Meta:          *projectInfo.Meta,
 		Strategy:      platform.ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy),
 		RequestOrigin: requestOrigin,
@@ -645,7 +645,6 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 	projectInfo, err := pr.getProjectInfoFromRequest(request)
 	if err != nil {
 		pr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
-
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
 			StatusCode: http.StatusBadRequest,
@@ -654,7 +653,7 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
-	if err = pr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
+	if err := pr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
 		ProjectConfig: platform.ProjectConfig{
 			Meta: *projectInfo.Meta,
 			Spec: *projectInfo.Spec,
@@ -666,8 +665,10 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {
-		pr.Logger.WarnWith("Failed to update project", "err", err)
 		statusCode = common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError)
+		if statusCode > 300 {
+			pr.Logger.WarnWith("Failed to update project", "err", err)
+		}
 	}
 
 	// return the stuff
