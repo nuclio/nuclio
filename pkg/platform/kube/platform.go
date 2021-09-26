@@ -23,7 +23,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -433,6 +432,14 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 		}
 	}
 
+	// enrich function pod priority class name
+	if functionConfig.Spec.PriorityClassName == "" && p.Config.Kube.DefaultFunctionPriorityClassName != "" {
+		p.Logger.DebugWith("Enriching pod priority class name",
+			"functionName", functionConfig.Meta.Name,
+			"priorityClassName", p.Config.Kube.DefaultFunctionPriorityClassName)
+		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
+	}
+
 	return nil
 }
 
@@ -479,6 +486,9 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 
 // UpdateFunction will update a previously deployed function
 func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
+	p.Logger.DebugWith("Updating function",
+		"functionName", updateFunctionOptions.FunctionMeta.Name)
+
 	return p.updater.Update(updateFunctionOptions)
 }
 
@@ -532,10 +542,6 @@ func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
 		names = append(names, pod.GetName())
 	}
 	return names, nil
-}
-
-func IsInCluster() bool {
-	return len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0
 }
 
 // GetName returns the platform name
@@ -638,7 +644,7 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 	newAPIGateway := nuclioio.NuclioAPIGateway{}
 
 	// enrich
-	p.EnrichAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig)
+	p.enrichAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig, nil)
 
 	// validate
 	if err := p.ValidateAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig); err != nil {
@@ -651,10 +657,9 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 	newAPIGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
 	// create
-	_, err := p.consumer.NuclioClientSet.NuclioV1beta1().
+	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(newAPIGateway.Namespace).
-		Create(&newAPIGateway)
-	if err != nil {
+		Create(&newAPIGateway); err != nil {
 		return errors.Wrap(err, "Failed to create an API gateway")
 	}
 
@@ -671,7 +676,7 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	}
 
 	// enrich
-	p.EnrichAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig)
+	p.enrichAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig, apiGateway)
 
 	// validate
 	if err := p.ValidateAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig); err != nil {
@@ -686,7 +691,7 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	apiGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
 	// update
-	if _, err = p.consumer.NuclioClientSet.NuclioV1beta1().
+	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Update(apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to update an API gateway")
@@ -1254,7 +1259,8 @@ func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *p
 	functionEvent.Spec = platformFunctionEvent.Spec // deep copy instead?
 }
 
-func (p *Platform) EnrichAPIGatewayConfig(apiGatewayConfig *platform.APIGatewayConfig) {
+func (p *Platform) enrichAPIGatewayConfig(apiGatewayConfig *platform.APIGatewayConfig,
+	existingApiGatewayConfig *nuclioio.NuclioAPIGateway) {
 
 	// meta
 	if apiGatewayConfig.Meta.Name == "" {
@@ -1268,6 +1274,12 @@ func (p *Platform) EnrichAPIGatewayConfig(apiGatewayConfig *platform.APIGatewayC
 
 	if apiGatewayConfig.Meta.Labels == nil {
 		apiGatewayConfig.Meta.Labels = map[string]string{}
+	}
+
+	// do not allow changing project name for existing api gateways
+	if existingApiGatewayConfig != nil {
+		apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] =
+			existingApiGatewayConfig.Labels[common.NuclioResourceLabelKeyProjectName]
 	}
 
 	p.EnrichLabelsWithProjectName(apiGatewayConfig.Meta.Labels)

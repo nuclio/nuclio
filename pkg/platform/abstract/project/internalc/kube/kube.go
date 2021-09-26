@@ -2,6 +2,7 @@ package kube
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
@@ -117,6 +118,8 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (pl
 	projectInstance.Annotations = updatedProject.Annotations
 	projectInstance.Labels = updatedProject.Labels
 	projectInstance.Status = updatedProject.Status
+	now := time.Now()
+	projectInstance.Status.UpdatedAt = &now
 
 	nuclioProject, err := c.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioProjects(projectInstance.Namespace).

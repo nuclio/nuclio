@@ -219,7 +219,4 @@ type Platform interface {
 
 	// QueryOPAFunctionPermissions queries opa permissions for a certain function
 	QueryOPAFunctionPermissions(projectName, functionName string, action opa.Action, permissionOptions *opa.PermissionOptions) (bool, error)
-
-	// QueryOPAFunctionEventPermissions queries opa permissions for a certain function event
-	QueryOPAFunctionEventPermissions(projectName, functionName, functionEventName string, action opa.Action, permissionOptions *opa.PermissionOptions) (bool, error)
 }

@@ -79,6 +79,9 @@ type DeleteFunctionOptions struct {
 	AuthConfig        *AuthConfig
 	PermissionOptions opa.PermissionOptions
 	AuthSession       auth.Session
+
+	// whether to ignore the validation where functions being provisioned cannot be deleted
+	IgnoreFunctionStateValidation bool
 }
 
 // CreateFunctionBuildResult holds information detected/generated as a result of a build process
@@ -358,8 +361,6 @@ func (s *FunctionEventSpec) DeepCopyInto(out *FunctionEventSpec) {
 //
 // APIGateway
 //
-
-const DefaultAPIGatewayName string = "default"
 
 type APIGatewayMeta struct {
 	Name              string            `json:"name,omitempty"`

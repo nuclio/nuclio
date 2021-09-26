@@ -68,7 +68,7 @@ func (d *dotnetcore) RunWrapper(socketPath string) (*os.Process, error) {
 
 	// pass global environment onto the process, and sprinkle in some added env vars
 	env := os.Environ()
-	env = append(env, d.getEnvFromConfiguration()...)
+	env = append(env, d.GetEnvFromConfiguration()...)
 
 	args := []string{
 		"dotnet", wrapperDLLPath, socketPath,
@@ -84,14 +84,6 @@ func (d *dotnetcore) RunWrapper(socketPath string) (*os.Process, error) {
 	return cmd.Process, cmd.Start()
 }
 
-func (d *dotnetcore) getEnvFromConfiguration() []string {
-	return []string{
-		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", d.configuration.Meta.Name),
-		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", d.configuration.Spec.Description),
-		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", d.configuration.Spec.Version),
-		fmt.Sprintf("NUCLIO_FUNCTION_HANDLER=%s", d.configuration.Spec.Handler),
-	}
-}
 func (d *dotnetcore) getHandler() string {
 	return d.configuration.Spec.Handler
 }
