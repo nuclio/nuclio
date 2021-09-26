@@ -1,4 +1,4 @@
-# kinesis: Kinesis Trigger
+# kinesis: Kinesis Trigger **[Tech Preview]**
 
 Reads records from [Amazon Kinesis](https://aws.amazon.com/kinesis/) streams.
 
