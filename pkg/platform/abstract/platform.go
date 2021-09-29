@@ -737,6 +737,24 @@ func (ap *Platform) EnrichFunctionEvent(functionEventConfig *platform.FunctionEv
 		functionEventConfig.Meta.Labels = map[string]string{}
 	}
 
+	// default to http trigger
+	if functionEventConfig.Spec.TriggerKind == "" {
+		functionEventConfig.Spec.TriggerKind = "http"
+	}
+
+	// enrich http kind
+	if strings.ToLower(functionEventConfig.Spec.TriggerKind) == "http" {
+		if functionEventConfig.Spec.Attributes == nil {
+			functionEventConfig.Spec.Attributes = map[string]interface{}{
+				"headers": map[string]string{
+					"Content-Type": "text/plain",
+				},
+				"method": http.MethodPost,
+				"path":   "",
+			}
+		}
+	}
+
 	functionName, functionNameFound := functionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyFunctionName]
 	if !functionNameFound {
 		return errors.Errorf("Function event has a missing label - `%s`",
