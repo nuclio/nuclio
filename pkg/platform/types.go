@@ -313,6 +313,11 @@ type FunctionEventMeta struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+type FunctionEventTriggerKind string
+
+const FunctionEventTriggerKindHTTP = "http"
+const DefaultFunctionEventTriggerKind = FunctionEventTriggerKindHTTP
+
 type FunctionEventSpec struct {
 	DisplayName string                 `json:"displayName,omitempty"`
 	TriggerName string                 `json:"triggerName,omitempty"`

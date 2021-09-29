@@ -737,20 +737,30 @@ func (ap *Platform) EnrichFunctionEvent(functionEventConfig *platform.FunctionEv
 		functionEventConfig.Meta.Labels = map[string]string{}
 	}
 
+	// take display name from display name if missing
+	if functionEventConfig.Spec.DisplayName == "" {
+		functionEventConfig.Spec.DisplayName = functionEventConfig.Meta.Name
+	}
+
 	// default to http trigger
 	if functionEventConfig.Spec.TriggerKind == "" {
-		functionEventConfig.Spec.TriggerKind = "http"
+		functionEventConfig.Spec.TriggerKind = platform.DefaultFunctionEventTriggerKind
 	}
 
 	// enrich http kind
-	if strings.ToLower(functionEventConfig.Spec.TriggerKind) == "http" {
+	if functionEventConfig.Spec.TriggerKind == platform.FunctionEventTriggerKindHTTP {
 		if functionEventConfig.Spec.Attributes == nil {
-			functionEventConfig.Spec.Attributes = map[string]interface{}{
-				"headers": map[string]string{
-					"Content-Type": "text/plain",
-				},
-				"method": http.MethodPost,
-				"path":   "",
+			functionEventConfig.Spec.Attributes = map[string]interface{}{}
+		}
+
+		// enrich attributes with key: value
+		for key, value := range map[string]string{
+			"Content-Type": "text/plain",
+			"method":       http.MethodPost,
+			"path":         "",
+		} {
+			if _, exists := functionEventConfig.Spec.Attributes[key]; !exists {
+				functionEventConfig.Spec.Attributes[key] = value
 			}
 		}
 	}
