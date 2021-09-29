@@ -791,15 +791,16 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
 func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
-	newFunctionEvent := nuclioio.NuclioFunctionEvent{}
-	p.platformFunctionEventToFunctionEvent(&createFunctionEventOptions.FunctionEventConfig, &newFunctionEvent)
 
 	if err := p.Platform.EnrichFunctionEvent(&createFunctionEventOptions.FunctionEventConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich function event")
 	}
 
-	functionName := newFunctionEvent.Labels[common.NuclioResourceLabelKeyFunctionName]
+	newFunctionEvent := nuclioio.NuclioFunctionEvent{}
+	p.platformFunctionEventToFunctionEvent(&createFunctionEventOptions.FunctionEventConfig, &newFunctionEvent)
+
 	projectName := newFunctionEvent.Labels[common.NuclioResourceLabelKeyProjectName]
+	functionName := newFunctionEvent.Labels[common.NuclioResourceLabelKeyFunctionName]
 
 	// Check OPA permissions
 	permissionOptions := createFunctionEventOptions.PermissionOptions

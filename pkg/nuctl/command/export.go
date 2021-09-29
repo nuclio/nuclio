@@ -89,7 +89,7 @@ Arguments:
 				if commandeer.getFunctionsOptions.Name != "" {
 					return nuclio.NewErrNotFound("No functions found")
 				}
-				cmd.OutOrStdout().Write([]byte("No functions found")) // nolint: errcheck
+				cmd.OutOrStdout().Write([]byte("No functions found\n")) // nolint: errcheck
 				return nil
 			}
 
