@@ -754,10 +754,10 @@ func (ap *Platform) EnrichFunctionEvent(functionEventConfig *platform.FunctionEv
 		}
 
 		// enrich attributes with key: value
-		for key, value := range map[string]string{
-			"Content-Type": "text/plain",
-			"method":       http.MethodPost,
-			"path":         "",
+		for key, value := range map[string]interface{}{
+			"headers": map[string]string{"Content-Type": "text/plain"},
+			"method":  http.MethodPost,
+			"path":    "",
 		} {
 			if _, exists := functionEventConfig.Spec.Attributes[key]; !exists {
 				functionEventConfig.Spec.Attributes[key] = value
