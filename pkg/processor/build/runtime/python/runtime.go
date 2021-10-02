@@ -18,13 +18,19 @@ package python
 
 import (
 	"fmt"
+	"io/ioutil"
+	"path"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/runtimeconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
+
+	"github.com/nuclio/errors"
 )
+
+const pipCAFileLocation = "/etc/ssl/certs/nuclio/pip-ca-certificates.crt"
 
 type python struct {
 	*runtime.AbstractRuntime
@@ -36,7 +42,8 @@ func (p *python) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
+	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 	var installSDKDependenciesCommand string
 	var baseImage string
 
@@ -119,13 +126,51 @@ func (p *python) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runti
 		},
 	}
 
+	// copy pip ca artifact to function image
+	if runtimeConfig != nil && runtimeConfig.Python != nil {
+		if runtimeConfig.Python.PipCAPath != "" {
+			processorDockerfileInfo.Directives["preCopy"] = append(processorDockerfileInfo.Directives["preCopy"],
+				functionconfig.Directive{
+					Kind:  "COPY",
+					Value: fmt.Sprintf("%s %s", path.Base(pipCAFileLocation), pipCAFileLocation),
+				})
+		}
+	}
+
 	return &processorDockerfileInfo, nil
 }
 
-// GetBuildArgs returns building arguments
+// GetRuntimeBuildArgs returns python specific build args directives
 func (p *python) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
+	buildArgs := p.AbstractRuntime.GetRuntimeBuildArgs(runtimeConfig)
+
 	if runtimeConfig != nil && runtimeConfig.Python != nil {
-		return runtimeConfig.Python.BuildArgs
+
+		// enrich build arg with pip ca file path
+		if runtimeConfig.Python.PipCAPath != "" {
+			buildArgs["PIP_CERT"] = pipCAFileLocation
+		}
+
+		// enrich build args with runtime specific build args
+		for key, value := range runtimeConfig.Python.BuildArgs {
+			buildArgs[key] = value
+		}
 	}
-	return p.AbstractRuntime.GetRuntimeBuildArgs(runtimeConfig)
+	return buildArgs
+}
+
+func (p *python) OnAfterStagingDirCreated(runtimeConfig *runtimeconfig.Config, stagingDir string) error {
+	if runtimeConfig != nil && runtimeConfig.Python != nil {
+		PipCAContents, err := runtimeConfig.Python.GetPipCAContents()
+		if err != nil {
+			return errors.Wrap(err, "Failed to get pip ca contents")
+		}
+
+		destPath := path.Join(stagingDir, path.Base(pipCAFileLocation))
+		p.Logger.DebugWith("Writing pip ca contents", "destPath", destPath)
+		if err := ioutil.WriteFile(destPath, PipCAContents, 0644); err != nil {
+			return errors.Wrap(err, "Failed to write pip ca contents to file")
+		}
+	}
+	return nil
 }

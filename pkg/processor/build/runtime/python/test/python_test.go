@@ -21,13 +21,16 @@ package test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
-	"github.com/nuclio/nuclio/pkg/runtimeconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/stretchr/testify/suite"
@@ -123,6 +126,85 @@ func (suite *TestSuite) TestBuildWithBuildArgsExtended() {
 		})
 }
 
+func (suite *TestSuite) TestBuildWithPipCAPath() {
+	caCertContents, _, err := common.SendHTTPRequest(nil,
+		http.MethodGet,
+		"http://curl.haxx.se/ca/cacert.pem",
+		nil,
+		nil,
+		nil,
+		http.StatusOK)
+	suite.Require().NoError(err, "Failed to obtain curl cacert")
+
+	invalidCACertContents := `-----BEGIN CERTIFICATE-----
+MIIDdTCCAl2gAwIBAgILBAAAAAABFUtaw5QwDQYJKoZIhvcNAQEFBQAwVzELMAkGA1UEBhMCQkUx
+GTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYTc2ExEDAOBgNVBAsTB1Jvb3QgQ0ExGzAZBgNVBAMTEkds
+b2JhbFNpZ24gUm9vdCBDQTAeFw05ODA5mDExMjAwMDBaFw0yODAxMjgxMjAwMDBaMFcxCzAJBgNV
+BAYTAkJFMRkwFwYDVQQKExBHbG9IYWxTaWduIG52LXNhMRAwDgYDVQQLEwdSb290IENBMRswGQYD
+VQQDExJHbG9iYWxTaWduIFJvb3QgQ0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDa
+DuaZjc6j40+Kfvvxi4Mla+pIH/EqsLmVEQS98GPR4mdmzxzdzxtIK+6NiY6arymAZavpxy0Sy6sc
+THAHoT0KMM0VjU/43dSMUBUc71DuxC73/OlS8pF94G3VNTCOXkNz8kHp1Wrjsok6Vjk4bwY8iGlb
+Kk3Fp1S4bInMm/k8yunarilSPJJ4ltbcdG6TRGHRjcdGsnUOhugZitVtbNV4FpWi6cgKOOvyJBNP
+c1STE4U6G7weNLWLBYy5d4ux2x8gkasJU26Qzns3dLlwR5EiUWMWea6xrkEmCMgZK9FGqkjWZCrX
+gzT/LCrBbBlDSgeF59N89iFo7+ryUp9/k5DPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
+HRMBAf8EBTADAQH/MB0GA1UdDgQWBBRge2YaRQ2XyonarilEzTSo//z9SzANBgkqhkiG9w0BAQUF
+AAOCAQnarilnfE920I2/7LqivjTFKDK1fPxsnCwrvQmeU79rXqoRSLblCKOzyj1hTdNGCbM+w6Dj
+Y1Ub8rrvrTnhQ7k4o+YviiY776BQVvnGCv04zcQLcFGUlnarilNflNUVyRRBnMRddWQVDf9VMOyG
+j/8N7yy5Y0b2qvzfvGn9LhJIZJrglfCm7ymPAbEVtQwdpf5pLGkkeB6zpxxxYu7KyJesF12KwvhH
+hm4qxFYxldBniYUr+WymXUadDKqC5JlR3XC321Y9YeRq4VzW9v493kHMB65jUr9TU/Qr6cf9tveC
+X4XSQRjbgbMEHMUfppIBvFSDJ3gyICh3WZlXi/EjJKSZp4A==
+-----END CERTIFICATE-----`
+
+	validCAFile := suite.writePEMFile("nuclio-curl-ca-cert", caCertContents)
+	invalidCAFile := suite.writePEMFile("nuclio-curl-ca-cert-invalid", []byte(invalidCACertContents))
+
+	// remove leftovers
+	defer os.Remove(validCAFile.Name())
+	defer os.Remove(invalidCAFile.Name())
+
+	createFunctionOptions := suite.GetDeployOptions("pio-ca-file",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "empty", "python"))
+	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install linkchecker"}
+
+	// Create a copy of function options since it's modified during deployment
+	createFunctionOptionsOriginal := *createFunctionOptions
+
+	// Configure pip to work with a custom invalid ca (should fail)
+	runtimePlatformConfigurationCopy := suite.PlatformConfiguration.Runtime
+	suite.PlatformConfiguration.Runtime = &runtimeconfig.Config{
+		Python: &runtimeconfig.Python{
+			PipCAPath: invalidCAFile.Name(),
+		},
+	}
+
+	defer func() {
+
+		// HACK - reset runtime platform configuration
+		// to avoid platform configuration effecting following tests
+		// NOTE: on >= 1.6.0 platform configuration would be re-initiated per test case and not per suite.
+		suite.PlatformConfiguration.Runtime = runtimePlatformConfigurationCopy
+	}()
+
+	// Sanity, verify deployment attempt with invalid ca fails
+	suite.DeployFunctionAndExpectError(createFunctionOptions, "Failed to deploy function")
+
+	// Configure pip to work with a custom ca (should succeed)
+	suite.PlatformConfiguration.Runtime = &runtimeconfig.Config{
+		Python: &runtimeconfig.Python{
+			PipCAPath: validCAFile.Name(),
+		},
+	}
+
+	expectedStatusCode := http.StatusOK
+	suite.DeployFunctionAndRequest(&createFunctionOptionsOriginal,
+		&httpsuite.Request{
+			RequestMethod:              "POST",
+			ExpectedResponseStatusCode: &expectedStatusCode,
+		})
+
+}
+
 func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
 	functionInfo := buildsuite.FunctionInfo{
 		Runtime: suite.runtime,
@@ -156,6 +238,16 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 	}
 
 	return functionInfo
+}
+
+func (suite *TestSuite) writePEMFile(filenamePattern string, contents []byte) *os.File {
+	tmpFile, err := ioutil.TempFile("", filenamePattern)
+	suite.Require().NoError(err)
+	suite.Require().NoError(tmpFile.Close())
+
+	err = ioutil.WriteFile(tmpFile.Name(), contents, 0644)
+	suite.Require().NoError(err)
+	return tmpFile
 }
 
 func TestIntegrationSuite(t *testing.T) {

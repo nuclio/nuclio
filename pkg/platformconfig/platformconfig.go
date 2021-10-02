@@ -24,7 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
-	"github.com/nuclio/nuclio/pkg/runtimeconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/v3io/scaler/pkg/scalertypes"

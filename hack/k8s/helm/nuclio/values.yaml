@@ -230,6 +230,10 @@ dashboard:
       periodSeconds: 15
       failureThreshold: 4
 
+  # Uncomment to volumize pip ca cert
+  # Note: secret name must contain "pip-ca-certificates.crt" key
+  # pipCACertSecretName: secret-name
+
 autoscaler:
   enabled: false
   replicas: 1
@@ -372,6 +376,7 @@ crd:
 platform: {}
 #  runtime:
 #    python:
+#      pipCAPath: /path/to/pip-ca-file.crt
 #      buildArgs:
 #        PIP_INDEX_URL: "https://test.pypi.org/simple"
 #   logger:

@@ -391,7 +391,7 @@ CMD [ "processor" ]
 	}
 
 	var dockerfileTemplateBuffer bytes.Buffer
-	err = dockerfileTemplate.Execute(&dockerfileTemplateBuffer, &map[string]interface{}{
+	if err := dockerfileTemplate.Execute(&dockerfileTemplateBuffer, &map[string]interface{}{
 		"BaseImage":            baseImage,
 		"OnbuildStages":        onbuildStages,
 		"OnbuildArtifactPaths": onbuildArtifactPaths,
@@ -400,9 +400,7 @@ CMD [ "processor" ]
 		"PostCopyDirectives":   directives["postCopy"],
 		"HealthcheckRequired":  healthCheckRequired,
 		"BuildArgs":            buildArgs,
-	})
-
-	if err != nil {
+	}); err != nil {
 		return "", errors.Wrap(err, "Failed to run template")
 	}
 
@@ -1230,7 +1228,9 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, on
 	}
 
 	// merge directives passed by user with directives passed by runtime
-	directives = b.mergeDirectives(directives, processorDockerfileInfo.Directives)
+	// let the directives dictated by runtime to comes first to allow pre-configuration such as
+	// installing ca-certs before executing build commands such as `pip install x`
+	directives = b.mergeDirectives(processorDockerfileInfo.Directives, directives)
 
 	// path where generated dockerfile should reside (staging)
 	processorDockerfileInfo.DockerfilePath = filepath.Join(b.stagingDir, "Dockerfile.processor")
@@ -1254,7 +1254,8 @@ func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
 	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	// get defaults from the runtime
-	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(onbuildImageRegistry)
+	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(b.platform.GetConfig().Runtime,
+		onbuildImageRegistry)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}

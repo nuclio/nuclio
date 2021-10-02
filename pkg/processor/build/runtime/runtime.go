@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/runtimeconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -56,15 +56,15 @@ type Runtime interface {
 
 	// OnAfterStagingDirCreated prepares anything it may need in that directory
 	// towards building a functioning processor,
-	OnAfterStagingDirCreated(stagingDir string) error
+	OnAfterStagingDirCreated(runtimeConfig *runtimeconfig.Config, stagingDir string) error
 
 	// GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-	GetProcessorDockerfileInfo(onbuildImageRegistry string) (*ProcessorDockerfileInfo, error)
+	GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, onbuildImageRegistry string) (*ProcessorDockerfileInfo, error)
 
 	// GetName returns the name of the runtime, including version if applicable
 	GetName() string
 
-	// GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
+	// GetHandlerDirObjectPaths returns the paths of all objects that should reside in the handler
 	// directory
 	GetHandlerDirObjectPaths() []string
 
@@ -117,7 +117,7 @@ func NewAbstractRuntime(logger logger.Logger,
 	return newRuntime, nil
 }
 
-func (ar *AbstractRuntime) OnAfterStagingDirCreated(stagingDir string) error {
+func (ar *AbstractRuntime) OnAfterStagingDirCreated(runtimeConfig *runtimeconfig.Config, stagingDir string) error {
 	return nil
 }
 
@@ -139,7 +139,7 @@ func (ar *AbstractRuntime) GetFunctionDir() string {
 	return path.Dir(ar.FunctionConfig.Spec.Build.Path)
 }
 
-// GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
+// GetHandlerDirObjectPaths returns the paths of all objects that should reside in the handler
 // directory
 func (ar *AbstractRuntime) GetHandlerDirObjectPaths() []string {
 
