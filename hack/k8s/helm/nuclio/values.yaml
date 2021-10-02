@@ -34,6 +34,11 @@ controller:
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
 
+  # Resync interval defines how often the Controller goes through all nuclio CRDs (functions, apigateways, etc)
+  #  in its cache and fires update again.
+  # Note: 0 means cancelling resync mechanism. any other value (e.g.: 10m) would turn it on.
+  resyncInterval: 0
+
   operator:
     function:
       numWorkers: 4
