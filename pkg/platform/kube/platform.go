@@ -1640,7 +1640,7 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(apiGateway *platform.APIGatewa
 			}
 			if function == nil {
 				if validateFunctionExistence {
-					return nuclio.NewErrBadRequest(fmt.Sprintf("Function %s does not exists",
+					return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function %s does not exists",
 						upstream.NuclioFunction.Name))
 				}
 				return nil
