@@ -494,23 +494,19 @@ func (suite *KubeTestSuite) DeployAPIGateway(createAPIGatewayOptions *platform.C
 	onAfterIngressCreated OnAfterIngressCreated) error {
 
 	// deploy the api gateway
-	err := suite.Platform.CreateAPIGateway(createAPIGatewayOptions)
-	if err != nil {
+	if err := suite.Platform.CreateAPIGateway(createAPIGatewayOptions); err != nil {
 		return err
 	}
 
 	// delete the api gateway when done
 	defer func() {
+		suite.Logger.Debug("Deleting deployed api gateway")
+		err := suite.Platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{
+			Meta: createAPIGatewayOptions.APIGatewayConfig.Meta,
+		})
+		suite.Require().NoError(err)
+		suite.verifyAPIGatewayIngress(createAPIGatewayOptions, false)
 
-		if err == nil {
-			suite.Logger.Debug("Deleting deployed api gateway")
-			err := suite.Platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{
-				Meta: createAPIGatewayOptions.APIGatewayConfig.Meta,
-			})
-			suite.Require().NoError(err)
-
-			suite.verifyAPIGatewayIngress(createAPIGatewayOptions, false)
-		}
 	}()
 
 	// verify ingress created

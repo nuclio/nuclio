@@ -100,10 +100,10 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 }
 
 func (suite *KubePlatformTestSuite) SetupTest() {
-	suite.resetCRDMocks()
+	suite.ResetCRDMocks()
 }
 
-func (suite *KubePlatformTestSuite) resetCRDMocks() {
+func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 	suite.nuclioioInterfaceMock = &mocks.Interface{}
 	suite.nuclioioV1beta1InterfaceMock = &mocks.NuclioV1beta1Interface{}
 	suite.nuclioFunctionInterfaceMock = &mocks.NuclioFunctionInterface{}
@@ -1259,6 +1259,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 		// the matching api gateway upstream functions
 		upstreamFunctions []*v1beta1.NuclioFunction
 
+		// whether to validate upstream functions existing
+		validateFunctionsExistence bool
+
 		// keep empty when shouldn't fail
 		validationError string
 	}{
@@ -1388,6 +1391,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}(),
 			upstreamFunctions: []*v1beta1.NuclioFunction{
 				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "function-with-ingresses",
+					},
 					Spec: functionconfig.Spec{
 						Triggers: map[string]functionconfig.Trigger{
 							"http-with-ingress": {
@@ -1423,6 +1429,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			upstreamFunctions: []*v1beta1.NuclioFunction{
 				{}, // primary upstream function is empty (has no ingresses)
 				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "function-with-ingresses-2",
+					},
 					Spec: functionconfig.Spec{
 						Triggers: map[string]functionconfig.Trigger{
 							"http-with-ingress": {
@@ -1519,8 +1528,33 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}(),
 			validationError: platform.ErrIngressHostPathInUse.Error(),
 		},
+		{
+			name: "ValidateFunctionsExistenceSanity",
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				return &apiGatewayConfig
+			}(),
+			upstreamFunctions: []*v1beta1.NuclioFunction{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "default-func-name",
+					},
+				},
+			},
+			validateFunctionsExistence: true,
+		},
+		{
+			name: "ValidateFunctionsExistenceFailed",
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				return &apiGatewayConfig
+			}(),
+			validateFunctionsExistence: true,
+			validationError:            "Function default-func-name does not exists",
+		},
 	} {
 		suite.Run(testCase.name, func() {
+			defer suite.ResetCRDMocks()
 			if testCase.expectedEnrichedAPIGateway != nil {
 				if testCase.expectedEnrichedAPIGateway.Meta.Labels == nil {
 					testCase.expectedEnrichedAPIGateway.Meta.Labels = map[string]string{}
@@ -1562,7 +1596,8 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}
 
 			// run validation
-			err := suite.Platform.ValidateAPIGatewayConfig(testCase.apiGatewayConfig)
+			err := suite.Platform.ValidateAPIGatewayConfig(testCase.apiGatewayConfig,
+				testCase.validateFunctionsExistence)
 			if testCase.validationError != "" {
 				suite.Require().Error(err)
 				suite.Require().Equal(testCase.validationError, errors.RootCause(err).Error())

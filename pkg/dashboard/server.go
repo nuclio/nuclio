@@ -226,6 +226,7 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 			"x-nuclio-filter-contains",
 			"X-nuclio-delete-project-strategy",
 			"X-nuclio-delete-function-ignore-state-validation",
+			"X-nuclio-agw-validate-functions-existence",
 			iguazio.ProjectsRoleHeaderKey,
 		},
 		ExposedHeaders: []string{

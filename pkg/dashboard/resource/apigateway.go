@@ -57,7 +57,10 @@ func (agr *apiGatewayResource) GetAll(request *http.Request) (map[string]restful
 	projectName := request.Header.Get("x-nuclio-project-name")
 
 	// filter by project name (when it's specified)
-	getAPIGatewaysOptions := platform.GetAPIGatewaysOptions{Namespace: namespace}
+	getAPIGatewaysOptions := platform.GetAPIGatewaysOptions{
+		AuthSession: agr.getCtxSession(request),
+		Namespace:   namespace,
+	}
 	if projectName != "" {
 		getAPIGatewaysOptions.Labels = fmt.Sprintf("%s=%s",
 			common.NuclioResourceLabelKeyProjectName,
@@ -100,8 +103,9 @@ func (agr *apiGatewayResource) GetByID(request *http.Request, id string) (restfu
 	}
 
 	apiGateways, err := agr.getPlatform().GetAPIGateways(&platform.GetAPIGatewaysOptions{
-		Name:      id,
-		Namespace: namespace,
+		Name:        id,
+		Namespace:   namespace,
+		AuthSession: agr.getCtxSession(request),
 	})
 
 	if err != nil {
@@ -153,7 +157,9 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 	}
 
 	if err = agr.getPlatform().UpdateAPIGateway(&platform.UpdateAPIGatewayOptions{
-		APIGatewayConfig: apiGatewayConfig,
+		APIGatewayConfig:           apiGatewayConfig,
+		AuthSession:                agr.getCtxSession(request),
+		ValidateFunctionsExistence: agr.headerValueIsTrue(request, "x-nuclio-agw-validate-functions-existence"),
 	}); err != nil {
 		agr.Logger.WarnWith("Failed to update api gateway", "err", err)
 	}
@@ -166,7 +172,7 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 	}, err
 }
 
-// returns a list of custom routes for the resource
+// GetCustomRoutes returns a list of custom routes for the resource
 func (agr *apiGatewayResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
 	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
@@ -224,8 +230,9 @@ func (agr *apiGatewayResource) createAPIGateway(request *http.Request,
 	// just deploy. the status is async through polling
 	agr.Logger.DebugWith("Creating api gateway", "newAPIGateway", newAPIGateway)
 	if err = agr.getPlatform().CreateAPIGateway(&platform.CreateAPIGatewayOptions{
-		AuthSession:      agr.getCtxSession(request),
-		APIGatewayConfig: newAPIGateway.GetConfig(),
+		AuthSession:                agr.getCtxSession(request),
+		APIGatewayConfig:           newAPIGateway.GetConfig(),
+		ValidateFunctionsExistence: agr.headerValueIsTrue(request, "x-nuclio-agw-validate-functions-existence"),
 	}); err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "already exists") {
 			err = nuclio.WrapErrConflict(err)
@@ -254,7 +261,9 @@ func (agr *apiGatewayResource) deleteAPIGateway(request *http.Request) (*restful
 		}, err
 	}
 
-	deleteAPIGatewayOptions := platform.DeleteAPIGatewayOptions{}
+	deleteAPIGatewayOptions := platform.DeleteAPIGatewayOptions{
+		AuthSession: agr.getCtxSession(request),
+	}
 	deleteAPIGatewayOptions.Meta = *apiGatewayInfo.Meta
 
 	if err = agr.getPlatform().DeleteAPIGateway(&deleteAPIGatewayOptions); err != nil {
