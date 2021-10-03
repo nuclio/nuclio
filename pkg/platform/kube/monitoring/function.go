@@ -75,10 +75,15 @@ func NewFunctionMonitor(parentLogger logger.Logger,
 
 func (fm *FunctionMonitor) Start() error {
 	fm.logger.InfoWith("Starting",
+		"interval", fm.interval,
 		"namespace", fm.namespace)
 
 	// create stop channel
 	fm.stopChan = make(chan struct{}, 1)
+	if fm.interval == 0 {
+		fm.logger.WarnWith("Function monitoring is disabled")
+		return nil
+	}
 
 	// spawn a goroutine for function monitoring
 	go func() {
