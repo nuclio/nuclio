@@ -456,13 +456,15 @@ type APIGatewayStatus struct {
 }
 
 type CreateAPIGatewayOptions struct {
-	APIGatewayConfig *APIGatewayConfig
-	AuthSession      auth.Session
+	APIGatewayConfig           *APIGatewayConfig
+	AuthSession                auth.Session
+	ValidateFunctionsExistence bool
 }
 
 type UpdateAPIGatewayOptions struct {
-	APIGatewayConfig *APIGatewayConfig
-	AuthSession      auth.Session
+	APIGatewayConfig           *APIGatewayConfig
+	AuthSession                auth.Session
+	ValidateFunctionsExistence bool
 }
 
 type DeleteAPIGatewayOptions struct {
