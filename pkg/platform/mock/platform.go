@@ -30,6 +30,11 @@ type Platform struct {
 // Function
 //
 
+func (mp *Platform) GetConfig() *platformconfig.Config {
+	args := mp.Called()
+	return args.Get(0).(*platformconfig.Config)
+}
+
 func (mp *Platform) GetContainerBuilderKind() string {
 	return "docker"
 }

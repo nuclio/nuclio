@@ -69,6 +69,11 @@ spec:
           failureThreshold: 4
           periodSeconds: 15
         volumeMounts:
+        {{- if .Values.dashboard.pipCACertSecretName }}
+        - mountPath: /etc/ssl/certs/nuclio
+          name: pip-ca-cert
+          readOnly: true
+        {{- end }}
         {{- if eq .Values.dashboard.containerBuilderKind "docker" }}
         - mountPath: /var/run/docker.sock
           name: docker-sock
@@ -194,9 +199,18 @@ spec:
         volumeMounts:
           - readOnly: true
             mountPath: /config
-            name: config
+            name: opa-config
       {{- end }}
       volumes:
+      {{- if .Values.dashboard.pipCACertSecretName }}
+      - name: pip-ca-cert
+        secret:
+          secretName: {{ .Values.dashboard.pipCACertSecretName }}
+          items:
+            - key: pip-ca-certificates.crt
+              path: pip-ca-certificates.crt
+              mode: 0400
+      {{- end }}
       {{- if eq .Values.dashboard.containerBuilderKind "docker" }}
       - name: docker-sock
         hostPath:
@@ -214,7 +228,7 @@ spec:
           name: {{ template "nuclio.platformConfigName" . }}
       {{- end }}
       {{- if .Values.dashboard.opa.enabled }}
-      - name: config
+      - name: opa-config
         secret:
           secretName: {{ template "nuclio.dashboard.opa.fullname" . }}
       {{- end }}

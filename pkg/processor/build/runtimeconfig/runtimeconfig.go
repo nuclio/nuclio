@@ -16,10 +16,41 @@ limitations under the License.
 
 package runtimeconfig
 
+import (
+	"io/ioutil"
+
+	"github.com/nuclio/errors"
+)
+
 type Config struct {
 	Python *Python `json:"python,omitempty"`
 }
 
 type Python struct {
 	BuildArgs map[string]string `json:"buildArgs,omitempty"`
+	PipCAPath string            `json:"pipCAPath,omitempty"`
+
+	pipCAContents []byte
+}
+
+// GetPipCAContents lazy reads and stores pip-ca file contents
+func (p *Python) GetPipCAContents() ([]byte, error) {
+	if p.PipCAPath == "" {
+		return nil, nil
+	}
+
+	if len(p.pipCAContents) > 0 {
+		return p.pipCAContents, nil
+	}
+
+	pipCaContents, err := ioutil.ReadFile(p.PipCAPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read pip ca file contents")
+	}
+
+	if len(pipCaContents) == 0 {
+		return nil, errors.New("Pip CA file contents is empty")
+	}
+	p.pipCAContents = pipCaContents
+	return p.pipCAContents, nil
 }
