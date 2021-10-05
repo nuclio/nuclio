@@ -172,5 +172,5 @@ func (p *python) OnAfterStagingDirCreated(runtimeConfig *runtimeconfig.Config, s
 			return errors.Wrap(err, "Failed to write pip ca contents to file")
 		}
 	}
-	return nil
+	return p.AbstractRuntime.OnAfterStagingDirCreated(runtimeConfig, stagingDir)
 }

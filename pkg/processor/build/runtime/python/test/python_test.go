@@ -155,8 +155,8 @@ hm4qxFYxldBniYUr+WymXUadDKqC5JlR3XC321Y9YeRq4VzW9v493kHMB65jUr9TU/Qr6cf9tveC
 X4XSQRjbgbMEHMUfppIBvFSDJ3gyICh3WZlXi/EjJKSZp4A==
 -----END CERTIFICATE-----`
 
-	validCAFile := suite.writePEMFile("nuclio-curl-ca-cert", caCertContents)
-	invalidCAFile := suite.writePEMFile("nuclio-curl-ca-cert-invalid", []byte(invalidCACertContents))
+	validCAFile := suite.writeFile("nuclio-curl-ca-cert", caCertContents)
+	invalidCAFile := suite.writeFile("nuclio-curl-ca-cert-invalid", []byte(invalidCACertContents))
 
 	// remove leftovers
 	defer os.Remove(validCAFile.Name())
@@ -240,7 +240,7 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 	return functionInfo
 }
 
-func (suite *TestSuite) writePEMFile(filenamePattern string, contents []byte) *os.File {
+func (suite *TestSuite) writeFile(filenamePattern string, contents []byte) *os.File {
 	tmpFile, err := ioutil.TempFile("", filenamePattern)
 	suite.Require().NoError(err)
 	suite.Require().NoError(tmpFile.Close())

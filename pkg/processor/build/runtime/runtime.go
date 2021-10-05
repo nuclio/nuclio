@@ -121,7 +121,7 @@ func (ar *AbstractRuntime) OnAfterStagingDirCreated(runtimeConfig *runtimeconfig
 	return nil
 }
 
-// return a map of objects the runtime needs to copy into the processor image
+// GetProcessorImageObjectPaths return a map of objects the runtime needs to copy into the processor image
 // the key can be a dir, a file or a url of a file
 // the value is an absolute path into the docker image
 func (ar *AbstractRuntime) GetProcessorImageObjectPaths() map[string]string {
