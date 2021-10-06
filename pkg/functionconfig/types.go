@@ -94,6 +94,27 @@ func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trig
 	return matchingTrigger
 }
 
+func ResolveFunctionServiceType(functionSpec *Spec, defaultServiceType v1.ServiceType) v1.ServiceType {
+	functionHTTPTriggers := GetTriggersByKind(functionSpec.Triggers, "http")
+
+	// if the http trigger has a configured service type, return that.
+	for _, trigger := range functionHTTPTriggers {
+		if serviceTypeInterface, serviceTypeExists := trigger.Attributes["serviceType"]; serviceTypeExists {
+			if serviceType, serviceTypeIsString := serviceTypeInterface.(string); serviceTypeIsString {
+				return v1.ServiceType(serviceType)
+			}
+		}
+	}
+
+	// otherwise, if the function spec has a service type, return that (for backwards compatibility)
+	if functionSpec.ServiceType != "" {
+		return functionSpec.ServiceType
+	}
+
+	// otherwise return default
+	return defaultServiceType
+}
+
 func GetFunctionIngresses(config *Config) map[string]Ingress {
 
 	ingresses := map[string]Ingress{}

@@ -1370,10 +1370,7 @@ func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfi
 func (p *Platform) enrichHTTPTriggers(functionConfig *functionconfig.Config) error {
 
 	// for backwards compatibility
-	serviceType := functionConfig.Spec.ServiceType
-	if serviceType == "" {
-		serviceType = p.Config.Kube.DefaultServiceType
-	}
+	serviceType := functionconfig.ResolveFunctionServiceType(&functionConfig.Spec, p.Config.Kube.DefaultServiceType)
 
 	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
 		p.enrichTriggerWithServiceType(functionConfig, &trigger, serviceType)
