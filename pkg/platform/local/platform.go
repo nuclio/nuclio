@@ -1274,7 +1274,14 @@ func (p *Platform) populateFunctionInvocationStatus(functionInvocation *function
 		return errors.Wrap(err, "Failed to get container network addresses")
 	}
 
-	functionInvocation.InternalInvocationURLs = addresses
+	// enrich address with function's container port
+	var addressesWithFunctionPort []string
+	for _, address := range addresses {
+		addressesWithFunctionPort = append(addressesWithFunctionPort,
+			fmt.Sprintf("%s:%d", address, abstract.FunctionContainerHTTPPort))
+	}
+
+	functionInvocation.InternalInvocationURLs = addressesWithFunctionPort
 	functionInvocation.ExternalInvocationURLs = []string{}
 	for _, externalIPAddress := range externalIPAddresses {
 		if externalIPAddress != "" {
