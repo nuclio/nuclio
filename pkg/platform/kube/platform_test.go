@@ -1672,8 +1672,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}
 
 			// run validation
-			err := suite.Platform.ValidateAPIGatewayConfig(testCase.apiGatewayConfig,
-				testCase.validateFunctionsExistence)
+			err := suite.Platform.validateAPIGatewayConfig(testCase.apiGatewayConfig,
+				testCase.validateFunctionsExistence,
+				nil)
 			if testCase.validationError != "" {
 				suite.Require().Error(err)
 				suite.Require().Equal(testCase.validationError, errors.RootCause(err).Error())
@@ -1691,12 +1692,6 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 }
 
 func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
-
-	// return empty api gateways list on enrichFunctionsWithAPIGateways (not tested here)
-	suite.nuclioAPIGatewayInterfaceMock.
-		On("List", metav1.ListOptions{}).
-		Return(&v1beta1.NuclioAPIGatewayList{}, nil)
-
 	for _, testCase := range []struct {
 		name                    string
 		updateAPIGatewayOptions func(baseAPIGatewayConfig *platform.APIGatewayConfig) *platform.UpdateAPIGatewayOptions
@@ -1714,7 +1709,8 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 				// modify a field
 				updateAPIGatewayOptions.APIGatewayConfig.Spec.Host = "update-me.com"
 				updateAPIGatewayOptions.APIGatewayConfig.Meta.Labels = map[string]string{
-					"newLabel": "label-value",
+					common.NuclioResourceLabelKeyProjectName: "some-test",
+					"newLabel":                               "label-value",
 				}
 				updateAPIGatewayOptions.APIGatewayConfig.Meta.Annotations = map[string]string{
 					"newAnnotation": "annotation-value",
@@ -1734,6 +1730,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      apiGatewayConfig.Meta.Name,
 						Namespace: apiGatewayConfig.Meta.Namespace,
+						Labels: map[string]string{
+							common.NuclioResourceLabelKeyProjectName: "some-test",
+						},
 					},
 					Spec:   apiGatewayConfig.Spec,
 					Status: apiGatewayConfig.Status,
