@@ -648,7 +648,8 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 
 	// validate
 	if err := p.ValidateAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig,
-		createAPIGatewayOptions.ValidateFunctionsExistence); err != nil {
+		createAPIGatewayOptions.ValidateFunctionsExistence,
+		nil); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich an API-gateway name")
 	}
 
@@ -681,8 +682,9 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 
 	// validate
 	if err := p.ValidateAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig,
-		updateAPIGatewayOptions.ValidateFunctionsExistence); err != nil {
-		return errors.Wrap(err, "Failed to validate and enrich an API-gateway name")
+		updateAPIGatewayOptions.ValidateFunctionsExistence,
+		apiGateway); err != nil {
+		return errors.Wrap(err, "Failed to validate api gateway")
 	}
 
 	apiGateway.Annotations = updateAPIGatewayOptions.APIGatewayConfig.Meta.Annotations
@@ -696,7 +698,7 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Update(apiGateway); err != nil {
-		return errors.Wrap(err, "Failed to update an API gateway")
+		return errors.Wrap(err, "Failed to update an api gateway")
 	}
 
 	return nil
@@ -1279,10 +1281,12 @@ func (p *Platform) enrichAPIGatewayConfig(apiGatewayConfig *platform.APIGatewayC
 		apiGatewayConfig.Meta.Labels = map[string]string{}
 	}
 
-	// do not allow changing project name for existing api gateways
+	// enrich project name if not exists or value is empty
 	if existingApiGatewayConfig != nil {
-		apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] =
-			existingApiGatewayConfig.Labels[common.NuclioResourceLabelKeyProjectName]
+		if value, exist := apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]; value == "" || !exist {
+			apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] =
+				existingApiGatewayConfig.Labels[common.NuclioResourceLabelKeyProjectName]
+		}
 	}
 
 	p.EnrichLabelsWithProjectName(apiGatewayConfig.Meta.Labels)
@@ -1301,7 +1305,8 @@ func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGa
 }
 
 func (p *Platform) ValidateAPIGatewayConfig(apiGateway *platform.APIGatewayConfig,
-	validateFunctionsExistence bool) error {
+	validateFunctionsExistence bool,
+	existingAPIGateway *nuclioio.NuclioAPIGateway) error {
 
 	// general validations
 	if apiGateway.Spec.Name != apiGateway.Meta.Name {
@@ -1322,6 +1327,13 @@ func (p *Platform) ValidateAPIGatewayConfig(apiGateway *platform.APIGatewayConfi
 	// spec
 	if err := ValidateAPIGatewaySpec(&apiGateway.Spec); err != nil {
 		return errors.Wrap(err, "Failed to validate the API-gateway spec")
+	}
+
+	if existingAPIGateway != nil {
+		if existingAPIGateway.Labels[common.NuclioResourceLabelKeyProjectName] !=
+			apiGateway.Meta.Labels[common.NuclioResourceLabelKeyProjectName] {
+			return nuclio.NewErrBadRequest("Changing project name to an existing api gateway is not allowed")
+		}
 	}
 
 	upstreamFunctions, err := p.getAPIGatewayUpstreamFunctions(apiGateway, validateFunctionsExistence)
