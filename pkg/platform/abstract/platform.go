@@ -1559,10 +1559,6 @@ func (ap *Platform) queryOPAPermissions(resource string,
 	return allowed, nil
 }
 
-func (ap *Platform) validateServiceType(functionConfig *functionconfig.Config) error {
-	return nil
-}
-
 func (ap *Platform) enrichVolumes(functionConfig *functionconfig.Config) error {
 	for _, configVolume := range functionConfig.Spec.Volumes {
 
