@@ -1596,7 +1596,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}
 
 			// run validation
-			err := suite.Platform.ValidateAPIGatewayConfig(testCase.apiGatewayConfig,
+			err := suite.Platform.validateAPIGatewayConfig(testCase.apiGatewayConfig,
 				testCase.validateFunctionsExistence,
 				nil)
 			if testCase.validationError != "" {

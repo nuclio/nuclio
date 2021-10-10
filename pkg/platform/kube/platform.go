@@ -647,7 +647,7 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 	p.enrichAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig, nil)
 
 	// validate
-	if err := p.ValidateAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig,
+	if err := p.validateAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig,
 		createAPIGatewayOptions.ValidateFunctionsExistence,
 		nil); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich an API-gateway name")
@@ -681,7 +681,7 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	p.enrichAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig, apiGateway)
 
 	// validate
-	if err := p.ValidateAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig,
+	if err := p.validateAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig,
 		updateAPIGatewayOptions.ValidateFunctionsExistence,
 		apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate api gateway")
@@ -1304,7 +1304,7 @@ func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGa
 	return nil
 }
 
-func (p *Platform) ValidateAPIGatewayConfig(apiGateway *platform.APIGatewayConfig,
+func (p *Platform) validateAPIGatewayConfig(apiGateway *platform.APIGatewayConfig,
 	validateFunctionsExistence bool,
 	existingAPIGateway *nuclioio.NuclioAPIGateway) error {
 
