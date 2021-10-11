@@ -745,9 +745,6 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 					Annotations: podAnnotations,
 				},
 				Spec: v1.PodSpec{
-					ImagePullSecrets: []v1.LocalObjectReference{
-						{Name: imagePullSecrets},
-					},
 					Containers: []v1.Container{
 						container,
 					},
@@ -761,6 +758,13 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 					PreemptionPolicy:   function.Spec.PreemptionPolicy,
 				},
 			},
+		}
+
+		// apply when provided
+		if imagePullSecrets != "" {
+			deploymentSpec.Template.Spec.ImagePullSecrets = []v1.LocalObjectReference{
+				{Name: imagePullSecrets},
+			}
 		}
 
 		deployment := &appsv1.Deployment{
