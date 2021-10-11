@@ -1364,6 +1364,10 @@ func (p *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config)
 		return err
 	}
 
+	if err := p.validateServiceType(functionConfig); err != nil {
+		return errors.Wrap(err, "Service type validation failed")
+	}
+
 	return p.validateFunctionIngresses(functionConfig)
 }
 
@@ -1379,13 +1383,23 @@ func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfi
 	return nil
 }
 
+func (p *Platform) validateServiceType(functionConfig *functionconfig.Config) error {
+	serviceType := functionconfig.ResolveFunctionServiceType(&functionConfig.Spec, p.Config.Kube.DefaultServiceType)
+	switch serviceType {
+	case "":
+
+		// empty means - let it be enriched by default
+		return nil
+	case v1.ServiceTypeNodePort, v1.ServiceTypeClusterIP:
+		return nil
+	default:
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported service type %s", serviceType))
+	}
+}
+
 func (p *Platform) enrichHTTPTriggers(functionConfig *functionconfig.Config) error {
 
-	// for backwards compatibility
-	serviceType := functionConfig.Spec.ServiceType
-	if serviceType == "" {
-		serviceType = p.Config.Kube.DefaultServiceType
-	}
+	serviceType := functionconfig.ResolveFunctionServiceType(&functionConfig.Spec, p.Config.Kube.DefaultServiceType)
 
 	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
 		p.enrichTriggerWithServiceType(functionConfig, &trigger, serviceType)
