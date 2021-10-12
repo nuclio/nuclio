@@ -18,6 +18,7 @@ package operator
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -54,6 +55,11 @@ func NewMultiWorker(parentLogger logger.Logger,
 		changeHandler:        changeHandler,
 	}
 
+	newMultiWorker.logger.DebugWith("Creating multiworker",
+		"numWorkers", numWorkers,
+		"resyncInterval", resyncInterval,
+		"objectKind", fmt.Sprintf("%T", object))
+
 	// create rate limited queue
 	newMultiWorker.queue = workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
@@ -67,7 +73,7 @@ func NewMultiWorker(parentLogger logger.Logger,
 	newMultiWorker.informer = cache.NewSharedIndexInformer(listWatcher, object, *resyncInterval, cache.Indexers{})
 
 	// register event handlers for the informer
-	newMultiWorker.informer.AddEventHandlerWithResyncPeriod(cache.ResourceEventHandlerFuncs{
+	newMultiWorker.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
@@ -86,7 +92,7 @@ func NewMultiWorker(parentLogger logger.Logger,
 				newMultiWorker.queue.Add(key)
 			}
 		},
-	}, *resyncInterval)
+	})
 
 	return newMultiWorker, nil
 }
@@ -195,7 +201,8 @@ func (mw *MultiWorker) processItem(itemKey string) error {
 
 	mw.logger.DebugWith("Got item from queue",
 		"itemKey", itemKey,
-		"itemObjectExists", itemObjectExists)
+		"itemObjectExists", itemObjectExists,
+		"itemObjectType", fmt.Sprintf("%T", itemObject))
 
 	// if the item doesn't exist
 	if !itemObjectExists {

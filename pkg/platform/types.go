@@ -313,6 +313,11 @@ type FunctionEventMeta struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+type FunctionEventTriggerKind string
+
+const FunctionEventTriggerKindHTTP = "http"
+const DefaultFunctionEventTriggerKind = FunctionEventTriggerKindHTTP
+
 type FunctionEventSpec struct {
 	DisplayName string                 `json:"displayName,omitempty"`
 	TriggerName string                 `json:"triggerName,omitempty"`
@@ -451,13 +456,15 @@ type APIGatewayStatus struct {
 }
 
 type CreateAPIGatewayOptions struct {
-	APIGatewayConfig *APIGatewayConfig
-	AuthSession      auth.Session
+	APIGatewayConfig           *APIGatewayConfig
+	AuthSession                auth.Session
+	ValidateFunctionsExistence bool
 }
 
 type UpdateAPIGatewayOptions struct {
-	APIGatewayConfig *APIGatewayConfig
-	AuthSession      auth.Session
+	APIGatewayConfig           *APIGatewayConfig
+	AuthSession                auth.Session
+	ValidateFunctionsExistence bool
 }
 
 type DeleteAPIGatewayOptions struct {

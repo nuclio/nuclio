@@ -26,6 +26,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 
 	"github.com/nuclio/errors"
 )
@@ -41,13 +42,13 @@ func (j *java) GetName() string {
 
 // OnAfterStagingDirCreated will build jar if the source is a Java file
 // It will set generatedJarPath field
-func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
+func (j *java) OnAfterStagingDirCreated(runtimeConfig *runtimeconfig.Config, stagingDir string) error {
 	// create a build script alongside the user's code. if user provided a script, it'll use that
 	return j.createGradleBuildScript(stagingDir)
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (j *java) GetProcessorDockerfileInfo(onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (j *java) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 	processorDockerfileInfo.BaseImage = "openjdk:9-jre-slim"

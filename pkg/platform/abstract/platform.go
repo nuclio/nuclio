@@ -96,6 +96,10 @@ func NewPlatform(parentLogger logger.Logger,
 	return newPlatform, nil
 }
 
+func (ap *Platform) GetConfig() *platformconfig.Config {
+	return ap.Config
+}
+
 func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (
 	*platform.CreateFunctionBuildResult, error) {
 
@@ -371,10 +375,6 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 
 	if err := ap.validatePriorityClassName(functionConfig); err != nil {
 		return errors.Wrap(err, "Priority class name validation failed")
-	}
-
-	if err := ap.validateServiceType(functionConfig); err != nil {
-		return errors.Wrap(err, "Service type validation failed")
 	}
 
 	return nil
@@ -735,6 +735,34 @@ func (ap *Platform) EnrichFunctionEvent(functionEventConfig *platform.FunctionEv
 	// to avoid blow-ups
 	if functionEventConfig.Meta.Labels == nil {
 		functionEventConfig.Meta.Labels = map[string]string{}
+	}
+
+	// take display name from display name if missing
+	if functionEventConfig.Spec.DisplayName == "" {
+		functionEventConfig.Spec.DisplayName = functionEventConfig.Meta.Name
+	}
+
+	// default to http trigger
+	if functionEventConfig.Spec.TriggerKind == "" {
+		functionEventConfig.Spec.TriggerKind = platform.DefaultFunctionEventTriggerKind
+	}
+
+	// enrich http kind
+	if functionEventConfig.Spec.TriggerKind == platform.FunctionEventTriggerKindHTTP {
+		if functionEventConfig.Spec.Attributes == nil {
+			functionEventConfig.Spec.Attributes = map[string]interface{}{}
+		}
+
+		// enrich attributes with key: value
+		for key, value := range map[string]interface{}{
+			"headers": map[string]string{"Content-Type": "text/plain"},
+			"method":  http.MethodPost,
+			"path":    "",
+		} {
+			if _, exists := functionEventConfig.Spec.Attributes[key]; !exists {
+				functionEventConfig.Spec.Attributes[key] = value
+			}
+		}
 	}
 
 	functionName, functionNameFound := functionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyFunctionName]
@@ -1529,19 +1557,6 @@ func (ap *Platform) queryOPAPermissions(resource string,
 		return false, nuclio.NewErrForbidden(fmt.Sprintf("Not allowed to %s resource %s", action, resource))
 	}
 	return allowed, nil
-}
-
-func (ap *Platform) validateServiceType(functionConfig *functionconfig.Config) error {
-	switch serviceType := functionConfig.Spec.ServiceType; serviceType {
-	case "":
-
-		// empty means - let it be enriched by default
-		return nil
-	case v1.ServiceTypeNodePort, v1.ServiceTypeClusterIP:
-		return nil
-	default:
-		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported service type %s", serviceType))
-	}
 }
 
 func (ap *Platform) enrichVolumes(functionConfig *functionconfig.Config) error {

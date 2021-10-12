@@ -100,10 +100,10 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 }
 
 func (suite *KubePlatformTestSuite) SetupTest() {
-	suite.resetCRDMocks()
+	suite.ResetCRDMocks()
 }
 
-func (suite *KubePlatformTestSuite) resetCRDMocks() {
+func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 	suite.nuclioioInterfaceMock = &mocks.Interface{}
 	suite.nuclioioV1beta1InterfaceMock = &mocks.NuclioV1beta1Interface{}
 	suite.nuclioFunctionInterfaceMock = &mocks.NuclioFunctionInterface{}
@@ -185,6 +185,82 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionNodeSelectorEnrichment()
 			suite.Require().NoError(err)
 			suite.Require().Equal(testCase.expectedNodeSelector, functionConfig.Spec.NodeSelector)
 
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
+	for idx, testCase := range []struct {
+		name                 string
+		serviceType          v1.ServiceType
+		shouldFailValidation bool
+	}{
+
+		// happy flows
+		{
+			name:        "empty",
+			serviceType: "",
+		},
+		{
+			name:        "nodePort",
+			serviceType: v1.ServiceTypeNodePort,
+		},
+		{
+			name:        "clusterIP",
+			serviceType: v1.ServiceTypeClusterIP,
+		},
+
+		// bad flows
+		{
+			name:                 "notSupportedLoadBalancer",
+			serviceType:          v1.ServiceTypeLoadBalancer,
+			shouldFailValidation: true,
+		},
+		{
+			name:                 "notSupportedExternalName",
+			serviceType:          v1.ServiceTypeExternalName,
+			shouldFailValidation: true,
+		},
+		{
+			name:                 "notSupportedInvalid",
+			serviceType:          "blabla",
+			shouldFailValidation: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.
+				On("GetProjects", &platform.GetProjectsOptions{
+					Meta: platform.ProjectMeta{
+						Name:      platform.DefaultProjectName,
+						Namespace: "default",
+					},
+				}).
+				Return([]platform.Project{
+					&platform.AbstractProject{},
+				}, nil).
+				Once()
+
+			// name it with index and shift with 65 to get A as first letter
+			functionName := string(rune(idx + 65))
+			functionConfig := *functionconfig.NewConfig()
+			functionConfig.Spec.ServiceType = testCase.serviceType
+
+			createFunctionOptions := &platform.CreateFunctionOptions{
+				Logger:         suite.Logger,
+				FunctionConfig: functionConfig,
+			}
+			createFunctionOptions.FunctionConfig.Meta.Name = functionName
+			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+
+			err := suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
 		})
 	}
 }
@@ -1259,6 +1335,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 		// the matching api gateway upstream functions
 		upstreamFunctions []*v1beta1.NuclioFunction
 
+		// whether to validate upstream functions existing
+		validateFunctionsExistence bool
+
 		// keep empty when shouldn't fail
 		validationError string
 	}{
@@ -1388,6 +1467,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}(),
 			upstreamFunctions: []*v1beta1.NuclioFunction{
 				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "function-with-ingresses",
+					},
 					Spec: functionconfig.Spec{
 						Triggers: map[string]functionconfig.Trigger{
 							"http-with-ingress": {
@@ -1423,6 +1505,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			upstreamFunctions: []*v1beta1.NuclioFunction{
 				{}, // primary upstream function is empty (has no ingresses)
 				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "function-with-ingresses-2",
+					},
 					Spec: functionconfig.Spec{
 						Triggers: map[string]functionconfig.Trigger{
 							"http-with-ingress": {
@@ -1519,8 +1604,33 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}(),
 			validationError: platform.ErrIngressHostPathInUse.Error(),
 		},
+		{
+			name: "ValidateFunctionsExistenceSanity",
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				return &apiGatewayConfig
+			}(),
+			upstreamFunctions: []*v1beta1.NuclioFunction{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "default-func-name",
+					},
+				},
+			},
+			validateFunctionsExistence: true,
+		},
+		{
+			name: "ValidateFunctionsExistenceFailed",
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				return &apiGatewayConfig
+			}(),
+			validateFunctionsExistence: true,
+			validationError:            "Function default-func-name does not exists",
+		},
 	} {
 		suite.Run(testCase.name, func() {
+			defer suite.ResetCRDMocks()
 			if testCase.expectedEnrichedAPIGateway != nil {
 				if testCase.expectedEnrichedAPIGateway.Meta.Labels == nil {
 					testCase.expectedEnrichedAPIGateway.Meta.Labels = map[string]string{}
@@ -1562,7 +1672,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}
 
 			// run validation
-			err := suite.Platform.ValidateAPIGatewayConfig(testCase.apiGatewayConfig)
+			err := suite.Platform.validateAPIGatewayConfig(testCase.apiGatewayConfig,
+				testCase.validateFunctionsExistence,
+				nil)
 			if testCase.validationError != "" {
 				suite.Require().Error(err)
 				suite.Require().Equal(testCase.validationError, errors.RootCause(err).Error())
@@ -1580,12 +1692,6 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 }
 
 func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
-
-	// return empty api gateways list on enrichFunctionsWithAPIGateways (not tested here)
-	suite.nuclioAPIGatewayInterfaceMock.
-		On("List", metav1.ListOptions{}).
-		Return(&v1beta1.NuclioAPIGatewayList{}, nil)
-
 	for _, testCase := range []struct {
 		name                    string
 		updateAPIGatewayOptions func(baseAPIGatewayConfig *platform.APIGatewayConfig) *platform.UpdateAPIGatewayOptions
@@ -1603,7 +1709,8 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 				// modify a field
 				updateAPIGatewayOptions.APIGatewayConfig.Spec.Host = "update-me.com"
 				updateAPIGatewayOptions.APIGatewayConfig.Meta.Labels = map[string]string{
-					"newLabel": "label-value",
+					common.NuclioResourceLabelKeyProjectName: "some-test",
+					"newLabel":                               "label-value",
 				}
 				updateAPIGatewayOptions.APIGatewayConfig.Meta.Annotations = map[string]string{
 					"newAnnotation": "annotation-value",
@@ -1623,6 +1730,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      apiGatewayConfig.Meta.Name,
 						Namespace: apiGatewayConfig.Meta.Namespace,
+						Labels: map[string]string{
+							common.NuclioResourceLabelKeyProjectName: "some-test",
+						},
 					},
 					Spec:   apiGatewayConfig.Spec,
 					Status: apiGatewayConfig.Status,

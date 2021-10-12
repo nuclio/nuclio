@@ -1,13 +1,14 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/renderer"
@@ -28,25 +29,31 @@ func RenderFunctions(logger logger.Logger,
 	writer io.Writer,
 	renderCallback func(functions []platform.Function, renderer func(interface{}) error) error) error {
 
-	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(len(functions))
+	errGroup, _ := errgroup.WithContext(context.TODO(), logger)
+	var renderNodePort bool
 
 	// iterate over each function and make sure it's initialized
 	for _, function := range functions {
-		go func(function platform.Function) {
+		function := function
+		errGroup.Go("initialize function", func() error {
 			if err := function.Initialize(nil); err != nil {
 				logger.DebugWith("Failed to initialize function", "err", err.Error())
 			}
-			waitGroup.Done()
-		}(function)
+			if function.GetStatus().HTTPPort > 0 {
+				renderNodePort = true
+			}
+			return nil
+		})
 	}
-	waitGroup.Wait()
 
 	rendererInstance := renderer.NewRenderer(writer)
 
 	switch format {
 	case OutputFormatText, OutputFormatWide:
-		header := []string{"Namespace", "Name", "Project", "State", "Node Port", "Replicas"}
+		header := []string{"Namespace", "Name", "Project", "State", "Replicas"}
+		if renderNodePort {
+			header = append(header, "Node Port")
+		}
 		if format == OutputFormatWide {
 			header = append(header, []string{
 				"Labels",
@@ -67,8 +74,16 @@ func RenderFunctions(logger logger.Logger,
 				function.GetConfig().Meta.Name,
 				function.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 				encodeFunctionState(function),
-				strconv.Itoa(function.GetStatus().HTTPPort),
 				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),
+			}
+
+			if renderNodePort {
+				if function.GetStatus().HTTPPort > 0 {
+					nodePortStr := strconv.Itoa(function.GetStatus().HTTPPort)
+					functionFields = append(functionFields, nodePortStr)
+				} else {
+					functionFields = append(functionFields, "")
+				}
 			}
 
 			// add fields for wide view

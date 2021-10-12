@@ -10,7 +10,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.6.19-amd64
+    tag: 1.6.22-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -38,10 +38,10 @@ controller:
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
 
-  # Resync interval defines how often the Controller goes thru all functions in its cache and fires
-  # update again.
-  # Note: Changing to 0s means cancel resync mechanism completely.
-  resyncInterval: 10m
+  # Resync interval defines how often the Controller goes through all nuclio CRDs (functions, apigateways, etc)
+  #  in its cache and fires update again.
+  # Note: 0 means cancelling resync mechanism. any other value (e.g.: 10m) would turn it on.
+  resyncInterval: 0
 
   operator:
     function:
@@ -69,7 +69,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.6.19-amd64
+    tag: 1.6.22-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -230,12 +230,16 @@ dashboard:
       periodSeconds: 15
       failureThreshold: 4
 
+  # Uncomment to volumize pip ca cert
+  # Note: secret name must contain "pip-ca-certificates.crt" key
+  # pipCACertSecretName: secret-name
+
 autoscaler:
   enabled: false
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.6.19-amd64
+    tag: 1.6.22-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -264,7 +268,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.6.19-amd64
+    tag: 1.6.22-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -372,6 +376,7 @@ crd:
 platform: {}
 #  runtime:
 #    python:
+#      pipCAPath: /path/to/pip-ca-file.crt
 #      buildArgs:
 #        PIP_INDEX_URL: "https://test.pypi.org/simple"
 #   logger:

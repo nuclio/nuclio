@@ -647,7 +647,9 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 	p.enrichAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig, nil)
 
 	// validate
-	if err := p.ValidateAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig); err != nil {
+	if err := p.validateAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig,
+		createAPIGatewayOptions.ValidateFunctionsExistence,
+		nil); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich an API-gateway name")
 	}
 
@@ -679,8 +681,10 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	p.enrichAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig, apiGateway)
 
 	// validate
-	if err := p.ValidateAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig); err != nil {
-		return errors.Wrap(err, "Failed to validate and enrich an API-gateway name")
+	if err := p.validateAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig,
+		updateAPIGatewayOptions.ValidateFunctionsExistence,
+		apiGateway); err != nil {
+		return errors.Wrap(err, "Failed to validate api gateway")
 	}
 
 	apiGateway.Annotations = updateAPIGatewayOptions.APIGatewayConfig.Meta.Annotations
@@ -694,7 +698,7 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Update(apiGateway); err != nil {
-		return errors.Wrap(err, "Failed to update an API gateway")
+		return errors.Wrap(err, "Failed to update an api gateway")
 	}
 
 	return nil
@@ -791,15 +795,16 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
 func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
-	newFunctionEvent := nuclioio.NuclioFunctionEvent{}
-	p.platformFunctionEventToFunctionEvent(&createFunctionEventOptions.FunctionEventConfig, &newFunctionEvent)
 
 	if err := p.Platform.EnrichFunctionEvent(&createFunctionEventOptions.FunctionEventConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich function event")
 	}
 
-	functionName := newFunctionEvent.Labels[common.NuclioResourceLabelKeyFunctionName]
+	newFunctionEvent := nuclioio.NuclioFunctionEvent{}
+	p.platformFunctionEventToFunctionEvent(&createFunctionEventOptions.FunctionEventConfig, &newFunctionEvent)
+
 	projectName := newFunctionEvent.Labels[common.NuclioResourceLabelKeyProjectName]
+	functionName := newFunctionEvent.Labels[common.NuclioResourceLabelKeyFunctionName]
 
 	// Check OPA permissions
 	permissionOptions := createFunctionEventOptions.PermissionOptions
@@ -1276,10 +1281,12 @@ func (p *Platform) enrichAPIGatewayConfig(apiGatewayConfig *platform.APIGatewayC
 		apiGatewayConfig.Meta.Labels = map[string]string{}
 	}
 
-	// do not allow changing project name for existing api gateways
+	// enrich project name if not exists or value is empty
 	if existingApiGatewayConfig != nil {
-		apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] =
-			existingApiGatewayConfig.Labels[common.NuclioResourceLabelKeyProjectName]
+		if value, exist := apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]; value == "" || !exist {
+			apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] =
+				existingApiGatewayConfig.Labels[common.NuclioResourceLabelKeyProjectName]
+		}
 	}
 
 	p.EnrichLabelsWithProjectName(apiGatewayConfig.Meta.Labels)
@@ -1297,33 +1304,68 @@ func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGa
 	return nil
 }
 
-func (p *Platform) ValidateAPIGatewayConfig(platformAPIGateway *platform.APIGatewayConfig) error {
+func (p *Platform) validateAPIGatewayConfig(apiGateway *platform.APIGatewayConfig,
+	validateFunctionsExistence bool,
+	existingAPIGateway *nuclioio.NuclioAPIGateway) error {
 
 	// general validations
-	if platformAPIGateway.Spec.Name != platformAPIGateway.Meta.Name {
+	if apiGateway.Spec.Name != apiGateway.Meta.Name {
 		return nuclio.NewErrBadRequest("Api gateway metadata.name must match api gateway spec.name")
 	}
-	if common.StringInSlice(platformAPIGateway.Spec.Name, p.ResolveReservedResourceNames()) {
+
+	// not a reserved name
+	if common.StringInSlice(apiGateway.Spec.Name, p.ResolveReservedResourceNames()) {
 		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Api gateway name '%s' is reserved and cannot be used",
-			platformAPIGateway.Spec.Name))
+			apiGateway.Spec.Name))
 	}
 
 	// meta
-	if err := p.validateAPIGatewayMeta(&platformAPIGateway.Meta); err != nil {
+	if err := p.validateAPIGatewayMeta(&apiGateway.Meta); err != nil {
 		return errors.Wrap(err, "Failed to validate API-gateway metadata")
 	}
 
 	// spec
-	if err := ValidateAPIGatewaySpec(&platformAPIGateway.Spec); err != nil {
+	if err := ValidateAPIGatewaySpec(&apiGateway.Spec); err != nil {
 		return errors.Wrap(err, "Failed to validate the API-gateway spec")
 	}
 
-	return p.validateAPIGatewayIngresses(platformAPIGateway)
+	if existingAPIGateway != nil {
+		if existingAPIGateway.Labels[common.NuclioResourceLabelKeyProjectName] !=
+			apiGateway.Meta.Labels[common.NuclioResourceLabelKeyProjectName] {
+			return nuclio.NewErrBadRequest("Changing project name to an existing api gateway is not allowed")
+		}
+	}
+
+	upstreamFunctions, err := p.getAPIGatewayUpstreamFunctions(apiGateway, validateFunctionsExistence)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get api gateway upstream functions")
+	}
+
+	// validate APIGateway functions have no ingresses
+	for _, upstreamFunction := range upstreamFunctions {
+		ingresses := functionconfig.GetFunctionIngresses(upstreamFunction.GetConfig())
+		if len(ingresses) > 0 {
+			return nuclio.NewErrPreconditionFailed(
+				fmt.Sprintf("Api gateway upstream function: %s must not have an ingress",
+					upstreamFunction.GetConfig().Meta.Name))
+		}
+	}
+
+	// ingresses
+	if err := p.validateAPIGatewayIngresses(apiGateway); err != nil {
+		return errors.Wrap(err, "Failed to validate ingresses")
+	}
+
+	return nil
 }
 
 func (p *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config) error {
 	if err := p.Platform.ValidateFunctionConfig(functionConfig); err != nil {
 		return err
+	}
+
+	if err := p.validateServiceType(functionConfig); err != nil {
+		return errors.Wrap(err, "Service type validation failed")
 	}
 
 	return p.validateFunctionIngresses(functionConfig)
@@ -1341,13 +1383,23 @@ func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfi
 	return nil
 }
 
+func (p *Platform) validateServiceType(functionConfig *functionconfig.Config) error {
+	serviceType := functionconfig.ResolveFunctionServiceType(&functionConfig.Spec, p.Config.Kube.DefaultServiceType)
+	switch serviceType {
+	case "":
+
+		// empty means - let it be enriched by default
+		return nil
+	case v1.ServiceTypeNodePort, v1.ServiceTypeClusterIP:
+		return nil
+	default:
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported service type %s", serviceType))
+	}
+}
+
 func (p *Platform) enrichHTTPTriggers(functionConfig *functionconfig.Config) error {
 
-	// for backwards compatibility
-	serviceType := functionConfig.Spec.ServiceType
-	if serviceType == "" {
-		serviceType = p.Config.Kube.DefaultServiceType
-	}
+	serviceType := functionconfig.ResolveFunctionServiceType(&functionConfig.Spec, p.Config.Kube.DefaultServiceType)
 
 	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
 		p.enrichTriggerWithServiceType(functionConfig, &trigger, serviceType)
@@ -1395,9 +1447,6 @@ func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.C
 }
 
 func (p *Platform) validateAPIGatewayIngresses(apiGatewayConfig *platform.APIGatewayConfig) error {
-	if err := p.validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig); err != nil {
-		return errors.Wrap(err, "Failed to validate: API-gateway functions have no ingresses")
-	}
 
 	// create a map to be used for ingress host and path-availability validation
 	apiGatewayIngresses := map[string]functionconfig.Ingress{
@@ -1501,36 +1550,6 @@ func (p *Platform) validateIngressHostAndPathAvailability(listIngressesOptions m
 	return nil
 }
 
-func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *platform.APIGatewayConfig) error {
-
-	// check ingresses on every upstream function
-	errGroup, _ := errgroup.WithContext(context.TODO(), p.Logger)
-	for _, upstream := range apiGatewayConfig.Spec.Upstreams {
-		upstream := upstream
-		errGroup.Go("GetFunctionIngresses", func() error {
-			function, err := p.getFunction(apiGatewayConfig.Meta.Namespace, upstream.NuclioFunction.Name)
-			if err != nil {
-				return errors.New("Failed to get upstream function")
-			}
-			if function == nil {
-
-				// if such function doesn't exist, just skip - because it doesn't have ingresses for sure
-				return nil
-			}
-
-			ingresses := functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))
-			if len(ingresses) > 0 {
-				return nuclio.NewErrPreconditionFailed(
-					fmt.Sprintf("Api gateway upstream function: %s must not have an ingress",
-						upstream.NuclioFunction.Name))
-			}
-			return nil
-		})
-	}
-
-	return errGroup.Wait()
-}
-
 // validate that a function is not exposed inside http triggers, while it is also exposed by an api gateway
 // this is done to prevent the nginx bug, where it is not working properly when the same service is exposed more than once
 // (e.g. when a service is exposed by an ingress with host-1.com without canary ingress, and on another api gateway with host-2.com
@@ -1630,4 +1649,41 @@ func (p *Platform) alignIngressHostSubdomainLevel(host string, randomCharsLength
 		reconstructedHost = append(reconstructedHost, fmt.Sprintf("%s-%s", truncatedHostLevel, randomSuffix))
 	}
 	return strings.Join(reconstructedHost, ".")
+}
+
+func (p *Platform) getAPIGatewayUpstreamFunctions(apiGateway *platform.APIGatewayConfig,
+	validateFunctionExistence bool) ([]platform.Function, error) {
+	var upstreamFunctions []platform.Function
+
+	// get upstream functions
+	errGroup, _ := errgroup.WithContext(context.TODO(), p.Logger)
+	for _, upstream := range apiGateway.Spec.Upstreams {
+		upstream := upstream
+		errGroup.Go("GetUpstreamFunction", func() error {
+			function, err := p.getFunction(apiGateway.Meta.Namespace, upstream.NuclioFunction.Name)
+			if err != nil {
+				return errors.New("Failed to get upstream function")
+			}
+			if function == nil {
+				if validateFunctionExistence {
+					return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function %s does not exists",
+						upstream.NuclioFunction.Name))
+				}
+				return nil
+			}
+
+			functionInstance, err := client.NewFunction(p.Logger, p, function, p.consumer)
+			if err != nil {
+				return errors.Wrap(err, "Failed to initialize function")
+			}
+
+			upstreamFunctions = append(upstreamFunctions, functionInstance)
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return nil, errors.Wrap(err, "Failed to get upstream functions")
+	}
+	return upstreamFunctions, nil
 }

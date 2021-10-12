@@ -745,9 +745,6 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 					Annotations: podAnnotations,
 				},
 				Spec: v1.PodSpec{
-					ImagePullSecrets: []v1.LocalObjectReference{
-						{Name: imagePullSecrets},
-					},
 					Containers: []v1.Container{
 						container,
 					},
@@ -761,6 +758,13 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 					PreemptionPolicy:   function.Spec.PreemptionPolicy,
 				},
 			},
+		}
+
+		// apply when provided
+		if imagePullSecrets != "" {
+			deploymentSpec.Template.Spec.ImagePullSecrets = []v1.LocalObjectReference{
+				{Name: imagePullSecrets},
+			}
 		}
 
 		deployment := &appsv1.Deployment{
@@ -1414,7 +1418,9 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 		spec.Selector = functionLabels
 	}
 
-	spec.Type = lc.resolveFunctionServiceType(function)
+	spec.Type = functionconfig.ResolveFunctionServiceType(
+		&function.Spec,
+		lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultServiceType)
 	serviceTypeIsNodePort := spec.Type == v1.ServiceTypeNodePort
 	functionHTTPPort := function.Spec.GetHTTPPort()
 
@@ -2120,27 +2126,6 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	default:
 		return ""
 	}
-}
-
-func (lc *lazyClient) resolveFunctionServiceType(function *nuclioio.NuclioFunction) v1.ServiceType {
-	functionHTTPTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "http")
-
-	// if the http trigger has a configured service type, return that.
-	for _, trigger := range functionHTTPTriggers {
-		if serviceTypeInterface, serviceTypeExists := trigger.Attributes["serviceType"]; serviceTypeExists {
-			if serviceType, serviceTypeIsString := serviceTypeInterface.(string); serviceTypeIsString {
-				return v1.ServiceType(serviceType)
-			}
-		}
-	}
-
-	// otherwise, if the function spec has a service type, return that (for backwards compatibility)
-	if function.Spec.ServiceType != "" {
-		return function.Spec.ServiceType
-	}
-
-	// otherwise return platform default
-	return lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultServiceType
 }
 
 //
