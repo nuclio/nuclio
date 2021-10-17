@@ -157,32 +157,6 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		return
 	}
 
-	// TODO: Add a lock to prevent race conditions here
-	// validate the function exists
-	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Name:        functionInfo.Meta.Name,
-		Namespace:   fr.resolveNamespace(request, functionInfo),
-		AuthSession: fr.getCtxSession(request),
-		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
-			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
-		},
-	})
-	if err != nil {
-		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
-		return
-	}
-	if len(functions) == 0 {
-		responseErr = nuclio.NewErrNotFound("Cannot update non existing function")
-		return
-	}
-
-	if err = fr.validateUpdateInfo(functionInfo, functions[0]); err != nil {
-		responseErr = nuclio.WrapErrBadRequest(errors.Wrap(err, "Requested update fields are invalid"))
-		return
-	}
-
 	// get the authentication configuration for the request
 	authConfig, responseErr := fr.getRequestAuthConfig(request)
 	if responseErr != nil {
@@ -510,18 +484,6 @@ func (fr *functionResource) resolveNamespace(request *http.Request, function *fu
 		return namespace
 	}
 	return function.Meta.Namespace
-}
-
-func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, function platform.Function) error {
-
-	// in the imported state, after the function has the skip-build and skip-deploy annotations removed,
-	// if the user tries to disable the function, it will in turn build and deploy the function and then disable it.
-	// so here we don't allow users to disable an imported function.
-	if functionInfo.Spec.Disable && function.GetStatus().State == functionconfig.FunctionStateImported {
-		return errors.New("Failed to disable function: non-deployed functions cannot be disabled")
-	}
-
-	return nil
 }
 
 func (fr *functionResource) getFunction(request *http.Request, name string) (platform.Function, error) {
