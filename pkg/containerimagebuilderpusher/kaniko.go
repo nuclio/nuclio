@@ -373,8 +373,17 @@ func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTim
 			return nil
 		}
 		if runningJob.Status.Failed > 0 {
-			k.logger.WarnWith("Build container image job has failed", "jobName", jobName)
-			jobLogs, err := k.getJobPodLogs(jobName, namespace)
+			jobPod, err := k.getJobPod(jobName, namespace)
+			if err != nil {
+				return errors.Wrap(err, "Failed to get job pod")
+			}
+			k.logger.WarnWith("Build container image job has failed",
+				"reason", jobPod.Status.Reason,
+				"message", jobPod.Status.Message,
+				"phase", jobPod.Status.Phase,
+				"jobName", jobName)
+
+			jobLogs, err := k.getPodLogs(jobPod)
 			if err != nil {
 				k.logger.WarnWith("Failed to get job logs", "err", err.Error())
 				return errors.Wrap(err, "Failed to retrieve kaniko job logs")
@@ -383,12 +392,23 @@ func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTim
 		}
 
 		k.logger.DebugWith("Waiting for job completion",
-			"ttl", timeout.Sub(time.Now()),
+			"ttl", time.Until(timeout),
 			"jobName", jobName)
 		time.Sleep(10 * time.Second)
 	}
 
-	jobLogs, err := k.getJobPodLogs(namespace, jobName)
+	jobPod, err := k.getJobPod(jobName, namespace)
+	if err != nil {
+		return errors.Wrap(err, "Job failed and was unable to get job pod")
+	}
+
+	k.logger.WarnWith("Build container image job has timed out",
+		"reason", jobPod.Status.Reason,
+		"message", jobPod.Status.Message,
+		"phase", jobPod.Status.Phase,
+		"jobName", jobName)
+
+	jobLogs, err := k.getPodLogs(jobPod)
 	if err != nil {
 		return errors.Wrap(err, "Job failed and was unable to retrieve job logs")
 	}
