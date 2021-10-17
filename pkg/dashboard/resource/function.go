@@ -125,7 +125,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		},
 	})
 	if err != nil {
-		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
+		responseErr = errors.Wrap(err, "Failed to get functions")
 		return
 	}
 	if len(functions) > 0 {
@@ -468,7 +468,7 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	// read body
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
-		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
+		return nil, errors.Wrap(err, "Failed to read body")
 	}
 
 	functionInfoInstance := functionInfo{}
