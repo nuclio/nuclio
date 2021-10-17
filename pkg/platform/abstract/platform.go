@@ -286,17 +286,17 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
 		return errors.New("Non existing function cannot be created with neverBuild mode")
 	}
 
-	// in the imported state, after the function has the skip-build and skip-deploy annotations removed,
-	// if the user tries to disable the function, it will in turn build and deploy the function and then disable it.
-	// so here we don't allow users to disable an imported function.
-	if createFunctionOptions.FunctionConfig.Spec.Disable &&
-		existingFunctionConfig.Status.State == functionconfig.FunctionStateImported {
-		return errors.New("Failed to disable function: non-deployed functions cannot be disabled")
-	}
-
 	// validate resource version
 	if err := ap.ValidateResourceVersion(existingFunctionConfig, &createFunctionOptions.FunctionConfig); err != nil {
 		return nuclio.WrapErrConflict(err)
+	}
+
+	// do not allow disabling a function in imported state
+	// in the imported state, after the function has the skip-build and skip-deploy annotations removed,
+	// if the user tries to disable the function, it will in turn build and deploy the function and then disable it.
+	if createFunctionOptions.FunctionConfig.Spec.Disable &&
+		existingFunctionConfig.Status.State == functionconfig.FunctionStateImported {
+		return errors.New("Failed to disable function: non-deployed functions cannot be disabled")
 	}
 
 	// do not allow disabling a function being used by an api gateway
